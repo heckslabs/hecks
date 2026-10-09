@@ -30,6 +30,7 @@ module Hecks
           ["Aggregate", "given"] => :given_impl,
           ["Aggregate", "projects"] => :projects_impl,
           ["Lifecycle", "transition"] => :transition_impl,
+          ["Lifecycle", "mark"] => :mark_impl,
           ["Bluebook", "attaches_to"] => :attaches_to_impl,
           ["Bluebook", "provides"] => :provides_impl,
           ["Bluebook", "aggregate"] => :aggregate_impl,

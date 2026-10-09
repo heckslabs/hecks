@@ -167,6 +167,7 @@ RSpec.describe "the declared syntax" do
       group_by_impl:      "ReadModelBuilder's own real implementation, called by GenericDispatch's calls:",
       percentile_impl:    "ReadModelBuilder's own real implementation, called by GenericDispatch's calls:",
       transition_impl:    "the owning builder's own real implementation, called by GenericDispatch's calls:",
+      mark_impl:          "LifecycleBuilder's own real implementation, called by GenericDispatch's calls:",
       starts_on_impl:     "ProcessManagerBuilder's own real implementation, called by GenericDispatch's calls:",
       ends_on_impl:       "ProcessManagerBuilder's own real implementation, called by GenericDispatch's calls:",
       tells_impl:         "DomainPortBuilder's own real implementation, called by GenericDispatch's calls: " \

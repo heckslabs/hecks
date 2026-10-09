@@ -1701,7 +1701,11 @@
     "initiate": "Payments::Payment.Initiate",
     "succeeded": "Payments::Payment.PaymentGateway.Succeeded",
     "failed": "Payments::Payment.PaymentGateway.Failed",
-    "aggregate": "Payments::Payment"
+    "aggregate": "Payments::Payment",
+    "holds_seat": [
+      "pending",
+      "succeeded"
+    ]
   },
   "registrations": {
     "provider": "CheckoutFixture",

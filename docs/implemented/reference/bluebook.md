@@ -189,7 +189,7 @@ merged table and cannot tell a core row from an attached one.
 ## provides
 
 <!-- generated:begin word=provides -->
-`provides provides, assignments:, grant:, transitions:, admit:, people:, register:, link:, resolve:, subscribe:, add_name:, confirm:, unsubscribe:, initiate:, succeeded:, failed:, send_issue:, record_delivery:, schedule:, request:, connect:, reconnect:, disconnect:, suspend:, resume:, enable:, disable:` — fills `provides`
+`provides provides, assignments:, grant:, transitions:, admit:, people:, register:, link:, resolve:, subscribe:, add_name:, confirm:, unsubscribe:, awaiting_confirmation:, receives_issues:, left:, confirm_window:, unsubscribe_window:, webhook_tolerance:, session_hold:, initiate:, succeeded:, failed:, holds_seat:, send_issue:, record_delivery:, schedule:, request:, connect:, reconnect:, disconnect:, suspend:, resume:, enable:, disable:` — fills `provides`
 
 | argument | kind | required | fills |
 |---|---|---|---|
@@ -206,9 +206,17 @@ merged table and cannot tell a core row from an attached one.
 | `add_name:` | text | false | provides |
 | `confirm:` | text | false | provides |
 | `unsubscribe:` | text | false | provides |
+| `awaiting_confirmation:` | text | false | provides |
+| `receives_issues:` | text | false | provides |
+| `left:` | text | false | provides |
+| `confirm_window:` | text | false | provides |
+| `unsubscribe_window:` | text | false | provides |
+| `webhook_tolerance:` | text | false | provides |
+| `session_hold:` | text | false | provides |
 | `initiate:` | text | false | provides |
 | `succeeded:` | text | false | provides |
 | `failed:` | text | false | provides |
+| `holds_seat:` | text | false | provides |
 | `send_issue:` | text | false | provides |
 | `record_delivery:` | text | false | provides |
 | `schedule:` | text | false | provides |
@@ -246,6 +254,25 @@ runtime.registry.bluebook("Governance").provided_verb("authorization", :assignme
 runtime.registry.authorization_provider_for("Banking").name  # => "Governance"
 runtime.registry.bluebook("Ledgering").provides  # => []
 ```
+
+A capability can also name a quantity the host needs (ADR 0098). A `:duration`
+entry is spelled `Aggregate.attribute` and resolves to the whole-seconds
+`default:` of that attribute, so the number is declared once, in the bluebook.
+`provides "newsletter"` takes optional `confirm_window:` and `unsubscribe_window:`
+(the lifetimes of the emailed links), and `provides "checkout"` takes optional
+`webhook_tolerance:` and `session_hold:`:
+
+```text
+value_object "Seconds" do
+  attribute :value, Integer
+end
+attribute :hold, Seconds, default: { value: 1800 }   # 30 minutes
+
+provides "checkout", session_hold: "CheckoutSession.hold"
+```
+
+A chapter that names an attribute that does not exist, or whose default is not a
+positive whole number of seconds, is refused when it is built.
 
 ## core
 

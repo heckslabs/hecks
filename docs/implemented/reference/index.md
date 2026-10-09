@@ -6,7 +6,7 @@ the prose between the generated markers is hand-written and
 survives regeneration.
 
 - [Aggregate](aggregate.md) — 17 words
-- [Lifecycle](lifecycle.md) — 1 word
+- [Lifecycle](lifecycle.md) — 2 words
 - [File](file.md) — 6 words
 - [Bluebook](bluebook.md) — 12 words
 - [Command](command.md) — 14 words

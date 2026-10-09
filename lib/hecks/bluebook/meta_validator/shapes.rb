@@ -86,6 +86,10 @@ module Hecks
           }
         end
 
+        def mark(row)
+          { name: text(row[:name]), state: text(row[:state]) }
+        end
+
         def head(row)
           {
             aggregate: text(row[:aggregate]),

@@ -49,7 +49,7 @@ module Hecks
             # this entity rather than the aggregate's flat state.
             invariants:    [:invariants,    [:each, :invariant]]
           },
-          rows: { transitions: :transition_rows, identified_by: :identity_rows },
+          rows: { transitions: :transition_rows, marks: :mark_rows, identified_by: :identity_rows },
           reads: { identified_by: [:each, :identity_path], attributes: [:each, :shape_field],
                    preconditions: [:each, :rule], invariants: [:each, :rule] },
           derived: {
@@ -57,7 +57,8 @@ module Hecks
             owner:       :parent,
             state_field: [:folded, :lifecycle, :field],
             state_start: [:folded, :lifecycle, :default],
-            transitions: [:folded, :lifecycle, :transitions]
+            transitions: [:folded, :lifecycle, :transitions],
+            marks:       [:folded, :lifecycle, :marks]
           }
         ),
 

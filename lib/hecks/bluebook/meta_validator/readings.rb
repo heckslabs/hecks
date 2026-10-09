@@ -57,6 +57,14 @@ module Hecks
           end
         end
 
+        # A mark names several states, so it expands into one row per state, in declared order.
+        def mark_rows(node)
+          lifecycle = node.respond_to?(:lifecycle) ? node.lifecycle : nil
+          return [] unless lifecycle
+
+          lifecycle.marks.flat_map { |name, states| states.map { |state| { name: name, state: state } } }
+        end
+
         # An open map has no value object to hold it, so each entry is its own row.
         def pair_rows(map)
           Array(map&.to_h).map { |key, value| { key: key, value: value } }

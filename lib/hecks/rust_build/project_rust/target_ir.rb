@@ -11,7 +11,7 @@ module Hecks
         # The optional attachments `rust/host` reads from `ir.json`, each omitted when nothing
         # attached provides it: exporter method, then the key it is written under.
         SEAMS = %i[authorization membership identity newsletter newsletter_issues payments
-                   registrations payment_connection].freeze
+                   registrations payment_connection checkout].freeze
 
         # Round-trips a value through JSON so generators see the string-keyed shape a real
         # `ir.json` carries, never live Ruby symbols.

@@ -48,6 +48,12 @@
   },
   {
     "kind": "command",
+    "id": "Bluebook::Aggregate.Mark",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
     "id": "Bluebook::Aggregate.Seal",
     "generated": true,
     "routed": true
@@ -226,6 +232,12 @@
   {
     "kind": "command",
     "id": "Bluebook::Entity.Transition",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Entity.Mark",
     "generated": true,
     "routed": true
   },

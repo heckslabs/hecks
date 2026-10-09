@@ -93,3 +93,66 @@ runtime.dispatch_flat("Banking::Account.CloseAccount", number: { value: "lc-a1" 
 Banking::Account.find("lc-a1").status  # => "closed"
 ```
 
+## mark
+
+<!-- generated:begin word=mark -->
+`mark name, state` — fills `marks`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | symbol | true | name |
+| positional 2 | text | true | state |
+<!-- generated:end -->
+
+Names a meaning and the states that carry it: `mark :holds_seat, "pending",
+"succeeded"`. A reader outside the domain (a host counting seats, a launcher
+deciding what counts as a failure) asks the lifecycle for the states instead
+of keeping its own copy of the list. The meaning is a lowercase word; every
+state must be the default or a transition target, and a state may be named
+once per mark. A lifecycle with no marks writes no `marks` into its IR.
+
+Any lifecycle can carry marks, on an aggregate or on a nested entity.
+
+```ruby
+payment = Hecks::Bluebook::DSL::LifecycleBuilder.build(:status, default: "pending") do
+  mark :holds_seat, "pending", "succeeded"
+  transition "Succeed" => "succeeded", from: "pending"
+end
+payment.marked(:holds_seat)  # => ["pending", "succeeded"]
+payment.to_h[:marks]  # => {"holds_seat"=>["pending", "succeeded"]}
+```
+
+A state the lifecycle does not have is refused when the lifecycle is built:
+
+```ruby
+Hecks::Bluebook::DSL::LifecycleBuilder.build(:status, default: "pending") { mark :holds_seat, "pending", "paid" }  # ~> Malformed: lifecycle :status mark :holds_seat names "paid", which is not a state of the lifecycle (states: pending)
+```
+
+
+A host reads a mark through a capability. The `payments` capability may add
+an optional `holds_seat: "Payment.holds_seat"` entry (spelled
+`Aggregate.mark_name`) to the chapter's `provides "payments"` row. It must name
+a mark declared on that aggregate's lifecycle, or the chapter is refused when it
+is built. The exported `ir.json` then carries the states in its `payments` fact
+as `holds_seat: ["pending", "succeeded"]`, and the Rust host counts seats from
+that list. A chapter that leaves the entry out exports exactly what it did
+before, and the host falls back to its built-in default list with one warning.
+
+The `newsletter` capability takes three such entries, all optional, over the
+subscriber's lifecycle: `awaiting_confirmation:` (states waiting for the emailed
+confirm link), `receives_issues:` (states that are sent each issue) and `left:`
+(states of someone who has unsubscribed):
+
+```text
+provides "newsletter",
+         subscribe: "Subscriber.Subscribe", add_name: "Subscriber.AddName",
+         confirm: "Subscriber.Confirm", unsubscribe: "Subscriber.Unsubscribe",
+         awaiting_confirmation: "Subscriber.awaiting_confirmation",
+         receives_issues:       "Subscriber.receives_issues",
+         left:                  "Subscriber.left"
+```
+
+Each is exported in the `newsletter` fact as a state list. The host falls back
+per mark to `pending`, `confirmed` and `unsubscribed` with one warning when a
+chapter leaves it out.
+

@@ -51,6 +51,15 @@ if [ -n "$PUSHED_REFS" ]; then
   fi
 fi
 
+# The hook gates `main`. A push that names no ref on `main` (a feature branch, a note) skips every
+# check, the style checks included.
+if [ -n "$PUSHED_REFS" ]; then
+  if ! printf '%s\n' "$PUSHED_REFS" | awk '$3 == "refs/heads/main" { found = 1 } END { exit !found }'; then
+    printf '[pre-push] no pushed ref is main — skipping all checks.\n\n'
+    exit 0
+  fi
+fi
+
 # The slow suite is opt-in: a push runs only the `unguarded_push` stage (rubocop and the comment-style
 # checks, seconds), since CI runs every other check on the pushed commit. HECKS_PRE_PUSH_GATE=1 runs
 # the whole `pre_push` stage and, when green, writes the attestation note that lets CI skip its checks.

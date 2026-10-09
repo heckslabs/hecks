@@ -1090,6 +1090,18 @@ pub(crate) fn parse_identified_by(
     }
 }
 
+/// The N'th positional as a symbol name (`:holds_seat` gives `holds_seat`).
+pub(crate) fn positional_symbol_raw(
+    file: &str,
+    line: usize,
+    word: &str,
+    args: &ArgumentGateResult,
+    at: usize,
+) -> ParseResult<String> {
+    let raw = positional_raw(file, line, word, args, at)?;
+    positional_symbol_text(file, line, word, raw)
+}
+
 /// Symbol name for one raw positional token, for variadic callers such as `identified_by`.
 fn positional_symbol_text(file: &str, line: usize, word: &str, raw: &str) -> ParseResult<String> {
     let trimmed = raw.trim();

@@ -22,7 +22,22 @@ subscribe form, event registration and checkout, the payment webhook, the seat
 reads below, and the `/payments/connection` API. It must equal `HECKS_DOMAIN`
 exactly. Set to anything else, or unset, none of those routes exist and the host
 answers them as unknown paths. The registration, checkout and seat routes are
-also served only when the domain's IR declares `provides "payments"`.
+also served only when the domain's IR declares `provides "payments"`. The payment
+states that still hold a seat come from the `holds_seat` list of that `payments` fact,
+declared as `holds_seat: "Payment.holds_seat"` over a lifecycle `mark :holds_seat`; a
+chapter that omits it gets the host's built-in default list and one warning.
+The newsletter routes work the same way: the `newsletter` fact's
+`awaiting_confirmation`, `receives_issues` and `left` lists (lifecycle marks the
+chapter names in `provides "newsletter"`) say which subscriber states await the
+confirm link, receive issues and count as left; a mark the chapter omits falls
+back to `pending`, `confirmed` or `unsubscribed` with one warning.
+The windows work the same way (ADR 0098): the `newsletter` fact's `confirm_window` and
+`unsubscribe_window` (seconds, from `provides "newsletter"`) set how long the emailed confirm
+and unsubscribe links live, and the `checkout` fact's `webhook_tolerance` and `session_hold`
+(from `provides "checkout"`) set how fresh a signed payment webhook must be and how long a
+session holds its seat. A window the chapter omits falls back to 14 days, 730 days, 5 minutes
+or 30 minutes with one warning. The payment processor's own 31-minute minimum session expiry is
+applied by the host on top of the domain's hold.
 
 | variable | default | meaning |
 | --- | --- | --- |

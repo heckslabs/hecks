@@ -523,6 +523,75 @@ if !unknown.is_empty() {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct Mark {
+    pub name: String,
+    pub state: String,
+}
+
+impl crate::kernel::Fielded for Mark {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "name" => Some(Field::Value(Value::Str(self.name.clone()))),
+            "state" => Some(Field::Value(Value::Str(self.state.clone()))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
+}
+
+
+impl Mark {
+    pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
+
+        Ok(())
+    }
+}
+
+impl Mark {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("name".to_string(), crate::kernel::Json::Str(self.name.clone())),
+        ("state".to_string(), crate::kernel::Json::Str(self.state.clone())),
+        ])
+    }
+}
+
+impl Mark {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("Mark expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["name", "state"]);
+if !unknown.is_empty() {
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Mark",
+        unknown: &unknown,
+        declared: &["name", "state"],
+    }.render_args()));
+}
+        Ok(Self {
+        name: { let x = v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Mark.name expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("Mark.name expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Mark.name: expected String".to_string()) })? },
+        state: { let x = v.get("state").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Mark.state expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("Mark.state expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Mark.state: expected String".to_string()) })? },
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Rule {
     pub description: Option<String>,
     pub canonical: String,
@@ -1066,6 +1135,7 @@ pub const KEYWORD_SEED: &[KeywordSeed] = &[
     KeywordSeed { word: "given", context: "Aggregate", body: "source", inner: "", opens: "", fills: "preconditions", status: "admitted", was: "", resolves_via: "owner_keyed", disambiguator: "declared_by" },
     KeywordSeed { word: "projects", context: "Aggregate", body: "none", inner: "", opens: "", fills: "projected_fields", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordSeed { word: "transition", context: "Lifecycle", body: "none", inner: "", opens: "", fills: "transitions", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordSeed { word: "mark", context: "Lifecycle", body: "none", inner: "", opens: "", fills: "marks", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
 ];
 
 impl KeywordSeed {
@@ -1155,6 +1225,8 @@ pub const ARGUMENT_SEED: &[ArgumentSeed] = &[
     ArgumentSeed { keyword: "transition", context: "Lifecycle", at: "1", named: "", kind: "pairs", required: "true", fills: "", selects: "", pair_key_fills: "command", pair_value_fills: "to_state", pairs_shape: "fields", status: "admitted", variadic: "", minimum: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "transition", context: "Lifecycle", at: "", named: "from", kind: "text", required: "false", fills: "from_state", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", minimum: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "transition", context: "Lifecycle", at: "", named: "from", kind: "list", required: "false", fills: "from_state", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", minimum: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "mark", context: "Lifecycle", at: "1", named: "", kind: "symbol", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", minimum: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "mark", context: "Lifecycle", at: "2", named: "", kind: "text", required: "true", fills: "state", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "true", minimum: "", coerce: "", blank_message: "" },
 ];
 
 impl ArgumentSeed {
@@ -1201,6 +1273,7 @@ pub struct Aggregate {
     pub state_field: Option<IdentityField>,
     pub state_start: Option<IdentityField>,
     pub transitions: Vec<Transition>,
+    pub marks: Vec<Mark>,
     pub invariants: Vec<Rule>,
     pub preconditions: Vec<Rule>,
     pub projected_fields: Vec<ProjectedField>,
@@ -1221,6 +1294,7 @@ impl crate::kernel::Fielded for Aggregate {
             "state_field" => self.state_field.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "state_start" => self.state_start.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "transitions" => Some(Field::Value(Value::List(self.transitions.len()))),
+            "marks" => Some(Field::Value(Value::List(self.marks.len()))),
             "invariants" => Some(Field::Value(Value::List(self.invariants.len()))),
             "preconditions" => Some(Field::Value(Value::List(self.preconditions.len()))),
             "projected_fields" => Some(Field::Value(Value::List(self.projected_fields.len()))),
@@ -1237,6 +1311,7 @@ impl crate::kernel::Fielded for Aggregate {
             "attributes" => Some(self.attributes.iter().map(|v| Field::Nested(v)).collect()),
             "value_objects" => Some(self.value_objects.iter().map(|v| Field::Nested(v)).collect()),
             "transitions" => Some(self.transitions.iter().map(|v| Field::Nested(v)).collect()),
+            "marks" => Some(self.marks.iter().map(|v| Field::Nested(v)).collect()),
             "invariants" => Some(self.invariants.iter().map(|v| Field::Nested(v)).collect()),
             "preconditions" => Some(self.preconditions.iter().map(|v| Field::Nested(v)).collect()),
             "projected_fields" => Some(self.projected_fields.iter().map(|v| Field::Nested(v)).collect()),
@@ -1262,6 +1337,7 @@ impl Aggregate {
         ("state_field".to_string(), self.state_field.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("state_start".to_string(), self.state_start.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("transitions".to_string(), crate::kernel::Json::Array(self.transitions.iter().map(|x| x.to_json()).collect())),
+        ("marks".to_string(), crate::kernel::Json::Array(self.marks.iter().map(|x| x.to_json()).collect())),
         ("invariants".to_string(), crate::kernel::Json::Array(self.invariants.iter().map(|x| x.to_json()).collect())),
         ("preconditions".to_string(), crate::kernel::Json::Array(self.preconditions.iter().map(|x| x.to_json()).collect())),
         ("projected_fields".to_string(), crate::kernel::Json::Array(self.projected_fields.iter().map(|x| x.to_json()).collect())),
@@ -1286,6 +1362,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
         state_field: match v.get("state_field") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(IdentityField::from_json(&x.coerce_single_field("value"))?), },
         state_start: match v.get("state_start") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(IdentityField::from_json(&x.coerce_single_field("value"))?), },
         transitions: match v.get("transitions").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Transition::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        marks: match v.get("marks").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Mark::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         invariants: match v.get("invariants").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Rule::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         preconditions: match v.get("preconditions").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Rule::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         projected_fields: match v.get("projected_fields").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(ProjectedField::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
@@ -1406,6 +1483,7 @@ pub fn dispatch_declare(
             state_field: None,
             state_start: None,
             transitions: vec![],
+            marks: vec![],
             invariants: vec![],
             preconditions: vec![],
             projected_fields: vec![],
@@ -1427,6 +1505,7 @@ pub fn dispatch_declare(
             state_field: None,
             state_start: None,
             transitions: vec![],
+            marks: vec![],
             invariants: vec![],
             preconditions: vec![],
             projected_fields: vec![],
@@ -2551,6 +2630,153 @@ if !absent.is_empty() {
         command: "Transition",
         absent: &absent,
         declared: &["command", "from_state", "to_state"],
+    }.render_args()));
+}
+        Ok(())
+    }
+}
+
+impl crate::kernel::Fielded for MarkArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        
+        match name {
+            "name" => Some(Field::Nested(&self.name)),
+            "state" => Some(Field::Nested(&self.state)),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct MarkArgs {
+    pub name: FieldName,
+    pub state: FieldName,
+}
+
+pub fn dispatch_mark(
+    repo: &mut impl crate::kernel::Repository<Aggregate>, id: &str, args: MarkArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
+) -> crate::kernel::DispatchResult<Aggregate> {
+        args.name.check_invariants()?;
+        args.state.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, AGGREGATE_PROJECTED_FIELDS);
+
+    crate::kernel::dispatch(
+        repo,
+        crate::kernel::Hydrate::Act { id: id.to_string() },
+        "Mark",
+        "Bluebook::Aggregate",
+        "Aggregate",
+        "bluebook, name.value",
+        &with_references,
+        &[
+
+        ],
+        None,
+        |record| {
+        record.marks.push(Mark { name: args.name.value.clone(), state: args.state.value.clone() });
+            Ok(())
+        },
+        &[
+
+        ],
+        &aggregate_invariants(),
+        &["MarkAttached"],
+        args.to_json(),
+        mutations,
+        seed_projections,
+        tenant_boundary_check,
+    )
+}
+
+impl MarkArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![        ("name".to_string(), self.name.to_json()),
+        ("state".to_string(), self.state.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
+    }
+}
+
+impl MarkArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("MarkArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["name", "state", "id", "bluebook"]);
+if !unknown.is_empty() {
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Mark",
+        unknown: &unknown,
+        declared: &["name", "state"],
+    }.render_args()));
+}
+let absent: Vec<&str> = ["name", "state"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Mark",
+        absent: &absent,
+        declared: &["name", "state"],
+    }.render_args()));
+}
+        let name = FieldName::from_json(&(match v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("MarkArgs.name expects FieldName, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
+        name.check_invariants()?;
+        let state = FieldName::from_json(&(match v.get("state").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("MarkArgs.state expects FieldName, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
+        state.check_invariants()?;
+        Ok(Self {
+        name,
+        state,
+        })
+    }
+}
+
+impl MarkArgs {
+    pub fn decode_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("MarkArgs expects an object, got {}", v.inspect())));
+}
+        Ok(())
+    }
+
+    pub fn refuse_unknown_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["name", "state", "id", "bluebook"]);
+if !unknown.is_empty() {
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Mark",
+        unknown: &unknown,
+        declared: &["name", "state"],
+    }.render_args()));
+}
+        Ok(())
+    }
+
+    pub fn refuse_absent_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+let absent: Vec<&str> = ["name", "state"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Mark",
+        absent: &absent,
+        declared: &["name", "state"],
     }.render_args()));
 }
         Ok(())

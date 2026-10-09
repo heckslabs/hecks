@@ -38,17 +38,36 @@ export const singular = (name: string): string => humanize(name);
 const IRREGULAR: Record<string, string> = {
   set: "set", put: "put", send: "sent", make: "made", undo: "undone", redo: "redone", show: "shown", withdraw: "withdrawn",
   draw: "drawn", hide: "hidden", write: "written", take: "taken", give: "given", keep: "kept", read: "read", pay: "paid", sell: "sold",
+  begin: "begun", run: "run", get: "got", find: "found", build: "built", choose: "chosen", leave: "left", hold: "held", lose: "lost",
+  break: "broken", bring: "brought", cut: "cut", shut: "shut", split: "split", lay: "laid", say: "said", spend: "spent", lend: "lent",
+  bind: "bound", wind: "wound", know: "known", grow: "grown", throw: "thrown", see: "seen", do: "done", go: "gone", have: "had",
 };
 
-const DOUBLED = new Set(["submit", "admit", "plan", "drop", "ship", "stop", "skip", "tag", "pin", "refer", "transfer", "permit"]);
+const DOUBLED = new Set([
+  "submit", "admit", "commit", "omit", "plan", "drop", "ship", "stop", "skip", "tag", "pin", "log", "map", "ban", "trim", "wrap",
+  "grab", "strip", "refer", "transfer", "permit", "equip", "occur", "defer", "prefer",
+]);
 
-/** The past participle of a verb: "publish" is "published", "submit" is "submitted". */
+const PREFIXES = ["re", "un", "over", "out", "pre", "mis"];
+
+/** The irregular participle of `verb`, or of the verb under a prefix ("reset" is "set" again), or undefined. */
+function irregular(verb: string): string | undefined {
+  if (Object.hasOwn(IRREGULAR, verb)) return IRREGULAR[verb];
+  const prefix = PREFIXES.find((one) => verb.startsWith(one) && Object.hasOwn(IRREGULAR, verb.slice(one.length)));
+  return prefix ? `${prefix}${IRREGULAR[verb.slice(prefix.length)]}` : undefined;
+}
+
+/** The past participle of a verb: "publish" is "published", "submit" is "submitted", "begin" is "begun", "cancel" is "canceled". */
 export function past(verb: string): string {
-  if (IRREGULAR[verb]) return IRREGULAR[verb];
+  const odd = irregular(verb);
+  if (odd) return odd;
   if (verb.endsWith("e")) return `${verb}d`;
   if (/[^aeiou]y$/.test(verb)) return `${verb.slice(0, -1)}ied`;
   return DOUBLED.has(verb) ? `${verb}${verb.slice(-1)}ed` : `${verb}ed`;
 }
+
+/** A word cut back to what its forms share: "schedule", "scheduled" and "scheduling" are all "schedul". */
+const stem = (word: string): string => word.replace(/(ing|ed|es|e|d|s)$/, "");
 
 /**
  * What a command's button says. A command named by one word acts on a thing the page already
@@ -59,8 +78,14 @@ export function commandLabel(agg: Aggregate, command: Command): string {
   return capital(command.creates && words.length === 1 ? `${words[0]} ${singular(agg.name)}` : words.join(" "));
 }
 
-/** What the notice says when the command has run, in the same verb as its button: "Published draft." */
+/**
+ * What the notice says when the command has run, in the same verb as its button: "Published draft."
+ * When the thing's name already starts with the verb ("Schedule" making a "scheduled action") the
+ * repeated word is dropped, so the notice reads "Scheduled action." and never "Scheduled scheduled action."
+ */
 export function done(agg: Aggregate, command: Command): string {
   const [verb, ...rest] = commandLabel(agg, command).toLowerCase().split(" ");
-  return capital(`${[past(verb), ...rest].join(" ")}.`);
+  const repeated = rest.length > 0 && stem(rest[0]) === stem(verb);
+  const object = repeated ? rest.slice(1) : rest;
+  return capital(`${[past(verb), ...object].join(" ")}.`);
 }

@@ -20,9 +20,152 @@ pub struct NewsletterProvider {
     pub unsubscribe: String,
     /// Qualified subscribing aggregate, e.g. `Newsletter::Subscriber`.
     pub aggregate: String,
+    /// Subscriber states awaiting the emailed confirm link: the
+    /// `awaiting_confirmation` list of the `newsletter` fact (the lifecycle's
+    /// mark), or [`LEGACY_AWAITING_CONFIRMATION`] when the chapter declares none.
+    pub awaiting_confirmation: Vec<String>,
+    /// Subscriber states that receive each issue: the `receives_issues` list,
+    /// or [`LEGACY_RECEIVES_ISSUES`] when the chapter declares none.
+    pub receives_issues: Vec<String>,
+    /// Subscriber states of someone who has left: the `left` list, or
+    /// [`LEGACY_LEFT`] when the chapter declares none.
+    pub left: Vec<String>,
+    /// Seconds the emailed confirm link stays valid: the `confirm_window` of
+    /// the `newsletter` fact (ADR 0098), or [`LEGACY_CONFIRM_WINDOW_SECS`].
+    pub confirm_window: u64,
+    /// Seconds an emailed unsubscribe link stays valid: the `unsubscribe_window`,
+    /// or [`LEGACY_UNSUBSCRIBE_WINDOW_SECS`].
+    pub unsubscribe_window: u64,
+}
+
+/// LEGACY DEFAULT: how long the emailed confirm link lasts (14 days), used
+/// while the `newsletter` fact carries no `confirm_window`, because the
+/// Newsletter chapter predates ADR 0098 and does not declare
+/// `provides "newsletter", ..., confirm_window: "Subscriber.confirm_window"`.
+/// Delete this (and the fallback in `newsletter_provider`) once every shipped
+/// Newsletter bluebook does.
+pub const LEGACY_CONFIRM_WINDOW_SECS: u64 = 14 * 24 * 60 * 60;
+
+/// LEGACY DEFAULT: how long an emailed unsubscribe link lasts (730 days), used
+/// while the `newsletter` fact carries no `unsubscribe_window` (see
+/// [`LEGACY_CONFIRM_WINDOW_SECS`]).
+pub const LEGACY_UNSUBSCRIBE_WINDOW_SECS: u64 = 730 * 24 * 60 * 60;
+
+/// The whole seconds the fact `fact` lists under `key`: an attribute default
+/// resolved by the exporter (ADR 0098). `None` when the fact omits it.
+fn declared_seconds(fact: &Value, key: &str) -> Option<u64> {
+    fact.get(key)?.as_u64().filter(|seconds| *seconds > 0)
+}
+
+/// The declared seconds for `key`, else `legacy` with a single warning per process.
+fn seconds_or_legacy(fact: &Value, capability: &str, key: &str, legacy: u64, warned: &std::sync::Once) -> u64 {
+    declared_seconds(fact, key).unwrap_or_else(|| {
+        warned.call_once(|| eprintln!("{capability} capability declares no {key}; using built-in default"));
+        legacy
+    })
+}
+
+/// The checkout boundary's windows, read from `ir.json`'s own `checkout` key
+/// (ADR 0098). Always present: a window the chapter does not declare takes its
+/// labelled legacy default.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CheckoutWindows {
+    /// Seconds either side of now a signed webhook's timestamp may sit.
+    pub webhook_tolerance: i64,
+    /// Seconds a checkout session holds its seat (before the processor's own
+    /// minimum is applied by the checkout adapter).
+    pub session_hold: i64,
+}
+
+/// LEGACY DEFAULT: the webhook freshness window (5 minutes), used while the
+/// `checkout` fact carries no `webhook_tolerance`, because no shipped Checkout
+/// bluebook declares `provides "checkout", webhook_tolerance: "WebhookReceipt.tolerance"`.
+/// Delete this (and the fallback in `checkout_windows`) once every one does.
+pub const LEGACY_WEBHOOK_TOLERANCE_SECS: i64 = 300;
+
+/// LEGACY DEFAULT: the seat hold of a session (30 minutes), used while the
+/// `checkout` fact carries no `session_hold` (see [`LEGACY_WEBHOOK_TOLERANCE_SECS`]).
+pub const LEGACY_SESSION_HOLD_SECS: i64 = 30 * 60;
+
+/// The checkout windows `domain_ir` declares, each falling back to its legacy default.
+pub fn checkout_windows(domain_ir: &Value) -> CheckoutWindows {
+    static TOLERANCE_WARNED: std::sync::Once = std::sync::Once::new();
+    static HOLD_WARNED: std::sync::Once = std::sync::Once::new();
+    let fact = domain_ir.get("checkout").unwrap_or(&Value::Null);
+    let seconds = |key, legacy: i64, warned| seconds_or_legacy(fact, "checkout", key, legacy as u64, warned) as i64;
+    CheckoutWindows {
+        webhook_tolerance: seconds("webhook_tolerance", LEGACY_WEBHOOK_TOLERANCE_SECS, &TOLERANCE_WARNED),
+        session_hold: seconds("session_hold", LEGACY_SESSION_HOLD_SECS, &HOLD_WARNED),
+    }
+}
+
+/// The checkout windows of the IR this host loaded (legacy defaults without one).
+pub fn checkout_windows_binding() -> CheckoutWindows {
+    checkout_windows(ir().unwrap_or(&Value::Null))
+}
+
+/// The confirm-link and unsubscribe-link windows of the IR this host loaded:
+/// `(confirm, unsubscribe)` seconds, legacy defaults without a `newsletter` fact.
+pub fn newsletter_windows_binding() -> (u64, u64) {
+    ir().and_then(newsletter_provider)
+        .map(|p| (p.confirm_window, p.unsubscribe_window))
+        .unwrap_or((LEGACY_CONFIRM_WINDOW_SECS, LEGACY_UNSUBSCRIBE_WINDOW_SECS))
+}
+
+/// LEGACY DEFAULT: the states a new subscriber waits in, used while the
+/// `newsletter` fact carries no `awaiting_confirmation` list, because the
+/// Newsletter chapter predates the marks and does not declare
+/// `provides "newsletter", ..., awaiting_confirmation: "Subscriber.awaiting_confirmation"`.
+/// Delete this (and the fallback in `newsletter_provider`) once every shipped
+/// Newsletter bluebook does.
+pub const LEGACY_AWAITING_CONFIRMATION: [&str; 1] = ["pending"];
+
+/// LEGACY DEFAULT: the states that receive an issue, used while the
+/// `newsletter` fact carries no `receives_issues` list (see
+/// [`LEGACY_AWAITING_CONFIRMATION`]).
+pub const LEGACY_RECEIVES_ISSUES: [&str; 1] = ["confirmed"];
+
+/// LEGACY DEFAULT: the states of a subscriber who has left, used while the
+/// `newsletter` fact carries no `left` list (see [`LEGACY_AWAITING_CONFIRMATION`]).
+pub const LEGACY_LEFT: [&str; 1] = ["unsubscribed"];
+
+/// The states the `newsletter` fact lists under `key`: a lifecycle mark
+/// resolved by the exporter. `None` when the fact omits it.
+fn declared_states(fact: &Value, key: &str) -> Option<Vec<String>> {
+    let states = fact.get(key)?.as_array()?;
+    Some(states.iter().filter_map(|s| s.as_str().map(String::from)).collect())
+}
+
+/// The declared states for `key`, else `legacy` with a single warning per process.
+fn states_or_legacy(fact: &Value, key: &str, legacy: &[&str], warned: &std::sync::Once) -> Vec<String> {
+    declared_states(fact, key).unwrap_or_else(|| {
+        warned.call_once(|| eprintln!("newsletter capability declares no {key}; using built-in default"));
+        legacy.iter().map(|s| s.to_string()).collect()
+    })
 }
 
 impl NewsletterProvider {
+    /// Whether `status` is a state awaiting confirmation.
+    pub fn is_awaiting_confirmation(&self, status: Option<&str>) -> bool {
+        status.is_some_and(|s| self.awaiting_confirmation.iter().any(|m| m == s))
+    }
+
+    /// Whether `status` is a state that receives issues.
+    pub fn receives_issues(&self, status: Option<&str>) -> bool {
+        status.is_some_and(|s| self.receives_issues.iter().any(|m| m == s))
+    }
+
+    /// Whether `status` is a state of a subscriber who has left.
+    pub fn has_left(&self, status: Option<&str>) -> bool {
+        status.is_some_and(|s| self.left.iter().any(|m| m == s))
+    }
+
+    /// The state a subscriber is reported in when none is recorded yet: the
+    /// first awaiting-confirmation state.
+    pub fn initial_status(&self) -> &str {
+        self.awaiting_confirmation.first().map(String::as_str).unwrap_or("")
+    }
+
     /// The prefix every subscriber's key in a `dispatch::read` `instances`
     /// map starts with, e.g. `Newsletter::Subscriber#`.
     pub fn instance_prefix(&self) -> String {
@@ -49,8 +192,18 @@ pub fn command_declares(domain_ir: &Value, aggregate: &str, command: &str, field
 }
 
 pub fn newsletter_provider(domain_ir: &Value) -> Option<NewsletterProvider> {
+    static AWAITING_WARNED: std::sync::Once = std::sync::Once::new();
+    static RECEIVES_WARNED: std::sync::Once = std::sync::Once::new();
+    static LEFT_WARNED: std::sync::Once = std::sync::Once::new();
+    static CONFIRM_WINDOW_WARNED: std::sync::Once = std::sync::Once::new();
+    static UNSUBSCRIBE_WINDOW_WARNED: std::sync::Once = std::sync::Once::new();
     let fact = domain_ir.get("newsletter")?;
     Some(NewsletterProvider {
+        confirm_window: seconds_or_legacy(fact, "newsletter", "confirm_window", LEGACY_CONFIRM_WINDOW_SECS, &CONFIRM_WINDOW_WARNED),
+        unsubscribe_window: seconds_or_legacy(fact, "newsletter", "unsubscribe_window", LEGACY_UNSUBSCRIBE_WINDOW_SECS, &UNSUBSCRIBE_WINDOW_WARNED),
+        awaiting_confirmation: states_or_legacy(fact, "awaiting_confirmation", &LEGACY_AWAITING_CONFIRMATION, &AWAITING_WARNED),
+        receives_issues: states_or_legacy(fact, "receives_issues", &LEGACY_RECEIVES_ISSUES, &RECEIVES_WARNED),
+        left: states_or_legacy(fact, "left", &LEGACY_LEFT, &LEFT_WARNED),
         provider: fact.get("provider")?.as_str()?.to_string(),
         subscribe: fact.get("subscribe")?.as_str()?.to_string(),
         add_name: fact.get("add_name")?.as_str()?.to_string(),
@@ -108,6 +261,24 @@ pub struct PaymentsProvider {
     pub failed: String,
     /// Qualified paying aggregate, e.g. `Payments::Payment`.
     pub aggregate: String,
+    /// Payment states whose registration still holds a seat: the `holds_seat`
+    /// list of the `payments` fact (the payment lifecycle's mark), or
+    /// [`LEGACY_HOLDS_SEAT`] when the chapter declares none.
+    pub holds_seat: Vec<String>,
+}
+
+/// LEGACY DEFAULT: the seat-holding payment states used while the `payments`
+/// capability fact carries no `holds_seat` list, because the Payments chapter
+/// predates `mark :holds_seat` and does not declare
+/// `provides "payments", holds_seat: "Payment.holds_seat"`. Delete this (and the
+/// fallback in `payments_provider`) once every shipped Payments bluebook does.
+pub const LEGACY_HOLDS_SEAT: [&str; 4] = ["pending", "succeeded", "refunding", "disputed"];
+
+/// The states the `payments` fact lists under `holds_seat`: the aggregate's
+/// lifecycle mark, resolved by the exporter. `None` when the fact omits it.
+fn declared_holds_seat(fact: &Value) -> Option<Vec<String>> {
+    let states = fact.get("holds_seat")?.as_array()?;
+    Some(states.iter().filter_map(|s| s.as_str().map(String::from)).collect())
 }
 
 impl PaymentsProvider {
@@ -120,12 +291,19 @@ impl PaymentsProvider {
 
 pub fn payments_provider(domain_ir: &Value) -> Option<PaymentsProvider> {
     let fact = domain_ir.get("payments")?;
+    let aggregate = fact.get("aggregate")?.as_str()?.to_string();
+    let holds_seat = declared_holds_seat(fact).unwrap_or_else(|| {
+        static WARNED: std::sync::Once = std::sync::Once::new();
+        WARNED.call_once(|| eprintln!("payments capability declares no holds_seat; using built-in default"));
+        LEGACY_HOLDS_SEAT.iter().map(|s| s.to_string()).collect()
+    });
     Some(PaymentsProvider {
         provider: fact.get("provider")?.as_str()?.to_string(),
         initiate: fact.get("initiate")?.as_str()?.to_string(),
         succeeded: fact.get("succeeded")?.as_str()?.to_string(),
         failed: fact.get("failed")?.as_str()?.to_string(),
-        aggregate: fact.get("aggregate")?.as_str()?.to_string(),
+        aggregate,
+        holds_seat,
     })
 }
 
@@ -325,6 +503,84 @@ mod tests {
         assert!(newsletter_provider(&serde_json::json!({ "name": "Pizzas" })).is_none());
     }
 
+    fn newsletter_ir(marks: serde_json::Value) -> Value {
+        let mut fact = serde_json::json!({
+            "provider": "Newsletter",
+            "subscribe": "Newsletter::Subscriber.Subscribe",
+            "add_name": "Newsletter::Subscriber.AddName",
+            "confirm": "Newsletter::Subscriber.Confirm",
+            "unsubscribe": "Newsletter::Subscriber.Unsubscribe",
+            "aggregate": "Newsletter::Subscriber"
+        });
+        for (key, states) in marks.as_object().into_iter().flatten() {
+            fact[key] = states.clone();
+        }
+        serde_json::json!({ "name": "Studio", "newsletter": fact })
+    }
+
+    #[test]
+    fn newsletter_provider_reads_the_marks_from_the_fact() {
+        let ir = newsletter_ir(serde_json::json!({
+            "awaiting_confirmation": ["invited"],
+            "receives_issues": ["active", "vip"],
+            "left": ["gone"]
+        }));
+        let provider = newsletter_provider(&ir).expect("newsletter");
+        assert_eq!(provider.awaiting_confirmation, vec!["invited"]);
+        assert_eq!(provider.receives_issues, vec!["active", "vip"]);
+        assert_eq!(provider.left, vec!["gone"]);
+        assert!(provider.is_awaiting_confirmation(Some("invited")));
+        assert!(!provider.is_awaiting_confirmation(Some("pending")));
+        assert!(provider.receives_issues(Some("vip")));
+        assert!(!provider.receives_issues(Some("confirmed")));
+        assert!(provider.has_left(Some("gone")));
+        assert_eq!(provider.initial_status(), "invited");
+    }
+
+    #[test]
+    fn newsletter_provider_falls_back_to_the_legacy_defaults_without_marks() {
+        let provider = newsletter_provider(&newsletter_ir(serde_json::json!({}))).expect("newsletter");
+        assert_eq!(provider.awaiting_confirmation, LEGACY_AWAITING_CONFIRMATION);
+        assert_eq!(provider.receives_issues, LEGACY_RECEIVES_ISSUES);
+        assert_eq!(provider.left, LEGACY_LEFT);
+        assert!(provider.is_awaiting_confirmation(Some("pending")));
+        assert!(provider.receives_issues(Some("confirmed")));
+        assert!(provider.has_left(Some("unsubscribed")));
+        assert!(!provider.has_left(None));
+        assert_eq!(provider.initial_status(), "pending");
+    }
+
+    #[test]
+    fn newsletter_provider_reads_the_link_windows_from_the_fact() {
+        let ir = newsletter_ir(serde_json::json!({ "confirm_window": 3600, "unsubscribe_window": 7200 }));
+        let provider = newsletter_provider(&ir).expect("newsletter");
+        assert_eq!((provider.confirm_window, provider.unsubscribe_window), (3600, 7200));
+    }
+
+    #[test]
+    fn newsletter_provider_falls_back_to_the_legacy_windows_without_them() {
+        let provider = newsletter_provider(&newsletter_ir(serde_json::json!({}))).expect("newsletter");
+        assert_eq!(provider.confirm_window, LEGACY_CONFIRM_WINDOW_SECS);
+        assert_eq!(provider.unsubscribe_window, LEGACY_UNSUBSCRIBE_WINDOW_SECS);
+        assert_eq!((LEGACY_CONFIRM_WINDOW_SECS, LEGACY_UNSUBSCRIBE_WINDOW_SECS), (1_209_600, 63_072_000));
+    }
+
+    #[test]
+    fn checkout_windows_read_the_fact_and_fall_back_per_window() {
+        let declared = serde_json::json!({ "checkout": { "provider": "Checkout", "webhook_tolerance": 120, "session_hold": 2400 } });
+        assert_eq!(checkout_windows(&declared), CheckoutWindows { webhook_tolerance: 120, session_hold: 2400 });
+        let partial = serde_json::json!({ "checkout": { "provider": "Checkout", "session_hold": 2400 } });
+        assert_eq!(checkout_windows(&partial), CheckoutWindows { webhook_tolerance: LEGACY_WEBHOOK_TOLERANCE_SECS, session_hold: 2400 });
+        let none = checkout_windows(&serde_json::json!({ "name": "Pizzas" }));
+        assert_eq!(none, CheckoutWindows { webhook_tolerance: 300, session_hold: 1800 });
+    }
+
+    #[test]
+    fn a_zero_or_non_numeric_window_is_not_a_declaration() {
+        let ir = serde_json::json!({ "checkout": { "webhook_tolerance": 0, "session_hold": "soon" } });
+        assert_eq!(checkout_windows(&ir), CheckoutWindows { webhook_tolerance: 300, session_hold: 1800 });
+    }
+
     #[test]
     fn newsletter_issues_provider_reads_the_declared_capability() {
         let ir = serde_json::json!({
@@ -363,6 +619,39 @@ mod tests {
         assert_eq!(provider.failed, "Payments::Payment.PaymentGateway.Failed");
         assert_eq!(provider.instance_prefix(), "Payments::Payment#");
         assert!(payments_provider(&serde_json::json!({ "name": "Pizzas" })).is_none());
+    }
+
+    fn payments_ir(holds_seat: Option<serde_json::Value>) -> Value {
+        let mut fact = serde_json::json!({
+            "provider": "Payments", "initiate": "Payments::Payment.Initiate",
+            "succeeded": "Payments::Payment.PaymentGateway.Succeeded",
+            "failed": "Payments::Payment.PaymentGateway.Failed", "aggregate": "Payments::Payment"
+        });
+        if let Some(states) = holds_seat {
+            fact["holds_seat"] = states;
+        }
+        serde_json::json!({"name": "Studio", "payments": fact})
+    }
+
+    #[test]
+    fn payments_provider_reads_holds_seat_from_the_fact() {
+        let ir = payments_ir(Some(serde_json::json!(["pending", "paid"])));
+        assert_eq!(declared_holds_seat(&ir["payments"]), Some(vec!["pending".to_string(), "paid".to_string()]));
+        assert_eq!(payments_provider(&ir).expect("payments").holds_seat, vec!["pending", "paid"]);
+    }
+
+    #[test]
+    fn the_checkout_fixture_ir_carries_holds_seat_with_no_fallback() {
+        let ir = fixture_ir();
+        assert_eq!(declared_holds_seat(&ir["payments"]), Some(vec!["pending".to_string(), "succeeded".to_string()]));
+        assert_eq!(fixture_payments().holds_seat, vec!["pending", "succeeded"]);
+    }
+
+    #[test]
+    fn payments_provider_falls_back_to_the_legacy_default_without_holds_seat() {
+        assert_eq!(declared_holds_seat(&payments_ir(None)["payments"]), None);
+        let held = payments_provider(&payments_ir(None)).expect("payments").holds_seat;
+        assert_eq!(held, LEGACY_HOLDS_SEAT);
     }
 
     #[test]
