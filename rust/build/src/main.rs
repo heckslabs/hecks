@@ -18,6 +18,7 @@ mod root;
 mod seams_pass;
 mod subprocess;
 mod tmp;
+mod translation_pass;
 
 use std::process::ExitCode;
 
