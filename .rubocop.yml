@@ -8,6 +8,8 @@ require:
   - ./lib/rubocop/cop/hecks/fallback_hash_lookup
   - ./lib/rubocop/cop/hecks/thread_shared_ivar_mutation
   - ./lib/rubocop/cop/hecks/sequential_hash_rename_in_loop
+  - ./lib/rubocop/cop/hecks/no_wall_clock_in_runtime
+  - ./lib/rubocop/cop/hecks/monotonic_duration
 
 # `h[a] || h[b]` on one receiver drops a stored `false`; use `key?` first.
 Hecks/FallbackHashLookup:
@@ -60,6 +62,19 @@ Hecks/ThreadSharedIvarMutation:
 
 # `h[new] = h.delete(old)` looped over one hash loses data on swap or chain renames.
 Hecks/SequentialHashRenameInLoop:
+  Enabled: true
+
+# A replay must reproduce the run, so the runtime reads time only through `needs :now` or
+# Event.stamp; Event itself is the seam that holds the one wall-clock read.
+Hecks/NoWallClockInRuntime:
+  Enabled: true
+  Include:
+    - "lib/hecks/runtime/**/*.rb"
+  Exclude:
+    - "lib/hecks/runtime/event.rb"
+
+# Elapsed time is measured on the monotonic clock; `Time.now - File.mtime(f)` is left alone.
+Hecks/MonotonicDuration:
   Enabled: true
 
 AllCops:

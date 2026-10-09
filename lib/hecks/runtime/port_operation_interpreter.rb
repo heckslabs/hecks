@@ -157,7 +157,7 @@ module Hecks
           aggregate:   "#{ctx.domain}::#{ctx.aggregate.hecks_name}",
           id:          ctx.route.aggregate,
           payload:     payload,
-          occurred_at: Time.now.utc.iso8601
+          occurred_at: Event.stamp
         )
       end
     end
