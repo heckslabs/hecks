@@ -81,20 +81,28 @@ export function openPicker(frame, bar, options) {
   const close = make("button", { type: "button", className: "btn btn-ghost btn-square btn-sm", innerHTML: icon("close") });
   close.setAttribute("aria-label", "Close the picker");
   const field = (text, input) => make("label", { className: "grid gap-1 font-semibold" }, text, input);
-  const panel = make("div", { className: "absolute left-2 right-2 z-20 mt-1 grid max-w-2xl gap-4 rounded-box border border-base-300 bg-base-100 p-4 shadow-xl" },
+  const panel = make("div", { className: "picker-panel fixed inset-x-2 top-16 z-20 mx-auto grid max-w-2xl gap-4 overflow-y-auto overscroll-contain rounded-box border border-base-300 bg-base-100 p-4 shadow-xl" },
     make("div", { className: "flex items-center justify-between" }, make("h3", { className: "text-lg", textContent: "Insert a picture" }), close),
     zone, list, upButton, make("p", { className: "text-sm text-muted", textContent: "Or choose a picture already registered:" }), grid,
     field("Alt text for this picture (required)", alt), field("Caption (optional)", caption), problem, make("div", { className: "flex gap-2" }, insert, cancel));
   panel.dataset.picker = "";
   panel.setAttribute("role", "dialog");
   panel.setAttribute("aria-label", "Insert a picture");
-  panel.style.top = `${bar.offsetHeight}px`;
+  // The panel stands in the window, between the app bar and the page's sticky action bar (when it has
+  // one), and scrolls inside itself; it never grows past what the window shows.
+  const fit = () => {
+    const actions = document.querySelector("[data-actionbar]");
+    const floor = actions ? Math.max(0, window.innerHeight - actions.getBoundingClientRect().top) : 0;
+    const top = Math.max(panel.getBoundingClientRect().top, 0);
+    panel.style.bottom = "auto";
+    panel.style.maxHeight = `calc(${window.visualViewport?.height ?? window.innerHeight}px - ${top}px - ${floor}px - 0.5rem - env(safe-area-inset-bottom, 0px))`;
+  };
 
   const say = (message) => {
     problem.textContent = message ?? "";
     problem.hidden = !message;
   };
-  const shut = () => { panel.remove(); onClose?.(); };
+  const shut = () => { window.removeEventListener("resize", fit); window.visualViewport?.removeEventListener("resize", fit); panel.remove(); onClose?.(); };
 
   const choose = (picture, button) => {
     chosen = picture.key;
@@ -207,6 +215,9 @@ export function openPicker(frame, bar, options) {
   });
 
   frame.append(panel);
+  fit();
+  window.addEventListener("resize", fit);
+  window.visualViewport?.addEventListener("resize", fit);
   getPictures(url)
     .then((pictures) => {
       for (const picture of pictures) {
