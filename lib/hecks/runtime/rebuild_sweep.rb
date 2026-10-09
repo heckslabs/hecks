@@ -49,7 +49,17 @@ module Hecks
         return nil if id.nil?
 
         remote = registry.repository(domain, target).find(id.to_s)
-        remote&.[](field.remote_field)
+        unwrap_single_field(target, field, remote&.[](field.remote_field))
+      end
+
+      # A remote field typed by a single-field value object is copied as its one scalar, so the
+      # projecting aggregate holds `123`, never `{ value: 123 }`. Any other value is copied as is.
+      def unwrap_single_field(target, field, value)
+        attribute = target.attribute(field.remote_field)
+        sole = attribute && target.value_object(attribute.type)&.sole_attribute
+        return value unless sole && !value.nil?
+
+        value.is_a?(Hash) ? value.fetch(sole.name) { value[sole.name.to_s] } : value[sole.name]
       end
     end
   end
