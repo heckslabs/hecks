@@ -140,6 +140,7 @@ module Hecks
           value = text(binding[:source])
 
           return { kind: kind, name: value } if %w[argument state].include?(kind)
+          return { kind: kind, text: value } if kind == "expression"
 
           { kind: "literal", value: decode_literal(value) }
         end

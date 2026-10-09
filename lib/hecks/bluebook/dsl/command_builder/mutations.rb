@@ -28,7 +28,7 @@ module Hecks
         # @raise [ArgumentError] on any other keyword
         def sets_impl(target, positional_to = UNSET, **ops)
           refuse_unknown_ops!(ops, KWARG_TO_OP.keys)
-          ops = ops.merge(to: positional_to) unless ops.key?(:to) || positional_to.equal?(UNSET)
+          ops = source_of_to(ops, positional_to)
 
           # Only a Symbol can repeat the target's name; a literal value (`to: false`,
           # a String, ...) never has `.to_sym` to compare in the first place.
@@ -97,6 +97,13 @@ module Hecks
         end
 
         private
+
+        # Folds a positional source into `to:`, and reads arithmetic written there
+        # (`to: paid * rate / 100`) as the source it spells.
+        def source_of_to(ops, positional_to)
+          ops = ops.merge(to: positional_to) unless ops.key?(:to) || positional_to.equal?(UNSET)
+          ops[:to].is_a?(Operands::Computation) ? ops.merge(to: ops[:to].to_source) : ops
+        end
 
         # A command's effects are one update set over the pre-dispatch state — a field
         # written twice would make declaration order silently significant.

@@ -1,15 +1,64 @@
-//! `+` and `.modulo` (`Resolver::Addition`/`Modulo`); both require numeric operands.
+//! `+`, `-`, `*`, `/` and `.modulo` (`Resolver::Addition`/`Subtraction`/`Multiplication`/`Division`/
+//! `Modulo`); all require numeric operands.
 
 use crate::kernel::attribute_shapes::scalar;
 use crate::kernel::expr::{eval_error, interpret as eval, EvalContext, Expr, Value};
 use crate::kernel::Refusal;
 
-pub fn add(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
-    let Expr::Add(l, r) = expr else {
-        return Err(Refusal::TypeMismatch(format!("arithmetic::add called with a non-addition node {expr:?} — a router bug")));
+/// `-`, `*`, `/` and `+`, each the counterpart of the Ruby `Resolver` operation of that name.
+pub fn binary(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
+    let (name, symbol, l, r) = match expr {
+        Expr::Add(l, r) => ("addition", "+", l, r),
+        Expr::Sub(l, r) => ("subtraction", "-", l, r),
+        Expr::Mul(l, r) => ("multiplication", "*", l, r),
+        Expr::Div(l, r) => ("division", "/", l, r),
+        _ => return Err(Refusal::TypeMismatch(format!("arithmetic::binary called with a non-binary node {expr:?} — a router bug"))),
     };
+    let (left, right) = (eval(l, ctx)?, eval(r, ctx)?);
+    match symbol {
+        "+" => sum(&left, &right),
+        "-" => checked(name, symbol, &left, &right, i64::checked_sub, |a, b| a - b),
+        "*" => checked(name, symbol, &left, &right, i64::checked_mul, |a, b| a * b),
+        _ => divide(&left, &right),
+    }
+}
 
-    sum(&eval(l, ctx)?, &eval(r, ctx)?)
+// Integer operands use the checked operation; anything else is a Float result that must stay
+// finite, as `add` does. Ruby promotes to Bignum; this kernel refuses instead.
+fn checked(name: &str, symbol: &str, lhs: &Value, rhs: &Value, int_op: fn(i64, i64) -> Option<i64>, float_op: fn(f64, f64) -> f64) -> Result<Value, Refusal> {
+    if let (Value::Int(l), Value::Int(r)) = (lhs, rhs) {
+        return int_op(*l, *r).map(Value::Int).ok_or_else(|| eval_error(format!("{name} overflowed: {l} {symbol} {r} does not fit in a 64-bit integer")));
+    }
+    let l = require_number(lhs, name)?;
+    let r = require_number(rhs, name)?;
+    finite(name, symbol, l, r, float_op(l, r))
+}
+
+fn finite(name: &str, symbol: &str, l: f64, r: f64, result: f64) -> Result<Value, Refusal> {
+    if result.is_finite() {
+        return Ok(Value::Float(result));
+    }
+    Err(eval_error(format!("{name} overflowed: {l} {symbol} {r} is not a finite number")))
+}
+
+// Integer division floors toward negative infinity, as Ruby's `Integer#/` does (Rust's `/`
+// truncates). A zero divisor is the same fault `.modulo` raises.
+fn divide(lhs: &Value, rhs: &Value) -> Result<Value, Refusal> {
+    let r = require_number(rhs, "division")?;
+    if r == 0.0 {
+        return Err(eval_error("divided by 0".to_string()));
+    }
+    if let (Value::Int(l), Value::Int(r)) = (lhs, rhs) {
+        return floored_div(*l, *r).map(Value::Int).ok_or_else(|| eval_error(format!("division overflowed: {l} / {r} does not fit in a 64-bit integer")));
+    }
+    let l = require_number(lhs, "division")?;
+    finite("division", "/", l, r, l / r)
+}
+
+// `None` only for `i64::MIN / -1`, the one quotient that does not fit.
+fn floored_div(l: i64, r: i64) -> Option<i64> {
+    let quotient = l.checked_div(r)?;
+    Some(if l % r != 0 && ((l < 0) != (r < 0)) { quotient - 1 } else { quotient })
 }
 
 pub fn modulo(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
@@ -33,6 +82,47 @@ fn floored_mod(r: i64, d: i64) -> i64 {
     }
     let raw = r % d;
     if raw != 0 && (raw < 0) != (d < 0) { raw + d } else { raw }
+}
+
+#[cfg(test)]
+mod division_tests {
+    use super::{checked, divide, floored_div};
+    use crate::kernel::expr::Value;
+
+    #[test]
+    fn floors_toward_negative_infinity_across_every_sign_combination() {
+        // Real `ruby -e 'puts X / Y'` results.
+        assert_eq!(floored_div(7, 2), Some(3));
+        assert_eq!(floored_div(-7, 2), Some(-4));
+        assert_eq!(floored_div(7, -2), Some(-4));
+        assert_eq!(floored_div(-7, -2), Some(3));
+        assert_eq!(floored_div(-6, 2), Some(-3));
+        assert_eq!(floored_div(0, -5), Some(0));
+    }
+
+    #[test]
+    fn a_money_percentage_rounds_down() {
+        let product = checked("multiplication", "*", &Value::Int(10801), &Value::Int(50), i64::checked_mul, |a, b| a * b).unwrap();
+
+        assert_eq!(divide(&product, &Value::Int(100)).unwrap(), Value::Int(5400));
+    }
+
+    #[test]
+    fn a_zero_divisor_is_a_fault_not_a_crash() {
+        assert!(divide(&Value::Int(1), &Value::Int(0)).is_err());
+        assert!(divide(&Value::Float(1.0), &Value::Float(0.0)).is_err());
+    }
+
+    #[test]
+    fn the_one_unrepresentable_quotient_is_a_fault() {
+        assert!(divide(&Value::Int(i64::MIN), &Value::Int(-1)).is_err());
+    }
+
+    #[test]
+    fn overflowing_products_and_differences_are_faults() {
+        assert!(checked("multiplication", "*", &Value::Int(i64::MAX), &Value::Int(2), i64::checked_mul, |a, b| a * b).is_err());
+        assert!(checked("subtraction", "-", &Value::Int(i64::MIN), &Value::Int(1), i64::checked_sub, |a, b| a - b).is_err());
+    }
 }
 
 #[cfg(test)]

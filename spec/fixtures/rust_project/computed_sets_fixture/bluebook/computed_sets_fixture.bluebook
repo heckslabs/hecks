@@ -1,0 +1,71 @@
+# Pins `sets` taking arithmetic as its source: `*`, `-` and floor `/` over command arguments and
+# the record's own fields, each result wrapped in the target's single-field value object.
+#
+# Dispatched against both engines by spec/corpus/rust_conformance/computed_sets.json
+Hecks.bluebook "ComputedSetsFixture" do
+  vision "The smallest domain whose commands compute a value: a percentage refund, a difference and a floor share."
+
+  core
+
+  aggregate "Settlement" do
+    description "A payment, and what is computed from it."
+
+    identified_by :ref
+
+    attribute :ref, SettlementRef
+    attribute :paid, Cents
+    attribute :refund, Cents, default: { value: 0 }
+    attribute :remaining, Cents, default: { value: 0 }
+    attribute :share, Cents, default: { value: 0 }
+
+    value_object "SettlementRef" do
+      attribute :value, String
+    end
+
+    value_object "Cents" do
+      attribute :value, Integer
+    end
+
+    value_object "Percent" do
+      attribute :value, Integer
+    end
+
+    command "Open" do
+      goal "Record a payment"
+
+      attribute :ref, SettlementRef
+      attribute :paid, Cents
+
+      sets :ref
+      sets :paid
+
+      emits "SettlementOpened"
+    end
+
+    # `paid` is the record's own field; `rate` and `shortfall` are arguments.
+    command "Settle" do
+      goal "Refund a percentage of the payment and work out what remains"
+
+      reference_to Settlement
+      attribute :rate, Percent
+      attribute :shortfall, Cents
+
+      sets :refund, to: paid * rate / 100
+      sets :remaining, to: paid - shortfall
+
+      emits "SettlementSettled"
+    end
+
+    command "Share" do
+      goal "Split an amount into equal parts, rounding down"
+
+      reference_to Settlement
+      attribute :amount, Cents
+      attribute :parts, Percent
+
+      sets :share, to: amount / parts
+
+      emits "SettlementShared"
+    end
+  end
+end

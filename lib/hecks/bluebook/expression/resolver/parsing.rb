@@ -23,9 +23,14 @@ module Hecks
           [/\A(.+)\.end_with\?\("([^"]*)"\)\z/, EndsWith, :substring]
         ].freeze
 
+        # The node each infix operator builds, by precedence level.
+        ADDITIVE       = { "+" => Addition, "-" => Subtraction }.freeze
+        MULTIPLICATIVE = { "*" => Multiplication, "/" => Division }.freeze
+
         # Every step `parse` tries, in precedence order (`.length` first, sign tests before the
         # rest); each answers a node, or `nil` when the expression is not its form.
-        PARSE_STEPS = [:parse_length, :parse_literal, :parse_array, :parse_addition, :parse_sign_test,
+        PARSE_STEPS = [:parse_length, :parse_literal, :parse_array, :parse_additive, :parse_multiplicative,
+                       :parse_group, :parse_sign_test,
                        :parse_receiver_suffix, :parse_modulo, :parse_matches_regex, :parse_text_suffix,
                        :parse_block_opener].freeze
 
@@ -62,9 +67,24 @@ module Hecks
           ArrayLiteral.new(elements: elements.map { |element| parse(element) }) if elements
         end
 
-        def parse_addition(expr)
-          arithmetic = split_addition(expr)
-          Addition.new(left: parse(arithmetic[0]), right: parse(arithmetic[1])) if arithmetic
+        # The additive level: the last top-level `+` or binary `-`, so `a - b + c` is `(a - b) + c`.
+        def parse_additive(expr)
+          parse_binary(expr, ADDITIVE)
+        end
+
+        # The multiplicative level, binding tighter than the additive one.
+        def parse_multiplicative(expr)
+          parse_binary(expr, MULTIPLICATIVE)
+        end
+
+        # A parenthesised group reads as what it wraps.
+        def parse_group(expr)
+          parse(expr[1..-2]) if grouped?(expr)
+        end
+
+        def parse_binary(expr, table)
+          operator, left, right = split_last_binary(expr, table.keys)
+          table.fetch(operator).new(left: parse(left), right: parse(right)) if operator
         end
 
         def parse_sign_test(expr)

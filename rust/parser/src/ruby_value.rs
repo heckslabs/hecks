@@ -41,7 +41,7 @@ pub fn render(value: &Value) -> String {
 }
 
 /// Ruby's `Float#to_s` always keeps a digit after the point (`1.0`); Rust prints `1`.
-fn format_ruby_float(value: f64) -> String {
+pub(crate) fn format_ruby_float(value: f64) -> String {
     let text = format!("{value}");
     if text.contains('.') || text.contains('e') || text.contains("inf") || text.contains("NaN") {
         text

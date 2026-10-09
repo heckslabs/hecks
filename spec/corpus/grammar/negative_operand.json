@@ -1,0 +1,35 @@
+{
+  "grammar": [
+    "G8"
+  ],
+  "canonical": "paid - -5 == total",
+  "ruby_only": false,
+  "note": "A `-` is binary only after an operand; the second one is a sign on the literal.",
+  "expect_ast": {
+    "op": "compare",
+    "cmp": {
+      "less_than": false,
+      "equal": true,
+      "negated": false
+    },
+    "left": {
+      "op": "sub",
+      "left": {
+        "op": "lookup",
+        "path": [
+          "paid"
+        ]
+      },
+      "right": {
+        "op": "int",
+        "value": -5
+      }
+    },
+    "right": {
+      "op": "lookup",
+      "path": [
+        "total"
+      ]
+    }
+  }
+}

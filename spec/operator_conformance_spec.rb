@@ -105,7 +105,8 @@ RSpec.describe "the operator domain" do
     # (.length), 2-5 (literals) and 12 (dotted lookup) are terminals, not operators.
     expect(symbols(by_grammar("inner"))).to eq(
       ["+", ".positive?", ".negative?", ".zero?", ".empty?", ".to_s", ".modulo", ".size", ".any?", ".none?", ".all?", ".find",
-       ".match?", ".present?", ".blank?", ".split", ".start_with?", ".end_with?", ".first", ".last", ".set?", ".unset?"]
+       ".match?", ".present?", ".blank?", ".split", ".start_with?", ".end_with?", ".first", ".last", ".set?", ".unset?",
+       "-", "*", "/"]
     )
   end
 
@@ -132,6 +133,9 @@ RSpec.describe "the operator domain" do
     "!"            => -> { Evaluator.parse("!a").is_a?(Evaluator::Not) },
     ".include?"    => -> { Evaluator.parse("list.include?(x)").is_a?(Evaluator::Include) },
     "+"            => -> { Resolver.parse("a + b").is_a?(Resolver::Addition) },
+    "-"            => -> { Resolver.parse("a - b").is_a?(Resolver::Subtraction) },
+    "*"            => -> { Resolver.parse("a * b").is_a?(Resolver::Multiplication) },
+    "/"            => -> { Resolver.parse("a / b").is_a?(Resolver::Division) },
     ".modulo"      => -> { Resolver.parse("a.modulo(b)").is_a?(Resolver::Modulo) },
     ".positive?"   => -> { Resolver.parse("a.positive?").is_a?(Resolver::SignTest) },
     ".negative?"   => -> { Resolver.parse("a.negative?").is_a?(Resolver::SignTest) },
@@ -175,7 +179,8 @@ RSpec.describe "the operator domain" do
     "||" => Evaluator::Or, "&&" => Evaluator::And, "!" => Evaluator::Not, ".include?" => Evaluator::Include,
     # All six comparison symbols share one node type, Evaluator::Compare.
     **Evaluator::COMPARISONS.to_h { |symbol| [symbol, Evaluator::Compare] },
-    "+" => Resolver::Addition, ".modulo" => Resolver::Modulo,
+    "+" => Resolver::Addition, "-" => Resolver::Subtraction, "*" => Resolver::Multiplication,
+    "/" => Resolver::Division, ".modulo" => Resolver::Modulo,
     ".positive?" => Resolver::SignTest, ".negative?" => Resolver::SignTest, ".zero?" => Resolver::SignTest,
     ".empty?" => Resolver::Empty, ".to_s" => Resolver::ToS, ".size" => Resolver::Size,
     ".any?" => Resolver::BlockPredicate, ".none?" => Resolver::BlockPredicate, ".all?" => Resolver::BlockPredicate,

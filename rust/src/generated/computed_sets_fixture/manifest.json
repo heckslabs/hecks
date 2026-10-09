@@ -1,0 +1,25 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "ComputedSetsFixture::Settlement",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "ComputedSetsFixture::Settlement.Open",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ComputedSetsFixture::Settlement.Settle",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ComputedSetsFixture::Settlement.Share",
+    "generated": true,
+    "routed": true
+  }
+]

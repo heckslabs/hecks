@@ -1,0 +1,44 @@
+{
+  "grammar": [
+    "G8"
+  ],
+  "canonical": "paid * rate / 100 == refund",
+  "ruby_only": false,
+  "note": "* and / bind tighter than + and -, and a chain splits left-associatively: a * b / c is (a * b) / c.",
+  "expect_ast": {
+    "op": "compare",
+    "cmp": {
+      "less_than": false,
+      "equal": true,
+      "negated": false
+    },
+    "left": {
+      "op": "div",
+      "left": {
+        "op": "mul",
+        "left": {
+          "op": "lookup",
+          "path": [
+            "paid"
+          ]
+        },
+        "right": {
+          "op": "lookup",
+          "path": [
+            "rate"
+          ]
+        }
+      },
+      "right": {
+        "op": "int",
+        "value": 100
+      }
+    },
+    "right": {
+      "op": "lookup",
+      "path": [
+        "refund"
+      ]
+    }
+  }
+}

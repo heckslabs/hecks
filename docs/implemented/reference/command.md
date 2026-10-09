@@ -306,6 +306,18 @@ meter.advance!(units: { units: 5 }, note: { note: "second read" })
 meter.reading.units  # => 17
 ```
 
+**`to:` can compute a value.** Write arithmetic over the command's arguments, the record's own
+fields and whole numbers where a source goes: `sets :refund_cents, to: paid_cents * late_percent / 100`.
+`+`, `-`, `*` and `/` read left to right, `*` and `/` bind tighter than `+` and `-`, and parentheses
+group. A bare name is an argument of the command, or else a field of the record as it stood before
+the command; a single-field value object operand reads as its one scalar, and the target's
+single-field value object wraps the result, as it does for `sets :x, to: :y`. Integers are signed
+64-bit: `/` rounds toward negative infinity (`10801 * 50 / 100` is `5400`, `-7 / 2` is `-4`), and a
+zero divisor or a result that leaves 64 bits is a fault, not a crash and not a wrapped number. The
+whole command is still one update set over the pre-dispatch record, so a computed field never reads
+another field the same command writes. `increment:` and `decrement:` are unchanged; the
+arithmetic form is what they are expected to fold into on the next major release.
+
 ## then_set
 
 <!-- generated:begin word=then_set -->

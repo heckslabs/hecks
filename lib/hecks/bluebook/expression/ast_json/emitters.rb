@@ -55,6 +55,9 @@ module Hecks
             # Segments, as `find.path` has, so a reader need not split a dotted string.
             Resolver::Lookup         => ->(node) { { "op" => "lookup", "path" => node.path.split(".") } },
             Resolver::Addition       => binary("add", :emit_resolver),
+            Resolver::Subtraction    => binary("sub", :emit_resolver),
+            Resolver::Multiplication => binary("mul", :emit_resolver),
+            Resolver::Division       => binary("div", :emit_resolver),
             Resolver::SignTest       => lambda { |node|
               { "op" => "sign_test", "cmp" => AstJson.emit_comparison(node.operator),
                 "receiver" => AstJson.emit_resolver(node.receiver) }

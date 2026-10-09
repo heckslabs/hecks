@@ -7,6 +7,14 @@ module Hecks
     def to_s = "state(:#{name})"
   end
 
+  # A mutation source computed from arithmetic over command arguments, state and numbers:
+  # `sets :refund, to: paid * rate / 100`. `text` is the canonical expression, read by
+  # `Bluebook::Expression::Resolver`; its operands name command arguments first, then the
+  # record's own fields.
+  Computed = Struct.new(:text) do
+    def to_s = "expr(#{text})"
+  end
+
   # The one wire spelling for a Ruby literal captured from a bluebook: a symbol wears its
   # colon, a string its quotes, a hash `{key: value}`, a list brackets; the rest are bare.
   # Stated here, not left to `inspect`, whose Hash rendering differs between Ruby 3.3 and 3.4.
@@ -15,7 +23,7 @@ module Hecks
 
     # Turns a Ruby value into its self-describing wire spelling.
     #
-    # @param value [Object] value to render: nil, Symbol, String, StateRef, true,
+    # @param value [Object] value to render: nil, Symbol, String, StateRef, Computed, true,
     #   false, Integer, Float, Hash, or Array (recursively)
     # @return [String] the self-describing spelling `read` can parse back
     # @raise [ArgumentError] if `value` is a type with no pinned literal spelling
@@ -24,7 +32,7 @@ module Hecks
       when nil    then "nil"
       when Symbol then ":#{value}"
       when String then quote(value)
-      when StateRef, true, false, Integer, Float then value.to_s
+      when StateRef, Computed, true, false, Integer, Float then value.to_s
       when Hash, Array then render_collection(value)
       else
         raise ArgumentError, "#{value.class} has no pinned literal spelling — teach Literal.render one " \
@@ -44,7 +52,7 @@ module Hecks
     # A bare word stays a String, since some fields are stored as plain text, never rendered.
     #
     # @param text [String, #to_s] wire spelling produced by `render`, or a bare word
-    # @return [Object] nil, true, false, Integer, Float, Symbol, StateRef, String,
+    # @return [Object] nil, true, false, Integer, Float, Symbol, StateRef, Computed, String,
     #   Hash, or Array — or `text` itself, stripped, when it matches no known spelling
     def read(text)
       raw = text.to_s.strip
@@ -65,6 +73,7 @@ module Hecks
       [->(raw) { raw.match?(/\A-?\d+\.\d+\z/) }, :to_f.to_proc],
       [->(raw) { raw.start_with?(":") }, ->(raw) { raw[1..].to_sym }],
       [->(raw) { raw.match?(/\Astate\(:[A-Za-z_][A-Za-z0-9_]*\)\z/) }, ->(raw) { StateRef.new(raw[7..-2].to_sym) }],
+      [->(raw) { raw.match?(/\Aexpr\(.+\)\z/m) }, ->(raw) { Computed.new(raw[5..-2]) }],
       [->(raw) { quoted?(raw) }, ->(raw) { unquote(raw) }],
       [->(raw) { raw.start_with?("{") && raw.end_with?("}") }, ->(raw) { read_hash(raw) }],
       [->(raw) { raw.start_with?("[") && raw.end_with?("]") }, ->(raw) { read_array(raw) }]
