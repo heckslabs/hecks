@@ -162,6 +162,8 @@ pub fn run(input: &str) -> String {
                             refusals.push((question.clone(), refusal));
                         }
                     },
+                    // Only a query the generator did not emit reaches here; the codegen manifest lists
+                    // each one it skipped, with the reason.
                     None => refusals.push((
                         question.clone(),
                         Refusal::TypeMismatch(format!(

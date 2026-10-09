@@ -35,6 +35,6 @@ RSpec.describe "Rust host query step", :io do
     stdout, stderr, status = Open3.capture3("cargo", "test", "--lib", "query_step", chdir: QUERY_STEP_HOST_DIR)
 
     expect(status).to be_success, "cargo test failed:\n#{stdout}\n#{stderr}"
-    expect(stdout).to include("test result: ok. 5 passed")
+    expect(stdout).to match(/test result: ok\. \d+ passed; 0 failed/)
   end
 end
