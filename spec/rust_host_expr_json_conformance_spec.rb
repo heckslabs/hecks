@@ -89,6 +89,15 @@ RSpec.describe "Rust/Ruby expression parity (rust/host expr_json)", :io do
       [[:leaf, "x.present?", { "x" => value }], [:leaf, "x.blank?", { "x" => value }],
        [:leaf, "x.set?", { "x" => value }], [:leaf, "x.unset?", { "x" => value }]]
     end,
+    # strip, lstrip, rstrip: Ruby's whitespace set (and null), never a Unicode space
+    [:leaf, "x.strip", { "x" => "\0 \t\n a b \v\f\r\0" }],
+    [:leaf, "x.lstrip", { "x" => " \f a b " }],
+    [:leaf, "x.rstrip", { "x" => " a b \f" }],
+    [:leaf, "x.strip", { "x" => "\u00a0a\u00a0" }],
+    [:leaf, "x.strip", { "x" => "" }],
+    [:leaf, "x.strip", { "x" => 5 }],
+    [:leaf, "x.strip", { "x" => nil }],
+    [:leaf, "x.to_s.strip.empty?", { "x" => "  \f " }],
     # split, start_with?, end_with?
     [:leaf, 'x.split(" ")', { "x" => "  a b  c " }],
     [:leaf, 'x.split("")', { "x" => "aé" }],
