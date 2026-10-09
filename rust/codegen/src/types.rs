@@ -286,6 +286,83 @@ pub fn emit_record(exemplar: &Exemplar, aggregate: &Json, value_objects_by_name:
     format!("{struct_part}\n\n{fielded_part}")
 }
 
+/// Copy of `ir` whose every `projects` field also carries the `type` of the remote field it reads,
+/// so the projecting aggregate's pseudo-attribute and setter follow it (ADR 0025 addendum). A
+/// single-field value object resolves to its one attribute's type, a reference to `String`, and a
+/// field that resolves to nothing stays `String`.
+pub fn with_resolved_projection_types(ir: &Json) -> Json {
+    let mut resolved = ir.clone();
+    let aggregates: Vec<Json> = ir.get("aggregates").map(Json::each).unwrap_or(&[]).to_vec();
+    let Some(list) = resolved.get_mut("aggregates").and_then(Json::as_array_mut) else {
+        return resolved;
+    };
+    for (aggregate, original) in list.iter_mut().zip(aggregates.iter()) {
+        let Some(fields) = aggregate.get_mut("projected_fields").and_then(Json::as_array_mut) else {
+            continue;
+        };
+        for field in fields.iter_mut() {
+            let scalar = projected_scalar_type(&aggregates, original, field, 0);
+            field.set("type", Json::String(scalar));
+        }
+    }
+    resolved
+}
+
+const PROJECTION_CHAIN_LIMIT: usize = 8;
+
+// The scalar type a projection of `field` copies, following a chain of projections.
+fn projected_scalar_type(aggregates: &[Json], owner: &Json, field: &Json, depth: usize) -> String {
+    let reference = field.get("reference").and_then(Json::as_str).unwrap_or("");
+    let remote = field.get("remote_field").and_then(Json::as_str).unwrap_or("");
+    let target = owner
+        .get("attributes")
+        .map(Json::each)
+        .unwrap_or(&[])
+        .iter()
+        .find(|a| crate::attr::name(a) == reference)
+        .and_then(|a| naming::reference_target(crate::attr::type_name(a)))
+        .and_then(|name| aggregates.iter().find(|a| a.get("name").and_then(Json::as_str) == Some(name)));
+    target.map(|t| remote_scalar_type(aggregates, t, remote, depth)).unwrap_or_else(|| "String".to_string())
+}
+
+fn remote_scalar_type(aggregates: &[Json], target: &Json, remote: &str, depth: usize) -> String {
+    let declared = target.get("attributes").map(Json::each).unwrap_or(&[]).iter().find(|a| crate::attr::name(a) == remote);
+    if let Some(attr) = declared {
+        return unwrapped_scalar_type(target, crate::attr::type_name(attr));
+    }
+    let chained = target.get("projected_fields").map(Json::each).unwrap_or(&[]).iter().find(|f| f.get("name").and_then(Json::as_str) == Some(remote));
+    match chained {
+        Some(next) if depth < PROJECTION_CHAIN_LIMIT => projected_scalar_type(aggregates, target, next, depth + 1),
+        _ => "String".to_string(),
+    }
+}
+
+// A single-field value object reads as its one attribute's type; anything else as itself.
+fn unwrapped_scalar_type(aggregate: &Json, type_name: &str) -> String {
+    let sole = aggregate
+        .get("value_objects")
+        .map(Json::each)
+        .unwrap_or(&[])
+        .iter()
+        .find(|vo| vo.get("name").and_then(Json::as_str) == Some(type_name))
+        .map(|vo| vo.get("attributes").map(Json::each).unwrap_or(&[]))
+        .filter(|attrs| attrs.len() == 1 && !crate::attr::list(&attrs[0]))
+        .map(|attrs| crate::attr::type_name(&attrs[0]).to_string());
+    let resolved = sole.unwrap_or_else(|| type_name.to_string());
+    let resolved = if resolved == "Boolean" { "TrueClass".to_string() } else { resolved };
+    naming::effective_scalar_type(&resolved).unwrap_or("String").to_string()
+}
+
+// The `Value` reader a generated setter narrows with, by scalar type.
+fn projection_reader(scalar: &str) -> &'static str {
+    match scalar {
+        "Integer" => "into_i64",
+        "Float" => "into_f64",
+        "TrueClass" | "FalseClass" => "into_bool",
+        _ => "into_string",
+    }
+}
+
 /// Port of the retired Ruby generator's `types.rb#projected_field_pseudo_attributes` (ADR 0025).
 pub fn projected_field_pseudo_attributes(aggregate: &Json) -> Vec<Json> {
     aggregate
@@ -295,9 +372,10 @@ pub fn projected_field_pseudo_attributes(aggregate: &Json) -> Vec<Json> {
         .iter()
         .map(|field| {
             let name = field.get("name").and_then(Json::as_str).unwrap_or("").to_string();
+            let scalar = field.get("type").and_then(Json::as_str).unwrap_or("String").to_string();
             Json::Object(vec![
                 ("name".to_string(), Json::String(name)),
-                ("type".to_string(), Json::String("String".to_string())),
+                ("type".to_string(), Json::String(scalar)),
                 ("list".to_string(), Json::Bool(false)),
                 ("optional".to_string(), Json::Bool(true)),
             ])
@@ -329,11 +407,12 @@ pub fn emit_set_projected_field(aggregate: &Json) -> String {
         .map(|field| {
             let field_name = field.get("name").and_then(Json::as_str).unwrap_or("");
             let ident = naming::rust_ident_field(field_name);
-            format!("            {} => self.{} = value,", naming::ruby_inspect_string(field_name), ident)
+            let reader = projection_reader(field.get("type").and_then(Json::as_str).unwrap_or("String"));
+            format!("            {} => self.{} = value.and_then(crate::kernel::Value::{}),", naming::ruby_inspect_string(field_name), ident, reader)
         })
         .collect();
     format!(
-        "impl crate::kernel::SetProjectedField for {name} {{\n    fn set_projected_field(&mut self, name: &'static str, value: Option<String>) {{\n        match name {{\n{}\n            _ => {{}}\n        }}\n    }}\n}}\n",
+        "impl crate::kernel::SetProjectedField for {name} {{\n    fn set_projected_field(&mut self, name: &'static str, value: Option<crate::kernel::Value>) {{\n        match name {{\n{}\n            _ => {{}}\n        }}\n    }}\n}}\n",
         arms.join("\n")
     )
 }
@@ -403,5 +482,43 @@ mod tests {
         assert!(from_json.contains("x.as_bool()"));
         assert!(!from_json.contains("TrueClass::from_json"));
         assert!(to_json.contains("crate::kernel::Json::Bool(self.on)"));
+    }
+
+    /// An Event whose `starts_at` is a single-field Integer value object, and a Booking projecting it.
+    fn event_and_booking() -> Json {
+        Json::parse(
+            r#"{"aggregates":[
+              {"name":"Event","attributes":[{"name":"starts_at","type":"StartsAt","list":false}],
+               "value_objects":[{"name":"StartsAt","attributes":[{"name":"value","type":"Integer","list":false}]}]},
+              {"name":"Booking","attributes":[{"name":"event","type":"Reference<Event>","list":false}],
+               "projected_fields":[{"name":"starts_at","reference":"event","remote_field":"starts_at"}]}
+            ]}"#,
+        )
+        .unwrap()
+    }
+
+    fn resolved_booking() -> Json {
+        with_resolved_projection_types(&event_and_booking()).get("aggregates").map(Json::each).unwrap_or(&[])[1].clone()
+    }
+
+    #[test]
+    fn a_projection_through_a_single_field_value_object_takes_its_scalar_type() {
+        let field = resolved_booking().get("projected_fields").map(Json::each).unwrap_or(&[])[0].clone();
+
+        assert_eq!(field.get("type").and_then(Json::as_str), Some("Integer"));
+    }
+
+    #[test]
+    fn the_projected_pseudo_attribute_follows_the_remote_type() {
+        let attrs = projected_field_pseudo_attributes(&resolved_booking());
+
+        assert_eq!(crate::attr::type_name(&attrs[0]), "Integer");
+    }
+
+    #[test]
+    fn the_projected_setter_narrows_with_the_remote_types_reader() {
+        let setter = emit_set_projected_field(&resolved_booking());
+
+        assert!(setter.contains("\"starts_at\" => self.starts_at = value.and_then(crate::kernel::Value::into_i64),"));
     }
 }

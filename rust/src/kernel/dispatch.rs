@@ -118,7 +118,7 @@ pub fn dispatch<'a, T, R>(
     payload: Json,
     mutations: &mut Vec<MutationRecord>,
     // The synchronous half of `projects`, applied right before `repo.save`.
-    seed_projections: Vec<(&'static str, Option<String>)>,
+    seed_projections: Vec<(&'static str, Option<Value>)>,
     // The write-side tenant boundary. The router computes it (it needs every aggregate's repo)
     // but it is applied here, first in `Save`, before `seed_projections`.
     tenant_boundary_check: Result<(), Refusal>,
@@ -606,7 +606,7 @@ pub fn dispatch_entity<'a, T, E, R>(
     payload: Json,
     mutations: &mut Vec<MutationRecord>,
     // As in `dispatch`: an entity command still ends in a parent aggregate save.
-    seed_projections: Vec<(&'static str, Option<String>)>,
+    seed_projections: Vec<(&'static str, Option<Value>)>,
 ) -> Result<(T, Vec<Event>), Refusal>
 where
     T: Fielded + Clone + ToJson + SetProjectedField,

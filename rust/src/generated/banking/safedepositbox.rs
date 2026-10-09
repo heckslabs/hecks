@@ -1143,9 +1143,9 @@ impl crate::kernel::ToJson for SafeDepositBox {
 }
 
 impl crate::kernel::SetProjectedField for SafeDepositBox {
-    fn set_projected_field(&mut self, name: &'static str, value: Option<String>) {
+    fn set_projected_field(&mut self, name: &'static str, value: Option<crate::kernel::Value>) {
         match name {
-            "customer_status" => self.customer_status = value,
+            "customer_status" => self.customer_status = value.and_then(crate::kernel::Value::into_string),
             _ => {}
         }
     }

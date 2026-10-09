@@ -1,0 +1,110 @@
+{
+  "domain": "spec/fixtures/rust_project/projected_single_field_fixture",
+  "note": "A `projects` field over a remote field typed by a single-field value object (ADR 0025 addendum). Booking.starts_at and title copy Event's StartsAt{Integer} and Title{String} as the bare scalar in that scalar's own type, never as { value: ... }, and a Booking saved again after the source moved holds the new value. A runtime that seeds only strings, or stores the wrapped object, fails this fixture.",
+  "steps": [
+    {
+      "verb": "ProjectedSingleFieldFixture::Event.Schedule",
+      "args": {
+        "ref": "e1",
+        "starts_at": 100,
+        "title": "Gala"
+      }
+    },
+    {
+      "verb": "ProjectedSingleFieldFixture::Booking.Open",
+      "args": {
+        "event": "e1",
+        "ref": "b1"
+      }
+    },
+    {
+      "verb": "ProjectedSingleFieldFixture::Event.Reschedule",
+      "args": {
+        "ref": "e1",
+        "starts_at": 250
+      }
+    },
+    {
+      "verb": "ProjectedSingleFieldFixture::Booking.Touch",
+      "args": {
+        "ref": "b1"
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [],
+    "instances": {
+      "ProjectedSingleFieldFixture::Event#e1": {
+        "ref": {
+          "value": "e1"
+        },
+        "starts_at": {
+          "value": 250
+        },
+        "title": {
+          "value": "Gala"
+        }
+      },
+      "ProjectedSingleFieldFixture::Booking#b1": {
+        "ref": {
+          "value": "b1"
+        },
+        "event": "e1",
+        "starts_at": 250,
+        "title": "Gala"
+      }
+    },
+    "events": [
+      {
+        "name": "EventScheduled",
+        "aggregate": "ProjectedSingleFieldFixture::Event",
+        "id": "e1",
+        "payload": {
+          "ref": {
+            "value": "e1"
+          },
+          "starts_at": {
+            "value": 100
+          },
+          "title": {
+            "value": "Gala"
+          }
+        }
+      },
+      {
+        "name": "BookingOpened",
+        "aggregate": "ProjectedSingleFieldFixture::Booking",
+        "id": "b1",
+        "payload": {
+          "event": "e1",
+          "ref": {
+            "value": "b1"
+          }
+        }
+      },
+      {
+        "name": "EventRescheduled",
+        "aggregate": "ProjectedSingleFieldFixture::Event",
+        "id": "e1",
+        "payload": {
+          "ref": "e1",
+          "starts_at": {
+            "value": 250
+          }
+        }
+      },
+      {
+        "name": "BookingTouched",
+        "aggregate": "ProjectedSingleFieldFixture::Booking",
+        "id": "b1",
+        "payload": {
+          "ref": "b1"
+        }
+      }
+    ],
+    "queries": [],
+    "sagas": [],
+    "dry_runs": [],
+    "reactions": []
+  }
+}

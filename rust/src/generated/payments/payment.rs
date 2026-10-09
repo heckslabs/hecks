@@ -653,7 +653,7 @@ impl crate::kernel::ToJson for Payment {
 }
 
 impl crate::kernel::SetProjectedField for Payment {
-    fn set_projected_field(&mut self, name: &'static str, value: Option<String>) {
+    fn set_projected_field(&mut self, name: &'static str, value: Option<crate::kernel::Value>) {
         match name {
 
             _ => {}

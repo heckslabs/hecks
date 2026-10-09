@@ -221,7 +221,7 @@ impl crate::kernel::ToJson for Referral {
 }
 
 impl crate::kernel::SetProjectedField for Referral {
-    fn set_projected_field(&mut self, name: &'static str, value: Option<String>) {
+    fn set_projected_field(&mut self, name: &'static str, value: Option<crate::kernel::Value>) {
         match name {
 
             _ => {}

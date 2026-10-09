@@ -60,7 +60,7 @@ impl ToJson for Acct {
 }
 
 impl SetProjectedField for Acct {
-    fn set_projected_field(&mut self, _name: &'static str, _value: Option<String>) {}
+    fn set_projected_field(&mut self, _name: &'static str, _value: Option<Value>) {}
 }
 
 fn rule(description: &'static str, field: &'static str) -> InvariantSpec {

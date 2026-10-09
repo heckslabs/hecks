@@ -125,21 +125,18 @@ pub struct ProjectedFieldSpec {
     pub remote_field: &'static str,
 }
 
-/// Reads each projected field off the already-dereferenced references.
-pub fn seeded_projections(with_references: &dyn Fielded, specs: &'static [ProjectedFieldSpec]) -> Vec<(&'static str, Option<String>)> {
+/// Reads each projected field off the already-dereferenced references. A scalar is copied as its
+/// own type (`Int`, `Float`, `Bool`, `Str`); a single-field value object is copied as its one
+/// scalar, as Ruby's `RebuildSweep.remote_value` does.
+pub fn seeded_projections(with_references: &dyn Fielded, specs: &'static [ProjectedFieldSpec]) -> Vec<(&'static str, Option<Value>)> {
     specs
         .iter()
         .map(|spec| {
-            // Only `Option<String>` remote fields are seeded; other types would need a coercion.
             let value = match with_references.field(spec.reference) {
                 Some(Field::Nested(node)) => match node.field(spec.remote_field) {
-                    Some(Field::Value(Value::Str(s))) => Some(s),
-                    // A single-field value object unwraps to its one scalar, as Ruby's RebuildSweep does.
-                    Some(Field::Nested(inner)) => match inner.as_scalar() {
-                        Some(Value::Str(s)) => Some(s),
-                        _ => None,
-                    },
-                    _ => None,
+                    Some(Field::Value(v)) => projectable(v),
+                    Some(Field::Nested(inner)) => inner.as_scalar().and_then(projectable),
+                    None => None,
                 },
                 _ => None,
             };
@@ -148,7 +145,88 @@ pub fn seeded_projections(with_references: &dyn Fielded, specs: &'static [Projec
         .collect()
 }
 
-/// Write side of `projects`: one generated match arm per projected field.
+// Only a scalar is a projected value; a list length, an array or a nil is not.
+fn projectable(value: Value) -> Option<Value> {
+    matches!(value, Value::Str(_) | Value::Int(_) | Value::Float(_) | Value::Bool(_)).then_some(value)
+}
+
+/// Write side of `projects`: one generated match arm per projected field, narrowing the copied
+/// value to that field's type with `Value::into_string`, `into_i64`, `into_f64` or `into_bool`.
 pub trait SetProjectedField {
-    fn set_projected_field(&mut self, name: &'static str, value: Option<String>);
+    fn set_projected_field(&mut self, name: &'static str, value: Option<Value>);
+}
+
+#[cfg(test)]
+mod projection_tests {
+    use super::*;
+
+    struct StartsAt(i64);
+    impl Fielded for StartsAt {
+        fn field(&self, name: &str) -> Option<Field<'_>> {
+            (name == "value").then(|| Field::Value(Value::Int(self.0)))
+        }
+        fn as_scalar(&self) -> Option<Value> {
+            Some(Value::Int(self.0))
+        }
+    }
+
+    struct Event {
+        starts_at: StartsAt,
+    }
+    impl Fielded for Event {
+        fn field(&self, name: &str) -> Option<Field<'_>> {
+            match name {
+                "starts_at" => Some(Field::Nested(&self.starts_at)),
+                "capacity" => Some(Field::Value(Value::Int(40))),
+                "ratio" => Some(Field::Value(Value::Float(0.5))),
+                "open" => Some(Field::Value(Value::Bool(true))),
+                "title" => Some(Field::Value(Value::Str("Gala".to_string()))),
+                _ => None,
+            }
+        }
+    }
+
+    struct Booking {
+        event: Event,
+    }
+    impl Fielded for Booking {
+        fn field(&self, name: &str) -> Option<Field<'_>> {
+            (name == "event").then(|| Field::Nested(&self.event))
+        }
+    }
+
+    static SPECS: &[ProjectedFieldSpec] = &[
+        ProjectedFieldSpec { field: "starts_at", reference: "event", remote_field: "starts_at" },
+        ProjectedFieldSpec { field: "capacity", reference: "event", remote_field: "capacity" },
+        ProjectedFieldSpec { field: "ratio", reference: "event", remote_field: "ratio" },
+        ProjectedFieldSpec { field: "open", reference: "event", remote_field: "open" },
+        ProjectedFieldSpec { field: "title", reference: "event", remote_field: "title" },
+        ProjectedFieldSpec { field: "missing", reference: "event", remote_field: "nope" },
+    ];
+
+    fn seeded() -> Vec<(&'static str, Option<Value>)> {
+        seeded_projections(&Booking { event: Event { starts_at: StartsAt(100) } }, SPECS)
+    }
+
+    #[test]
+    fn a_single_field_value_object_is_copied_as_its_integer() {
+        assert_eq!(seeded()[0], ("starts_at", Some(Value::Int(100))));
+    }
+
+    #[test]
+    fn each_scalar_type_is_copied_as_its_own_type() {
+        let values: Vec<Option<Value>> = seeded()[1..5].iter().map(|(_, v)| v.clone()).collect();
+        let expected = vec![Some(Value::Int(40)), Some(Value::Float(0.5)), Some(Value::Bool(true)), Some(Value::Str("Gala".to_string()))];
+        assert_eq!(values, expected);
+    }
+
+    #[test]
+    fn a_field_the_target_never_reads_seeds_nothing() {
+        assert_eq!(seeded()[5], ("missing", None));
+    }
+
+    #[test]
+    fn a_reader_refuses_a_value_of_another_type() {
+        assert_eq!((Value::Int(7).into_i64(), Value::Int(7).into_string()), (Some(7), None));
+    }
 }

@@ -27,6 +27,39 @@ impl Value {
     pub fn truthy(&self) -> bool {
         !matches!(self, Value::Nil | Value::Bool(false))
     }
+
+    /// The text of a `Str`, else `None`; a generated `SetProjectedField` arm narrows a
+    /// projected scalar to its field's type with one of the `into_*` readers.
+    pub fn into_string(self) -> Option<String> {
+        match self {
+            Value::Str(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    /// The integer of an `Int`, else `None`.
+    pub fn into_i64(self) -> Option<i64> {
+        match self {
+            Value::Int(n) => Some(n),
+            _ => None,
+        }
+    }
+
+    /// The float of a `Float`, else `None`.
+    pub fn into_f64(self) -> Option<f64> {
+        match self {
+            Value::Float(f) => Some(f),
+            _ => None,
+        }
+    }
+
+    /// The boolean of a `Bool`, else `None`.
+    pub fn into_bool(self) -> Option<bool> {
+        match self {
+            Value::Bool(b) => Some(b),
+            _ => None,
+        }
+    }
 }
 
 pub enum Field<'a> {

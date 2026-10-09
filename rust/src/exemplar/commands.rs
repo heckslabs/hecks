@@ -68,7 +68,7 @@ impl crate::kernel::ToJson for TmplRecord {
     }
 }
 impl crate::kernel::SetProjectedField for TmplRecord {
-    fn set_projected_field(&mut self, name: &'static str, value: Option<String>) {
+    fn set_projected_field(&mut self, name: &'static str, value: Option<crate::kernel::Value>) {
         let _ = (name, value);
     }
 }
@@ -94,7 +94,7 @@ fn tmpl_hydrate_placeholder() -> crate::kernel::Hydrate<'static, TmplRecord> {
 
 fn tmpl_mutation_lines_placeholder(record: &mut TmplRecord) {}
 
-fn tmpl_seed_projections_placeholder() -> Vec<(&'static str, Option<String>)> {
+fn tmpl_seed_projections_placeholder() -> Vec<(&'static str, Option<crate::kernel::Value>)> {
     Vec::new()
 }
 

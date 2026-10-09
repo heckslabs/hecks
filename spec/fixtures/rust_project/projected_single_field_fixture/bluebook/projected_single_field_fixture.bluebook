@@ -1,0 +1,93 @@
+# Pins `projects` over a remote field typed by a single-field value object: the projecting
+# aggregate holds the one scalar in the remote field's own type (Integer, String),
+# seeded when a command saves it and read back as that type.
+#
+# Dispatched against both engines by
+# spec/corpus/rust_conformance/projected_single_field_value_object.json
+Hecks.bluebook "ProjectedSingleFieldFixture" do
+  vision "The smallest domain whose Booking holds local copies of an Event's single-field value object fields, an Integer and a String."
+
+  core
+
+  aggregate "Event" do
+    description "The record a Booking's projected fields are copies of."
+
+    identified_by :ref
+
+    attribute :ref, EventRef
+    attribute :starts_at, StartsAt
+    attribute :title, Title
+
+    value_object "EventRef" do
+      attribute :value, String
+    end
+
+    value_object "StartsAt" do
+      attribute :value, Integer
+    end
+
+    value_object "Title" do
+      attribute :value, String
+    end
+
+    command "Schedule" do
+      goal "Schedule an event"
+
+      attribute :ref, EventRef
+      attribute :starts_at, StartsAt
+      attribute :title, Title
+
+      sets :ref
+      sets :starts_at
+      sets :title
+
+      emits "EventScheduled"
+    end
+
+    command "Reschedule" do
+      goal "Move an event"
+
+      reference_to Event
+      attribute :starts_at, StartsAt
+
+      sets :starts_at
+
+      emits "EventRescheduled"
+    end
+  end
+
+  aggregate "Booking" do
+    description "Refers to an Event and holds a local copy of its start time and title."
+
+    identified_by :ref
+
+    attribute :ref, BookingRef
+    reference_to Event
+
+    projects :starts_at, from: :"event.starts_at"
+    projects :title, from: :"event.title"
+
+    value_object "BookingRef" do
+      attribute :value, String
+    end
+
+    command "Open" do
+      goal "Book an event"
+
+      reference_to Event
+      attribute :ref, BookingRef
+
+      sets :ref
+
+      emits "BookingOpened"
+    end
+
+    command "Touch" do
+      goal "Save a booking again, which seeds its projected fields afresh"
+
+      reference_to Booking
+
+      emits "BookingTouched"
+    end
+  end
+end

@@ -393,10 +393,10 @@ impl crate::kernel::ToJson for CardPayment {
 }
 
 impl crate::kernel::SetProjectedField for CardPayment {
-    fn set_projected_field(&mut self, name: &'static str, value: Option<String>) {
+    fn set_projected_field(&mut self, name: &'static str, value: Option<crate::kernel::Value>) {
         match name {
-            "account_status" => self.account_status = value,
-            "account_customer_status" => self.account_customer_status = value,
+            "account_status" => self.account_status = value.and_then(crate::kernel::Value::into_string),
+            "account_customer_status" => self.account_customer_status = value.and_then(crate::kernel::Value::into_string),
             _ => {}
         }
     }
