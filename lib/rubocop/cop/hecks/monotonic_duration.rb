@@ -42,7 +42,7 @@ module RuboCop
 
         # Whether the variable is assigned a clock read anywhere in the enclosing method or class.
         def assigned_from_clock?(node, variable)
-          scope = node.each_ancestor(:def, :defs, :class, :module).first || node.root
+          scope = node.each_ancestor(:def, :defs, :class, :module).first || processed_source.ast
           scope.each_descendant(:lvasgn, :ivasgn).any? do |assignment|
             assignment.name == variable.children.first && clock_read?(assignment.expression)
           end
