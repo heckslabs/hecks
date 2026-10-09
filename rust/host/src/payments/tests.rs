@@ -763,7 +763,7 @@ async fn a_stripe_session_expires_about_thirty_one_minutes_after_it_is_created()
     let sent = t.fake.requests_to("/v1/checkout/sessions");
     assert_eq!(sent.len(), 1);
     let expires_at: i64 = sent[0].body.split('&').find_map(|pair| pair.strip_prefix("expires_at=")).expect("an expires_at form field").parse().unwrap();
-    let hold = crate::checkout::SESSION_HOLD_SECONDS;
+    let hold = crate::checkout::effective_hold_seconds(crate::commerce_ir::checkout_windows_binding().session_hold);
     assert!((before + hold..=after + hold).contains(&expires_at), "expires_at {expires_at} is not {hold}s after creation ({before}..{after})");
     assert!((30 * 60..=35 * 60).contains(&hold), "Stripe's minimum is 30 minutes, and the hold should stay close to it");
 }

@@ -198,6 +198,7 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("invariant", "ValueObject"),
     ("member", "OneOf"),
     ("transition", "Lifecycle"),
+    ("mark", "Lifecycle"),
     ("description", "Query"),
     ("attribute", "Query"),
     ("where", "Query"),

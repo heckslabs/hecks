@@ -113,6 +113,22 @@ RSpec.describe "the judge's coverage of the language" do
     @needs_chapter ||= Hecks::Bluebook::DSL::BluebookBuilder.build("NeedsCoverage", &clocked_aggregate)
   end
 
+  # `Aggregate.Mark` and `Entity.Mark` (ADR 0097) are real DSL surface no corpus lifecycle
+  # declares yet, so a small fixture does.
+  def marks_chapter
+    @marks_chapter ||= Hecks::Bluebook::DSL::BluebookBuilder.build("MarksCoverage") do
+      aggregate "Payment" do
+        identified_by { attribute :number, String }
+        lifecycle(:status, default: "pending") { mark :holds_seat, "pending" }
+
+        entity "Line" do
+          identified_by { attribute :sequence, Integer }
+          lifecycle(:stage, default: "open") { mark :settled, "open" }
+        end
+      end
+    end
+  end
+
   attr_reader :banking
   attr_reader :paging
   attr_reader :governance
@@ -141,8 +157,8 @@ RSpec.describe "the judge's coverage of the language" do
   # Banking carries every query and read_model option itself, so no union with
   # another chapter is needed for `Query.Option` and `ReadModel.Option`.
   def offered_verbs
-    offered_in_order + offered_in_order(paging) + offered_in_order(grammar) +
-      offered_in_order(relationships) + offered_in_order(governance) + offered_in_order(needs_chapter)
+    [banking, paging, grammar, relationships, governance, needs_chapter, marks_chapter]
+      .flat_map { |chapter| offered_in_order(chapter) }
   end
 
   # Every command on every aggregate of the meta-domain, spelled as the judge would

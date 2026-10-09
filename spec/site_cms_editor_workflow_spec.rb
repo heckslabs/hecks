@@ -99,6 +99,19 @@ RSpec.describe "the editor's workflow, derived from the chapters" do
       expect(css).to include(".tab:not(.tab-active):not(:hover)")
       expect(files.fetch("src/browser/body_editor.js")).to include("overflow-x-auto", "sm:flex-wrap")
     end
+
+    it "keeps the picture picker's panel inside the window, with its own scroll", :aggregate_failures do
+      css = files.fetch("src/browser/app.css")
+      picker = files.fetch("src/browser/media_picker.js")
+      expect(css).to include(".picker-panel {", "max-height: calc(100dvh -", ".file-input {")
+      expect(picker).to include("fixed inset-x-2", "overflow-y-auto", "visualViewport", "safe-area-inset-bottom")
+      expect(picker).not_to include("absolute left-2")
+    end
+
+    it "stops the picture picker above the sticky action bar, which clears the home indicator", :aggregate_failures do
+      expect(files.fetch("src/browser/media_picker.js")).to include("[data-actionbar]")
+      expect(files.fetch("src/ui/pages.ts")).to include("data-actionbar", "env(safe-area-inset-bottom)")
+    end
   end
 
   describe "the records that go with a record" do

@@ -43,20 +43,43 @@ RSpec.describe "newsletter capability" do
     aggregate:   "Newsletter::Subscriber"
   }.freeze
 
-  def newsletter_chapter(provides)
+  # A subscriber whose lifecycle marks the states the host reads (ADR 0097).
+  MARKED_SUBSCRIBER_BODY = proc do
+    instance_exec(&NEWSLETTER_SUBSCRIBER_BODY)
+    lifecycle :status, default: "invited" do
+      mark :awaiting_confirmation, "invited"
+      mark :receives_issues, "active", "vip"
+      mark :left, "gone"
+      transition "Confirm"     => "active", from: "invited"
+      transition "Promote"     => "vip",    from: "active"
+      transition "Unsubscribe" => "gone",   from: %w[invited active vip]
+    end
+    command "Promote" do
+      goal "promote"
+      reference_to Subscriber
+    end
+  end
+
+  NEWSLETTER_MARK_ROW = {
+    awaiting_confirmation: "Subscriber.awaiting_confirmation",
+    receives_issues:       "Subscriber.receives_issues",
+    left:                  "Subscriber.left"
+  }.freeze
+
+  def newsletter_chapter(provides, body = NEWSLETTER_SUBSCRIBER_BODY)
     Hecks.bluebook "Newsletter" do
       vision "probe"
       supporting
       provides "newsletter", **provides
-      aggregate "Subscriber", &NEWSLETTER_SUBSCRIBER_BODY
+      aggregate "Subscriber", &body
     end
   end
 
-  def registry_with_newsletter(provides: NEWSLETTER_VERBS)
+  def registry_with_newsletter(provides: NEWSLETTER_VERBS, body: NEWSLETTER_SUBSCRIBER_BODY)
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
       MemoryPorts.load!
-      newsletter_chapter(provides)
+      newsletter_chapter(provides, body)
     end
     registry
   end
@@ -81,11 +104,76 @@ RSpec.describe "newsletter capability" do
 
   it "refuses a provides row that leaves out a key the contract needs" do
     expect { registry_with_newsletter(provides: { subscribe: "Subscriber.Subscribe" }) }
-      .to raise_error(Hecks::Bluebook::DSL::Malformed, /newsletter needs exactly/)
+      .to raise_error(Hecks::Bluebook::DSL::Malformed, /newsletter needs subscribe.*and may add awaiting_confirmation/)
   end
 
   it "refuses a provides row whose verb names no command the chapter declares" do
     expect { registry_with_newsletter(provides: NEWSLETTER_VERBS.merge(unsubscribe: "Subscriber.Leave")) }
       .to raise_error(Hecks::Bluebook::DSL::Malformed, /Subscriber\.Leave/)
+  end
+
+  context "with optional lifecycle marks" do
+    let(:marked_row) { NEWSLETTER_VERBS.merge(NEWSLETTER_MARK_ROW) }
+
+    it "exports the states of each lifecycle mark it names" do
+      registry = registry_with_newsletter(provides: marked_row, body: MARKED_SUBSCRIBER_BODY)
+      marks = { awaiting_confirmation: %w[invited], receives_issues: %w[active vip], left: %w[gone] }
+
+      expect(Hecks::Projector::Exporter.newsletter(registry, "Newsletter")).to eq(NEWSLETTER_EXPORT.merge(marks))
+    end
+
+    it "leaves the export byte-identical to today when no mark is declared" do
+      exported = Hecks::Projector::Exporter.newsletter(registry_with_newsletter(body: MARKED_SUBSCRIBER_BODY), "Newsletter")
+
+      expect(exported).to eq(NEWSLETTER_EXPORT)
+    end
+
+    it "refuses a mark the aggregate's lifecycle does not declare" do
+      row = NEWSLETTER_VERBS.merge(left: "Subscriber.departed")
+
+      expect { registry_with_newsletter(provides: row, body: MARKED_SUBSCRIBER_BODY) }
+        .to raise_error(Hecks::Bluebook::DSL::Malformed, /Subscriber\.departed.*no lifecycle mark/)
+    end
+
+    it "refuses a mark on an aggregate that has no lifecycle" do
+      expect { registry_with_newsletter(provides: marked_row) }
+        .to raise_error(Hecks::Bluebook::DSL::Malformed, /no lifecycle mark/)
+    end
+  end
+
+  context "with optional link windows (ADR 0098)" do
+    let(:windowed_body) do
+      proc do
+        instance_exec(&NEWSLETTER_SUBSCRIBER_BODY)
+        value_object("Seconds") { attribute :value, Integer }
+        attribute :confirm_window,     Seconds, default: { value: 1_209_600 }
+        attribute :unsubscribe_window, Seconds, default: { value: 63_072_000 }
+      end
+    end
+    let(:window_row) do
+      NEWSLETTER_VERBS.merge(confirm_window:     "Subscriber.confirm_window",
+                             unsubscribe_window: "Subscriber.unsubscribe_window")
+    end
+
+    it "exports the whole-seconds default of each attribute it names" do
+      registry = registry_with_newsletter(provides: window_row, body: windowed_body)
+
+      expect(Hecks::Projector::Exporter.newsletter(registry, "Newsletter"))
+        .to eq(NEWSLETTER_EXPORT.merge(confirm_window: 1_209_600, unsubscribe_window: 63_072_000))
+    end
+
+    it "refuses a window that names an attribute with no whole-seconds default" do
+      row = NEWSLETTER_VERBS.merge(confirm_window: "Subscriber.email")
+
+      expect { registry_with_newsletter(provides: row, body: windowed_body) }
+        .to raise_error(Hecks::Bluebook::DSL::Malformed, /Subscriber\.email.*whole-seconds default/)
+    end
+
+    it "refuses a window that names no attribute at all" do
+      row = NEWSLETTER_VERBS.merge(unsubscribe_window: "Subscriber.nope")
+
+      expect { registry_with_newsletter(provides: row, body: windowed_body) }
+        .to raise_error(Hecks::Bluebook::DSL::Malformed, /Subscriber\.nope/)
+    end
   end
 end

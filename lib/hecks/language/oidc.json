@@ -32,6 +32,11 @@
       "role": "Language"
     },
     {
+      "scope": "bluebook:aggregate.mark",
+      "verb": "Bluebook::Aggregate.Mark",
+      "role": "Language"
+    },
+    {
       "scope": "bluebook:aggregate.precondition",
       "verb": "Bluebook::Aggregate.Precondition",
       "role": "Language"
@@ -154,6 +159,11 @@
     {
       "scope": "bluebook:entity.lifecycle",
       "verb": "Bluebook::Entity.Lifecycle",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:entity.mark",
+      "verb": "Bluebook::Entity.Mark",
       "role": "Language"
     },
     {

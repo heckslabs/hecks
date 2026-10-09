@@ -50,6 +50,7 @@ fn every_provider_reader_answers_any_ir_shape() {
                 let _ = newsletter_provider(&ir).map(|p| p.instance_prefix());
                 let _ = newsletter_issues_provider(&ir).map(|p| p.issue_prefix());
                 let _ = payments_provider(&ir).map(|p| p.instance_prefix());
+                let _ = checkout_windows(&ir);
                 if let Some(p) = registrations_provider(&ir) {
                     let _ = (p.event_prefix(), p.registration_prefix(), p.request_target());
                 }

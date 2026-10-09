@@ -34,9 +34,9 @@ fn payment_processor(read: &Value, payments: &PaymentsProvider, reference: &str)
         .and_then(|(_, payment)| payment.get("processor").and_then(|p| p.get("value")).and_then(|v| v.as_str()).map(String::from))
 }
 
-/// Payment statuses whose registration still holds a seat. A registration
-/// with no Payment, or one that's archived, holds none regardless of status.
-const SEAT_HOLDING_PAYMENT_STATUSES: [&str; 4] = ["pending", "succeeded", "refunding", "disputed"];
+// Payment statuses whose registration still holds a seat come from the
+// payment lifecycle's `holds_seat` mark (`PaymentsProvider::holds_seat`). A
+// registration with no Payment, or one that's archived, holds none.
 
 /// The Registration lifecycle state that gives its seat back.
 const ARCHIVED_REGISTRATION_STATUS: &str = "archived";
@@ -64,7 +64,7 @@ fn seat_counts(read: &Value, domain: &str, payments: &PaymentsProvider) -> std::
         .collect();
     let mut counts = std::collections::HashMap::new();
     for (id, registration) in instances_for(read, &crate::commerce_ir::registrations_binding(domain).registration_prefix()) {
-        let holds = statuses.get(&id).is_some_and(|status| SEAT_HOLDING_PAYMENT_STATUSES.contains(&status.as_str()));
+        let holds = statuses.get(&id).is_some_and(|status| payments.holds_seat.iter().any(|held| held == status));
         if let (true, false, Some(event_slug)) = (holds, registration_archived(&registration), plain_id(registration.get("event_slug"))) {
             *counts.entry(event_slug).or_insert(0) += 1;
         }
@@ -477,7 +477,7 @@ pub(crate) async fn registrations_route(
     // follows, the unused session simply expires.
     let embedded_checkout = if let payments::CheckoutPlan::Stripe { api_key, publishable_key } = &plan {
         let auth = checkout::StripeAuth { api_key, base_url: &platform.api_base };
-        match checkout::create_checkout_session(&auth, price_cents, event_name, &reference, checkout::session_expires_at(unix_now())).await {
+        match checkout::create_checkout_session(&auth, price_cents, event_name, &reference, checkout::session_expires_at(unix_now(), crate::commerce_ir::checkout_windows_binding().session_hold)).await {
             // Stripe.js is opened with the publishable key; the answer carries
             // no `checkout_url`.
             Ok(session) => Some(json!({
@@ -611,9 +611,10 @@ pub(crate) async fn webhook_route(
         return mock_secret_refused();
     }
     let candidates = if configured.is_empty() { vec![MOCK_STRIPE_WEBHOOK_SECRET] } else { configured };
+    let tolerance = crate::commerce_ir::checkout_windows_binding().webhook_tolerance;
     let mut verification = Ok(());
     for secret in &candidates {
-        verification = checkout::verify_signature(raw_body, signature_header, secret, now);
+        verification = checkout::verify_signature(raw_body, signature_header, secret, now, tolerance);
         if verification.is_ok() {
             break;
         }
@@ -749,7 +750,7 @@ mod tests {
 
     #[test]
     fn a_registration_holds_a_seat_while_its_payment_is_open_paid_or_being_settled() {
-        let payments = crate::commerce_ir::fixture_payments();
+        let payments = four_state_payments();
         let read = read_with(
             10,
             &[("a", "yoga", "pending"), ("b", "yoga", "succeeded"), ("c", "yoga", "refunding"), ("d", "yoga", "disputed")],
@@ -847,18 +848,22 @@ mod tests {
         read["instances"][format!("CheckoutFixture::Registration#{reference}")]["status"] = json!(status);
     }
 
+    /// The fixture's payments binding with the production table: the fixture lifecycle has only
+    /// pending, succeeded and failed, so refunding and disputed need the table set here.
+    fn four_state_payments() -> crate::commerce_ir::PaymentsProvider {
+        let mut payments = crate::commerce_ir::fixture_payments();
+        payments.holds_seat = HOLDING.iter().map(|s| s.to_string()).collect();
+        payments
+    }
+
     #[test]
-    fn the_seat_holding_table_is_exactly_pending_succeeded_refunding_and_disputed() {
-        let mut table = SEAT_HOLDING_PAYMENT_STATUSES;
-        table.sort_unstable();
-        let mut expected = HOLDING;
-        expected.sort_unstable();
-        assert_eq!(table, expected);
+    fn the_seat_holding_table_comes_from_the_fixture_ir_mark() {
+        assert_eq!(crate::commerce_ir::fixture_payments().holds_seat, vec!["pending", "succeeded"]);
     }
 
     #[test]
     fn every_holding_status_holds_one_seat_and_every_freeing_status_holds_none() {
-        let payments = crate::commerce_ir::fixture_payments();
+        let payments = four_state_payments();
         for status in HOLDING {
             let read = read_with(10, &[("r", "yoga", status)]);
             assert_eq!(seats_taken(&read, "CheckoutFixture", &payments, "yoga"), 1, "{status} should hold a seat");

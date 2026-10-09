@@ -1,3 +1,5 @@
+require_relative "capability_values"
+
 module Hecks
   module Projector
     module Exporter
@@ -5,6 +7,8 @@ module Hecks
       # membership, identity, newsletter, registrations, payments): a per-deployment binding fact,
       # not part of the declared IR. Each answers `{}` when nothing the domain attaches provides it.
       module Bindings
+        include CapabilityValues
+
         # Which chapter this domain's role checks resolve against
         # (`Registry#authorization_provider_for`); `{}` if none does.
         #
@@ -70,16 +74,20 @@ module Hecks
         # @param registry [Runtime::Registry] the booted registry `domain_name` is loaded in
         # @param domain_name [String] the domain to export the newsletter binding for
         # @return [Hash{Symbol => String, nil}] `:provider` (name), `:subscribe`, `:add_name`,
-        #   `:confirm`, `:unsubscribe` (qualified verbs), and `:aggregate` (`:subscribe`'s own
-        #   leading qualified aggregate name); `{}` if nothing this domain attaches provides
-        #   newsletter
+        #   `:confirm`, `:unsubscribe` (qualified verbs), `:aggregate` (`:subscribe`'s own
+        #   leading qualified aggregate name) and, when declared, `:awaiting_confirmation`,
+        #   `:receives_issues` and `:left` (the states of the lifecycle marks they name) and
+        #   `:confirm_window` and `:unsubscribe_window` (seconds); `{}` if nothing this domain
+        #   attaches provides newsletter
         def newsletter(registry, domain_name)
           provider = registry.newsletter_provider_for(domain_name)
           return {} unless provider
 
           verbs = verbs_of(provider, Bluebook::Capabilities::NEWSLETTER,
                            :subscribe, :add_name, :confirm, :unsubscribe)
-          { provider: provider.name, **verbs, aggregate: aggregate_of(verbs[:subscribe]) }
+          { provider: provider.name, **verbs, aggregate: aggregate_of(verbs[:subscribe]),
+            **all_marked_states(provider, Bluebook::Capabilities::NEWSLETTER),
+            **all_durations(provider, Bluebook::Capabilities::NEWSLETTER) }
         end
 
         # Which chapter answers sending a newsletter issue
@@ -142,14 +150,31 @@ module Hecks
         # @param registry [Runtime::Registry] the booted registry `domain_name` is loaded in
         # @param domain_name [String] the domain to export the payments binding for
         # @return [Hash{Symbol => String, nil}] `:provider` (name), `:initiate`, `:succeeded`,
-        #   `:failed` (qualified verbs), and `:aggregate` (`:initiate`'s own leading qualified
-        #   aggregate name); `{}` if nothing this domain attaches provides payments
+        #   `:failed` (qualified verbs), `:aggregate` (`:initiate`'s own leading qualified
+        #   aggregate name) and, when declared, `:holds_seat` (the states of the lifecycle mark
+        #   it names); `{}` if nothing this domain attaches provides payments
         def payments(registry, domain_name)
           provider = registry.payments_provider_for(domain_name)
           return {} unless provider
 
           verbs = verbs_of(provider, Bluebook::Capabilities::PAYMENTS, :initiate, :succeeded, :failed)
-          { provider: provider.name, **verbs, aggregate: aggregate_of(verbs[:initiate]) }
+          { provider: provider.name, **verbs, aggregate: aggregate_of(verbs[:initiate]),
+            **marked_states(provider, Bluebook::Capabilities::PAYMENTS, :holds_seat) }
+        end
+
+        # Which chapter owns the checkout boundary (`Registry#checkout_provider_for`); `{}` if
+        # none does.
+        #
+        # @param registry [Runtime::Registry] the booted registry `domain_name` is loaded in
+        # @param domain_name [String] the domain to export the checkout binding for
+        # @return [Hash{Symbol => Object}] `:provider` (name) and, when declared,
+        #   `:webhook_tolerance` and `:session_hold` (whole seconds); `{}` if nothing this
+        #   domain attaches provides checkout
+        def checkout(registry, domain_name)
+          provider = registry.checkout_provider_for(domain_name)
+          return {} unless provider
+
+          { provider: provider.name, **all_durations(provider, Bluebook::Capabilities::CHECKOUT) }
         end
 
         private

@@ -122,6 +122,8 @@ pub struct Lifecycle {
     pub field: String,
     pub default: String,
     pub transitions: Vec<StateTransitionRow>,
+    // `mark :name, "state", ...`: each meaning and its states, in declared order.
+    pub marks: Vec<(String, Vec<String>)>,
 }
 
 #[derive(Debug, Clone, Default)]

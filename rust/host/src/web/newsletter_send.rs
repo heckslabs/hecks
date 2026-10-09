@@ -18,10 +18,10 @@ const UNSUBSCRIBE_TOKEN: &str = "{{UNSUBSCRIBE_URL}}";
 const DEFAULT_SITE_URL: &str = "http://localhost:4321";
 
 // The purpose keys an unsubscribe token apart from a confirm token, so neither
-// verifies as the other. The lifetime is long (two years) because the link sits
-// in emails that are opened months after they were sent.
+// verifies as the other. The lifetime is the Newsletter bluebook's
+// `unsubscribe_window` (long, because the link sits in emails opened months after
+// they were sent), not a number held here.
 pub(super) const UNSUBSCRIBE_PURPOSE: &str = "newsletter-unsubscribe";
-const UNSUBSCRIBE_TTL_SECS: u64 = 730 * 24 * 60 * 60;
 
 #[derive(Debug, PartialEq)]
 pub(super) enum IssueAction {
@@ -116,7 +116,7 @@ pub(super) fn site_url() -> String {
 }
 
 pub(super) fn unsubscribe_token(secret: &str, email: &str) -> String {
-    auth::purpose_token(secret, UNSUBSCRIBE_PURPOSE, json!({ "email": email }), UNSUBSCRIBE_TTL_SECS)
+    auth::purpose_token(secret, UNSUBSCRIBE_PURPOSE, json!({ "email": email }), crate::commerce_ir::newsletter_windows_binding().1)
 }
 
 pub(super) fn unsubscribe_token_matches(secret: &str, token: &str, email: &str) -> bool {
@@ -141,11 +141,11 @@ fn value_of<'a>(state: &'a Value, field: &str) -> &'a str {
     state.get(field).and_then(|v| v.get("value")).and_then(|v| v.as_str()).unwrap_or("")
 }
 
-// Every confirmed subscriber's address, alphabetical so a send is repeatable.
-fn confirmed_emails(subscribers: &[(String, Value)]) -> Vec<String> {
+// Every address in a state that receives issues (the lifecycle's `receives_issues` mark), alphabetical so a send is repeatable.
+fn confirmed_emails(provider: &NewsletterProvider, subscribers: &[(String, Value)]) -> Vec<String> {
     let mut emails: Vec<String> = subscribers
         .iter()
-        .filter(|(_, s)| s.get("status").and_then(|v| v.as_str()) == Some("confirmed"))
+        .filter(|(_, s)| provider.receives_issues(s.get("status").and_then(|v| v.as_str())))
         .map(|(email, _)| email.clone())
         .collect();
     emails.sort();
@@ -177,7 +177,7 @@ async fn send_issue(
     };
     let subject = value_of(&issue, "subject").to_string();
     let body = value_of(&issue, "body").to_string();
-    let recipients = confirmed_emails(&instances_for(&read, &subscribers.instance_prefix()));
+    let recipients = confirmed_emails(subscribers, &instances_for(&read, &subscribers.instance_prefix()));
 
     // Marked sent before mailing: a second click then refuses ("only a draft
     // issue can be sent") instead of mailing everyone twice.
@@ -323,15 +323,40 @@ mod tests {
         assert!(require_signing_secret("s3cret-value").is_ok());
     }
 
-    #[test]
-    fn only_confirmed_subscribers_are_recipients_in_alphabetical_order() {
-        let subscribers = vec![
+    fn provider_with(marks: serde_json::Value) -> NewsletterProvider {
+        let mut fact = json!({
+            "provider": "Newsletter", "subscribe": "N::S.Subscribe", "add_name": "N::S.AddName",
+            "confirm": "N::S.Confirm", "unsubscribe": "N::S.Unsubscribe", "aggregate": "N::S"
+        });
+        for (key, states) in marks.as_object().into_iter().flatten() {
+            fact[key] = states.clone();
+        }
+        newsletter_provider(&json!({ "newsletter": fact })).expect("newsletter")
+    }
+
+    fn rows() -> Vec<(String, Value)> {
+        vec![
             ("zed@example.com".to_string(), json!({ "status": "confirmed" })),
             ("pending@example.com".to_string(), json!({ "status": "pending" })),
             ("amy@example.com".to_string(), json!({ "status": "confirmed" })),
+            ("vip@example.com".to_string(), json!({ "status": "vip" })),
             ("gone@example.com".to_string(), json!({ "status": "unsubscribed" })),
-        ];
-        assert_eq!(confirmed_emails(&subscribers), vec!["amy@example.com".to_string(), "zed@example.com".to_string()]);
+        ]
+    }
+
+    #[test]
+    fn legacy_default_sends_to_confirmed_subscribers_in_alphabetical_order() {
+        let provider = provider_with(json!({}));
+        assert_eq!(confirmed_emails(&provider, &rows()), vec!["amy@example.com".to_string(), "zed@example.com".to_string()]);
+    }
+
+    #[test]
+    fn the_declared_receives_issues_mark_selects_the_recipients() {
+        let provider = provider_with(json!({ "receives_issues": ["vip", "confirmed"] }));
+        assert_eq!(
+            confirmed_emails(&provider, &rows()),
+            vec!["amy@example.com".to_string(), "vip@example.com".to_string(), "zed@example.com".to_string()]
+        );
     }
 
     #[test]
