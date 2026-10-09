@@ -156,6 +156,7 @@ Hecks.bluebook "Hecks" do
     end
 
     lifecycle :status, default: "requested" do
+      mark :failure, "flagged"
       transition "Pass" => "clean",   from: "requested"
       transition "Flag" => "flagged", from: "requested"
     end
@@ -265,6 +266,7 @@ Hecks.bluebook "Hecks" do
     end
 
     lifecycle :status, default: "requested" do
+      mark :failure, "refused"
       transition "Revendor" => "requested", from: %w[vendored refused]
       transition "Complete" => "vendored",  from: "requested"
       transition "Abandon"  => "refused",   from: "requested"
@@ -404,6 +406,7 @@ Hecks.bluebook "Hecks" do
     end
 
     lifecycle :status, default: "requested" do
+      mark :failure, "refused"
       transition "Complete" => "tagged",  from: "requested"
       transition "Abandon"  => "refused", from: "requested"
     end
@@ -555,6 +558,7 @@ Hecks.bluebook "Hecks" do
     end
 
     lifecycle :status, default: "requested" do
+      mark :failure, "stopped"
       transition "Finish" => "finished", from: "requested"
       transition "Stop"   => "stopped",  from: "requested"
     end
@@ -772,6 +776,7 @@ Hecks.bluebook "Hecks" do
     end
 
     lifecycle :status, default: "requested" do
+      mark :failure, "faulted"
       transition "Complete" => "completed", from: "requested"
       transition "Fault"    => "faulted",   from: "requested"
     end
@@ -1064,6 +1069,7 @@ Hecks.bluebook "Hecks" do
     end
 
     lifecycle :status, default: "requested" do
+      mark :failure, "halted"
       transition "Conclude" => "concluded", from: "requested"
       transition "Halt"     => "halted",    from: "requested"
     end

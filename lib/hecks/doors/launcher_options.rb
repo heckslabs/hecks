@@ -12,7 +12,6 @@ module Hecks
     # domain without one keeps the launcher's plain forms exactly:
     #
     # - **run_keys** mints the `run` key of a creating command that was given none.
-    # - **failure_states** are the lifecycle states `--wait` reports as a failure (exit 1).
     # - **settled** lists the commands (`aggregate.command`) that always act as if given `--wait`.
     # - **report** lists the settled commands whose answer is the report they recorded, as text.
     # - **names** maps a launcher name to the command it stands for (see `CliProjector`).
@@ -23,6 +22,9 @@ module Hecks
       WAIT    = "--wait".freeze
       STREAM  = "--stream".freeze
       RUN_KEY = "run.value".freeze
+      # The lifecycle mark naming the states `--wait` reports as a failure (exit 1); the lifecycle
+      # says so with `mark :failure, "flagged"` (ADR 0097), so no setting lists them.
+      FAILURE_MARK = "failure".freeze
       # What makes a directory a hecks checkout: this file stands beside `lib/`, the same test
       # the Codebase aggregate's `Accept` applies before it runs anything.
       CHECKOUT_MARKER = "hecks.gemspec".freeze
@@ -230,7 +232,7 @@ module Hecks
         !args.key?(:run) && runtime.respond_to?(:registry)
       end
 
-      # Whether a settled record sits in one of the chapter's failure states.
+      # Whether a settled record sits in a state its lifecycle marks as a failure.
       #
       # @param aggregate [Bluebook::Aggregate, nil] the record's aggregate
       # @param state [Hash, nil] the record's state
@@ -238,9 +240,9 @@ module Hecks
       # @return [Boolean] false when the aggregate has no lifecycle
       def failed?(aggregate, state, settings)
         field = aggregate&.lifecycle&.field
-        return false unless field && state
+        return false unless field && state && settings
 
-        Array(settings && settings[:failure_states]).map(&:to_s).include?(state[field.to_sym].to_s)
+        Array(aggregate.lifecycle.marked(FAILURE_MARK)).include?(state[field.to_sym].to_s)
       end
     end
   end

@@ -98,6 +98,7 @@ Hecks.bluebook "Hecks" do
     end
 
     lifecycle :status, default: "requested" do
+      mark :failure, "faulted"
       transition "Accept"   => "accepted",  from: "requested"
       transition "Complete" => "completed", from: "accepted"
       transition "Fault"    => "faulted",   from: %w[requested accepted]
@@ -658,6 +659,7 @@ Hecks.bluebook "Hecks" do
     end
 
     lifecycle :status, default: "requested" do
+      mark :failure, "faulted"
       transition "Accept"   => "accepted",  from: "requested"
       transition "Complete" => "completed", from: "accepted"
       transition "Fault"    => "faulted",   from: %w[requested accepted]
@@ -812,6 +814,7 @@ Hecks.bluebook "Hecks" do
     end
 
     lifecycle :status, default: "requested" do
+      mark :failure, "faulted"
       transition "Accept"   => "accepted",  from: "requested"
       transition "Complete" => "completed", from: "accepted"
       transition "Fault"    => "faulted",   from: %w[requested accepted]
@@ -991,6 +994,7 @@ Hecks.bluebook "Hecks" do
     end
 
     lifecycle :status, default: "requested" do
+      mark :failure, "faulted"
       transition "Accept"   => "accepted",  from: "requested"
       transition "Complete" => "completed", from: "accepted"
       transition "Fault"    => "faulted",   from: %w[requested accepted]
@@ -1225,6 +1229,7 @@ Hecks.bluebook "Hecks" do
     end
 
     lifecycle :status, default: "requested" do
+      mark :failure, "faulted"
       transition "Accept"   => "accepted",  from: "requested"
       transition "Complete" => "completed", from: "accepted"
       transition "Fault"    => "faulted",   from: %w[requested accepted]
@@ -1397,6 +1402,7 @@ Hecks.bluebook "Hecks" do
     end
 
     lifecycle :status, default: "requested" do
+      mark :failure, "faulted"
       transition "Accept"   => "accepted",  from: "requested"
       transition "Complete" => "completed", from: "accepted"
       transition "Fault"    => "faulted",   from: %w[requested accepted]
@@ -1687,6 +1693,7 @@ Hecks.bluebook "Hecks" do
     end
 
     lifecycle :status, default: "requested" do
+      mark :failure, "faulted"
       transition "Accept"   => "accepted",  from: "requested"
       transition "Complete" => "completed", from: "accepted"
       transition "Fault"    => "faulted",   from: %w[requested accepted]
@@ -1900,6 +1907,7 @@ Hecks.bluebook "Hecks" do
     end
 
     lifecycle :status, default: "requested" do
+      mark :failure, "faulted"
       transition "Accept"   => "accepted",  from: "requested"
       transition "Complete" => "completed", from: "accepted"
       transition "Fault"    => "faulted",   from: %w[requested accepted]
@@ -2211,6 +2219,7 @@ Hecks.bluebook "Hecks" do
     end
 
     lifecycle :status, default: "requested" do
+      mark :failure, "faulted"
       transition "Accept"   => "accepted",  from: "requested"
       transition "Complete" => "completed", from: "accepted"
       transition "Fault"    => "faulted",   from: %w[requested accepted]
@@ -2440,6 +2449,7 @@ Hecks.bluebook "Hecks" do
     end
 
     lifecycle :status, default: "requested" do
+      mark :failure, "faulted"
       transition "Accept"     => "accepted",  from: "requested"
       transition "AcceptGem"  => "accepted",  from: "requested"
       transition "Complete"   => "completed", from: "accepted"
@@ -2770,6 +2780,7 @@ Hecks.bluebook "Hecks" do
     end
 
     lifecycle :status, default: "requested" do
+      mark :failure, "faulted"
       transition "Accept"   => "accepted",  from: "requested"
       transition "Observe"  => "observed",  from: "requested"
       transition "Complete" => "completed", from: %w[accepted observed]

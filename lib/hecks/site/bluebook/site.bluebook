@@ -167,6 +167,7 @@ Hecks.bluebook "Site" do
     end
 
     lifecycle :status, default: "requested" do
+      mark :failure, "faulted"
       transition "Complete" => "projected", from: "requested"
       transition "Fault"    => "faulted",   from: "requested"
     end

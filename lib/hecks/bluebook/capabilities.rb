@@ -35,6 +35,14 @@ module Hecks
       # recognised by declaration rather than the literal chapter name.
       CHECKOUT = "checkout".freeze
 
+      # Marking a domain's attributes sensitive and reading the markings back, recognised by
+      # declaration rather than the literal chapter name "Privacy".
+      PRIVACY = "privacy".freeze
+
+      # A subject's key record, shredded to erase them, recognised by declaration rather than the
+      # literal names "Privacy" and "SubjectKey".
+      SUBJECT_KEYS = "subject_keys".freeze
+
       # The kinds of contract entry a capability may name: `:command` and
       # `:query` ("Aggregate.Name"), `:port_operation` ("Aggregate.Port.Operation")
       # and `:mark` ("Aggregate.mark_name", the states of that aggregate's
@@ -140,6 +148,18 @@ module Hecks
           enable:     :command,
           # switch taking payments off
           disable:    :command
+        }.freeze,
+        PRIVACY            => {
+          # flag one attribute of a domain sensitive
+          mark_sensitive: :command,
+          # every marking of one domain, for masking a read
+          markings_for:   :query
+        }.freeze,
+        SUBJECT_KEYS       => {
+          # the key record of one subject, if any
+          key_for: :query,
+          # record the subject's key as destroyed
+          shred:   :command
         }.freeze,
         CHECKOUT           => {
           # Optional: how many seconds either side of now a signed webhook's

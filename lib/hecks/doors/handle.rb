@@ -135,9 +135,12 @@ module Hecks
       # dispatch on every read.
       def marked_paths
         return @marked_paths if defined?(@marked_paths)
-        return @marked_paths = [] unless @dispatcher.registry.bluebook("Privacy")
 
-        @marked_paths = @dispatcher.query("Privacy::Marking.ForDomain", domain: fqn)
+        provider = @dispatcher.registry.provider_of(Bluebook::Capabilities::PRIVACY)
+        return @marked_paths = [] unless provider
+
+        verb = provider.provided_verb(Bluebook::Capabilities::PRIVACY, :markings_for)
+        @marked_paths = @dispatcher.query(verb, domain: fqn)
       end
 
       # False outright for an unidentified caller or an unattached domain, never
