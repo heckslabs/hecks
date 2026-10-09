@@ -107,8 +107,9 @@ Hecks.bluebook "Hecks" do
   # command below that runs something follows this one shape, so later aggregates copy it:
   #
   #   1. A creating command records the request as a record in state "requested" and emits.
-  #   2. A policy on that event triggers an ask on one of the record's ports. The runtime hands
-  #      the port's adapter the whole record, so the adapter does all the IO, and only there.
+  #   2. A policy on that event asks for the work by name (`ask :check`); the hecksagon says which
+  #      port answers. The runtime hands the port's adapter the whole record, so the adapter does
+  #      all the IO, and only there.
   #   3. The adapter answers (a hash named like a command's arguments) or raises (its message
   #      is the refusal). One policy per outcome re-enters the record with a command that stores it.
   #
@@ -221,7 +222,7 @@ Hecks.bluebook "Hecks" do
 
   policy "AnalyseWhenRequested" do
     on      "ModelCheckRun.ModelCheckRequested"
-    trigger ModelCheckRun::DomainRuntime::Check, with: { run: :run }
+    ask     :check, with: { run: :run }
   end
 
   policy "RecordTheClean" do
@@ -353,12 +354,12 @@ Hecks.bluebook "Hecks" do
 
   policy "PinWhenVendored" do
     on      "Package.VendorRequested"
-    trigger Package::Git::Pin, with: { package: :package }
+    ask     :pin, with: { package: :package }
   end
 
   policy "PinWhenRevendored" do
     on      "Package.RevendorRequested"
-    trigger Package::Git::Pin, with: { package: :package }
+    ask     :pin, with: { package: :package }
   end
 
   policy "RecordThePinning" do
@@ -489,7 +490,7 @@ Hecks.bluebook "Hecks" do
 
   policy "TagWhenReleased" do
     on      "Registry.ReleaseRequested"
-    trigger Registry::Git::Tag, with: { run: :run }
+    ask     :tag, with: { run: :run }
   end
 
   policy "RecordTheTag" do
@@ -679,22 +680,22 @@ Hecks.bluebook "Hecks" do
 
   policy "WriteWhenRequested" do
     on      "Door.LaunchersRequested"
-    trigger Door::Workspace::Write, with: { run: :run }
+    ask     :write, with: { run: :run }
   end
 
   policy "ScaffoldWhenRequested" do
     on      "Door.StubRequested"
-    trigger Door::Workspace::Scaffold, with: { run: :run }
+    ask     :scaffold, with: { run: :run }
   end
 
   policy "ConverseWhenRequested" do
     on      "Door.InterviewRequested"
-    trigger Door::Terminal::Converse, with: { run: :run }
+    ask     :converse, with: { run: :run }
   end
 
   policy "ServeWhenRequested" do
     on      "Door.McpRequested"
-    trigger Door::Terminal::Serve, with: { run: :run }
+    ask     :serve, with: { run: :run }
   end
 
   policy "RecordTheDoor" do
@@ -944,37 +945,37 @@ Hecks.bluebook "Hecks" do
 
   policy "GenerateWhenRequested" do
     on      "Build.RustProjectionRequested"
-    trigger Build::RustToolchain::Generate, with: { run: :run }
+    ask     :generate, with: { run: :run }
   end
 
   policy "CompileWasmWhenRequested" do
     on      "Build.WasmBuildRequested"
-    trigger Build::RustToolchain::Wasm, with: { run: :run }
+    ask     :wasm, with: { run: :run }
   end
 
   policy "BuildHostWhenRequested" do
     on      "Build.HostBuildRequested"
-    trigger Build::RustToolchain::Host, with: { run: :run }
+    ask     :host, with: { run: :run }
   end
 
   policy "CompileBrowserWasmWhenRequested" do
     on      "Build.BrowserWasmBuildRequested"
-    trigger Build::RustToolchain::BrowserWasm, with: { run: :run }
+    ask     :browser_wasm, with: { run: :run }
   end
 
   policy "ConformWhenRequested" do
     on      "Build.ConformanceRequested"
-    trigger Build::RustToolchain::Conform, with: { run: :run }
+    ask     :conform, with: { run: :run }
   end
 
   policy "ReplayWhenRequested" do
     on      "Build.ConformanceFuzzRequested"
-    trigger Build::RustToolchain::Replay, with: { run: :run }
+    ask     :replay, with: { run: :run }
   end
 
   policy "AuditWhenRequested" do
     on      "Build.CoverageAllowlistRequested"
-    trigger Build::RustToolchain::Audit, with: { run: :run }
+    ask     :audit, with: { run: :run }
   end
 
   policy "RecordTheBuild" do
@@ -1212,17 +1213,17 @@ Hecks.bluebook "Hecks" do
 
   policy "SweepWhenRequested" do
     on      "FuzzRun.FuzzRequested"
-    trigger FuzzRun::ProcessPool::Sweep, with: { run: :run }
+    ask     :sweep, with: { run: :run }
   end
 
   policy "MutateWhenRequested" do
     on      "FuzzRun.MutateRequested"
-    trigger FuzzRun::ProcessPool::Probe, with: { run: :run }
+    ask     :probe, with: { run: :run }
   end
 
   policy "MeasureWhenRequested" do
     on      "FuzzRun.BenchRequested"
-    trigger FuzzRun::RustToolchain::Measure, with: { run: :run }
+    ask     :measure, with: { run: :run }
   end
 
   policy "RecordTheSweep" do

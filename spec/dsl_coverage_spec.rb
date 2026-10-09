@@ -78,7 +78,7 @@ RSpec.describe "the DSL surface is fully covered" do
     ],
     "BindingProxy"                => [
       Hecks::Bluebook::DSL::BindingProxy,
-      %i[port method_missing to_s]
+      %i[port ask_via method_missing to_s]
     ],
     "WorldConstProxy"             => [
       # The `.world` file's ConstShim bridge — mirrors `BindingProxy`'s job for

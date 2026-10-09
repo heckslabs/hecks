@@ -58,6 +58,7 @@ module Hecks
           ["Entity", "entity"] => :entity_impl,
           ["Policy", "on"] => :on_impl,
           ["Policy", "trigger"] => :trigger_impl,
+          ["Policy", "ask"] => :ask_impl,
           ["Policy", "across"] => :across_impl,
           ["ProcessManager", "starts_on"] => :starts_on_impl,
           ["ProcessManager", "ends_on"] => :ends_on_impl,

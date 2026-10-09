@@ -117,6 +117,13 @@ module Hecks
             self
           end
 
+          # `BindingProxy#ask_via` for a repeat boot, when this door stands where the proxy would.
+          door.define_singleton_method(:ask_via) do |name, port:|
+            chapter = Hecks.current_registry&.bluebook(domain)
+            Bluebook::AskResolution.pick!(chapter, aggregate.hecks_name, name, port)
+            self
+          end
+
           door.define_singleton_method(:method_missing) do |verb, *args, **kwargs, &block|
             # A bare call starts a Privacy marking chain (see
             # `BindingProxy#method_missing`), reached here when the door is already

@@ -83,6 +83,27 @@ Hecks.bluebook "PolicyReference" do
     end
   end
 
+  # A job the outside runs. Nothing here names the port: the hecksagon maps `ask :check`.
+  aggregate "RefJob" do
+    attribute :ref, JobRef
+
+    identified_by :ref
+
+    value_object "JobRef" do
+      attribute :value, String
+    end
+
+    command "Submit" do
+      sets :ref
+      emits "RefJobSubmitted"
+    end
+  end
+
+  policy "CheckWhenSubmitted" do
+    on  "RefJob.RefJobSubmitted"
+    ask :check, with: { ref: :ref }
+  end
+
   policy "BlockCardsOnSevereAlert" do
     on       "RefAlertRaised"
     where    { severity.level >= 3 }
@@ -119,6 +140,15 @@ end
 Hecks.hecksagon("PolicyReference") do
   PolicyReference::RefCard.persisted_by("Memory")
   PolicyReference::RefAlert.persisted_by("Memory")
+  PolicyReference::RefJob.persisted_by("Memory")
+
+  PolicyReference::RefJob.port "Auditor" do
+    asks "Check", to: RefJob do
+      attribute :ref, JobRef
+      answers "RefJobChecked"
+      refuses "RefJobRefused"
+    end
+  end
 end
 ```
 
@@ -222,6 +252,38 @@ A target that cannot take every field it is given is refused, the
 triggering command still succeeds, and the reason lands in the reaction
 log rather than in the caller's lap — which is a good way for a policy
 to stay broken for a long time without anyone noticing.
+
+## ask
+
+<!-- generated:begin word=ask -->
+`ask ask, with:` — fills `ask`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | symbol | true | ask |
+| `with:` | pairs | false | with_spec |
+<!-- generated:end -->
+
+The need a policy puts to the outside, in the domain's own words. `ask :check` says
+what the domain wants done; it never says which port does it. The hecksagon declares the
+port (`asks "Check", to: RefJob` on a port of `RefJob`), and boot reads the match: the
+event's aggregate and the ask's name against that aggregate's declared asks. The reaction
+then dispatches exactly what `trigger RefJob::Auditor::Check` would have, `with:` and all,
+and the outcome comes back as the ask's `answers` or `refuses` event for another policy to
+react to.
+
+```ruby
+runtime.dispatch_flat("PolicyReference::RefJob.Submit", ref: { value: "job-1" })
+runtime.registry.reaction_log.last[:trigger]  # => "PolicyReference::RefJob::Auditor.Check"
+```
+
+If one aggregate declares the same ask name on two ports, the hecksagon picks with
+`PolicyReference::RefJob.ask_via "Check", port: "Auditor"`, and boot refuses the ambiguity
+until it does. An `ask` that no declared ask answers is a boot refusal and a `model_check`
+error, and a declared ask no policy reaches is a warning. `trigger` still works for a
+command, and for the older spelling that names a port operation, which `model_check`
+flags so the move to `ask` can be counted. An `ask` does not combine with `across`: it
+resolves in its own domain.
 
 ## across
 

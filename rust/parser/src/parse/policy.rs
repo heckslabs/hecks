@@ -1,5 +1,5 @@
-//! The `Policy` construct: `on`/`trigger` fill `on_event`/`trigger_command`, `across` names the
-//! target domain.
+//! The `Policy` construct: `on`/`trigger` fill `on_event`/`trigger_command`, `ask` names a need
+//! the hecksagon maps to a port, `across` names the target domain.
 
 use crate::canonical;
 use crate::diag::{Diagnostic, ParseResult};
@@ -47,6 +47,17 @@ pub fn parse_body(
                     1,
                 )?);
                 // Shares `dispatch`'s `with:` parser so the two cannot drift.
+                policy.with_spec = super::process_manager::parse_with_pairs_opt(&gated.args);
+            }
+            // Same `with:` projection as `trigger`; which port answers is the hecksagon's to say.
+            "ask" => {
+                policy.ask = Some(super::positional_symbol(
+                    file,
+                    gated.line.number,
+                    "ask",
+                    &gated.args,
+                    1,
+                )?);
                 policy.with_spec = super::process_manager::parse_with_pairs_opt(&gated.args);
             }
             "across" => {

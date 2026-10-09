@@ -39,6 +39,8 @@ module Hecks
         # @return [void]
         # @raise [Bluebook::DSL::Malformed] if `command_ref` is quoted text outside shadow-parsing
         def trigger_impl(command_ref, with: nil)
+          raise Malformed, "#{@name} declares both a trigger and an ask — a policy does one" if @ask
+
           if command_ref.is_a?(::String) && !MetaValidator.shadow_parsing?
             raise Malformed,
                   "#{@name}'s trigger #{command_ref.inspect} is quoted text — give the bare command " \
@@ -46,6 +48,26 @@ module Hecks
           end
 
           @trigger_command = Naming.command_ref(command_ref)
+          @with_spec = (with || {}).to_a
+          @projection_declared = !with.nil?
+        end
+
+        # Records the need this policy puts to the outside, in the domain's own words.
+        #
+        # The runtime resolves the name against the hecksagon's declared asks (the event's
+        # aggregate and the ask's name) and dispatches the port operation the match names, as
+        # `trigger` would have. `with:` projects the event onto the operation as it does for
+        # `trigger`.
+        #
+        # @param name [Symbol, String] the need, such as `:check`
+        # @param with [Hash{Symbol => Object}, nil] event payload to operation arguments;
+        #   `nil` forwards the whole payload
+        # @return [void]
+        # @raise [Bluebook::DSL::Malformed] if the policy already triggers a command
+        def ask_impl(name, with: nil)
+          raise Malformed, "#{@name} declares both a trigger and an ask — a policy does one" if @trigger_command
+
+          @ask = name.to_s
           @with_spec = (with || {}).to_a
           @projection_declared = !with.nil?
         end
@@ -96,16 +118,9 @@ module Hecks
         # @return [Bluebook::Policy] the built policy, carrying every field set by `on`,
         #   `trigger`, `across`, `where`, `for_each`, and `with:`
         def build
-          Policy.new(
-            name:               @name,
-            on_event:           @on_event,
-            trigger_command:    @trigger_command,
-            target_domain:      @target_domain,
-            expect_undelivered: @expect_undelivered || false,
-            where:              @where,
-            for_each:           @for_each,
-            with_spec:          @with_spec || []
-          ).tap { |policy| policy.instance_variable_set(:@projection_declared, !!@projection_declared) }
+          refuse_ask_across!
+          Policy.new(**reaction_fields, **guard_fields)
+                .tap { |policy| policy.instance_variable_set(:@projection_declared, !!@projection_declared) }
         end
 
         # Builds a `Policy` from a `policy "Name" do ... end` block.
@@ -117,6 +132,28 @@ module Hecks
           builder = new(name)
           builder.instance_eval(&block) if block
           builder.build
+        end
+
+        private
+
+        # What the policy reacts to and what it reaches.
+        def reaction_fields
+          { name: @name, on_event: @on_event, trigger_command: @trigger_command, ask: @ask,
+            target_domain: @target_domain }
+        end
+
+        # What decides whether it fires, and what it hands over.
+        def guard_fields
+          { expect_undelivered: @expect_undelivered || false, where: @where, for_each: @for_each,
+            with_spec: @with_spec || [] }
+        end
+
+        # An ask resolves against the ports of the domain it is declared in, so `across` has
+        # nothing to add to it.
+        def refuse_ask_across!
+          return unless @ask && @target_domain
+
+          raise Malformed, "#{@name} declares both an ask and across — an ask resolves in its own domain"
         end
       end
     end

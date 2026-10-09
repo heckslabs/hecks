@@ -1,5 +1,6 @@
 require_relative "../../bluebook/hecksagon"
 require_relative "hecksagon_rules"
+require_relative "ask_verification"
 require_relative "query_verification"
 require_relative "chapter_verification"
 require_relative "durability_warnings"
@@ -11,6 +12,7 @@ module Hecks
       # port's verb, and every world default is usable. `verify!` runs it all at boot.
       module Verification
         include HecksagonRules
+        include AskVerification
         include QueryVerification
         include ChapterVerification
         include DurabilityWarnings
@@ -24,7 +26,7 @@ module Hecks
           refuse_cross_package_bluebook_merge!
           refuse_reserved_chapter_names!
           refuse_membership_without_identity!
-          refuse_unresolved_port_operations!
+          refuse_unresolved_ports!
           refuse_unanswerable_queries!
 
           @declared.hecksagons.each_value { |hecksagon| verify_hecksagon!(hecksagon) }

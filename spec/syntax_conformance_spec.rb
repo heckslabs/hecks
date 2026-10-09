@@ -135,6 +135,7 @@ RSpec.describe "the declared syntax" do
       has_one_impl:       "AggregateBuilder's own real implementation, called by GenericDispatch's calls:",
       belongs_to_impl:    "AggregateBuilder's own real implementation, called by GenericDispatch's calls:",
       trigger_impl:       "PolicyBuilder's own real implementation, called by GenericDispatch's calls:",
+      ask_impl:           "PolicyBuilder's own real implementation, called by GenericDispatch's calls:",
       on_impl:            "PolicyBuilder's own real implementation, called by GenericDispatch's calls:",
       dispatch_impl:      "HandlerBuilder's own real implementation, called by GenericDispatch's calls:",
       compensates_impl:   "DispatchBuilder's own real implementation, called by GenericDispatch's calls:",

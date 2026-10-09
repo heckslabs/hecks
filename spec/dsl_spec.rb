@@ -3359,6 +3359,27 @@ RSpec.describe "the DSL surface" do
       expect(proxy.to_s).to eq("Dom::Thing")
     end
 
+    def ask_via_registry(&extra)
+      thing_registry("AskVia") do
+        %w[Left Right].each do |port|
+          AskVia::Thing.port(port) { asks("Check", to: Thing) { answers("Checked") and refuses("Refused") } }
+        end
+        instance_exec(&extra) if extra
+      end
+    end
+
+    it "ask_via marks the operation the hecksagon picks on the port it names", :aggregate_failures do
+      thing = ask_via_registry { AskVia::Thing.ask_via("Check", port: "Right") }.bluebook("AskVia").aggregate("Thing")
+
+      expect(thing.port("Right").operation("Check")).to be_chosen
+      expect(thing.port("Left").operation("Check")).not_to be_chosen
+    end
+
+    it "ask_via refuses an ask the port never declared" do
+      expect { ask_via_registry { AskVia::Thing.ask_via("Nothing", port: "Right") } }
+        .to raise_error(Hecks::Bluebook::DSL::Malformed, /names no declared ask/)
+    end
+
     it "bind_for finds the wiring for an aggregate and verb", :aggregate_failures do
       registry = in_registry { Hecks.hecksagon("Findable") { Findable::Thing.posted_by("Carrier") } }
       hecksagon = registry.hecksagon("Findable")

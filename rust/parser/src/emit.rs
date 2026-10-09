@@ -806,15 +806,24 @@ fn dispatch_spec_json(d: &ir::DispatchSpec) -> JsonValue {
     ])
 }
 
+/// An ask policy carries `ask` where a trigger policy carries `trigger_command`, as
+/// `Behaviour::Policy#to_h` does; a trigger policy has no `ask` key at all.
+fn trigger_or_ask_entry(p: &ir::Policy) -> (String, JsonValue) {
+    match &p.ask {
+        Some(name) => ("ask".to_string(), JsonValue::str(name.clone())),
+        None => (
+            "trigger_command".to_string(),
+            JsonValue::opt_str(&p.trigger_command),
+        ),
+    }
+}
+
 /// `Policy#to_h`: attribute declaration order from reaction.bluebook, then `where_ast` last.
 fn policy_json(p: &ir::Policy) -> JsonValue {
     JsonValue::Object(vec![
         ("name".to_string(), JsonValue::str(p.name.clone())),
         ("on_event".to_string(), JsonValue::opt_str(&p.on_event)),
-        (
-            "trigger_command".to_string(),
-            JsonValue::opt_str(&p.trigger_command),
-        ),
+        trigger_or_ask_entry(p),
         (
             "target_domain".to_string(),
             JsonValue::opt_str(&p.target_domain),

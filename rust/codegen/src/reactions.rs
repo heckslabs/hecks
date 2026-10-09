@@ -60,7 +60,7 @@ fn where_fns(policies: &[Json]) -> Vec<String> {
 }
 
 fn local_policy_rows(domain_name: &str, policies: &[Json], aggregates: &[Json]) -> Vec<String> {
-    policies
+    crate::asks::resolve_asks(policies, aggregates)
         .iter()
         .filter_map(|policy| {
             let target_domain = policy.get("target_domain").map(Json::to_s).unwrap_or_else(|| domain_name.to_string());

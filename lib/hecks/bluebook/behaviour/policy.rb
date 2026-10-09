@@ -18,6 +18,36 @@ module Hecks
         # @return [String]
         def event_name = Naming.unqualified(@on_event)
 
+        # Whether this policy puts a need to the outside by name rather than triggering a command.
+        #
+        # @return [Boolean]
+        def asks? = !@ask.to_s.empty?
+
+        # What the policy reaches, as a reader names it: the trigger, or the ask while no
+        # hecksagon has bound it to a port operation.
+        #
+        # @return [String]
+        def reaches = @trigger_command.to_s.empty? && asks? ? "ask :#{@ask}" : @trigger_command.to_s
+
+        # Binds an `ask` to the verb the hecksagon's declared ask resolves to, so everything
+        # that reads `trigger_command` reads the port operation the old spelling named.
+        #
+        # @param verb [String] the resolved `Aggregate::Port.Operation`
+        # @return [String] the verb
+        def resolve_ask!(verb) = @trigger_command = verb
+
+        # The wire form: an ask policy carries `ask` where a trigger policy carries
+        # `trigger_command`, and a trigger policy carries no `ask` key at all, so the pinned
+        # shape of every existing policy does not move.
+        #
+        # @return [Hash] the policy's IR
+        def to_h
+          shape = super
+          return shape.except(:ask) unless asks?
+
+          shape.except(:ask).to_h { |key, value| key == :trigger_command ? [:ask, @ask] : [key, value] }
+        end
+
         # Whether `for_each` names a query, turning one reaction into a dispatch per row.
         #
         # @return [Boolean]

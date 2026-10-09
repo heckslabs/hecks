@@ -1,6 +1,6 @@
 # Policies ask, and the hecksagon maps the port
 
-**Status:** Proposed. Nothing is built. Date: 2026-10-09. A policy says what it needs asked (`ask :check`), and the hecksagon says which port operation answers, so a bluebook stops spelling `Aggregate::Port::Operation`.
+**Status:** Accepted. Decisions 1 to 5 are built (decision 6 is [ADR 0101](0101-an-ask-in-flight-is-recorded-by-the-runtime-not-modelled.md)). Date: 2026-10-09. A policy says what it needs asked (`ask :check`), and the hecksagon says which port operation answers, so a bluebook stops spelling `Aggregate::Port::Operation`.
 
 ## Context
 
@@ -22,7 +22,7 @@ The hecksagon already declares that port (`Hecks::ModelCheckRun.port "DomainRunt
 3. **Checks.** An `ask` with no matching hecksagon ask is a boot refusal and a `model_check` finding. A hecksagon ask no policy uses is a warning.
 4. **Parity.** Both parsers accept `ask`; the IR policy row carries `ask: "check"` in place of the port trigger; the conformance corpus gets a fixture whose expected output includes the resolved port, so the two runtimes cannot drift.
 5. **Migration in waves.** `trigger Agg::Port::Op` keeps working and is flagged by a checker warning once `ask` ships. Wave 1: the 18 triggers in `tooling.bluebook`. Wave 2: `codebase` (63). Wave 3: `deploy`, `custodian`, `tickets`, `site`, `quality_control`. A spec forbids a new port-naming trigger in a migrated file.
-6. **Run protocol (items 2-3), shrinking after `ask`.**
+6. **Run protocol (items 2-3), shrinking after `ask`. Not part of this decision: [ADR 0101](0101-an-ask-in-flight-is-recorded-by-the-runtime-not-modelled.md) takes it.**
    - DOMAIN: a `requested` lifecycle plus a settle/abandon pair exists only to record that an ask was made and came back. Once the runtime knows an `ask` is outstanding, an aggregate can declare `asks_for :check, answers: "Pass", refuses: "Flag"` and the runtime moves the record, so the `requested` state, the accept command and the abandon command stop being modelled. Whether this is a lifecycle sugar or a new word is left to a follow-up ADR.
    - DOMAIN: `Report` and `Output` attributes that hold raw subprocess text become an opaque `evidence` attribute the domain stores without parsing; the typed parts (checked, failed) stay.
    - HECKSAGON: the run key and attempt identity move to the ask, minted by the runtime, so `RunKey` leaves the domain.
@@ -40,9 +40,18 @@ The hecksagon already declares that port (`Hecks::ModelCheckRun.port "DomainRunt
 - **Name the port in the hecksagon as the only place a policy can reach, by an `on_event` binding there.** Moves the policy's logic into wiring, so a reader of the bluebook cannot see what the event causes.
 - **A generic `ask` with a free-form string.** Unchecked; resolving by the declared ask name gives one boot-time check.
 
-## Open items for the maintainer
+## As built
 
-- Is the ask name resolved by (event aggregate, name) or must it be unique across the hecksagon?
-- Should `trigger` be removed after wave 3, or stay for commands only?
-- Does the run-protocol shrink (decision 6) get its own ADR, or ride on this one?
+- The ask name resolves by (the event's aggregate, the ask name), not by a name unique across the hecksagon. `ask :browser_wasm` matches the declared `asks "BrowserWasm"` (the snake-cased name). An event written bare is resolved to the aggregate whose commands emit it.
+- `ask_via` is aggregate-scoped, spelled like the `port` it picks from: `Hecks::Door.ask_via "Probe", port: "Terminal"`. A hecksagon-wide form would have to name the aggregate anyway, since the tie is per aggregate. It marks that operation `chosen` in the IR (a key only a picked operation carries); boot refuses a tie nothing picked.
+- The IR policy row carries `ask: "check"` where a trigger policy carries `trigger_command`, and no `ask` key otherwise, so every existing row is byte-identical. An `ask` does not combine with `across`.
+- The resolved verb is the one the old spelling produced (`ModelCheckRun::DomainRuntime.Check`), bound to the policy when the hecksagon declares the port (`AskResolution.bind_resolved`) and held to by `Registry#verify!`. The Ruby runtime and the generated Rust policy table (`rust/codegen/src/asks.rs`) both resolve from the same IR, so they dispatch what the equivalent `trigger` did. `spec/corpus/asks` freezes the resolved targets and both runtimes are held to them.
+- `model_check` reports `unresolved_ask` (error), `unused_ask` (warning, a declared ask nothing asks; a tie's unpicked operations count) and `port_trigger` (warning, a `trigger` naming a port operation). `spec/ask_migration_spec.rb` lists the migrated files and refuses a new port-naming trigger in one.
+- Wave 1 is done: the 18 triggers of `tooling.bluebook`. 115 remain (`codebase` 63, `deploy` 21, `custodian` 17, `tickets` 8, `site` 4, `quality_control` 2).
+
+## Resolved open items
+
+- The ask name resolves by (event aggregate, name); it need not be unique across the hecksagon.
+- `trigger` stays for commands only after wave 3: the port-naming form is flagged by `model_check` until each file is migrated, then refused in migrated files by the spec above; it is not removed from the language.
+- Decision 6 gets its own ADR: [0101](0101-an-ask-in-flight-is-recorded-by-the-runtime-not-modelled.md).
 - Items 4 and 5 of the follow-up (OS types as domain, Ruby-host concerns) are not touched here.

@@ -16,7 +16,7 @@ module Hecks
         # A policy as the sentence saying it fires on its own.
         def policy_sentence(policy)
           elsewhere = policy.target_domain ? " in #{policy.target_domain}" : ""
-          "Whenever `#{policy.on_event}` happens, `#{policy.trigger_command}` fires on its own#{elsewhere} — " \
+          "Whenever `#{policy.on_event}` happens, `#{policy.reaches}` fires on its own#{elsewhere} — " \
             "nobody has to ask for it."
         end
 

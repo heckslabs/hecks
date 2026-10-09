@@ -1,0 +1,11 @@
+{
+  "domain": "spec/corpus/asks/domain",
+  "ir": "spec/corpus/asks/errand.ir.json",
+  "note": "An ask resolves by the event's aggregate and the ask's name against that aggregate's declared asks, and an ask_via pick breaks a tie between ports. The targets are the verbs the old port-naming trigger would have named; both runtimes are held to them.",
+  "targets": {
+    "RunWhenRequested": "Errand::Job::Worker.Run",
+    "AuditWhenRequested": "Errand::Job::Inspector.Audit",
+    "SettleWhenAnswered": "Errand::Job.Settle",
+    "AbandonWhenRefused": "Errand::Job.Abandon"
+  }
+}
