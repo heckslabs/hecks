@@ -189,7 +189,7 @@ merged table and cannot tell a core row from an attached one.
 ## provides
 
 <!-- generated:begin word=provides -->
-`provides provides, assignments:, grant:, transitions:, admit:, people:, register:, link:, resolve:, subscribe:, add_name:, confirm:, unsubscribe:, initiate:, succeeded:, failed:, holds_seat:, send_issue:, record_delivery:, schedule:, request:, connect:, reconnect:, disconnect:, suspend:, resume:, enable:, disable:` — fills `provides`
+`provides provides, assignments:, grant:, transitions:, admit:, people:, register:, link:, resolve:, subscribe:, add_name:, confirm:, unsubscribe:, awaiting_confirmation:, receives_issues:, left:, initiate:, succeeded:, failed:, holds_seat:, send_issue:, record_delivery:, schedule:, request:, connect:, reconnect:, disconnect:, suspend:, resume:, enable:, disable:` — fills `provides`
 
 | argument | kind | required | fills |
 |---|---|---|---|
@@ -206,6 +206,9 @@ merged table and cannot tell a core row from an attached one.
 | `add_name:` | text | false | provides |
 | `confirm:` | text | false | provides |
 | `unsubscribe:` | text | false | provides |
+| `awaiting_confirmation:` | text | false | provides |
+| `receives_issues:` | text | false | provides |
+| `left:` | text | false | provides |
 | `initiate:` | text | false | provides |
 | `succeeded:` | text | false | provides |
 | `failed:` | text | false | provides |

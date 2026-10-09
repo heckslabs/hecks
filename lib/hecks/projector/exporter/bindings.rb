@@ -70,16 +70,18 @@ module Hecks
         # @param registry [Runtime::Registry] the booted registry `domain_name` is loaded in
         # @param domain_name [String] the domain to export the newsletter binding for
         # @return [Hash{Symbol => String, nil}] `:provider` (name), `:subscribe`, `:add_name`,
-        #   `:confirm`, `:unsubscribe` (qualified verbs), and `:aggregate` (`:subscribe`'s own
-        #   leading qualified aggregate name); `{}` if nothing this domain attaches provides
-        #   newsletter
+        #   `:confirm`, `:unsubscribe` (qualified verbs), `:aggregate` (`:subscribe`'s own
+        #   leading qualified aggregate name) and, when declared, `:awaiting_confirmation`,
+        #   `:receives_issues` and `:left` (the states of the lifecycle marks they name); `{}` if
+        #   nothing this domain attaches provides newsletter
         def newsletter(registry, domain_name)
           provider = registry.newsletter_provider_for(domain_name)
           return {} unless provider
 
           verbs = verbs_of(provider, Bluebook::Capabilities::NEWSLETTER,
                            :subscribe, :add_name, :confirm, :unsubscribe)
-          { provider: provider.name, **verbs, aggregate: aggregate_of(verbs[:subscribe]) }
+          { provider: provider.name, **verbs, aggregate: aggregate_of(verbs[:subscribe]),
+            **all_marked_states(provider, Bluebook::Capabilities::NEWSLETTER) }
         end
 
         # Which chapter answers sending a newsletter issue
@@ -159,6 +161,14 @@ module Hecks
         # The qualified verb `provider` supplies for each of `keys` under `capability`.
         def verbs_of(provider, capability, *keys)
           keys.to_h { |key| [key, provider.provided_verb(capability, key)] }
+        end
+
+        # `{ key => states }` for each optional `:mark` entry `provider` declares under
+        # `capability`.
+        def all_marked_states(provider, capability)
+          contract = Bluebook::Capabilities::CONTRACTS.fetch(capability)
+          mark_keys = contract.select { |_, kind| kind == :mark }.keys
+          mark_keys.reduce({}) { |marks, key| marks.merge(marked_states(provider, capability, key)) }
         end
 
         # `{ key => states }` for an optional `:mark` entry `provider` declares under `capability`:

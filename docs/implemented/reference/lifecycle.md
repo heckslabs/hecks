@@ -138,3 +138,21 @@ as `holds_seat: ["pending", "succeeded"]`, and the Rust host counts seats from
 that list. A chapter that leaves the entry out exports exactly what it did
 before, and the host falls back to its built-in default list with one warning.
 
+The `newsletter` capability takes three such entries, all optional, over the
+subscriber's lifecycle: `awaiting_confirmation:` (states waiting for the emailed
+confirm link), `receives_issues:` (states that are sent each issue) and `left:`
+(states of someone who has unsubscribed):
+
+```text
+provides "newsletter",
+         subscribe: "Subscriber.Subscribe", add_name: "Subscriber.AddName",
+         confirm: "Subscriber.Confirm", unsubscribe: "Subscriber.Unsubscribe",
+         awaiting_confirmation: "Subscriber.awaiting_confirmation",
+         receives_issues:       "Subscriber.receives_issues",
+         left:                  "Subscriber.left"
+```
+
+Each is exported in the `newsletter` fact as a state list. The host falls back
+per mark to `pending`, `confirmed` and `unsubscribed` with one warning when a
+chapter leaves it out.
+

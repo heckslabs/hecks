@@ -26,6 +26,11 @@ also served only when the domain's IR declares `provides "payments"`. The paymen
 states that still hold a seat come from the `holds_seat` list of that `payments` fact,
 declared as `holds_seat: "Payment.holds_seat"` over a lifecycle `mark :holds_seat`; a
 chapter that omits it gets the host's built-in default list and one warning.
+The newsletter routes work the same way: the `newsletter` fact's
+`awaiting_confirmation`, `receives_issues` and `left` lists (lifecycle marks the
+chapter names in `provides "newsletter"`) say which subscriber states await the
+confirm link, receive issues and count as left; a mark the chapter omits falls
+back to `pending`, `confirmed` or `unsubscribed` with one warning.
 
 | variable | default | meaning |
 | --- | --- | --- |

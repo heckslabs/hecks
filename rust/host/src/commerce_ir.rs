@@ -20,9 +20,72 @@ pub struct NewsletterProvider {
     pub unsubscribe: String,
     /// Qualified subscribing aggregate, e.g. `Newsletter::Subscriber`.
     pub aggregate: String,
+    /// Subscriber states awaiting the emailed confirm link: the
+    /// `awaiting_confirmation` list of the `newsletter` fact (the lifecycle's
+    /// mark), or [`LEGACY_AWAITING_CONFIRMATION`] when the chapter declares none.
+    pub awaiting_confirmation: Vec<String>,
+    /// Subscriber states that receive each issue: the `receives_issues` list,
+    /// or [`LEGACY_RECEIVES_ISSUES`] when the chapter declares none.
+    pub receives_issues: Vec<String>,
+    /// Subscriber states of someone who has left: the `left` list, or
+    /// [`LEGACY_LEFT`] when the chapter declares none.
+    pub left: Vec<String>,
+}
+
+/// LEGACY DEFAULT: the states a new subscriber waits in, used while the
+/// `newsletter` fact carries no `awaiting_confirmation` list, because the
+/// Newsletter chapter predates the marks and does not declare
+/// `provides "newsletter", ..., awaiting_confirmation: "Subscriber.awaiting_confirmation"`.
+/// Delete this (and the fallback in `newsletter_provider`) once every shipped
+/// Newsletter bluebook does.
+pub const LEGACY_AWAITING_CONFIRMATION: [&str; 1] = ["pending"];
+
+/// LEGACY DEFAULT: the states that receive an issue, used while the
+/// `newsletter` fact carries no `receives_issues` list (see
+/// [`LEGACY_AWAITING_CONFIRMATION`]).
+pub const LEGACY_RECEIVES_ISSUES: [&str; 1] = ["confirmed"];
+
+/// LEGACY DEFAULT: the states of a subscriber who has left, used while the
+/// `newsletter` fact carries no `left` list (see [`LEGACY_AWAITING_CONFIRMATION`]).
+pub const LEGACY_LEFT: [&str; 1] = ["unsubscribed"];
+
+/// The states the `newsletter` fact lists under `key`: a lifecycle mark
+/// resolved by the exporter. `None` when the fact omits it.
+fn declared_states(fact: &Value, key: &str) -> Option<Vec<String>> {
+    let states = fact.get(key)?.as_array()?;
+    Some(states.iter().filter_map(|s| s.as_str().map(String::from)).collect())
+}
+
+/// The declared states for `key`, else `legacy` with a single warning per process.
+fn states_or_legacy(fact: &Value, key: &str, legacy: &[&str], warned: &std::sync::Once) -> Vec<String> {
+    declared_states(fact, key).unwrap_or_else(|| {
+        warned.call_once(|| eprintln!("newsletter capability declares no {key}; using built-in default"));
+        legacy.iter().map(|s| s.to_string()).collect()
+    })
 }
 
 impl NewsletterProvider {
+    /// Whether `status` is a state awaiting confirmation.
+    pub fn is_awaiting_confirmation(&self, status: Option<&str>) -> bool {
+        status.is_some_and(|s| self.awaiting_confirmation.iter().any(|m| m == s))
+    }
+
+    /// Whether `status` is a state that receives issues.
+    pub fn receives_issues(&self, status: Option<&str>) -> bool {
+        status.is_some_and(|s| self.receives_issues.iter().any(|m| m == s))
+    }
+
+    /// Whether `status` is a state of a subscriber who has left.
+    pub fn has_left(&self, status: Option<&str>) -> bool {
+        status.is_some_and(|s| self.left.iter().any(|m| m == s))
+    }
+
+    /// The state a subscriber is reported in when none is recorded yet: the
+    /// first awaiting-confirmation state.
+    pub fn initial_status(&self) -> &str {
+        self.awaiting_confirmation.first().map(String::as_str).unwrap_or("")
+    }
+
     /// The prefix every subscriber's key in a `dispatch::read` `instances`
     /// map starts with, e.g. `Newsletter::Subscriber#`.
     pub fn instance_prefix(&self) -> String {
@@ -49,8 +112,14 @@ pub fn command_declares(domain_ir: &Value, aggregate: &str, command: &str, field
 }
 
 pub fn newsletter_provider(domain_ir: &Value) -> Option<NewsletterProvider> {
+    static AWAITING_WARNED: std::sync::Once = std::sync::Once::new();
+    static RECEIVES_WARNED: std::sync::Once = std::sync::Once::new();
+    static LEFT_WARNED: std::sync::Once = std::sync::Once::new();
     let fact = domain_ir.get("newsletter")?;
     Some(NewsletterProvider {
+        awaiting_confirmation: states_or_legacy(fact, "awaiting_confirmation", &LEGACY_AWAITING_CONFIRMATION, &AWAITING_WARNED),
+        receives_issues: states_or_legacy(fact, "receives_issues", &LEGACY_RECEIVES_ISSUES, &RECEIVES_WARNED),
+        left: states_or_legacy(fact, "left", &LEGACY_LEFT, &LEFT_WARNED),
         provider: fact.get("provider")?.as_str()?.to_string(),
         subscribe: fact.get("subscribe")?.as_str()?.to_string(),
         add_name: fact.get("add_name")?.as_str()?.to_string(),
@@ -348,6 +417,53 @@ mod tests {
         assert_eq!(provider.unsubscribe, "Newsletter::Subscriber.Unsubscribe");
         assert_eq!(provider.instance_prefix(), "Newsletter::Subscriber#");
         assert!(newsletter_provider(&serde_json::json!({ "name": "Pizzas" })).is_none());
+    }
+
+    fn newsletter_ir(marks: serde_json::Value) -> Value {
+        let mut fact = serde_json::json!({
+            "provider": "Newsletter",
+            "subscribe": "Newsletter::Subscriber.Subscribe",
+            "add_name": "Newsletter::Subscriber.AddName",
+            "confirm": "Newsletter::Subscriber.Confirm",
+            "unsubscribe": "Newsletter::Subscriber.Unsubscribe",
+            "aggregate": "Newsletter::Subscriber"
+        });
+        for (key, states) in marks.as_object().into_iter().flatten() {
+            fact[key] = states.clone();
+        }
+        serde_json::json!({ "name": "Studio", "newsletter": fact })
+    }
+
+    #[test]
+    fn newsletter_provider_reads_the_marks_from_the_fact() {
+        let ir = newsletter_ir(serde_json::json!({
+            "awaiting_confirmation": ["invited"],
+            "receives_issues": ["active", "vip"],
+            "left": ["gone"]
+        }));
+        let provider = newsletter_provider(&ir).expect("newsletter");
+        assert_eq!(provider.awaiting_confirmation, vec!["invited"]);
+        assert_eq!(provider.receives_issues, vec!["active", "vip"]);
+        assert_eq!(provider.left, vec!["gone"]);
+        assert!(provider.is_awaiting_confirmation(Some("invited")));
+        assert!(!provider.is_awaiting_confirmation(Some("pending")));
+        assert!(provider.receives_issues(Some("vip")));
+        assert!(!provider.receives_issues(Some("confirmed")));
+        assert!(provider.has_left(Some("gone")));
+        assert_eq!(provider.initial_status(), "invited");
+    }
+
+    #[test]
+    fn newsletter_provider_falls_back_to_the_legacy_defaults_without_marks() {
+        let provider = newsletter_provider(&newsletter_ir(serde_json::json!({}))).expect("newsletter");
+        assert_eq!(provider.awaiting_confirmation, LEGACY_AWAITING_CONFIRMATION);
+        assert_eq!(provider.receives_issues, LEGACY_RECEIVES_ISSUES);
+        assert_eq!(provider.left, LEGACY_LEFT);
+        assert!(provider.is_awaiting_confirmation(Some("pending")));
+        assert!(provider.receives_issues(Some("confirmed")));
+        assert!(provider.has_left(Some("unsubscribed")));
+        assert!(!provider.has_left(None));
+        assert_eq!(provider.initial_status(), "pending");
     }
 
     #[test]

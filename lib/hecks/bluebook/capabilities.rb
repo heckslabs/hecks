@@ -63,13 +63,20 @@ module Hecks
         }.freeze,
         NEWSLETTER         => {
           # a guest signs up; the aggregate it names is the subscriber
-          subscribe:   :command,
+          subscribe:             :command,
           # attach a display name to an existing subscriber
-          add_name:    :command,
+          add_name:              :command,
           # a subscriber confirms their address from the emailed link
-          confirm:     :command,
+          confirm:               :command,
           # a subscriber leaves from the emailed link
-          unsubscribe: :command
+          unsubscribe:           :command,
+          # Optional: the subscriber states that await the emailed confirm
+          # link, spelled "Subscriber.awaiting_confirmation"
+          awaiting_confirmation: :mark,
+          # Optional: the subscriber states that receive each issue sent
+          receives_issues:       :mark,
+          # Optional: the subscriber states of someone who has left
+          left:                  :mark
         }.freeze,
         NEWSLETTER_ISSUES  => {
           # mark an issue sent; the issue aggregate is the one it names
