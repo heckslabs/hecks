@@ -1,6 +1,7 @@
 require_relative "validation/provisions"
 require_relative "validation/references"
 require_relative "validation/event_shapes"
+require_relative "validation/fan_out_rows"
 require_relative "validation/with_projections"
 require_relative "validation/query_hops"
 require_relative "validation/projected_fields"
@@ -17,6 +18,7 @@ module Hecks
           include Provisions
           include References
           include EventShapes
+          include FanOutRows
           include WithProjections
           include QueryHops
           include ProjectedFields

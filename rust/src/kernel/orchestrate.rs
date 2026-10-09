@@ -302,6 +302,23 @@ fn read_literal_wire(binding: &str) -> Json {
     Json::str(binding.to_string())
 }
 
+// Adds a fan-out row's fields to a projection's source where the payload and emitter identity have
+// not already named them, plus the row's `id` as Ruby's row hash carries it.
+fn offer_row_fields(source: &mut Vec<(String, Json)>, row_id: &str, record: &Json) {
+    let mut fields: Vec<(String, Json)> = match record {
+        Json::Object(pairs) => pairs.clone(),
+        _ => Vec::new(),
+    };
+    if !fields.iter().any(|(name, _)| name == "id") {
+        fields.push(("id".to_string(), Json::str(row_id.to_string())));
+    }
+    for (name, value) in fields {
+        if !source.iter().any(|(held, _)| *held == name) {
+            source.push((name, value));
+        }
+    }
+}
+
 fn where_holds(where_expr: Option<fn() -> Expr>, event: &Event) -> bool {
     let Some(build) = where_expr else { return true };
     let ctx = EvalContext { args: &event.payload, instance: &NoFields };
@@ -311,6 +328,14 @@ fn where_holds(where_expr: Option<fn() -> Expr>, event: &Event) -> bool {
 // An empty `with_spec` forwards the whole payload. `extra` (a fan-out's row key) is merged into
 // the source before projection, not onto its result.
 fn trigger_args(policy: &PolicyRule, event: &Event, extra: Option<(&str, String)>, target_verb: &str, tables: &Tables) -> Json {
+    trigger_args_with_row(policy, event, extra, None, target_verb, tables)
+}
+
+// `row` is a fan-out's own row (its id and stored record). A projection may read its fields, below
+// the emitter identity and the payload; an undeclared projection never sees them.
+fn trigger_args_with_row(
+    policy: &PolicyRule, event: &Event, extra: Option<(&str, String)>, row: Option<(&str, &Json)>, target_verb: &str, tables: &Tables,
+) -> Json {
     let mut source: Vec<(String, Json)> = match &event.payload {
         Json::Object(pairs) => pairs.clone(),
         _ => Vec::new(),
@@ -343,6 +368,10 @@ fn trigger_args(policy: &PolicyRule, event: &Event, extra: Option<(&str, String)
         if !event.id.is_empty() && !source.iter().any(|(name, _)| name == head) {
             source.push((head.to_string(), Json::str(event.id.clone())));
         }
+    }
+
+    if let Some((row_id, record)) = row {
+        offer_row_fields(&mut source, row_id, record);
     }
 
     let projected = policy
@@ -529,7 +558,7 @@ fn react_policies<S: AggregateScan>(
                     continue;
                 }
             };
-            for (row_id, _row) in rows {
+            for (row_id, row) in rows {
                 let row_record = |extra: Vec<(&str, Json)>| -> Json {
                     let mut fields = vec![("for_row", Json::str(row_id.clone()))];
                     fields.extend(extra.into_iter());
@@ -542,7 +571,8 @@ fn react_policies<S: AggregateScan>(
                         other => other,
                     }
                 };
-                let args = trigger_args(policy, event, policy.for_each_key.map(|key| (key, row_id.clone())), policy.target_verb, &tables);
+                let extra = policy.for_each_key.map(|key| (key, row_id.clone()));
+                let args = trigger_args_with_row(policy, event, extra, Some((row_id.as_str(), &row)), policy.target_verb, &tables);
                 let outcome = orchestrate(
                     store, dispatch_fn, tables, sagas, policy.target_verb, &args, None, None, None, occurred_at, depth + 1,
                     all_events, mutations, cross_domain, reaction_log, saga_log,

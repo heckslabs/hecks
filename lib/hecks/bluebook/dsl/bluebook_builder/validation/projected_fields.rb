@@ -4,7 +4,8 @@ module Hecks
       class BluebookBuilder
         module Validation
           # Checks that each `projects` reference resolves to an aggregate declaring the remote
-          # field as a scalar or single-field value object, once every aggregate in the chapter exists.
+          # field as a scalar or single-field value object, once every aggregate in the chapter
+          # exists.
           module ProjectedFields
             private
 
@@ -66,7 +67,8 @@ module Hecks
             end
 
             # A scalar, or a single-field value object, which a projection unwraps to its one
-            # scalar (ADR 0025 addendum); a multi-field value object, a reference and a list are not.
+            # scalar (ADR 0025 addendum); a multi-field value object, a reference and a list are
+            # not.
             def projectable_scalar?(target, attribute)
               return false if attribute.list? || attribute.reference?
 

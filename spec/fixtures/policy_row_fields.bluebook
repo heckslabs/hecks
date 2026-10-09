@@ -1,0 +1,78 @@
+# A `for_each` policy whose `with:` reads the fan-out row's own field (`limit`) and, for
+# BreachLimited, a payload field of the same name. Held by
+# spec/runtime/policy_fan_out_row_fields_spec.rb.
+Hecks.bluebook "RowFields" do
+  vision "Permits are the rows a breach fans out to; each is capped at what it holds."
+  core
+
+  aggregate "Permit" do
+    attribute :code, Code
+    attribute :holder, Holder
+    attribute :limit, Allowance
+    attribute :cap, Allowance, optional: true
+    identified_by :code
+    value_object("Code") { attribute :value, String }
+    value_object("Holder") { attribute :value, String }
+    value_object("Allowance") { attribute :value, Integer }
+
+    command("Grant") do
+      attribute :code, Code
+      attribute :holder, Holder
+      attribute :limit, Allowance
+      sets :code
+      sets :holder
+      sets :limit
+      emits "PermitGranted"
+    end
+
+    command("Cap") do
+      reference_to Permit
+      attribute :cap, Allowance
+      sets :cap
+      emits "PermitCapped"
+    end
+
+    query("ForHolder") do
+      attribute :holder, Holder
+      where(holder: :holder)
+    end
+  end
+
+  aggregate "Breach" do
+    attribute :ref, Ref
+    attribute :holder, Holder
+    identified_by :ref
+    value_object("Ref") { attribute :value, String }
+    value_object("Holder") { attribute :value, String }
+    value_object("Allowance") { attribute :value, Integer }
+
+    command("Report") do
+      attribute :ref, Ref
+      attribute :holder, Holder
+      sets :ref
+      sets :holder
+      emits "BreachReported"
+    end
+
+    command("ReportLimited") do
+      attribute :ref, Ref
+      attribute :holder, Holder
+      attribute :limit, Allowance
+      sets :ref
+      sets :holder
+      emits "BreachLimited"
+    end
+  end
+
+  policy "CapFromRow" do
+    on "BreachReported"
+    for_each "Permit.ForHolder"
+    trigger Permit::Cap, with: { permit: :permit, cap: :limit }
+  end
+
+  policy "CapFromPayload" do
+    on "BreachLimited"
+    for_each "Permit.ForHolder"
+    trigger Permit::Cap, with: { permit: :permit, cap: :limit }
+  end
+end

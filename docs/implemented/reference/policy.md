@@ -210,6 +210,14 @@ row is part of the source a projection reads from, not something bolted
 on after it, which is what lets a trigger be given the record and
 nothing else. See `for_each` below for the fan-out itself.
 
+A fan-out's `with:` can also read the row's own fields: `with: { refunded: :charged }`
+takes `charged` from each row the query answers. The projection's source is the row's
+fields, then the emitting record's identity, then the event payload, each overriding the
+one before, so the payload always wins a name it shares with a row and the row key stays
+the row's id. A policy with no `with:` forwards the payload and the row key only, never the
+row's fields. The build-time check admits the same names: a field of the query's
+aggregate, its lifecycle field, a projected field, `:id`, or the row key.
+
 A target that cannot take every field it is given is refused, the
 triggering command still succeeds, and the reason lands in the reaction
 log rather than in the caller's lap — which is a good way for a policy

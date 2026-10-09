@@ -20,7 +20,7 @@ module Hecks
 
           rows, reference_key = for_each_rows(policy, event, domain, target)
           Array(rows).map do |row|
-            args = trigger_args(policy, event, reference_key => row[:id])
+            args = trigger_args(policy, event, { reference_key => row[:id] }, row)
             deliver_for_each_row(target, record.merge(for_row: row[:id]), args, policy, event)
           end
         rescue *DOMAIN_REFUSALS => e
