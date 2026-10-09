@@ -5,7 +5,7 @@ require "tempfile"
 # declared ask nothing asks is a warning, and a trigger that names a port operation is a warning
 # so the waves of migration can be counted.
 RSpec.describe "model_check over ask" do
-  ASK_FIXTURES = File.join(InMemoryDomain::ROOT, "spec/fixtures/ask").freeze
+  ASK_FIXTURES = File.join(InMemoryDomain::ROOT, "spec/corpus/asks/variants").freeze
   ERRAND_DIR = File.join(InMemoryDomain::ROOT, "spec/corpus/asks/domain/bluebook").freeze
 
   def errand_with(hecksagon, bluebook: File.join(ERRAND_DIR, "errand.bluebook"))
