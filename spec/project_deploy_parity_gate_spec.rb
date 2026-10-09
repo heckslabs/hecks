@@ -93,7 +93,7 @@ RSpec.describe "the per-deploy Ruby/Rust parity gate (Phase 8)", :io do
     # `hecks build_wasm` builds in a scratch copy of the crate; this snapshots the real
     # crate paths (tracked and untracked) to prove they stay untouched.
     def self.crate_status
-      `git -C #{repo_root} status --porcelain -- rust/Cargo.toml rust/src`.split("\n")
+      IO.popen(["git", "-C", repo_root, "status", "--porcelain", "--", "rust/Cargo.toml", "rust/src"], &:read).split("\n")
     end
 
     before(:context) do

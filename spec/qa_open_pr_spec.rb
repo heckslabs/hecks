@@ -74,7 +74,7 @@ RSpec.describe "hecks quality_control patch.open and improvement.open", :io do
            out: File::NULL, err: File::NULL) or raise "git #{args.join(" ")} failed"
   end
 
-  def head = `git -C #{@repo} rev-parse HEAD`.strip
+  def head = IO.popen(["git", "-C", @repo, "rev-parse", "HEAD"], &:read).strip
 
   def on_branch(name)
     git("checkout", "-qb", name)

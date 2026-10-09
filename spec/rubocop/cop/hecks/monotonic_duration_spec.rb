@@ -26,8 +26,17 @@ RSpec.describe RuboCop::Cop::Hecks::MonotonicDuration do
 
   it "flags Time.now.to_f minus an instance variable" do
     expect_offense(<<~RUBY)
+      @started = Time.now.to_f
       Time.now.to_f - @started
       ^^^^^^^^^^^^^^^^^^^^^^^^ `Time.now - @started` measures elapsed time on the wall clock, which can step. Take both ends from `Process.clock_gettime(Process::CLOCK_MONOTONIC)`.
+    RUBY
+  end
+
+  # `Time.now - seconds` is a past timestamp, not an elapsed time.
+  it "does not flag subtracting a plain number of seconds" do
+    expect_no_offenses(<<~RUBY)
+      seconds = 3600
+      File.utime(Time.now - seconds, Time.now - seconds, path)
     RUBY
   end
 

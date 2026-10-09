@@ -10,6 +10,7 @@ require:
   - ./lib/rubocop/cop/hecks/sequential_hash_rename_in_loop
   - ./lib/rubocop/cop/hecks/no_wall_clock_in_runtime
   - ./lib/rubocop/cop/hecks/monotonic_duration
+  - ./lib/rubocop/cop/hecks/raw_shell_interpolation
 
 # `h[a] || h[b]` on one receiver drops a stored `false`; use `key?` first.
 Hecks/FallbackHashLookup:
@@ -75,6 +76,11 @@ Hecks/NoWallClockInRuntime:
 
 # Elapsed time is measured on the monotonic clock; `Time.now - File.mtime(f)` is left alone.
 Hecks/MonotonicDuration:
+  Enabled: true
+
+# A command string with a value interpolated into it is re-parsed by the shell; the array form
+# passes each argument as-is. Shellwords.escape-wrapped values are left alone.
+Hecks/RawShellInterpolation:
   Enabled: true
 
 AllCops:
