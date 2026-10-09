@@ -61,10 +61,19 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
 
     let target_chapter_name = resolve::header_chapter_name(first_bluebook)?;
     let mut target_files = Vec::new();
+    // Chapters declared beside the target but not attached to it: the registry still loads them, so
+    // one may provide a capability (payments) the target uses.
+    let mut sibling_files: Vec<(String, Vec<PathBuf>)> = Vec::new();
     for path in bluebook_paths {
-        if resolve::header_chapter_name(&path)? == target_chapter_name {
-            target_files.push(path);
+        let chapter = resolve::header_chapter_name(&path)?;
+        if chapter != target_chapter_name {
+            match sibling_files.iter_mut().find(|(name, _)| *name == chapter) {
+                Some((_, files)) => files.push(path),
+                None => sibling_files.push((chapter, vec![path])),
+            }
+            continue;
         }
+        target_files.push(path);
     }
 
     let (gem_chapter_names, vendored_package_names) = match &hecksagon_path {
@@ -153,6 +162,22 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
             ir_text: pkg_ir_text,
         });
     }
+
+    // A chapter declared in the domain's own directory is a chapter of the build too, as every
+    // bluebook the registry loads is; its ports come from its own block of the domain's hecksagon.
+    // The registry loads the directory's bluebooks before it resolves what the hecksagon attaches,
+    // so they come first.
+    let mut siblings = Vec::new();
+    for (name, files) in &sibling_files {
+        let mut sources = files.clone();
+        sources.extend(hecksagon_path.iter().cloned());
+        siblings.push(Chapter {
+            mod_name: name.to_lowercase(),
+            source_label: format!("{domain} (attaches {name:?})"),
+            ir_text: parse_chapter(&parser_bin, name, &sources)?,
+        });
+    }
+    chapters.splice(0..0, siblings);
 
     // Guards against a gem-chapter and a vendored-package
     // entry sharing a `mod_name`, which would silently overwrite one

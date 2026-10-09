@@ -297,7 +297,7 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
                     &mut discarded,
                     &mut Vec::new(),
                     &mut Vec::new(),
-                    true,
+                    false,
                 )?;
             }
         }
@@ -355,7 +355,7 @@ pub fn resolve_hecksagon_dependencies(
                 &mut discarded,
                 &mut Vec::new(),
                 &mut Vec::new(),
-                true,
+                false,
             )?;
         }
     }
