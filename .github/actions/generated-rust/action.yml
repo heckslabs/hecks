@@ -23,4 +23,6 @@ runs:
       shell: bash
       env:
         HECKS_ENVIRONMENT: memory
-      run: bundle exec exe/hecks regeneration_run.regenerate_corpus --confirm --wait
+      # A job that builds into its own target dir (CARGO_TARGET_DIR) must not send hecks-codegen's
+      # build there: project_rust builds and runs it from rust/codegen/target.
+      run: env -u CARGO_TARGET_DIR bundle exec exe/hecks regeneration_run.regenerate_corpus --confirm --wait

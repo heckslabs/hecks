@@ -272,6 +272,9 @@ jobs:
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
+      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
+      - uses: ./.github/actions/generated-rust
+
       # The reserved-name tables (RustReservedWord/CargoReservedName in
       # vocabulary.bluebook) are read by ModelCheck and DomainName through
       # lib/hecks/vocabulary.rb and by hecks-codegen/hecks-build through the
