@@ -66,7 +66,7 @@ RSpec.describe "a policy's ask" do
   end
 
   def refusal_of(fixture)
-    load_errand(hecksagon: File.join(InMemoryDomain::ROOT, "spec/fixtures/ask", fixture)).verify!
+    load_errand(hecksagon: File.join(InMemoryDomain::ROOT, "spec/corpus/asks/variants", fixture)).verify!
   rescue Hecks::Runtime::WiringError => e
     e.message
   end
