@@ -4,6 +4,9 @@ module Hecks
       # Renders the pages themselves: a context's page word by word, and the index. Extended onto
       # `Reference`.
       module Rendering
+        # Raised when a page carries prose for a word the language does not declare.
+        class Error < RuntimeError; end
+
         # Renders one context's page, grouped by word (not per form) so a
         # two-form word doesn't repeat its heading and prose.
         def render_page(context, prose, path)
@@ -13,13 +16,13 @@ module Hecks
           page_markdown(context, prose[PREAMBLE].to_s.strip, sections)
         end
 
-        # @raise [RuntimeError] when a page carries prose for a word the language does not declare
+        # @raise [Error] when a page carries prose for a word the language does not declare
         def refuse_orphans!(prose, words, context, path)
           orphans = prose.keys - words.keys - [PREAMBLE]
           return if orphans.empty?
 
-          raise "#{path} carries prose for #{orphans.join(", ")}, which the language no longer " \
-                "declares in #{context} — deleting writing is a human's decision, so decide"
+          raise Error, "#{path} carries prose for #{orphans.join(", ")}, which the language no longer " \
+                       "declares in #{context} — deleting writing is a human's decision, so decide"
         end
 
         # @return [String] the page: its heading, generated lede, the hand-written preamble and the

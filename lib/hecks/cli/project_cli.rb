@@ -15,6 +15,9 @@ module Hecks
     # A chapter whose world's `launcher` setting names an `executable` gets its launcher
     # there instead: the Hecks chapter's is the gem's `exe/hecks`.
     module ProjectCli
+      # Raised when the project loads no bluebook.
+      class Error < RuntimeError; end
+
       # Build output and other trees under a root that hold no domain a caller means.
       IGNORED = %r{\A(rust|deploy|tmp|coverage)/}
 
@@ -89,7 +92,7 @@ module Hecks
       #   launcher could not be made
       def one(root, path, program, check, remove_stale_bin)
         runtime = Hecks.boot(File.join(root, path), install_doors: false)
-        name    = runtime.registry.bluebooks.keys.first or raise "it loads no bluebook"
+        name    = runtime.registry.bluebooks.keys.first or raise Error, "it loads no bluebook"
         setting = Doors::LauncherOptions.settings(runtime, name) || {}
         settle(launcher_target(name, path, setting, root, program), path, root, check, remove_stale_bin)
       rescue StandardError, LoadError => e

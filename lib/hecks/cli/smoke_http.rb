@@ -12,6 +12,9 @@ module Hecks
   module CLI
     # One run of the checks against one service.
     class SmokeHttp
+      # Raised when a smoke check's request gets an answer other than the one it expects.
+      class Failure < RuntimeError; end
+
       include Checks
       include Transport
       extend Settings

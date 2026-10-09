@@ -46,7 +46,10 @@ module Hecks
             before = state
             expect_success(post(payload, signed_headers))
             after = state
-            raise "the state changed on a repeated delivery:\n    before #{before}\n    after  #{after}" unless before == after
+            unless before == after
+              raise Failure,
+                    "the state changed on a repeated delivery:\n    before #{before}\n    after  #{after}"
+            end
           end
         end
 

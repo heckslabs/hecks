@@ -4,6 +4,9 @@ module Hecks
       # The mode switches of judging: bootstrapping, deferring, disabled, shadow-parsing and the
       # forced fixpoint. `MetaValidator` extends this, so each reads and writes its own state.
       module Modes
+        # Raised when a mode is asked for a builder that was never opened.
+        class Error < RuntimeError; end
+
         # Whether the language's own grammar is still loading raw, unjudged.
         # Judging it while it loads would recurse, so the bootstrap sets this
         # and the fixpoint clears it once every grammar file is merged.
@@ -66,7 +69,7 @@ module Hecks
           # Bare chapter-level givens must resolve before anything below
           # reads a `Given`'s fields. The `raise` block never runs — this
           # chapter's builder is always already open by the time `chapter` exists.
-          builder = registry.bluebook_builder(name) { raise "internal: no open builder for #{name}" }
+          builder = registry.bluebook_builder(name) { raise Error, "internal: no open builder for #{name}" }
           builder.resolve_pending_chapter_givens!
           # Same, one level down: entity-scoped pending givens.
           builder.resolve_pending_chapter_entity_givens!

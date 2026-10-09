@@ -8,6 +8,9 @@ module Hecks
     # The `CI` port adapter: answers `Clearance.CI.Run` from GitHub's check runs for a commit.
     # Raises when no checks exist, any are still running, or any failed.
     class GithubChecks
+      # Raised when check runs cannot be read or have not settled.
+      class Error < RuntimeError; end
+
       # All keywords are unused; the adapter takes no per-boot configuration.
       def initialize(aggregate: nil, settings: {}, root: nil); end
 
@@ -29,7 +32,7 @@ module Hecks
       #
       # @param commit [Hash, String] a materialized value object (`{value: sha}`) or a bare sha
       # @return [Hash] `{ summary: { value: ... } }` when every check is green
-      # @raise [RuntimeError] when the sha is malformed, `gh` is missing or fails, no checks
+      # @raise [Error] when the sha is malformed, `gh` is missing or fails, no checks
       #   exist, any are incomplete, or any failed
       def run(commit:, **)
         sha = valid_sha(commit)
@@ -49,7 +52,7 @@ module Hecks
       # @param names [Array<String>] the checks to look up
       # @return [Hash{String => Symbol}] each name to `:passed`, `:failed`, `:pending` (reported but
       #   not completed) or `:missing` (not reported at all)
-      # @raise [RuntimeError] when the sha is malformed or `gh` is missing or fails
+      # @raise [Error] when the sha is malformed or `gh` is missing or fails
       def states(commit:, names:)
         reported = check_runs(valid_sha(commit)).select { |run| actions?(run) }.group_by { |run| run["name"] }
         latest = reported.transform_values { |runs| runs.max_by { |run| run["id"].to_i } }
@@ -62,7 +65,7 @@ module Hecks
 
       def valid_sha(commit)
         sha = sha_of(commit)
-        raise "not a commit sha: #{sha.inspect}" unless sha.match?(SHA_PATTERN)
+        raise Error, "not a commit sha: #{sha.inspect}" unless sha.match?(SHA_PATTERN)
 
         sha
       end
@@ -70,11 +73,11 @@ module Hecks
       # The check runs against `sha`, once none is still running.
       def settled_runs(sha)
         runs = check_runs(sha)
-        raise "gh reports no checks at all against #{sha}" if runs.empty?
+        raise Error, "gh reports no checks at all against #{sha}" if runs.empty?
 
         # Refuse rather than answer on an incomplete run; asking again once it settles is safe.
         incomplete = runs.reject { |run| run["status"] == "completed" }
-        raise "checks against #{sha} are still running — asked before they settled" if incomplete.any?
+        raise Error, "checks against #{sha} are still running — asked before they settled" if incomplete.any?
 
         runs
       end
@@ -115,11 +118,11 @@ module Hecks
       def check_run_page(sha, page)
         path = "repos/{owner}/{repo}/commits/#{sha}/check-runs?per_page=#{PER_PAGE}&page=#{page}"
         out, err, status = Open3.capture3("gh", "api", path)
-        raise "gh api check-runs failed for #{sha}: #{err.strip.empty? ? out.strip : err.strip}" unless status.success?
+        raise Error, "gh api check-runs failed for #{sha}: #{err.strip.empty? ? out.strip : err.strip}" unless status.success?
 
         JSON.parse(out)
       rescue Errno::ENOENT
-        raise "gh is not installed or not on PATH — cannot read check runs for #{sha}"
+        raise Error, "gh is not installed or not on PATH — cannot read check runs for #{sha}"
       end
     end
   end

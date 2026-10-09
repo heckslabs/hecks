@@ -12,6 +12,7 @@ require:
   - ./lib/rubocop/cop/hecks/monotonic_duration
   - ./lib/rubocop/cop/hecks/raw_shell_interpolation
   - ./lib/rubocop/cop/hecks/env_dump
+  - ./lib/rubocop/cop/hecks/untyped_raise
 
 # `h[a] || h[b]` on one receiver drops a stored `false`; use `key?` first.
 Hecks/FallbackHashLookup:
@@ -88,6 +89,13 @@ Hecks/RawShellInterpolation:
 # environment, no interpolating a *_KEY/_SECRET/_TOKEN/_PASSWORD variable.
 Hecks/EnvDump:
   Enabled: true
+
+# A bare `raise "message"` is a RuntimeError, so a caller can only rescue it by rescuing
+# everything; library code names the error. Specs raise strings from test doubles on purpose.
+Hecks/UntypedRaise:
+  Enabled: true
+  Include:
+    - "lib/**/*.rb"
 
 AllCops:
   TargetRubyVersion: 3.3

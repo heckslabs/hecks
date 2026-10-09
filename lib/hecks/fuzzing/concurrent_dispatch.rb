@@ -14,6 +14,9 @@ module Hecks
     # against a live domain, checking the outcome against a sequential oracle to catch a broken
     # cross-process lock.
     module ConcurrentDispatch
+      # Raised when a race's setup step crashes before the race starts.
+      class SetupFailure < RuntimeError; end
+
       extend Racing
       extend WorldCopy
 
@@ -130,7 +133,7 @@ module Hecks
       def dispatch_all!(runtime, steps)
         steps.each do |step|
           outcome = dispatch_one(runtime, step)
-          raise "setup step #{step["verb"]} #{outcome}" if outcome.start_with?("crashed:")
+          raise SetupFailure, "setup step #{step["verb"]} #{outcome}" if outcome.start_with?("crashed:")
         end
       end
     end

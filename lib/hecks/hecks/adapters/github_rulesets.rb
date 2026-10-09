@@ -12,6 +12,9 @@ module Hecks
     # ruleset says; it only carries a ruleset to and from GitHub. `{owner}/{repo}` is a `gh api`
     # template resolved from the git remote.
     class GithubRulesets
+      # Raised when `gh` is missing or refuses a ruleset call.
+      class Error < RuntimeError; end
+
       # The part of a ruleset a lane projects: everything else GitHub fills in (ids, links,
       # timestamps, defaults) is left out of a comparison.
       COMPARED = %w[name target enforcement].freeze
@@ -23,7 +26,7 @@ module Hecks
       end
 
       # @return [Array<Hash>] every ruleset of the repository, in full
-      # @raise [RuntimeError] when `gh` is missing or refuses
+      # @raise [Error] when `gh` is missing or refuses
       def all
         listed = json(call("api", "repos/{owner}/{repo}/rulesets?per_page=100"))
         listed.map { |ruleset| json(call("api", "repos/{owner}/{repo}/rulesets/#{ruleset.fetch("id")}")) }
@@ -37,7 +40,7 @@ module Hecks
       #
       # @param projected [Hash] the ruleset as `Tools::Lanes` projects it
       # @return [Symbol] `:created` or `:updated`
-      # @raise [RuntimeError] when GitHub refuses it
+      # @raise [Error] when GitHub refuses it
       def apply(projected)
         live = named(projected.fetch("name"))
         path = "repos/{owner}/{repo}/rulesets"
@@ -110,7 +113,7 @@ module Hecks
 
       def call(*args, stdin: nil)
         out, err, ok = @runner.call(args, stdin)
-        raise "gh #{args.first(3).join(" ")} failed: #{err.strip.empty? ? out.strip : err.strip}" unless ok
+        raise Error, "gh #{args.first(3).join(" ")} failed: #{err.strip.empty? ? out.strip : err.strip}" unless ok
 
         out
       end

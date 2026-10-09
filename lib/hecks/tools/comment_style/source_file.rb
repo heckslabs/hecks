@@ -14,6 +14,9 @@ module Hecks
     module CommentStyle
       # One parsed source file and the violations found in it.
       class SourceFile
+        # Raised when an automatic fix would change code rather than comments.
+        class Error < RuntimeError; end
+
         include LongBlocks
         include Masking
         include CapsWords
@@ -51,7 +54,7 @@ module Hecks
           return @source if output == @source
 
           unchanged = CommentStyle.code_tokens(@source) == CommentStyle.code_tokens(output)
-          raise "#{path}: fix would change code, refusing" unless unchanged
+          raise Error, "#{path}: fix would change code, refusing" unless unchanged
 
           output
         end

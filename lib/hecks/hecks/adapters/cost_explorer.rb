@@ -16,6 +16,9 @@ module Hecks
     # it, a span with no complete day, or a failed `aws` call is refused with a reason, which the
     # runtime records on the check.
     class CostExplorer
+      # Raised when the budget is exceeded or Cost Explorer cannot be read.
+      class Error < RuntimeError; end
+
       # Days in an average month, for scaling a daily mean to a monthly rate.
       DAYS_IN_MONTH = 30.4375
 
@@ -35,17 +38,17 @@ module Hecks
       #   first day to count (`YYYY-MM-DD`), each a value object or a plain value
       # @return [Hash{Symbol => Hash}] `report:` the rate against the budget, the shape
       #   `CostCheck.Pass` takes
-      # @raise [RuntimeError] when no complete day has passed since `since`, `aws` fails, or the
+      # @raise [Error] when no complete day has passed since `since`, `aws` fails, or the
       #   rate is over the budget
       def measure(**held)
         budget = Integer(plain(held[:budget]))
         first = Date.iso8601(plain(held[:since]).to_s)
         last = today
-        raise "no complete day since #{first}; today (#{last}) is still being billed" if first >= last
+        raise Error, "no complete day since #{first}; today (#{last}) is still being billed" if first >= last
 
         days = daily_costs(first, last)
         line = report_line(first, last, days, budget)
-        raise "over budget: #{line}" if monthly_rate(days) > budget
+        raise Error, "over budget: #{line}" if monthly_rate(days) > budget
 
         { report: { value: line } }
       end
@@ -62,10 +65,10 @@ module Hecks
           "--granularity", "DAILY", "--metrics", "UnblendedCost",
           "--group-by", "Type=DIMENSION,Key=SERVICE", "--output", "json"
         )
-        raise "aws ce get-cost-and-usage failed: #{err.strip.empty? ? out.strip : err.strip}" unless status.success?
+        raise Error, "aws ce get-cost-and-usage failed: #{err.strip.empty? ? out.strip : err.strip}" unless status.success?
 
         rows = JSON.parse(out).fetch("ResultsByTime")
-        raise "Cost Explorer returned no days for #{first}..#{last}" if rows.empty?
+        raise Error, "Cost Explorer returned no days for #{first}..#{last}" if rows.empty?
 
         rows.to_h { |row| [row.dig("TimePeriod", "Start"), by_service(row)] }
       end

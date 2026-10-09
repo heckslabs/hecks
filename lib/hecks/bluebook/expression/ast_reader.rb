@@ -4,6 +4,9 @@ require_relative "resolver"
 module Hecks
   module Bluebook
     module Expression
+      # Raised for an operator `AstReader` has no arm for.
+      class UnhandledOp < RuntimeError; end
+
       # The inverse of `AstJson`: reads a rule row's `"op"`-tagged `ast` back into the
       # `Evaluator`/`Resolver` nodes, so dispatch evaluates a rule without re-parsing its text.
       module AstReader
@@ -49,7 +52,7 @@ module Hecks
             op.compares_less_than == cmp.fetch("less_than") &&
               op.compares_equal == cmp.fetch("equal") &&
               op.negated == cmp.fetch("negated")
-          end or raise "no comparison operator has the triple #{cmp.inspect}"
+          end or raise UnhandledOp, "no comparison operator has the triple #{cmp.inspect}"
         end
 
         # The readers `read_resolver` tries in turn; each answers `nil` for an op it does not own.
@@ -63,7 +66,7 @@ module Hecks
             node = public_send(reader, json)
             return node if node
           end
-          raise "no reader handles op #{op.inspect} — add an arm before AstJson can emit it"
+          raise UnhandledOp, "no reader handles op #{op.inspect} — add an arm before AstJson can emit it"
         end
 
         # @param json [Hash] a resolver node
