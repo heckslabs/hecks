@@ -1,0 +1,83 @@
+# Smallest domain with an optional value object held inside a value object (Panel.note), inside a
+# list member (Cell.note) and two levels down (Note.link), each with invariants that read a slot
+# an offered or stored value may leave out. Held to the same answers by Ruby and Rust through
+# spec/corpus/rust_conformance/optional_nested_value_object_*.json and, for a stored value's mint
+# audit, spec/rust_host_reference_validate_conformance_spec.rb.
+Hecks.bluebook "OptionalNestedValueObjectFixture" do
+  vision "The smallest domain whose value objects hold optional value objects, alone and in lists."
+
+  core
+
+  aggregate "Layout" do
+    description "An ordered list of panels, each of which may carry a note, and cells that may too."
+
+    identified_by :key
+    attribute :key,    LayoutKey
+    attribute :panels, list_of(Panel)
+
+    value_object "LayoutKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a layout is keyed") { !value.to_s.empty? }
+    end
+
+    value_object "Panel" do
+      attribute :kind,  String
+      attribute :title, String, optional: true
+      attribute :note,  Note, optional: true
+      attribute :cells, list_of(Cell)
+
+      invariant("a panel has a kind") { !kind.to_s.empty? }
+      invariant("a title is not blank when given") { title.unset? || !title.to_s.empty? }
+      invariant("a callout carries a note") { kind != "callout" || note.set? }
+      invariant("a quiet panel has no loud note") { kind != "quiet" || note.tone != "loud" }
+    end
+
+    value_object "Cell" do
+      attribute :label, String
+      attribute :note,  Note, optional: true
+
+      invariant("a cell is labelled") { !label.to_s.empty? }
+      invariant("a cell's note is short") { note.unset? || note.text.size <= 40 }
+    end
+
+    value_object "Note" do
+      attribute :text, String
+      attribute :tone, String, optional: true
+      attribute :link, Link, optional: true
+
+      invariant("a note has words") { !text.to_s.empty? }
+      invariant("a tone is calm or loud") { tone.unset? || tone == "calm" || tone == "loud" }
+    end
+
+    value_object "Link" do
+      attribute :href,  String
+      attribute :label, String, optional: true
+
+      invariant("a link is a path") { href.start_with?("/") }
+      invariant("a link label is not blank when given") { label.unset? || !label.to_s.empty? }
+    end
+
+    command "Write" do
+      role "Editor"
+      goal "Start a layout's panels"
+
+      attribute :key,    LayoutKey
+      attribute :panels, list_of(Panel)
+      sets :key
+      sets :panels
+
+      emits "LayoutWritten"
+    end
+
+    command "Revise" do
+      role "Editor"
+      goal "Replace the panels"
+
+      reference_to Layout
+      attribute :panels, list_of(Panel)
+      sets :panels
+
+      emits "LayoutRevised"
+    end
+  end
+end

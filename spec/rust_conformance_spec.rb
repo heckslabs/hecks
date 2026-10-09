@@ -40,6 +40,25 @@ RSpec.describe "Rust conformance (native binary)", :io do
     end
   end
 
+  # A fixture that sets `rust_echoes_absent_slots_as_null` sends optional slots of a nested value
+  # object left out. Ruby keeps them absent; a Rust record holds each as an `Option`, so it echoes
+  # them as null. Both sides are compared with null-valued keys dropped, and nothing else.
+  def without_null_slots(value)
+    case value
+    when Hash then value.compact.transform_values { |v| without_null_slots(v) }
+    when Array then value.map { |v| without_null_slots(v) }
+    when String then value.gsub(/,"[^"]*":null/, "").gsub(/\{"[^"]*":null,/, "{").gsub(/\{"[^"]*":null\}/, "{}")
+    else value
+    end
+  end
+
+  # The two sides to hold equal: untouched, unless the fixture says Rust echoes absent slots as null.
+  def comparable_pair(rust_output, expected, fixture)
+    return [rust_output, expected] unless fixture["rust_echoes_absent_slots_as_null"]
+
+    [without_null_slots(rust_output), without_null_slots(expected)]
+  end
+
   def expect_fields_match(rust_output, expected)
     # No tolerance: this corpus never asks a verb the manifest declares `generated: false`.
     %w[instances events refusals queries sagas dry_runs].each do |key|
@@ -70,7 +89,7 @@ RSpec.describe "Rust conformance (native binary)", :io do
       fixture = ConformanceCorpus.load(script_path)
       rust_output = stripped_rust_output(kernel_stdout(binary_for(fixture), fixture))
 
-      expect_fields_match(rust_output, fixture.fetch("expect"))
+      expect_fields_match(*comparable_pair(rust_output, fixture.fetch("expect"), fixture))
     end
   end
 
