@@ -1,4 +1,4 @@
-# Small fixture that exercises lifecycle `mark` end to end (ADR 0096): a named meaning carried by
+# Small fixture that exercises lifecycle `mark` end to end (ADR 0097): a named meaning carried by
 # several states, on an aggregate's lifecycle and on a nested entity's.
 Hecks.bluebook "LifecycleMarks" do
   vision "Which of a payment's states hold a seat, and which of a line's states are settled."

@@ -9,7 +9,7 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ### Added
 
-- **A capability can name a lifecycle mark (ADR 0096, step 3).** `provides "payments"` accepts an optional `holds_seat: "Payment.holds_seat"` (spelled `Aggregate.mark_name`); `Capabilities::CONTRACTS` gains a `:mark` kind, which is optional, and a chapter that names a mark its aggregate's lifecycle does not declare is refused. The exported `payments` fact gains `holds_seat: [states]` only when declared, so existing IR is unchanged, and the Rust host reads the seat-holding states from it instead of the lifecycle it cannot see.
+- **A capability can name a lifecycle mark (ADR 0097, step 3).** `provides "payments"` accepts an optional `holds_seat: "Payment.holds_seat"` (spelled `Aggregate.mark_name`); `Capabilities::CONTRACTS` gains a `:mark` kind, which is optional, and a chapter that names a mark its aggregate's lifecycle does not declare is refused. The exported `payments` fact gains `holds_seat: [states]` only when declared, so existing IR is unchanged, and the Rust host reads the seat-holding states from it instead of the lifecycle it cannot see.
 
 ### Changed
 

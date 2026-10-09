@@ -33,7 +33,7 @@ RSpec.describe "payments capability" do
     end
   end
 
-  # A payment whose lifecycle marks the states that hold a seat (ADR 0096).
+  # A payment whose lifecycle marks the states that hold a seat (ADR 0097).
   MARKED_PAYMENT_BODY = proc do
     instance_exec(&PAYMENT_AGGREGATE_BODY)
     lifecycle :status, default: "pending" do
