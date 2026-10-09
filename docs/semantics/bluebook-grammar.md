@@ -136,7 +136,9 @@ semantics fact (C3.2) that are easy to conflate. `array_literal_include
 
 ## G8 — Arithmetic
 
-- **Addition** — the first TOP-LEVEL `+` (outside parens/quotes/brackets); `add`, `left`/`right`, each re-parsed. The ONLY arithmetic operator this grammar has — no `-`, `*`, `/` production exists at all (an unrecognized use of any of them falls through to `Lookup`, per G5).
+- **Addition and subtraction** — the LAST top-level `+` or binary `-` (outside parens/quotes/brackets), so a chain reads left to right; `add`/`sub`, `left`/`right`, each re-parsed. A `-` is binary only after an operand: `a - -5` is `a` minus the literal `-5`, and a leading `-5` is a literal.
+- **Multiplication and division** — the LAST top-level `*` or `/`, tried after the additive level so they bind tighter; `mul`/`div`, `left`/`right`. Integer division rounds toward negative infinity (`-7 / 2` is `-4`); a zero divisor, like `.modulo(0)`, is an evaluation fault, and so is a result outside signed 64 bits.
+- **Grouping** — an expression wrapped in one matching pair of parentheses reads as what it wraps, so `(a + b) * c` overrides the default levels.
 - **Modulo** — `.modulo(…)`, a method-call shape rather than an infix operator; `modulo`, `receiver`/`divisor`.
 
 `old.ledger.size` inside an arithmetic operand is not special syntax —

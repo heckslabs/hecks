@@ -1,0 +1,317 @@
+{
+  "domain": "spec/fixtures/rust_project/computed_sets_fixture",
+  "note": "A `sets` whose source is arithmetic over command arguments and the record's own fields. 10801 * 50 / 100 is 5400 (the integer quotient rounds down, here 5400.5), a negative operand subtracts as a negative, -7 / 2 floors to -4 (toward negative infinity, not truncated to -3), a zero divisor and an overflowing product are faults that leave the record unchanged, and each result is stored in the target's single-field value object. A runtime that truncates, rounds to nearest, or crashes on a zero divisor fails this fixture.",
+  "steps": [
+    {
+      "verb": "ComputedSetsFixture::Settlement.Open",
+      "args": {
+        "ref": "s1",
+        "paid": 10801
+      }
+    },
+    {
+      "verb": "ComputedSetsFixture::Settlement.Settle",
+      "args": {
+        "settlement": "s1",
+        "rate": 50,
+        "shortfall": 801
+      }
+    },
+    {
+      "verb": "ComputedSetsFixture::Settlement.Open",
+      "args": {
+        "ref": "s6",
+        "paid": 10801
+      }
+    },
+    {
+      "verb": "ComputedSetsFixture::Settlement.Settle",
+      "args": {
+        "settlement": "s6",
+        "rate": 33,
+        "shortfall": -2000
+      }
+    },
+    {
+      "verb": "ComputedSetsFixture::Settlement.Open",
+      "args": {
+        "ref": "s2",
+        "paid": 100
+      }
+    },
+    {
+      "verb": "ComputedSetsFixture::Settlement.Share",
+      "args": {
+        "settlement": "s2",
+        "amount": -7,
+        "parts": 2
+      }
+    },
+    {
+      "verb": "ComputedSetsFixture::Settlement.Share",
+      "args": {
+        "settlement": "s2",
+        "amount": 7,
+        "parts": 0
+      }
+    },
+    {
+      "verb": "ComputedSetsFixture::Settlement.Open",
+      "args": {
+        "ref": "s4",
+        "paid": 100
+      }
+    },
+    {
+      "verb": "ComputedSetsFixture::Settlement.Share",
+      "args": {
+        "settlement": "s4",
+        "amount": 1000,
+        "parts": 3
+      }
+    },
+    {
+      "verb": "ComputedSetsFixture::Settlement.Open",
+      "args": {
+        "ref": "s3",
+        "paid": 9223372036854775807
+      }
+    },
+    {
+      "verb": "ComputedSetsFixture::Settlement.Settle",
+      "args": {
+        "settlement": "s3",
+        "rate": 2,
+        "shortfall": 0
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "ComputedSetsFixture::Settlement.Share",
+        "error": "divided by 0",
+        "kind": "Fault"
+      },
+      {
+        "verb": "ComputedSetsFixture::Settlement.Settle",
+        "error": "multiplication overflowed: 9223372036854775807 * 2 does not fit in a 64-bit integer",
+        "kind": "Fault"
+      }
+    ],
+    "instances": {
+      "ComputedSetsFixture::Settlement#s1": {
+        "ref": {
+          "value": "s1"
+        },
+        "paid": {
+          "value": 10801
+        },
+        "refund": {
+          "value": 5400
+        },
+        "remaining": {
+          "value": 10000
+        },
+        "share": {
+          "value": 0
+        }
+      },
+      "ComputedSetsFixture::Settlement#s6": {
+        "ref": {
+          "value": "s6"
+        },
+        "paid": {
+          "value": 10801
+        },
+        "refund": {
+          "value": 3564
+        },
+        "remaining": {
+          "value": 12801
+        },
+        "share": {
+          "value": 0
+        }
+      },
+      "ComputedSetsFixture::Settlement#s2": {
+        "ref": {
+          "value": "s2"
+        },
+        "paid": {
+          "value": 100
+        },
+        "refund": {
+          "value": 0
+        },
+        "remaining": {
+          "value": 0
+        },
+        "share": {
+          "value": -4
+        }
+      },
+      "ComputedSetsFixture::Settlement#s4": {
+        "ref": {
+          "value": "s4"
+        },
+        "paid": {
+          "value": 100
+        },
+        "refund": {
+          "value": 0
+        },
+        "remaining": {
+          "value": 0
+        },
+        "share": {
+          "value": 333
+        }
+      },
+      "ComputedSetsFixture::Settlement#s3": {
+        "ref": {
+          "value": "s3"
+        },
+        "paid": {
+          "value": 9223372036854775807
+        },
+        "refund": {
+          "value": 0
+        },
+        "remaining": {
+          "value": 0
+        },
+        "share": {
+          "value": 0
+        }
+      }
+    },
+    "events": [
+      {
+        "name": "SettlementOpened",
+        "aggregate": "ComputedSetsFixture::Settlement",
+        "id": "s1",
+        "payload": {
+          "ref": {
+            "value": "s1"
+          },
+          "paid": {
+            "value": 10801
+          }
+        }
+      },
+      {
+        "name": "SettlementSettled",
+        "aggregate": "ComputedSetsFixture::Settlement",
+        "id": "s1",
+        "payload": {
+          "settlement": "s1",
+          "rate": {
+            "value": 50
+          },
+          "shortfall": {
+            "value": 801
+          }
+        }
+      },
+      {
+        "name": "SettlementOpened",
+        "aggregate": "ComputedSetsFixture::Settlement",
+        "id": "s6",
+        "payload": {
+          "ref": {
+            "value": "s6"
+          },
+          "paid": {
+            "value": 10801
+          }
+        }
+      },
+      {
+        "name": "SettlementSettled",
+        "aggregate": "ComputedSetsFixture::Settlement",
+        "id": "s6",
+        "payload": {
+          "settlement": "s6",
+          "rate": {
+            "value": 33
+          },
+          "shortfall": {
+            "value": -2000
+          }
+        }
+      },
+      {
+        "name": "SettlementOpened",
+        "aggregate": "ComputedSetsFixture::Settlement",
+        "id": "s2",
+        "payload": {
+          "ref": {
+            "value": "s2"
+          },
+          "paid": {
+            "value": 100
+          }
+        }
+      },
+      {
+        "name": "SettlementShared",
+        "aggregate": "ComputedSetsFixture::Settlement",
+        "id": "s2",
+        "payload": {
+          "settlement": "s2",
+          "amount": {
+            "value": -7
+          },
+          "parts": {
+            "value": 2
+          }
+        }
+      },
+      {
+        "name": "SettlementOpened",
+        "aggregate": "ComputedSetsFixture::Settlement",
+        "id": "s4",
+        "payload": {
+          "ref": {
+            "value": "s4"
+          },
+          "paid": {
+            "value": 100
+          }
+        }
+      },
+      {
+        "name": "SettlementShared",
+        "aggregate": "ComputedSetsFixture::Settlement",
+        "id": "s4",
+        "payload": {
+          "settlement": "s4",
+          "amount": {
+            "value": 1000
+          },
+          "parts": {
+            "value": 3
+          }
+        }
+      },
+      {
+        "name": "SettlementOpened",
+        "aggregate": "ComputedSetsFixture::Settlement",
+        "id": "s3",
+        "payload": {
+          "ref": {
+            "value": "s3"
+          },
+          "paid": {
+            "value": 9223372036854775807
+          }
+        }
+      }
+    ],
+    "queries": [],
+    "sagas": [],
+    "dry_runs": [],
+    "reactions": []
+  }
+}

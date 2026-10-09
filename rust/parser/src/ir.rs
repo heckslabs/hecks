@@ -60,6 +60,8 @@ pub enum MutationSource {
     Literal(crate::ruby_value::Value),
     /// `state(:field)`: the record's own field, read from the pre-dispatch state.
     State(String),
+    /// Arithmetic over argument names, record fields and numbers: its canonical text.
+    Expression(String),
 }
 
 #[derive(Debug, Clone)]

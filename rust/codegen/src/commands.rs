@@ -168,6 +168,11 @@ fn command_skip_reason_with(command: &Json, aggregate: &Json, value_objects_by_n
         return Some(skip("state_source", format!("sets state source(s): {}", state_problems.join("; "))));
     }
 
+    let expression_problems = mutations::expression_source_problems(command, aggregate, value_objects_by_name);
+    if !expression_problems.is_empty() {
+        return Some(skip("expression_source", format!("sets expression source(s): {}", expression_problems.join("; "))));
+    }
+
     let remove_problems = mutations::remove_field_problems(command, aggregate, value_objects_by_name);
     if !remove_problems.is_empty() {
         return Some(skip("remove_field", format!("sets remove field(s): {}", remove_problems.join("; "))));

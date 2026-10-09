@@ -33,9 +33,7 @@ module Hecks
         # @param klass [Class] `Evaluator::Or` or `Evaluator::And`
         # @param json [Hash] the node's `"left"` and `"right"` boolean children
         # @return [Object] the node `klass` builds over them
-        def read_pair(klass, json)
-          klass.new(left: read_bool(json["left"]), right: read_bool(json["right"]))
-        end
+        def read_pair(klass, json) = klass.new(left: read_bool(json["left"]), right: read_bool(json["right"]))
 
         # @param json [Hash] a `"compare"` node
         # @return [Evaluator::Compare] its operator and both resolver sides
@@ -80,6 +78,8 @@ module Hecks
           end
         end
 
+        def read_binary(node_class, json) = node_class.new(left: read_resolver(json["left"]), right: read_resolver(json["right"]))
+
         # @param json [Hash] a resolver node
         # @return [Object, nil] the array or lookup it spells, or `nil` for any other op
         def read_collection(json)
@@ -93,7 +93,10 @@ module Hecks
         # @return [Object, nil] the sum, remainder or sign test it spells, or `nil` for any other op
         def read_arithmetic(json)
           case json["op"]
-          when "add"    then Resolver::Addition.new(left: read_resolver(json["left"]), right: read_resolver(json["right"]))
+          when "add"    then read_binary(Resolver::Addition, json)
+          when "sub"    then read_binary(Resolver::Subtraction, json)
+          when "mul"    then read_binary(Resolver::Multiplication, json)
+          when "div"    then read_binary(Resolver::Division, json)
           when "modulo" then Resolver::Modulo.new(receiver: receiver(json), divisor: read_resolver(json["divisor"]))
           when "sign_test"
             op = operator(json["cmp"])
@@ -152,9 +155,7 @@ module Hecks
 
         # `SignTest#test` is only refusal wording; recovering it keeps a rebuilt node's message
         # identical to the parsed one's.
-        def sign_test_name(operator)
-          Resolver::SIGN_TEST_OPERATORS.key(operator.symbol) || operator.symbol
-        end
+        def sign_test_name(operator) = Resolver::SIGN_TEST_OPERATORS.key(operator.symbol) || operator.symbol
       end
     end
   end

@@ -1,0 +1,35 @@
+{
+  "grammar": [
+    "G8"
+  ],
+  "canonical": "paid - refunded == 0",
+  "ruby_only": false,
+  "note": "left - right is Subtraction, and chains split left-associatively: a - b - c is (a - b) - c.",
+  "expect_ast": {
+    "op": "compare",
+    "cmp": {
+      "less_than": false,
+      "equal": true,
+      "negated": false
+    },
+    "left": {
+      "op": "sub",
+      "left": {
+        "op": "lookup",
+        "path": [
+          "paid"
+        ]
+      },
+      "right": {
+        "op": "lookup",
+        "path": [
+          "refunded"
+        ]
+      }
+    },
+    "right": {
+      "op": "int",
+      "value": 0
+    }
+  }
+}

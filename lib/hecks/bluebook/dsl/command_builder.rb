@@ -4,6 +4,7 @@ require_relative "command_builder/owner"
 require_relative "command_builder/rules"
 require_relative "command_builder/mutations"
 require_relative "command_builder/implicit_attributes"
+require_relative "command_builder/operands"
 module Hecks
   module Bluebook
     module DSL
@@ -17,6 +18,7 @@ module Hecks
         include WordGate
         include NeedWord
         include ImplicitAttributes
+        include Operands
 
         # Sentinel for "this keyword was never passed" — distinct from Ruby's own
         # nil/false, so `to: false` doesn't get treated as absent.
