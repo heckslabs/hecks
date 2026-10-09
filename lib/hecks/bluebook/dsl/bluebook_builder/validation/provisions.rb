@@ -26,14 +26,18 @@ module Hecks
 
             def refuse_wrong_provision_keys!(bluebook, capability, rows, contract)
               keys = rows.map { |row| row.key.to_sym }
-              return if keys.sort == contract.keys.sort
+              required = Capabilities.required_keys(capability)
+              return if (keys - contract.keys).empty? && (required - keys).empty? && keys.uniq.size == keys.size
 
+              optional = contract.keys - required
               raise Malformed, "#{bluebook.name} provides #{capability.inspect} with #{keys.join(", ")}, but " \
-                               "#{capability} needs exactly #{contract.keys.join(", ")}"
+                               "#{capability} needs #{optional.empty? ? "exactly " : ""}#{required.join(", ")}" \
+                               "#{optional.empty? ? "" : " and may add #{optional.join(", ")}"}"
             end
 
             def validate_provided_verb!(bluebook, capability, row, kind)
               return validate_provided_port_operation!(bluebook, capability, row) if kind == :port_operation
+              return validate_provided_mark!(bluebook, capability, row) if kind == :mark
 
               aggregate_name, member = row.verb.split(".", 2)
               aggregate = bluebook.aggregate(aggregate_name)
@@ -52,6 +56,18 @@ module Hecks
 
               raise Malformed, "#{bluebook.name} provides #{capability.inspect} #{row.key}: #{row.verb.inspect}, " \
                                "which is not spelled \"Aggregate.Port.Operation\" over an aggregate this chapter declares"
+            end
+
+            # A mark verb is spelled "Aggregate.mark_name" and must name a mark declared on that
+            # aggregate's lifecycle.
+            def validate_provided_mark!(bluebook, capability, row)
+              aggregate_name, mark = row.verb.split(".", 2)
+              aggregate = bluebook.aggregate(aggregate_name)
+              return if aggregate && mark && aggregate.lifecycle&.marked(mark)
+
+              raise Malformed, "#{bluebook.name} provides #{capability.inspect} #{row.key}: #{row.verb.inspect}, " \
+                               "which names no lifecycle mark this chapter declares (spelled " \
+                               "\"Aggregate.mark_name\", with `mark :mark_name, ...` in that aggregate's lifecycle)"
             end
 
             def provided_member_names(aggregate, kind)

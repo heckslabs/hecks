@@ -7,6 +7,10 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+### Added
+
+- **A capability can name a lifecycle mark (ADR 0096, step 3).** `provides "payments"` accepts an optional `holds_seat: "Payment.holds_seat"` (spelled `Aggregate.mark_name`); `Capabilities::CONTRACTS` gains a `:mark` kind, which is optional, and a chapter that names a mark its aggregate's lifecycle does not declare is refused. The exported `payments` fact gains `holds_seat: [states]` only when declared, so existing IR is unchanged, and the Rust host reads the seat-holding states from it instead of the lifecycle it cannot see.
+
 ### Changed
 
 - **The pending release can be named on the `[Unreleased]` heading.** Write `## [Unreleased] - planned 3.11.0` to say which version the accumulating changes will ship as, and drop the suffix when that release is cut. The release checks read only `## [X.Y.Z]` headings, so the suffix changes nothing they do; `spec/changelog_planned_release_spec.rb` pins the shape and that the planned version is later than the latest release. A `planned` state on the `Release` aggregate was weighed and not built: its record lives in memory for one publishing run, and `Tag` creates it, so a planned record would not outlive the process that wrote it.

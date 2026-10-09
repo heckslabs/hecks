@@ -13,9 +13,10 @@ Hecks.bluebook "Payments" do
   # Declared in this file, beside Payment, because each `.bluebook` file is
   # validated on its own.
   provides "payments",
-           initiate:  "Payment.Initiate",
-           succeeded: "Payment.PaymentGateway.Succeeded",
-           failed:    "Payment.PaymentGateway.Failed"
+           initiate:   "Payment.Initiate",
+           succeeded:  "Payment.PaymentGateway.Succeeded",
+           failed:     "Payment.PaymentGateway.Failed",
+           holds_seat: "Payment.holds_seat"
 
   aggregate "Payment" do
     description "One attempt to collect money from a client through a specific payment processor."
@@ -68,6 +69,7 @@ Hecks.bluebook "Payments" do
     attribute :failure_reason, FailureReason,          optional: true
 
     lifecycle :status, default: "pending" do
+      mark :holds_seat, "pending", "succeeded"
       transition "Succeed" => "succeeded", from: "pending"
       transition "Fail"    => "failed",    from: "pending"
     end

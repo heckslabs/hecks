@@ -6392,6 +6392,36 @@
               ],
               [
                 "named",
+                "holds_seat"
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                false
+              ],
+              [
+                "fills",
+                "provides"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "provides"
+              ],
+              [
+                "context",
+                "Bluebook"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
                 "send_issue"
               ],
               [

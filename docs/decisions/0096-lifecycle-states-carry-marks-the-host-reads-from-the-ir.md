@@ -1,6 +1,6 @@
 # Lifecycle states carry marks, and the host reads them from the IR
 
-**Status:** Accepted. Lifecycle `mark` is built (Ruby builder, grammar, IR, Rust parser); the capability half is the next step. Date: 2026-10-09. A lifecycle can say which of its states mean something to a reader outside the domain (holds a seat, is a failure, is confirmed), so the Rust host and the launcher stop carrying those lists as constants.
+**Status:** Accepted. Lifecycle `mark` is built (Ruby builder, grammar, IR, Rust parser); the capability half is built too. Date: 2026-10-09. A lifecycle can say which of its states mean something to a reader outside the domain (holds a seat, is a failure, is confirmed), so the Rust host and the launcher stop carrying those lists as constants.
 
 ## Context
 
@@ -26,6 +26,8 @@ A lifecycle names its states and transitions, but it cannot say what a state mea
    A mark is a domain fact: "these states hold a seat". It is checked like the rest of the lifecycle: every state named must exist as the default or a transition target, and a mark name is a lowercase word.
 2. **IR.** Each lifecycle in `ir.json` gains `marks: { "holds_seat": ["pending", ...] }`, omitted when empty. Existing IR is unchanged for lifecycles with no marks, so no era needs re-minting for domains that do not use the word.
 3. **Capability contract.** A capability may name the marks a host needs from its aggregate, the same declared-not-named shape the verbs already have. The Ruby `Capabilities::CONTRACTS` gains a `:mark` kind next to `:command`, `:query` and `:port_operation`; the Rust binding reads the state list from the IR through that declared name, not by chapter or aggregate name.
+
+   Built: `provides "payments", ..., holds_seat: "Payment.holds_seat"` (spelled `Aggregate.mark_name`) is an optional `:mark` entry; it must name a mark on that aggregate's lifecycle, and the `payments` fact in `ir.json` carries `holds_seat: [states]` when declared. The host keeps `LEGACY_HOLDS_SEAT` as a labelled fallback until the Payments package declares the mark.
 4. **Hecksagon side.** Nothing. How a host turns a state list into a seat count (a scan of `dispatch::read` instances) stays an adapter.
 5. **Ruby and Rust parity.** Both parsers accept `mark`; the neutral conformance corpus gets a fixture whose expected output includes the marks, so the two cannot drift.
 

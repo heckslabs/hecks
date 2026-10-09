@@ -142,14 +142,16 @@ module Hecks
         # @param registry [Runtime::Registry] the booted registry `domain_name` is loaded in
         # @param domain_name [String] the domain to export the payments binding for
         # @return [Hash{Symbol => String, nil}] `:provider` (name), `:initiate`, `:succeeded`,
-        #   `:failed` (qualified verbs), and `:aggregate` (`:initiate`'s own leading qualified
-        #   aggregate name); `{}` if nothing this domain attaches provides payments
+        #   `:failed` (qualified verbs), `:aggregate` (`:initiate`'s own leading qualified
+        #   aggregate name) and, when declared, `:holds_seat` (the states of the lifecycle mark
+        #   it names); `{}` if nothing this domain attaches provides payments
         def payments(registry, domain_name)
           provider = registry.payments_provider_for(domain_name)
           return {} unless provider
 
           verbs = verbs_of(provider, Bluebook::Capabilities::PAYMENTS, :initiate, :succeeded, :failed)
-          { provider: provider.name, **verbs, aggregate: aggregate_of(verbs[:initiate]) }
+          { provider: provider.name, **verbs, aggregate: aggregate_of(verbs[:initiate]),
+            **marked_states(provider, Bluebook::Capabilities::PAYMENTS, :holds_seat) }
         end
 
         private
@@ -157,6 +159,16 @@ module Hecks
         # The qualified verb `provider` supplies for each of `keys` under `capability`.
         def verbs_of(provider, capability, *keys)
           keys.to_h { |key| [key, provider.provided_verb(capability, key)] }
+        end
+
+        # `{ key => states }` for an optional `:mark` entry `provider` declares under `capability`:
+        # the states of the named aggregate's lifecycle mark. `{}` when the entry is not declared.
+        def marked_states(provider, capability, key)
+          verb = provider.provision(capability)&.fetch(key, nil)
+          return {} unless verb
+
+          aggregate_name, mark = verb.split(".", 2)
+          { key => provider.aggregate(aggregate_name).lifecycle.marked(mark) }
         end
 
         # Each name in `names` mapped to the leading aggregate of the verb its key names in `verbs`.

@@ -22,7 +22,10 @@ subscribe form, event registration and checkout, the payment webhook, the seat
 reads below, and the `/payments/connection` API. It must equal `HECKS_DOMAIN`
 exactly. Set to anything else, or unset, none of those routes exist and the host
 answers them as unknown paths. The registration, checkout and seat routes are
-also served only when the domain's IR declares `provides "payments"`.
+also served only when the domain's IR declares `provides "payments"`. The payment
+states that still hold a seat come from the `holds_seat` list of that `payments` fact,
+declared as `holds_seat: "Payment.holds_seat"` over a lifecycle `mark :holds_seat`; a
+chapter that omits it gets the host's built-in default list and one warning.
 
 | variable | default | meaning |
 | --- | --- | --- |
