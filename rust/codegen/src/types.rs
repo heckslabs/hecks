@@ -26,11 +26,7 @@ pub fn emit_check_invariants(exemplar: &Exemplar, vo: &Json, value_objects_by_na
             continue;
         }
         let field = naming::rust_ident_field(crate::attr::name(attr));
-        if crate::attr::list(attr) {
-            body.push(format!("        for item in &self.{field} {{ item.check_invariants()?; }}"));
-        } else {
-            body.push(format!("        self.{field}.check_invariants()?;"));
-        }
+        body.push(nested_invariant_line(&field, crate::attr::list(attr), crate::attr::optional(attr)));
     }
 
     for attr in attributes {
@@ -62,6 +58,18 @@ pub fn emit_check_invariants(exemplar: &Exemplar, vo: &Json, value_objects_by_na
     body.extend(invariant_lines);
 
     format!("impl {name} {{\n    pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {{\n{}\n        Ok(())\n    }}\n}}\n", body.join("\n"))
+}
+
+/// The line that runs a nested value object's own invariants. An optional slot is an `Option` in
+/// the record, so its invariants run only when it is present, as Ruby validates only what it is
+/// given; a list's members each run theirs.
+fn nested_invariant_line(field: &str, list: bool, optional: bool) -> String {
+    match (list, optional) {
+        (true, true) => format!("        if let Some(items) = &self.{field} {{ for item in items {{ item.check_invariants()?; }} }}"),
+        (true, false) => format!("        for item in &self.{field} {{ item.check_invariants()?; }}"),
+        (false, true) => format!("        if let Some(value) = &self.{field} {{ value.check_invariants()?; }}"),
+        (false, false) => format!("        self.{field}.check_invariants()?;"),
+    }
 }
 
 pub fn emit_closed_set_table(exemplar: &Exemplar, vo: &Json) -> String {
@@ -520,5 +528,34 @@ mod tests {
         let setter = emit_set_projected_field(&resolved_booking());
 
         assert!(setter.contains("\"starts_at\" => self.starts_at = value.and_then(crate::kernel::Value::into_i64),"));
+    }
+
+    /// A value object holding a required and an optional value object, and a required and an
+    /// optional list of them.
+    fn holder_value_object() -> Json {
+        Json::parse(
+            r#"{
+              "name":"Holder",
+              "attributes":[
+                {"name":"required_note","type":"Note","list":false,"optional":false},
+                {"name":"note","type":"Note","list":false,"optional":true},
+                {"name":"required_notes","type":"Note","list":true,"optional":false},
+                {"name":"notes","type":"Note","list":true,"optional":true}
+              ]
+            }"#,
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn a_nested_value_object_checks_its_invariants_only_when_it_is_present() {
+        let note = Json::parse(r#"{"name":"Note","attributes":[{"name":"text","type":"String","list":false,"optional":false}]}"#).unwrap();
+        let by_name: HashMap<String, &Json> = HashMap::from([("Note".to_string(), &note)]);
+        let generated = emit_check_invariants(&Exemplar::load(), &holder_value_object(), &by_name, &HashMap::new());
+
+        assert!(generated.contains("self.required_note.check_invariants()?;"));
+        assert!(generated.contains("if let Some(value) = &self.note { value.check_invariants()?; }"));
+        assert!(generated.contains("for item in &self.required_notes { item.check_invariants()?; }"));
+        assert!(generated.contains("if let Some(items) = &self.notes { for item in items { item.check_invariants()?; } }"));
     }
 }

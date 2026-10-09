@@ -70,11 +70,31 @@ fn check_attributes(
     }
 }
 
+/// The value an invariant reads: `value` with every declared optional slot it lacks set to null,
+/// as the Ruby runtime's own validator does (`Value::Validation#with_absent_optionals`). Absence
+/// stays absence in the stored state; an invariant reads it as unset, so `x.set?`, `x.unset?`,
+/// `x.nil?` and a comparison with nil all answer for a slot a writer never sent. A name the value
+/// object does not declare is not filled, so a lookup of it still refuses.
+fn with_absent_optionals(vo: &Value, value: &Value) -> Value {
+    let Some(fields) = value.as_object() else { return value.clone() };
+    let mut known = fields.clone();
+    let declared = vo.get("attributes").and_then(Value::as_array).map(Vec::as_slice).unwrap_or_default();
+    for attribute in declared {
+        let optional = attribute.get("optional").and_then(Value::as_bool).unwrap_or(false);
+        let Some(name) = attribute.get("name").and_then(Value::as_str) else { continue };
+        if optional && !known.contains_key(name) {
+            known.insert(name.to_string(), Value::Null);
+        }
+    }
+    Value::Object(known)
+}
+
 /// Checks a value object's `invariants` through `expr_json`. Fails closed: a malformed or
 /// unsupported `ast` is a violation, since an invariant that cannot be evaluated must not
 /// be minted past.
 fn check_invariants(aggregate_name: &str, id: &str, attr_name: &str, type_name: &str, value: &Value, vo: &Value, violations: &mut Vec<String>) {
     let Some(invariants) = vo.get("invariants").and_then(Value::as_array) else { return };
+    let known = with_absent_optionals(vo, value);
 
     for invariant in invariants {
         let description = invariant.get("description").and_then(Value::as_str).unwrap_or("");
@@ -91,7 +111,7 @@ fn check_invariants(aggregate_name: &str, id: &str, attr_name: &str, type_name: 
             }
         };
 
-        match expr_json::interpret(&expr, value) {
+        match expr_json::interpret(&expr, &known) {
             Ok(result) if result.truthy() => {}
             Ok(_) => violations.push(format!("{aggregate_name}#{id}: {attr_name} ({type_name}) violates its own invariant — {description}")),
             Err(error) => violations.push(format!(
@@ -334,5 +354,116 @@ mod tests {
         let violations = validate(&order_ir(), "p1", &state);
         assert_eq!(violations.len(), 1);
         assert!(violations[0].contains("pizza"), "{violations:?}");
+    }
+
+    // A page of panels, each optionally holding a note, which optionally holds a link; a panel
+    // also lists cells that may hold a note. Every rule reads a slot a stored value may leave out.
+    fn layout_ir() -> Value {
+        let attr = |name: &str, ty: &str, list: bool, optional: bool| {
+            json!({"name": name, "type": ty, "list": list, "optional": optional})
+        };
+        let lookup = |path: &[&str]| json!({"op": "lookup", "path": path});
+        let unset = |path: &[&str]| json!({"op": "assignment", "receiver": lookup(path), "negated": true});
+        let set = |path: &[&str]| json!({"op": "assignment", "receiver": lookup(path), "negated": false});
+        let not_empty = |path: &[&str]| json!({"op": "not", "expr": {"op": "empty", "receiver": {"op": "to_s", "receiver": lookup(path)}}});
+        let either = |left: Value, right: Value| json!({"op": "or", "left": left, "right": right});
+        let differs = |path: &[&str], text: &str| json!({"op": "compare", "cmp": {"less_than": false, "equal": true, "negated": true},
+            "left": lookup(path), "right": {"op": "str", "value": text}});
+        let rule = |description: &str, ast: Value| json!({"description": description, "canonical": "", "ast": ast});
+        json!({
+            "name": "Layout",
+            "attributes": [attr("key", "LayoutKey", false, false), attr("panels", "Panel", true, false)],
+            "entities": [],
+            "value_objects": [
+                {"name": "LayoutKey", "attributes": [attr("value", "String", false, false)], "invariants": []},
+                {"name": "Panel",
+                 "attributes": [attr("kind", "String", false, false), attr("title", "String", false, true),
+                                attr("note", "Note", false, true), attr("cells", "Cell", true, false)],
+                 "invariants": [
+                    rule("a title is not blank when given", either(unset(&["title"]), not_empty(&["title"]))),
+                    rule("a callout carries a note", either(differs(&["kind"], "callout"), set(&["note"]))),
+                    rule("a quiet panel has no loud note", either(differs(&["kind"], "quiet"), differs(&["note", "tone"], "loud")))]},
+                {"name": "Cell",
+                 "attributes": [attr("label", "String", false, false), attr("note", "Note", false, true)],
+                 "invariants": [rule("a cell's note has words", either(unset(&["note"]), not_empty(&["note", "text"])))]},
+                {"name": "Note",
+                 "attributes": [attr("text", "String", false, false), attr("tone", "String", false, true),
+                                attr("link", "Link", false, true)],
+                 "invariants": [rule("a tone is calm or loud", either(unset(&["tone"]), json!({"op": "compare",
+                    "cmp": {"less_than": false, "equal": true, "negated": false}, "left": lookup(&["tone"]),
+                    "right": {"op": "str", "value": "calm"}})))]},
+                {"name": "Link",
+                 "attributes": [attr("href", "String", false, false), attr("label", "String", false, true)],
+                 "invariants": [rule("a link label is not blank when given", either(unset(&["label"]), not_empty(&["label"])))]}
+            ]
+        })
+    }
+
+    fn layout_violations(panels: Value) -> Vec<String> {
+        validate(&layout_ir(), "l1", &json!({"key": {"value": "l1"}, "panels": panels}))
+    }
+
+    #[test]
+    fn a_stored_panel_with_every_optional_slot_absent_is_accepted() {
+        assert_eq!(layout_violations(json!([{"kind": "plain", "cells": [{"label": "c"}]}])), Vec::<String>::new());
+    }
+
+    #[test]
+    fn an_absent_slot_reads_the_same_as_an_explicit_null() {
+        let absent = layout_violations(json!([{"kind": "callout", "cells": []}]));
+        let null = layout_violations(json!([{"kind": "callout", "note": null, "title": null, "cells": []}]));
+        assert_eq!(absent.len(), 1, "{absent:?}");
+        assert_eq!(absent, null);
+    }
+
+    #[test]
+    fn a_rule_that_needs_an_absent_slot_refuses_with_its_description_not_a_lookup_error() {
+        let violations = layout_violations(json!([{"kind": "callout", "cells": []}]));
+        assert_eq!(violations.len(), 1, "{violations:?}");
+        assert!(violations[0].contains("violates its own invariant — a callout carries a note"), "{violations:?}");
+    }
+
+    #[test]
+    fn a_path_through_an_absent_value_object_reads_as_nil() {
+        assert_eq!(layout_violations(json!([{"kind": "quiet", "cells": []}])), Vec::<String>::new());
+    }
+
+    #[test]
+    fn an_absent_slot_three_levels_down_is_accepted_and_a_present_one_is_still_checked() {
+        let absent = json!([{"kind": "plain", "cells": [{"label": "c", "note": {"text": "n", "link": {"href": "/a"}}}]}]);
+        let blank = json!([{"kind": "plain", "cells": [{"label": "c", "note": {"text": "n", "link": {"href": "/a", "label": ""}}}]}]);
+        assert_eq!(layout_violations(absent), Vec::<String>::new());
+        let violations = layout_violations(blank);
+        assert!(violations.len() == 1 && violations[0].contains("a link label is not blank when given"), "{violations:?}");
+    }
+
+    #[test]
+    fn absent_slots_inside_list_members_are_accepted_and_a_bad_member_is_named() {
+        let members = json!([{"kind": "plain", "cells": [{"label": "a"}, {"label": "b", "note": {"text": "n"}}]}]);
+        let bad = json!([{"kind": "plain", "cells": [{"label": "a"}, {"label": "b", "note": {"text": ""}}]}]);
+        assert_eq!(layout_violations(members), Vec::<String>::new());
+        let violations = layout_violations(bad);
+        assert!(violations.iter().any(|v| v.contains("a cell's note has words")), "{violations:?}");
+    }
+
+    #[test]
+    fn a_name_the_value_object_does_not_declare_still_refuses_to_resolve() {
+        let mut ir = layout_ir();
+        ir["value_objects"][1]["invariants"] =
+            json!([{"description": "a typo", "canonical": "", "ast": {"op": "lookup", "path": ["tittle"]}}]);
+        let state = json!({"key": {"value": "l1"}, "panels": [{"kind": "plain", "cells": []}]});
+        let violations = validate(&ir, "l1", &state);
+        assert_eq!(violations.len(), 1, "{violations:?}");
+        assert!(violations[0].contains("could not be checked — cannot resolve \"tittle\" — no such attribute or argument"), "{violations:?}");
+    }
+
+    #[test]
+    fn a_required_slot_left_out_is_not_filled_in() {
+        let mut ir = layout_ir();
+        ir["value_objects"][1]["invariants"] =
+            json!([{"description": "a kind", "canonical": "", "ast": {"op": "lookup", "path": ["kind"]}}]);
+        let state = json!({"key": {"value": "l1"}, "panels": [{"cells": []}]});
+        let violations = validate(&ir, "l1", &state);
+        assert!(violations.iter().any(|v| v.contains("cannot resolve \"kind\"")), "{violations:?}");
     }
 }

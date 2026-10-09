@@ -1,0 +1,633 @@
+{
+  "domain": "spec/fixtures/rust_project/optional_nested_value_object_fixture",
+  "note": "A value object holds an optional value object (Panel.note), a list member holds one (Cell.note), and that one holds another (Note.link), each with rules that read a slot the value may leave unset. Every optional slot is sent, null when unset, so both runtimes echo the same state: a rule reads an unset slot as nil, runs a nested rule only on a present value, and refuses with the same wording through the panel, the list member and two levels down.",
+  "steps": [
+    {
+      "verb": "OptionalNestedValueObjectFixture::Layout.Write",
+      "args": {
+        "key": {
+          "value": "present"
+        },
+        "panels": [
+          {
+            "kind": "callout",
+            "title": "T",
+            "note": {
+              "text": "hi",
+              "tone": "calm",
+              "link": {
+                "href": "/a",
+                "label": "A"
+              }
+            },
+            "cells": [
+              {
+                "label": "c",
+                "note": {
+                  "text": "cell note",
+                  "tone": "loud",
+                  "link": {
+                    "href": "/b",
+                    "label": "B"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "verb": "OptionalNestedValueObjectFixture::Layout.Write",
+      "args": {
+        "key": {
+          "value": "null"
+        },
+        "panels": [
+          {
+            "kind": "plain",
+            "title": null,
+            "note": null,
+            "cells": [
+              {
+                "label": "c",
+                "note": null
+              },
+              {
+                "label": "d",
+                "note": {
+                  "text": "n",
+                  "tone": null,
+                  "link": null
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "verb": "OptionalNestedValueObjectFixture::Layout.Write",
+      "args": {
+        "key": {
+          "value": "quiet_null"
+        },
+        "panels": [
+          {
+            "kind": "quiet",
+            "title": null,
+            "note": null,
+            "cells": []
+          }
+        ]
+      }
+    },
+    {
+      "verb": "OptionalNestedValueObjectFixture::Layout.Write",
+      "args": {
+        "key": {
+          "value": "quiet_calm"
+        },
+        "panels": [
+          {
+            "kind": "quiet",
+            "title": null,
+            "note": {
+              "text": "x",
+              "tone": "calm",
+              "link": null
+            },
+            "cells": []
+          }
+        ]
+      }
+    },
+    {
+      "verb": "OptionalNestedValueObjectFixture::Layout.Write",
+      "args": {
+        "key": {
+          "value": "callout_null"
+        },
+        "panels": [
+          {
+            "kind": "callout",
+            "title": null,
+            "note": null,
+            "cells": []
+          }
+        ]
+      }
+    },
+    {
+      "verb": "OptionalNestedValueObjectFixture::Layout.Write",
+      "args": {
+        "key": {
+          "value": "quiet_loud"
+        },
+        "panels": [
+          {
+            "kind": "quiet",
+            "title": null,
+            "note": {
+              "text": "x",
+              "tone": "loud",
+              "link": null
+            },
+            "cells": []
+          }
+        ]
+      }
+    },
+    {
+      "verb": "OptionalNestedValueObjectFixture::Layout.Write",
+      "args": {
+        "key": {
+          "value": "blank_title"
+        },
+        "panels": [
+          {
+            "kind": "plain",
+            "title": "",
+            "note": null,
+            "cells": []
+          }
+        ]
+      }
+    },
+    {
+      "verb": "OptionalNestedValueObjectFixture::Layout.Write",
+      "args": {
+        "key": {
+          "value": "note_no_words"
+        },
+        "panels": [
+          {
+            "kind": "plain",
+            "title": null,
+            "note": {
+              "text": "",
+              "tone": null,
+              "link": null
+            },
+            "cells": []
+          }
+        ]
+      }
+    },
+    {
+      "verb": "OptionalNestedValueObjectFixture::Layout.Write",
+      "args": {
+        "key": {
+          "value": "cell_note_no_words"
+        },
+        "panels": [
+          {
+            "kind": "plain",
+            "title": null,
+            "note": null,
+            "cells": [
+              {
+                "label": "c",
+                "note": {
+                  "text": "",
+                  "tone": null,
+                  "link": null
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "verb": "OptionalNestedValueObjectFixture::Layout.Write",
+      "args": {
+        "key": {
+          "value": "cell_note_bad_tone"
+        },
+        "panels": [
+          {
+            "kind": "plain",
+            "title": null,
+            "note": null,
+            "cells": [
+              {
+                "label": "c",
+                "note": {
+                  "text": "x",
+                  "tone": "shout",
+                  "link": null
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "verb": "OptionalNestedValueObjectFixture::Layout.Write",
+      "args": {
+        "key": {
+          "value": "cell_note_long"
+        },
+        "panels": [
+          {
+            "kind": "plain",
+            "title": null,
+            "note": null,
+            "cells": [
+              {
+                "label": "c",
+                "note": {
+                  "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                  "tone": null,
+                  "link": null
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "verb": "OptionalNestedValueObjectFixture::Layout.Write",
+      "args": {
+        "key": {
+          "value": "link_not_path"
+        },
+        "panels": [
+          {
+            "kind": "plain",
+            "title": null,
+            "note": {
+              "text": "x",
+              "tone": null,
+              "link": {
+                "href": "x",
+                "label": null
+              }
+            },
+            "cells": []
+          }
+        ]
+      }
+    },
+    {
+      "verb": "OptionalNestedValueObjectFixture::Layout.Write",
+      "args": {
+        "key": {
+          "value": "cell_link_not_path"
+        },
+        "panels": [
+          {
+            "kind": "plain",
+            "title": null,
+            "note": null,
+            "cells": [
+              {
+                "label": "c",
+                "note": {
+                  "text": "x",
+                  "tone": null,
+                  "link": {
+                    "href": "x",
+                    "label": null
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "verb": "OptionalNestedValueObjectFixture::Layout.Write",
+      "args": {
+        "key": {
+          "value": "link_blank_label"
+        },
+        "panels": [
+          {
+            "kind": "plain",
+            "title": null,
+            "note": {
+              "text": "x",
+              "tone": null,
+              "link": {
+                "href": "/a",
+                "label": ""
+              }
+            },
+            "cells": []
+          }
+        ]
+      }
+    },
+    {
+      "verb": "OptionalNestedValueObjectFixture::Layout.Revise",
+      "args": {
+        "key": {
+          "value": "present"
+        },
+        "panels": [
+          {
+            "kind": "plain",
+            "title": null,
+            "note": {
+              "text": "later",
+              "tone": null,
+              "link": null
+            },
+            "cells": []
+          }
+        ]
+      }
+    },
+    {
+      "verb": "OptionalNestedValueObjectFixture::Layout.Revise",
+      "args": {
+        "key": {
+          "value": "null"
+        },
+        "panels": [
+          {
+            "kind": "callout",
+            "title": null,
+            "note": null,
+            "cells": []
+          }
+        ]
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "OptionalNestedValueObjectFixture::Layout.Write",
+        "error": "Panel invariant violated — a callout carries a note (given {\"cells\":[],\"kind\":\"callout\",\"note\":null,\"title\":null})",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "OptionalNestedValueObjectFixture::Layout.Write",
+        "error": "Panel invariant violated — a quiet panel has no loud note (given {\"cells\":[],\"kind\":\"quiet\",\"note\":{\"text\":\"x\",\"tone\":\"loud\",\"link\":null},\"title\":null})",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "OptionalNestedValueObjectFixture::Layout.Write",
+        "error": "Panel invariant violated — a title is not blank when given (given {\"cells\":[],\"kind\":\"plain\",\"note\":null,\"title\":\"\"})",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "OptionalNestedValueObjectFixture::Layout.Write",
+        "error": "Note invariant violated — a note has words (given {\"link\":null,\"text\":\"\",\"tone\":null})",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "OptionalNestedValueObjectFixture::Layout.Write",
+        "error": "Note invariant violated — a note has words (given {\"link\":null,\"text\":\"\",\"tone\":null})",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "OptionalNestedValueObjectFixture::Layout.Write",
+        "error": "Note invariant violated — a tone is calm or loud (given {\"link\":null,\"text\":\"x\",\"tone\":\"shout\"})",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "OptionalNestedValueObjectFixture::Layout.Write",
+        "error": "Cell invariant violated — a cell's note is short (given {\"label\":\"c\",\"note\":{\"text\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"tone\":null,\"link\":null}})",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "OptionalNestedValueObjectFixture::Layout.Write",
+        "error": "Link invariant violated — a link is a path (given {\"href\":\"x\",\"label\":null})",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "OptionalNestedValueObjectFixture::Layout.Write",
+        "error": "Link invariant violated — a link is a path (given {\"href\":\"x\",\"label\":null})",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "OptionalNestedValueObjectFixture::Layout.Write",
+        "error": "Link invariant violated — a link label is not blank when given (given {\"href\":\"/a\",\"label\":\"\"})",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "OptionalNestedValueObjectFixture::Layout.Revise",
+        "error": "Panel invariant violated — a callout carries a note (given {\"cells\":[],\"kind\":\"callout\",\"note\":null,\"title\":null})",
+        "kind": "InvariantViolation"
+      }
+    ],
+    "instances": {
+      "OptionalNestedValueObjectFixture::Layout#present": {
+        "key": {
+          "value": "present"
+        },
+        "panels": [
+          {
+            "kind": "plain",
+            "title": null,
+            "note": {
+              "text": "later",
+              "tone": null,
+              "link": null
+            },
+            "cells": []
+          }
+        ]
+      },
+      "OptionalNestedValueObjectFixture::Layout#null": {
+        "key": {
+          "value": "null"
+        },
+        "panels": [
+          {
+            "kind": "plain",
+            "title": null,
+            "note": null,
+            "cells": [
+              {
+                "label": "c",
+                "note": null
+              },
+              {
+                "label": "d",
+                "note": {
+                  "text": "n",
+                  "tone": null,
+                  "link": null
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "OptionalNestedValueObjectFixture::Layout#quiet_null": {
+        "key": {
+          "value": "quiet_null"
+        },
+        "panels": [
+          {
+            "kind": "quiet",
+            "title": null,
+            "note": null,
+            "cells": []
+          }
+        ]
+      },
+      "OptionalNestedValueObjectFixture::Layout#quiet_calm": {
+        "key": {
+          "value": "quiet_calm"
+        },
+        "panels": [
+          {
+            "kind": "quiet",
+            "title": null,
+            "note": {
+              "text": "x",
+              "tone": "calm",
+              "link": null
+            },
+            "cells": []
+          }
+        ]
+      }
+    },
+    "events": [
+      {
+        "name": "LayoutWritten",
+        "aggregate": "OptionalNestedValueObjectFixture::Layout",
+        "id": "present",
+        "payload": {
+          "key": {
+            "value": "present"
+          },
+          "panels": [
+            {
+              "kind": "callout",
+              "title": "T",
+              "note": {
+                "text": "hi",
+                "tone": "calm",
+                "link": {
+                  "href": "/a",
+                  "label": "A"
+                }
+              },
+              "cells": [
+                {
+                  "label": "c",
+                  "note": {
+                    "text": "cell note",
+                    "tone": "loud",
+                    "link": {
+                      "href": "/b",
+                      "label": "B"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "name": "LayoutWritten",
+        "aggregate": "OptionalNestedValueObjectFixture::Layout",
+        "id": "null",
+        "payload": {
+          "key": {
+            "value": "null"
+          },
+          "panels": [
+            {
+              "kind": "plain",
+              "title": null,
+              "note": null,
+              "cells": [
+                {
+                  "label": "c",
+                  "note": null
+                },
+                {
+                  "label": "d",
+                  "note": {
+                    "text": "n",
+                    "tone": null,
+                    "link": null
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "name": "LayoutWritten",
+        "aggregate": "OptionalNestedValueObjectFixture::Layout",
+        "id": "quiet_null",
+        "payload": {
+          "key": {
+            "value": "quiet_null"
+          },
+          "panels": [
+            {
+              "kind": "quiet",
+              "title": null,
+              "note": null,
+              "cells": []
+            }
+          ]
+        }
+      },
+      {
+        "name": "LayoutWritten",
+        "aggregate": "OptionalNestedValueObjectFixture::Layout",
+        "id": "quiet_calm",
+        "payload": {
+          "key": {
+            "value": "quiet_calm"
+          },
+          "panels": [
+            {
+              "kind": "quiet",
+              "title": null,
+              "note": {
+                "text": "x",
+                "tone": "calm",
+                "link": null
+              },
+              "cells": []
+            }
+          ]
+        }
+      },
+      {
+        "name": "LayoutRevised",
+        "aggregate": "OptionalNestedValueObjectFixture::Layout",
+        "id": "present",
+        "payload": {
+          "key": {
+            "value": "present"
+          },
+          "panels": [
+            {
+              "kind": "plain",
+              "title": null,
+              "note": {
+                "text": "later",
+                "tone": null,
+                "link": null
+              },
+              "cells": []
+            }
+          ]
+        }
+      }
+    ],
+    "queries": [],
+    "sagas": [],
+    "dry_runs": [],
+    "reactions": []
+  }
+}
