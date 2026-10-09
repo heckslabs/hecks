@@ -1,11 +1,11 @@
 module RuboCop
   module Cop
     module Hecks
-      # Flags a duration measured as `Time.now - start`, where `start` was itself read from the clock.
+      # Flags a duration measured as `Time.now - start`, where `start` was read from the clock.
       #
-      # The wall clock steps backwards and forwards (NTP corrections), so a subtraction can go
-      # negative or jump. Elapsed time comes from the monotonic clock. `Time.now - seconds` (a past
-      # timestamp) and `Time.now - File.mtime(path)` (an age against a stored time) are left alone.
+      # The wall clock steps when it is corrected, so a subtraction can go negative or jump.
+      # Elapsed time comes from the monotonic clock. `Time.now - seconds` (a past timestamp)
+      # and `Time.now - File.mtime(path)` (an age against a stored time) are left alone.
       #
       # @example
       #   started = Time.now

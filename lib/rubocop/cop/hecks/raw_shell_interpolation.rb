@@ -3,9 +3,10 @@ module RuboCop
     module Hecks
       # Flags a shell command built by interpolating a value into one string.
       #
-      # `system("rm -rf #{dir}")` hands the shell a string it re-parses, so a value with a space or a
-      # metacharacter changes the command. The array form (`system("rm", "-rf", dir)`) passes each
-      # argument as-is. An interpolation wrapped in `Shellwords.escape` / `shellescape` is left alone.
+      # `system("rm -rf #{dir}")` hands the shell a string it re-parses, so a value with a space
+      # or a metacharacter changes the command. The array form (`system("rm", "-rf", dir)`)
+      # passes each argument as-is. An interpolation wrapped in `Shellwords.escape` or
+      # `shellescape` is left alone.
       #
       # @example
       #   system("git checkout #{branch}")         # bad
@@ -63,7 +64,7 @@ module RuboCop
           open3_receiver?(node.receiver) && OPEN3_CALLS.include?(node.method_name)
         end
 
-        # The lone command string, after an optional leading env hash; nil when the call passes argv.
+        # The lone command string, after an optional leading env hash; nil when it passes argv.
         def command_argument(node)
           args = node.arguments.drop_while(&:hash_type?)
           args.first if args.size == 1
