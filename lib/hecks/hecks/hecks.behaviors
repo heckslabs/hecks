@@ -1,7 +1,7 @@
 Hecks.behaviors "Hecks" do
   vision "A release moves tagged, published, verified; the grammar cache moves fresh, stale, fresh."
 
-  loads "hecks.bluebook", "custodian.bluebook", "codebase.bluebook", "context_map.hecksagon", "hecks.hecksagon", "environments/memory.world"
+  loads "hecks.bluebook", "custodian.bluebook", "tooling.bluebook", "codebase.bluebook", "context_map.hecksagon", "hecks.hecksagon", "environments/memory.world"
 
   test "Tag records a version as tagged" do
     tests "Tag", on: "Release"

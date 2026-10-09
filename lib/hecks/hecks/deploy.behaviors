@@ -1,7 +1,7 @@
 Hecks.behaviors "Deploy" do
   vision "A recipe, a lint, a comparison or a projection is recorded as requested before anything outside is asked."
 
-  loads "hecks.bluebook", "custodian.bluebook", "codebase.bluebook", "context_map.hecksagon", "hecks.hecksagon", "deploy.world", "environments/memory.world"
+  loads "hecks.bluebook", "custodian.bluebook", "tooling.bluebook", "codebase.bluebook", "context_map.hecksagon", "hecks.hecksagon", "deploy.world", "environments/memory.world"
 
   test "Project keeps a domain that has no world file as a faulted recipe" do
     tests "Project", on: "Recipe"
