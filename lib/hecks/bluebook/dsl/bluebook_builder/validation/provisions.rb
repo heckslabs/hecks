@@ -9,7 +9,9 @@ module Hecks
             SPECIAL_KIND_CHECKS = {
               port_operation: :validate_provided_port_operation!,
               mark:           :validate_provided_mark!,
-              duration:       :validate_provided_duration!
+              duration:       :validate_provided_duration!,
+              text:           :validate_provided_text!,
+              attribute:      :validate_provided_attribute!
             }.freeze
 
             private
@@ -95,6 +97,27 @@ module Hecks
                                "which names no attribute with a whole-seconds default this chapter declares " \
                                "(spelled \"Aggregate.attribute\", with `attribute :attribute, Seconds, " \
                                "default: { value: 1800 }` in that aggregate)"
+            end
+
+            # A text verb is spelled "Aggregate.attribute" and must name an attribute of that
+            # aggregate whose `default:` is a non-empty string (bare, or a one-field value object's
+            # `{ value: "..." }` fill).
+            def validate_provided_text!(bluebook, capability, row)
+              return if Capabilities.text_of(bluebook, row.verb)
+
+              raise Malformed, "#{bluebook.name} provides #{capability.inspect} #{row.key}: #{row.verb.inspect}, " \
+                               "which names no attribute with a text default this chapter declares " \
+                               "(spelled \"Aggregate.attribute\", with `attribute :attribute, Reason, " \
+                               "default: { value: \"word\" }` in that aggregate)"
+            end
+
+            # An attribute verb is spelled "Aggregate.attribute" and must name an attribute of that
+            # aggregate.
+            def validate_provided_attribute!(bluebook, capability, row)
+              return if Capabilities.attribute_of(bluebook, row.verb)
+
+              raise Malformed, "#{bluebook.name} provides #{capability.inspect} #{row.key}: #{row.verb.inspect}, " \
+                               "which names no attribute this chapter declares (spelled \"Aggregate.attribute\")"
             end
 
             def provided_member_names(aggregate, kind)

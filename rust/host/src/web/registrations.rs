@@ -672,7 +672,7 @@ pub(crate) async fn webhook_route(
             }
             "checkout.session.expired" => Some((payments.failed.as_str(), json!({
                 "reference": reference_fact,
-                "reason": {"value": "checkout_expired"},
+                "reason": {"value": payments.lapse_reason},
                 "reported_processor": reported_processor,
             }))),
             _ => None,

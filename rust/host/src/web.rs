@@ -608,20 +608,20 @@ async fn registrations_list_route(
 // Built field-by-field from an allowlist so intake answers (health,
 // medications) and payment fields can never appear here.
 fn registration_list_rows(read: &Value, domain: &str) -> Vec<Value> {
-    const TIMESTAMP_KEYS: [&str; 4] = ["created_at", "registered_at", "requested_at", "occurred_at"];
+    let binding = crate::commerce_ir::registrations_binding(domain);
     let plain = |value: Option<&Value>| -> Option<Value> {
         let value = value?;
         Some(value.get("value").cloned().unwrap_or_else(|| value.clone()))
     };
     let text = |value: Option<&Value>| plain(value).and_then(|v| v.as_str().map(|s| s.trim().to_string()));
 
-    let mut rows: Vec<(Option<String>, Value)> = instances_for(read, &crate::commerce_ir::registrations_binding(domain).registration_prefix())
+    let mut rows: Vec<(Option<String>, Value)> = instances_for(read, &binding.registration_prefix())
         .into_iter()
         .map(|(id, registration)| {
             let attendee = registration.get("attendee").cloned().unwrap_or_else(|| json!({}));
             let joined = [text(attendee.get("first_name")), text(attendee.get("last_name"))].into_iter().flatten().collect::<Vec<_>>().join(" ");
             let name = if joined.is_empty() { text(attendee.get("name")).unwrap_or_default() } else { joined };
-            let stamp = TIMESTAMP_KEYS.iter().find_map(|key| text(registration.get(*key)));
+            let stamp = binding.timestamp_keys.iter().find_map(|key| text(registration.get(key.as_str())));
             let mut row = json!({
                 "registration_id": id,
                 "email": text(attendee.get("email")),

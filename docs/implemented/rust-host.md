@@ -39,6 +39,14 @@ session holds its seat. A window the chapter omits falls back to 14 days, 730 da
 or 30 minutes with one warning. The payment processor's own 31-minute minimum session expiry is
 applied by the host on top of the domain's hold.
 
+The failure reason a lapsed hold records and the registration timestamp work the same way
+(ADR 0099): the `payments` fact's `lapse_reason` (from `provides "payments", lapse_reason:
+"Payment.lapse_reason"`) is the reason the host sends when the processor reports a session
+expired, and the `registrations` fact's `registered_at` names the attribute the admin list sorts
+by. Omitted, they fall back to `checkout_expired` and the first of `created_at`, `registered_at`,
+`requested_at`, `occurred_at` with one warning. The processor's event names, its name and its two
+key modes are the Stripe adapter's own vocabulary and stay in the host.
+
 | variable | default | meaning |
 | --- | --- | --- |
 | `HECKS_CHECKOUT_DOMAIN` | unset (routes off) | the domain whose guest routes are on; must equal `HECKS_DOMAIN` |

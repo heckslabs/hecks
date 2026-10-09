@@ -19,7 +19,15 @@ use keystore::{KeyStore, StoredDocument, StoredKeys};
 
 const CONNECTION_SLUG: &str = "payments";
 const STRIPE_API_BASE: &str = "https://api.stripe.com";
+/// ADAPTER FACT (ADR 0099): the two environments a Stripe account has, named by the key prefix
+/// (`sk_test_`, `sk_live_`) and the env vars read here. The domain's `ConnectionMode` enumerates
+/// the same words; `the_adapter_words_are_ones_the_connection_domain_admits` holds the two
+/// together, so a renamed mode fails a test instead of a request.
 const MODES: [&str; 2] = ["test", "live"];
+/// ADAPTER FACT (ADR 0099): this module is the Stripe adapter, so the processor it reports to the
+/// domain is its own name. The domain's `Processor` enumerates the processors it admits; the same
+/// test holds the word to it.
+const PROCESSOR: &str = "stripe";
 /// The reserved `account_ref` of a connection that uses the business's own
 /// Stripe account directly. It is the only kind of connection this host charges.
 pub const SELF_ACCOUNT: &str = "self";
@@ -217,7 +225,7 @@ pub fn checkout_plan(connection: Option<&Connection>, platform: &PlatformConfig)
     match connection.status.as_str() {
         "enabled" => {
             let (key, publishable_key) = platform.direct_pair(&connection.mode);
-            if connection.processor != "stripe" || !connection.is_direct() || key.is_empty() {
+            if connection.processor != PROCESSOR || !connection.is_direct() || key.is_empty() {
                 CheckoutPlan::Paused
             } else if publishable_key.is_empty() {
                 eprintln!(
@@ -298,7 +306,7 @@ fn require_operator(caller: &Caller) -> Result<(), Value> {
 // modes have keys. Built field by field, so a credential can never appear here:
 // none is ever read into this value.
 fn connection_json(connection: Option<&Connection>, platform: &PlatformConfig, caller: &Caller) -> Value {
-    let label = connection.filter(|c| c.processor == "stripe").map(|_| "Stripe");
+    let label = connection.filter(|c| c.processor == PROCESSOR).map(|_| "Stripe");
     let present = |value: Option<&str>| value.filter(|s| !s.is_empty()).map(Value::from).unwrap_or(Value::Null);
     json!({
         "status": connection.map(|c| c.status.as_str()).unwrap_or("not_connected"),
@@ -442,7 +450,7 @@ async fn direct_route(caller: &Caller, raw_body: &str, platform: &PlatformConfig
     }
     let display_name = own_account_display_name(platform, platform.direct_key(&mode)).await;
     let facts = json!({
-        "processor": {"value": "stripe"},
+        "processor": {"value": PROCESSOR},
         "account_ref": {"value": SELF_ACCOUNT},
         "mode": {"value": mode},
         "display_name": {"value": display_name},
@@ -700,7 +708,7 @@ async fn save_keys_route(caller: &Caller, body: &Value, platform: &PlatformConfi
         return connection_response(caller, &fresh, client, wasm_path, config).await;
     }
     let facts = json!({
-        "processor": {"value": "stripe"},
+        "processor": {"value": PROCESSOR},
         "account_ref": {"value": SELF_ACCOUNT},
         "mode": {"value": mode},
         "display_name": {"value": display_name},

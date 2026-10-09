@@ -580,6 +580,7 @@ pub struct Payment {
     pub client: Option<Client>,
     pub transaction_id: Option<ProcessorTransactionId>,
     pub failure_reason: Option<FailureReason>,
+    pub lapse_reason: Option<FailureReason>,
     pub status: String,
 }
 
@@ -594,6 +595,7 @@ impl crate::kernel::Fielded for Payment {
             "client" => self.client.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "transaction_id" => self.transaction_id.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "failure_reason" => self.failure_reason.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "lapse_reason" => self.lapse_reason.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "status" => Some(Field::Value(Value::Str(self.status.clone()))),
             _ => None,
         }
@@ -623,6 +625,7 @@ impl Payment {
         ("client".to_string(), self.client.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("transaction_id".to_string(), self.transaction_id.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("failure_reason".to_string(), self.failure_reason.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("lapse_reason".to_string(), self.lapse_reason.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("status".to_string(), crate::kernel::Json::Str(self.status.clone())),
         ])
     }
@@ -641,6 +644,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
         client: match v.get("client") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Client::from_json(x.expect_value_object_shape("client", "Client")?)?), },
         transaction_id: match v.get("transaction_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ProcessorTransactionId::from_json(&x.coerce_single_field("value"))?), },
         failure_reason: match v.get("failure_reason") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(FailureReason::from_json(&x.coerce_single_field("value"))?), },
+        lapse_reason: match v.get("lapse_reason") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(FailureReason::from_json(&x.coerce_single_field("value"))?), },
         status: v.require("status", "Payment")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Payment.status: expected a string".to_string()))?.to_string(),
         })
     }
@@ -751,6 +755,7 @@ pub fn dispatch_initiate(
             client: Some(args.client.clone()),
             transaction_id: None,
             failure_reason: None,
+            lapse_reason: Some(FailureReason { value: "checkout_expired".to_string() }),
             status: "pending".to_string(),
         }),
         state_independent: false,
