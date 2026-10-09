@@ -9,5 +9,11 @@ flowchart LR
     cmd_Order_AddTopping(["Order.AddTopping"]) -->|"appends: name, amount"| attr_Order_toppings[toppings]
     cmd_Order_Purchase(["Order.Purchase"]) -->|"sets: customer_name"| attr_Order_customer_name[customer_name]
     Order[(Order)] -.->|asks| qry_Order_Available{"Order.Available"}
+    Order[(Order)] -.->|asks| qry_Order_Everything{"Order.Everything"}
+    Order[(Order)] -.->|asks| qry_Order_ByPrice{"Order.ByPrice"}
+    Order[(Order)] -.->|asks| qry_Order_ByPriceDescending{"Order.ByPriceDescending"}
+    Order[(Order)] -.->|asks| qry_Order_ByCustomer{"Order.ByCustomer"}
+    Order[(Order)] -.->|asks| qry_Order_ByCustomerDescending{"Order.ByCustomerDescending"}
+    Order[(Order)] -.->|asks| qry_Order_ByCustomerUnsetLast{"Order.ByCustomerUnsetLast"}
     Order[(Order)] -.->|asks| qry_Order_CostingLessThan{"Order.CostingLessThan"}
     Order[(Order)] -.->|asks| qry_Order_Expensive{"Order.Expensive"}
