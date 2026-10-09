@@ -105,7 +105,8 @@ RSpec.describe "the operator domain" do
     # (.length), 2-5 (literals) and 12 (dotted lookup) are terminals, not operators.
     expect(symbols(by_grammar("inner"))).to eq(
       ["+", ".positive?", ".negative?", ".zero?", ".empty?", ".to_s", ".modulo", ".size", ".any?", ".none?", ".all?", ".find",
-       ".match?", ".present?", ".blank?", ".split", ".start_with?", ".end_with?", ".first", ".last", ".set?", ".unset?", ".strip", ".lstrip", ".rstrip"]
+       ".match?", ".present?", ".blank?", ".split", ".start_with?", ".end_with?", ".first", ".last", ".set?", ".unset?",
+       ".strip", ".lstrip", ".rstrip"]
     )
   end
 
