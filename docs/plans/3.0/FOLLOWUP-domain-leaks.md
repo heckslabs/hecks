@@ -66,7 +66,9 @@ Audit, re-counted on this date over every `.bluebook` under `lib/hecks`:
 
 The leak is growing with each chapter, so the order below holds and item 1 is now the cost-reducing step.
 
-Recommended next step: write the ADR for item 1 before any code. The decision it must make is the
+Next step taken: [ADR 0100](../../decisions/0100-policies-ask-and-the-hecksagon-maps-the-port.md) (Proposed) writes the item 1 decision up; no code yet. Its brief was:
+
+Write the ADR for item 1 before any code. The decision it must make is the
 hecksagon vocabulary that maps a policy's ask to a port operation (for example a policy says
 `ask :check`, and the hecksagon binds `check` to `ModelCheckRun::DomainRuntime::Check`), with the
 Ruby and Rust parsers and the conformance corpus moving together. Start with the 18 triggers in
