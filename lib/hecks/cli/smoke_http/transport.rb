@@ -29,15 +29,15 @@ module Hecks
         end
 
         def expect_status(res, code)
-          raise "expected #{code}, got #{res.code}" unless res.code.to_i == code
+          raise Failure, "expected #{code}, got #{res.code}" unless res.code.to_i == code
         end
 
         def expect_success(res)
-          raise "expected 2xx, got #{res.code}: #{res.body.to_s[0, 200]}" unless res.code.to_i.between?(200, 299)
+          raise Failure, "expected 2xx, got #{res.code}: #{res.body.to_s[0, 200]}" unless res.code.to_i.between?(200, 299)
         end
 
         def expect_refused(res)
-          raise "expected a 4xx refusal, got #{res.code}" unless res.code.to_i.between?(400, 499)
+          raise Failure, "expected a 4xx refusal, got #{res.code}" unless res.code.to_i.between?(400, 499)
         end
       end
     end

@@ -9,6 +9,9 @@ module Hecks
     module DeployRecipeLint
       # Generated fixture domains for the deploy generator, so the lint has real Makefiles to read.
       module Fixtures
+        # Raised when a deploy fixture cannot be generated.
+        class Error < RuntimeError; end
+
         # The fixture's bluebook, where `__NAME__` stands for the domain's name.
         FIXTURE_BLUEBOOK = <<~BLUEBOOK
           Hecks.bluebook "__NAME__" do
@@ -59,7 +62,7 @@ module Hecks
           Dir.mktmpdir do |dir|
             domain_dir = write_fixture(dir, basename, world_body, env_local: env_local)
             outcome = Hecks::Adapters::ConsoleCapture.capture { DeployRecipe.main([domain_dir], root: root) }
-            outcome.ok? or raise "hecks deploy project failed generating the #{basename} fixture: #{outcome.output}"
+            outcome.ok? or raise Error, "hecks deploy project failed generating the #{basename} fixture: #{outcome.output}"
           end
           File.join(root, "deploy", basename)
         end

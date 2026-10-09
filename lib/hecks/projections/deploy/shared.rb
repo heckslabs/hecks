@@ -7,6 +7,9 @@ module Hecks
       # VPC, RDS/Aurora, bastion and cross-domain invoke plumbing shared by the
       # `Lambda` and `Fargate` deploy targets. Plain module functions, not a Target.
       module Shared
+        # Raised when a bastion parameter names a stack output that is not declared.
+        class Error < RuntimeError; end
+
         # The names a domain's own VPC and database are rendered by.
         #
         # @!attribute [r] shared [Boolean] whether this domain borrows another domain's RDS instance
@@ -66,11 +69,11 @@ module Hecks
 
         # Generation-time check that every bastion parameter maps to a stack output.
         #
-        # @raise [RuntimeError] if a parameter names a `from_output` absent from `stack_outputs`
+        # @raise [Error] if a parameter names a `from_output` absent from `stack_outputs`
         def check_bastion_parameters!(bastion_parameters, stack_outputs)
           bastion_parameters.each do |param|
             stack_outputs.any? { |o| o[:key] == param[:from_output] } or
-              raise "bastion parameter #{param[:name]} references undeclared stack output #{param[:from_output]}"
+              raise Error, "bastion parameter #{param[:name]} references undeclared stack output #{param[:from_output]}"
           end
         end
 

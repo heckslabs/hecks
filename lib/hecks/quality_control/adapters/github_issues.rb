@@ -7,6 +7,9 @@ module Hecks
     # The `IssueTracker` port's adapter: files a `QualityControl::Ticket` as a GitHub issue.
     # Raises when `gh` refuses, which the runtime records as the ticket's refusal.
     class GithubIssues
+      # Raised when `gh` cannot file the issue.
+      class Error < RuntimeError; end
+
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] unused
       # @param root [String, nil] unused
@@ -18,7 +21,7 @@ module Hecks
       #   value objects (`{value: ...}`) or bare strings, and `pull_request` names a proposed fix
       # @return [Hash{Symbol => Hash}] `number:` and `url:` of the issue, in the shape the
       #   ticket's `Filed` command takes
-      # @raise [RuntimeError] when `gh` exits non-zero or prints no issue URL
+      # @raise [Error] when `gh` exits non-zero or prints no issue URL
       def file(**held)
         out = create_issue(plain(held[:repository]), plain(held[:title]).to_s, issue_body(held))
         url, number = issue_url_and_number(out)
@@ -37,7 +40,7 @@ module Hecks
       def issue_url_and_number(out)
         url = out.strip.lines.last.to_s.strip
         number = url[%r{/issues/(\d+)\z}, 1]
-        raise "gh issue create printed no issue URL: #{out.strip.inspect}" unless number
+        raise Error, "gh issue create printed no issue URL: #{out.strip.inspect}" unless number
 
         [url, number]
       end
@@ -45,7 +48,7 @@ module Hecks
       def create_issue(repository, title, body)
         out, err, status = Open3.capture3("gh", "issue", "create", "--repo", repository,
                                           "--title", title, "--body", body)
-        raise "gh issue create failed — #{err.strip.empty? ? out.strip : err.strip}" unless status.success?
+        raise Error, "gh issue create failed — #{err.strip.empty? ? out.strip : err.strip}" unless status.success?
 
         out
       end

@@ -6,6 +6,9 @@ module Hecks
   # Shared machinery for a codemod that migrates real `.bluebook` source: boot,
   # find candidates, edit, then verify by diffing the re-booted IR before keeping it.
   module Codemod
+    # Raised when a shadow cannot be built from the construct.
+    class Error < RuntimeError; end
+
     ROOT = File.expand_path("../..", __dir__)
 
     EXAMPLE_ROOTS = Corpus.members(:example, root: ROOT).map(&:path)
@@ -155,8 +158,8 @@ module Hecks
 
       matches = element_candidates(construct).select { |c| c.hecks_name.to_s == list_attr.type.to_s }
       if matches.size > 1
-        raise "#{construct.hecks_name}##{list_field} names #{list_attr.type}, held by both a value " \
-              "object and an entity — ambiguous, cannot resolve which one the list holds"
+        raise Error, "#{construct.hecks_name}##{list_field} names #{list_attr.type}, held by both a value " \
+                     "object and an entity — ambiguous, cannot resolve which one the list holds"
       end
 
       matches.first

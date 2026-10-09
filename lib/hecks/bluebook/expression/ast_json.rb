@@ -9,6 +9,9 @@ module Hecks
       # Lives in core because rust/host cannot link the kernel crate and interprets this from
       # ir.json.
       module AstJson
+        # Raised for an expression node that no JSON rendering exists for.
+        class UnhandledNode < RuntimeError; end
+
         module_function
 
         # The closed roster of `"op"` tags. A new node kind needs an entry here and an arm in
@@ -119,8 +122,8 @@ module Hecks
           _, emitter = Emitters::BOOL.find { |klass, _| node.is_a?(klass) }
           return emitter.call(node) if emitter
 
-          raise "unhandled evaluator node #{node.class} — no JSON rendering exists for it " \
-                "(lib/hecks/bluebook/expression/ast_json.rb#emit_bool)"
+          raise UnhandledNode, "unhandled evaluator node #{node.class} — no JSON rendering exists for it " \
+                               "(lib/hecks/bluebook/expression/ast_json.rb#emit_bool)"
         end
 
         # Emits the JSON form of one comparison operator.
@@ -161,8 +164,8 @@ module Hecks
           _, emitter = Emitters::RESOLVER.find { |klass, _| node.is_a?(klass) }
           return emitter.call(node) if emitter
 
-          raise "unhandled resolver node #{node.class} — no JSON rendering exists for it " \
-                "(lib/hecks/bluebook/expression/ast_json.rb#emit_resolver)"
+          raise UnhandledNode, "unhandled resolver node #{node.class} — no JSON rendering exists for it " \
+                               "(lib/hecks/bluebook/expression/ast_json.rb#emit_resolver)"
         end
       end
     end

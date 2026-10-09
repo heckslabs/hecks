@@ -12,6 +12,9 @@ module Hecks
     # and the runtime records the refusal on the finding. An ask that needs the issue before one
     # was opened is refused the same way, so a finding never blocks on GitHub.
     class FindingGithub
+      # Raised when `gh` cannot file or find the finding's issue.
+      class Error < RuntimeError; end
+
       # The environment variable that names the repository when no setting does.
       REPOSITORY_VARIABLE = "HECKS_FINDINGS_REPO"
 
@@ -27,12 +30,12 @@ module Hecks
       # @param held [Hash] the finding's fields; `title` and `body` are value objects or strings
       # @return [Hash{Symbol => Hash}] `issue_number:` of the new issue, the shape
       #   `Finding.RecordIssue` takes
-      # @raise [RuntimeError] when no repository is named, `gh` exits non-zero, or prints no
+      # @raise [Error] when no repository is named, `gh` exits non-zero, or prints no
       #   issue URL
       def open_issue(**held)
         out = gh("issue", "create", "--title", plain(held[:title]).to_s, "--body", plain(held[:body]).to_s)
         number = out.lines.last.to_s.strip[%r{/issues/(\d+)\z}, 1]
-        raise "gh issue create printed no issue URL: #{out.strip.inspect}" unless number
+        raise Error, "gh issue create printed no issue URL: #{out.strip.inspect}" unless number
 
         { issue_number: { value: number.to_i } }
       end
@@ -82,7 +85,10 @@ module Hecks
 
       def gh(*arguments)
         out, err, status = Open3.capture3("gh", *arguments, "--repo", repository)
-        raise "gh #{arguments.first(2).join(" ")} failed — #{err.strip.empty? ? out.strip : err.strip}" unless status.success?
+        unless status.success?
+          raise Error,
+                "gh #{arguments.first(2).join(" ")} failed — #{err.strip.empty? ? out.strip : err.strip}"
+        end
 
         out
       end
@@ -91,12 +97,12 @@ module Hecks
         name = @repository || ENV.fetch(REPOSITORY_VARIABLE, nil)
         return name unless name.to_s.strip.empty?
 
-        raise "no repository named: set the `repository` setting or #{REPOSITORY_VARIABLE} to owner/name"
+        raise Error, "no repository named: set the `repository` setting or #{REPOSITORY_VARIABLE} to owner/name"
       end
 
       def issue(held)
         number = plain(held[:issue_number])
-        raise "the finding has no GitHub issue yet" if number.to_s.empty?
+        raise Error, "the finding has no GitHub issue yet" if number.to_s.empty?
 
         number.to_s
       end

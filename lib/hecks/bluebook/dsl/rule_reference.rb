@@ -6,6 +6,9 @@ module Hecks
       # The three "declared once, referenced by name" resolution primitives shared by
       # every given/invariant/ensures scope in this DSL (ADR 0025).
       module RuleReference
+        # Raised when the syntax table names a resolution this module cannot perform.
+        class Error < RuntimeError; end
+
         module_function
 
         # Extracts a predicate's source and builds the rule struct (Given or Invariant),
@@ -94,10 +97,10 @@ module Hecks
           actual = lookup(word, context)[:resolves_via]
           return if actual == expected_primitive
 
-          raise "internal: syntax.bluebook says #{word}/#{context} resolves via " \
-                "#{actual.inspect}, but #{word}'s own Ruby builder is about to use " \
-                "#{expected_primitive.inspect} — the grammar table and the " \
-                "implementation have drifted"
+          raise Error, "internal: syntax.bluebook says #{word}/#{context} resolves via " \
+                       "#{actual.inspect}, but #{word}'s own Ruby builder is about to use " \
+                       "#{expected_primitive.inspect} — the grammar table and the " \
+                       "implementation have drifted"
         end
       end
     end
