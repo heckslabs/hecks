@@ -445,6 +445,7 @@ Hecks.bluebook "Deploy" do
     end
 
     lifecycle :status, default: "requested" do
+      mark :failure, "refused"
       transition "Reprovision" => "requested",   from: %w[provisioned refused]
       transition "Complete"    => "provisioned", from: "requested"
       transition "Abandon"     => "refused",     from: "requested"
@@ -602,6 +603,7 @@ Hecks.bluebook "Deploy" do
     end
 
     lifecycle :status, default: "requested" do
+      mark :failure, "faulted"
       transition "Complete" => "projected", from: "requested"
       transition "Fault"    => "faulted",   from: "requested"
     end
@@ -714,6 +716,7 @@ Hecks.bluebook "Deploy" do
     end
 
     lifecycle :status, default: "requested" do
+      mark :failure, "faulted"
       transition "Complete" => "cleared", from: "requested"
       transition "Fault"    => "faulted", from: "requested"
     end
@@ -811,6 +814,7 @@ Hecks.bluebook "Deploy" do
     end
 
     lifecycle :status, default: "requested" do
+      mark :failure, "flagged"
       transition "Pass" => "clean",   from: "requested"
       transition "Flag" => "flagged", from: "requested"
     end
@@ -914,6 +918,7 @@ Hecks.bluebook "Deploy" do
     end
 
     lifecycle :status, default: "requested" do
+      mark :failure, "flagged"
       transition "Pass" => "within_budget", from: "requested"
       transition "Flag" => "flagged",       from: "requested"
     end
@@ -1031,6 +1036,7 @@ Hecks.bluebook "Deploy" do
     end
 
     lifecycle :status, default: "requested" do
+      mark :failure, "flagged"
       transition "Pass" => "passed", from: "requested"
       transition "Flag" => "flagged", from: "requested"
     end
@@ -1179,6 +1185,7 @@ Hecks.bluebook "Deploy" do
     end
 
     lifecycle :status, default: "requested" do
+      mark :failure, "flagged"
       transition "Complete" => "rolled", from: "requested"
       transition "Flag" => "flagged", from: "requested"
       transition "Verify" => "verified", from: "rolled"
@@ -1361,6 +1368,7 @@ Hecks.bluebook "Deploy" do
     end
 
     lifecycle :status, default: "requested" do
+      mark :failure, "flagged"
       transition "Complete" => "rolled", from: "requested"
       transition "Flag" => "flagged", from: "requested"
       transition "Verify" => "verified", from: "rolled"
@@ -1554,6 +1562,7 @@ Hecks.bluebook "Deploy" do
     end
 
     lifecycle :status, default: "requested" do
+      mark :failure, "flagged", "drifted"
       transition "Complete" => "restored", from: "requested"
       transition "Plan" => "planned", from: "requested"
       transition "Flag" => "flagged", from: "requested"
@@ -1835,6 +1844,7 @@ Hecks.bluebook "Deploy" do
     end
 
     lifecycle :status, default: "requested" do
+      mark :failure, "drifted", "flagged"
       transition "Match" => "verified", from: "requested"
       transition "Differ" => "drifted", from: "requested"
       transition "Flag" => "flagged", from: "requested"
@@ -1977,6 +1987,7 @@ Hecks.bluebook "Deploy" do
     # No outcome is a failure: a report that could not be made is `unavailable`, never `flagged`
     # (only a malformed request is), because the era check gates a deploy, not this report.
     lifecycle :status, default: "requested" do
+      mark :failure, "flagged"
       transition "Match" => "unchanged", from: "requested"
       transition "Differ" => "changed", from: "requested"
       transition "Withhold" => "unavailable", from: "requested"
@@ -2140,6 +2151,7 @@ Hecks.bluebook "Deploy" do
     end
 
     lifecycle :status, default: "requested" do
+      mark :failure, "flagged"
       transition "RecordName" => "named", from: "requested"
       transition "RecordUrl" => "located", from: "requested"
       transition "RecordList" => "listed", from: "requested"
@@ -2513,6 +2525,7 @@ Hecks.bluebook "Deploy" do
     end
 
     lifecycle :status, default: "requested" do
+      mark :failure, "flagged"
       transition "Complete" => "rolled", from: "requested"
       transition "Plan" => "planned", from: "requested"
       transition "Flag" => "flagged", from: "requested"
@@ -2648,6 +2661,7 @@ Hecks.bluebook "Deploy" do
     end
 
     lifecycle :status, default: "requested" do
+      mark :failure, "drifted", "refused"
       transition "Match"  => "matching", from: "requested"
       transition "Drift"  => "drifted",  from: "requested"
       transition "Refuse" => "refused",  from: "requested"
@@ -2771,6 +2785,7 @@ Hecks.bluebook "Deploy" do
     end
 
     lifecycle :status, default: "requested" do
+      mark :failure, "faulted"
       transition "Complete" => "projected", from: "requested"
       transition "Fault"    => "faulted",   from: "requested"
     end

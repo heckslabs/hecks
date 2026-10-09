@@ -2,6 +2,17 @@ Hecks.bluebook "Privacy" do
   vision "Which fields of a domain's own aggregates are sensitive is a fact about that domain, declared apart from it — the domain itself never spells out that one of its own attributes is PII or PHI."
   supporting
 
+  # What this chapter answers for every attaching domain: the boot that seeds `mark_sensitive`
+  # facts, the masking of a read and the cryptoshred read these verbs from here rather than
+  # recognising "Privacy" by name.
+  provides "privacy",
+           mark_sensitive: "Marking.Mark",
+           markings_for:   "Marking.ForDomain"
+
+  provides "subject_keys",
+           key_for: "SubjectKey.ForSubject",
+           shred:   "SubjectKey.Shred"
+
   # A domain never marks itself: `Mark` is a wiring-time command (role "Deployment").
   aggregate "Marking" do
     description "One attribute of one domain's own aggregate, flagged sensitive — and the role required to read it unredacted."

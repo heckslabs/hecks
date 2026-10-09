@@ -38,6 +38,7 @@ stateDiagram-v2
 - A price is never negative.
 - A customer is named.
 - A topping is named.
+- A topping name is more than whitespace.
 - An amount is positive.
 
 ### Add topping
@@ -45,6 +46,16 @@ stateDiagram-v2
 Customize a pizza with an ingredient. Done by the chef.
 
 ### Available
+
+### By customer
+
+### By customer descending
+
+### By customer unset last
+
+### By price
+
+### By price descending
 
 ### Costing less than
 
@@ -57,6 +68,8 @@ Put a new pizza on the menu. Done by the chef.
 Text.
 
 Always true: a customer is named.
+
+### Everything
 
 ### Expensive
 
@@ -110,7 +123,7 @@ Always true: an amount is positive.
 
 Text.
 
-Always true: a topping is named.
+Always true: a topping is named; a topping name is more than whitespace.
 
 ## Roles
 

@@ -269,6 +269,9 @@ pub enum Expr {
     /// `receiver.split("SEP")` — `Resolver::Split`. Produces a real
     /// `Value::Array`, not `Value::List` — see that variant's own header.
     Split { receiver: Box<Expr>, separator: String },
+    /// `receiver.strip` / `.lstrip` / `.rstrip` — `Resolver::Strip`. Trims Ruby's own whitespace
+    /// set (see `StripSide::trim`), not Unicode spaces.
+    Strip { receiver: Box<Expr>, side: StripSide },
     /// `receiver.start_with?("prefix")` — `Resolver::StartsWith`.
     StartsWith { receiver: Box<Expr>, substring: String },
     /// `receiver.end_with?("suffix")` — `Resolver::EndsWith`.
@@ -277,6 +280,29 @@ pub enum Expr {
     First(Box<Expr>),
     /// `receiver.last` — `Resolver::Last`.
     Last(Box<Expr>),
+}
+
+/// Which ends of a string `Expr::Strip` trims: `.strip` both, `.lstrip` the start, `.rstrip` the end.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StripSide {
+    Both,
+    Left,
+    Right,
+}
+
+impl StripSide {
+    /// Ruby's `String#strip` family: trims null, tab, line feed, vertical tab, form feed, carriage
+    /// return and space, never a Unicode space. Rust's own `trim` would also drop U+00A0 and the
+    /// rest, so the set is spelled out.
+    pub fn trim(self, text: &str) -> String {
+        let is_stripped = |c: char| matches!(c, '\0' | '\t' | '\n' | '\u{b}' | '\u{c}' | '\r' | ' ');
+        match self {
+            StripSide::Both => text.trim_matches(is_stripped),
+            StripSide::Left => text.trim_start_matches(is_stripped),
+            StripSide::Right => text.trim_end_matches(is_stripped),
+        }
+        .to_string()
+    }
 }
 
 /// `args`/`instance` from `Evaluator.call` — `args` is checked first for
@@ -318,7 +344,7 @@ fn category_of(expr: &Expr) -> OperatorCategory {
         BlockPredicate { .. } | Find { .. } => OperatorCategory::Enumeration,
         MatchesRegex { .. } => OperatorCategory::PatternMatch,
         Presence { .. } | Assignment { .. } => OperatorCategory::Presence,
-        Split { .. } | StartsWith { .. } | EndsWith { .. } => OperatorCategory::Text,
+        Split { .. } | Strip { .. } | StartsWith { .. } | EndsWith { .. } => OperatorCategory::Text,
         First(..) | Last(..) => OperatorCategory::Positional,
         Int(..) | Float(..) | Str(..) | Bool(..) | Nil | Lookup(..) | Array(..) => {
             unreachable!("interpret's own leaf arms handle these before category_of is ever called")

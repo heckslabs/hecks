@@ -16,6 +16,11 @@ module Hecks
           [/\A(.+)\.set\?\z/, Assignment, { negated: false }], [/\A(.+)\.unset\?\z/, Assignment, { negated: true }]
         ].freeze
 
+        # The strip family, each matched as `<receiver>.<call>`, naming which ends it trims.
+        STRIP_SUFFIXES = [
+          [/\A(.+)\.strip\z/, :both], [/\A(.+)\.lstrip\z/, :left], [/\A(.+)\.rstrip\z/, :right]
+        ].freeze
+
         # The suffix calls that carry one quoted argument, as `<receiver>.<call>("<argument>")`.
         TEXT_SUFFIXES = [
           [/\A(.+)\.split\("([^"]*)"\)\z/, Split, :separator],
@@ -31,7 +36,7 @@ module Hecks
         # rest); each answers a node, or `nil` when the expression is not its form.
         PARSE_STEPS = [:parse_length, :parse_literal, :parse_array, :parse_additive, :parse_multiplicative,
                        :parse_group, :parse_sign_test,
-                       :parse_receiver_suffix, :parse_modulo, :parse_matches_regex, :parse_text_suffix,
+                       :parse_receiver_suffix, :parse_strip, :parse_modulo, :parse_matches_regex, :parse_text_suffix,
                        :parse_block_opener].freeze
 
         # @param expr [String] the leaf expression text
@@ -96,6 +101,14 @@ module Hecks
           RECEIVER_SUFFIXES.each do |pattern, node_class, extra|
             match = expr.match(pattern)
             return node_class.new(receiver: parse(match[1]), **extra) if match
+          end
+          nil
+        end
+
+        def parse_strip(expr)
+          STRIP_SUFFIXES.each do |pattern, side|
+            match = expr.match(pattern)
+            return Strip.new(receiver: parse(match[1]), side: side) if match
           end
           nil
         end

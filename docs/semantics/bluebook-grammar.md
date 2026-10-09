@@ -158,9 +158,13 @@ A single dotted suffix, tried in this order, each wrapping ONE receiver
    (`.positive?` = `¬(x<0 ∨ x=0)`).
 3. `.empty?` — `empty`.
 4. `.to_s` — `to_s`.
+5. `.strip` / `.lstrip` / `.rstrip` - `strip`, carrying `side` (`both`,
+   `left`, `right`). It trims Ruby's whitespace set (null, tab, line feed,
+   vertical tab, form feed, carriage return, space) and never a Unicode
+   space; a receiver that is not a string is an evaluation fault.
 
 `length_alias.json`, `size_dot.json`, the three `sign_test_*.json`
-fixtures, `empty_predicate.json` and `to_s_suffix.json` each pin one.
+fixtures, `empty_predicate.json` and `to_s_suffix.json`, and `{strip,lstrip,rstrip}_suffix.json` each pin one.
 
 ## G10 — Collection block forms
 

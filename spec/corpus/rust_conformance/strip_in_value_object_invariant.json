@@ -1,0 +1,188 @@
+{
+  "domain": "examples/pizzas",
+  "note": "ToppingName's invariant `!value.to_s.strip.empty?`, which the Rust kernel used to evaluate as nil and answer with an 'empty? expects a list or string' fault. The pattern ([^ \\t\\n\\r]) lets a form feed, a vertical tab and a null through, so the invariant is the only thing that refuses them: strip removes Ruby's whitespace set (null, tab, line feed, vertical tab, form feed, carriage return, space), so those three are refused with the invariant's wording. A non-breaking space is not Ruby whitespace, so a topping made of one is kept, and so is an ordinary name.",
+  "steps": [
+    {
+      "verb": "Pizzas::Order.CreatePizza",
+      "args": {
+        "name": {
+          "value": "margherita"
+        },
+        "pizza": {
+          "price_cents": {
+            "cents": 1200
+          },
+          "size": {
+            "value": "large"
+          }
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.AddTopping",
+      "args": {
+        "name": "margherita",
+        "topping": {
+          "value": "\f"
+        },
+        "amount": {
+          "value": 1
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.AddTopping",
+      "args": {
+        "name": "margherita",
+        "topping": {
+          "value": " "
+        },
+        "amount": {
+          "value": 1
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.AddTopping",
+      "args": {
+        "name": "margherita",
+        "topping": {
+          "value": "\u000b"
+        },
+        "amount": {
+          "value": 1
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.AddTopping",
+      "args": {
+        "name": "margherita",
+        "topping": {
+          "value": "Basil"
+        },
+        "amount": {
+          "value": 1
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.AddTopping",
+      "args": {
+        "name": "margherita",
+        "topping": {
+          "value": "\u0000"
+        },
+        "amount": {
+          "value": 1
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "Pizzas::Order.AddTopping",
+        "error": "ToppingName invariant violated — a topping name is more than whitespace (given {\"value\":\"\\f\"})",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "Pizzas::Order.AddTopping",
+        "error": "ToppingName invariant violated — a topping name is more than whitespace (given {\"value\":\"\\u000b\"})",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "Pizzas::Order.AddTopping",
+        "error": "ToppingName invariant violated — a topping name is more than whitespace (given {\"value\":\"\\u0000\"})",
+        "kind": "InvariantViolation"
+      }
+    ],
+    "instances": {
+      "Pizzas::Order#margherita": {
+        "name": {
+          "value": "margherita"
+        },
+        "pizza": {
+          "price_cents": {
+            "cents": 1200
+          },
+          "size": {
+            "value": "large"
+          }
+        },
+        "toppings": [
+          {
+            "name": " ",
+            "amount": 1
+          },
+          {
+            "name": "Basil",
+            "amount": 1
+          }
+        ],
+        "customer_name": null,
+        "status": "available"
+      }
+    },
+    "events": [
+      {
+        "name": "PizzaCreated",
+        "aggregate": "Pizzas::Order",
+        "id": "margherita",
+        "payload": {
+          "name": {
+            "value": "margherita"
+          },
+          "pizza": {
+            "price_cents": {
+              "cents": 1200
+            },
+            "size": {
+              "value": "large"
+            }
+          }
+        }
+      },
+      {
+        "name": "ToppingAdded",
+        "aggregate": "Pizzas::Order",
+        "id": "margherita",
+        "payload": {
+          "name": "margherita",
+          "topping": {
+            "value": " "
+          },
+          "amount": {
+            "value": 1
+          }
+        }
+      },
+      {
+        "name": "ToppingAdded",
+        "aggregate": "Pizzas::Order",
+        "id": "margherita",
+        "payload": {
+          "name": "margherita",
+          "topping": {
+            "value": "Basil"
+          },
+          "amount": {
+            "value": 1
+          }
+        }
+      }
+    ],
+    "queries": [
+
+    ],
+    "sagas": [
+
+    ],
+    "dry_runs": [
+
+    ],
+    "reactions": [
+
+    ]
+  }
+}

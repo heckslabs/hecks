@@ -61,6 +61,8 @@ pub enum Resolver {
     Assignment { receiver: Box<Resolver>, negated: bool },
     /// `receiver.split("sep")`: the separator is sliced verbatim between the quotes.
     Split { receiver: Box<Resolver>, separator: String },
+    /// `receiver.strip` / `.lstrip` / `.rstrip`; `side` is `both`, `left` or `right`.
+    Strip { receiver: Box<Resolver>, side: &'static str },
     /// `receiver.first`.
     First(Box<Resolver>),
     /// `receiver.last`.
@@ -148,6 +150,12 @@ pub fn parse(expr: &str) -> Resolver {
     for (suffix, negated) in [("set?", false), ("unset?", true)] {
         if let Some(inner) = strip_suffix_dotted(expr, suffix) {
             return Resolver::Assignment { receiver: Box::new(parse(inner)), negated };
+        }
+    }
+
+    for (suffix, side) in [("strip", "both"), ("lstrip", "left"), ("rstrip", "right")] {
+        if let Some(inner) = strip_suffix_dotted(expr, suffix) {
+            return Resolver::Strip { receiver: Box::new(parse(inner)), side };
         }
     }
 
@@ -606,6 +614,9 @@ mod tests {
             ("a.set?", format!(r#"{{"op":"assignment","receiver":{a},"negated":false}}"#)),
             ("a.unset?", format!(r#"{{"op":"assignment","receiver":{a},"negated":true}}"#)),
             ("a.split(\"/\")", format!(r#"{{"op":"split","receiver":{a},"separator":"/"}}"#)),
+            ("a.strip", format!(r#"{{"op":"strip","receiver":{a},"side":"both"}}"#)),
+            ("a.lstrip", format!(r#"{{"op":"strip","receiver":{a},"side":"left"}}"#)),
+            ("a.rstrip", format!(r#"{{"op":"strip","receiver":{a},"side":"right"}}"#)),
             ("a.first", format!(r#"{{"op":"first","receiver":{a}}}"#)),
             ("a.last", format!(r#"{{"op":"last","receiver":{a}}}"#)),
             ("a.start_with?(\"x\")", format!(r#"{{"op":"starts_with","receiver":{a},"substring":"x"}}"#)),

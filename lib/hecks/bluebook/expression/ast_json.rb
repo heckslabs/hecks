@@ -18,7 +18,7 @@ module Hecks
           int float str bool nil array lookup
           add sub mul div modulo sign_test empty size to_s
           block_predicate find first last
-          matches_regex presence assignment split starts_with ends_with
+          matches_regex presence assignment split strip starts_with ends_with
         ].freeze
 
         # One rule row: description, canonical text, and the AST derived from that text.

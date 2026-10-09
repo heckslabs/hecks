@@ -166,11 +166,11 @@ pub fn run(input: &str) -> String {
                         question.clone(),
                         Refusal::TypeMismatch(format!(
                             "named/declared query {question:?} is not generated for this domain — either unknown, or a \
-                             real declared query whose shape this generator's codegen doesn't cover yet (order_by/limit/\
-                             cursor/consistency/freshness/authorization/null_semantics/inspection/index_hints, a where \
-                             clause hopping through a reference, or a literal comparator value whose true JSON type \
-                             can't be recovered from the exported IR — rust/codegen/src/queries.rs's own header has the \
-                             full argument); the wheres-only, single-aggregate field-comparator subset and the ad hoc \
+                             real declared query whose shape this generator's codegen doesn't cover yet (cursor/\
+                             consistency/freshness/inspection/index_hints, a where clause on a field the aggregate \
+                             does not declare, or a literal comparator value whose true JSON type can't be \
+                             recovered from the exported IR — hecks-codegen's manifest names which); a declared \
+                             query with or without a where, ordered and bounded as declared, and the ad hoc \
                              filter shape ({{\"aggregate\",\"field\",\"op\",\"value\"}}) both execute for real"
                         )),
                     )),

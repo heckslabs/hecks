@@ -530,6 +530,7 @@ Hecks.bluebook "QualityControl" do
     end
 
     lifecycle :status, default: "sweeping" do
+      mark :failure, "abandoned"
       transition "Check"    => "sweeping",  from: "sweeping"
       transition "Waive"    => "sweeping",  from: "sweeping"
       transition "Conclude" => "concluded", from: "sweeping"
@@ -1456,6 +1457,7 @@ Hecks.bluebook "QualityControl" do
     # filing. `Submit` is non-creating, so `TicketSubmitted` carries `{ id: ... }`, which a
     # reference slot takes.
     lifecycle :status, default: "raised" do
+      mark :failure, "refused", "abandoned"
       transition "Submit"  => "submitting", from: ["raised", "refused"]
       transition "Filed"   => "filed",      from: "submitting"
       transition "Refused" => "refused",    from: "submitting"
@@ -1866,6 +1868,7 @@ Hecks.bluebook "QualityControl" do
     # proof-only PR can be closed while still "opened" (`retire_if_settled?` hit
     # `LifecycleRefused`).
     lifecycle :status, default: "opened" do
+      mark :failure, "needs_fix"
       transition "Land"    => "landed",   from: ["opened", "needs_fix"]
       transition "Regress" => "needs_fix", from: "landed"
       transition "Merge"   => "merged",   from: ["opened", "landed", "needs_fix"]
@@ -1983,6 +1986,7 @@ Hecks.bluebook "QualityControl" do
     end
 
     lifecycle :status, default: "running" do
+      mark :failure, "red"
       transition "Passed" => "green", from: "running"
       transition "Failed" => "red",   from: "running"
     end

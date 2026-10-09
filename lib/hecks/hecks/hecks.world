@@ -23,8 +23,7 @@
 #
 # **launcher** switches on the opt-in parts of the generated `hecks` launcher (see
 # `Doors::LauncherOptions`): `run_keys` mints a `run` key for a creating command given none,
-# `failure_states` are the lifecycle states `--wait` reports as exit 1 (every failure state the
-# chapter's lifecycles declare), `names` gives a command the launcher name clients type,
+# `names` gives a command the launcher name clients type,
 # `settled` names the commands that always wait for their reactions, as if `--wait` were given, so a
 # refusal is an exit status and a reason on standard error (`package.vendor`, which a script runs
 # for its outcome), `executable` is where `hecks project_cli` writes this chapter's launcher (the
@@ -40,8 +39,6 @@ Hecks.world "Hecks" do
   default_adapter "PostgresEra"
   default_database ENV.fetch("HECKS_DATABASE", "postgres://hecks@localhost/hecks")
   launcher "Launcher", run_keys: true,
-                       failure_states: %w[flagged failed drifted unreachable refused faulted halted stopped
-                                          abandoned red needs_fix],
                        settled: %w[package.vendor package.revendor package.release
                                   operation.bootstrap_admin smoke_run.run
                                   service_roll.run box_roll.run data_copy.restore

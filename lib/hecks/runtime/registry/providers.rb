@@ -122,6 +122,12 @@ module Hecks
           vendored_provider_for(domain, Bluebook::Capabilities::PAYMENTS)
         end
 
+        # The first loaded chapter that declares `capability`, whichever domain asks.
+        #
+        # @param capability [String] a `Bluebook::Capabilities` name
+        # @return [Bluebook::Chapter, nil] the providing chapter, or nil if none loaded does
+        def provider_of(capability) = bluebooks.values.find { |chapter| chapter.provides?(capability) }
+
         # The chapter that provides `capability` for `domain`: the domain's own chapter,
         # a framework member its hecksagon attaches, or a vendored embryonaut bluebook
         # it attaches, that declares it.

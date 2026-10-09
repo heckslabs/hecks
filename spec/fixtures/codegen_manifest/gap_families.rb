@@ -39,7 +39,7 @@ module ManifestGapFamilies
     [
       query("GapCursor", [active], cursor: { field: "reference" }),
       query("GapIndexHints", [active], index_hints: ["status"]),
-      query("GapNoWheres", [])
+      query("GapNoWheres", [], attributes: [attribute("name", "String")])
     ]
   end
 

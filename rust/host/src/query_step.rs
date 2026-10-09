@@ -25,15 +25,24 @@ pub enum Plan {
 ///
 /// @param domain_ir the domain's IR, when this host has one (`HECKS_IR_PATH`)
 /// @param domain the domain's name, used to qualify a short question
-/// @param question `Aggregate.Query`, or `Domain::Aggregate.Query`
+/// @param question `Aggregate.Query`, or `Chapter::Aggregate.Query` for this domain or one of its
+///   attached chapters
 /// @return a kernel question for a declared derivable query, a refusal for an unknown query on a
 ///   known aggregate or for a query answered outside the domain
 pub fn plan(domain_ir: Option<&Value>, domain: &str, question: &str) -> Plan {
-    let short = question.rsplit_once("::").map_or(question, |(_, rest)| rest);
-    let qualified = format!("{domain}::{short}");
+    // A question that names its own chapter (`Chapter::Aggregate.Query`) is asked of that chapter:
+    // the kernel's query table is keyed by the chapter's own domain name, so re-qualifying it with
+    // this host's would send an attached chapter's query to a table that does not hold it.
+    let (owner, short) = question.rsplit_once("::").unwrap_or((domain, question));
+    let qualified = format!("{owner}::{short}");
     let Some((aggregate_name, query_name)) = short.split_once('.') else {
         return Plan::Kernel(qualified);
     };
+    // This host's IR describes only its own domain's aggregates; another chapter's question is the
+    // kernel's to answer or refuse.
+    if owner != domain {
+        return Plan::Kernel(qualified);
+    }
     let aggregate = domain_ir
         .and_then(|ir| ir.get("aggregates"))
         .and_then(|v| v.as_array())
@@ -129,6 +138,15 @@ mod tests {
             plan(Some(&domain()), "Banking", "Ledger.Nope"),
             Plan::Refuse { kind: "UnknownVerb", message: "Ledger has no query \"Nope\"".into() }
         );
+    }
+
+    #[test]
+    fn a_question_naming_an_attached_chapter_keeps_that_chapter() {
+        let ir = domain();
+        assert_eq!(plan(Some(&ir), "Banking", "Media::MediaItem.Active"), Plan::Kernel("Media::MediaItem.Active".into()));
+        // The host's own aggregate of the same name is not mistaken for the chapter's.
+        assert_eq!(plan(Some(&ir), "Banking", "Media::Ledger.Ir"), Plan::Kernel("Media::Ledger.Ir".into()));
+        assert_eq!(plan(None, "Banking", "Media::MediaItem.Listing"), Plan::Kernel("Media::MediaItem.Listing".into()));
     }
 
     #[test]

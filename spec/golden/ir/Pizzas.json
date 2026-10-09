@@ -357,6 +357,96 @@
         },
         {
           "attributes": [
+
+          ],
+          "description": null,
+          "limit": null,
+          "name": "Everything",
+          "order_by": null,
+          "wheres": [
+
+          ]
+        },
+        {
+          "attributes": [
+
+          ],
+          "description": null,
+          "limit": null,
+          "name": "ByPrice",
+          "order_by": {
+            "direction": "asc",
+            "field": "pizza.price_cents.cents"
+          },
+          "wheres": [
+
+          ]
+        },
+        {
+          "attributes": [
+
+          ],
+          "description": null,
+          "limit": null,
+          "name": "ByPriceDescending",
+          "order_by": {
+            "direction": "desc",
+            "field": "pizza.price_cents.cents"
+          },
+          "wheres": [
+
+          ]
+        },
+        {
+          "attributes": [
+
+          ],
+          "description": null,
+          "limit": null,
+          "name": "ByCustomer",
+          "order_by": {
+            "direction": "asc",
+            "field": "customer_name.value"
+          },
+          "wheres": [
+
+          ]
+        },
+        {
+          "attributes": [
+
+          ],
+          "description": null,
+          "limit": null,
+          "name": "ByCustomerDescending",
+          "order_by": {
+            "direction": "desc",
+            "field": "customer_name.value"
+          },
+          "wheres": [
+
+          ]
+        },
+        {
+          "attributes": [
+
+          ],
+          "description": null,
+          "limit": null,
+          "name": "ByCustomerUnsetLast",
+          "null_semantics": {
+            "mode": "last"
+          },
+          "order_by": {
+            "direction": "asc",
+            "field": "customer_name.value"
+          },
+          "wheres": [
+
+          ]
+        },
+        {
+          "attributes": [
             {
               "admits": null,
               "default": null,
@@ -560,6 +650,29 @@
               },
               "canonical": "!value.to_s.empty?",
               "description": "a topping is named"
+            },
+            {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "strip",
+                    "receiver": {
+                      "op": "to_s",
+                      "receiver": {
+                        "op": "lookup",
+                        "path": [
+                          "value"
+                        ]
+                      }
+                    },
+                    "side": "both"
+                  }
+                },
+                "op": "not"
+              },
+              "canonical": "!value.to_s.strip.empty?",
+              "description": "a topping name is more than whitespace"
             }
           ],
           "members": [

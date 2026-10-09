@@ -1907,6 +1907,192 @@
       "verb": "Expression::Operator.Propose",
       "args": {
         "symbol": {
+          "value": ".strip"
+        },
+        "category": {
+          "value": "text"
+        },
+        "precedence": {
+          "value": 7
+        },
+        "arity": {
+          "value": 1
+        },
+        "grammar": {
+          "value": "inner"
+        },
+        "strategy": {
+          "value": "suffix_match"
+        },
+        "position": {
+          "value": 23
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".strip"
+        },
+        "target": {
+          "value": "ruby"
+        },
+        "form": {
+          "value": "a.strip"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".strip"
+        },
+        "target": {
+          "value": "rust"
+        },
+        "form": {
+          "value": "a.strip -> a without leading and trailing whitespace"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Admit",
+      "args": {
+        "symbol": {
+          "value": ".strip"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Propose",
+      "args": {
+        "symbol": {
+          "value": ".lstrip"
+        },
+        "category": {
+          "value": "text"
+        },
+        "precedence": {
+          "value": 7
+        },
+        "arity": {
+          "value": 1
+        },
+        "grammar": {
+          "value": "inner"
+        },
+        "strategy": {
+          "value": "suffix_match"
+        },
+        "position": {
+          "value": 24
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".lstrip"
+        },
+        "target": {
+          "value": "ruby"
+        },
+        "form": {
+          "value": "a.lstrip"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".lstrip"
+        },
+        "target": {
+          "value": "rust"
+        },
+        "form": {
+          "value": "a.lstrip -> a without leading whitespace"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Admit",
+      "args": {
+        "symbol": {
+          "value": ".lstrip"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Propose",
+      "args": {
+        "symbol": {
+          "value": ".rstrip"
+        },
+        "category": {
+          "value": "text"
+        },
+        "precedence": {
+          "value": 7
+        },
+        "arity": {
+          "value": 1
+        },
+        "grammar": {
+          "value": "inner"
+        },
+        "strategy": {
+          "value": "suffix_match"
+        },
+        "position": {
+          "value": 25
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".rstrip"
+        },
+        "target": {
+          "value": "ruby"
+        },
+        "form": {
+          "value": "a.rstrip"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".rstrip"
+        },
+        "target": {
+          "value": "rust"
+        },
+        "form": {
+          "value": "a.rstrip -> a without trailing whitespace"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Admit",
+      "args": {
+        "symbol": {
+          "value": ".rstrip"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Propose",
+      "args": {
+        "symbol": {
           "value": "-"
         },
         "category": {
@@ -1925,7 +2111,7 @@
           "value": "top_level_split"
         },
         "position": {
-          "value": 23
+          "value": 26
         }
       }
     },
@@ -1987,7 +2173,7 @@
           "value": "top_level_split"
         },
         "position": {
-          "value": 24
+          "value": 27
         }
       }
     },
@@ -2049,7 +2235,7 @@
           "value": "top_level_split"
         },
         "position": {
-          "value": 25
+          "value": 28
         }
       }
     },
