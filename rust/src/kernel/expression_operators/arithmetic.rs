@@ -216,3 +216,38 @@ fn sum(lhs: &Value, rhs: &Value) -> Result<Value, Refusal> {
 pub fn require_number(v: &Value, operation: &str) -> Result<f64, Refusal> {
     scalar::numeric(v).ok_or_else(|| eval_error(format!("{operation} expects a number, got {v:?}")))
 }
+
+#[cfg(test)]
+mod path_operand_tests {
+    use crate::kernel::expr::{interpret, EvalContext, Expr, Field, Fielded, NoFields, Value};
+
+    // Shaped like a generated multi-field value object: `Charge { cents, currency }`.
+    struct Charge(i64);
+    impl Fielded for Charge {
+        fn field(&self, name: &str) -> Option<Field<'_>> {
+            match name {
+                "cents" => Some(Field::Value(Value::Int(self.0))),
+                "currency" => Some(Field::Value(Value::Str("USD".to_string()))),
+                _ => None,
+            }
+        }
+    }
+
+    struct Record(Charge);
+    impl Fielded for Record {
+        fn field(&self, name: &str) -> Option<Field<'_>> {
+            (name == "charged").then(|| Field::Nested(&self.0))
+        }
+    }
+
+    fn percent_of(path: &'static str) -> Value {
+        let times = Expr::Mul(Box::new(Expr::Lookup(path)), Box::new(Expr::Int(50)));
+        let expr = Expr::Div(Box::new(times), Box::new(Expr::Int(100)));
+        interpret(&expr, &EvalContext { args: &NoFields, instance: &Record(Charge(10801)) }).expect("evaluates")
+    }
+
+    #[test]
+    fn an_operand_reads_a_field_inside_a_value_object_by_path() {
+        assert_eq!(percent_of("charged.cents"), Value::Int(5400));
+    }
+}
