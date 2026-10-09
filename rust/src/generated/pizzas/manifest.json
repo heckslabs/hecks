@@ -35,6 +35,36 @@
   },
   {
     "kind": "query",
+    "id": "Pizzas::Order.Everything",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Pizzas::Order.ByPrice",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Pizzas::Order.ByPriceDescending",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Pizzas::Order.ByCustomer",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Pizzas::Order.ByCustomerDescending",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Pizzas::Order.ByCustomerUnsetLast",
+    "generated": true
+  },
+  {
+    "kind": "query",
     "id": "Pizzas::Order.CostingLessThan",
     "generated": true
   },

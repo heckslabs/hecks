@@ -592,6 +592,18 @@ mod value_object_shape_tests {
     }
 }
 
+#[cfg(test)]
+mod escaped_string_tests {
+    use super::*;
+
+    #[test]
+    fn control_characters_are_written_the_way_rubys_json_generate_writes_them() {
+        let mut out = String::new();
+        write_escaped_string("\u{8}\u{c}\n\r\t\u{b}\0\u{1f}/\u{7f}", &mut out);
+        assert_eq!(out, "\"\\b\\f\\n\\r\\t\\u000b\\u0000\\u001f/\u{7f}\"");
+    }
+}
+
 fn write_escaped_string(s: &str, out: &mut String) {
     out.push('"');
     for c in s.chars() {
@@ -601,6 +613,9 @@ fn write_escaped_string(s: &str, out: &mut String) {
             '\n' => out.push_str("\\n"),
             '\t' => out.push_str("\\t"),
             '\r' => out.push_str("\\r"),
+            // Ruby's `JSON.generate` writes these two short, not as `\u0008` / `\u000c`.
+            '\u{8}' => out.push_str("\\b"),
+            '\u{c}' => out.push_str("\\f"),
             c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
             c => out.push(c),
         }

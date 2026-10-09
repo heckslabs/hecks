@@ -24,6 +24,7 @@ module Hecks
           Presence       => ->(node, value, _state, _attrs) { Resolver.presence_of(node, value) },
           Assignment     => ->(node, value, _state, _attrs) { Resolver.assignment_of(node, value) },
           Split          => ->(node, value, _state, _attrs) { Resolver.split_value(value, node.separator) },
+          Strip          => ->(node, value, _state, _attrs) { Resolver.strip_value(value, node.side) },
           Last           => ->(_node, value, _state, _attrs) { Resolver.last_of(value) },
           First          => ->(_node, value, _state, _attrs) { Resolver.first_of(value) },
           Find           => ->(node, value, state, attrs) { Resolver.found_of(node, value, state, attrs) },

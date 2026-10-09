@@ -1,4 +1,4 @@
-//! `hecks-build <domain> [--wasm] [--no-build]` compiles a domain's `.bluebook` to a binary.
+//! `hecks-build <domain> [--wasm] [--no-build] [--out <dir>]` compiles a domain's `.bluebook` to a binary.
 //! `<domain>` is a domain directory such as `examples/pizzas`; `--wasm` also cross-compiles to
 //! `wasm32-wasip1`, and `--no-build` generates source only.
 
@@ -9,11 +9,13 @@ mod cargo_sync;
 #[allow(dead_code)]
 #[path = "../../codegen/src/json.rs"]
 mod json;
+mod binding_pass;
 mod lineage_pass;
 mod pipeline;
 mod reserved_names;
 mod resolve;
 mod root;
+mod seams_pass;
 mod subprocess;
 mod tmp;
 
@@ -34,20 +36,29 @@ fn run(args: &[String]) -> Result<(), String> {
     let mut domain: Option<String> = None;
     let mut build_wasm = false;
     let mut no_build = false;
+    let mut out_dir: Option<String> = None;
 
-    for arg in args {
+    let mut iter = args.iter();
+    while let Some(arg) = iter.next() {
         match arg.as_str() {
+            "--out" => out_dir = Some(iter.next().ok_or("--out needs a directory")?.clone()),
             "--wasm" => build_wasm = true,
             "--no-build" => no_build = true,
             other if !other.starts_with("--") && domain.is_none() => domain = Some(other.to_string()),
-            other => return Err(format!("unrecognized argument {other:?} — usage: hecks-build <domain> [--wasm] [--no-build]")),
+            other => return Err(format!("unrecognized argument {other:?} — usage: hecks-build <domain> [--wasm] [--no-build] [--out <dir>]")),
         }
     }
 
-    let domain = domain.ok_or_else(|| "usage: hecks-build <domain> [--wasm] [--no-build]".to_string())?;
+    let domain = domain.ok_or_else(|| "usage: hecks-build <domain> [--wasm] [--no-build] [--out <dir>]".to_string())?;
     let root = root::find()?;
 
-    let opts = pipeline::Options { build_native: !no_build, build_wasm: build_wasm && !no_build };
+    // `--out` generates the module tree into that directory only: no `Cargo.toml` rewrite, no
+    // native or wasm build, so a `build.rs` can call it from inside a cargo build.
+    let opts = pipeline::Options {
+        build_native: !no_build && out_dir.is_none(),
+        build_wasm: build_wasm && !no_build && out_dir.is_none(),
+        out_dir: out_dir.map(std::path::PathBuf::from),
+    };
 
     pipeline::run(&root, &domain, &opts)
 }

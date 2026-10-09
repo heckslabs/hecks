@@ -104,13 +104,15 @@ RSpec.describe "client launcher smoke" do
 
   def self.rewrite_bluebook(path, edit) = File.write(path, edit.call(File.read(path)))
 
-  # The bluebook with a `Run` value object and an optional Boolean `confirm` on CreatePizza.
+  # The bluebook with a `Run` value object, an optional Boolean `confirm` on CreatePizza, and
+  # the `available` state marked as a failure.
   def self.add_run_and_confirm(text)
     extra = "attribute :pizza, Pizza\n      attribute :confirm, Boolean, optional: true\n      " \
             "attribute :run, Run\n"
     run   = "value_object \"Run\" do\n      attribute :value, String\n    end\n\n    " \
             "value_object \"Pizza\" do"
-    text.sub("attribute :pizza, Pizza\n", extra).sub('value_object "Pizza" do', run)
+    marked = text.sub("default: \"available\" do\n", "default: \"available\" do\n      mark :failure, \"available\"\n")
+    marked.sub("attribute :pizza, Pizza\n", extra).sub('value_object "Pizza" do', run)
   end
 
   # Runs one launcher call in its own process, as a client's shell would.
@@ -144,7 +146,7 @@ RSpec.describe "client launcher smoke" do
 
     @opted_root = self.class.client(
       "opted_in",
-      world:    'launcher "Launcher", run_keys: true, failure_states: %w[available], names: { "make" => "order.create_pizza" }',
+      world:    'launcher "Launcher", run_keys: true, names: { "make" => "order.create_pizza" }',
       bluebook: self.class.method(:add_run_and_confirm)
     )
     capture_stdout { self.class.generate(@opted_root) }

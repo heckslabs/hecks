@@ -88,11 +88,6 @@ RSpec.describe "every live DSL word, used somewhere real" do
   # entry is a verified finding, not an assumption. The check below
   # flags one as stale once the corpus grows to cover it.
   EXEMPT = {
-    "mark (Lifecycle)"                  =>
-                                           "no example domain reads a mark yet: the word exists so a host can ask a lifecycle " \
-                                           "which states carry a meaning (ADR 0097), and the first corpus use is the host that " \
-                                           "stops carrying that list itself. spec/fixtures/lifecycle_marks.bluebook exercises " \
-                                           "it, byte-for-byte against the Rust parser, but a fixture is not an examples/ domain.",
     "cursor (Query)"                    =>
                                            "refused unconditionally at build (QueryBuilder#seal_cursor) — no interpreter " \
                                            "implements cursor pagination, so any real declaration would refuse the bluebook " \

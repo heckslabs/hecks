@@ -1,0 +1,27 @@
+{
+  "grammar": [
+    "G9"
+  ],
+  "canonical": "!title.to_s.lstrip.empty?",
+  "ruby_only": false,
+  "note": ".lstrip is Strip{receiver, side: left}, trimming Ruby's whitespace set (never a Unicode space); it wraps one receiver, so `.to_s.lstrip.empty?` nests Empty over Strip over ToS.",
+  "expect_ast": {
+    "op": "not",
+    "expr": {
+      "op": "empty",
+      "receiver": {
+        "op": "strip",
+        "receiver": {
+          "op": "to_s",
+          "receiver": {
+            "op": "lookup",
+            "path": [
+              "title"
+            ]
+          }
+        },
+        "side": "left"
+      }
+    }
+  }
+}

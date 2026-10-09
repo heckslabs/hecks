@@ -84,6 +84,9 @@ module Hecks
             Resolver::Presence       => receiver_with("presence", :negated),
             Resolver::Assignment     => receiver_with("assignment", :negated),
             Resolver::Split          => receiver_with("split", :separator),
+            Resolver::Strip          => lambda { |node|
+              { "op" => "strip", "receiver" => AstJson.emit_resolver(node.receiver), "side" => node.side.to_s }
+            },
             Resolver::StartsWith     => receiver_with("starts_with", :substring),
             Resolver::EndsWith       => receiver_with("ends_with", :substring),
             Resolver::First          => receiver_only("first"),

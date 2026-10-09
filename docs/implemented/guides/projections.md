@@ -159,14 +159,14 @@ argument in every domain. A domain's `.world` can add more with a free-form `lau
 
 ```text
 launcher "Launcher", run_keys: true,
-                     failure_states: %w[flagged failed],
                      names: { "mcp" => "serve_mcp" }
 ```
 
 - `run_keys` mints the `run` key of a creating command given none, through the identity port,
   and answers it as `run`. An explicit `run=` wins.
 - `names` gives a command the name the launcher lists; the internal spelling keeps working.
-- `failure_states` names the lifecycle states `--wait` treats as a failure. `--wait` re-reads
+- A lifecycle names the states `--wait` treats as a failure with `mark :failure, "flagged", "failed"`
+  (ADR 0097); the world carries no list. `--wait` re-reads
   the record after its reactions ran, prints its final state and events, and exits 1 in a
   failure state, and says why on standard error (the record's `refusal`, when it keeps one).
   A verb that declares its own `wait` argument keeps it.

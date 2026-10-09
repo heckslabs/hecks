@@ -106,7 +106,7 @@ RSpec.describe "the operator domain" do
     expect(symbols(by_grammar("inner"))).to eq(
       ["+", ".positive?", ".negative?", ".zero?", ".empty?", ".to_s", ".modulo", ".size", ".any?", ".none?", ".all?", ".find",
        ".match?", ".present?", ".blank?", ".split", ".start_with?", ".end_with?", ".first", ".last", ".set?", ".unset?",
-       "-", "*", "/"]
+       ".strip", ".lstrip", ".rstrip", "-", "*", "/"]
     )
   end
 
@@ -160,7 +160,10 @@ RSpec.describe "the operator domain" do
     ".first"       => -> { Resolver.parse("a.first").is_a?(Resolver::First) },
     ".last"        => -> { Resolver.parse("a.last").is_a?(Resolver::Last) },
     ".set?"        => -> { Resolver.parse("a.set?").is_a?(Resolver::Assignment) && !Resolver.parse("a.set?").negated },
-    ".unset?"      => -> { Resolver.parse("a.unset?").is_a?(Resolver::Assignment) && Resolver.parse("a.unset?").negated }
+    ".unset?"      => -> { Resolver.parse("a.unset?").is_a?(Resolver::Assignment) && Resolver.parse("a.unset?").negated },
+    ".strip"       => -> { Resolver.parse("a.strip").then { |node| node.is_a?(Resolver::Strip) && node.side == :both } },
+    ".lstrip"      => -> { Resolver.parse("a.lstrip").then { |node| node.is_a?(Resolver::Strip) && node.side == :left } },
+    ".rstrip"      => -> { Resolver.parse("a.rstrip").then { |node| node.is_a?(Resolver::Strip) && node.side == :right } }
   }.freeze
 
   it "implements every admitted structural operator, and no other", :aggregate_failures do
@@ -188,7 +191,8 @@ RSpec.describe "the operator domain" do
     ".match?" => Resolver::MatchesRegex, ".present?" => Resolver::Presence, ".blank?" => Resolver::Presence,
     ".split" => Resolver::Split, ".start_with?" => Resolver::StartsWith, ".end_with?" => Resolver::EndsWith,
     ".first" => Resolver::First, ".last" => Resolver::Last,
-    ".set?" => Resolver::Assignment, ".unset?" => Resolver::Assignment
+    ".set?" => Resolver::Assignment, ".unset?" => Resolver::Assignment,
+    ".strip" => Resolver::Strip, ".lstrip" => Resolver::Strip, ".rstrip" => Resolver::Strip
   }.freeze
 
   # Classes each module defines directly; Struct.new and Class.new both yield a Class,

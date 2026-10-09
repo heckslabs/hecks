@@ -3,17 +3,20 @@
 
 use std::path::{Path, PathBuf};
 
+use crate::binding_pass;
 use crate::build_artifact;
 use crate::cargo_sync;
 use crate::json::Json;
 use crate::lineage_pass;
 use crate::resolve;
+use crate::seams_pass;
 use crate::subprocess;
 use crate::tmp::TempDir;
 
 pub struct Options {
     pub build_native: bool,
     pub build_wasm: bool,
+    pub out_dir: Option<PathBuf>,
 }
 
 struct Chapter {
@@ -58,10 +61,19 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
 
     let target_chapter_name = resolve::header_chapter_name(first_bluebook)?;
     let mut target_files = Vec::new();
+    // Chapters declared beside the target but not attached to it: the registry still loads them, so
+    // one may provide a capability (payments) the target uses.
+    let mut sibling_files: Vec<(String, Vec<PathBuf>)> = Vec::new();
     for path in bluebook_paths {
-        if resolve::header_chapter_name(&path)? == target_chapter_name {
-            target_files.push(path);
+        let chapter = resolve::header_chapter_name(&path)?;
+        if chapter != target_chapter_name {
+            match sibling_files.iter_mut().find(|(name, _)| *name == chapter) {
+                Some((_, files)) => files.push(path),
+                None => sibling_files.push((chapter, vec![path])),
+            }
+            continue;
         }
+        target_files.push(path);
     }
 
     let (gem_chapter_names, vendored_package_names) = match &hecksagon_path {
@@ -72,6 +84,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
         None => (Vec::new(), Vec::new()),
     };
 
+    let source_files = target_files.clone();
     if let Some(p) = &hecksagon_path {
         target_files.push(p.clone());
     }
@@ -81,7 +94,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     // rather than chaining a live object through both passes.
     let mut target_ir = Json::parse(&target_ir_text).map_err(|e| format!("re-parsing target ir.json for lineage: {e}"))?;
     lineage_pass::run(&mut target_ir, hecksagon_path.as_deref(), world_path.as_deref(), root)?;
-    let target_ir_text = crate::json::write(&target_ir);
+    binding_pass::run(&mut target_ir, hecksagon_path.as_deref(), world_path.as_deref())?;
 
     // Every other chapter the gem supplies by `attaches "Name"`, resolved through the
     // same directory listing (`resolve::framework_members`) the Ruby
@@ -150,6 +163,22 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
         });
     }
 
+    // A chapter declared in the domain's own directory is a chapter of the build too, as every
+    // bluebook the registry loads is; its ports come from its own block of the domain's hecksagon.
+    // The registry loads the directory's bluebooks before it resolves what the hecksagon attaches,
+    // so they come first.
+    let mut siblings = Vec::new();
+    for (name, files) in &sibling_files {
+        let mut sources = files.clone();
+        sources.extend(hecksagon_path.iter().cloned());
+        siblings.push(Chapter {
+            mod_name: name.to_lowercase(),
+            source_label: format!("{domain} (attaches {name:?})"),
+            ir_text: parse_chapter(&parser_bin, name, &sources)?,
+        });
+    }
+    chapters.splice(0..0, siblings);
+
     // Guards against a gem-chapter and a vendored-package
     // entry sharing a `mod_name`, which would silently overwrite one
     // chapter's sidecars with another's.
@@ -167,12 +196,22 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
         }
     }
 
+    // The capability seams read the attached chapters' own `provides`, so they are decided only
+    // once every chapter is loaded; `translations` and `source_text` close the binding facts.
+    let mut member_irs = Vec::new();
+    for c in &chapters {
+        member_irs.push(Json::parse(&c.ir_text).map_err(|e| format!("re-parsing {} ir.json for its seams: {e}", c.mod_name))?);
+    }
+    seams_pass::run(&mut target_ir, &member_irs)?;
+    binding_pass::finish(&mut target_ir, &source_files, &bluebook_directory)?;
+    let target_ir_text = crate::json::write(&target_ir);
+
     // The self-hosted language, compiled in too, under the same "Bluebook"
     // chapter name.
     let grammar_files = resolve::grammar_files(root)?;
     let meta_ir_text = parse_chapter(&parser_bin, "Bluebook", &grammar_files)?;
 
-    let out_root = root.join("rust/src/generated");
+    let out_root = opts.out_dir.clone().unwrap_or_else(|| root.join("rust/src/generated"));
     std::fs::create_dir_all(&out_root).map_err(|e| format!("creating {}: {e}", out_root.display()))?;
 
     // Scoped clearing — identical reasoning to both Ruby pipelines'
@@ -212,7 +251,11 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     run_codegen_full(&codegen_bin, &codegen_args)?;
 
     let cargo_toml_path = root.join("rust/Cargo.toml");
-    cargo_sync::run(&out_root, &cargo_toml_path, &target_mod_name)?;
+    if opts.out_dir.is_some() {
+        cargo_sync::write_mod_only(&out_root, &target_mod_name)?;
+    } else {
+        cargo_sync::run(&out_root, &cargo_toml_path, &target_mod_name)?;
+    }
 
     let rust_dir = root.join("rust");
     if opts.build_native {

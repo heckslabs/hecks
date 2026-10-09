@@ -211,6 +211,24 @@
       "arity": 1
     },
     {
+      "symbol": ".strip",
+      "category": "text",
+      "precedence": 7,
+      "arity": 1
+    },
+    {
+      "symbol": ".lstrip",
+      "category": "text",
+      "precedence": 7,
+      "arity": 1
+    },
+    {
+      "symbol": ".rstrip",
+      "category": "text",
+      "precedence": 7,
+      "arity": 1
+    },
+    {
       "symbol": "-",
       "category": "arithmetic",
       "precedence": 6,

@@ -20,12 +20,17 @@ module Hecks
       # reverse, so Shred cannot be dispatched before the key is actually gone. Idempotent:
       # a subject with no live key, or one already shredded, is left alone and returns false.
       def shred!(dispatcher, domain:, subject_id:) # rubocop:disable Naming/PredicateMethod
-        record = dispatcher.query("Privacy::SubjectKey.ForSubject", domain: domain, subject_id: subject_id).first
+        provider = dispatcher.registry.provider_of(Bluebook::Capabilities::SUBJECT_KEYS)
+        return false unless provider
+
+        record = dispatcher.query(provider.provided_verb(Bluebook::Capabilities::SUBJECT_KEYS, :key_for),
+                                  domain: domain, subject_id: subject_id).first
         return false unless record
         return false if record[:status].to_s == "shredded"
 
         destroy(dispatcher.registry, key_reference: record[:key_reference].value)
-        dispatcher.dispatch_flat("Privacy::SubjectKey.Shred", domain: { value: domain }, subject_id: { value: subject_id })
+        shred = provider.provided_verb(Bluebook::Capabilities::SUBJECT_KEYS, :shred)
+        dispatcher.dispatch_flat(shred, domain: { value: domain }, subject_id: { value: subject_id })
         true
       end
 
