@@ -27,12 +27,20 @@ module Hecks
             def refuse_wrong_provision_keys!(bluebook, capability, rows, contract)
               keys = rows.map { |row| row.key.to_sym }
               required = Capabilities.required_keys(capability)
-              return if (keys - contract.keys).empty? && (required - keys).empty? && keys.uniq.size == keys.size
+              return if provision_keys_valid?(keys, required, contract.keys)
 
-              optional = contract.keys - required
               raise Malformed, "#{bluebook.name} provides #{capability.inspect} with #{keys.join(", ")}, but " \
-                               "#{capability} needs #{optional.empty? ? "exactly " : ""}#{required.join(", ")}" \
-                               "#{optional.empty? ? "" : " and may add #{optional.join(", ")}"}"
+                               "#{capability} needs #{provision_keys_phrase(required, contract.keys - required)}"
+            end
+
+            def provision_keys_valid?(keys, required, allowed)
+              (keys - allowed).empty? && (required - keys).empty? && keys.uniq.size == keys.size
+            end
+
+            def provision_keys_phrase(required, optional)
+              return "exactly #{required.join(", ")}" if optional.empty?
+
+              "#{required.join(", ")} and may add #{optional.join(", ")}"
             end
 
             def validate_provided_verb!(bluebook, capability, row, kind)

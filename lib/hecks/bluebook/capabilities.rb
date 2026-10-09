@@ -80,12 +80,12 @@ module Hecks
         }.freeze,
         PAYMENTS           => {
           # start a payment; the aggregate it names is the payment
-          initiate:  :command,
+          initiate:   :command,
           # the processor reports the money arrived
-          succeeded: :port_operation,
+          succeeded:  :port_operation,
           # the processor reports the payment failed or expired
-          failed:    :port_operation,
-          # OPTIONAL: the lifecycle states of the payment that hold a seat,
+          failed:     :port_operation,
+          # Optional: the lifecycle states of the payment that hold a seat,
           # spelled "Payment.holds_seat" (Aggregate.mark_name); resolves to the
           # states of that aggregate's lifecycle `mark :holds_seat`
           holds_seat: :mark
