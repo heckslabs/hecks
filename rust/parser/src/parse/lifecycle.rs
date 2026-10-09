@@ -22,11 +22,13 @@ pub fn parse_body(
         field: field.to_string(),
         default: default.to_string(),
         transitions: Vec::new(),
+        marks: Vec::new(),
     };
 
     loop {
         let Some(gated) = super::next_line(file, lines, pos, "Lifecycle")? else {
             refuse_ambiguity(file, *pos, &lifecycle)?;
+            refuse_unknown_mark_states(file, *pos, &lifecycle)?;
             return Ok(lifecycle);
         };
 
@@ -52,6 +54,47 @@ pub fn parse_body(
                     });
                 }
             }
+            "mark" => {
+                let line = gated.line.number;
+                let name = super::positional_symbol_raw(file, line, "mark", &gated.args, 1)?;
+                if !is_lowercase_word(&name) {
+                    return Err(Diagnostic::new(
+                        file,
+                        line,
+                        format!(
+                            "lifecycle :{field} mark {:?} is not a lowercase word (such as :holds_seat)",
+                            format!(":{name}")
+                        ),
+                    ));
+                }
+                if lifecycle.marks.iter().any(|(held, _)| *held == name) {
+                    return Err(Diagnostic::new(
+                        file,
+                        line,
+                        format!("lifecycle :{field} declares mark :{name} twice"),
+                    ));
+                }
+                let mut states: Vec<String> = Vec::new();
+                for (_, raw) in gated.args.positional.iter().filter(|(idx, _)| *idx > 1) {
+                    let state = text_value(raw);
+                    if states.contains(&state) {
+                        return Err(Diagnostic::new(
+                            file,
+                            line,
+                            format!("lifecycle :{field} mark :{name} names state {state:?} twice"),
+                        ));
+                    }
+                    states.push(state);
+                }
+                if states.is_empty() {
+                    return Err(Diagnostic::new(
+                        file,
+                        line,
+                        format!("lifecycle :{field} mark :{name} names no states"),
+                    ));
+                }
+                lifecycle.marks.push((name, states));
+            }
             _ => {
                 return Err(super::not_built_yet(
                     "Lifecycle",
@@ -63,6 +106,44 @@ pub fn parse_body(
             }
         }
     }
+}
+
+// A lowercase word: a letter a-z, then lowercase letters, digits and underscores.
+fn is_lowercase_word(name: &str) -> bool {
+    let mut chars = name.chars();
+    matches!(chars.next(), Some('a'..='z'))
+        && chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+}
+
+// Refuses a mark naming a state that is neither the default nor a transition target. Wording
+// matches Ruby's.
+fn refuse_unknown_mark_states(file: &str, line: usize, lifecycle: &ir::Lifecycle) -> ParseResult<()> {
+    let mut known: Vec<&str> = vec![lifecycle.default.as_str()];
+    for row in &lifecycle.transitions {
+        if !known.contains(&row.to_state.as_str()) {
+            known.push(row.to_state.as_str());
+        }
+    }
+    for (name, states) in &lifecycle.marks {
+        let unknown: Vec<String> = states
+            .iter()
+            .filter(|s| !known.contains(&s.as_str()))
+            .map(|s| format!("{s:?}"))
+            .collect();
+        if !unknown.is_empty() {
+            return Err(Diagnostic::new(
+                file,
+                line,
+                format!(
+                    "lifecycle :{} mark :{name} names {}, which is not a state of the lifecycle (states: {})",
+                    lifecycle.field,
+                    unknown.join(", "),
+                    known.join(", ")
+                ),
+            ));
+        }
+    }
+    Ok(())
 }
 
 // Refuses one command reaching two targets from overlapping `from:` states (`None` overlaps all).

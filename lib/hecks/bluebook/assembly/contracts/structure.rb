@@ -34,7 +34,8 @@ module Hecks
             projected_fields: [:projected_fields, [:each, :projected_field]],
             provenance:       [:provenance, :plain]
           },
-          rows: { transitions: :transition_rows, value_objects: :value_object_names, identified_by: :identity_rows },
+          rows: { transitions: :transition_rows, marks: :mark_rows, value_objects: :value_object_names,
+                  identified_by: :identity_rows },
           reads: { identified_by: [:each, :identity_path], attributes: [:each_with_id, :attribute],
                    invariants: [:each, :rule], preconditions: [:each, :rule],
                    projected_fields: [:each, :projected_field] },
@@ -43,6 +44,7 @@ module Hecks
             state_field:   [:folded, :lifecycle, :field],
             state_start:   [:folded, :lifecycle, :default],
             transitions:   [:folded, :lifecycle, :transitions],
+            marks:         [:folded, :lifecycle, :marks],
             value_objects: :children
           }
         ),

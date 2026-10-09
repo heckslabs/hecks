@@ -93,3 +93,38 @@ runtime.dispatch_flat("Banking::Account.CloseAccount", number: { value: "lc-a1" 
 Banking::Account.find("lc-a1").status  # => "closed"
 ```
 
+## mark
+
+<!-- generated:begin word=mark -->
+`mark name, state` — fills `marks`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | symbol | true | name |
+| positional 2 | text | true | state |
+<!-- generated:end -->
+
+Names a meaning and the states that carry it: `mark :holds_seat, "pending",
+"succeeded"`. A reader outside the domain (a host counting seats, a launcher
+deciding what counts as a failure) asks the lifecycle for the states instead
+of keeping its own copy of the list. The meaning is a lowercase word; every
+state must be the default or a transition target, and a state may be named
+once per mark. A lifecycle with no marks writes no `marks` into its IR.
+
+Any lifecycle can carry marks, on an aggregate or on a nested entity.
+
+```ruby
+payment = Hecks::Bluebook::DSL::LifecycleBuilder.build(:status, default: "pending") do
+  mark :holds_seat, "pending", "succeeded"
+  transition "Succeed" => "succeeded", from: "pending"
+end
+payment.marked(:holds_seat)  # => ["pending", "succeeded"]
+payment.to_h[:marks]  # => {"holds_seat"=>["pending", "succeeded"]}
+```
+
+A state the lifecycle does not have is refused when the lifecycle is built:
+
+```ruby
+Hecks::Bluebook::DSL::LifecycleBuilder.build(:status, default: "pending") { mark :holds_seat, "pending", "paid" }  # ~> Malformed: lifecycle :status mark :holds_seat names "paid", which is not a state of the lifecycle (states: pending)
+```
+

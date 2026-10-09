@@ -1,0 +1,9 @@
+# A `mark` naming a state the lifecycle does not have is refused at parse time (ADR 0096).
+Hecks.bluebook "FixtureLifecycleMark" do
+  aggregate "Widget" do
+    lifecycle :status, default: "available" do
+      mark :usable, "available", "missing"
+      transition "Activate" => "active", from: "available"
+    end
+  end
+end

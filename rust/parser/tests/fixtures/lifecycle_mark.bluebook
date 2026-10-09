@@ -1,0 +1,9 @@
+# A lifecycle `mark` names a meaning and the states that carry it (ADR 0096).
+Hecks.bluebook "FixtureLifecycleMark" do
+  aggregate "Widget" do
+    lifecycle :status, default: "available" do
+      mark :usable, "available", "active"
+      transition "Activate" => "active", from: "available"
+    end
+  end
+end

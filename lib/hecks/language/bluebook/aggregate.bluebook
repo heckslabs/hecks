@@ -18,6 +18,9 @@ Hecks.bluebook "Bluebook" do
     attribute :state_field,   IdentityField, optional: true
     attribute :state_start,   IdentityField, optional: true
     attribute :transitions,   list_of(Transition)
+    # Named meanings the lifecycle's states carry (`mark :holds_seat, "pending", "paid"`), one
+    # row per (mark, state), in declared order.
+    attribute :marks,         list_of(Mark)
     # Checked after every command, before save (ADR 0025). The same Rule shape as Command's
     # givens, declared again because a closed set or value object is aggregate-scoped here.
     attribute :invariants,    list_of(Rule)
@@ -72,6 +75,11 @@ Hecks.bluebook "Bluebook" do
       # optional: a transition declared with no `from:` matches any state (C3.7)
       attribute :from_state, String, optional: true
       attribute :to_state,   String
+    end
+
+    value_object "Mark" do
+      attribute :name,  String
+      attribute :state, String
     end
 
     # The same shape as Command's "Rule" (behavior.bluebook), declared again rather than shared.
@@ -255,6 +263,18 @@ Hecks.bluebook "Bluebook" do
       emits TransitionAttached
     end
 
+    command "Mark" do
+      role "Language"
+      goal "Attach one state to a named meaning of the state machine"
+
+      attribute :name,  FieldName
+      attribute :state, FieldName
+
+      sets :marks, append: { name: :name, state: :state }
+
+      emits MarkAttached
+    end
+
     command "Seal" do
       role "Language"
       goal "Close an aggregate — the checks that need every declaration present"
@@ -366,6 +386,7 @@ Hecks.bluebook "Bluebook" do
       member word: "given",           context: "Aggregate", body: "source",   inner: "",              opens: "",               fills: "preconditions", resolves_via: "owner_keyed", disambiguator: "declared_by", calls: "given_impl"
       member word: "projects",        context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "projected_fields", calls: "projects_impl"
       member word: "transition",      context: "Lifecycle", body: "none", inner: "", opens: "",       fills: "transitions", calls: "transition_impl"
+      member word: "mark",            context: "Lifecycle", body: "none", inner: "", opens: "",       fills: "marks", calls: "mark_impl"
 
     end
 
@@ -429,6 +450,8 @@ Hecks.bluebook "Bluebook" do
       member keyword: "transition",      context: "Lifecycle", at: "1", named: "",     kind: "pairs", required: "true",  fills: "", pair_key_fills: "command", pair_value_fills: "to_state", pairs_shape: "fields"
       member keyword: "transition",      context: "Lifecycle", at: "",  named: "from", kind: "text",  required: "false", fills: "from_state"
       member keyword: "transition",      context: "Lifecycle", at: "",  named: "from", kind: "list",  required: "false", fills: "from_state"
+      member keyword: "mark",            context: "Lifecycle", at: "1", named: "",     kind: "symbol", required: "true",  fills: "name"
+      member keyword: "mark",            context: "Lifecycle", at: "2", named: "",     kind: "text",   required: "true",  fills: "state", variadic: "true"
 
     end
   end

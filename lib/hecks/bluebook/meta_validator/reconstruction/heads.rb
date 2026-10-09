@@ -79,7 +79,8 @@ module Hecks
             {
               field:       field,
               default:     text(row[:state_start]),
-              transitions: Array(row[:transitions]).map { |move| transition(move) }
+              transitions: Array(row[:transitions]).map { |move| transition(move) },
+              marks:       Array(row[:marks]).map { |held| mark(held) }
             }
           end
         end

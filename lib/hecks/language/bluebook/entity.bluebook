@@ -20,6 +20,7 @@ Hecks.bluebook "Bluebook" do
     attribute :state_field, EntityText, optional: true
     attribute :state_start, EntityText, optional: true
     attribute :transitions, list_of(PieceTransition)
+    attribute :marks,       list_of(PieceMark)
 
     value_object "EntityName" do
       attribute :value, String
@@ -58,6 +59,11 @@ Hecks.bluebook "Bluebook" do
       attribute :command,    String
       attribute :from_state, String
       attribute :to_state,   String
+    end
+
+    value_object "PieceMark" do
+      attribute :name,  String
+      attribute :state, String
     end
 
     # Declaration order is a fact about the source, so the language holds it, not the store.
@@ -231,6 +237,18 @@ Hecks.bluebook "Bluebook" do
       sets :transitions, append: { command: :command, from_state: :from_state, to_state: :to_state }
 
       emits PieceTransitionAttached
+    end
+
+    command "Mark" do
+      role "Language"
+      goal "Attach one state to a named meaning of the entity's state machine"
+
+      attribute :name,  EntityText
+      attribute :state, EntityText
+
+      sets :marks, append: { name: :name, state: :state }
+
+      emits PieceMarkAttached
     end
 
     # Keyword rows for this chapter; SyntaxBoot discovers aggregate-local seed tables.

@@ -1,0 +1,116 @@
+# Small fixture that exercises lifecycle `mark` end to end (ADR 0096): a named meaning carried by
+# several states, on an aggregate's lifecycle and on a nested entity's.
+Hecks.bluebook "LifecycleMarks" do
+  vision "Which of a payment's states hold a seat, and which of a line's states are settled."
+  core
+
+  aggregate "Payment" do
+    description "A payment whose states say what they mean to a reader outside the domain."
+
+    identified_by :ref
+
+    attribute :ref, PaymentRef
+
+    lifecycle :status, default: "pending" do
+      mark :holds_seat, "pending", "succeeded", "disputed"
+      mark :failed, "declined"
+      transition "Succeed"  => "succeeded", from: "pending"
+      transition "Decline"  => "declined",  from: "pending"
+      transition "Dispute"  => "disputed",  from: "succeeded"
+    end
+
+    value_object "PaymentRef" do
+      attribute :value, String
+    end
+
+    command "Start" do
+      role "Clerk"
+      goal "Open a payment"
+
+      attribute :ref, PaymentRef
+
+      emits "PaymentStarted"
+    end
+
+    command "Succeed" do
+      role "Clerk"
+      goal "Record that the payment cleared"
+
+      reference_to Payment
+
+      emits "PaymentSucceeded"
+    end
+
+    command "Decline" do
+      role "Clerk"
+      goal "Record that the payment was refused"
+
+      reference_to Payment
+
+      emits "PaymentDeclined"
+    end
+
+    command "Dispute" do
+      role "Clerk"
+      goal "Record a dispute against a cleared payment"
+
+      reference_to Payment
+
+      emits "PaymentDisputed"
+    end
+  end
+
+  aggregate "Order" do
+    description "An order whose lines each carry a state with a meaning."
+
+    identified_by :ref
+
+    attribute :ref, OrderRef
+
+    value_object "OrderRef" do
+      attribute :value, String
+    end
+
+    value_object "Sku" do
+      attribute :value, String
+    end
+
+    entity "Line" do
+      attribute :sku, Sku
+      identified_by :sku
+
+      lifecycle :stage, default: "open" do
+        mark :settled, "shipped", "delivered"
+        transition "Ship"    => "shipped",   from: "open"
+        transition "Deliver" => "delivered", from: "shipped"
+      end
+
+      command "Ship" do
+        role "Clerk"
+        goal "Ship one line"
+
+        attribute :sku, Sku
+
+        emits "LineShipped"
+      end
+
+      command "Deliver" do
+        role "Clerk"
+        goal "Record that a line arrived"
+
+        attribute :sku, Sku
+
+        emits "LineDelivered"
+      end
+    end
+
+    command "Place" do
+      role "Clerk"
+      goal "Place an order"
+
+      attribute :ref, OrderRef
+
+      emits "OrderPlaced"
+    end
+  end
+end

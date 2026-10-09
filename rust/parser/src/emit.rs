@@ -417,7 +417,7 @@ fn mutation_source_json(source: &Option<ir::MutationSource>) -> JsonValue {
 
 /// `IR::Lifecycle#to_h`; `transitions:` arrives already expanded, one row per `from_state`.
 fn lifecycle_json(l: &ir::Lifecycle) -> JsonValue {
-    JsonValue::Object(vec![
+    let mut fields = vec![
         ("field".to_string(), JsonValue::str(l.field.clone())),
         ("default".to_string(), JsonValue::str(l.default.clone())),
         (
@@ -435,7 +435,25 @@ fn lifecycle_json(l: &ir::Lifecycle) -> JsonValue {
                     .collect(),
             ),
         ),
-    ])
+    ];
+    // Omitted when empty, so an unmarked lifecycle's IR is unchanged.
+    if !l.marks.is_empty() {
+        fields.push((
+            "marks".to_string(),
+            JsonValue::Object(
+                l.marks
+                    .iter()
+                    .map(|(name, states)| {
+                        (
+                            name.clone(),
+                            JsonValue::Array(states.iter().map(|s| JsonValue::str(s.clone())).collect()),
+                        )
+                    })
+                    .collect(),
+            ),
+        ));
+    }
+    JsonValue::Object(fields)
 }
 
 /// `IR::Query#to_h` merged with `query_options_json`, which appends only the declared
