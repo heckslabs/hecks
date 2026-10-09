@@ -11,7 +11,7 @@ survives regeneration.
 - [Bluebook](bluebook.md) — 12 words
 - [Command](command.md) — 14 words
 - [Entity](entity.md) — 13 words
-- [Policy](policy.md) — 5 words
+- [Policy](policy.md) — 6 words
 - [ProcessManager](process_manager.md) — 4 words
 - [Handler](handler.md) — 1 word
 - [Dispatch](dispatch.md) — 1 word

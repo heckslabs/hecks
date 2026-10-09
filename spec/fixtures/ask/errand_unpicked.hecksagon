@@ -1,0 +1,14 @@
+# The Errand hecksagon with `run` on two ports and no `ask_via`: the ask is ambiguous.
+Hecks.hecksagon "Errand" do
+  Errand::Job.persisted_by("Memory")
+
+  %w[Worker Inspector].each do |port|
+    Errand::Job.port port do
+      asks "Run", to: Job do
+        attribute :ref, Ref
+        answers "JobRan"
+        refuses "JobRefused"
+      end
+    end
+  end
+end

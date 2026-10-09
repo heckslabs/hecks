@@ -1,0 +1,17 @@
+Hecks.hecksagon "AskPolicy" do
+  AskPolicy::Job.persisted_by("Memory")
+
+  AskPolicy::Job.port "Worker" do
+    asks "Run", to: Job do
+      attribute :ref, Ref
+      answers "JobRan"
+      refuses "JobRefused"
+    end
+
+    asks "Audit", to: Job do
+      attribute :ref, Ref
+      answers "JobRan"
+      refuses "JobRefused"
+    end
+  end
+end

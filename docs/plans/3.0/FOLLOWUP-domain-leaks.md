@@ -66,13 +66,25 @@ Audit, re-counted on this date over every `.bluebook` under `lib/hecks`:
 
 The leak is growing with each chapter, so the order below holds and item 1 is now the cost-reducing step.
 
-Next step taken: [ADR 0100](../../decisions/0100-policies-ask-and-the-hecksagon-maps-the-port.md) (Proposed) writes the item 1 decision up; no code yet. Its brief was:
+Next step taken: [ADR 0100](../../decisions/0100-policies-ask-and-the-hecksagon-maps-the-port.md) (Accepted) writes the item 1 decision up, and its decisions 1 to 5 are built (below). Its brief was:
 
 Write the ADR for item 1 before any code. The decision it must make is the
 hecksagon vocabulary that maps a policy's ask to a port operation (for example a policy says
 `ask :check`, and the hecksagon binds `check` to `ModelCheckRun::DomainRuntime::Check`), with the
 Ruby and Rust parsers and the conformance corpus moving together. Start with the 18 triggers in
 `tooling.bluebook`, one chapter, to prove the shape before the rest follow.
+
+### Item 1, wave 1 done
+
+`ask :name, with: {...}` is in the language: both parsers, the IR row, boot resolution against the
+hecksagon's declared asks (`ask_via` breaks a tie between ports), the `model_check` findings and a
+frozen corpus fixture. Wave 1 moved the 18 triggers of `tooling.bluebook`, which now name no port.
+
+Remaining port-naming triggers: 115 (`codebase` 63, `deploy` 21, `custodian` 17, `tickets` 8, `site` 4,
+`quality_control` 2). Waves 2 and 3 move them file by file; each file joins the migrated list in
+`spec/ask_migration_spec.rb` when it is done, and `model_check` counts what is left as `port_trigger`
+warnings. Items 2 and 3 (the run protocol and operating handles) wait on
+[ADR 0101](../../decisions/0101-an-ask-in-flight-is-recorded-by-the-runtime-not-modelled.md).
 
 ## Suggested order
 

@@ -187,11 +187,19 @@ Before it, a domain could be *called by* an adapter and never call one:
 adapter, and `MockStripeAdapter#create_session` is an application doing the
 same. Neither is the domain asking, and neither leaves a trace in the record.
 
-An `asks` is dispatched like any other port operation — a `policy` can
-`trigger` it off an event, because the dispatcher resolves ports before
-entities — and it comes back as one of the two events it named. That is what
-makes the outside world something the model can reason about instead of a
-place exceptions come from.
+An `asks` is dispatched like any other port operation — a `policy` reaches it
+off an event, because the dispatcher resolves ports before entities — and it
+comes back as one of the two events it named. That is what makes the outside
+world something the model can reason about instead of a place exceptions come
+from.
+
+A policy reaches an `asks` by name: `ask :quote` in the bluebook names the need,
+and boot matches it to the declared ask by the event's aggregate and the name,
+so the bluebook never spells the port (see `ask` in the policy reference). When
+one aggregate declares the same ask name on two ports, the hecksagon picks with
+`Domain::Aggregate.ask_via "Quote", port: "Carrier"`; boot refuses the ambiguity
+until it does. A policy that still writes `trigger Aggregate::Port::Operation`
+keeps working, and `model_check` warns about it.
 
 It must name both endings (`answers` and `refuses`) and may not `emits`.
 An ask that named only its happy ending would put the failure somewhere the

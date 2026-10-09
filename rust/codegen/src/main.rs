@@ -3,6 +3,7 @@
 // Some ported `naming.rs` helpers are not called yet.
 #![allow(dead_code)]
 
+mod asks;
 mod attr;
 mod bridging;
 mod commands;

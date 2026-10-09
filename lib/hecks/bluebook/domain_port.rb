@@ -14,13 +14,22 @@ module Hecks
 
       attr_reader :hecks_name, :attributes, :emits, :direction, :answers, :refuses, :to
 
+      # Marks this operation as the one the hecksagon picks (`ask_via`) when its ask name is
+      # declared on more than one port of the aggregate.
+      #
+      # @return [true]
+      def choose! = @chosen = true
+
+      # @return [Boolean] whether the hecksagon picked this operation with `ask_via`
+      def chosen? = @chosen == true
+
       # `:inbound` (`tells`) is an external fact arriving as an event; it emits and nothing more.
       # `:outbound` (`asks`) is the domain wanting something from outside, naming both
       # `answers` and `refuses` so the failure is visible to the model.
       #
       # Every optional keyword and what it holds when the declaration omits it.
       FIELD_DEFAULTS = {
-        attributes: [], emits: [], direction: :inbound, answers: nil, refuses: nil, to: nil
+        attributes: [], emits: [], direction: :inbound, answers: nil, refuses: nil, to: nil, chosen: false
       }.freeze
 
       # @param name [String, Symbol] the operation's declared name
@@ -30,6 +39,7 @@ module Hecks
       # @param answers [String, nil] an outbound operation's event for the adapter's answer
       # @param refuses [String, nil] an outbound operation's event for the adapter's refusal
       # @param to [String, nil] the aggregate this operation routes to, if any
+      # @param chosen [Boolean] whether the hecksagon picked this operation with `ask_via`
       def initialize(name:, **given)
         fields = KeywordFields.fill(given, FIELD_DEFAULTS)
         @hecks_name = name.to_s
@@ -48,15 +58,17 @@ module Hecks
       # @return [Boolean] whether this operation is a `tells`/`operation`
       def inbound?  = @direction == :inbound
 
-      # `direction`/`answers`/`refuses`/`to` are merged in only when set: the Rust parser
-      # emits none of them, so an unconditional key would break parser_parity_spec.
+      # `direction`/`answers`/`refuses`/`to`/`chosen` are merged in only when set: the Rust parser
+      # emits none of them unprompted, so an unconditional key would break parser_parity_spec.
       #
       # @return [Hash] the declared emission, plus `direction`/`answers`/`refuses` for an
-      #   outbound operation and `to` when a routing target is declared
+      #   outbound operation, `to` when a routing target is declared, and `chosen` when the
+      #   hecksagon picked it with `ask_via`
       def to_h
         shape = super
         shape = shape.merge(direction: @direction.to_s, answers: @answers, refuses: @refuses) unless inbound?
         shape = shape.merge(to: @to) if @to
+        shape = shape.merge(chosen: true) if chosen?
         shape
       end
     end

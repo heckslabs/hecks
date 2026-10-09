@@ -69,6 +69,7 @@ module Hecks
             aggregate:          [:aggregate,       :plain],
             on_event:           [:on_event,        :plain],
             trigger_command:    [:trigger_command, :plain],
+            ask:                [:ask,             :plain],
             target_domain:      [:target_domain,   :plain],
             expect_undelivered: [:expect_undelivered, :plain],
             where:              [:where,           :plain],

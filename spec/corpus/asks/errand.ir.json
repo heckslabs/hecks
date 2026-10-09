@@ -1,0 +1,453 @@
+{
+  "ir_version": 1,
+  "name": "Errand",
+  "version": null,
+  "vision": "A job is requested, the outside runs and audits it, and the answer settles or abandons it.",
+  "classification": "core",
+  "formerly_known_as": null,
+  "namespace": null,
+  "aggregates": [
+    {
+      "name": "Job",
+      "description": null,
+      "identified_by": [
+        "ref.value"
+      ],
+      "attributes": [
+        {
+          "name": "ref",
+          "type": "Ref",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "result",
+          "type": "Outcome",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "refusal",
+          "type": "Outcome",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "Ref",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "Outcome",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Request",
+          "role": null,
+          "goal": "Record that a job wants running",
+          "references": null,
+          "attributes": [
+            {
+              "name": "ref",
+              "type": "Ref",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+            {
+              "target": "ref",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "ref"
+              }
+            }
+          ],
+          "emits": [
+            "JobRequested"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Settle",
+          "role": null,
+          "goal": "Record what the outside answered",
+          "references": "Job",
+          "attributes": [
+            {
+              "name": "result",
+              "type": "Outcome",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+            {
+              "target": "result",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "result"
+              }
+            }
+          ],
+          "emits": [
+            "JobSettled"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Abandon",
+          "role": null,
+          "goal": "Record why the outside could not",
+          "references": "Job",
+          "attributes": [
+            {
+              "name": "refusal",
+              "type": "Outcome",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+            {
+              "target": "refusal",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "refusal"
+              }
+            }
+          ],
+          "emits": [
+            "JobAbandoned"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": {
+        "field": "status",
+        "default": "requested",
+        "transitions": [
+          {
+            "command": "Settle",
+            "to_state": "settled",
+            "from_state": "requested"
+          },
+          {
+            "command": "Abandon",
+            "to_state": "abandoned",
+            "from_state": "requested"
+          }
+        ]
+      },
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+        {
+          "name": "Worker",
+          "operations": [
+            {
+              "name": "Run",
+              "attributes": [
+                {
+                  "name": "ref",
+                  "type": "Ref",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                }
+              ],
+              "emits": [
+
+              ],
+              "direction": "outbound",
+              "answers": "JobRan",
+              "refuses": "JobRefused",
+              "to": "Job"
+            },
+            {
+              "name": "Audit",
+              "attributes": [
+                {
+                  "name": "ref",
+                  "type": "Ref",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                }
+              ],
+              "emits": [
+
+              ],
+              "direction": "outbound",
+              "answers": "JobRan",
+              "refuses": "JobRefused",
+              "to": "Job"
+            }
+          ]
+        },
+        {
+          "name": "Inspector",
+          "operations": [
+            {
+              "name": "Audit",
+              "attributes": [
+                {
+                  "name": "ref",
+                  "type": "Ref",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                }
+              ],
+              "emits": [
+
+              ],
+              "direction": "outbound",
+              "answers": "JobRan",
+              "refuses": "JobRefused",
+              "to": "Job",
+              "chosen": true
+            }
+          ]
+        }
+      ],
+      "provenance": null
+    }
+  ],
+  "read_models": [
+
+  ],
+  "policies": [
+    {
+      "name": "RunWhenRequested",
+      "on_event": "Job.JobRequested",
+      "ask": "run",
+      "target_domain": null,
+      "expect_undelivered": false,
+      "where": null,
+      "for_each": null,
+      "with_spec": [
+        [
+          "ref",
+          ":ref"
+        ]
+      ],
+      "where_ast": null
+    },
+    {
+      "name": "AuditWhenRequested",
+      "on_event": "Job.JobRequested",
+      "ask": "audit",
+      "target_domain": null,
+      "expect_undelivered": false,
+      "where": null,
+      "for_each": null,
+      "with_spec": [
+        [
+          "ref",
+          ":ref"
+        ]
+      ],
+      "where_ast": null
+    },
+    {
+      "name": "SettleWhenAnswered",
+      "on_event": "Job.JobRan",
+      "trigger_command": "Job.Settle",
+      "target_domain": null,
+      "expect_undelivered": false,
+      "where": null,
+      "for_each": null,
+      "with_spec": [
+        [
+          "result",
+          ":result"
+        ]
+      ],
+      "where_ast": null
+    },
+    {
+      "name": "AbandonWhenRefused",
+      "on_event": "Job.JobRefused",
+      "trigger_command": "Job.Abandon",
+      "target_domain": null,
+      "expect_undelivered": false,
+      "where": null,
+      "for_each": null,
+      "with_spec": [
+        [
+          "refusal",
+          ":refusal"
+        ]
+      ],
+      "where_ast": null
+    }
+  ],
+  "process_managers": [
+
+  ],
+  "attaches_to": [
+
+  ],
+  "provides": [
+
+  ],
+  "canonical_form": [
+    {
+      "strategy": "collapse_whitespace",
+      "source_token": "",
+      "replacement": "",
+      "boundary": "none",
+      "position": "1"
+    },
+    {
+      "strategy": "replace",
+      "source_token": ".length",
+      "replacement": ".size",
+      "boundary": "word",
+      "position": "2"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "days",
+      "replacement": "86400",
+      "boundary": "word",
+      "position": "3"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "hours",
+      "replacement": "3600",
+      "boundary": "word",
+      "position": "4"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "minutes",
+      "replacement": "60",
+      "boundary": "word",
+      "position": "5"
+    }
+  ]
+}

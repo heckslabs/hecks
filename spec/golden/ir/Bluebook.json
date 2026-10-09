@@ -14069,6 +14069,16 @@
           "admits": null,
           "default": null,
           "list": false,
+          "name": "ask",
+          "optional": true,
+          "pattern": null,
+          "relationship": null,
+          "type": "PolicyText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
           "name": "target_domain",
           "optional": false,
           "pattern": null,
@@ -14174,7 +14184,17 @@
               "default": null,
               "list": false,
               "name": "trigger_command",
-              "optional": false,
+              "optional": true,
+              "pattern": null,
+              "relationship": null,
+              "type": "PolicyText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "ask",
+              "optional": true,
               "pattern": null,
               "relationship": null,
               "type": "PolicyText"
@@ -14286,6 +14306,15 @@
                 "name": "trigger_command"
               },
               "target": "trigger_command"
+            },
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "ask"
+              },
+              "target": "ask"
             },
             {
               "op": "set",
@@ -14736,6 +14765,36 @@
             [
               [
                 "word",
+                "ask"
+              ],
+              [
+                "context",
+                "Policy"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "ask"
+              ],
+              [
+                "calls",
+                "ask_impl"
+              ]
+            ],
+            [
+              [
+                "word",
                 "across"
               ],
               [
@@ -15099,6 +15158,36 @@
             [
               [
                 "keyword",
+                "ask"
+              ],
+              [
+                "context",
+                "Policy"
+              ],
+              [
+                "at",
+                1
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                true
+              ],
+              [
+                "fills",
+                "ask"
+              ]
+            ],
+            [
+              [
+                "keyword",
                 "across"
               ],
               [
@@ -15190,6 +15279,40 @@
               [
                 "keyword",
                 "trigger"
+              ],
+              [
+                "context",
+                "Policy"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "with"
+              ],
+              [
+                "kind",
+                "pairs"
+              ],
+              [
+                "required",
+                false
+              ],
+              [
+                "fills",
+                "with_spec"
+              ],
+              [
+                "pairs_shape",
+                "verbatim"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "ask"
               ],
               [
                 "context",

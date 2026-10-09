@@ -1,0 +1,71 @@
+Hecks.bluebook "Errand" do
+  # A CORPUS-OWNED DOMAIN (spec/corpus/asks). Nothing in the examples asks the outside for work by
+  # name, so the rule that maps an `ask` onto a port operation had no domain to be pinned against:
+  # one aggregate with two asks, one of them declared on two ports so the hecksagon must pick.
+  vision "A job is requested, the outside runs and audits it, and the answer settles or abandons it."
+  core
+
+  aggregate "Job" do
+    identified_by :ref
+
+    attribute :ref,     Ref
+    attribute :result,  Outcome, optional: true
+    attribute :refusal, Outcome, optional: true
+
+    value_object "Ref" do
+      attribute :value, String
+    end
+
+    value_object "Outcome" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Settle"  => "settled",   from: "requested"
+      transition "Abandon" => "abandoned", from: "requested"
+    end
+
+    command "Request" do
+      goal "Record that a job wants running"
+      attribute :ref, Ref
+      sets :ref
+      emits JobRequested
+    end
+
+    command "Settle" do
+      goal "Record what the outside answered"
+      reference_to Job
+      attribute :result, Outcome
+      sets :result
+      emits JobSettled
+    end
+
+    command "Abandon" do
+      goal "Record why the outside could not"
+      reference_to Job
+      attribute :refusal, Outcome
+      sets :refusal
+      emits JobAbandoned
+    end
+  end
+
+  policy "RunWhenRequested" do
+    on  "Job.JobRequested"
+    ask :run, with: { ref: :ref }
+  end
+
+  policy "AuditWhenRequested" do
+    on  "Job.JobRequested"
+    ask :audit, with: { ref: :ref }
+  end
+
+  policy "SettleWhenAnswered" do
+    on      "Job.JobRan"
+    trigger Job::Settle, with: { result: :result }
+  end
+
+  policy "AbandonWhenRefused" do
+    on      "Job.JobRefused"
+    trigger Job::Abandon, with: { refusal: :refusal }
+  end
+end

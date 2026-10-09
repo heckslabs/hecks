@@ -18,7 +18,7 @@ module Hecks
           return [] if bluebook.policies.empty?
 
           rows = bluebook.policies.map do |policy|
-            ["`#{policy.on_event}`", "`#{policy.trigger_command}`", policy.target_domain || bluebook.name]
+            ["`#{policy.on_event}`", "`#{policy.reaches}`", policy.target_domain || bluebook.name]
           end
           [DocsProjector.h(depth, "Reactions"), "",
            "These fire on their own. Issuing the verb on the left also causes the one on the right.", "",

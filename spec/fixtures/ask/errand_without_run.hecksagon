@@ -1,0 +1,12 @@
+# The Errand hecksagon with no `asks "Run"`: the RunWhenRequested ask matches nothing.
+Hecks.hecksagon "Errand" do
+  Errand::Job.persisted_by("Memory")
+
+  Errand::Job.port "Inspector" do
+    asks "Audit", to: Job do
+      attribute :ref, Ref
+      answers "JobRan"
+      refuses "JobRefused"
+    end
+  end
+end

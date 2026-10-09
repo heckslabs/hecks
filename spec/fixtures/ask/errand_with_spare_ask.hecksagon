@@ -1,0 +1,37 @@
+Hecks.hecksagon "Errand" do
+  Errand::Job.persisted_by("Memory")
+
+  # `run` is asked of one port only; `audit` is declared on both ports, so the pick below decides.
+  Errand::Job.port "Worker" do
+    asks "Run", to: Job do
+      attribute :ref, Ref
+      answers "JobRan"
+      refuses "JobRefused"
+    end
+
+    asks "Audit", to: Job do
+      attribute :ref, Ref
+      answers "JobRan"
+      refuses "JobRefused"
+    end
+  end
+
+  # An ask the domain declares and no policy reaches.
+  Errand::Job.port "Spare" do
+    asks "Spare", to: Job do
+      attribute :ref, Ref
+      answers "JobRan"
+      refuses "JobRefused"
+    end
+  end
+
+  Errand::Job.port "Inspector" do
+    asks "Audit", to: Job do
+      attribute :ref, Ref
+      answers "JobRan"
+      refuses "JobRefused"
+    end
+  end
+
+  Errand::Job.ask_via "Audit", port: "Inspector"
+end

@@ -4,6 +4,7 @@ require_relative "model_check/client_profile"
 require_relative "model_check/lifecycle_checks"
 require_relative "model_check/saga_checks"
 require_relative "model_check/policy_checks"
+require_relative "model_check/ask_checks"
 require_relative "model_check/verbs"
 
 module Hecks
@@ -32,6 +33,7 @@ module Hecks
       extend LifecycleChecks
       extend SagaChecks
       extend PolicyChecks
+      extend AskChecks
       extend Verbs
 
       module_function
@@ -67,7 +69,8 @@ module Hecks
           *bluebook.policies.flat_map do |policy|
             policy_findings(bluebook, policy, options[:hecksagon], options[:known_domains],
                             options[:global_emitted_events])
-          end
+          end,
+          *unused_ask_findings(bluebook)
         ]
       end
 

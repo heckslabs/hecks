@@ -31,6 +31,9 @@ module Hecks
       # hecks fuzz sweeps it too, once Fuzzing::Replay coerces value-object args
       # before recomputing givens — today it doesn't, so this given reads as
       # wrongly admitted.
+      Route.new(%r{\Aspec/corpus/asks/}, :named_in, "spec/policy_ask_spec.rb", "spec/corpus/asks",
+                "a corpus-owned domain whose ports have no adapter, so an ask is refused; its frozen " \
+                "targets are held to the Ruby runtime there and to the Rust policy table in rust/codegen"),
       Route.new(%r{\Aspec/fixtures/rust_host/}, :named_in, "rust/host/src/web/commerce.rs", "checkout_fixture",
                 "the Rust host's checkout fixture, pinned by its web and /api tests")
     ].freeze

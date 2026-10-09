@@ -289,6 +289,9 @@ pub struct Policy {
     pub name: String,
     pub on_event: Option<String>,
     pub trigger_command: Option<String>,
+    // `ask :name`: the need, in the domain's words. Emitted in place of `trigger_command`; the
+    // hecksagon's declared asks say which port operation answers.
+    pub ask: Option<String>,
     pub target_domain: Option<String>,
     // `across "X", expect_undelivered: true`; emitted as a boolean, `false` when not declared.
     pub expect_undelivered: bool,

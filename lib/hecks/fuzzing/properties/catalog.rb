@@ -66,8 +66,10 @@ module Hecks
         # mutations_match_recompute reads, for a different question.
         corrections_reference_an_emitted_event:           %w[Command#mutations],
         # Reads each logged reaction back against the policy that produced it: the event it
-        # answers, the trigger it builds, and the domain `across` sends it to.
-        policy_reactions_follow_declared_wiring:          %w[Policy#on_event Policy#trigger_command Policy#target_domain],
+        # answers, the trigger it builds, and the domain `across` sends it to. An `ask` closes
+        # here too: boot binds it to the trigger it resolves to, which this reads as any other.
+        policy_reactions_follow_declared_wiring:          %w[Policy#on_event Policy#trigger_command Policy#ask
+                                                             Policy#target_domain],
         # model_check holds the static half of `expect_undelivered`; this is the runtime half.
         declared_undelivered_policies_stay_undelivered:   %w[Policy#expect_undelivered],
         # An accepted referencing command addressed a record an earlier event created.

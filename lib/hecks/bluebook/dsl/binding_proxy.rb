@@ -29,6 +29,18 @@ module Hecks
           self
         end
 
+        # Picks which port answers an ask this aggregate declares on more than one port.
+        #
+        # @param name [String, Symbol] the ask's declared name, such as `"Probe"`
+        # @param port [String, Symbol] the port whose `asks` of that name is the one policies reach
+        # @return [BindingProxy] self
+        # @raise [Bluebook::DSL::Malformed] if no such aggregate, port or ask is declared yet
+        def ask_via(name, port:)
+          domain, aggregate_name = @fqn.split("::")
+          AskResolution.pick!(Hecks.current_registry.bluebook(domain), aggregate_name, name, port)
+          self
+        end
+
         def method_missing(verb, *args, **kwargs, &block)
           # A bare call (no args/kwargs/block) starts a Privacy marking chain instead
           # of a Bind — no real `.hecksagon` bind is ever called with zero arguments,
@@ -68,6 +80,7 @@ module Hecks
             operation.attributes.select(&:reference?).each { |attribute| attribute.type.declared_in = aggregate_ir }
           end
           aggregate_ir.add_port(built)
+          AskResolution.bind_resolved(Hecks.current_registry.bluebook(@fqn.split("::").first))
         end
       end
 

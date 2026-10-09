@@ -11,7 +11,8 @@ module Hecks
 
           [
             deaf_policy_finding(policy, emitted_events(bluebook), global_emitted_events),
-            unknown_trigger_finding(bluebook, policy)
+            policy.asks? ? nil : unknown_trigger_finding(bluebook, policy),
+            ask_finding(bluebook, policy)
           ].compact
         end
 
