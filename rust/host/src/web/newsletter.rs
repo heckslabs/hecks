@@ -106,7 +106,7 @@ async fn newsletter_subscribe_route(
     let Some((_, subscriber)) = subscribers.iter().find(|(id, _)| id == email) else {
         return respond(500, "text/plain", "subscriber vanished immediately after being written");
     };
-    let status = subscriber.get("status").and_then(|v| v.as_str()).unwrap_or("pending");
+    let status = subscriber.get("status").and_then(|v| v.as_str()).unwrap_or(provider.initial_status());
     respond(200, "application/json", &json!({"email": email, "status": status}).to_string())
 }
 
@@ -219,7 +219,7 @@ pub(super) async fn send_confirmation_if_pending(email: &str, client: &Mutex<Cli
     };
     let pending = instances_for(&read, &provider.instance_prefix())
         .iter()
-        .any(|(id, subscriber)| id == email && subscriber.get("status").and_then(|v| v.as_str()) == Some("pending"));
+        .any(|(id, subscriber)| id == email && provider.is_awaiting_confirmation(subscriber.get("status").and_then(|v| v.as_str())));
     if pending {
         send_confirmation(email).await;
     }
@@ -250,7 +250,7 @@ async fn newsletter_confirm_route(provider: &NewsletterProvider, query: &HashMap
         return respond(404, "application/json", &json!({"error": "no such subscriber"}).to_string());
     };
 
-    if subscriber.get("status").and_then(|v| v.as_str()) == Some("pending") {
+    if provider.is_awaiting_confirmation(subscriber.get("status").and_then(|v| v.as_str())) {
         if let Err(e) = dispatch::handle_routed(client, wasm_path, &provider.confirm, json!(email), json!({}), None, config, invoker).await {
             return respond(500, "text/plain", &format!("{e:#}"));
         }
@@ -261,7 +261,7 @@ async fn newsletter_confirm_route(provider: &NewsletterProvider, query: &HashMap
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
     let subscribers = instances_for(&read, &provider.instance_prefix());
-    let status = subscribers.iter().find(|(id, _)| id == email).and_then(|(_, s)| s.get("status")).and_then(|v| v.as_str()).unwrap_or("pending");
+    let status = subscribers.iter().find(|(id, _)| id == email).and_then(|(_, s)| s.get("status")).and_then(|v| v.as_str()).unwrap_or(provider.initial_status());
     respond(200, "application/json", &json!({"email": email, "status": status}).to_string())
 }
 
@@ -300,7 +300,7 @@ async fn newsletter_unsubscribe_route(provider: &NewsletterProvider, query: &Has
         return respond(404, "application/json", &json!({"error": "no such subscriber"}).to_string());
     };
 
-    if subscriber.get("status").and_then(|v| v.as_str()) != Some("unsubscribed") {
+    if !provider.has_left(subscriber.get("status").and_then(|v| v.as_str())) {
         if let Err(e) = dispatch::handle_routed(client, wasm_path, &provider.unsubscribe, json!(email), json!({}), None, config, invoker).await {
             return respond(500, "text/plain", &format!("{e:#}"));
         }
@@ -311,6 +311,6 @@ async fn newsletter_unsubscribe_route(provider: &NewsletterProvider, query: &Has
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
     let subscribers = instances_for(&read, &provider.instance_prefix());
-    let status = subscribers.iter().find(|(id, _)| id == email).and_then(|(_, s)| s.get("status")).and_then(|v| v.as_str()).unwrap_or("pending");
+    let status = subscribers.iter().find(|(id, _)| id == email).and_then(|(_, s)| s.get("status")).and_then(|v| v.as_str()).unwrap_or(provider.initial_status());
     respond(200, "application/json", &json!({"email": email, "status": status}).to_string())
 }

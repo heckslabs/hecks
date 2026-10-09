@@ -28,6 +28,8 @@ A lifecycle names its states and transitions, but it cannot say what a state mea
 3. **Capability contract.** A capability may name the marks a host needs from its aggregate, the same declared-not-named shape the verbs already have. The Ruby `Capabilities::CONTRACTS` gains a `:mark` kind next to `:command`, `:query` and `:port_operation`; the Rust binding reads the state list from the IR through that declared name, not by chapter or aggregate name.
 
    Built: `provides "payments", ..., holds_seat: "Payment.holds_seat"` (spelled `Aggregate.mark_name`) is an optional `:mark` entry; it must name a mark on that aggregate's lifecycle, and the `payments` fact in `ir.json` carries `holds_seat: [states]` when declared. The host keeps `LEGACY_HOLDS_SEAT` as a labelled fallback until the Payments package declares the mark.
+
+   Built for newsletter: `provides "newsletter"` takes optional `awaiting_confirmation`, `receives_issues` and `left` marks over the subscriber lifecycle; the host's `LEGACY_AWAITING_CONFIRMATION`, `LEGACY_RECEIVES_ISSUES` and `LEGACY_LEFT` are the labelled fallbacks (`pending`, `confirmed`, `unsubscribed`) until the Newsletter package declares them.
 4. **Hecksagon side.** Nothing. How a host turns a state list into a seat count (a scan of `dispatch::read` instances) stays an adapter.
 5. **Ruby and Rust parity.** Both parsers accept `mark`; the neutral conformance corpus gets a fixture whose expected output includes the marks, so the two cannot drift.
 
