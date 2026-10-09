@@ -448,6 +448,75 @@ if !unknown.is_empty() {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct PieceMark {
+    pub name: String,
+    pub state: String,
+}
+
+impl crate::kernel::Fielded for PieceMark {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "name" => Some(Field::Value(Value::Str(self.name.clone()))),
+            "state" => Some(Field::Value(Value::Str(self.state.clone()))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
+}
+
+
+impl PieceMark {
+    pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
+
+        Ok(())
+    }
+}
+
+impl PieceMark {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("name".to_string(), crate::kernel::Json::Str(self.name.clone())),
+        ("state".to_string(), crate::kernel::Json::Str(self.state.clone())),
+        ])
+    }
+}
+
+impl PieceMark {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("PieceMark expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["name", "state"]);
+if !unknown.is_empty() {
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "PieceMark",
+        unknown: &unknown,
+        declared: &["name", "state"],
+    }.render_args()));
+}
+        Ok(Self {
+        name: { let x = v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceMark.name expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("PieceMark.name expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("PieceMark.name: expected String".to_string()) })? },
+        state: { let x = v.get("state").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceMark.state expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("PieceMark.state expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("PieceMark.state: expected String".to_string()) })? },
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Position {
     pub value: i64,
 }
@@ -668,6 +737,7 @@ pub struct Entity {
     pub state_field: Option<EntityText>,
     pub state_start: Option<EntityText>,
     pub transitions: Vec<PieceTransition>,
+    pub marks: Vec<PieceMark>,
     pub position: Option<Position>,
 }
 
@@ -686,6 +756,7 @@ impl crate::kernel::Fielded for Entity {
             "state_field" => self.state_field.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "state_start" => self.state_start.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "transitions" => Some(Field::Value(Value::List(self.transitions.len()))),
+            "marks" => Some(Field::Value(Value::List(self.marks.len()))),
             "position" => self.position.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
@@ -700,6 +771,7 @@ impl crate::kernel::Fielded for Entity {
             "preconditions" => Some(self.preconditions.iter().map(|v| Field::Nested(v)).collect()),
             "invariants" => Some(self.invariants.iter().map(|v| Field::Nested(v)).collect()),
             "transitions" => Some(self.transitions.iter().map(|v| Field::Nested(v)).collect()),
+            "marks" => Some(self.marks.iter().map(|v| Field::Nested(v)).collect()),
             _ => None,
         }
     }
@@ -723,6 +795,7 @@ impl Entity {
         ("state_field".to_string(), self.state_field.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("state_start".to_string(), self.state_start.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("transitions".to_string(), crate::kernel::Json::Array(self.transitions.iter().map(|x| x.to_json()).collect())),
+        ("marks".to_string(), crate::kernel::Json::Array(self.marks.iter().map(|x| x.to_json()).collect())),
         ("position".to_string(), self.position.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ])
     }
@@ -745,6 +818,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
         state_field: match v.get("state_field") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?), },
         state_start: match v.get("state_start") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?), },
         transitions: match v.get("transitions").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(PieceTransition::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        marks: match v.get("marks").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(PieceMark::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         position: match v.get("position") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Position::from_json(&x.coerce_single_field("value"))?), },
         })
     }
@@ -863,6 +937,7 @@ pub fn dispatch_declare(
             state_field: None,
             state_start: None,
             transitions: vec![],
+            marks: vec![],
             position: args.position.clone(),
         }),
         state_independent: true,
@@ -882,6 +957,7 @@ pub fn dispatch_declare(
             state_field: None,
             state_start: None,
             transitions: vec![],
+            marks: vec![],
             position: args.position.clone(),
         }),
         state_independent: true,
@@ -2404,6 +2480,153 @@ if !absent.is_empty() {
         command: "Transition",
         absent: &absent,
         declared: &["command", "from_state", "to_state"],
+    }.render_args()));
+}
+        Ok(())
+    }
+}
+
+impl crate::kernel::Fielded for MarkArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        
+        match name {
+            "name" => Some(Field::Nested(&self.name)),
+            "state" => Some(Field::Nested(&self.state)),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct MarkArgs {
+    pub name: EntityText,
+    pub state: EntityText,
+}
+
+pub fn dispatch_mark(
+    repo: &mut impl crate::kernel::Repository<Entity>, id: &str, args: MarkArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
+) -> crate::kernel::DispatchResult<Entity> {
+        args.name.check_invariants()?;
+        args.state.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, ENTITY_PROJECTED_FIELDS);
+
+    crate::kernel::dispatch(
+        repo,
+        crate::kernel::Hydrate::Act { id: id.to_string() },
+        "Mark",
+        "Bluebook::Entity",
+        "Entity",
+        "aggregate, name.value",
+        &with_references,
+        &[
+
+        ],
+        None,
+        |record| {
+        record.marks.push(PieceMark { name: args.name.value.clone(), state: args.state.value.clone() });
+            Ok(())
+        },
+        &[
+
+        ],
+        &entity_invariants(),
+        &["PieceMarkAttached"],
+        args.to_json(),
+        mutations,
+        seed_projections,
+        tenant_boundary_check,
+    )
+}
+
+impl MarkArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![        ("name".to_string(), self.name.to_json()),
+        ("state".to_string(), self.state.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
+    }
+}
+
+impl MarkArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("MarkArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["name", "state", "id", "aggregate"]);
+if !unknown.is_empty() {
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Mark",
+        unknown: &unknown,
+        declared: &["name", "state"],
+    }.render_args()));
+}
+let absent: Vec<&str> = ["name", "state"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Mark",
+        absent: &absent,
+        declared: &["name", "state"],
+    }.render_args()));
+}
+        let name = EntityText::from_json(&(match v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("MarkArgs.name expects EntityText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
+        name.check_invariants()?;
+        let state = EntityText::from_json(&(match v.get("state").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("MarkArgs.state expects EntityText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
+        state.check_invariants()?;
+        Ok(Self {
+        name,
+        state,
+        })
+    }
+}
+
+impl MarkArgs {
+    pub fn decode_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("MarkArgs expects an object, got {}", v.inspect())));
+}
+        Ok(())
+    }
+
+    pub fn refuse_unknown_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["name", "state", "id", "aggregate"]);
+if !unknown.is_empty() {
+    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+        command: "Mark",
+        unknown: &unknown,
+        declared: &["name", "state"],
+    }.render_args()));
+}
+        Ok(())
+    }
+
+    pub fn refuse_absent_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+let absent: Vec<&str> = ["name", "state"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+        command: "Mark",
+        absent: &absent,
+        declared: &["name", "state"],
     }.render_args()));
 }
         Ok(())

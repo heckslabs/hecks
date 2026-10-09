@@ -57,7 +57,7 @@ module Hecks
         # counts, seen from the other side.
         "ValueObject#members"     => "the members list IS what ValueObject#rows counts — same door, same guarantee",
         "Member#pairs"            => "one level into ValueObject#rows — same door",
-        # ADR 0096. A mark reads no runtime state: LifecycleBuilder refuses at build any mark
+        # ADR 0097. A mark reads no runtime state: LifecycleBuilder refuses at build any mark
         # naming a state that is neither the default nor a transition target, so a built
         # lifecycle can never carry a mark that points at a state it does not have.
         "Aggregate#marks"         => "LifecycleBuilder#refuse_unknown_mark_states! refuses at build a mark naming a " \

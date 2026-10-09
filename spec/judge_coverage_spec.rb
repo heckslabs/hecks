@@ -113,7 +113,7 @@ RSpec.describe "the judge's coverage of the language" do
     @needs_chapter ||= Hecks::Bluebook::DSL::BluebookBuilder.build("NeedsCoverage", &clocked_aggregate)
   end
 
-  # `Aggregate.Mark` and `Entity.Mark` (ADR 0096) are real DSL surface no corpus lifecycle
+  # `Aggregate.Mark` and `Entity.Mark` (ADR 0097) are real DSL surface no corpus lifecycle
   # declares yet, so a small fixture does.
   def marks_chapter
     @marks_chapter ||= Hecks::Bluebook::DSL::BluebookBuilder.build("MarksCoverage") do

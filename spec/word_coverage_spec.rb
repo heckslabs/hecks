@@ -90,7 +90,7 @@ RSpec.describe "every live DSL word, used somewhere real" do
   EXEMPT = {
     "mark (Lifecycle)"                  =>
                                            "no example domain reads a mark yet: the word exists so a host can ask a lifecycle " \
-                                           "which states carry a meaning (ADR 0096), and the first corpus use is the host that " \
+                                           "which states carry a meaning (ADR 0097), and the first corpus use is the host that " \
                                            "stops carrying that list itself. spec/fixtures/lifecycle_marks.bluebook exercises " \
                                            "it, byte-for-byte against the Rust parser, but a fixture is not an examples/ domain.",
     "cursor (Query)"                    =>

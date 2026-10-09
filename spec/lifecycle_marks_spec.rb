@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# ADR 0096: `mark :holds_seat, "pending", "succeeded"` names a meaning and the lifecycle states
+# ADR 0097: `mark :holds_seat, "pending", "succeeded"` names a meaning and the lifecycle states
 # that carry it. The IR gains `marks` only when a lifecycle declares one.
 RSpec.describe "lifecycle marks" do
   def build(&block)

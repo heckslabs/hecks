@@ -677,7 +677,13 @@
             "to_state": "failed",
             "from_state": "pending"
           }
-        ]
+        ],
+        "marks": {
+          "holds_seat": [
+            "pending",
+            "succeeded"
+          ]
+        }
       },
       "entities": [
 
@@ -803,6 +809,11 @@
       "capability": "payments",
       "key": "failed",
       "verb": "Payment.PaymentGateway.Failed"
+    },
+    {
+      "capability": "payments",
+      "key": "holds_seat",
+      "verb": "Payment.holds_seat"
     }
   ],
   "canonical_form": [
