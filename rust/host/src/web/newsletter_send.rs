@@ -18,10 +18,10 @@ const UNSUBSCRIBE_TOKEN: &str = "{{UNSUBSCRIBE_URL}}";
 const DEFAULT_SITE_URL: &str = "http://localhost:4321";
 
 // The purpose keys an unsubscribe token apart from a confirm token, so neither
-// verifies as the other. The lifetime is long (two years) because the link sits
-// in emails that are opened months after they were sent.
+// verifies as the other. The lifetime is the Newsletter bluebook's
+// `unsubscribe_window` (long, because the link sits in emails opened months after
+// they were sent), not a number held here.
 pub(super) const UNSUBSCRIBE_PURPOSE: &str = "newsletter-unsubscribe";
-const UNSUBSCRIBE_TTL_SECS: u64 = 730 * 24 * 60 * 60;
 
 #[derive(Debug, PartialEq)]
 pub(super) enum IssueAction {
@@ -116,7 +116,7 @@ pub(super) fn site_url() -> String {
 }
 
 pub(super) fn unsubscribe_token(secret: &str, email: &str) -> String {
-    auth::purpose_token(secret, UNSUBSCRIBE_PURPOSE, json!({ "email": email }), UNSUBSCRIBE_TTL_SECS)
+    auth::purpose_token(secret, UNSUBSCRIBE_PURPOSE, json!({ "email": email }), crate::commerce_ir::newsletter_windows_binding().1)
 }
 
 pub(super) fn unsubscribe_token_matches(secret: &str, token: &str, email: &str) -> bool {
