@@ -1,5 +1,5 @@
-//! The "text" expression-operator category: `.split`, `.start_with?`, `.end_with?`.
-//! String receivers only; `expr.rs` routes only these three nodes here.
+//! The "text" expression-operator category: `.split`, `.strip` (and `.lstrip`/`.rstrip`),
+//! `.start_with?`, `.end_with?`. String receivers only; `expr.rs` routes only these nodes here.
 
 use crate::kernel::expr::{eval_error, interpret as eval, EvalContext, Expr, Value};
 use crate::kernel::Refusal;
@@ -14,6 +14,10 @@ pub fn interpret(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
                 parts.pop();
             }
             Ok(Value::Array(parts.into_iter().map(|p| Value::Str(p.to_string())).collect()))
+        }
+        Expr::Strip { receiver, side } => {
+            let text = require_str(&eval(receiver, ctx)?, "strip")?;
+            Ok(Value::Str(side.trim(&text)))
         }
         Expr::StartsWith { receiver, substring } => {
             let text = require_str(&eval(receiver, ctx)?, "start_with?")?;
@@ -61,6 +65,26 @@ mod tests {
     fn split_on_a_missing_separator_returns_the_whole_string_as_one_element() {
         let phrase = Expr::Split { receiver: Box::new(str("abc")), separator: "::".to_string() };
         assert_eq!(run(phrase), Value::Array(vec![Value::Str("abc".to_string())]));
+    }
+
+    #[test]
+    fn strip_trims_rubys_whitespace_set_and_nothing_else() {
+        use crate::kernel::expr::StripSide;
+        let strip = |side, text: &str| run(Expr::Strip { receiver: Box::new(str(text)), side });
+        assert_eq!(strip(StripSide::Both, " \t\n a b \r\u{b}\u{c}\0"), Value::Str("a b".to_string()));
+        assert_eq!(strip(StripSide::Left, "\0  a "), Value::Str("a ".to_string()));
+        assert_eq!(strip(StripSide::Right, " a \0 "), Value::Str(" a".to_string()));
+        assert_eq!(strip(StripSide::Both, "   "), Value::Str(String::new()));
+        // A non-breaking space is not Ruby whitespace, so it stays.
+        assert_eq!(strip(StripSide::Both, "\u{a0}a\u{a0}"), Value::Str("\u{a0}a\u{a0}".to_string()));
+    }
+
+    #[test]
+    fn strip_on_a_non_string_refuses_with_the_operator_named() {
+        use crate::kernel::expr::StripSide;
+        let ctx = EvalContext { args: &NoFields, instance: &NoFields };
+        let err = eval(&Expr::Strip { receiver: Box::new(Expr::Int(1)), side: StripSide::Both }, &ctx).unwrap_err();
+        assert!(format!("{err:?}").contains("strip expects a string"), "{err:?}");
     }
 
     #[test]

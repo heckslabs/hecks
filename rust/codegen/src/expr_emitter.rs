@@ -50,6 +50,7 @@ pub fn emit_ast(node: &Json) -> String {
         "presence" => format!("Expr::Presence {{ receiver: {}, negated: {} }}", boxed("receiver"), field(node, op, "negated").to_s()),
         "assignment" => format!("Expr::Assignment {{ receiver: {}, negated: {} }}", boxed("receiver"), field(node, op, "negated").to_s()),
         "split" => format!("Expr::Split {{ receiver: {}, separator: {}.to_string() }}", boxed("receiver"), text("separator")),
+        "strip" => format!("Expr::Strip {{ receiver: {}, side: crate::kernel::StripSide::{} }}", boxed("receiver"), strip_side(node, op)),
         "starts_with" => format!("Expr::StartsWith {{ receiver: {}, substring: {}.to_string() }}", boxed("receiver"), text("substring")),
         "ends_with" => format!("Expr::EndsWith {{ receiver: {}, substring: {}.to_string() }}", boxed("receiver"), text("substring")),
         "first" => format!("Expr::First({})", boxed("receiver")),
@@ -75,6 +76,15 @@ fn path_of(node: &Json, op: &str) -> Vec<String> {
         .iter()
         .map(|segment| segment.as_str().map(str::to_string).unwrap_or_else(|| panic!("{op}'s path has a non-string segment: {node:?}")))
         .collect()
+}
+
+fn strip_side(node: &Json, op: &str) -> &'static str {
+    match field(node, op, "side").as_str() {
+        Some("both") => "Both",
+        Some("left") => "Left",
+        Some("right") => "Right",
+        other => panic!("strip's side {other:?} is none of both/left/right: {node:?}"),
+    }
 }
 
 fn block_mode(node: &Json, op: &str) -> &'static str {

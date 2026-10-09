@@ -554,7 +554,7 @@
     "generated": false,
     "gap_class": "per_instance",
     "construct": "no_wheres",
-    "reason": "declares no where clauses at all — nothing for filter_entries to bake in"
+    "reason": "takes arguments but declares no where, order_by, limit or offset — it selects nothing, so Ruby refuses it at boot and there is no answer to generate"
   },
   {
     "kind": "query",

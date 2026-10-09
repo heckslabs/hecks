@@ -323,7 +323,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
     available --&gt; sold: Purchase</pre>
 </figure>
 <p class="caption">Always true</p>
-<ul class="rules"><li>An Order has many toppings.</li><li>A pizza is named.</li><li>A price is never negative.</li><li>A customer is named.</li><li>A topping is named.</li><li>An amount is positive.</li></ul>
+<ul class="rules"><li>An Order has many toppings.</li><li>A pizza is named.</li><li>A price is never negative.</li><li>A customer is named.</li><li>A topping is named.</li><li>A topping name is more than whitespace.</li><li>An amount is positive.</li></ul>
 <div class="terms">
 <article class="term" id="add-topping">
 <h3>Add topping</h3>
@@ -331,6 +331,21 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 </article>
 <article class="term" id="available">
 <h3>Available</h3>
+</article>
+<article class="term" id="by-customer">
+<h3>By customer</h3>
+</article>
+<article class="term" id="by-customer-descending">
+<h3>By customer descending</h3>
+</article>
+<article class="term" id="by-customer-unset-last">
+<h3>By customer unset last</h3>
+</article>
+<article class="term" id="by-price">
+<h3>By price</h3>
+</article>
+<article class="term" id="by-price-descending">
+<h3>By price descending</h3>
 </article>
 <article class="term" id="costing-less-than">
 <h3>Costing less than</h3>
@@ -343,6 +358,9 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <h3>Customer name</h3>
 <p>Text.</p>
 <p class="rule">Always true: a customer is named.</p>
+</article>
+<article class="term" id="everything">
+<h3>Everything</h3>
 </article>
 <article class="term" id="expensive">
 <h3>Expensive</h3>
@@ -393,7 +411,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <article class="term" id="topping-name">
 <h3>Topping name</h3>
 <p>Text.</p>
-<p class="rule">Always true: a topping is named.</p>
+<p class="rule">Always true: a topping is named; a topping name is more than whitespace.</p>
 </article></div>
 </section>
 <section id="roles">

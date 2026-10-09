@@ -290,6 +290,21 @@ impl ToppingName {
         }.render_args()));
     }
 }
+{
+    let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
+    if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::Strip { receiver: Box::new(Expr::ToS(Box::new(Expr::Lookup("value")))), side: crate::kernel::StripSide::Both })))), &ctx)?.truthy() {
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationValueObjectInvariantArgs {
+            name: "ToppingName",
+            description: "a topping name is more than whitespace",
+            offered: offered.as_str(),
+        }.render_args()));
+    }
+}
         Ok(())
     }
 }

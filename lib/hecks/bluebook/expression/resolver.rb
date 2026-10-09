@@ -43,6 +43,11 @@ module Hecks
 
         Split          = Struct.new(:receiver, :separator, keyword_init: true)
 
+        # `.strip`/`.lstrip`/`.rstrip`: `side` is `:both`, `:left` or `:right`. Strips Ruby's own
+        # whitespace set (null, tab, line feed, vertical tab, form feed, carriage return, space),
+        # never Unicode spaces; a receiver that is not a String is an evaluation fault.
+        Strip          = Struct.new(:receiver, :side, keyword_init: true)
+
         Last           = Struct.new(:receiver, keyword_init: true)
 
         First          = Struct.new(:receiver, keyword_init: true)

@@ -387,6 +387,30 @@ RSpec.describe "the expression sublanguage" do
     end
   end
 
+  describe "strip, lstrip and rstrip" do
+    it "trim Ruby's whitespace set from the ends they name", :aggregate_failures do
+      padded = "\0 \t\n a b \v\f\r\0"
+
+      expect(evaluate('!value.to_s.strip.empty?', value: "  \f ")).to be(false)
+      expect(evaluate('value.strip == "a b"', value: padded)).to be(true)
+      expect(evaluate('value.lstrip.start_with?("a")', value: padded)).to be(true)
+      expect(evaluate('value.lstrip.end_with?("a")', value: padded)).to be(false)
+      expect(evaluate('value.rstrip.end_with?("b")', value: padded)).to be(true)
+      expect(evaluate('value.rstrip.start_with?("a")', value: padded)).to be(false)
+    end
+
+    it "leave a Unicode space alone, as String#strip does" do
+      expect(evaluate("value.strip.size == 3", value: "\u00a0a\u00a0")).to be(true)
+    end
+
+    it "raise when the receiver is not a string", :aggregate_failures do
+      expect { evaluate("value.strip.empty?", value: nil) }
+        .to raise_error(Hecks::Bluebook::Expression::EvaluationError, /strip expects a string, got nil/)
+      expect { evaluate("value.rstrip.empty?", value: 12) }
+        .to raise_error(Hecks::Bluebook::Expression::EvaluationError, /strip expects a string, got 12/)
+    end
+  end
+
   describe "single-field VO scalar unwrap" do
     SingleFieldDouble = Struct.new(:value) do
       def to_h = { value: value }

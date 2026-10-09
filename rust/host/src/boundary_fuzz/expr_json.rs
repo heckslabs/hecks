@@ -8,7 +8,7 @@ use crate::fuzz_support::*;
 use serde_json::{json, Value};
 
 const BINARY: &[&str] = &["or", "and", "compare", "include", "add", "modulo"];
-const UNARY: &[&str] = &["not", "sign_test", "empty", "to_s", "size", "presence", "assignment", "first", "last", "split", "starts_with", "ends_with", "matches_regex"];
+const UNARY: &[&str] = &["not", "sign_test", "empty", "to_s", "size", "presence", "assignment", "first", "last", "split", "strip", "starts_with", "ends_with", "matches_regex"];
 
 const PATTERNS: &[&str] = &[
     "", "^$", "a", "(a*)*b", "(a|aa)+$", "[", "]", "[]", "[^]", "[a-", "(", ")", "(?", "(?P<x>", "\\", "\\d+", "\\D\\W\\S\\H", "\\Z", "[\\d]", "[\\Z]", "\\p{L}+", "\\p{Nope}",
@@ -43,7 +43,7 @@ fn node(rng: &mut Rng, depth: usize) -> Value {
         }
         4..=7 => {
             let op = *rng.pick(UNARY);
-            let mut value = json!({"op": op, "receiver": node(rng, depth + 1), "expr": node(rng, depth + 1), "negated": rng.chance(2), "separator": random_text(rng), "substring": random_text(rng), "pattern": *rng.pick(PATTERNS), "flags": *rng.pick(&["", "i", "m", "x", "imx", "z"])});
+            let mut value = json!({"op": op, "receiver": node(rng, depth + 1), "expr": node(rng, depth + 1), "negated": rng.chance(2), "separator": random_text(rng), "side": *rng.pick(&["both", "left", "right", "sideways"]), "substring": random_text(rng), "pattern": *rng.pick(PATTERNS), "flags": *rng.pick(&["", "i", "m", "x", "imx", "z"])});
             value["cmp"] = json!({"less_than": rng.chance(2), "equal": rng.chance(2), "negated": rng.chance(2)});
             value
         }
