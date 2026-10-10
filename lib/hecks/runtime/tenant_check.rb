@@ -1,4 +1,5 @@
 require_relative "../ports/persistence/binding_policy"
+require_relative "best_effort"
 
 module Hecks
   module Runtime
@@ -37,10 +38,10 @@ module Hecks
       # Same defensive shape as EraCheck#lineage_capable? — a class that
       # doesn't respond at all, or whose lookup raises, is false, not an error.
       def tenant_capable?(registry, adapter_name)
-        adapter_class = registry.adapters[adapter_name] && registry.adapter_class(adapter_name)
-        adapter_class.respond_to?(:tenant_capable?) && adapter_class.tenant_capable?
-      rescue StandardError
-        false
+        BestEffort.call(false) do
+          adapter_class = registry.adapters[adapter_name] && registry.adapter_class(adapter_name)
+          adapter_class.respond_to?(:tenant_capable?) && adapter_class.tenant_capable?
+        end
       end
     end
   end

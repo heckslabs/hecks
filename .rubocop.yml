@@ -13,6 +13,7 @@ require:
   - ./lib/rubocop/cop/hecks/raw_shell_interpolation
   - ./lib/rubocop/cop/hecks/env_dump
   - ./lib/rubocop/cop/hecks/untyped_raise
+  - ./lib/rubocop/cop/hecks/swallowed_rescue
 
 # `h[a] || h[b]` on one receiver drops a stored `false`; use `key?` first.
 Hecks/FallbackHashLookup:
@@ -96,6 +97,13 @@ Hecks/UntypedRaise:
   Enabled: true
   Include:
     - "lib/**/*.rb"
+
+# A broad rescue that answers a literal hides a crash as "no result"; the runtime names a
+# deliberate guard with Runtime::BestEffort.call(default), and rescues a named error otherwise.
+Hecks/SwallowedRescue:
+  Enabled: true
+  Include:
+    - "lib/hecks/runtime/**/*.rb"
 
 AllCops:
   TargetRubyVersion: 3.3
