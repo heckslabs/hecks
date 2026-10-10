@@ -7,6 +7,7 @@ require_relative "conformance"
 require_relative "regeneration"
 require_relative "gate"
 require_relative "style"
+require_relative "inspection"
 require_relative "codemods"
 require_relative "test_suite"
 require_relative "corpus_tasks"
@@ -181,7 +182,7 @@ module Hecks
 
       # The task families, each carrying out the operations it lists.
       FAMILIES = [Codebase::Language, Codebase::KernelTables, Codebase::Conformance, Codebase::Regeneration,
-                  Codebase::Gate, Codebase::Style, Codebase::Codemods, Codebase::TestSuite,
+                  Codebase::Gate, Codebase::Style, Codebase::Inspection, Codebase::Codemods, Codebase::TestSuite,
                   Codebase::CorpusTasks, Codebase::Publishing, Codebase::Promotion].freeze
       private_constant :FAMILIES
 
