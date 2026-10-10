@@ -9,6 +9,10 @@ RSpec.describe Hecks::IndifferentKey do
     expect(described_class.read({ "era" => "a1" }, :era)).to eq("a1")
   end
 
+  it "prefers the spelling it was given when both are held" do
+    expect(described_class.read({ "args" => false, args: { "a" => 1 } }, "args")).to be(false)
+  end
+
   it "answers a held false rather than treating it as absent" do
     expect(described_class.read({ "enabled" => false }, :enabled)).to be(false)
   end

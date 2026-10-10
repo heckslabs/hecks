@@ -3,19 +3,13 @@ module RuboCop
     module Hecks
       # Flags a broad `rescue` whose whole body is `nil`, `false` or `next`.
       #
-      # A bare `rescue`, `rescue StandardError` or `rescue Exception` that answers a literal turns
-      # any crash into an ordinary "no result", so a caller cannot tell a missing record from a
-      # failed read. Rescuing a named error is left alone. A deliberate guard goes through
-      # `Hecks::Runtime::BestEffort.call(default) { ... }`, which names the intent at the call site.
+      # A bare `rescue` or `rescue StandardError` that answers a literal turns any crash into an
+      # ordinary "no result". Rescuing a named error is left alone; a deliberate guard goes
+      # through `Hecks::Runtime::BestEffort.call(default) { ... }`.
       #
       # @example
-      #   def capable?(adapter)
-      #     adapter.capable?
-      #   rescue StandardError
-      #     false                                           # bad
-      #   end
-      #
-      #   def capable?(adapter) = BestEffort.call(false) { adapter.capable? }  # good
+      #   adapter.capable? rescue false                           # bad
+      #   BestEffort.call(false) { adapter.capable? }             # good
       class SwallowedRescue < Base
         MSG = "This broad `rescue` answers `%<answer>s` for any failure, so a crash reads as an ordinary " \
               "\"no result\". Rescue the specific error, or use `Runtime::BestEffort.call(default) { ... }` " \

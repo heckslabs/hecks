@@ -1,6 +1,5 @@
 require_relative "../naming"
 require_relative "best_effort"
-require_relative "../indifferent_key"
 require_relative "value"
 
 module Hecks
@@ -13,7 +12,10 @@ module Hecks
 
       # Reads `key` from `hash` by whichever Symbol/String spelling is present.
       # Presence decides, not `||`, so a held `false` is not mistaken for absent.
-      def hash_lookup(hash, key) = IndifferentKey.read(hash, key)
+      def hash_lookup(hash, key)
+        sym = key.to_sym
+        hash.key?(sym) ? hash[sym] : hash[key]
+      end
 
       # Digs the fields of `path` out of `held`, past the head the caller consumed.
       # A path with no fields past the head returns `held` unchanged.

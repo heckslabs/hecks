@@ -5,12 +5,11 @@ module RuboCop
       #
       # A hash is symbol-keyed under one persistence adapter and string-keyed under another, so a
       # method that reaches for both is guessing which one it was handed. Read it through
-      # `Hecks::Naming.fetch_key` (or normalize the keys once at the boundary) so the guess is made
-      # in one place that honors a stored `false`.
+      # `Hecks::IndifferentKey.read` so the guess is made in one place that honors a stored `false`.
       #
       # @example
       #   settings.key?(:era) ? settings[:era] : settings["era"]  # bad
-      #   Naming.fetch_key(settings, :era)                        # good
+      #   IndifferentKey.read(settings, :era)                     # good
       class SymbolStringKeyMix < Base
         MSG = "`%<receiver>s[:%<name>s]` and `%<receiver>s[\"%<name>s\"]` are both read here, so this " \
               "method guesses whether the hash is symbol- or string-keyed. Read it through one " \
