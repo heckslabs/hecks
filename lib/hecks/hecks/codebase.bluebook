@@ -1660,6 +1660,222 @@ Hecks.bluebook "Hecks" do
     trigger StyleRun::Fault, with: { refusal: :refusal }
   end
 
+  # Inspection: ranking the Ruby by complexity, finding copied code, listing design smells and
+  # writing the combined report. A read of the tree: nothing is rewritten. The files the style
+  # config excludes (generated output, vendored code) are left out of every tool.
+  aggregate "InspectionRun" do
+    description "One inspection of the Ruby by flog, flay, reek or rubycritic."
+
+    attribute :run,       RunKey
+    attribute :operation, Operation, optional: true
+    attribute :paths,     PathList, optional: true
+    attribute :top,       Top, optional: true
+    attribute :checkout,  Switch, optional: true
+    attribute :report,    Report, optional: true
+    attribute :refusal,   Report, optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    value_object "Operation" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    value_object "Switch" do
+      attribute :value, Boolean
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    # Files or directories, comma separated; lib when none is named.
+    value_object "PathList" do
+      attribute :value, String, pattern: '^[^ \t\n\r,]+(,[^ \t\n\r,]+)*$'
+    end
+
+    # How many lines of the report are kept.
+    value_object "Top" do
+      attribute :value, Integer
+
+      invariant("a count is positive") { value > 0 }
+    end
+
+    lifecycle :status, default: "requested" do
+      mark :failure, "faulted"
+      transition "Accept"   => "accepted",  from: "requested"
+      transition "Complete" => "completed", from: "accepted"
+      transition "Fault"    => "faulted",   from: %w[requested accepted]
+    end
+
+    command "Flog" do
+      role "Maintainer"
+      goal "Rank the Ruby methods by complexity, worst first"
+
+      attribute :paths, PathList, optional: true
+      attribute :top,   Top, optional: true
+      attribute :run,   RunKey
+
+      sets :paths
+      sets :top
+      sets :run
+      sets :operation, to: "flog"
+
+      emits FlogRequested
+    end
+
+    command "Flay" do
+      role "Maintainer"
+      goal "Find Ruby code that is copied or nearly copied"
+
+      attribute :paths, PathList, optional: true
+      attribute :top,   Top, optional: true
+      attribute :run,   RunKey
+
+      sets :paths
+      sets :top
+      sets :run
+      sets :operation, to: "flay"
+
+      emits FlayRequested
+    end
+
+    command "Reek" do
+      role "Maintainer"
+      goal "List the design smells in the Ruby"
+
+      attribute :paths, PathList, optional: true
+      attribute :top,   Top, optional: true
+      attribute :run,   RunKey
+
+      sets :paths
+      sets :top
+      sets :run
+      sets :operation, to: "reek"
+
+      emits ReekRequested
+    end
+
+    command "Rubycritic" do
+      role "Maintainer"
+      goal "Write the combined quality report, with git churn"
+
+      attribute :paths, PathList, optional: true
+      attribute :top,   Top, optional: true
+      attribute :run,   RunKey
+
+      sets :paths
+      sets :top
+      sets :run
+      sets :operation, to: "rubycritic"
+
+      emits RubycriticRequested
+    end
+
+    # What the tree reported about itself, held against every request: nothing here runs
+    # outside a hecks checkout (hecks.gemspec beside lib/).
+    command "Accept" do
+      role "System"
+      goal "Let a request through only when the working tree is a hecks checkout"
+
+      reference_to InspectionRun
+      attribute :checkout, Switch
+
+      given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
+
+      sets :checkout
+
+      emits InspectionAccepted
+    end
+
+    command "Complete" do
+      role "System"
+      goal "Record that the inspection was carried out, and what it reported"
+
+      reference_to InspectionRun
+      attribute :report, Report
+
+      sets :report
+
+      emits InspectionCompleted
+    end
+
+    command "Fault" do
+      role "System"
+      goal "Record that the inspection was refused or could not be carried out, and why"
+
+      reference_to InspectionRun
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits InspectionFaulted
+    end
+
+    query "InspectionOutcome" do
+      description "How one inspection ended: its status, and what it reported or why it failed."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "InspectionsFaulted" do
+      description "Every inspection that was refused or could not be carried out."
+      where(status: "faulted")
+      order_by :run
+    end
+  end
+
+  policy "ExamineWhenFlogRequested" do
+    on      "InspectionRun.FlogRequested"
+    trigger InspectionRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenFlayRequested" do
+    on      "InspectionRun.FlayRequested"
+    trigger InspectionRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenReekRequested" do
+    on      "InspectionRun.ReekRequested"
+    trigger InspectionRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenRubycriticRequested" do
+    on      "InspectionRun.RubycriticRequested"
+    trigger InspectionRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "AcceptInspectionWhenExamined" do
+    on      "InspectionRun.InspectionExamined"
+    trigger InspectionRun::Accept, with: { checkout: :checkout }
+  end
+
+  policy "FaultInspectionWhenNotAccepted" do
+    on      "InspectionRun.InspectionExamined"
+    where   { !checkout.value }
+    trigger InspectionRun::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/" }
+  end
+
+  policy "PerformInspectionWhenAccepted" do
+    on      "InspectionRun.InspectionAccepted"
+    trigger InspectionRun::SourceTree::Perform, with: { run: :run }
+  end
+
+  policy "RecordInspectionOutcome" do
+    on      "InspectionRun.InspectionAnswered"
+    trigger InspectionRun::Complete, with: { report: :report }
+  end
+
+  policy "RecordInspectionFault" do
+    on      "InspectionRun.InspectionRefused"
+    trigger InspectionRun::Fault, with: { refusal: :refusal }
+  end
+
   # Codemod: the mechanical rewrites of the example bluebooks. Each one edits tracked files, so
   # unconfirmed it rehearses the edit (the script reboots every bluebook and puts the files back)
   # and reports what it would change; the files stay changed only when it is confirmed.

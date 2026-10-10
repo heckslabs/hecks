@@ -303,6 +303,20 @@ Hecks.hecksagon "Hecks" do
     answers_query "ReportRustComments"
   end
 
+  Hecks::InspectionRun.port "SourceTree" do
+    asks "Examine", to: InspectionRun do
+      attribute :run, RunKey
+      answers "InspectionExamined"
+      refuses "InspectionRefused"
+    end
+
+    asks "Perform", to: InspectionRun do
+      attribute :run, RunKey
+      answers "InspectionAnswered"
+      refuses "InspectionRefused"
+    end
+  end
+
   Hecks::CodemodRun.port "SourceTree" do
     asks "Examine", to: CodemodRun do
       attribute :run, RunKey

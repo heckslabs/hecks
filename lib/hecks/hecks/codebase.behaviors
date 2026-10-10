@@ -187,4 +187,16 @@ Hecks.behaviors "Codebase" do
     input run: { value: "" }
     expect refused: "must match"
   end
+
+  test "Flog refuses a list of paths that is not one" do
+    tests "Flog", on: "InspectionRun"
+    input paths: { value: "lib, spec" }, run: { value: "paths" }
+    expect refused: "must match"
+  end
+
+  test "Reek refuses a count that is not positive" do
+    tests "Reek", on: "InspectionRun"
+    input top: { value: 0 }, run: { value: "top" }
+    expect refused: "positive"
+  end
 end

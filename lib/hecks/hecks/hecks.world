@@ -52,7 +52,7 @@ Hecks.world "Hecks" do
                                 "package.release" => "registry.release" },
                        streams: %w[Follow],
                        executable: "exe/hecks",
-                       maintainer: %w[LanguageRun KernelRun ConformanceRun RegenerationRun GateRun StyleRun
+                       maintainer: %w[LanguageRun KernelRun ConformanceRun RegenerationRun GateRun StyleRun InspectionRun
                                       CodemodRun TestSuiteRun CorpusRun PublishingRun PromotionRun Release
                                       SyntaxBootCache],
                        chapters: %w[Deploy Governance Tenancy Site Tickets QualityControl],

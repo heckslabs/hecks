@@ -198,24 +198,26 @@ cd rust && cargo build --release && cargo test --lib
 ## Code-quality inspection
 
 RuboCop's Metrics cops answer pass or fail against a limit. These tools rank and
-find what RuboCop cannot. They are local only: not in CI and not in the pre-push
-gate.
+find what RuboCop cannot. They read the tree and change nothing, and they are not
+in CI or the pre-push gate. Each is a command of `InspectionRun`, so `exe/hecks`
+lists them:
 
 | Question | Command |
 |---|---|
-| Which methods are the most complex? | `bundle exec flog -m lib` |
-| Where is code copied or near-copied? | `bundle exec flay lib` |
-| Which classes carry design smells? | `bundle exec reek lib` |
-| What is the overall picture, with git churn? | `bundle exec rubycritic lib` (writes `tmp/rubycritic/overview.html`) |
+| Which methods are the most complex? | `exe/hecks inspection_run.flog! top.value=20 --wait` |
+| Where is code copied or near-copied? | `exe/hecks inspection_run.flay! --wait` |
+| Which classes carry design smells? | `exe/hecks inspection_run.reek! paths.value=lib/hecks/runtime --wait` |
+| What is the overall picture, with git churn? | `exe/hecks inspection_run.rubycritic! --wait` (writes `tmp/rubycritic/overview.html`) |
 | Which Rust functions are too branchy? | `cd rust && cargo clippy -- -W clippy::cognitive_complexity` |
 
-`.reek.yml` turns off the detectors that RuboCop's Metrics cops already own or that
-the repo's style makes noisy, and excludes the generated files. flog and flay take no
-exclude list, so a generated file can show up in their output; read past it, since
-the generator is where a fix belongs. Clippy needs the generated Rust modules on disk
-(they are untracked), so run the `project_rust` build above first. The most useful target is a method that both
-ranks high in flog and sits in a file that changes often: rubycritic's churn column
-shows that.
+`paths.value` takes comma-separated files or directories and defaults to `lib`;
+`top.value` keeps only the first lines of the report. The files `.rubocop.yml`
+excludes (generated output, vendored code) are left out of every tool, because a
+finding in one belongs to its generator. `.reek.yml` turns off the detectors that
+RuboCop's Metrics cops already own or that the repo's style makes noisy. The most
+useful target is a method that both ranks high in flog and sits in a file that
+changes often: rubycritic's churn column shows that. Clippy needs the generated
+Rust modules on disk (they are untracked), so run the `project_rust` build above first.
 
 ## How this project is built and reviewed
 
