@@ -118,7 +118,7 @@ module Hecks
               self
             end
 
-            # `BindingProxy#ask_via` for a repeat boot, when this module stands where the proxy would.
+            # `BindingProxy#ask_via` for a repeat boot, when this module stands where the proxy is.
             mod.define_singleton_method(:ask_via) do |name, port:|
               chapter = Hecks.current_registry&.bluebook(domain)
               Bluebook::AskResolution.pick!(chapter, aggregate.hecks_name, name, port)
