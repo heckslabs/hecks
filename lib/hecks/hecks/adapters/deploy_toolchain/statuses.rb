@@ -26,7 +26,8 @@ module Hecks
 
         # What each status of `deploy-box.sh` means, for the reason a refusal gives.
         BOX_STATUS = { 40 => "the box stack has no instance", 41 => "the roll did not succeed on the box",
-                       42 => "the box is not healthy after the roll" }.freeze
+                       42 => "the box is not healthy after the roll",
+                       43 => "the database has no usable restore anchor (backups unreadable or kept too few days)" }.freeze
 
         # What each status of `deploy-service.sh` means; it ends with the box roll's own statuses.
         SERVICE_STATUS = { 2 => "unknown service", 30 => "the existing tag is not in ECR",
