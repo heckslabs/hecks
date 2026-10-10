@@ -2,6 +2,7 @@ require "spec_helper"
 require "hecks/adapters/driven/postgres"
 require_relative "../support/postgres_probe"
 require_relative "../support/fenced_owner"
+require_relative "../support/thread_parking"
 
 # A domain's plain Postgres adapters share one connection per database and schema, so booting a
 # domain with many aggregates does not exhaust the server's connection slots.
@@ -73,7 +74,7 @@ RSpec.describe "Postgres shares one connection across a domain's aggregates", :i
     holder = Thread.new { hold_transaction(holder_adapter, inside, release) }
     inside.pop
     other = Thread.new { other_adapter.count }
-    sleep 0.2
+    ThreadParking.wait_until_parked(other)
     blocked = other.alive?
     release << true
     holder.join

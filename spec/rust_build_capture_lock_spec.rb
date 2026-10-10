@@ -1,6 +1,7 @@
 require "spec_helper"
 require "hecks/rust_build"
 require "hecks/hecks/adapters/console_capture"
+require_relative "support/thread_parking"
 
 # `$stdout`, `$stderr` and `ENV` are process-wide, so RustBuild calls and console captures share
 # one lock, and a failed call always puts what it changed back.
@@ -58,7 +59,7 @@ RSpec.describe Hecks::RustBuild do
       holder = Thread.new { holder_lock.call { entered.push(true).then { release.pop } } }
       entered.pop
       waiter, finished = start_waiter(&work)
-      sleep 0.2
+      ThreadParking.wait_until_parked(waiter)
       blocked = !finished.call
       release << true
       [holder, waiter].each(&:join)

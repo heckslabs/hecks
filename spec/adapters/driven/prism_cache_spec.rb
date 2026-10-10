@@ -1,5 +1,6 @@
 require "spec_helper"
 require "tmpdir"
+require_relative "../../support/thread_parking"
 
 # The parse cache and the per-tree block index change together: a `forget` racing an index
 # build must never leave an index entry for a tree the cache has dropped.
@@ -26,7 +27,7 @@ RSpec.describe Hecks::Adapters::Prism, ".forget" do
     real = described_class.method(:blocks_by_line)
     allow(described_class).to receive(:blocks_by_line) do |tree|
       forgetter = Thread.new { described_class.forget(@file) }
-      sleep 0.2
+      ThreadParking.wait_until_parked(forgetter)
       real.call(tree)
     end
     described_class.block_node_at(@file, 1)

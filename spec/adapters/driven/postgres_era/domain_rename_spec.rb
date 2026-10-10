@@ -4,6 +4,7 @@ require_relative "../../../support/postgres_probe"
 require_relative "../../../support/fenced_owner"
 require_relative "../../../support/era_registry_loading"
 require_relative "../../../support/era_app_role"
+require_relative "../../../support/thread_parking"
 
 # `formerly_known_as`: the storage layer carries a renamed domain's history forward.
 # Runs only when a Postgres server is reachable (support/postgres_probe.rb).
@@ -307,7 +308,7 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :
     def rename_while_lock_held
       holder = advisory_lock_holder
       renamed = Thread.new { check!(NEW_SOURCE) }
-      sleep 0.3
+      ThreadParking.wait_until_parked(renamed)
       waiting = renamed.alive?
       holder.exec("COMMIT")
       renamed.join(2)

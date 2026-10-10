@@ -15,6 +15,7 @@ require:
   - ./lib/rubocop/cop/hecks/untyped_raise
   - ./lib/rubocop/cop/hecks/swallowed_rescue
   - ./lib/rubocop/cop/hecks/symbol_string_key_mix
+  - ./lib/rubocop/cop/hecks/sleep_in_spec
 
 # `h[a] || h[b]` on one receiver drops a stored `false`; use `key?` first.
 Hecks/FallbackHashLookup:
@@ -112,6 +113,13 @@ Hecks/SymbolStringKeyMix:
   Enabled: true
   Include:
     - "lib/**/*.rb"
+
+# A fixed sleep guesses how long another thread needs; a spec waits on the thread itself
+# (a Queue, or ThreadParking.wait_until_parked for "still blocked").
+Hecks/SleepInSpec:
+  Enabled: true
+  Include:
+    - "spec/**/*.rb"
 
 AllCops:
   TargetRubyVersion: 3.3
