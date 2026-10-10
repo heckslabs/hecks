@@ -210,3 +210,14 @@ archiving the registration, whatever its payment says; restoring it takes the
 seat back. A registration with no payment holds nothing. The same count decides
 whether `POST /registrations` refuses a full event, so the read and the refusal
 cannot disagree.
+
+An event may also stop taking registrations ahead of its start. When its row
+carries both `starts_at` (Unix seconds) and `registration_cutoff_hours` (whole
+hours), `POST /registrations` refuses with `422`
+`{"error": "registration has closed for this event"}` once the current time plus
+the cutoff passes `starts_at`. Registration is still open at exactly the cutoff
+and refused one second later; a start already in the past is refused. Each
+field may be a bare number or a single-field value object (`{"value": N}`). When
+either field is absent, `null` or unreadable there is no cutoff and nothing is
+refused on its account. The check runs after the event-status check and before
+the seat check, so a refusal writes no Payment and no Registration.

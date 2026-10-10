@@ -50,6 +50,19 @@ Hecks.bluebook "CheckoutFixture" do
     attribute :price,    Money
     attribute :capacity, Capacity
 
+    # Both optional: an event that sets them stops taking registrations
+    # `registration_cutoff_hours` before `starts_at` (Unix seconds).
+    value_object "StartsAt" do
+      attribute :value, Integer
+    end
+
+    value_object "CutoffHours" do
+      attribute :value, Integer
+    end
+
+    attribute :starts_at,                  StartsAt,    optional: true
+    attribute :registration_cutoff_hours, CutoffHours, optional: true
+
     lifecycle :status, default: "open" do
       transition "Close" => "closed", from: "open"
     end
@@ -62,6 +75,8 @@ Hecks.bluebook "CheckoutFixture" do
       attribute :name,     EventName
       attribute :price,    Money
       attribute :capacity, Capacity
+      attribute :starts_at,                  StartsAt,    optional: true
+      attribute :registration_cutoff_hours, CutoffHours, optional: true
 
       emits "EventScheduled"
     end
