@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative "blocks"
 require_relative "hints"
 
 module Hecks
@@ -11,13 +12,13 @@ module Hecks
         #
         # A type that names one of the aggregate's value objects is an `object`; a reference is a
         # `reference`; the primitives are `integer`, `number`, `boolean` and `text`, and any other
-        # name is entered as text.
+        # is text.
         #
         # An attribute whose value object has the shape of a structured document, a `blocks`
         # list of a value object that has `kind` and `spans`, carries `widget: "body"` and is
-        # edited with the rich-text widget. The shape decides it, never a name. An integer that is a
-        # moment carries `widget: "date"` or `"datetime"`, and a text key with a `<kind>:` pattern
-        # carries `keys` (see `Hints`).
+        # edited with the rich-text widget; a list of mixed blocks is a block list (see `Blocks`).
+        # The shape decides it, never a name. An integer that is a moment carries `widget: "date"`
+        # or `"datetime"`, and a text key with a `<kind>:` pattern carries `keys` (see `Hints`).
         class Attributes
           # The parts a value object needs for its list of blocks to be a document body's blocks.
           BLOCK_PARTS = %w[kind spans].freeze
@@ -40,10 +41,18 @@ module Hecks
             return reference(attribute, type.target_name) if type.is_a?(Bluebook::Reference)
 
             entry = base(attribute, type.to_s, kind(type.to_s))
-            body?(attribute) ? entry.merge("widget" => "body") : entry.merge(@hints.of(attribute))
+            return entry.merge("widget" => "body") if body?(attribute)
+
+            entry.merge(@hints.of(attribute), listing(attribute))
           end
 
           private
+
+          # @return [Hash{String => Object}] `blockList` when the attribute is a list of blocks
+          def listing(attribute)
+            found = Blocks.of(attribute, @by_name)
+            found ? { "blockList" => found } : {}
+          end
 
           # A single (not listed) attribute whose value object holds a list of document blocks.
           def body?(attribute)

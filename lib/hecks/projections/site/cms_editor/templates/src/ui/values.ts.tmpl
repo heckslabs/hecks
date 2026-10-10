@@ -5,6 +5,7 @@ __BANNER__
 // page lists them as a document, and a related record's panel lists the ones it holds.
 import type { Aggregate, Attr } from "../schema.ts";
 import { bodyToHtml } from "./body_model.js";
+import { kindOf, summaryOf } from "./block_list.js";
 import { copyable, esc } from "./html.ts";
 import { isMoment, momentValue } from "./moments.ts";
 import { outline } from "./outline.ts";
@@ -15,11 +16,25 @@ const READ_ONLY_DEMOTE = 2;
 
 type State = Record<string, unknown>;
 
+/** A list of mixed blocks as a numbered list: each block's kind and the line that stands for it. */
+function blockLines(agg: Aggregate, attr: Attr, held: unknown): string {
+  const blocks = Array.isArray(held) ? (held as Record<string, unknown>[]) : [];
+  if (blocks.length === 0 || !attr.blockList) return `<span class="text-muted">None</span>`;
+  const parts = agg.valueObjects[attr.type] ?? [];
+  const lines = blocks.map((block) => {
+    const kind = kindOf(attr.blockList, block);
+    const text = String(summaryOf(attr.blockList, parts, block));
+    return `<li class="flex flex-wrap items-baseline gap-2"><span class="badge badge-soft badge-neutral font-semibold">${esc(label(kind))}</span><span class="min-w-0 break-words">${esc(text)}</span></li>`;
+  });
+  return `<ol class="grid list-decimal gap-1 pl-6">${lines.join("")}</ol>`;
+}
+
 /** One attribute's value as markup. */
 export function valueOf(agg: Aggregate, attr: Attr, values: State): string {
   const held = values[attr.name];
   if (isMoment(attr)) return momentValue(attr, held);
   if (attr.widget === "body") return held && typeof held === "object" ? `<div class="prose">${bodyToHtml(held, READ_ONLY_DEMOTE)}</div>` : `<span class="text-muted">Not set</span>`;
+  if (attr.blockList && attr.list) return blockLines(agg, attr, held);
   const copy = attr.name === agg.identity || attr.kind === "reference";
   return copy && typeof held !== "object" && held !== undefined && held !== null && held !== "" ? copyable(String(held), label(attr.name).toLowerCase()) : outline(held);
 }

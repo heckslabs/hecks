@@ -12,9 +12,11 @@ import { DomainUnavailable } from "@hecks/client";
 
 import { qualified } from "./names.ts";
 import type { Aggregate, Command } from "./schema.ts";
+import { problemsOf } from "./ui/block_list.js";
+import type { Problem } from "./ui/blocks.ts";
 
 export type State = Record<string, unknown>;
-export type Outcome = { ok: true; id: string } | { ok: false; message: string; field?: string };
+export type Outcome = { ok: true; id: string } | { ok: false; message: string; field?: string; problems?: Problem[] };
 
 /** The text an identity value holds: the part of a value object, or the plain value. */
 export function leaf(value: unknown): string | null {
@@ -45,7 +47,18 @@ export function reading(client: HostClient): HostClient {
   });
 }
 
-const sameState = (a: State | undefined, b: State | undefined): boolean => JSON.stringify(a) === JSON.stringify(b);
+/**
+ * A value as it is compared: the keys of an object in order and each null left out, since one answer
+ * of a host may echo a slot that was never set as null where another leaves it out, in an order of its own.
+ */
+function canonical(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonical);
+  if (value === null || typeof value !== "object") return value;
+  const held = Object.entries(value as object).filter(([, part]) => part !== null);
+  return Object.fromEntries(held.sort(([a], [b]) => (a < b ? -1 : 1)).map(([key, part]) => [key, canonical(part)]));
+}
+
+const sameState = (a: State | undefined, b: State | undefined): boolean => JSON.stringify(canonical(a)) === JSON.stringify(canonical(b));
 
 /** Whether the host's refusal names this aggregate's verb: by its chapter too when the editor spans several. */
 function refusedLast(answer: Answer, agg: Aggregate, command: Command): boolean {
@@ -109,7 +122,10 @@ export async function runCommand(client: HostClient, agg: Aggregate, command: Co
     const answer = await client.dispatch(`${qualified(agg)}.${command.name}`, args, to, command.role ?? undefined);
     const after = id ? instanceIn(client, answer, agg, id) : undefined;
     if (id && applied(agg, command, before, after, answer)) return { ok: true, id };
-    return { ok: false, message: refusalMessage(answer, command), field: refusedField((answer.refusals ?? []).at(-1), command) };
+    const last = (answer.refusals ?? []).at(-1);
+    const problems: Problem[] = problemsOf(last?.error, command.attributes, args, agg.valueObjects);
+    const field = refusedField(last, command) ?? (problems.length > 0 ? String(problems[0].path[0]) : undefined);
+    return { ok: false, message: refusalMessage(answer, command), field, problems };
   } catch (err) {
     if (err instanceof DomainUnavailable) return { ok: false, message: `The domain could not be reached: ${err.message}` };
     throw err;

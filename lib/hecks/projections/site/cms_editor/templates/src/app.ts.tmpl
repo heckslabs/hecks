@@ -332,7 +332,10 @@ function withMadeIdentity(agg: Aggregate, command: Command, args: State): State 
 async function autosave(client: HostClient, agg: Aggregate, command: Command, args: State, to: string | undefined): Promise<Response> {
   if (!to || agg.drafts?.save !== command.name) return plain("Only a draft can be saved this way.", 400);
   const outcome = (await unchecked(client, agg, command, args)) ?? (await runCommand(client, agg, command, args, to));
-  return outcome.ok ? plain("Saved.", 200) : plain(outcome.message, 422);
+  if (outcome.ok) return plain("Saved.", 200);
+  const refused = plain(outcome.message, 422);
+  if ("problems" in outcome && outcome.problems?.length) refused.headers.set("x-editor-problems", encodeURIComponent(JSON.stringify(outcome.problems)));
+  return refused;
 }
 
 /** Where a command that worked leads: the page the person came from, another blank form, or the instance. */
@@ -352,7 +355,7 @@ async function post(client: HostClient, request: Request, agg: Aggregate, verb: 
   const outcome = to === "" ? { ok: false as const, message: "Name the instance to act on." } : ((await unchecked(client, agg, command, args)) ?? (await runCommand(client, agg, command, args, to)));
   const back = backOf(form.get("__back"));
   if (outcome.ok) return scene.sent(afterwards(agg, command, form.get("__again") === "1", outcome.id, back), done(agg, command));
-  const shown: Submitted = { command: command.name, message: outcome.message, values: { ...args, __to: to }, field: outcome.field };
+  const shown: Submitted = { command: command.name, message: outcome.message, values: { ...args, __to: to }, field: outcome.field, problems: "problems" in outcome ? outcome.problems : undefined };
   if (onInstance) return refusedOnInstance(client, agg, rest[0], command, shown, scene, back);
   const choices = await choicesFor(client, agg, command.attributes);
   return scene.show(commandPage(agg, command, href(...at(agg), verb, command.name), shown, choices, { back }), 422, refused(agg, command));

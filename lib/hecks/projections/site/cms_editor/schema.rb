@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "attributes"
+require_relative "blocks"
 require_relative "clearing"
 require_relative "composition"
 require_relative "destructive"
@@ -96,7 +97,13 @@ module Hecks
 
           def lifecycle_field = @agg.lifecycle&.field
 
-          def attributes(list) = list.map { |attribute| @attributes.of(attribute) }
+          def attributes(list) = list.map { |attribute| limited(@attributes.of(attribute)) }
+
+          # `attr` with the most its block list may hold, when a command's `given` says.
+          def limited(attr)
+            most = attr.key?("blockList") ? Blocks.maximum(@agg.commands, attr["name"]) : nil
+            most ? attr.merge("max" => most) : attr
+          end
 
           def value_objects
             @agg.value_objects.to_h { |object| [object.hecks_name, attributes(object.attributes)] }

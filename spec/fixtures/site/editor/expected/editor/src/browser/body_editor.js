@@ -133,13 +133,16 @@ function topBlock(editor) {
 const wordsIn = (editor) => (editor.state.doc.textBetween(0, editor.state.doc.content.size, " ").match(/\S+/g) ?? []).length;
 
 function mount(root, base) {
-  const name = root.dataset.name;
+  if (root.dataset.mounted) return;
+  root.dataset.mounted = "true";
   const fields = root.querySelector("[data-fields]");
   const initial = JSON.parse(root.dataset.body || '{"blocks":[]}');
   const frame = make("div", { className: "relative" });
   const bar = make("div", { className: "sticky top-14 z-10 flex flex-nowrap items-center gap-1 overflow-x-auto border border-base-300 bg-base-100 p-1 sm:flex-wrap sm:overflow-visible", role: "toolbar" });
   bar.setAttribute("aria-label", `Formatting for ${root.dataset.label}`);
-  const page = make("div", { className: "relative min-h-96 border border-t-0 border-base-300 bg-base-100 px-5 py-8 focus-within:border-primary sm:px-12 sm:py-12" });
+  // Inside a card of a list of blocks the writing is a part of the card, so its page is shorter.
+  const nested = root.closest("[data-block-list]") !== null;
+  const page = make("div", { className: `relative ${nested ? "min-h-32 px-4 py-4" : "min-h-96 px-5 py-8 sm:px-12 sm:py-12"} border border-t-0 border-base-300 bg-base-100 focus-within:border-primary` });
   const surface = make("div");
   const label = make("div", { className: "pointer-events-none absolute left-1 hidden w-10 overflow-hidden text-[0.6875rem] font-medium leading-tight text-muted sm:block" });
   label.setAttribute("aria-hidden", "true");
@@ -161,7 +164,7 @@ function mount(root, base) {
   };
   const sync = () => {
     const body = docToBody(editor.getJSON());
-    fields.innerHTML = fieldsToInputs(bodyToFields(body, name));
+    fields.innerHTML = fieldsToInputs(bodyToFields(body, root.dataset.name));
     const words = wordsIn(editor);
     status.firstChild.textContent = `${words} ${words === 1 ? "word" : "words"}`;
   };
@@ -366,7 +369,7 @@ function mount(root, base) {
       shortcuts,
     ],
     editorProps: {
-      attributes: { role: "textbox", "aria-multiline": "true", "aria-label": root.dataset.label ?? "Text", class: "prose mx-auto min-h-72 max-w-none focus:outline-none" },
+      attributes: { role: "textbox", "aria-multiline": "true", "aria-label": root.dataset.label ?? "Text", class: `prose mx-auto ${nested ? "min-h-16" : "min-h-72"} max-w-none focus:outline-none` },
       transformPastedHTML(html) {
         if (html.includes("data-pm-slice")) return html;
         const { body, notes: found } = htmlToBodyWithNotes(html);
@@ -384,6 +387,7 @@ function mount(root, base) {
       status.lastChild.textContent = draft ? "" : "Not saved yet";
       sync();
       draft?.touch();
+      root.dispatchEvent(new CustomEvent("editor:changed", { bubbles: true }));
     },
     onTransaction: () => refresh(),
     onFocus: () => refresh(),
@@ -398,7 +402,17 @@ function mount(root, base) {
   root.editor = editor;
 }
 
-/** Replaces each rendered body field with a writing surface. */
+/**
+ * Replaces each rendered body field with a writing surface, except those inside a list of mixed
+ * blocks: there each is mounted when its card is first opened (see `mountWithin`).
+ */
 export function mountAll() {
-  for (const root of document.querySelectorAll("[data-body-editor]")) mount(root, root.dataset.media);
+  for (const root of document.querySelectorAll("[data-body-editor]")) if (!root.closest("[data-block-list]")) mount(root, root.dataset.media);
+}
+
+/** Mounts the writing surfaces inside `scope` that are shown and not yet mounted. */
+export function mountWithin(scope) {
+  for (const root of scope.querySelectorAll("[data-body-editor]:not([data-mounted])")) {
+    if (!root.closest("[hidden]")) mount(root, root.dataset.media);
+  }
 }

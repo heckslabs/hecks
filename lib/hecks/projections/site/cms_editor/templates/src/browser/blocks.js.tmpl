@@ -1,0 +1,388 @@
+__BANNER__
+
+// What a list of mixed blocks does with a script (the markup is ui/blocks.ts). Cards open and close;
+// a new card is made from the template the page carries for its kind; cards move up and down by
+// buttons, with the result announced in a polite live region and focus kept on the button that was
+// pressed; a card is removed after a question in a native dialog; and the cards are numbered again
+// after each change, renaming their fields so the form posts the list in the order it is shown.
+// A body inside a card gets its writing surface only when the card is first opened, so a page of
+// forty cards holds a handful of editors. A list written as a draft saves by itself (autosave.js),
+// and holds back while a card still lacks what its kind needs.
+import { retarget, safe } from "../ui/block_list.js";
+import { startDraft } from "./autosave.js";
+
+/** Loads the picture picker, or is null when the editor has no pictures to choose from. */
+const loadPicker = __PICKER_LOADER__;
+
+const pluralOf = (noun) => (/[^aeiou]y$/.test(noun) ? `${noun.slice(0, -1)}ies` : /(s|x|z|ch|sh)$/.test(noun) ? `${noun}es` : `${noun}s`);
+
+/** The attributes whose text names a field of a card, and so changes when the card's index does. */
+const NAMED = ["name", "id", "for", "aria-controls", "aria-describedby", "aria-labelledby", "href", "data-path", "data-name", "data-key", "data-alt"];
+
+/** Renames the fields of `card` (and the cards templates it carries) from index `was` to `at`. */
+function renumberFields(card, path, was, at) {
+  for (const element of [card, ...card.querySelectorAll("*")]) {
+    if (element.localName === "template") element.innerHTML = retarget(element.innerHTML, path, was, at);
+    for (const name of NAMED) {
+      if (element.hasAttribute(name)) element.setAttribute(name, retarget(element.getAttribute(name), path, was, at));
+    }
+  }
+}
+
+/** The cards of a group, in the order shown. */
+const cardsOf = (group) => [...group.querySelector(":scope > [data-cards]").children];
+
+/** The group a card is in. */
+const groupOf = (card) => card.closest("[data-group]");
+
+/** The list a group belongs to (the outermost group). */
+const listOf = (node) => node.closest("[data-block-list]");
+
+const say = (list, text) => {
+  const line = list.querySelector("[data-block-say]");
+  line.textContent = "";
+  setTimeout(() => { line.textContent = text; }, 30);
+};
+
+/** The controls of a card that are its own: not those of a card nested in it, nor a writing surface's fields. */
+const ownControls = (card) =>
+  [...card.querySelectorAll("input, select, textarea")].filter((control) => control.closest("[data-card]") === card && !control.closest("[data-body-editor]"));
+
+/** The one line that stands for a card: its first required text, else its longest text. */
+function summaryOf(card) {
+  const prefix = `${groupOf(card).dataset.path}.${card.dataset.index}.`;
+  const requires = (card.dataset.requires ?? "").split(" ").filter(Boolean).map((slot) => `${prefix}${slot}`);
+  const named = (control) => requires.includes(control.name) || requires.some((slot) => control.name === `${slot}.value`);
+  const texts = ownControls(card)
+    .filter((control) => control.type === "text" && control.value.trim() !== "" && (!control.closest("[data-picture]") || named(control)))
+    .map((control) => ({ text: control.value.trim(), required: named(control) }));
+  const chosen = texts.find((one) => one.required) ?? texts.reduce((best, one) => (!best || one.text.length > best.text.length ? one : best), null);
+  if (chosen) return chosen.text.length > 80 ? `${chosen.text.slice(0, 79)}…` : chosen.text;
+  const counts = [...card.querySelectorAll(":scope > [data-card-panel] > [data-group]")]
+    .map((group) => [group.dataset.noun, cardsOf(group).length])
+    .filter(([, count]) => count > 0)
+    .map(([noun, count]) => `${count} ${count === 1 ? noun : pluralOf(noun)}`);
+  return counts.join(", ");
+}
+
+const titleOf = (card) => {
+  const kind = card.querySelector(":scope > [data-card-head] [data-kind-badge]")?.textContent;
+  const number = card.querySelector(":scope > [data-card-head] [data-card-number]")?.textContent;
+  const noun = groupOf(card).dataset.noun;
+  const summary = card.querySelector(":scope > [data-card-head] [data-card-summary]")?.textContent;
+  return `${noun} ${number}${kind ? `, ${kind}` : ""}${summary ? `: ${summary}` : ""}`;
+};
+
+/** Sets the words that name a card to the tools and the toggle (they say which card they move, open or remove). */
+function nameTools(card) {
+  const noun = groupOf(card).dataset.noun;
+  const number = card.querySelector(":scope > [data-card-head] [data-card-number]").textContent;
+  const summary = card.querySelector(":scope > [data-card-head] [data-card-summary]").textContent;
+  const kind = card.querySelector(":scope > [data-card-head] [data-kind-badge]")?.textContent;
+  const what = `${noun} ${number}${kind ? `, ${kind}` : ""}${summary ? `, ${summary}` : ""}`;
+  const words = { up: "Move up", down: "Move down", remove: "Remove" };
+  for (const button of card.querySelectorAll(":scope > [data-card-head] [data-tools] button")) {
+    const label = `${words[button.dataset.action]} ${what}`;
+    button.setAttribute("aria-label", label);
+    button.title = label;
+  }
+}
+
+/** Numbers the group's cards again, and says which tools no longer apply. */
+function renumber(group) {
+  const path = group.dataset.path;
+  const cards = cardsOf(group);
+  cards.forEach((card, at) => {
+    if (card.dataset.index !== String(at)) {
+      renumberFields(card, path, card.dataset.index, String(at));
+      card.dataset.index = String(at);
+    }
+    card.querySelector(":scope > [data-card-head] [data-card-number]").textContent = String(at + 1);
+    const static_ = card.querySelector(":scope > [data-card-head] [data-card-static] span");
+    if (static_) static_.textContent = `${group.dataset.noun.charAt(0).toUpperCase()}${group.dataset.noun.slice(1)} ${at + 1}`;
+    card.querySelector('[data-action="up"]')?.setAttribute("aria-disabled", String(at === 0));
+    card.querySelector('[data-action="down"]')?.setAttribute("aria-disabled", String(at === cards.length - 1));
+    nameTools(card);
+  });
+  const count = group.querySelector(":scope > legend [data-count]");
+  if (count) count.textContent = `(${cards.length})`;
+  const empty = group.querySelector(":scope > [data-empty]");
+  if (empty) empty.hidden = cards.length > 0;
+  const max = Number(group.dataset.max ?? 0);
+  for (const add of group.querySelectorAll(":scope > [data-adder] [data-action=add], :scope > [data-action=add]")) {
+    add.setAttribute("aria-disabled", String(max > 0 && cards.length >= max));
+  }
+}
+
+/** Opens or closes a card. Opening mounts the writing surfaces inside it that are not yet mounted. */
+function toggle(card, open) {
+  const button = card.querySelector(':scope > [data-card-head] [data-action="toggle"]');
+  const panel = card.querySelector(":scope > [data-card-panel]");
+  const was = !panel.hidden;
+  const now = open ?? !was;
+  panel.hidden = !now;
+  button.setAttribute("aria-expanded", String(now));
+  button.querySelector("use")?.setAttribute("href", `#i-${now ? "chevron-down" : "chevron-right"}`);
+  if (now) mountEditors(panel);
+}
+
+/** Gives each visible rich-text body inside `scope` its writing surface, once. */
+function mountEditors(scope) {
+  const pending = [...scope.querySelectorAll("[data-body-editor]:not([data-mounted])")];
+  if (pending.length === 0) return;
+  for (const root of pending) {
+    const card = root.closest("[data-card]");
+    const noun = groupOf(card).dataset.noun;
+    root.dataset.base ??= root.dataset.label;
+    root.dataset.label = `${root.dataset.base} of ${noun} ${Number(card.dataset.index) + 1}`;
+  }
+  import("./body_editor.js").then((editor) => editor.mountWithin(scope));
+}
+
+/** Makes a card's script-only parts live: its toggle, its tools, and the cards nested in it. */
+function dress(card) {
+  card.querySelector(":scope > [data-card-head] [data-card-static]")?.setAttribute("hidden", "");
+  for (const node of card.querySelectorAll(":scope > [data-card-head] [data-tools], :scope > [data-card-head] [data-action=toggle]")) node.hidden = false;
+  const button = card.querySelector(':scope > [data-card-head] [data-action="toggle"]');
+  const open = card.hasAttribute("data-invalid");
+  const panel = card.querySelector(":scope > [data-card-panel]");
+  panel.hidden = !open;
+  button.setAttribute("aria-expanded", String(open));
+  button.querySelector("use")?.setAttribute("href", `#i-${open ? "chevron-down" : "chevron-right"}`);
+  for (const group of card.querySelectorAll(":scope > [data-card-panel] > [data-group]")) {
+    for (const add of group.querySelectorAll(":scope > [data-action=add]")) add.hidden = false;
+    for (const nested of cardsOf(group)) dress(nested);
+    renumber(group);
+  }
+}
+
+/** A new card for `group`, from the template of `kind` ("" for a nested group). */
+function create(group, kind) {
+  const template = [...group.querySelectorAll(":scope > template[data-card-template]")].find((one) => one.dataset.kind === kind);
+  if (!template) return null;
+  const cards = group.querySelector(":scope > [data-cards]");
+  const token = group.dataset.depth === "0" ? "ZZI0ZZ" : "ZZI1ZZ";
+  cards.insertAdjacentHTML("beforeend", template.innerHTML.split(token).join(String(cardsOf(group).length)));
+  const card = cards.lastElementChild;
+  dress(card);
+  return card;
+}
+
+/** Whether a card still lacks something its kind requires or a picture's description, with what. */
+function lacks(card) {
+  const prefix = `${groupOf(card).dataset.path}.${card.dataset.index}.`;
+  const names = (card.dataset.requires ?? "").split(" ").filter(Boolean);
+  const held = (slot) => [...card.querySelectorAll("input, select, textarea")].some((control) => {
+    const own = control.name === `${prefix}${slot}` || control.name.startsWith(`${prefix}${slot}.`);
+    return own && control.type !== "checkbox" && control.value.trim() !== "";
+  });
+  const missing = names.filter((slot) => !held(slot));
+  for (const picture of card.querySelectorAll(":scope > [data-card-panel] > [data-picture]")) {
+    const key = card.querySelector(`[name="${picture.dataset.key}"]`);
+    const alt = card.querySelector(`[name="${picture.dataset.alt}"]`);
+    if (key?.value.trim() && alt && alt.value.trim() === "") missing.push("alt");
+  }
+  return missing;
+}
+
+/** The card, and the nested cards under it, that lack something. */
+function incomplete(list) {
+  return [...list.querySelectorAll("[data-card]")].filter((card) => lacks(card).length > 0);
+}
+
+/** Marks a picture's alt control invalid, with the line that says what to do, or clears the mark. */
+function markAlt(picture, show) {
+  const alt = picture.querySelector(`[name="${picture.dataset.alt}"]`);
+  if (!alt) return;
+  const id = `${alt.id}-error`;
+  picture.querySelector(`#${CSS.escape(id)}`)?.remove();
+  alt.removeAttribute("aria-invalid");
+  if (!show) return;
+  alt.setAttribute("aria-invalid", "true");
+  alt.setAttribute("aria-describedby", id);
+  alt.after(Object.assign(document.createElement("p"), { id, className: "text-xs font-semibold text-error", textContent: "Describe the picture for people who cannot see it." }));
+}
+
+/** The registered pictures' addresses by key, fetched once for the thumbnails. */
+let known = null;
+function pictures(url) {
+  known ??= fetch(url, { headers: { Accept: "application/json" }, credentials: "same-origin" })
+    .then((response) => (response.ok ? response.json() : { pictures: [] }))
+    .then((answer) => new Map(answer.pictures.map((picture) => [picture.key, picture.url])))
+    .catch(() => new Map());
+  return known;
+}
+
+/** Shows the thumbnail of the picture a card names, when it is a registered one. */
+async function thumb(picture) {
+  const url = picture.querySelector("[data-action=pick-picture]")?.dataset.media;
+  const image = picture.querySelector("[data-picture-thumb]");
+  const key = picture.querySelector(`[name="${picture.dataset.key}"]`)?.value.trim();
+  if (!url || !image) return;
+  const found = key ? (await pictures(url)).get(key) : null;
+  image.hidden = !found;
+  if (found) {
+    image.addEventListener("error", () => { image.hidden = true; }, { once: true });
+    image.src = found;
+  }
+}
+
+/** Opens the picture picker for a card's picture and puts the choice in its key and alt text. */
+async function pick(picture, list, afterwards) {
+  const button = picture.querySelector("[data-action=pick-picture]");
+  const key = picture.querySelector(`[name="${picture.dataset.key}"]`);
+  const alt = picture.querySelector(`[name="${picture.dataset.alt}"]`);
+  if (!loadPicker) return;
+  const { openPicker } = await loadPicker();
+  openPicker(picture, picture, {
+    url: button.dataset.media,
+    current: { mediaRef: key.value, alt: alt?.value ?? "" },
+    onPick: (chosen, text) => {
+      key.value = chosen;
+      if (alt) alt.value = text;
+      key.dispatchEvent(new Event("input", { bubbles: true }));
+      markAlt(picture, false);
+      known = null;
+      thumb(picture);
+      say(list, "Picture chosen.");
+    },
+    onClose: () => { button.focus(); afterwards(); },
+  });
+}
+
+function enhance(list) {
+  const form = list.closest("form");
+  let draft = null;
+  let asking = null;
+  const dialog = list.querySelector(":scope > [data-remove-dialog]");
+  const touch = () => draft?.touch();
+
+  const refresh = (card) => {
+    const line = card.querySelector(":scope > [data-card-head] [data-card-summary]");
+    if (line) line.textContent = summaryOf(card);
+    nameTools(card);
+    for (const parent of [card.parentElement?.closest("[data-card]")]) if (parent) refresh(parent);
+  };
+
+  const finish = (group, card, words) => {
+    renumber(group);
+    say(listOf(group), words);
+    touch();
+    return card;
+  };
+
+  const add = (group, kind) => {
+    const max = Number(group.dataset.max ?? 0);
+    const noun = group.dataset.noun;
+    if (max > 0 && cardsOf(group).length >= max) return say(list, `At most ${max} ${noun}s fit here.`);
+    const card = create(group, kind);
+    if (!card) return null;
+    renumber(group);
+    toggle(card, true);
+    refresh(card);
+    card.querySelector("input:not([type=hidden]), select, textarea")?.focus();
+    card.scrollIntoView({ block: "nearest" });
+    return finish(group, card, `Added ${titleOf(card)}. ${cardsOf(group).length} in the list.`);
+  };
+
+  const move = (card, step) => {
+    const group = groupOf(card);
+    const cards = cardsOf(group);
+    const at = cards.indexOf(card);
+    const to = at + step;
+    if (to < 0 || to >= cards.length) return say(list, `${titleOf(card)} is already ${step < 0 ? "first" : "last"}.`);
+    if (step < 0) cards[to].before(card);
+    else cards[to].after(card);
+    card.querySelector(`[data-action="${step < 0 ? "up" : "down"}"]`).focus();
+    finish(group, card, `Moved ${titleOf(card)} to position ${to + 1} of ${cards.length}.`);
+  };
+
+  const remove = (card) => {
+    const group = groupOf(card);
+    const cards = cardsOf(group);
+    const at = cards.indexOf(card);
+    const words = titleOf(card);
+    const next = cards[at + 1] ?? cards[at - 1];
+    card.remove();
+    renumber(group);
+    const target = next?.querySelector(':scope > [data-card-head] [data-action="toggle"]') ?? group.querySelector(":scope > [data-adder] select, :scope > [data-action=add]");
+    target?.focus();
+    finish(group, card, `Removed ${words}. ${cardsOf(group).length} left in the list.`);
+  };
+
+  list.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-action]");
+    if (!button || listOf(button) !== list) return;
+    const card = button.closest("[data-card]");
+    const action = button.dataset.action;
+    if (action === "toggle") return toggle(card);
+    if (action === "up") return move(card, -1);
+    if (action === "down") return move(card, 1);
+    if (action === "pick-picture") return pick(button.closest("[data-picture]"), list, () => {});
+    if (action === "remove") {
+      asking = { card, opener: button };
+      dialog.querySelector("[data-remove-title]").textContent = `Remove ${titleOf(card)}?`;
+      return dialog.showModal();
+    }
+    if (action === "remove-cancel") return dialog.close();
+    if (action === "remove-confirm") {
+      const chosen = asking;
+      asking = null;
+      dialog.close();
+      return remove(chosen.card);
+    }
+    if (action === "add") {
+      const group = button.closest("[data-group]");
+      const kind = group.querySelector(":scope > [data-adder] [data-add-kind]")?.value ?? "";
+      add(group, kind);
+    }
+  });
+
+  form?.addEventListener("input", (event) => {
+    const card = event.target.closest?.("[data-card]");
+    if (card) refresh(card);
+    const picture = event.target.closest?.("[data-picture]");
+    if (picture && event.target.name === picture.dataset.key) thumb(picture);
+    touch();
+  });
+  form?.addEventListener("change", touch);
+  form?.addEventListener("editor:changed", (event) => {
+    const card = event.target.closest?.("[data-card]");
+    if (card) refresh(card);
+    touch();
+  });
+  form?.addEventListener("focusout", (event) => {
+    const picture = event.target.closest?.("[data-picture]");
+    if (picture && event.target.name === picture.dataset.alt) markAlt(picture, lacks(event.target.closest("[data-card]")).includes("alt"));
+    draft?.blur();
+  });
+
+  dialog.addEventListener("close", () => {
+    if (asking) asking.opener.focus();
+    asking = null;
+  });
+  for (const card of cardsOf(list)) dress(card);
+  for (const node of list.querySelectorAll(":scope > [data-adder]")) node.hidden = false;
+  for (const group of [list, ...list.querySelectorAll("[data-group]")]) renumber(group);
+  for (const card of list.querySelectorAll("[data-card]")) refresh(card);
+  for (const picture of list.querySelectorAll("[data-picture]")) thumb(picture);
+  for (const open of list.querySelectorAll("[data-card][data-invalid] > [data-card-panel]")) mountEditors(open);
+
+  if (list.hasAttribute("data-draft")) {
+    draft = startDraft(list, {
+      form,
+      blocked: () => {
+        const first = incomplete(list)[0];
+        return first ? `${titleOf(first)} needs more before it can be saved. Complete it, or use Save draft to see what the domain says.` : null;
+      },
+      refused: (problems) => {
+        const found = problems.map((problem) => list.querySelector(`#blk-${safe(list.dataset.path)}-${problem.path[1]}`)).filter(Boolean);
+        for (const card of found) toggle(card, true);
+      },
+    });
+  }
+}
+
+export function enhanceBlocks() {
+  for (const list of document.querySelectorAll("[data-block-list]")) enhance(list);
+}

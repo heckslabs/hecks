@@ -29,6 +29,22 @@ export interface Picker {
 /** One kind of a `<kind>:<key>` value, and the aggregate it names when it names one. */
 export type PickerKind = Omit<Picker, "kinds"> & { kind: string };
 
+/**
+ * A list of mixed blocks: a list of one value object whose `discriminator` part is one of `kinds`. With
+ * `rules`, each kind's `requires` (parts it must have) and `uses` (parts it may have) come from a
+ * declared table; a part no row names belongs to every kind. With none, every part is shown and
+ * `mentions` says which parts a kind's rules read. `limits` are the most each list part of the block
+ * may hold; `pictures` says, for a value object, which of its parts are a picture's key, alt text and caption.
+ */
+export interface BlockList {
+  discriminator: string;
+  kinds: string[];
+  rules?: Record<string, { requires: string[]; uses: string[] }>;
+  mentions?: Record<string, string[]>;
+  limits?: Record<string, number>;
+  pictures?: Record<string, { key: string; alt: string; caption?: string }>;
+}
+
 export interface Attr {
   name: string;
   /** The type as the bluebook spells it ("String", "Byline"). */
@@ -48,6 +64,10 @@ export interface Attr {
   options?: string[];
   /** The aggregate a `reference` points at. */
   target?: string;
+  /** Set when the attribute is a list of mixed blocks (see `BlockList`). */
+  blockList?: BlockList;
+  /** The most blocks the list may hold, when a command's `given` says. */
+  max?: number;
 }
 
 export interface Transition {

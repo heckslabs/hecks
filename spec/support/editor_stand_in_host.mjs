@@ -7,7 +7,8 @@
 // faithful as the editor needs to see the answers change.
 //
 // It can be told to refuse the next dispatch of a verb once (`refuseNext`), to show the editor's
-// handling of a failed save.
+// handling of a failed save: with a message (a `given` that was not met), or with the refusal's own
+// `{ kind, error }`, as the host words an invariant violation.
 
 export const members = [{ email: "ed@example.org", role: "Admin" }, { email: "own@example.org", role: "Owner" }];
 
@@ -78,7 +79,9 @@ export function standInHost(schema, { instances = {} } = {}) {
     const refusal = refusals.get(command.name);
     if (refusal !== undefined) {
       refusals.delete(command.name);
-      return answer({ refusals: [{ verb: body.verb, kind: "GivenNotMet", error: `${command.name} refused — ${refusal}` }] });
+      const kind = typeof refusal === "object" ? refusal.kind : "GivenNotMet";
+      const error = typeof refusal === "object" ? refusal.error : `${command.name} refused — ${refusal}`;
+      return answer({ refusals: [{ verb: body.verb, kind, error }] });
     }
     if (body.to) apply(agg, command, `${hostName(agg)}#${body.to}`, body.with ?? {});
     else make(agg, body.with ?? {});

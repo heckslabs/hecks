@@ -39,6 +39,7 @@ module Hecks
           src/browser/app.css src/browser/main.js src/browser/shell.js src/browser/forms.js src/browser/toast.js
           src/browser/lists.js src/browser/pickers.js src/browser/epoch.js src/browser/moments.js
           src/browser/body_doc.js src/browser/body_editor.js src/browser/autosave.js src/browser/preview.js
+          src/ui/blocks.ts src/ui/block_list.js src/browser/blocks.js
         ].freeze
 
         # The files only an editor of a chapter with a picture aggregate has: the upload, the

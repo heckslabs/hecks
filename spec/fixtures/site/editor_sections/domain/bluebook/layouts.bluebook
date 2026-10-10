@@ -1,0 +1,252 @@
+# A page as an ordered list of mixed panels, as its own bounded context: the list of one page, and an
+# edit saved aside until it is put live. The neutral fixture for the editor's block list: a list of
+# one value object whose `kind` is a closed set, with the rules that say which slots each kind needs.
+# The key is a plain `page:<slug>` value; a picture is named by a plain media key.
+Hecks.bluebook "Layouts" do
+  vision "A page as an ordered list of typed panels, each holding its heading, writing, picture, buttons and repeated entries, with an edit kept aside until it is put live."
+  core
+
+  aggregate "PageLayout" do
+    description "The ordered, typed panels of one page, and an edit saved aside until it is put live."
+
+    identified_by :key
+
+    attribute :key,          LayoutKey
+    attribute :panels,       list_of(Panel)
+    attribute :draft_panels, list_of(Panel)
+
+    value_object "LayoutKey" do
+      attribute :value, String, pattern: '^page:[a-z0-9-]+$'
+    end
+
+    # The kinds of panel: a closed set, so the editor offers exactly these when a panel is added.
+    value_object "PanelKind" do
+      attribute :value, String, one_of: ["hero", "text", "image", "columns", "cards", "quote", "call_to_action", "gallery", "faq", "profile"]
+    end
+
+    # Which slots of a panel each kind uses: one row per kind, the slots it must have and the slots it
+    # may have, by their names. A slot no row names (a variant, a background, a heading level) belongs
+    # to every kind. Naming `media_ref` brings its `alt` with it. The invariants below are what the
+    # domain enforces; this table is what an editor shows.
+    value_object "PanelRule" do
+      attribute :kind,     String
+      attribute :requires, String
+      attribute :uses,     String
+
+      member kind: "hero",           requires: "heading",         uses: "subheading, summary, media_ref, links"
+      member kind: "text",           requires: "",                uses: "heading, body, media_ref"
+      member kind: "image",          requires: "media_ref",       uses: "caption, align, size"
+      member kind: "columns",        requires: "entries",         uses: ""
+      member kind: "cards",          requires: "entries",         uses: ""
+      member kind: "quote",          requires: "",                uses: "summary, body, label"
+      member kind: "call_to_action", requires: "heading, links",  uses: "summary"
+      member kind: "gallery",        requires: "entries",         uses: ""
+      member kind: "faq",            requires: "entries",         uses: ""
+      member kind: "profile",        requires: "heading",         uses: "subheading, label, summary, body, media_ref"
+    end
+
+    # One panel: ONE value object with a `kind`, whose other slots mean something per kind.
+    value_object "Panel" do
+      attribute :kind,          PanelKind
+      attribute :heading,       String, optional: true
+      attribute :heading_level, Integer, optional: true
+      attribute :subheading,    String, optional: true
+      attribute :label,         String, optional: true
+      attribute :summary,       String, optional: true
+      attribute :body,          Body, optional: true
+      attribute :media_ref,     String, optional: true
+      attribute :alt,           String, optional: true
+      attribute :caption,       String, optional: true
+      attribute :align,         String, optional: true
+      attribute :size,          String, optional: true
+      attribute :variant,       String, optional: true
+      attribute :background,    String, optional: true
+      attribute :links,         list_of(Link)
+      attribute :entries,       list_of(Entry)
+
+      invariant("a variant is a lower-case name") { variant.unset? || variant.match?(/\A[a-z][a-z0-9_]{0,39}\z/) }
+      invariant("a background is a token name, not a colour") do
+        background.unset? || background.match?(/\A[a-z][a-z0-9_]{0,39}\z/)
+      end
+      invariant("a heading level is from 1 to 6") { heading_level.unset? || (heading_level >= 1 && heading_level <= 6) }
+      invariant("only a panel with a heading has a heading level") { heading_level.unset? || !heading.to_s.empty? }
+      invariant("a panel aligns left, center or right") do
+        align.unset? || align == "left" || align == "center" || align == "right"
+      end
+      invariant("a picture is described") { media_ref.to_s.empty? || !alt.to_s.empty? }
+      invariant("a panel has at most 8 buttons") { links.size <= 8 }
+      invariant("a panel has at most 60 entries") { entries.size <= 60 }
+
+      invariant("a hero has a heading") { kind.value != "hero" || !heading.to_s.empty? }
+      invariant("a text panel has a heading or writing") do
+        kind.value != "text" || !heading.to_s.empty? || (body.set? && !body.blocks.empty?)
+      end
+      invariant("an image names its file") { kind.value != "image" || !media_ref.to_s.empty? }
+      invariant("columns have at least two entries") { kind.value != "columns" || entries.size >= 2 }
+      invariant("cards have entries, each with a heading") do
+        kind.value != "cards" || (!entries.empty? && entries.all? { |entry| !entry.heading.to_s.empty? })
+      end
+      invariant("a quote has words") do
+        kind.value != "quote" || !summary.to_s.empty? || (body.set? && !body.blocks.empty?)
+      end
+      invariant("a call to action has a heading and a button") do
+        kind.value != "call_to_action" || (!heading.to_s.empty? && !links.empty?)
+      end
+      invariant("a gallery has pictures, each in an entry") do
+        kind.value != "gallery" || (!entries.empty? && entries.all? { |entry| !entry.media_ref.to_s.empty? })
+      end
+      invariant("a faq has entries, each with a question and an answer") do
+        kind.value != "faq" || (!entries.empty? &&
+          entries.all? { |entry| !entry.heading.to_s.empty? && entry.body.set? && !entry.body.blocks.empty? })
+      end
+      invariant("a profile has a name") { kind.value != "profile" || !heading.to_s.empty? }
+    end
+
+    # One repeated thing inside a panel: a card, a column, a question and its answer, a picture.
+    value_object "Entry" do
+      attribute :heading,    String, optional: true
+      attribute :summary,    String, optional: true
+      attribute :body,       Body, optional: true
+      attribute :media_ref,  String, optional: true
+      attribute :alt,        String, optional: true
+      attribute :href,       String, optional: true
+      attribute :link_label, String, optional: true
+
+      invariant("an entry says something") do
+        !heading.to_s.empty? || !summary.to_s.empty? || (body.set? && !body.blocks.empty?) || !media_ref.to_s.empty?
+      end
+      invariant("a picture is described") { media_ref.to_s.empty? || !alt.to_s.empty? }
+      invariant("a link label needs a link") { link_label.unset? || href.set? }
+    end
+
+    value_object "Link" do
+      attribute :label,   String
+      attribute :href,    String
+      attribute :variant, String, optional: true
+
+      invariant("a link has words") { !label.to_s.empty? }
+      invariant("a link is a path, an anchor or an address") do
+        href.start_with?("/") || href.start_with?("#") || href.start_with?("http://") || href.start_with?("https://")
+      end
+    end
+
+    # The writing inside a panel: a list of blocks of a closed set of kinds, holding spans of text.
+    value_object "Body" do
+      attribute :blocks, list_of(Block)
+    end
+
+    value_object "Block" do
+      attribute :kind,      String
+      attribute :level,     Integer, optional: true
+      attribute :align,     String, optional: true
+      attribute :indent,    Integer, optional: true
+      attribute :spans,     list_of(Span)
+      attribute :items,     list_of(Item)
+      attribute :media_ref, String, optional: true
+      attribute :alt,       String, optional: true
+      attribute :caption,   String, optional: true
+
+      invariant("a block is a known kind") do
+        ["paragraph", "heading", "quote", "bullet_list", "numbered_list", "image", "divider"].include?(kind)
+      end
+      invariant("a heading has a level from 1 to 4") { kind != "heading" || (level.set? && level >= 1 && level <= 4) }
+      invariant("an image names its file and describes it") do
+        kind != "image" || (!media_ref.to_s.empty? && !alt.to_s.empty?)
+      end
+    end
+
+    value_object "Item" do
+      attribute :spans,     list_of(Span)
+      attribute :depth,     Integer, optional: true
+      attribute :list_kind, String, optional: true
+      invariant("a list item has text") { !spans.empty? }
+    end
+
+    value_object "Span" do
+      attribute :text,  String
+      attribute :marks, list_of(Mark)
+      attribute :href,  String, optional: true
+      invariant("a span has text") { !text.to_s.empty? }
+    end
+
+    value_object "Mark" do
+      attribute :name, String
+      invariant("a mark is a known formatting") { ["bold", "italic", "underline", "strike", "code"].include?(name) }
+    end
+
+    command "Lay" do
+      role "Editor"
+      goal "Start the panels of a page"
+
+      attribute :key,    LayoutKey
+      attribute :panels, list_of(Panel)
+
+      given("a page has at most 100 panels") { panels.size <= 100 }
+      sets :key
+      sets :panels
+
+      emits "PanelsLaid"
+    end
+
+    # The whole list, in order, every time: a panel left out is removed.
+    command "Revise" do
+      role "Editor"
+      goal "Replace the panels readers see"
+
+      reference_to PageLayout
+      attribute :panels, list_of(Panel)
+
+      given("a page has at most 100 panels") { panels.size <= 100 }
+      sets :panels
+
+      emits "PanelsRevised"
+    end
+
+    command "SaveDraft" do
+      role "Editor"
+      goal "Keep a layout aside without changing what readers see"
+
+      reference_to PageLayout
+      attribute :draft_panels, list_of(Panel)
+
+      given("an edit has something in it") { !draft_panels.empty? }
+      given("a page has at most 100 panels") { draft_panels.size <= 100 }
+      sets :draft_panels
+
+      emits "PanelsDraftSaved"
+    end
+
+    # Clearing is sending none: a list set from an argument the caller sent empty is emptied.
+    command "PublishDraft" do
+      role "Editor"
+      goal "Make the saved layout what readers see, and clear it"
+
+      reference_to PageLayout
+      attribute :nothing, list_of(Panel), optional: true
+
+      given("an edit is saved") { !draft_panels.empty? }
+      sets :panels, to: state(:draft_panels)
+      sets :draft_panels, to: :nothing
+
+      emits "PanelsDraftPublished"
+    end
+
+    command "DiscardDraft" do
+      role "Editor"
+      goal "Drop the saved layout and keep what readers see"
+
+      reference_to PageLayout
+      attribute :nothing, list_of(Panel), optional: true
+
+      given("an edit is saved") { !draft_panels.empty? }
+      sets :draft_panels, to: :nothing
+
+      emits "PanelsDraftDiscarded"
+    end
+
+    query "Listing" do
+      description "Every layout, by key."
+      order_by "key.value", :asc
+    end
+  end
+end
