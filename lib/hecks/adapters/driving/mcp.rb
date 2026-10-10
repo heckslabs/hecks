@@ -79,9 +79,9 @@ module Hecks
         # keeps each named domain booted until the files of its directory change.
         def boot(domain)
           path = Storehouse.confine!(scope.admit_domain!(domain), "domain")
-          return Hecks.boot(path, install_driving: false) unless scope.restricted?
-
-          resident_boot(path)
+          runtime = scope.restricted? ? resident_boot(path) : Hecks.boot(path, install_driving: false)
+          Admission.admit!(runtime.registry, "Mcp")
+          runtime
         end
 
         # The runtime a restricted server keeps for `path`, booted again once its files change.

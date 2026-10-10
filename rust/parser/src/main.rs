@@ -222,6 +222,7 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("translates", "Hecksagon"),
     ("bounded", "Hecksagon"),
     ("attaches", "Hecksagon"),
+    ("driven_by", "Hecksagon"),
     ("operation", "DomainPort"),
     ("reference_to", "PortOperation"),
     ("attribute", "PortOperation"),
