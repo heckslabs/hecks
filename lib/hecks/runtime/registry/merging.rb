@@ -17,7 +17,7 @@ module Hecks
         def merge_hecksagons(base, overlay)
           # Order-independent: list facts uniq, so loading context_map before or after the
           # domain file yields the same merged hecksagon.
-          lists = %i[subscriptions attachments translates].to_h do |facet|
+          lists = %i[subscriptions attachments translates driving].to_h do |facet|
             [facet, (base.public_send(facet) + overlay.public_send(facet)).uniq]
           end
           Bluebook::Hecksagon.new(domain: base.domain, binds: base.binds + overlay.binds,

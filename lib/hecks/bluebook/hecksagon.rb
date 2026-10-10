@@ -49,15 +49,19 @@ module Hecks
         binds:         many(:binds),
         subscriptions: -> { subscriptions.map(&:to_s) },
         attachments:   -> { attachments.map(&:to_h) },
+        driving:       -> { driving.map(&:to_s) },
         bounded:       :bounded?,
         translates:    -> { translates.map(&:to_s) }
       )
 
-      attr_reader :domain, :binds, :subscriptions, :attachments, :translates
+      attr_reader :domain, :binds, :subscriptions, :attachments, :translates, :driving
+
+      # The driving adapters `driven_by` can name.
+      DRIVING_ADAPTERS = %w[Ruby Cli Json Mcp].freeze
 
       # Every optional keyword and what it holds when the declaration omits it.
       FIELD_DEFAULTS = {
-        binds: [], subscriptions: [], attachments: [], bounded: false, translates: []
+        binds: [], subscriptions: [], attachments: [], bounded: false, translates: [], driving: []
       }.freeze
 
       # @param domain [String, Symbol] the domain this hecksagon wires
@@ -69,11 +73,13 @@ module Hecks
       # @param bounded [Boolean] whether this chapter is an explicit bounded context
       #   (consumer-owned; `attaches` marks attached chapters bounded on the registry instead)
       # @param translates [Array<String>] names of `translates` ACL blocks declared here
+      # @param driving [Array<String>] the driving adapters `driven_by` admits; empty admits all
       def initialize(domain:, **given)
         KeywordFields.assign(self, KeywordFields.fill(given, FIELD_DEFAULTS))
         @domain             = domain.to_s
         @bounded            = @bounded ? true : false
         @translates         = Array(@translates).map(&:to_s)
+        @driving            = Array(@driving).map(&:to_s)
       end
 
       # Says whether this hecksagon marked its own chapter `bounded`.
@@ -92,6 +98,13 @@ module Hecks
       # @param chapter [String, Symbol] a chapter's name as the registry holds it
       # @return [Boolean] whether that chapter is attached here
       def attaches?(chapter) = member_chapters.include?(chapter.to_s)
+
+      # Says whether a driving adapter may reach this hecksagon's domain: every adapter may when
+      # none is declared, and only the declared ones may once any is.
+      #
+      # @param adapter [String, Symbol] a driving adapter's name, such as `"Mcp"`
+      # @return [Boolean] whether `driven_by` admits that adapter
+      def driven_by?(adapter) = driving.empty? || driving.include?(adapter.to_s)
 
       # The vendored packages this hecksagon attaches.
       #

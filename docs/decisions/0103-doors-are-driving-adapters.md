@@ -16,7 +16,8 @@
    - The `.mcp.json` server `hecks-door` is `hecks-mcp`; the process name is `hecks-mcp`.
    - The Custodian's `Door` aggregate is `Launch`, with `LaunchKey`, `LaunchAnswered`, `LaunchRefused`, `LaunchStopped` and `LaunchFinished`; its commands are `launch.project_cli`, `launch.serve_mcp`, `launch.init` and `launch.interview`.
    - The policy and saga interpreters take `dispatcher:`, not `door:`.
-4. **Side.** This is Ruby and the Custodian bluebook; the language is unchanged. Which driving adapters a domain takes is not yet a hecksagon declaration: a boot installs the Ruby adapter unless `install_driving: false`.
+4. **`driven_by` is a hecksagon word.** `driven_by "Mcp"` admits one of `Ruby`, `Cli`, `Json` or `Mcp`. It is a grammar word of the Hecksagon chapter (a `DrivingAdapter` value object and a `DrivenBy` command), not a bind verb: a bind verb must name a declared driven adapter with a Ruby class, which a driving adapter is not. A domain that declares none is open to all four; once it declares any, each adapter it omits refuses the domain, so a hecksagon is the one place that says how a domain is reached. The Ruby adapter's `install`, the launcher's `resolve`, `Driving::Json.aggregate` and the MCP server's `boot` each ask `Driving::Admission`. Boot refuses a name no adapter answers to. The Rust parser reads the word and drops it, as it does `subscribe`.
+5. **Side.** `driven_by` is hecksagon: wiring, declared once. The bluebook is unchanged.
 
 ## Consequences
 

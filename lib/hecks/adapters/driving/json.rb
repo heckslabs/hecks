@@ -26,6 +26,7 @@ module Hecks
         # @raise [Runtime::NotFound] if the chapter or its aggregate is not declared
         # @raise [NameError] if the aggregate has no facade constant (`install_driving: false`)
         def aggregate(dispatcher, domain, name)
+          Admission.admit!(dispatcher.registry, "Json")
           ir = dispatcher.registry.bluebook(domain)&.aggregate(name)
           raise Runtime::NotFound, "#{domain} declares no aggregate named #{name.inspect}" unless ir
 

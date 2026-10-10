@@ -1,5 +1,6 @@
 //! The `Hecksagon` construct: a `.hecksagon` file's `port` blocks and `attaches` words.
-//! Adapter binds (`persisted_by`, `projected_by`, `subscribe`) are shape-matched and dropped.
+//! Adapter binds (`persisted_by`, `projected_by`, `subscribe`, `driven_by`) are shape-matched and
+//! dropped.
 
 use super::domain_port;
 use super::policy;
@@ -64,7 +65,7 @@ pub fn apply(
         if let LineShape::Call(call) = lex::classify(file, &line)? {
             if !matches!(
                 call.word.as_str(),
-                "port" | "subscribe" | "attaches" | "translates" | "bounded" | "end"
+                "port" | "subscribe" | "attaches" | "translates" | "bounded" | "driven_by" | "end"
             ) {
                 let instead = match call.word.as_str() {
                     "uses_framework" => Some("attaches \"Name\""),
@@ -130,6 +131,8 @@ pub fn apply(
                 }
                 // Consumer-owned bounded-context mark; a wiring fact, dropped like `subscribe`.
                 "bounded" => {}
+                // A driving adapter the domain admits; Ruby's boot enforces it, `ir.json` carries none.
+                "driven_by" => {}
                 _ => {
                     return Err(super::not_built_yet(
                         "Hecksagon",

@@ -6,6 +6,7 @@ Hecks.bluebook "Hecksagon" do
 
     attribute :subscriptions,      list_of(Subscription)
     attribute :attachments,        list_of(Attachment)
+    attribute :driving,            list_of(DrivingAdapter)
 
     value_object "HecksagonName" do
       attribute :value, String
@@ -25,6 +26,14 @@ Hecks.bluebook "Hecksagon" do
       attribute :source, String, default: "gem"
       invariant("an attachment is named") { !value.to_s.empty? }
       invariant("an attachment comes from the gem or from vendor") { source == "gem" || source == "vendor" }
+    end
+
+    # A driving adapter this hecksagon admits: `value` names one of `Ruby`, `Cli`, `Json` or `Mcp`.
+    # A domain that declares none is open to all of them; one that declares any is reached through
+    # those and refused by the rest.
+    value_object "DrivingAdapter" do
+      attribute :value, String
+      invariant("a driving adapter is named") { !value.to_s.empty? }
     end
 
     # The name an attachment is asked for by, before its source is known.
@@ -67,6 +76,17 @@ Hecks.bluebook "Hecksagon" do
       emits "ChapterAttached"
     end
 
+    command "DrivenBy" do
+      role "Deployment"
+      goal "Admit a driving adapter to reach this hecksagon's domain; adapters left out refuse it"
+
+      attribute :adapter, DrivingAdapter
+
+      sets :driving, append: { value: :adapter }
+
+      emits "DrivingAdapterAdmitted"
+    end
+
     # Keyword rows for File and Hecksagon; SyntaxBoot discovers every aggregate-local seed table.
     value_object "KeywordSeed" do
       attribute :word,          String
@@ -83,6 +103,7 @@ Hecks.bluebook "Hecksagon" do
       member word: "hecksagon",       context: "File",     body: "keywords", inner: "Hecksagon",      opens: "Hecksagon",      fills: ""
       member word: "subscribe",       context: "Hecksagon", body: "none", inner: "", opens: "", fills: "subscriptions"
       member word: "attaches",        context: "Hecksagon", body: "none", inner: "", opens: "", fills: "attachments"
+      member word: "driven_by",       context: "Hecksagon", body: "none", inner: "", opens: "", fills: "driving"
       member word: "port",            context: "Hecksagon",     body: "keywords", inner: "DomainPort",    opens: "DomainPort",    fills: "", calls: "port_impl"
       # A cross-domain reaction wired here rather than in the bluebook; reuses the Policy context.
       # No `calls:` — HecksagonBuilder#translates is an ordinary method, found before `word_gate`.
@@ -113,6 +134,7 @@ Hecks.bluebook "Hecksagon" do
       member keyword: "subscribe",       context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "subscriptions"
       member keyword: "attaches",        context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "attachments"
       member keyword: "attaches",        context: "Hecksagon", at: "",  named: "from", kind: "symbol", required: "false", fills: "source"
+      member keyword: "driven_by",       context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "driving"
       member keyword: "port",            context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "name"
       member keyword: "translates",      context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "name"
 

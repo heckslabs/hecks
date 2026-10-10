@@ -4,6 +4,13 @@ Hecks.hecksagon "Pizzas" do
   attaches "Governance"
   Pizzas::Order.persisted_by("Memory")
 
+  # Every way in the example is named: the console (Ruby), `hecks run` (Cli), the forms and
+  # storehouse reader (Json) and `hecks mcp` (Mcp). An adapter left out would refuse the domain.
+  driven_by "Ruby"
+  driven_by "Cli"
+  driven_by "Json"
+  driven_by "Mcp"
+
   # The primary port: an outside adapter (a payment webhook) translates an external fact into
   # our vocabulary; business rules stay on Purchase, reached via OnPizzaPaymentReceived.
   Pizzas::Order.port "PaymentGateway" do
