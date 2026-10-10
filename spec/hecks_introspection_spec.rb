@@ -41,13 +41,13 @@ RSpec.describe "hecks introspection through the launcher" do
     FileUtils.mkdir_p(File.join(@dir, "bluebook"))
     File.write(File.join(@dir, "bluebook/shelf.bluebook"), INTROSPECTED_BLUEBOOK)
     File.write(File.join(@dir, "bluebook/shelf.hecksagon"), INTROSPECTED_HECKSAGON)
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
+    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
   end
 
   after(:all) { FileUtils.rm_rf(@dir) }
 
   def run_verb(*argv)
-    Hecks::Doors::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks")
+    Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks")
   end
 
   it "answers a document as its own text, not as a JSON string inside JSON", :aggregate_failures do

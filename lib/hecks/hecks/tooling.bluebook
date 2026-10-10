@@ -503,11 +503,11 @@ Hecks.bluebook "Hecks" do
     trigger Registry::Abandon, with: { refusal: :refusal }
   end
 
-  # A run record for opening a door onto the framework, not a door: the doors live in `Hecks::Doors`.
-  aggregate "Door" do
+  # A run record for one launch onto the framework, not an adapter: the driving adapters live in `Hecks::Adapters::Driving`.
+  aggregate "Launch" do
     description "A way into the framework opened for a project: its launchers, or an MCP server."
 
-    attribute :run,     DoorKey
+    attribute :run,     LaunchKey
     attribute :domains, DomainList, optional: true
     attribute :stdio,   Switch,     optional: true
     attribute :name,    DomainName, optional: true
@@ -519,10 +519,10 @@ Hecks.bluebook "Hecks" do
     attribute :refusal, Note,       optional: true
     identified_by :run
 
-    value_object "DoorKey" do
+    value_object "LaunchKey" do
       attribute :value, String, pattern: '[^ \t\n\r]'
 
-      invariant("a door is named") { !value.to_s.empty? }
+      invariant("a launch is named") { !value.to_s.empty? }
     end
 
     # Domain directories under the project, comma separated.
@@ -570,7 +570,7 @@ Hecks.bluebook "Hecks" do
       role "Operator"
       goal "Write a command-line launcher beside each domain of this project"
 
-      attribute :run,     DoorKey
+      attribute :run,     LaunchKey
       attribute :domains, DomainList, optional: true
 
       sets :run
@@ -585,7 +585,7 @@ Hecks.bluebook "Hecks" do
       role "Operator"
       goal "Write the stub files of a new domain"
 
-      attribute :run,     DoorKey
+      attribute :run,     LaunchKey
       attribute :name,    DomainName
       attribute :adapter, AdapterName, optional: true
       attribute :dir,     TargetDir,   optional: true
@@ -605,7 +605,7 @@ Hecks.bluebook "Hecks" do
       role "Operator"
       goal "Hold an interview with a subject matter expert and draft a first domain from it"
 
-      attribute :run,     DoorKey
+      attribute :run,     LaunchKey
       attribute :name,    DomainName
       attribute :adapter, AdapterName, optional: true
       attribute :dir,     TargetDir,   optional: true
@@ -623,15 +623,15 @@ Hecks.bluebook "Hecks" do
     end
 
     # A stdio server runs until its client closes stdin, so it cannot be asked and answered
-    # quickly like the others. The command records that the door was started; the Terminal
-    # adapter hands the process over to the door and answers when it closes, as OpenConsole
+    # quickly like the others. The command records that the launch was started; the Terminal
+    # adapter hands the process over to the launch and answers when it closes, as OpenConsole
     # does for a console. The launcher spells it `serve_mcp`; the `mcp` spelling exe/hecks ships
     # today stays with its router until the launcher is generated.
     command "ServeMcp" do
       role "Operator"
       goal "Serve the storehouse bus to an MCP client over stdio until it closes"
 
-      attribute :run,   DoorKey
+      attribute :run,   LaunchKey
       attribute :stdio, Switch, optional: true
 
       sets :run
@@ -642,70 +642,70 @@ Hecks.bluebook "Hecks" do
 
     command "Finish" do
       role "System"
-      goal "Record that the door did its work, or was closed, and what it said"
+      goal "Record that the launch did its work, or was closed, and what it said"
 
-      reference_to Door
+      reference_to Launch
       attribute :output, Note
 
       sets :output
 
-      emits DoorFinished
+      emits LaunchFinished
     end
 
     command "Stop" do
       role "System"
-      goal "Record that the door could not be opened, and why"
+      goal "Record that the launch could not be opened, and why"
 
-      reference_to Door
+      reference_to Launch
       attribute :refusal, Note
 
       sets :refusal
 
-      emits DoorStopped
+      emits LaunchStopped
     end
 
     query "Ended" do
-      description "How one door ended: its status, and what it said or why it stopped."
-      attribute :run, DoorKey
+      description "How one launch ended: its status, and what it said or why it stopped."
+      attribute :run, LaunchKey
       where(run: :run)
       order_by :run
     end
 
     query "Stopped" do
-      description "Every door that could not be opened."
+      description "Every launch that could not be opened."
       where(status: "stopped")
       order_by :run
     end
   end
 
   policy "WriteWhenRequested" do
-    on      "Door.LaunchersRequested"
+    on      "Launch.LaunchersRequested"
     ask     :write, with: { run: :run }
   end
 
   policy "ScaffoldWhenRequested" do
-    on      "Door.StubRequested"
+    on      "Launch.StubRequested"
     ask     :scaffold, with: { run: :run }
   end
 
   policy "ConverseWhenRequested" do
-    on      "Door.InterviewRequested"
+    on      "Launch.InterviewRequested"
     ask     :converse, with: { run: :run }
   end
 
   policy "ServeWhenRequested" do
-    on      "Door.McpRequested"
+    on      "Launch.McpRequested"
     ask     :serve, with: { run: :run }
   end
 
-  policy "RecordTheDoor" do
-    on      "Door.DoorAnswered"
-    trigger Door::Finish, with: { output: :output }
+  policy "RecordTheLaunch" do
+    on      "Launch.LaunchAnswered"
+    trigger Launch::Finish, with: { output: :output }
   end
 
-  policy "RecordTheStoppedDoor" do
-    on      "Door.DoorRefused"
-    trigger Door::Stop, with: { refusal: :refusal }
+  policy "RecordTheStoppedLaunch" do
+    on      "Launch.LaunchRefused"
+    trigger Launch::Stop, with: { refusal: :refusal }
   end
 
   aggregate "Build" do

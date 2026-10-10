@@ -34,7 +34,7 @@ module Hecks
         # project, serve or deploy from a chapter, and nothing the judge runs
         # calls into them. An edit there leaves every verdict as it was, so
         # their files stay out of the key. Paths are relative to `lib/hecks`.
-        CONSUMER_TREES = %r{\A/hecks/(?:bench|cli|codemod|deploy|doc|doors|fuzzing|projections|
+        CONSUMER_TREES = %r{\A/hecks/(?:bench|cli|codemod|deploy|doc|adapters/driving|fuzzing|projections|
                             quality_control|release)(?:/|\.rb\z)}x
 
         # Files older than this that do not match the current code digest are

@@ -38,7 +38,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
   RUBY
 
   before(:all) do
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
+    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
     @bluebook = @hecks.registry.bluebook("Deploy")
   end
 
@@ -64,7 +64,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
   def stubbed_shell(reply) = FakeCodebaseShell.new(reply).tap { |shell| stub_tools(shell) }
 
   def launch(argv)
-    Hecks::Doors::CliRunner.call(runtime: @hecks, argv: ["deploy", *argv], program: "hecks")
+    Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, argv: ["deploy", *argv], program: "hecks")
   end
 
   def answer(argv)

@@ -36,20 +36,20 @@ one maps to a specific thing this design avoids **structurally**, not by convent
 Per the hexagonal (ports & adapters) reading: a Rails controller calling into the
 domain is structurally identical to `hecks console` or `hecks run` — just another driving
 adapter. The domain doesn't know or need to know which one called it. This has one
-hard consequence for the design: **core `Handle`/`AggregateDoor` must never gain a
+hard consequence for the design: **core `Handle`/`AggregateModule` must never gain a
 Rails or ActiveModel dependency.** Anything Rails-specific lives in a decoration layer
-built on top of the core doors, applied once at boot — never inside
-`lib/hecks/doors/`.
+built on top of the core driving adapters, applied once at boot — never inside
+`lib/hecks/adapters/driving/`.
 
 ```ruby skip
-lib/hecks/doors/handle.rb       core, adapter-agnostic, used by hecks console too
+lib/hecks/adapters/driving/handle.rb       core, adapter-agnostic, used by hecks console too
   ↓ decorated once, at boot, for Rails specifically
 WebHandle (Rails-only)               ActiveModel::Conversion + a real ActiveModel::Errors
-WebDoor   (Rails-only)               wraps every Handle AggregateDoor hands out
+WebAdapter   (Rails-only)               wraps every Handle AggregateModule hands out
 ```
 
-`hecks console`/`hecks run` boot through the plain `AggregateDoor` and never load
-ActiveModel. A Rails app boots through `WebDoor` instead. By the time a controller
+`hecks console`/`hecks run` boot through the plain `AggregateModule` and never load
+ActiveModel. A Rails app boots through `WebAdapter` instead. By the time a controller
 sees a record, the decoration already happened — the controller never performs it.
 
 ## The core convention: `command` vs `command!`
@@ -63,7 +63,7 @@ define_singleton_method(name)       { command }                       # inspecti
 define_singleton_method("#{name}!") { |**args| run(command, **args) } # dispatch — raises on refusal
 ```
 
-The same rule applies uniformly to creating verbs on the module-level door. `command`
+The same rule applies uniformly to creating verbs on the module-level adapter. `command`
 (no bang) is never a dispatch attempt — it returns `IR::Command` itself, which already
 has `.attributes`, `.role`, `.goal` as readers. No separate `attributes_for(:command)`
 helper, no symbol argument to misspell, and the form helper can take the object
@@ -97,7 +97,7 @@ domain at all. No error, no refusal — silent wrong behavior, the worst class o
 this project generally hunts for.
 
 `Account.open` is unaffected — it's a creating command, dispatched through
-`AggregateDoor#define_singleton_method` on the module, and a directly defined
+`AggregateModule#define_singleton_method` on the module, and a directly defined
 singleton method wins over an inherited `Kernel` method. The bug is specific to the
 `method_missing` fallback path `Handle` currently uses for mutating verbs.
 
@@ -268,7 +268,7 @@ class Handle
   @ir.attributes.select { |a| a.type.is_a?(IR::Reference) }.each do |ref|
     target = ref.type.target_name
     define_singleton_method("#{ref.name}_#{Naming.snake(target)}") do
-      Doors.const_get(target).find(self[ref.name])
+      Adapters::Driving.const_get(target).find(self[ref.name])
     end
   end
 end
@@ -276,7 +276,7 @@ end
 
 Purely additive — `transfer.source` (the raw value, still needed by `given`) is
 untouched; `transfer.source_account` is a new, separate, on-demand accessor. Belongs
-in *core*, not the Rails layer — it only reuses `AggregateDoor#find`, already
+in *core*, not the Rails layer — it only reuses `AggregateModule#find`, already
 dependency-free.
 
 **Chaining composes for free and should stay that way.** `transfer.source_account.customer`

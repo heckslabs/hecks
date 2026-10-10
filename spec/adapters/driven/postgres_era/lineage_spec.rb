@@ -1169,8 +1169,8 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
       expect(append_as_app_role(1)).to match(/row-level security policy/i)
     end
 
-    # a partition is no back door: the role is granted on the parent only
-    it "gives the role no back door through a partition" do
+    # a partition is no back entry point: the role is granted on the parent only
+    it "gives the role no back entry point through a partition" do
       expect(as_app_role(partition_insert)).to match(/permission denied/i)
     end
 

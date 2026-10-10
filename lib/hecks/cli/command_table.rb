@@ -62,7 +62,7 @@ module Hecks
         ->(argv, program, _name) { ProjectCli.call(argv, program: program, root: Dir.pwd, remove_stale_bin: false) }
       ),
       "mcp"              => Command.new(
-        "Serve the MCP door over stdio (no authentication; stdio only).",
+        "Serve the MCP server over stdio (no authentication; stdio only).",
         "hecks mcp [--stdio]",
         "cli/mcp",
         ->(argv, _program, _name) { Mcp.call(argv) }

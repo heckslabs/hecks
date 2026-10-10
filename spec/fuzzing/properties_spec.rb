@@ -524,10 +524,10 @@ RSpec.describe "Hecks::Fuzzing::Properties", :aggregate_failures do
       expect(finding(:guard_refusals_are_declared, history)).to be(true)
     end
 
-    # A delegates_to door refuses with its target's own given, in the
-    # door's name — Roster.Retire passes through to Member.Retire, so
+    # A delegates_to entry point refuses with its target's own given, in the
+    # entry point's name — Roster.Retire passes through to Member.Retire, so
     # "a front-row holder may not retire" is Retire's own given text.
-    it "guard_refusals_are_declared follows a door's delegates_to to the guards that actually refused" do
+    it "guard_refusals_are_declared follows an entry point's delegates_to to the guards that actually refused" do
       history = refusal_history(bluebooks_for(File.join(ROOT_DIR, "examples/roster")), "Roster::Roster.Retire",
                                 "Retire refused — a front-row holder may not retire")
 

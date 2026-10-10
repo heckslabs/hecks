@@ -80,7 +80,7 @@ module Hecks
       # @raise [SystemExit] when the declared shape is refused, or provisioning is refused
       def provision(slug, options, domain_directory)
         lib_hecks  = File.expand_path("..", __dir__)
-        dispatcher = Hecks.boot_files(CHAPTER_FILES.map { |file| File.join(lib_hecks, file) }, install_doors: false)
+        dispatcher = Hecks.boot_files(CHAPTER_FILES.map { |file| File.join(lib_hecks, file) }, install_driving: false)
         provision_tenant(dispatcher, slug, tenant_facts(slug, options, domain_directory))
         refuse_if_refused(dispatcher, slug)
 
@@ -126,7 +126,7 @@ module Hecks
       # @return [void]
       # @raise [SystemExit] when the tenant was never registered in Tenancy
       def confirm(dispatcher, slug, options, domain_directory)
-        target = Hecks.boot(domain_directory, environment: slug, install_doors: false)
+        target = Hecks.boot(domain_directory, environment: slug, install_driving: false)
         puts "booted #{options[:domain]} for tenant #{slug.inspect} under realm #{options[:realm].inspect}"
 
         refuse_unless_tenant_capable(target.registry)

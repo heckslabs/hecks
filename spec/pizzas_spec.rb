@@ -196,7 +196,7 @@ RSpec.describe "Pizzas" do
     end
   end
 
-  describe "the door" do
+  describe "the entry point" do
     it "rejects an unknown command" do
       expect { runtime.dispatch("Pizzas::Order.Nope") }
         .to raise_error(Hecks::Runtime::UnknownVerb, /no command/)

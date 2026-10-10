@@ -55,7 +55,7 @@ you're not.
     bluebook as the one definition, projected to generated Rust and WASM,
     and how that output is held equal to Ruby's.
 18. **[AI-native development](ai-native-development.md)** — the
-    storehouse bus and its MCP door: one checked surface an agent works
+    storehouse bus and its MCP server: one checked surface an agent works
     through, and what its identity check does not do.
 19. **[Project status](project-status.md)** — what works today, what is
     experimental or partial, and where the gaps are written down.

@@ -27,12 +27,14 @@ module Hecks
         spec = resolve!(cli_for(request.bluebook), request.name, asking: true)
         rows = with_caller(request.role, request.actor_id) { answer(request, spec) }
 
-        ok(summary: request.summary, rows: rows.map { |row| Doors::JsonDoor.materialize(row) }).merge(verb: spec[:command])
+        ok(summary: request.summary, rows: rows.map do |row|
+          Adapters::Driving::Json.materialize(row)
+        end).merge(verb: spec[:command])
       end
 
       # :nodoc:
       def answer(request, spec)
-        request.runtime.query(spec[:command], **Doors::JsonDoor.deep_symbolize(request.args))
+        request.runtime.query(spec[:command], **Adapters::Driving::Json.deep_symbolize(request.args))
       end
 
       # Reads one aggregate's stored records directly, bypassing any declared
@@ -63,7 +65,7 @@ module Hecks
         repository = runtime.registry.repository(bluebook.name, ir)
         return ok(summary: summary, record: single_record(repository, ir, id)) if id
 
-        records = repository.all.map { |instance| Doors::JsonDoor.materialize(instance.to_h) }
+        records = repository.all.map { |instance| Adapters::Driving::Json.materialize(instance.to_h) }
         ok(summary: summary, count: records.length, records: records)
       end
 
@@ -71,7 +73,7 @@ module Hecks
       def single_record(repository, aggregate_ir, identity)
         instance = repository.find(identity) or
           raise Runtime::NotFound, "no #{aggregate_ir.hecks_name} found for id #{identity.inspect}"
-        Doors::JsonDoor.materialize(instance.to_h)
+        Adapters::Driving::Json.materialize(instance.to_h)
       end
     end
   end

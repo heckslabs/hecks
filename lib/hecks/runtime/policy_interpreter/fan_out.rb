@@ -74,10 +74,10 @@ module Hecks
         end
 
         def deliver_for_each_row(target, row_record, args, policy, event)
-          return depth_refusal(row_record) if @door.reaction_depth_reached?
+          return depth_refusal(row_record) if @dispatcher.reaction_depth_reached?
 
           # The row key is already merged by `trigger_args`, so a projection can name it.
-          @door.reenter(target, **reaction_invocation(target, args, policy, event))
+          @dispatcher.reenter(target, **reaction_invocation(target, args, policy, event))
           row_record.merge(delivered: true)
         rescue *DOMAIN_REFUSALS => e
           row_record.merge(delivered: false, reason: e.message)

@@ -5,7 +5,7 @@ require "hecks/behaviors/expectations"
 RSpec.describe Hecks::Behaviors::Expectations do
   let(:root) { File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook") }
   let(:memory_hecksagon) { File.join(InMemoryDomain::ROOT, "examples/pizzas/pizzas_behaviors.hecksagon") }
-  let(:runtime) { Hecks.boot_files([File.join(root, "pizzas.bluebook"), memory_hecksagon], install_doors: false) }
+  let(:runtime) { Hecks.boot_files([File.join(root, "pizzas.bluebook"), memory_hecksagon], install_driving: false) }
   let(:bluebooks) { runtime.registry.bluebooks.values }
 
   def pizza_input(name)

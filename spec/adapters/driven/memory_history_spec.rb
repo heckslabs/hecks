@@ -83,7 +83,7 @@ RSpec.describe "Memory with a growing list" do
     FileUtils.rm_rf(@dir)
   end
 
-  let(:runtime) { Hecks.boot(@dir, install_doors: false) }
+  let(:runtime) { Hecks.boot(@dir, install_driving: false) }
   let(:aggregate) { runtime.registry.bluebook("History").aggregate("Run") }
   let(:repository) { runtime.registry.repository("History", aggregate) }
   let(:codec) { Hecks::Ports::Persistence::StateCodec }

@@ -102,7 +102,7 @@ module Hecks
         end
 
         class << self
-          # The builder whose block is being evaluated, so an aggregate door a facade already
+          # The builder whose block is being evaluated, so an aggregate module a facade already
           # installed (a repeat boot in one process) can record a qualified bind into it.
           #
           # @return [Bluebook::DSL::WorldBuilder, nil] nil outside a `.world` block

@@ -188,8 +188,8 @@ Hecks.bluebook "Roster" do
       emits SeatAssigned
     end
 
-    # The door: `delegates_to` hands the same dispatch to one member's Retire, atomically,
-    # so its refusal and event are this command's. `with:` maps door args to target args.
+    # The entry point: `delegates_to` hands the same dispatch to one member's Retire, atomically,
+    # so its refusal and event are this command's. `with:` maps entry point args to target args.
     command "Retire" do
       goal "Retire one member, on the caller's behalf"
 

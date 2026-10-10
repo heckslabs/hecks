@@ -22,7 +22,7 @@
 # edge is written only when such a change is made.
 #
 # **launcher** switches on the opt-in parts of the generated `hecks` launcher (see
-# `Doors::LauncherOptions`): `run_keys` mints a `run` key for a creating command given none,
+# `Adapters::Driving::LauncherOptions`): `run_keys` mints a `run` key for a creating command given none,
 # `names` gives a command the launcher name clients type,
 # `settled` names the commands that always wait for their reactions, as if `--wait` were given, so a
 # refusal is an exit status and a reason on standard error (`package.vendor`, which a script runs
@@ -46,8 +46,8 @@ Hecks.world "Hecks" do
                                   preview_run.url preview_run.list preview_run.deploy
                                   preview_run.destroy preview_run.login companion_roll.run
                                   handover.clear],
-                       names: { "mcp" => "door.serve_mcp", "console" => "operation.open_console", "init" => "door.init",
-                                "interview" => "door.interview", "package.check" => "registry.check",
+                       names: { "mcp" => "entry point.serve_mcp", "console" => "operation.open_console", "init" => "entry point.init",
+                                "interview" => "entry point.interview", "package.check" => "registry.check",
                                 "package.digest" => "registry.digest",
                                 "package.release" => "registry.release" },
                        streams: %w[Follow],

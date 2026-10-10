@@ -1,7 +1,7 @@
 //! The wire's query step: `{"query": "Aggregate.Query", "args": {...}}`.
 //!
 //! A declared query that filters stored records is answered by the kernel against current
-//! state, the way the Ruby launcher and doors answer it. A query that `returns` a value object
+//! state, the way the Ruby launcher and entry points answer it. A query that `returns` a value object
 //! is answered from outside the domain (a hecksagon `answers_query` binding); this host binds
 //! no adapter, so it refuses that question rather than answer it from the aggregate's rows, and
 //! it writes nothing to the journal for either.

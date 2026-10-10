@@ -34,7 +34,7 @@ Exercised in CI on every push (the whole suite, alongside
 - AWS Lambda/SAM deployment projection; Mermaid diagram projection.
 - Both MCP servers described in
   [AI-native development](ai-native-development.md) — the Storehouse
-  dispatch door landed very recently and is the least battle-tested item
+  dispatch entry point landed very recently and is the least battle-tested item
   on this list.
 
 The first item, on the in-memory adapter, in one sitting: a declared rule

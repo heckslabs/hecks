@@ -5,7 +5,7 @@ require_relative "record_table"
 module Hecks
   module Forms
     # The index and show pages every aggregate gets, whether or not it declares a query.
-    # They read the repository directly, like `AggregateDoor#all`/`#find`.
+    # They read the repository directly, like `AggregateModule#all`/`#find`.
     module RecordRenderer
       # Renders the page listing every record of one aggregate.
       def self.index(registry:, domain:, aggregate:)

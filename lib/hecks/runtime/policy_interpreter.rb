@@ -20,11 +20,11 @@ module Hecks
 
       # @param registry [Runtime::Registry] the booted registry whose loaded
       #   bluebooks are scanned for candidate policies
-      # @param door [Runtime::Dispatcher] the dispatcher reactions re-enter through,
+      # @param dispatcher [Runtime::Dispatcher] the dispatcher reactions re-enter through,
       #   and whose reaction-depth guard is checked before each delivery
-      def initialize(registry, door:)
+      def initialize(registry, dispatcher:)
         @registry = registry
-        @door     = door
+        @dispatcher = dispatcher
       end
 
       # Fires every declared policy `event` triggers, recording each outcome on
@@ -96,15 +96,15 @@ module Hecks
       # may go.
       def fire(policy, event, target, record)
         return nil unless where_holds?(policy, event)
-        return depth_refusal(record) if @door.reaction_depth_reached?
+        return depth_refusal(record) if @dispatcher.reaction_depth_reached?
 
         args = trigger_args(policy, event)
-        @door.reenter(target, **reaction_invocation(target, args, policy, event))
+        @dispatcher.reenter(target, **reaction_invocation(target, args, policy, event))
         record.merge(delivered: true)
       end
 
       def depth_refusal(record)
-        record.merge(delivered: false, reason: "reaction depth #{@door.max_reaction_depth} reached")
+        record.merge(delivered: false, reason: "reaction depth #{@dispatcher.max_reaction_depth} reached")
       end
 
       # A defect, not a refusal: recorded with `defect: true` and warned, never

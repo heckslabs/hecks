@@ -1,11 +1,11 @@
 # Pins that a command fact named `to` reaches the command as a fact, not as the dispatch
 # envelope's `to:` address.
 Hecks.behaviors "BoardMoves" do
-  vision "Examples of moving a piece through the delegates_to fixture's own door — whose destination fact is named `to`, the same word the dispatch envelope reserves."
+  vision "Examples of moving a piece through the delegates_to fixture's own entry point — whose destination fact is named `to`, the same word the dispatch envelope reserves."
 
   loads "../../fixtures/delegates_to/delegates_to.bluebook"
 
-  test "a piece moves through the aggregate-level door, and the policy cascade bumps the move count" do
+  test "a piece moves through the aggregate-level entry point, and the policy cascade bumps the move count" do
     tests "MovePiece", on: "Board"
     setup  "OpenBoard",  name: { value: "b1" }
     setup  "PlacePiece", name: "b1", id: { value: "p1" }, square: { file: 1, rank: 1 }

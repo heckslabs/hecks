@@ -65,7 +65,7 @@ module Hecks
       # @return [Array] the settled instance, events, plan, persistence outcome, and outbox rows
       # @raise [StandardError] a domain refusal (Runtime::DOMAIN_REFUSALS) when a rule refuses
       # @raise [Runtime::StaleWrite, Runtime::WiringError] every retry loses, or resolve fails
-      # rubocop:disable-next Metrics/ParameterLists -- the public dispatch signature every door calls
+      # rubocop:disable-next Metrics/ParameterLists -- the public dispatch signature every entry point calls
       def call(domain, aggregate, command, invocation, correlation = nil, dry_run: false)
         args     = invocation.to_args
         settings = { invocation: invocation, route: invocation.target, correlation: correlation, dry_run: dry_run }
@@ -181,7 +181,8 @@ module Hecks
 
       # `ctx.pending_delegation` is only ever set by `step_delegate_to_entity`, and only when this
       # command carries a `:delegate` mutation. The same dispatch, so the same correlation —
-      # without threading `ctx.correlation` through, a saga-driven door's events would lose their
+      # without threading `ctx.correlation` through, a saga-driven entry point's events would lose
+      # their
       # stamp here.
       def emit_events(ctx)
         command, args = ctx.pending_delegation || [ctx.command, ctx.args]

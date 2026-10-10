@@ -177,7 +177,7 @@ module Hecks
       class Context
         # @param root [String] the checkout
         def initialize(root)
-          @runtime = Hecks.boot(File.join(root, "lib/hecks/hecks"), install_doors: false)
+          @runtime = Hecks.boot(File.join(root, "lib/hecks/hecks"), install_driving: false)
           @projections = {}
         end
 
@@ -201,8 +201,8 @@ module Hecks
 
         def projection(chapter)
           @projections[chapter] ||= begin
-            launcher = Doors::LauncherOptions.settings(@runtime, chapter)
-            options = Doors::LauncherOptions.projection(launcher, "hecks")
+            launcher = Adapters::Driving::LauncherOptions.settings(@runtime, chapter)
+            options = Adapters::Driving::LauncherOptions.projection(launcher, "hecks")
             Projector.call(:cli, bluebook: @runtime.registry.bluebook(chapter), options: options)
           end
         end
@@ -210,7 +210,7 @@ module Hecks
         # `hecks ir`, `hecks console`, `hecks quality_control sweep.run`, `hecks host.check_era`.
         # The launcher takes a name that is only a query as a query, so no `query` word is needed.
         def words(chapter, name, row)
-          route = route_for(Doors::LauncherOptions.settings(@runtime, chapter) || {}, chapter, name, row)
+          route = route_for(Adapters::Driving::LauncherOptions.settings(@runtime, chapter) || {}, chapter, name, row)
           return [route] if route
 
           [*(Naming.snake(chapter) unless chapter == "Hecks"), name]

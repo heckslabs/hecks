@@ -6,7 +6,7 @@ require "hecks/cli/console"
 module Hecks
   module Adapters
     # The `Terminal` port's adapter: the sessions an operator or a program drives through stdin and
-    # stdout, an IRB console (`open`) or the stdio MCP door (`serve`).
+    # stdout, an IRB console (`open`) or the stdio MCP server (`serve`).
     #
     # The journal records that a session was opened and how it ended, not what was said in it.
     # Each starts here and nowhere else; a caller that must not open a real session (a spec)
@@ -43,26 +43,28 @@ module Hecks
         { output: { value: "console session ended (#{domain || "pizzas"})" } }
       end
 
-      # Hands the process over to the MCP door until the client closes stdin. The door writes its
+      # Hands the process over to the MCP server until the client closes stdin. The server writes
+      # its
       # JSON-RPC on stdout, so nothing here is captured, and the launcher's own answer follows
       # only once the client is gone.
       #
-      # @param held [Hash] the `Door` record: `stdio` (whether `--stdio` was given)
-      # @return [Hash{Symbol => Hash}] `output:` a one-line note that the door closed
-      # @raise [ConsoleCapture::Failure] when the process is not set up for stdio: the door
+      # @param held [Hash] the `Launch` record: `stdio` (whether `--stdio` was given)
+      # @return [Hash{Symbol => Hash}] `output:` a one-line note that the server closed
+      # @raise [ConsoleCapture::Failure] when the process is not set up for stdio: the server
       #   refused to start, and said why on stderr
       def serve(**held)
-        run_door(plain(held[:stdio]) ? ["--stdio"] : [])
+        run_server(plain(held[:stdio]) ? ["--stdio"] : [])
 
-        { output: { value: "mcp door closed" } }
+        { output: { value: "mcp server closed" } }
       rescue SystemExit => e
-        raise ConsoleCapture::Failure, "the mcp door refused to start (status #{e.status}); see stderr"
+        raise ConsoleCapture::Failure, "the mcp server refused to start (status #{e.status}); see stderr"
       end
 
       # Holds an interview at the terminal and writes the domain it drafts (ADR 0088). Asking is IO,
       # so it happens here and nowhere else; the journal records that one was held, not its words.
       #
-      # @param held [Hash] the `Door` record: `name`; optionally `adapter`, `dir`, `expert`, `no_ai`
+      # @param held [Hash] the `Launch` record: `name`; optionally `adapter`, `dir`, `expert`,
+      #   `no_ai`
       # @return [Hash{Symbol => Hash}] `output:` what the interview wrote, or that it wrote nothing
       # @raise [ConsoleCapture::Failure] when the name or adapter is refused, or a file is there
       def converse(**held)
@@ -76,8 +78,8 @@ module Hecks
 
       private
 
-      # Hands the process to the server a spec set, or else to the real MCP door.
-      def run_door(argv)
+      # Hands the process to the server a spec set, or else to the real MCP server.
+      def run_server(argv)
         server = self.class.server
         if server
           server.call(argv)

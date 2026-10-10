@@ -45,7 +45,7 @@ module Hecks
       #   against; nil for a registry with no such root
       def initialize(root: nil)
         @root         = root
-        # Recorded at hecksagon-build time (AggregateDoor#mark_sensitive), Loader.boot's
+        # Recorded at hecksagon-build time (AggregateModule#mark_sensitive), Loader.boot's
         # post-dispatch step turns each pending privacy marking into a real Privacy::Marking.Mark,
         # idempotently. `resolved_eras` and `superseded_eras` are eager, not lazy, so no two
         # dispatching threads race to create them; all writes still happen at boot,

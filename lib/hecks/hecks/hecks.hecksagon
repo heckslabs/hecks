@@ -108,31 +108,31 @@ Hecks.hecksagon "Hecks" do
     answers_query "Digest"
   end
 
-  Hecks::Door.port "Workspace" do
-    asks "Write", to: Door do
-      attribute :run, DoorKey
-      answers "DoorAnswered"
-      refuses "DoorRefused"
+  Hecks::Launch.port "Workspace" do
+    asks "Write", to: Launch do
+      attribute :run, LaunchKey
+      answers "LaunchAnswered"
+      refuses "LaunchRefused"
     end
 
-    asks "Scaffold", to: Door do
-      attribute :run, DoorKey
-      answers "DoorAnswered"
-      refuses "DoorRefused"
+    asks "Scaffold", to: Launch do
+      attribute :run, LaunchKey
+      answers "LaunchAnswered"
+      refuses "LaunchRefused"
     end
   end
 
-  Hecks::Door.port "Terminal" do
-    asks "Serve", to: Door do
-      attribute :run, DoorKey
-      answers "DoorAnswered"
-      refuses "DoorRefused"
+  Hecks::Launch.port "Terminal" do
+    asks "Serve", to: Launch do
+      attribute :run, LaunchKey
+      answers "LaunchAnswered"
+      refuses "LaunchRefused"
     end
 
-    asks "Converse", to: Door do
-      attribute :run, DoorKey
-      answers "DoorAnswered"
-      refuses "DoorRefused"
+    asks "Converse", to: Launch do
+      attribute :run, LaunchKey
+      answers "LaunchAnswered"
+      refuses "LaunchRefused"
     end
   end
 

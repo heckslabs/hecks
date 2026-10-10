@@ -7,12 +7,12 @@ require_relative "../../../lib/hecks/hecks/adapters/first_admin"
 # naming the role the grant is gated to, once, and never when an administrator exists.
 RSpec.describe Hecks::Adapters::FirstAdmin do
   let(:dir) { Dir.mktmpdir("hecks-first-admin") }
-  let(:runtime) { Hecks.boot(CrewDomain.write(dir), install_doors: false) }
+  let(:runtime) { Hecks.boot(CrewDomain.write(dir), install_driving: false) }
   let(:bootstrap) { described_class.new(runtime) }
 
   after { FileUtils.remove_entry(dir) }
 
-  def people = runtime.query("Crew::Person.All").map { |row| Hecks::Doors::JsonDoor.materialize(row) }
+  def people = runtime.query("Crew::Person.All").map { |row| Hecks::Adapters::Driving::Json.materialize(row) }
 
   it "admits the person and grants the role the grant is gated to", :aggregate_failures do
     result = bootstrap.call(email: "ada@example.com", name: "Ada")
@@ -79,7 +79,7 @@ RSpec.describe Hecks::Adapters::FirstAdmin do
   it "refuses a domain that provides no membership" do
     CrewDomain.write(dir)
     File.write(File.join(dir, "crew.bluebook"), CrewDomain::BLUEBOOK.sub(/^\s*provides "membership".*\n/, ""))
-    bare = described_class.new(Hecks.boot(dir, install_doors: false))
+    bare = described_class.new(Hecks.boot(dir, install_driving: false))
 
     expect { bare.call(email: "ada@example.com") }
       .to raise_error(Hecks::Runtime::NotFound, /provides "membership", admit: "Person.Admit", grant: .*people: /)

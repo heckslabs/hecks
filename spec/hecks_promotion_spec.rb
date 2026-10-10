@@ -67,7 +67,7 @@ RSpec.describe "promoting a lane" do
   before do
     File.write(File.join(root, "hecks.gemspec"), "")
     FileUtils.mkdir_p(File.join(root, "lib"))
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
+    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
     Hecks::Adapters::Codebase::Tree.root = root
   end
 
@@ -79,7 +79,7 @@ RSpec.describe "promoting a lane" do
   end
 
   def launch(*argv)
-    Hecks::Doors::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks")
+    Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks")
   end
 
   def outcome(run) = launch("promotion_run.promotion_outcome", "run=#{run}").first

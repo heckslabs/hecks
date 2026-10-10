@@ -61,7 +61,7 @@ RSpec.describe Hecks::CLI::ProjectCli do
     it "writes the boot path, program and name as Ruby literals", :aggregate_failures do
       text = source("a/b", "Shelf")
 
-      expect(text).to include("Hecks.boot(__dir__, install_doors: false)", %(program: "a/b/shelf"))
+      expect(text).to include("Hecks.boot(__dir__, install_driving: false)", %(program: "a/b/shelf"))
       expect(RubyVM::InstructionSequence.compile(text)).to be_a(RubyVM::InstructionSequence)
     end
 

@@ -16,7 +16,7 @@ RSpec.describe "committed OIDC manifests (hecks deploy project_oidc)" do
 
   # What `hecks deploy project_oidc` would write for the domain beside the manifest at `path`.
   def projection_for(path)
-    runtime = Hecks.boot(File.join(ROOT, File.dirname(relative(path))), install_doors: false)
+    runtime = Hecks.boot(File.join(ROOT, File.dirname(relative(path))), install_driving: false)
     bluebook = runtime.registry.bluebook(runtime.registry.bluebooks.keys.first)
     Hecks::Projections::OIDC.render(Hecks::Projector.call(:oidc, bluebook: bluebook))
   end

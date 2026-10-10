@@ -623,7 +623,7 @@ let role = body.get("role").and_then(|v| v.as_str()).map(|s| s.to_string());
 ```
 
 and nothing verifies it. ADR 0072 records this as the same self-asserted
-identity gap as the MCP door's, to be settled together with a real token.
+identity gap as the MCP server's, to be settled together with a real token.
 What was observed here:
 
 - **A caller with no `role` is not checked at all.** `Approve` with no

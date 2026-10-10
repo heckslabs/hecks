@@ -107,7 +107,7 @@ RSpec.describe Hecks::Fuzzing::OutsideWorld, :aggregate_failures do
   end
 
   it "leaves the adapter running for a caller that is not replaying" do
-    runtime = Hecks.boot(@dir, install_doors: false)
+    runtime = Hecks.boot(@dir, install_driving: false)
 
     expect(runtime.query("Reach::Note.Echo", title: "hello")).to eq([{ heard: { value: "hello" } }])
     expect(File.exist?(@marker)).to be(true)

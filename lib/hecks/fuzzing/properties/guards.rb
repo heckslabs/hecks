@@ -101,7 +101,7 @@ module Hecks
 
         # A command's own guard descriptions plus those of every command it delegates to.
         #
-        # A delegating door refuses with its target's words, so both sets count. Resolved
+        # A delegating entry point refuses with its target's words, so both sets count. Resolved
         # against the full `bluebooks` map: a verb's domain is not always `history[:bluebook]`.
         def effective_guard_descriptions(bluebooks, verb, command)
           own = command.guard_descriptions

@@ -23,7 +23,7 @@ module Hecks
       # named ones, through `Hecks::CLI::ProjectCli`. A launcher is a generated file that only
       # points at its domain, so an existing one is replaced and nothing else is touched.
       #
-      # @param held [Hash] the `Door` record: `domains` (comma separated paths under the current
+      # @param held [Hash] the `Launch` record: `domains` (comma separated paths under the current
       #   directory; every domain found when absent)
       # @return [Hash{Symbol => Hash}] `output:` one line per launcher written
       # @raise [ConsoleCapture::Failure] when no launcher was written
@@ -45,7 +45,7 @@ module Hecks
       # Nothing is replaced: every file is checked before the first is written, and a directory
       # that already holds a bluebook is refused.
       #
-      # @param held [Hash] the `Door` record: `name`, and optionally `adapter` and `dir`
+      # @param held [Hash] the `Launch` record: `name`, and optionally `adapter` and `dir`
       # @return [Hash{Symbol => Hash}] `output:` the report that was printed
       # @raise [ConsoleCapture::Failure] when the name or adapter is refused, or a file exists
       def scaffold(**held)

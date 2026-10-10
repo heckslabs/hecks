@@ -143,11 +143,11 @@ RSpec.describe "QualityControl" do
   end
 
   describe "the clock" do
-    def cli(*argv) = Hecks::Doors::CliRunner.call(runtime: runtime, argv: argv, program: "bin/qc")
+    def cli(*argv) = Hecks::Adapters::Driving::CliRunner.call(runtime: runtime, argv: argv, program: "bin/qc")
 
     def target = @target ||= a_target("banking")
 
-    # The door fills `now` so callers need not paste `now.value=$(date +%s)`, which goes stale.
+    # The entry point fills `now` so callers need not paste `now.value=$(date +%s)`, which goes stale.
     it "fills now from the clock when the caller leaves it out", :aggregate_failures do
       target
       text, code = cli("target.claim", "id=banking", "held_by.value=agent-one")
@@ -156,7 +156,7 @@ RSpec.describe "QualityControl" do
       expect(JSON.parse(text).dig("state", "claimed_at", "value")).to eq(1_000)
     end
 
-    # The door supplies only what was omitted.
+    # The entry point supplies only what was omitted.
     it "believes an explicit time over the clock" do
       target
       text, = cli("target.claim", "id=banking", "held_by.value=agent-one", "now.value=55")
@@ -191,7 +191,7 @@ RSpec.describe "QualityControl" do
     def bugs_by(name) = report(name)[:bugs]
 
     def ask_cli(query)
-      Hecks::Doors::CliRunner.call(runtime: runtime, argv: ["ask", query], program: "qa/quality_control")
+      Hecks::Adapters::Driving::CliRunner.call(runtime: runtime, argv: ["ask", query], program: "qa/quality_control")
     end
 
     def a_logged_bug(reference, submitter: "agent-one")
@@ -613,11 +613,11 @@ RSpec.describe "QualityControl" do
   end
 
   describe "the backlog of where to look next" do
-    # The CLI door fills an omitted argument from the clock port, as for `Target.Claim`; the
+    # The CLI entry point fills an omitted argument from the clock port, as for `Target.Claim`; the
     # facade's Ruby method always wants it named.
     def propose_through_cli
       runtime
-      Hecks::Doors::CliRunner.call(
+      Hecks::Adapters::Driving::CliRunner.call(
         runtime: runtime, program: "bin/qc",
         argv: ["angle.propose", "reference.value=ANGLE-1", "premise.value=#{"a" * 60}",
                "citation.value=BUG#1", "proposer.value=Claude QA"]

@@ -26,9 +26,9 @@ exits 1 on a failure state (`flagged`, `failed`, `drifted`, `unreachable`, `refu
 
 ## 2. Rename `Hecks::Facade` to `Hecks::Doors`
 
-`Surface` is now `Doors::RubyDoor`, and the MCP door lives beside it. `install_facade:` is now
-`install_doors:`. The old names worked in 3.0 to 3.3 with a warning; they were removed in 3.4.0, so
-`Hecks::Facade`, `Hecks::Doors::Surface` and `install_facade:` now raise `NameError` and
+`Surface` is now `Adapters::Driving::Ruby`, and the MCP door lives beside it. `install_facade:` is now
+`install_driving:`. The old names worked in 3.0 to 3.3 with a warning; they were removed in 3.4.0, so
+`Hecks::Facade`, `Hecks::Adapters::Driving::Surface` and `install_facade:` now raise `NameError` and
 `ArgumentError`. Regenerate launchers with `hecks project_cli`.
 
 ## 3. Reach Hecks-chapter constants through `Hecks::Domain`
@@ -101,8 +101,8 @@ are still on an old pin, 3.3.0 prints the warning for each use, so run it once a
 | `uses_framework "X"` | `attaches "X"` |
 | `uses_embryonaut_bluebook "x"` | `attaches "x", from: :vendor` |
 | `Hecks::Facade` | `Hecks::Doors` |
-| `Hecks::Doors::Surface` | `Hecks::Doors::RubyDoor` |
-| `install_facade:` (on `boot`, `boot_files`, `boot_described`) | `install_doors:` |
+| `Hecks::Adapters::Driving::Surface` | `Hecks::Adapters::Driving::Ruby` |
+| `install_facade:` (on `boot`, `boot_files`, `boot_described`) | `install_driving:` |
 
 ## Check your upgrade
 

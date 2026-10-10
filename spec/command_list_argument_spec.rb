@@ -3,7 +3,7 @@ require "tmpdir"
 require "fileutils"
 
 # A command's own `list_of` argument is an Array whatever its element type: a lone scalar is
-# refused, and the launcher door folds its list spellings into an Array before the runtime sees
+# refused, and the launcher entry point folds its list spellings into an Array before the runtime sees
 # them. `append:`/`remove:` take one element by design, coerced against the aggregate's own list.
 RSpec.describe "a command's list_of argument" do
   BINDER_BLUEBOOK = <<~RUBY.freeze
@@ -60,7 +60,7 @@ RSpec.describe "a command's list_of argument" do
     Dir.mktmpdir("binder") do |dir|
       FileUtils.mkdir_p(File.join(dir, "bluebook"))
       File.write(File.join(dir, "bluebook/binder.bluebook"), BINDER_BLUEBOOK)
-      @runtime = Hecks.boot(dir, install_doors: false)
+      @runtime = Hecks.boot(dir, install_driving: false)
       example.run
     end
   end

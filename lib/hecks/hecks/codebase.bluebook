@@ -2153,7 +2153,7 @@ Hecks.bluebook "Hecks" do
   # Corpus: what this repository's committed domains are, and what the language's own IR holds.
   # Every question about them is a pure read, answered by the SourceTree port: which domains carry
   # a Rust feature, the order they regenerate in, whether each generated module is covered, and the
-  # structural queries over the IR. Two commands open a long-running door: the query MCP server
+  # structural queries over the IR. Two commands open a long-running server: the query MCP server
   # on stdio and the forms app on a local port; each is recorded, runs until it is closed, and
   # answers when it ends.
   aggregate "CorpusRun" do

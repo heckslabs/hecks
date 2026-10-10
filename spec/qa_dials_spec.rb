@@ -27,7 +27,7 @@ RSpec.describe "the QaDial rows" do
   def quality_control_dials_loaded
     return if defined?(QualityControlDials)
 
-    Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/quality_control"), install_doors: false)
+    Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/quality_control"), install_driving: false)
   end
 
   def expect_dial_defined(name)

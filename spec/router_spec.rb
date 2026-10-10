@@ -146,12 +146,12 @@ RSpec.describe Hecks::Router do
       write_domain("billing", "Billing", ROUTER_INVOICE_BLUEBOOK)
     end
 
-    it "routes commands for every discovered Bluebook through one door", :aggregate_failures do
+    it "routes commands for every discovered Bluebook through one entry point", :aggregate_failures do
       expect(router.dispatch("Acme::Catalog::Book.Add", code: { value: "book-1" }).id).to eq("book-1")
       expect(router.dispatch("Acme::Billing::Invoice.Issue", number: { value: "invoice-1" }).id).to eq("invoice-1")
     end
 
-    it "routes queries for every discovered Bluebook through one door" do
+    it "routes queries for every discovered Bluebook through one entry point" do
       router.dispatch("Acme::Catalog::Book.Add", code: { value: "book-1" })
       expect(router.query("Acme::Catalog::Book.available").map { |row| row.merge(code: row[:code].to_h) })
         .to eq([{ id: "book-1", code: { value: "book-1" } }])
@@ -200,7 +200,7 @@ RSpec.describe Hecks::Router do
     expect(router.resolve("Acme::Banking@v1::Account.Credit").domain_version).to eq("v1")
   end
 
-  it "rejects a command/query door that does not match the route" do
+  it "rejects a command/query entry point that does not match the route" do
     router = load_router("catalog", "Catalog", ROUTER_QUERYABLE_BLUEBOOK)
 
     expect { router.dispatch("Acme::Catalog::Book.available") }.to raise_error(described_class::WrongVerbKind, /query/)

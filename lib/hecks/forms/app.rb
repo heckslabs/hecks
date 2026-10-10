@@ -87,7 +87,7 @@ module Hecks
 
       def refuse_entity_command
         raise RouteNotFound,
-              "entity command routes are not supported by Forms; use a command door with " \
+              "entity command routes are not supported by Forms; use a command route with " \
               "to.aggregate and to.entity"
       end
 

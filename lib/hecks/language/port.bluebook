@@ -1,9 +1,9 @@
 Hecks.bluebook "Port" do
-  vision "The .port language, declared in itself. A port names one resource door a domain's own aggregates call by verb — persisted_by, posted_by, whatever a chapter spells — bound to a real driven adapter at the world level. A sibling artifact to the bluebook, not part of one: the same port name is reused across every domain that needs the same kind of door."
+  vision "The .port language, declared in itself. A port names one resource a domain's own aggregates call by verb — persisted_by, posted_by, whatever a chapter spells — bound to a real driven adapter at the world level. A sibling artifact to the bluebook, not part of one: the same port name is reused across every domain that needs the same kind of entry point."
   core
 
   aggregate "Port" do
-    description "One .port — a resource door a domain's own aggregates call by verb, and whether calling it answers with a value (reply) or fires an effect with nothing to hand back (effect)."
+    description "One .port — a resource a domain's own aggregates call by verb, and whether calling it answers with a value (reply) or fires an effect with nothing to hand back (effect)."
 
     identified_by PortName, as: :name
 
@@ -25,7 +25,7 @@ Hecks.bluebook "Port" do
       attribute :value, String, one_of: ["reply", "effect"]
     end
 
-    # The method contract: what an adapter must `respond_to?` for a dispatch through this door.
+    # The method contract: what an adapter must `respond_to?` for a dispatch through this port.
     # A port that declares none is unchecked beyond `verify!`.
     value_object "PortAnswer" do
       attribute :value, String
@@ -34,7 +34,7 @@ Hecks.bluebook "Port" do
 
     command "Declare" do
       role "Deployment"
-      goal "Open a resource door a domain's own aggregates may call by verb"
+      goal "Open a resource a domain's own aggregates may call by verb"
 
       attribute :name,   PortName
       # Optional: a port may declare only `signal`; `verb` has no default, unlike `signal`.

@@ -7,6 +7,10 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking: doors are driving adapters (ADR 0096).** `Hecks::Doors` is `Hecks::Adapters::Driving` and lives in `lib/hecks/adapters/driving/`, beside the GitHub webhook receiver: `RubyDoor` is `Driving::Ruby`, `CliDoor` is `Driving::Cli`, `JsonDoor` is `Driving::Json`, `McpDoor` is `Driving::Mcp` and `McpDoorScope` is `Driving::McpScope`. `install_doors:` on `boot`, `boot_files` and `boot_described` is `install_driving:`; the old keyword is refused as unknown. The MCP server's scope variables are `HECKS_SERVER_TOOLS`, `HECKS_SERVER_DOMAINS` and `HECKS_SERVER_COMMANDS`, and a `HECKS_DOOR_*` variable is refused by name rather than ignored, so a stale spawner fails instead of starting an unrestricted server. The `.mcp.json` server `hecks-door` is `hecks-mcp`. The Custodian's `Door` aggregate is `Launch`, so `hecks door.serve_mcp`, `door.project_cli`, `door.init` and `door.interview` are `launch.serve_mcp`, `launch.project_cli`, `launch.init` and `launch.interview`. The policy and saga interpreters take `dispatcher:` where they took `door:`.
+
 ### Added
 
 - **`POST /registrations` can close ahead of an event's start.** An Event row that carries both `starts_at` and `registration_cutoff_hours` (Unix seconds and whole hours, each a bare number or a `{"value": N}` value object) is refused with `422` `registration has closed for this event` once now plus the cutoff passes the start; exactly at the cutoff is still open, and a missing, `null` or unreadable field means no cutoff. The check sits after the status check and before the seat check, so a refusal writes nothing. The route takes its clock through a small `registrations_route_at` seam so a test can fix the time.

@@ -152,7 +152,7 @@ theory — a real file in this repository proves it.
 
 ## Driving ports
 
-A `port` declared in the hecksagon is a second front door, for facts
+A `port` declared in the hecksagon is a second entry point, for facts
 that did not originate inside this domain at all — a payment
 processor's webhook confirming a charge, not a chef ringing one up on
 the menu. Read the inventory off `PaymentGateway`'s `Receive`
@@ -172,7 +172,7 @@ event this emits, exactly the way `pizzas.bluebook`'s
 reaction is [policies-and-process-managers.md](policies-and-process-managers.md)'s job, not this page's.
 
 Call it the way a real payment processor's webhook handler would —
-through `dispatch_port`, never through the door a chef's own commands
+through `dispatch_port`, never through the entry point a chef's own commands
 use:
 
 ```ruby

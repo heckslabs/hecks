@@ -268,7 +268,7 @@ banking_bad_pattern   # ~> Malformed: uses a lookahead
 ```
 
 A pattern that IS admitted still refuses a value that does not match
-it — that check runs at the door, when a caller actually offers an
+it — that check runs at the entry point, when a caller actually offers an
 address, not buried inside a predicate three commands later.
 `Customer::EmailAddress` declares one:
 
@@ -361,7 +361,7 @@ inherited the rule for free.
 ## Closed vocabularies, three ways to spell one
 
 `one_of` ships a fixed vocabulary — a field that can only ever be one
-of the values named, refused at the door for anything else. Three
+of the values named, refused at the entry point for anything else. Three
 spellings, picked by what the set is FOR: named and reusable, single
 field or many; or anonymous and local to one attribute.
 
@@ -585,7 +585,7 @@ That is a bare id — a String — not a nested object. A reference IS an
 id, so an id is the only shape it is stored as; hand it an object
 instead (the shape you would reach for reflexively, wrapping "the
 account" the way you would wrap any other field) and the runtime
-refuses it at the door, by name, rather than let a wrapped reference
+refuses it at the entry point, by name, rather than let a wrapped reference
 travel quietly into storage:
 
 ```ruby
@@ -635,7 +635,7 @@ onboarding[:customer]   # => "CUST-1000"
 ```
 
 Not `customer_id` — `customer`. And it is bound by the same rule as
-every other reference: an id, never an object, refused at the door the
+every other reference: an id, never an object, refused at the entry point the
 same way `ExternalTransfer`'s was above:
 
 ```ruby

@@ -13,7 +13,7 @@ RSpec.describe "the Site row of the ADR command table" do
   PROJECT = File.join(InMemoryDomain::ROOT, "spec/fixtures/site/studio")
 
   before(:all) do
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
+    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
     @bluebook = @hecks.registry.bluebook("Site")
   end
 
@@ -29,7 +29,7 @@ RSpec.describe "the Site row of the ADR command table" do
   end
 
   def launch(argv)
-    Hecks::Doors::CliRunner.call(runtime: @hecks, argv: ["site", *argv], program: "hecks")
+    Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, argv: ["site", *argv], program: "hecks")
   end
 
   def answer(argv)

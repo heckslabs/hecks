@@ -231,7 +231,7 @@ advance.provenance[:source_version]  # => "1.0"
 Whether this reference names the command's OWN aggregate decides everything: reference a different aggregate and the command creates, landing as a class method (`Tree.plant`); reference the aggregate it's declared on and the command acts on an existing record, landing as an instance method (`tree.harvest`). See commands.md's "Creating vs. acting" for the full split and the `AlreadyExists`/`NotFound` refusals each side produces.
 
 `Open` references `Customer` — a DIFFERENT aggregate — so it creates,
-and lands as a class method on the door:
+and lands as a class method on the entry point:
 
 ```ruby
 Banking::Account.respond_to?(:open!)  # => true
@@ -386,7 +386,7 @@ board[:pieces].first[:square].to_h  # => {:file=>5, :rank=>5}
 ```
 
 The caller above never names `Piece` at all — `MovePiece` is the only
-door.
+entry point.
 
 ## emits
 

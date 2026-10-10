@@ -15,7 +15,7 @@ module Hecks
       GRAMMAR_FILES = Dir.glob(File.join(GRAMMAR_DIR, "*.bluebook")).freeze
       WORLD_GRAMMAR = Dir.glob(File.expand_path("../language/world/*.bluebook", __dir__)).freeze
       HECKSAGON_GRAMMAR = Dir.glob(File.expand_path("../language/hecksagon/*.bluebook", __dir__)).freeze
-      # Backs PortJudge, the same door shape as WorldJudge.
+      # Backs PortJudge, the same entry point shape as WorldJudge.
       PORT_GRAMMAR = File.expand_path("../language/port.bluebook", __dir__).freeze
       # Backs AdapterJudge, one file over.
       ADAPTER_GRAMMAR = File.expand_path("../language/adapter.bluebook", __dir__).freeze
@@ -41,42 +41,42 @@ module Hecks
       #   verdict Hash for a chapter
       def self.verdicts = @verdicts ||= VerdictCache.seed
 
-      # Judges `world` through the meta-domain's own `WorldJudge` door.
+      # Judges `world` through the meta-domain's own `WorldJudge` entry point.
       #
       # @param world [Bluebook::World] the world to judge
       # @return [Bluebook::World] `world` unchanged, if well formed or
       #   while disabled/bootstrapping/shadow-parsing
       # @raise [DSL::Malformed] if `WorldJudge` finds `world` malformed
       def self.call_world(world)
-        judge_door(world, WorldJudge, "#{world.domain}'s world") do
+        judge_artifact(world, WorldJudge, "#{world.domain}'s world") do
           JSON.generate([world.domain, world.realm, world.latest, world.settings])
         end
       end
 
-      # Judges `port` through the meta-domain's own `PortJudge` door.
+      # Judges `port` through the meta-domain's own `PortJudge` entry point.
       #
       # @param port [Bluebook::Port] the port to judge
       # @return [Bluebook::Port] `port` unchanged, if well formed or while
       #   disabled/bootstrapping/shadow-parsing
       # @raise [DSL::Malformed] if `PortJudge` finds `port` malformed
       def self.call_port(port)
-        judge_door(port, PortJudge, "#{port.name}'s port") { JSON.generate([port.name, port.verb, port.signal]) }
+        judge_artifact(port, PortJudge, "#{port.name}'s port") { JSON.generate([port.name, port.verb, port.signal]) }
       end
 
-      # Judges `adapter` through the meta-domain's own `AdapterJudge` door.
+      # Judges `adapter` through the meta-domain's own `AdapterJudge` entry point.
       #
       # @param adapter [Bluebook::Adapter] the adapter to judge
       # @return [Bluebook::Adapter] `adapter` unchanged, if well formed or
       #   while disabled/bootstrapping/shadow-parsing
       # @raise [DSL::Malformed] if `AdapterJudge` finds `adapter` malformed
       def self.call_adapter(adapter)
-        judge_door(adapter, AdapterJudge, "#{adapter.name}'s adapter") do
+        judge_artifact(adapter, AdapterJudge, "#{adapter.name}'s adapter") do
           JSON.generate([adapter.name, adapter.port, adapter.fields, adapter.secrets])
         end
       end
 
       # Judges `translation` through the meta-domain's own `TranslationJudge`
-      # door, walking every nested aggregate's own rule table in one pass.
+      # entry point, walking every nested aggregate's own rule table in one pass.
       #
       # `Translation` has no `.to_h`; `.inspect` embeds an object-id, so
       # structurally-identical translations never cache-hit here (a lost
@@ -88,10 +88,10 @@ module Hecks
       # @raise [DSL::Malformed] if `TranslationJudge` finds `translation`
       #   malformed
       def self.call_translation(translation)
-        judge_door(translation, TranslationJudge, "#{translation.domain}'s translation") { translation.inspect }
+        judge_artifact(translation, TranslationJudge, "#{translation.domain}'s translation") { translation.inspect }
       end
 
-      # The one door every artifact but a chapter goes through: skip while judging is off,
+      # The one entry point every artifact but a chapter goes through: skip while judging is off,
       # else judge once per distinct `key_text` and refuse a malformed artifact.
       #
       # @param subject [Object] the artifact to judge
@@ -100,7 +100,7 @@ module Hecks
       # @yieldreturn [String] the text whose SHA-256 digest keys the verdict
       # @return [Object] `subject` unchanged, if well formed or while judging is off
       # @raise [DSL::Malformed] if `judge` finds `subject` malformed
-      def self.judge_door(subject, judge, label)
+      def self.judge_artifact(subject, judge, label)
         return subject if disabled? || bootstrapping? || shadow_parsing?
 
         key = Digest::SHA256.hexdigest(yield)

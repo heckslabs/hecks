@@ -33,9 +33,9 @@ RSpec.describe "the Hecks domain stays out of a client's runtime" do
     runtime = Hecks.boot_files(
       [File.join(Dir.pwd, "examples/pizzas/bluebook/pizzas.bluebook"),
        File.join(Dir.pwd, "examples/pizzas/pizzas_behaviors.hecksagon")],
-      install_doors: false
+      install_driving: false
     )
-    Hecks::Doors::CliRunner.call(runtime: runtime, argv: ["create_pizza", "name=Margherita"], program: "pizzas")
+    Hecks::Adapters::Driving::CliRunner.call(runtime: runtime, argv: ["create_pizza", "name=Margherita"], program: "pizzas")
     puts JSON.generate(loaded: $LOADED_FEATURES.grep(#{HECKS_DOMAIN_PATTERN}), chapters: runtime.registry.bluebooks.keys)
   RUBY
 

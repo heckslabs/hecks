@@ -47,7 +47,7 @@ trigger reaches a genuinely different domain. Both examples above are real, live
 usage from `examples/banking/bluebook/`.
 
 `PolicyInterpreter#react` runs after a command's events are emitted: it finds every
-policy watching that event, dispatches the trigger via `@door.reenter`, and records
+policy watching that event, dispatches the trigger via `@entry point.reenter`, and records
 the outcome in `registry.reaction_log` — `delivered: true` on success. A refusal from
 the target (`GivenNotMet`, `InvariantViolation`, etc. — anything in
 `DOMAIN_REFUSALS`) is caught and recorded as `delivered: false, reason: ...`, not
@@ -115,7 +115,7 @@ reasoning) settled a question worth recording as policy for this construct gener
 the domain doesn't need to know, and shouldn't be told, whether a reentry into a
 command came from a policy reacting to a domain event, a saga leg, a Rails controller,
 or a webhook handler responding to an external system. All of them are driving
-adapters calling in through the same `door.reenter`; Cockburn's hexagonal architecture
+adapters calling in through the same `entry point.reenter`; Cockburn's hexagonal architecture
 states this as the explicit goal ("blissfully ignorant of the nature of the input
 device"), and Evans's Layered Architecture makes the same cut from the DDD side —
 infrastructure mechanics stay out of the domain layer; only the resulting fact

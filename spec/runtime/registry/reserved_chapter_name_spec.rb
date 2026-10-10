@@ -38,7 +38,7 @@ RSpec.describe "the reserved chapter name Hecks, checked at verify!" do
   end
 
   # Boots `directory` as a client project; `verify!` runs inside the boot.
-  def boot(directory) = Hecks.boot(directory, install_doors: false)
+  def boot(directory) = Hecks.boot(directory, install_driving: false)
 
   it "refuses a client chapter named Hecks and names the word, the file and the fix", :aggregate_failures do
     path = client_bluebook("Hecks", namespace: "ClientHecks")

@@ -50,7 +50,7 @@ module Hecks
           end
         end
 
-        # The full door a value object's own fields pass through — shared by
+        # The full entry point a value object's own fields pass through — shared by
         # `build` and `normalize_composite_fields`, so a nested field refuses
         # exactly like the same type declared directly on a command.
         #
@@ -120,7 +120,8 @@ module Hecks
           validate_input_list(aggregate, attribute, fields)
         end
 
-        # Runs each value-object member of an input list through the same door a nested single
+        # Runs each value-object member of an input list through the same entry point a nested
+        # single
         # value goes through, so a member's own invariants and nested lists refuse on dispatch
         # exactly as they do when the list sits directly on a command. The members stay as offered.
         def validate_input_list(aggregate, attribute, fields)

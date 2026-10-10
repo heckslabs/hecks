@@ -19,7 +19,7 @@ RSpec.describe "the declared syntax" do
           .members.map { |row| row.to_h.transform_values(&:to_s) }
   end
 
-  # Keyword/Argument are dispatched through the real admission/lifecycle door
+  # Keyword/Argument are dispatched through the real admission/lifecycle entry point
   # (`SyntaxBoot.call`), not read as a static closed set the way Context/Body/
   # ArgumentKind still are — so their own `status` really is a lifecycle.
   KEYWORDS      = Hecks::Bluebook::MetaValidator::SyntaxBoot.call[:keywords]

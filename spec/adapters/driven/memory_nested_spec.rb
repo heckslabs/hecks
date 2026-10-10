@@ -83,7 +83,7 @@ RSpec.describe "Memory with a large nested value object" do
     FileUtils.rm_rf(@dir)
   end
 
-  let(:runtime) { Hecks.boot(@dir, install_doors: false) }
+  let(:runtime) { Hecks.boot(@dir, install_driving: false) }
   let(:aggregate) { runtime.registry.bluebook("Ledger").aggregate("Book") }
   let(:repository) { runtime.registry.repository("Ledger", aggregate) }
   let(:codec) { Hecks::Ports::Persistence::StateCodec }

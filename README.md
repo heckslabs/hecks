@@ -43,7 +43,7 @@ Six terms make up the model.
 - **Chapter** is one named `Hecks.bluebook` declaration (`Pizzas`), the unit a
   domain is built from. A hecksagon attaches framework chapters such as
   `Governance` by name.
-- **Door** is a surface a booted domain is reached through: Ruby
+- **Driving adapter** is a surface a booted domain is reached through: Ruby
   (`Order.create_pizza!`), the CLI, JSON, or MCP for an agent. Like a
   controller layer it is the way in, but boot installs it from the
   declaration; nobody writes it.
@@ -56,7 +56,7 @@ Six terms make up the model.
 
 You write a domain in a bluebook, wire it with a hecksagon, and give a world
 the deployment's values. `Hecks.boot` reads the three, runs the domain, and
-installs its doors.
+installs its Ruby driving adapter.
 
 ```ruby excerpt
 command "AddTopping", from: "available" do
@@ -89,7 +89,7 @@ Or in a Gemfile: `gem "hecks"`.
 The gem installs a `hecks` command for a domain you supply: `init`
 (writes the stub of a new one), `interview` (drafts one from a conversation
 with someone who knows the business), `run`, `docs`, `narrate`, `ir`, `stores`, `model_check`, `smoke_test`,
-`project_diagrams`, `project_cli`, and `mcp` (the MCP door, over stdio
+`project_diagrams`, `project_cli`, and `mcp` (the MCP server, over stdio
 only). `hecks` lists them and `hecks <command> --help` prints one's
 usage. In a clone of this repository, the same launcher also answers the
 maintainer commands (`hecks publishing_run.publish`, `hecks regeneration_run.regenerate_corpus`,
@@ -120,7 +120,7 @@ bundle exec hecks console
 ```
 
 `console` boots the `examples/pizzas` domain on the in-memory adapter
-and drops you into IRB with its [door](#door) installed. Nothing needs a
+and drops you into IRB with its [Ruby driving adapter](#driving-adapter) installed. Nothing needs a
 database, and `git status` stays clean. Type this at the prompt (`exit`
 leaves it):
 
@@ -536,7 +536,7 @@ The same separation extends past persistence, to dispatch itself:
 covers the generated Rust runtime, its WASM build, and how both are held
 byte-for-byte to Ruby in CI. [AI-native
 development](docs/implemented/guides/ai-native-development.md) covers the
-[storehouse](#storehouse) bus and the MCP door a coding agent works
+[storehouse](#storehouse) bus and the MCP server a coding agent works
 through.
 
 ## Project status
@@ -633,16 +633,16 @@ chapters it attaches (`attaches "Governance"`), and its ports. See
 A `.world` file: per-deployment values neither the bluebook nor the
 hecksagon names, such as a database URL (`examples/pizzas/bluebook/pizzas.world`).
 
-### Door
+### Driving adapter
 
-The Ruby surface a boot installs: one top-level module per booted
+An adapter that reaches in to a domain from outside. The Ruby one is the surface a boot installs: one top-level module per booted
 chapter and one per aggregate, so `Order.create_pizza!(…)` dispatches the
 `CreatePizza` command. Each boot re-installs it. The MCP server
-`hecks mcp` is a door of the same kind, for an agent over stdio.
+`hecks mcp` is a driving adapter of the same kind, for an agent over stdio. The CLI, JSON and webhook adapters are the others.
 
 ### Chapter
 
-One named `Hecks.bluebook` declaration and the module the door installs
+One named `Hecks.bluebook` declaration and the module the Ruby driving adapter installs
 for it (`Pizzas`). The language's framework chapters (`Governance`,
 `Identity`, `Privacy` and others) live in `lib/hecks/framework/bluebook/`
 and its grammar chapters in `lib/hecks/grammar/`; a hecksagon attaches a

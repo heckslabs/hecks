@@ -37,8 +37,8 @@ module Hecks
         @entities = EntityInterpreter.new(registry, rules: rules)
         @queries  = QueryInterpreter.new(registry)
         @read_models = ReadModelInterpreter.new(registry)
-        @policies = PolicyInterpreter.new(registry, door: self)
-        @sagas    = SagaInterpreter.new(registry, door: self)
+        @policies = PolicyInterpreter.new(registry, dispatcher: self)
+        @sagas    = SagaInterpreter.new(registry, dispatcher: self)
         # One relay per registry: interpreters enqueue through it inside the save transaction.
         @registry.outbox.attach(policies: @policies, sagas: @sagas)
       end
@@ -141,7 +141,7 @@ module Hecks
 
       # Runs one port operation named by its parts, then the reactions its events owe.
       #
-      # The door for an adapter outside the bluebook; no wire spelling packs a port verb.
+      # The dispatcher for an adapter outside the bluebook; no wire spelling packs a port verb.
       #
       # @param to [String, Hash, nil] the receiver; when nil it is read from the facts
       # @param with [Hash, nil] the operation's facts, keyed by argument name
@@ -150,7 +150,7 @@ module Hecks
       # @raise [Runtime::UnknownVerb] if the domain, aggregate, port or operation is undeclared
       # @raise [Runtime::TypeMismatch] if no receiving identity is found, or `to:`/`with:` is bad
       # @raise [Runtime::NotFound] if the receiving record does not exist
-      # rubocop:disable-next Metrics/ParameterLists -- the public door's parts, one argument per verb segment
+      # rubocop:disable-next Metrics/ParameterLists -- the public dispatcher's parts, one argument per verb segment
       def dispatch_port(domain, aggregate_name, port_name, operation_name, to: nil, with: nil, flat: {})
         verb = "#{domain}::#{aggregate_name}.#{port_name}.#{operation_name}"
         aggregate = resolve_aggregate(domain, aggregate_name, verb)

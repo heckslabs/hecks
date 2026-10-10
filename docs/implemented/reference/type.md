@@ -97,7 +97,7 @@ box = Banking::SafeDepositBox.rent!(customer: "ty-1", branch_code: { value: "DT"
 box.size.value  # => "large"
 ```
 
-The set is closed, and a value outside it is refused at the door rather
+The set is closed, and a value outside it is refused at the entry point rather
 than stored and discovered later:
 
 ```ruby

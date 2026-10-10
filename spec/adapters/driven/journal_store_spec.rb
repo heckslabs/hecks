@@ -571,8 +571,8 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
 
   describe "through the launcher" do
     def run_verb(*argv)
-      @hecks ||= Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
-      Hecks::Doors::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks")
+      @hecks ||= Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
+      Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks")
     end
 
     def refusal_reason(output) = JSON.parse(output).fetch("refused_reactions").first.fetch("reason")

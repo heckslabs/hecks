@@ -31,7 +31,7 @@ RSpec.describe "a constructed aggregate" do
     expect(Order.commands).to eq(%w[add_topping! create_pizza! purchase!])
   end
 
-  it "is a door over the runtime, not a minted class", :aggregate_failures do
+  it "is an entry point over the runtime, not a minted class", :aggregate_failures do
     expect(Order).to be_a(Module)
     expect(Order).not_to be_a(Class)
     expect(Order.ir).to be_a(Hecks::Bluebook::Aggregate)
@@ -42,7 +42,7 @@ RSpec.describe "a constructed aggregate" do
     subject(:pizza) { margherita }
 
     it "is a module method returning the new record in hand", :aggregate_failures do
-      expect(pizza).to be_a(Hecks::Doors::Handle)
+      expect(pizza).to be_a(Hecks::Adapters::Driving::Handle)
       expect(pizza.name.to_h).to eq(value: "Margherita")
       expect(pizza.pizza.price_cents.to_h).to eq(cents: 1200)
       expect(pizza.status).to eq("available")

@@ -91,7 +91,7 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
     write("environments/#{slug}.world", format(TENANT_ISOLATION_OVERLAY, realm: slug.capitalize, adapter: adapter, body: body))
   end
 
-  def boot_tenant(slug) = Hecks.boot(dir, environment: slug, install_doors: false)
+  def boot_tenant(slug) = Hecks.boot(dir, environment: slug, install_driving: false)
 
   # Registers only "Tenanted": `attaches "Governance"` also loads Governance, which has no
   # world, so registering it would raise MissingRealm.

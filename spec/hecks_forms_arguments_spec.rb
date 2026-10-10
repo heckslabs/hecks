@@ -6,12 +6,12 @@ require "hecks/tools/tools_doc"
 # form cannot name an argument the verb does not take.
 RSpec.describe "the launcher forms' arguments" do
   before(:all) do
-    @runtime = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
+    @runtime = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
     @forms   = Hecks::Tools::ToolsDoc.forms(root: InMemoryDomain::ROOT)
   end
 
   def help_for(words)
-    Hecks::Doors::CliRunner.call(runtime: @runtime, argv: [*words, "--help"], program: "hecks").first
+    Hecks::Adapters::Driving::CliRunner.call(runtime: @runtime, argv: [*words, "--help"], program: "hecks").first
   end
 
   # One `hecks …` command of a form: the words that name its verb, and the arguments it names.

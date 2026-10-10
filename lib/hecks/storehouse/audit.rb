@@ -33,7 +33,7 @@ module Hecks
       end
 
       # Tails this bus's own dispatch/query/state audit log — a pull-based
-      # substitute for a push subscription, since a stdio door answers one
+      # substitute for a push subscription, since a stdio server answers one
       # request at a time with no channel to push through.
       #
       # @param runtime [Runtime::Registry] the booted domain to tail

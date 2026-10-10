@@ -3,7 +3,7 @@ RSpec.describe "Hecks.boot_files" do
   let(:memory_hecksagon) { File.join(InMemoryDomain::ROOT, "examples/pizzas/pizzas_behaviors.hecksagon") }
 
   def boot_files_runtime
-    Hecks.boot_files([File.join(root, "pizzas.bluebook"), memory_hecksagon], install_doors: false)
+    Hecks.boot_files([File.join(root, "pizzas.bluebook"), memory_hecksagon], install_driving: false)
   end
 
   def create_pizza(runtime, name, cents:, size:)
@@ -41,7 +41,7 @@ RSpec.describe "Hecks.boot_files" do
 
   it "raises the ordinary LoadError for a file that doesn't exist" do
     expect do
-      Hecks.boot_files([File.join(root, "nope.bluebook")], install_doors: false)
+      Hecks.boot_files([File.join(root, "nope.bluebook")], install_driving: false)
     end.to raise_error(LoadError)
   end
 end

@@ -174,7 +174,7 @@ module Hecks
         raise Runtime::NotFound, "no domain here, and none named" unless path
         raise Runtime::NotFound, "no such domain #{path.inspect}" unless Dir.exist?(path)
 
-        Hecks.boot(File.expand_path(path), install_doors: false)
+        Hecks.boot(File.expand_path(path), install_driving: false)
       end
 
       def chapter_of(domain, chapter)

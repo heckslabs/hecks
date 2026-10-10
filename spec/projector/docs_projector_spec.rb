@@ -178,7 +178,7 @@ RSpec.describe Hecks::Projector::DocsProjector do
       expect(Pizzas.docs).to eq(pizzas)
     end
 
-    it "answers on an aggregate door, narrowed to that head", :aggregate_failures do
+    it "answers on an aggregate module, narrowed to that head", :aggregate_failures do
       boot_in_memory
 
       expect(Pizzas::Order.docs).to start_with("# Order")

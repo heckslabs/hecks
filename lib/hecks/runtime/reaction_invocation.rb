@@ -90,7 +90,7 @@ module Hecks
       # @raise [Runtime::UnknownVerb] if `verb` does not resolve (only when `explicit`)
       # @raise [Runtime::TypeMismatch] if no receiver identity resolves for an explicit target
       # @raise [Runtime::UnknownArgument] if an explicit projection has an undeclared fact
-      # rubocop:disable-next Metrics/ParameterLists -- the keyword door both interpreters call
+      # rubocop:disable-next Metrics/ParameterLists -- the keyword entry point both interpreters call
       def build(registry:, verb:, projected:, explicit:, passthrough: [], source_receiver: nil)
         args = projected.transform_keys(&:to_sym)
         return forwarded(registry, verb, args, source_receiver) unless explicit

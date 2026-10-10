@@ -8,7 +8,7 @@ RSpec.describe "Hecks.boot_described" do
   it "binds a dispatcher to the registry describe loaded" do
     described = Hecks.describe(domain)
 
-    dispatcher = Hecks.boot_described(described, install_doors: false)
+    dispatcher = Hecks.boot_described(described, install_driving: false)
 
     expect(dispatcher.registry).to be(described.registry)
   end
@@ -17,7 +17,7 @@ RSpec.describe "Hecks.boot_described" do
     described = Hecks.describe(domain)
     allow(Hecks::Ports::Loading).to receive(:bootstrap)
 
-    Hecks.boot_described(described, install_doors: false)
+    Hecks.boot_described(described, install_driving: false)
 
     expect(Hecks::Ports::Loading).not_to have_received(:bootstrap)
   end
@@ -27,8 +27,8 @@ RSpec.describe "Hecks.boot_described" do
   end
 
   it "boots the same domain as Hecks.boot" do
-    booted = Hecks.boot(domain, install_doors: false)
-    finished = Hecks.boot_described(Hecks.describe(domain), install_doors: false)
+    booted = Hecks.boot(domain, install_driving: false)
+    finished = Hecks.boot_described(Hecks.describe(domain), install_driving: false)
 
     expect(finished.registry.bluebooks.keys).to eq(booted.registry.bluebooks.keys)
   end

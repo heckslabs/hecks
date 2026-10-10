@@ -4,7 +4,7 @@ require "tmpdir"
 # Constants like `Account::Debit` must resolve at declaration time (ADR 0025, S0b), including
 # with two domains in one registry, where an installed facade constant hides the shim.
 #
-# Fixture names (`ScopedBridge*`) are unusual on purpose: `Doors::RubyDoor.install` sets real
+# Fixture names (`ScopedBridge*`) are unusual on purpose: `Adapters::Driving::Ruby.install` sets real
 # top-level constants that outlive each example in a shared process.
 RSpec.describe "the scoped-constant bridge" do
   ScopedConstant = Hecks::Bluebook::DSL::ConstShim::ScopedConstant
@@ -88,7 +88,7 @@ RSpec.describe "the scoped-constant bridge" do
       end
     end
 
-    # `RubyDoor.install` also installs each aggregate as a bare top-level constant, so after a
+    # `Ruby.install` also installs each aggregate as a bare top-level constant, so after a
     # boot `ScopedBridgeThing::Make` reaches the aggregate's const_missing, never `ConstShim::Hook`.
     it "resolves a scoped reference through a REAL, already-installed facade module", :aggregate_failures do
       expect(defined?(ScopedBridgeThing)).to be_truthy

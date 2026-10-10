@@ -683,37 +683,37 @@ pub fn delegate_skip_reason(command: &Json, aggregate: &Json, value_objects_by_n
     }
     let mapping = delegate_mapping(delegation);
     let source_name_for = |name: &str| mapping.iter().find(|(t, _)| t == name).map(|(_, s)| s.clone()).unwrap_or_else(|| name.to_string());
-    let door_attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
+    let argument_attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
     for attr in target.get("attributes").map(Json::each).unwrap_or(&[]) {
         let name = crate::attr::name(attr);
         let source_name = source_name_for(name);
-        let source = door_attrs.iter().find(|a| crate::attr::name(a) == source_name);
+        let source = argument_attrs.iter().find(|a| crate::attr::name(a) == source_name);
         let Some(source) = source else {
             if crate::attr::optional(attr) {
                 continue;
             }
-            return Some(format!("{label}: target argument {name} has no source on the door"));
+            return Some(format!("{label}: target argument {name} has no source on the entry point"));
         };
         if crate::attr::list(source) != crate::attr::list(attr) {
-            return Some(format!("{label}: door argument {source_name} is a list, target wants a scalar (or vice versa) — not generated yet"));
+            return Some(format!("{label}: entry point argument {source_name} is a list, target wants a scalar (or vice versa) — not generated yet"));
         }
         // Bridgeable, not exact type-name equality: the alias-then-deserialize delegate never
         // compares declared type names (docs/decisions/0045).
         if !crate::bridging::bridgeable_value_types(crate::attr::type_name(source), crate::attr::type_name(attr), value_objects_by_name) {
-            return Some(format!("{label}: door argument {source_name} is {}, target wants {} — not generated yet", crate::attr::type_name(source), crate::attr::type_name(attr)));
+            return Some(format!("{label}: entry point argument {source_name} is {}, target wants {} — not generated yet", crate::attr::type_name(source), crate::attr::type_name(attr)));
         }
         if crate::attr::optional(source) && !crate::attr::optional(attr) {
-            return Some(format!("{label}: optional door argument {source_name} feeds required {name}"));
+            return Some(format!("{label}: optional entry point argument {source_name} feeds required {name}"));
         }
     }
     for path in entity.get("identified_by").map(Json::each).unwrap_or(&[]) {
         let path = path.to_s();
         let head = path.split('.').next().unwrap_or("").to_string();
         let source_name = source_name_for(&head);
-        if door_attrs.iter().any(|a| crate::attr::name(a) == source_name && !crate::attr::optional(a)) {
+        if argument_attrs.iter().any(|a| crate::attr::name(a) == source_name && !crate::attr::optional(a)) {
             continue;
         }
-        return Some(format!("{label}: the element's identity {head} has no source on the door"));
+        return Some(format!("{label}: the element's identity {head} has no source on the entry point"));
     }
     None
 }

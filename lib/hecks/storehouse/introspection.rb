@@ -68,7 +68,7 @@ module Hecks
       # @return [Hash] {ok: true, domain:, valid: true} plus :findings when deep;
       #   {ok: false, domain:, valid: false, error:} if the boot itself failed
       def validate(domain:, deep: false)
-        runtime = Hecks.boot(confine!(domain, "domain"), install_doors: false)
+        runtime = Hecks.boot(confine!(domain, "domain"), install_driving: false)
         result  = { ok: true, domain: domain, valid: true }
         result[:findings] = model_findings(runtime) if deep
         result
@@ -103,7 +103,7 @@ module Hecks
 
       # :nodoc:
       def journal_entries(repository)
-        repository.entries.map { |entry| { operation: entry.operation, id: entry.id, state: Doors::JsonDoor.materialize(entry.state) } }
+        repository.entries.map { |entry| { operation: entry.operation, id: entry.id, state: Adapters::Driving::Json.materialize(entry.state) } }
       end
 
       # Runs a domain's hand-curated .behaviors examples and reports the results.

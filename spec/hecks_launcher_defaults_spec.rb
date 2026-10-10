@@ -5,7 +5,7 @@ require "hecks/cli/refresh_rspec_runtime_baseline"
 # bluebook commands that dispatch them; the launchers behind them hold no copy.
 RSpec.describe "launcher defaults declared on their bluebook commands" do
   before(:all) do
-    @runtime = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
+    @runtime = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
   end
 
   def command(aggregate, name) = @runtime.registry.bluebook("Hecks").aggregate(aggregate).command(name)
@@ -13,7 +13,7 @@ RSpec.describe "launcher defaults declared on their bluebook commands" do
   def default_of(command, name) = command.attributes.find { |attribute| attribute.name == name }.default
 
   def help(*verb)
-    Hecks::Doors::CliRunner.call(runtime: @runtime, argv: [*verb, "--help"], program: "hecks").first
+    Hecks::Adapters::Driving::CliRunner.call(runtime: @runtime, argv: [*verb, "--help"], program: "hecks").first
   end
 
   it "gives CheckEra and Recheck a timeout of ten seconds", :aggregate_failures do

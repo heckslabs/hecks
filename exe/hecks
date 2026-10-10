@@ -41,19 +41,19 @@ rescue StandardError => e
   abort "cannot open Hecks: #{e.message.lines.first.strip}"
 end
 
-text, status, reason = Hecks::Doors::CliRunner.usage(
+text, status, reason = Hecks::Adapters::Driving::CliRunner.usage(
   runtime: described, argv: ARGV, program: program
 )
 unless text
   runtime = begin
-    Hecks::Doors::LauncherOptions.quietly(hold: MEMORY_COMMANDS.include?(ARGV.first.to_s.chomp("!"))) { Hecks.boot_described(described, install_doors: false) }
+    Hecks::Adapters::Driving::LauncherOptions.quietly(hold: MEMORY_COMMANDS.include?(ARGV.first.to_s.chomp("!"))) { Hecks.boot_described(described, install_driving: false) }
   rescue StandardError => e
     abort "cannot open Hecks: #{e.message.lines.first.strip}"
   end
   # A question the world lists under `streams`, given `--stream`, tails until interrupted.
-  streamed = Hecks::Doors::CliRunner.stream(runtime: runtime, argv: ARGV, program: program)
+  streamed = Hecks::Adapters::Driving::CliRunner.stream(runtime: runtime, argv: ARGV, program: program)
   exit streamed unless streamed.nil?
-  text, status, reason = Hecks::Doors::CliRunner.call(
+  text, status, reason = Hecks::Adapters::Driving::CliRunner.call(
     runtime: runtime, argv: ARGV, program: program
   )
 end

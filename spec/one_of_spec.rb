@@ -48,13 +48,13 @@ RSpec.describe "one_of" do
 
   # Uses DailyLimit because it is an Integer field: patterns apply only to String, so
   # no `pattern:` check shadows its invariant (EmailAddress and CustomerNumber have one).
-  it "judges an object payload's invariants at the same door" do
+  it "judges an object payload's invariants at the same entry point" do
     expect { open_account_as("current", -1) }
       .to raise_error(Hecks::Runtime::InvariantViolation,
                       'DailyLimit invariant violated — a daily limit is non-negative (given {"cents":-1})')
   end
 
-  it "judges an object payload's patterns at the same door" do
+  it "judges an object payload's patterns at the same entry point" do
     expect { register_customer(boot_banking, reference: "CUST-0009", email: "nowhere") }
       .to raise_error(Hecks::Runtime::TypeMismatch, 'EmailAddress.address must match ^[^@ ]+@[^@ ]+\.[^@ ]+$, got "nowhere"')
   end

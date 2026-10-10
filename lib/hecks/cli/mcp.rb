@@ -2,14 +2,14 @@ require_relative "../mcp_stdio_guard"
 
 module Hecks
   module CLI
-    # The command behind `hecks mcp`: the MCP door onto the
+    # The command behind `hecks mcp`: the MCP server onto the
     # storehouse bus, over stdio only.
     #
     # This file loads nothing but `McpStdioGuard`, so the transport check runs
     # before the framework does.
     module Mcp
       # The server name the guard's refusals and warnings carry.
-      SERVER = "hecks-mcp-door".freeze
+      SERVER = "hecks-mcp".freeze
 
       module_function
 
@@ -23,8 +23,8 @@ module Hecks
       #   set up for stdio
       def call(argv)
         McpStdioGuard.enforce_stdio!(server: SERVER, argv: argv)
-        require_relative "../doors/mcp_door"
-        Doors::McpDoor.serve
+        require_relative "../adapters/driving/mcp"
+        Adapters::Driving::Mcp.serve
       end
     end
   end

@@ -308,7 +308,7 @@ pub fn emit_from_json_flat(
             } else if let Some(scalar) = scalar {
                 scalar_from_json_expr(struct_name, &key, scalar, crate::attr::default(attr))
             } else if absent_argument_check {
-                // The argument door only; see `required_composite_argument_expr`.
+                // The argument entry point only; see `required_composite_argument_expr`.
                 required_composite_argument_expr(struct_name, &key, attr, value_objects_by_name)
             } else {
                 composite_from_json_expr(attr, value_objects_by_name, &required_field_expr(struct_name, &key, crate::attr::type_name(attr)))

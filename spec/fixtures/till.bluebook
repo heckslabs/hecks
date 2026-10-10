@@ -12,7 +12,7 @@ Hecks.bluebook "TillRoom" do
     attribute :balance, Money, default: { cents: 0 }
     attribute :marks,   list_of(Mark)
     # A clerk may say why a taking was unusual, or say nothing — the one OPTIONAL
-    # fact in this fixture, and the only door left through which an absent
+    # fact in this fixture, and the only entry point left through which an absent
     # argument can still reach a mutation. A REQUIRED one is refused at the
     # payload gate long before `sets` ever resolves its source.
     attribute :note,    Note

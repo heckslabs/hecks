@@ -40,7 +40,7 @@ RSpec.describe "the Deploy chapter's PreviewRun", :io do
   BASH
 
   before(:all) do
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
+    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
   end
 
   PREVIEW_STACK = "widget-preview-feature-a".freeze
@@ -71,8 +71,8 @@ RSpec.describe "the Deploy chapter's PreviewRun", :io do
   end
 
   def deploy_call(verb, *argv)
-    Hecks::Doors::CliRunner.call(runtime: @hecks, program: "hecks",
-                                 argv: ["deploy", verb, File.join(dir, "project"), *argv, "--wait"])
+    Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks",
+                                             argv: ["deploy", verb, File.join(dir, "project"), *argv, "--wait"])
   end
 
   # Yields with `settings` in the environment, and puts every key back as it was afterwards.
@@ -216,7 +216,7 @@ RSpec.describe "the Deploy chapter's PreviewRun", :io do
 
     it "keeps every run, so a flagged one can be listed" do
       preview("url", env: { "STUB_NO_STACK" => "1" })
-      out, = Hecks::Doors::CliRunner.call(runtime: @hecks, program: "hecks", argv: %w[deploy preview_run.flagged])
+      out, = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks", argv: %w[deploy preview_run.flagged])
 
       expect(JSON.parse(out).map { |row| row["status"] }).to include("flagged")
     end

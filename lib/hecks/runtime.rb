@@ -42,12 +42,12 @@ module Hecks
       #
       # @param path [String] path to a domain directory, or a file inside one
       # @param shared [String, nil] a shared-root override
-      # @param install_doors [Boolean] whether to install the Ruby facade constants
+      # @param install_driving [Boolean] whether to install the Ruby facade constants
       # @param environment [String, nil] the environment name for `Adapters::Folder#load_domain`
       # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the dispatcher bound
       #   to the booted domain
-      def boot(path, shared: nil, install_doors: true, environment: Runtime::Loader::FROM_ENV)
-        Loader.boot(path, shared: shared, install_doors: install_doors, environment: environment)
+      def boot(path, shared: nil, install_driving: true, environment: Runtime::Loader::FROM_ENV)
+        Loader.boot(path, shared: shared, install_driving: install_driving, environment: environment)
       end
 
       # Loads a domain's declarations without binding any adapter. See Loader.describe.
@@ -63,23 +63,23 @@ module Hecks
       # Finishes a boot from declarations `describe` already loaded. See Loader.boot_described.
       #
       # @param described [Runtime::Loader::Described] what `describe` answered
-      # @param install_doors [Boolean] whether to install the Ruby facade constants
+      # @param install_driving [Boolean] whether to install the Ruby facade constants
       # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the dispatcher bound
       #   to the booted domain
-      def boot_described(described, install_doors: true)
-        Loader.boot_described(described, install_doors: install_doors)
+      def boot_described(described, install_driving: true)
+        Loader.boot_described(described, install_driving: install_driving)
       end
 
       # Loads only the given files of a domain; otherwise like `boot`. See Loader.boot_files.
       #
       # @param paths [String, Array<String>] one or more file paths within the domain
       # @param shared [String, nil] a shared-root override
-      # @param install_doors [Boolean] whether to install the Ruby facade constants
+      # @param install_driving [Boolean] whether to install the Ruby facade constants
       # @param environment [String, nil] the environment name for the selected-file loader
       # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the dispatcher bound
       #   to the booted domain
-      def boot_files(paths, shared: nil, install_doors: true, environment: Runtime::Loader::FROM_ENV)
-        Loader.boot_files(paths, shared: shared, install_doors: install_doors, environment: environment)
+      def boot_files(paths, shared: nil, install_driving: true, environment: Runtime::Loader::FROM_ENV)
+        Loader.boot_files(paths, shared: shared, install_driving: install_driving, environment: environment)
       end
 
       # Bind the ambient registry for the duration of the block, restoring

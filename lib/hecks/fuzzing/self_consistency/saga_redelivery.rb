@@ -18,7 +18,7 @@ module Hecks
         # safe because nothing reads the live registry after this runs. Only state/memory are
         # compared: a leg whose `from:` and `to:` match legitimately re-runs.
         def check_saga_idempotency(runtime, history)
-          interpreter = Runtime::SagaInterpreter.new(runtime.registry, door: runtime)
+          interpreter = Runtime::SagaInterpreter.new(runtime.registry, dispatcher: runtime)
 
           saga_groups(runtime, history).flat_map do |domain_name, process_manager, anchor, persisted|
             persisted.filter_map do |correlation, saga|

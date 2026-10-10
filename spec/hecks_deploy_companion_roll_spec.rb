@@ -30,7 +30,7 @@ RSpec.describe "the Deploy chapter's CompanionRoll", :io do
   BASH
 
   before(:all) do
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
+    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
   end
 
   def install_executable(path, content)
@@ -51,9 +51,9 @@ RSpec.describe "the Deploy chapter's CompanionRoll", :io do
     settings = { "PATH" => "#{File.join(dir, "bin")}:#{ENV.fetch("PATH")}", "STUB_DIR" => dir }.merge(env)
     saved = ENV.to_h.slice(*settings.keys)
     ENV.update(settings)
-    out, status = Hecks::Doors::CliRunner.call(runtime: @hecks, program: "hecks",
-                                               argv: ["deploy", "companion_roll.run", File.join(dir, "project"),
-                                                      *argv, "--wait"])
+    out, status = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks",
+                                                           argv: ["deploy", "companion_roll.run", File.join(dir, "project"),
+                                                                  *argv, "--wait"])
     [JSON.parse(out), status]
   ensure
     settings.each_key { |key| saved.key?(key) ? ENV[key] = saved[key] : ENV.delete(key) }
@@ -135,7 +135,7 @@ RSpec.describe "the Deploy chapter's CompanionRoll", :io do
   it "lists the rolls that were flagged" do
     with_project do |dir|
       roll(dir, "taskdef=umami:4")
-      out, = Hecks::Doors::CliRunner.call(runtime: @hecks, program: "hecks", argv: %w[deploy companion_roll.flagged])
+      out, = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks", argv: %w[deploy companion_roll.flagged])
 
       expect(JSON.parse(out).map { |row| row["status"] }).to include("flagged")
     end

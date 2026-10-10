@@ -112,7 +112,7 @@ end
 ```
 
 A caller naming only `cents:` still gets a whole `Money` — `default:`
-fills the rest at the door, not at read time:
+fills the rest at the entry point, not at read time:
 
 ```ruby
 account.credit!(amount: { cents: 2_500 }, narrative: { text: "opening deposit" })

@@ -71,12 +71,12 @@ RSpec.describe "the Custodian rows of the ADR command table" do
                      verb: "hold_first"),
     CustodianRow.new(script: "vendor_bluebook", aggregate: "Package", name: "Vendor",
                      verb: "vendor"),
-    CustodianRow.new(script: "project_cli", aggregate: "Door", name: "ProjectCli",
+    CustodianRow.new(script: "project_cli", aggregate: "Launch", name: "ProjectCli",
                      verb: "project_cli"),
-    CustodianRow.new(script: "hecks_mcp_door",           aggregate: "Door",          name: "ServeMcp", verb: "serve_mcp",
+    CustodianRow.new(script: "hecks_mcp_door", aggregate: "Launch", name: "ServeMcp", verb: "serve_mcp",
                      renamed: "the table's launcher spelling is `hecks mcp`, the name exe/hecks ships; it stays " \
                               "with that router until the launcher is generated"),
-    CustodianRow.new(script: "project_rust",             aggregate: "Build",         name: "ProjectRust",
+    CustodianRow.new(script: "project_rust", aggregate: "Build", name: "ProjectRust",
                      verb: "project_rust"),
     CustodianRow.new(script: "project_wasm", aggregate: "Build", name: "BuildWasm",
                      verb: "build_wasm"),
@@ -102,7 +102,7 @@ RSpec.describe "the Custodian rows of the ADR command table" do
   ].freeze
 
   before(:all) do
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
+    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
     @bluebook = @hecks.registry.bluebook("Hecks")
   end
 
@@ -117,7 +117,7 @@ RSpec.describe "the Custodian rows of the ADR command table" do
     it "answers #{row.script} as #{row.aggregate}.#{row.name}, `hecks #{row.qualified}`", :aggregate_failures do
       expect(declared?(row)).to be(true), "#{row.aggregate}.#{row.name} is not declared in the Hecks domain"
 
-      out, status = Hecks::Doors::CliRunner.call(runtime: @hecks, argv: [row.qualified, "--help"], program: "hecks")
+      out, status = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, argv: [row.qualified, "--help"], program: "hecks")
 
       expect(status).to eq(0)
       # The help names the command as the launcher lists it (hecks.world `names`).
@@ -132,7 +132,7 @@ RSpec.describe "the Custodian rows of the ADR command table" do
   end
 
   it "gives every Custodian aggregate at least one row", :aggregate_failures do
-    custodian = %w[Introspection ModelCheckRun Operation Host Era Package Door Build FuzzRun]
+    custodian = %w[Introspection ModelCheckRun Operation Host Era Package Launch Build FuzzRun]
 
     expect(custodian - CUSTODIAN_ROWS.map(&:aggregate)).to be_empty
     expect(CUSTODIAN_ROWS.map(&:aggregate) - custodian).to be_empty

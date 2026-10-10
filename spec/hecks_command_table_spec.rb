@@ -6,13 +6,13 @@ require "socket"
 require "securerandom"
 
 # ADR 0080, section 7: every row of the command table resolves in the launcher. Each verb of
-# Custodian's Introspection, Operation, Host, Era, Package and Door (and the ModelCheck the table
+# Custodian's Introspection, Operation, Host, Era, Package and Launch (and the ModelCheck the table
 # puts beside them) answers
 # `--help`, and the journaled ones are then run the way `hecks <verb>` runs them.
 RSpec.describe "the Hecks command table through the launcher" do
   # Introspection's queries and the verbs of ModelCheckRun and Operation, as the launcher spells
   # them.
-  COMMAND_LAUNCHER_NAMES = { "operation.open_console" => "console", "door.serve_mcp" => "mcp" }.freeze
+  COMMAND_LAUNCHER_NAMES = { "operation.open_console" => "console", "launch.serve_mcp" => "mcp" }.freeze
 
   # Settled verbs of the attached Deploy chapter; hecks_deploy_smoke_run_spec.rb and
   # hecks_deploy_roll_spec.rb and the data copy, diff, preview and companion specs run them.
@@ -33,8 +33,8 @@ RSpec.describe "the Hecks command table through the launcher" do
     era.settlement era.abandoned era.scaffold_translation era.audit_translation
     era.attestation era.compaction package.vendor package.revendor
     package.pinning package.unpinned package.verify package.digest package.check package.release
-    operation.bootstrap_admin door.project_cli door.serve_mcp
-    door.ended door.stopped build.project_rust build.build_wasm
+    operation.bootstrap_admin launch.project_cli launch.serve_mcp
+    launch.ended launch.stopped build.project_rust build.build_wasm
     build.build_host build.build_browser_wasm build.check_conformance build.fuzz_conformance build.check_coverage_allowlist
     build.rust_coverage build.result build.faulted fuzz_run.fuzz
     fuzz_run.bench fuzz_run.conclusion fuzz_run.halted fuzz_run.generate_sequence
@@ -99,7 +99,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     write("clean/bluebook/clean.bluebook", CLEAN_BLUEBOOK.sub('"Shelf"', '"Clean"'))
     write("eras.txt", "abc123\n")
     write("clean/bluebook/clean.hecksagon", SHELF_HECKSAGON.sub('"Shelf"', '"Clean"'))
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
+    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
   end
 
   after(:all) { FileUtils.rm_rf(@dir) }
@@ -111,7 +111,7 @@ RSpec.describe "the Hecks command table through the launcher" do
   end
 
   def run_verb(*argv)
-    Hecks::Doors::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks")
+    Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks")
   end
 
   def verdict_of(run)
@@ -319,7 +319,7 @@ RSpec.describe "the Hecks command table through the launcher" do
         end
         out = StringIO.new
         argv = ["operation.follow", @shelf, "from_now=true", "--stream"]
-        status = Hecks::Doors::CliRunner.stream(runtime: @hecks, argv: argv, program: "hecks", out: out, max_polls: 3)
+        status = Hecks::Adapters::Driving::CliRunner.stream(runtime: @hecks, argv: argv, program: "hecks", out: out, max_polls: 3)
         StreamRun.new(status, out.string.lines.map { |line| JSON.parse(line) }, asked)
       end
 
@@ -334,16 +334,18 @@ RSpec.describe "the Hecks command table through the launcher" do
       end
 
       it "is not a stream without --stream, or for a question the world does not list", :aggregate_failures do
-        expect(Hecks::Doors::CliRunner.stream(runtime: @hecks, argv: ["operation.follow", @shelf], program: "hecks")).to be_nil
-        expect(Hecks::Doors::CliRunner.stream(runtime: @hecks, argv: ["model_check_run.verdict", "x", "--stream"],
-                                              program: "hecks")).to be_nil
+        expect(Hecks::Adapters::Driving::CliRunner.stream(runtime: @hecks, argv: ["operation.follow", @shelf],
+                                                          program: "hecks")).to be_nil
+        expect(Hecks::Adapters::Driving::CliRunner.stream(runtime: @hecks, argv: ["model_check_run.verdict", "x", "--stream"],
+                                                          program: "hecks")).to be_nil
       end
 
       it "ends with status 0 when the reader interrupts" do
         allow(@hecks).to receive(:query).and_raise(Interrupt)
 
-        expect(Hecks::Doors::CliRunner.stream(runtime: @hecks, argv: ["operation.follow", @shelf, "--stream"], program: "hecks",
-                                              out: StringIO.new)).to eq(0)
+        stream = Hecks::Adapters::Driving::CliRunner.stream(runtime: @hecks, argv: ["operation.follow", @shelf, "--stream"],
+                                                            program: "hecks", out: StringIO.new)
+        expect(stream).to eq(0)
       end
     end
 
@@ -437,7 +439,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     def seeded_heki(name)
       target = File.join(@dir, name)
       FileUtils.cp_r(HEKI_FIXTURE, target)
-      runtime = Hecks.boot(target, install_doors: false)
+      runtime = Hecks.boot(target, install_driving: false)
       aggregate = runtime.registry.bluebook("HekiCompactFixture").aggregate("Gadget")
       repository = runtime.registry.repository("HekiCompactFixture", aggregate)
       3.times { |i| repository.save(gadget_labelled(aggregate, i)) }
@@ -914,7 +916,7 @@ RSpec.describe "the Hecks command table through the launcher" do
       end
 
       it "lists only commands the table has" do
-        settled = Hecks::Doors::LauncherOptions.settings(@hecks, "Hecks").fetch(:settled)
+        settled = Hecks::Adapters::Driving::LauncherOptions.settings(@hecks, "Hecks").fetch(:settled)
 
         expect(settled - CUSTODIAN_VERBS - DEPLOY_CHAPTER_VERBS).to be_empty
       end
@@ -927,21 +929,21 @@ RSpec.describe "the Hecks command table through the launcher" do
     end
   end
 
-  describe "the Door verbs" do
+  describe "the Launch verbs" do
     def ended_of(run)
-      JSON.parse(run_verb("door.ended", run).first).first
+      JSON.parse(run_verb("launch.ended", run).first).first
     end
 
     around do |example|
       Dir.chdir(@dir) { example.run }
     end
 
-    # The argv the Terminal adapter was handed while `door.serve_mcp` ran.
+    # The argv the Terminal adapter was handed while `launch.serve_mcp` ran.
     def served_by_mcp(run)
       served = []
       Hecks::Adapters::Terminal.server = ->(argv) { served << argv }
       begin
-        run_verb("door.serve_mcp", "run=#{run}", "--stdio")
+        run_verb("launch.serve_mcp", "run=#{run}", "--stdio")
       ensure
         Hecks::Adapters::Terminal.server = nil
       end
@@ -949,7 +951,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     end
 
     it "project_cli writes a launcher beside each domain of the current directory and keeps what it wrote", :aggregate_failures do
-      out, status = run_verb("door.project_cli", "run=launchers-1")
+      out, status = run_verb("launch.project_cli", "run=launchers-1")
 
       expect([status, JSON.parse(out).fetch("events")]).to eq([0, ["LaunchersRequested"]])
       row = ended_of("launchers-1")
@@ -957,18 +959,19 @@ RSpec.describe "the Hecks command table through the launcher" do
       expect(File.executable?(File.join(@shelf, "shelf"))).to be(true)
     end
 
-    it "project_cli keeps a domain it cannot boot as a stopped door", :aggregate_failures do
-      run_verb("door.project_cli", "run=launchers-2", "domains=nowhere")
+    it "project_cli keeps a domain it cannot boot as a stopped entry point", :aggregate_failures do
+      run_verb("launch.project_cli", "run=launchers-2", "domains=nowhere")
 
       expect(ended_of("launchers-2").fetch("status")).to eq("stopped")
-      expect(listed("door.stopped", "run")).to include("launchers-2")
+      expect(listed("launch.stopped", "run")).to include("launchers-2")
     end
 
-    it "serve_mcp hands the process to the door through the Terminal adapter and keeps that it closed", :aggregate_failures do
+    it "serve_mcp hands the process to the entry point through the Terminal adapter and keeps that it closed",
+       :aggregate_failures do
       served = served_by_mcp("mcp-1")
 
       expect(served).to eq([["--stdio"]])
-      expect(ended_of("mcp-1").dig("output", "value")).to eq("mcp door closed")
+      expect(ended_of("mcp-1").dig("output", "value")).to eq("mcp server closed")
     end
   end
 

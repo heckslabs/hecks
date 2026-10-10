@@ -95,7 +95,7 @@ RSpec.describe "the Deploy chapter's DataCopy and CopyVerification", :io do
                  target_secret=arn:new].freeze
 
   before(:all) do
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
+    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
   end
 
   # A scratch directory with the stand-in programs for each example, named by `scratch`.
@@ -124,8 +124,8 @@ RSpec.describe "the Deploy chapter's DataCopy and CopyVerification", :io do
 
   def command(verb, *argv, env: {})
     with_stub_environment(env) do
-      out, status = Hecks::Doors::CliRunner.call(runtime: @hecks, program: "hecks",
-                                                 argv: ["deploy", verb, scratch.project, *argv, "--wait"])
+      out, status = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks",
+                                                             argv: ["deploy", verb, scratch.project, *argv, "--wait"])
       [JSON.parse(out), status]
     end
   end
@@ -135,8 +135,8 @@ RSpec.describe "the Deploy chapter's DataCopy and CopyVerification", :io do
   def verify(**options) = command("data_copy.verify", *COPY_ARGS, **options)
 
   def verification_status(json)
-    out, = Hecks::Doors::CliRunner.call(runtime: @hecks, program: "hecks",
-                                        argv: ["deploy", "copy_verification.verdict", "run=#{json.fetch("run")}"])
+    out, = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks",
+                                                    argv: ["deploy", "copy_verification.verdict", "run=#{json.fetch("run")}"])
     JSON.parse(out).first&.fetch("status")
   end
 
@@ -287,7 +287,7 @@ RSpec.describe "the Deploy chapter's DataCopy and CopyVerification", :io do
 
     it "refuses a bastion that is not an instance id", :aggregate_failures do
       argv = ["deploy", "data_copy.restore", scratch.project, *COPY_ARGS.drop(1), "bastion=not-one", "--wait"]
-      out, status = Hecks::Doors::CliRunner.call(runtime: @hecks, program: "hecks", argv: argv)
+      out, status = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks", argv: argv)
 
       expect(status).not_to eq(0)
       expect(out).to include("Bastion")

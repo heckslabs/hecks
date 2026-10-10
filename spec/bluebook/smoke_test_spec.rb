@@ -88,14 +88,14 @@ RSpec.describe Hecks::Bluebook::SmokeTest do
 
   # Persists one real record in the domain's Heki file, as a run outside the smoke test would.
   def seed_real_record(dir)
-    runtime = Hecks.boot(dir, install_doors: false)
+    runtime = Hecks.boot(dir, install_driving: false)
     runtime.dispatch_flat("SmokeWidget::Item.Add", name: { value: "smoke-test" })
     expect(item_repository(runtime).all.size).to eq(1)
   end
 
   # A fresh boot re-reads the Heki file from disk instead of trusting in-memory objects.
   def persisted_item_ids(dir)
-    item_repository(Hecks.boot(dir, install_doors: false)).all.map(&:id)
+    item_repository(Hecks.boot(dir, install_driving: false)).all.map(&:id)
   end
 
   it "dispatches cleanly against a real, well-formed domain — no failures" do

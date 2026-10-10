@@ -38,7 +38,7 @@ module Hecks
             abort "cannot open {{name}}: #{e.message.lines.first.strip}"
           end
 
-          text, status, reason = Hecks::Doors::CliRunner.usage(
+          text, status, reason = Hecks::Adapters::Driving::CliRunner.usage(
             runtime: described, argv: ARGV, program: program
           )
           unless text
@@ -48,9 +48,9 @@ module Hecks
               abort "cannot open {{name}}: #{e.message.lines.first.strip}"
             end
             # A question the world lists under `streams`, given `--stream`, tails until interrupted.
-            streamed = Hecks::Doors::CliRunner.stream(runtime: runtime, argv: ARGV, program: program)
+            streamed = Hecks::Adapters::Driving::CliRunner.stream(runtime: runtime, argv: ARGV, program: program)
             exit streamed unless streamed.nil?
-            text, status, reason = Hecks::Doors::CliRunner.call(
+            text, status, reason = Hecks::Adapters::Driving::CliRunner.call(
               runtime: runtime, argv: ARGV, program: program
             )
           end
@@ -59,12 +59,12 @@ module Hecks
         # The middle every launcher had before opted-in ones answered usage alone.
         PLAIN_ENTRY = <<~'RUBY'.freeze
           runtime = begin
-            Hecks.boot({{boot}}, install_doors: false)
+            Hecks.boot({{boot}}, install_driving: false)
           rescue StandardError => e
             abort "cannot open {{name}}: #{e.message.lines.first.strip}"
           end
 
-          text, status = Hecks::Doors::CliRunner.call(
+          text, status = Hecks::Adapters::Driving::CliRunner.call(
             runtime: runtime, argv: ARGV, program: "{{shown}}"
           )
         RUBY

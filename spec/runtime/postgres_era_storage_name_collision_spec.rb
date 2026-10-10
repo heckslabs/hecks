@@ -169,7 +169,7 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
     File.join(dir, "bluebook")
   end
 
-  def boot_dir(domain_dir) = Hecks.boot(domain_dir, install_doors: false)
+  def boot_dir(domain_dir) = Hecks.boot(domain_dir, install_driving: false)
 
   def relation_names(pattern)
     db = PG.connect(dbname: STORAGE_COLLISION_DB)

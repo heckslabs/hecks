@@ -7,7 +7,7 @@ module Hecks
       module Compensation
         private
 
-        # Recorded before dispatching, not after `@door.reenter` returns —
+        # Recorded before dispatching, not after `@dispatcher.reenter` returns —
         # reenter can recursively re-enter this interpreter and refuse
         # before ever returning here, and recording only on success would
         # be too late for that nested refusal to see this leg's own

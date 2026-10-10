@@ -1,6 +1,6 @@
 require_relative "../fqn"
 require_relative "options_proxy"
-require_relative "door"
+require_relative "aggregate_reader"
 
 module Hecks
   class Router
@@ -12,11 +12,11 @@ module Hecks
       end
 
       # Installs every current-version route as a namespace constant/method, plus
-      # the aggregate CRUD door and short `Aggregate.verb` shortcuts.
+      # the aggregate CRUD module and short `Aggregate.verb` shortcuts.
       def install!
         current_entries.each { |entry| install_namespace_entry(entry) }
         install_shortcuts!
-        install_aggregate_doors!
+        install_aggregate_modules!
         self
       end
 
@@ -48,26 +48,26 @@ module Hecks
       end
 
       # `.find`/`.all`/`.count`/`.events`/`.repository`, matching `Hecks.boot`'s
-      # door; grouped by (realm, domain, aggregate) since the five don't vary by verb.
-      def install_aggregate_doors!
+      # module; grouped by (realm, domain, aggregate) since the five don't vary by verb.
+      def install_aggregate_modules!
         current_entries.reject { |entry| entry.fqn.aggregate.nil? }
                        .group_by { |entry| [entry.fqn.realm, entry.fqn.domain, entry.fqn.aggregate] }
-                       .each_value { |entries| install_aggregate_door(entries.first) }
+                       .each_value { |entries| install_aggregate_module(entries.first) }
       end
 
-      def install_aggregate_door(entry)
-        door = Door.for(entry)
-        return unless door
+      def install_aggregate_module(entry)
+        reader = AggregateReader.for(entry)
+        return unless reader
 
-        define_door_methods(namespace_for(entry.fqn.realm, entry.fqn.domain, entry.fqn.aggregate), door)
+        define_module_methods(namespace_for(entry.fqn.realm, entry.fqn.domain, entry.fqn.aggregate), reader)
       end
 
-      def define_door_methods(target, door)
-        target.define_singleton_method(:repository) { door.repository }
-        target.define_singleton_method(:count)      { door.repository.count }
-        target.define_singleton_method(:events)     { door.events }
-        target.define_singleton_method(:find)       { |id| door.find(id) }
-        target.define_singleton_method(:all)        { door.all }
+      def define_module_methods(target, reader)
+        target.define_singleton_method(:repository) { reader.repository }
+        target.define_singleton_method(:count)      { reader.repository.count }
+        target.define_singleton_method(:events)     { reader.events }
+        target.define_singleton_method(:find)       { |id| reader.find(id) }
+        target.define_singleton_method(:all)        { reader.all }
       end
 
       def install_shortcuts!

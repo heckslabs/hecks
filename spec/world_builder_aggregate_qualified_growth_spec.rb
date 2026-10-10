@@ -47,8 +47,8 @@ RSpec.describe "WorldBuilder aggregate-qualified bind mirror" do
           end
         end
       end
-      Hecks::Doors::RubyDoor.chapter_module(Hecks::Runtime::Dispatcher.new(registry),
-                                            registry.bluebook("Widgets"))
+      Hecks::Adapters::Driving::Ruby.chapter_module(Hecks::Runtime::Dispatcher.new(registry),
+                                                    registry.bluebook("Widgets"))
     end
 
     before { stub_const("Widgets", chapter) }

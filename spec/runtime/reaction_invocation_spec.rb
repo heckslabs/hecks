@@ -1,7 +1,7 @@
 require "spec_helper"
 
 RSpec.describe "reaction invocation routing" do
-  class RecordingReactionDoor
+  class RecordingReactionDispatcher
     attr_reader :calls
 
     def initialize
@@ -54,7 +54,7 @@ RSpec.describe "reaction invocation routing" do
     end
   end
 
-  # What the settlement fixture's Carry process manager hands the door for WireAsked.
+  # What the settlement fixture's Carry process manager hands the dispatcher for WireAsked.
   REACTION_WIRE_TAKE_CALLS = [
     [
       "Wire::Drawer.Take",
@@ -92,26 +92,26 @@ RSpec.describe "reaction invocation routing" do
   end
 
   # Locates the Carry process manager's WireAsked handler and drives deliver_saga_dispatch
-  # directly; answers the calls the door received.
+  # directly; answers the calls the dispatcher received.
   def carry_calls(registry)
     process_manager = registry.bluebook("Wire").process_managers.find { |candidate| candidate.name == "Carry" }
     dispatch = process_manager.handler_for("WireAsked").dispatches.first
-    door = RecordingReactionDoor.new
+    dispatcher = RecordingReactionDispatcher.new
     event = wire_asked_event
     instance = { state: "asked", memory: event.payload }
 
-    Hecks::Runtime::SagaInterpreter.new(registry, door: door)
+    Hecks::Runtime::SagaInterpreter.new(registry, dispatcher: dispatcher)
                                    .send(:deliver_saga_dispatch, process_manager, dispatch, event, instance, "wire-1", "Wire")
-    door.calls
+    dispatcher.calls
   end
 
   def permit_flagged_calls
-    door = RecordingReactionDoor.new
+    dispatcher = RecordingReactionDispatcher.new
     event = Hecks::Runtime::Event.new(
       name: "PermitFlagged", aggregate: "Signal", id: "signal-1", payload: { permit: "permit-1" }
     )
-    Hecks::Runtime::PolicyInterpreter.new(reaction_registry, door: door).react(event, "ReactionRouting")
-    door.calls
+    Hecks::Runtime::PolicyInterpreter.new(reaction_registry, dispatcher: dispatcher).react(event, "ReactionRouting")
+    dispatcher.calls
   end
 
   def review_annotation_invocation

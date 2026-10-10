@@ -55,11 +55,11 @@ module Hecks
 
       # @param registry [Runtime::Registry] the booted registry whose declared
       #   process managers and saga persistence this interpreter runs against
-      # @param door [Runtime::Dispatcher] the dispatcher a saga leg's own dispatch
+      # @param dispatcher [Runtime::Dispatcher] the dispatcher a saga leg's own dispatch
       #   re-enters through
-      def initialize(registry, door:)
+      def initialize(registry, dispatcher:)
         @registry = registry
-        @door     = door
+        @dispatcher = dispatcher
       end
 
       # Runs `domain`'s declared process managers against `event`: begins,

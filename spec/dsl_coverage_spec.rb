@@ -167,7 +167,7 @@ RSpec.describe "the DSL surface is fully covered" do
     method_missing_hosts.each { |klass| expect_answers_to_anything(klass) }
   end
 
-  it "builds no runtime surface at all — the door is the facade's, at bind" do
+  it "builds no runtime surface at all — the entry point is the facade's, at bind" do
     # A build produces only IR, so there is nothing left to keep `define_readers`/
     # `define_command` private for; the public surface is a per-boot projection
     # installed by Loader.bind_runtime.

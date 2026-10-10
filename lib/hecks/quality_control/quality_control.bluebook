@@ -164,7 +164,7 @@ Hecks.bluebook "QualityControl" do
       role "QA engineer"
       goal "Hand a chapter back to the rotation, stamped with when, what this pass was worth, and how the clean streak moves"
 
-      # `now` is the argument and `last_swept` the field, so the door can fill the clock.
+      # `now` is the argument and `last_swept` the field, so the entry point can fill the clock.
       #
       # `next_streak` is the caller's to compute (`clean_streak + 1` if every check held and none
       # was ever surprised, else 0): `Target` cannot read `Sweep` state and no policy payload can
@@ -779,7 +779,7 @@ Hecks.bluebook "QualityControl" do
       invariant("a bug sequence is positive") { value.positive? }
     end
 
-    # Prefixed on purpose: `Doors::RubyDoor.install` puts every aggregate name on Object, so a
+    # Prefixed on purpose: `Adapters::Driving::Ruby.install` puts every aggregate name on Object, so a
     # value object sharing a word with any aggregate resolves to that class once the other domain
     # boots.
     value_object "BugTitle" do

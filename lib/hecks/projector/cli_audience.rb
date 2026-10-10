@@ -2,7 +2,8 @@ module Hecks
   module Projector
     # What a launcher's help leaves out and points at for whoever typed the line: the aggregates
     # only a maintainer of a hecks checkout runs, and the attached chapters worth a line each.
-    # `CliProjector` renders the help; the runner decides the audience (`Doors::LauncherOptions`).
+    # `CliProjector` renders the help; the runner decides the audience
+    # (`Adapters::Driving::LauncherOptions`).
     module CliAudience
       module_function
 

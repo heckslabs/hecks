@@ -127,7 +127,7 @@ RSpec.describe "the Codebase rows of the ADR command table" do
                            TestSuiteRun CorpusRun PublishingRun PromotionRun].freeze
 
   before(:all) do
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
+    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
     @bluebook = @hecks.registry.bluebook("Hecks")
   end
 
@@ -141,7 +141,7 @@ RSpec.describe "the Codebase rows of the ADR command table" do
   end
 
   def launch(argv)
-    Hecks::Doors::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks")
+    Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks")
   end
 
   # The names of the runs a listing query answers.

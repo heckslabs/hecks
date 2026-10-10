@@ -130,7 +130,7 @@ RSpec.describe "PostgresEra era-1 minting for a second bluebook in a multi-blueb
   # Boots the written domain and answers each chapter's era-1 held_text, keyed by chapter name.
   def held_text_after_boot
     Dir.mktmpdir do |dir|
-      Hecks.boot(write_domain(dir), install_doors: false)
+      Hecks.boot(write_domain(dir), install_driving: false)
       era_one_rows.to_h { |row| [row["domain"], row["held_text"]] }
     end
   end
@@ -172,9 +172,9 @@ RSpec.describe "PostgresEra era-1 minting for a second bluebook in a multi-blueb
     Dir.mktmpdir do |dir|
       domain_dir = write_domain(dir)
 
-      Hecks.boot(domain_dir, install_doors: false)
+      Hecks.boot(domain_dir, install_driving: false)
 
-      expect { Hecks.boot(domain_dir, install_doors: false) }.not_to raise_error
+      expect { Hecks.boot(domain_dir, install_driving: false) }.not_to raise_error
     end
   end
 end

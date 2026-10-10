@@ -91,7 +91,7 @@ module Hecks
       end
 
       # One scope entry per command, spelled like `banking:account.open`; snake-cased through
-      # `Naming.snake`, as the facade names its door methods.
+      # `Naming.snake`, as the facade names its module methods.
       #
       # @param commands [Array<Bluebook::Command>] the commands to project
       # @param verb_prefix [String] the owning aggregate or entity's fully-qualified

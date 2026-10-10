@@ -206,7 +206,7 @@ are the same as before; only the wiring changed. Run it with
 
 ## Using it
 
-Booting installs the door — your aggregates arrive as plain Ruby
+Booting installs the entry point — your aggregates arrive as plain Ruby
 constants, a creating command as a module method, everything else as a
 method on the record in hand:
 
@@ -236,7 +236,7 @@ value object has several fields, as `pizza:` does (`price_cents` and
 `size`).
 
 Notice what you did not write: no `save`, no repository call, no id
-passed by hand. Identity was declared once, and the door carries it.
+passed by hand. Identity was declared once, and the entry point carries it.
 
 ## The refusals
 

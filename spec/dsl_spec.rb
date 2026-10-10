@@ -290,7 +290,7 @@ RSpec.describe "the DSL surface" do
     # Needs a real `Hecks.boot`, not `boot_in_memory`: examples/pizzas
     # declares `persisted_by("PostgresEra")` unconditionally, so this
     # needs a reachable Postgres (`io: true`, self-skipping otherwise).
-    it ".boot loads a domain directory and returns the door", :aggregate_failures, :io do
+    it ".boot loads a domain directory and returns the entry point", :aggregate_failures, :io do
       skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
 
       runtime = Hecks.boot(File.expand_path("../examples/pizzas", __dir__))
@@ -310,7 +310,7 @@ RSpec.describe "the DSL surface" do
     it ".boot_described finishes a boot from what describe loaded, reading nothing again" do
       described = Hecks.describe(File.expand_path("../examples/banking", __dir__))
 
-      runtime = Hecks.boot_described(described, install_doors: false)
+      runtime = Hecks.boot_described(described, install_driving: false)
 
       expect(runtime.registry).to be(described.registry)
     end
@@ -323,7 +323,7 @@ RSpec.describe "the DSL surface" do
     def boot_pizza_files
       root = File.expand_path("../examples/pizzas", __dir__)
       files = [File.join(root, "bluebook/pizzas.bluebook"), File.join(root, "pizzas_behaviors.hecksagon")]
-      Hecks.boot_files(files, install_doors: false)
+      Hecks.boot_files(files, install_driving: false)
     end
 
     # `.boot_files` is the explicit-file sibling of `.boot`, Memory-
@@ -1943,9 +1943,9 @@ RSpec.describe "the DSL surface" do
                      &composed(customer_with_tags, projecting_account_from(:"customer.tags")))
     end
 
-    def guarded_door_command
+    def guarded_launch_command
       build_bluebook("Guarding") do
-        aggregate("Door") do
+        aggregate("Launch") do
           identified_by :id
 
           lifecycle :status, default: "open" do
@@ -1954,11 +1954,11 @@ RSpec.describe "the DSL surface" do
 
           command("Peek", from: "open")
         end
-      end.aggregate("Door").command("Peek")
+      end.aggregate("Launch").command("Peek")
     end
 
     it "command's from: guards against the lifecycle field, without transitioning it", :aggregate_failures do
-      command = guarded_door_command
+      command = guarded_launch_command
 
       expect(command.from).to eq("open")
       expect(command.mutations).to be_empty

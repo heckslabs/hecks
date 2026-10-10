@@ -9,7 +9,7 @@ module Hecks
     # `Hecks.bluebook "QualityControl"` in `qa/` becomes `qa/quality_control`.
     #
     # Each launcher is a dozen lines pinning one directory and handing over to
-    # `Doors::CliRunner`; the surface itself is projected at the moment it runs,
+    # `Adapters::Driving::CliRunner`; the surface itself is projected at the moment it runs,
     # so editing a chapter changes behaviour without regenerating anything.
     #
     # A chapter whose world's `launcher` setting names an `executable` gets its launcher
@@ -37,7 +37,7 @@ module Hecks
       # @param argv [Array<String>] domain paths under `root`, and optionally `--check`
       # @param program [String] how the caller was invoked, named in a launcher's header
       # @param root [String] the directory launchers are written under
-      # @param remove_stale_bin [Boolean] delete `root/bin/<name>`, a second front door
+      # @param remove_stale_bin [Boolean] delete `root/bin/<name>`, a second entry point
       # @return [void]
       # @raise [SystemExit] with status 1 for a launcher out of date, an unreadable domain, a
       #   path outside `root` or an unknown flag
@@ -91,9 +91,9 @@ module Hecks
       #   when `check` found it out of date, `:failed` when the domain could not be read or its
       #   launcher could not be made
       def one(root, path, program, check, remove_stale_bin)
-        runtime = Hecks.boot(File.join(root, path), install_doors: false)
+        runtime = Hecks.boot(File.join(root, path), install_driving: false)
         name    = runtime.registry.bluebooks.keys.first or raise Error, "it loads no bluebook"
-        setting = Doors::LauncherOptions.settings(runtime, name) || {}
+        setting = Adapters::Driving::LauncherOptions.settings(runtime, name) || {}
         settle(launcher_target(name, path, setting, root, program), path, root, check, remove_stale_bin)
       rescue StandardError, LoadError => e
         refuse(path, "cannot boot — #{e.message.lines.first.to_s.strip}")
@@ -125,7 +125,7 @@ module Hecks
         Target.new(name, label, File.join(root, label), text, snake, executable)
       end
 
-      # Writes the launcher, makes it executable, and removes the second front door in `bin/`.
+      # Writes the launcher, makes it executable, and removes the second entry point in `bin/`.
       #
       # @api private
       def write_launcher(target, root, remove_stale_bin)

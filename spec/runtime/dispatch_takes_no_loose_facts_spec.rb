@@ -44,10 +44,10 @@ RSpec.describe "dispatch takes no loose keyword facts" do
     expect(runtime.dispatch_flat("Pizzas::Order.CreatePizza", PIZZA_FACTS).id).to eq("Margherita")
   end
 
-  it "leaves no loose-keyword door on the dispatcher at all" do
-    %i[dispatch dispatch_port].each do |door|
-      kinds = Hecks::Runtime::Dispatcher.instance_method(door).parameters.map(&:first)
-      expect(kinds).not_to include(:keyrest), "##{door} still accepts loose keywords"
+  it "leaves no loose-keyword entry on the dispatcher at all" do
+    %i[dispatch dispatch_port].each do |verb|
+      kinds = Hecks::Runtime::Dispatcher.instance_method(verb).parameters.map(&:first)
+      expect(kinds).not_to include(:keyrest), "##{verb} still accepts loose keywords"
     end
   end
 end

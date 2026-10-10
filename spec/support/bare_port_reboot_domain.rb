@@ -5,7 +5,7 @@ require "fileutils"
 # operations) — the shape `DomainPortBuilder#build` turns into a plain `Bluebook::Port`
 # rather than a `DomainPort`. `DSL::BindingProxy#port` (hit on a domain's first in-process
 # boot, before its aggregate facade constant exists) and `HecksagonBuilder#port_impl` both
-# guard for that shape with `built.is_a?(Port)`. `Doors::RubyDoor::AggregateDoor`'s own
+# guard for that shape with `built.is_a?(Port)`. `Adapters::Driving::Ruby::AggregateModule`'s own
 # `:port` singleton method — hit once the aggregate's facade constant already exists, e.g.
 # a domain booted twice in the same process — does not, and calls `.operations` on the bare
 # `Port` unconditionally.
@@ -45,7 +45,7 @@ module BarePortRebootDomain
   # Writes the domain into `dir` (creating `dir/bluebook` if needed) and boots it. Calling
   # this twice with the same `dir` boots the identical domain path a second time in the
   # same process — the aggregate's Ruby facade constant already exists on the second call,
-  # which is what routes `.port` through `AggregateDoor` instead of `DSL::BindingProxy`.
+  # which is what routes `.port` through `AggregateModule` instead of `DSL::BindingProxy`.
   def self.boot(dir)
     bluebook_dir = File.join(dir, "bluebook")
     FileUtils.mkdir_p(bluebook_dir)

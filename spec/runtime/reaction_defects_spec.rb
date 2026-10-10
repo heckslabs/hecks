@@ -18,8 +18,8 @@ RSpec.describe "a reaction that cannot be delivered" do
 
   let(:registry) { registry_for(policy) }
 
-  # A door that fails the way the thing behind it fails.
-  def door_raising(error)
+  # A dispatcher that fails the way the thing behind it fails.
+  def dispatcher_raising(error)
     Class.new do
       define_method(:reaction_depth_reached?) { false }
       define_method(:max_reaction_depth) { 8 }
@@ -28,7 +28,7 @@ RSpec.describe "a reaction that cannot be delivered" do
   end
 
   # `#aggregate` answers nil like a real Bluebook asked about an unloaded target;
-  # ReactionInvocation#resolve_target reads it before the door, so a double
+  # ReactionInvocation#resolve_target reads it before the dispatcher, so a double
   # without it would raise its own NoMethodError.
   def bluebook_double(policy)
     Class.new do
@@ -56,7 +56,7 @@ RSpec.describe "a reaction that cannot be delivered" do
   end
 
   def interpreter_failing_with(error)
-    Hecks::Runtime::PolicyInterpreter.new(registry, door: door_raising(error))
+    Hecks::Runtime::PolicyInterpreter.new(registry, dispatcher: dispatcher_raising(error))
   end
 
   it "RECORDS a refusal by the domain — the emitting command still stands", :aggregate_failures do

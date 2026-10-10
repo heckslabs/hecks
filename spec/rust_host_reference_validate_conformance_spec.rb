@@ -5,7 +5,7 @@ require "hecks/projector/exporter"
 require_relative "support/conformance_corpus"
 
 # Differential test of rust/host's mint audit (`reference_validate`, run over a stored value) against
-# the Ruby runtime's own door: each `Write` step of the optional-value-object conformance fixtures
+# the Ruby runtime's own entry point: each `Write` step of the optional-value-object conformance fixtures
 # gives a value, Ruby accepts or refuses it on dispatch, and the Rust audit, handed the same value
 # as a stored row (a slot a writer never sent is absent, not null), must accept or refuse it too and
 # name the same rule. A rule that reads an unset slot must not turn into a lookup error.

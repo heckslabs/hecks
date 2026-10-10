@@ -57,7 +57,7 @@ module Hecks
       def launcher_words(name, rest)
         return [rest, nil] if UNTOUCHED.include?(name)
 
-        require_relative "../doors/cli_door"
+        require_relative "../adapters/driving/cli"
         words = strip_generic(rest)
         form  = LAUNCHER_FORMS[name]
         return [words, nil] unless form && words.any? { |word| word.match?(NAME_VALUE) }
@@ -133,7 +133,7 @@ module Hecks
 
       # @api private
       def add_flag(key, value, extra)
-        extra << "--#{key.tr("_", "-")}" if Doors::CliDoor.boolean(value)
+        extra << "--#{key.tr("_", "-")}" if Adapters::Driving::Cli.boolean(value)
         nil
       end
 
@@ -153,7 +153,7 @@ module Hecks
           flag, value = word.split("=", 2)
           next kept << word unless GENERIC_FLAGS.include?(flag)
 
-          Doors::CliDoor.boolean(value || generic_value(queue))
+          Adapters::Driving::Cli.boolean(value || generic_value(queue))
         end
         kept
       end
@@ -161,7 +161,7 @@ module Hecks
       # The Boolean word that follows a generic flag, or "true" when none does.
       # @api private
       def generic_value(queue)
-        Doors::CliDoor::BOOLEAN_WORDS.key?(queue.first.to_s.downcase) ? queue.shift : "true"
+        Adapters::Driving::Cli::BOOLEAN_WORDS.key?(queue.first.to_s.downcase) ? queue.shift : "true"
       end
     end
   end

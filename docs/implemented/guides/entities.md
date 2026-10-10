@@ -262,7 +262,7 @@ customer.reference.to_h   # => { value: "CUST-0001" }
 ```
 
 `SafeDepositBox` is the aggregate, so `Rent` — its own creating command
-— gets the same door:
+— gets the same entry point:
 
 ```ruby
 box = Banking::SafeDepositBox.rent!(branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
@@ -305,7 +305,7 @@ had commands of its own.
 
 ## Addressing one visit
 
-`Visit` gets no door. Booting installs a module for the AGGREGATE —
+`Visit` gets no entry point. Booting installs a module for the AGGREGATE —
 `Banking::SafeDepositBox` — and nothing for the entities nested inside
 one. There is no `Banking::SafeDepositBox::Visit`, and no
 `visit.annotate` sugar on an opening you're holding, because you are
@@ -424,7 +424,7 @@ is `authorize` and `consistency`, which are their own topic (see
 An entity is appropriate exactly when a list needs individual
 identity, individual rules, and an individual lifecycle — a visit
 logged against a box, a key issued against it, a ledger entry, an
-order line. The tradeoff is the door: nothing about a `Visit` or a
+order line. The tradeoff is the entry point: nothing about a `Visit` or a
 `KeyIssuance` is ever addressable except through the `SafeDepositBox`
 that holds it, by design — the same design that makes
 `box.visits.first` and `Banking::SafeDepositBox.find("DOWNTOWN:12")`

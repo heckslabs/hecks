@@ -55,7 +55,7 @@ module Hecks
           return self.class.runner if self.class.runner
 
           require "rspec/core"
-          # A process that runs one example after another, as a resident door does, has to reset
+          # A process that runs one example after another, as a resident server does, has to reset
           # RSpec between runs: its reporter keeps the first run's output stream, so a later run
           # would write into that and answer an empty report.
           lambda do |args, err, out|

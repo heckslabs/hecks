@@ -21,7 +21,7 @@ RSpec.describe "the Deploy chapter's Handover", :io do
   FAULT_PREFIX = "Hecks::Adapters::ConsoleCapture::Failure: ".freeze
 
   before(:all) do
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
+    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
   end
 
   def with_domain(files = { "bluebook/shop.world" => WORLD_TO_CLEAR })
@@ -41,7 +41,7 @@ RSpec.describe "the Deploy chapter's Handover", :io do
   end
 
   def clear(domain, *argv)
-    out, status = Hecks::Doors::CliRunner.call(runtime: @hecks, program: "hecks",
+    out, status = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks",
                                                argv: ["deploy", "handover.clear", domain, *argv, "--wait"])
     [JSON.parse(out), status]
   end
