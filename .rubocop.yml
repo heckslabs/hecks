@@ -14,6 +14,7 @@ require:
   - ./lib/rubocop/cop/hecks/env_dump
   - ./lib/rubocop/cop/hecks/untyped_raise
   - ./lib/rubocop/cop/hecks/swallowed_rescue
+  - ./lib/rubocop/cop/hecks/symbol_string_key_mix
 
 # `h[a] || h[b]` on one receiver drops a stored `false`; use `key?` first.
 Hecks/FallbackHashLookup:
@@ -104,6 +105,13 @@ Hecks/SwallowedRescue:
   Enabled: true
   Include:
     - "lib/hecks/runtime/**/*.rb"
+
+# A hash is symbol-keyed under one adapter and string-keyed under another; the guess between the
+# two spellings is made once, in Hecks::IndifferentKey, not at each reader.
+Hecks/SymbolStringKeyMix:
+  Enabled: true
+  Include:
+    - "lib/**/*.rb"
 
 AllCops:
   TargetRubyVersion: 3.3

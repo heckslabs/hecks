@@ -1,3 +1,5 @@
+require_relative "../indifferent_key"
+
 module Hecks
   module Fuzzing
     # Shrinks a failing step list to a small one that still reproduces the finding.
@@ -88,7 +90,7 @@ module Hecks
 
       # `key?` first, never `||`, which cannot tell a stored `false` from an absent key.
       def args_of(step)
-        step.key?("args") ? step["args"] : step[:args]
+        IndifferentKey.read(step, "args")
       end
 
       LIST_FIELDS = %w[refusals queries dry_runs reactions].freeze

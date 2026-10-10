@@ -18,6 +18,7 @@ require_relative "postgres/outbox"
 require_relative "postgres/reconnect"
 require_relative "postgres/shared_connection"
 require_relative "../../runtime/instance"
+require_relative "../../indifferent_key"
 
 module Hecks
   module Adapters
@@ -57,7 +58,7 @@ module Hecks
       # @raise [LoadError] if the `pg` gem is not installed
       def self.connect_for(name, settings)
         require_pg(name)
-        declared = settings.key?(:database) ? settings[:database] : settings["database"]
+        declared = IndifferentKey.read(settings, :database)
         refuse_undeclared(name, declared)
         configure(open_connection(declared), settings)
       rescue StandardError => e
@@ -95,7 +96,7 @@ module Hecks
       # PostgresEra's own: a schema/table that already exists is the ordinary case on every
       # boot after the first, not news.
       def self.configure(connection, settings)
-        schema = settings.key?(:schema) ? settings[:schema] : settings["schema"]
+        schema = IndifferentKey.read(settings, :schema)
         connection.exec("SET search_path TO #{connection.quote_ident(schema)}") if schema.to_s != ""
         connection.exec("SET client_min_messages = warning")
         connection

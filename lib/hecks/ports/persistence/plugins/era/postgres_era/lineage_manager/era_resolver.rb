@@ -1,6 +1,7 @@
 require_relative "../lineage"
 require_relative "../../storage_shape"
 require_relative "context"
+require_relative "../../../../../../indifferent_key"
 
 module Hecks
   module Adapters
@@ -22,7 +23,7 @@ module Hecks
             lineage.check_fence_applies!(allow_superuser: PostgresEra.setting(settings, :allow_superuser, default: false))
             lineage.ensure_base!
             # key? first, never `||`: a stored `false` must not read as an absent key.
-            role = settings.key?(:role) ? settings[:role] : settings["role"]
+            role = IndifferentKey.read(settings, :role)
             resolve_era(Context.new(registry: registry, bluebook: bluebook, current_text: current_text,
                                     lineage: lineage, role: role, directory: directory))
           ensure

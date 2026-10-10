@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "open3"
+require_relative "../../indifferent_key"
 
 module Hecks
   module Adapters
@@ -113,7 +114,7 @@ module Hecks
       def plain(field)
         return field unless field.is_a?(Hash)
 
-        field.key?(:value) ? field[:value] : field["value"]
+        IndifferentKey.read(field, :value)
       end
     end
   end

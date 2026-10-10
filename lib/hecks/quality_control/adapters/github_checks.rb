@@ -2,6 +2,7 @@
 
 require "open3"
 require "json"
+require_relative "../../indifferent_key"
 
 module Hecks
   module Adapters
@@ -98,7 +99,7 @@ module Hecks
       def sha_of(commit)
         return commit if commit.is_a?(String)
 
-        (commit.key?(:value) ? commit[:value] : commit["value"]).to_s
+        IndifferentKey.read(commit, :value).to_s
       end
 
       # Every page of check runs: a red run past the first page must still be seen.
