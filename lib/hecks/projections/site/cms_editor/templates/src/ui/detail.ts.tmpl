@@ -58,13 +58,20 @@ function panel(agg: Aggregate, id: string, values: State, commands: Command[]): 
   return `<aside class="order-first flex flex-wrap items-start gap-x-8 gap-y-4 border-b border-base-300 pb-5 lg:sticky lg:top-20 lg:order-none lg:block lg:border-b-0 lg:pb-0" aria-label="Status and actions">${status}<div class="${rule}"><h2 class="mb-2 text-sm">Actions</h2>${list}</div></aside>`;
 }
 
+/** The badge that says an edit is saved and not put live yet, when the aggregate keeps one beside its live content. */
+function unpublished(agg: Aggregate, values: State): string {
+  const held = agg.drafts ? values[agg.drafts.attribute] : undefined;
+  const saved = held !== undefined && held !== null && !(Array.isArray(held) && held.length === 0);
+  return saved ? `<p class="mt-2"><span class="badge badge-soft badge-info">Changes not published yet</span></p>` : "";
+}
+
 /** One instance: its values, its status, a button for each command that applies to it now, and the records and actions that go with it. */
 export function detailPage(agg: Aggregate, id: string, values: State, shown: Submitted | null, world: World, preview: Tools): string {
   const commands = agg.commands.filter((command) => command.on === agg.name && available(agg, command, values));
   const here = href(...at(agg), "id", id);
   const panels = [relatedPanels(agg, id, world, here), schedulePanel(agg, id, world, here)].filter((html) => html !== "");
   return `<div class="mb-6 flex flex-wrap items-start justify-between gap-3">
-<div><h1 class="flex items-center gap-2 break-all text-3xl">${esc(id)}${copyButton(id, "id")}</h1><p class="mt-1 text-muted">${esc(label(agg.name))}</p></div>
+<div><h1 class="flex items-center gap-2 break-all text-3xl">${esc(id)}${copyButton(id, "id")}</h1><p class="mt-1 text-muted">${esc(label(agg.name))}</p>${unpublished(agg, values)}</div>
 ${preview.button}
 </div>
 ${refusal(shown?.message ?? null)}

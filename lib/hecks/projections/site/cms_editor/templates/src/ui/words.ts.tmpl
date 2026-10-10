@@ -32,6 +32,12 @@ export function plural(name: string): string {
   return capital(words.join(" "));
 }
 
+/** The limits a list's holder gives it as a sentence ("At least 1 and at most 60."), or nothing when it gives none. */
+export function limitsNote(min?: number, max?: number): string {
+  if (min && max) return `At least ${min} and at most ${max}.`;
+  return min ? `At least ${min}.` : max ? `At most ${max}.` : "";
+}
+
 /** An aggregate as one thing, lower case: "MediaItem" is "media item". */
 export const singular = (name: string): string => humanize(name);
 

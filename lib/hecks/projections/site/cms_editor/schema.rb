@@ -6,6 +6,7 @@ require_relative "clearing"
 require_relative "composition"
 require_relative "destructive"
 require_relative "drafts"
+require_relative "limits"
 require_relative "media"
 require_relative "pickers"
 require_relative "relations"
@@ -85,7 +86,7 @@ module Hecks
 
           # @return [Hash{String => Object}] the aggregate as the editor reads it
           def to_h
-            held = attributes(@agg.attributes.reject { |a| a.name == lifecycle_field })
+            held = aggregate_attributes
             drafts = Drafts.of(@agg, held)
             { "name" => @agg.hecks_name, "description" => @agg.description, "identity" => @agg.identified_by.to_s,
               "lifecycle" => lifecycle, "attributes" => held, "valueObjects" => value_objects,
@@ -97,7 +98,15 @@ module Hecks
 
           def lifecycle_field = @agg.lifecycle&.field
 
+          # The aggregate's own attributes, bounded by the aggregate's invariants (see `Limits`).
+          def aggregate_attributes
+            bounded(attributes(@agg.attributes.reject { |a| a.name == lifecycle_field }), @agg.invariants)
+          end
+
           def attributes(list) = list.map { |attribute| limited(@attributes.of(attribute)) }
+
+          # `list` with what the holder's rules say about the most each may hold (see `Limits`).
+          def bounded(list, rules) = Limits.apply(list, rules)
 
           # `attr` with the most its block list may hold, when a command's `given` says.
           def limited(attr)
@@ -106,7 +115,9 @@ module Hecks
           end
 
           def value_objects
-            @agg.value_objects.to_h { |object| [object.hecks_name, attributes(object.attributes)] }
+            @agg.value_objects.to_h do |object|
+              [object.hecks_name, bounded(attributes(object.attributes), object.invariants)]
+            end
           end
 
           def lifecycle
@@ -130,7 +141,7 @@ module Hecks
             { "name" => command.hecks_name, "goal" => command.goal, "role" => command.role, "creates" => command.creates?,
               "on" => command.creates? ? nil : command.references.to_s,
               "destructive" => Destructive.command?(command.hecks_name, lifecycle),
-              "attributes" => attributes(command.attributes) }
+              "attributes" => bounded(attributes(command.attributes), command.givens) }
               .then { |shaped| clearing(shaped, command) }
           end
 

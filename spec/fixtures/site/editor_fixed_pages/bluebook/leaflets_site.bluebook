@@ -1,0 +1,54 @@
+# A small site whose editor works on pages of a fixed structure: the neutral fixture the editor
+# generator reads for a working copy that is a value object, a picture slot and a writing box outside
+# a block list, and repeated groups that hold groups. Its `Editor` row names two chapters.
+Hecks.bluebook "LeafletsSite" do
+  vision "The routes of a small site, with an editor for its fixed-structure pages."
+
+  aggregate "SiteMap" do
+    description "The site's routes."
+
+    attribute :name, MapName
+    identified_by :name
+
+    value_object "MapName" do
+      attribute :value, String
+    end
+
+    value_object "Route" do
+      attribute :path,      String
+      attribute :kind,      String
+      attribute :render,    String
+      attribute :auth,      String
+      attribute :methods,   String
+      attribute :cache,     String
+      attribute :origin,    String
+      attribute :source,    String
+      attribute :indexable, Boolean
+      attribute :label,     String
+      attribute :nav_order, Integer
+
+      member path: "/",            label: "Home", cache: "home", source: "global:home", nav_order: 1
+      member path: "/editor*",     kind: "proxy", origin: "cms", auth: "admin", methods: "GET,POST"
+      member path: "/admin-login", render: "ssr", cache: "no_store", methods: "GET", indexable: false
+      member path: "/*",           kind: "proxy"
+    end
+
+    value_object "Editor" do
+      attribute :domain,         String
+      attribute :chapter,        String
+      attribute :base_path,      String
+      attribute :session_cookie, String
+      attribute :host_cookie,    String
+      attribute :host_env,       String
+      attribute :host_default,   String
+      attribute :roles,          String
+      attribute :login,          String
+      attribute :title,          String
+
+      member domain: "domain", chapter: "Leaflets, Pictures",
+             base_path: "/editor", session_cookie: "leaflets_editor", host_cookie: "leaflets_session",
+             host_env: "LEAFLETS_DOMAIN_SERVICE_URL", host_default: "http://127.0.0.1:4500",
+             roles: "Admin,Owner", login: "/admin-login", title: "Leaflets editor"
+    end
+  end
+end

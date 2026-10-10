@@ -5,17 +5,23 @@ __BANNER__
 // repeatable rows (the rows it holds, then one blank row to fill, which the page's script lets the
 // person add to, remove and reorder); a lifecycle state is not an input at all. Each input is named
 // by its dotted path (`byline.name`, `body.blocks.0.text`), which input.ts reads back into the shape
-// the command takes. Inputs are plain `input` elements, so a form posts with no script at all.
+// the command takes. Inputs are plain `input` elements, so a form posts with no script at all. A
+// text a rule bounds above 200 characters is a writing box, a value object with a media key and a
+// description is a picture (its picker opens from the group), and a list whose members hold a body,
+// a picture or a list of their own is drawn as cards (see blocks.ts) so a new member is made from a
+// template, not copied from the page.
 import type { Aggregate, Attr } from "../schema.ts";
 import { SCHEMA } from "../schema.ts";
 import { esc, href } from "./html.ts";
+import { icon } from "./icons.ts";
 import { bodyToFields, bodyToHtml, emptyBody, fieldsToInputs } from "./body_model.js";
+import { heavy } from "./block_list.js";
 import { blockList } from "./blocks.ts";
 import type { Problem } from "./blocks.ts";
 import { isMoment, secondsOf } from "./moments.ts";
 import { datalists, pickerControl } from "./pickers.ts";
 import type { Choices } from "./pickers.ts";
-import { label, singular } from "./words.ts";
+import { label, limitsNote, singular } from "./words.ts";
 
 type Value = unknown;
 
@@ -38,6 +44,8 @@ interface Context {
   draft?: string;
   /** The blocks of a list of mixed blocks that a refusal named (see blocks.ts). */
   problems?: Problem[];
+  /** A list is drawn as plain rows, whatever its members hold: it is inside a card's group, one level in. */
+  rows?: boolean;
 }
 
 const inputType = (attr: Attr): string => (attr.kind === "integer" || attr.kind === "number" ? "number" : "text");
@@ -52,22 +60,35 @@ function caption(attr: Attr, context: Context): string {
   return context.mark ? `${text} <span class="text-primary" title="Required" aria-hidden="true">*</span>` : text;
 }
 
-const flagged = (attr: Attr, context: Context): boolean => context.top && context.invalid?.field === attr.name;
+/**
+ * The words of the refusal that is about the field at `name`, or null: the one the command named for this
+ * attribute at the top of the form, or one that names this part of the value object it was about.
+ */
+function refusalAt(attr: Attr, name: string, context: Context): string | null {
+  if (context.top && context.invalid?.field === attr.name) return context.invalid.message;
+  const named = context.problems?.find((one) => one.slots.some((part) => name === `${one.name}.${part}` || name.startsWith(`${one.name}.${part}.`)));
+  return named ? named.message : null;
+}
 
-/** The attributes of the control that is invalid: the state and the link to its message. */
-function invalidAttrs(name: string, attr: Attr, context: Context): string {
-  return flagged(attr, context) ? ` aria-invalid="true" aria-describedby="${esc(idOf(name))}-error"` : "";
+const flagged = (attr: Attr, name: string, context: Context): boolean => refusalAt(attr, name, context) !== null;
+
+/** The attributes of the control that is invalid: the state and the link to its message (and to its hint, when it has one). */
+function invalidAttrs(name: string, attr: Attr, context: Context, hint = false): string {
+  const ids = [...(hint ? [`${idOf(name)}-hint`] : []), ...(flagged(attr, name, context) ? [`${idOf(name)}-error`] : [])];
+  const described = ids.length > 0 ? ` aria-describedby="${esc(ids.join(" "))}"` : "";
+  return `${flagged(attr, name, context) ? ` aria-invalid="true"` : ""}${described}`;
 }
 
 function problem(name: string, attr: Attr, context: Context): string {
-  return flagged(attr, context) ? `<p class="text-xs font-semibold text-error" id="${esc(idOf(name))}-error">${esc(context.invalid?.message)}</p>` : "";
+  const text = refusalAt(attr, name, context);
+  return text !== null ? `<p class="text-xs font-semibold text-error" id="${esc(idOf(name))}-error">${esc(text)}</p>` : "";
 }
 
 /** A moment's input: the seconds in a number input; the script swaps it for a native date input in the viewer's zone. */
 function moment(attr: Attr, name: string, value: Value, context: Context): string {
   const id = esc(idOf(name));
   const seconds = secondsOf(value);
-  const classes = flagged(attr, context) ? "input input-error w-full max-w-xl" : "input w-full max-w-xl";
+  const classes = flagged(attr, name, context) ? "input input-error w-full max-w-xl" : "input w-full max-w-xl";
   const required = context.mark && !attr.optional ? ` aria-required="true"` : "";
   const input = `<input type="number" step="1" class="${classes}" id="${id}" name="${esc(name)}" value="${seconds ?? ""}" data-epoch-raw${required}${invalidAttrs(name, attr, context)}>`;
   const note = `<p class="text-xs text-muted" data-epoch-note>Whole seconds since 1970, in UTC.</p>`;
@@ -79,7 +100,7 @@ function picked(attr: Attr, name: string, value: Value, context: Context): strin
   if (!attr.picker) return null;
   const held = member(value, "value") ?? value ?? "";
   const required = context.mark && !attr.optional ? ` aria-required="true"` : "";
-  const control = { id: idOf(name), name, value: String(held), optional: attr.optional, invalid: flagged(attr, context), extra: `${required}${invalidAttrs(name, attr, context)}` };
+  const control = { id: idOf(name), name, value: String(held), optional: attr.optional, invalid: flagged(attr, name, context), extra: `${required}${invalidAttrs(name, attr, context)}` };
   return pickerControl(attr.picker, context.choices ?? {}, control);
 }
 
@@ -88,7 +109,7 @@ function select(attr: Attr, name: string, value: Value, context: Context): strin
   const held = String(member(value, "value") ?? value ?? "");
   const id = esc(idOf(name));
   const required = context.mark && !attr.optional ? ` aria-required="true"` : "";
-  const classes = flagged(attr, context) ? "select select-error w-full max-w-xl" : "select w-full max-w-xl";
+  const classes = flagged(attr, name, context) ? "select select-error w-full max-w-xl" : "select w-full max-w-xl";
   const blank = attr.optional || held === "" ? `<option value=""${held === "" ? " selected" : ""}>${attr.optional ? "None" : "Choose"}</option>` : "";
   const options = (attr.options ?? []).map((option) => `<option value="${esc(option)}"${option === held ? " selected" : ""}>${esc(label(option))}</option>`);
   const input = `<select class="${classes}" id="${id}" name="${esc(name)}"${required}${invalidAttrs(name, attr, context)}>${blank}${options.join("")}</select>`;
@@ -105,9 +126,17 @@ function scalar(attr: Attr, name: string, value: Value, context: Context): strin
   }
   const step = attr.kind === "number" ? ` step="any"` : "";
   const required = context.mark && !attr.optional ? ` aria-required="true"` : "";
-  const classes = flagged(attr, context) ? "input input-error w-full max-w-xl" : "input w-full max-w-xl";
+  const bad = flagged(attr, name, context);
+  const limit = attr.maxLength ? ` maxlength="${attr.maxLength}"` : "";
+  if (attr.multiline && !attr.list && attr.kind === "text") {
+    const classes = bad ? "textarea textarea-error w-full max-w-3xl" : "textarea w-full max-w-3xl";
+    const hint = `<p class="text-xs text-muted" id="${id}-hint">Up to ${attr.maxLength} characters.</p>`;
+    const box = `<textarea class="${classes}" rows="5" id="${id}" name="${esc(name)}"${limit}${required}${invalidAttrs(name, attr, context, true)}>\n${text}</textarea>`;
+    return `<div class="my-4 grid gap-1"><label for="${id}" class="${context.quiet ? "sr-only" : "font-semibold"}">${caption(attr, context)}</label>${box}${hint}${problem(name, attr, context)}</div>`;
+  }
+  const classes = bad ? "input input-error w-full max-w-xl" : "input w-full max-w-xl";
   const chosen = picked(attr, name, value, context);
-  const input = chosen ?? `<input type="${inputType(attr)}"${step} class="${classes}" id="${id}" name="${esc(name)}" value="${text}"${required}${invalidAttrs(name, attr, context)}>`;
+  const input = chosen ?? `<input type="${inputType(attr)}"${step} class="${classes}" id="${id}" name="${esc(name)}" value="${text}"${limit}${required}${invalidAttrs(name, attr, context)}>`;
   return `<div class="my-4 grid gap-1"><label for="${id}" class="${context.quiet ? "sr-only" : "font-semibold"}">${caption(attr, context)}</label>${input}${problem(name, attr, context)}</div>`;
 }
 
@@ -122,14 +151,56 @@ function parts(agg: Aggregate, attr: Attr, name: string, value: Value, context: 
   return members.map((part) => field(agg, part, member(value, part.name), `${name}.`, inside)).join("\n");
 }
 
+/** The words of the refusal about the value object at `name` as a whole, or about one of its parts by name. */
+function groupRefusal(attr: Attr, name: string, context: Context): string | null {
+  return refusalAt(attr, name, context) ?? context.problems?.find((one) => one.name === name)?.message ?? null;
+}
+
+/** The control a picture's media picker is opened from, or nothing when the editor has no pictures. */
+function pickButton(): string {
+  return SCHEMA.media ? `<button type="button" class="btn btn-sm w-fit" data-action="pick-picture" data-media="${esc(href("media"))}">${icon("image")}<span>Choose a picture</span></button>` : "";
+}
+
+/**
+ * A value object that is a picture: its file, its description (required wherever a picture is) and its
+ * caption as one group with a button that opens the picker, in whatever depth it sits; any other part
+ * it has is drawn after it as it is anywhere else.
+ */
+function pictureField(agg: Aggregate, attr: Attr, name: string, value: Value, context: Context): string {
+  const picture = attr.picture as NonNullable<Attr["picture"]>;
+  const members = agg.valueObjects[attr.type] ?? [];
+  const inside: Context = { ...context, top: false, mark: context.mark && !attr.optional };
+  const named = [picture.key, picture.alt, picture.caption].filter((part): part is string => part !== undefined);
+  const control = (part?: string): string => {
+    const found = members.find((one) => one.name === part);
+    return found ? field(agg, found, member(value, found.name), `${name}.`, inside) : "";
+  };
+  const others = members.filter((one) => !named.includes(one.name)).map((one) => field(agg, one, member(value, one.name), `${name}.`, inside));
+  const thumb = `<img class="size-20 shrink-0 border border-base-300 object-cover" alt="" width="80" height="80" data-picture-thumb hidden>`;
+  const said = groupRefusal(attr, name, context);
+  const bad = said !== null ? ` aria-invalid="true" aria-describedby="${esc(idOf(name))}-error"` : "";
+  const why = said !== null ? `<p class="text-xs font-semibold text-error" id="${esc(idOf(name))}-error">${esc(said)}</p>` : "";
+  return `<fieldset class="mt-6 [&>legend+*]:clear-both"${bad}><legend class="float-left mb-2 w-full border-t border-base-300 pt-4 text-lg font-semibold">${caption(attr, context)}</legend>
+<div class="my-4 grid gap-1 border border-base-300 p-3" data-picture data-key="${esc(`${name}.${picture.key}`)}" data-alt="${esc(`${name}.${picture.alt}`)}">
+<div class="flex flex-wrap items-start gap-3">${thumb}<div class="grid min-w-0 flex-1 gap-1 max-sm:basis-full">${control(picture.key)}${control(picture.alt)}${control(picture.caption)}${pickButton()}</div></div>
+<p class="text-xs text-muted">A picture needs a description for people who cannot see it.</p>
+</div>
+${others.join("\n")}${why}
+</fieldset>`;
+}
+
 function one(agg: Aggregate, attr: Attr, name: string, value: Value, context: Context): string {
   if (attr.kind !== "object") return scalar(attr, name, value, context);
   const members = agg.valueObjects[attr.type] ?? [];
+  const hit = groupRefusal(attr, name, context);
   if (members.length === 1 && members[0].kind !== "object" && !members[0].list) {
-    return scalar(plainOf(attr, members[0], attr.name), `${name}.${members[0].name}`, member(value, members[0].name), context);
+    const own: Context = hit !== null ? { ...context, top: true, invalid: { field: attr.name, message: hit } } : context;
+    return scalar(plainOf(attr, members[0], attr.name), `${name}.${members[0].name}`, member(value, members[0].name), own);
   }
-  const invalid = flagged(attr, context) ? ` aria-invalid="true"` : "";
-  return `<fieldset class="mt-6 [&>legend+*]:clear-both"${invalid}><legend class="float-left mb-2 w-full border-t border-base-300 pt-4 text-lg font-semibold">${caption(attr, context)}</legend>\n${parts(agg, attr, name, value, context)}\n${problem(name, attr, context)}</fieldset>`;
+  if (attr.picture) return pictureField(agg, attr, name, value, context);
+  const invalid = hit !== null ? ` aria-invalid="true" aria-describedby="${esc(idOf(name))}-error"` : "";
+  const why = hit !== null ? `<p class="text-xs font-semibold text-error" id="${esc(idOf(name))}-error">${esc(hit)}</p>` : "";
+  return `<fieldset class="mt-6 [&>legend+*]:clear-both"${invalid}><legend class="float-left mb-2 w-full border-t border-base-300 pt-4 text-lg font-semibold">${caption(attr, context)}</legend>\n${parts(agg, attr, name, value, context)}\n${why}</fieldset>`;
 }
 
 function listed(agg: Aggregate, attr: Attr, name: string, value: Value, context: Context): string {
@@ -147,8 +218,11 @@ function listed(agg: Aggregate, attr: Attr, name: string, value: Value, context:
     return `<fieldset class="relative my-3 border-l-2 border-base-300 pl-4 [&>legend+*]:clear-both" data-row data-index="${index}"><legend class="float-left w-full text-xs font-semibold text-muted">${esc(label(word))} ${index + 1}</legend>\n${body}\n</fieldset>`;
   });
   const noun = esc(singular(word));
-  const invalid = flagged(attr, context) ? ` aria-invalid="true"` : "";
-  return `<fieldset class="mt-6 [&>legend+*]:clear-both" data-repeat data-path="${esc(name)}" data-noun="${noun}"${invalid}><legend class="float-left mb-2 w-full border-t border-base-300 pt-4 text-lg font-semibold">${caption(attr, context)}</legend>\n<div data-rows>\n${rows.join("\n")}\n</div>${problem(name, attr, context)}\n</fieldset>`;
+  const invalid = flagged(attr, name, context) ? ` aria-invalid="true" aria-describedby="${esc(idOf(name))}-error"` : "";
+  const max = attr.max ? ` data-max="${attr.max}"` : "";
+  const limits = limitsNote(attr.min, attr.max);
+  const note = limits ? `\n<p class="clear-both mb-2 text-xs text-muted">${esc(limits)}</p>` : "";
+  return `<fieldset class="mt-6 [&>legend+*]:clear-both" data-repeat data-path="${esc(name)}" data-noun="${noun}"${max}${invalid}><legend class="float-left mb-2 w-full border-t border-base-300 pt-4 text-lg font-semibold">${caption(attr, context)}</legend>${note}\n<div data-rows>\n${rows.join("\n")}\n</div>${problem(name, attr, context)}\n</fieldset>`;
 }
 
 // The rich-text editor. The server renders the body as its read-only text and as the hidden inputs
@@ -160,24 +234,28 @@ function body(attr: Attr, name: string, value: Value, context: Context): string 
   const inputs = fieldsToInputs(bodyToFields(tree, name));
   const media = SCHEMA.media ? ` data-media="${esc(href("media"))}"` : "";
   const draft = context.draft === attr.name ? " data-draft" : "";
-  return `<fieldset class="mt-6 [&>legend+*]:clear-both"><legend class="float-left mb-2 w-full border-t border-base-300 pt-4 text-lg font-semibold">${caption(attr, context)}</legend>
+  const said = groupRefusal(attr, name, context);
+  const bad = said !== null ? ` aria-invalid="true" aria-describedby="${esc(idOf(name))}-error"` : "";
+  const why = said !== null ? `\n<p class="mt-2 text-sm font-semibold text-error" id="${esc(idOf(name))}-error">${esc(said)}</p>` : "";
+  return `<fieldset class="mt-6 [&>legend+*]:clear-both"${bad}><legend class="float-left mb-2 w-full border-t border-base-300 pt-4 text-lg font-semibold">${caption(attr, context)}</legend>
 <div class="max-w-3xl" data-body-editor${draft} data-name="${esc(name)}" data-label="${esc(label(attr.name))}" data-body="${esc(JSON.stringify(tree))}"${media}>
 <div class="prose border border-base-300 bg-base-100 p-6" data-body-fallback>${bodyToHtml(tree, 2)}</div>
 <p class="mt-2 text-xs text-muted" data-needs-script>Editing this text needs scripts turned on in the browser.</p>
 <div data-fields>
 ${inputs}
 </div>
-</div>
+</div>${why}
 </fieldset>`;
 }
 
 /** A list of mixed blocks as cards; each slot is drawn by `field`, so a part is entered as it is anywhere else. */
 function blocks(agg: Aggregate, attr: Attr, name: string, value: Value, context: Context): string {
-  const slot = (part: Attr, prefix: string, held: Value, message?: string, required?: boolean): string => {
-    const own: Context = { ...context, top: message !== undefined, invalid: message ? { field: part.name, message } : null, mark: required === true, quiet: false, draft: undefined, problems: [] };
+  const slot = (part: Attr, prefix: string, held: Value, message?: string, required?: boolean, rows?: boolean): string => {
+    const own: Context = { ...context, top: message !== undefined, invalid: message ? { field: part.name, message } : null, mark: required === true, quiet: false, draft: undefined, rows };
     return field(agg, required ? { ...part, optional: false } : part, held, prefix, own);
   };
-  const rendering = { slot, draft: context.draft === attr.name, problems: context.problems ?? [], caption: caption(attr, context), media: SCHEMA.media ? href("media") : undefined };
+  const message = groupRefusal(attr, name, context) ?? undefined;
+  const rendering = { slot, draft: context.draft === attr.name, problems: context.problems ?? [], caption: caption(attr, context), media: SCHEMA.media ? href("media") : undefined, message };
   return blockList(agg, attr, name, value, rendering);
 }
 
@@ -186,6 +264,7 @@ export function field(agg: Aggregate, attr: Attr, value: Value, prefix = "", con
   const name = `${prefix}${attr.name}`;
   if (attr.widget === "body") return body(attr, name, value, context);
   if (attr.blockList && attr.list) return blocks(agg, attr, name, value, context);
+  if (attr.list && attr.kind === "object" && !context.rows && (attr.picture !== undefined || heavy(agg.valueObjects, attr.type))) return blocks(agg, attr, name, value, context);
   return attr.list ? listed(agg, attr, name, value, context) : one(agg, attr, name, value, context);
 }
 

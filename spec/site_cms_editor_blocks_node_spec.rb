@@ -283,11 +283,11 @@ RSpec.describe "the generated block list editor, run by node" do
       expect(encoding("emptyRowsDropped").dig("draft_panels", 0, "links")).to eq([])
     end
 
-    it "keeps a block that holds only its kind, so the domain refuses it in its own words (an empty body is no writing)",
+    it "keeps a block that holds only its kind, so the domain refuses it in its own words, leaving out an empty body",
        :aggregate_failures do
       panel = encoding("kindOnlyKept").dig("draft_panels", 0)
 
-      expect(panel).to eq("kind" => { "value" => "cards" }, "links" => [], "entries" => [], "body" => { "blocks" => [] })
+      expect(panel).to eq("kind" => { "value" => "cards" }, "links" => [], "entries" => [])
     end
 
     it "leaves out an optional slot left blank, and reads a number as a number", :aggregate_failures do
@@ -401,8 +401,8 @@ RSpec.describe "the generated block list editor, run by node" do
       refused = result("autosaveRefused")
 
       expect(refused["status"]).to eq(422)
-      expect(refused["problems"]).to eq([{ "path" => ["draft_panels", 1], "slots" => ["heading"],
-"message" => "A hero has a heading." }])
+      expect(refused["problems"]).to eq([{ "path" => ["draft_panels", 1], "name" => "draft_panels.1", "slots" => ["heading"],
+                                           "message" => "A hero has a heading." }])
     end
 
     it "shows a refused save's block open, marked and described, with a summary at the top", :aggregate_failures do

@@ -1,0 +1,602 @@
+# Pages with a fixed structure, filled in as a form: the neutral fixture the editor generator reads for
+# a working copy that is a value object (or a list) and not a body, for a picture slot and a writing
+# box outside a block list, and for repeated groups that hold groups of their own. The key is a plain
+# `page:<slug>` value; a picture is named by a plain media key.
+Hecks.bluebook "Leaflets" do
+  vision "Pages of a fixed structure: a note, chapters, a gallery and a roster, each with its slots, and an edit kept aside until it is put live."
+  core
+
+  aggregate "NotePage" do
+    description "A page of one titled piece of writing, and an edit saved aside until it is put live."
+
+    # **Slots** -- `heading` (optional, one line), `summary` (optional, a few sentences: a text with a
+    # long limit is a writing box), `body` (required, rich text) and `more` (optional link).
+    identified_by :key
+
+    attribute :key,           LeafletKey
+    attribute :content,       NoteContent
+    attribute :draft_content, NoteContent, optional: true
+
+    # **A page is named by a plain key** -- `page:<slug>`.
+    value_object "LeafletKey" do
+      attribute :value, String, pattern: '^page:[a-z0-9-]+$'
+    end
+
+    value_object "NoteContent" do
+      attribute :heading, String, optional: true
+      attribute :summary, String, optional: true
+      attribute :body,    Body
+      attribute :more,    String, optional: true
+      attribute :rows,    list_of(Row)
+
+      invariant("a heading is at most 120 characters") { heading.to_s.size <= 120 }
+      invariant("a summary is at most 600 characters") { summary.to_s.size <= 600 }
+      invariant("a note has writing") { !body.blocks.empty? }
+      invariant("a note has at most 20 rows") { rows.size <= 20 }
+      invariant("a more link is a path, an anchor or an address") do
+        more.unset? || more.start_with?("/") || more.start_with?("#") || more.start_with?("http://") ||
+          more.start_with?("https://")
+      end
+    end
+
+    # **A table row of plain text** -- a title and cells of its own: a group of plain inputs that holds
+    # a group of plain inputs, which stays a row (nothing in it needs a script to be made).
+    value_object "Row" do
+      attribute :title, String
+      attribute :cells, list_of(Cell)
+
+      invariant("a row has a title") { !title.to_s.empty? }
+      invariant("a row has at most 8 cells") { cells.size <= 8 }
+    end
+
+    value_object "Cell" do
+      attribute :text, String
+
+      invariant("a cell has text") { !text.to_s.empty? }
+    end
+
+    # **Writing, as a tree** -- the structured document the editor's rich-text widget recognises by
+    # shape: blocks of a closed set of kinds that hold spans of marked text.
+    value_object "Body" do
+      attribute :blocks, list_of(Block)
+    end
+
+    value_object "Block" do
+      attribute :kind,      String
+      attribute :level,     Integer, optional: true
+      attribute :align,     String, optional: true
+      attribute :indent,    Integer, optional: true
+      attribute :spans,     list_of(Span)
+      attribute :items,     list_of(Item)
+      attribute :media_ref, String, optional: true
+      attribute :alt,       String, optional: true
+      attribute :caption,   String, optional: true
+
+      invariant("a block aligns left, center, right or justified") do
+        align.unset? || ["left", "center", "right", "justify"].include?(align)
+      end
+      invariant("a block is indented from 0 to 8") { indent.unset? || (indent >= 0 && indent <= 8) }
+      invariant("a block is a known kind") do
+        ["paragraph", "heading", "quote", "bullet_list", "numbered_list", "image", "divider"].include?(kind)
+      end
+      invariant("a heading has a level from 1 to 4") { kind != "heading" || (level.set? && level >= 1 && level <= 4) }
+      invariant("a heading has text") { kind != "heading" || !spans.empty? }
+      invariant("a list has items") { (kind != "bullet_list" && kind != "numbered_list") || !items.empty? }
+      invariant("an image names its file and describes it") do
+        kind != "image" || (!media_ref.to_s.empty? && !alt.to_s.empty?)
+      end
+    end
+
+    value_object "Item" do
+      attribute :spans,     list_of(Span)
+      attribute :depth,     Integer, optional: true
+      attribute :list_kind, String, optional: true
+      invariant("a list item has text") { !spans.empty? }
+      invariant("a list item is nested from 0 to 5 deep") { depth.unset? || (depth >= 0 && depth <= 5) }
+      invariant("a list item is a bullet or numbered") do
+        list_kind.unset? || list_kind == "bullet_list" || list_kind == "numbered_list"
+      end
+    end
+
+    value_object "Span" do
+      attribute :text,  String
+      attribute :marks, list_of(Mark)
+      attribute :href,  String, optional: true
+      invariant("a span has text") { !text.to_s.empty? }
+      invariant("a link is not blank") { href.unset? || !href.to_s.empty? }
+    end
+
+    value_object "Mark" do
+      attribute :name, String
+      invariant("a mark is a known formatting") { ["bold", "italic", "underline", "strike", "code"].include?(name) }
+    end
+
+    command "Write" do
+      role "Editor"
+      goal "Start a note page"
+
+      attribute :key,     LeafletKey
+      attribute :content, NoteContent
+
+      sets :key
+      sets :content
+
+      emits "NotePageWritten"
+    end
+
+    # **Straight to readers** -- replaces the live content at once.
+    command "Revise" do
+      role "Editor"
+      goal "Replace the content readers see"
+
+      reference_to NotePage
+      attribute :content, NoteContent
+
+      sets :content
+
+      emits "NotePageRevised"
+    end
+
+    command "SaveDraft" do
+      role "Editor"
+      goal "Keep an edit aside without changing what readers see"
+
+      reference_to NotePage
+      attribute :draft_content, NoteContent
+
+      sets :draft_content
+
+      emits "NotePageDraftSaved"
+    end
+
+    # **Clearing is leaving out** -- these two take an optional `nothing` that is never sent, and set
+    # `draft_content` from it.
+    command "PublishDraft" do
+      role "Editor"
+      goal "Make the saved edit what readers see, and clear it"
+
+      reference_to NotePage
+      attribute :nothing, NoteContent, optional: true
+
+      given("an edit is saved") { draft_content.set? }
+      sets :content, to: state(:draft_content)
+      sets :draft_content, to: :nothing
+
+      emits "NotePageDraftPublished"
+    end
+
+    command "DiscardDraft" do
+      role "Editor"
+      goal "Drop the saved edit and keep what readers see"
+
+      reference_to NotePage
+      attribute :nothing, NoteContent, optional: true
+
+      given("an edit is saved") { draft_content.set? }
+      sets :draft_content, to: :nothing
+
+      emits "NotePageDraftDiscarded"
+    end
+
+    query "Listing" do
+      description "Every note page."
+    end
+  end
+
+  aggregate "ChaptersPage" do
+    description "A page that opens with a hero and tells a sequence of chapters, and an edit saved aside until it is put live."
+
+    # **Slots** -- `hero` (optional: a heading, writing and a picture), `chapters` (required, 1 to 60).
+    # A chapter is ONE kind of group with a fixed order: a verse, a picture band, a heading and writing,
+    # then up to 12 titled parts. Every part is optional and a chapter must say something.
+    identified_by :key
+
+    attribute :key,           LeafletKey
+    attribute :content,       ChaptersContent
+    attribute :draft_content, ChaptersContent, optional: true
+
+    # **A page is named by a plain key** -- `page:<slug>`.
+    value_object "LeafletKey" do
+      attribute :value, String, pattern: '^page:[a-z0-9-]+$'
+    end
+
+    value_object "ChaptersContent" do
+      attribute :hero,     Hero, optional: true
+      attribute :chapters, list_of(Chapter)
+
+      invariant("a page has at least one chapter") { chapters.size >= 1 }
+      invariant("a page has at most 60 chapters") { chapters.size <= 60 }
+    end
+
+    value_object "Hero" do
+      attribute :heading, String
+      attribute :summary, Body, optional: true
+      attribute :picture, Picture, optional: true
+
+      invariant("a hero has a heading") { !heading.to_s.empty? }
+    end
+
+    value_object "Chapter" do
+      attribute :verse,   Verse, optional: true
+      attribute :band,    Band, optional: true
+      attribute :heading, String, optional: true
+      attribute :body,    Body, optional: true
+      attribute :parts,   list_of(Part)
+
+      invariant("a chapter says something") do
+        verse.set? || band.set? || !heading.to_s.empty? || (body.set? && !body.blocks.empty?) || !parts.empty?
+      end
+      invariant("a chapter has at most 12 parts") { parts.size <= 12 }
+    end
+
+    value_object "Verse" do
+      attribute :heading, String, optional: true
+      attribute :body,    Body
+
+      invariant("a verse has writing") { !body.blocks.empty? }
+    end
+
+    value_object "Band" do
+      attribute :media_ref, String
+      attribute :alt,       String
+      attribute :caption,   String, optional: true
+      attribute :align,     BandAlign, optional: true
+
+      invariant("a band names its file") { !media_ref.to_s.empty? }
+      invariant("a band is described") { !alt.to_s.empty? }
+    end
+
+    value_object "BandAlign" do
+      attribute :value, String, one_of: ["left", "center", "right"]
+    end
+
+    value_object "Part" do
+      attribute :heading, String
+      attribute :body,    Body
+
+      invariant("a part has a heading") { !heading.to_s.empty? }
+      invariant("a part has writing") { !body.blocks.empty? }
+    end
+
+    # **One picture** -- where it is served from (a media key) and what it shows. The description is
+    # required: a picture a reader cannot see still says what it is.
+    value_object "Picture" do
+      attribute :media_ref, String
+      attribute :alt,       String
+      attribute :caption,   String, optional: true
+
+      invariant("a picture names its file") { !media_ref.to_s.empty? }
+      invariant("a picture is described") { !alt.to_s.empty? }
+    end
+
+    # **Writing, as a tree** -- the structured document the editor's rich-text widget recognises by
+    # shape: blocks of a closed set of kinds that hold spans of marked text.
+    value_object "Body" do
+      attribute :blocks, list_of(Block)
+    end
+
+    value_object "Block" do
+      attribute :kind,      String
+      attribute :level,     Integer, optional: true
+      attribute :align,     String, optional: true
+      attribute :indent,    Integer, optional: true
+      attribute :spans,     list_of(Span)
+      attribute :items,     list_of(Item)
+      attribute :media_ref, String, optional: true
+      attribute :alt,       String, optional: true
+      attribute :caption,   String, optional: true
+
+      invariant("a block aligns left, center, right or justified") do
+        align.unset? || ["left", "center", "right", "justify"].include?(align)
+      end
+      invariant("a block is indented from 0 to 8") { indent.unset? || (indent >= 0 && indent <= 8) }
+      invariant("a block is a known kind") do
+        ["paragraph", "heading", "quote", "bullet_list", "numbered_list", "image", "divider"].include?(kind)
+      end
+      invariant("a heading has a level from 1 to 4") { kind != "heading" || (level.set? && level >= 1 && level <= 4) }
+      invariant("a heading has text") { kind != "heading" || !spans.empty? }
+      invariant("a list has items") { (kind != "bullet_list" && kind != "numbered_list") || !items.empty? }
+      invariant("an image names its file and describes it") do
+        kind != "image" || (!media_ref.to_s.empty? && !alt.to_s.empty?)
+      end
+    end
+
+    value_object "Item" do
+      attribute :spans,     list_of(Span)
+      attribute :depth,     Integer, optional: true
+      attribute :list_kind, String, optional: true
+      invariant("a list item has text") { !spans.empty? }
+      invariant("a list item is nested from 0 to 5 deep") { depth.unset? || (depth >= 0 && depth <= 5) }
+      invariant("a list item is a bullet or numbered") do
+        list_kind.unset? || list_kind == "bullet_list" || list_kind == "numbered_list"
+      end
+    end
+
+    value_object "Span" do
+      attribute :text,  String
+      attribute :marks, list_of(Mark)
+      attribute :href,  String, optional: true
+      invariant("a span has text") { !text.to_s.empty? }
+      invariant("a link is not blank") { href.unset? || !href.to_s.empty? }
+    end
+
+    value_object "Mark" do
+      attribute :name, String
+      invariant("a mark is a known formatting") { ["bold", "italic", "underline", "strike", "code"].include?(name) }
+    end
+
+    command "Write" do
+      role "Editor"
+      goal "Start a chapters page"
+
+      attribute :key,     LeafletKey
+      attribute :content, ChaptersContent
+
+      sets :key
+      sets :content
+
+      emits "ChaptersPageWritten"
+    end
+
+    # **Straight to readers** -- replaces the live content at once.
+    command "Revise" do
+      role "Editor"
+      goal "Replace the content readers see"
+
+      reference_to ChaptersPage
+      attribute :content, ChaptersContent
+
+      sets :content
+
+      emits "ChaptersPageRevised"
+    end
+
+    command "SaveDraft" do
+      role "Editor"
+      goal "Keep an edit aside without changing what readers see"
+
+      reference_to ChaptersPage
+      attribute :draft_content, ChaptersContent
+
+      sets :draft_content
+
+      emits "ChaptersPageDraftSaved"
+    end
+
+    # **Clearing is leaving out** -- these two take an optional `nothing` that is never sent, and set
+    # `draft_content` from it.
+    command "PublishDraft" do
+      role "Editor"
+      goal "Make the saved edit what readers see, and clear it"
+
+      reference_to ChaptersPage
+      attribute :nothing, ChaptersContent, optional: true
+
+      given("an edit is saved") { draft_content.set? }
+      sets :content, to: state(:draft_content)
+      sets :draft_content, to: :nothing
+
+      emits "ChaptersPageDraftPublished"
+    end
+
+    command "DiscardDraft" do
+      role "Editor"
+      goal "Drop the saved edit and keep what readers see"
+
+      reference_to ChaptersPage
+      attribute :nothing, ChaptersContent, optional: true
+
+      given("an edit is saved") { draft_content.set? }
+      sets :draft_content, to: :nothing
+
+      emits "ChaptersPageDraftDiscarded"
+    end
+
+    query "Listing" do
+      description "Every chapters page."
+    end
+  end
+
+  aggregate "GalleryPage" do
+    description "A page of pictures in order, and an edit saved aside until it is put live."
+
+    # **Slots** -- `heading` (optional) and `photos` (required, 1 to 60 pictures, each with its description).
+    identified_by :key
+
+    attribute :key,           LeafletKey
+    attribute :content,       GalleryContent
+    attribute :draft_content, GalleryContent, optional: true
+
+    # **A page is named by a plain key** -- `page:<slug>`.
+    value_object "LeafletKey" do
+      attribute :value, String, pattern: '^page:[a-z0-9-]+$'
+    end
+
+    value_object "GalleryContent" do
+      attribute :heading, String, optional: true
+      attribute :photos,  list_of(Picture)
+
+      invariant("a gallery has at least one picture") { photos.size >= 1 }
+      invariant("a gallery has at most 60 pictures") { photos.size <= 60 }
+    end
+
+    # **One picture** -- where it is served from (a media key) and what it shows. The description is
+    # required: a picture a reader cannot see still says what it is.
+    value_object "Picture" do
+      attribute :media_ref, String
+      attribute :alt,       String
+      attribute :caption,   String, optional: true
+
+      invariant("a picture names its file") { !media_ref.to_s.empty? }
+      invariant("a picture is described") { !alt.to_s.empty? }
+    end
+
+    command "Write" do
+      role "Editor"
+      goal "Start a gallery page"
+
+      attribute :key,     LeafletKey
+      attribute :content, GalleryContent
+
+      sets :key
+      sets :content
+
+      emits "GalleryPageWritten"
+    end
+
+    # **Straight to readers** -- replaces the live content at once.
+    command "Revise" do
+      role "Editor"
+      goal "Replace the content readers see"
+
+      reference_to GalleryPage
+      attribute :content, GalleryContent
+
+      sets :content
+
+      emits "GalleryPageRevised"
+    end
+
+    command "SaveDraft" do
+      role "Editor"
+      goal "Keep an edit aside without changing what readers see"
+
+      reference_to GalleryPage
+      attribute :draft_content, GalleryContent
+
+      sets :draft_content
+
+      emits "GalleryPageDraftSaved"
+    end
+
+    # **Clearing is leaving out** -- these two take an optional `nothing` that is never sent, and set
+    # `draft_content` from it.
+    command "PublishDraft" do
+      role "Editor"
+      goal "Make the saved edit what readers see, and clear it"
+
+      reference_to GalleryPage
+      attribute :nothing, GalleryContent, optional: true
+
+      given("an edit is saved") { draft_content.set? }
+      sets :content, to: state(:draft_content)
+      sets :draft_content, to: :nothing
+
+      emits "GalleryPageDraftPublished"
+    end
+
+    command "DiscardDraft" do
+      role "Editor"
+      goal "Drop the saved edit and keep what readers see"
+
+      reference_to GalleryPage
+      attribute :nothing, GalleryContent, optional: true
+
+      given("an edit is saved") { draft_content.set? }
+      sets :draft_content, to: :nothing
+
+      emits "GalleryPageDraftDiscarded"
+    end
+
+    query "Listing" do
+      description "Every gallery page."
+    end
+  end
+
+  aggregate "RosterPage" do
+    description "A page of people in order, kept as a list with an edit saved aside until it is put live."
+
+    # **Slots** -- the list itself is the page: `people` (0 to 60 people, each with a name, a role, a
+    # few sentences about them and an optional portrait). The working copy is a list too, and clearing
+    # it is sending none.
+    identified_by :key
+
+    attribute :key,          LeafletKey
+    attribute :people,       list_of(Person)
+    attribute :draft_people, list_of(Person)
+
+    value_object "LeafletKey" do
+      attribute :value, String, pattern: '^page:[a-z0-9-]+$'
+    end
+
+    value_object "Person" do
+      attribute :name,     String
+      attribute :role,     String, optional: true
+      attribute :about,    String, optional: true
+      attribute :portrait, Picture, optional: true
+
+      invariant("a person has a name") { !name.to_s.empty? }
+      invariant("a name is at most 80 characters") { name.to_s.size <= 80 }
+      invariant("an about text is at most 1000 characters") { about.to_s.size <= 1000 }
+    end
+
+    # **One picture** -- where it is served from (a media key) and what it shows. The description is
+    # required: a picture a reader cannot see still says what it is.
+    value_object "Picture" do
+      attribute :media_ref, String
+      attribute :alt,       String
+      attribute :caption,   String, optional: true
+
+      invariant("a picture names its file") { !media_ref.to_s.empty? }
+      invariant("a picture is described") { !alt.to_s.empty? }
+    end
+
+    command "Write" do
+      role "Editor"
+      goal "Start a roster page"
+
+      attribute :key,    LeafletKey
+      attribute :people, list_of(Person)
+
+      given("a roster has at most 60 people") { people.size <= 60 }
+      sets :key
+      sets :people
+
+      emits "RosterPageWritten"
+    end
+
+    command "SaveDraft" do
+      role "Editor"
+      goal "Keep a roster aside without changing what readers see"
+
+      reference_to RosterPage
+      attribute :draft_people, list_of(Person)
+
+      given("a roster has at most 60 people") { draft_people.size <= 60 }
+      sets :draft_people
+
+      emits "RosterPageDraftSaved"
+    end
+
+    command "PublishDraft" do
+      role "Editor"
+      goal "Make the saved roster what readers see, and clear it"
+
+      reference_to RosterPage
+      attribute :nothing, list_of(Person), optional: true
+
+      given("an edit is saved") { !draft_people.empty? }
+      sets :people, to: state(:draft_people)
+      sets :draft_people, to: :nothing
+
+      emits "RosterPageDraftPublished"
+    end
+
+    command "DiscardDraft" do
+      role "Editor"
+      goal "Drop the saved roster and keep what readers see"
+
+      reference_to RosterPage
+      attribute :nothing, list_of(Person), optional: true
+
+      given("an edit is saved") { !draft_people.empty? }
+      sets :draft_people, to: :nothing
+
+      emits "RosterPageDraftDiscarded"
+    end
+
+    query "Listing" do
+      description "Every roster page."
+    end
+  end
+end

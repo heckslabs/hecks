@@ -8,8 +8,15 @@ __BANNER__
 // A body inside a card gets its writing surface only when the card is first opened, so a page of
 // forty cards holds a handful of editors. A list written as a draft saves by itself (autosave.js),
 // and holds back while a card still lacks what its kind needs.
+//
+// The same script serves a page whose working copy is a value object (`data-draft-form` on the form):
+// the form as a whole saves by itself, whichever of its lists, pictures, writing surfaces and plain
+// inputs the person touches, and a picture outside any list opens the picker from its own group.
 import { retarget, safe } from "../ui/block_list.js";
 import { startDraft } from "./autosave.js";
+import { enhanceRows, firstProblem } from "./forms.js";
+import { mountMoments } from "./moments.js";
+import { mountPickers } from "./pickers.js";
 
 /** Loads the picture picker, or is null when the editor has no pictures to choose from. */
 const loadPicker = __PICKER_LOADER__;
@@ -38,8 +45,25 @@ const groupOf = (card) => card.closest("[data-group]");
 /** The list a group belongs to (the outermost group). */
 const listOf = (node) => node.closest("[data-block-list]");
 
-const say = (list, text) => {
-  const line = list.querySelector("[data-block-say]");
+/** The working copies saved by the form as a whole, by form. */
+const formDrafts = new WeakMap();
+
+/** The polite line that speaks for `root`: a list's own, or a form's (made when it has none yet). */
+function lineOf(root) {
+  if (!root.matches("form")) return root.querySelector("[data-block-say]");
+  let line = root.querySelector(":scope > [data-form-say]");
+  if (!line) {
+    line = Object.assign(document.createElement("p"), { className: "sr-only" });
+    line.setAttribute("role", "status");
+    line.setAttribute("aria-live", "polite");
+    line.dataset.formSay = "";
+    root.append(line);
+  }
+  return line;
+}
+
+const say = (root, text) => {
+  const line = lineOf(root);
   line.textContent = "";
   setTimeout(() => { line.textContent = text; }, 30);
 };
@@ -52,11 +76,12 @@ const ownControls = (card) =>
 function summaryOf(card) {
   const prefix = `${groupOf(card).dataset.path}.${card.dataset.index}.`;
   const requires = (card.dataset.requires ?? "").split(" ").filter(Boolean).map((slot) => `${prefix}${slot}`);
+  const alt = card.dataset.summaryAlt ? `${prefix}${card.dataset.summaryAlt}` : null;
   const named = (control) => requires.includes(control.name) || requires.some((slot) => control.name === `${slot}.value`);
   const texts = ownControls(card)
-    .filter((control) => control.type === "text" && control.value.trim() !== "" && (!control.closest("[data-picture]") || named(control)))
-    .map((control) => ({ text: control.value.trim(), required: named(control) }));
-  const chosen = texts.find((one) => one.required) ?? texts.reduce((best, one) => (!best || one.text.length > best.text.length ? one : best), null);
+    .filter((control) => (control.type === "text" || control.type === "textarea") && control.value.trim() !== "" && (!control.closest("[data-picture]") || named(control) || control.name === alt))
+    .map((control) => ({ text: control.value.trim(), required: named(control), alt: control.name === alt }));
+  const chosen = texts.find((one) => one.alt) ?? texts.find((one) => one.required) ?? texts.reduce((best, one) => (!best || one.text.length > best.text.length ? one : best), null);
   if (chosen) return chosen.text.length > 80 ? `${chosen.text.slice(0, 79)}…` : chosen.text;
   const counts = [...card.querySelectorAll(":scope > [data-card-panel] > [data-group]")]
     .map((group) => [group.dataset.noun, cardsOf(group).length])
@@ -144,7 +169,7 @@ function dress(card) {
   card.querySelector(":scope > [data-card-head] [data-card-static]")?.setAttribute("hidden", "");
   for (const node of card.querySelectorAll(":scope > [data-card-head] [data-tools], :scope > [data-card-head] [data-action=toggle]")) node.hidden = false;
   const button = card.querySelector(':scope > [data-card-head] [data-action="toggle"]');
-  const open = card.hasAttribute("data-invalid");
+  const open = card.hasAttribute("data-invalid") || card.hasAttribute("data-open");
   const panel = card.querySelector(":scope > [data-card-panel]");
   panel.hidden = !open;
   button.setAttribute("aria-expanded", String(open));
@@ -165,6 +190,9 @@ function create(group, kind) {
   cards.insertAdjacentHTML("beforeend", template.innerHTML.split(token).join(String(cardsOf(group).length)));
   const card = cards.lastElementChild;
   dress(card);
+  enhanceRows(card);
+  mountPickers(card);
+  mountMoments(card);
   return card;
 }
 
@@ -177,18 +205,26 @@ function lacks(card) {
     return own && control.type !== "checkbox" && control.value.trim() !== "";
   });
   const missing = names.filter((slot) => !held(slot));
-  for (const picture of card.querySelectorAll(":scope > [data-card-panel] > [data-picture]")) {
-    const key = card.querySelector(`[name="${picture.dataset.key}"]`);
-    const alt = card.querySelector(`[name="${picture.dataset.alt}"]`);
-    if (key?.value.trim() && alt && alt.value.trim() === "") missing.push("alt");
-  }
+  const own = [...card.querySelectorAll("[data-picture]")].filter((picture) => picture.closest("[data-card]") === card);
+  if (own.some(undescribed) && !missing.includes("alt")) missing.push("alt");
   return missing;
+}
+
+/** Whether a picture names its file and has no description. */
+function undescribed(picture) {
+  const form = picture.closest("form") ?? document;
+  const key = form.querySelector(`[name="${CSS.escape(picture.dataset.key)}"]`);
+  const alt = form.querySelector(`[name="${CSS.escape(picture.dataset.alt)}"]`);
+  return Boolean(key?.value.trim()) && alt !== null && alt.value.trim() === "";
 }
 
 /** The card, and the nested cards under it, that lack something. */
 function incomplete(list) {
   return [...list.querySelectorAll("[data-card]")].filter((card) => lacks(card).length > 0);
 }
+
+/** The pictures under `scope` that are in no list's card: a picture slot of a value object. */
+const loose = (scope) => [...scope.querySelectorAll("[data-picture]")].filter((picture) => !picture.closest("[data-card]"));
 
 /** Marks a picture's alt control invalid, with the line that says what to do, or clears the mark. */
 function markAlt(picture, show) {
@@ -230,8 +266,8 @@ async function thumb(picture) {
 /** Opens the picture picker for a card's picture and puts the choice in its key and alt text. */
 async function pick(picture, list, afterwards) {
   const button = picture.querySelector("[data-action=pick-picture]");
-  const key = picture.querySelector(`[name="${picture.dataset.key}"]`);
-  const alt = picture.querySelector(`[name="${picture.dataset.alt}"]`);
+  const key = picture.querySelector(`[name="${CSS.escape(picture.dataset.key)}"]`);
+  const alt = picture.querySelector(`[name="${CSS.escape(picture.dataset.alt)}"]`);
   if (!loadPicker) return;
   const { openPicker } = await loadPicker();
   openPicker(picture, picture, {
@@ -245,6 +281,7 @@ async function pick(picture, list, afterwards) {
       known = null;
       thumb(picture);
       say(list, "Picture chosen.");
+      key.dispatchEvent(new Event("change", { bubbles: true }));
     },
     onClose: () => { button.focus(); afterwards(); },
   });
@@ -255,7 +292,7 @@ function enhance(list) {
   let draft = null;
   let asking = null;
   const dialog = list.querySelector(":scope > [data-remove-dialog]");
-  const touch = () => draft?.touch();
+  const touch = () => (draft ?? formDrafts.get(form))?.touch();
 
   const refresh = (card) => {
     const line = card.querySelector(":scope > [data-card-head] [data-card-summary]");
@@ -353,8 +390,8 @@ function enhance(list) {
   });
   form?.addEventListener("focusout", (event) => {
     const picture = event.target.closest?.("[data-picture]");
-    if (picture && event.target.name === picture.dataset.alt) markAlt(picture, lacks(event.target.closest("[data-card]")).includes("alt"));
-    draft?.blur();
+    if (picture && event.target.name === picture.dataset.alt) markAlt(picture, undescribed(picture));
+    (draft ?? formDrafts.get(form))?.blur();
   });
 
   dialog.addEventListener("close", () => {
@@ -366,7 +403,7 @@ function enhance(list) {
   for (const group of [list, ...list.querySelectorAll("[data-group]")]) renumber(group);
   for (const card of list.querySelectorAll("[data-card]")) refresh(card);
   for (const picture of list.querySelectorAll("[data-picture]")) thumb(picture);
-  for (const open of list.querySelectorAll("[data-card][data-invalid] > [data-card-panel]")) mountEditors(open);
+  for (const open of list.querySelectorAll("[data-card][data-invalid] > [data-card-panel], [data-card][data-open] > [data-card-panel]")) mountEditors(open);
 
   if (list.hasAttribute("data-draft")) {
     draft = startDraft(list, {
@@ -375,14 +412,89 @@ function enhance(list) {
         const first = incomplete(list)[0];
         return first ? `${titleOf(first)} needs more before it can be saved. Complete it, or use Save draft to see what the domain says.` : null;
       },
-      refused: (problems) => {
-        const found = problems.map((problem) => list.querySelector(`#blk-${safe(list.dataset.path)}-${problem.path[1]}`)).filter(Boolean);
-        for (const card of found) toggle(card, true);
-      },
+      refused: (problems) => reveal(list, problems),
     });
   }
 }
 
+/** Opens the cards a refusal names, and the cards that hold them, so what is wrong can be seen. */
+function reveal(scope, problems) {
+  for (const problem of problems) {
+    let card = problem.name ? scope.querySelector(`#blk-${safe(problem.name)}`) : null;
+    while (card) {
+      toggle(card, true);
+      card = card.parentElement?.closest("[data-card]");
+    }
+  }
+}
+
+/** A form whose working copy is a value object saves as a whole, whichever part of it is touched. */
+function enhanceForm(form) {
+  const draft = startDraft(form, {
+    form,
+    blocked: () => {
+      const first = incomplete(form)[0];
+      if (first) return `${titleOf(first)} needs more before it can be saved. Complete it, remove it, or use Save draft to see what the domain says.`;
+      return loose(form).some(undescribed) ? "A picture needs its description before it can be saved." : null;
+    },
+    refused: (problems) => reveal(form, problems),
+  });
+  formDrafts.set(form, draft);
+  form.addEventListener("input", () => draft.touch());
+  form.addEventListener("change", () => draft.touch());
+  form.addEventListener("editor:changed", () => draft.touch());
+  form.addEventListener("focusout", () => draft.blur());
+}
+
+/**
+ * A form is not sent while a picture names its file and has no description: the group says so beside
+ * the field, the card that holds it opens, and focus goes there. (The domain refuses the same, in its
+ * own words, when this is not in the way, as for a request that does not come from this page.)
+ */
+function guardPictures(form) {
+  form.addEventListener("submit", (event) => {
+    const missing = [...form.querySelectorAll("[data-picture]")].filter(undescribed);
+    if (missing.length === 0) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    for (const picture of missing) {
+      let card = picture.closest("[data-card]");
+      while (card) {
+        toggle(card, true);
+        card = card.parentElement?.closest("[data-card]");
+      }
+      markAlt(picture, true);
+    }
+    const first = missing[0].querySelector(`[name="${missing[0].dataset.alt}"]`);
+    first?.scrollIntoView({ block: "center" });
+    first?.focus({ preventScroll: true });
+    say(form, "A picture needs its description before it can be saved.");
+  }, true);
+}
+
+/** A picture that is no card's (a slot of a value object) opens the picker from its own group. */
+function enhanceLoose(form) {
+  const own = (picture) => picture && !picture.closest("[data-card]");
+  if (loose(form).length === 0) return;
+  for (const picture of loose(form)) thumb(picture);
+  form.addEventListener("click", (event) => {
+    const picture = event.target.closest?.("[data-action=pick-picture]")?.closest("[data-picture]");
+    if (own(picture)) pick(picture, form, () => {});
+  });
+  form.addEventListener("input", (event) => {
+    const picture = event.target.closest?.("[data-picture]");
+    if (own(picture) && event.target.name === picture.dataset.key) thumb(picture);
+  });
+  form.addEventListener("focusout", (event) => {
+    const picture = event.target.closest?.("[data-picture]");
+    if (own(picture) && event.target.name === picture.dataset.alt) markAlt(picture, undescribed(picture));
+  });
+}
+
 export function enhanceBlocks() {
+  for (const form of document.querySelectorAll("form[data-draft-form]")) enhanceForm(form);
   for (const list of document.querySelectorAll("[data-block-list]")) enhance(list);
+  for (const form of document.querySelectorAll("form")) enhanceLoose(form);
+  for (const form of document.querySelectorAll("form[data-form]")) guardPictures(form);
+  if (document.querySelector("[data-card][data-open], [data-card][data-invalid]")) firstProblem();
 }

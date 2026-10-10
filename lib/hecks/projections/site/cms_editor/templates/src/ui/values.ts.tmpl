@@ -29,12 +29,31 @@ function blockLines(agg: Aggregate, attr: Attr, held: unknown): string {
   return `<ol class="grid list-decimal gap-1 pl-6">${lines.join("")}</ol>`;
 }
 
+const isBlank = (value: unknown): boolean => value === undefined || value === null || value === "" || (Array.isArray(value) && value.length === 0);
+
+/** A value object of several parts as its named parts, each shown by what it is (a body typeset, a picture by its description, a list as a run). */
+function parts(agg: Aggregate, type: string, held: unknown, depth: number): string {
+  const value = held && typeof held === "object" ? (held as State) : {};
+  const rows = (agg.valueObjects[type] ?? [])
+    .filter((part) => !isBlank(value[part.name]))
+    .map((part) => `<div class="grid gap-1 sm:grid-cols-[8rem_minmax(0,1fr)] sm:gap-3"><dt class="text-muted">${esc(label(part.name))}</dt><dd class="min-w-0 break-words">${valueOf(agg, part, value, depth + 1)}</dd></div>`);
+  return rows.length === 0 ? `<span class="text-muted">Not set</span>` : `<dl class="grid gap-2">${rows.join("")}</dl>`;
+}
+
+/** Whether the attribute's value object has several parts to show (a one-part value object is shown as its part). */
+const composite = (agg: Aggregate, attr: Attr): boolean => attr.kind === "object" && (agg.valueObjects[attr.type] ?? []).length > 1;
+
 /** One attribute's value as markup. */
-export function valueOf(agg: Aggregate, attr: Attr, values: State): string {
+export function valueOf(agg: Aggregate, attr: Attr, values: State, depth = 0): string {
   const held = values[attr.name];
   if (isMoment(attr)) return momentValue(attr, held);
   if (attr.widget === "body") return held && typeof held === "object" ? `<div class="prose">${bodyToHtml(held, READ_ONLY_DEMOTE)}</div>` : `<span class="text-muted">Not set</span>`;
   if (attr.blockList && attr.list) return blockLines(agg, attr, held);
+  if (composite(agg, attr) && depth < 5) {
+    if (!attr.list) return parts(agg, attr.type, held, depth);
+    const items = Array.isArray(held) ? held : [];
+    return items.length === 0 ? `<span class="text-muted">None</span>` : `<ol class="grid list-decimal gap-3 pl-6">${items.map((item) => `<li class="pl-1">${parts(agg, attr.type, item, depth)}</li>`).join("")}</ol>`;
+  }
   const copy = attr.name === agg.identity || attr.kind === "reference";
   return copy && typeof held !== "object" && held !== undefined && held !== null && held !== "" ? copyable(String(held), label(attr.name).toLowerCase()) : outline(held);
 }
