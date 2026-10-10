@@ -129,6 +129,9 @@ AllCops:
   Exclude:
     - "rust/**/*"
     - "vendor/**/*"
+    # Gitignored scratch (probes, fuzz output): never shipped, absent from CI and from a clean
+    # checkout, so an untracked file there must not fail the gate on one machine.
+    - "tmp/**/*"
     # The comment sweep's one-off scripts; not framework code.
     - "**/docs/decisions/*/sweep-kit/**/*"
     # Generated files: linting the artifact instead of its generator drifts on the next regen.

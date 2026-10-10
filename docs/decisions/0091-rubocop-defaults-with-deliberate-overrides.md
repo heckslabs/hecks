@@ -29,7 +29,8 @@ The reverse is a configuration that is the defaults plus a short, argued list. E
    - `Lint/ConstantDefinitionInBlock` and `RSpec/LeakyConstantDeclaration`: spec constants are file-local fixtures, `spec/load_hygiene_spec.rb` fails on colliding names across files, and `stub_const` does not fit a fixture with no prior value.
 4. **Every offense the defaults find is fixed, in one change, and there is no `.rubocop_todo.yml`.** The configuration is the defaults and the list above and nothing else, so `bundle exec rubocop -c .rubocop.yml` is clean with no file excluded.
 5. **A cop is excluded for a file only by an override on the list**, with its reason; an offense is never parked in a per-file exclusion list.
-6. **Some cops are fixed by hand, not autocorrected.** Autocorrecting these once changed behavior: `Style/CombinableLoops`, `RSpec/ScatteredSetup`, `Lint/UnusedBlockArgument`, `Style/SoleNestedConditional`, `Style/IfInsideElse`, `Style/Next` and `Style/GuardClause`. Each rewrite moves code across a control-flow, ordering or scope boundary, so a person reads the result. The mechanical cops may be autocorrected, and the full suite runs before the change is let through.
+6. **Paths that are not hand-written source are not inspected** (`AllCops` `Exclude`): `rust/`, `vendor/`, generated Ruby files whose generator is the thing to lint, the comment sweep kit, and `tmp/`. `tmp/` is gitignored scratch that never ships and is absent from CI and from a clean checkout, so an untracked probe there must not fail the gate on one machine.
+7. **Some cops are fixed by hand, not autocorrected.** Autocorrecting these once changed behavior: `Style/CombinableLoops`, `RSpec/ScatteredSetup`, `Lint/UnusedBlockArgument`, `Style/SoleNestedConditional`, `Style/IfInsideElse`, `Style/Next` and `Style/GuardClause`. Each rewrite moves code across a control-flow, ordering or scope boundary, so a person reads the result. The mechanical cops may be autocorrected, and the full suite runs before the change is let through.
 
 ## Consequences
 
@@ -42,5 +43,5 @@ The reverse is a configuration that is the defaults plus a short, argued list. E
 
 - **Keep the tuned configuration and add cops to it as they matter.** Rejected: it leaves the question of which disabled cops were decisions unanswered.
 - **A per-file todo that only shrinks.** Rejected: it leaves a second list of tolerated offenses beside the override list, and a regenerated todo hides new offenses.
-- **Autocorrect everything once.** Rejected for the cops in decision 6, which changed behavior when autocorrected.
+- **Autocorrect everything once.** Rejected for the cops in decision 7, which changed behavior when autocorrected.
 
