@@ -1,4 +1,5 @@
 require_relative "../naming"
+require_relative "best_effort"
 require_relative "value"
 
 module Hecks
@@ -82,12 +83,12 @@ module Hecks
       # Resolves a best-effort identity for `construct` to use as a lock key; never raises.
       # Returns nil when nothing resolves, and the caller then locks by aggregate type alone.
       def best_effort(construct, args, route = nil, reference_key: nil)
-        route&.aggregate ||
-          of(construct, args) ||
-          from(construct, args, :id) ||
-          (reference_key && from(construct, args, reference_key))
-      rescue StandardError
-        nil
+        BestEffort.call(nil) do
+          route&.aggregate ||
+            of(construct, args) ||
+            from(construct, args, :id) ||
+            (reference_key && from(construct, args, reference_key))
+        end
       end
     end
   end

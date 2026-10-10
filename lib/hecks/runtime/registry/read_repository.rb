@@ -1,3 +1,5 @@
+require_relative "../best_effort"
+
 module Hecks
   module Runtime
     class Registry
@@ -37,10 +39,10 @@ module Hecks
         #   `authoritative`, in the same order; false on any mismatch, or if comparing
         #   them raises
         def projection_current?(projection, authoritative)
-          entries_match?(projection.entries, authoritative.entries) &&
-            sorted_rows(projection) == sorted_rows(authoritative)
-        rescue StandardError
-          false
+          BestEffort.call(false) do
+            entries_match?(projection.entries, authoritative.entries) &&
+              sorted_rows(projection) == sorted_rows(authoritative)
+          end
         end
 
         private
