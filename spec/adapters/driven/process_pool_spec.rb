@@ -38,16 +38,16 @@ RSpec.describe Hecks::Adapters::ProcessPool do
     expect(finished.output.size).to eq(300_000)
   end
 
+  # Whether this process has spawned the long child; the pool installs its signal handlers first.
+  def long_child_spawned?
+    system("pgrep", "-P", Process.pid.to_s, "-f", "sleep 30", out: File::NULL)
+  end
+
   # Starts a long child, then interrupts this process as its launcher would be; answers how it
   # ended.
   def run_child_then_interrupt
-    started = Queue.new
-    runner = Thread.new do
-      started << true
-      pool.run(["sh", "-c", "sleep 30"])
-    end
-    started.pop
-    ThreadParking.wait_until_parked(runner)
+    runner = Thread.new { pool.run(["sh", "-c", "sleep 30"]) }
+    ThreadParking.wait_for { long_child_spawned? }
     Process.kill("TERM", Process.pid)
     runner.value
   end
