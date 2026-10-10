@@ -245,8 +245,7 @@ Hecks.bluebook "Layouts" do
     end
 
     query "Listing" do
-      description "Every layout, by key."
-      order_by "key.value", :asc
+      description "Every layout."
     end
   end
 end

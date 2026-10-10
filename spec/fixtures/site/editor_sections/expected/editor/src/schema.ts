@@ -1299,7 +1299,7 @@ export const SCHEMA: Schema = {
       "queries": [
         {
           "name": "Listing",
-          "description": "Every layout, by key.",
+          "description": "Every layout.",
           "attributes": []
         }
       ],
