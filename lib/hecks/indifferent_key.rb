@@ -6,15 +6,15 @@ module Hecks
   module IndifferentKey
     module_function
 
-    # Reads `key` by its Symbol spelling when present, else by its String spelling. Presence
-    # decides, not `||`, so a held `false` is not mistaken for an absent key.
+    # Reads `key` as given when present, else by its other spelling. Presence decides, not
+    # `||`, so a held `false` is not mistaken for an absent key.
     #
     # @param hash [Hash] a hash keyed by Symbols or by Strings
-    # @param key [Symbol, String] the key to read, in either spelling
+    # @param key [Symbol, String] the key to read; its own spelling is tried first
     # @return [Object, nil] the held value, or nil when neither spelling is present
     def read(hash, key)
-      symbol = key.to_sym
-      hash.key?(symbol) ? hash[symbol] : hash[key.to_s]
+      other = key.is_a?(Symbol) ? key.to_s : key.to_sym
+      hash.key?(key) ? hash[key] : hash[other]
     end
   end
 end
