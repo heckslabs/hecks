@@ -107,4 +107,29 @@ RSpec.describe Hecks::Fuzzing::ValueGenerator, :aggregate_failures do
       expect(unshaped.map { |name| described_class.clock_or_count_shaped?(name) }).to all(be(false))
     end
   end
+
+  describe ".object_for with a list held by a value object" do
+    LISTED_FIXTURE = File.join(InMemoryDomain::ROOT, "spec/fixtures/rust_project/optional_nested_value_object_fixture",
+                               "bluebook/optional_nested_value_object_fixture.bluebook")
+
+    let(:layout) do
+      registry = Hecks::Runtime::Registry.new
+      Hecks.with_registry(registry) do
+        [InMemoryDomain::PERSISTENCE_PORT, InMemoryDomain::EXTRACTION_PORT, InMemoryDomain::MEMORY_ADAPTER,
+         InMemoryDomain::PRISM_ADAPTER, LISTED_FIXTURE].each { |file| Kernel.load(file) }
+      end
+      registry.bluebook("OptionalNestedValueObjectFixture").aggregate("Layout")
+    end
+
+    def panels(seed)
+      panel = Hecks::Runtime::Value.value_object_for(layout, "Panel")
+      described_class.object_for(panel, layout, random: Random.new(seed), known_ids: {})
+    end
+
+    it "draws a list attribute as an array of objects, not one object" do
+      cells = Array.new(30) { |seed| panels(seed).fetch("cells") }
+
+      expect(cells).to all(be_an(Array).and(all(be_a(Hash))))
+    end
+  end
 end

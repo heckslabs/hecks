@@ -78,11 +78,23 @@ module Hecks
         value_object.members.sample(random: random).to_h { |field, value| [field.to_s, value] }
       end
 
-      # A value per declared attribute, keyed by attribute name.
+      # A value per declared attribute, keyed by attribute name; a list attribute is an array of
+      # up to three members, which is the shape its declaration asks for.
       def attribute_fields(value_object, aggregate, random:, known_ids:)
         value_object.attributes.to_h do |field|
-          [field.name.to_s,
-           value_for(field, aggregate, random: random, known_ids: known_ids, context: value_object.hecks_name)]
+          draw = -> { value_for(field, aggregate, random: random, known_ids: known_ids, context: value_object.hecks_name) }
+          [field.name.to_s, field.list? ? list_members(field, aggregate, random, &draw) : draw.call]
+        end
+      end
+
+      # Up to three members of a list held by a value object, each kept an object: a single-field
+      # member sent as its bare scalar is the one-field shorthand the list's own arguments draw.
+      def list_members(field, aggregate, random)
+        nested = Runtime::Value.value_object_for(aggregate, field.type.to_s)
+        sole = nested.attributes.first.name.to_s if nested && nested.attributes.size == 1
+        Array.new(random.rand(0..3)) do
+          member = yield
+          sole && !member.is_a?(Hash) ? { sole => member } : member
         end
       end
 
