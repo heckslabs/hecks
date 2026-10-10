@@ -13,6 +13,9 @@ module Hecks
           # @return [Hash] `{answer: [text, status]}`, or `{spec:, name:, rest:, asking:, program:,
           #   bluebook:, launcher:}` for a command to dispatch
           def resolve(runtime, argv, program)
+            refused = Admission.refusal(runtime.registry, "Cli")
+            return { answer: [refused, 1] } if refused
+
             bluebook, argv, program = chapter_for(runtime, argv, program)
             launcher = LauncherOptions.settings(runtime, bluebook.name)
             options  = LauncherOptions.projection(launcher, program)

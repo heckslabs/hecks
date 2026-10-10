@@ -47,6 +47,7 @@ module Hecks
   end
 end
 
+require_relative "driving/admission"
 require_relative "driving/handle"
 require_relative "driving/ruby"
 require_relative "driving/command_request"

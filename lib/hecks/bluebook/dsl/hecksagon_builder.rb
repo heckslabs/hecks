@@ -44,6 +44,7 @@ module Hecks
           @binds              = []
           @subscriptions      = []
           @attachments        = []
+          @driving            = []
           @bounded            = false
           @translates         = []
         end
@@ -56,6 +57,13 @@ module Hecks
 
         # Subscribes to an event from outside this domain's own bluebook.
         def subscribe(event) = @subscriptions << event.to_s
+
+        # Admits a driving adapter (`Ruby`, `Cli`, `Json` or `Mcp`) to reach this domain. Once any
+        # is declared, the adapters left out refuse the domain; none declared leaves it open.
+        #
+        # @param adapter [String, Symbol] the adapter's name
+        # @return [void]
+        def driven_by(adapter) = @driving << adapter.to_s
 
         # Attaches a chapter by name and loads it into the current registry, marked bounded.
         #
@@ -111,7 +119,8 @@ module Hecks
         # No ungoverned-role check here — it runs once on the merged result at verify! time.
         def build
           Hecksagon.new(domain: @domain, binds: @binds, subscriptions: @subscriptions,
-                        attachments: @attachments, bounded: @bounded, translates: @translates)
+                        attachments: @attachments, bounded: @bounded, translates: @translates,
+                        driving: @driving)
         end
 
         # Loads a chapter the gem carries and records it as attached from the gem.

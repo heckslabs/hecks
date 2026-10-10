@@ -259,6 +259,15 @@ RSpec.describe "the stdio MCP servers" do
       expect(File).not_to exist(marker)
     end
 
+    it "refuses a domain whose hecksagon admits other driving adapters than Mcp", :aggregate_failures do
+      hecksagon = File.join(sandbox_root, domain, "pizzas.hecksagon")
+      File.write(hecksagon, File.read(hecksagon).gsub(/^\s*driven_by "Mcp"\n/, ""))
+
+      results = server_results([tool_call(1, "catalog", { domain: domain })], env: reader_env)
+      expect(results[1]["isError"]).to be true
+      expect(payload(results[1])["error"]).to include("Pizzas is not driven by Mcp", "admits only Ruby, Cli, Json")
+    end
+
     it "loads that same domain on an unrestricted server, which is what the refusal above prevents" do
       other = unnamed_domain
       run_over_pipes(server, [tool_call(1, "catalog", { domain: other })],
