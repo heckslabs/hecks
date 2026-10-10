@@ -1,9 +1,12 @@
 require "spec_helper"
 require "hecks/rust_build/kernel_input"
+require_relative "support/generated_rust"
 
 # The stdin a domain binary reads carries each command's declared argument defaults, as the Rust
 # host's own table does, so a harness that runs the binary alone fills what Ruby fills.
 RSpec.describe Hecks::RustBuild::KernelInput do
+  include_context "with the generated Rust tree"
+
   let(:domain) { File.join(InMemoryDomain::ROOT, "qa/stress_domains/lease_clock") }
   let(:steps)  { [{ "verb" => "LeaseClock::Lease.Register", "args" => { "key" => { "value" => "a" } } }] }
   let(:board)  { "NestedPieces::Workspace.Board" }

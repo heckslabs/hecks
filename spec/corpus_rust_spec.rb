@@ -1,8 +1,11 @@
 require "spec_helper"
+require_relative "support/generated_rust"
 
 # Every cargo feature and generated Rust module lands in a check: the Rust-facing half of
 # spec/corpus_accounting_spec.rb.
 RSpec.describe "Hecks::Corpus, Rust-facing" do
+  include_context "with the generated Rust tree"
+
   let(:corpus) { Hecks::Corpus }
   let(:root) { Hecks::Corpus::ROOT }
   let(:features) { corpus.rust_domains.map(&:feature) }
