@@ -65,7 +65,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: rust/target/debug/rust-*
-          key: rust-feature-binaries-${{ runner.os }}-${{ hashFiles('rust/src/**', 'rust/Cargo.toml', 'rust/Cargo.lock') }}-${{ steps.inputs.outputs.hash }}
+          key: rust-feature-binaries-${{ runner.os }}-${{ hashFiles('rust/src/**', 'rust/Cargo.toml', 'rust/Cargo.lock', '.github/workflows/ci-rust-io.yml') }}-${{ steps.inputs.outputs.hash }}
           lookup-only: true
 
   rust_feature_binaries:
@@ -173,13 +173,15 @@ jobs:
 
       # The feature binaries' cache key, from the committed sources: the probe job computes the same
       # one from a bare checkout, before the regeneration below adds files to rust/src.
+      # This workflow file is in the key: how the binaries are built and merged is part of what they are, so a
+      # change to it must not restore entries an earlier, faulty build saved.
       - name: Hash the generator inputs
         id: inputs
         uses: ./.github/actions/generated-rust-inputs
 
       - name: Name the feature binaries' cache entry
         id: feature_key
-        run: echo "key=rust-feature-binaries-${{ runner.os }}-${{ hashFiles('rust/src/**', 'rust/Cargo.toml', 'rust/Cargo.lock') }}-${{ steps.inputs.outputs.hash }}" >> "$GITHUB_OUTPUT"
+        run: echo "key=rust-feature-binaries-${{ runner.os }}-${{ hashFiles('rust/src/**', 'rust/Cargo.toml', 'rust/Cargo.lock', '.github/workflows/ci-rust-io.yml') }}-${{ steps.inputs.outputs.hash }}" >> "$GITHUB_OUTPUT"
 
       # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
       - uses: ./.github/actions/generated-rust
