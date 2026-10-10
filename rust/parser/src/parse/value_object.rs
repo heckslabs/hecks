@@ -64,17 +64,21 @@ fn try_reference_named_invariant(
     Ok(Some(resolved))
 }
 
+/// Parses one `value_object` body. Returns the value object and the closed sets its type-position
+/// `one_of(...)` attributes synthesized, which the owning aggregate installs right after it, as
+/// `AggregateBuilder#value_object` does with `builder.closed_sets`.
 pub fn parse_body(
     file: &str,
     lines: &[SourceLine],
     pos: &mut usize,
     name: &str,
     owner_value_objects: &[ir::ValueObject],
-) -> ParseResult<ir::ValueObject> {
+) -> ParseResult<(ir::ValueObject, Vec<ir::ValueObject>)> {
     let mut vo = ir::ValueObject {
         name: name.to_string(),
         ..Default::default()
     };
+    let mut synthesized: Vec<ir::ValueObject> = Vec::new();
 
     loop {
         if let Some(invariant) =
@@ -87,14 +91,15 @@ pub fn parse_body(
         let Some(gated) = super::next_line(file, lines, pos, "ValueObject")? else {
             // Mirrors `ValueObjectBuilder#build`: a non-empty `members` closes the set.
             vo.closed_set = vo.closed_set || !vo.members.is_empty();
-            return Ok(vo);
+            return Ok((vo, synthesized));
         };
 
         match gated.row.word {
-            // An inline type-position `one_of(...)` set is discarded (see build/closed_sets.rs);
-            // `ValueObject` has no nested-value-objects field. Use the `one_of:` keyword instead.
+            // An inline type-position `one_of(...)` set is returned beside the value object (see
+            // build/closed_sets.rs); `ValueObject` has no nested-value-objects field.
             "attribute" => {
-                let (attribute, one_of) = build_value_object_attribute(file, &gated.args)?;
+                let (attribute, one_of, closed_set) = build_value_object_attribute(file, &gated.args)?;
+                synthesized.extend(closed_set);
                 if let Some(values) = one_of {
                     let vo_name = vo.name.clone();
                     install_inline_closed_set(
@@ -135,8 +140,8 @@ pub fn parse_body(
 fn build_value_object_attribute(
     file: &str,
     args: &super::ArgumentGateResult,
-) -> ParseResult<(ir::Attribute, Option<Vec<String>>)> {
-    let (attribute, _) = super::build_attribute(file, 0, "attribute", args)?;
+) -> ParseResult<(ir::Attribute, Option<Vec<String>>, Option<ir::ValueObject>)> {
+    let (attribute, closed_set) = super::build_attribute(file, 0, "attribute", args)?;
     let one_of = super::named_raw(args, "one_of").map(|raw| {
         let trimmed = raw.trim();
         let inner = trimmed
@@ -148,7 +153,7 @@ fn build_value_object_attribute(
             .map(|segment| ruby_value::to_s(&ruby_value::read(segment.trim())))
             .collect()
     });
-    Ok((attribute, one_of))
+    Ok((attribute, one_of, closed_set))
 }
 
 /// Installs `attribute :name, String, one_of: [...]`; refused unless it is the value object's

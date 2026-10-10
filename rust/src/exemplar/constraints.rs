@@ -12,7 +12,7 @@ fn tmpl_admits_check_host(tmpl_scalar: String) -> Result<(), crate::kernel::Refu
 
 fn tmpl_pattern_check_host(tmpl_scalar: String) -> Result<(), crate::kernel::Refusal> {
     // TMPL:pattern_check BEGIN
-    if !crate::kernel::pattern::matches("tmpl_pattern_text", &tmpl_scalar) { return Err(crate::kernel::Refusal::TypeMismatch(crate::kernel::refusal_wording::TypeMismatchPatternMismatchArgs { r#type: "tmpl_pattern_owner", field: "tmpl_pattern_field", pattern: "tmpl_pattern_text", offered: format!("{:?}", tmpl_scalar).as_str() }.render_args())); }
+    if !crate::kernel::pattern::matches_whole("tmpl_pattern_text", &tmpl_scalar) { return Err(crate::kernel::Refusal::TypeMismatch(crate::kernel::refusal_wording::TypeMismatchPatternMismatchArgs { r#type: "tmpl_pattern_owner", field: "tmpl_pattern_field", pattern: "tmpl_pattern_text", offered: format!("{:?}", tmpl_scalar).as_str() }.render_args())); }
     // TMPL:pattern_check END
     Ok(())
 }

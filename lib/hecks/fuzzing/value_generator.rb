@@ -25,8 +25,10 @@ module Hecks
       # Tested against the value object's name plus the attribute's name; deliberately narrow, so
       # "amount"/"cents"/"sequence" keep the full Bignum pool.
       CLOCK_OR_COUNT_NAME_PATTERN = /clock|instant|expir|ttl|\bnow\b|timestamp|epoch|count/i
-      # NaN and infinities are safe to generate; -0.0 covers signed zero.
-      FLOAT_EDGE_CASES = [0.0, -0.0, -0.5, -100.25, Float::NAN, Float::INFINITY, -Float::INFINITY].freeze
+      # Signed zero and finite magnitudes. A sequence reaches the Rust kernel as JSON, which cannot
+      # write NaN or infinity, so a non-finite draw made the encoder raise before either runtime
+      # ran it; `Value`'s refusal of one is pinned by spec/runtime/numeric_boundary_spec.rb.
+      FLOAT_EDGE_CASES = [0.0, -0.0, -0.5, -100.25, 1.0e100, -1.0e100, 1.0e-100].freeze
       WORDS = %w[alpha bravo charlie delta echo foxtrot golf hotel india juliet].freeze
       CURRENCY_CODES = %w[USD EUR GBP JPY].freeze
 

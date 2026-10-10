@@ -1070,7 +1070,9 @@ pub(crate) fn parse_identified_by(
                     "'identified_by' cannot combine a value-object type with a block",
                 ));
             }
-            let value_object = parse_nested_body(file, lines, pos, opener, line, |f, l, p| {
+            // An identity block's own `one_of(...)` sets are not installed (its builder is not
+            // the aggregate's `value_object` verb).
+            let (value_object, _) = parse_nested_body(file, lines, pos, opener, line, |f, l, p| {
                 value_object::parse_body(f, l, p, inline_type_name, owner_value_objects)
             })?;
             if value_object.attributes.is_empty() {

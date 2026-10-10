@@ -17,6 +17,20 @@ impl TmplKind {
     }
 
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        // A name the set does not declare refuses first, as `Value::FieldChecks#check_unknown_fields`
+        // does in `validate!`: before a missing field, and before membership.
+        let unknown = v.unknown_keys(&["tmpl_field_name"]);
+        if !unknown.is_empty() {
+            let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+            return Err(crate::kernel::Refusal::UnknownArgument(
+                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+                    command: "tmpl_closed_set_type",
+                    unknown: &unknown,
+                    declared: &["tmpl_field_name"],
+                }
+                .render_args(),
+            ));
+        }
         // A `one_of` closed set is admission-checked on the raw offered
         // value, no shape check first — `Value::Admission#admit_member`
         // runs on whatever `Value::Coercion#fields_for` auto-wrapped into
@@ -93,6 +107,10 @@ struct TmplTableRow {
 }
 
 const TMPL_TABLE: &[TmplTableRow] = &[];
+const TMPL_DECLARED_NAMES: [&str; 0] = [];
+const TMPL_ADMITTED: [&str; 0] = [];
+
+fn tmpl_absent_field_checks() {}
 
 // Function-call placeholders; the marker sits flush left because plain `render` never reindents.
 fn tmpl_to_json_fields_block() -> (String, crate::kernel::Json) {
@@ -112,12 +130,36 @@ tmpl_to_json_fields_block()
     }
 
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        // `validate!`'s order: a name the set does not declare, then a field left out, then
+        // membership of the whole row.
+        let unknown = v.unknown_keys(&TMPL_DECLARED_NAMES);
+        if !unknown.is_empty() {
+            let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+            return Err(crate::kernel::Refusal::UnknownArgument(
+                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+                    command: "tmpl_table_type",
+                    unknown: &unknown,
+                    declared: &TMPL_DECLARED_NAMES,
+                }
+                .render_args(),
+            ));
+        }
+tmpl_absent_field_checks();
         for row in TMPL_TABLE {
             if tmpl_from_json_conditions() {
                 return Ok(row.clone());
             }
         }
-        Err(crate::kernel::Refusal::TypeMismatch(format!("TmplTableRow: no member matches {:?}", v)))
+        // The refusal quotes the first column only, as Ruby's `refuse_non_member!` does.
+        let offered = v.get("tmpl_first_field").map(|offered| offered.inspect()).unwrap_or_else(|| "nil".to_string());
+        Err(crate::kernel::Refusal::InvariantViolation(
+            crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
+                r#type: "tmpl_table_type",
+                admitted: &TMPL_ADMITTED,
+                offered: offered.as_str(),
+            }
+            .render_args(),
+        ))
     }
 }
 // TMPL:closed_set_table_codec END

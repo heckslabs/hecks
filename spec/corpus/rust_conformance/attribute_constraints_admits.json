@@ -1,0 +1,1260 @@
+{
+  "domain": "spec/fixtures/rust_project/attribute_constraints_fixture",
+  "rust_echoes_absent_slots_as_null": true,
+  "note": "A name that admits a closed set declared elsewhere (admits: \"Vocabulary::Unit\") is held to that set at the aggregate, one level down, in a list member, and three levels down, alone and in a list member. The same values are held to the mint audit's answers by spec/rust_host_reference_validate_conformance_spec.rb. The optional slots a value leaves out are echoed absent by Ruby and as null by a Rust record, so this fixture is compared with the null-valued keys dropped from both sides, and nothing else is loosened.",
+  "steps": [
+    {
+      "verb": "AttributeConstraintsFixture::Vocabulary.Name",
+      "args": {
+        "name": {
+          "value": "units"
+        }
+      }
+    },
+    {
+      "verb": "AttributeConstraintsFixture::Shelf.Write",
+      "args": {
+        "key": {
+          "value": "admits-17"
+        },
+        "band": {
+          "size": "small"
+        },
+        "unit": {
+          "value": "litre"
+        },
+        "stamp": {
+          "value": "abc"
+        },
+        "count": {
+          "value": 3
+        },
+        "ratio": {
+          "value": 1.5
+        },
+        "slugs": [
+          {
+            "value": "ab"
+          },
+          {
+            "value": "cd"
+          }
+        ],
+        "panels": [
+          {
+            "title": "Hello",
+            "unit": "litre",
+            "band": {
+              "size": "large"
+            },
+            "count": 1,
+            "labels": [
+              "x",
+              "y"
+            ],
+            "frame": {
+              "slug": "f-1",
+              "grade": {
+                "value": "a"
+              },
+              "leaf": {
+                "band": {
+                  "size": "medium"
+                },
+                "code": "abcd",
+                "unit": "gram",
+                "count": 2,
+                "ratio": 2.0
+              },
+              "leaves": [
+                {
+                  "band": {
+                    "size": "medium"
+                  },
+                  "code": "abcd",
+                  "unit": "gram",
+                  "count": 2,
+                  "ratio": 2.0
+                },
+                {
+                  "band": {
+                    "size": "medium"
+                  },
+                  "code": "abcd",
+                  "unit": "gram",
+                  "count": 2,
+                  "ratio": 2.0
+                }
+              ]
+            }
+          }
+        ],
+        "spare": {
+          "title": "Hello",
+          "unit": "litre",
+          "band": {
+            "size": "large"
+          },
+          "count": 1,
+          "labels": [
+            "x",
+            "y"
+          ],
+          "frame": {
+            "slug": "f-1",
+            "grade": {
+              "value": "a"
+            },
+            "leaf": {
+              "band": {
+                "size": "medium"
+              },
+              "code": "abcd",
+              "unit": "gram",
+              "count": 2,
+              "ratio": 2.0
+            },
+            "leaves": [
+              {
+                "band": {
+                  "size": "medium"
+                },
+                "code": "abcd",
+                "unit": "gram",
+                "count": 2,
+                "ratio": 2.0
+              },
+              {
+                "band": {
+                  "size": "medium"
+                },
+                "code": "abcd",
+                "unit": "gram",
+                "count": 2,
+                "ratio": 2.0
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "verb": "AttributeConstraintsFixture::Shelf.Write",
+      "args": {
+        "key": {
+          "value": "admits-18"
+        },
+        "band": {
+          "size": "small"
+        },
+        "unit": {
+          "value": "ounce"
+        },
+        "stamp": {
+          "value": "abc"
+        },
+        "count": {
+          "value": 3
+        },
+        "ratio": {
+          "value": 1.5
+        },
+        "slugs": [
+          {
+            "value": "ab"
+          },
+          {
+            "value": "cd"
+          }
+        ],
+        "panels": [
+          {
+            "title": "Hello",
+            "unit": "litre",
+            "band": {
+              "size": "large"
+            },
+            "count": 1,
+            "labels": [
+              "x",
+              "y"
+            ],
+            "frame": {
+              "slug": "f-1",
+              "grade": {
+                "value": "a"
+              },
+              "leaf": {
+                "band": {
+                  "size": "medium"
+                },
+                "code": "abcd",
+                "unit": "gram",
+                "count": 2,
+                "ratio": 2.0
+              },
+              "leaves": [
+                {
+                  "band": {
+                    "size": "medium"
+                  },
+                  "code": "abcd",
+                  "unit": "gram",
+                  "count": 2,
+                  "ratio": 2.0
+                },
+                {
+                  "band": {
+                    "size": "medium"
+                  },
+                  "code": "abcd",
+                  "unit": "gram",
+                  "count": 2,
+                  "ratio": 2.0
+                }
+              ]
+            }
+          }
+        ],
+        "spare": {
+          "title": "Hello",
+          "unit": "litre",
+          "band": {
+            "size": "large"
+          },
+          "count": 1,
+          "labels": [
+            "x",
+            "y"
+          ],
+          "frame": {
+            "slug": "f-1",
+            "grade": {
+              "value": "a"
+            },
+            "leaf": {
+              "band": {
+                "size": "medium"
+              },
+              "code": "abcd",
+              "unit": "gram",
+              "count": 2,
+              "ratio": 2.0
+            },
+            "leaves": [
+              {
+                "band": {
+                  "size": "medium"
+                },
+                "code": "abcd",
+                "unit": "gram",
+                "count": 2,
+                "ratio": 2.0
+              },
+              {
+                "band": {
+                  "size": "medium"
+                },
+                "code": "abcd",
+                "unit": "gram",
+                "count": 2,
+                "ratio": 2.0
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "verb": "AttributeConstraintsFixture::Shelf.Write",
+      "args": {
+        "key": {
+          "value": "admits-19"
+        },
+        "band": {
+          "size": "small"
+        },
+        "unit": "ounce",
+        "stamp": {
+          "value": "abc"
+        },
+        "count": {
+          "value": 3
+        },
+        "ratio": {
+          "value": 1.5
+        },
+        "slugs": [
+          {
+            "value": "ab"
+          },
+          {
+            "value": "cd"
+          }
+        ],
+        "panels": [
+          {
+            "title": "Hello",
+            "unit": "litre",
+            "band": {
+              "size": "large"
+            },
+            "count": 1,
+            "labels": [
+              "x",
+              "y"
+            ],
+            "frame": {
+              "slug": "f-1",
+              "grade": {
+                "value": "a"
+              },
+              "leaf": {
+                "band": {
+                  "size": "medium"
+                },
+                "code": "abcd",
+                "unit": "gram",
+                "count": 2,
+                "ratio": 2.0
+              },
+              "leaves": [
+                {
+                  "band": {
+                    "size": "medium"
+                  },
+                  "code": "abcd",
+                  "unit": "gram",
+                  "count": 2,
+                  "ratio": 2.0
+                },
+                {
+                  "band": {
+                    "size": "medium"
+                  },
+                  "code": "abcd",
+                  "unit": "gram",
+                  "count": 2,
+                  "ratio": 2.0
+                }
+              ]
+            }
+          }
+        ],
+        "spare": {
+          "title": "Hello",
+          "unit": "litre",
+          "band": {
+            "size": "large"
+          },
+          "count": 1,
+          "labels": [
+            "x",
+            "y"
+          ],
+          "frame": {
+            "slug": "f-1",
+            "grade": {
+              "value": "a"
+            },
+            "leaf": {
+              "band": {
+                "size": "medium"
+              },
+              "code": "abcd",
+              "unit": "gram",
+              "count": 2,
+              "ratio": 2.0
+            },
+            "leaves": [
+              {
+                "band": {
+                  "size": "medium"
+                },
+                "code": "abcd",
+                "unit": "gram",
+                "count": 2,
+                "ratio": 2.0
+              },
+              {
+                "band": {
+                  "size": "medium"
+                },
+                "code": "abcd",
+                "unit": "gram",
+                "count": 2,
+                "ratio": 2.0
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "verb": "AttributeConstraintsFixture::Shelf.Write",
+      "args": {
+        "key": {
+          "value": "admits-20"
+        },
+        "band": {
+          "size": "small"
+        },
+        "unit": {
+          "value": "gram"
+        },
+        "stamp": {
+          "value": "abc"
+        },
+        "count": {
+          "value": 3
+        },
+        "ratio": {
+          "value": 1.5
+        },
+        "slugs": [
+          {
+            "value": "ab"
+          },
+          {
+            "value": "cd"
+          }
+        ],
+        "panels": [
+          {
+            "title": "Hello",
+            "unit": "ounce",
+            "band": {
+              "size": "large"
+            },
+            "count": 1,
+            "labels": [
+              "x",
+              "y"
+            ],
+            "frame": {
+              "slug": "f-1",
+              "grade": {
+                "value": "a"
+              },
+              "leaf": {
+                "band": {
+                  "size": "medium"
+                },
+                "code": "abcd",
+                "unit": "gram",
+                "count": 2,
+                "ratio": 2.0
+              },
+              "leaves": [
+                {
+                  "band": {
+                    "size": "medium"
+                  },
+                  "code": "abcd",
+                  "unit": "gram",
+                  "count": 2,
+                  "ratio": 2.0
+                },
+                {
+                  "band": {
+                    "size": "medium"
+                  },
+                  "code": "abcd",
+                  "unit": "gram",
+                  "count": 2,
+                  "ratio": 2.0
+                }
+              ]
+            }
+          }
+        ],
+        "spare": {
+          "title": "Hello",
+          "unit": "litre",
+          "band": {
+            "size": "large"
+          },
+          "count": 1,
+          "labels": [
+            "x",
+            "y"
+          ],
+          "frame": {
+            "slug": "f-1",
+            "grade": {
+              "value": "a"
+            },
+            "leaf": {
+              "band": {
+                "size": "medium"
+              },
+              "code": "abcd",
+              "unit": "gram",
+              "count": 2,
+              "ratio": 2.0
+            },
+            "leaves": [
+              {
+                "band": {
+                  "size": "medium"
+                },
+                "code": "abcd",
+                "unit": "gram",
+                "count": 2,
+                "ratio": 2.0
+              },
+              {
+                "band": {
+                  "size": "medium"
+                },
+                "code": "abcd",
+                "unit": "gram",
+                "count": 2,
+                "ratio": 2.0
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "verb": "AttributeConstraintsFixture::Shelf.Write",
+      "args": {
+        "key": {
+          "value": "admits-21"
+        },
+        "band": {
+          "size": "small"
+        },
+        "unit": {
+          "value": "gram"
+        },
+        "stamp": {
+          "value": "abc"
+        },
+        "count": {
+          "value": 3
+        },
+        "ratio": {
+          "value": 1.5
+        },
+        "slugs": [
+          {
+            "value": "ab"
+          },
+          {
+            "value": "cd"
+          }
+        ],
+        "panels": [
+          {
+            "title": "Hello",
+            "unit": "litre",
+            "band": {
+              "size": "large"
+            },
+            "count": 1,
+            "labels": [
+              "x",
+              "y"
+            ],
+            "frame": {
+              "slug": "f-1",
+              "grade": {
+                "value": "a"
+              },
+              "leaf": {
+                "band": {
+                  "size": "medium"
+                },
+                "code": "abcd",
+                "unit": "gram",
+                "count": 2,
+                "ratio": 2.0
+              },
+              "leaves": [
+                {
+                  "band": {
+                    "size": "medium"
+                  },
+                  "code": "abcd",
+                  "unit": "gram",
+                  "count": 2,
+                  "ratio": 2.0
+                },
+                {
+                  "band": {
+                    "size": "medium"
+                  },
+                  "code": "abcd",
+                  "unit": "gram",
+                  "count": 2,
+                  "ratio": 2.0
+                }
+              ]
+            }
+          },
+          {
+            "title": "Hello",
+            "unit": "ounce",
+            "band": {
+              "size": "large"
+            },
+            "count": 1,
+            "labels": [
+              "x",
+              "y"
+            ],
+            "frame": {
+              "slug": "f-1",
+              "grade": {
+                "value": "a"
+              },
+              "leaf": {
+                "band": {
+                  "size": "medium"
+                },
+                "code": "abcd",
+                "unit": "gram",
+                "count": 2,
+                "ratio": 2.0
+              },
+              "leaves": [
+                {
+                  "band": {
+                    "size": "medium"
+                  },
+                  "code": "abcd",
+                  "unit": "gram",
+                  "count": 2,
+                  "ratio": 2.0
+                },
+                {
+                  "band": {
+                    "size": "medium"
+                  },
+                  "code": "abcd",
+                  "unit": "gram",
+                  "count": 2,
+                  "ratio": 2.0
+                }
+              ]
+            }
+          }
+        ],
+        "spare": {
+          "title": "Hello",
+          "unit": "litre",
+          "band": {
+            "size": "large"
+          },
+          "count": 1,
+          "labels": [
+            "x",
+            "y"
+          ],
+          "frame": {
+            "slug": "f-1",
+            "grade": {
+              "value": "a"
+            },
+            "leaf": {
+              "band": {
+                "size": "medium"
+              },
+              "code": "abcd",
+              "unit": "gram",
+              "count": 2,
+              "ratio": 2.0
+            },
+            "leaves": [
+              {
+                "band": {
+                  "size": "medium"
+                },
+                "code": "abcd",
+                "unit": "gram",
+                "count": 2,
+                "ratio": 2.0
+              },
+              {
+                "band": {
+                  "size": "medium"
+                },
+                "code": "abcd",
+                "unit": "gram",
+                "count": 2,
+                "ratio": 2.0
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "verb": "AttributeConstraintsFixture::Shelf.Write",
+      "args": {
+        "key": {
+          "value": "admits-22"
+        },
+        "band": {
+          "size": "small"
+        },
+        "unit": {
+          "value": "gram"
+        },
+        "stamp": {
+          "value": "abc"
+        },
+        "count": {
+          "value": 3
+        },
+        "ratio": {
+          "value": 1.5
+        },
+        "slugs": [
+          {
+            "value": "ab"
+          },
+          {
+            "value": "cd"
+          }
+        ],
+        "panels": [
+          {
+            "title": "Hello",
+            "unit": "litre",
+            "band": {
+              "size": "large"
+            },
+            "count": 1,
+            "labels": [
+              "x",
+              "y"
+            ],
+            "frame": {
+              "slug": "f-1",
+              "grade": {
+                "value": "a"
+              },
+              "leaf": {
+                "band": {
+                  "size": "medium"
+                },
+                "code": "abcd",
+                "unit": "ounce",
+                "count": 2,
+                "ratio": 2.0
+              },
+              "leaves": [
+                {
+                  "band": {
+                    "size": "medium"
+                  },
+                  "code": "abcd",
+                  "unit": "gram",
+                  "count": 2,
+                  "ratio": 2.0
+                },
+                {
+                  "band": {
+                    "size": "medium"
+                  },
+                  "code": "abcd",
+                  "unit": "gram",
+                  "count": 2,
+                  "ratio": 2.0
+                }
+              ]
+            }
+          }
+        ],
+        "spare": {
+          "title": "Hello",
+          "unit": "litre",
+          "band": {
+            "size": "large"
+          },
+          "count": 1,
+          "labels": [
+            "x",
+            "y"
+          ],
+          "frame": {
+            "slug": "f-1",
+            "grade": {
+              "value": "a"
+            },
+            "leaf": {
+              "band": {
+                "size": "medium"
+              },
+              "code": "abcd",
+              "unit": "gram",
+              "count": 2,
+              "ratio": 2.0
+            },
+            "leaves": [
+              {
+                "band": {
+                  "size": "medium"
+                },
+                "code": "abcd",
+                "unit": "gram",
+                "count": 2,
+                "ratio": 2.0
+              },
+              {
+                "band": {
+                  "size": "medium"
+                },
+                "code": "abcd",
+                "unit": "gram",
+                "count": 2,
+                "ratio": 2.0
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "verb": "AttributeConstraintsFixture::Shelf.Write",
+      "args": {
+        "key": {
+          "value": "admits-23"
+        },
+        "band": {
+          "size": "small"
+        },
+        "unit": {
+          "value": "gram"
+        },
+        "stamp": {
+          "value": "abc"
+        },
+        "count": {
+          "value": 3
+        },
+        "ratio": {
+          "value": 1.5
+        },
+        "slugs": [
+          {
+            "value": "ab"
+          },
+          {
+            "value": "cd"
+          }
+        ],
+        "panels": [
+          {
+            "title": "Hello",
+            "unit": "litre",
+            "band": {
+              "size": "large"
+            },
+            "count": 1,
+            "labels": [
+              "x",
+              "y"
+            ],
+            "frame": {
+              "slug": "f-1",
+              "grade": {
+                "value": "a"
+              },
+              "leaf": {
+                "band": {
+                  "size": "medium"
+                },
+                "code": "abcd",
+                "unit": "gram",
+                "count": 2,
+                "ratio": 2.0
+              },
+              "leaves": [
+                {
+                  "band": {
+                    "size": "medium"
+                  },
+                  "code": "abcd",
+                  "unit": "gram",
+                  "count": 2,
+                  "ratio": 2.0
+                },
+                {
+                  "band": {
+                    "size": "medium"
+                  },
+                  "code": "abcd",
+                  "unit": "ounce",
+                  "count": 2,
+                  "ratio": 2.0
+                }
+              ]
+            }
+          }
+        ],
+        "spare": {
+          "title": "Hello",
+          "unit": "litre",
+          "band": {
+            "size": "large"
+          },
+          "count": 1,
+          "labels": [
+            "x",
+            "y"
+          ],
+          "frame": {
+            "slug": "f-1",
+            "grade": {
+              "value": "a"
+            },
+            "leaf": {
+              "band": {
+                "size": "medium"
+              },
+              "code": "abcd",
+              "unit": "gram",
+              "count": 2,
+              "ratio": 2.0
+            },
+            "leaves": [
+              {
+                "band": {
+                  "size": "medium"
+                },
+                "code": "abcd",
+                "unit": "gram",
+                "count": 2,
+                "ratio": 2.0
+              },
+              {
+                "band": {
+                  "size": "medium"
+                },
+                "code": "abcd",
+                "unit": "gram",
+                "count": 2,
+                "ratio": 2.0
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "AttributeConstraintsFixture::Shelf.Write",
+        "error": "unit admits Vocabulary::Unit — \"gram\", \"litre\" — got \"ounce\"",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "AttributeConstraintsFixture::Shelf.Write",
+        "error": "unit admits Vocabulary::Unit — \"gram\", \"litre\" — got \"ounce\"",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "AttributeConstraintsFixture::Shelf.Write",
+        "error": "unit admits Vocabulary::Unit — \"gram\", \"litre\" — got \"ounce\"",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "AttributeConstraintsFixture::Shelf.Write",
+        "error": "unit admits Vocabulary::Unit — \"gram\", \"litre\" — got \"ounce\"",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "AttributeConstraintsFixture::Shelf.Write",
+        "error": "unit admits Vocabulary::Unit — \"gram\", \"litre\" — got \"ounce\"",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "AttributeConstraintsFixture::Shelf.Write",
+        "error": "unit admits Vocabulary::Unit — \"gram\", \"litre\" — got \"ounce\"",
+        "kind": "InvariantViolation"
+      }
+    ],
+    "instances": {
+      "AttributeConstraintsFixture::Vocabulary#units": {
+        "name": {
+          "value": "units"
+        }
+      },
+      "AttributeConstraintsFixture::Shelf#admits-17": {
+        "key": {
+          "value": "admits-17"
+        },
+        "band": {
+          "size": "small"
+        },
+        "unit": {
+          "value": "litre"
+        },
+        "stamp": {
+          "value": "abc"
+        },
+        "count": {
+          "value": 3
+        },
+        "ratio": {
+          "value": 1.5
+        },
+        "note": null,
+        "slugs": [
+          {
+            "value": "ab"
+          },
+          {
+            "value": "cd"
+          }
+        ],
+        "panels": [
+          {
+            "title": "Hello",
+            "unit": "litre",
+            "band": {
+              "size": "large"
+            },
+            "count": 1,
+            "labels": [
+              "x",
+              "y"
+            ],
+            "frame": {
+              "slug": "f-1",
+              "grade": {
+                "value": "a"
+              },
+              "leaf": {
+                "band": {
+                  "size": "medium"
+                },
+                "code": "abcd",
+                "unit": "gram",
+                "count": 2,
+                "ratio": 2.0
+              },
+              "leaves": [
+                {
+                  "band": {
+                    "size": "medium"
+                  },
+                  "code": "abcd",
+                  "unit": "gram",
+                  "count": 2,
+                  "ratio": 2.0
+                },
+                {
+                  "band": {
+                    "size": "medium"
+                  },
+                  "code": "abcd",
+                  "unit": "gram",
+                  "count": 2,
+                  "ratio": 2.0
+                }
+              ]
+            }
+          }
+        ],
+        "spare": {
+          "title": "Hello",
+          "unit": "litre",
+          "band": {
+            "size": "large"
+          },
+          "count": 1,
+          "labels": [
+            "x",
+            "y"
+          ],
+          "frame": {
+            "slug": "f-1",
+            "grade": {
+              "value": "a"
+            },
+            "leaf": {
+              "band": {
+                "size": "medium"
+              },
+              "code": "abcd",
+              "unit": "gram",
+              "count": 2,
+              "ratio": 2.0
+            },
+            "leaves": [
+              {
+                "band": {
+                  "size": "medium"
+                },
+                "code": "abcd",
+                "unit": "gram",
+                "count": 2,
+                "ratio": 2.0
+              },
+              {
+                "band": {
+                  "size": "medium"
+                },
+                "code": "abcd",
+                "unit": "gram",
+                "count": 2,
+                "ratio": 2.0
+              }
+            ]
+          }
+        }
+      }
+    },
+    "events": [
+      {
+        "name": "VocabularyNamed",
+        "aggregate": "AttributeConstraintsFixture::Vocabulary",
+        "id": "units",
+        "payload": {
+          "name": {
+            "value": "units"
+          }
+        }
+      },
+      {
+        "name": "ShelfWritten",
+        "aggregate": "AttributeConstraintsFixture::Shelf",
+        "id": "admits-17",
+        "payload": {
+          "key": {
+            "value": "admits-17"
+          },
+          "band": {
+            "size": "small"
+          },
+          "unit": {
+            "value": "litre"
+          },
+          "stamp": {
+            "value": "abc"
+          },
+          "count": {
+            "value": 3
+          },
+          "ratio": {
+            "value": 1.5
+          },
+          "slugs": [
+            {
+              "value": "ab"
+            },
+            {
+              "value": "cd"
+            }
+          ],
+          "panels": [
+            {
+              "title": "Hello",
+              "unit": "litre",
+              "band": {
+                "size": "large"
+              },
+              "count": 1,
+              "labels": [
+                "x",
+                "y"
+              ],
+              "frame": {
+                "slug": "f-1",
+                "grade": {
+                  "value": "a"
+                },
+                "leaf": {
+                  "band": {
+                    "size": "medium"
+                  },
+                  "code": "abcd",
+                  "unit": "gram",
+                  "count": 2,
+                  "ratio": 2.0
+                },
+                "leaves": [
+                  {
+                    "band": {
+                      "size": "medium"
+                    },
+                    "code": "abcd",
+                    "unit": "gram",
+                    "count": 2,
+                    "ratio": 2.0
+                  },
+                  {
+                    "band": {
+                      "size": "medium"
+                    },
+                    "code": "abcd",
+                    "unit": "gram",
+                    "count": 2,
+                    "ratio": 2.0
+                  }
+                ]
+              }
+            }
+          ],
+          "spare": {
+            "title": "Hello",
+            "unit": "litre",
+            "band": {
+              "size": "large"
+            },
+            "count": 1,
+            "labels": [
+              "x",
+              "y"
+            ],
+            "frame": {
+              "slug": "f-1",
+              "grade": {
+                "value": "a"
+              },
+              "leaf": {
+                "band": {
+                  "size": "medium"
+                },
+                "code": "abcd",
+                "unit": "gram",
+                "count": 2,
+                "ratio": 2.0
+              },
+              "leaves": [
+                {
+                  "band": {
+                    "size": "medium"
+                  },
+                  "code": "abcd",
+                  "unit": "gram",
+                  "count": 2,
+                  "ratio": 2.0
+                },
+                {
+                  "band": {
+                    "size": "medium"
+                  },
+                  "code": "abcd",
+                  "unit": "gram",
+                  "count": 2,
+                  "ratio": 2.0
+                }
+              ]
+            }
+          }
+        }
+      }
+    ],
+    "queries": [],
+    "sagas": [],
+    "dry_runs": [],
+    "reactions": []
+  }
+}

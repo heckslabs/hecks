@@ -1,5 +1,11 @@
 //! Layer 1 of the mint audit: a translated record must fit its aggregate's types, patterns,
-//! admits, invariants and lifecycle. Reads `ir.json` generically, like `ir.rs`.
+//! closed sets, admits, invariants and lifecycle. Reads `ir.json` generically, like `ir.rs`.
+//!
+//! Holds a stored value to what dispatch holds an offered one to (`Value::Validation#validate!`
+//! and `Value::Admission` in Ruby; the generated `from_json` and `check_invariants` in Rust), in
+//! the same order: a name the value object does not declare, a field left out, closed-set
+//! membership, a declared set named by `admits:`, list and scalar shape, `pattern:`, then its own
+//! invariants. A refusal is worded as dispatch words it, after the `Aggregate#id:` prefix.
 
 // Depends on `expr_json`, not the `rust` kernel crate: that crate's generated modules are not
 // feature-gated, so depending on it would link every domain into every Lambda binary.
@@ -9,14 +15,22 @@ use serde_json::Value;
 use std::collections::HashMap;
 
 /// Every structural violation in one translated record; empty means it satisfies its aggregate.
-pub fn validate(aggregate_ir: &Value, id: &str, state: &Value) -> Vec<String> {
+///
+/// `domain_ir` is the whole `ir.json`: a declared set named by `admits: "Aggregate::Set"` and a
+/// value object another aggregate of the chapter declares are looked up there.
+pub fn validate(domain_ir: &Value, aggregate_ir: &Value, id: &str, state: &Value) -> Vec<String> {
     let name = aggregate_ir.get("name").and_then(Value::as_str).unwrap_or("");
-    let value_objects = index_by_name(aggregate_ir, "value_objects");
-    let entities = index_by_name(aggregate_ir, "entities");
     let attributes = aggregate_ir.get("attributes").and_then(Value::as_array).cloned().unwrap_or_default();
+    let checker = Checker {
+        domain: domain_ir,
+        aggregate_name: name,
+        id,
+        value_objects: index_by_name(aggregate_ir, "value_objects"),
+        entities: index_by_name(aggregate_ir, "entities"),
+    };
 
     let mut violations = Vec::new();
-    check_attributes(name, id, state, &attributes, &value_objects, &entities, &mut violations);
+    checker.check_attributes(name, Owner::Record, state, &attributes, &mut violations);
 
     if let Some(lifecycle) = aggregate_ir.get("lifecycle") {
         check_lifecycle(name, id, state, lifecycle, &mut violations);
@@ -31,43 +45,373 @@ fn index_by_name<'a>(node: &'a Value, key: &str) -> HashMap<&'a str, &'a Value> 
         .unwrap_or_default()
 }
 
-fn check_attributes(
-    aggregate_name: &str,
-    id: &str,
-    state: &Value,
-    attributes: &[Value],
-    value_objects: &HashMap<&str, &Value>,
-    entities: &HashMap<&str, &Value>,
-    violations: &mut Vec<String>,
-) {
-    let Some(state_obj) = state.as_object() else { return };
-    for attr in attributes {
-        let attr_name = attr.get("name").and_then(Value::as_str).unwrap_or("");
-        let type_name = attr.get("type").and_then(Value::as_str).unwrap_or("");
-        let list = attr.get("list").and_then(Value::as_bool).unwrap_or(false);
-        let optional = attr.get("optional").and_then(Value::as_bool).unwrap_or(false);
-        let Some(raw) = state_obj.get(attr_name) else { continue };
+fn declared_attributes(node: &Value) -> &[Value] {
+    node.get("attributes").and_then(Value::as_array).map(Vec::as_slice).unwrap_or_default()
+}
 
-        if raw.is_null() {
-            if !optional {
-                violations.push(format!("{aggregate_name}#{id}: {attr_name} is null, not declared optional"));
-            }
-            continue;
+fn flag(node: &Value, key: &str) -> bool {
+    node.get(key).and_then(Value::as_bool).unwrap_or(false)
+}
+
+fn attribute_name(attr: &Value) -> &str {
+    attr.get("name").and_then(Value::as_str).unwrap_or("")
+}
+
+/// What an attribute's owner is: a record (the aggregate or one of its entities), whose absent
+/// slots are skipped, or a value object, which dispatch builds from input and so holds to its
+/// declared names and required fields.
+#[derive(Clone, Copy, PartialEq)]
+enum Owner {
+    Record,
+    ValueObject,
+}
+
+struct Checker<'a> {
+    domain: &'a Value,
+    aggregate_name: &'a str,
+    id: &'a str,
+    value_objects: HashMap<&'a str, &'a Value>,
+    entities: HashMap<&'a str, &'a Value>,
+}
+
+impl<'a> Checker<'a> {
+    fn refuse(&self, violations: &mut Vec<String>, message: String) {
+        violations.push(format!("{}#{}: {message}", self.aggregate_name, self.id));
+    }
+
+    /// The aggregate's own value object of that name, else the one every aggregate of the chapter
+    /// that declares it agrees on (`Value::Coercion#value_object_for`).
+    fn value_object(&self, type_name: &str) -> Option<&'a Value> {
+        if let Some(vo) = self.value_objects.get(type_name) {
+            return Some(vo);
         }
+        let declared: Vec<&'a Value> = self
+            .domain
+            .get("aggregates")
+            .and_then(Value::as_array)
+            .map(|aggregates| {
+                aggregates
+                    .iter()
+                    .filter_map(|aggregate| index_by_name(aggregate, "value_objects").get(type_name).copied())
+                    .collect()
+            })
+            .unwrap_or_default();
+        let first = *declared.first()?;
+        declared.iter().all(|other| same_shape(other, first)).then_some(first)
+    }
 
-        if list {
-            match raw.as_array() {
-                Some(items) => {
-                    for item in items {
-                        check_value(aggregate_name, id, attr_name, type_name, item, attr, value_objects, entities, violations);
-                    }
+    fn check_attributes(&self, owner_name: &str, owner: Owner, state: &Value, attributes: &[Value], violations: &mut Vec<String>) {
+        let Some(state_obj) = state.as_object() else { return };
+        for attr in attributes {
+            let attr_name = attribute_name(attr);
+            let type_name = attr.get("type").and_then(Value::as_str).unwrap_or("");
+            let list = flag(attr, "list");
+            let optional = flag(attr, "optional");
+            let Some(raw) = state_obj.get(attr_name) else { continue };
+
+            if raw.is_null() {
+                // A value object's required fields were judged as a whole; a list is never
+                // refused for being null (`check_required_fields` skips lists).
+                if owner == Owner::Record && !optional && !list {
+                    self.refuse_null(owner_name, attr_name, type_name, violations);
                 }
-                None => violations.push(format!("{aggregate_name}#{id}: {attr_name} is declared a list, but the translated value isn't one")),
+                continue;
             }
-        } else {
-            check_value(aggregate_name, id, attr_name, type_name, raw, attr, value_objects, entities, violations);
+
+            if list {
+                match raw.as_array() {
+                    Some(items) => {
+                        for item in items {
+                            self.check_value(owner_name, attr_name, type_name, item, attr, violations);
+                        }
+                    }
+                    None => self.refuse(violations, format!("{owner_name}.{attr_name} expects list_of({type_name}), got {}", ruby_inspect(raw))),
+                }
+            } else {
+                self.check_value(owner_name, attr_name, type_name, raw, attr, violations);
+                self.check_admits(attr, raw, violations);
+            }
         }
     }
+
+    /// A required slot holding null. A value object reads as built from no fields at all, as
+    /// `Value::Coercion#nil_argument` builds it: refused for the first required field it lacks,
+    /// or accepted when it has none.
+    fn refuse_null(&self, owner_name: &str, attr_name: &str, type_name: &str, violations: &mut Vec<String>) {
+        match self.value_object(type_name) {
+            Some(vo) => self.check_value_object(attr_name, type_name, vo, &Value::Object(serde_json::Map::new()), violations),
+            None => self.refuse(violations, format!("{owner_name}.{attr_name} expects {type_name}, got nil")),
+        }
+    }
+
+    /// `admits: "Aggregate::Set"`: the value must be one of the named closed set's first-column
+    /// members, compared as text (`Value::Admission#admit_declared_set`).
+    fn check_admits(&self, attr: &Value, raw: &Value, violations: &mut Vec<String>) {
+        let Some(admits) = attr.get("admits").and_then(Value::as_str) else { return };
+        let name = attribute_name(attr);
+        let Some(admitted) = self.admitted_members(admits) else {
+            self.refuse(
+                violations,
+                format!(
+                    "{name} admits {admits}, which this chapter does not declare — a closed set is named \
+                     Aggregate::SetName, and it must be one the bluebook actually holds"
+                ),
+            );
+            return;
+        };
+
+        let offered = match raw.as_object() {
+            Some(fields) if fields.len() == 1 => fields.values().next().unwrap_or(raw),
+            _ => raw,
+        };
+        if admitted.contains(&ruby_to_s(offered)) {
+            return;
+        }
+        let listed = admitted.iter().map(|member| inspect_text(member)).collect::<Vec<_>>().join(", ");
+        self.refuse(violations, format!("{name} admits {admits} — {listed} — got {}", ruby_inspect(offered)));
+    }
+
+    /// The first column of each member row of the set `"Aggregate::Set"` names, as text.
+    fn admitted_members(&self, admits: &str) -> Option<Vec<String>> {
+        let (aggregate_name, set_name) = admits.split_once("::")?;
+        let aggregate = self
+            .domain
+            .get("aggregates")
+            .and_then(Value::as_array)?
+            .iter()
+            .find(|aggregate| aggregate.get("name").and_then(Value::as_str) == Some(aggregate_name))?;
+        let set = *index_by_name(aggregate, "value_objects").get(set_name)?;
+        let discriminant = attribute_name(declared_attributes(set).first()?);
+        Some(member_rows(set).iter().map(|row| ruby_to_s(row.get(discriminant).unwrap_or(&Value::Null))).collect())
+    }
+
+    fn check_value(&self, owner_name: &str, attr_name: &str, type_name: &str, value: &Value, attr: &Value, violations: &mut Vec<String>) {
+        if let Some(vo) = self.value_object(type_name) {
+            self.check_value_object(attr_name, type_name, vo, value, violations);
+            return;
+        }
+        if let Some(entity) = self.entities.get(type_name) {
+            self.check_attributes(type_name, Owner::Record, value, declared_attributes(entity), violations);
+            return;
+        }
+
+        // A scalar leaf. Unrecognized type names are unconstrained: a false positive would block a
+        // real mint.
+        if let Some(refusal) = scalar_refusal(owner_name, attr_name, type_name, value) {
+            self.refuse(violations, refusal);
+            return;
+        }
+        if let (Some(pattern), Some(text)) = (attr.get("pattern").and_then(Value::as_str), value.as_str()) {
+            if matches!(regex::Regex::new(pattern), Ok(re) if !re.is_match(text)) {
+                self.refuse(violations, format!("{owner_name}.{attr_name} must match {pattern}, got {}", ruby_inspect(value)));
+            }
+        }
+    }
+
+    /// One stored value object, held to what `Value::Validation#validate!` holds an offered one to.
+    fn check_value_object(&self, attr_name: &str, type_name: &str, vo: &Value, raw: &Value, violations: &mut Vec<String>) {
+        let declared = declared_attributes(vo);
+
+        // A bare scalar stands in for a single-field value object's one field.
+        let wrapped;
+        let fields = if raw.is_object() {
+            raw
+        } else if declared.len() == 1 {
+            wrapped = Value::Object(std::iter::once((attribute_name(&declared[0]).to_string(), raw.clone())).collect());
+            &wrapped
+        } else {
+            self.refuse(violations, format!("{attr_name} is a {type_name} — pass its fields as an object, not {}", ruby_inspect(raw)));
+            return;
+        };
+        let Some(given) = fields.as_object() else { return };
+
+        let mut unknown: Vec<&str> = given.keys().map(String::as_str).filter(|key| !declared.iter().any(|attr| attribute_name(attr) == *key)).collect();
+        if !unknown.is_empty() {
+            unknown.sort();
+            let takes = declared.iter().map(attribute_name).collect::<Vec<_>>().join(", ");
+            self.refuse(violations, format!("{type_name} does not declare {} — it takes {takes}", unknown.join(", ")));
+            return;
+        }
+
+        let filled = with_defaults(declared, given);
+        let before = violations.len();
+        // The first required field left out, as `check_required_fields` refuses it.
+        let missing = declared.iter().find(|attr| {
+            let present = filled.get(attribute_name(attr)).is_some_and(|value| !value.is_null());
+            !present && !flag(attr, "optional") && !flag(attr, "list")
+        });
+        if let Some(attr) = missing {
+            let expected = attr.get("type").and_then(Value::as_str).unwrap_or("");
+            self.refuse(violations, format!("{type_name}.{} expects {expected}, got nil", attribute_name(attr)));
+            return;
+        }
+
+        let filled = Value::Object(filled);
+        if flag(vo, "closed_set") && !member_rows(vo).is_empty() {
+            self.check_member(type_name, vo, &filled, violations);
+            if violations.len() > before {
+                return;
+            }
+        }
+        self.check_attributes(type_name, Owner::ValueObject, &filled, declared, violations);
+
+        // Invariants run only when the structure check found nothing: a mistyped value would
+        // double-report, or bury the real type error under a "could not be checked".
+        if violations.len() == before {
+            self.check_invariants(attr_name, type_name, &filled, vo, violations);
+        }
+    }
+
+    /// `Value::Admission#admit_member`: some member row matches on every field it names, compared
+    /// as text. The refusal quotes the first column only.
+    fn check_member(&self, type_name: &str, vo: &Value, fields: &Value, violations: &mut Vec<String>) {
+        let rows = member_rows(vo);
+        let matches_row = |row: &serde_json::Map<String, Value>| {
+            row.iter().all(|(field, member)| ruby_to_s(fields.get(field).unwrap_or(&Value::Null)) == ruby_to_s(member))
+        };
+        if rows.iter().any(matches_row) {
+            return;
+        }
+        let Some(first) = declared_attributes(vo).first().map(attribute_name) else { return };
+        let admitted = rows.iter().map(|row| ruby_inspect(row.get(first).unwrap_or(&Value::Null))).collect::<Vec<_>>().join(", ");
+        let offered = ruby_inspect(fields.get(first).unwrap_or(&Value::Null));
+        self.refuse(violations, format!("{type_name} admits {admitted} — got {offered}"));
+    }
+
+    /// Checks a value object's `invariants` through `expr_json`. Fails closed: a malformed or
+    /// unsupported `ast` is a violation, since an invariant that cannot be evaluated must not
+    /// be minted past.
+    fn check_invariants(&self, attr_name: &str, type_name: &str, value: &Value, vo: &Value, violations: &mut Vec<String>) {
+        let Some(invariants) = vo.get("invariants").and_then(Value::as_array) else { return };
+        let known = with_absent_optionals(vo, value);
+
+        for invariant in invariants {
+            let description = invariant.get("description").and_then(Value::as_str).unwrap_or("");
+            // An older `ir.json` has no `ast`: nothing to check, so not a violation.
+            let Some(ast) = invariant.get("ast") else { continue };
+
+            let expr = match expr_json::parse(ast) {
+                Ok(expr) => expr,
+                Err(error) => {
+                    self.refuse(violations, format!("{attr_name} ({type_name})'s own invariant {description:?} has a malformed ast — {error}"));
+                    continue;
+                }
+            };
+
+            match expr_json::interpret(&expr, &known) {
+                Ok(result) if result.truthy() => {}
+                Ok(_) => self.refuse(violations, format!("{attr_name} ({type_name}) violates its own invariant — {description}")),
+                Err(error) => {
+                    self.refuse(violations, format!("{attr_name} ({type_name})'s own invariant {description:?} could not be checked — {error}"))
+                }
+            }
+        }
+    }
+}
+
+/// Whether two declarations of one value object name agree on every attribute's name, type, list
+/// and optional flags (`Value::Coercion#agreed_value_object`).
+fn same_shape(left: &Value, right: &Value) -> bool {
+    let shape = |vo: &Value| -> Vec<(String, String, bool, bool)> {
+        declared_attributes(vo)
+            .iter()
+            .map(|attr| {
+                (
+                    attribute_name(attr).to_string(),
+                    attr.get("type").and_then(Value::as_str).unwrap_or("").to_string(),
+                    flag(attr, "list"),
+                    flag(attr, "optional"),
+                )
+            })
+            .collect()
+    };
+    shape(left) == shape(right)
+}
+
+/// A closed set's member rows, each as a field-to-value map. The IR writes a row as a list of
+/// `[field, value]` pairs.
+fn member_rows(vo: &Value) -> Vec<serde_json::Map<String, Value>> {
+    vo.get("members")
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .map(|row| {
+                    row.as_array()
+                        .map(|pairs| {
+                            pairs
+                                .iter()
+                                .filter_map(Value::as_array)
+                                .filter_map(|pair| Some((pair.first()?.as_str()?.to_string(), pair.get(1)?.clone())))
+                                .collect()
+                        })
+                        .unwrap_or_default()
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// The value as the Ruby runtime would hold it once it has defaulted what was left out: every
+/// declared attribute missing from `given` takes its own `default:`, and every required list
+/// reads as empty (`Value::Validation#apply_defaults`). An optional slot stays absent.
+fn with_defaults(declared: &[Value], given: &serde_json::Map<String, Value>) -> serde_json::Map<String, Value> {
+    let mut filled = given.clone();
+    for attr in declared {
+        let name = attribute_name(attr);
+        if filled.contains_key(name) {
+            continue;
+        }
+        match attr.get("default") {
+            Some(default) if !default.is_null() => {
+                filled.insert(name.to_string(), default.clone());
+            }
+            _ if flag(attr, "list") && !flag(attr, "optional") => {
+                filled.insert(name.to_string(), Value::Array(Vec::new()));
+            }
+            _ => {}
+        }
+    }
+    filled
+}
+
+/// A scalar that does not fit its declared type, worded as dispatch words it; `None` when it fits
+/// or the type is not a plain scalar. A leaf is a String, a number or a boolean, never a list or
+/// an object standing in for one.
+fn scalar_refusal(owner_name: &str, attr_name: &str, type_name: &str, value: &Value) -> Option<String> {
+    let mismatch = || format!("{owner_name}.{attr_name} expects {type_name}, got {}", ruby_inspect(value));
+    match type_name {
+        "String" if !value.is_string() => Some(mismatch()),
+        "Integer" if value.is_i64() => None,
+        "Integer" if value.is_u64() => Some(format!("{owner_name}.{attr_name} must fit in a 64-bit integer, got {}", ruby_inspect(value))),
+        "Integer" => Some(mismatch()),
+        "Float" if value.is_number() => None,
+        "Float" => Some(mismatch()),
+        "Boolean" if !value.is_boolean() => Some(mismatch()),
+        _ => None,
+    }
+}
+
+/// `Object#to_s` of the Ruby value a JSON value decodes to; text compares by this.
+fn ruby_to_s(value: &Value) -> String {
+    match value {
+        Value::String(text) => text.clone(),
+        Value::Null => String::new(),
+        other => other.to_string(),
+    }
+}
+
+/// `Object#inspect` of the Ruby value a JSON value decodes to.
+fn ruby_inspect(value: &Value) -> String {
+    match value {
+        Value::Null => "nil".to_string(),
+        Value::String(text) => inspect_text(text),
+        Value::Array(items) => format!("[{}]", items.iter().map(ruby_inspect).collect::<Vec<_>>().join(", ")),
+        other => other.to_string(),
+    }
+}
+
+fn inspect_text(text: &str) -> String {
+    Value::String(text.to_string()).to_string()
 }
 
 /// The value an invariant reads: `value` with every declared optional slot it lacks set to null,
@@ -78,109 +422,13 @@ fn check_attributes(
 fn with_absent_optionals(vo: &Value, value: &Value) -> Value {
     let Some(fields) = value.as_object() else { return value.clone() };
     let mut known = fields.clone();
-    let declared = vo.get("attributes").and_then(Value::as_array).map(Vec::as_slice).unwrap_or_default();
-    for attribute in declared {
-        let optional = attribute.get("optional").and_then(Value::as_bool).unwrap_or(false);
+    for attribute in declared_attributes(vo) {
         let Some(name) = attribute.get("name").and_then(Value::as_str) else { continue };
-        if optional && !known.contains_key(name) {
+        if flag(attribute, "optional") && !known.contains_key(name) {
             known.insert(name.to_string(), Value::Null);
         }
     }
     Value::Object(known)
-}
-
-/// Checks a value object's `invariants` through `expr_json`. Fails closed: a malformed or
-/// unsupported `ast` is a violation, since an invariant that cannot be evaluated must not
-/// be minted past.
-fn check_invariants(aggregate_name: &str, id: &str, attr_name: &str, type_name: &str, value: &Value, vo: &Value, violations: &mut Vec<String>) {
-    let Some(invariants) = vo.get("invariants").and_then(Value::as_array) else { return };
-    let known = with_absent_optionals(vo, value);
-
-    for invariant in invariants {
-        let description = invariant.get("description").and_then(Value::as_str).unwrap_or("");
-        // An older `ir.json` has no `ast`: nothing to check, so not a violation.
-        let Some(ast) = invariant.get("ast") else { continue };
-
-        let expr = match expr_json::parse(ast) {
-            Ok(expr) => expr,
-            Err(error) => {
-                violations.push(format!(
-                    "{aggregate_name}#{id}: {attr_name} ({type_name})'s own invariant {description:?} has a malformed ast — {error}"
-                ));
-                continue;
-            }
-        };
-
-        match expr_json::interpret(&expr, &known) {
-            Ok(result) if result.truthy() => {}
-            Ok(_) => violations.push(format!("{aggregate_name}#{id}: {attr_name} ({type_name}) violates its own invariant — {description}")),
-            Err(error) => violations.push(format!(
-                "{aggregate_name}#{id}: {attr_name} ({type_name})'s own invariant {description:?} could not be checked — {error}"
-            )),
-        }
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-fn check_value(
-    aggregate_name: &str,
-    id: &str,
-    attr_name: &str,
-    type_name: &str,
-    value: &Value,
-    attr: &Value,
-    value_objects: &HashMap<&str, &Value>,
-    entities: &HashMap<&str, &Value>,
-    violations: &mut Vec<String>,
-) {
-    if let Some(vo) = value_objects.get(type_name) {
-        let nested = vo.get("attributes").and_then(Value::as_array).cloned().unwrap_or_default();
-        let before = violations.len();
-        check_attributes(aggregate_name, id, value, &nested, value_objects, entities, violations);
-        // Invariants run only when the structure check found nothing: a mistyped value would
-        // double-report, or bury the real type error under a "could not be checked".
-        if violations.len() == before {
-            check_invariants(aggregate_name, id, attr_name, type_name, value, vo, violations);
-        }
-        return;
-    }
-    if let Some(entity) = entities.get(type_name) {
-        let nested = entity.get("attributes").and_then(Value::as_array).cloned().unwrap_or_default();
-        check_attributes(aggregate_name, id, value, &nested, value_objects, entities, violations);
-        return;
-    }
-
-    // A scalar leaf. Unrecognized type names are unconstrained: a false positive would block a
-    // real mint.
-    if !scalar_type_matches(type_name, value) {
-        violations.push(format!("{aggregate_name}#{id}: {attr_name} is {value}, not a {type_name}"));
-        return;
-    }
-    if let Some(pattern) = attr.get("pattern").and_then(Value::as_str) {
-        if let Some(text) = value.as_str() {
-            match regex::Regex::new(pattern) {
-                Ok(re) if !re.is_match(text) => {
-                    violations.push(format!("{aggregate_name}#{id}: {attr_name} ({value}) doesn't match its own declared pattern"));
-                }
-                _ => {}
-            }
-        }
-    }
-    if let Some(admits) = attr.get("admits").and_then(Value::as_array) {
-        if !admits.is_empty() && !admits.iter().any(|allowed| allowed == value) {
-            violations.push(format!("{aggregate_name}#{id}: {attr_name} is {value}, not one of its declared admits"));
-        }
-    }
-}
-
-fn scalar_type_matches(type_name: &str, value: &Value) -> bool {
-    match type_name {
-        "String" => value.is_string(),
-        "Integer" => value.is_i64() || value.is_u64(),
-        "Float" => value.is_f64() || value.is_i64() || value.is_u64(),
-        "Boolean" => value.is_boolean(),
-        _ => true,
-    }
 }
 
 fn check_lifecycle(aggregate_name: &str, id: &str, state: &Value, lifecycle: &Value, violations: &mut Vec<String>) {
@@ -213,6 +461,15 @@ mod tests {
     use super::*;
     use serde_json::json;
 
+    // The aggregate alone is the whole domain here; `domain_validate` takes the domain apart.
+    fn validate(aggregate_ir: &Value, id: &str, state: &Value) -> Vec<String> {
+        domain_validate(&json!({"aggregates": [aggregate_ir]}), aggregate_ir, id, state)
+    }
+
+    fn domain_validate(domain_ir: &Value, aggregate_ir: &Value, id: &str, state: &Value) -> Vec<String> {
+        super::validate(domain_ir, aggregate_ir, id, state)
+    }
+
     fn order_ir() -> Value {
         json!({
             "name": "Order",
@@ -224,12 +481,15 @@ mod tests {
             "value_objects": [
                 {"name": "Pizza", "attributes": [
                     {"name": "cents", "type": "Integer", "list": false, "optional": false},
-                    {"name": "size", "type": "String", "list": false, "optional": false, "admits": ["small", "large"]}
+                    {"name": "size", "type": "String", "list": false, "optional": false, "admits": "Order::Size"}
                 ], "invariants": [
                     {"description": "a price is never negative", "canonical": "cents >= 0",
                      "ast": {"op": "compare", "cmp": {"less_than": true, "equal": false, "negated": true},
                              "left": {"op": "lookup", "path": ["cents"]}, "right": {"op": "int", "value": 0}}}
                 ]},
+                {"name": "Size", "closed_set": true, "invariants": [],
+                 "attributes": [{"name": "value", "type": "String", "list": false, "optional": false}],
+                 "members": [[["value", "small"]], [["value", "large"]]]},
                 {"name": "Topping", "attributes": [
                     {"name": "name", "type": "String", "list": false, "optional": false, "pattern": "[^ \\t\\n\\r]"}
                 ]}
@@ -262,11 +522,20 @@ mod tests {
     }
 
     #[test]
-    fn a_value_outside_its_own_admits_set_is_caught() {
+    fn a_value_outside_the_declared_set_it_admits_is_caught_in_dispatchs_words() {
         let state = json!({ "pizza": { "cents": 1200, "size": "medium" }, "toppings": [], "status": "available" });
         let violations = validate(&order_ir(), "p1", &state);
+        assert_eq!(violations, vec![r#"Order#p1: size admits Order::Size — "small", "large" — got "medium""#.to_string()]);
+    }
+
+    #[test]
+    fn an_admits_naming_a_set_the_chapter_does_not_declare_refuses_every_value() {
+        let mut ir = order_ir();
+        ir["value_objects"][0]["attributes"][1]["admits"] = json!("Order::Missing");
+        let state = json!({ "pizza": { "cents": 1200, "size": "small" }, "toppings": [], "status": "available" });
+        let violations = validate(&ir, "p1", &state);
         assert_eq!(violations.len(), 1);
-        assert!(violations[0].contains("size"), "{violations:?}");
+        assert!(violations[0].contains("size admits Order::Missing, which this chapter does not declare"), "{violations:?}");
     }
 
     #[test]
@@ -353,7 +622,7 @@ mod tests {
         let state = json!({ "pizza": null, "toppings": [], "status": "available" });
         let violations = validate(&order_ir(), "p1", &state);
         assert_eq!(violations.len(), 1);
-        assert!(violations[0].contains("pizza"), "{violations:?}");
+        assert!(violations[0].contains("Pizza.cents expects Integer, got nil"), "{violations:?}");
     }
 
     // A page of panels, each optionally holding a note, which optionally holds a link; a panel
@@ -458,12 +727,157 @@ mod tests {
     }
 
     #[test]
-    fn a_required_slot_left_out_is_not_filled_in() {
+    fn a_required_slot_left_out_is_refused_by_name_not_filled_in_for_an_invariant_to_read() {
         let mut ir = layout_ir();
         ir["value_objects"][1]["invariants"] =
             json!([{"description": "a kind", "canonical": "", "ast": {"op": "lookup", "path": ["kind"]}}]);
         let state = json!({"key": {"value": "l1"}, "panels": [{"cells": []}]});
-        let violations = validate(&ir, "l1", &state);
-        assert!(violations.iter().any(|v| v.contains("cannot resolve \"kind\"")), "{violations:?}");
+        assert_eq!(validate(&ir, "l1", &state), vec!["Layout#l1: Panel.kind expects String, got nil".to_string()]);
+    }
+
+    // A closed set, a multi-field closed set and a value object that holds both, three deep and in a
+    // list, with a required list, a defaulted field, an optional field and a list of patterned
+    // Strings: every constraint an attribute can declare, reached through a stored value.
+    fn constrained_ir() -> Value {
+        let attr = |name: &str, ty: &str, list: bool, optional: bool| json!({"name": name, "type": ty, "list": list, "optional": optional});
+        json!({
+            "name": "Shelf",
+            "attributes": [attr("band", "Band", false, false), attr("panels", "Panel", true, false)],
+            "entities": [],
+            "value_objects": [
+                {"name": "Band", "closed_set": true, "invariants": [], "attributes": [attr("size", "String", false, false)],
+                 "members": [[["size", "small"]], [["size", "large"]]]},
+                {"name": "Pairing", "closed_set": true, "invariants": [],
+                 "attributes": [attr("code", "String", false, false), attr("label", "String", false, false)],
+                 "members": [[["code", "p"], ["label", "Pee"]], [["code", "q"], ["label", "Cue"]]]},
+                {"name": "Panel", "closed_set": false, "invariants": [],
+                 "attributes": [attr("band", "Band", false, false), attr("count", "Integer", false, false),
+                                {"name": "slug", "type": "String", "list": false, "optional": false, "pattern": "^[a-z]+$"},
+                                {"name": "labels", "type": "String", "list": true, "optional": false, "pattern": "^[a-z]+$"},
+                                {"name": "pairing", "type": "Pairing", "list": false, "optional": true},
+                                {"name": "tone", "type": "String", "list": false, "optional": false, "default": "calm"},
+                                attr("inner", "Panel", false, true)]}
+            ]
+        })
+    }
+
+    fn panel() -> Value {
+        json!({"band": {"size": "small"}, "count": 1, "slug": "ok", "labels": ["a", "b"]})
+    }
+
+    fn shelf_violations(panels: Value) -> Vec<String> {
+        validate(&constrained_ir(), "s1", &json!({"band": {"size": "large"}, "panels": panels}))
+    }
+
+    fn assert_refused_as(violations: Vec<String>, expected: &str) {
+        assert_eq!(violations, vec![format!("Shelf#s1: {expected}")]);
+    }
+
+    #[test]
+    fn a_value_that_meets_every_constraint_is_accepted_at_every_depth() {
+        let mut inner = panel();
+        inner["pairing"] = json!({"code": "q", "label": "Cue"});
+        let mut outer = panel();
+        outer["inner"] = json!({"band": {"size": "large"}, "count": 2, "slug": "in", "labels": [], "inner": inner});
+        assert_eq!(shelf_violations(json!([outer, panel()])), Vec::<String>::new());
+    }
+
+    #[test]
+    fn a_closed_set_refuses_a_non_member_alone_in_a_list_member_and_three_deep() {
+        let violations = validate(&constrained_ir(), "s1", &json!({"band": {"size": "huge"}, "panels": []}));
+        assert_refused_as(violations, r#"Band admits "small", "large" — got "huge""#);
+
+        let mut bad = panel();
+        bad["band"] = json!({"size": "huge"});
+        assert_refused_as(shelf_violations(json!([panel(), bad.clone()])), r#"Band admits "small", "large" — got "huge""#);
+
+        let mut deep = panel();
+        deep["inner"] = json!({"band": {"size": "small"}, "count": 2, "slug": "in", "labels": [], "inner": {"band": {"size": "small"}, "count": 3, "slug": "x", "labels": [], "inner": bad}});
+        assert_refused_as(shelf_violations(json!([deep])), r#"Band admits "small", "large" — got "huge""#);
+    }
+
+    #[test]
+    fn a_bare_scalar_stands_in_for_a_one_field_set_and_is_checked_the_same() {
+        let mut bare = panel();
+        bare["band"] = json!("large");
+        assert_eq!(shelf_violations(json!([bare])), Vec::<String>::new());
+        let mut wrong = panel();
+        wrong["band"] = json!("huge");
+        assert_refused_as(shelf_violations(json!([wrong])), r#"Band admits "small", "large" — got "huge""#);
+    }
+
+    #[test]
+    fn a_multi_field_member_must_match_on_every_column_and_quotes_the_first() {
+        let mut mixed = panel();
+        mixed["pairing"] = json!({"code": "p", "label": "Cue"});
+        assert_refused_as(shelf_violations(json!([mixed])), r#"Pairing admits "p", "q" — got "p""#);
+    }
+
+    #[test]
+    fn a_name_the_value_object_does_not_declare_is_refused_before_anything_else() {
+        let mut extra = panel();
+        extra["bogus"] = json!(1);
+        assert_refused_as(shelf_violations(json!([extra])), "Panel does not declare bogus — it takes band, count, slug, labels, pairing, tone, inner");
+
+        let violations = validate(&constrained_ir(), "s1", &json!({"band": {"size": "small", "bogus": 1}, "panels": []}));
+        assert_refused_as(violations, "Band does not declare bogus — it takes size");
+    }
+
+    #[test]
+    fn a_required_field_left_out_is_refused_while_an_optional_one_a_default_and_a_list_are_not() {
+        let mut absent = panel();
+        absent.as_object_mut().unwrap().remove("count");
+        assert_refused_as(shelf_violations(json!([absent])), "Panel.count expects Integer, got nil");
+
+        let mut sparse = panel();
+        sparse.as_object_mut().unwrap().remove("labels");
+        assert_eq!(shelf_violations(json!([sparse])), Vec::<String>::new());
+    }
+
+    #[test]
+    fn a_pattern_is_held_by_every_member_of_a_list_and_by_the_whole_value() {
+        let mut bad_label = panel();
+        bad_label["labels"] = json!(["a", "B"]);
+        assert_refused_as(shelf_violations(json!([bad_label])), r#"Panel.labels must match ^[a-z]+$, got "B""#);
+
+        let mut newline = panel();
+        newline["slug"] = json!("ok\n");
+        assert_refused_as(shelf_violations(json!([newline])), r#"Panel.slug must match ^[a-z]+$, got "ok\n""#);
+    }
+
+    #[test]
+    fn a_number_past_signed_64_bits_and_a_whole_float_are_not_integers() {
+        let mut big = panel();
+        big["count"] = json!(9223372036854775808u64);
+        assert_refused_as(shelf_violations(json!([big])), "Panel.count must fit in a 64-bit integer, got 9223372036854775808");
+
+        let mut whole = panel();
+        whole["count"] = json!(3.0);
+        assert_refused_as(shelf_violations(json!([whole])), "Panel.count expects Integer, got 3.0");
+
+        let mut largest = panel();
+        largest["count"] = json!(i64::MAX);
+        assert_eq!(shelf_violations(json!([largest])), Vec::<String>::new());
+    }
+
+    #[test]
+    fn a_list_offered_a_lone_value_is_a_shape_error_and_a_null_list_is_not() {
+        assert_refused_as(shelf_violations(json!("x")), r#"Shelf.panels expects list_of(Panel), got "x""#);
+        let mut unset = panel();
+        unset["labels"] = Value::Null;
+        assert_eq!(shelf_violations(json!([unset])), Vec::<String>::new());
+    }
+
+    #[test]
+    fn a_value_object_another_aggregate_of_the_chapter_declares_is_held_to_its_constraints() {
+        let shelf = json!({"name": "Shelf", "attributes": [{"name": "band", "type": "Band", "list": false, "optional": false}],
+                           "entities": [], "value_objects": []});
+        let vocabulary = json!({"name": "Vocabulary", "attributes": [], "entities": [], "value_objects": [
+            {"name": "Band", "closed_set": true, "invariants": [], "attributes": [{"name": "size", "type": "String", "list": false, "optional": false}],
+             "members": [[["size", "small"]]]}]});
+        let domain = json!({"aggregates": [shelf, vocabulary]});
+        let refused = domain_validate(&domain, &shelf, "s1", &json!({"band": {"size": "huge"}}));
+        assert_refused_as(refused, r#"Band admits "small" — got "huge""#);
+        assert_eq!(domain_validate(&domain, &shelf, "s1", &json!({"band": {"size": "small"}})), Vec::<String>::new());
     }
 }

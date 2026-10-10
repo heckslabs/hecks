@@ -1,0 +1,15 @@
+# A type-position `one_of(...)` inside a value object synthesizes a closed-set value object, which
+# the aggregate keeps right after the value object that declared it
+# (`AggregateBuilder#value_object` concatenates `builder.closed_sets`), so the attribute's type
+# `Grade` names a value object the IR holds.
+Hecks.bluebook "FixtureValueObjectInlineClosedSet" do
+  aggregate "Widget" do
+    value_object "Frame" do
+      attribute :grade, one_of("a", "b")
+    end
+
+    value_object "Leaf" do
+      attribute :label, String
+    end
+  end
+end

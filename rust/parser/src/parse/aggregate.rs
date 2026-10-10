@@ -425,7 +425,7 @@ pub fn parse_body(
                         .chain(closed_sets.iter())
                         .cloned()
                         .collect();
-                    let vo = super::parse_nested_body(
+                    let (vo, nested_sets) = super::parse_nested_body(
                         file,
                         lines,
                         pos,
@@ -434,6 +434,7 @@ pub fn parse_body(
                         |f, l, p| value_object::parse_body(f, l, p, &vo_name, &owner_value_objects),
                     )?;
                     aggregate.value_objects.push(vo);
+                    aggregate.value_objects.extend(nested_sets);
                 }
             }
             "lifecycle" => {

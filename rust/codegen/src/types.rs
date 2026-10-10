@@ -31,6 +31,10 @@ pub fn emit_check_invariants(exemplar: &Exemplar, vo: &Json, value_objects_by_na
 
     for attr in attributes {
         if crate::attr::list(attr) {
+            let field = format!("self.{}", naming::rust_ident_field(crate::attr::name(attr)));
+            if let Some(line) = crate::constraints::emit_list_pattern_check(exemplar, &field, attr, &name) {
+                body.push(format!("        {line}"));
+            }
             continue;
         }
         let field = format!("self.{}", naming::rust_ident_field(crate::attr::name(attr)));

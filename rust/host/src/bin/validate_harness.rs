@@ -37,7 +37,7 @@ fn answer(ir: &Value, case: &Value) -> Value {
         None => json!({ "error": format!("no aggregate {name:?} in the IR") }),
         Some(aggregate) => {
             let id = case.get("id").and_then(Value::as_str).unwrap_or("");
-            json!({ "violations": reference_validate::validate(aggregate, id, &case["state"]) })
+            json!({ "violations": reference_validate::validate(ir, aggregate, id, &case["state"]) })
         }
     }
 }
