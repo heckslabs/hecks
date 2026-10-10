@@ -32,6 +32,7 @@ module Hecks
         # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the same `dispatcher`
         # @raise [NameError] if a chapter or aggregate name is not a valid constant name
         def install(dispatcher)
+          Admission.admit!(dispatcher.registry, "Ruby")
           dispatcher.registry.bluebooks.each_value do |bluebook|
             install_chapter(dispatcher, bluebook) unless attached_chapter?(dispatcher.registry, bluebook)
           end

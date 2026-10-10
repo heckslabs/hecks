@@ -91,8 +91,9 @@ RSpec.describe "the DSL surface is fully covered" do
       Hecks::Bluebook::DSL::HecksagonBuilder,
       # `port` is covered by `port_impl`. `translates` has no `_impl` split — Ruby's
       # own method lookup finds it directly — and is tested in spec/hecksagon_translates_spec.rb.
-      # `attaches` is tested in spec/hecksagon_attaches_spec.rb.
-      %i[binds subscribe subscriptions port_impl attaches
+      # `attaches` is tested in spec/hecksagon_attaches_spec.rb, and `driven_by` in
+      # spec/driving_adapters/driven_by_spec.rb.
+      %i[binds subscribe subscriptions port_impl attaches driven_by
          attachments translates bounded method_missing]
     ],
     "TranslationBuilder"          => [

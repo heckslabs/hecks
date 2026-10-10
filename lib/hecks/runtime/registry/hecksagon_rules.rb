@@ -27,6 +27,16 @@ module Hecks
                 "without that it is silent decoration, the exact defect this refusal exists to catch"
         end
 
+        # `driven_by` names a driving adapter; a name none answers to would silently admit nothing.
+        def refuse_unknown_driving!(hecksagon)
+          unknown = hecksagon.driving - Bluebook::Hecksagon::DRIVING_ADAPTERS
+          return if unknown.empty?
+
+          raise WiringError,
+                "#{hecksagon.domain} is driven_by #{unknown.map(&:inspect).join(", ")}, which no driving " \
+                "adapter answers to — the adapters are #{Bluebook::Hecksagon::DRIVING_ADAPTERS.join(", ")}"
+        end
+
         # `attaches` loads a bounded context; the consumer must declare the sibling hecksagon
         # that is its ACL (Governance/Identity/Privacy already do). A vendored package only
         # loads its `.bluebook` files, so persistence, Governance and the `translates` ACL live

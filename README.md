@@ -35,8 +35,8 @@ Six terms make up the model.
   domain in, the way SQL is the language you declare queries in. A `.bluebook`
   file is a program written in it. It never names a backend.
 - **Hecksagon** is the ports-and-adapters wiring for a domain: which adapter
-  persists each aggregate, which chapters it attaches, and its ports. It lives
-  in a `.hecksagon` file.
+  persists each aggregate, which chapters it attaches, which driving adapters
+  may reach it (`driven_by`), and its ports. It lives in a `.hecksagon` file.
 - **World** is the per-deployment values that neither of those names, such as a
   database URL. It lives in a `.world` file. Like an `.env` file it holds only
   values, but each one is checked against the adapter it answers.

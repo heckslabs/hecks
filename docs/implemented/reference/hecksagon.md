@@ -223,6 +223,32 @@ The digest is `Lock.digest_of` over the package's `bluebook/*.bluebook` files on
 
 Both verbs are spelled `registry.check` and `registry.release` too, after the `Registry` aggregate that answers them, as is `package.digest` (`registry.digest`).
 
+## driven_by
+
+<!-- generated:begin word=driven_by -->
+`driven_by driving` — fills `driving`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | driving |
+<!-- generated:end -->
+
+Admits one driving adapter to reach this domain: `Ruby` (the module surface a boot installs), `Cli` (the launcher and `hecks run`), `Json` (the forms and storehouse reader) or `Mcp` (`hecks mcp`). A domain that declares none is open to every adapter. Once it declares any, it is reached through those and each adapter it left out refuses it: `Hecks.boot` refuses to install the Ruby module surface, the launcher answers the sentence with status 1, and the MCP server answers the call with an error. Boot refuses a name no adapter answers to.
+
+```ruby excerpt
+Hecks.hecksagon "Lending" do
+  driven_by "Mcp"
+  driven_by "Cli"
+end
+```
+
+The hecksagon answers which adapters may reach its domain:
+
+```ruby
+wiring = Hecks::Bluebook::Hecksagon.new(domain: "Lending", driving: %w[Mcp Cli])
+[wiring.driven_by?("Mcp"), wiring.driven_by?("Json")]  # => [true, false]
+```
+
 ## port
 
 <!-- generated:begin word=port -->

@@ -1352,6 +1352,16 @@
           "pattern": null,
           "relationship": null,
           "type": "Attachment"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
+          "name": "driving",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "DrivingAdapter"
         }
       ],
       "commands": [
@@ -1486,6 +1496,48 @@
             }
           ],
           "name": "Attaches",
+          "needs": [
+
+          ],
+          "provenance": null,
+          "references": null,
+          "role": "Deployment"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "adapter",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "DrivingAdapter"
+            }
+          ],
+          "emits": [
+            "DrivingAdapterAdmitted"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+
+          ],
+          "goal": "Admit a driving adapter to reach this hecksagon's domain; adapters left out refuse it",
+          "mutations": [
+            {
+              "fields": {
+                "value": ":adapter"
+              },
+              "op": "append",
+              "sign": "",
+              "target": "driving"
+            }
+          ],
+          "name": "DrivenBy",
           "needs": [
 
           ],
@@ -1725,6 +1777,46 @@
                 "op": "not"
               },
               "canonical": "!value.to_s.empty?",
+              "description": "a driving adapter is named"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "DrivingAdapter"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
+              "canonical": "!value.to_s.empty?",
               "description": "a chapter is named"
             }
           ],
@@ -1917,6 +2009,32 @@
               [
                 "fills",
                 "attachments"
+              ]
+            ],
+            [
+              [
+                "word",
+                "driven_by"
+              ],
+              [
+                "context",
+                "Hecksagon"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "driving"
               ]
             ],
             [
@@ -2280,6 +2398,36 @@
               [
                 "fills",
                 "source"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "driven_by"
+              ],
+              [
+                "context",
+                "Hecksagon"
+              ],
+              [
+                "at",
+                1
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                true
+              ],
+              [
+                "fills",
+                "driving"
               ]
             ],
             [
