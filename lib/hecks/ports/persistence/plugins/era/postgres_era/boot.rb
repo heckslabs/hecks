@@ -1,3 +1,5 @@
+require_relative "../../../../../indifferent_key"
+
 module Hecks
   module Adapters
     class PostgresEra
@@ -17,11 +19,11 @@ module Hecks
         # Coalesce instead of `setting` for the era: the factory always passes `era:`, nil until
         # the boot gate resolves it, and nil can never be a real override.
         def resolve_era!(settings)
-          @era = settings.key?(:era) ? settings[:era] : settings["era"]
+          @era = IndifferentKey.read(settings, :era)
           @era ||= @lineage.current_era
           # Non-nil only for a held-but-superseded boot. `append` and `atomic_put` refuse on it
           # because a superuser walks through the RLS fence.
-          @superseded_by = settings.key?(:superseded_by) ? settings[:superseded_by] : settings["superseded_by"]
+          @superseded_by = IndifferentKey.read(settings, :superseded_by)
         end
 
         def provision!

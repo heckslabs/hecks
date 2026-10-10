@@ -1,6 +1,7 @@
 require "digest"
 require "fileutils"
 require "json"
+require_relative "../indifferent_key"
 
 module Hecks
   module Fuzzing
@@ -20,7 +21,7 @@ module Hecks
       # @param steps [Array<Hash>] the shrunk steps that reproduce it
       # @return [String] a stable twelve-character identity
       def signature(property, message, steps)
-        shape = steps.map { |step| step.key?("verb") ? step["verb"] : step[:verb] }
+        shape = steps.map { |step| IndifferentKey.read(step, "verb") }
         Digest::SHA256.hexdigest([property, normalize(message), shape].to_json)[0, 12]
       end
 
