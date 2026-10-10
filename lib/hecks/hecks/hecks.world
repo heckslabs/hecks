@@ -46,8 +46,8 @@ Hecks.world "Hecks" do
                                   preview_run.url preview_run.list preview_run.deploy
                                   preview_run.destroy preview_run.login companion_roll.run
                                   handover.clear],
-                       names: { "mcp" => "entry point.serve_mcp", "console" => "operation.open_console", "init" => "entry point.init",
-                                "interview" => "entry point.interview", "package.check" => "registry.check",
+                       names: { "mcp" => "launch.serve_mcp", "console" => "operation.open_console", "init" => "launch.init",
+                                "interview" => "launch.interview", "package.check" => "registry.check",
                                 "package.digest" => "registry.digest",
                                 "package.release" => "registry.release" },
                        streams: %w[Follow],

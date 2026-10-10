@@ -23,9 +23,9 @@ module Hecks
         WAIT    = "--wait".freeze
         STREAM  = "--stream".freeze
         RUN_KEY = "run.value".freeze
-      # The lifecycle mark naming the states `--wait` reports as a failure (exit 1); the lifecycle
-      # says so with `mark :failure, "flagged"` (ADR 0097), so no setting lists them.
-      FAILURE_MARK = "failure".freeze
+        # The lifecycle mark naming the states `--wait` reports as a failure (exit 1); the lifecycle
+        # says so with `mark :failure, "flagged"` (ADR 0097), so no setting lists them.
+        FAILURE_MARK = "failure".freeze
         # What makes a directory a hecks checkout: this file stands beside `lib/`, the same test
         # the Codebase aggregate's `Accept` applies before it runs anything.
         CHECKOUT_MARKER = "hecks.gemspec".freeze

@@ -42,7 +42,7 @@ RSpec.describe "the Deploy chapter's Handover", :io do
 
   def clear(domain, *argv)
     out, status = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks",
-                                               argv: ["deploy", "handover.clear", domain, *argv, "--wait"])
+                                                           argv: ["deploy", "handover.clear", domain, *argv, "--wait"])
     [JSON.parse(out), status]
   end
 
