@@ -1,6 +1,7 @@
 require "spec_helper"
 require "tmpdir"
 require_relative "../../../lib/hecks/hecks/adapters/process_pool"
+require_relative "../../support/thread_parking"
 
 # The ProcessPool port's adapter starts a long-running child and stays with it until it ends.
 RSpec.describe Hecks::Adapters::ProcessPool do
@@ -46,7 +47,7 @@ RSpec.describe Hecks::Adapters::ProcessPool do
       pool.run(["sh", "-c", "sleep 30"])
     end
     started.pop
-    sleep 0.5
+    ThreadParking.wait_until_parked(runner)
     Process.kill("TERM", Process.pid)
     runner.value
   end
@@ -63,7 +64,7 @@ RSpec.describe Hecks::Adapters::ProcessPool do
     real = Process.method(:spawn)
     allow(pool).to receive(:spawn) do |*args, **opts|
       Process.kill(name, Process.pid)
-      sleep 0.05
+      ThreadParking.elapse(0.05)
       real.call(*args, **opts)
     end
   end

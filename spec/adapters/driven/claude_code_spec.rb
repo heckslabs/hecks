@@ -64,7 +64,7 @@ RSpec.describe Hecks::Adapters::ClaudeCode do
     end
 
     it "raises Unavailable when the call times out" do
-      allow(Open3).to receive(:capture2) { sleep 0.2 }
+      allow(Open3).to receive(:capture2) { Queue.new.pop(timeout: 1) }
       stub_const("Hecks::Adapters::ClaudeCode::TIMEOUT_SECONDS", 0.01)
 
       expect { described_class.call(system: "x", payload: {}) }

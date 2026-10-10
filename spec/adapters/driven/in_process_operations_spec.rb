@@ -2,6 +2,7 @@ require "spec_helper"
 require "tmpdir"
 require "fileutils"
 require_relative "../../../lib/hecks/hecks/adapters/in_process_boot"
+require_relative "../../support/thread_parking"
 
 # What the DomainRuntime port's adapter does when a journaled Custodian command asks it to run
 # something: the answer is the text an existing `Hecks::CLI::*` entry point printed, and anything
@@ -220,7 +221,7 @@ RSpec.describe Hecks::Adapters::InProcessOperations do
     def append_later(*names)
       Thread.new do
         names.each do |name|
-          sleep 0.15
+          ThreadParking.elapse(0.15)
           entries << appended(name)
         end
       end

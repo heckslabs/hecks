@@ -2,6 +2,7 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "../../../support/postgres_probe"
 require_relative "../../../support/era_registry_loading"
+require_relative "../../../support/thread_parking"
 
 # Field cache and resumable backfill against a throwaway Postgres database:
 # correctness before and after a mint, crash resumability, and non-blocking writes.
@@ -322,19 +323,20 @@ RSpec.describe "PostgresEra field cache — Track C validation", :io do
   end
 
   context "with a slow backfill mid-scan" do
-    def slow_down_upserts(lineage)
+    def slow_down_upserts(lineage, entered)
       # slow enough that a lock held across a chunk would visibly stall the writer
       original = lineage.method(:upsert_field_cache_rows!)
       allow(lineage).to receive(:upsert_field_cache_rows!) do |*args|
-        sleep 0.3
+        entered << true
+        ThreadParking.elapse(0.3)
         original.call(*args)
       end
     end
 
-    def start_slow_backfill(backfill_db)
+    def start_slow_backfill(backfill_db, entered)
       stub_const("Hecks::Adapters::PostgresEra::Lineage::ResumableBackfill::CHUNK_SIZE", 2)
       lineage = Hecks::Adapters::PostgresEra::Lineage.new(backfill_db, "Cache")
-      slow_down_upserts(lineage)
+      slow_down_upserts(lineage, entered)
       Thread.new { lineage.ensure_field_cache!("widget", 1, "status", status_expression) }
     end
 
@@ -349,8 +351,9 @@ RSpec.describe "PostgresEra field cache — Track C validation", :io do
     # duration.
     def write_during_backfill
       backfill_db = PG.connect(dbname: FIELD_CACHE_DB, user: FIELD_CACHE_OWNER)
-      thread = start_slow_backfill(backfill_db)
-      sleep 0.15 # let the backfill get into its first slow chunk
+      entered = Queue.new
+      thread = start_slow_backfill(backfill_db, entered)
+      ThreadParking.wait_for { !entered.empty? } # the backfill is inside its first slow chunk
       elapsed = timed_plain_write
       thread.join(10)
       [thread.status, elapsed]

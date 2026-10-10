@@ -3,6 +3,7 @@ require "hecks/ports/persistence/plugins/era"
 require_relative "../../../support/postgres_probe"
 require_relative "../../../support/era_registry_loading"
 require_relative "../../../support/era_app_role"
+require_relative "../../../support/thread_parking"
 
 # Lineage in the PostgresEra adapter: partitioned journal, era rows, the one-transaction mint,
 # and the head compiled as a chain of edges. Needs a reachable Postgres (see postgres_probe.rb).
@@ -733,7 +734,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     def mint_while_probing
       probe = LineageWriterProbe.new(0, 0, 0, false)
       writer = probing_writer(probe)
-      sleep 0.05 # let the writer get a few writes in before the mint starts
+      ThreadParking.wait_for { probe.ok >= 3 } # a few writes in before the mint starts
       mint_v2!
       probe.stop = true
       writer.join
@@ -1287,7 +1288,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
       adapter = adapter_for(registry, "Acct")
       holder = ordinal_lock_holder
       blocked = Thread.new { adapter.save(second_account_instance(registry)) }
-      sleep 0.3
+      ThreadParking.wait_until_parked(blocked)
       waiting = blocked.alive? # still waiting on the lock ; the write has not happened
       release_lock(holder, blocked)
       [waiting, blocked.alive?]

@@ -5,6 +5,7 @@ require "fileutils"
 require "pathname"
 require_relative "postgres_probe"
 require_relative "qa_ledger_role"
+require_relative "thread_parking"
 
 # Shared fixture for the `qa_sweep --all` specs; pass a per-file unique database name.
 # Files run as concurrent processes, so a shared name would race on create/drop.
@@ -203,7 +204,7 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
       return [status, results] if reaped_pid
 
       results << yield
-      sleep 0.2
+      ThreadParking.elapse(0.2)
     end
   end
 end
