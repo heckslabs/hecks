@@ -110,11 +110,15 @@ jobs:
           name: main
           crate-root: rust
 
-      # Every fourth feature of the list, from this leg's place in it.
+      # Every fourth feature of the list, from this leg's place in it. The cargo cache restore
+      # above brings back every feature's binary from an earlier run, built from older sources.
+      # They are removed first: the artifacts are merged into one directory downstream, and a
+      # stale copy another leg uploads must not overwrite the fresh one this feature's own leg built.
       - name: Build this leg's feature binaries
         run: |
           cd rust
           mkdir -p target/debug
+          rm -f target/debug/rust-*
           grep -E '^[a-z0-9_]+ = \[\]$' Cargo.toml | sed 's/ = \[\]$//' | grep -vx default \
             | awk -v leg=${{ matrix.leg }} 'NR % 4 == leg % 4' > "$RUNNER_TEMP/features"
           while read -r feature; do
