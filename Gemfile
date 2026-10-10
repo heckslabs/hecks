@@ -37,6 +37,13 @@ group :development, :test do
   gem "rubocop-performance", "~> 1.21", require: false
   gem "rubocop-thread_safety", "~> 0.7", require: false
 
+  # Local-only code-quality inspection: complexity (flog), duplication (flay), smells (reek),
+  # and rubycritic's combined report with git churn. Not wired into CI.
+  gem "flay", "~> 2.14", require: false
+  gem "flog", "~> 4.9", require: false
+  gem "reek", "~> 6.5", require: false
+  gem "rubycritic", "~> 5.0", require: false
+
   # Local-only: `bundle exec guard` watches lib/spec and reruns the
   # matching specs on save. Not wired into CI or the pre-push hook.
   gem "guard", "~> 2.19", require: false

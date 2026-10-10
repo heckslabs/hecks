@@ -1,0 +1,33 @@
+# Reek runs over lib/ through `bundle exec reek`; see CONTRIBUTING.md "Code-quality inspection".
+# Generated files are excluded the same way .rubocop.yml excludes them.
+exclude_paths:
+  - rust
+  - vendor
+  - lib/hecks/vocabulary.rb
+  - lib/hecks/bluebook/dsl/bootstrap_table.rb
+  - lib/hecks/projections/parser_table.rb
+  - lib/hecks/bluebook/policy.rb
+
+# Off where RuboCop's Metrics cops already own the signal, or where the repo's style (module
+# functions, docs in comments, short block names) makes the detector noise rather than design news.
+detectors:
+  TooManyStatements:
+    enabled: false
+  LongParameterList:
+    enabled: false
+  DuplicateMethodCall:
+    enabled: false
+  UtilityFunction:
+    enabled: false
+  IrresponsibleModule:
+    enabled: false
+  UncommunicativeVariableName:
+    enabled: false
+  NilCheck:
+    enabled: false
+  InstanceVariableAssumption:
+    enabled: false
+  MissingSafeMethod:
+    enabled: false
+  ManualDispatch:
+    enabled: false
