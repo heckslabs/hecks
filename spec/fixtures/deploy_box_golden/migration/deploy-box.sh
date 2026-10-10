@@ -8,6 +8,20 @@
 #   40  the box stack has no instance
 #   41  the roll did not succeed on the box
 #   42  the roll succeeded but the box is not healthy after it
+#   43  no restore anchor: the database's backups cannot be read, or are kept fewer days than
+#       MIN_BACKUP_RETENTION_DAYS (default 3)
+#
+# Before anything changes, the roll names the point the database can be restored to: the instance, the
+# moment this roll starts, and how long its continuous backups are kept. A roll that mints a new era is
+# a one-way door, so this is the rollback anchor, and it costs nothing (a point-in-time restore uses the
+# backups the instance already keeps, where a manual snapshot would be stored until someone deleted it).
+# SKIP_RESTORE_ANCHOR=1 skips it.
+#
+# Before the roll replaces a container, the box saves that container's log to
+# /var/log/hecks-captures/<container>-<UTC timestamp>.log and keeps the newest 14 per container
+# (a roll deletes the old container's log with it). A capture never changes the exit codes: if it
+# cannot run, the roll goes on. SKIP_LOG_CAPTURE=1 skips it; LOG_CAPTURE_SERVICES="a b" limits it to
+# those services (deploy-service.sh sets the one it rolls).
 #
 # Before the roll replaces a container, the box saves that container's log to
 # /var/log/hecks-captures/<container>-<UTC timestamp>.log and keeps the newest 14 per container
@@ -32,6 +46,27 @@ DB_HOST=$(out "$RDS_STACK" DbEndpoint)
 DB_SECRET=$(out "$RDS_STACK" DbSecretArn)
 [ -n "$BOX" ] && [ "$BOX" != None ] || { echo "no instance in stack $BOX_STACK" >&2; exit 40; }
 ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+
+if [ "${SKIP_RESTORE_ANCHOR:-}" = 1 ]; then
+  echo "==> skipping the restore anchor (SKIP_RESTORE_ANCHOR=1)"
+else
+  DB_ID=${DB_HOST%%.*}
+  BACKUPS=$(aws rds describe-db-instances --db-instance-identifier "$DB_ID" \
+    --query 'DBInstances[0].[BackupRetentionPeriod,LatestRestorableTime]' --output text) || BACKUPS=
+  read -r KEPT_DAYS RESTORABLE <<< "$BACKUPS"
+  case "${KEPT_DAYS:-}" in ''|*[!0-9]*)
+    echo "==> no restore anchor: could not read the backups of $DB_ID (SKIP_RESTORE_ANCHOR=1 rolls without one)" >&2
+    exit 43 ;;
+  esac
+  if [ "$KEPT_DAYS" -lt "${MIN_BACKUP_RETENTION_DAYS:-3}" ]; then
+    echo "==> no restore anchor: $DB_ID keeps backups $KEPT_DAYS day(s), fewer than ${MIN_BACKUP_RETENTION_DAYS:-3}" >&2
+    exit 43
+  fi
+  ANCHOR_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  echo "==> restore anchor: $DB_ID restorable to $ANCHOR_AT (latest $RESTORABLE, backups kept $KEPT_DAYS days)"
+  echo "    to return: aws rds restore-db-instance-to-point-in-time --source-db-instance-identifier $DB_ID \\"
+  echo "      --target-db-instance-identifier $DB_ID-restore --restore-time $ANCHOR_AT"
+fi
 
 WORK=$(mktemp -d); trap 'rm -rf "$WORK"' EXIT
 

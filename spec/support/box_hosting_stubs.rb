@@ -19,6 +19,7 @@ module BoxHostingStubs
     case "$1 $2" in
       "sts get-caller-identity") echo 123456789012 ;;
       "ecr get-login-password") echo secret ;;
+      "rds describe-db-instances") printf '%s\t%s\n' "${STUB_BACKUP_DAYS:-7}" 2026-10-10T00:00:00+00:00 ;;
       "ecr describe-images") [ -n "${STUB_ECR_HAS_TAG:-}" ] || exit 254 ;;
       "cloudformation describe-stacks")
         case "$args" in

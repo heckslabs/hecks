@@ -138,6 +138,45 @@ RSpec.describe "the box roll's log capture and the generated Makefile", :io do
 
   # The generated Makefile and hosting.mk call the commands. A stand-in `hecks` answers them, so the
   # recipes' own logic (arguments, the missing-database path) runs for real.
+  # The point the database can be restored to, named before the roll changes anything, so a minted
+  # era always has a way back that costs nothing to keep.
+  describe "the restore anchor before a box roll" do
+    with_stub_runner :services_golden, real_box: true
+
+    def box_calls = runner.calls.grep(/\Aaws ssm send-command/)
+
+    def backup_reads = runner.calls.grep(/\Aaws rds describe-db-instances/)
+
+    it "names the instance and the moment it can be restored to, before anything reaches the box", :aggregate_failures do
+      settled
+      json, = command("box_roll.run", ROLL_TAGS, "skip_smoke=true")
+
+      report = state_of(json, "report").fetch("report")
+      expect(report).to include("restore anchor: db restorable to", "backups kept 7 days",
+                                "restore-db-instance-to-point-in-time")
+      expect(backup_reads.first).to include("--db-instance-identifier db")
+      expect(runner.calls.index { |c| c.start_with?("aws rds") }).to be < runner.calls.index { |c| c.start_with?("aws ssm") }
+    end
+
+    it "refuses to roll when the backups are kept fewer days than MIN_BACKUP_RETENTION_DAYS", :aggregate_failures do
+      settled
+      json, = command("box_roll.run", ROLL_TAGS, "skip_smoke=true", env: { "STUB_BACKUP_DAYS" => "1" })
+
+      expect(state_of(json, "status")).to eq("status" => "flagged")
+      expect(refusal_of(json)).to match(/no restore anchor|43/)
+      expect(box_calls).to be_empty
+    end
+
+    it "is skipped with SKIP_RESTORE_ANCHOR=1", :aggregate_failures do
+      settled
+      json, = command("box_roll.run", ROLL_TAGS, "skip_smoke=true",
+                      env: { "STUB_BACKUP_DAYS" => "0", "SKIP_RESTORE_ANCHOR" => "1" })
+
+      expect(state_of(json, "status")).to eq("status" => "rolled")
+      expect(backup_reads).to be_empty
+    end
+  end
+
   describe "the generated Makefile" do
     with_stub_runner :taskdef_golden
 

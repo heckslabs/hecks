@@ -1380,10 +1380,11 @@ Hecks.bluebook "Deploy" do
     # Runs the project's generated `deploy-box.sh`: render the Compose files, push them to the box over
     # SSM, start the containers and check them. A policy then requests a `SmokeRun`, unless
     # `skip_smoke=true`. Exit 1 when flagged, with the script's status (40 no instance, 41 the roll
-    # failed, 42 the box unhealthy).
+    # failed, 42 the box unhealthy, 43 no restore anchor). Before the roll the script names the point the
+    # database can be restored to, so the report always carries the way back from a minted era.
 
     command "Run" do
-      goal "Roll the app box and record whether it came up healthy (exit 1 when flagged: 40 no instance, 41 roll failed, 42 box unhealthy)"
+      goal "Roll the app box and record whether it came up healthy (exit 1 when flagged: 40 no instance, 41 roll failed, 42 box unhealthy, 43 no restore anchor)"
 
       attribute :project,    Location
       attribute :script,     Location, optional: true
