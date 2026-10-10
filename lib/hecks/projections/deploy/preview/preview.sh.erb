@@ -365,7 +365,7 @@ signup_admin() {
 # Prints what to paste into the browser console to sign in as the preview's first
 # admin: a session for that email signed with THIS preview's session secret (the
 # secret itself is never printed). Anyone with AWS access to the account could
-# mint the same, which is the point: it is the deployer's door, not a public one.
+# mint the same, which is the point: it is the deployer's entry, not a public one.
 cmd_login() {
   [ -n "$(stack_status)" ] || die "no preview for branch '$BRANCH' - run 'preview.sh deploy'"
   admin_identity

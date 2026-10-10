@@ -266,11 +266,11 @@ RSpec.describe Hecks::Projector::CliProjector do
     end
 
     it "lists a command the chapter gave a short name by its real name, and says the short name", :aggregate_failures do
-      spec = { kind: :command, short: "mcp", short_was: "door.serve_mcp", group: "Door" }
+      spec = { kind: :command, short: "mcp", short_was: "launch.serve_mcp", group: "Launch" }
 
       expect(described_class.send(:entry_name, spec, true)).to eq("serve_mcp!")
       expect(described_class.send(:alias_note, spec)).to eq(" (also: mcp!)")
-      expect(described_class.send(:alias_note, { kind: :command, short: "init", short_was: "door.init" })).to eq("")
+      expect(described_class.send(:alias_note, { kind: :command, short: "init", short_was: "launch.init" })).to eq("")
     end
 
     # What a run records about itself (system-role commands, port operations) is never typed by a

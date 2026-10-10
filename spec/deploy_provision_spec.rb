@@ -111,7 +111,7 @@ RSpec.describe "hecks deploy provision", :io do
     run_project_tenant(dir, slug, domain: "Scratch", realm: realm, schema: slug, database: DB_URL)
   end
 
-  def boot_tenant(slug) = Hecks.boot(dir, environment: slug, install_doors: false)
+  def boot_tenant(slug) = Hecks.boot(dir, environment: slug, install_driving: false)
 
   def router_over(*tenants)
     register = Hecks::Bluebook::ProjectRegister.new

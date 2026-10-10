@@ -55,11 +55,11 @@ module Hecks
                                                              ReadModel#any_field ReadModel#all_field],
         stored_records_satisfy_declared_invariants:       %w[Aggregate#invariants Entity#invariants],
         group_by_matches_recompute:                       %w[ReadModel#group_by],
-        # A runtime door, not a grammar construct — `Dispatcher#dry_run?` is not
+        # A runtime entry point, not a grammar construct — `Dispatcher#dry_run?` is not
         # a word a bluebook declares. Listed empty rather than omitted, so every
         # property still names what it is answerable for.
         dry_runs_leave_no_trace:                          [],
-        # Another runtime door, not a grammar construct — same reasoning as
+        # Another runtime entry point, not a grammar construct — same reasoning as
         # dry_runs_leave_no_trace above.
         outbox_rows_match_reactions:                      [],
         # Reads command.mutations for :corrects ops — the same list

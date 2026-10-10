@@ -80,16 +80,16 @@ RSpec.describe Hecks::Adapters::Codebase::CorpusTasks do
     end
   end
 
-  describe "the doors" do
-    it "serves the MCP door on stdio, with no arguments, and notes when it closed", :aggregate_failures do
+  describe "the servers" do
+    it "serves the MCP server on stdio, with no arguments, and notes when it closed", :aggregate_failures do
       served = nil
       described_class.mcp_server = ->(**options) { served = options }
 
-      expect(described_class.call("serve_query_ir_mcp", {}, tree)).to eq("query ir mcp door closed")
+      expect(described_class.call("serve_query_ir_mcp", {}, tree)).to eq("query ir mcp server closed")
       expect(served).to eq(argv: [])
     end
 
-    it "refuses when the MCP door will not start" do
+    it "refuses when the MCP server will not start" do
       described_class.mcp_server = ->(**) { exit(2) }
 
       expect { described_class.call("serve_query_ir_mcp", {}, tree) }.to raise_error(failure, /status 2/)

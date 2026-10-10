@@ -4,7 +4,7 @@ module Hecks
   module Runtime
     class PolicyInterpreter
       # What a policy's trigger is given: the event payload or its `with:` projection, the
-      # emitting record's identity, and the invocation the door re-enters with. Mixed into
+      # emitting record's identity, and the invocation the entry point re-enters with. Mixed into
       # {PolicyInterpreter}.
       module Arguments
         private

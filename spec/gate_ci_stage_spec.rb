@@ -79,13 +79,14 @@ RSpec.describe "the ci and post_commit gate stages" do
     end
 
     def resolves?(hecks, kind, verb)
-      _, status = Hecks::Doors::CliRunner.call(runtime: hecks, argv: [kind, verb, "--help"].reject(&:empty?), program: "hecks")
+      _, status = Hecks::Adapters::Driving::CliRunner.call(runtime: hecks, argv: [kind, verb, "--help"].reject(&:empty?),
+                                                           program: "hecks")
       status.zero?
     end
 
     it "resolves through the launcher", :aggregate_failures do
       calls = launcher_calls
-      hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
+      hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
       unresolved = calls.reject { |kind, verb| resolves?(hecks, kind, verb) }
 
       expect(calls).not_to be_empty

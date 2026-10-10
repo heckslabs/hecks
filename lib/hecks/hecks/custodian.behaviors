@@ -69,14 +69,14 @@ Hecks.behaviors "Custodian" do
     expect emits: %w[VendorRequested PinRefused VendoringRefused]
   end
 
-  test "ProjectCli keeps a domain it cannot boot as a stopped door, and writes nothing" do
-    tests "ProjectCli", on: "Door"
+  test "ProjectCli keeps a domain it cannot boot as a stopped launch, and writes nothing" do
+    tests "ProjectCli", on: "Launch"
     input run: { value: "launchers" }, domains: { value: "no/such/domain" }
-    expect emits: %w[LaunchersRequested DoorRefused DoorStopped]
+    expect emits: %w[LaunchersRequested LaunchRefused LaunchStopped]
   end
 
-  test "ServeMcp refuses a door that is not named" do
-    tests "ServeMcp", on: "Door"
+  test "ServeMcp refuses a launch that is not named" do
+    tests "ServeMcp", on: "Launch"
     input run: { value: "" }
     expect refused: "must match"
   end

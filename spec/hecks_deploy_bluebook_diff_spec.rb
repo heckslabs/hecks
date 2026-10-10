@@ -24,7 +24,7 @@ RSpec.describe "the Deploy chapter's BluebookDiff", :io do
   BASH
 
   before(:all) do
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
+    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
   end
 
   # A scratch project for each example, named by `dir`: it holds the stand-in script unless the
@@ -71,8 +71,8 @@ RSpec.describe "the Deploy chapter's BluebookDiff", :io do
     settings = { "STUB_DIR" => dir }.merge(env)
     saved = ENV.to_h.slice(*settings.keys)
     ENV.update(settings)
-    out, status = Hecks::Doors::CliRunner.call(runtime: @hecks, program: "hecks",
-                                               argv: ["deploy", "bluebook_diff.run", dir, *argv, "--wait"])
+    out, status = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks",
+                                                           argv: ["deploy", "bluebook_diff.run", dir, *argv, "--wait"])
     [JSON.parse(out), status]
   ensure
     settings.each_key { |key| saved.key?(key) ? ENV[key] = saved[key] : ENV.delete(key) }
@@ -195,7 +195,7 @@ RSpec.describe "the Deploy chapter's BluebookDiff", :io do
 
     it "lists the reports that found a change" do
       diff(env: { "STUB_DIFF" => "moved" })
-      out, = Hecks::Doors::CliRunner.call(runtime: @hecks, program: "hecks", argv: %w[deploy bluebook_diff.changed])
+      out, = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks", argv: %w[deploy bluebook_diff.changed])
 
       expect(JSON.parse(out).map { |row| row["status"] }).to include("changed")
     end

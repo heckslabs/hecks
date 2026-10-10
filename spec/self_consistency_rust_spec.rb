@@ -4,7 +4,7 @@ require "hecks/fuzzing/self_consistency"
 require_relative "support/rust_conformance_helpers"
 
 # The Rust-side half of `Hecks::Fuzzing::SelfConsistency` (rehydration and idempotency checks
-# against the binary's `"seed"` door). Both checks stay clean on a real binary and fire on the
+# against the binary's `"seed"` entry point). Both checks stay clean on a real binary and fire on the
 # deliberately buggy `spec/fixtures/self_consistency_rust_fixture/` crate.
 class Differ
   include RustConformanceHelpers
@@ -74,7 +74,7 @@ RSpec.describe "Hecks::Fuzzing::SelfConsistency (Rust side)", :io do
     expect(idempotency_findings(binary, live)).to be_empty
   end
 
-  it "fires check_rust_rehydration against a binary whose seed door is genuinely broken", :aggregate_failures do
+  it "fires check_rust_rehydration against a binary whose seed entry point is genuinely broken", :aggregate_failures do
     binary, live = broken_fixture_live
     findings = rehydration_findings(binary, live)
 

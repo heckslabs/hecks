@@ -348,7 +348,7 @@ runtime.registry.bluebook("BluebookReference").classification  # => "generic"
 
 Opens the thing with identity in this domain — `identified_by`, its `attribute`s, `command`s, and lifecycle. See the Aggregate reference page for the full vocabulary inside.
 
-Every aggregate a chapter opens becomes a door of its own, named after
+Every aggregate a chapter opens becomes an entry point of its own, named after
 the chapter:
 
 ```ruby

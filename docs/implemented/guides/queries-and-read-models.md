@@ -174,7 +174,7 @@ runtime.query("Banking::Account.OpenForSuspendedCustomers").map { |row| row[:num
 what keeps them out, not `status`, since all four (well, the two still
 open) would otherwise pass the local half of this ask too. The hop
 segment's own name — `customer` — is the exact word `account.customer`
-would hydrate to as a Ruby accessor (`Doors::Handle`'s own reference
+would hydrate to as a Ruby accessor (`Adapters::Driving::Handle`'s own reference
 accessors): one rule names both.
 
 The hop is EXISTENTIAL — worth stating precisely, since it's the one

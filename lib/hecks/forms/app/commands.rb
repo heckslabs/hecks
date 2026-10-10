@@ -1,13 +1,14 @@
 require "json"
 require_relative "../command_form_renderer"
 require_relative "../params"
-require_relative "../../doors/command_request"
-require_relative "../../doors/json_door"
+require_relative "../../adapters/driving/command_request"
+require_relative "../../adapters/driving/json"
 
 module Hecks
   module Forms
     class App
-      # The command routes of `Forms::App`: the form, its submission, and the JSON door to the same
+      # The command routes of `Forms::App`: the form, its submission, and the JSON adapter to the
+      # same
       # dispatch.
       module Commands
         private
@@ -63,7 +64,7 @@ module Hecks
         def verb_name(domain, aggregate, verb) = "#{domain}::#{aggregate.hecks_name}.#{verb.hecks_name}"
 
         def command_envelope(command, args)
-          Doors::CommandRequest.normalize(args, receiver: command_receiver(command), legacy_receiver: :id)
+          Adapters::Driving::CommandRequest.normalize(args, receiver: command_receiver(command), legacy_receiver: :id)
         end
 
         def command_receiver(command) = command.creates? ? nil : :aggregate
@@ -78,9 +79,9 @@ module Hecks
         end
 
         def submitted_json(request, command)
-          raw = Doors::JsonDoor.parse(request.body.read)
-          envelope = Doors::JsonDoor.command_request(raw, receiver:        command_receiver(command),
-                                                          legacy_receiver: :id)
+          raw = Adapters::Driving::Json.parse(request.body.read)
+          envelope = Adapters::Driving::Json.command_request(raw, receiver:        command_receiver(command),
+                                                                  legacy_receiver: :id)
           [raw, envelope]
         end
 

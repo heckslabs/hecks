@@ -105,7 +105,7 @@ inline `# =>` assertion convention; full guide set this pass.
 
 ## Guides to write — docs/implemented/guides/ (all doctested unless noted)
 
-1. `getting-started.md` — first bluebook, Memory boot, the door, bin/console
+1. `getting-started.md` — first bluebook, Memory boot, the entry point, bin/console
 2. `aggregates-and-value-objects.md` — identified_by (incl. composite),
    attribute (default:/optional:/pattern:/admits:), value_object, invariant,
    one_of/member (incl. the nested-VO inline-one_of trap), list_of, references

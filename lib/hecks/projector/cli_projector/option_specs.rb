@@ -29,7 +29,7 @@ module Hecks
         # One option per field of a value object, recursing into a field that is itself one.
         #
         # The list flag rides on each leaf: without it a repeated flag overwrote the
-        # leaf silently, and CliDoor only ever sees a path and a spec.
+        # leaf silently, and Cli only ever sees a path and a spec.
         def leaf_options(value_object, aggregate, path, optional)
           value_object.attributes.flat_map do |field|
             nested = value_object_for(field, value_object, aggregate)

@@ -14,8 +14,8 @@ require "fileutils"
 # - **plain**: a domain that did not opt in keeps today's `command name=value` calls, refusals
 #   that print their reason and exit 1, and `--help`.
 # - **opted in**: a `launcher` world setting adds aliases, `--wait`, `--confirm` and run keys.
-# - **2.9**: the text the 2.9 generator wrote names `Hecks::Doors::CliRunner` and
-#   `install_doors: false`, and runs unchanged against the current runtime.
+# - **2.9**: the text the 2.9 generator wrote names `Hecks::Adapters::Driving::CliRunner` and
+#   `install_driving: false`, and runs unchanged against the current runtime.
 RSpec.describe "client launcher smoke" do
   # The launcher the 2.9 generator wrote for a domain at `pizzas/`, byte for byte.
   PRE_3_0_LAUNCHER = <<~RUBY.freeze
@@ -35,12 +35,12 @@ RSpec.describe "client launcher smoke" do
     require "hecks"
 
     runtime = begin
-      Hecks.boot(__dir__, install_doors: false)
+      Hecks.boot(__dir__, install_driving: false)
     rescue StandardError => e
       abort "cannot open Pizzas: \#{e.message.lines.first.strip}"
     end
 
-    text, status = Hecks::Doors::CliRunner.call(
+    text, status = Hecks::Adapters::Driving::CliRunner.call(
       runtime: runtime, argv: ARGV, program: "pizzas/pizzas"
     )
     status.zero? ? puts(text) : abort(text)
@@ -257,7 +257,7 @@ RSpec.describe "client launcher smoke" do
     it "embeds the names a Facade rename must keep answering" do
       text = File.read(File.join(@old_root, "pizzas/pizzas"))
 
-      expect(text).to include("Hecks::Doors::CliRunner.call", "install_doors: false")
+      expect(text).to include("Hecks::Adapters::Driving::CliRunner.call", "install_driving: false")
     end
 
     it_behaves_like "today's forms", :@old

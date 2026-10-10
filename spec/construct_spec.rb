@@ -236,7 +236,7 @@ RSpec.describe "a construct's identity" do
       Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
     end
 
-    # The registry keeps a chapter table because the top-level door cannot install over names
+    # The registry keeps a chapter table because the top-level entry point cannot install over names
     # Ruby already owns: `Namespace.install` warns and keeps the existing constant.
     it "cannot be indexed by Ruby's constants, because top-level names are not ours", :aggregate_failures do
       registry = Hecks::Runtime::Registry.new

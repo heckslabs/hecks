@@ -14,7 +14,7 @@ Every planned, proposed, and not-yet-built feature collected across hecks's impl
 
 The clearest signal in the whole tree is the survey's own closing pick — an explicit "if we build three." Everything else here ranks by how concretely it's scoped and how much else depends on it.
 
-1. **A universal dispatch MCP door** — `dispatch / query / state / catalog / describe / validate`, every call carrying a required `summary`. `hecks run` and the `Facade` already exist to project it from.
+1. **A universal dispatch MCP server** — `dispatch / query / state / catalog / describe / validate`, every call carrying a required `summary`. `hecks run` and the `Facade` already exist to project it from.
 2. **`follow` + `SourceTag`** — persist the dispatch stream already emitted (event log plus caller kind: process-manager / operator / hook / sidequest-agent / cascade / daemon), add a JSONL tail and a `hecks follow`.
 3. **Drivers** — `driving on interval | cron | clock` in the hecksagon DSL, projected to a Makefile/Procfile target. An older, separate project that is also called hecks (see the editor's note in the survey linked below) was blocked on this.
 
@@ -35,7 +35,7 @@ The clearest signal in the whole tree is the survey's own closing pick — an ex
 
 ### Storehouse, ranked
 
-1. **Universal MCP door, three zoom levels.** Ten tools (`dispatch, query, state, catalog, describe_aggregate, list_aggregates, validate, macrophage_check, behaviors, conceive_behaviors`), no per-command wrappers. hecks has only a 3-tool query-IR MCP.
+1. **Universal MCP server, three zoom levels.** Ten tools (`dispatch, query, state, catalog, describe_aggregate, list_aggregates, validate, macrophage_check, behaviors, conceive_behaviors`), no per-command wrappers. hecks has only a 3-tool query-IR MCP.
 2. **`follow`.** A live, cross-process tail of every dispatch, feeding both an MCP resource and a queryable `StorehouseEntry` domain. hecks has only after-the-fact `hecks history`.
 3. **Drivers.** Inbound clocks (`interval | cron | clock`) declared in the hecksagon, projected to a Procfile — out-of-process by construction, so a dead clock stalls only its own task. hecks's DSL has no inbound-scheduling concept at all.
 4. **`SourceTag`.** A closed enum of dispatcher provenance. Cheap to add.

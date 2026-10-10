@@ -1089,8 +1089,8 @@ mod tests {
     }
 
     #[test]
-    fn a_record_that_does_not_exist_refuses_with_json_doors_own_wording() {
-        // `JSON_DOOR.find!`'s own message, `id` inspected the way Ruby
+    fn a_record_that_does_not_exist_refuses_with_json_adapters_own_wording() {
+        // `JSON_ADAPTER.find!`'s own message, `id` inspected the way Ruby
         // inspects it.
         let refusal = not_found(&format!("no {} found for id {:?}", "Client", "acme"));
         assert_eq!(body(&refusal), json!({"error": "NotFound", "message": "no Client found for id \"acme\""}));
@@ -1590,7 +1590,7 @@ mod tests {
         assert!(!refused["message"].as_str().expect("a message").is_empty(), "{refused}");
 
         // An unknown command, and an unknown record, both refuse the
-        // way JsonDoor refuses them.
+        // way Json refuses them.
         let unknown_command =
             command_route(&ir, "customers", "CUST-9001", "nope", "", &client, &wasm, &lineage, &invoker).await;
         assert_eq!(unknown_command["statusCode"], 404);

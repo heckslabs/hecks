@@ -3,8 +3,8 @@ require "json"
 require "fileutils"
 require "time"
 require_relative "cache_dir"
-require_relative "doors/command_request"
-require_relative "doors/json_door"
+require_relative "adapters/driving/command_request"
+require_relative "adapters/driving/json"
 require_relative "naming"
 require_relative "projector"
 require_relative "runtime/errors"
@@ -55,7 +55,7 @@ module Hecks
             "own root (HECKS_STOREHOUSE_ROOT to widen it)"
     end
 
-    # The one bluebook this runtime booted; every whole-domain door assumes
+    # The one bluebook this runtime booted; every whole-domain entry point assumes
     # the same one-bluebook-per-boot shape.
     # :nodoc:
     def bluebook_for(runtime)
@@ -137,7 +137,7 @@ module Hecks
     def audit_fields(request) = request.to_h.slice(:summary, :source, :role, :actor_id)
 
     # dry_run? (Runtime::Dispatcher) only understands the pre-envelope flat
-    # args shape; this is the one door back into it from dispatch's own envelope.
+    # args shape; this is the one entry point back into it from dispatch's own envelope.
     # :nodoc:
     def flatten_legacy(envelope, receiver, legacy_receiver)
       facts = envelope[:with] || {}

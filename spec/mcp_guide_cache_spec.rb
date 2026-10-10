@@ -2,15 +2,15 @@ require "spec_helper"
 require "tmpdir"
 require "fileutils"
 
-# The command guide a commands door builds is remembered, so a restart does not boot the domain
+# The command guide a commands server builds is remembered, so a restart does not boot the domain
 # to describe its commands, and a changed domain or an untrusted file never serves a stale or
 # forged one.
-RSpec.describe Hecks::Doors::McpGuideCache do
+RSpec.describe Hecks::Adapters::Driving::McpGuideCache do
   let(:cache_dir) { Dir.mktmpdir("guide-cache").tap { |dir| File.chmod(0o700, dir) } }
   let(:domain)    { Dir.mktmpdir("guide-domain").tap { |dir| File.write(File.join(dir, "d.bluebook"), "x") } }
   let(:guide)     { ["a.b (role Chef): does a thing. Arguments: name*"] }
 
-  before { allow(Hecks::CacheDir).to receive(:path).with("mcp_door_guides").and_return(cache_dir) }
+  before { allow(Hecks::CacheDir).to receive(:path).with("mcp_guides").and_return(cache_dir) }
 
   after { FileUtils.rm_rf([cache_dir, domain]) }
 

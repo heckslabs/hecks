@@ -23,7 +23,7 @@ module Hecks
         def initialize(path, aggregates:, kind:)
           raise Runtime::NotFound, "no such domain #{path.inspect}" unless Dir.exist?(path.to_s)
 
-          @registry = Hecks.boot(File.expand_path(path), install_doors: false).registry
+          @registry = Hecks.boot(File.expand_path(path), install_driving: false).registry
           @wanted = aggregates
           @kind = kind
         end

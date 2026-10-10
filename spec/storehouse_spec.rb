@@ -2,9 +2,9 @@ require "spec_helper"
 require "hecks/ports/persistence/plugins/era"
 
 # Storehouse's dispatch/query/state/etc. reuse the same machinery
-# `CliRunner`/`Doors::JsonDoor` already use, so these specs prove
+# `CliRunner`/`Adapters::Driving::Json` already use, so these specs prove
 # composition, not verb resolution or JSON materialization from scratch.
-# `hecks mcp` is one door onto this bus, not the bus itself.
+# `hecks mcp` is one server onto this bus, not the bus itself.
 RSpec.describe Hecks::Storehouse do
   # The audit log is real disk state keyed only by domain name, so a fresh
   # in-memory `runtime` per example is not a fresh log. Each example gets
@@ -360,7 +360,7 @@ RSpec.describe Hecks::Storehouse do
       expect(result).to eq(ok: true, domain: "Pizzas", entries: [])
     end
 
-    it "tails dispatch/query/state calls made through this door, in order", :aggregate_failures do
+    it "tails dispatch/query/state calls made through this server, in order", :aggregate_failures do
       result = follow_after_three_calls
 
       expect(result[:ok]).to be true
@@ -561,7 +561,7 @@ RSpec.describe Hecks::Storehouse do
       expect(result).to eq(ok: true, domain: "Pizzas", events: [])
     end
 
-    it "answers the events a real dispatch announced, sourced from this door's own audit log", :aggregate_failures do
+    it "answers the events a real dispatch announced, sourced from this server's own audit log", :aggregate_failures do
       create_pizza
 
       result = described_class.events(runtime: runtime, aggregate: "Order", id: "Margherita")

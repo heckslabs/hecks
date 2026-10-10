@@ -27,7 +27,7 @@ RSpec.describe "hecks compact_heki" do
   end
 
   def seed_gadget(bluebook_dir, writes: 5)
-    runtime    = Hecks.boot(bluebook_dir, install_doors: false)
+    runtime    = Hecks.boot(bluebook_dir, install_driving: false)
     registry   = runtime.registry
     aggregate  = registry.bluebook("HekiCompactFixture").aggregate("Gadget")
     repository = registry.repository("HekiCompactFixture", aggregate)
@@ -56,7 +56,7 @@ RSpec.describe "hecks compact_heki" do
   def journal_path = File.join(@dir, "data", "gadget.heki.journal")
 
   def gadget_repository(bluebook_dir)
-    runtime = Hecks.boot(bluebook_dir, install_doors: false)
+    runtime = Hecks.boot(bluebook_dir, install_driving: false)
     aggregate = runtime.registry.bluebook("HekiCompactFixture").aggregate("Gadget")
     runtime.registry.repository("HekiCompactFixture", aggregate)
   end

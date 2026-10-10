@@ -9,7 +9,7 @@ RSpec.describe "exe/hecks" do
   let(:root) { File.expand_path("..", __dir__) }
 
   before(:all) do
-    @hecks = Hecks.boot(File.join(File.expand_path("..", __dir__), "lib/hecks/hecks"), install_doors: false)
+    @hecks = Hecks.boot(File.join(File.expand_path("..", __dir__), "lib/hecks/hecks"), install_driving: false)
     names  = { "mcp" => "serve_mcp", "console" => "open_console" }
     options = { program: "hecks", names: names }
     @cli    = Hecks::Projector.call(:cli, bluebook: @hecks.registry.bluebook("Hecks"), options: options)
@@ -33,7 +33,7 @@ RSpec.describe "exe/hecks" do
   # The names, outside the shipped ones, whose `--help` the launcher does not answer.
   def unanswered(names)
     (names - Hecks::CLI::COMMANDS.keys).reject do |name|
-      _out, status = Hecks::Doors::CliRunner.call(runtime: @hecks, argv: [name, "--help"], program: "hecks")
+      _out, status = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, argv: [name, "--help"], program: "hecks")
       status.zero?
     end
   end

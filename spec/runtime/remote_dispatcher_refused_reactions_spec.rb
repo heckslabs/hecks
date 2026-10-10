@@ -73,7 +73,7 @@ RSpec.describe Hecks::Runtime::RemoteDispatcher do
   it "lets the launcher name the refusal for a remote result" do
     result = result_for([[refused_reaction("Gate", "D::Admit", "no")]])
 
-    expect(Hecks::Doors::CliRunner.refused_answer(result))
+    expect(Hecks::Adapters::Driving::CliRunner.refused_answer(result))
       .to eq(refused_reactions: [{ policy: "Gate", trigger: "D::Admit", reason: "no" }])
   end
 
@@ -89,8 +89,8 @@ RSpec.describe Hecks::Runtime::RemoteDispatcher do
       blocked = result_for([[accept_reaction]])
       benign  = result_for([[match_reaction, drift_reaction]])
 
-      expect(Hecks::Doors::CliRunner.blocked?(blocked)).to be(true)
-      expect(Hecks::Doors::CliRunner.blocked?(benign)).to be(false)
+      expect(Hecks::Adapters::Driving::CliRunner.blocked?(blocked)).to be(true)
+      expect(Hecks::Adapters::Driving::CliRunner.blocked?(benign)).to be(false)
     end
   end
 end

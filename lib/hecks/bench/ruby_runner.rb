@@ -35,7 +35,7 @@ module Hecks
       def boot(workload, adapter, schema)
         Hecks::Fuzzing::IsolatedBoot.call(workload.domain_path, adapter: adapter, database: DATABASE,
                                           schema: schema, scratch: { database: DATABASE, schema: schema }) do |copy|
-          yield Hecks.boot(copy, install_doors: false)
+          yield Hecks.boot(copy, install_driving: false)
         end
       end
 

@@ -40,7 +40,7 @@ RSpec.describe "watching a lane" do
   before do
     File.write(File.join(root, "hecks.gemspec"), "")
     FileUtils.mkdir_p(File.join(root, "lib"))
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
+    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
     Hecks::Adapters::Codebase::Tree.root = root
     Hecks::Adapters::Codebase::Promotion.clock = -> { now }
   end
@@ -52,7 +52,7 @@ RSpec.describe "watching a lane" do
   end
 
   def launch(*argv)
-    Hecks::Doors::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks")
+    Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks")
   end
 
   # Watches `stable` while its oldest unpromoted commit is `hours` old; nil hours is nothing to promote.

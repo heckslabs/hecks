@@ -121,7 +121,7 @@ Hecks.bluebook "Bluebook" do
       goal "Attach one where-clause to the query"
 
       attribute :field, QueryText
-      # The same word at the same door — see Command.Change.op.
+      # The same word at the same entry point — see Command.Change.op.
       attribute :op,    QueryText, admits: "Vocabulary::QueryComparator"
       attribute :value, QueryText
 

@@ -38,8 +38,8 @@ RSpec.describe "the Hecks domain journals to PostgresEra", :io do
 
   LAUNCH_SCRIPT = <<~RUBY.freeze
     require "hecks"
-    runtime = Hecks.boot(File.join(ARGV.fetch(0), "lib/hecks/hecks"), install_doors: false)
-    text, status = Hecks::Doors::CliRunner.call(runtime: runtime, argv: ARGV.drop(1), program: "hecks")
+    runtime = Hecks.boot(File.join(ARGV.fetch(0), "lib/hecks/hecks"), install_driving: false)
+    text, status = Hecks::Adapters::Driving::CliRunner.call(runtime: runtime, argv: ARGV.drop(1), program: "hecks")
     puts text
     exit status
   RUBY

@@ -188,7 +188,7 @@ RSpec.describe "a query answered by a port the hecksagon binds" do
 
   def boot_domain(**options)
     write_domain(@dir, **options)
-    Hecks.boot(@dir, install_doors: false)
+    Hecks.boot(@dir, install_driving: false)
   end
 
   # The bluebook with `returns Heard` swapped for another line of Echo's body.
@@ -435,7 +435,7 @@ RSpec.describe "a query answered by a port the hecksagon binds" do
     it "refuses an adapter whose constructor requires arguments, since it is built with none" do
       write_domain_with_constructor("def initialize(token)")
 
-      expect { Hecks.boot(@dir, install_doors: false) }
+      expect { Hecks.boot(@dir, install_driving: false) }
         .to raise_error(Hecks::Runtime::WiringError, /constructor requires token/)
     end
 

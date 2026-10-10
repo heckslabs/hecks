@@ -160,9 +160,9 @@ fn tmpl_emit_placeholder() -> &'static str {
     ""
 }
 
-// `delegates_to "Entity.Command"`: the door runs `apply_entity_command` inside its closure.
+// `delegates_to "Entity.Command"`: the entry point runs `apply_entity_command` inside its closure.
 // `delegate_prelude` fills the prelude slot; `delegate_apply` fills the mutation slot.
-// The inner `|record|` deliberately shadows the door's: entity `sets` only reach the element.
+// The inner `|record|` deliberately shadows the entry point's: entity `sets` only reach the element.
 fn tmpl_aliases_placeholder() -> (&'static str, &'static str) {
     ("", "")
 }

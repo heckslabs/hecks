@@ -4,7 +4,7 @@ require "spec_helper"
 # the one place they are written; the launcher behind it holds no copy.
 RSpec.describe "stress_concurrency's declared defaults" do
   before(:all) do
-    @runtime = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
+    @runtime = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
   end
 
   let(:command) do
@@ -24,8 +24,8 @@ RSpec.describe "stress_concurrency's declared defaults" do
   end
 
   it "shows the defaults in the command's own help", :aggregate_failures do
-    help = Hecks::Doors::CliRunner.call(runtime: @runtime, argv: %w[test_suite_run.stress_concurrency --help],
-                                        program: "hecks").first
+    help = Hecks::Adapters::Driving::CliRunner.call(runtime: @runtime, argv: %w[test_suite_run.stress_concurrency --help],
+                                                    program: "hecks").first
 
     expect(help).to match(/runs\.value\s+Integer; defaults to 30; optional/)
     expect(help).to match(/seed_start\.value\s+Integer; defaults to 1; optional/)

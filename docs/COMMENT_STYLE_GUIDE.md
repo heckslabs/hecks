@@ -137,7 +137,7 @@ The one routine use of bold is a paragraph's heading phrase, the short
 lead-in before a dash or full stop:
 
 ```ruby
-# **The bus, not a door** — every call goes through here.
+# **The bus, not an entry point** — every call goes through here.
 ```
 
 Emphasis on a single word in running prose is normally just dropped. Keep it,

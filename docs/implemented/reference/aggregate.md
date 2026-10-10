@@ -210,7 +210,7 @@ Banking::SafeDepositBox.ir.identity_heads  # => [:branch_code, :box_number]
 | `optional:` | flag | false | optional |
 <!-- generated:end -->
 
-Points at another aggregate by id, not by object — the STORED field holds a bare id string, and handing it a nested value instead is refused at the door. Mints an attribute named for the target's own bare name by default (`customer`, no `_id`), or whatever `as:` names. The door's own accessor of the same name hydrates it — reads the bare id and finds the record it names — which is why a reference needs no separate "get me the real one" method.
+Points at another aggregate by id, not by object — the STORED field holds a bare id string, and handing it a nested value instead is refused at the entry point. Mints an attribute named for the target's own bare name by default (`customer`, no `_id`), or whatever `as:` names. The entry point's own accessor of the same name hydrates it — reads the bare id and finds the record it names — which is why a reference needs no separate "get me the real one" method.
 
 `film` (above) points at `Studio` twice — `as:` is the only thing that
 kept `financier` and `distributor` from colliding on the same field:
@@ -343,9 +343,9 @@ Banking::Account.ir.entities.map(&:hecks_name)  # => ["LedgerEntry"]
 Declares a read over this aggregate's own fields. See the Query context page for `where`, ordering, and the dotted-path rules.
 
 Declared here, dispatched as `Domain::Aggregate.query_name` through
-`runtime.query`, or as a bare door method of the same snake_case name.
+`runtime.query`, or as a bare entry point method of the same snake_case name.
 `Account` declares a QUERY named "Open" alongside its CREATING command
-of the same name, and the two never collide: a command's own door
+of the same name, and the two never collide: a command's own entry point
 method always ends in `!` (`open!` created the `account` this page has
 been using throughout), leaving the bare name free for the query:
 
@@ -429,7 +429,7 @@ context page's own "single-attribute rule" section
 
 Opens what this aggregate may be asked to do — what it needs, what it refuses, and what it emits. See the Command context page for the full vocabulary.
 
-Each one becomes a verb on the door, creating or acting depending on
+Each one becomes a verb on the entry point, creating or acting depending on
 what it references:
 
 ```ruby

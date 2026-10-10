@@ -24,7 +24,7 @@ module Hecks
           record = { process_manager: process_manager.name, instance: correlation, dispatch: spec.command_name }
 
           log_dispatch_inputs(leg, spec, args) unless spec.with_spec.to_a.empty?
-          return refuse_at_depth_ceiling(leg, record) if @door.reaction_depth_reached?
+          return refuse_at_depth_ceiling(leg, record) if @dispatcher.reaction_depth_reached?
 
           attempt_dispatch(leg, spec, args, record)
         end
@@ -46,7 +46,7 @@ module Hecks
         # it unwinds like a refusal rather than stranding the instance.
         def refuse_at_depth_ceiling(leg, record)
           @registry.saga_log << record.merge(delivered: false,
-                                             reason:    "reaction depth #{@door.max_reaction_depth} reached")
+                                             reason:    "reaction depth #{@dispatcher.max_reaction_depth} reached")
           unwind(leg)
         end
 
@@ -95,14 +95,14 @@ module Hecks
           nil
         end
 
-        # Dispatches `command_name` through the door, stamped with this saga's correlation.
+        # Dispatches `command_name` through the dispatcher, stamped with this saga's correlation.
         def reenter_command(leg, command_name, projected, explicit:, source_receiver:)
           head = leg.process_manager.correlation_head
           verb = qualified(command_name, leg.domain)
           invocation = ReactionInvocation.build(registry: @registry, verb: verb, projected: projected,
                                                 explicit: explicit, passthrough: [head],
                                                 source_receiver: source_receiver)
-          @door.reenter(verb, saga_correlation: { head.to_s => leg.correlation }, **invocation)
+          @dispatcher.reenter(verb, saga_correlation: { head.to_s => leg.correlation }, **invocation)
         end
 
         # Unlike a refusal, a crash isn't a domain decision, so it

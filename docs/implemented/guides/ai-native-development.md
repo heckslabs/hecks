@@ -7,7 +7,7 @@ narrower, checked surface to operate on than one editing an arbitrary
 codebase, and a real, tested way to operate on it without shelling out
 to ad hoc scripts.
 
-## The storehouse door
+## The storehouse entry point
 
 `hecks mcp` (backed by `Hecks::Storehouse`,
 `lib/hecks/storehouse.rb`, tested by `spec/storehouse_spec.rb`) is an
@@ -73,7 +73,7 @@ read-only sibling exposing structural queries over the language itself
 business domain. Both speak MCP over stdio only and refuse to start
 otherwise (`Hecks::McpStdioGuard`: no network argument or `HECKS_MCP_*`
 option, no IP socket as stdin or stdout), and both print an identity
-warning on stderr at startup. The door is unauthenticated beyond the
+warning on stderr at startup. The entry point is unauthenticated beyond the
 caller-asserted `role`/`actor_id` above, and its readers (`state`,
 `events`, `history`, `follow`, `describe`, `catalog`) take no identity;
 the query-IR server asks for none. Neither should be exposed over a

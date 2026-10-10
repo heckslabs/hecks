@@ -145,7 +145,7 @@ RSpec.describe "environment overlays and vendored bluebooks" do
       write_overlaid(GOVERNED_HECKSAGON)
       write(dir, "environments/production.hecksagon", SUBSCRIBE_OVERLAY)
 
-      hecksagon = Hecks.boot(dir, environment: "production", install_doors: false).registry.hecksagon("Overlaid")
+      hecksagon = Hecks.boot(dir, environment: "production", install_driving: false).registry.hecksagon("Overlaid")
 
       expect(hecksagon.subscriptions).to eq(["SomeOutsideEvent"])
       expect(hecksagon.bind_for("Thing", "persisted_by").adapter).to eq("Memory")
@@ -176,7 +176,7 @@ RSpec.describe "environment overlays and vendored bluebooks" do
       write_overlaid(GOVERNED_HECKSAGON)
       write_worlds
 
-      world = Hecks.boot(dir, environment: "production", install_doors: false).registry.world("Overlaid")
+      world = Hecks.boot(dir, environment: "production", install_driving: false).registry.world("Overlaid")
 
       expect(world.realm).to eq("Overlaid")
       expect(world.for_verb("posted_by")).to include(adapter: "Carrier", office: "EC1")
@@ -193,7 +193,7 @@ RSpec.describe "environment overlays and vendored bluebooks" do
     it "loads every .bluebook file a vendored package declares, sorted, from the registry's own root", :aggregate_failures do
       write_vendored_widgets
 
-      dispatcher = Hecks.boot(File.join(dir, "bluebook"), install_doors: false)
+      dispatcher = Hecks.boot(File.join(dir, "bluebook"), install_driving: false)
 
       expect(dispatcher.registry.bluebook("Widgets")).not_to be_nil
       expect(dispatcher.registry.hecksagon("Widgets").vendored_packages).to eq(["widgets"])

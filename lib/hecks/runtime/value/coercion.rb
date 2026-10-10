@@ -37,9 +37,9 @@ module Hecks
         # Coerces `value` for a single, already-resolved `attribute`, branching on
         # its declared shape (list, reference, composite, or bare scalar).
         #
-        # `boundary: false` is the query door, where a declared type documents the
+        # `boundary: false` is the query entry point, where a declared type documents the
         # argument for callers/generators rather than naming a shape to enforce.
-        # `argument: true` is the command/entity/port dispatch door, where a nil for
+        # `argument: true` is the command/entity/port dispatch entry point, where a nil for
         # a required attribute is a left-empty argument (C3.7), not ordinary state nil.
         #
         # @raise [Runtime::TypeMismatch] if `value` cannot be coerced, or a required

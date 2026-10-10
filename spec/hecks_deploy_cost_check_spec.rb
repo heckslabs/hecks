@@ -6,7 +6,7 @@ require "json"
 # `aws` is stubbed, so the readings here are what the stub returns and nothing reaches AWS.
 RSpec.describe "the Deploy chapter's CostCheck" do
   before(:all) do
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
+    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
   end
 
   let(:ok)  { instance_double(Process::Status, success?: true) }
@@ -22,8 +22,8 @@ RSpec.describe "the Deploy chapter's CostCheck" do
   end
 
   def run_check(*argv)
-    out, status = Hecks::Doors::CliRunner.call(runtime: @hecks, program: "hecks",
-                                               argv: ["deploy", "cost_check.check", *argv, "--wait"])
+    out, status = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks",
+                                                           argv: ["deploy", "cost_check.check", *argv, "--wait"])
     [JSON.parse(out), status]
   end
 
@@ -64,8 +64,8 @@ RSpec.describe "the Deploy chapter's CostCheck" do
   end
 
   def refusal_for(argv)
-    Hecks::Doors::CliRunner.call(runtime: @hecks, program: "hecks",
-                                 argv: ["deploy", "cost_check.check", *argv, "--wait"])
+    Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks",
+                                             argv: ["deploy", "cost_check.check", *argv, "--wait"])
   end
 
   def expect_refused(argv, message)

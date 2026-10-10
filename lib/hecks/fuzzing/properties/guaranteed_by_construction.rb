@@ -9,17 +9,17 @@ module Hecks
       # in the other direction).
       GUARANTEED_BY_CONSTRUCTION = {
         "Aggregate#attributes"    => "every field's pattern/closed-set/type passes through Value.build's one coercion " \
-                                     "door (value/coercion.rb#check_patterns, value/admission.rb) before it can exist " \
+                                     "entry point (value/coercion.rb#check_patterns, value/admission.rb) before it can exist " \
                                      "— a stored value that violated its own declared shape was never producible to " \
                                      "begin with",
-        "Aggregate#value_objects" => "the shape being coerced above — same door, same guarantee",
+        "Aggregate#value_objects" => "the shape being coerced above — same entry point, same guarantee",
         # S17, ADR 0026 — saga_advances_follow_declared_handlers already walks
-        # this list to find event_type/from_state/to_state; same door, same guarantee.
+        # this list to find event_type/from_state/to_state; same entry point, same guarantee.
         "ProcessManager#handlers" => "saga_advances_follow_declared_handlers already walks this list to find " \
-                                     "event_type/from_state/to_state — same door, same guarantee",
+                                     "event_type/from_state/to_state — same entry point, same guarantee",
         "Aggregate#identified_by" => "CommandInterpreter's data-driven dispatch order refuses AlreadyExists " \
                                      "(command_interpreter.rb, command.creates?) for every creating command uniformly, " \
-                                     "before a duplicate id can ever be stored — collision is refused at the door, not " \
+                                     "before a duplicate id can ever be stored — collision is refused at the entry point, not " \
                                      "produced and later caught",
         "Entity#identified_by"    => "EntityElement.check_entity_collision (runtime/entity_element.rb, moved there " \
                                      "BUG#145 so both call sites share it) checks Array(current) against every part " \
@@ -33,17 +33,17 @@ module Hecks
                                      "(current.size + 1 can't repeat unless something remove:s from the list between " \
                                      "mints, which no real domain does today — see the comment on #entity_element " \
                                      "itself)",
-        "Command#attributes"      => "command arguments are coerced through the SAME Value.build door as any other " \
+        "Command#attributes"      => "command arguments are coerced through the SAME Value.build entry point as any other " \
                                      "attribute — an accepted dispatch's own args already passed pattern/admits/invariant checks",
         "Command#emits"           => "CommandRules::Emission#emit iterates command.emits ITSELF to construct every " \
                                      "announced Event (command_rules/emission.rb) — there is no other path to emit, so " \
                                      "a command can never announce a name its own declaration doesn't list",
-        "Query#attributes"        => "query arguments are coerced through the same Value.build door — same guarantee as " \
+        "Query#attributes"        => "query arguments are coerced through the same Value.build entry point — same guarantee as " \
                                      "Command#attributes",
         "Query#returns"           => "every row a port answers is built as the returned value object by Value.build " \
                                      "(QueryInterpreter#shaped) before it enters the domain — an answer of any other " \
                                      "shape is refused, so none can be accepted",
-        "Entity#attributes"       => "same coercion door, one level in — an entity's own attributes are Value-typed exactly " \
+        "Entity#attributes"       => "same coercion path, one level in — an entity's own attributes are Value-typed exactly " \
                                      "the way an aggregate's are",
         "ValueObject#attributes"  => "the shape Value.build enforces IS this declaration — the guarantee and the " \
                                      "feature are the same fact seen from two sides",
@@ -51,12 +51,12 @@ module Hecks
                                      "that pattern-checks a VO's fields — a VO whose invariant did not hold could not " \
                                      "finish being built",
         "ValueObject#rows"        => "closed-set membership is checked in value/admission.rb, the second half of the same " \
-                                     "one construction door",
+                                     "one construction entry point",
         # S17, ADR 0026 — Member is a genuine entity, so this reads Member#pairs,
         # not Member#shape. ValueObject#members is the same fact ValueObject#rows
         # counts, seen from the other side.
-        "ValueObject#members"     => "the members list IS what ValueObject#rows counts — same door, same guarantee",
-        "Member#pairs"            => "one level into ValueObject#rows — same door",
+        "ValueObject#members"     => "the members list IS what ValueObject#rows counts — same entry point, same guarantee",
+        "Member#pairs"            => "one level into ValueObject#rows — same entry point",
         # ADR 0097. A mark reads no runtime state: LifecycleBuilder refuses at build any mark
         # naming a state that is neither the default nor a transition target, so a built
         # lifecycle can never carry a mark that points at a state it does not have.

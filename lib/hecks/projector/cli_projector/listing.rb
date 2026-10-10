@@ -67,7 +67,7 @@ module Hecks
         end
 
         # " (also: mcp!)" for a spec the chapter gave a short name, else nothing. A short name that
-        # is only the command's own name (`init` for `door.init`) is already in the line.
+        # is only the command's own name (`init` for `launch.init`) is already in the line.
         def alias_note(spec)
           return "" if spec[:short_was].nil? || spec[:short_was].split(".").last == spec[:short]
 

@@ -17,7 +17,7 @@ module Hecks
         # Walks `chain` one hop at a time and returns the located element (or `instance`
         # itself when `chain` is empty). `route`, when given, offers each hop's identity
         # before falling back to `args`.
-        # rubocop:disable-next Metrics/ParameterLists -- the positional door EntityInterpreter and delegation call
+        # rubocop:disable-next Metrics/ParameterLists -- the positional entry point EntityInterpreter and delegation call
         def locate_chain(root_aggregate, chain, instance, args, command_name, route = nil)
           container = instance
           owner     = root_aggregate

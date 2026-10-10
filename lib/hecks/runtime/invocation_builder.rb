@@ -18,7 +18,7 @@ module Hecks
       # :entity, :port). Each checks its own parts in a fixed order, because
       # a malformed call's refusal depends on that order; `declaring` is
       # called exactly once, at that shape's point in the order below.
-      # rubocop:disable-next Metrics/ParameterLists -- the public keyword door every dispatch calls
+      # rubocop:disable-next Metrics/ParameterLists -- the public keyword entry point every dispatch calls
       def from_call(verb, to:, with:, flat:, receiver: :aggregate, entity_depth: 0, aggregate: nil, &declaring)
         call = Call.new(verb, to, with, flat, entity_depth, aggregate, declaring)
         case receiver

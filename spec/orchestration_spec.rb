@@ -105,7 +105,7 @@ RSpec.describe "the distance between the builder's graph and the language's" do
   end
 
   it "registers the language's graph, not the one the builder made" do
-    # The door `Hecks.bluebook` registers through returns an object assembled from
+    # The entry point `Hecks.bluebook` registers through returns an object assembled from
     # records, not the one handed in.
     built = load_chapter(ORCHESTRATION_CORPUS.fetch("Pizzas")).bluebook("Pizzas")
 

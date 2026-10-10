@@ -6,7 +6,7 @@ require "socket"
 require "stringio"
 require "tmpdir"
 
-# Process-level checks for the stdio MCP doors (`hecks mcp`, `hecks serve_query_ir_mcp`): what
+# Process-level checks for the stdio MCP servers (`hecks mcp`, `hecks serve_query_ir_mcp`): what
 # they refuse, print, and require of a caller. Each runs as a child whose whole program is the
 # library entry point the verb calls.
 # Identity here is self-asserted only; nothing in this file claims otherwise.
@@ -19,7 +19,7 @@ RSpec.describe "the stdio MCP servers" do
 
   def root = File.expand_path("..", __dir__)
 
-  def door = child_program("mcp")
+  def server = child_program("mcp")
 
   def query_ir = child_program("serve_query_ir_mcp")
 
@@ -47,8 +47,8 @@ RSpec.describe "the stdio MCP servers" do
 
   def payload(result) = JSON.parse(result["content"].first["text"])
 
-  # Runs the `hecks mcp` door over the given requests and answers its results by request id.
-  def door_results(calls, env:) = results_of(run_over_pipes(door, calls, env: env))
+  # Runs the `hecks mcp` server over the given requests and answers its results by request id.
+  def server_results(calls, env:) = results_of(run_over_pipes(server, calls, env: env))
 
   def state_call(id, domain_name) = tool_call(id, "state", { domain: domain_name, aggregate: "Order", summary: "spec" })
 
@@ -148,7 +148,7 @@ RSpec.describe "the stdio MCP servers" do
   end
 
   # Copies the pizzas example under root_dir, rebound from PostgresEra to Memory, so
-  # the door examples below need no database to prove the door's refusals and framing.
+  # the server examples below need no database to prove the server's refusals and framing.
   def memory_pizzas_under(root_dir)
     target = File.join(root_dir, "pizzas")
     FileUtils.cp_r(File.join(root, "examples/pizzas/bluebook"), target)
@@ -159,11 +159,11 @@ RSpec.describe "the stdio MCP servers" do
   end
 
   describe "hecks mcp" do
-    let(:sandbox_root) { Dir.mktmpdir("hecks-mcp-door-root") }
+    let(:sandbox_root) { Dir.mktmpdir("hecks-mcp-root") }
     let(:domain)       { memory_pizzas_under(sandbox_root) }
     let(:run) do
       run_over_pipes(
-        door,
+        server,
         [tool_call(1, "dispatch", { domain: domain, command: "order.create_pizza", summary: "spec", args: {} }),
          tool_call(2, "query", { domain: domain, question: "order.available", summary: "spec" }),
          tool_call(3, "catalog", { domain: "/tmp/outside_the_root" })],
@@ -190,14 +190,14 @@ RSpec.describe "the stdio MCP servers" do
     end
   end
 
-  # Reader mode (ADR 0072 decision 2): a spawner narrows the door to reader tools over the
+  # Reader mode (ADR 0072 decision 2): a spawner narrows the server to reader tools over the
   # domains it names. It limits reach and identifies no one.
   describe "hecks mcp in reader mode" do
-    let(:sandbox_root) { Dir.mktmpdir("hecks-mcp-door-reader") }
+    let(:sandbox_root) { Dir.mktmpdir("hecks-mcp-reader") }
     let(:domain)       { memory_pizzas_under(sandbox_root) }
     let(:marker)       { File.join(sandbox_root, "unnamed-domain-loaded") }
     let(:reader_env) do
-      { "HECKS_STOREHOUSE_ROOT" => sandbox_root, "HECKS_DOOR_TOOLS" => "readers", "HECKS_DOOR_DOMAINS" => domain }
+      { "HECKS_STOREHOUSE_ROOT" => sandbox_root, "HECKS_SERVER_TOOLS" => "readers", "HECKS_SERVER_DOMAINS" => domain }
     end
 
     after { FileUtils.rm_rf(sandbox_root) }
@@ -217,7 +217,7 @@ RSpec.describe "the stdio MCP servers" do
     context "when asked for the tools, catalog, describe and state of a named domain" do
       let(:run) do
         run_over_pipes(
-          door,
+          server,
           [list_request, tool_call(2, "catalog", { domain: domain }), tool_call(3, "describe", { domain: domain }),
            state_call(4, domain)],
           env: reader_env
@@ -233,8 +233,8 @@ RSpec.describe "the stdio MCP servers" do
       end
 
       it "lists only reader tools, and says so on stderr", :aggregate_failures do
-        expect(results_of(run)[1]["tools"].map { |tool| tool["name"] }).to match_array(Hecks::Doors::McpDoorScope::READER_TOOLS)
-        expect(run[:err]).to include("Reader mode (HECKS_DOOR_TOOLS=readers)", "identifies no one")
+        expect(results_of(run)[1]["tools"].map { |tool| tool["name"] }).to match_array(Hecks::Adapters::Driving::McpScope::READER_TOOLS)
+        expect(run[:err]).to include("Reader mode (HECKS_SERVER_TOOLS=readers)", "identifies no one")
         expect(run[:err]).not_to include("anyone who can write to stdin can run it")
       end
     end
@@ -242,63 +242,63 @@ RSpec.describe "the stdio MCP servers" do
     it "refuses dispatch, a dry run and behaviors, naming the mode" do
       calls = [create_pizza_call(1), create_pizza_call(2, dry_run: true), behaviors_call(3)]
 
-      expect_refused(door_results(calls, env: reader_env), [1, 2, 3], "reader mode (HECKS_DOOR_TOOLS=readers)")
+      expect_refused(server_results(calls, env: reader_env), [1, 2, 3], "reader mode (HECKS_SERVER_TOOLS=readers)")
     end
 
     it "refuses a question whose arguments name a path outside the root, or a denied name" do
       calls = [query_call(1, args: { paths: "/etc" }), query_call(2, args: { url: "http://127.0.0.1:1" })]
 
-      expect_refused(door_results(calls, env: reader_env), [1, 2], "argument", "is refused", "reader mode")
+      expect_refused(server_results(calls, env: reader_env), [1, 2], "argument", "is refused", "reader mode")
     end
 
     it "refuses a domain it was not given before loading any of its Ruby", :aggregate_failures do
       other = unnamed_domain
       calls = [tool_call(1, "catalog", { domain: other }), tool_call(2, "validate", { domain: other }), state_call(3, other)]
 
-      expect_refused(door_results(calls, env: reader_env), [1, 2, 3], "is refused", "reader mode")
+      expect_refused(server_results(calls, env: reader_env), [1, 2, 3], "is refused", "reader mode")
       expect(File).not_to exist(marker)
     end
 
-    it "loads that same domain on an unrestricted door, which is what the refusal above prevents" do
+    it "loads that same domain on an unrestricted server, which is what the refusal above prevents" do
       other = unnamed_domain
-      run_over_pipes(door, [tool_call(1, "catalog", { domain: other })],
+      run_over_pipes(server, [tool_call(1, "catalog", { domain: other })],
                      env: { "HECKS_STOREHOUSE_ROOT" => sandbox_root })
 
       expect(File).to exist(marker)
     end
 
     {
-      "an unknown mode"                 => { "HECKS_DOOR_TOOLS" => "all", "HECKS_DOOR_DOMAINS" => "pizzas" },
-      "reader mode with no domains"     => { "HECKS_DOOR_TOOLS" => "readers" },
-      "domains without reader mode"     => { "HECKS_DOOR_DOMAINS" => "pizzas" },
-      "an unknown HECKS_DOOR_ name"     => { "HECKS_DOOR_TOKEN" => "x" },
-      "a named domain outside the root" => { "HECKS_DOOR_TOOLS" => "readers", "HECKS_DOOR_DOMAINS" => "/tmp/elsewhere" }
+      "an unknown mode"                 => { "HECKS_SERVER_TOOLS" => "all", "HECKS_SERVER_DOMAINS" => "pizzas" },
+      "reader mode with no domains"     => { "HECKS_SERVER_TOOLS" => "readers" },
+      "domains without reader mode"     => { "HECKS_SERVER_DOMAINS" => "pizzas" },
+      "an unknown HECKS_SERVER_ name"   => { "HECKS_SERVER_TOKEN" => "x" },
+      "a named domain outside the root" => { "HECKS_SERVER_TOOLS" => "readers", "HECKS_SERVER_DOMAINS" => "/tmp/elsewhere" }
     }.each do |label, settings|
       it "refuses to start on #{label}, before answering anything", :aggregate_failures do
-        result = run_over_pipes(door, [initialize_request],
+        result = run_over_pipes(server, [initialize_request],
                                 env: { "HECKS_STOREHOUSE_ROOT" => sandbox_root }.merge(settings))
 
-        expect(result[:status].exitstatus).to eq(Hecks::Doors::McpDoorScope::EXIT_STATUS)
+        expect(result[:status].exitstatus).to eq(Hecks::Adapters::Driving::McpScope::EXIT_STATUS)
         expect(result[:err]).to include("refusing to start")
         expect(result[:out]).to be_empty
       end
     end
   end
 
-  # What the spec-example commands run in the commands-mode door.
+  # What the spec-example commands run in the commands-mode server.
   SPEC_EXAMPLE_RUNS = [
-    ["spec/doors/cli_runner_spec.rb", "hands back the domain's own wording, and a non-zero status"],
+    ["spec/driving_adapters/cli_runner_spec.rb", "hands back the domain's own wording, and a non-zero status"],
     ["spec/exe_hecks_spec.rb", "is executable"],
     ["spec/exe_hecks_spec.rb", "hands every name the gem shipped to Hecks::CLI"]
   ].freeze
 
   # Commands mode (ADR 0089): reader mode plus `dispatch` for a closed list of commands.
   describe "hecks mcp in commands mode" do
-    let(:sandbox_root) { Dir.mktmpdir("hecks-mcp-door-commands") }
+    let(:sandbox_root) { Dir.mktmpdir("hecks-mcp-commands") }
     let(:domain)       { memory_pizzas_under(sandbox_root) }
     let(:commands_env) do
-      { "HECKS_STOREHOUSE_ROOT" => sandbox_root, "HECKS_DOOR_TOOLS" => "commands",
-        "HECKS_DOOR_DOMAINS" => domain, "HECKS_DOOR_COMMANDS" => "order.create_pizza" }
+      { "HECKS_STOREHOUSE_ROOT" => sandbox_root, "HECKS_SERVER_TOOLS" => "commands",
+        "HECKS_SERVER_DOMAINS" => domain, "HECKS_SERVER_COMMANDS" => "order.create_pizza" }
     end
 
     after { FileUtils.rm_rf(sandbox_root) }
@@ -312,23 +312,23 @@ RSpec.describe "the stdio MCP servers" do
 
     def tools_in(response) = response["tools"].to_h { |tool| [tool["name"], tool] }
 
-    # The door as it runs the repository's own commands, allowing only `commands`.
-    def repository_door_env(commands)
-      { "HECKS_STOREHOUSE_ROOT" => root, "HECKS_DOOR_TOOLS" => "commands",
-        "HECKS_DOOR_DOMAINS" => "lib/hecks/hecks", "HECKS_DOOR_COMMANDS" => commands }
+    # The server as it runs the repository's own commands, allowing only `commands`.
+    def repository_server_env(commands)
+      { "HECKS_STOREHOUSE_ROOT" => root, "HECKS_SERVER_TOOLS" => "commands",
+        "HECKS_SERVER_DOMAINS" => "lib/hecks/hecks", "HECKS_SERVER_COMMANDS" => commands }
     end
 
     def spec_example_calls
       SPEC_EXAMPLE_RUNS.each_with_index.map do |(file, example), index|
         tool_call(index + 1, "dispatch", { command: "test_suite_run.run_spec_example", summary: "spec", role: "Maintainer",
-                                           args: { file: file, example: example, run: "door-specs-#{Process.pid}-#{index}" } })
+                                           args: { file: file, example: example, run: "server-specs-#{Process.pid}-#{index}" } })
       end
     end
 
     def check_comments_results
-      args = { paths: "lib/hecks/cli", run: "door-settled-#{Process.pid}" }
+      args = { paths: "lib/hecks/cli", run: "server-settled-#{Process.pid}" }
       call = tool_call(1, "dispatch", { command: "style_run.check_comments", summary: "spec", role: "Maintainer", args: args })
-      door_results([call], env: repository_door_env("style_run.check_comments"))
+      server_results([call], env: repository_server_env("style_run.check_comments"))
     end
 
     def optional_domain_calls
@@ -359,11 +359,11 @@ RSpec.describe "the stdio MCP servers" do
     end
 
     context "when listing the tools" do
-      let(:run) { run_over_pipes(door, [list_request], env: commands_env) }
+      let(:run) { run_over_pipes(server, [list_request], env: commands_env) }
       let(:tools) { tools_in(results_of(run)[1]) }
 
       it "lists the reader tools and dispatch", :aggregate_failures do
-        expect(tools.keys).to match_array(Hecks::Doors::McpDoorScope::COMMAND_TOOLS)
+        expect(tools.keys).to match_array(Hecks::Adapters::Driving::McpScope::COMMAND_TOOLS)
         expect(tools).not_to have_key("behaviors")
       end
 
@@ -378,12 +378,12 @@ RSpec.describe "the stdio MCP servers" do
         expect(tools["dispatch"]["description"])
           .to include("order.create_pizza (role Chef): Put a new pizza on the menu", "Arguments: name*, pizza*",
                       "pass that role as `role`")
-        expect(run[:err]).to include("Commands mode (HECKS_DOOR_TOOLS=commands)", "identifies no one")
+        expect(run[:err]).to include("Commands mode (HECKS_SERVER_TOOLS=commands)", "identifies no one")
       end
     end
 
-    context "when the door serves one domain" do
-      let(:results) { door_results(optional_domain_calls, env: commands_env) }
+    context "when the server serves one domain" do
+      let(:results) { server_results(optional_domain_calls, env: commands_env) }
 
       it "makes domain optional, and says so in the schema", :aggregate_failures do
         tools = tools_in(results[1])
@@ -399,8 +399,8 @@ RSpec.describe "the stdio MCP servers" do
       end
     end
 
-    it "runs one spec example after another in the same door, each answering its own summary" do
-      results = door_results(spec_example_calls, env: repository_door_env("test_suite_run.run_spec_example"))
+    it "runs one spec example after another in the same server, each answering its own summary" do
+      results = server_results(spec_example_calls, env: repository_server_env("test_suite_run.run_spec_example"))
 
       reports = (1..3).map { |id| payload(results[id]).dig("state", "report", "value").to_s }
       expect(reports).to all(include("1 example, 0 failures"))
@@ -414,21 +414,22 @@ RSpec.describe "the stdio MCP servers" do
     end
 
     it "dispatches an allowed command by its qualified name", :aggregate_failures do
-      results = door_results([dispatch_call(1, "order.create_pizza"), dispatch_call(2, "order.create_pizza")], env: commands_env)
+      results = server_results([dispatch_call(1, "order.create_pizza"), dispatch_call(2, "order.create_pizza")],
+                               env: commands_env)
 
       [1, 2].each { |id| expect(payload(results[id])).not_to include("error" => a_string_including("refused")) }
       expect(payload(results[1])["ok"]).to be true
     end
 
     it "refuses any other command, a dry run of it, and a batch holding it, before running anything", :aggregate_failures do
-      results = door_results(unlisted_command_calls, env: commands_env)
+      results = server_results(unlisted_command_calls, env: commands_env)
 
       expect_refused(results, [1, 2, 3], "is refused", "commands mode", "order.create_pizza")
       expect(payload(results[4])["count"]).to eq(0)
     end
 
     it "keeps the domain booted between calls, so a dispatched record is there for the next call", :aggregate_failures do
-      results = door_results([dispatch_call(1, "order.create_pizza"), state_call(2, domain)], env: commands_env)
+      results = server_results([dispatch_call(1, "order.create_pizza"), state_call(2, domain)], env: commands_env)
 
       expect(payload(results[1])["ok"]).to be true
       expect(payload(results[2])["count"]).to eq(1)
@@ -462,7 +463,7 @@ RSpec.describe "the stdio MCP servers" do
     }.each do |label, extra|
       it "refuses #{label} on an allowed command, naming the argument", :aggregate_failures do
         args = pizza_args("Margherita").merge(extra)
-        results = door_results([dispatch_call(1, "order.create_pizza", args: args)], env: commands_env)
+        results = server_results([dispatch_call(1, "order.create_pizza", args: args)], env: commands_env)
 
         expect(results[1]["isError"]).to be true
         expect(payload(results[1])["error"]).to include("argument", "is refused", "commands mode", extra.keys.first)
@@ -472,7 +473,7 @@ RSpec.describe "the stdio MCP servers" do
     it "follows a symlink out of the root, so a link inside it does not hide a path outside" do
       File.symlink("/etc", File.join(sandbox_root, "escape"))
       args = pizza_args("Margherita").merge("file" => "escape/passwd")
-      results = door_results([dispatch_call(1, "order.create_pizza", args: args)], env: commands_env)
+      results = server_results([dispatch_call(1, "order.create_pizza", args: args)], env: commands_env)
 
       expect(payload(results[1])["error"]).to include("is refused", "file")
     end
@@ -480,52 +481,52 @@ RSpec.describe "the stdio MCP servers" do
     it "passes a path inside the root and a plain ref on to the command" do
       inside = File.join(sandbox_root, domain, "pizzas.bluebook")
       args = pizza_args("Margherita").merge("file" => inside, "ref" => "origin/main")
-      results = door_results([dispatch_call(1, "order.create_pizza", args: args)], env: commands_env)
+      results = server_results([dispatch_call(1, "order.create_pizza", args: args)], env: commands_env)
 
-      expect(payload(results[1])["error"].to_s).not_to include("this door runs in commands mode")
+      expect(payload(results[1])["error"].to_s).not_to include("this server runs in commands mode")
     end
 
     it "checks the arguments of every step of a batch before any step runs", :aggregate_failures do
-      results = door_results(bad_batch_calls, env: commands_env)
+      results = server_results(bad_batch_calls, env: commands_env)
 
       expect(payload(results[1])["error"]).to include("argument", "output")
       expect(payload(results[2])["count"]).to eq(0)
     end
 
     it "refuses a question whose arguments reach outside the root" do
-      results = door_results([query_call(1, args: { paths: "/etc" })], env: commands_env)
+      results = server_results([query_call(1, args: { paths: "/etc" })], env: commands_env)
 
       expect(payload(results[1])["error"]).to include("argument", "paths", "is refused")
     end
 
     it "refuses a command name that resolves to nothing, and still refuses behaviors", :aggregate_failures do
-      results = door_results([dispatch_call(1, "no_such_command"), behaviors_call(2)], env: commands_env)
+      results = server_results([dispatch_call(1, "no_such_command"), behaviors_call(2)], env: commands_env)
 
       expect(payload(results[1])["error"]).to include("is refused")
-      expect(payload(results[2])["error"]).to include("commands mode (HECKS_DOOR_TOOLS=commands)")
+      expect(payload(results[2])["error"]).to include("commands mode (HECKS_SERVER_TOOLS=commands)")
     end
 
     it "admits nothing for an allowed name that resolves to no command" do
-      env = commands_env.merge("HECKS_DOOR_COMMANDS" => "no_such_command")
-      results = door_results([dispatch_call(1, "order.create_pizza")], env: env)
+      env = commands_env.merge("HECKS_SERVER_COMMANDS" => "no_such_command")
+      results = server_results([dispatch_call(1, "order.create_pizza")], env: env)
 
       expect(payload(results[1])["error"]).to include("is refused")
     end
 
     [
-      ["commands mode with no commands", { "HECKS_DOOR_TOOLS" => "commands", "HECKS_DOOR_DOMAINS" => "pizzas" }],
-      ["commands mode with no domains", { "HECKS_DOOR_TOOLS" => "commands", "HECKS_DOOR_COMMANDS" => "order.create_pizza" }],
+      ["commands mode with no commands", { "HECKS_SERVER_TOOLS" => "commands", "HECKS_SERVER_DOMAINS" => "pizzas" }],
+      ["commands mode with no domains", { "HECKS_SERVER_TOOLS" => "commands", "HECKS_SERVER_COMMANDS" => "order.create_pizza" }],
       ["an empty command list",
-       { "HECKS_DOOR_TOOLS" => "commands", "HECKS_DOOR_DOMAINS" => "pizzas", "HECKS_DOOR_COMMANDS" => " , " }],
-      ["commands without commands mode", { "HECKS_DOOR_COMMANDS" => "order.create_pizza" }],
+       { "HECKS_SERVER_TOOLS" => "commands", "HECKS_SERVER_DOMAINS" => "pizzas", "HECKS_SERVER_COMMANDS" => " , " }],
+      ["commands without commands mode", { "HECKS_SERVER_COMMANDS" => "order.create_pizza" }],
       ["commands in reader mode",
-       { "HECKS_DOOR_TOOLS" => "readers", "HECKS_DOOR_DOMAINS" => "pizzas", "HECKS_DOOR_COMMANDS" => "order.create_pizza" }]
+       { "HECKS_SERVER_TOOLS" => "readers", "HECKS_SERVER_DOMAINS" => "pizzas", "HECKS_SERVER_COMMANDS" => "order.create_pizza" }]
     ].each do |label, settings|
       it "refuses to start on #{label}, before answering anything", :aggregate_failures do
-        result = run_over_pipes(door, [initialize_request],
+        result = run_over_pipes(server, [initialize_request],
                                 env: { "HECKS_STOREHOUSE_ROOT" => sandbox_root }.merge(settings))
 
-        expect(result[:status].exitstatus).to eq(Hecks::Doors::McpDoorScope::EXIT_STATUS)
+        expect(result[:status].exitstatus).to eq(Hecks::Adapters::Driving::McpScope::EXIT_STATUS)
         expect(result[:err]).to include("refusing to start")
         expect(result[:out]).to be_empty
       end

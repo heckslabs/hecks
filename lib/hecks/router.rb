@@ -1,5 +1,5 @@
 module Hecks
-  # The public, project-wide dispatch door. It owns address resolution only;
+  # The public, project-wide dispatch entry point. It owns address resolution only;
   # each discovered Bluebook keeps its own runtime and persistence bindings.
   class Router
     class UnknownAddress < StandardError; end

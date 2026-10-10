@@ -10,7 +10,7 @@ module Hecks
           private
 
           # Re-runs only the comparison that surprised; `seat` matters only for `self_consistency`,
-          # which reads the Rust binary's rehydration door under a differential seat.
+          # which reads the Rust binary's rehydration entry point under a differential seat.
           def candidate_divergences(check_mode, seat, steps)
             case check_mode
             when :differential

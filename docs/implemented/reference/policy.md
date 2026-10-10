@@ -73,7 +73,7 @@ Hecks.bluebook "PolicyReference" do
       attribute :level, Integer, default: 0
     end
 
-    # NOT `command "Raise"` — that door would be spelled `RefAlert.raise`,
+    # NOT `command "Raise"` — that entry point would be spelled `RefAlert.raise`,
     # and `raise` is Kernel's, so the facade never sees the call.
     command "RaiseAlert" do
       sets :ref

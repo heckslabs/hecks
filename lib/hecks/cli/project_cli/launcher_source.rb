@@ -126,8 +126,8 @@ module Hecks
         # @api private
         # @return [String] the opted-in launcher's middle
         def described_entry(name, boot, shown, quiet: false)
-          started = "Hecks.boot_described(described, install_doors: false)"
-          started = "Hecks::Doors::LauncherOptions.quietly(hold: #{RUNS_ON_MEMORY}) { #{started} }" if quiet
+          started = "Hecks.boot_described(described, install_driving: false)"
+          started = "Hecks::Adapters::Driving::LauncherOptions.quietly(hold: #{RUNS_ON_MEMORY}) { #{started} }" if quiet
           render(DESCRIBED_ENTRY, boot: boot, shown: shown, name: name, started: started).chomp
         end
 

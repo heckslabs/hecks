@@ -37,7 +37,7 @@ module Hecks
 
         def print_finding_instructions
           puts "No Bug was logged (that needs a real failing-test demonstration, which"
-          puts "needs judgment this script does not have — hecks quality_control log is the door)"
+          puts "needs judgment this script does not have — hecks quality_control log is the entry point)"
           puts "and the sweep was not concluded. The ledger's own SuspendOnSurprise"
           puts "policy took the target out of the rotation; it stays out until a PERSON"
           puts "runs: hecks quality_control ask run target=#{@target_reference} " \

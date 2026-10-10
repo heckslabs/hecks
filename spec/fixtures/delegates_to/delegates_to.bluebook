@@ -5,7 +5,7 @@ Hecks.bluebook "DelegatesTo" do
   core
 
   aggregate "Board" do
-    description "A board. MovePiece is the only door a caller uses to move a piece — Piece.Move itself is never dispatched directly here."
+    description "A board. MovePiece is the only entry point a caller uses to move a piece — Piece.Move itself is never dispatched directly here."
 
     identified_by :name
 
@@ -93,7 +93,7 @@ Hecks.bluebook "DelegatesTo" do
     end
 
     entity "Piece" do
-      description "One piece. Its own Move is the real rule; MovePiece above is only the door a caller uses to reach it."
+      description "One piece. Its own Move is the real rule; MovePiece above is only the entry point a caller uses to reach it."
 
       attribute :id,     PieceId
       attribute :square, Square

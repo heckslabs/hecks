@@ -1,4 +1,4 @@
-require_relative "../doors/ruby_door"
+require_relative "../adapters/driving/ruby"
 require_relative "../ports/loading"
 require_relative "../ports/persistence"
 require_relative "dispatcher"
@@ -21,7 +21,7 @@ module Hecks
 
       # Boots `path`: loads its bluebook directory into a fresh Registry, runs
       # every registered boot gate, and returns the bound dispatcher. Pass
-      # `install_doors: false` to skip the `Widget::Item.Add(...)` global
+      # `install_driving: false` to skip the `Widget::Item.Add(...)` global
       # facade sugar (only a caller dispatching by FQN string needs to).
       #
       # @param path [String] a domain directory to boot
@@ -31,25 +31,25 @@ module Hecks
       # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted dispatcher
       # @raise [Errno::ENOENT] if `path` names no domain directory
       # @raise [Runtime::WiringError] if a boot gate finds a wiring problem
-      def self.boot(path, shared: nil, install_doors: true, environment: FROM_ENV)
+      def self.boot(path, shared: nil, install_driving: true, environment: FROM_ENV)
         described = describe(path, shared: shared, environment: environment)
-        boot_described(described, install_doors: install_doors)
+        boot_described(described, install_driving: install_driving)
       end
 
       # Finishes a boot from declarations `describe` already loaded: runs every boot gate and binds
       # the dispatcher, without reading the domain's files again.
       #
       # @param described [Described] what `describe` answered for the domain to boot
-      # @param install_doors [Boolean] install the `Widget::Item.Add(...)` global facade sugar
+      # @param install_driving [Boolean] install the `Widget::Item.Add(...)` global facade sugar
       # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted dispatcher
       # @raise [Runtime::WiringError] if a boot gate finds a wiring problem
-      def self.boot_described(described, install_doors: true)
+      def self.boot_described(described, install_driving: true)
         registry = described.registry
         run_boot_gates!(registry, described.directory)
         dispatcher = dispatcher_for(registry)
         redrive_outbox!(dispatcher)
         seed_privacy_markings!(dispatcher, registry)
-        install_doors ? bind_runtime(dispatcher) : dispatcher
+        install_driving ? bind_runtime(dispatcher) : dispatcher
       end
 
       # Loads `path`'s declarations into a fresh Registry and stops: no boot gate runs, no
@@ -118,7 +118,7 @@ module Hecks
       #   defaults to `HECKS_ENVIRONMENT`, and an explicit nil loads none
       # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted dispatcher
       # @raise [Runtime::WiringError] if a boot gate finds a wiring problem
-      def self.boot_files(paths, shared: nil, install_doors: true, environment: FROM_ENV)
+      def self.boot_files(paths, shared: nil, install_driving: true, environment: FROM_ENV)
         loading   = Ports::Loading.bootstrap
         files     = Array(paths).map { |path| File.expand_path(path) }
         directory = File.dirname(files.first)
@@ -126,7 +126,7 @@ module Hecks
 
         run_boot_gates!(registry, directory)
         dispatcher = dispatcher_for(registry)
-        install_doors ? bind_runtime(dispatcher) : dispatcher
+        install_driving ? bind_runtime(dispatcher) : dispatcher
       end
 
       # Loads exactly `files` into a fresh Registry rooted beside their directory, answering it.
@@ -160,7 +160,7 @@ module Hecks
       # `dispatcher`. The binding lives in the facade's own modules, not a
       # class-level global, so two boots in one process don't share one name.
       def self.bind_runtime(dispatcher)
-        Doors::RubyDoor.install(dispatcher)
+        Adapters::Driving::Ruby.install(dispatcher)
         dispatcher
       end
     end

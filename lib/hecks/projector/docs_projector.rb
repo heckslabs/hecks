@@ -110,7 +110,7 @@ module Hecks
         out.compact.join("\n")
       end
 
-      # An entity has no door of its own; its verbs go through the holding aggregate.
+      # An entity has no entry point of its own; its verbs go through the holding aggregate.
       def entity_addressing(aggregate, entity)
         "Addressed through its holder — `#{aggregate.hecks_name}.#{entity.hecks_name}.<Verb>`, " \
           "passing the #{aggregate.hecks_name}'s `id` and this element's " \

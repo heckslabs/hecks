@@ -33,7 +33,7 @@ RSpec.describe "CI and hook calls of the hecks launcher" do
 
   def expect_resolves(hecks, kind, verb)
     argv = [kind, verb, "--help"].reject(&:empty?)
-    _, status = Hecks::Doors::CliRunner.call(runtime: hecks, argv: argv, program: "hecks")
+    _, status = Hecks::Adapters::Driving::CliRunner.call(runtime: hecks, argv: argv, program: "hecks")
 
     expect(verb).to include("."), "hecks #{verb} is not qualified with its aggregate"
     expect(status).to eq(0), "hecks #{[kind, verb].reject(&:empty?).join(" ")} does not resolve"
@@ -41,7 +41,7 @@ RSpec.describe "CI and hook calls of the hecks launcher" do
 
   it "names only commands the launcher resolves, each with its aggregate", :aggregate_failures do
     calls = verb_calls
-    hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
+    hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
 
     expect(calls).not_to be_empty
     calls.each { |kind, verb| expect_resolves(hecks, kind, verb) }

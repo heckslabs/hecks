@@ -12,7 +12,7 @@ between them is hand-written and survives regeneration.*
 These words open the several kinds of file a domain is written
 across, so the page declares one small domain across all of them —
 what it is, how this deployment stores it, what values that
-deployment needs, and one resource door with a real implementation:
+deployment needs, and one resource entry point with a real implementation:
 
 ```ruby bluebook
 Hecks.bluebook "FileReference" do
@@ -27,7 +27,7 @@ Hecks.bluebook "FileReference" do
     value_object("Docket") { attribute :value, String }
     value_object("Note")   { attribute :text,  String }
 
-    # NOT `command "Raise"` — the door would be spelled
+    # NOT `command "Raise"` — the entry point would be spelled
     # `Dispatch.raise`, and `raise` is Kernel's. Domain vocabulary is
     # worth choosing so it does not land on a built-in; banking renamed
     # its own `Freeze` and `Send` for the same reason.
@@ -49,13 +49,13 @@ Hecks.world("FileReference") do
   realm "Examples"
 end
 
-Hecks.port("dispatch_door") do
+Hecks.port("dispatch_entry") do
   verb   "persisted_by"
   signal :reply
 end
 
 Hecks.adapter("dispatch_memory") do
-  port  "dispatch_door"
+  port  "dispatch_entry"
   field :namespace
 end
 
@@ -142,12 +142,12 @@ runtime.registry.hecksagon("FileReference").binds.map(&:adapter)  # => ["Memory"
 | positional 1 | text | true | name |
 <!-- generated:end -->
 
-Opens a `.port` file — a resource door a domain's own aggregates call by verb (`persisted_by`, `posted_by`, ...), bound to a real driven adapter at the world level. A sibling artifact too, reused across every domain that needs the same kind of door: `persistence`, `extraction`, and every other port under `lib/hecks/ports/` are real examples. See the Port reference page for the words inside.
+Opens a `.port` file — a resource a domain's own aggregates call by verb (`persisted_by`, `posted_by`, ...), bound to a real driven adapter at the world level. A sibling artifact too, reused across every domain that needs the same kind of entry point: `persistence`, `extraction`, and every other port under `lib/hecks/ports/` are real examples. See the Port reference page for the words inside.
 
 Read back off the registry, the same way a world is:
 
 ```ruby
-runtime.registry.ports["dispatch_door"].verb  # => "persisted_by"
+runtime.registry.ports["dispatch_entry"].verb  # => "persisted_by"
 ```
 
 ## adapter
@@ -165,7 +165,7 @@ Opens a `.adapter` file — a real, swappable implementation of one resource por
 Read back off the registry, the same way a port is:
 
 ```ruby
-runtime.registry.adapters["dispatch_memory"].port  # => "dispatch_door"
+runtime.registry.adapters["dispatch_memory"].port  # => "dispatch_entry"
 ```
 
 ## data_translation

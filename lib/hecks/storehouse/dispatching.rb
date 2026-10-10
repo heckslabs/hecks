@@ -34,9 +34,9 @@ module Hecks
 
       # :nodoc:
       def command_envelope(args, spec)
-        Doors::CommandRequest.normalize(Doors::JsonDoor.deep_symbolize(args),
-                                        receiver:        spec[:receiver],
-                                        legacy_receiver: spec[:legacy_receiver])
+        Adapters::Driving::CommandRequest.normalize(Adapters::Driving::Json.deep_symbolize(args),
+                                                    receiver:        spec[:receiver],
+                                                    legacy_receiver: spec[:legacy_receiver])
       end
 
       # :nodoc:
@@ -52,7 +52,9 @@ module Hecks
         ok(summary: summary,
            id:      result.id,
            state:   settled_state(runtime, spec, result),
-           events:  result.events.map { |event| { name: event.name, payload: Doors::JsonDoor.materialize(event.payload) } })
+           events:  result.events.map do |event|
+             { name: event.name, payload: Adapters::Driving::Json.materialize(event.payload) }
+           end)
       end
 
       # The record as its repository holds it once every reaction has run, which is the state the
@@ -65,7 +67,7 @@ module Hecks
       def settled_state(runtime, spec, result)
         return if result.state.nil?
 
-        Doors::JsonDoor.materialize(settled_record(runtime, spec, result) || result.state)
+        Adapters::Driving::Json.materialize(settled_record(runtime, spec, result) || result.state)
       end
 
       # :nodoc:
@@ -141,7 +143,7 @@ module Hecks
 
       # :nodoc:
       def batch_step(runtime, raw, summary, options)
-        step = Doors::JsonDoor.deep_symbolize(raw)
+        step = Adapters::Driving::Json.deep_symbolize(raw)
         dispatch(runtime: runtime, command: step[:command], args: step[:args] || {}, summary: summary, **options)
       end
     end

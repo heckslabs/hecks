@@ -16,7 +16,7 @@ RSpec.describe "the Deploy chapter's SmokeRun", :io do
   end
 
   before(:all) do
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
+    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
   end
 
   # The scripts and stand-in programs in a scratch directory for each example, named by `runner`.
@@ -47,7 +47,8 @@ RSpec.describe "the Deploy chapter's SmokeRun", :io do
   end
 
   def run_smoke(*argv)
-    Hecks::Doors::CliRunner.call(runtime: @hecks, program: "hecks", argv: ["deploy", "smoke_run.run", *argv, "--wait"])
+    Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks",
+                                             argv: ["deploy", "smoke_run.run", *argv, "--wait"])
   end
 
   def smoke(*argv, env: {})

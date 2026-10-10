@@ -4,7 +4,7 @@
       "command": "ruby",
       "args": ["-I", "lib", "-e", "require 'hecks/cli/serve_query_ir_mcp'; Hecks::CLI::ServeQueryIrMcp.call(ARGV)", "--"]
     },
-    "hecks-door": {
+    "hecks-mcp": {
       "command": "ruby",
       "args": ["-I", "lib", "-e", "require 'hecks/cli/mcp'; Hecks::CLI::Mcp.call(ARGV)", "--"]
     }

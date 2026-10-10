@@ -75,10 +75,10 @@ RSpec.describe "the language's own definition" do
   end
 
   # Resets the singleton and binds fresh: any spec that binds another runtime repoints the
-  # global constants, so registry/door agreement only holds right after a bind.
+  # global constants, so registry/entry point agreement only holds right after a bind.
   # The memoized registry is restored afterward so ir_golden_spec.rb's byte-for-byte
   # comparison still sees the first-boot registry regardless of process order.
-  it "runs from its own records — registry and the installed door agree from bind", :aggregate_failures do
+  it "runs from its own records — registry and the installed entry point agree from bind", :aggregate_failures do
     with_fresh_grammar_registry do |registry|
       expect(Object.const_get(:Bluebook).const_get(:Aggregate).ir).to be(registry.bluebook("Bluebook").aggregate("Aggregate"))
       expect(Object.const_get(:World).const_get(:World).ir).to be(registry.bluebook("World").aggregate("World"))

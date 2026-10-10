@@ -105,7 +105,7 @@ RSpec.describe "policy and process lexical visibility" do
     Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
-  def recording_door
+  def recording_dispatcher
     Class.new do
       attr_reader :calls
 
@@ -141,13 +141,13 @@ RSpec.describe "policy and process lexical visibility" do
     )
   end
 
-  # The calls the policies answering `name` make through a recording door.
+  # The calls the policies answering `name` make through a recording dispatcher.
   def calls_reacting_to(name, payload)
-    door = recording_door
+    dispatcher = recording_dispatcher
     event = Hecks::Runtime::Event.new(name: name, aggregate: "ReactionVisibility::Meter", id: "meter-1", payload: payload)
-    Hecks::Runtime::PolicyInterpreter.new(boot_visibility_reaction.registry, door: door)
+    Hecks::Runtime::PolicyInterpreter.new(boot_visibility_reaction.registry, dispatcher: dispatcher)
                                      .react(event, "ReactionVisibility")
-    door.calls
+    dispatcher.calls
   end
 
   def built_invocation(verb, projected, explicit, source_receiver)

@@ -41,7 +41,7 @@ RSpec.describe Hecks::Projections::OIDC do
   # Banking, not Pizzas: Pizzas declares no entities. Entity-owned commands route by dotted verb
   # (`command_name.include?(".")`), so a manifest omitting one would silently grant no scope.
   describe "entity-owned commands" do
-    let(:banking) { Hecks.boot("examples/banking", install_doors: false).registry.bluebook("Banking") }
+    let(:banking) { Hecks.boot("examples/banking", install_driving: false).registry.bluebook("Banking") }
     let(:banking_manifest) { described_class.call(bluebook: banking) }
 
     def verbs = banking_manifest["scopes"].map { |scope| scope["verb"] }
@@ -73,7 +73,7 @@ RSpec.describe Hecks::Projections::OIDC do
 
   describe "roles" do
     # Banking, not Pizzas: Pizzas declares no roles at all.
-    let(:banking) { Hecks.boot("examples/banking", install_doors: false).registry.bluebook("Banking") }
+    let(:banking) { Hecks.boot("examples/banking", install_driving: false).registry.bluebook("Banking") }
     let(:banking_manifest) { described_class.call(bluebook: banking) }
 
     it "carries the role each command declares" do

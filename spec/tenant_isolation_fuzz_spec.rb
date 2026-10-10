@@ -101,8 +101,8 @@ RSpec.describe "multitenancy: interleaved random writes stay isolated" do
   end
 
   def boot_tenants(dir)
-    { "acme"  => Hecks.boot(dir, environment: "acme", install_doors: false),
-      "bloom" => Hecks.boot(dir, environment: "bloom", install_doors: false) }
+    { "acme"  => Hecks.boot(dir, environment: "acme", install_driving: false),
+      "bloom" => Hecks.boot(dir, environment: "bloom", install_driving: false) }
   end
 
   # One line for each tenant whose rows after the interleaved writes are not exactly its own.

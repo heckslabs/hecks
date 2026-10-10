@@ -191,7 +191,7 @@ and Rust's saga/reaction logs on every fixture exercising a saga dispatch — `o
 that exact shape today and doesn't carry the new field. **Do not touch the existing logs.**
 
 Instead: a new, additive, Ruby-only `registry.saga_dispatch_log` — `SagaInterpreter#deliver_saga_dispatch`
-already computes `dispatch_args(...)` before calling `@door.reenter`; push one entry there
+already computes `dispatch_args(...)` before calling `@entry point.reenter`; push one entry there
 (`process_manager:`, `instance:`, `dispatch:`, `on:`, `args:`). ~6 lines across
 `registry.rb`/`saga_interpreter.rb`/`dispatcher.rb`/`replay.rb`, fully additive, zero Rust surface,
 zero risk to conformance. `Policy#with_spec` is the same pattern one file over

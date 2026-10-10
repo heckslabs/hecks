@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "../../doors/json_door"
+require_relative "../../adapters/driving/json"
 
 module Hecks
   module Adapters
@@ -87,7 +87,7 @@ module Hecks
         %i[admit grant people].to_h { |key| [key, provider.provided_verb(Bluebook::Capabilities::MEMBERSHIP, key)] }
       end
 
-      def rows(verb) = @runtime.query(verb).map { |row| Doors::JsonDoor.materialize(row) }
+      def rows(verb) = @runtime.query(verb).map { |row| Adapters::Driving::Json.materialize(row) }
 
       # The role a verb's command declares, which the dispatch must assert to be let through.
       def gated_role(provider, verb)

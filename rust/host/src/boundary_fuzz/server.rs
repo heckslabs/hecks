@@ -1,4 +1,4 @@
-//! Seeded fuzz of the HTTP front door (`admit`, `value_to_response`): hostile bodies, methods, URIs
+//! Seeded fuzz of the HTTP front entry point (`admit`, `value_to_response`): hostile bodies, methods, URIs
 //! and headers must be answered, never panic, and a refused request must leave no trace.
 //! Everything here is in-process: `admit` is the whole of what runs before dispatch, so none of
 //! it needs Postgres or wasm.

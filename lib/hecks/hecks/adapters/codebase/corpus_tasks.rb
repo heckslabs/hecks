@@ -11,12 +11,12 @@ module Hecks
   module Adapters
     module Codebase
       # What Codebase's `CorpusRun` asks of the working tree: which committed domains have a Rust
-      # feature, what the language's IR holds, and the two doors that serve it.
+      # feature, what the language's IR holds, and the two servers that serve it.
       #
       # The questions are pure reads and run in this process, with the code `hecks rust_domains` and
       # `hecks ir_constructs` run (`Hecks::Corpus`, `Hecks::QueryIR`); the coverage question runs
       # `Hecks::RustBuild`'s coverage tool over each generated module, also in this process. The
-      # two doors run until they are closed: the query MCP server on stdio, and the forms app on a
+      # two servers run until they are closed: the query MCP server on stdio, and the forms app on a
       # local port.
       module CorpusTasks
         # Every operation this family carries out.
@@ -26,7 +26,7 @@ module Hecks
         DEFAULT_PORT = 4567
 
         class << self
-          # @return [#call, nil] serves the MCP door; `Hecks::QueryIrMcp.start` when nil. A spec
+          # @return [#call, nil] serves the MCP server; `Hecks::QueryIrMcp.start` when nil. A spec
           #   replaces it so no stdio has to be held.
           attr_accessor :mcp_server
 
@@ -41,14 +41,14 @@ module Hecks
 
         module_function
 
-        # Opens one of the doors.
+        # Opens one of the servers.
         #
         # @param operation [String] `serve_query_ir_mcp` or `present`
         # @param held [Hash] the `CorpusRun` record's fields: `port`
         # @param tree [Tree] the working tree, already known to be a hecks checkout
         # @param shell [#capture, nil] unused
-        # @return [String] a note that the door closed
-        # @raise [ConsoleCapture::Failure] when the MCP door refuses the process's setup
+        # @return [String] a note that the server closed
+        # @raise [ConsoleCapture::Failure] when the MCP server refuses the process's setup
         def call(operation, held, tree, shell: nil)
           _ = shell
           return serve_mcp if operation == "serve_query_ir_mcp"
@@ -78,14 +78,14 @@ module Hecks
         # @return [Hash] the same fields as plain values
         def plain(held) = held.transform_values { |value| value.is_a?(Hash) ? value[:value] : value }
 
-        # @return [String] a note that the MCP door closed
-        # @raise [ConsoleCapture::Failure] when the door refuses to start
+        # @return [String] a note that the MCP server closed
+        # @raise [ConsoleCapture::Failure] when the server refuses to start
         def serve_mcp
           server = CorpusTasks.mcp_server || ->(**options) { QueryIrMcp.start(**options) }
           server.call(argv: [])
-          "query ir mcp door closed"
+          "query ir mcp server closed"
         rescue SystemExit => e
-          raise ConsoleCapture::Failure, "the query ir mcp door refused to start (status #{e.status}); see stderr"
+          raise ConsoleCapture::Failure, "the query ir mcp server refused to start (status #{e.status}); see stderr"
         end
 
         # @param port [Integer] the port to listen on

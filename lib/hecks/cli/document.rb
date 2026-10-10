@@ -44,7 +44,7 @@ module Hecks
       # @api private
       def boot_bluebook(path)
         begin
-          runtime = Hecks.boot(path, install_doors: false)
+          runtime = Hecks.boot(path, install_driving: false)
         rescue StandardError => e
           abort "cannot read #{path}: #{e.message.lines.first.strip}"
         end

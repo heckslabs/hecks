@@ -11,8 +11,8 @@ require_relative "qa_open_pr/recording"
 module Hecks
   module QualityControlCli
     # The command behind `hecks quality_control patch.open`: opens a PR and records it in the
-    # QualityControl ledger in one step. It is the only door into `QualityControl::Patch.Open` and
-    # `QualityControl::Improvement.Open`.
+    # QualityControl ledger in one step. It is the only entry point into
+    # `QualityControl::Patch.Open` and `QualityControl::Improvement.Open`.
     #
     # It refuses (exit 1, nothing opened or recorded) unless the ledger's own `Open` command would
     # take the record and the `GitPr` adapter agrees. The command's `given`s are the rules, asked

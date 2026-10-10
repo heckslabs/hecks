@@ -21,7 +21,7 @@ module Hecks
 
         # The mutex covers only the check-mutate-checkpoint step, never the
         # dispatch cascade that follows — `deliver_saga_dispatch`'s
-        # `@door.reenter` can recursively re-enter this interpreter on the
+        # `@dispatcher.reenter` can recursively re-enter this interpreter on the
         # same thread, and `Mutex` is not reentrant.
         def remembered_leg_taken?(leg)
           leg.instance = @registry.saga_instances[leg.process_manager.name][leg.correlation]

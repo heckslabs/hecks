@@ -5,7 +5,7 @@ require "spec_helper"
 # the finding.
 RSpec.describe "the Tickets chapter" do
   before(:all) do
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
+    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
     @bluebook = @hecks.registry.bluebook("Tickets")
   end
 
@@ -14,7 +14,7 @@ RSpec.describe "the Tickets chapter" do
   end
 
   it "boots standing alone, as a fuzz or model_check boot of its directory does" do
-    standalone = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/tickets/bluebook"), install_doors: false)
+    standalone = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/tickets/bluebook"), install_driving: false)
 
     expect(standalone.registry.bluebook("Tickets").aggregates.map(&:hecks_name)).to contain_exactly("Finding", "Adr")
   end
@@ -45,7 +45,7 @@ RSpec.describe "the Tickets chapter" do
     before = @hecks.registry.reaction_log.size
     argv = ["tickets", "finding.report", "finding.value=f-1", "title.value=A gap", "source.value=maintainer"]
 
-    out, = Hecks::Doors::CliRunner.call(runtime: @hecks, program: "hecks", argv: argv)
+    out, = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks", argv: argv)
     [out, @hecks.registry.reaction_log.drop(before).map { |reaction| reaction[:policy] }]
   end
 
@@ -59,9 +59,9 @@ RSpec.describe "the Tickets chapter" do
 
   it "lists a reported finding among the open ones" do
     argv = ["tickets", "finding.report", "finding.value=f-open", "title.value=Still open", "source.value=maintainer"]
-    Hecks::Doors::CliRunner.call(runtime: @hecks, program: "hecks", argv: argv)
+    Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks", argv: argv)
 
-    out, = Hecks::Doors::CliRunner.call(runtime: @hecks, program: "hecks", argv: ["tickets", "finding.open"])
+    out, = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks", argv: ["tickets", "finding.open"])
 
     expect(JSON.parse(out).map { |row| row.dig("finding", "value") }).to include("f-open")
   end

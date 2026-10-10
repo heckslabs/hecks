@@ -6,7 +6,8 @@ require_relative "../query_form_renderer"
 module Hecks
   module Forms
     class App
-      # The query routes of `Forms::App`: the form with its results, and the JSON door to the same
+      # The query routes of `Forms::App`: the form with its results, and the JSON adapter to the
+      # same
       # query.
       module Queries
         private

@@ -41,18 +41,18 @@ RSpec.describe Hecks::Adapters::Terminal do
       end
 
       it "answers when it closes" do
-        expect(answers.map { |answer| answer.dig(:output, :value) }).to all(eq("mcp door closed"))
+        expect(answers.map { |answer| answer.dig(:output, :value) }).to all(eq("mcp server closed"))
       end
     end
 
-    it "words a door that refuses to start as a failure" do
+    it "words a server that refuses to start as a failure" do
       described_class.server = ->(_argv) { exit 2 }
 
       expect { described_class.new.serve }
         .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /refused to start \(status 2\)/)
     end
 
-    it "starts the real door, whose stdio guard refuses an unknown HECKS_MCP_ variable", :aggregate_failures do
+    it "starts the real server, whose stdio guard refuses an unknown HECKS_MCP_ variable", :aggregate_failures do
       stub_const("ENV", ENV.to_h.merge("HECKS_MCP_BOGUS" => "1"))
 
       expect do

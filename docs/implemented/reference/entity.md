@@ -304,7 +304,7 @@ visit.invariants.first.canonical  # => "!note || !note.text.to_s.empty?"
 | `from:` | literal | false | from |
 <!-- generated:end -->
 
-Same vocabulary as a command on an aggregate — see command.md — but this one never gets a door of its own: nothing installs a module for an entity, so it's reached only as `Aggregate.Entity.Command`, never independently. It also never declares `reference_to`; the parent qualifier in the dotted call already supplies both identities.
+Same vocabulary as a command on an aggregate — see command.md — but this one never gets an entry point of its own: nothing installs a module for an entity, so it's reached only as `Aggregate.Entity.Command`, never independently. It also never declares `reference_to`; the parent qualifier in the dotted call already supplies both identities.
 
 `Reverse` is `LedgerEntry`'s, not `Account`'s — addressed through the
 account that holds it, and naming which entry by its own sequence:

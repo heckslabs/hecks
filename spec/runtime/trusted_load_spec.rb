@@ -19,7 +19,7 @@ RSpec.describe "trusted stored state (C6.3)" do
     expect(hydrated[:balance].to_h).to eq(cents: 5, currency: "US")
   end
 
-  it "leaves the input door strict once the load is over" do
+  it "leaves the input entry point strict once the load is over" do
     Hecks::Runtime::Value.hydrate(account, balance: { cents: 5, currency: "US" })
 
     expect { Hecks::Runtime::Value.for(account, :balance, cents: 5, currency: "US") }

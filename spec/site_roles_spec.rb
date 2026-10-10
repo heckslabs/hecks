@@ -44,7 +44,7 @@ RSpec.describe Hecks::Projections::Site::RoleProbe do
 
   describe "site_projection.check_roles" do
     before(:all) do
-      @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
+      @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
     end
 
     after { Hecks::Adapters::Codebase::Tree.root = nil }
@@ -62,7 +62,7 @@ RSpec.describe Hecks::Projections::Site::RoleProbe do
     end
 
     def run(url)
-      Hecks::Doors::CliRunner.call(runtime: @hecks, program: "hecks",
+      Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks",
                                    argv: ["site", "site_projection.check_roles", project, "url=#{url}", "--wait"])
     end
 

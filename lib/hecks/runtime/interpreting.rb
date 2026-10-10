@@ -32,7 +32,8 @@ module Hecks
 
       # Gives each argument the caller left out the default its attribute declares
       # (`attribute :runs, Count, default: 30`), so a declared default holds on every way in and
-      # not only where a door spells it out. An argument the caller passed is kept, whatever it is.
+      # not only where an entry point spells it out. An argument the caller passed is kept, whatever
+      # it is.
       #
       # @param command [Class] the command being dispatched
       # @param args [Hash{Symbol => Object}] the arguments the caller passed

@@ -19,7 +19,7 @@ RSpec.shared_context "with the deploy roll stand-ins" do
   let(:registry)        { BoxHostingStubs::REGISTRY }
 
   before(:all) do
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_doors: false)
+    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
   end
 
   # Runs each example of the group with a stand-in toolchain built from the golden named by the `let`.
@@ -41,7 +41,7 @@ RSpec.shared_context "with the deploy roll stand-ins" do
   end
 
   def deploy_call(verb, target, *argv)
-    Hecks::Doors::CliRunner.call(runtime: @hecks, program: "hecks", argv: ["deploy", verb, target, *argv, "--wait"])
+    Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks", argv: ["deploy", verb, target, *argv, "--wait"])
   end
 
   # Runs the verb against the runner's scripts with the stand-in programs on PATH.
@@ -73,8 +73,8 @@ RSpec.shared_context "with the deploy roll stand-ins" do
 
   # The status of the SmokeRun that the roll's policy requested under the roll's own run key.
   def smoke_status(json)
-    out, = Hecks::Doors::CliRunner.call(runtime: @hecks, program: "hecks",
-                                        argv: ["deploy", "smoke_run.verdict", "run=#{json.fetch("run")}"])
+    out, = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks",
+                                                    argv: ["deploy", "smoke_run.verdict", "run=#{json.fetch("run")}"])
     JSON.parse(out).first&.fetch("status")
   end
 

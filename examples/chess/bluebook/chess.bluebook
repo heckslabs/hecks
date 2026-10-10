@@ -170,7 +170,7 @@ Hecks.bluebook "Chess" do
       emits PiecePlaced
     end
 
-    # The only door for moving a piece; `delegates_to` makes the entity's refusal this command's
+    # The only entry point for moving a piece; `delegates_to` makes the entity's refusal this command's
     # own, synchronously.
     command "MovePiece" do
       goal "Move one of your own pieces, on your turn, on the caller's behalf"
