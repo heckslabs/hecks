@@ -1,0 +1,36 @@
+{
+  "name": "layouts-editor",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "clean": "node -e \"fs.rmSync('dist', { recursive: true, force: true })\"",
+    "build": "npm run clean && npm run build:css && npm run build:js",
+    "build:css": "tailwindcss --input src/browser/app.css --output dist/editor.css --minify",
+    "build:js": "esbuild src/browser/main.js --bundle --splitting --format=esm --target=es2022 --minify --outdir=dist --entry-names=editor --chunk-names=[name]-[hash]",
+    "prestart": "npm run build",
+    "start": "node src/server.ts",
+    "check": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@hecks/client": "^<version>",
+    "@tiptap/core": "3.31.4",
+    "@tiptap/extension-blockquote": "3.31.4",
+    "@tiptap/extension-image": "3.31.4",
+    "@tiptap/extensions": "3.31.4",
+    "@tiptap/pm": "3.31.4",
+    "@tiptap/starter-kit": "3.31.4",
+    "tiptap-extension-flat-list": "0.4.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "4.3.3",
+    "@tailwindcss/typography": "0.5.20",
+    "@types/node": "^22.10.0",
+    "daisyui": "5.7.47",
+    "esbuild": "0.28.2",
+    "tailwindcss": "4.3.3",
+    "typescript": "^5.8.0"
+  }
+}

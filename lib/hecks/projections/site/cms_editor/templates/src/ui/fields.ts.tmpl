@@ -10,6 +10,8 @@ import type { Aggregate, Attr } from "../schema.ts";
 import { SCHEMA } from "../schema.ts";
 import { esc, href } from "./html.ts";
 import { bodyToFields, bodyToHtml, emptyBody, fieldsToInputs } from "./body_model.js";
+import { blockList } from "./blocks.ts";
+import type { Problem } from "./blocks.ts";
 import { isMoment, secondsOf } from "./moments.ts";
 import { datalists, pickerControl } from "./pickers.ts";
 import type { Choices } from "./pickers.ts";
@@ -34,6 +36,8 @@ interface Context {
   choices?: Choices;
   /** The body attribute that is written as a draft: its editor saves by itself (see browser/autosave.js). */
   draft?: string;
+  /** The blocks of a list of mixed blocks that a refusal named (see blocks.ts). */
+  problems?: Problem[];
 }
 
 const inputType = (attr: Attr): string => (attr.kind === "integer" || attr.kind === "number" ? "number" : "text");
@@ -167,15 +171,26 @@ ${inputs}
 </fieldset>`;
 }
 
+/** A list of mixed blocks as cards; each slot is drawn by `field`, so a part is entered as it is anywhere else. */
+function blocks(agg: Aggregate, attr: Attr, name: string, value: Value, context: Context): string {
+  const slot = (part: Attr, prefix: string, held: Value, message?: string, required?: boolean): string => {
+    const own: Context = { ...context, top: message !== undefined, invalid: message ? { field: part.name, message } : null, mark: required === true, quiet: false, draft: undefined, problems: [] };
+    return field(agg, required ? { ...part, optional: false } : part, held, prefix, own);
+  };
+  const rendering = { slot, draft: context.draft === attr.name, problems: context.problems ?? [], caption: caption(attr, context), media: SCHEMA.media ? href("media") : undefined };
+  return blockList(agg, attr, name, value, rendering);
+}
+
 /** One attribute's inputs, `prefix` being the dotted path of the object that holds it. */
 export function field(agg: Aggregate, attr: Attr, value: Value, prefix = "", context: Context = { mark: true, top: true }): string {
   const name = `${prefix}${attr.name}`;
   if (attr.widget === "body") return body(attr, name, value, context);
+  if (attr.blockList && attr.list) return blocks(agg, attr, name, value, context);
   return attr.list ? listed(agg, attr, name, value, context) : one(agg, attr, name, value, context);
 }
 
 /** The inputs for `attrs`, filled from `values` (an instance's state or a refused submission). */
-export function fields(agg: Aggregate, attrs: Attr[], values: Record<string, Value> = {}, invalid: Invalid | null = null, mark = true, choices: Choices = {}, draft?: string): string {
-  const inputs = attrs.map((attr) => field(agg, attr, values[attr.name], "", { mark, invalid, top: true, choices, draft }));
+export function fields(agg: Aggregate, attrs: Attr[], values: Record<string, Value> = {}, invalid: Invalid | null = null, mark = true, choices: Choices = {}, draft?: string, problems: Problem[] = []): string {
+  const inputs = attrs.map((attr) => field(agg, attr, values[attr.name], "", { mark, invalid, top: true, choices, draft, problems }));
   return [...inputs, datalists(agg, attrs, choices)].filter((text) => text !== "").join("\n");
 }

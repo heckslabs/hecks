@@ -3,6 +3,7 @@ __BANNER__
 // The editor's browser script, bundled by `npm run build` into dist/editor.js. Every page is
 // complete HTML that works without it; this only adds behaviour. The rich-text editor is a larger
 // piece of code, loaded only on a page that has a body to write.
+import { enhanceBlocks } from "./blocks.js";
 import { enhanceForms } from "./forms.js";
 import { rememberFilters } from "./lists.js";
 import { enhanceMoments } from "./moments.js";
@@ -16,6 +17,7 @@ enhanceShell();
 enhanceMoments();
 enhancePickers();
 enhanceForms();
+enhanceBlocks();
 enhancePreview();
 adoptToasts();
 

@@ -18,12 +18,16 @@ const clock = () => new Date().toLocaleTimeString([], { hour: "numeric", minute:
 /**
  * Starts saving the draft of the body `root` holds.
  *
- * @param {HTMLElement} root the element that holds the writing surface (`data-body-editor`)
+ * @param {HTMLElement} root the element that holds the writing surface (`data-body-editor`), or a
+ *   list of mixed blocks (`data-block-list`)
+ * @param {{ form?: HTMLFormElement, blocked?: () => string | null, refused?: (problems: object[]) => void }} [options]
+ *   `form` when it is not the root's own; `blocked` says why the form is not ready to save (null when
+ *   it is); `refused` is given the blocks a refused save named
  * @returns {{ touch(): void, blur(): void }} what the writing surface calls when the text changes
  *   and when it loses focus
  */
-export function startDraft(root) {
-  const form = root.closest("form");
+export function startDraft(root, options = {}) {
+  const form = options.form ?? root.closest("form");
   const status = document.querySelector("[data-draft-status]");
   const discard = document.querySelector("[data-draft-discard]");
   let dirty = false;
@@ -57,7 +61,10 @@ export function startDraft(root) {
       });
       if (response.type === "opaqueredirect") return fail("Sign in again to keep saving.");
       const text = (await response.text()).trim();
-      if (!response.ok) return fail(text || `The editor answered ${response.status}.`);
+      if (!response.ok) {
+        named(response.headers.get("x-editor-problems"));
+        return fail(text || `The editor answered ${response.status}.`);
+      }
       if (version === sent) dirty = false;
       say(`Draft saved ${clock()}`);
       discard?.removeAttribute("hidden");
@@ -65,6 +72,15 @@ export function startDraft(root) {
       return version === sent;
     } catch {
       return fail("the editor could not be reached.");
+    }
+  };
+
+  /** Hands the blocks a refusal names to the list, which opens them. */
+  const named = (header) => {
+    try {
+      if (header) options.refused?.(JSON.parse(decodeURIComponent(header)));
+    } catch {
+      /* a header that is not ours is ignored */
     }
   };
 
@@ -78,6 +94,11 @@ export function startDraft(root) {
     clearTimeout(timer);
     if (current) return current.then(() => save());
     if (!dirty) return Promise.resolve(true);
+    const why = options.blocked?.();
+    if (why) {
+      say(`Not saved: ${why}`);
+      return Promise.resolve(false);
+    }
     if (!passes()) {
       say("Not saved: write something first, or fix what the form marks.");
       return Promise.resolve(false);

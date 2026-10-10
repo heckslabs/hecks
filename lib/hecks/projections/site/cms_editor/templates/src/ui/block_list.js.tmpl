@@ -1,0 +1,174 @@
+__BANNER__
+
+// The rules of a block list that need no page: which slots a kind shows, the one line that stands
+// for a block, whether a block is complete, and which block a refusal is about. Plain JavaScript
+// over plain data, used by the server that renders the cards and by the script that edits them, so
+// both answer the same way. A "list" here is an attribute's `blockList` (see schema.ts), a "block" is
+// one value of the list's value object, and a "part" is one of that value object's attributes.
+
+/** The discriminator's value in `block`, whether it is held as the plain text or as a one-part value object. */
+export function kindOf(list, block) {
+  const held = block?.[list.discriminator];
+  if (held && typeof held === "object") return String(Object.values(held)[0] ?? "");
+  return held === undefined || held === null ? "" : String(held);
+}
+
+const present = (value) => {
+  if (value === undefined || value === null || value === "") return false;
+  if (Array.isArray(value)) return value.some(present);
+  if (typeof value === "object") return Object.values(value).some(present);
+  return true;
+};
+
+/** Whether a part holds anything: text, a picture's key, a body with a block, a list with a row. */
+export const filled = present;
+
+/**
+ * The parts a kind shows, each with whether the kind needs it: the parts it needs first, then those it
+ * uses, then those common to every kind, each in the value object's own order.
+ * With a declared table (`rules`) these are the parts a row names, the parts no row names (common to
+ * every kind) and a picture's alt text with its key; with none, every part is shown, and a part that
+ * an invariant of the kind reads is marked as needed.
+ */
+export function slotsOf(list, parts, kind) {
+  const rule = list.rules?.[kind];
+  const named = new Set(Object.values(list.rules ?? {}).flatMap((row) => [...row.requires, ...row.uses]));
+  const mentioned = new Set(list.mentions?.[kind] ?? []);
+  const uses = new Set(rule ? [...rule.requires, ...rule.uses] : []);
+  const has = (name) => parts.some((part) => part.name === name);
+  const picture = Object.values(list.pictures ?? {}).find((one) => has(one.key) && has(one.alt));
+  if (picture && uses.has(picture.key)) uses.add(picture.alt);
+  return parts
+    .filter((part) => part.name !== list.discriminator)
+    .filter((part) => !rule || uses.has(part.name) || !named.has(part.name))
+    .map((part) => ({ part, required: rule ? rule.requires.includes(part.name) : false, mentioned: !rule && mentioned.has(part.name) }))
+    .map((slot, at) => ({ slot, at, rank: slot.required ? 0 : uses.has(slot.part.name) || slot.mentioned ? 1 : 2 }))
+    .sort((a, b) => a.rank - b.rank || a.at - b.at)
+    .map((one) => one.slot);
+}
+
+/** "1 entry", "3 entries": a list part's name, as a count of its rows. */
+const countOf = (name, count) => {
+  const words = name.replace(/_/g, " ");
+  return `${count} ${count === 1 ? words.replace(/([^aeiou])ies$/, "$1y").replace(/s$/, "") : words}`;
+};
+
+const textOf = (value) => (value && typeof value === "object" ? String(Object.values(value)[0] ?? "") : String(value ?? ""));
+
+/** The one line that stands for a block on its card: its first required text, else its longest text. */
+export function summaryOf(list, parts, block) {
+  const kind = kindOf(list, block);
+  const slots = slotsOf(list, parts, kind).filter((slot) => slot.part.kind !== "object" && !slot.part.list && !slot.part.options);
+  const texts = slots.map((slot) => ({ ...slot, text: textOf(block?.[slot.part.name]).trim() })).filter((slot) => slot.text !== "");
+  const first = texts.find((slot) => slot.required) ?? texts.reduce((best, slot) => (!best || slot.text.length > best.text.length ? slot : best), null);
+  if (first) return first.text.length > 80 ? `${first.text.slice(0, 79)}…` : first.text;
+  const counts = parts.filter((part) => part.list && filled(block?.[part.name])).map((part) => countOf(part.name, block[part.name].length));
+  return counts.join(", ");
+}
+
+/**
+ * What a block still lacks, as `{ slot, message }` for each: a part its kind requires that is empty,
+ * and a picture's alt text when it has a key. This is what the form can know before the domain is
+ * asked; the domain's own rules still decide.
+ */
+export function lacking(list, parts, block, pictureOf) {
+  const kind = kindOf(list, block);
+  const needs = slotsOf(list, parts, kind).filter((slot) => slot.required && !filled(block?.[slot.part.name]));
+  const missing = needs.map((slot) => ({ slot: slot.part.name, message: `${slot.part.name.replace(/_/g, " ")} is needed` }));
+  const picture = pictureOf?.key;
+  const alt = pictureOf?.alt;
+  if (picture && alt && filled(block?.[picture]) && !filled(block?.[alt])) missing.push({ slot: alt, message: "Describe the picture for people who cannot see it" });
+  return missing;
+}
+
+const normal = (value) => {
+  if (Array.isArray(value)) {
+    const items = value.map(normal).filter((item) => item !== undefined);
+    return items.length > 0 ? items : undefined;
+  }
+  if (value && typeof value === "object") {
+    const keys = Object.keys(value).sort();
+    if (keys.length === 1 && keys[0] === "value") return normal(value.value);
+    const made = Object.fromEntries(keys.map((key) => [key, normal(value[key])]).filter(([, held]) => held !== undefined));
+    return Object.keys(made).length > 0 ? made : undefined;
+  }
+  return value === null || value === "" || value === undefined ? undefined : value;
+};
+
+const sameShape = (a, b) => JSON.stringify(normal(a) ?? null) === JSON.stringify(normal(b) ?? null);
+
+/** The words of a refusal: the value object it names, the rule's wording and the value it was given, when it echoes one. */
+export function readRefusal(error) {
+  const found = /^(.+?) invariant violated — (.+?)(?: \(given (.*)\))?$/s.exec(String(error ?? ""));
+  if (!found) return null;
+  let given = null;
+  try {
+    given = found[3] ? JSON.parse(found[3]) : null;
+  } catch {
+    given = null;
+  }
+  return { type: found[1], rule: found[2], given };
+}
+
+const sentence = (rule) => `${rule.charAt(0).toUpperCase()}${rule.slice(1)}.`;
+
+/** Where in `args` (a command's arguments) the refusal's value sits: `[list, index]` or `[list, index, part, index]`. */
+function locate(read, attrs, args, valueObjects) {
+  const found = [];
+  for (const attr of attrs.filter((candidate) => candidate.blockList)) {
+    const blocks = Array.isArray(args[attr.name]) ? args[attr.name] : [];
+    blocks.forEach((block, at) => {
+      if (attr.type === read.type) found.push([attr.name, at]);
+      for (const part of valueObjects[attr.type] ?? []) {
+        const held = part.list && part.type === read.type && Array.isArray(block?.[part.name]) ? block[part.name] : [];
+        held.forEach((entry, inner) => found.push([attr.name, at, part.name, inner]));
+      }
+    });
+  }
+  return found;
+}
+
+const pick = (args, path) => path.reduce((value, step) => value?.[step], args);
+
+/**
+ * The blocks a refused command's error is about, as `{ path, slots, message }`. The error is
+ * matched to the submitted value it echoes; with no echo it falls back to the blocks whose kind the
+ * rule's wording names. A refusal that matches no block gives nothing, and the page shows it as a
+ * whole. `slots` are the parts the block lacks that its kind requires, else the parts the rule names.
+ */
+export function problemsOf(error, attrs, args, valueObjects) {
+  const read = readRefusal(error);
+  if (!read) return [];
+  const where = locate(read, attrs, args, valueObjects);
+  const exact = read.given ? where.filter((path) => sameShape(pick(args, path), read.given)) : [];
+  const worded = where.filter((path) => String(kindOf(listOf(attrs, path), pick(args, path))) !== "" && read.rule.includes(kindOf(listOf(attrs, path), pick(args, path)).replace(/_/g, " ")));
+  const chosen = exact.length > 0 ? exact : worded;
+  return chosen.map((path) => ({ path, slots: slotsNamed(read, attrs, path, args, valueObjects), message: sentence(read.rule) }));
+}
+
+const listOf = (attrs, path) => attrs.find((attr) => attr.name === path[0])?.blockList ?? { discriminator: "" };
+
+function slotsNamed(read, attrs, path, args, valueObjects) {
+  const attr = attrs.find((candidate) => candidate.name === path[0]);
+  const block = pick(args, path);
+  const parts = path.length === 2 ? valueObjects[attr.type] ?? [] : valueObjects[valueObjects[attr.type].find((part) => part.name === path[2]).type] ?? [];
+  const list = attr.blockList;
+  const empty = path.length === 2 ? lacking(list, parts, block, list.pictures?.[attr.type]).map((one) => one.slot) : [];
+  if (empty.length > 0) return empty;
+  const words = parts.filter((part) => new RegExp(`\\b${part.name.replace(/_/g, " ")}\\b`).test(read.rule)).map((part) => part.name);
+  return words;
+}
+
+/** A name as an id spells it: each run of anything but letters and digits is one hyphen. */
+export const safe = (text) => text.replace(/[^A-Za-z0-9]+/g, "-");
+
+/**
+ * `text` with the index of the card at `path` changed from `was` to `at`, in the dotted spelling of a
+ * field's name (`list.3.heading`) and in the spelling of an id made from it (`f-list-3-heading`), and
+ * in what is nested in the card at any depth.
+ */
+export function retarget(text, path, was, at) {
+  const dotted = text.split(`${path}.${was}.`).join(`${path}.${at}.`);
+  const tail = new RegExp(`(?<![A-Za-z0-9])${safe(path)}-${was}(?![0-9])`, "g");
+  return dotted.replace(tail, `${safe(path)}-${at}`);
+}

@@ -99,8 +99,9 @@ ${scheduledTable(world, href("scheduled"))}`;
  */
 function startingValues(agg: Aggregate, command: Command, state: State): State {
   const values = { ...state };
-  for (const attr of command.attributes.filter((candidate: Attr) => candidate.widget === "body" && values[candidate.name] == null)) {
-    const held = agg.attributes.find((other) => other.type === attr.type && other.name !== attr.name && state[other.name] != null);
+  const unset = (value: unknown): boolean => value == null || (Array.isArray(value) && value.length === 0);
+  for (const attr of command.attributes.filter((candidate: Attr) => (candidate.widget === "body" || candidate.blockList) && unset(values[candidate.name]))) {
+    const held = agg.attributes.find((other) => other.type === attr.type && other.name !== attr.name && !unset(state[other.name]));
     if (held) values[attr.name] = state[held.name];
   }
   return values;
@@ -142,7 +143,8 @@ function draftTools(agg: Aggregate, command: Command, extras: Extras): { bar: st
   if (!drafts || drafts.save !== command.name || !extras.id) return { bar: "", dialogs: "" };
   const id = extras.id;
   const back = extras.back ?? null;
-  const held = (extras.state ?? {})[drafts.attribute] != null;
+  const saved = (extras.state ?? {})[drafts.attribute];
+  const held = saved != null && !(Array.isArray(saved) && saved.length === 0);
   const make = (name?: string): Command | undefined => agg.commands.find((candidate) => candidate.name === name && candidate.on === agg.name && candidate.attributes.length === 0);
   const ask = (command: Command | undefined, words: string, classes: string, tone: "neutral" | "error", flush: boolean, hidden: boolean): [string, string] => {
     if (!command) return ["", ""];
@@ -175,7 +177,7 @@ export function commandForm(agg: Aggregate, command: Command, action: string, sh
 ${backInput(back)}${refusal(own?.message ?? null)}${note}
 ${draft.bar}
 ${target}
-${fields(agg, command.attributes, own ? own.values : startingValues(agg, command, state), invalidOf(own), true, choices, draft.bar ? agg.drafts?.attribute : undefined)}
+${fields(agg, command.attributes, own ? own.values : startingValues(agg, command, state), invalidOf(own), true, choices, draft.bar ? agg.drafts?.attribute : undefined, own?.problems ?? [])}
 <div data-actionbar class="sticky bottom-0 z-10 -mx-4 mt-8 flex items-center justify-end gap-2 border-t border-base-300 bg-base-100 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-8px_16px_-12px_rgb(0_0_0/0.25)]"><p class="mr-auto text-xs text-muted"><span class="text-primary" aria-hidden="true">*</span> Required</p><a class="btn btn-ghost" href="${esc(leave)}">Cancel</a>${submits(agg, command)}</div>
 </form>
 ${dialog}${draft.dialogs}`;

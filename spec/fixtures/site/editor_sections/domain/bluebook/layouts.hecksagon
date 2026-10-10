@@ -1,0 +1,7 @@
+Hecks.hecksagon "Layouts" do
+  attaches "Governance"
+  persisted_by "Memory"
+end
+
+Hecks.hecksagon "Governance" do
+end

@@ -9,6 +9,7 @@ __BANNER__
 import { at } from "../names.ts";
 import type { Aggregate, Command } from "../schema.ts";
 import { available, needsPage } from "./availability.ts";
+import type { Problem } from "./blocks.ts";
 import { confirmDialog, dialogId } from "./dialogs.ts";
 import { copyButton, esc, href, refusal, statusBadge } from "./html.ts";
 import { relatedPanels } from "./related.ts";
@@ -29,6 +30,8 @@ export interface Submitted {
   values: State;
   /** The attribute the refusal names, when it names one. */
   field?: string;
+  /** The blocks of a list of mixed blocks the refusal is about (see blocks.ts). */
+  problems?: Problem[];
 }
 
 function action(agg: Aggregate, id: string, command: Command, first: boolean): string {
