@@ -1,6 +1,6 @@
 # RuboCop runs at its defaults, with a short list of deliberate overrides
 
-**Status:** Proposed. Date: 2026-10-05. `.rubocop.yml` names the cops this codebase departs from RuboCop on, each with its reason, and everything else runs at the default. Every offense the defaults find is fixed, so there is no todo file.
+**Status:** Accepted; built and enforced by the pre-push gate and CI. Date: 2026-10-05. `.rubocop.yml` names the cops this codebase departs from RuboCop on, each with its reason, and everything else runs at the default. Every offense the defaults find is fixed, so there is no todo file.
 
 ## Context
 
