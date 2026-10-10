@@ -55,12 +55,16 @@ const countOf = (name, count) => {
 
 const textOf = (value) => (value && typeof value === "object" ? String(Object.values(value)[0] ?? "") : String(value ?? ""));
 
-/** The one line that stands for a block on its card: its first required text, else its longest text. */
-export function summaryOf(list, parts, block) {
+/**
+ * The one line that stands for a block on its card: its first required text, else its longest text.
+ * A card that is itself a picture (`pictureOf`) in a list of one shape says the picture's description.
+ */
+export function summaryOf(list, parts, block, pictureOf) {
   const kind = kindOf(list, block);
   const slots = slotsOf(list, parts, kind).filter((slot) => slot.part.kind !== "object" && !slot.part.list && !slot.part.options);
   const texts = slots.map((slot) => ({ ...slot, text: textOf(block?.[slot.part.name]).trim() })).filter((slot) => slot.text !== "");
-  const first = texts.find((slot) => slot.required) ?? texts.reduce((best, slot) => (!best || slot.text.length > best.text.length ? slot : best), null);
+  const said = list.kinds.length === 0 && pictureOf ? texts.find((slot) => slot.part.name === pictureOf.alt) : undefined;
+  const first = said ?? texts.find((slot) => slot.required) ?? texts.reduce((best, slot) => (!best || slot.text.length > best.text.length ? slot : best), null);
   if (first) return first.text.length > 80 ? `${first.text.slice(0, 79)}…` : first.text;
   const counts = parts.filter((part) => part.list && filled(block?.[part.name])).map((part) => countOf(part.name, block[part.name].length));
   return counts.join(", ");
@@ -112,17 +116,30 @@ export function readRefusal(error) {
 
 const sentence = (rule) => `${rule.charAt(0).toUpperCase()}${rule.slice(1)}.`;
 
-/** Where in `args` (a command's arguments) the refusal's value sits: `[list, index]` or `[list, index, part, index]`. */
-function locate(read, attrs, args, valueObjects) {
+/** Whether a value object of `type` is held, at any depth, by the value object named `from`. */
+function holds(valueObjects, from, type, depth = 0) {
+  if (depth > 6) return false;
+  return (valueObjects[from] ?? []).some((part) => part.type === type || holds(valueObjects, part.type, type, depth + 1));
+}
+
+/**
+ * Every place in `args` (the arguments of the attributes `attrs`) a value object of `type` sits, as
+ * `{ path, name, attr }`: its path in the arguments, the dotted name of its fields in the form, and the
+ * attribute that holds it. A body holds the value objects of its tree, so a refusal about a block of it
+ * is the body's.
+ */
+function locate(type, attrs, args, valueObjects, path = [], prefix = "", depth = 0) {
   const found = [];
-  for (const attr of attrs.filter((candidate) => candidate.blockList)) {
-    const blocks = Array.isArray(args[attr.name]) ? args[attr.name] : [];
-    blocks.forEach((block, at) => {
-      if (attr.type === read.type) found.push([attr.name, at]);
-      for (const part of valueObjects[attr.type] ?? []) {
-        const held = part.list && part.type === read.type && Array.isArray(block?.[part.name]) ? block[part.name] : [];
-        held.forEach((entry, inner) => found.push([attr.name, at, part.name, inner]));
-      }
+  if (depth > 6) return found;
+  for (const attr of attrs.filter((candidate) => candidate.kind === "object")) {
+    const held = args?.[attr.name];
+    const items = attr.list ? (Array.isArray(held) ? held : []) : held === undefined || held === null ? [] : [held];
+    items.forEach((item, at) => {
+      const here = attr.list ? [...path, attr.name, at] : [...path, attr.name];
+      const name = `${prefix}${attr.name}${attr.list ? `.${at}` : ""}`;
+      const within = attr.widget === "body" && holds(valueObjects, attr.type, type);
+      if (attr.type === type || within) found.push({ path: here, name, attr });
+      if (attr.widget !== "body") found.push(...locate(type, valueObjects[attr.type] ?? [], item, valueObjects, here, `${name}.`, depth + 1));
     });
   }
   return found;
@@ -131,32 +148,54 @@ function locate(read, attrs, args, valueObjects) {
 const pick = (args, path) => path.reduce((value, step) => value?.[step], args);
 
 /**
- * The blocks a refused command's error is about, as `{ path, slots, message }`. The error is
- * matched to the submitted value it echoes; with no echo it falls back to the blocks whose kind the
- * rule's wording names. A refusal that matches no block gives nothing, and the page shows it as a
- * whole. `slots` are the parts the block lacks that its kind requires, else the parts the rule names.
+ * The value objects a refused command's error is about, as `{ path, name, slots, message }` (`name` is
+ * the dotted name of the value object's fields in the form). The error is matched to the submitted
+ * value it echoes; with no echo it is the only value object of its type, else the blocks of a list
+ * whose kind the rule's wording names. A refusal that matches none gives nothing, and the page shows
+ * it as a whole. `slots` are the parts the value object lacks that it requires, else the parts the
+ * rule names.
  */
 export function problemsOf(error, attrs, args, valueObjects) {
   const read = readRefusal(error);
   if (!read) return [];
-  const where = locate(read, attrs, args, valueObjects);
-  const exact = read.given ? where.filter((path) => sameShape(pick(args, path), read.given)) : [];
-  const worded = where.filter((path) => String(kindOf(listOf(attrs, path), pick(args, path))) !== "" && read.rule.includes(kindOf(listOf(attrs, path), pick(args, path)).replace(/_/g, " ")));
-  const chosen = exact.length > 0 ? exact : worded;
-  return chosen.map((path) => ({ path, slots: slotsNamed(read, attrs, path, args, valueObjects), message: sentence(read.rule) }));
+  const where = locate(read.type, attrs, args, valueObjects);
+  const exact = read.given ? where.filter((place) => sameShape(pick(args, place.path), read.given)) : [];
+  const worded = where.filter((place) => {
+    const kind = place.attr.blockList ? String(kindOf(place.attr.blockList, pick(args, place.path))) : "";
+    return kind !== "" && read.rule.includes(kind.replace(/_/g, " "));
+  });
+  const alone = !read.given && where.length === 1 ? where : [];
+  const chosen = [exact, worded, alone].find((list) => list.length > 0) ?? [];
+  return chosen.map((place) => ({ path: place.path, name: place.name, slots: slotsNamed(read, place, args, valueObjects), message: sentence(read.rule) }));
 }
 
-const listOf = (attrs, path) => attrs.find((attr) => attr.name === path[0])?.blockList ?? { discriminator: "" };
+/** The parts of `parts` that a value object must have and has not (and a picture's description when it has the file). */
+function unmet(parts, block, picture) {
+  const missing = parts.filter((part) => !part.optional && !filled(block?.[part.name])).map((part) => part.name);
+  if (picture && filled(block?.[picture.key]) && !filled(block?.[picture.alt]) && !missing.includes(picture.alt)) missing.push(picture.alt);
+  return missing;
+}
 
-function slotsNamed(read, attrs, path, args, valueObjects) {
-  const attr = attrs.find((candidate) => candidate.name === path[0]);
-  const block = pick(args, path);
-  const parts = path.length === 2 ? valueObjects[attr.type] ?? [] : valueObjects[valueObjects[attr.type].find((part) => part.name === path[2]).type] ?? [];
-  const list = attr.blockList;
-  const empty = path.length === 2 ? lacking(list, parts, block, list.pictures?.[attr.type]).map((one) => one.slot) : [];
+function slotsNamed(read, place, args, valueObjects) {
+  const parts = valueObjects[place.attr.type] ?? [];
+  const block = pick(args, place.path);
+  const list = place.attr.blockList;
+  const empty = list ? lacking(list, parts, block, list.pictures?.[place.attr.type]).map((one) => one.slot) : unmet(parts, block, place.attr.picture);
   if (empty.length > 0) return empty;
-  const words = parts.filter((part) => new RegExp(`\\b${part.name.replace(/_/g, " ")}\\b`).test(read.rule)).map((part) => part.name);
-  return words;
+  return parts.filter((part) => new RegExp(`\\b${part.name.replace(/_/g, " ")}\\b`).test(read.rule)).map((part) => part.name);
+}
+
+/**
+ * Whether a member of a list holds anything a script has to make live: a rich-text body or a picture,
+ * at any depth (a list of its own among them). Such a member cannot be copied as plain inputs, so it is
+ * drawn as a card made from a template; a member of plain inputs, with rows of its own or none, stays
+ * a row.
+ */
+export function heavy(valueObjects, type, depth = 0) {
+  if (depth > 6) return false;
+  return (valueObjects[type] ?? []).some(
+    (part) => part.widget === "body" || part.picture !== undefined || (part.kind === "object" && heavy(valueObjects, part.type, depth + 1)),
+  );
 }
 
 /** A name as an id spells it: each run of anything but letters and digits is one hyphen. */

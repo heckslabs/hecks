@@ -66,8 +66,16 @@ export interface Attr {
   target?: string;
   /** Set when the attribute is a list of mixed blocks (see `BlockList`). */
   blockList?: BlockList;
-  /** The most blocks the list may hold, when a command's `given` says. */
+  /** The most rows the list may hold, when a rule of its holder (an invariant or a command's `given`) says. */
   max?: number;
+  /** The fewest rows the list may hold, when a rule of its holder says. */
+  min?: number;
+  /** The most characters a text may hold, when a rule of its holder says. */
+  maxLength?: number;
+  /** True when `maxLength` is long enough for the text to be written in a box of several lines. */
+  multiline?: boolean;
+  /** Set when the value object is a picture: the names of its parts that hold the file, its description and its caption. */
+  picture?: { key: string; alt: string; caption?: string };
 }
 
 export interface Transition {
@@ -120,9 +128,9 @@ export interface Related {
   edit?: string;
 }
 
-/** An aggregate that keeps a draft of a body beside the live one, and the commands that handle it. */
+/** An aggregate that keeps a draft of its content beside the live one, and the commands that handle it. */
 export interface Drafts {
-  /** The draft attribute (`draft_body`) and the live one it stands for (`body`). */
+  /** The draft attribute (`draft_body`, `draft_content`) and the live one it stands for (`body`, `content`). */
   attribute: string;
   live: string;
   save: string;
@@ -145,7 +153,7 @@ export interface Aggregate {
   queries: Query[];
   /** The aggregates keyed by this one's records, shown as panels on a record's page. */
   related?: Related[];
-  /** The draft the aggregate keeps beside a live body, when it keeps one. */
+  /** The draft the aggregate keeps beside its live content, when it keeps one. */
   drafts?: Drafts;
 }
 

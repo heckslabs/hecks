@@ -1,25 +1,30 @@
 __BANNER__
 
-// A list of mixed blocks, each of one of a few kinds, as an ordered list of cards. Each card
-// is one block: its kind as a badge, one line that says what it holds, tools to move it up and down
-// and remove it, and, when it is open, only the slots its kind uses (see block_list.js). The list
-// is plain markup that posts the same dotted-path fields every value object does, so a browser with
-// no script still edits and sends the blocks it has; the script (browser/blocks.js) adds adding,
-// removing, reordering and opening cards. A card holds its repeated parts (buttons, entries) as
-// groups of cards of their own, one level in.
+// A list of mixed blocks (or of one kind of group, with no kind) as an ordered list of cards. Each
+// card is one block: its kind as a badge, one line that says what it holds, tools to move it up
+// and down and remove it, and, when open, only the slots its kind uses (see block_list.js). The
+// list is plain markup that posts the same dotted-path fields every value object does, so a
+// browser with no script still edits what it has; browser/blocks.js adds adding, removing,
+// reordering and opening cards. A card holds its repeated parts as groups of cards one level in.
 //
-// The markup a new card is made from is carried in the page as a `<template>` per kind, written with
-// the index left as `ZZI0ZZ` (and `ZZI1ZZ` for a part one level in), so the script never builds a card
-// by hand and a new card is exactly what the server would have drawn.
+// A new card is made from a `<template>` the page carries per kind, written with the index left
+// as `ZZI0ZZ` (and `ZZI1ZZ` one level in), so a new card is what the server would have drawn.
+// A group's members show all their slots, each required as its value object declares, within the
+// limits the holder's rules give (see `Limits` in the generator).
 import type { Aggregate, Attr, BlockList } from "../schema.ts";
 import { esc } from "./html.ts";
 import { icon } from "./icons.ts";
 import { filled, kindOf, lacking, slotsOf, summaryOf } from "./block_list.js";
-import { label, singular } from "./words.ts";
+import { label, limitsNote, pluralOf, singular } from "./words.ts";
 
-/** A refused block: where it is (`path` under the list's name, `[3]` or `[3, "entries", 1]`), which parts, and why. */
+/**
+ * A refused value object: where it is in the command's arguments (`path`) and in the form (`name`, the
+ * dotted name its fields share: `content.items.3` or `content.items.3.parts.1`), which of its
+ * parts are at fault, and why.
+ */
 export interface Problem {
   path: (string | number)[];
+  name: string;
   slots: string[];
   message: string;
 }
@@ -27,7 +32,7 @@ export interface Problem {
 /** What the list needs from the form around it. */
 export interface Rendering {
   /** One part's control: its markup at `prefix + part.name`, flagged with `message` when it is the one a refusal names. */
-  slot: (part: Attr, prefix: string, value: unknown, message?: string, required?: boolean) => string;
+  slot: (part: Attr, prefix: string, value: unknown, message?: string, required?: boolean, rows?: boolean) => string;
   /** Whether the list saves a draft by itself (see browser/autosave.js). */
   draft: boolean;
   /** The blocks a refused command named. */
@@ -36,6 +41,8 @@ export interface Rendering {
   caption: string;
   /** Whether a picture picker is on offer (`data-media`'s address), else the key is typed. */
   media?: string;
+  /** What the domain said about the list as a whole (its size), when it did. */
+  message?: string;
 }
 
 type Block = Record<string, unknown>;
@@ -51,8 +58,6 @@ interface Slot {
 const TOKEN = ["ZZI0ZZ", "ZZI1ZZ"];
 
 const safe = (text: string): string => text.replace(/[^A-Za-z0-9]+/g, "-");
-
-const same = (a: (string | number)[], b: (string | number)[]): boolean => a.length === b.length && a.every((step, at) => step === b[at]);
 
 /** The control of the part that holds the kind: the kind as a hidden input, in the value object's own shape. */
 function kindInput(agg: Aggregate, list: BlockList, parts: Attr[], prefix: string, kind: string): string {
@@ -82,8 +87,8 @@ interface Place {
   type: string;
   list: BlockList;
   parts: Attr[];
-  /** The path in the command's arguments, for matching a refusal. */
-  at: (string | number)[];
+  /** True in a list of one kind of group: what a part is required to be is what its value object declares. */
+  declared: boolean;
 }
 
 function badge(kind: string | null): string {
@@ -94,14 +99,16 @@ function badge(kind: string | null): string {
 function slotsOfCard(agg: Aggregate, place: Place, rendering: Rendering, block: Block, kind: string | null, flagged: Problem | undefined): string {
   const prefix = `${place.path}.${place.index}.`;
   const picture = place.list.pictures?.[place.type];
-  const shown: Slot[] = kind === null ? place.parts.map((part) => ({ part, required: false, mentioned: false })) : (slotsOf(place.list, place.parts, kind) as Slot[]);
+  const plain = (part: Attr): Slot => ({ part, required: place.declared && !part.optional, mentioned: false });
+  const shown: Slot[] = kind === null ? place.parts.map(plain) : (slotsOf(place.list, place.parts, kind) as Slot[]);
   const held = shown.filter((slot) => !(picture && (slot.part.name === picture.alt || slot.part.name === picture.caption)));
   const draw = held.map(({ part, required, mentioned }) => {
     const note = mentioned ? `<p class="-mt-3 mb-3 text-xs text-muted">A rule of this kind of ${esc(singular(place.noun))} reads this.</p>` : "";
     const message = flagged?.slots.includes(part.name) ? flagged.message : undefined;
     if (picture && part.name === picture.key) return pictureGroup(agg, place, rendering, block, picture, flagged, prefix);
-    if (part.list && part.kind === "object") return group(agg, place, part, rendering, block, prefix, message);
-    return `${rendering.slot(part, prefix, block[part.name], message, required)}${note}`;
+    if (place.depth === 0 && part.list && part.kind === "object") return group(agg, place, part, rendering, block, prefix, message);
+    const rows = place.depth >= 1 && part.list && part.kind === "object";
+    return `${rendering.slot(part, prefix, block[part.name], message, required, rows)}${note}`;
   });
   return draw.join("\n");
 }
@@ -117,7 +124,7 @@ function pictureGroup(agg: Aggregate, place: Place, rendering: Rendering, block:
   const thumb = `<img class="size-20 shrink-0 border border-base-300 object-cover" alt="" width="80" height="80" data-picture-thumb hidden>`;
   return `<div class="my-4 grid gap-1 border border-base-300 p-3" data-picture data-key="${esc(prefix + picture.key)}" data-alt="${esc(prefix + picture.alt)}">
 <p class="font-semibold">Picture</p>
-<div class="flex flex-wrap items-start gap-3">${thumb}<div class="grid min-w-0 flex-1 gap-1">${control(key)}${control(alt)}${control(caption)}${pick}</div></div>
+<div class="flex flex-wrap items-start gap-3">${thumb}<div class="grid min-w-0 flex-1 gap-1 max-sm:basis-full">${control(key)}${control(alt)}${control(caption)}${pick}</div></div>
 <p class="text-xs text-muted">A picture needs a description for people who cannot see it.</p>
 </div>`;
 }
@@ -125,21 +132,25 @@ function pictureGroup(agg: Aggregate, place: Place, rendering: Rendering, block:
 /** One card: its head and, in the panel, its slots. `kind` is null for a block with no kind (a repeated part). */
 function card(agg: Aggregate, place: Place, rendering: Rendering, block: Block, kind: string | null): string {
   const id = `blk-${safe(place.path)}-${place.index}`;
-  const flagged = rendering.problems.find((problem) => same(problem.path, place.at));
-  const summary = kind === null && !place.list ? "" : String(summaryOf(place.list, place.parts, block) ?? "");
-  const open = flagged ? "" : " hidden";
+  const flagged = rendering.problems.find((problem) => problem.name === `${place.path}.${place.index}`);
+  const picture = place.list.pictures?.[place.type];
+  const summary = kind === null && !place.list ? "" : String(summaryOf(place.list, place.parts, block, picture) ?? "");
+  const holds = rendering.problems.some((problem) => problem.name.startsWith(`${place.path}.${place.index}.`));
+  const open = flagged || holds ? "" : " hidden";
   const attention = flagged ? `<span class="badge badge-soft badge-error shrink-0 gap-1 font-semibold">${icon("alert")}Needs attention</span>` : "";
   const problem = flagged && flagged.slots.length === 0 ? `<p class="text-sm font-semibold text-error" id="${id}-problem">${esc(flagged.message)}</p>` : "";
   const describe = flagged && flagged.slots.length === 0 ? ` aria-describedby="${id}-problem"` : "";
   const number = typeof place.index === "number" ? place.index + 1 : place.index;
   const kindField = kind === null ? "" : kindInput(agg, place.list, place.parts, `${place.path}.${place.index}.`, kind);
-  const toggle = `<button type="button" class="btn btn-ghost h-auto min-h-11 min-w-0 flex-1 flex-wrap justify-start gap-x-2 gap-y-0 py-2 text-left font-normal" data-action="toggle" aria-expanded="${flagged ? "true" : "false"}" aria-controls="${id}-panel"${describe} hidden>${icon("chevron-right")}<span class="shrink-0 font-semibold" data-card-title>${esc(label(place.noun))} <span data-card-number>${number}</span></span>${badge(kind)}<span class="min-w-0 flex-1 truncate text-muted max-sm:basis-full max-sm:pl-7" data-card-summary>${esc(summary)}</span>${attention}</button>`;
+  const toggle = `<button type="button" class="btn btn-ghost h-auto min-h-11 min-w-0 flex-1 flex-wrap justify-start gap-x-2 gap-y-0 py-2 text-left font-normal" data-action="toggle" aria-expanded="${flagged || holds ? "true" : "false"}" aria-controls="${id}-panel"${describe} hidden>${icon("chevron-right")}<span class="shrink-0 font-semibold" data-card-title>${esc(label(place.noun))} <span data-card-number>${number}</span></span>${badge(kind)}<span class="min-w-0 flex-1 truncate text-muted max-sm:basis-full max-sm:pl-7" data-card-summary>${esc(summary)}</span>${attention}</button>`;
   const plain = `<span class="flex min-w-0 flex-1 flex-wrap items-center gap-2 py-2" data-card-static><span class="font-semibold">${esc(label(place.noun))} ${number}</span>${badge(kind)}<span class="min-w-0 text-muted">${esc(summary)}</span>${attention}</span>`;
   const heading = `<h${place.depth + 3} class="m-0 flex min-w-0 flex-1 text-base">${plain}${toggle}</h${place.depth + 3}>`;
-  const valid = flagged ? ` data-invalid` : "";
-  const requires = kind === null ? "" : (place.list.rules?.[kind]?.requires ?? []).join(" ");
+  const valid = `${flagged ? ` data-invalid` : ""}${holds ? ` data-open` : ""}`;
+  const required = kind === null ? (place.declared ? place.parts.filter((part) => !part.optional && !part.list) : []) : [];
+  const requires = kind === null ? required.map((part) => part.name).join(" ") : (place.list.rules?.[kind]?.requires ?? []).join(" ");
   const needs = requires ? ` data-requires="${esc(requires)}"` : "";
-  return `<li class="min-w-0 border border-base-300 bg-base-100" id="${id}" data-card data-index="${place.index}" data-kind="${esc(kind ?? "")}"${needs}${valid}>
+  const said = picture && place.declared && place.depth === 0 ? ` data-summary-alt="${esc(picture.alt)}"` : "";
+  return `<li class="min-w-0 border border-base-300 bg-base-100" id="${id}" data-card data-index="${place.index}" data-kind="${esc(kind ?? "")}"${needs}${said}${valid}>
 <div class="flex items-center gap-1 pl-2" data-card-head>${heading}${tools(place.noun, number, summary)}</div>
 <div id="${id}-panel" class="border-t border-base-300 px-4 pb-4 [&>*:first-child]:mt-2" data-card-panel>
 ${problem}${kindField}
@@ -154,13 +165,16 @@ function group(agg: Aggregate, place: Place, part: Attr, rendering: Rendering, b
   const noun = singular(part.name.replace(/([^aeiou])ies$/, "$1y").replace(/s$/, ""));
   const path = `${prefix}${part.name}`;
   const held = Array.isArray(block[part.name]) ? (block[part.name] as Block[]) : [];
-  const limit = place.list.limits?.[part.name];
-  const nested: BlockList = { discriminator: "", kinds: [], pictures: place.list.pictures };
-  const inside = (index: number | string, item: Block, at: (string | number)[]): string => card(agg, { path, index, depth: 1, noun, type: part.type, list: nested, parts, at }, rendering, item, null);
-  const cards = held.map((item, index) => inside(index, item, [...place.at, part.name, index]));
-  const blank = inside(TOKEN[1], {}, []);
+  const limit = part.max ?? place.list.limits?.[part.name];
+  const pictures = { ...place.list.pictures, ...(part.picture ? { [part.type]: part.picture } : {}) };
+  const nested: BlockList = { discriminator: "", kinds: [], pictures };
+  const inside = (index: number | string, item: Block): string => card(agg, { path, index, depth: 1, noun, type: part.type, list: nested, parts, declared: place.declared }, rendering, item, null);
+  const cards = held.map((item, index) => inside(index, item));
+  const blank = inside(TOKEN[1], {});
   const max = limit ? ` data-max="${limit}"` : "";
-  const need = place.list.rules?.[kindOf(place.list, block)]?.requires.includes(part.name) ? "" : ` <span class="ml-1 text-xs font-normal text-muted">optional</span>`;
+  const required = place.declared ? !part.optional : place.list.rules?.[kindOf(place.list, block)]?.requires.includes(part.name);
+  const note = limitsNote(part.min, limit);
+  const need = `${required ? "" : ` <span class="ml-1 text-xs font-normal text-muted">optional</span>`}${note ? ` <span class="ml-1 text-xs font-normal text-muted">${esc(note)}</span>` : ""}`;
   const bad = problem ? ` aria-invalid="true" aria-describedby="blk-${safe(path)}-problem"` : "";
   const why = problem ? `<p class="clear-both text-sm font-semibold text-error" id="blk-${safe(path)}-problem">${esc(problem)}</p>` : "";
   return `<fieldset class="mt-6 border-t border-base-300 pt-3" data-group data-path="${esc(path)}" data-noun="${esc(noun)}"${max} data-depth="1"${bad}>
@@ -174,17 +188,26 @@ ${why}
 </fieldset>`;
 }
 
-/** The kinds on offer as the options of the add control, and a template for each. */
+/** What a list of one kind of group is drawn from: a block list that has no kind, its limits and its member's picture. */
+function plainList(attr: Attr): BlockList {
+  return { discriminator: "", kinds: [], pictures: attr.picture ? { [attr.type]: attr.picture } : undefined };
+}
+
+/** The add control and a template for each kind (or the one template, for a list that has no kinds). */
 function adder(agg: Aggregate, attr: Attr, name: string, rendering: Rendering, noun: string): { control: string; templates: string } {
-  const list = attr.blockList as BlockList;
+  const list = attr.blockList ?? plainList(attr);
   const parts = agg.valueObjects[attr.type] ?? [];
+  const place: Place = { path: name, index: TOKEN[0], depth: 0, noun, type: attr.type, list, parts, declared: !attr.blockList };
+  const button = `<button type="button" class="btn btn-neutral" data-action="add">${icon("plus")}<span>Add ${esc(singular(noun))}</span></button>`;
+  if (!attr.blockList) {
+    return { control: `<div class="mt-4 flex flex-wrap items-end gap-2" data-adder hidden>${button}</div>`, templates: `<template data-card-template data-kind="">${card(agg, place, rendering, {}, null)}</template>` };
+  }
   const options = list.kinds.map((kind) => `<option value="${esc(kind)}">${esc(label(kind))}</option>`).join("");
   const id = `blk-${safe(name)}-kind`;
   const control = `<div class="mt-4 flex flex-wrap items-end gap-2" data-adder hidden>
 <div class="grid gap-1"><label for="${id}" class="font-semibold">Kind of ${esc(singular(noun))} to add</label><select id="${id}" class="select" data-add-kind>${options}</select></div>
-<button type="button" class="btn btn-neutral" data-action="add">${icon("plus")}<span>Add ${esc(singular(noun))}</span></button>
+${button}
 </div>`;
-  const place: Place = { path: name, index: TOKEN[0], depth: 0, noun, type: attr.type, list, parts, at: [] };
   const templates = list.kinds.map((kind) => `<template data-card-template data-kind="${esc(kind)}">${card(agg, place, rendering, { [list.discriminator]: kindValue(agg, parts, list, kind) }, kind)}</template>`);
   return { control, templates: templates.join("\n") };
 }
@@ -200,36 +223,44 @@ function kindValue(agg: Aggregate, parts: Attr[], list: BlockList, kind: string)
 function summaryOfProblems(name: string, noun: string, problems: Problem[], titles: Map<string, string>): string {
   if (problems.length === 0) return "";
   const items = problems.map((problem) => {
-    const id = `blk-${safe(name)}-${problem.path[1]}`;
-    const where = problem.path.length > 2 ? `, ${esc(label(String(problem.path[2])))} ${Number(problem.path[3]) + 1}` : "";
-    return `<li><a href="#${id}">${esc(titles.get(String(problem.path[1])) ?? "")}${where}</a>: ${esc(problem.message)}</li>`;
+    const rest = problem.name.slice(name.length + 1).split(".");
+    const id = `blk-${safe(name)}-${rest[0]}`;
+    const where = rest.length > 2 ? `, ${esc(label(rest[1]))} ${Number(rest[2]) + 1}` : "";
+    return `<li><a href="#${id}">${esc(titles.get(rest[0]) ?? "")}${where}</a>: ${esc(problem.message)}</li>`;
   });
-  const words = problems.length === 1 ? `1 ${esc(singular(noun))} needs attention` : `${problems.length} ${esc(singular(noun))}s need attention`;
+  const words = problems.length === 1 ? `1 ${esc(singular(noun))} needs attention` : `${problems.length} ${esc(pluralOf(singular(noun)))} need attention`;
   return `<div class="alert alert-error alert-soft mb-4 block" role="alert" tabindex="-1" data-block-problems><p class="font-semibold">${words}</p><ul class="mt-1 list-disc pl-5">${items.join("")}</ul></div>`;
 }
 
-/** An attribute that is a list of mixed blocks, as its cards, its add control and its templates. */
+/** An attribute that is a list of mixed blocks, or of one kind of group, as its cards, its add control and its templates. */
 export function blockList(agg: Aggregate, attr: Attr, name: string, value: unknown, rendering: Rendering): string {
-  const list = attr.blockList as BlockList;
+  const list = attr.blockList ?? plainList(attr);
   const parts = agg.valueObjects[attr.type] ?? [];
   const noun = singular(attr.type);
+  const plural = esc(pluralOf(noun));
   const held = Array.isArray(value) ? (value as Block[]) : [];
-  const own = rendering.problems.filter((problem) => problem.path[0] === attr.name);
-  const cards = held.map((block, index) => card(agg, { path: name, index, depth: 0, noun, type: attr.type, list, parts, at: [attr.name, index] }, rendering, block, kindOf(list, block) || null));
+  const own = rendering.problems.filter((problem) => problem.name.startsWith(`${name}.`));
+  const place = (index: number): Place => ({ path: name, index, depth: 0, noun, type: attr.type, list, parts, declared: !attr.blockList });
+  const cards = held.map((block, index) => card(agg, place(index), rendering, block, kindOf(list, block) || null));
   const titles = new Map(held.map((block, index) => [String(index), `${label(noun)} ${index + 1}${kindOf(list, block) ? ` (${label(kindOf(list, block))})` : ""}`]));
   const adding = adder(agg, attr, name, rendering, noun);
   const max = attr.max ? ` data-max="${attr.max}"` : "";
   const draft = rendering.draft ? " data-draft" : "";
   const id = `blk-${safe(name)}`;
-  const help = `<p class="clear-both mb-3 text-sm text-muted" id="${id}-help">Open a ${esc(singular(noun))} to edit it. Move buttons change the order and Remove asks first. Without scripts every ${esc(singular(noun))} stays open and cannot be added, moved or removed.</p>`;
-  return `<fieldset class="mt-6 [&>legend+*]:clear-both" id="${id}" data-block-list data-group data-path="${esc(name)}" data-noun="${esc(noun)}" data-depth="0"${max}${draft} aria-describedby="${id}-help">
+  const limits = limitsNote(attr.min, attr.max);
+  const help = `<p class="clear-both mb-3 text-sm text-muted" id="${id}-help">Open a ${esc(singular(noun))} to edit it. Move buttons change the order and Remove asks first. ${limits} Without scripts every ${esc(singular(noun))} stays open and cannot be added, moved or removed.</p>`;
+  const invalid = rendering.message ? ` aria-invalid="true"` : "";
+  const said = rendering.message ? `<p class="clear-both mb-3 text-sm font-semibold text-error" id="${id}-error">${esc(rendering.message)}</p>` : "";
+  const described = rendering.message ? `${id}-help ${id}-error` : `${id}-help`;
+  return `<fieldset class="mt-6 [&>legend+*]:clear-both" id="${id}" data-block-list data-group data-path="${esc(name)}" data-noun="${esc(noun)}" data-depth="0"${max}${draft}${invalid} aria-describedby="${described}">
 <legend class="float-left mb-2 w-full border-t border-base-300 pt-4 text-lg font-semibold">${rendering.caption} <span class="text-sm font-normal text-muted" data-count>(${held.length})</span></legend>
 ${help}
+${said}
 ${summaryOfProblems(name, noun, own, titles)}
 <ol class="grid list-none grid-cols-[minmax(0,1fr)] gap-3 p-0" data-cards>
 ${cards.join("\n")}
 </ol>
-<p class="mt-2 text-sm text-muted" data-empty${held.length > 0 ? " hidden" : ""}>No ${esc(singular(noun))}s yet.</p>
+<p class="mt-2 text-sm text-muted" data-empty${held.length > 0 ? " hidden" : ""}>No ${plural} yet.</p>
 ${adding.control}
 <p class="sr-only" role="status" aria-live="polite" data-block-say></p>
 ${adding.templates}

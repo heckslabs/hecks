@@ -68,6 +68,8 @@ function renumber(repeat) {
     row.querySelector(':scope > [data-tools] [data-action="up"]').disabled = at === 0;
     row.querySelector(':scope > [data-tools] [data-action="down"]').disabled = at === rows.length - 1;
   });
+  const most = Number(repeat.dataset.max ?? 0);
+  repeat.querySelector(":scope > button.btn")?.setAttribute("aria-disabled", String(most > 0 && rows.length >= most));
 }
 
 /** A copy of `row` with nothing filled in, to be the next row. */
@@ -75,7 +77,7 @@ function blank(row) {
   const copy = row.cloneNode(true);
   copy.querySelector(":scope > [data-tools]")?.remove();
   unmountPickers(copy);
-  for (const input of copy.querySelectorAll("input")) {
+  for (const input of copy.querySelectorAll("input, textarea")) {
     if (input.type === "checkbox") input.checked = false;
     else input.value = "";
     if (input.dataset.initial !== undefined) input.dataset.initial = "";
@@ -86,6 +88,11 @@ function blank(row) {
     select.removeAttribute("aria-invalid");
   }
   for (const nested of copy.querySelectorAll("[data-rows]")) [...nested.children].slice(1).forEach((extra) => extra.remove());
+  // A run of rows inside the row is made live again for the copy: its buttons are new, not copied.
+  for (const nested of copy.querySelectorAll("[data-repeat]")) {
+    delete nested.dataset.dressed;
+    nested.querySelectorAll(":scope > button, [data-tools]").forEach((made) => made.remove());
+  }
   return copy;
 }
 
@@ -104,6 +111,8 @@ function repeating(repeat) {
   add.innerHTML = `${icon("plus")}<span>Add another ${noun}</span>`;
   repeat.append(add);
   add.addEventListener("click", () => {
+    const most = Number(repeat.dataset.max ?? 0);
+    if (most > 0 && rows.children.length >= most) return say(`At most ${most} ${noun}s fit here.`);
     const last = rows.lastElementChild;
     const copy = blank(last);
     const at = rows.children.length;
@@ -135,7 +144,7 @@ function repeating(repeat) {
 
 function remove(repeat, rows, row, noun) {
   if (rows.children.length === 1) {
-    for (const input of row.querySelectorAll("input")) input.type === "checkbox" ? (input.checked = false) : (input.value = "");
+    for (const input of row.querySelectorAll("input, textarea")) input.type === "checkbox" ? (input.checked = false) : (input.value = "");
     for (const select of row.querySelectorAll("select")) select.selectedIndex = 0;
     say(`Cleared ${noun}.`);
     return;
@@ -180,7 +189,7 @@ function busy() {
 }
 
 /** After a refusal, focus goes to the first field it names, or to the message. */
-function firstProblem() {
+export function firstProblem() {
   const target = document.querySelector('[aria-invalid="true"]') ?? document.querySelector("[data-refusal]");
   if (!target) return;
   target.scrollIntoView({ block: "center" });
@@ -188,8 +197,13 @@ function firstProblem() {
   control.focus({ preventScroll: true });
 }
 
+/** Makes the runs of repeatable rows under `scope` live (a card made after the page loaded holds some). */
+export function enhanceRows(scope) {
+  for (const repeat of scope.querySelectorAll("[data-repeat]")) if (!repeat.dataset.dressed) repeating(repeat);
+}
+
 export function enhanceForms() {
-  for (const repeat of document.querySelectorAll("[data-repeat]")) if (!repeat.dataset.dressed) repeating(repeat);
+  enhanceRows(document);
   confirming();
   busy();
   firstProblem();

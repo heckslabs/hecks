@@ -6,14 +6,15 @@ module Hecks
   module Projections
     module Site
       module CmsEditor
-        # An aggregate that keeps a draft of a document body or a block list beside the live one:
-        # the editor writes the draft as the person types and publishes it only when asked.
+        # An aggregate that keeps a draft of its content beside the live one: the editor writes the
+        # draft as the person types and publishes it only when asked.
         #
         # A command on the aggregate whose every argument is `draft_<x>` (the aggregate holds
-        # both `draft_<x>` and `<x>`, of one type, and some `<x>` is a rich-text body or a block
-        # list) saves the draft. A command with a `sets <x>, to: state(:draft_<x>)` mutation
-        # publishes it; one that only empties `draft_<x>` (see `Clearing`) discards it. A missing
-        # publishing or discarding command is left out.
+        # both `draft_<x>` and `<x>`, of one type, and some `<x>` is a rich-text body, a block list
+        # or a value object, alone or in a list) saves the draft. A command with a
+        # `sets <x>, to: state(:draft_<x>)` mutation publishes it; one that only empties
+        # `draft_<x>` (see `Clearing`) discards it. A missing publishing or discarding command is
+        # left out.
         module Drafts
           # What a draft attribute's name starts with.
           PREFIX = "draft_"
@@ -61,9 +62,12 @@ module Hecks
             types.none?(&:empty?) && types.uniq.size == 1
           end
 
-          # @return [Boolean] whether the named attribute is a rich-text body or a block list
+          # @return [Boolean] whether the named attribute is a rich-text body, a block list or a
+          #   value object (a page's fixed slots), alone or in a list
           def draftable?(name, attributes)
-            attributes.any? { |attr| attr["name"] == name && (attr["widget"] == "body" || attr.key?("blockList")) }
+            attributes.any? do |attr|
+              attr["name"] == name && (attr["widget"] == "body" || attr.key?("blockList") || attr["kind"] == "object")
+            end
           end
 
           # @return [String, nil] the command that moves the draft into the live attribute

@@ -3,8 +3,9 @@ __BANNER__
 // A submitted form turned back into what a command takes. The form's inputs are named by dotted
 // path (see fields.ts); this reads them against the same attributes, so a nested value object comes
 // back nested and a run of repeatable rows comes back as a list. A row left entirely blank is not a
-// row, and an optional part left blank is left out; a required text part left blank is sent as
-// empty text so that the domain's own rule refuses it in its own words. A rich-text body is read the
+// row, and an optional part left blank is left out, as is an optional group with nothing in it; a
+// required text part left blank in a group that has something in it is sent as empty text so that
+// the domain's own rule refuses it in its own words. A rich-text body is read the
 // same way: the widget posts its tree as the same dotted-path fields (`body.blocks.0.spans.1.text`),
 // so there is no second encoding.
 import type { Aggregate, Attr } from "../schema.ts";
@@ -47,12 +48,23 @@ function text(attr: Attr, form: Form, path: string, optional: boolean): unknown 
   return raw;
 }
 
+/**
+ * A value object from its fields. One that is optional, or sits in an optional one, and was left
+ * entirely blank is left out; one with anything in it is read again with its required parts counted
+ * as required, so a part left blank is sent empty and the domain's own rule refuses it in its own words.
+ */
 function object(agg: Aggregate, attr: Attr, form: Form, path: string, optional: boolean): unknown {
-  const built: Record<string, unknown> = {};
-  for (const part of agg.valueObjects[attr.type] ?? []) {
-    const value = build(agg, part, form, `${path}.`, optional);
-    if (value !== undefined) built[part.name] = value;
-  }
+  const read = (lenient: boolean): Record<string, unknown> => {
+    const built: Record<string, unknown> = {};
+    for (const part of agg.valueObjects[attr.type] ?? []) {
+      const value = build(agg, part, form, `${path}.`, lenient);
+      if (value !== undefined) built[part.name] = value;
+    }
+    return built;
+  };
+  const lenient = read(optional);
+  if (optional && blank(lenient)) return undefined;
+  const built = optional ? read(false) : lenient;
   return Object.keys(built).length > 0 ? built : undefined;
 }
 

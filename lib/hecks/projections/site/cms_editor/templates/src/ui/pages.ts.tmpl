@@ -93,13 +93,16 @@ ${scheduledTable(world, href("scheduled"))}`;
 }
 
 /**
- * What a command's form starts from: the instance's values, and for a rich-text body the instance
- * has not set yet (a draft not yet saved), the body it holds of the same shape, so an edit begins
- * from the current text and not an empty page.
+ * What a command's form starts from: the instance's values, and for a working copy the instance has
+ * not saved yet (a draft not yet saved) the live content it stands for, and for a rich-text body or a
+ * block list the one it holds of the same shape, so an edit begins from the current content and not
+ * an empty page.
  */
 function startingValues(agg: Aggregate, command: Command, state: State): State {
   const values = { ...state };
   const unset = (value: unknown): boolean => value == null || (Array.isArray(value) && value.length === 0);
+  const drafts = agg.drafts;
+  if (drafts && drafts.save === command.name && unset(values[drafts.attribute]) && !unset(state[drafts.live])) values[drafts.attribute] = state[drafts.live];
   for (const attr of command.attributes.filter((candidate: Attr) => (candidate.widget === "body" || candidate.blockList) && unset(values[candidate.name]))) {
     const held = agg.attributes.find((other) => other.type === attr.type && other.name !== attr.name && !unset(state[other.name]));
     if (held) values[attr.name] = state[held.name];
@@ -171,7 +174,9 @@ export function commandForm(agg: Aggregate, command: Command, action: string, sh
     : "";
   const dialog = command.destructive ? confirmDialog(agg, command, action, "", FORM, { back }) : "";
   const draft = draftTools(agg, command, extras);
-  const mode = draft.bar ? ` data-draft="${esc(agg.drafts?.attribute)}"` : "";
+  const saved = command.attributes.find((attr) => attr.name === agg.drafts?.attribute);
+  const whole = saved !== undefined && saved.widget !== "body" && saved.blockList === undefined;
+  const mode = draft.bar ? ` data-draft="${esc(agg.drafts?.attribute)}"${whole ? " data-draft-form" : ""}` : "";
   const leave = back?.path ?? extras.cancel ?? href(...at(agg));
   return `<form class="max-w-3xl" id="${FORM}" method="post" action="${esc(action)}" data-form${mode}>
 ${backInput(back)}${refusal(own?.message ?? null)}${note}

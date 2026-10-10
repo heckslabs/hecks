@@ -61,6 +61,11 @@ function follow(event) {
   note(field, seconds);
 }
 
+/** Mounts the date inputs under `scope` that are not yet (a card made after the page loaded holds some). */
+export function mountMoments(scope) {
+  for (const field of scope.querySelectorAll("[data-moment-field]")) mount(field);
+}
+
 export function enhanceMoments() {
   restate();
   for (const field of document.querySelectorAll("[data-moment-field]")) mount(field);

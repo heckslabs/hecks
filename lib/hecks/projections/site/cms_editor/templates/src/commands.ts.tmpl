@@ -124,7 +124,7 @@ export async function runCommand(client: HostClient, agg: Aggregate, command: Co
     if (id && applied(agg, command, before, after, answer)) return { ok: true, id };
     const last = (answer.refusals ?? []).at(-1);
     const problems: Problem[] = problemsOf(last?.error, command.attributes, args, agg.valueObjects);
-    const field = refusedField(last, command) ?? (problems.length > 0 ? String(problems[0].path[0]) : undefined);
+    const field = refusedField(last, command);
     return { ok: false, message: refusalMessage(answer, command), field, problems };
   } catch (err) {
     if (err instanceof DomainUnavailable) return { ok: false, message: `The domain could not be reached: ${err.message}` };

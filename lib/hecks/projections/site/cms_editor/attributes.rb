@@ -12,13 +12,8 @@ module Hecks
         #
         # A type that names one of the aggregate's value objects is an `object`; a reference is a
         # `reference`; the primitives are `integer`, `number`, `boolean` and `text`, and any other
-        # is text.
-        #
-        # An attribute whose value object has the shape of a structured document, a `blocks`
-        # list of a value object that has `kind` and `spans`, carries `widget: "body"` and is
-        # edited with the rich-text widget; a list of mixed blocks is a block list (see `Blocks`).
-        # The shape decides it, never a name. An integer that is a moment carries `widget: "date"`
-        # or `"datetime"`, and a text key with a `<kind>:` pattern carries `keys` (see `Hints`).
+        # is text. The shape decides what more it is, never a name: a body (`widget: "body"`), a
+        # block list (see `Blocks`), a moment, a `<kind>:` key (see `Hints`) or a picture.
         class Attributes
           # The parts a value object needs for its list of blocks to be a document body's blocks.
           BLOCK_PARTS = %w[kind spans].freeze
@@ -43,7 +38,7 @@ module Hecks
             entry = base(attribute, type.to_s, kind(type.to_s))
             return entry.merge("widget" => "body") if body?(attribute)
 
-            entry.merge(@hints.of(attribute), listing(attribute))
+            entry.merge(@hints.of(attribute), listing(attribute), pictured(attribute))
           end
 
           private
@@ -52,6 +47,17 @@ module Hecks
           def listing(attribute)
             found = Blocks.of(attribute, @by_name)
             found ? { "blockList" => found } : {}
+          end
+
+          # @return [Hash{String => Object}] `picture` (the parts that name the file, its
+          #   description and its caption) when the value object is a picture: it has a media key
+          #   and an `alt` and is not a block of a body or a list of mixed blocks
+          def pictured(attribute)
+            object = @by_name[attribute.type.to_s]
+            return {} unless object && !Blocks.body_block?(object) && !listing(attribute).key?("blockList")
+
+            found = Blocks.picture(object)
+            found&.key?("key") && found.key?("alt") ? { "picture" => found } : {}
           end
 
           # A single (not listed) attribute whose value object holds a list of document blocks.
