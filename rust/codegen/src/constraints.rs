@@ -107,3 +107,28 @@ pub fn emit_pattern_check(exemplar: &Exemplar, value_expr: &str, attr: &Json, ow
     );
     Some(wrap_if_optional(check, optional_source))
 }
+
+/// A `pattern:` on a list of Strings, checked once per member: Ruby's `check_patterns` walks
+/// `offered_items`, so every element of the list must match, and an optional list left unset has
+/// none to check. Lists of anything but plain Strings get no check.
+pub fn emit_list_pattern_check(exemplar: &Exemplar, value_expr: &str, attr: &Json, owner_type_name: &str) -> Option<String> {
+    let pattern = crate::attr::pattern(attr)?;
+    if !crate::attr::list(attr) || naming::effective_scalar_type(crate::attr::type_name(attr)) != Some("String") {
+        return None;
+    }
+
+    let check = exemplar.render(
+        "pattern_check",
+        &[
+            ("\"tmpl_pattern_text\"", naming::ruby_inspect_string(pattern)),
+            ("tmpl_scalar", "item".to_string()),
+            ("\"tmpl_pattern_owner\"", naming::ruby_inspect_string(owner_type_name)),
+            ("\"tmpl_pattern_field\"", naming::ruby_inspect_string(crate::attr::name(attr))),
+        ],
+    );
+    Some(if crate::attr::optional(attr) {
+        format!("if let Some(items) = &{value_expr} {{ for item in items {{ {check} }} }}")
+    } else {
+        format!("for item in &{value_expr} {{ {check} }}")
+    })
+}

@@ -17,20 +17,22 @@ pub fn list_shape_error(struct_name: &str, key: &str, element_type: &str, value_
     format!("crate::kernel::Refusal::TypeMismatch(format!({}, {value_var}.inspect()))", naming::ruby_inspect_string(&template))
 }
 
-// A String field refuses only composite-shaped (or null) values, as Ruby's
-// `Value::Coercion#check_scalar_shapes` does; the offered shape is only known at runtime.
+// A String field refuses any value that is not a String, and an Integer or Float field any that
+// is not a number, as Ruby's `Value::Coercion#check_scalar_shapes` and `check_numeric_item!`
+// do; the offered shape is only known at runtime, so the message renders it. A whole number
+// beyond signed 64 bits words as Ruby's `integer_range` site.
 pub fn scalar_type_error(struct_name: &str, key: &str, scalar_type: &str, value_var: &str) -> String {
     if scalar_type != "Integer" && scalar_type != "Float" && scalar_type != "String" {
         return json_type_error(struct_name, key, scalar_type);
     }
     let template = format!("{struct_name}.{key} expects {scalar_type}, got {{}}");
     let proper = format!("crate::kernel::Refusal::TypeMismatch(format!({}, {value_var}.inspect()))", naming::ruby_inspect_string(&template));
-    if scalar_type != "String" {
+    if scalar_type != "Integer" {
         return proper;
     }
-    let generic = json_type_error(struct_name, key, scalar_type);
-    // `Json::Null` words like a composite: Ruby's `check_required_fields` says "got nil".
-    format!("if matches!({value_var}, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) {{ {proper} }} else {{ {generic} }}")
+    let range_template = format!("{struct_name}.{key} must fit in a 64-bit integer, got {{}}");
+    let range = format!("crate::kernel::Refusal::TypeMismatch(format!({}, {value_var}.inspect()))", naming::ruby_inspect_string(&range_template));
+    format!("if matches!({value_var}, crate::kernel::Json::Num(n, _) if n.is_finite() && n.fract() == 0.0 && n.abs() >= 9.223372036854775808e18) {{ {range} }} else {{ {proper} }}")
 }
 
 /// A missing non-optional field refuses as "{type}.{field} expects {expected}, got nil".
@@ -274,6 +276,9 @@ pub fn emit_from_json_flat(
     aggregates_by_name: Option<&HashMap<String, &Json>>,
 ) -> String {
     let command_name = command_name.unwrap_or(struct_name);
+    // A refusal names the command (`Write.slugs expects ...`), as Ruby's `Value.for_attribute`
+    // does, not the generated `WriteArgs` struct that holds its arguments.
+    let error_name = if struct_name == format!("{command_name}Args") { command_name } else { struct_name };
     let idents: Vec<String> = attributes.iter().map(|attr| naming::rust_ident_field(crate::attr::name(attr))).collect();
     let field_exprs: Vec<String> = attributes
         .iter()
@@ -285,33 +290,33 @@ pub fn emit_from_json_flat(
             let optional = crate::attr::optional(attr);
 
             let rhs = if list && optional {
-                let mapper = list_element_from_json_mapper(struct_name, &key, attr, value_objects_by_name);
-                let array_error = json_type_error(struct_name, &key, "an array");
+                let mapper = list_element_from_json_mapper(error_name, &key, attr, value_objects_by_name);
+                let array_error = json_type_error(error_name, &key, "an array");
                 format!(
                     "match v.get({}) {{ Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_array().ok_or_else(|| {array_error})?.iter().map({mapper}).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?) }}",
                     naming::ruby_inspect_string(&key)
                 )
             } else if list {
-                let mapper = list_element_from_json_mapper(struct_name, &key, attr, value_objects_by_name);
+                let mapper = list_element_from_json_mapper(error_name, &key, attr, value_objects_by_name);
                 // A list argument is an array: a lone scalar is refused, as Ruby's
                 // `Value.refuse_scalar_list` does; null and an absent key are the empty list.
-                let shape_error = list_shape_error(struct_name, &key, crate::attr::type_name(attr), "x");
+                let shape_error = list_shape_error(error_name, &key, crate::attr::type_name(attr), "x");
                 format!(
                     "match v.get({}) {{ Some(crate::kernel::Json::Null) | None => Vec::new(), Some(x) => x.as_array().ok_or_else(|| {shape_error})?.iter().map({mapper}).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, }}",
                     naming::ruby_inspect_string(&key)
                 )
             } else if optional && scalar.is_some() {
                 // An optional argument offered as null is the same absence as an omitted key.
-                format!("match v.get({}) {{ Some(crate::kernel::Json::Null) | None => None, Some(x) => Some({}) }}", naming::ruby_inspect_string(&key), scalar_from_json_value_expr(struct_name, &key, scalar.unwrap(), "x"))
+                format!("match v.get({}) {{ Some(crate::kernel::Json::Null) | None => None, Some(x) => Some({}) }}", naming::ruby_inspect_string(&key), scalar_from_json_value_expr(error_name, &key, scalar.unwrap(), "x"))
             } else if optional {
                 format!("match v.get({}) {{ Some(crate::kernel::Json::Null) | None => None, Some(x) => Some({}) }}", naming::ruby_inspect_string(&key), composite_from_json_expr(attr, value_objects_by_name, "x"))
             } else if let Some(scalar) = scalar {
-                scalar_from_json_expr(struct_name, &key, scalar, crate::attr::default(attr))
+                scalar_from_json_expr(error_name, &key, scalar, crate::attr::default(attr))
             } else if absent_argument_check {
                 // The argument entry point only; see `required_composite_argument_expr`.
-                required_composite_argument_expr(struct_name, &key, attr, value_objects_by_name)
+                required_composite_argument_expr(error_name, &key, attr, value_objects_by_name)
             } else {
-                composite_from_json_expr(attr, value_objects_by_name, &required_field_expr(struct_name, &key, crate::attr::type_name(attr)))
+                composite_from_json_expr(attr, value_objects_by_name, &required_field_expr(error_name, &key, crate::attr::type_name(attr)))
             };
 
             if interleave_checks {
@@ -588,6 +593,35 @@ pub fn emit_closed_set_table_codec(exemplar: &Exemplar, vo: &Json) -> String {
         })
         .collect();
 
+    let type_name = vo.get("name").and_then(Json::as_str).unwrap_or("").to_string();
+    let field_names: Vec<String> = attributes.iter().map(|attr| naming::ruby_inspect_string(&naming::rust_field(crate::attr::name(attr)))).collect();
+    // A field left out (or null) refuses as "{type}.{field} expects {expected}, got nil", before
+    // membership is judged.
+    let absent_checks: Vec<String> = attributes
+        .iter()
+        .map(|attr| {
+            let key = naming::rust_field(crate::attr::name(attr));
+            let message = format!("{type_name}.{} expects {}, got nil", crate::attr::name(attr), crate::attr::type_name(attr));
+            format!(
+                "        if matches!(v.get({}), None | Some(crate::kernel::Json::Null)) {{\n            return Err(crate::kernel::Refusal::TypeMismatch({}.to_string()));\n        }}",
+                naming::ruby_inspect_string(&key),
+                naming::ruby_inspect_string(&message)
+            )
+        })
+        .collect();
+    // The refusal quotes the first column of every row, as Ruby's `refuse_non_member!` does.
+    let admitted: Vec<String> = vo
+        .get("members")
+        .map(Json::each)
+        .unwrap_or(&[])
+        .iter()
+        .map(|row| {
+            let first = row.as_array().unwrap_or(&[]).first().and_then(Json::as_array).unwrap_or(&[]);
+            naming::ruby_inspect_string(&first.get(1).map(Json::to_s).unwrap_or_default())
+        })
+        .collect();
+    let first_field = attributes.first().map(|attr| naming::rust_field(crate::attr::name(attr))).unwrap_or_default();
+
     exemplar.render(
         "closed_set_table_codec",
         &[
@@ -595,6 +629,11 @@ pub fn emit_closed_set_table_codec(exemplar: &Exemplar, vo: &Json) -> String {
             ("tmpl_to_json_fields_block()", to_json_fields_block),
             ("TMPL_TABLE", const_name),
             ("tmpl_from_json_conditions()", match_conditions.join(" && ")),
+            ("\"tmpl_table_type\"", naming::ruby_inspect_string(&type_name)),
+            ("TMPL_DECLARED_NAMES", format!("[{}]", field_names.join(", "))),
+            ("TMPL_ADMITTED", format!("[{}]", admitted.join(", "))),
+            ("tmpl_absent_field_checks();", absent_checks.join("\n")),
+            ("\"tmpl_first_field\"", naming::ruby_inspect_string(&first_field)),
         ],
     )
 }

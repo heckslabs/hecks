@@ -89,6 +89,26 @@ fn one_of_values_unmark_like_member_rows() {
 }
 
 #[test]
+fn a_one_of_in_type_position_inside_a_value_object_installs_its_closed_set_after_it() {
+    let path = fixture("value_object_inline_closed_set.bluebook");
+    let output = run(&[
+        "chapter",
+        "--chapter",
+        "FixtureValueObjectInlineClosedSet",
+        path.to_str().unwrap(),
+    ]);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(output.status.success(), "should parse cleanly: {}", String::from_utf8_lossy(&output.stderr));
+
+    let compact: String = stdout.split_whitespace().collect();
+    let frame = compact.find(r#""name":"Frame""#).expect("Frame is in the IR");
+    let grade = compact.find(r#""name":"Grade""#).unwrap_or_else(|| panic!("Grade is in the IR: {stdout}"));
+    let leaf = compact.find(r#""name":"Leaf""#).expect("Leaf is in the IR");
+    assert!(frame < grade && grade < leaf, "Grade follows Frame and precedes Leaf: {stdout}");
+    assert!(compact.contains(r#"[["value","a"]],[["value","b"]]"#), "Grade's members are its values: {stdout}");
+}
+
+#[test]
 fn identity_and_relationship_exemplar_preserves_ruby_ir_shape() {
     let path = fixture("identity_relationship.bluebook");
     let output = run(&[

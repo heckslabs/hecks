@@ -1,0 +1,149 @@
+# Smallest domain that declares every attribute-level constraint the DSL has, at the aggregate, in
+# a value object it holds, in one that holds another three deep, and in list members at both
+# depths: a closed set (inline `one_of:`, type-position `one_of(...)`, a multi-field `member`
+# table), a declared set named by `admits:`, a `pattern:`, scalar shape (Integer, Float,
+# String), required against optional, and a size limit written as an invariant. Held to the same
+# answers by Ruby dispatch and Rust dispatch through
+# spec/corpus/rust_conformance/attribute_constraints_*.json and, for a stored value's mint audit,
+# spec/rust_host_reference_validate_conformance_spec.rb.
+Hecks.bluebook "AttributeConstraintsFixture" do
+  vision "The smallest domain that declares each attribute-level constraint at every depth."
+
+  core
+
+  aggregate "Vocabulary" do
+    description "A named list of units, which a Shelf's attributes admit by name."
+
+    identified_by :name
+    attribute :name, VocabularyName
+
+    value_object "VocabularyName" do
+      attribute :value, String
+    end
+
+    value_object "Unit" do
+      attribute :value, String, one_of: ["gram", "litre"]
+    end
+
+    command "Name" do
+      role "Editor"
+      goal "Record a vocabulary"
+
+      attribute :name, VocabularyName
+      sets :name
+
+      emits "VocabularyNamed"
+    end
+  end
+
+  aggregate "Shelf" do
+    description "A shelf of panels; every level declares the same kinds of constraint."
+
+    identified_by :key
+    attribute :key,    ShelfKey
+    attribute :band,   Band
+    attribute :unit,   UnitRef, admits: "Vocabulary::Unit"
+    attribute :stamp,  Stamp
+    attribute :count,  Count
+    attribute :ratio,  Ratio
+    attribute :note,   Note, optional: true
+    attribute :slugs,  list_of(Stamp)
+    attribute :panels, list_of(Panel)
+    attribute :spare,  Panel, optional: true
+
+    value_object "UnitRef" do
+      attribute :value, String
+    end
+
+    value_object "Stamp" do
+      attribute :value, String, pattern: '^[a-z]+$'
+    end
+
+    value_object "Count" do
+      attribute :value, Integer
+    end
+
+    value_object "Ratio" do
+      attribute :value, Float
+    end
+
+    value_object "Note" do
+      attribute :value, String
+    end
+
+    value_object "ShelfKey" do
+      attribute :value, String, pattern: '^[^ \t\n\r]+$'
+    end
+
+    value_object "Band" do
+      attribute :size, String, one_of: ["small", "medium", "large"]
+    end
+
+    value_object "Pairing" do
+      attribute :code,  String
+      attribute :label, String
+
+      member code: "p", label: "Pee"
+      member code: "q", label: "Cue"
+    end
+
+    value_object "Panel" do
+      attribute :title,  String, pattern: '[A-Z][a-z]*'
+      attribute :unit,   String, admits: "Vocabulary::Unit"
+      attribute :band,   Band
+      attribute :count,  Integer
+      attribute :note,   String, optional: true
+      attribute :labels, list_of(String), pattern: '^[a-z]+$'
+      attribute :frame,  Frame, optional: true
+
+      invariant("a panel holds at most three labels") { labels.size <= 3 }
+    end
+
+    value_object "Frame" do
+      attribute :slug,   String, pattern: '^[a-z0-9-]+$'
+      attribute :grade,  one_of("a", "b", "c")
+      attribute :leaf,   Leaf
+      attribute :leaves, list_of(Leaf), optional: true
+    end
+
+    value_object "Leaf" do
+      attribute :band,    Band
+      attribute :code,    String, pattern: '^[a-z]+$'
+      attribute :unit,    String, admits: "Vocabulary::Unit"
+      attribute :count,   Integer
+      attribute :ratio,   Float
+      attribute :pairing, Pairing, optional: true
+      attribute :note,    String, optional: true
+
+      invariant("a code is at most four letters") { code.size <= 4 }
+    end
+
+    command "Write" do
+      role "Editor"
+      goal "Shelve a value of every shape"
+
+      attribute :key,    ShelfKey
+      attribute :band,   Band
+      attribute :unit,   UnitRef, admits: "Vocabulary::Unit"
+      attribute :stamp,  Stamp
+      attribute :count,  Count
+      attribute :ratio,  Ratio
+      attribute :note,   Note, optional: true
+      attribute :slugs,  list_of(Stamp)
+      attribute :panels, list_of(Panel)
+      attribute :spare,  Panel, optional: true
+      sets :key
+      sets :band
+      sets :unit
+      sets :stamp
+      sets :count
+      sets :ratio
+      sets :note
+      sets :slugs
+      sets :panels
+      sets :spare
+
+      emits "ShelfWritten"
+    end
+  end
+end

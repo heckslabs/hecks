@@ -17,6 +17,53 @@ enum Node {
     Repeat { node: Box<Node>, min: usize, max: Option<usize> },
 }
 
+/// `true` if `text` contains a match for `pattern` read as dispatch reads it: `^` and `$` are
+/// whole-value anchors, so a newline cannot smuggle text past an anchored pattern
+/// (`Hecks::Bluebook::PatternSubset.whole_string` rewrites them to `\A` and `\z` before Ruby
+/// enforces a `pattern:`). [`matches`] reads the dialect itself, line anchors included.
+pub fn matches_whole(pattern: &str, text: &str) -> bool {
+    matches(&whole_string(pattern), text)
+}
+
+/// `pattern` with `^` as `\A` and `$` as `\z` outside bracket classes; escaped pairs and class
+/// interiors are left alone (`PatternSubset.whole_string`).
+fn whole_string(pattern: &str) -> String {
+    let chars: Vec<char> = pattern.chars().collect();
+    let mut out = String::with_capacity(pattern.len() + 4);
+    let mut index = 0;
+    let mut in_class = false;
+    let mut class_start = 0;
+    while index < chars.len() {
+        let c = chars[index];
+        if c == '\\' {
+            out.extend(chars[index..chars.len().min(index + 2)].iter());
+            index += 2;
+            continue;
+        }
+        if in_class {
+            if c == ']' && index != class_start {
+                in_class = false;
+            }
+            out.push(c);
+        } else if c == '[' {
+            in_class = true;
+            class_start = index + 1;
+            if chars.get(class_start) == Some(&'^') {
+                class_start += 1;
+            }
+            out.push(c);
+        } else {
+            match c {
+                '^' => out.push_str("\\A"),
+                '$' => out.push_str("\\z"),
+                other => out.push(other),
+            }
+        }
+        index += 1;
+    }
+    out
+}
+
 /// `true` if `text` contains a match for `pattern`; a pattern that fails to parse is `false`.
 pub fn matches(pattern: &str, text: &str) -> bool {
     let Ok(nodes) = parse(pattern) else { return false };
@@ -303,5 +350,18 @@ mod tests {
                 "pattern {pattern:?} against {input:?} should match={expected}"
             );
         }
+    }
+
+    #[test]
+    fn a_dispatched_pattern_anchors_to_the_whole_value() {
+        use super::matches_whole;
+        assert!(matches_whole("^[a-z]+$", "abc"));
+        assert!(!matches_whole("^[a-z]+$", "abc\n"));
+        assert!(!matches_whole("^[a-z]+$", "x\nabc\ny"));
+        assert!(!matches_whole("^(red|green|blue)$", "red\ngreen"));
+        assert!(matches_whole("[A-Z][a-z]*", "1 Hello world"));
+        assert!(matches_whole("^[^^]+$", "ab"));
+        assert!(matches_whole("^[$]$", "$"));
+        assert!(matches_whole("^a\\^b$", "a^b"));
     }
 }

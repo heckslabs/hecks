@@ -815,7 +815,7 @@ pub async fn audit_before_mint<C: GenericClient>(
         // `layer_one!(violations, aggregate, after)` exactly.
         if let Some(aggregate_ir) = ir_aggregates.get(aggregate.name.as_str()) {
             for (id, state) in &after {
-                violations.extend(reference_validate::validate(aggregate_ir, id, state));
+                violations.extend(reference_validate::validate(ir, aggregate_ir, id, state));
             }
         }
 

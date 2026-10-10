@@ -97,11 +97,12 @@ RSpec.describe "Rust numeric coercion — overflow/out-of-range refuses cleanly 
                                  "expected exactly one refusal, got #{result[:refusals].inspect}"
   end
 
-  it "L21: Rust now refuses the out-of-range daily_limit cleanly instead of silently saturating to i64::MAX",
+  it "L21: Rust refuses the out-of-range daily_limit in Ruby's words instead of silently saturating to i64::MAX",
      :aggregate_failures do
     output = rust_output_for(OUT_OF_RANGE_STEPS)
+    error = "DailyLimit.cents must fit in a 64-bit integer, got #{HUGE_OUT_OF_RANGE}"
 
-    expect(output.fetch("refusals")).to rust_refusal("Banking::Account.Open", include("DailyLimit.cents expects Integer"))
+    expect(output.fetch("refusals")).to rust_refusal("Banking::Account.Open", include(error))
     # Never a silently-clamped i64::MAX standing in for the real value.
     expect(output.fetch("instances").to_s).not_to include(I64_MAX.to_s)
   end
