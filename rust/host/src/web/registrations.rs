@@ -82,6 +82,27 @@ fn event_capacity(event: &Value) -> Option<i64> {
     event.get("capacity").and_then(|c| c.get("value")).and_then(|v| v.as_i64())
 }
 
+/// A whole-number field read as a bare number or as a single-field value
+/// object's `{"value": N}`; `None` for anything else, so an unreadable value
+/// never blocks a registration.
+fn whole_number(field: Option<&Value>) -> Option<i64> {
+    let field = field?;
+    field.as_i64().or_else(|| field.get("value").and_then(|v| v.as_i64()))
+}
+
+/// Whether an event's registration window has shut because its start is
+/// nearer than `registration_cutoff_hours` (Unix seconds, whole hours).
+/// Refused only when both `starts_at` and `registration_cutoff_hours` are
+/// readable and `now_secs + hours * 3600 > starts_at`; exactly at the
+/// cutoff is still open. Either field absent, null or unreadable means no
+/// cutoff, the stance the seat check takes.
+fn registration_cutoff_passed(event: &Value, now_secs: i64) -> bool {
+    let (Some(starts_at), Some(hours)) = (whole_number(event.get("starts_at")), whole_number(event.get("registration_cutoff_hours"))) else {
+        return false;
+    };
+    now_secs.saturating_add(hours.saturating_mul(3600)) > starts_at
+}
+
 /// Seats still open given `taken`, never below zero.
 fn open_seats(capacity: i64, taken: usize) -> i64 {
     (capacity - taken as i64).max(0)
@@ -420,6 +441,22 @@ pub(crate) async fn registrations_route(
     invoker: &dyn LambdaInvoker,
     payments: &PaymentsProvider,
 ) -> Value {
+    registrations_route_at(raw_body, platform, client, wasm_path, config, invoker, payments, unix_now()).await
+}
+
+// The route with the wall clock passed in, so a test can fix the time the
+// registration cutoff is measured against.
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn registrations_route_at(
+    raw_body: &str,
+    platform: &payments::PlatformConfig,
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    config: &LineageConfig,
+    invoker: &dyn LambdaInvoker,
+    payments: &PaymentsProvider,
+    now_secs: i64,
+) -> Value {
     let body: Value = match serde_json::from_str(raw_body) {
         Ok(v) => v,
         Err(e) => return respond(400, "application/json", &json!({"error": format!("invalid JSON: {e}")}).to_string()),
@@ -447,6 +484,11 @@ pub(crate) async fn registrations_route(
     };
     if event.get("status").and_then(|v| v.as_str()) != Some("open") {
         return respond(422, "application/json", &json!({"error": "registration is closed for this event"}).to_string());
+    }
+    // An event that opted into a cutoff stops taking registrations that many
+    // hours before it starts; a missing or unreadable field is no cutoff.
+    if registration_cutoff_passed(event, now_secs) {
+        return respond(422, "application/json", &json!({"error": "registration has closed for this event"}).to_string());
     }
     // A full event refuses before any Stripe call or write. An event whose
     // capacity cannot be read is not blocked: capacity is required when an
@@ -477,7 +519,7 @@ pub(crate) async fn registrations_route(
     // follows, the unused session simply expires.
     let embedded_checkout = if let payments::CheckoutPlan::Stripe { api_key, publishable_key } = &plan {
         let auth = checkout::StripeAuth { api_key, base_url: &platform.api_base };
-        match checkout::create_checkout_session(&auth, price_cents, event_name, &reference, checkout::session_expires_at(unix_now(), crate::commerce_ir::checkout_windows_binding().session_hold)).await {
+        match checkout::create_checkout_session(&auth, price_cents, event_name, &reference, checkout::session_expires_at(now_secs, crate::commerce_ir::checkout_windows_binding().session_hold)).await {
             // Stripe.js is opened with the publishable key; the answer carries
             // no `checkout_url`.
             Ok(session) => Some(json!({
@@ -1238,6 +1280,114 @@ mod tests {
         let response = registrations_route(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker, &crate::commerce_ir::fixture_payments()).await;
         assert_eq!(response["statusCode"], 422);
         assert!(response["body"].as_str().unwrap().contains("closed"));
+    }
+
+    // Schedules `slug` starting at `starts_at` with the optional cutoff set
+    // (or absent), through the real Event.Schedule command.
+    async fn schedule_timed_event(client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, slug: &str, starts_at: i64, cutoff_hours: Option<i64>) {
+        let mut args = json!({
+            "slug": {"value": slug}, "name": {"value": "Sample Studio"},
+            "price": {"cents": 4200}, "capacity": {"value": 20},
+            "starts_at": {"value": starts_at},
+        });
+        if let Some(hours) = cutoff_hours {
+            args["registration_cutoff_hours"] = json!({"value": hours});
+        }
+        let outcome = dispatch::handle(client, wasm_path, "CheckoutFixture::Event.Schedule", args, None, config, &lambda_client::NeverInvoker)
+            .await
+            .unwrap();
+        assert!(outcome.accepted, "scheduling the timed fixture event should succeed: {:?}", outcome.result);
+    }
+
+    #[tokio::test]
+    async fn registrations_route_refuses_a_session_inside_its_registration_cutoff_and_writes_nothing() {
+        let client = scratch_db("hecks_host_web_test_registrations_cutoff_passed").await;
+        provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event", "Registration", "Payment"]).await;
+        let config = checkout_config(1);
+        let wasm_path = checkout_wasm_path();
+
+        // Starts in 5 hours with a 6 hour cutoff: registration closed an hour ago.
+        let now = 1_800_000_000;
+        schedule_timed_event(&client, &wasm_path, &config, "too-late", now + 5 * 3600, Some(6)).await;
+
+        let body = json!({"event_slug": "too-late", "name": "Ada", "email": "ada@example.com"}).to_string();
+        let response = registrations_route_at(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker, &crate::commerce_ir::fixture_payments(), now).await;
+        assert_eq!(response["statusCode"], 422, "{response:?}");
+        assert_eq!(
+            serde_json::from_str::<Value>(response["body"].as_str().unwrap()).unwrap(),
+            json!({"error": "registration has closed for this event"})
+        );
+
+        let read = dispatch::read(&client, &wasm_path).await.unwrap();
+        let instances = read["instances"].as_object().unwrap();
+        assert!(
+            instances.keys().all(|k| !k.starts_with("Payments::Payment#") && !k.starts_with("CheckoutFixture::Registration#")),
+            "a refused registration must write no Payment and no Registration: {instances:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn registrations_route_accepts_a_session_with_no_cutoff_even_when_it_has_a_start() {
+        let client = scratch_db("hecks_host_web_test_registrations_cutoff_absent").await;
+        provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event", "Registration", "Payment"]).await;
+        let config = checkout_config(1);
+        let wasm_path = checkout_wasm_path();
+
+        // A start in the past and no cutoff field: nothing to enforce.
+        let now = 1_800_000_000;
+        schedule_timed_event(&client, &wasm_path, &config, "no-cutoff", now - 3600, None).await;
+
+        let body = json!({"event_slug": "no-cutoff", "name": "Ada", "email": "ada@example.com"}).to_string();
+        let response = registrations_route_at(&body, &payments::test_platform(), &client, &wasm_path, &config, &lambda_client::NeverInvoker, &crate::commerce_ir::fixture_payments(), now).await;
+        assert_eq!(response["statusCode"], 200, "{response:?}");
+
+        let read = dispatch::read(&client, &wasm_path).await.unwrap();
+        let instances = read["instances"].as_object().unwrap();
+        assert!(instances.keys().any(|k| k.starts_with("CheckoutFixture::Registration#")), "{instances:?}");
+        assert!(instances.keys().any(|k| k.starts_with("Payments::Payment#")), "{instances:?}");
+    }
+
+    #[test]
+    fn a_registration_cutoff_needs_both_fields_and_ignores_unreadable_ones() {
+        let now = 1_000_000;
+        let past_start = json!({"starts_at": 0});
+        assert!(!registration_cutoff_passed(&json!({}), now));
+        assert!(!registration_cutoff_passed(&past_start, now), "a start with no cutoff hours is no cutoff");
+        assert!(!registration_cutoff_passed(&json!({"registration_cutoff_hours": 48}), now), "hours with no start is no cutoff");
+        assert!(!registration_cutoff_passed(&json!({"starts_at": null, "registration_cutoff_hours": 48}), now));
+        assert!(!registration_cutoff_passed(&json!({"starts_at": 0, "registration_cutoff_hours": null}), now));
+        assert!(!registration_cutoff_passed(&json!({"starts_at": "soon", "registration_cutoff_hours": 48}), now));
+        assert!(!registration_cutoff_passed(&json!({"starts_at": 0, "registration_cutoff_hours": "two"}), now));
+        assert!(!registration_cutoff_passed(&json!({"starts_at": {"value": "soon"}, "registration_cutoff_hours": {"value": 1.5}}), now));
+    }
+
+    #[test]
+    fn a_registration_cutoff_is_open_exactly_at_the_boundary_and_closed_a_second_later() {
+        // Cutoff 2 hours before a start of 100_000: the window shuts after 92_800.
+        let event = json!({"starts_at": 100_000, "registration_cutoff_hours": 2});
+        assert!(!registration_cutoff_passed(&event, 92_799));
+        assert!(!registration_cutoff_passed(&event, 92_800), "exactly at the cutoff is still open");
+        assert!(registration_cutoff_passed(&event, 92_801));
+    }
+
+    #[test]
+    fn a_registration_cutoff_reads_a_value_object_or_a_bare_number() {
+        let wrapped = json!({"starts_at": {"value": 100_000}, "registration_cutoff_hours": {"value": 2}});
+        let bare = json!({"starts_at": 100_000, "registration_cutoff_hours": 2});
+        let mixed = json!({"starts_at": {"value": 100_000}, "registration_cutoff_hours": 2});
+        for event in [wrapped, bare, mixed] {
+            assert!(!registration_cutoff_passed(&event, 92_800), "{event}");
+            assert!(registration_cutoff_passed(&event, 92_801), "{event}");
+        }
+    }
+
+    #[test]
+    fn a_registration_cutoff_refuses_a_start_already_in_the_past() {
+        let event = json!({"starts_at": 1_000, "registration_cutoff_hours": 1});
+        assert!(registration_cutoff_passed(&event, 5_000));
+        let no_hours_of_notice = json!({"starts_at": 1_000, "registration_cutoff_hours": 0});
+        assert!(!registration_cutoff_passed(&no_hours_of_notice, 1_000));
+        assert!(registration_cutoff_passed(&no_hours_of_notice, 1_001));
     }
 
     #[tokio::test]
