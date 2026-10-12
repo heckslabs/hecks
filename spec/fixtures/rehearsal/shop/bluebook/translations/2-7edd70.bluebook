@@ -1,6 +1,0 @@
-# The shop's widgets named their size a band, and the band became a closed set.
-Hecks.data_translation "Shop", from: "708420", to: "7edd70" do
-  aggregate "Widget" do
-    rename :size, to: :band
-  end
-end

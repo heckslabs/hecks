@@ -1,4 +1,5 @@
 require "spec_helper"
+require_relative "support/rehearsal_shop"
 require "fileutils"
 require "json"
 require "securerandom"
@@ -18,7 +19,7 @@ RSpec.describe "rehearsing a domain's next era" do
     @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
   end
 
-  before { FileUtils.cp_r(File.join(InMemoryDomain::ROOT, "spec/fixtures/rehearsal/shop"), shop) }
+  before { RehearsalShop.copy_to(shop) }
 
   after { FileUtils.remove_entry(root) }
 
