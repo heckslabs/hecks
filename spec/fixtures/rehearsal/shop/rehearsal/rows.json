@@ -1,0 +1,37 @@
+{
+  "eras": [
+    {
+      "ordinal": 1,
+      "held_text": "Hecks.bluebook \"Shop\" do\n  vision \"A small shop whose widgets carry a free-text size.\"\n\n  aggregate \"Widget\" do\n    attribute :sku,  Sku\n    attribute :size, Size\n    identified_by :sku\n\n    value_object \"Sku\" do\n      attribute :value, String\n    end\n\n    value_object \"Size\" do\n      attribute :value, String\n    end\n\n    lifecycle :status, default: \"listed\" do\n      transition \"Retire\" => \"retired\", from: \"listed\"\n    end\n\n    command \"List\" do\n      attribute :sku,  Sku\n      attribute :size, Size\n\n      sets :sku\n      sets :size\n\n      emits WidgetListed\n    end\n\n    command \"Retire\" do\n      reference_to Widget\n\n      emits WidgetRetired\n    end\n  end\n\n  aggregate \"Order\" do\n    attribute :number, Number\n    identified_by :number\n\n    value_object \"Number\" do\n      attribute :value, String\n    end\n\n    command \"Place\" do\n      attribute :number, Number\n\n      sets :number\n\n      emits OrderPlaced\n    end\n  end\nend\n"
+    }
+  ],
+  "records": {
+    "Widget": {
+      "w1": {
+        "sku": {
+          "value": "w1"
+        },
+        "size": {
+          "value": "small"
+        },
+        "status": "listed"
+      },
+      "w2": {
+        "sku": {
+          "value": "w2"
+        },
+        "size": {
+          "value": "large"
+        },
+        "status": "listed"
+      }
+    },
+    "Order": {
+      "o1": {
+        "number": {
+          "value": "o1"
+        }
+      }
+    }
+  }
+}
