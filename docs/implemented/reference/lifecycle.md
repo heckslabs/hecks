@@ -138,6 +138,12 @@ as `holds_seat: ["pending", "succeeded"]`, and the Rust host counts seats from
 that list. A chapter that leaves the entry out exports exactly what it did
 before, and the host falls back to its built-in default list with one warning.
 
+The `registrations` capability takes one: `frees_seat: "Registration.frees_seat"`, over a
+registration lifecycle's `mark :frees_seat, "archived"`. A registration in one of those
+states gives its seat back, so the host leaves it out of the seats an event has used. The
+fact carries `frees_seat: ["archived"]`; a chapter that omits the entry gets `archived`
+and one warning.
+
 The `newsletter` capability takes three such entries, all optional, over the
 subscriber's lifecycle: `awaiting_confirmation:` (states waiting for the emailed
 confirm link), `receives_issues:` (states that are sent each issue) and `left:`

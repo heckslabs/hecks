@@ -292,6 +292,13 @@ pub const LEGACY_REGISTERED_AT: [&str; 4] = ["created_at", "registered_at", "req
 /// fallback in `payments_provider`) once every shipped Payments bluebook does.
 pub const LEGACY_HOLDS_SEAT: [&str; 4] = ["pending", "succeeded", "refunding", "disputed"];
 
+/// LEGACY DEFAULT: the registration state that gives its seat back, used while the
+/// `registrations` capability fact carries no `frees_seat` list, because the chapter
+/// predates `mark :frees_seat` and does not declare
+/// `provides "registrations", frees_seat: "Registration.frees_seat"`. Delete this (and the
+/// fallback in `registrations_provider`) once every shipped bluebook declares it.
+pub const LEGACY_FREES_SEAT: [&str; 1] = ["archived"];
+
 /// The states the `payments` fact lists under `holds_seat`: the aggregate's
 /// lifecycle mark, resolved by the exporter. `None` when the fact omits it.
 fn declared_holds_seat(fact: &Value) -> Option<Vec<String>> {
@@ -348,6 +355,10 @@ pub struct RegistrationsProvider {
     /// to try them: the one `registered_at` of the `registrations` fact names
     /// (ADR 0099), or [`LEGACY_REGISTERED_AT`] when the chapter declares none.
     pub timestamp_keys: Vec<String>,
+    /// Registration states that give their seat back: the `frees_seat` list of the
+    /// `registrations` fact (the registration lifecycle's mark), or [`LEGACY_FREES_SEAT`]
+    /// when the chapter declares none.
+    pub frees_seat: Vec<String>,
 }
 
 impl RegistrationsProvider {
@@ -361,6 +372,7 @@ impl RegistrationsProvider {
             event_aggregate: format!("{domain}::Event"),
             registration_aggregate: format!("{domain}::Registration"),
             timestamp_keys: LEGACY_REGISTERED_AT.iter().map(|k| k.to_string()).collect(),
+            frees_seat: LEGACY_FREES_SEAT.iter().map(|s| s.to_string()).collect(),
         }
     }
 
@@ -383,8 +395,20 @@ impl RegistrationsProvider {
     }
 }
 
+/// The states the `registrations` fact lists under `frees_seat`: the aggregate's lifecycle
+/// mark, resolved by the exporter. `None` when the fact omits it.
+fn declared_frees_seat(fact: &Value) -> Option<Vec<String>> {
+    let states = fact.get("frees_seat")?.as_array()?;
+    Some(states.iter().filter_map(|s| s.as_str().map(String::from)).collect())
+}
+
 pub fn registrations_provider(domain_ir: &Value) -> Option<RegistrationsProvider> {
     let fact = domain_ir.get("registrations")?;
+    let frees_seat = declared_frees_seat(fact).unwrap_or_else(|| {
+        static WARNED: std::sync::Once = std::sync::Once::new();
+        WARNED.call_once(|| eprintln!("registrations capability declares no frees_seat; using built-in default"));
+        LEGACY_FREES_SEAT.iter().map(|s| s.to_string()).collect()
+    });
     Some(RegistrationsProvider {
         provider: fact.get("provider")?.as_str()?.to_string(),
         schedule: fact.get("schedule")?.as_str()?.to_string(),
@@ -399,6 +423,7 @@ pub fn registrations_provider(domain_ir: &Value) -> Option<RegistrationsProvider
                 LEGACY_REGISTERED_AT.iter().map(|k| k.to_string()).collect()
             }
         },
+        frees_seat,
     })
 }
 
@@ -703,7 +728,10 @@ mod tests {
     #[test]
     fn the_conventional_registrations_names_match_what_the_fixture_declares() {
         let declared = registrations_provider(&fixture_ir()).expect("registrations");
-        let conventional = RegistrationsProvider { timestamp_keys: declared.timestamp_keys.clone(), ..RegistrationsProvider::conventional("CheckoutFixture") };
+        let conventional = RegistrationsProvider {
+            timestamp_keys: declared.timestamp_keys.clone(),
+            frees_seat: declared.frees_seat.clone(),
+            ..RegistrationsProvider::conventional("CheckoutFixture") };
         assert_eq!(declared, conventional);
     }
 
@@ -715,6 +743,38 @@ mod tests {
             "event_aggregate": "B::E", "registration_aggregate": "B::R"
         }});
         assert_eq!(registrations_provider(&undeclared).expect("registrations").timestamp_keys, LEGACY_REGISTERED_AT);
+    }
+
+    fn registrations_ir(frees_seat: Option<serde_json::Value>) -> Value {
+        let mut fact = serde_json::json!({
+            "provider": "B", "schedule": "B::E.S", "request": "B::R.Q",
+            "event_aggregate": "B::E", "registration_aggregate": "B::R"
+        });
+        if let Some(states) = frees_seat {
+            fact["frees_seat"] = states;
+        }
+        serde_json::json!({"registrations": fact})
+    }
+
+    #[test]
+    fn registrations_provider_reads_frees_seat_from_the_fact() {
+        let ir = registrations_ir(Some(serde_json::json!(["cancelled", "archived"])));
+        assert_eq!(declared_frees_seat(&ir["registrations"]), Some(vec!["cancelled".to_string(), "archived".to_string()]));
+        assert_eq!(registrations_provider(&ir).expect("registrations").frees_seat, vec!["cancelled", "archived"]);
+    }
+
+    #[test]
+    fn the_checkout_fixture_ir_carries_frees_seat_with_no_fallback() {
+        let ir = fixture_ir();
+        assert_eq!(declared_frees_seat(&ir["registrations"]), Some(vec!["archived".to_string(), "cancelled".to_string()]));
+        assert_eq!(registrations_provider(&ir).expect("registrations").frees_seat, vec!["archived", "cancelled"]);
+    }
+
+    #[test]
+    fn registrations_provider_falls_back_to_the_legacy_default_without_frees_seat() {
+        assert_eq!(declared_frees_seat(&registrations_ir(None)["registrations"]), None);
+        let freed = registrations_provider(&registrations_ir(None)).expect("registrations").frees_seat;
+        assert_eq!(freed, LEGACY_FREES_SEAT);
     }
 
     #[test]
