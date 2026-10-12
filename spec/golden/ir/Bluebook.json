@@ -6812,6 +6812,36 @@
               ],
               [
                 "named",
+                "frees_seat"
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                false
+              ],
+              [
+                "fills",
+                "provides"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "provides"
+              ],
+              [
+                "context",
+                "Bluebook"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
                 "connect"
               ],
               [

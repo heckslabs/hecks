@@ -10,7 +10,8 @@ Hecks.bluebook "CheckoutFixture" do
   provides "registrations",
            schedule: "Event.Schedule",
            request:  "Registration.Request",
-           registered_at: "Registration.requested_at"
+           registered_at: "Registration.requested_at",
+           frees_seat:    "Registration.frees_seat"
   provides "payment_connection",
            connect:    "PaymentConnection.Connect",
            reconnect:  "PaymentConnection.Reconnect",
@@ -124,11 +125,16 @@ Hecks.bluebook "CheckoutFixture" do
     attribute :requested_at,    RequestedAt, optional: true
 
     # Archiving takes a registration off the guest list and gives its seat back;
-    # restoring puts it back. The Payment sharing this reference is never
-    # archived, so the seat rule reads this status beside the Payment's.
+    # restoring puts it back. Cancelling gives the seat back and is final. The
+    # Payment sharing this reference is never archived or cancelled, so the seat
+    # rule reads this status beside the Payment's; `frees_seat` names the states
+    # of this lifecycle that give the seat back.
     lifecycle :status, default: "active" do
-      transition "Archive" => "archived", from: "active"
-      transition "Restore" => "active",   from: "archived"
+      transition "Archive" => "archived",  from: "active"
+      transition "Restore" => "active",    from: "archived"
+      transition "Cancel"  => "cancelled", from: "active"
+
+      mark :frees_seat, "archived", "cancelled"
     end
 
     command "Request" do
@@ -162,6 +168,17 @@ Hecks.bluebook "CheckoutFixture" do
       given("only an archived registration can be restored") { status == "archived" }
 
       emits "RegistrationRestored"
+    end
+
+    command "Cancel" do
+      role "Organizer"
+      goal "Call off a registration for good and give its seat back"
+
+      reference_to Registration
+
+      given("only an active registration can be cancelled") { status == "active" }
+
+      emits "RegistrationCancelled"
     end
   end
 

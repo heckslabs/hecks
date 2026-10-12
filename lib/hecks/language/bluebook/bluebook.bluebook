@@ -260,6 +260,7 @@ Hecks.bluebook "Bluebook", version: "1" do
       member keyword: "provides",        context: "Bluebook", at: "",  named: "schedule", kind: "text", required: "false", fills: "provides"
       member keyword: "provides",        context: "Bluebook", at: "",  named: "request", kind: "text", required: "false", fills: "provides"
       member keyword: "provides",        context: "Bluebook", at: "",  named: "registered_at", kind: "text", required: "false", fills: "provides"
+      member keyword: "provides",        context: "Bluebook", at: "",  named: "frees_seat"   , kind: "text", required: "false", fills: "provides"
       member keyword: "provides",        context: "Bluebook", at: "",  named: "connect", kind: "text", required: "false", fills: "provides"
       member keyword: "provides",        context: "Bluebook", at: "",  named: "reconnect", kind: "text", required: "false", fills: "provides"
       member keyword: "provides",        context: "Bluebook", at: "",  named: "disconnect", kind: "text", required: "false", fills: "provides"

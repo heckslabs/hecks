@@ -39,7 +39,7 @@ const SEAMS: &[Seam] = &[
         export_as: "registrations",
         verbs: &["schedule", "request"],
         aggregates: &[("event_aggregate", "schedule"), ("registration_aggregate", "request")],
-        marks: &[],
+        marks: &["frees_seat"],
     },
     Seam {
         capability: "payment_connection",
