@@ -1,0 +1,374 @@
+Hecks.bluebook "Hecks" do
+  # Rehearsal: operating a domain, in the Operations module (ADR 0096). Whether a domain at a pin
+  # would mint its next era against a copy of its real data, and what the mint would refuse.
+  #
+  # A rehearsal is a run like the Codebase `*Run`s: it is requested, the outside is asked, and the
+  # facts it brought back are judged by the givens and reactions below. It differs from them in
+  # two ways. It acts on a client's domain, not on this checkout, so it needs no hecks checkout
+  # and sits with Custodian, not Codebase. And it keeps nothing: the aggregate is bound to Memory
+  # in hecks.hecksagon, and what it found is its report, returned to the caller.
+  #
+  # Where the data it reads comes from is the subject's own `.world` (`rehearsed_by`), never an
+  # argument. The RehearsalStore port prepares that copy, loads the domain against it, runs the
+  # mint's audit over it without writing an era, and drops it, so the copy never outlives the run
+  # whichever way the chain of reactions ends.
+
+  aggregate "RehearsalRun" do
+    description "One rehearsal of a domain's next era against a copy of its data: what a mint would do, and what it would refuse."
+
+    attribute :run,            RunKey
+    attribute :domain,         DomainPath
+    attribute :pin,            Pin,         optional: true
+    attribute :host_version,   HostVersion, optional: true
+    attribute :store,          StoreKind,   optional: true
+    attribute :mode,           StoreMode,   optional: true
+    attribute :booted,         Switch,      optional: true
+    attribute :before,         ShapeLabel,  optional: true
+    attribute :after,          ShapeLabel,  optional: true
+    attribute :minting,        Minting,     optional: true
+    attribute :edge_present,   Switch,      optional: true
+    attribute :edge_approved,  Switch,      optional: true
+    attribute :refused_rows,   list_of(RefusedRow), optional: true
+    attribute :refusal_total,  Count,       optional: true
+    attribute :parity,         Parity,      optional: true
+    attribute :unchecked,      list_of(Limit), optional: true
+    attribute :verdict,        Verdict,     optional: true
+    attribute :released,       Switch,      optional: true
+    attribute :kept,           Report,      optional: true
+    attribute :boot_error,     Report,      optional: true
+    attribute :refusal,        Report,      optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a rehearsal is named") { !value.to_s.empty? }
+    end
+
+    # The domain's directory: where its bluebooks and its `.world` stand.
+    value_object "DomainPath" do
+      attribute :value, String, pattern: '[^\t\n\r]'
+    end
+
+    # The Hecks the rehearsal must run on: a release (`3.9.0`) or a commit, whole or a prefix.
+    value_object "Pin" do
+      attribute :value, String, pattern: '^[0-9a-f]{7,40}$|^[0-9]+[.][0-9]+[.][0-9]+'
+    end
+
+    value_object "HostVersion" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    # Which strategy the subject's world named for the copy of its data.
+    value_object "StoreKind" do
+      attribute :value, String, one_of: ["memory", "postgres"]
+
+      invariant("a store is one the language names") { ["memory", "postgres"].include?(value) }
+    end
+
+    # What the copy holds: nothing, a restored dump, or a copy somebody else made, read as it is.
+    value_object "StoreMode" do
+      attribute :value, String, one_of: ["empty", "dump", "readonly_copy"]
+
+      invariant("a mode is empty, dump or readonly_copy") { ["empty", "dump", "readonly_copy"].include?(value) }
+    end
+
+    value_object "Switch" do
+      attribute :value, Boolean
+    end
+
+    value_object "Count" do
+      attribute :value, Integer
+
+      invariant("a count is not negative") { value >= 0 }
+    end
+
+    # The first six hex digits of a storage shape's digest, or `none` when no era is held.
+    value_object "ShapeLabel" do
+      attribute :value, String, pattern: '^[0-9a-f]{6}$|^none$'
+    end
+
+    # Which era a mint would hold: none (the shape stands), the first, or the next.
+    value_object "Minting" do
+      attribute :value, String, one_of: ["none", "first", "next"]
+
+      invariant("a mint is none, first or next") { ["none", "first", "next"].include?(value) }
+    end
+
+    # One stored record the mint's audit would refuse, named `Aggregate#id`, with the rule that
+    # refused it (a value the new types or invariants refuse, a state the lifecycle never reaches,
+    # a reference the edge cannot carry) and the audit's own wording.
+    value_object "RefusedRow" do
+      attribute :aggregate, String
+      attribute :id,        String
+      attribute :rule,      String, pattern: '^(value|lifecycle|reference)$'
+      attribute :wording,   String
+    end
+
+    # How the other engine's audit stood: not run, in agreement with this one, or not.
+    value_object "Parity" do
+      attribute :engine, String
+      attribute :status, String, pattern: '^(not_run|agree|differ)$'
+      attribute :note,   String
+    end
+
+    # One thing a rehearsal did not check, and why. A rehearsal states its limits.
+    value_object "Limit" do
+      attribute :what, String
+      attribute :why,  String
+    end
+
+    # The four things a rehearsal can conclude. A would_mint of `minting: none` says the shape
+    # stands and nothing would be minted at all.
+    value_object "Verdict" do
+      attribute :value, String, one_of: ["would_mint", "would_refuse", "needs_edge", "cannot_boot"]
+
+      invariant("a verdict is one the rehearsal names") do
+        ["would_mint", "would_refuse", "needs_edge", "cannot_boot"].include?(value)
+      end
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    # Only the first rows are held, so a domain with a million stale rows is a report, not a
+    # flood; the total says how many there were.
+    invariant("no more than fifty refused rows are held") { refused_rows.unset? || refused_rows.size <= 50 }
+    invariant("the total counts at least the rows held") do
+      refused_rows.unset? || refusal_total.unset? || refusal_total.value >= refused_rows.size
+    end
+    invariant("a rehearsal that would mint holds no refused row") do
+      verdict.unset? || verdict.value != "would_mint" || refusal_total.unset? || refusal_total.value == 0
+    end
+    invariant("only a domain that booted would mint") do
+      verdict.unset? || verdict.value != "would_mint" || booted.unset? || booted.value
+    end
+
+    # `requested` is the rehearsal and its store being prepared; `booted` the domain loaded and
+    # its shape read; `audited` the mint's audit run over the data. `judged` is a rehearsal whose
+    # answer is that the mint would go through, `withheld` one whose answer is that it would not
+    # (the verdict says which way), `refused` one that was never run because the request or the
+    # store was not admitted, and `failed` one that broke after it began.
+    lifecycle :status, default: "requested" do
+      mark :failure, "withheld", "refused", "failed"
+      transition "Boot"     => "booted",   from: "requested"
+      transition "Audit"    => "audited",  from: "booted"
+      transition "Judge"    => "judged",   from: "audited"
+      transition "Withhold" => "withheld", from: %w[requested audited]
+      transition "Refuse"   => "refused",  from: "requested"
+      transition "Fail"     => "failed",   from: %w[requested booted audited]
+    end
+
+    command "Request" do
+      role "Operator"
+      goal "Rehearse a domain's next era against the copy of its data its world names, and say whether a mint would go through"
+
+      attribute :run,    RunKey
+      attribute :domain, DomainPath
+      attribute :pin,    Pin, optional: true
+
+      sets :run
+      sets :domain
+      sets :pin
+
+      emits RehearsalRequested
+    end
+
+    # What the subject reported once it was loaded against the prepared copy.
+    command "Boot" do
+      role "System"
+      goal "Record that the domain loaded, the shape it stands at and the era a mint would hold"
+
+      reference_to RehearsalRun
+      attribute :booted,       Switch
+      attribute :host_version, HostVersion
+      attribute :store,        StoreKind
+      attribute :mode,         StoreMode
+      attribute :before,       ShapeLabel
+      attribute :after,        ShapeLabel
+      attribute :minting,      Minting
+
+      given("the domain loaded") { booted.value }
+
+      sets :booted
+      sets :host_version
+      sets :store
+      sets :mode
+      sets :before
+      sets :after
+      sets :minting
+
+      emits RehearsalBooted
+    end
+
+    # The mint's own three layers and its edge, approval and coverage rules, run over the copy.
+    command "Audit" do
+      role "System"
+      goal "Record whether an edge leads to the shape and is approved, and every row the mint's audit would refuse"
+
+      reference_to RehearsalRun
+      attribute :minting,       Minting
+      attribute :edge_present,  Switch
+      attribute :edge_approved, Switch
+      attribute :refused_rows,  list_of(RefusedRow), optional: true
+      attribute :refusal_total, Count
+      attribute :parity,        Parity
+      attribute :unchecked,     list_of(Limit)
+      attribute :released,      Switch
+      attribute :kept,          Report, optional: true
+
+      sets :minting
+      sets :edge_present
+      sets :edge_approved
+      sets :refused_rows
+      sets :refusal_total
+      sets :parity
+      sets :unchecked
+      sets :released
+      sets :kept
+
+      emits RehearsalAudited
+    end
+
+    command "Judge" do
+      role "System"
+      goal "Record that the mint would go through: the domain booted, an edge leads on where one is needed, and nothing is refused"
+
+      reference_to RehearsalRun
+      attribute :verdict,       Verdict
+      attribute :refusal_total, Count
+      attribute :edge_present,  Switch
+      attribute :edge_approved, Switch
+
+      given("a rehearsal that finds a refused row would not mint") { refusal_total.value == 0 }
+      given("a rehearsal judged to mint names that verdict") { verdict.value == "would_mint" }
+
+      sets :verdict
+
+      emits RehearsalJudged
+    end
+
+    command "Withhold" do
+      role "System"
+      goal "Record that the mint would not go through, which of the three ways, and what it would say"
+
+      reference_to RehearsalRun
+      attribute :verdict, Verdict
+      attribute :refusal, Report
+
+      given("a withheld rehearsal names how the mint would stop") { verdict.value != "would_mint" }
+
+      sets :verdict
+      sets :refusal
+
+      emits RehearsalWithheld
+    end
+
+    command "Refuse" do
+      role "System"
+      goal "Record that the rehearsal was not run: the subject, the pin or the store was not admitted, and why"
+
+      reference_to RehearsalRun
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits RehearsalRefused
+    end
+
+    command "Fail" do
+      role "System"
+      goal "Record that the rehearsal broke after it began, and why"
+
+      reference_to RehearsalRun
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits RehearsalFailed
+    end
+
+    query "RehearsalOutcome" do
+      description "How one rehearsal ended: its status and verdict, and every fact it brought back."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "Withheld" do
+      description "Every rehearsal whose answer was that the mint would not go through."
+      where(status: "withheld")
+      order_by :run
+    end
+  end
+
+  policy "SurveyWhenRehearsalRequested" do
+    on      "RehearsalRun.RehearsalRequested"
+    ask     :survey, with: { run: :run }
+  end
+
+  policy "RefuseWhenStoreNotAdmitted" do
+    on      "RehearsalRun.StoreRefused"
+    trigger RehearsalRun::Refuse, with: { refusal: :refusal }
+  end
+  policy "RecordBootWhenStoreSurveyed" do
+    on      "RehearsalRun.StoreSurveyed"
+    where   { booted.value }
+    trigger RehearsalRun::Boot, with: { booted: :booted, host_version: :host_version, store: :store, mode: :mode,
+                                         before: :before, after: :after, minting: :minting }
+  end
+
+  # A domain that does not load is an answer, not a breakdown: it is what the mint would be
+  # stopped by, so it is judged, not failed.
+  policy "WithholdWhenSubjectDoesNotBoot" do
+    on      "RehearsalRun.StoreSurveyed"
+    where   { !booted.value }
+    trigger RehearsalRun::Withhold, with: { verdict: "cannot_boot", refusal: :boot_error }
+  end
+
+  policy "FailWhenExaminationRefused" do
+    on      "RehearsalRun.ExamineRefused"
+    trigger RehearsalRun::Fail, with: { refusal: :refusal }
+  end
+
+  policy "ExamineWhenBooted" do
+    on      "RehearsalRun.RehearsalBooted"
+    ask     :examine, with: { run: :run }
+  end
+
+  policy "RecordAuditWhenStoreExamined" do
+    on      "RehearsalRun.StoreExamined"
+    trigger RehearsalRun::Audit, with: { minting: :minting, edge_present: :edge_present, edge_approved: :edge_approved,
+                                          refused_rows: :refused_rows, refusal_total: :refusal_total,
+                                          parity: :parity, unchecked: :unchecked,
+                                          released: :released, kept: :kept }
+  end
+
+  policy "JudgeWhenNothingWouldStopTheMint" do
+    on      "RehearsalRun.RehearsalAudited"
+    where do
+      (minting.value != "next" || edge_present.value) && refusal_total.value == 0 &&
+        (minting.value != "next" || edge_approved.value)
+    end
+    trigger RehearsalRun::Judge, with: { verdict: "would_mint", refusal_total: :refusal_total,
+                                          edge_present: :edge_present, edge_approved: :edge_approved }
+  end
+
+  policy "WithholdWhenNoEdgeLeadsOn" do
+    on      "RehearsalRun.RehearsalAudited"
+    where   { minting.value == "next" && !edge_present.value }
+    trigger RehearsalRun::Withhold, with: { verdict: "needs_edge",
+                                             refusal: "no translation edge leads the held era to this shape" }
+  end
+
+  policy "WithholdWhenTheMintWouldRefuse" do
+    on      "RehearsalRun.RehearsalAudited"
+    where do
+      (minting.value != "next" || edge_present.value) &&
+        (refusal_total.value > 0 || (minting.value == "next" && !edge_approved.value))
+    end
+    trigger RehearsalRun::Withhold, with: { verdict: "would_refuse",
+                                             refusal: "the mint would refuse: see the refused rows and the edge's approval" }
+  end
+end

@@ -1,0 +1,56 @@
+Hecks.bluebook "Shop" do
+  vision "A small shop whose widgets gained a closed set of bands."
+
+  aggregate "Widget" do
+    attribute :sku,  Sku
+    attribute :band, Band
+    identified_by :sku
+
+    value_object "Sku" do
+      attribute :value, String
+    end
+
+    value_object "Band" do
+      attribute :value, String, one_of: ["small", "medium", "large"]
+
+      invariant("a band is small, medium or large") { ["small", "medium", "large"].include?(value) }
+    end
+
+    lifecycle :status, default: "listed" do
+      transition "Retire" => "retired", from: "listed"
+    end
+
+    command "List" do
+      attribute :sku,  Sku
+      attribute :band, Band
+
+      sets :sku
+      sets :band
+
+      emits WidgetListed
+    end
+
+    command "Retire" do
+      reference_to Widget
+
+      emits WidgetRetired
+    end
+  end
+
+  aggregate "Order" do
+    attribute :number, Number
+    identified_by :number
+
+    value_object "Number" do
+      attribute :value, String
+    end
+
+    command "Place" do
+      attribute :number, Number
+
+      sets :number
+
+      emits OrderPlaced
+    end
+  end
+end
