@@ -20,11 +20,14 @@ module Hecks
         # Every operation this family carries out, one for each tool.
         OPERATIONS = %w[flog flay reek rubycritic].freeze
 
+        # rubycritic starts through a launcher that finds the git root right inside a worktree.
+        RUBYCRITIC = ["ruby", File.join(__dir__, "inspection", "rubycritic.rb"), "--no-browser"].freeze
+
         # The program and flags each operation starts, before the files.
         PROGRAMS = { "flog"       => %w[flog --methods-only],
                      "flay"       => %w[flay],
                      "reek"       => %w[reek],
-                     "rubycritic" => %w[rubycritic --no-browser] }.freeze
+                     "rubycritic" => RUBYCRITIC }.freeze
 
         # The statuses that still mean the tool reported: reek ends 2 when it found smells.
         REPORTING = { "reek" => [0, 2] }.freeze

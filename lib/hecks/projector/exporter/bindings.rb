@@ -115,8 +115,9 @@ module Hecks
         # @param domain_name [String] the domain to export the registrations binding for
         # @return [Hash{Symbol => String, nil}] `:provider` (name), `:schedule`, `:request`
         #   (qualified verbs), `:event_aggregate` and `:registration_aggregate` (each verb's own
-        #   leading qualified aggregate name); `{}` if nothing this domain attaches provides
-        #   registrations
+        #   leading qualified aggregate name) and, when declared, `:frees_seat` (the states of the
+        #   lifecycle mark it names) and `:registered_at` (the attribute that stamps a request);
+        #   `{}` if nothing this domain attaches provides registrations
         def registrations(registry, domain_name)
           provider = registry.registrations_provider_for(domain_name)
           return {} unless provider
@@ -124,6 +125,7 @@ module Hecks
           verbs = verbs_of(provider, Bluebook::Capabilities::REGISTRATIONS, :schedule, :request)
           { provider: provider.name, **verbs,
             **aggregates_of(verbs, event_aggregate: :schedule, registration_aggregate: :request),
+            **all_marked_states(provider, Bluebook::Capabilities::REGISTRATIONS),
             **all_words(provider, Bluebook::Capabilities::REGISTRATIONS) }
         end
 

@@ -189,7 +189,7 @@ merged table and cannot tell a core row from an attached one.
 ## provides
 
 <!-- generated:begin word=provides -->
-`provides provides, assignments:, grant:, transitions:, admit:, people:, register:, link:, resolve:, subscribe:, add_name:, confirm:, unsubscribe:, awaiting_confirmation:, receives_issues:, left:, confirm_window:, unsubscribe_window:, webhook_tolerance:, session_hold:, initiate:, succeeded:, failed:, lapse_reason:, holds_seat:, send_issue:, record_delivery:, schedule:, request:, registered_at:, connect:, reconnect:, disconnect:, suspend:, resume:, enable:, disable:, mark_sensitive:, markings_for:, key_for:, shred:` — fills `provides`
+`provides provides, assignments:, grant:, transitions:, admit:, people:, register:, link:, resolve:, subscribe:, add_name:, confirm:, unsubscribe:, awaiting_confirmation:, receives_issues:, left:, confirm_window:, unsubscribe_window:, webhook_tolerance:, session_hold:, initiate:, succeeded:, failed:, lapse_reason:, holds_seat:, send_issue:, record_delivery:, schedule:, request:, registered_at:, frees_seat:, connect:, reconnect:, disconnect:, suspend:, resume:, enable:, disable:, mark_sensitive:, markings_for:, key_for:, shred:` — fills `provides`
 
 | argument | kind | required | fills |
 |---|---|---|---|
@@ -223,6 +223,7 @@ merged table and cannot tell a core row from an attached one.
 | `schedule:` | text | false | provides |
 | `request:` | text | false | provides |
 | `registered_at:` | text | false | provides |
+| `frees_seat:` | text | false | provides |
 | `connect:` | text | false | provides |
 | `reconnect:` | text | false | provides |
 | `disconnect:` | text | false | provides |

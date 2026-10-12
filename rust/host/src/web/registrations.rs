@@ -36,15 +36,13 @@ fn payment_processor(read: &Value, payments: &PaymentsProvider, reference: &str)
 
 // Payment statuses whose registration still holds a seat come from the
 // payment lifecycle's `holds_seat` mark (`PaymentsProvider::holds_seat`). A
-// registration with no Payment, or one that's archived, holds none.
+// registration with no Payment, or one in a state that frees its seat, holds none.
 
-/// The Registration lifecycle state that gives its seat back.
-const ARCHIVED_REGISTRATION_STATUS: &str = "archived";
-
-/// Whether a registration's own lifecycle has archived it. A missing or
-/// non-text `status` is active.
-fn registration_archived(registration: &Value) -> bool {
-    registration.get("status").and_then(|s| s.as_str()) == Some(ARCHIVED_REGISTRATION_STATUS)
+/// Whether a registration's own lifecycle state is one the chapter declares gives its seat
+/// back (`RegistrationsProvider::frees_seat`). A missing or non-text `status` is active.
+fn registration_frees_seat(registration: &Value, frees_seat: &[String]) -> bool {
+    let status = registration.get("status").and_then(|s| s.as_str());
+    status.is_some_and(|status| frees_seat.iter().any(|freed| freed == status))
 }
 
 /// A reference to an aggregate reads back as its plain id, or wrapped as
@@ -55,17 +53,24 @@ fn plain_id(raw: Option<&Value>) -> Option<String> {
     value.as_str().filter(|id| !id.is_empty()).map(String::from)
 }
 
-/// Seats used per event slug: non-archived Registrations whose Payment (same
+/// Seats used per event slug: Registrations not in a seat-freeing state whose Payment (same
 /// reference) is in a seat-holding status.
 fn seat_counts(read: &Value, domain: &str, payments: &PaymentsProvider) -> std::collections::HashMap<String, usize> {
+    let binding = crate::commerce_ir::registrations_binding(domain);
+    count_seats(read, &binding, payments)
+}
+
+/// The seat count of `seat_counts` against an explicit registrations binding.
+fn count_seats(read: &Value, binding: &crate::commerce_ir::RegistrationsProvider, payments: &PaymentsProvider) -> std::collections::HashMap<String, usize> {
     let statuses: std::collections::HashMap<String, String> = instances_for(read, &payments.instance_prefix())
         .into_iter()
         .filter_map(|(id, payment)| payment.get("status").and_then(|s| s.as_str()).map(|s| (id, s.to_string())))
         .collect();
     let mut counts = std::collections::HashMap::new();
-    for (id, registration) in instances_for(read, &crate::commerce_ir::registrations_binding(domain).registration_prefix()) {
+    for (id, registration) in instances_for(read, &binding.registration_prefix()) {
         let holds = statuses.get(&id).is_some_and(|status| payments.holds_seat.iter().any(|held| held == status));
-        if let (true, false, Some(event_slug)) = (holds, registration_archived(&registration), plain_id(registration.get("event_slug"))) {
+        let freed = registration_frees_seat(&registration, &binding.frees_seat);
+        if let (true, false, Some(event_slug)) = (holds, freed, plain_id(registration.get("event_slug"))) {
             *counts.entry(event_slug).or_insert(0) += 1;
         }
     }
@@ -829,6 +834,49 @@ mod tests {
         read["instances"]["CheckoutFixture::Registration#a"]["status"] = json!("archived");
         assert_eq!(seats_taken(&read, "CheckoutFixture", &payments, "yoga"), 2, "a paid but archived registration frees its seat");
         assert_eq!(seats_left(&read, "CheckoutFixture", &payments, "yoga"), Some(1));
+    }
+
+    fn binding_freeing(states: &[&str]) -> crate::commerce_ir::RegistrationsProvider {
+        let mut binding = crate::commerce_ir::RegistrationsProvider::conventional("CheckoutFixture");
+        binding.frees_seat = states.iter().map(|s| s.to_string()).collect();
+        binding
+    }
+
+    #[test]
+    fn a_declared_state_other_than_archived_frees_its_seat() {
+        let payments = crate::commerce_ir::fixture_payments();
+        let mut read = read_with(3, &[("a", "yoga", "succeeded"), ("b", "yoga", "succeeded")]);
+        set_registration_status(&mut read, "a", "cancelled");
+        let counts = count_seats(&read, &binding_freeing(&["cancelled"]), &payments);
+        assert_eq!(counts.get("yoga"), Some(&1), "cancelled is declared, so it frees the seat");
+    }
+
+    #[test]
+    fn the_fixture_declared_cancelled_state_frees_its_seat_beside_archived() {
+        let payments = crate::commerce_ir::fixture_payments();
+        let binding = crate::commerce_ir::registrations_provider(&crate::commerce_ir::fixture_ir()).expect("registrations");
+        let mut read = read_with(3, &[("a", "yoga", "succeeded"), ("b", "yoga", "succeeded"), ("c", "yoga", "succeeded")]);
+        set_registration_status(&mut read, "a", "cancelled");
+        set_registration_status(&mut read, "b", "archived");
+        assert_eq!(count_seats(&read, &binding, &payments).get("yoga"), Some(&1));
+    }
+
+    #[test]
+    fn a_state_the_chapter_does_not_declare_keeps_its_seat_even_when_it_is_archived() {
+        let payments = crate::commerce_ir::fixture_payments();
+        let mut read = read_with(3, &[("a", "yoga", "succeeded")]);
+        set_registration_status(&mut read, "a", "archived");
+        let counts = count_seats(&read, &binding_freeing(&["cancelled"]), &payments);
+        assert_eq!(counts.get("yoga"), Some(&1), "only the declared states free a seat");
+    }
+
+    #[test]
+    fn with_no_declaration_the_conventional_binding_frees_the_archived_seat() {
+        let payments = crate::commerce_ir::fixture_payments();
+        let mut read = read_with(3, &[("a", "yoga", "succeeded")]);
+        set_registration_status(&mut read, "a", "archived");
+        let conventional = crate::commerce_ir::RegistrationsProvider::conventional("CheckoutFixture");
+        assert_eq!(count_seats(&read, &conventional, &payments).get("yoga"), None);
     }
 
     #[test]

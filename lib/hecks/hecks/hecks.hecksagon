@@ -400,6 +400,27 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  # Rehearsal: what a client's domain does against a copy of its data. A rehearsal keeps nothing,
+  # so the aggregate is bound to Memory whatever the world's default adapter is, and its report is
+  # what the caller is handed. The RehearsalStore port is the copy the subject's own `.world`
+  # names (`rehearsed_by`): asking it to survey prepares the copy and loads the domain against
+  # it, asking it to examine runs the mint's audit over it and drops it. No era is written.
+  Hecks::RehearsalRun.persisted_by("Memory")
+
+  Hecks::RehearsalRun.port "RehearsalStore" do
+    asks "Survey", to: RehearsalRun do
+      attribute :run, RunKey
+      answers "StoreSurveyed"
+      refuses "StoreRefused"
+    end
+
+    asks "Examine", to: RehearsalRun do
+      attribute :run, RunKey
+      answers "StoreExamined"
+      refuses "ExamineRefused"
+    end
+  end
+
   # Deploy, attached above: its bluebook loads without deploy.hecksagon, so the outside its
   # commands reach is named here as well. TenantProvisioning writes a tenant's overlay world;
   # DeployToolchain generates and checks a recipe and projects the OIDC manifests.

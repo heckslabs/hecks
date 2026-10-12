@@ -736,6 +736,21 @@ async fn archiving_a_paid_registration_frees_its_seat_and_restoring_it_takes_the
 }
 
 #[tokio::test]
+async fn cancelling_a_paid_registration_reaches_a_state_the_fixture_declares_as_freeing_its_seat() {
+    let t = tenant("hecks_pay_test_capacity_cancel").await;
+    t.schedule_event_with_capacity("cancel-me", 1).await;
+    let (_, body) = t.register("cancel-me").await;
+    let reference = body["registration_id"].as_str().unwrap().to_string();
+    assert_eq!(t.settle(&reference).await, 200);
+
+    let cancelled = registration_command(&t, "Cancel", &reference).await;
+    assert!(cancelled.accepted, "{:?}", cancelled.result);
+    let state = registration_status(&t, &reference).await;
+    let declared = crate::commerce_ir::registrations_provider(&crate::commerce_ir::fixture_ir()).expect("registrations");
+    assert!(declared.frees_seat.contains(&state), "{state} is one of {:?}", declared.frees_seat);
+}
+
+#[tokio::test]
 async fn only_an_active_registration_can_be_archived_and_only_an_archived_one_restored() {
     let t = tenant("hecks_pay_test_archive_guards").await;
     t.schedule_event("guards").await;
