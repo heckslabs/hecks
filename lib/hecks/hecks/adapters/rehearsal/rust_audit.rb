@@ -20,7 +20,9 @@ module Hecks
         #   @return [Array<String>] its refusals, `Aggregate#id: wording`
         # @!attribute [r] note
         #   @return [String] why it did not run, or what it ran over
-        Result = Struct.new(:ran, :violations, :note, keyword_init: true)
+        # @!attribute [r] rows
+        #   @return [Integer] how many rows it was given (zero when it did not run)
+        Result = Struct.new(:ran, :violations, :note, :rows, keyword_init: true)
 
         # @return [String, nil] the harness binary, when one stands
         def self.binary
@@ -53,14 +55,18 @@ module Hecks
           out, err, status = Open3.capture3(@path, stdin_data: JSON.generate("ir" => ir, "cases" => cases))
           return stood_down("validate_harness failed: #{err.lines.first&.strip}") unless status.success?
 
-          Result.new(ran: true, violations: refusals(out), note: "ran over #{cases.size} rows")
+          answered(out, cases.size)
         end
 
         # @param note [String] why the engine did not run
         # @return [Result] an answer that refused nothing
-        def stood_down(note) = Result.new(ran: false, violations: [], note: note)
+        def stood_down(note) = Result.new(ran: false, violations: [], note: note, rows: 0)
 
         private
+
+        def answered(out, rows)
+          Result.new(ran: true, violations: refusals(out), note: "ran over #{rows} rows", rows: rows)
+        end
 
         def ir = Projector::Exporter.call(@subject.held.registry).fetch(@subject.bluebook.name)
 
