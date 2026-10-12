@@ -23,14 +23,15 @@ module Hecks
       # Prepares the copy, loads the domain against it, and reads where its shape stands.
       #
       # @param held [Hash] the record: `domain`, `run` and `pin`
-      # @return [Hash] the shape facts, or `booted: false` with why the domain did not load
+      # @return [Hash] the shape facts and what the copy holds, or `booted: false` with why the
+      #   domain did not load
       # @raise [Rehearsal::Refused] if the pin, the world's declaration or the copy is refused
       def survey(**held)
         Rehearsal.check_pin!(plain(held[:pin]))
         subject = Rehearsal::Subject.open(plain(held[:domain]))
         store = Rehearsal.store_for(subject, plain(held[:run]))
         store.prepare!
-        guarded(store) { Rehearsal::Inquiry.new(subject, store).survey }
+        guarded(store) { surveyed(subject, store) }
       rescue Rehearsal::Subject::CannotBoot => e
         { booted: { value: false }, boot_error: { value: e.message } }
       end
@@ -50,6 +51,14 @@ module Hecks
       end
 
       private
+
+      # A copy that holds nothing is answered at once, so it is dropped here: no examination
+      # follows to drop it. Any other copy stands until it is examined.
+      def surveyed(subject, store)
+        facts = Rehearsal::Inquiry.new(subject, store).survey
+        standing = { released: { value: false }, kept: { value: "" } }
+        facts.merge(facts[:copy_empty][:value] ? release(store) : standing)
+      end
 
       # Runs the block; when it raises, the copy is dropped before the error goes on.
       def guarded(store)

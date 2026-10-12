@@ -14,6 +14,7 @@ module Hecks
       #
       # - **run_keys** mints the `run` key of a creating command that was given none.
       # - **settled** lists the commands (`aggregate.command`) that always act as if given `--wait`.
+      # - **unknown_runs** lists the questions that refuse a run this process does not hold.
       # - **report** lists the settled commands whose answer is the report they recorded, as text.
       # - **names** maps a launcher name to the command it stands for (see `CliProjector`).
       # - **streams** lists the questions `--stream` may tail, one JSON line per new entry.
@@ -148,6 +149,18 @@ module Hecks
           return false unless launcher && spec[:kind] == :command
 
           Array(launcher[:settled]).map(&:to_s).include?(spec[:short].to_s)
+        end
+
+        # Whether a question about one run refuses a run this process does not hold, instead of
+        # answering an empty list.
+        #
+        # @param launcher [Hash, nil] the chapter's `launcher` setting
+        # @param spec [Hash] the question's projected spec
+        # @return [Boolean] true for a question the setting lists under `unknown_runs`
+        def unknown_run?(launcher, spec)
+          return false unless launcher && spec[:kind] == :query
+
+          Array(launcher[:unknown_runs]).map(&:to_s).include?(spec[:short].to_s)
         end
 
         # Whether a command prints the report it recorded instead of its whole record.

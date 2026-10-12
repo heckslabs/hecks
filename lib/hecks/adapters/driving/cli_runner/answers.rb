@@ -20,7 +20,7 @@ module Hecks
           #   in
           def dispatch(runtime, spec, name, rest, program, asking, bluebook: nil, launcher: nil) # rubocop:disable Metrics/ParameterLists -- the signature is what `call` passes
             args, wait = command_line(spec, rest, launcher)
-            return answer_query(runtime, spec, args, wait) if spec[:kind] == :query
+            return answer_query(runtime, spec, args, wait, launcher) if spec[:kind] == :query
 
             run_command(runtime, spec, Invocation.new(args, wait, bluebook, launcher))
           rescue Runtime::NotFound, Runtime::TypeMismatch => e
@@ -80,12 +80,29 @@ module Hecks
           # Runs a question and answers its rows, or its text when an adapter answered in text.
           #
           # @param wait [Boolean, nil] whether `--wait` was given: a report naming a gap then fails
+          # @param launcher [Hash, nil] the chapter's `launcher` setting, which may name the
+          #   questions that refuse a run they do not hold
           # @return [Array(String, Integer)] the answer and the status
-          def answer_query(runtime, spec, args, wait)
+          def answer_query(runtime, spec, args, wait, launcher = nil)
             rows = runtime.query(spec[:command], **args)
+            return [unknown_run(args), 1] if rows.empty? && LauncherOptions.unknown_run?(launcher, spec)
+
             text = text_answer(spec, rows)
             [text || JSON.pretty_generate(rows.map { |row| Json.materialize(row) }),
              wait && LauncherOptions.gap_reported?(text) ? 1 : 0]
+          end
+
+          # What a question about one run answers when the process holds no such run, for a
+          # question the launcher setting lists under `unknown_runs`: a run lives in the process
+          # that made it, so a later call has nothing to read, and saying so beats an empty list
+          # that reads as "no outcome yet".
+          #
+          # @param args [Hash] the question's parsed arguments, `run` among them
+          # @return [String] the message
+          def unknown_run(args)
+            key = args[:run].is_a?(Hash) ? args[:run][:value] : args[:run]
+            "no run #{key.to_s.inspect} is held by this process: a run is kept in memory by the process " \
+              "that made it, so read its outcome from the call that requested it (`--wait` prints it whole)"
           end
 
           # The text a query answered by a port gave, when that is the whole answer.

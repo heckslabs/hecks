@@ -26,7 +26,9 @@
 # `names` gives a command the launcher name clients type,
 # `settled` names the commands that always wait for their reactions, as if `--wait` were given, so a
 # refusal is an exit status and a reason on standard error (`package.vendor`, which a script runs
-# for its outcome), `executable` is where `hecks project_cli` writes this chapter's launcher (the
+# for its outcome), `unknown_runs` names the questions about one run that refuse a run the process
+# does not hold, as unknown, not as an empty list (`rehearsal_run.rehearsal_outcome`: a run is kept
+# by the process that made it, so `request` waits and prints the whole outcome), `executable` is where `hecks project_cli` writes this chapter's launcher (the
 # gem's `exe/hecks`), `streams` lists the questions `--stream` may tail (`Follow`), `memory_commands` names
 # the commands that launcher runs on the Memory environment unless `HECKS_ENVIRONMENT` is set (so
 # `hecks console` needs no database), and `legacy` names the commands it hands to `Hecks::CLI` in the
@@ -45,7 +47,8 @@ Hecks.world "Hecks" do
                                   data_copy.verify bluebook_diff.run preview_run.name
                                   preview_run.url preview_run.list preview_run.deploy
                                   preview_run.destroy preview_run.login companion_roll.run
-                                  handover.clear],
+                                  handover.clear rehearsal_run.request],
+                       unknown_runs: %w[rehearsal_run.rehearsal_outcome],
                        names: { "mcp" => "launch.serve_mcp", "console" => "operation.open_console", "init" => "launch.init",
                                 "interview" => "launch.interview", "package.check" => "registry.check",
                                 "package.digest" => "registry.digest",

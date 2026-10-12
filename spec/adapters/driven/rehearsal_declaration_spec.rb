@@ -24,6 +24,25 @@ RSpec.describe Hecks::Adapters::Rehearsal::Declaration do
     expect(declare(adapter: "Postgres", connection_env: "X", dump: "d.dump").mode).to eq("dump")
   end
 
+  it "reads the schema and the environment the world names", :aggregate_failures do
+    declaration = declare(adapter: "Postgres", connection_env: "X", dump: "d.dump", schema: "shop", environment: "staging")
+
+    expect(declaration.schema).to eq("shop")
+    expect(declaration.environment).to eq("staging")
+  end
+
+  it "leaves the schema and the environment to a default when the world names none", :aggregate_failures do
+    declaration = declare(adapter: "Postgres", connection_env: "X", dump: "d.dump")
+
+    expect(declaration.schema).to be_nil
+    expect(declaration.environment).to be_nil
+  end
+
+  it "refuses a schema that is not a name" do
+    expect { declare(adapter: "Postgres", connection_env: "X", schema: "a b; drop") }
+      .to raise_error(Hecks::Adapters::Rehearsal::Refused, /schema "a b; drop" is not a name/)
+  end
+
   it "refuses a world with no `rehearsed_by`" do
     expect { declare }.to raise_error(Hecks::Adapters::Rehearsal::Refused, /declares no `rehearsed_by`/)
   end

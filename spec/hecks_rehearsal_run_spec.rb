@@ -53,6 +53,26 @@ RSpec.describe "rehearsing a domain's next era" do
 
   def status_of(record) = record["status"]
 
+  # Replaces what the shop's world says about its copy with `body`, inside `rehearsed_by`.
+  def declare_copy(body)
+    world = File.join(shop, "bluebook", "shop.world")
+    File.write(world, File.read(world).sub(/  rehearsed_by\("Memory"\) do\n.*?\n  end\n/m,
+                                           "  rehearsed_by(\"Memory\") do\n    #{body}\n  end\n"))
+  end
+
+  def overlay(name, text = "Hecks.hecksagon \"Shop\" do\nend\n")
+    FileUtils.mkdir_p(File.join(shop, "bluebook", "environments"))
+    File.write(File.join(shop, "bluebook", "environments", "#{name}.hecksagon"), text)
+  end
+
+  # The shop's own hecksagon binds only Order, so Widget is bound in an overlay or nowhere.
+  def bind_only_order
+    File.write(File.join(shop, "bluebook", "shop.hecksagon"),
+               "Hecks.hecksagon \"Shop\" do\n  Shop::Order.persisted_by \"PostgresEra\"\nend\n")
+  end
+
+  def limits_of(record) = record["unchecked"].map { |limit| limit["what"] }
+
   def held_current_shape
     document = rows
     document["eras"][0]["held_text"] = File.read(File.join(shop, "bluebook", "shop.bluebook"))
@@ -96,10 +116,12 @@ RSpec.describe "rehearsing a domain's next era" do
     expect(state.dig("verdict", "value")).to eq("would_mint")
   end
 
-  it "would hold the first era when none is held" do
-    write_rows("eras" => [], "records" => {})
+  it "would hold the first era when a copy is asked to be empty", :aggregate_failures do
+    declare_copy('mode "empty"')
+    record = rehearse
 
-    expect(rehearse.dig("minting", "value")).to eq("first")
+    expect(record.dig("minting", "value")).to eq("first")
+    expect(verdict_of(record)).to eq("would_mint")
   end
 
   it "needs an edge when the shape changed and none leads to it", :aggregate_failures do
@@ -108,6 +130,105 @@ RSpec.describe "rehearsing a domain's next era" do
 
     expect([status_of(record), verdict_of(record)]).to eq(%w[withheld needs_edge])
     expect(record.dig("edge_present", "value")).to be(false)
+  end
+
+  describe "how much was audited" do
+    it "counts the rows and aggregates the audit read", :aggregate_failures do
+      record = rehearse
+
+      expect(record.dig("audited", "value")).to be(true)
+      expect(record.values_at("rows_examined", "aggregates_examined").map { |count| count["value"] }).to eq([3, 2])
+    end
+
+    it "says no row was read when the shape stands", :aggregate_failures do
+      held_current_shape
+      record = rehearse
+
+      expect(record.dig("audited", "value")).to be(false)
+      expect(record.dig("reason", "value")).to eq("no mint is needed at this shape, so no stored row was examined")
+    end
+
+    it "carries that limit in what a clean verdict did not check" do
+      held_current_shape
+
+      expect(limits_of(rehearse)).to include("the stored rows")
+    end
+
+    it "shows the head and journal counts side by side", :aggregate_failures do
+      record = rehearse
+
+      expect(record.dig("head_rows", "value")).to eq(3)
+      expect(record["census"]).to include("aggregate" => "Widget", "head" => 2, "journal" => 2)
+    end
+
+    it "says the audit reads the journal and not the head tables" do
+      expect(limits_of(rehearse)).to include("the head tables")
+    end
+  end
+
+  describe "a copy that holds no row of the domain" do
+    before { write_rows("eras" => rows["eras"], "records" => {}) }
+
+    it "is not rehearsed: the run ends empty_copy", :aggregate_failures do
+      record = rehearse
+
+      expect([status_of(record), verdict_of(record)]).to eq(%w[withheld empty_copy])
+      expect(record.dig("copy_empty", "value")).to be(true)
+    end
+
+    it "says what the copy lacked and what to set", :aggregate_failures do
+      reason = rehearse.dig("refusal", "value")
+
+      expect(reason).to include("no rows for domain Shop")
+      expect(reason).to include("name the document that holds the stored records in `rows`")
+    end
+  end
+
+  describe "the environment" do
+    it "is reported as a fact, and is none when the domain has no overlay", :aggregate_failures do
+      record = rehearse
+
+      expect(record.dig("environment_loaded", "name")).to eq("")
+      expect(record.dig("environment_loaded", "source")).to eq("none")
+    end
+
+    it "defaults to production when the domain has that overlay", :aggregate_failures do
+      overlay("production")
+      loaded = rehearse["environment_loaded"]
+
+      expect(loaded).to include("name" => "production", "source" => "default")
+      expect(loaded["file"]).to end_with("environments/production.hecksagon")
+    end
+
+    it "takes the environment the world names", :aggregate_failures do
+      overlay("staging")
+      declare_copy("rows \"../rehearsal/rows.json\"\n    environment \"staging\"")
+
+      expect(rehearse["environment_loaded"]).to include("name" => "staging", "source" => "world")
+    end
+
+    it "names the environment, the file and the aggregate when a bind is missing", :aggregate_failures do
+      bind_only_order
+      overlay("staging")
+      reason = rehearse.dig("refusal", "value")
+
+      expect(reason).to include("Shop::Widget has no persisted_by bind")
+      expect(reason).to include("no environment overlay (none named", "overlays this domain holds: staging")
+    end
+
+    it "boots when the overlay that carries the binds is the one loaded", :aggregate_failures do
+      bind_only_order
+      overlay("production", "Hecks.hecksagon \"Shop\" do\n  Shop::Widget.persisted_by \"PostgresEra\"\nend\n")
+
+      expect(verdict_of(rehearse)).to eq("would_mint")
+    end
+  end
+
+  it "reports a run this process does not hold as unknown, not as a state", :aggregate_failures do
+    answer, status = launch("rehearsal_run.rehearsal_outcome", "run=never-made")
+
+    expect(answer).to include("no run \"never-made\" is held by this process")
+    expect(status).to eq(1)
   end
 
   describe "a stored row the new shape refuses" do

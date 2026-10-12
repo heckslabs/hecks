@@ -22,6 +22,14 @@ Hecks.bluebook "Hecks" do
     attribute :host_version,   HostVersion, optional: true
     attribute :store,          StoreKind,   optional: true
     attribute :mode,           StoreMode,   optional: true
+    attribute :environment_loaded, EnvironmentLoaded, optional: true
+    attribute :schema_used,    SchemaRead,  optional: true
+    attribute :eras_held,      Count,       optional: true
+    attribute :journal_entries, Count,      optional: true
+    attribute :head_rows,      Count,       optional: true
+    attribute :census,         list_of(HeldCount), optional: true
+    attribute :copy_empty,     Switch,      optional: true
+    attribute :copy_note,      Report,      optional: true
     attribute :booted,         Switch,      optional: true
     attribute :before,         ShapeLabel,  optional: true
     attribute :after,          ShapeLabel,  optional: true
@@ -30,6 +38,11 @@ Hecks.bluebook "Hecks" do
     attribute :edge_approved,  Switch,      optional: true
     attribute :refused_rows,   list_of(RefusedRow), optional: true
     attribute :refusal_total,  Count,       optional: true
+    attribute :audited,        Switch,      optional: true
+    attribute :rows_examined,  Count,       optional: true
+    attribute :rust_rows_examined, Count,   optional: true
+    attribute :aggregates_examined, Count,  optional: true
+    attribute :reason,         Report,      optional: true
     attribute :parity,         Parity,      optional: true
     attribute :unchecked,      list_of(Limit), optional: true
     attribute :verdict,        Verdict,     optional: true
@@ -71,6 +84,33 @@ Hecks.bluebook "Hecks" do
       attribute :value, String, one_of: ["empty", "dump", "readonly_copy"]
 
       invariant("a mode is empty, dump or readonly_copy") { ["empty", "dump", "readonly_copy"].include?(value) }
+    end
+
+    # The environment overlay the subject was loaded under and where that was decided: `world`
+    # (its `rehearsed_by` named one), `HECKS_PROJECT_ENVIRONMENT`, `default` (production, because
+    # its overlay exists, as the host build does) or `none`. A domain's binds are usually declared
+    # in that overlay, so a rehearsal that loaded another one rehearsed another domain.
+    value_object "EnvironmentLoaded" do
+      attribute :name,   String
+      attribute :source, String, pattern: '^(world|HECKS_PROJECT_ENVIRONMENT|default|none)$'
+      attribute :file,   String
+    end
+
+    # The Postgres schema the copy was read in, where that was decided (`world`, `HECKS_SCHEMA`,
+    # `derived` from the domain's name, `default` public, or `memory` for a document) and whether
+    # the copy has it.
+    value_object "SchemaRead" do
+      attribute :name,    String
+      attribute :source,  String, pattern: '^(world|HECKS_SCHEMA|derived|default|memory)$'
+      attribute :present, Boolean
+    end
+
+    # One aggregate's rows in the copy: what its head table holds and the records its journal's
+    # latest entries hold. The audit reads the journal, so a difference is shown, not refused.
+    value_object "HeldCount" do
+      attribute :aggregate, String
+      attribute :head,      Integer
+      attribute :journal,   Integer
     end
 
     value_object "Switch" do
@@ -118,13 +158,14 @@ Hecks.bluebook "Hecks" do
       attribute :why,  String
     end
 
-    # The four things a rehearsal can conclude. A would_mint of `minting: none` says the shape
-    # stands and nothing would be minted at all.
+    # The five things a rehearsal can conclude. A would_mint of `minting: none` says the shape
+    # stands and nothing would be minted at all. `empty_copy` says the copy held no row of the
+    # domain, so nothing was rehearsed and no answer about the data is given.
     value_object "Verdict" do
-      attribute :value, String, one_of: ["would_mint", "would_refuse", "needs_edge", "cannot_boot"]
+      attribute :value, String, one_of: ["would_mint", "would_refuse", "needs_edge", "cannot_boot", "empty_copy"]
 
       invariant("a verdict is one the rehearsal names") do
-        ["would_mint", "would_refuse", "needs_edge", "cannot_boot"].include?(value)
+        ["would_mint", "would_refuse", "needs_edge", "cannot_boot", "empty_copy"].include?(value)
       end
     end
 
@@ -144,6 +185,22 @@ Hecks.bluebook "Hecks" do
     invariant("only a domain that booted would mint") do
       verdict.unset? || verdict.value != "would_mint" || booted.unset? || booted.value
     end
+    invariant("a copy that holds nothing is never judged to mint") do
+      verdict.unset? || verdict.value != "would_mint" || copy_empty.unset? || !copy_empty.value
+    end
+    invariant("an empty_copy verdict is given for a copy that holds nothing") do
+      verdict.unset? || verdict.value != "empty_copy" || (!copy_empty.unset? && copy_empty.value)
+    end
+    invariant("only a mint of the next era audits stored rows") do
+      audited.unset? || !audited.value || minting.unset? || minting.value == "next"
+    end
+    invariant("a mint of the next era that would go through states how many rows were examined") do
+      verdict.unset? || verdict.value != "would_mint" || minting.unset? || minting.value != "next" || !rows_examined.unset?
+    end
+    invariant("a clean verdict that examined no row says so in what it did not check") do
+      verdict.unset? || verdict.value != "would_mint" || audited.unset? || audited.value ||
+        (!unchecked.unset? && unchecked.any? { |limit| limit.what == "the stored rows" })
+    end
 
     # `requested` is the rehearsal and its store being prepared; `booted` the domain loaded and
     # its shape read; `audited` the mint's audit run over the data. `judged` is a rehearsal whose
@@ -155,14 +212,14 @@ Hecks.bluebook "Hecks" do
       transition "Boot"     => "booted",   from: "requested"
       transition "Audit"    => "audited",  from: "booted"
       transition "Judge"    => "judged",   from: "audited"
-      transition "Withhold" => "withheld", from: %w[requested audited]
+      transition "Withhold" => "withheld", from: %w[requested booted audited]
       transition "Refuse"   => "refused",  from: "requested"
       transition "Fail"     => "failed",   from: %w[requested booted audited]
     end
 
     command "Request" do
       role "Operator"
-      goal "Rehearse a domain's next era against the copy of its data its world names, and say whether a mint would go through"
+      goal "Rehearse a domain's next era against the copy of its data its world names, say whether a mint would go through, and print the whole outcome"
 
       attribute :run,    RunKey
       attribute :domain, DomainPath
@@ -188,6 +245,16 @@ Hecks.bluebook "Hecks" do
       attribute :before,       ShapeLabel
       attribute :after,        ShapeLabel
       attribute :minting,      Minting
+      attribute :environment_loaded, EnvironmentLoaded
+      attribute :schema_used,  SchemaRead
+      attribute :eras_held,    Count
+      attribute :journal_entries, Count
+      attribute :head_rows,    Count
+      attribute :census,       list_of(HeldCount)
+      attribute :copy_empty,   Switch
+      attribute :copy_note,    Report
+      attribute :released,     Switch, optional: true
+      attribute :kept,         Report, optional: true
 
       given("the domain loaded") { booted.value }
 
@@ -198,6 +265,16 @@ Hecks.bluebook "Hecks" do
       sets :before
       sets :after
       sets :minting
+      sets :environment_loaded
+      sets :schema_used
+      sets :eras_held
+      sets :journal_entries
+      sets :head_rows
+      sets :census
+      sets :copy_empty
+      sets :copy_note
+      sets :released
+      sets :kept
 
       emits RehearsalBooted
     end
@@ -213,6 +290,11 @@ Hecks.bluebook "Hecks" do
       attribute :edge_approved, Switch
       attribute :refused_rows,  list_of(RefusedRow), optional: true
       attribute :refusal_total, Count
+      attribute :audited,       Switch
+      attribute :rows_examined, Count
+      attribute :rust_rows_examined, Count
+      attribute :aggregates_examined, Count
+      attribute :reason,        Report
       attribute :parity,        Parity
       attribute :unchecked,     list_of(Limit)
       attribute :released,      Switch
@@ -223,6 +305,11 @@ Hecks.bluebook "Hecks" do
       sets :edge_approved
       sets :refused_rows
       sets :refusal_total
+      sets :audited
+      sets :rows_examined
+      sets :rust_rows_examined
+      sets :aggregates_examined
+      sets :reason
       sets :parity
       sets :unchecked
       sets :released
@@ -290,14 +377,14 @@ Hecks.bluebook "Hecks" do
     end
 
     query "RehearsalOutcome" do
-      description "How one rehearsal ended: its status and verdict, and every fact it brought back."
+      description "How one rehearsal ended: its status and verdict, and every fact it brought back. A run is kept by the process that made it, so a run this process does not hold is refused as unknown; `request` waits for its reactions and prints the whole outcome."
       attribute :run, RunKey
       where(run: :run)
       order_by :run
     end
 
     query "Withheld" do
-      description "Every rehearsal whose answer was that the mint would not go through."
+      description "Every rehearsal of this process whose answer was that the mint would not go through."
       where(status: "withheld")
       order_by :run
     end
@@ -316,7 +403,19 @@ Hecks.bluebook "Hecks" do
     on      "RehearsalRun.StoreSurveyed"
     where   { booted.value }
     trigger RehearsalRun::Boot, with: { booted: :booted, host_version: :host_version, store: :store, mode: :mode,
-                                         before: :before, after: :after, minting: :minting }
+                                         before: :before, after: :after, minting: :minting,
+                                         environment_loaded: :environment_loaded, schema_used: :schema_used,
+                                         eras_held: :eras_held, journal_entries: :journal_entries,
+                                         head_rows: :head_rows, census: :census, copy_empty: :copy_empty,
+                                         copy_note: :copy_note, released: :released, kept: :kept }
+  end
+
+  # A copy that holds none of the domain's rows is not rehearsed: there is nothing to audit, and a
+  # clean answer over it would be a confident wrong one. The survey has already dropped it.
+  policy "WithholdWhenTheCopyHoldsNothing" do
+    on      "RehearsalRun.RehearsalBooted"
+    where   { copy_empty.value }
+    trigger RehearsalRun::Withhold, with: { verdict: "empty_copy", refusal: :copy_note }
   end
 
   # A domain that does not load is an answer, not a breakdown: it is what the mint would be
@@ -334,6 +433,7 @@ Hecks.bluebook "Hecks" do
 
   policy "ExamineWhenBooted" do
     on      "RehearsalRun.RehearsalBooted"
+    where   { !copy_empty.value }
     ask     :examine, with: { run: :run }
   end
 
@@ -341,6 +441,9 @@ Hecks.bluebook "Hecks" do
     on      "RehearsalRun.StoreExamined"
     trigger RehearsalRun::Audit, with: { minting: :minting, edge_present: :edge_present, edge_approved: :edge_approved,
                                           refused_rows: :refused_rows, refusal_total: :refusal_total,
+                                          audited: :audited, rows_examined: :rows_examined,
+                                          rust_rows_examined: :rust_rows_examined,
+                                          aggregates_examined: :aggregates_examined, reason: :reason,
                                           parity: :parity, unchecked: :unchecked,
                                           released: :released, kept: :kept }
   end
