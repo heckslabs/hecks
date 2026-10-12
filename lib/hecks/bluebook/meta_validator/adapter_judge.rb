@@ -3,6 +3,9 @@ module Hecks
     module MetaValidator
       # Offers a built .adapter to the self-hosted adapter language (adapter.bluebook).
       class AdapterJudge
+        # Marks a field with no declared default; `nil` and `false` are defaults too.
+        NONE = Object.new.freeze
+
         attr_reader :refusals
 
         # @param adapter [Bluebook::Adapter] the built adapter to judge
@@ -34,8 +37,17 @@ module Hecks
 
         def judge!
           send_to("Adapter::Adapter.Declare", @adapter.name, name: v(@adapter.name), port: v(@adapter.port))
-          add_all("AddField", @adapter.fields)
+          add_fields
           add_all("AddSecret", @adapter.secrets)
+        end
+
+        # Offers one `AddField` per field, each with its declared default when it has one.
+        def add_fields
+          Array(@adapter.fields).each do |field|
+            default = @adapter.declared_defaults.fetch(field.to_sym, NONE)
+            send_to("Adapter::Adapter.AddField", @adapter.name, name: @adapter.name, value: v(field),
+                                                                default: default.equal?(NONE) ? nil : v(default.inspect))
+          end
         end
 
         # Offers one `verb` per value, each addressed to the adapter by name.

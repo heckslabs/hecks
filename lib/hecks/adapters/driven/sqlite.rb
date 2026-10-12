@@ -60,7 +60,7 @@ module Hecks
         @aggregate = aggregate
         @path      = resolve_path(settings, root)
         # Scopes saga rows; falls back to the aggregate's name for a directly built adapter.
-        @domain = setting(settings, :domain, aggregate.name).to_s
+        @domain = settings.fetch(:domain) { aggregate.name }.to_s
         open_database
         create_tables!
       end
@@ -106,16 +106,8 @@ module Hecks
         create_checkpoint_table!
       end
 
-      # A setting read under its Symbol key, then its String key, then `default`.
-      def setting(settings, key, default)
-        return settings[key] if settings.key?(key)
-        return settings[key.to_s] if settings.key?(key.to_s)
-
-        default
-      end
-
       def resolve_path(settings, root)
-        declared = setting(settings, :database, "data/#{table}.db")
+        declared = settings[:database]
         return declared if declared.start_with?("/")
 
         File.join(root || Dir.pwd, declared)

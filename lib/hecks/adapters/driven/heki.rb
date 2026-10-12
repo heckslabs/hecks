@@ -39,7 +39,7 @@ module Hecks
         @journal_path = "#{@path}.journal"
         @events = []
         # Saga scope; falls back to the aggregate's name for a directly built adapter.
-        @domain = setting(settings, :domain, aggregate.name).to_s
+        @domain = settings.fetch(:domain) { aggregate.name }.to_s
         FileUtils.mkdir_p(File.dirname(@path))
       end
 
@@ -179,21 +179,11 @@ module Hecks
         replay_journal(snapshot)
       end
 
-      # `dir: :default` means no setting; a Symbol would make `File.join` raise TypeError.
       def resolve_path(settings, root)
-        declared = setting(settings, :dir, "data")
-        declared = "data" if declared == :default
+        declared = settings[:dir]
         dir      = declared.start_with?("/") ? declared : File.join(root || Dir.pwd, declared)
 
         File.join(dir, "#{@aggregate.storage_name}.heki")
-      end
-
-      # A setting read under its Symbol key, then its String key, then `default`.
-      def setting(settings, key, default)
-        return settings[key] if settings.key?(key)
-        return settings[key.to_s] if settings.key?(key.to_s)
-
-        default
       end
     end
   end

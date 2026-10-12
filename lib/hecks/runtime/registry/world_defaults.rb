@@ -28,7 +28,36 @@ module Hecks
           self
         end
 
+        # The defaults an adapter's `.adapter` declares for its fields, with each `{name}` or
+        # `{storage_name}` in a string filled from `aggregate`. A world's own setting always wins.
+        #
+        # @param adapter [String, Symbol] the adapter's name
+        # @param aggregate [Bluebook::Aggregate] the aggregate the adapter is built for
+        # @return [Hash{Symbol => Object}] the defaults, empty when the adapter declares none
+        def adapter_defaults(adapter, aggregate)
+          declared = @declared.adapters[adapter.to_s]&.declared_defaults || {}
+          declared.transform_values { |value| fill_placeholders(value, aggregate) }
+        end
+
+        # `settings` laid over the adapter's declared defaults. A field a world gives as `:default`
+        # asks for the declared default, so it is left out and the default shows through.
+        #
+        # @param adapter [String, Symbol] the adapter's name
+        # @param aggregate [Bluebook::Aggregate] the aggregate the adapter is built for
+        # @param settings [Hash{Symbol => Object}] the settings the world gave
+        # @return [Hash{Symbol => Object}] the defaults, overridden by the settings given
+        def with_adapter_defaults(adapter, aggregate, settings)
+          adapter_defaults(adapter, aggregate).merge(settings.reject { |_, value| value == :default })
+        end
+
         private
+
+        # A string default with its placeholders filled from the aggregate; any other value as is.
+        def fill_placeholders(value, aggregate)
+          return value unless value.is_a?(String)
+
+          value.gsub(/\{(name|storage_name)\}/) { aggregate.public_send(Regexp.last_match(1)) }
+        end
 
         # The chapter's own world answers first; the project's world fills the gap.
         def world_default(domain, field)

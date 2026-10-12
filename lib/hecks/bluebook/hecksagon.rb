@@ -10,10 +10,17 @@ module Hecks
       def effect? = signal == :effect
     end
 
-    Adapter = Struct.new(:name, :port, :fields, :secrets, keyword_init: true) do
+    # One `.adapter`: the port it implements, the settings a world may give it, and the secrets.
+    # `defaults` maps a field's name to the value used when the world gives none; a string may hold
+    # a `{name}` or `{storage_name}` placeholder, filled from the aggregate the adapter is built
+    # for.
+    Adapter = Struct.new(:name, :port, :fields, :secrets, :defaults, keyword_init: true) do
       def declares?(field) = all_fields.include?(field.to_sym)
 
       def all_fields = (fields || []) + (secrets || [])
+
+      # @return [Hash{Symbol => Object}] the declared defaults, empty when none
+      def declared_defaults = defaults || {}
     end
 
     Bind = Struct.new(:aggregate, :verb, :adapter, :role, keyword_init: true) do

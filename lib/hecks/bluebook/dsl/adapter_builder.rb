@@ -8,13 +8,17 @@ module Hecks
       class AdapterBuilder
         GRAMMAR_CONTEXT = "Adapter".freeze
 
+        # Marks a field that gives no `default:`; `nil` and `false` are defaults too.
+        NO_DEFAULT = Object.new.freeze
+
         include WordGate
 
         # @param name [String] the adapter's name, as written after `Hecks.adapter`
         def initialize(name)
-          @name    = name
-          @fields  = []
-          @secrets = []
+          @name = name
+          @fields   = []
+          @secrets  = []
+          @defaults = {}
         end
 
         # Names the port this adapter implements; a repeated call replaces the earlier name.
@@ -26,8 +30,13 @@ module Hecks
         # Declares one plain setting a `.world` file may supply for this adapter.
         #
         # @param name [Symbol, String] the setting's name, such as `:database`
+        # @param default [Object] the value used when the world gives none; a string may hold
+        #   `{name}` or `{storage_name}`, filled from the aggregate the adapter is built for
         # @return [Array<Symbol>] every field declared so far, this one last
-        def field(name) = @fields << name.to_sym
+        def field(name, default: NO_DEFAULT)
+          @defaults[name.to_sym] = default unless default.equal?(NO_DEFAULT)
+          @fields << name.to_sym
+        end
 
         # Declares one setting whose value is a secret, such as an API token.
         #
@@ -35,12 +44,15 @@ module Hecks
         # @return [Array<Symbol>] every secret declared so far, this one last
         def secret(name) = @secrets << name.to_sym
 
-        # Assembles the collected port, fields and secrets, judged by the adapter language.
+        # Assembles the collected port, fields, defaults and secrets, judged by the adapter
+        # language.
         #
         # @return [Bluebook::Adapter] the adapter, returned once the language accepts it
         # @raise [Bluebook::DSL::Malformed] if the adapter language refuses the declaration
         def build
-          MetaValidator.call_adapter(Adapter.new(name: @name, port: @port, fields: @fields, secrets: @secrets))
+          MetaValidator.call_adapter(
+            Adapter.new(name: @name, port: @port, fields: @fields, secrets: @secrets, defaults: @defaults)
+          )
         end
 
         # Evaluates an `Hecks.adapter` block against a fresh builder and returns what it built.
