@@ -42,23 +42,40 @@ RSpec.describe "registrations capability" do
     registration_aggregate: "Bookings::Registration"
   }.freeze
 
-  def bookings_chapter(provides)
+  # A registration whose lifecycle marks the states that give a seat back.
+  FREEING_REGISTRATION_BODY = proc do
+    instance_exec(&BOOKINGS_REGISTRATION_BODY)
+    lifecycle :status, default: "active" do
+      mark :frees_seat, "archived", "cancelled"
+      transition "Archive" => "archived",  from: "active"
+      transition "Cancel"  => "cancelled", from: "active"
+    end
+    command("Archive") { reference_to Registration }
+    command("Cancel") { reference_to Registration }
+  end
+
+  def bookings_chapter(provides, registration_body)
     Hecks.bluebook "Bookings" do
       vision "probe"
       supporting
       provides "registrations", **provides
       aggregate "Event", &BOOKINGS_EVENT_BODY
-      aggregate "Registration", &BOOKINGS_REGISTRATION_BODY
+      aggregate "Registration", &registration_body
     end
   end
 
-  def registry_with_registrations(provides: { schedule: "Event.Schedule", request: "Registration.Request" })
+  def registry_with_registrations(provides: { schedule: "Event.Schedule", request: "Registration.Request" },
+                                  body: BOOKINGS_REGISTRATION_BODY)
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
       MemoryPorts.load!
-      bookings_chapter(provides)
+      bookings_chapter(provides, body)
     end
     registry
+  end
+
+  def freeing_row(mark = "Registration.frees_seat")
+    { schedule: "Event.Schedule", request: "Registration.Request", frees_seat: mark }
   end
 
   it "resolves the chapter that provides registrations, whatever it is named" do
@@ -105,6 +122,31 @@ RSpec.describe "registrations capability" do
           provides: { schedule: "Event.Schedule", request: "Registration.Request", registered_at: "Registration.stamped" }
         )
       end.to raise_error(Hecks::Bluebook::DSL::Malformed, /Registration\.stamped.*no attribute/)
+    end
+  end
+
+  context "with an optional frees_seat mark" do
+    it "exports the states of the lifecycle mark it names" do
+      registry = registry_with_registrations(provides: freeing_row, body: FREEING_REGISTRATION_BODY)
+
+      expect(Hecks::Projector::Exporter.registrations(registry, "Bookings"))
+        .to eq(BOOKINGS_EXPORT.merge(frees_seat: %w[archived cancelled]))
+    end
+
+    it "leaves the export unchanged when the row is not declared" do
+      registry = registry_with_registrations(body: FREEING_REGISTRATION_BODY)
+
+      expect(Hecks::Projector::Exporter.registrations(registry, "Bookings")).to eq(BOOKINGS_EXPORT)
+    end
+
+    it "refuses a mark the aggregate's lifecycle does not declare" do
+      expect { registry_with_registrations(provides: freeing_row("Registration.gone"), body: FREEING_REGISTRATION_BODY) }
+        .to raise_error(Hecks::Bluebook::DSL::Malformed, /Registration\.gone.*no lifecycle mark/)
+    end
+
+    it "refuses a mark on an aggregate that has no lifecycle" do
+      expect { registry_with_registrations(provides: freeing_row) }
+        .to raise_error(Hecks::Bluebook::DSL::Malformed, /Registration\.frees_seat.*no lifecycle mark/)
     end
   end
 end

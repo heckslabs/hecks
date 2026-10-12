@@ -135,7 +135,11 @@ module Hecks
           request:       :command,
           # Optional: the registration attribute that stamps when it was asked for,
           # spelled "Registration.requested_at"
-          registered_at: :attribute
+          registered_at: :attribute,
+          # Optional: the registration states that give a seat back, spelled
+          # "Registration.frees_seat" (Aggregate.mark_name); resolves to the
+          # states of that aggregate's lifecycle `mark :frees_seat`
+          frees_seat:    :mark
         }.freeze,
         PAYMENT_CONNECTION => {
           # link the processor account; the aggregate it names is the connection
