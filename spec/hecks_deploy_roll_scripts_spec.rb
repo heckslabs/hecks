@@ -147,15 +147,22 @@ RSpec.describe "the box roll's log capture and the generated Makefile", :io do
 
     def backup_reads = runner.calls.grep(/\Aaws rds describe-db-instances/)
 
-    it "names the instance and the moment it can be restored to, before anything reaches the box", :aggregate_failures do
+    # Where in the recorded calls the first one starting with `prefix` falls.
+    def first_call_index(prefix) = runner.calls.index { |call| call.start_with?(prefix) }
+
+    # The report of a settled roll that skips the smoke check.
+    def rolled_report
       settled
       json, = command("box_roll.run", ROLL_TAGS, "skip_smoke=true")
+      state_of(json, "report").fetch("report")
+    end
 
-      report = state_of(json, "report").fetch("report")
+    it "names the instance and the moment it can be restored to, before anything reaches the box", :aggregate_failures do
+      report = rolled_report
       expect(report).to include("restore anchor: db restorable to", "backups kept 7 days",
                                 "restore-db-instance-to-point-in-time")
       expect(backup_reads.first).to include("--db-instance-identifier db")
-      expect(runner.calls.index { |c| c.start_with?("aws rds") }).to be < runner.calls.index { |c| c.start_with?("aws ssm") }
+      expect(first_call_index("aws rds")).to be < first_call_index("aws ssm")
     end
 
     it "refuses to roll when the backups are kept fewer days than MIN_BACKUP_RETENTION_DAYS", :aggregate_failures do
