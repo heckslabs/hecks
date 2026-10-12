@@ -216,13 +216,15 @@ is the fact that actually matters, and the one every caller should
 check.)
 
 Heki, against a real temp directory, proving the journal is really a
-file on disk and not a metaphor:
+file on disk and not a metaphor. Built by hand, it is given every setting
+it reads (`dir` here): the framework lays an adapter's declared defaults
+under a world's settings, and a hand-built one has no framework to do it.
 
 ```ruby
 require "tmpdir"
 
 dir  = Dir.mktmpdir("writing-an-adapter-heki-")
-heki = Hecks::Adapters::Heki.new(aggregate: aggregate, root: dir)
+heki = Hecks::Adapters::Heki.new(aggregate: aggregate, settings: { dir: "data" }, root: dir)
 heki.save(crate(aggregate, "crate-2", label: { value: "cedar chest" }))
 
 heki.find("crate-2").state[:label].to_h  # => { value: "cedar chest" }
