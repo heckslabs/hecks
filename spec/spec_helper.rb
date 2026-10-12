@@ -164,7 +164,7 @@ RSpec.configure do |config|
   # `fuzzing: true` tags every example under spec/fuzzing/ by path
   # (`define_derived_metadata`) rather than by hand per file. Slow for a
   # different reason than `io: true`: a live-generated-history replay run
-  # several seeds deep. Excluded locally, run automatically post-commit
+  # several seeds deep. Excluded locally, run by the pre-push gate
   # and unfiltered in CI; run on demand with
   # `bundle exec rspec spec/fuzzing --tag fuzzing`.
   config.define_derived_metadata(file_path: %r{/spec/fuzzing/}) { |metadata| metadata[:fuzzing] = true }

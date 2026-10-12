@@ -14,8 +14,9 @@
 # on `pull_request` and on a push to main, after the push has landed, so this is the one local
 # backstop before it.
 #
-# The suite is opt-in. By default a push runs only the `unguarded_push` stage (rubocop and the
-# comment-style checks); HECKS_PRE_PUSH_GATE=1 runs the whole `pre_push` stage, suite included.
+# The suite is opt-in. By default a push runs only the `unguarded_push` stage (rubocop, the
+# comment-style checks and spec/fuzzing); HECKS_PRE_PUSH_GATE=1 runs the whole `pre_push` stage,
+# suite included. No commit hook runs anything: a commit is instant, and a push is where checks run.
 
 ROOT=$(git rev-parse --show-toplevel)
 WORKDIR=$(mktemp -d)
@@ -60,11 +61,11 @@ if [ -n "$PUSHED_REFS" ]; then
   fi
 fi
 
-# The slow suite is opt-in: a push runs only the `unguarded_push` stage (rubocop and the comment-style
-# checks, seconds), since CI runs every other check on the pushed commit. HECKS_PRE_PUSH_GATE=1 runs
+# The slow suite is opt-in: a push runs only the `unguarded_push` stage (rubocop, the comment-style
+# checks and spec/fuzzing, a couple of minutes), since CI runs every other check on the pushed commit. HECKS_PRE_PUSH_GATE=1 runs
 # the whole `pre_push` stage and, when green, writes the attestation note that lets CI skip its checks.
 if [ -z "${HECKS_PRE_PUSH_GATE:-}" ]; then
-  printf '[pre-push] running the style checks; CI runs the suite (HECKS_PRE_PUSH_GATE=1 runs it here).\n\n'
+  printf '[pre-push] running the style checks and spec/fuzzing; CI runs the suite (HECKS_PRE_PUSH_GATE=1 runs it here).\n\n'
   if ! bundle exec ruby -Ilib -e 'require "hecks/tools"; Hecks::Tools.script("gate", ARGV)' unguarded_push; then
     printf '\n[pre-push] BLOCKED. Fix it, or push with --no-verify and say why.\n\n'
     exit 1

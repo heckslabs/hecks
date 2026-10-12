@@ -1,13 +1,11 @@
 require "spec_helper"
-require "open3"
-require "tmpdir"
 require "yaml"
 require "hecks/tools"
 
-# The `ci` and `post_commit` stages of lib/hecks/gate/stages.yml are the one copy of what the CI
-# workflow and the post-commit hook run. These specs hold the workflow and the hook to the stages,
-# so a command cannot be copied into either again, and a check cannot be left unrun.
-RSpec.describe "the ci and post_commit gate stages" do
+# The `ci` stage of lib/hecks/gate/stages.yml is the one copy of what the CI workflow runs. These
+# specs hold the workflow to the stage, so a command cannot be copied into it again, and a check
+# cannot be left unrun.
+RSpec.describe "the ci gate stage" do
   let(:root) { File.expand_path("..", __dir__) }
   let(:stages) { YAML.load_file(File.join(root, "lib/hecks/gate/stages.yml"), aliases: true) }
   let(:workflow) { YAML.load_file(File.join(root, ".github/workflows/ci-checks.yml")) }
@@ -60,9 +58,11 @@ RSpec.describe "the ci and post_commit gate stages" do
     end
   end
 
-  describe "the post_commit stage" do
-    it "holds the fuzzing check pre_push holds" do
-      expect(stages.dig("post_commit", "checks")).to eq(stages.dig("pre_push", "checks").select { |c| c["id"] == "fuzzing" })
+  describe "the unguarded_push stage" do
+    it "holds the fuzzing check pre_push holds, since no commit hook runs it" do
+      fuzzing = stages.dig("pre_push", "checks").select { |check| check["id"] == "fuzzing" }
+
+      expect(stages.dig("unguarded_push", "checks")).to include(*fuzzing)
     end
   end
 
@@ -74,7 +74,7 @@ RSpec.describe "the ci and post_commit gate stages" do
 
   describe "every hecks command a stage's check names" do
     def launcher_calls
-      checks = stages.values_at("ci", "post_commit").flat_map { |stage| stage.fetch("checks") }
+      checks = stages.values_at("ci", "unguarded_push").flat_map { |stage| stage.fetch("checks") }
       checks.flat_map { |check| hecks_calls(check.fetch("run").join(" ")) }.uniq
     end
 
@@ -91,56 +91,6 @@ RSpec.describe "the ci and post_commit gate stages" do
 
       expect(calls).not_to be_empty
       expect(unresolved).to be_empty, "hecks commands that do not resolve: #{unresolved.map { |call| call.join(" ").strip }}"
-    end
-  end
-
-  describe ".githooks/post-commit" do
-    let(:work) { Dir.mktmpdir("post_commit_hook") }
-
-    after { FileUtils.rm_rf(work) }
-
-    def hook = File.join(root, ".githooks/post-commit")
-
-    # A `bundle` in the scratch directory that answers `status`.
-    def stub_bundle(status)
-      FileUtils.mkdir_p(File.join(work, "bin"))
-      File.write(File.join(work, "bin/bundle"), "#!/bin/sh\necho \"bundle $*\"\nexit #{status}\n")
-      FileUtils.chmod(0o755, File.join(work, "bin/bundle"))
-    end
-
-    # Runs the hook in a fresh repository whose `bundle` is a stub answering `status`.
-    def run_hook(status:, env: {})
-      stub_bundle(status)
-      system("git", "init", "-q", work, exception: true)
-      out, result = Open3.capture2e({ "PATH" => "#{File.join(work, "bin")}:#{ENV.fetch("PATH", nil)}" }.merge(env), hook,
-                                    chdir: work)
-      [out, result.exitstatus]
-    end
-
-    it "is a shim over the post_commit stage and lists no check of its own", :aggregate_failures do
-      text = File.read(hook)
-
-      expect(text).to include('Hecks::Tools.script("gate", ARGV)', "post_commit")
-      expect(text).not_to include("rspec")
-    end
-
-    it "runs the stage and says it is green" do
-      out, status = run_hook(status: 0)
-
-      expect([status, out]).to match([0, a_string_including("post_commit", "ruby -Ilib", "green")])
-    end
-
-    it "reports a red stage and still exits 0, since the commit is already made", :aggregate_failures do
-      out, status = run_hook(status: 1)
-
-      expect(status).to eq(0)
-      expect(out).to include("RED", "SKIP_POST_COMMIT_FUZZING=1")
-    end
-
-    it "does nothing when SKIP_POST_COMMIT_FUZZING is set" do
-      out, status = run_hook(status: 1, env: { "SKIP_POST_COMMIT_FUZZING" => "1" })
-
-      expect([status, out]).to eq([0, ""])
     end
   end
 end
