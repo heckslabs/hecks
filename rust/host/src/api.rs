@@ -1365,7 +1365,7 @@ mod tests {
     fn every_state_styled() -> Value {
         json!({"states": {
             "Event": {"open": {"tone": "good"}, "closed": {"tone": "muted"}},
-            "Registration": {"active": {}, "archived": {"tone": "muted"}},
+            "Registration": {"active": {}, "archived": {"tone": "muted"}, "cancelled": {"tone": "muted"}},
             "PaymentConnection": {"connected": {}, "enabled": {}, "disconnected": {}, "paused": {}}
         }})
     }
