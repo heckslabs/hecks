@@ -312,7 +312,7 @@ code.
   word: `hecks conformance_run.measure_doc_coverage` clean, and a real prose section in
   `docs/implemented/reference/` — not the `TODO` sentinel — with a
   runnable example.
-- If you touched a lifecycle, saga, or policy: `hecks model_check` clean.
+- If you touched a lifecycle, saga, policy, or an attribute that copies another aggregate's key: `hecks model_check` clean (a `key_by_value` warning means `reference_to` fits better).
 - A short note on *why*, not just *what* — this repo's own comments
   (Gemfile, `.rubocop.yml`, `.githooks/pre-push`) are the house style
   for that: explain the reasoning that would otherwise get silently
