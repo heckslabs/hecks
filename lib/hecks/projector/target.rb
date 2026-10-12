@@ -58,6 +58,17 @@ module Hecks
       #   before `projects_as` is called
       def projection_needs_world? = @projection_needs_world || false
 
+      # Derives what kind of target this is from flags it already declares,
+      # so there is no second spelling to drift.
+      #
+      # @return [Symbol] `:export` if it needs a world, `:meta` if it needs a
+      #   chapter declaring particular aggregates, otherwise `:projection`
+      def projection_category
+        return :export if projection_needs_world?
+
+        projection_declares.empty? ? :projection : :meta
+      end
+
       # Names the capability module(s) a construct must satisfy, defaulting
       # to plain chapter-hood when `projects_as` named none.
       #
