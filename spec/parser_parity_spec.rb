@@ -30,9 +30,12 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
   PARITY_EXAMPLE_ROOTS = Hecks::Corpus.members(:example).map(&:path).freeze
   PARITY_GRAMMAR_CHAPTERS = Hecks::Corpus.members(:grammar).map(&:path).freeze
   PARITY_FRAMEWORK_MEMBERS = Hecks::Corpus.members(:framework).map(&:path).freeze
-  # Globbed recursively so subdirectories such as `eras/` and `model_check/` are covered.
+  # Globbed recursively so subdirectories such as `eras/` and `model_check/` are covered. A
+  # translation edge (`translations/`) is not a chapter and has no `Hecks.bluebook` header to
+  # compare, so it is left out.
   PARITY_FIXTURES_ROOT = File.join(InMemoryDomain::ROOT, "spec/fixtures")
-  PARITY_FIXTURE_MEMBERS = Hecks::Corpus.members(:fixture).map(&:path).freeze
+  PARITY_FIXTURE_MEMBERS = Hecks::Corpus.members(:fixture).map(&:path)
+                                        .reject { |path| path.include?("/translations/") }.freeze
 
   # The self-hosted grammar: several concept files that together declare one `Bluebook` chapter.
   PARITY_LANGUAGE_GRAMMAR_FILES = Hecks::Bluebook::MetaValidator::GRAMMAR_FILES
