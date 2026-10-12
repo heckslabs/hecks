@@ -19,8 +19,12 @@ module Hecks
       module_function
 
       # Guarded like a runtime repository: these adapters bypass `RepositoryFactory.build`,
-      # so an unguarded cold read here could skip the codec this pass exists to compare.
-      def guarded_heki(**) = Ports::Persistence::CodecBoundary.guard!(Adapters::Heki.new(**))
+      # so an unguarded cold read here could skip the codec this pass exists to compare. They
+      # also bypass the framework's declared defaults, so each store says where its files go:
+      # directly under its own temporary root.
+      def guarded_heki(settings: {}, **)
+        Ports::Persistence::CodecBoundary.guard!(Adapters::Heki.new(settings: { dir: "." }.merge(settings), **))
+      end
 
       # Runs every check against the still-live runtime and the history `Replay.call` returns.
       #

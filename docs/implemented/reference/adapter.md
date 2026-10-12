@@ -16,6 +16,7 @@ domain in this repo actually binds against:
 Hecks.adapter("reference_memory") do
   port   "reference_persistence"
   field  :namespace
+  field  :region, default: "us-east-1"
   secret :api_key
 end
 ```
@@ -39,17 +40,30 @@ runtime.registry.adapters["reference_memory"].port  # => "reference_persistence"
 ## field
 
 <!-- generated:begin word=field -->
-`field fields` — fills `fields`
+`field fields, default:` — fills `fields`
 
 | argument | kind | required | fills |
 |---|---|---|---|
 | positional 1 | symbol | true | fields |
+| `default:` | literal | false | default |
 <!-- generated:end -->
 
 Names one plain config value a world's own wiring for this adapter must supply (a database name, a namespace, ...) — called once per value, accumulating. Kept apart from `secret`: both name a required value, but only `secret` marks it sensitive.
 
 ```ruby
-runtime.registry.adapters["reference_memory"].fields  # => [:namespace]
+runtime.registry.adapters["reference_memory"].fields  # => [:namespace, :region]
+```
+
+`default:` is the value a field takes when a world gives none, so the adapter never carries a
+fallback of its own: it reads the setting it declared and the framework has already filled it.
+A world's own value always wins, and a world that writes `:default` for a field asks for the
+declared default. A string default may hold `{name}` or `{storage_name}`, filled from the
+aggregate the adapter is built for (`field :database, default: "data/{storage_name}.db"`); any
+other placeholder is refused when the adapter is declared. A default of `false` or `nil` is a
+default, not an absent one.
+
+```ruby
+runtime.registry.adapters["reference_memory"].declared_defaults  # => {region: "us-east-1"}
 ```
 
 ## secret

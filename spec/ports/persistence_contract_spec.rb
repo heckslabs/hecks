@@ -286,6 +286,7 @@ RSpec.describe "persistence adapter contract (state codec round trip)" do
       instance_double(Hecks::Runtime::Registry, root: nil, resolved_eras: {}, superseded_eras: {}).tap do |double|
         allow(double).to receive_messages(check_verb: nil, binding_settings: {}, check_settings: nil,
                                           adapter_class: adapter_class)
+        allow(double).to receive(:with_adapter_defaults) { |_adapter, _aggregate, settings| settings }
       end
     end
 
@@ -343,6 +344,7 @@ RSpec.describe "persistence adapter contract (state codec round trip)" do
       registry = instance_double(Hecks::Runtime::Registry, root: nil, resolved_eras: {}, superseded_eras: {}).tap do |double|
         allow(double).to receive_messages(check_verb: nil, binding_settings: {}, check_settings: nil,
                                           adapter_class: adapter_class)
+        allow(double).to receive(:with_adapter_defaults) { |_adapter, _aggregate, settings| settings }
       end
       bind = Hecks::Bluebook::Bind.new(aggregate: "Account", verb: "persisted_by", adapter: "Durable")
       Hecks::Ports::Persistence::RepositoryFactory.build(registry, "Banking", aggregate, bind, recover: true)

@@ -1,4 +1,4 @@
 Hecks.adapter "Heki" do
   port   "persistence"
-  field  :dir
+  field  :dir, default: "data"
 end

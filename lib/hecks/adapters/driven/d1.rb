@@ -42,7 +42,7 @@ module Hecks
         @aggregate = aggregate
         @db = connect(settings)
         # Saga rows are scoped by domain; one D1 database per domain, so aggregates share it.
-        @domain = setting(settings, :domain, aggregate.name).to_s
+        @domain = settings.fetch(:domain) { aggregate.name }.to_s
 
         # No PRAGMA synchronous: D1 is managed and its query endpoint disallows PRAGMA writes.
         create_aggregate_table!
@@ -100,21 +100,13 @@ module Hecks
 
       # The settings are read under a Symbol or a String key; each credential is required.
       def connect(settings)
-        credentials = %w[account_id database_id api_token].to_h { |name| [name, setting(settings, name.to_sym, nil)] }
+        credentials = %w[account_id database_id api_token].to_h { |name| [name, settings[name.to_sym]] }
         credentials.each do |name, value|
           raise Runtime::WiringError, "D1 needs a #{name.inspect} in its world settings" if value.to_s.empty?
         end
 
         Connection.new(account_id: credentials["account_id"], database_id: credentials["database_id"],
                        api_token: credentials["api_token"])
-      end
-
-      # A setting read under its Symbol key, then its String key, then `default`.
-      def setting(settings, key, default)
-        return settings[key] if settings.key?(key)
-        return settings[key.to_s] if settings.key?(key.to_s)
-
-        default
       end
 
       # The batch's first statement: what the put will do, decided against the current row.
