@@ -3,12 +3,12 @@ require "spec_helper"
 RSpec.describe Hecks::Projector do
   after { described_class.registry.delete(:stub) }
 
-  # site_cdn and site_routes_ts read options[:registry] but declare nothing,
-  # so by flags alone they are plain projections.
+  # site_routes_ts reads options[:registry] but declares nothing, so by flags
+  # alone it is a plain projection.
   EXPECTED_CATEGORIES = {
-    projection: %i[cli diagrams docs glossary ir narrate oidc shape site_cdn site_routes_ts statements],
-    meta: %i[bootstrap_table model parser_table reference rust_vocabulary vocabulary],
-    export: %i[aws_box aws_fargate aws_lambda]
+    projection: %i[cli diagrams docs glossary ir narrate oidc shape site_routes_ts statements],
+    meta:       %i[bootstrap_table model parser_table reference rust_vocabulary vocabulary],
+    export:     %i[aws_box aws_fargate aws_lambda]
   }.freeze
 
   describe ".category" do
@@ -30,13 +30,16 @@ RSpec.describe Hecks::Projector do
       expect(described_class.category(:stub)).to eq(:projection)
     end
 
-    it "lets needs_world win over declares", :aggregate_failures do
-      both = Module.new do
+    def declaring_both
+      Module.new do
         extend Hecks::Projector::Target
+
         projects_as :stub, declares: "Syntax", needs_world: true
       end
+    end
 
-      expect(both.projection_category).to eq(:export)
+    it "lets needs_world win over declares", :aggregate_failures do
+      expect(declaring_both.projection_category).to eq(:export)
       expect(described_class.category(:stub)).to eq(:export)
     end
   end
