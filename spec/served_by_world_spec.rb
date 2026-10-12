@@ -2,7 +2,7 @@ require "spec_helper"
 require "rack/test"
 require "openssl"
 require "json"
-require_relative "../lib/hecks/doors/served_options"
+require_relative "../lib/hecks/served_options"
 require_relative "../lib/hecks/quality_control/adapters/github_ci_webhook"
 
 # A `.world` serves a domain through `served_by` lines: the builder takes the verb with no
@@ -31,7 +31,7 @@ RSpec.describe "served_by in a world" do
     registry.world("Served")
   end
   let(:app) do
-    Hecks::Doors::ServedOptions.rack_app(
+    Hecks::ServedOptions.rack_app(
       world, adapters: adapters, env: { "CI_WEBHOOK_SECRET" => secret, "OTHER_SECRET" => "x" }
     )
   end
@@ -42,12 +42,12 @@ RSpec.describe "served_by in a world" do
   end
 
   it "records each line under its adapter, so two lines do not overwrite each other" do
-    expect(Hecks::Doors::ServedOptions.entries(world).map { |e| e[:adapter] })
+    expect(Hecks::ServedOptions.entries(world).map { |e| e[:adapter] })
       .to contain_exactly("GithubCiWebhook", "GithubWebhook")
   end
 
   it "derives the route from the adapter's name, and lets `path` override it" do
-    paths = Hecks::Doors::ServedOptions.entries(world).to_h { |e| [e[:adapter], e[:path]] }
+    paths = Hecks::ServedOptions.entries(world).to_h { |e| [e[:adapter], e[:path]] }
     expect(paths).to eq("GithubCiWebhook" => "/webhooks/github_ci_webhook", "GithubWebhook" => "/hooks/github")
   end
 
@@ -62,7 +62,7 @@ RSpec.describe "served_by in a world" do
   end
 
   it "refuses to boot when the named secret variable is unset" do
-    expect { Hecks::Doors::ServedOptions.rack_app(world, adapters: adapters, env: {}) }
+    expect { Hecks::ServedOptions.rack_app(world, adapters: adapters, env: {}) }
       .to raise_error(ArgumentError, /CI_WEBHOOK_SECRET is not set/)
   end
 end
