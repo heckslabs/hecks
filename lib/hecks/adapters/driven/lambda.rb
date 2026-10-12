@@ -25,10 +25,10 @@ module Hecks
       #   to resolve which function to call; nil falls further back to `domain`
       def initialize(aggregate:, settings: {}, root: nil)
         @aggregate = aggregate
-        domain = setting(settings, :domain, aggregate.name)
-        region = setting(settings, :region, "us-east-1")
+        domain = settings.fetch(:domain) { aggregate.name }
+        region = settings[:region]
         # Explicit function name, for deployments whose function is not `hecks-<domain>`.
-        function = setting(settings, :function, nil)
+        function = settings[:function]
         # `domain` only prefixes the instances lookup; the function to call is named by
         # DOMAIN_NAME (set in a deployed Lambda, where root is always /var/task), else by
         # root's basename, which matches hecks deploy recipe.project's stack name on a local boot.
@@ -73,21 +73,6 @@ module Hecks
       # @raise [Runtime::WiringError] if a where clause uses an operation no comparator handles
       def query(specification, args = {}, context: {})
         Ports::Query::InMemory.execute(instances.values, specification, args)
-      end
-
-      # Reads a world setting under either a Symbol or a String key, with a fallback.
-      #
-      # Settings arrive symbol-keyed from the DSL and string-keyed from a round-tripped export.
-      #
-      # @param settings [Hash] the world settings Hash to read from
-      # @param key [Symbol] the setting name, tried as itself and as `key.to_s`
-      # @param fallback [Object] the value to return when neither key is present
-      # @return [Object] the setting's value, or `fallback` when absent
-      def setting(settings, key, fallback)
-        return settings[key] if settings.key?(key)
-        return settings[key.to_s] if settings.key?(key.to_s)
-
-        fallback
       end
 
       private

@@ -1,4 +1,5 @@
 require "spec_helper"
+require_relative "../../support/rehearsal_shop"
 require "fileutils"
 require "json"
 require "open3"
@@ -17,11 +18,9 @@ RSpec.describe Hecks::Adapters::RehearsalStore, :io do
   let(:shop) { File.join(root, "shop") }
   let(:run) { "rehearsal-#{SecureRandom.hex(4)}" }
 
-  def fixture = File.join(InMemoryDomain::ROOT, "spec/fixtures/rehearsal/shop")
-
   def server_variable = "HECKS_REHEARSAL_SPEC_SERVER"
 
-  before { FileUtils.cp_r(fixture, shop) }
+  before { RehearsalShop.copy_to(shop) }
 
   after do
     ENV.delete(server_variable)

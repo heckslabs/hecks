@@ -1,4 +1,4 @@
 Hecks.adapter "Lambda" do
   port "persistence"
-  field :region
+  field :region, default: "us-east-1"
 end
