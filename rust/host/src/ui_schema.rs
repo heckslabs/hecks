@@ -29,7 +29,8 @@ pub fn build(domain_ir: &Value, config: &Value) -> Value {
     let mut collections = Map::new();
     for aggregate in &aggregates {
         let key = key_for.get(agg_name(aggregate)).cloned().unwrap_or_default();
-        collections.insert(key, build_collection(aggregate, config, &key_for, &by_name));
+        let scoped = with_shared_value_objects(aggregate, &aggregates);
+        collections.insert(key, build_collection(&scoped, config, &key_for, &by_name));
     }
 
     json!({
@@ -48,12 +49,13 @@ pub fn schema(domain_ir: &Value, config: &Value) -> Value {
 
     let mut schema = Map::new();
     for aggregate in &aggregates {
+        let scoped = with_shared_value_objects(aggregate, &aggregates);
         let queries: Vec<Value> = array(aggregate, "queries")
             .iter()
             .map(|query| {
                 let args: Vec<Value> = array(query, "attributes")
                     .iter()
-                    .map(|attribute| field(attribute, aggregate, &key_for, &Value::Null))
+                    .map(|attribute| field(attribute, &scoped, &key_for, &Value::Null))
                     .collect();
                 json!({ "name": query.get("name").cloned().unwrap_or(Value::Null), "args": args })
             })
@@ -79,6 +81,30 @@ pub fn collection_key(aggregate: &Value, config: &Value) -> String {
 /// domain: what a reference field's own `targetKey` resolves through.
 pub fn key_for(aggregates: &[&Value], config: &Value) -> KeyFor {
     aggregates.iter().map(|a| (agg_name(a).to_string(), collection_key(a, config))).collect()
+}
+
+/// The aggregate with every value object the rest of the domain
+/// declares appended to its own, so an attribute typed by a value object
+/// another aggregate owns resolves like an owner-declared one. The
+/// aggregate's own declarations come first and `find_value_object` takes
+/// the first match: the owner wins, then declaration order among the
+/// others — the same order `web.rs` reads a value object's shape in.
+fn with_shared_value_objects(aggregate: &Value, aggregates: &[&Value]) -> Value {
+    let mut scoped = aggregate.clone();
+    let shared: Vec<Value> = aggregates
+        .iter()
+        .filter(|other| agg_name(other) != agg_name(aggregate))
+        .flat_map(|other| array(other, "value_objects").iter().cloned())
+        .collect();
+    if shared.is_empty() {
+        return scoped;
+    }
+    let mut value_objects = array(aggregate, "value_objects").to_vec();
+    value_objects.extend(shared);
+    if let Some(object) = scoped.as_object_mut() {
+        object.insert("value_objects".to_string(), Value::Array(value_objects));
+    }
+    scoped
 }
 
 pub fn aggregates(domain_ir: &Value) -> Vec<&Value> {
@@ -557,8 +583,9 @@ pub fn field(attribute: &Value, aggregate: &Value, key_for: &KeyFor, formats: &V
         return merge(base, primitive_shape(ty, format));
     }
 
-    // A value object belongs to its own aggregate's table only — one
-    // typed by another aggregate falls through here, exactly as in Ruby.
+    // `build` and `schema` hand this the aggregate with the domain's other
+    // value objects appended (`with_shared_value_objects`), so one declared
+    // on a different aggregate resolves here too.
     if let Some(value_object) = find_value_object(aggregate, ty) {
         if truthy(value_object.get("closed_set")) {
             return merge(base, enum_shape(value_object));
@@ -1347,5 +1374,105 @@ mod tests {
             ])
         );
     }
-}
 
+    // Two aggregates: `Site` declares the value objects, `Deployment` types
+    // attributes by them without declaring any of its own.
+    fn shared_domain(extra_deployment_vos: Value) -> Value {
+        let vo = |name: &str, attrs: Value| json!({"name": name, "attributes": attrs, "closed_set": false, "members": []});
+        json!({
+            "name": "Fleet",
+            "aggregates": [
+                {
+                    "name": "Site", "identified_by": ["key.value"],
+                    "attributes": [{"name": "key", "type": "SiteKey", "list": false, "optional": false}],
+                    "value_objects": [
+                        vo("SiteKey", json!([{"name": "value", "type": "String"}])),
+                        vo("Window", json!([{"name": "starts", "type": "String"}, {"name": "ends", "type": "String"}])),
+                        vo("Price", json!([{"name": "cents", "type": "Integer"}, {"name": "currency", "type": "String"}])),
+                        {"name": "Tier", "attributes": [{"name": "level", "type": "String"}], "closed_set": true,
+                         "members": [[["level", "gold"]], [["level", "silver"]]]}
+                    ],
+                    "entities": [], "commands": [], "queries": []
+                },
+                {
+                    "name": "Deployment", "identified_by": ["id"],
+                    "attributes": [
+                        {"name": "site_key", "type": "SiteKey", "list": false, "optional": false},
+                        {"name": "window", "type": "Window", "list": false, "optional": true},
+                        {"name": "price", "type": "Price", "list": false, "optional": true},
+                        {"name": "tier", "type": "Tier", "list": false, "optional": true}
+                    ],
+                    "value_objects": extra_deployment_vos,
+                    "entities": [], "commands": [], "queries": []
+                }
+            ]
+        })
+    }
+
+    fn deployment_field(schema: &Value, name: &str) -> Value {
+        schema["collections"]["deployments"]["fields"]
+            .as_array()
+            .and_then(|fields| fields.iter().find(|f| f["key"] == name))
+            .cloned()
+            .expect("a Deployment field")
+    }
+
+    #[test]
+    fn a_one_attribute_value_object_another_aggregate_declares_keeps_its_wrapped_field() {
+        let schema = build(&shared_domain(json!([])), &json!({}));
+        assert_eq!(
+            deployment_field(&schema, "site_key"),
+            json!({"key": "site_key", "label": "Site Key", "optional": false, "shape": "text_value", "field": "value"})
+        );
+        // The column the console renders from it unwraps the same key.
+        let columns = &schema["collections"]["deployments"]["columns"];
+        assert_eq!(columns[0]["field"], "value");
+    }
+
+    #[test]
+    fn compound_money_and_enum_value_objects_resolve_the_same_when_another_aggregate_declares_them() {
+        let schema = build(&shared_domain(json!([])), &json!({}));
+        assert_eq!(deployment_field(&schema, "window")["shape"], "compound");
+        assert_eq!(deployment_field(&schema, "window")["fields"].as_array().map(Vec::len), Some(2));
+        assert_eq!(deployment_field(&schema, "price")["shape"], "money");
+        let tier = deployment_field(&schema, "tier");
+        assert_eq!(tier["shape"], "enum");
+        assert_eq!(tier["field"], "level");
+    }
+
+    #[test]
+    fn an_owner_declared_value_object_is_unchanged_by_the_shared_lookup() {
+        let schema = build(&domain(), &json!({}));
+        assert_eq!(
+            schema["collections"]["clients"]["fields"][1],
+            json!({"key": "name", "label": "Name", "optional": false, "shape": "text_value", "field": "value"})
+        );
+    }
+
+    #[test]
+    fn a_name_two_aggregates_declare_resolves_to_the_owner_then_the_first_declared() {
+        // The owner's own `SiteKey` (attribute `text`) shadows Site's.
+        let own = json!([{"name": "SiteKey", "attributes": [{"name": "text", "type": "String"}], "closed_set": false, "members": []}]);
+        let schema = build(&shared_domain(own), &json!({}));
+        assert_eq!(deployment_field(&schema, "site_key")["field"], "text");
+
+        // Two other aggregates declaring one name: the earlier one wins.
+        let mut domain = shared_domain(json!([]));
+        domain["aggregates"].as_array_mut().unwrap().push(json!({
+            "name": "Probe", "identified_by": ["id"],
+            "attributes": [{"name": "site_key", "type": "SiteKey", "list": false, "optional": false}],
+            "value_objects": [{"name": "SiteKey", "attributes": [{"name": "text", "type": "String"}], "closed_set": false, "members": []}],
+            "entities": [], "commands": [], "queries": []
+        }));
+        domain["aggregates"].as_array_mut().unwrap().push(json!({
+            "name": "Other", "identified_by": ["id"],
+            "attributes": [{"name": "site_key", "type": "SiteKey", "list": false, "optional": false}],
+            "value_objects": [], "entities": [], "commands": [], "queries": []
+        }));
+        let schema = build(&domain, &json!({}));
+        // Site precedes Probe in declaration order, so Other reads Site's.
+        assert_eq!(schema["collections"]["others"]["fields"][0]["field"], "value");
+        // Probe's own declaration still wins for Probe.
+        assert_eq!(schema["collections"]["probes"]["fields"][0]["field"], "text");
+    }
+}
