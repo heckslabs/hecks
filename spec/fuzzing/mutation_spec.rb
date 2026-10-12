@@ -173,6 +173,32 @@ RSpec.describe Hecks::Fuzzing::Mutation, :aggregate_failures do
       expect(report.killed.map(&:by)).to include(a_string_starting_with("behavior:"))
     end
 
+    # A copy of the pizzas example, with a snapshot of its bluebook kept where the runtime keeps eras
+    # when `snapshots` is true.
+    def pizzas_copy(into, snapshots:)
+      copy = File.join(into, "pizzas")
+      FileUtils.cp_r(pizzas, copy)
+      FileUtils.rm_rf(File.join(copy, "data"))
+      return copy unless snapshots
+
+      era = File.join(copy, "data", "eras", "pizzas", "archive")
+      FileUtils.mkdir_p(era)
+      FileUtils.cp(File.join(copy, "bluebook", "pizzas.bluebook"), File.join(era, "1-02e1d1c3dcfb.bluebook"))
+      copy
+    end
+
+    def available_sites(snapshots)
+      Dir.mktmpdir("hecks-mutation-era") do |tmp|
+        described_class.call(pizzas_copy(tmp, snapshots: snapshots), **options, budget: 1).facts.available
+      end
+    end
+
+    it "ignores the era snapshots a booted domain keeps under data/, so a run does not depend on them" do
+      sites = [true, false].map { |snapshots| available_sites(snapshots) }
+
+      expect(sites.first).to eq(sites.last)
+    end
+
     def mtimes(root)
       Dir.glob(File.join(root, "**", "*")).select { |path| File.file?(path) }.to_h { |path| [path, File.mtime(path)] }
     end

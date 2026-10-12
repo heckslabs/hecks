@@ -25,6 +25,12 @@ module Hecks
         # The checkout this file lives in, where a domain's corpus script is looked for.
         ROOT = File.expand_path("../../../..", __dir__)
 
+        # Where the runtime keeps era snapshots and archives (`.bluebook` copies of the domain as it
+        # was) under a domain. They are a record, not source: a mutant of one is never read back, so
+        # counting them drew budget from the domain's own files and made a run depend on whether the
+        # domain had ever been booted in this checkout.
+        RUNTIME_DATA = "data/".freeze
+
         # The knobs of a run: `seed` draws the sequences and the choice of mutants; `budget` caps
         # the mutants tried; `seeds` and `steps` size the generated sequences each mutant is
         # replayed against; `corpus` is a script to replay too (found by the domain's name when
@@ -81,11 +87,12 @@ module Hecks
           end
         end
 
-        # @return [Hash{String => String}] each bluebook of the domain by path relative to it
+        # @return [Hash{String => String}] each authored bluebook of the domain, by relative path
         def bluebook_sources
-          Dir.glob(File.join(@domain, "**", "*.bluebook")).to_h do |path|
-            [path.delete_prefix("#{@domain}/"), File.read(path)]
-          end
+          paths = Dir.glob(File.join(@domain, "**", "*.bluebook"))
+          relatives = paths.map { |path| path.delete_prefix("#{@domain}/") }
+          relatives.reject { |relative| relative.start_with?(RUNTIME_DATA) }
+                   .to_h { |relative| [relative, File.read(File.join(@domain, relative))] }
         end
 
         # The parsed corpus script: the one asked for, else the one of this domain's name.
