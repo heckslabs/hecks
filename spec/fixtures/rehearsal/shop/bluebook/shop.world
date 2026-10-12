@@ -1,0 +1,14 @@
+Hecks.world "Shop" do
+  realm "Fixtures"
+
+  persisted_by("PostgresEra") do
+    database ENV.fetch("SHOP_DATABASE_URL", "postgres://localhost/shop_fixture")
+  end
+
+  # The copy of the shop's data a rehearsal reads: the eras held and the records stored under the
+  # latest, as a document. A real client names `rehearsed_by("Postgres")` and the environment
+  # variable that holds its server.
+  rehearsed_by("Memory") do
+    rows "../rehearsal/rows.json"
+  end
+end

@@ -91,7 +91,18 @@ module Hecks
         # @return [Hash] the settings
         def settings
           declared = registry.binding_settings(bluebook.name, Ports::Persistence::VERB, adapter_name)
-          ENV["HECKS_SCHEMA"] ? declared.merge(schema: ENV["HECKS_SCHEMA"]) : declared
+          declared = declared.merge(schema: ENV["HECKS_SCHEMA"]) if ENV["HECKS_SCHEMA"]
+          @database ? declared.merge(database: @database) : declared
+        end
+
+        # Points the journal store at another database than its world names, so a rehearsal
+        # reads a copy and never the world's own. Every read and write after this reaches it.
+        #
+        # @param database [String] a `postgres://` URL
+        # @return [HeldDomain] self
+        def read_from(database)
+          @database = database
+          self
         end
 
         # The text the era is frozen from: the bluebook source as it stands on disk.

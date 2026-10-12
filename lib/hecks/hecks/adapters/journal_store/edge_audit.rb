@@ -12,17 +12,10 @@ module Hecks
       # It answers what the audit's three layers found, as the report `hecks audit_translation`
       # prints, and the edge itself, so approving it audits the very edge that was read.
       class EdgeAudit
-        # What one audit found.
-        #
-        # @!attribute [r] edge
-        #   @return [Bluebook::Translation] the audited edge
-        # @!attribute [r] leaving
-        #   @return [Integer] how many edges leave the latest held era
-        # @!attribute [r] ok
-        #   @return [Boolean] whether no layer refused
-        # @!attribute [r] report
-        #   @return [String] the report, one block per aggregate
-        Finding = Struct.new(:edge, :leaving, :ok, :report, keyword_init: true)
+        # What one audit found: the audited `edge`, how many edges are `leaving` the latest held
+        # era, whether it is `ok`, the `report` text, every refusal (`Aggregate#id: wording`) and
+        # the records as translated (`after`), by aggregate name and id.
+        Finding = Struct.new(:edge, :leaving, :ok, :report, :refusals, :after, keyword_init: true)
 
         # Audits the edge that leaves the latest held era.
         #
@@ -89,14 +82,11 @@ module Hecks
         end
 
         def finding(chain, era, leaving, edge = chain.last[:translation])
-          lines = []
-          ok = true
-          @held.bluebook.aggregates.each do |aggregate|
-            verdict, records = verdict_for(aggregate, edge, era, chain)
-            lines.concat(describe(aggregate, edge, verdict, records))
-            ok &&= verdict.ok?
-          end
-          Finding.new(edge: edge, leaving: leaving, ok: ok, report: lines.join("\n"))
+          audits = @held.bluebook.aggregates.map { |aggregate| [aggregate, *verdict_for(aggregate, edge, era, chain)] }
+          lines = audits.flat_map { |aggregate, verdict, records, _| describe(aggregate, edge, verdict, records) }
+          refusals = audits.flat_map { |_, verdict, _, _| verdict.violations }
+          Finding.new(edge: edge, leaving: leaving, ok: refusals.empty?, report: lines.join("\n"),
+                      refusals: refusals, after: audits.to_h { |aggregate, _, _, after| [aggregate.name, after] })
         end
 
         def verdict_for(aggregate, edge, era, chain)
@@ -108,7 +98,7 @@ module Hecks
                    end
           verdict = Translation::Audit.check(aggregate: aggregate, declared: edge.for_aggregate(aggregate.name),
                                              before: before, after: after)
-          [verdict, after.size]
+          [verdict, after.size, after]
         end
 
         def translated(aggregate, era, chain)
