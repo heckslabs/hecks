@@ -126,7 +126,7 @@ module Hecks
       #   skips the vendored lookup
       # @return [Array<String>] file paths to read, in load order; `[]` when none applies
       def fallback_source_files(bluebook, directory, domain_files, registry)
-        vendored_name = registry && vendored_bluebook_name_for(registry, bluebook.name)
+        vendored_name = registry && vendored_bluebook_name_for(registry, bluebook.name, directory)
         framework_path = Framework.members[bluebook.name]
         return [framework_path] if framework_path
         return vendored_source_for(directory, vendored_name) if vendored_name
@@ -139,19 +139,30 @@ module Hecks
 
       # Recovers the vendored package name behind a bluebook, if some hecksagon vendored it.
       #
-      # Matched by Pascal-casing: the vendored name Pascal-cases to this
-      # bluebook's own declared name.
+      # Matched first by Pascal-casing (the package name Pascal-cases to the bluebook's declared
+      # name), then by the package's own files: a package whose chapter is named otherwise (the
+      # package `gallery` declaring `Galleries`) is the one whose files declare that name.
       #
       # @param registry [Runtime::Registry] the registry whose hecksagons are searched
       # @param bluebook_name [String] the bluebook's declared Pascal-case name
+      # @param directory [String] path of the domain's own bluebook directory, whose parent
+      #   holds `vendor/embryonaut_bluebooks`
       # @return [String, nil] the package name as written in `attaches ... from: :vendor`; nil
-      #   when no hecksagon vendored a package whose name Pascal-cases to `bluebook_name`
-      def vendored_bluebook_name_for(registry, bluebook_name)
-        registry.hecksagons.each_value do |hecksagon|
-          match = hecksagon.vendored_packages.find { |name| Naming.pascal(name) == bluebook_name }
-          return match if match
-        end
-        nil
+      #   when no vendored package matches `bluebook_name` by name or by declaration
+      def vendored_bluebook_name_for(registry, bluebook_name, directory)
+        names = registry.hecksagons.each_value.flat_map(&:vendored_packages).uniq
+        names.find { |name| Naming.pascal(name) == bluebook_name } ||
+          names.find { |name| declared_by_package?(directory, name, bluebook_name) }
+      end
+
+      # Asks whether any file of a vendored package opens the named bluebook.
+      #
+      # @param directory [String] path of the domain's own bluebook directory
+      # @param package [String] the vendored package name
+      # @param bluebook_name [String] the declared bluebook name looked for
+      # @return [Boolean] true when some `.bluebook` file of the package declares `bluebook_name`
+      def declared_by_package?(directory, package, bluebook_name)
+        vendored_source_for(directory, package).any? { |path| declares_bluebook?(path, bluebook_name) }
       end
 
       # Lists the `.bluebook` files a vendored embryonaut package ships.
