@@ -4,16 +4,13 @@ module Hecks
   #
   #   Projector.call(:ir, bluebook: chapter)
   #
-  # Each target has a category, derived from the flags it declares (`category`):
+  # A target's category is derived from the flags it declares (`category`):
   #
   # - `:projection` is inert and derived from any chapter's declaration.
   # - `:meta` also needs a chapter declaring particular aggregates (`declares:`),
   #   so it only fits hecks's own grammar chapters.
   # - `:export` (CloudFormation, ...) also needs `.world` bindings and declares
   #   `needs_world: true`; that is adapter wiring, not a projection of the domain.
-  #
-  # State projections (`hecks project_expression_tables`) and `Ports::Projection`
-  # read-model catch-up are different things and not registered.
   module Projector
     class UnknownProjector < StandardError; end
     # A chapter-scoped projector was handed something that is not a chapter.

@@ -15,7 +15,7 @@ module Hecks
       module_function
 
       # @param world [Bluebook::World, nil] a domain's judged world
-      # @return [Array<Hash>] one entry per `served_by` line: `adapter`, `path` and the line's settings
+      # @return [Array<Hash>] one entry per `served_by` line: `adapter`, `path` and its settings
       def entries(world)
         return [] unless world
 
