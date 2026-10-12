@@ -22,16 +22,18 @@ module Hecks
         #
         # @param path [String] the domain directory, or the project holding its `bluebook/`
         # @param mode [Symbol] one of `MODES`
+        # @param environment [String, nil] the overlay under `environments/` to load last;
+        #   `HECKS_PROJECT_ENVIRONMENT` when not given
         # @return [HeldDomain] the loaded domain
         # @raise [Runtime::NotFound] if the directory does not exist, declares no bluebook, or
         #   does not load
-        def self.open(path, mode: :translated)
+        def self.open(path, mode: :translated, environment: ENV.fetch("HECKS_PROJECT_ENVIRONMENT", nil))
           raise ArgumentError, "unknown mode #{mode.inspect}" unless MODES.include?(mode)
 
           loading = Ports::Loading.bootstrap
           directory = loading.bluebook_directory(path)
           registry = Runtime::Registry.new(root: File.dirname(directory))
-          load_into(registry, loading, directory, mode)
+          load_into(registry, loading, directory, mode, environment)
           new(registry, directory)
         rescue Errno::ENOENT
           raise Runtime::NotFound, "no such domain #{path.inspect}"
@@ -40,8 +42,7 @@ module Hecks
         end
 
         # @api private
-        def self.load_into(registry, loading, directory, mode)
-          environment = ENV.fetch("HECKS_PROJECT_ENVIRONMENT", nil)
+        def self.load_into(registry, loading, directory, mode, environment)
           Hecks.with_registry(registry) do
             loading.load_library
             loading.load_project(loading.shared_root(nil, directory))
@@ -92,7 +93,18 @@ module Hecks
         def settings
           declared = registry.binding_settings(bluebook.name, Ports::Persistence::VERB, adapter_name)
           declared = declared.merge(schema: ENV["HECKS_SCHEMA"]) if ENV["HECKS_SCHEMA"]
+          declared = declared.merge(schema: @schema) if @schema
           @database ? declared.merge(database: @database) : declared
+        end
+
+        # Names the schema its journal store is read in, over the world's and `HECKS_SCHEMA`, so a
+        # rehearsal reads the schema it reports.
+        #
+        # @param schema [String] a schema name
+        # @return [HeldDomain] self
+        def read_schema(schema)
+          @schema = schema
+          self
         end
 
         # Points the journal store at another database than its world names, so a rehearsal

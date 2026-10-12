@@ -23,7 +23,9 @@ module Hecks
         LITERALS = %i[database url connection password user].freeze
         LOCAL_HOSTS = [nil, "", "localhost", "127.0.0.1", "::1", "[::1]"].freeze
 
-        attr_reader :kind, :mode, :connection_env, :dump, :rows, :drop_after, :allow_remote
+        NAME = /\A[A-Za-z0-9_-]+\z/
+
+        attr_reader :kind, :mode, :connection_env, :dump, :rows, :drop_after, :allow_remote, :schema, :environment
 
         # @param world [#for_verb, nil] the subject's world, as the registry holds it
         # @param directory [String] the domain's bluebook directory, which a relative file is under
@@ -83,6 +85,8 @@ module Hecks
           @drop_after   = settings.fetch(:drop_after, true) != false
           @allow_remote = settings.fetch(:allow_remote, false) == true
           @literals     = LITERALS & settings.keys.map(&:to_sym)
+          @schema       = settings[:schema]&.to_s
+          @environment  = settings[:environment]&.to_s
         end
 
         def default_mode = dump || rows ? "dump" : "empty"
@@ -91,6 +95,15 @@ module Hecks
           raise Refused, "rehearsed_by names #{kind.inspect}; the stores are #{KINDS.join(" and ")}" unless KINDS.include?(kind)
 
           raise Refused, "rehearsed_by mode #{mode.inspect} is not one of #{MODES.join(", ")}" unless MODES.include?(mode)
+
+          check_label!("schema", schema)
+          check_label!("environment", environment)
+        end
+
+        def check_label!(word, value)
+          return if value.nil? || NAME.match?(value)
+
+          raise Refused, "rehearsed_by #{word} #{value.inspect} is not a name (letters, digits, `_`, `-`)"
         end
 
         def expand(path, directory)

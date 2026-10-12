@@ -4,6 +4,7 @@ require_relative "subject"
 require_relative "memory_store"
 require_relative "postgres_store"
 require_relative "rust_audit"
+require_relative "audit_report"
 
 module Hecks
   module Adapters
@@ -31,33 +32,58 @@ module Hecks
           @store = store
         end
 
-        # @return [Hash] `booted`, `host_version`, `store`, `mode`, `before`, `after`, `minting`
+        # @return [Hash] `booted`, `host_version`, `store`, `mode`, `before`, `after`, `minting`,
+        #   the schema and environment that were read, and what the copy holds
         def survey
-          { booted: flag(true), host_version: plain(Rehearsal.host_version), store: plain(@subject.declaration.kind),
-            mode: plain(@subject.declaration.mode), before: plain(before), after: plain(@subject.label),
-            minting: plain(minting) }
+          shape.merge(environment_loaded: @subject.environment.facts, copy_note: plain(copy_note)).merge(copy_facts)
         end
 
-        # @return [Hash] the edge facts, every refused row and its total, the parity of the two
-        #   engines, and what was not checked
+        # @return [Hash] the edge facts, every refused row and its total, what was read, the parity
+        #   of the two engines, and what was not checked
         def examine
           edge = minting == "next" ? @subject.edge_from(before) : nil
           refusals, after = edge ? @store.audit(@subject, edge) : [[], {}]
           rust = RustAudit.call(@subject, after)
-          rows, total = Rows.from(merged(refusals, rust.violations))
-          edge_facts(edge).merge(refused_rows: rows, refusal_total: plain(total), parity: parity(refusals, rust),
-                                 unchecked: limits(edge, rust))
+          report = AuditReport.new(minting: minting, edge: edge, states: after, ruby: refusals, rust: rust)
+          answer(edge, report, (refusals + rust.violations).uniq, limits(edge, rust, report))
         end
 
         private
 
         def plain(value) = { value: value }
 
-        def edge_facts(edge)
-          { minting: plain(minting), edge_present: flag(!edge.nil?), edge_approved: flag(approved?(edge)) }
+        def shape
+          { booted: flag(true), host_version: plain(Rehearsal.host_version), store: plain(@subject.declaration.kind),
+            mode: plain(@subject.declaration.mode), before: plain(before), after: plain(@subject.label),
+            minting: plain(minting) }
+        end
+
+        def answer(edge, report, refused, unchecked)
+          rows, total = Rows.from(refused)
+          edge_facts(edge).merge(refused_rows: rows, refusal_total: plain(total), parity: report.parity,
+                                 unchecked: unchecked).merge(report.facts)
         end
 
         def flag(value) = plain(value)
+
+        def census = @census ||= @store.census(@subject)
+
+        def copy_note
+          domain = @subject.bluebook.name
+          copy_empty? ? census.refusal(domain) : census.summary(domain)
+        end
+
+        def copy_empty?
+          census.empty? && @subject.declaration.mode != "empty" && @subject.bluebook.aggregates.any?
+        end
+
+        # The copy is empty when a dump or a readonly copy was asked for and it holds no row of a
+        # domain that declares aggregates; a mode of `empty` is asked to hold nothing.
+        def copy_facts = census.facts.merge(copy_empty: flag(copy_empty?))
+
+        def edge_facts(edge)
+          { minting: plain(minting), edge_present: flag(!edge.nil?), edge_approved: flag(approved?(edge)) }
+        end
 
         def eras = @eras ||= @store.eras(@subject)
 
@@ -78,22 +104,22 @@ module Hecks
             !Translation::ApprovalFile.applicable(@subject.directory, edge).nil?
         end
 
-        # The refusals of both engines, each wording once: a row both refuse in the same words is
-        # one row, and a row they refuse for different reasons is two.
-        def merged(ruby, rust) = (ruby + rust).uniq
-
-        def parity(ruby, rust)
-          return { engine: "rust", status: "not_run", note: rust.note } unless rust.ran
-
-          { engine: "rust", status: records(ruby) == records(rust.violations) ? "agree" : "differ",
-            note: "ruby refused #{records(ruby).size} records, rust #{records(rust.violations).size}" }
+        def limits(edge, rust, report)
+          engine = rust.ran ? [] : [ENGINE_LIMIT]
+          engine + report.limits + ALWAYS + @store.limits(edge) + [journal_limit] + attached_limits +
+            (@subject.held.capable? ? [] : [binding_note])
         end
 
-        def records(refusals) = refusals.map { |text| text[/\A[^:]+/] }.uniq.sort
+        # The audit reads the journal's latest entry of each record, never the head tables.
+        def journal_limit
+          { what: "the head tables",
+            why:  "the audit reads each record's latest journal entry (hecks_journal_<domain>_era_N), not the head " \
+                  "tables, so an edit to a head table is not seen. The copy holds #{census.head_rows} head rows " \
+                  "and #{census.journal_rows} journal records#{divergence}" }
+        end
 
-        def limits(edge, rust)
-          engine = rust.ran ? [] : [ENGINE_LIMIT]
-          engine + ALWAYS + @store.limits(edge) + attached_limits + (@subject.held.capable? ? [] : [binding_note])
+        def divergence
+          census.head_rows == census.journal_rows ? "." : ": they differ, and only the journal's are audited."
         end
 
         # The chapters loaded beside the domain's own (a vendored package): the host holds eras

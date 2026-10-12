@@ -2,6 +2,7 @@
 
 require "json"
 require_relative "rows"
+require_relative "census"
 
 module Hecks
   module Adapters
@@ -29,6 +30,20 @@ module Hecks
         # @return [Array<Hash>] the eras, `ordinal` and `held_text`
         def eras(_subject)
           Array(@document["eras"]).map { |era| { ordinal: era["ordinal"], held_text: era["held_text"] } }
+        end
+
+        # What the document holds: it keeps the latest state of each record only, so the head and
+        # the journal counts are the same number.
+        #
+        # @param subject [Subject] the loaded domain
+        # @return [Census] the counts
+        def census(subject)
+          counts = subject.bluebook.aggregates.map do |aggregate|
+            held = records(aggregate.name).size
+            Census::Count.new(aggregate: aggregate.name, head: held, journal: held)
+          end
+          Census.new(schema: "(memory document)", source: "memory", present: true, eras: eras(subject).size,
+                     journal_entries: counts.sum(&:journal), counts: counts)
         end
 
         # Runs the mint's audit over the stored records, translated through the edge in process.
