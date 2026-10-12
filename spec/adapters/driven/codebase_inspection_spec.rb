@@ -19,6 +19,15 @@ RSpec.describe Hecks::Adapters::Codebase::Inspection do
       expect(shell.asked.first[:chdir]).to eq(tree.root)
     end
 
+    it "starts rubycritic through the launcher that reads the git root from git", :aggregate_failures do
+      shell = FakeCodebaseShell.new
+
+      inspect_with("rubycritic", { paths: word("lib/hecks/canonical_json.rb") }, shell)
+
+      expect(shell.command.first(2)).to eq(["exec", "ruby"])
+      expect(shell.command[2]).to end_with("inspection/rubycritic.rb")
+    end
+
     it "leaves out the files the style config excludes" do
       shell = FakeCodebaseShell.new
 
