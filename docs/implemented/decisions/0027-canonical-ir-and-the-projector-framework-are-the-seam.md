@@ -105,7 +105,10 @@ in, external artifact out" tool) `extend`s `Projector::Target` and is
 live in `Hecks::Projector`'s own registry — nothing sits there
 declared but unregistered, and nothing registers a key without properly
 extending the target contract. The two other kinds
-`lib/hecks/projector.rb`'s own header already distinguishes — an
+`lib/hecks/projector.rb`'s own header already distinguishes (a registered
+target is also `:meta` when it declares aggregates, or `:export` when it
+needs a world; `Projector.category` derives that from the flags, never a
+declared field) — an
 EXPORT (needs a declaration's bindings, which a projection's own call
 shape has no channel for) or a STATE PROJECTION (reads records, not a
 declaration) — get a named, reasoned roster instead of a bare exemption

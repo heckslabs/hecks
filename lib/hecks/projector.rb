@@ -4,10 +4,16 @@ module Hecks
   #
   #   Projector.call(:ir, bluebook: chapter)
   #
-  # A projection is inert and derived from a chapter's declaration. An export
-  # (rust crate, WASM, CloudFormation) also needs `.world` bindings and declares
-  # `needs_world: true`. State projections (`hecks project_expression_tables`) and
-  # `Ports::Projection` read-model catch-up are different things and not registered.
+  # Each target has a category, derived from the flags it declares (`category`):
+  #
+  # - `:projection` is inert and derived from any chapter's declaration.
+  # - `:meta` also needs a chapter declaring particular aggregates (`declares:`),
+  #   so it only fits hecks's own grammar chapters.
+  # - `:export` (CloudFormation, ...) also needs `.world` bindings and declares
+  #   `needs_world: true`; that is adapter wiring, not a projection of the domain.
+  #
+  # State projections (`hecks project_expression_tables`) and `Ports::Projection`
+  # read-model catch-up are different things and not registered.
   module Projector
     class UnknownProjector < StandardError; end
     # A chapter-scoped projector was handed something that is not a chapter.
@@ -38,7 +44,9 @@ module Hecks
     # @raise [WrongConstruct] if `bluebook` lacks what the projector requires
     def call(name, bluebook:, options: {}, world: nil)
       projector = registry.fetch(name.to_sym) do
-        raise UnknownProjector, "no projector registered for #{name.inspect} — registered: #{registered.sort.inspect}"
+        raise UnknownProjector,
+              "no projector registered for #{name.inspect} — registered: " \
+              "#{registered_by_category.map { |kind, keys| "#{kind} #{keys.inspect}" }.join(", ")}"
       end
       admits!(name, projector, bluebook, world)
       projector.call(bluebook: bluebook, options: world ? options.merge(world: world) : options)
@@ -113,6 +121,28 @@ module Hecks
     #
     # @return [Array<Symbol>] every key currently registered
     def registered = registry.keys
+
+    # Gives the category of a registered target, derived from its flags.
+    # A target that answers no `projection_category` (the built-ins, which do
+    # not extend `Target`) is a plain projection.
+    #
+    # @param name [String, Symbol] the registered projector's key
+    # @return [Symbol] `:projection`, `:meta` or `:export` (`:projection` for an
+    #   unregistered `name`)
+    def category(name)
+      projector = registry.fetch(name.to_sym) { return :projection }
+      projector.respond_to?(:projection_category) ? projector.projection_category : :projection
+    end
+
+    # Lists every registered key under its category.
+    #
+    # @return [Hash{Symbol => Array<Symbol>}] `:projection`, `:meta` and `:export`
+    #   (always all three), each with its sorted keys
+    def registered_by_category
+      grouped = { projection: [], meta: [], export: [] }
+      registered.sort.each { |key| grouped[category(key)] << key }
+      grouped
+    end
 
     # Gives the live registry, initializing it on first use.
     #
