@@ -1,6 +1,6 @@
 Hecks.adapter "SqlitePersistence" do
   port   "persistence"
-  field  :database
+  field  :database, default: "data/{storage_name}.db"
 end
 
 Hecks.adapter "SqliteProjection" do

@@ -26,7 +26,7 @@ module Hecks
         # @raise [ArgumentError] on an unknown option
         def build(registry, domain, aggregate, bind, **)
           opts = BuildOptions.new(**)
-          settings = adapter_settings(registry, domain, bind, opts.settings_verb)
+          settings = adapter_settings(registry, domain, aggregate, bind, opts.settings_verb)
           adapter = registry.adapter_class(bind.adapter).new(aggregate: aggregate, settings: settings, root: registry.root)
           repository = AppendOnly.new(CodecBoundary.guard!(adapter))
           # `:atomic_append` (PostgresEra) means `append` already committed the
@@ -39,14 +39,17 @@ module Hecks
         #
         # @param registry [Runtime::Registry] the booted registry
         # @param domain [String, Symbol] the domain the aggregate belongs to
+        # @param aggregate [Bluebook::Aggregate] the aggregate the adapter is built for
         # @param bind [Bluebook::Bind] the bind naming the adapter
         # @param settings_verb [String] the verb whose settings configure the adapter
-        # @return [Hash] the declared settings plus the domain, resolved era and superseding era
-        def adapter_settings(registry, domain, bind, settings_verb)
+        # @return [Hash] the declared settings, under the adapter's own declared defaults, plus
+        #   the domain, resolved era and superseding era
+        def adapter_settings(registry, domain, aggregate, bind, settings_verb)
           registry.check_verb(bind)
           settings = registry.binding_settings(domain, settings_verb, bind.adapter)
                              .reject { |key, _| key.to_sym == :role }
           registry.check_settings(bind, settings)
+          settings = registry.with_adapter_defaults(bind.adapter, aggregate, settings)
           # domain, resolved era and superseding era ride along outside the declared
           # settings: a lineage adapter needs them to journal per domain, per-era.
           settings.merge(domain: domain.to_s, era: registry.resolved_eras[domain.to_s],

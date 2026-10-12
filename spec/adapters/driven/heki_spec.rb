@@ -382,25 +382,10 @@ RSpec.describe Hecks::Adapters::Heki do
   end
 
   describe "resolve_path" do
-    # `dir: :default` (a bare Symbol) must behave like no `dir` setting; `File.join` raises on it.
-    it "treats a bare :default Symbol the same as no dir setting at all", :aggregate_failures do
-      defaulted = described_class.new(aggregate: aggregate, settings: { dir: :default }, root: @dir)
-      absent    = described_class.new(aggregate: aggregate, settings: {}, root: @dir)
-
-      expect(defaulted.path).to eq(absent.path)
-      expect(defaulted.path).to eq(File.join(@dir, "data", "order.heki"))
-    end
-
     it "still honors a real declared string path" do
       adapter = described_class.new(aggregate: aggregate, settings: { dir: "custom" }, root: @dir)
 
       expect(adapter.path).to eq(File.join(@dir, "custom", "order.heki"))
-    end
-
-    it "still falls back to \"data\" when dir is truly absent" do
-      adapter = described_class.new(aggregate: aggregate, settings: {}, root: @dir)
-
-      expect(adapter.path).to eq(File.join(@dir, "data", "order.heki"))
     end
   end
 

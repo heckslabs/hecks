@@ -121,6 +121,12 @@ your `.adapter` file's `field`/`secret` list resolved to from the
 `.world` block. `root` is a directory the adapter is free to resolve
 paths against (Heki does; a network adapter would ignore it).
 
+An adapter does not carry fallbacks for its settings. Declare a default on the field in your `.adapter`
+file (`field :dir, default: "data"`) and read `settings[:dir]`: the framework lays your defaults under
+whatever the world gave before it builds you. A string default may hold `{name}` or `{storage_name}`,
+filled from the aggregate (Sqlite's is `"data/{storage_name}.db"`). Settings arrive Symbol-keyed, so
+there is no String spelling to handle.
+
 - **`save(instance)`** — builds a `save` entry from the instance's
   `id` and `state`, appends it, projects it, returns the instance.
   Heki's own `save` calls `append` then `project` itself — the same

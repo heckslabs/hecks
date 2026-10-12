@@ -121,7 +121,7 @@ module Hecks
         @db = PostgresSharedConnection.for(aggregate.name, settings, connector: self.class)
         # Scopes saga rows; falls back to the aggregate's storage name when
         # settings gives no domain (e.g. a directly-instantiated adapter).
-        @domain = setting(settings, :domain, aggregate.storage_name).to_s
+        @domain = settings.fetch(:domain) { aggregate.storage_name }.to_s
         create_tables!
       end
 
@@ -139,14 +139,6 @@ module Hecks
         create_saga_table!
         create_outbox_table!
         create_checkpoint_table!
-      end
-
-      # A setting read under its Symbol key, then its String key, then `default`.
-      def setting(settings, key, default)
-        return settings[key] if settings.key?(key)
-        return settings[key.to_s] if settings.key?(key.to_s)
-
-        default
       end
     end
   end

@@ -22,8 +22,16 @@ Hecks.bluebook "Adapter" do
     end
 
     value_object "AdapterField" do
-      attribute :value, String
+      attribute :value,   String
+      attribute :default, String, optional: true
       invariant("a field names itself") { !value.to_s.empty? }
+    end
+
+    # The text of a field's declared default, such as `"data"` or `true`. A `{name}` in a string
+    # is filled from the aggregate the adapter is built for, so it names only what the framework
+    # can supply.
+    value_object "AdapterFieldDefault" do
+      attribute :value, String, pattern: '^(?:[^{}]|\{(?:name|storage_name)\})*$'
     end
 
     command "Declare" do
@@ -45,9 +53,10 @@ Hecks.bluebook "Adapter" do
       goal "Name a value this adapter's own world-level wiring must supply"
 
       reference_to Adapter
-      attribute :value, AdapterField
+      attribute :value,   AdapterField
+      attribute :default, AdapterFieldDefault, optional: true
 
-      sets :fields, append: { value: :value }
+      sets :fields, append: { value: :value, default: :default }
 
       emits "AdapterFieldAdded"
     end
@@ -104,6 +113,7 @@ Hecks.bluebook "Adapter" do
       member keyword: "adapter",         context: "File", at: "1", named: "", kind: "text", required: "true", fills: "name"
       member keyword: "port",            context: "Adapter", at: "1", named: "", kind: "text",   required: "true", fills: "port"
       member keyword: "field",           context: "Adapter", at: "1", named: "", kind: "symbol", required: "true", fills: "fields"
+      member keyword: "field",           context: "Adapter", at: "",  named: "default", kind: "literal", required: "false", fills: "default"
       member keyword: "secret",          context: "Adapter", at: "1", named: "", kind: "symbol", required: "true", fills: "secrets"
 
     end
