@@ -10,8 +10,8 @@ RSpec.describe Hecks::Adapters::Driving::McpScope do
     from_run
     gate host_version inner ir_version iterations kind lane name named new_name no_ai only opens package
     pairs_shape
-    parallel persist_regressions profile rehearsal rehearsed_at required role run runs seed_start seeds ships_from snapshot stage
-    stdout steps strict subject tags target targets timeout to verb version warmup winners word workers
+    parallel persist_regressions pin profile rehearsal rehearsed_at required role run runs seed_start seeds ships_from snapshot
+    stage stdout steps strict subject tags target targets timeout to verb version warmup winners word workers
   ].freeze
 
   let(:classes) do

@@ -46,6 +46,32 @@ RSpec.describe Hecks::Adapters::Rehearsal::Declaration do
       .to raise_error(Hecks::Adapters::Rehearsal::Refused, /postgres mode/)
   end
 
+  describe "the server a connection names" do
+    let(:variable) { "HECKS_REHEARSAL_SPEC_REMOTE" }
+
+    after { ENV.delete(variable) }
+
+    it "is refused when it is not this machine", :aggregate_failures do
+      ENV[variable] = "postgres://rehearsal@db.example.com/shop"
+
+      expect { declare(adapter: "Postgres", connection_env: variable).connection }
+        .to raise_error(Hecks::Adapters::Rehearsal::Refused, /not this machine/)
+    end
+
+    it "is admitted when the world says allow_remote" do
+      ENV[variable] = "postgres://rehearsal@db.example.com/shop"
+
+      expect(declare(adapter: "Postgres", connection_env: variable, allow_remote: true).connection).to include("db.example.com")
+    end
+
+    it "is admitted on localhost or a socket", :aggregate_failures do
+      ENV[variable] = "postgres://rehearsal@localhost/shop"
+      expect(declare(adapter: "Postgres", connection_env: variable).connection).to include("localhost")
+      ENV[variable] = "postgres:///postgres"
+      expect(declare(adapter: "Postgres", connection_env: variable).connection).to eq("postgres:///postgres")
+    end
+  end
+
   it "refuses a connection whose variable is unset" do
     declaration = declare(adapter: "Postgres", connection_env: "HECKS_REHEARSAL_SPEC_UNSET_VARIABLE")
 

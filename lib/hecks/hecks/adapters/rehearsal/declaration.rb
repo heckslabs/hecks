@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "uri"
+
 module Hecks
   module Adapters
     # Everything a rehearsal does on a client's domain: where its data copy comes from, how the
@@ -19,8 +21,9 @@ module Hecks
         KINDS = %w[memory postgres].freeze
         MODES = %w[empty dump readonly_copy].freeze
         LITERALS = %i[database url connection password user].freeze
+        LOCAL_HOSTS = [nil, "", "localhost", "127.0.0.1", "::1", "[::1]"].freeze
 
-        attr_reader :kind, :mode, :connection_env, :dump, :rows, :drop_after
+        attr_reader :kind, :mode, :connection_env, :dump, :rows, :drop_after, :allow_remote
 
         # @param world [#for_verb, nil] the subject's world, as the registry holds it
         # @param directory [String] the domain's bluebook directory, which a relative file is under
@@ -54,19 +57,32 @@ module Hecks
         end
 
         # @return [String] the connection the environment holds
-        # @raise [Refused] if the variable the world names is unset or empty
+        # @raise [Refused] if the variable the world names is unset or empty, or names a server
+        #   that is not this machine and the world did not say `allow_remote true`
         def connection
           value = ENV.fetch(connection_env, "")
           raise Refused, "the environment variable #{connection_env} is not set" if value.strip.empty?
 
+          refuse_remote!(value)
           value
         end
 
         private
 
+        def refuse_remote!(value)
+          host = URI.parse(value).host
+          return if allow_remote || LOCAL_HOSTS.include?(host)
+
+          raise Refused, "#{connection_env} names the server #{host.inspect}, which is not this machine: " \
+                         "a rehearsal reads a local copy; say `allow_remote true` in rehearsed_by to point it elsewhere"
+        rescue URI::InvalidURIError
+          nil
+        end
+
         def read_switches(settings)
-          @drop_after = settings.fetch(:drop_after, true) != false
-          @literals   = LITERALS & settings.keys.map(&:to_sym)
+          @drop_after   = settings.fetch(:drop_after, true) != false
+          @allow_remote = settings.fetch(:allow_remote, false) == true
+          @literals     = LITERALS & settings.keys.map(&:to_sym)
         end
 
         def default_mode = dump || rows ? "dump" : "empty"
