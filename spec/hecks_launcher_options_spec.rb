@@ -202,6 +202,21 @@ RSpec.describe "the launcher's opt-in options" do
     end
   end
 
+  describe "a run this process does not hold" do
+    let(:options) { Hecks::Adapters::Driving::LauncherOptions }
+
+    it "is refused only by a question the setting lists", :aggregate_failures do
+      launcher = { unknown_runs: %w[shelf_run.outcome] }
+
+      expect(options.unknown_run?(launcher, { kind: :query, short: "shelf_run.outcome" })).to be(true)
+      expect(options.unknown_run?(launcher, { kind: :query, short: "shelf_run.other" })).to be(false)
+    end
+
+    it "is never refused when the chapter did not opt in" do
+      expect(options.unknown_run?(nil, { kind: :query, short: "shelf_run.outcome" })).to be(false)
+    end
+  end
+
   describe "chapter constants" do
     def declare_hecks_chapter(names)
       aggregates = names.map { |name| "aggregate(\"#{name}\") { #{CHAPTER_AGGREGATE} }" }

@@ -141,6 +141,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: ./.github/actions/setup-ruby
+
+      # The host unit tests include_str! rust/src/generated/*/ir.json, which is not committed
+      # (pizzas aside); restore or regenerate it before `cargo test --no-run` compiles them.
+      - uses: ./.github/actions/generated-rust
+
       - uses: ./.github/actions/cargo-cache
         with:
           name: hosttest
