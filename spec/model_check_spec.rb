@@ -200,6 +200,59 @@ RSpec.describe "the model checker" do
     end
   end
 
+  describe "reference findings" do
+    let(:findings) { findings_for("reference_findings") }
+    let(:key_finding) { findings.find { |f| f.kind == :key_by_value && f.subject == "Ledger.account_number" } }
+
+    # Aggregates the DSL would not build (a bare String attribute), to prove the guard directly.
+    def primitive_chapter
+      primitive = Struct.new(:type, :name) do
+        def reference? = false
+        def list? = false
+      end.new("String", :code)
+      aggregate = Struct.new(:identity_heads, :attributes, :hecks_name) { def attribute(_head) = attributes.first }
+      Struct.new(:aggregates).new([aggregate.new([:code], [primitive], "Owner"),
+                                   aggregate.new([:other], [primitive], "Other")])
+    end
+
+    it "warns on an attribute that copies another aggregate's identity by value" do
+      expect(key_finding.severity).to eq(:warning)
+    end
+
+    it "recommends reference_to the aggregate whose identity it copies" do
+      expect(key_finding.message).to include("reference_to Account")
+    end
+
+    it "leaves an aggregate that states the link with reference_to alone" do
+      expect(findings.select { |f| f.kind == :key_by_value }.map(&:subject)).not_to include(a_string_starting_with("Statement."))
+    end
+
+    it "does not flag the identity attribute itself" do
+      expect(has?(findings, :key_by_value, "Account.account_number")).to be(false)
+    end
+
+    it "does not flag an attribute whose type no aggregate uses as its identity" do
+      subjects = findings.select { |f| f.kind == :key_by_value }.map(&:subject)
+      expect(subjects).to eq(["Ledger.account_number", "Deployment.site_key"])
+    end
+
+    it "flags a key held as one head of a composite identity" do
+      expect(has?(findings, :key_by_value, "Deployment.site_key")).to be(true)
+    end
+
+    it "leaves the converted form, reference_to Site as: :site, clean" do
+      expect(findings.select { |f| f.kind == :key_by_value }.map(&:subject)).not_to include(a_string_starting_with("Rollout."))
+    end
+
+    it "never flags an owner's own identity attribute" do
+      expect(has?(findings, :key_by_value, "Site.reference")).to be(false)
+    end
+
+    it "never treats a primitive type as an identity match" do
+      expect(Hecks::Bluebook::ModelCheck.key_by_value_findings(primitive_chapter)).to be_empty
+    end
+  end
+
   # A Rust keyword as a domain or aggregate name, or a reserved Cargo.toml key as a domain
   # module/feature key: a warning by default, an error with a Rust target or strict.
   describe "Rust reserved names" do

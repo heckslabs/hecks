@@ -5,6 +5,7 @@ require_relative "model_check/lifecycle_checks"
 require_relative "model_check/saga_checks"
 require_relative "model_check/policy_checks"
 require_relative "model_check/ask_checks"
+require_relative "model_check/reference_checks"
 require_relative "model_check/verbs"
 
 module Hecks
@@ -34,6 +35,7 @@ module Hecks
       extend SagaChecks
       extend PolicyChecks
       extend AskChecks
+      extend ReferenceChecks
       extend Verbs
 
       module_function
@@ -61,10 +63,11 @@ module Hecks
         findings
       end
 
-      # Lifecycles, sagas and policies: what the model says about itself.
+      # Lifecycles, sagas, policies and references: what the model says about itself.
       def modelled_findings(bluebook, options)
         [
           *bluebook.aggregates.flat_map { |aggregate| aggregate_lifecycle_findings(aggregate) },
+          *key_by_value_findings(bluebook),
           *bluebook.process_managers.flat_map { |process_manager| saga_findings(bluebook, process_manager) },
           *bluebook.policies.flat_map do |policy|
             policy_findings(bluebook, policy, options[:hecksagon], options[:known_domains],
