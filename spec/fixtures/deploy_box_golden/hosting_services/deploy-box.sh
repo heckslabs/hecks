@@ -23,12 +23,6 @@
 # cannot run, the roll goes on. SKIP_LOG_CAPTURE=1 skips it; LOG_CAPTURE_SERVICES="a b" limits it to
 # those services (deploy-service.sh sets the one it rolls).
 #
-# Before the roll replaces a container, the box saves that container's log to
-# /var/log/hecks-captures/<container>-<UTC timestamp>.log and keeps the newest 14 per container
-# (a roll deletes the old container's log with it). A capture never changes the exit codes: if it
-# cannot run, the roll goes on. SKIP_LOG_CAPTURE=1 skips it; LOG_CAPTURE_SERVICES="a b" limits it to
-# those services (deploy-service.sh sets the one it rolls).
-#
 #   deploy-box.sh [name=tag ...]
 #
 # A container named without a tag runs its "latest" image. Secret values are resolved on the box by
