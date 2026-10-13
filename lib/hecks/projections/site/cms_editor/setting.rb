@@ -5,6 +5,7 @@ require_relative "../root_rows"
 require_relative "../routes_ts"
 require_relative "checks"
 require_relative "preview"
+require_relative "setting_access"
 require_relative "../../../version"
 
 module Hecks
@@ -17,6 +18,8 @@ module Hecks
         # `docs/site-routes.md` lists the fields. A project that declares no row has no editor to
         # project.
         class Setting
+          include SettingAccess
+
           # The `Editor` row: its fields, which are required and what the others default to.
           ROW = RootRows.new(
             "Editor",
@@ -149,18 +152,6 @@ module Hecks
           # @return [Array<String>] the roles that count as an editor
           def roles = row.fetch(:roles).split(",").map(&:strip).reject(&:empty?)
 
-          # @return [Array<String>] the roles that manage who may edit (the People screen)
-          def admin_roles = row.fetch(:admin_roles).split(",").map(&:strip).reject(&:empty?)
-
-          # @return [String, nil] the path the host sends a person to once Google has signed them
-          #   in (the host's own `/admin.html`), which the edge routes to the editor so that
-          #   everyone the list admits arrives in it, not on the site's administrator-only page
-          def landing = row.fetch(:landing).strip.then { |path| path.empty? ? nil : path }
-
-          # @return [String, nil] the address that starts a sign-in on the site's own origin (the
-          #   host's Google sign-in), which the editor's own sign-in page leads to; nil for none
-          def sign_in = row.fetch(:sign_in).strip.then { |path| path.empty? ? nil : path }
-
           # @return [String] the generated package's name
           def package = "#{chapter.gsub(/([a-z])([A-Z])/, '\1-\2').tr("_", "-").downcase}-editor"
 
@@ -170,9 +161,7 @@ module Hecks
               "__MEDIA_MAX_BYTES__" => row.fetch(:media_max_bytes), "__PAGE_SIZE__" => page_size.to_s,
               "__CLIENT_VERSION__" => Hecks::VERSION, "__UPLOAD__" => JSON.generate(upload),
               "__MEMBERS__" => JSON.generate(members), "__MARKDOWN__" => JSON.generate(markdown),
-              "__ADMIN_ROLES__" => RoutesTs.literal(admin_roles), "__SIGN_IN__" => JSON.generate(sign_in),
-              "__LANDING__" => JSON.generate(landing),
-              "__MARKDOWN_SITE__" => markdown_site, **preview_tokens(previews), **quoted }
+              "__MARKDOWN_SITE__" => markdown_site, **access_tokens, **preview_tokens(previews), **quoted }
           end
 
           # @return [String] the body of `browser/markdown_site.js`: the site's own reader and

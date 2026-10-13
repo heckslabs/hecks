@@ -22,7 +22,7 @@ import type { Problem } from "./blocks.ts";
 import { isMoment, secondsOf } from "./moments.ts";
 import { datalists, pickerControl } from "./pickers.ts";
 import type { Choices } from "./pickers.ts";
-import { toWall, zoneNote } from "./wall.ts";
+import { toWall, wallOfSeconds, zoneNote } from "./wall.ts";
 import { label, labelOf, limitsNote, singular } from "./words.ts";
 
 type Value = unknown;
@@ -88,10 +88,27 @@ function problem(name: string, attr: Attr, context: Context): string {
   return attr.help ? `<p class="text-xs text-muted" id="${esc(idOf(name))}-help">${esc(attr.help)}</p>${said}` : said;
 }
 
+/**
+ * A moment held as whole seconds, entered as the clock of the zone its row names says. The seconds
+ * it was held as ride in a hidden input, so a moment the person did not change is sent back exactly.
+ */
+function zonedMoment(attr: Attr, name: string, seconds: number | null, context: Context): string {
+  const id = esc(idOf(name));
+  const zone = attr.wall ?? "Z";
+  const classes = flagged(attr, name, context) ? "input input-error w-full max-w-xl" : "input w-full max-w-xl";
+  const required = context.mark && !attr.optional ? ` aria-required="true"` : "";
+  const keep = seconds === null ? "" : `<input type="hidden" name="${esc(name)}__held" value="${seconds}">`;
+  const shown = seconds === null ? "" : wallOfSeconds(seconds, zone);
+  const input = `<input type="${attr.widget === "date" ? "date" : "datetime-local"}" class="${classes}" id="${id}" name="${esc(name)}" value="${esc(attr.widget === "date" ? shown.slice(0, 10) : shown)}"${required}${invalidAttrs(name, attr, context)}>`;
+  const note = `<p class="text-xs text-muted">${esc(zoneNote(zone))}</p>`;
+  return `<div class="my-4 grid gap-1"><label for="${id}" class="${context.quiet ? "sr-only" : "font-semibold"}">${caption(attr, context)}</label>${input}${keep}${note}${problem(name, attr, context)}</div>`;
+}
+
 /** A moment's input: the seconds in a number input; the script swaps it for a native date input in the viewer's zone. */
 function moment(attr: Attr, name: string, value: Value, context: Context): string {
   const id = esc(idOf(name));
   const seconds = secondsOf(value);
+  if (attr.wall !== undefined) return zonedMoment(attr, name, seconds, context);
   const classes = flagged(attr, name, context) ? "input input-error w-full max-w-xl" : "input w-full max-w-xl";
   const required = context.mark && !attr.optional ? ` aria-required="true"` : "";
   const input = `<input type="number" step="1" class="${classes}" id="${id}" name="${esc(name)}" value="${seconds ?? ""}" data-epoch-raw${required}${invalidAttrs(name, attr, context)}>`;
@@ -159,7 +176,7 @@ function markdown(attr: Attr, name: string, value: Value, context: Context): str
   const required = context.mark && !attr.optional ? ` aria-required="true"` : "";
   const box = `<textarea class="${classes}" rows="14" id="${id}" name="${esc(name)}" data-markdown-input${required}${invalidAttrs(name, attr, context)}>\n${text}</textarea>`;
   const note = `<details class="max-w-3xl text-sm" data-markdown-note><summary class="cursor-pointer font-semibold">What you can use</summary><ul class="mt-1 list-disc pl-5 text-muted">${MARKDOWN_NOTE.map((line) => `<li>${line}</li>`).join("")}</ul></details>`;
-  const preview = `<section class="max-w-3xl" aria-labelledby="${id}-preview" data-markdown-preview-box hidden><h3 id="${id}-preview" class="text-sm font-semibold">How it will look on the site</h3><div class="prose mt-1 max-w-none border border-base-300 bg-base-100 p-4" data-markdown-preview></div></section>`;
+  const preview = `<section class="max-w-3xl" aria-labelledby="${id}-preview" data-markdown-preview-box hidden><h2 id="${id}-preview" class="text-sm font-semibold">How it will look on the site</h2><div class="prose mt-1 max-w-none border border-base-300 bg-base-100 p-4" data-markdown-preview></div></section>`;
   return `<div class="my-4 grid gap-2" data-markdown><label for="${id}" class="${context.quiet ? "sr-only" : "font-semibold"}">${caption(attr, context)}</label><div data-markdown-toolbar-slot></div>${box}${note}${preview}${problem(name, attr, context)}</div>`;
 }
 
@@ -177,7 +194,7 @@ function uploadField(attr: Attr, name: string, value: Value, context: Context): 
   const input = `<input type="text" class="${classes}" id="${id}" name="${esc(name)}" value="${esc(held)}" data-upload-address${required}${invalidAttrs(name, attr, context)}>`;
   const what = upload.accept === "pdf" ? "file" : "picture";
   const note = `<p class="text-xs text-muted">The address the site shows the ${what} from. Choosing a ${what} below fills it in.</p>`;
-  return `<div class="my-4 grid gap-1" data-upload data-endpoint="${esc(href("upload", upload.collection))}" data-accept="${esc(upload.accept)}" data-optional="${attr.optional || attr.softOptional ? "true" : "false"}" data-limit="${EDITOR.mediaMaxBytes}"><label for="${id}" class="${context.quiet ? "sr-only" : "font-semibold"}">${caption(attr, context)}</label>${input}${note}${problem(name, attr, context)}</div>`;
+  return `<div class="my-4 grid gap-1" data-upload data-endpoint="${esc(href("upload", upload.collection))}" data-library="${esc(href("library", "data"))}" data-collection="${esc(upload.collection)}" data-accept="${esc(upload.accept)}" data-optional="${attr.optional || attr.softOptional ? "true" : "false"}" data-limit="${EDITOR.mediaMaxBytes}"><label for="${id}" class="${context.quiet ? "sr-only" : "font-semibold"}">${caption(attr, context)}</label>${input}${note}${problem(name, attr, context)}</div>`;
 }
 
 function scalar(attr: Attr, name: string, value: Value, context: Context): string {

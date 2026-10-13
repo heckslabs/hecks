@@ -176,7 +176,7 @@ function markdown(attr: Attr, name: string, value: Value, context: Context): str
   const required = context.mark && !attr.optional ? ` aria-required="true"` : "";
   const box = `<textarea class="${classes}" rows="14" id="${id}" name="${esc(name)}" data-markdown-input${required}${invalidAttrs(name, attr, context)}>\n${text}</textarea>`;
   const note = `<details class="max-w-3xl text-sm" data-markdown-note><summary class="cursor-pointer font-semibold">What you can use</summary><ul class="mt-1 list-disc pl-5 text-muted">${MARKDOWN_NOTE.map((line) => `<li>${line}</li>`).join("")}</ul></details>`;
-  const preview = `<section class="max-w-3xl" aria-labelledby="${id}-preview" data-markdown-preview-box hidden><h3 id="${id}-preview" class="text-sm font-semibold">How it will look on the site</h3><div class="prose mt-1 max-w-none border border-base-300 bg-base-100 p-4" data-markdown-preview></div></section>`;
+  const preview = `<section class="max-w-3xl" aria-labelledby="${id}-preview" data-markdown-preview-box hidden><h2 id="${id}-preview" class="text-sm font-semibold">How it will look on the site</h2><div class="prose mt-1 max-w-none border border-base-300 bg-base-100 p-4" data-markdown-preview></div></section>`;
   return `<div class="my-4 grid gap-2" data-markdown><label for="${id}" class="${context.quiet ? "sr-only" : "font-semibold"}">${caption(attr, context)}</label><div data-markdown-toolbar-slot></div>${box}${note}${preview}${problem(name, attr, context)}</div>`;
 }
 
@@ -194,7 +194,7 @@ function uploadField(attr: Attr, name: string, value: Value, context: Context): 
   const input = `<input type="text" class="${classes}" id="${id}" name="${esc(name)}" value="${esc(held)}" data-upload-address${required}${invalidAttrs(name, attr, context)}>`;
   const what = upload.accept === "pdf" ? "file" : "picture";
   const note = `<p class="text-xs text-muted">The address the site shows the ${what} from. Choosing a ${what} below fills it in.</p>`;
-  return `<div class="my-4 grid gap-1" data-upload data-endpoint="${esc(href("upload", upload.collection))}" data-library="${esc(href("library", "data"))}" data-collection="${esc(upload.collection)}" data-accept="${esc(upload.accept)}" data-optional="${attr.optional || attr.softOptional ? "true" : "false"}" data-limit="${EDITOR.mediaMaxBytes}"><label for="${id}" class="${context.quiet ? "sr-only" : "font-semibold"}">${caption(attr, context)}</label>${input}${note}${problem(name, attr, context)}</div>`;
+  return `<div class="my-4 grid gap-1" data-upload data-endpoint="${esc(href("upload", upload.collection))}" data-accept="${esc(upload.accept)}" data-library="${esc(href("library", "data"))}" data-collection="${esc(upload.collection)}" data-optional="${attr.optional || attr.softOptional ? "true" : "false"}" data-limit="${EDITOR.mediaMaxBytes}"><label for="${id}" class="${context.quiet ? "sr-only" : "font-semibold"}">${caption(attr, context)}</label>${input}${note}${problem(name, attr, context)}</div>`;
 }
 
 function scalar(attr: Attr, name: string, value: Value, context: Context): string {

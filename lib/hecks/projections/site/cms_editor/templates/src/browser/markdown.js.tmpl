@@ -188,3 +188,11 @@ function mount(root) {
 export function mountAll(scope = document) {
   for (const root of scope.querySelectorAll("[data-markdown]")) mount(root);
 }
+
+/** Fills each `[data-md-render]` (the approximate preview's text) with what the site makes of its Markdown. */
+export function renderAll() {
+  for (const box of document.querySelectorAll("[data-md-render]")) {
+    box.innerHTML = available ? read(box.dataset.md ?? "") : "";
+    if (!available) box.textContent = box.dataset.md ?? "";
+  }
+}

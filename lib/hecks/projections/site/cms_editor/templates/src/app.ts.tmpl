@@ -39,6 +39,8 @@ import type { Form } from "./ui/input.ts";
 import { backOf, plainValue } from "./ui/links.ts";
 import type { Back } from "./ui/links.ts";
 import { libraryPage } from "./ui/library.ts";
+import { approximatePage } from "./ui/approximate.ts";
+import { helpPage } from "./ui/help.ts";
 import { loginPage } from "./ui/login.ts";
 import type { LoginNote } from "./ui/login.ts";
 import { peoplePage } from "./ui/people.ts";
@@ -292,6 +294,7 @@ async function enter(url: URL, secret: string, membership: Membership, now: () =
 function route(client: HostClient, request: Request, url: URL, segments: string[], scene: Scene): Promise<Response> | Response {
   if (segments.length === 0) return homeView(client, scene);
   if (segments[0] === "assets" && segments.length === 2 && request.method === "GET") return serveAsset(segments[1], request);
+  if (segments[0] === "help" && segments.length === 1 && request.method === "GET") return scene.show(helpPage());
   if (segments[0] === "scheduled" && segments.length === 1 && request.method === "GET" && SCHEMA.scheduling) return scheduledView(client, scene);
   const { agg, rest: [verb, ...rest] } = locate(segments);
   if (!agg) return scene.show(notFound(`No aggregate ${segments.slice(0, SCHEMA.chapters ? 2 : 1).join("/")}.`), 404);
@@ -300,6 +303,9 @@ function route(client: HostClient, request: Request, url: URL, segments: string[
   if (verb === "id" && rest.length === 1 && request.method === "GET") return detail(client, agg, rest[0], null, scene);
   if (verb === "id" && rest.length === 2 && request.method === "GET") return instanceView(client, agg, rest[0], rest[1], url, scene);
   if (verb === "id" && rest.length === 2 && rest[1] === "restore" && request.method === "POST") return restore(client, request, agg, rest[0], scene);
+  if (request.method === "POST" && rest.at(-1) === "preview" && ((verb === "id" && rest.length === 2) || (verb === "new" && rest.length === 2))) {
+    return approximate(client, request, agg, verb === "id" ? rest[0] : null, scene);
+  }
   if (request.method === "POST") return post(client, request, agg, verb, rest, scene);
   if ((verb === "new" || verb === "run") && rest.length === 1) return commandView(client, agg, verb, rest[0], url, scene);
   return scene.show(notFound(`No page ${segments.join("/")}.`), 404);
@@ -501,6 +507,23 @@ async function textRefused(client: HostClient, agg: Aggregate, id: string, unsav
   const shown: Submitted = { command: editor.name, message, values: { ...values, ...typedTexts(form) }, textField: inputName(first.text.index), textMessage: first.message };
   const boxes = await boxesFor(client, agg, editor, scene.role, id);
   return scene.show(instanceCommandPage(agg, id, editor, values, shown, await choicesFor(client, agg, editor.attributes), back, boxes), 422, flash);
+}
+
+/**
+ * The editor's own, approximate preview of what a form holds: the arguments as they would be sent,
+ * over the record as it is now, with the texts typed beside it. Nothing is sent to the domain.
+ */
+async function approximate(client: HostClient, request: Request, agg: Aggregate, id: string | null, scene: Scene): Promise<Response> {
+  const form = parseForm(await request.text());
+  const command = agg.commands.find((candidate) => candidate.name === form.get("__previewcmd")) ?? editing(agg);
+  if (!command) return scene.show(notFound("This cannot be previewed."), 404);
+  const args = commandArguments(agg, command.attributes, form, command.empty, scene.now);
+  const current = id ? (instanceIn(client, await client.read(), agg, id) ?? {}) : {};
+  const values: State = { ...current, ...args };
+  const answer = id ? await client.read() : null;
+  const held = id && answer ? currentTexts(client, answer, agg, id, textsFor(agg, command, scene.role)) : {};
+  const texts = textsFor(agg, command, scene.role).map((text) => ({ label: text.label, value: form.get(inputName(text.index)) ?? held[inputName(text.index)] ?? "" }));
+  return scene.show(approximatePage(agg, id, values, texts));
 }
 
 /**

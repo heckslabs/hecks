@@ -73,7 +73,7 @@ function unpublished(agg: Aggregate, values: State): string {
 }
 
 /** The words a record is called by: its title, name or label when it has one, else its identity. */
-function titled(agg: Aggregate, id: string, values: State): string {
+export function titled(agg: Aggregate, id: string, values: State): string {
   const own = agg.attributes.find((attr) => ["title", "name", "label"].includes(attr.name) && !attr.list && attr.widget !== "body");
   const words = own ? plainText(values[own.name]) : "";
   return words === "" ? id : words;

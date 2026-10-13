@@ -230,6 +230,9 @@ forms are generated from the domain, not written per aggregate.
 | `upload_env`, `upload_default` | the environment variable that names the content system's address for the editor's server, and the address when it is unset | none |
 | `members_aggregate` | `Domain::Aggregate` of the people who may edit (an `email` and a `role` attribute, named by `members_email` and `members_role`). The editor reads it over the host's own protocol, which the host accepts from the same machine, and also asks the host's account route, instead of asking the members list that the host shows only to those who administer it. Without it, the members list is asked, and a person who may edit but not administer cannot sign in | none |
 | `markdown_parse`, `markdown_render` | the site's own reader and renderer of its Markdown, each `<path relative to the editor's directory>#<exported name>`, imported when the editor is built so a Markdown field's preview is made by the code that makes the page. Both or neither | none (no preview) |
+| `admin_roles` | the roles that manage who may edit: they get the People screen and its commands | `Admin,Owner` |
+| `sign_in` | a path on the site's own origin that starts the host's sign-in (`/auth/google`). With it the editor has a sign-in page of its own (`<base_path>/login`), a person with no session is sent there instead of to `login`, and signing out also clears the site's own session cookie | none |
+| `landing` | the path the host sends a person to once it has signed them in (`/admin.html`). The editor answers it with a redirect to its home, so route it to the editor at the edge: a person who may edit but not administer then arrives in the editor, not on the site's page that admits administrators only | none |
 
 | file | what it does |
 |---|---|
@@ -580,3 +583,44 @@ These are the editor's own courtesy, not the domain's rules: a model that has no
 - **A range that ends before it starts** is refused with the end marked, or the row of a list named, before anything is sent. The same moment is allowed.
 - **A file is checked by its bytes.** A picture is JPEG, PNG, WebP, GIF or AVIF and a file is a PDF, by their first bytes and not by the name or the type the browser sent; `media_max_bytes` caps the size; a description is required. The file is sent to the content system as the signed-in person (the editor exchanges a short account token for the content system's own session at `<upload_api>/sso`), kept under a name made of letters, digits, dot, dash and underscore, and the field is given the address it answers with.
 - **A person who may edit but not administer can sign in.** With `members_aggregate` the editor reads the people over the host's own protocol, and a person signed in on the site, who reaches the editor's address with the site's own session cookie, is admitted by the same list. An unadmitted person is told so on a page of the editor.
+
+## A working desk: scheduled actions that run, history, a library, people, sign-in and a preview
+
+These are generic: they read the chapters and the rows, name nothing of a project, and run in the editor's own process.
+
+- **Scheduled actions run.** The scheduled-action aggregate is found by shape (see the scheduling bullet above). A package that
+  says neither which records its subject may name nor which actions there are is told by two `EditorField` fields:
+  `keys` (comma separated kind words, each the snake-case name of an aggregate, such as `event,post`) on the subject,
+  and `options` (`a,b` or `a=Label,b=Label`) on the action. An `EditorRun` row (`aggregate`, `action`, `command`) says what a
+  due action does to a record of an aggregate: `command` is a comma separated list tried in order, and the first that applies
+  to the record's state runs, through the host as any save, so the domain's rules apply. The runner (`src/runner.ts`) looks every
+  `EDITOR_RUN_EVERY` seconds (30 unless set; 0 turns it off) at the waiting actions whose time has come, soonest first, does
+  each, and reports back with the aggregate's own commands: the move to a final state that takes nothing is "done", the one that
+  takes only the reason is "failed" with the reason in words. A record already in the state the action wants is done; one
+  that cannot be moved is failed, and nothing is retried. The record that schedules is the package's own, so whether it also
+  needs an era is the project's: a package that adds an aggregate to a chapter changes its shape.
+- **A moment on a zone's clock.** An `EditorField` row `kind: "datetime"` with a `zone` on an integer moment shows and enters it
+  as the clock of that zone (`-07:00`) and stores the same instant in whole seconds, instead of the viewer's own zone.
+- **History and putting a change back.** Every command the editor sends that the host accepted is kept in
+  `EDITOR_HISTORY_FILE` (default `data/history.jsonl` beside the editor, so the box must give the editor a directory that
+  survives a restart): when, the signed-in person, the command, the record before and after. A record's page lists them, with
+  what changed, and for a change that was an edit (a command that takes values and is not a move) a button that sends the
+  same command the values the record held before. A working copy saved as the person writes is not listed. It is "changes made
+  through this editor": the host stores no events a person can read back on the Rust host and drops who made a change, so a
+  change made another way is not in it.
+- **Pictures and files already uploaded.** The Pictures and files screen lists what the content system keeps (a page of 24,
+  searched by description or file name, newest first), asked as the person, with a small picture and where each is used (every
+  record whose values hold the address). A picture or file field has "Choose one already uploaded". The sizes the content
+  system makes of a picture on upload are its own; the editor sends the file through its API so they are made.
+- **People.** For `admin_roles`: the list (the host's own members list, asked as the person, which alone says who is turned
+  off), add a person with a role (`Admit` then `GrantAccess` of the `members_aggregate`), change a role, and turn a person off
+  and back on through the host's own route, whose rules (not yourself, not the last administrator) answer in its words. A role
+  change that would leave no administrator is refused by the editor, since it does not pass through that route.
+- **Sign-in.** See `sign_in` and `landing` above. Google is the only way in on the host; the editor starts it and admits whoever
+  the session cookie it sets names and the people list holds.
+- **A preview the editor draws.** A form of a record the site has a page for has "Preview (approximate)": the values as typed,
+  over the record as it is, laid out as a page in a new tab without saving, with the text made by the site's own renderer in
+  the browser and a link to the record on the live site. A site that sends `X-Frame-Options: DENY` cannot be framed, and a draft
+  is not on it, so this is the editor's own drawing and says so.
+- **Help.** A page generated from the same words as the screens: for each aggregate what it is, the fields of each form with
+  their help and whether they are needed, and what each button does.

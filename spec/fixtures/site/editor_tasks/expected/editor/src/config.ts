@@ -17,9 +17,17 @@ export const EDITOR = {
   hostEnv: "GARDEN_DOMAIN_SERVICE_URL",
   hostDefault: "http://127.0.0.1:4600",
   roles: ["Admin", "Owner"],
+  /** The roles that manage who may edit (the People screen). */
+  adminRoles: ["Admin", "Owner"] as readonly string[],
+  /** The address on the site's own origin that starts the host's sign-in, or null: the editor then has no sign-in page of its own. */
+  signIn: null as string | null,
+  /** The path the host sends a person to once Google signed them in; the edge routes it here and the editor sends them on to its home. */
+  landing: null as string | null,
   mediaDir: "media",
   mediaMaxBytes: 5242880,
   pageSize: 25,
+  /** The clock people read: the Editor row's zone, `Z` or an offset such as `-07:00`. */
+  zone: "-07:00" as string,
   /** Where a record is shown on the site, with `{key}`, `{kind}`, `{slug}` and `{id}`; null for no preview. */
   preview: null as string | null,
   /** `drawer` frames the site's page beside the record; `tab` opens it in a new tab (a site that will not be framed). */

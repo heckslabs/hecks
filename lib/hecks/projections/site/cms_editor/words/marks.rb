@@ -43,9 +43,13 @@ module Hecks
               agg = find(aggregates, row[:aggregate])
               return problems << "EditorRun names no aggregate #{row[:aggregate].inspect}" unless agg
 
-              known = agg["commands"].map { |command| command["name"] }
-              missing = listed(row[:command]).to_a - known
-              missing.each { |name| problems << "EditorRun #{row[:aggregate]}.#{row[:action]}: #{agg["name"]} has no command #{name.inspect}" }
+              problems.concat(unknown_commands(agg, row))
+            end
+
+            # @return [Array<String>] one line for each command a run row names the aggregate lacks
+            def unknown_commands(agg, row)
+              missing = listed(row[:command]).to_a - agg["commands"].map { |command| command["name"] }
+              missing.map { |name| "EditorRun #{row[:aggregate]}.#{row[:action]}: #{agg["name"]} has no command #{name.inspect}" }
             end
 
             # @return [Hash{String => Object}, nil] the aggregate named `Name` or `Chapter::Name`
@@ -130,13 +134,7 @@ module Hecks
 
             # @return [Hash{String => Object}] the closed set a row's `options` names (`a,b` or
             #   `a=Label,b=Label`), in the form the content system's rows use
-            def choices(text)
-              pairs = text.to_s.split(",").map(&:strip).reject(&:empty?).map { |item| item.split("=", 2) }
-              return {} if pairs.empty?
-
-              labels = pairs.select { |pair| pair.size == 2 }.to_h
-              { "options" => pairs.map(&:first), "optionLabels" => (labels.empty? ? nil : labels) }.compact
-            end
+            def choices(text) = listed(text) ? Payload.options(text.to_s) : {}
 
             # @return [Hash{String => Object}] the upload mark of an `image` or `file` row, whose
             #   `picks` names a collection, else the aggregate the row picks from
@@ -171,8 +169,8 @@ module Hecks
 
             # @return [Array<String>] the words of `keys` that are not a lower-case kind word
             def keys(row)
-              Marks.listed(row[:keys])&.reject { |word| Marks::KIND_WORD.match?(word) }
-                &.map { |word| "keys #{word.inspect} is not a kind word (lower case letters, digits and underscores)" } || []
+              bad = Marks.listed(row[:keys]).to_a.grep_v(Marks::KIND_WORD)
+              bad.map { |word| "keys #{word.inspect} is not a kind word (lower case letters, digits and underscores)" }
             end
 
             # @return [Array<String>] the problem with an upload that names no collection

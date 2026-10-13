@@ -22,8 +22,8 @@ import type { HostOptions } from "../host.ts";
 import { mayEdit, qualified } from "../names.ts";
 import { SCHEMA } from "../schema.ts";
 import type { Aggregate, Media, MediaField } from "../schema.ts";
-import { boundaryOf, parts } from "./multipart.ts";
-import { EXTENSION_OF, KEY_PATTERN, TYPE_OF, sizeOf, sniff } from "./sniff.ts";
+import { boundaryOf, parts } from "../files/multipart.ts";
+import { EXTENSION_OF, KEY_PATTERN, TYPE_OF, sizeOf, sniff } from "../files/sniff.ts";
 import { diskStorage } from "./storage.ts";
 import type { MediaStorage } from "./storage.ts";
 

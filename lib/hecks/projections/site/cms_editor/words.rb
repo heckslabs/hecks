@@ -10,20 +10,16 @@ module Hecks
   module Projections
     module Site
       module CmsEditor
-        # The words an editor says to people, declared beside the route table as rows of three
-        # value objects, because the domain's own names (`Revise`, `Sections`, a slug) say what the
-        # model is, not what a person does. They are the site's side of the editor, like the
-        # `Editor` row: the domain's bluebook stays free of them.
+        # The words an editor says to people, declared beside the route table as rows, because
+        # the domain's own names (`Revise`, a slug) say what the model is, not what a person does.
+        # They are the site's side of the editor, like the `Editor` row.
         #
-        # `EditorThing` names an aggregate to a person (`name`, `plural`, `about`, a `preview`
-        # address of its own, `advanced` to tuck it away). `EditorField` is about an attribute, or
-        # with no attribute a command: a `label`, a `help` sentence, a `kind` (`textarea`, or
-        # `datetime` with the `zone` its wall-clock times are in), whether it is `advanced`, which
-        # aggregate it `picks` from, and how it is `fill`ed when left blank. `EditorCompanion` is a
-        # record of another aggregate that belongs to this one's records by a key made of theirs
-        # (`news.{slug}.body`), shown on their page as one thing. `EditorRun` says what a due
-        # scheduled action does to a record of an aggregate: for an `action` word, the `command`s
-        # to try, in order, the first that applies to the record's state being the one that runs.
+        # `EditorThing` names an aggregate to a person. `EditorField` is about an attribute, or
+        # with no attribute a command: its `label`, `help`, `kind`, `zone`, whether it is
+        # `advanced`, what it `picks`, how it is `fill`ed, and for a key or closed set a package
+        # leaves open its `keys` and `options`. `EditorCompanion` is a record that belongs to
+        # another's by a key made of its own. `EditorRun` says what a due scheduled action does
+        # to a record: for an `action` word, the `command`s to try, in order.
         module Words
           # What a row of each object may carry.
           THINGS = RootRows.new("EditorThing", many: true, required: %i[aggregate],

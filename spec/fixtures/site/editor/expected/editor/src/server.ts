@@ -9,6 +9,8 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 
 import { createApp } from "./app.ts";
 import { EDITOR } from "./config.ts";
+import { startRunner } from "./runner.ts";
+import { isUploadPath } from "./uploads.ts";
 
 const MAX_BODY_BYTES = 1_000_000;
 
@@ -18,7 +20,8 @@ const UPLOAD_OVERHEAD_BYTES = 65_536;
 /** How much of a request's body is read: a picture upload may be as large as the row's size cap. */
 function limitOf(req: IncomingMessage): number {
   const path = (req.url ?? "").split("?")[0];
-  return req.method === "POST" && path === `${EDITOR.basePath}/media` ? EDITOR.mediaMaxBytes + UPLOAD_OVERHEAD_BYTES : MAX_BODY_BYTES;
+  const upload = path === `${EDITOR.basePath}/media` || isUploadPath(path);
+  return req.method === "POST" && upload ? EDITOR.mediaMaxBytes + UPLOAD_OVERHEAD_BYTES : MAX_BODY_BYTES;
 }
 
 async function bodyOf(req: IncomingMessage): Promise<Buffer | undefined> {
@@ -63,3 +66,6 @@ createServer(async (req, res) => {
     res.end(err instanceof RangeError ? "Request too large." : "The editor failed.");
   }
 }).listen(Number(process.env.PORT || 4400), process.env.HOST || "127.0.0.1");
+
+// Scheduled actions that come due are run from here (runner.ts); there is nothing else to start.
+startRunner();

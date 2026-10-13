@@ -84,7 +84,8 @@ export interface Attr {
   advanced?: boolean;
   /**
    * The text holds an ISO 8601 moment, entered as wall-clock time in this zone (`Z` or `-07:00`);
-   * what is stored keeps the zone's offset. Whole seconds since 1970 use `widget` instead.
+   * what is stored keeps the zone's offset. Whole seconds since 1970 (`widget`) with a `wall` are
+   * shown and entered as the clock of this zone too, and stored as the same instant.
    */
   wall?: string;
   /** How the editor fills a blank value: `now`, `slug_of:<attribute>` or `part:<attribute>:<separator>:<index>`. */
@@ -99,6 +100,12 @@ export interface Attr {
   softOptional?: boolean;
   /** What a new record starts with, when a row says. */
   default?: string;
+  /** The text is written in Markdown: it has a toolbar and a preview of how the site shows it. */
+  markdown?: boolean;
+  /** The text is the address of a picture or file kept by the content system, and can be uploaded there. */
+  upload?: { collection: string; accept: "image" | "pdf" };
+  /** The text is the end of a range that starts at this attribute: an end before its start is refused before it is sent. */
+  after?: string;
 }
 
 export interface Transition {
@@ -250,6 +257,11 @@ export interface Scheduling {
   reason?: string;
   /** True when the editor makes the record's identity, since it is not the subject. */
   generated?: boolean;
+  /** The command that reports an action was done, and the one that reports it could not be (a runner's). */
+  complete?: string;
+  fail?: string;
+  /** What a due action does to a record of an aggregate: the commands to try, in order. */
+  runs?: { aggregate: string; chapter?: string; action: string; commands: string[] }[];
 }
 
 export interface Schema {

@@ -9,15 +9,19 @@
 // and the Origin header is checked too).
 import { randomUUID } from "node:crypto";
 
-import { DomainRefusal, DomainUnavailable } from "@hecks/client";
+import { DomainRefusal, DomainUnavailable, accountFromCookieHeader, resolveAccountCookieName } from "@hecks/client";
 import type { Answer, HostClient } from "@hecks/client";
 
 import { serveAsset } from "./assets.ts";
 import { authSecret, membershipCheck } from "./auth/membership.ts";
 import type { Membership } from "./auth/membership.ts";
-import { clearedCookie, readSession } from "./auth/session.ts";
+import { clearedCookie, readSession, sessionCookie, signSession } from "./auth/session.ts";
 import { signIn } from "./auth/sso.ts";
 import { choicesFor, unknownKey } from "./choices.ts";
+import { libraryCollections, libraryService } from "./library.ts";
+import { peopleService } from "./people.ts";
+import { actor, entriesFor, entryOf } from "./history.ts";
+import { backwards, duplicate } from "./checks.ts";
 import { idOf, instanceIn, reading, runCommand } from "./commands.ts";
 import type { State } from "./commands.ts";
 import { EDITOR } from "./config.ts";
@@ -28,25 +32,39 @@ import { at, keyOf, locate, mayEdit, qualified } from "./names.ts";
 import { SCHEMA } from "./schema.ts";
 import type { Aggregate, Command } from "./schema.ts";
 import { available, needsPage } from "./ui/detail.ts";
+import type { Problem } from "./ui/blocks.ts";
 import { href } from "./ui/html.ts";
 import { commandArguments, parseForm, unfilled } from "./ui/input.ts";
+import type { Form } from "./ui/input.ts";
 import { backOf, plainValue } from "./ui/links.ts";
 import type { Back } from "./ui/links.ts";
+import { libraryPage } from "./ui/library.ts";
+import { approximatePage } from "./ui/approximate.ts";
+import { helpPage } from "./ui/help.ts";
+import { loginPage } from "./ui/login.ts";
+import type { LoginNote } from "./ui/login.ts";
+import { peoplePage } from "./ui/people.ts";
 import { commandPage, detailPage, home, instanceCommandPage, listPage, notFound, scheduledPage } from "./ui/pages.ts";
 import type { Submitted } from "./ui/pages.ts";
 import { knownStatus, narrow, slice, viewOf } from "./ui/paging.ts";
 import type { View } from "./ui/paging.ts";
+import { alreadyThat, restoreArguments, restoreCommand } from "./ui/history.ts";
 import { schedules, subjectQuery } from "./ui/schedule.ts";
+import { companionRecords, currentTexts, editing, inputName, saveTexts, textsFor } from "./texts.ts";
+import type { Unsaved } from "./texts.ts";
 import { decorate } from "./ui/shell.ts";
+import { uploadHandler } from "./uploads.ts";
 import type { World } from "./ui/world.ts";
 import { schedulingAggregate } from "./ui/world.ts";
-import { done, commandLabel, plural } from "./ui/words.ts";
+import { done, commandLabel, nameOf, plural } from "./ui/words.ts";
 import { mediaHandler, mediaOpen } from "./media/handler.ts";
 import type { MediaStorage } from "./media/storage.ts";
 
 export interface AppOptions {
   /** The host's address, when not read from the environment variable the Editor row names. */
   url?: string;
+  /** The content system's address that files are sent to, when not read from the environment variable the Editor row names. */
+  cms?: string;
   fetch?: typeof fetch;
   secret?: string;
   now?: () => number;
@@ -113,6 +131,9 @@ export function createApp(options: AppOptions = {}): (request: Request) => Promi
   const now = options.now ?? Date.now;
   const membership = options.membership ?? membershipCheck({ url: options.url, fetch: options.fetch, secret, now });
   const client = hostClient({ url: options.url, fetch: options.fetch });
+  const upload = uploadHandler({ url: options.cms, fetch: options.fetch, secret, now });
+  const library = libraryService({ url: options.cms, fetch: options.fetch, secret, now });
+  const people = peopleService({ url: options.url, fetch: options.fetch, secret });
   const media = mediaHandler(options.storage, { url: options.url, fetch: options.fetch });
 
   /**
@@ -129,6 +150,54 @@ export function createApp(options: AppOptions = {}): (request: Request) => Promi
     }
   }
 
+  /**
+   * The People screen and what it posts: add, change a role, turn off, turn on. Only the roles that
+   * administer reach it. A refusal is shown on the screen again, in words; a change that worked
+   * is a notice on the screen.
+   */
+  async function peopleView(email: string, role: string | null, request: Request, segments: string[]): Promise<Response> {
+    const flash = readFlash(request.headers.get("cookie"), secret, now);
+    const scene = sceneFor(email, role, flash, client);
+    if (role === null || !EDITOR.adminRoles.includes(role)) return scene.show(notFound("Only an administrator decides who may edit.", "Not open to your role"), 403);
+    if (request.method === "GET" && segments.length === 1) return scene.show(peoplePage(await people.list(email), email));
+    if (request.method !== "POST" || segments.length !== 2) return scene.show(notFound("No such page."), 404);
+    const form = parseForm(await request.text());
+    const value = (name: string): string => (form.get(name) ?? "").trim();
+    const done = (message: string): Response => scene.sent(href("people"), message);
+    const refuse = async (message: string): Promise<Response> => scene.show(peoplePage(await people.list(email), email, message), 422);
+    const action = segments[1];
+    if (action === "add") {
+      const result = await people.add(email, value("name"), value("email"), value("role"));
+      return result.ok ? done(`${value("email").toLowerCase()} was added as ${value("role")}.`) : refuse(result.message);
+    }
+    if (action === "role") {
+      const result = await people.changeRole(email, value("email"), value("role"));
+      return result.ok ? done(`${value("email").toLowerCase()} is now ${value("role")}.`) : refuse(result.message);
+    }
+    if (action === "turn-off" || action === "turn-on") {
+      const result = await people.setDisabled(email, value("email"), action === "turn-off");
+      return result.ok ? done(`${value("email").toLowerCase()} was turned ${action === "turn-off" ? "off" : "back on"}.`) : refuse(result.message);
+    }
+    return scene.show(notFound("No such page."), 404);
+  }
+
+  /** The library screen, or with `/data` the same page as JSON for a field's chooser. */
+  async function libraryView(email: string, role: string | null, request: Request, url: URL): Promise<Response> {
+    const known = libraryCollections();
+    const wanted = url.searchParams.get("collection") ?? known[0]?.collection ?? "";
+    const collection = known.find((one) => one.collection === wanted)?.collection ?? known[0]?.collection ?? "";
+    const q = (url.searchParams.get("q") ?? "").trim().slice(0, 200);
+    const number = Number.parseInt(url.searchParams.get("page") ?? "1", 10) || 1;
+    const asJson = url.pathname.endsWith("/data");
+    const from = reading(client);
+    const found = await library(email, collection, q, number, asJson ? undefined : from);
+    if (asJson) {
+      return new Response(JSON.stringify(found), { status: "error" in found ? 502 : 200, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" } });
+    }
+    const scene = sceneFor(email, role, readFlash(request.headers.get("cookie"), secret, now), from);
+    return scene.show(libraryPage(found, collection, q));
+  }
+
   function sceneFor(email: string, role: string | null, flash: Flash | null, from: HostClient): Scene {
     return {
       role,
@@ -143,27 +212,58 @@ export function createApp(options: AppOptions = {}): (request: Request) => Promi
     };
   }
 
+  /**
+   * A person who is signed in on the site but has no editor session yet: the site's own session
+   * cookie says who they are (it is the host's account token, checked here with the shared secret),
+   * and the membership list says whether they may edit. This is how a person who may edit but not
+   * administer the site arrives, since the site's admin pages send only administrators on. An
+   * admitted person gets their session and the page they asked for; one who is not is told so.
+   */
+  async function enterFromSite(request: Request, url: URL): Promise<Response | null> {
+    if (request.method !== "GET") return null;
+    const name = resolveAccountCookieName(process.env.HECKS_SESSION_COOKIE || EDITOR.hostCookie);
+    const claims = accountFromCookieHeader(request.headers.get("cookie"), secret, { cookieName: name, now, normalizeEmail: true });
+    if (!claims) return null;
+    if (!(await membership.isAdmitted(claims.email))) {
+      const words = `You are signed in as ${claims.email}, which is not allowed to edit here. Ask someone who runs the site to add you as an editor, then come back.`;
+      return anonymous(notFound(words, "You cannot sign in here"), 403);
+    }
+    return redirect(`${url.pathname}${url.search}`, 303, sessionCookie(signSession(secret, claims.email, now)));
+  }
+
   async function handle(request: Request): Promise<Response> {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, "") || "/";
     if (path === EDITOR.ssoPath) return enter(url, secret, membership, now);
+    if (EDITOR.landing && path === EDITOR.landing) return redirect(href(), 303);
     if (path !== EDITOR.basePath && !path.startsWith(`${EDITOR.basePath}/`)) return anonymous(notFound(path), 404);
     if (path === href("logout") && request.method === "POST") return signOut(request);
 
     const email = readSession(request.headers.get("cookie"), secret, now);
+    if (!email) {
+      const entered = await enterFromSite(request, url);
+      if (entered) return entered;
+    }
+    if (EDITOR.signIn && path === href("login") && request.method === "GET") {
+      if (email && (await membership.isAdmitted(email))) return redirect(href(), 303);
+      return new Response(loginPage((url.searchParams.get("note") as LoginNote | null) ?? null), { status: 200, headers: PAGE_HEADERS });
+    }
     if (!email || !(await membership.isAdmitted(email))) {
-      return request.method === "GET" ? redirect(EDITOR.login, 302) : plain("Sign in again.", 403);
+      return request.method === "GET" ? redirect(EDITOR.signIn ? href("login") : EDITOR.login, 302) : plain("Sign in again.", 403);
     }
     if (request.method === "POST" && !sameSite(request)) return plain("Cross-site post refused.", 403);
     const segments = path.slice(EDITOR.basePath.length).split("/").filter(Boolean).map(decodeURIComponent);
+    if (segments[0] === "upload" && segments.length === 2) return upload(email, request, segments[1]);
     const role = membership.roleOf ? await membership.roleOf(email) : null;
+    if (segments[0] === "library" && request.method === "GET" && EDITOR.upload) return libraryView(email, role, request, url);
+    if (segments[0] === "people" && EDITOR.members) return peopleView(email, role, request, segments);
     if (segments[0] === "media") {
       if (!mediaOpen(role)) return plain("Pictures are not open to your role.", 403);
       return media(client, request, segments.slice(1));
     }
     const reader = request.method === "GET" ? reading(client) : client;
     const scene = sceneFor(email, role, readFlash(request.headers.get("cookie"), secret, now), reader);
-    return route(reader, request, url, segments, scene);
+    return actor.run({ email }, () => route(reader, request, url, segments, scene));
   }
 
   return async (request) => {
@@ -184,7 +284,9 @@ function anonymous(body: string, status: number): Response {
 /** Ends the session: the cookie is cleared and the person is sent to the site's login page. */
 function signOut(request: Request): Response {
   if (!sameSite(request)) return plain("Cross-site post refused.", 403);
-  return redirect(EDITOR.login, 303, clearedCookie());
+  // The site's own sign-in cookie goes too, or the next visit would walk straight back in through it.
+  const host = `${resolveAccountCookieName(process.env.HECKS_SESSION_COOKIE || EDITOR.hostCookie)}=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax`;
+  return redirect(EDITOR.signIn ? `${href("login")}?note=signed-out` : EDITOR.login, 303, clearedCookie(), host);
 }
 
 async function enter(url: URL, secret: string, membership: Membership, now: () => number): Promise<Response> {
@@ -196,6 +298,7 @@ async function enter(url: URL, secret: string, membership: Membership, now: () =
 function route(client: HostClient, request: Request, url: URL, segments: string[], scene: Scene): Promise<Response> | Response {
   if (segments.length === 0) return homeView(client, scene);
   if (segments[0] === "assets" && segments.length === 2 && request.method === "GET") return serveAsset(segments[1], request);
+  if (segments[0] === "help" && segments.length === 1 && request.method === "GET") return scene.show(helpPage());
   if (segments[0] === "scheduled" && segments.length === 1 && request.method === "GET" && SCHEMA.scheduling) return scheduledView(client, scene);
   const { agg, rest: [verb, ...rest] } = locate(segments);
   if (!agg) return scene.show(notFound(`No aggregate ${segments.slice(0, SCHEMA.chapters ? 2 : 1).join("/")}.`), 404);
@@ -203,6 +306,10 @@ function route(client: HostClient, request: Request, url: URL, segments: string[
   if (verb === undefined) return list(client, agg, url, scene);
   if (verb === "id" && rest.length === 1 && request.method === "GET") return detail(client, agg, rest[0], null, scene);
   if (verb === "id" && rest.length === 2 && request.method === "GET") return instanceView(client, agg, rest[0], rest[1], url, scene);
+  if (verb === "id" && rest.length === 2 && rest[1] === "restore" && request.method === "POST") return restore(client, request, agg, rest[0], scene);
+  if (request.method === "POST" && rest.at(-1) === "preview" && ((verb === "id" && rest.length === 2) || (verb === "new" && rest.length === 2))) {
+    return approximate(client, request, agg, verb === "id" ? rest[0] : null, scene);
+  }
   if (request.method === "POST") return post(client, request, agg, verb, rest, scene);
   if ((verb === "new" || verb === "run") && rest.length === 1) return commandView(client, agg, verb, rest[0], url, scene);
   return scene.show(notFound(`No page ${segments.join("/")}.`), 404);
@@ -274,6 +381,10 @@ const refused = (agg: Aggregate, command: Command): Flash => ({ kind: "error", m
 /** What a page of one record may read of the rest of the domain, from the read the page already made. */
 async function worldFor(client: HostClient, answer: Answer, role: string | null, record?: { agg: Aggregate; id: string }): Promise<World> {
   const world: World = { role, lookup: (agg, id) => instanceIn(client, answer, agg, id), rows: (agg) => client.instancesOf(answer, qualified(agg)) };
+  if (record) {
+    const own = instanceIn(client, answer, record.agg, record.id) ?? {};
+    world.history = entriesFor([{ aggregate: qualified(record.agg), id: record.id }, ...companionRecords(record.agg, record.id, own, role)]);
+  }
   const asked = record && schedules(record.agg, role) ? subjectQuery(record.agg, record.id) : null;
   const sched = schedulingAggregate();
   if (!asked || !sched) return world;
@@ -311,7 +422,7 @@ async function instanceView(client: HostClient, agg: Aggregate, id: string, name
   const command = commandFor(agg, "id", name);
   if (!command || !available(agg, command, values)) return scene.show(notFound(`${name} does not apply to ${id} now.`), 404);
   const choices = await choicesFor(client, agg, command.attributes);
-  return scene.show(instanceCommandPage(agg, id, command, values, null, choices, backOf(url.searchParams.get("_back"))));
+  return scene.show(instanceCommandPage(agg, id, command, values, null, choices, backOf(url.searchParams.get("_back")), await boxesFor(client, agg, command, scene.role, id)));
 }
 
 /** A command's page; a link may fill its inputs from the address and name the page to return to. */
@@ -320,7 +431,8 @@ async function commandView(client: HostClient, agg: Aggregate, verb: string, nam
   if (!command) return scene.show(notFound(`No command ${name}.`), 404);
   const state = commandArguments(agg, command.attributes, parseForm(url.search.slice(1)));
   const back = backOf(url.searchParams.get("_back"));
-  return scene.show(commandPage(agg, command, href(...at(agg), verb, name), null, await choicesFor(client, agg, command.attributes), { state, back }));
+  const texts = await boxesFor(client, agg, command, scene.role);
+  return scene.show(commandPage(agg, command, href(...at(agg), verb, name), null, await choicesFor(client, agg, command.attributes), { state, back, texts }));
 }
 
 /** The command a `new` (creating) or `run` (acting on another aggregate) path names, or null. */
@@ -336,6 +448,11 @@ function commandFor(agg: Aggregate, verb: string, name: string): Command | null 
 async function unchecked(client: HostClient, agg: Aggregate, command: Command, args: State): Promise<{ ok: false; message: string; field: string } | null> {
   const problem = await unknownKey(client, agg, command.attributes, args);
   return problem ? { ok: false, message: problem.message, field: problem.field } : null;
+}
+
+/** What a form is refused for before it is sent: a key a picker names that is not there, an address already held, a range that ends before it starts. */
+async function beforeSending(client: HostClient, agg: Aggregate, command: Command, args: State): Promise<{ ok: false; message: string; field?: string; problems?: Problem[] } | null> {
+  return (await unchecked(client, agg, command, args)) ?? backwards(agg, command, args) ?? (await duplicate(client, agg, command, args));
 }
 
 /** The scheduled-action record the editor makes itself: a creating command gets an identity nobody typed. */
@@ -366,6 +483,71 @@ function afterwards(agg: Aggregate, command: Command, again: boolean, id: string
   return command.creates && again ? href(...at(agg), "new", command.name) : href(...at(agg), "id", id);
 }
 
+/** The text boxes of a command's form, each with what its companion holds now for the record `id`. */
+async function boxesFor(client: HostClient, agg: Aggregate, command: Command, role: string | null, id?: string): Promise<NonNullable<Parameters<typeof instanceCommandPage>[7]>> {
+  const texts = textsFor(agg, command, role);
+  if (texts.length === 0) return [];
+  const held = id ? currentTexts(client, await client.read(), agg, id, texts) : {};
+  return texts.map((text) => ({ index: text.index, label: text.label, help: text.help, attr: text.attr, target: text.target, value: held[inputName(text.index)] ?? "" }));
+}
+
+/** What the person typed in the text boxes, to put back on a form that is shown again. */
+function typedTexts(form: Form): State {
+  return Object.fromEntries([...form].filter(([key]) => key.startsWith("__text.")));
+}
+
+/**
+ * The page after a record was kept but its text was refused: the form that edits the record, with
+ * the text the person typed still in its box, said plainly: the record is saved, the text is not.
+ */
+async function textRefused(client: HostClient, agg: Aggregate, id: string, unsaved: Unsaved[], form: Form, scene: Scene, back: Back | null): Promise<Response> {
+  const first = unsaved[0];
+  const words = first.text.label.toLowerCase();
+  const message = `The ${nameOf(agg)} was saved, but its ${words} was not. ${first.message}`;
+  const flash: Flash = { kind: "error", message };
+  const editor = editing(agg);
+  const values = instanceIn(client, await client.read(), agg, id);
+  if (!editor || !values) return scene.sent(href(...at(agg), "id", id), message);
+  const shown: Submitted = { command: editor.name, message, values: { ...values, ...typedTexts(form) }, textField: inputName(first.text.index), textMessage: first.message };
+  const boxes = await boxesFor(client, agg, editor, scene.role, id);
+  return scene.show(instanceCommandPage(agg, id, editor, values, shown, await choicesFor(client, agg, editor.attributes), back, boxes), 422, flash);
+}
+
+/**
+ * The editor's own, approximate preview of what a form holds: the arguments as they would be sent,
+ * over the record as it is now, with the texts typed beside it. Nothing is sent to the domain.
+ */
+async function approximate(client: HostClient, request: Request, agg: Aggregate, id: string | null, scene: Scene): Promise<Response> {
+  const form = parseForm(await request.text());
+  const command = agg.commands.find((candidate) => candidate.name === form.get("__previewcmd")) ?? editing(agg);
+  if (!command) return scene.show(notFound("This cannot be previewed."), 404);
+  const args = commandArguments(agg, command.attributes, form, command.empty, scene.now);
+  const current = id ? (instanceIn(client, await client.read(), agg, id) ?? {}) : {};
+  const values: State = { ...current, ...args };
+  const answer = id ? await client.read() : null;
+  const held = id && answer ? currentTexts(client, answer, agg, id, textsFor(agg, command, scene.role)) : {};
+  const texts = textsFor(agg, command, scene.role).map((text) => ({ label: text.label, value: form.get(inputName(text.index)) ?? held[inputName(text.index)] ?? "" }));
+  return scene.show(approximatePage(agg, id, values, texts));
+}
+
+/**
+ * Puts a record back as it was before one of the changes listed in its History: the change's own
+ * editing command is sent the values the record held, so the domain's rules apply as to any save,
+ * and the restore is itself listed.
+ */
+async function restore(client: HostClient, request: Request, agg: Aggregate, id: string, scene: Scene): Promise<Response> {
+  const form = parseForm(await request.text());
+  const entry = entryOf(form.get("__entry") ?? "");
+  const back = backOf(form.get("__back")) ?? { path: href(...at(agg), "id", id), label: id };
+  const found = entry && entry.id === id ? restoreCommand(entry) : null;
+  if (!entry || !found || found.agg.name !== agg.name) return scene.sent(back.path, "That change cannot be put back.");
+  const values = instanceIn(client, await client.read(), found.agg, id);
+  if (!values) return scene.sent(back.path, "That record is not here any more.");
+  if (alreadyThat(entry, found.command, values)) return scene.sent(back.path, "It already says that; nothing was changed.");
+  const outcome = await runCommand(client, found.agg, found.command, restoreArguments(entry, found.command), id, { restores: entry.n });
+  return scene.sent(back.path, outcome.ok ? "Put back as it was." : `It could not be put back: ${outcome.message}`);
+}
+
 async function post(client: HostClient, request: Request, agg: Aggregate, verb: string, rest: string[], scene: Scene): Promise<Response> {
   const onInstance = verb === "id" && rest.length === 2;
   const command = onInstance ? commandFor(agg, "id", rest[1]) : rest.length === 1 ? commandFor(agg, verb, rest[0]) : null;
@@ -375,13 +557,18 @@ async function post(client: HostClient, request: Request, agg: Aggregate, verb: 
   const to = onInstance ? rest[0] : command.creates ? undefined : (form.get("__to") ?? "");
   if (request.headers.get("x-editor-autosave") === "1") return autosave(client, agg, command, args, to);
   const missing = unfilled(command.attributes, args);
-  const outcome = to === "" ? { ok: false as const, message: "Name the instance to act on." } : (missing ? { ok: false as const, ...missing } : ((await unchecked(client, agg, command, args)) ?? (await runCommand(client, agg, command, args, to))));
+  const outcome = to === "" ? { ok: false as const, message: "Name the instance to act on." } : (missing ? { ok: false as const, ...missing } : ((await beforeSending(client, agg, command, args)) ?? (await runCommand(client, agg, command, args, to))));
   const back = backOf(form.get("__back"));
-  if (outcome.ok) return scene.sent(afterwards(agg, command, form.get("__again") === "1", outcome.id, back), done(agg, command));
-  const shown: Submitted = { command: command.name, message: outcome.message, values: { ...args, __to: to }, field: outcome.field, problems: "problems" in outcome ? outcome.problems : undefined };
+  if (outcome.ok) {
+    const unsaved = await saveTexts(client, agg, outcome.id, textsFor(agg, command, scene.role), form, scene.now);
+    if (unsaved.length > 0) return textRefused(client, agg, outcome.id, unsaved, form, scene, back);
+    return scene.sent(afterwards(agg, command, form.get("__again") === "1", outcome.id, back), done(agg, command));
+  }
+  const shown: Submitted = { command: command.name, message: outcome.message, values: { ...args, ...typedTexts(form), __to: to }, field: outcome.field, problems: "problems" in outcome ? outcome.problems : undefined };
   if (onInstance) return refusedOnInstance(client, agg, rest[0], command, shown, scene, back);
   const choices = await choicesFor(client, agg, command.attributes);
-  return scene.show(commandPage(agg, command, href(...at(agg), verb, command.name), shown, choices, { back }), 422, refused(agg, command));
+  const texts = await boxesFor(client, agg, command, scene.role);
+  return scene.show(commandPage(agg, command, href(...at(agg), verb, command.name), shown, choices, { back, texts }), 422, refused(agg, command));
 }
 
 /** The refusal of a command run on one instance: shown on its form, or on the page it was run from. */
@@ -389,5 +576,6 @@ async function refusedOnInstance(client: HostClient, agg: Aggregate, id: string,
   if (!needsPage(command)) return detail(client, agg, id, shown, scene, 422);
   const values = instanceIn(client, await client.read(), agg, id);
   if (!values) return scene.show(notFound(`No ${agg.name} ${id}.`), 404);
-  return scene.show(instanceCommandPage(agg, id, command, values, shown, await choicesFor(client, agg, command.attributes), back), 422, refused(agg, command));
+  const texts = await boxesFor(client, agg, command, scene.role, id);
+  return scene.show(instanceCommandPage(agg, id, command, values, shown, await choicesFor(client, agg, command.attributes), back, texts), 422, refused(agg, command));
 }

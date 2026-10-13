@@ -38,3 +38,26 @@ export function fromWall(wall: string, zone: string): string {
 export function zoneNote(zone: string): string {
   return zone === "Z" ? "Time is UTC." : `Time is in the center's zone (UTC${zone}).`;
 }
+
+/** The ISO instant (UTC, whole seconds) of a moment held as whole seconds since 1970. */
+const isoOf = (seconds: number): string => new Date(seconds * 1000).toISOString().replace(".000Z", "Z");
+
+/** The wall-clock time in `zone` of a moment held as whole seconds, as a `datetime-local` input holds it. */
+export const wallOfSeconds = (seconds: number, zone: string): string => toWall(isoOf(seconds), zone) ?? "";
+
+/** The whole seconds a wall-clock time in `zone` stands for, or null when it is not a moment. */
+export function secondsOfWall(wall: string, zone: string): number | null {
+  if (!WALL.test(wall)) return null;
+  const at = Date.parse(fromWall(wall, zone));
+  return Number.isNaN(at) ? null : Math.floor(at / 1000);
+}
+
+/** A moment held as whole seconds, read as the clock of `zone` says: "Fri, Oct 16, 2026, 9:00 AM". */
+export function zonedWords(seconds: number, zone: string): string {
+  const wall = wallOfSeconds(seconds, zone);
+  const at = new Date(`${wall}:00Z`);
+  return at.toLocaleString("en-US", { timeZone: "UTC", weekday: "short", year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
+/** The name of a zone as a person reads it after a time: `UTC` or `UTC-07:00`. */
+export const zoneName = (zone: string): string => (zone === "Z" ? "UTC" : `UTC${zone}`);

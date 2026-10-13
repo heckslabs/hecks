@@ -34,3 +34,11 @@ export function locate(segments: string[]): { agg: Aggregate | undefined; rest: 
 
 /** Whether a person in `role` may edit `agg`: every role may, unless its chapter limits them. */
 export const mayEdit = (agg: Aggregate, role: string | null): boolean => !agg.roles || (role !== null && agg.roles.includes(role));
+
+/** The words a record is called by: its title, name or label when it has a plain one, else its identity. */
+export function instanceTitle(agg: Aggregate, id: string, state: Record<string, unknown>): string {
+  const own = agg.attributes.find((attr) => ["title", "name", "label"].includes(attr.name) && !attr.list && attr.widget !== "body");
+  const held = own ? state[own.name] : undefined;
+  const text = held && typeof held === "object" ? String(Object.values(held as object).find((part) => part !== null && part !== undefined) ?? "") : String(held ?? "");
+  return text === "" ? id : text;
+}

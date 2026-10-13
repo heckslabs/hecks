@@ -57,12 +57,23 @@ const dueIn = (spec: Scheduling, row: State): number | null => secondsOf(row[spe
 /** Soonest first; an action with no readable time goes last. */
 const soonest = (spec: Scheduling) => (a: Row, b: Row): number => (dueIn(spec, a[1]) ?? Infinity) - (dueIn(spec, b[1]) ?? Infinity);
 
-const when = (spec: Scheduling, row: State): string => {
-  const seconds = dueIn(spec, row);
-  return seconds === null ? `<span class="text-muted">No time set</span>` : momentTime(seconds, "datetime");
+/** The zone the due time is entered in, when the route chapter's row names one for it. */
+const dueZone = (sched: Aggregate, spec: Scheduling): string | undefined => {
+  const attr = sched.attributes.find((candidate) => candidate.name === spec.due);
+  return attr?.wall ?? (attr ? (sched.valueObjects[attr.type] ?? []).find((part) => part.wall !== undefined)?.wall : undefined);
 };
 
-const actionText = (spec: Scheduling, row: State): string => label(plainText(row[spec.action]));
+const when = (sched: Aggregate, spec: Scheduling, row: State): string => {
+  const seconds = dueIn(spec, row);
+  return seconds === null ? `<span class="text-muted">No time set</span>` : momentTime(seconds, "datetime", dueZone(sched, spec));
+};
+
+/** What an action is called: the words its row gives the choice, else the choice made readable. */
+const actionText = (spec: Scheduling, row: State): string => {
+  const word = plainText(row[spec.action]);
+  const attr = schedulingAggregate()?.attributes.find((candidate) => candidate.name === spec.action);
+  return attr?.optionLabels?.[word] ?? label(word);
+};
 
 function command(sched: Aggregate, name: string | undefined): Command | undefined {
   return sched.commands.find((candidate) => candidate.name === name);
@@ -85,7 +96,7 @@ function pendingList(sched: Aggregate, spec: Scheduling, rows: Row[], here: stri
   if (rows.length === 0) return `<p class="text-muted">Nothing is scheduled for this record.</p>`;
   const lines = rows.map(([id, row], index) => {
     const { buttons, dialog } = tools(sched, spec, id, row, here, index);
-    return `<li class="flex flex-wrap items-center gap-x-4 gap-y-2 py-3"><span class="font-semibold">${esc(actionText(spec, row))}</span><span>${when(spec, row)}</span><span class="ml-auto flex flex-wrap gap-2">${buttons}</span>${dialog}</li>`;
+    return `<li class="flex flex-wrap items-center gap-x-4 gap-y-2 py-3"><span class="font-semibold">${esc(actionText(spec, row))}</span><span>${when(sched, spec, row)}</span><span class="ml-auto flex flex-wrap gap-2">${buttons}</span>${dialog}</li>`;
   });
   return `<ul class="divide-y divide-base-300" aria-label="Pending actions">${lines.join("\n")}</ul>`;
 }
@@ -94,7 +105,7 @@ function pastList(sched: Aggregate, spec: Scheduling, rows: Row[]): string {
   if (rows.length === 0) return "";
   const lines = rows.map(([, row]) => {
     const reason = spec.reason && plainText(row[spec.reason]) !== "" ? `<span class="basis-full text-sm text-muted">${esc(plainText(row[spec.reason]))}</span>` : "";
-    return `<li class="flex flex-wrap items-center gap-x-4 gap-y-1 py-2"><span>${esc(actionText(spec, row))}</span><span>${when(spec, row)}</span>${statusBadge(sched, stateOf(sched, row))}${reason}</li>`;
+    return `<li class="flex flex-wrap items-center gap-x-4 gap-y-1 py-2"><span>${esc(actionText(spec, row))}</span><span>${when(sched, spec, row)}</span>${statusBadge(sched, stateOf(sched, row))}${reason}</li>`;
   });
   return `<h3 class="mb-1 mt-6 text-sm">Earlier</h3>\n<ul class="divide-y divide-base-300" aria-label="Earlier actions">${lines.join("\n")}</ul>`;
 }
@@ -115,6 +126,14 @@ ${fields(sched, asked, {}, null, true, {})}
 </form>`;
 }
 
+/** What the panel says about when a saved action happens: the editor's own runner, or something outside. */
+function runsNote(noun: string): string {
+  if (SCHEMA.scheduling?.runs?.length) {
+    return `An action saved here is done by this editor when its time comes, within a minute or so of it. Until then this ${noun} stays as it is. Cancel or change the time while it is waiting.`;
+  }
+  return `Actions saved here are run later, at the time you choose, by something outside this editor. Saving, changing or cancelling one here never publishes or changes this ${noun} itself.`;
+}
+
 /** The Schedule panel of a record: its pending actions, a form to add one, and the ones that have ended. */
 export function schedulePanel(agg: Aggregate, id: string, world: World, here: string): string {
   const found = scheduler();
@@ -126,7 +145,7 @@ export function schedulePanel(agg: Aggregate, id: string, world: World, here: st
   const ended = rows.filter(([, row]) => stateOf(sched, row) !== spec.pending).sort((a, b) => soonest(spec)(b, a)).slice(0, 10);
   return `<section class="border border-base-300 bg-base-100 p-4 sm:p-6" aria-labelledby="schedule-title">
 <h2 id="schedule-title" class="text-lg">Schedule</h2>
-<p class="mb-4 mt-1 max-w-prose text-sm text-muted">Actions saved here are run later, at the time you choose, by something outside this editor. Saving, changing or cancelling one here never publishes or changes this ${esc(singular(agg.name))} itself.</p>
+<p class="mb-4 mt-1 max-w-prose text-sm text-muted">${esc(runsNote(singular(agg.name)))}</p>
 ${pendingList(sched, spec, pending, here)}
 ${addForm(sched, spec, key, here)}
 ${pastList(sched, spec, ended)}
@@ -140,7 +159,10 @@ function subjectLink(key: string, sched: Aggregate, spec: Scheduling, world: Wor
   const target = (subject?.picker?.kinds ?? []).find((candidate) => candidate.kind === kind && candidate.target);
   const aggregate = target && SCHEMA.aggregates.find((candidate) => candidate.name === target.target && candidate.chapter === target.chapter);
   const id = aggregate && [key.slice(kind.length + 1), key].find((candidate) => world.lookup(aggregate, candidate));
-  return aggregate && id ? `<a class="link" href="${esc(href(...at(aggregate), "id", id))}">${esc(key)}</a>` : esc(key);
+  const values = aggregate && id ? world.lookup(aggregate, id) : undefined;
+  const namer = aggregate?.attributes.find((attr) => ["title", "name", "label"].includes(attr.name));
+  const words = namer && values ? plainText(values[namer.name]) : "";
+  return aggregate && id ? `<a class="link" href="${esc(href(...at(aggregate), "id", id))}">${esc(words || key)}</a>` : esc(key);
 }
 
 /** Every pending action, soonest first, with the record each is for and the buttons that change it. */
@@ -153,7 +175,7 @@ export function scheduledTable(world: World, here: string): string {
   const lines = rows.map(([id, row], index) => {
     const { buttons, dialog } = tools(sched, spec, id, row, here, index);
     const key = plainText(row[spec.subject]);
-    return `<tr><td>${when(spec, row)}</td><td>${esc(actionText(spec, row))}</td><td class="break-all">${subjectLink(key, sched, spec, world)}</td><td><div class="flex flex-wrap justify-end gap-2">${buttons}</div>${dialog}</td></tr>`;
+    return `<tr><td>${when(sched, spec, row)}</td><td>${esc(actionText(spec, row))}</td><td class="break-all">${subjectLink(key, sched, spec, world)}</td><td><div class="flex flex-wrap justify-end gap-2">${buttons}</div>${dialog}</td></tr>`;
   });
   const head = `<tr><th scope="col">When</th><th scope="col">Action</th><th scope="col">For</th><th scope="col"><span class="sr-only">Change</span></th></tr>`;
   return `<div class="overflow-x-auto border border-base-300 bg-base-100"><table class="table"><thead>${head}</thead><tbody>${lines.join("\n")}</tbody></table></div>`;

@@ -108,9 +108,12 @@ module Hecks
           # @return [Hash{String => String}] `complete` and `fail`, each only when found
           def settling(agg, reason)
             moves = agg["commands"].select { |cmd| !cmd["creates"] && !cmd["destructive"] && ends?(agg, cmd) }
-            done = moves.find { |cmd| cmd["attributes"].empty? }
-            failed = reason && moves.find { |cmd| cmd["attributes"].map { |attr| attr["name"] } == [reason] }
-            { "complete" => done&.fetch("name"), "fail" => failed&.fetch("name") }.compact
+            { "complete" => taking(moves, []), "fail" => (taking(moves, [reason]) if reason) }.compact
+          end
+
+          # @return [String, nil] the first of `moves` whose attributes are exactly `names`
+          def taking(moves, names)
+            moves.find { |cmd| cmd["attributes"].map { |attr| attr["name"] } == names }&.fetch("name")
           end
 
           # @return [String, nil] the command on a record, not a lifecycle move, that takes the

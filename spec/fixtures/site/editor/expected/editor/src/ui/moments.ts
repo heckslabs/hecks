@@ -8,6 +8,7 @@
 // date-and-time input and keeps the seconds in step.
 import type { Attr } from "../schema.ts";
 import { esc } from "./html.ts";
+import { zoneName, zonedWords } from "./wall.ts";
 
 /** Whether the attribute is a moment. */
 export const isMoment = (attr: Attr): boolean => attr.widget === "date" || attr.widget === "datetime";
@@ -26,9 +27,17 @@ export function utcText(seconds: number, mode: string): string {
   return mode === "date" ? iso.slice(0, 10) : `${iso.slice(0, 10)} ${iso.slice(11, 16)} UTC`;
 }
 
-/** A stored moment as a `time` element the script restates in the viewer's zone. */
-export function momentTime(seconds: number, mode: string): string {
+/**
+ * A stored moment as a `time` element the script restates in the viewer's zone, or, when the
+ * attribute names a zone, as the clock of that zone says (the script leaves it as written).
+ */
+export function momentTime(seconds: number, mode: string, zone?: string): string {
   const iso = new Date(seconds * 1000).toISOString();
+  if (zone !== undefined) {
+    const words = zonedWords(seconds, zone);
+    const shown = mode === "date" ? words.replace(/, \d{1,2}:\d\d [AP]M$/, "") : `${words} <span class="text-xs text-muted">${esc(zoneName(zone))}</span>`;
+    return `<time class="whitespace-nowrap" datetime="${esc(iso)}" data-epoch="${seconds}">${mode === "date" ? esc(shown) : shown}</time>`;
+  }
   return `<time class="whitespace-nowrap" datetime="${esc(iso)}" data-moment="${esc(mode)}" data-epoch="${seconds}">${esc(utcText(seconds, mode))}</time>`;
 }
 
@@ -37,7 +46,7 @@ export function momentValue(attr: Attr, value: unknown): string {
   const mode = attr.widget ?? "datetime";
   const seconds = (item: unknown): string => {
     const held = secondsOf(item);
-    return held === null ? `<span class="text-muted">Not set</span>` : momentTime(held, mode);
+    return held === null ? `<span class="text-muted">Not set</span>` : momentTime(held, mode, attr.wall);
   };
   if (Array.isArray(value)) return value.length === 0 ? `<span class="text-muted">None</span>` : value.map(seconds).join(", ");
   return seconds(value);

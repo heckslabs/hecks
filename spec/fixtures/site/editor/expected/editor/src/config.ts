@@ -17,13 +17,27 @@ export const EDITOR = {
   hostEnv: "PRESS_DOMAIN_SERVICE_URL",
   hostDefault: "http://127.0.0.1:4500",
   roles: ["Admin", "Owner"],
+  /** The roles that manage who may edit (the People screen). */
+  adminRoles: ["Admin", "Owner"] as readonly string[],
+  /** The address on the site's own origin that starts the host's sign-in, or null: the editor then has no sign-in page of its own. */
+  signIn: null as string | null,
+  /** The path the host sends a person to once Google signed them in; the edge routes it here and the editor sends them on to its home. */
+  landing: null as string | null,
   mediaDir: "media",
   mediaMaxBytes: 5242880,
   pageSize: 25,
+  /** The clock people read: the Editor row's zone, `Z` or an offset such as `-07:00`. */
+  zone: "Z" as string,
   /** Where a record is shown on the site, with `{key}`, `{kind}`, `{slug}` and `{id}`; null for no preview. */
   preview: null as string | null,
   /** `drawer` frames the site's page beside the record; `tab` opens it in a new tab (a site that will not be framed). */
   previewIn: "drawer" as "drawer" | "tab",
+  /** Where files are sent to be kept (the content system's API root and its address), or null for none. */
+  upload: null as { env: string; default: string; api: string } | null,
+  /** The aggregate of people who may edit, read over the host's own protocol, or null to ask the members list. */
+  members: null as { domain: string; aggregate: string; email: string; role: string } | null,
+  /** The site's own modules for reading and showing Markdown (see browser/markdown_site.js), or null. */
+  markdown: null as { parse: string; render: string } | null,
   accountPath: "/accounts/me",
   membersPath: "/members",
   rememberMs: 60000,

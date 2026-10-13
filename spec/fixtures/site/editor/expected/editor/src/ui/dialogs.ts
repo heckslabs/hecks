@@ -35,7 +35,7 @@ export function confirmDialog(agg: Aggregate, command: Command, action: string, 
   const owner = form ? ` form="${esc(form)}"` : "";
   const tone = asking.tone === "neutral" ? "btn btn-neutral" : "btn btn-error";
   const head = `<h2 id="${dialog}-title" class="text-xl">${what}?</h2>\n<p class="mt-2 text-muted">${detail}</p>`;
-  const dismiss = what === "Cancel" ? "Go back" : "Cancel";
+  const dismiss = /^Cancel\b/.test(what) ? "Go back" : "Cancel";
   const buttons = `<div class="modal-action"><button type="submit" class="btn btn-ghost" formmethod="dialog" formnovalidate>${dismiss}</button><button type="submit" class="${tone}"${owner}>${what}</button></div>`;
   const box = form ? `${head}\n${buttons}` : `<form method="post" action="${esc(action)}"${asking.flush ? " data-flush-draft" : ""}>\n${backInput(asking.back ?? null)}${head}\n${buttons}\n</form>`;
   const close = `<form method="dialog" class="modal-backdrop"><button aria-label="Close">close</button></form>`;
