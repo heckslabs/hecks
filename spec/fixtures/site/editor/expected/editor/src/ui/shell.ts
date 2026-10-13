@@ -100,7 +100,7 @@ function peopleLink(active: string | undefined): string {
 const helpLink = (active: string | undefined): string => navLink(href("help"), "Help", active === "__help");
 
 function navigation(active: string | undefined): string {
-  const sections = groups().map(([chapter, aggregates]) => {
+  const sections = groups().filter(([, aggregates]) => aggregates.length > 0).map(([chapter, aggregates]) => {
     const heading = `<li class="menu-title mt-4 px-3 text-muted">${chapter === null ? "Content" : esc(chapterTitle(chapter))}</li>`;
     const section = `${heading}\n${navItems(aggregates, active)}`;
     return chapter === null ? section : groupOf(chapter, section);
