@@ -60,7 +60,15 @@ export function showToast(kind, message, lifetime) {
   adopt(notice, lifetime ?? (kind === "error" ? 0 : LIFETIME));
 }
 
-/** Gives the notices the server rendered a close button and a lifetime. */
+/**
+ * Gives the notices the server rendered a close button and a lifetime. A page that arrives with a
+ * notice is the result of something the person did: focus goes to the content (not left at the top
+ * of the page, behind the navigation), where the notice's own announcement and the result are.
+ */
 export function adoptToasts() {
-  for (const notice of document.querySelectorAll("[data-toast]")) adopt(notice, notice.getAttribute("role") === "alert" ? 0 : LIFETIME);
+  const notices = [...document.querySelectorAll("[data-toast]")];
+  for (const notice of notices) adopt(notice, notice.getAttribute("role") === "alert" ? 0 : LIFETIME);
+  if (notices.length > 0 && (document.activeElement === document.body || document.activeElement === null)) {
+    document.getElementById("main")?.focus({ preventScroll: true });
+  }
 }

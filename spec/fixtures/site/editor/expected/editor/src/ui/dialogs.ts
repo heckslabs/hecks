@@ -31,7 +31,8 @@ export const dialogId = (command: Command, suffix = ""): string => `confirm-${co
 export function confirmDialog(agg: Aggregate, command: Command, action: string, id: string, form?: string, asking: Asking = {}): string {
   const dialog = dialogId(command, asking.suffix);
   const what = esc(asking.button ?? commandLabel(agg, command));
-  const detail = command.goal ? `${esc(command.goal)}.` : `This applies to ${esc(id)}.`;
+  const said = command.help ?? command.goal;
+  const detail = said ? `${esc(said.replace(/\.$/, ""))}.` : `This applies to ${esc(id)}.`;
   const owner = form ? ` form="${esc(form)}"` : "";
   const tone = asking.tone === "neutral" ? "btn btn-neutral" : "btn btn-error";
   const head = `<h2 id="${dialog}-title" class="text-xl">${what}?</h2>\n<p class="mt-2 text-muted">${detail}</p>`;

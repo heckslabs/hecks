@@ -124,6 +124,21 @@ function mount(root) {
   row.setAttribute("data-upload-made", "");
   address.closest("div[data-upload]").insertBefore(row, address.nextSibling);
 
+  // A picture that is one group (file, description, caption) has its description beside the file. The
+  // person describes a picture once: what is typed in either place is the other's, and a picture
+  // chosen from the library brings its own description.
+  const groupAlt = () => {
+    const group = address.closest("[data-picture]");
+    if (group) return group.querySelector(`[name="${CSS.escape(group.dataset.alt)}"]`);
+    const own = document.getElementById(address.id.replace(/media-ref$/, "alt"));
+    return own && own !== address ? own : null;
+  };
+  const setAlt = (words) => {
+    const alt = groupAlt();
+    if (!alt || words === "") return;
+    alt.value = words;
+    alt.dispatchEvent(new Event("input", { bubbles: true }));
+  };
   let staged = null;
   let objectUrl = null;
   const say = (text, tone = "") => {
@@ -181,6 +196,8 @@ function mount(root) {
     altLabel.hidden = false;
     sendButton.hidden = false;
     cancel.hidden = false;
+    const already = groupAlt()?.value.trim() ?? "";
+    if (already !== "") altBox.value = already;
     altBox.focus();
   });
 
@@ -202,12 +219,8 @@ function mount(root) {
       const made = await send(root.dataset.endpoint, staged, words, (fraction) => { progress.value = fraction; });
       address.value = made.address;
       address.dispatchEvent(new Event("input", { bubbles: true }));
-      // A picture that sits beside a description of its own (a `media_ref` and its `alt`) takes the words just given.
-      const own = document.getElementById(address.id.replace(/media-ref$/, "alt"));
-      if (own && own !== address && own.value.trim() === "") {
-        own.value = words;
-        own.dispatchEvent(new Event("input", { bubbles: true }));
-      }
+      // The description just given is the picture's own description beside it.
+      setAlt(words);
       forget();
       showHeld();
       say(`Uploaded. Save the form to put it on the site.`, "ok");
@@ -223,6 +236,7 @@ function mount(root) {
     forget();
     address.value = item.address;
     address.dispatchEvent(new Event("input", { bubbles: true }));
+    setAlt((item.alt ?? "").trim());
     showHeld();
     current.textContent = `Now: ${item.filename}${item.alt ? ` (described as: ${item.alt})` : ""}`;
     say("Chosen. Save the form to put it on the site.", "ok");

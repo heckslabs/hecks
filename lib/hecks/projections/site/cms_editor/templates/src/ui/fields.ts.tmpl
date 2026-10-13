@@ -249,7 +249,14 @@ function plainOf(attr: Attr, part: Attr, name: string): Attr {
 function parts(agg: Aggregate, attr: Attr, name: string, value: Value, context: Context): string {
   const members = agg.valueObjects[attr.type] ?? [];
   const inside = { ...context, top: false, mark: context.mark && !attr.optional };
-  return members.map((part) => field(agg, part, member(value, part.name), `${name}.`, inside)).join("\n");
+  const draw = (part: Attr): string => field(agg, part, member(value, part.name), `${name}.`, inside);
+  // A part the rows keep behind "More options" folds at its own level too, not only at the form's top.
+  const rare = members.filter((part) => part.advanced === true);
+  const shown = members.filter((part) => !rare.includes(part)).map(draw);
+  const folded = rare.map(draw).join("\n");
+  const open = folded.includes('aria-invalid="true"') ? " open" : "";
+  const behind = folded === "" ? [] : [`<details class="mt-4 border-t border-base-300 pt-3" data-advanced${open}><summary class="cursor-pointer font-semibold">More options</summary>\n${folded}\n</details>`];
+  return [...shown, ...behind].join("\n");
 }
 
 /** The words of the refusal about the value object at `name` as a whole, or about one of its parts by name. */

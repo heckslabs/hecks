@@ -14,7 +14,8 @@ module Hecks
         # its name; `<Image|Picture|Photo|Media>Ref` with a picture aggregate, which suggests
         # pictures and accepts any other text; and a one-part value object spelled as another
         # aggregate's identity, never an aggregate's own. A target is found once: the same
-        # chapter's, else the only one of its name; else none.
+        # chapter's, else the only one of its name; else none. An attribute a page's start copies from
+        # its `titles` aggregate (`starts`, see `Words::Families`) is a new value, not a choice.
         module Pickers
           # The stems that name a picture, for the editor's picture aggregate.
           PICTURE_STEMS = %w[Image Picture Photo Media].freeze
@@ -55,6 +56,7 @@ module Hecks
           end
 
           def picker_for(attr, agg, targets)
+            return nil if attr["starts"]
             return targets.chosen(attr["picks"], agg) if attr["picks"]
             return kinds(attr["keys"], agg, targets) if attr["keys"]
             return targets.named(attr["target"], agg) if attr["kind"] == "reference"

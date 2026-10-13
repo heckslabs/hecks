@@ -11,7 +11,7 @@ import { SCHEMA } from "../schema.ts";
 import type { Aggregate, Attr, Command } from "../schema.ts";
 import { esc, href } from "./html.ts";
 import { momentTime } from "./moments.ts";
-import { labelOf } from "./words.ts";
+import { label, labelOf, nameOf } from "./words.ts";
 
 type State = Record<string, unknown>;
 
@@ -20,17 +20,99 @@ const SHOWN = 15;
 
 const aggregateOf = (name: string): Aggregate | undefined => SCHEMA.aggregates.find((agg) => qualified(agg) === name);
 
-/** The text a value says, for a line of "was ... now ...": one plain part, a count for a list, a clip of long text. */
-function brief(value: unknown): string {
-  if (value === null || value === undefined || value === "") return "nothing";
-  if (Array.isArray(value)) return value.length === 0 ? "nothing" : `${value.length} ${value.length === 1 ? "item" : "items"}`;
-  if (typeof value === "object") {
-    const parts = Object.values(value as object).filter((part) => part !== null && part !== undefined);
-    if (parts.length === 1 && typeof parts[0] !== "object") return brief(parts[0]);
-    return "changed";
+/** The most lines "What changed" lists for one attribute; the rest are counted. */
+const LINES = 6;
+
+/** The words of a value, in reading order: every `text` a document's blocks and spans hold, or a plain value's own. */
+function wordsOf(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value);
+  if (Array.isArray(value)) return value.map(wordsOf).filter((text) => text !== "").join(" ");
+  return Object.entries(value as object)
+    .filter(([key]) => !["kind", "style", "mark", "marks", "level", "ordered"].includes(key))
+    .map(([, part]) => wordsOf(part))
+    .filter((text) => text !== "")
+    .join(" ");
+}
+
+/** The first few words of some text, so a long text is recognised without being quoted whole. */
+function opening(text: string, most = 9): string {
+  const all = text.replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
+  if (all.length === 0) return "nothing";
+  return `\u201c${all.slice(0, most).join(" ")}${all.length > most ? "..." : ""}\u201d`;
+}
+
+/**
+ * What two texts began with, or, when they begin alike, what they say where they first part, so the
+ * two quotations differ: "was ...Opening hours changed, now ...Opening hours changed again".
+ */
+function parting(before: string, after: string, most = 9): [string, string] {
+  const words = (text: string): string[] => text.replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
+  const a = words(before);
+  const b = words(after);
+  let at = 0;
+  while (at < a.length && at < b.length && a[at] === b[at]) at += 1;
+  if (at < 3 || (at >= a.length && at >= b.length)) return [opening(before, most), opening(after, most)];
+  const from = at - 2;
+  const quote = (list: string[]): string => {
+    const part = list.slice(from, from + most);
+    return part.length === 0 ? "nothing" : `\u201c...${part.join(" ")}${list.length > from + most ? "..." : ""}\u201d`;
+  };
+  return [quote(a), quote(b)];
+}
+
+/** Whether a value is a written document: blocks of spans. */
+const isDocument = (value: unknown): boolean => value !== null && typeof value === "object" && Array.isArray((value as { blocks?: unknown }).blocks);
+
+/** A value object that holds one plain part is that part's value. */
+function unwrap(value: unknown): unknown {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const parts = Object.entries(value as object).filter(([, part]) => part !== null && part !== undefined);
+    if (parts.length === 1 && typeof parts[0][1] !== "object") return parts[0][1];
   }
-  const text = String(value).replace(/\s+/g, " ").trim();
-  return text.length > 60 ? `${text.slice(0, 57)}...` : text;
+  return value;
+}
+
+/**
+ * What changed between two values of one slot, as short plain lines led by where it is: a text says
+ * the words it began with before and after, a written document says it was edited and shows the first
+ * paragraph that differs, a list says how many items and which of them changed. Never "changed".
+ */
+function describe(path: string, before: unknown, after: unknown, out: string[]): void {
+  const a = unwrap(before ?? null);
+  const b = unwrap(after ?? null);
+  if (sameValue(a, b)) return;
+  if (isDocument(a) || isDocument(b)) {
+    const was = ((a as { blocks?: unknown[] } | null)?.blocks ?? []) as unknown[];
+    const now = ((b as { blocks?: unknown[] } | null)?.blocks ?? []) as unknown[];
+    const at = Array.from({ length: Math.max(was.length, now.length) }, (_, index) => index).find((index) => !sameValue(was[index] ?? null, now[index] ?? null)) ?? 0;
+    const where = was.length === 0 || now.length === 0 ? "" : ` (paragraph ${at + 1})`;
+    const [first, second] = parting(wordsOf(was[at]), wordsOf(now[at]));
+    out.push(`${path}: rich text edited${where}: was ${first}, now ${second}`);
+    return;
+  }
+  if (Array.isArray(a) || Array.isArray(b)) {
+    const was = Array.isArray(a) ? a : [];
+    const now = Array.isArray(b) ? b : [];
+    if (was.length !== now.length) out.push(`${path}: ${was.length} ${was.length === 1 ? "item" : "items"} before, ${now.length} now`);
+    for (let index = 0; index < Math.min(was.length, now.length); index += 1) describe(`${path}, item ${index + 1}`, was[index], now[index], out);
+    return;
+  }
+  if (a !== null && b !== null && typeof a === "object" && typeof b === "object") {
+    const keys = [...new Set([...Object.keys(a as object), ...Object.keys(b as object)])];
+    for (const key of keys) describe(`${path}, ${label(key).toLowerCase()}`, (a as State)[key], (b as State)[key], out);
+    return;
+  }
+  if (typeof a === "object" || typeof b === "object") {
+    out.push(`${path}: ${a === null ? "added" : b === null ? "removed" : "changed"}: was ${opening(wordsOf(a))}, now ${opening(wordsOf(b))}`);
+    return;
+  }
+  const long = [a, b].some((value) => String(value ?? "").length > 60 || String(value ?? "").includes("\n"));
+  if (long) {
+    const [first, second] = parting(String(a ?? ""), String(b ?? ""));
+    out.push(`${path}: text edited: was ${first}, now ${second}`);
+  }
+  else out.push(`${path}: was ${a === null || a === "" ? "nothing" : `\u201c${a}\u201d`}, now ${b === null || b === "" ? "nothing" : `\u201c${b}\u201d`}`);
 }
 
 /** The attributes whose value differs between two states, in the aggregate's own order. */
@@ -77,10 +159,16 @@ function line(entry: Entry): string {
 function details(entry: Entry): string {
   const agg = aggregateOf(entry.aggregate);
   if (!agg || entry.before === null) return "";
-  const rows = changedAttrs(agg, entry.before, entry.after)
-    .map((attr) => `<li><span class="font-semibold">${esc(labelOf(attr))}</span>: was ${esc(brief(entry.before?.[attr.name]))}, now ${esc(brief(entry.after?.[attr.name]))}</li>`)
-    .join("");
-  return rows === "" ? "" : `<details class="basis-full text-sm"><summary class="cursor-pointer text-muted">What changed</summary><ul class="mt-1 list-disc pl-6">${rows}</ul></details>`;
+  const lines: string[] = [];
+  for (const attr of changedAttrs(agg, entry.before, entry.after)) {
+    const found: string[] = [];
+    describe(labelOf(attr), entry.before?.[attr.name], entry.after?.[attr.name], found);
+    lines.push(...(found.length > 0 ? found : [`${labelOf(attr)}: changed`]));
+  }
+  if (lines.length === 0) return "";
+  const shown = lines.slice(0, LINES).map((text) => `<li>${esc(text)}</li>`);
+  if (lines.length > LINES) shown.push(`<li class="text-muted">and ${lines.length - LINES} more ${lines.length - LINES === 1 ? "change" : "changes"}</li>`);
+  return `<details class="basis-full text-sm"><summary class="cursor-pointer text-muted">What changed</summary><ul class="mt-1 list-disc pl-6">${shown.join("")}</ul></details>`;
 }
 
 function who(entry: Entry): string {
@@ -103,7 +191,7 @@ export function historyPanel(agg: Aggregate, id: string, entries: Entry[]): stri
   const note = "Changes made through this editor, newest first. A change made another way (another system, a command line) is not listed here.";
   const body =
     entries.length === 0
-      ? `<p class="text-muted">No changes through this editor yet. Once this ${esc(agg.name.toLowerCase())} is changed here, who changed it and when will be listed.</p>`
+      ? `<p class="text-muted">No changes through this editor yet. Once this ${esc(nameOf(agg))} is changed here, who changed it and when will be listed.</p>`
       : `<ul class="divide-y divide-base-300" aria-label="Changes">${entries.slice(0, SHOWN).map((entry, index) => item(entry, agg, id, index === 0)).join("\n")}</ul>${entries.length > SHOWN ? `<p class="mt-2 text-sm text-muted">${entries.length - SHOWN} older ${entries.length - SHOWN === 1 ? "change is" : "changes are"} not shown.</p>` : ""}`;
   return `<section class="border border-base-300 bg-base-100 p-4 sm:p-6" aria-labelledby="history-title">
 <h2 id="history-title" class="text-lg">History</h2>

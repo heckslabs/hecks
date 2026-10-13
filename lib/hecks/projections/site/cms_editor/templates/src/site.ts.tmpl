@@ -1,0 +1,112 @@
+__BANNER__
+
+// Where the site shows a page, and which pages are hidden. A page of a family (the five types of a
+// page) is the record of the family's `titles` aggregate that shares its key; that record's lifecycle
+// says whether it shows, and the route chapter's `EditorPage` rows say where visitors reach it
+// (`SCHEMA.pages`). The editor answers `gate` for the edge: a page the person hid is "not found" at
+// every address its row names, whatever the site's own template for it would do.
+import type { Answer, HostClient } from "@hecks/client";
+
+import { aggregateOf, familyOf, keyOf, qualified, slugOf } from "./names.ts";
+import { SCHEMA } from "./schema.ts";
+import type { Aggregate, SitePageRow } from "./schema.ts";
+
+type State = Record<string, unknown>;
+
+/** The record that holds a page's facts (title, whether it shows), and the page's slug, for a record of a page family. */
+export interface PageRef {
+  titles: Aggregate;
+  slug: string;
+}
+
+/** The page a record is: a member of a page family (its key is `kind:<slug>`), or the family's `titles` record itself (its key is the slug). */
+export function pageOf(agg: Aggregate, id: string): PageRef | null {
+  const family = familyOf(agg);
+  const titles = family?.titles ? aggregateOf(family.titles) : undefined;
+  if (titles) return { titles, slug: slugOf(id) };
+  const owner = SCHEMA.families?.find((candidate) => candidate.titles === keyOf(agg));
+  return owner ? { titles: agg, slug: id } : null;
+}
+
+/** The row that says where a page is shown, when the route chapter has one. */
+export const rowOf = (slug: string): SitePageRow | undefined => SCHEMA.pages?.find((row) => row.slug === slug);
+
+/** Where visitors reach a record's page (its first address first), or none when no row says. */
+export function routesOf(agg: Aggregate, id: string): string[] {
+  const page = pageOf(agg, id);
+  return page ? (rowOf(page.slug)?.routes ?? []) : [];
+}
+
+/** Whether a page's record is in a state that shows it: the lifecycle's starting state (`live`). */
+export function shows(titles: Aggregate, state: State | undefined): boolean {
+  if (!state || !titles.lifecycle) return true;
+  return String(state[titles.lifecycle.field]) === titles.lifecycle.default;
+}
+
+/** The `titles` aggregates of the declared families that have a lifecycle, which say whether a page shows. */
+const stateful = (): Aggregate[] =>
+  (SCHEMA.families ?? []).flatMap((family) => {
+    const titles = family.titles ? aggregateOf(family.titles) : undefined;
+    return titles?.lifecycle ? [titles] : [];
+  });
+
+/** Every address of every page that is hidden now, from one read of the host. */
+export function hiddenPaths(client: HostClient, answer: Answer): Set<string> {
+  const hidden = new Set<string>();
+  for (const titles of stateful()) {
+    for (const [id, state] of client.instancesOf(answer, qualified(titles))) {
+      if (shows(titles, state)) continue;
+      for (const route of rowOf(id)?.routes ?? []) hidden.add(route);
+    }
+  }
+  return hidden;
+}
+
+/** A path as it is compared: no trailing slash, no query. */
+export const plainPath = (path: string): string => (path.split(/[?#]/)[0].replace(/\/+$/, "") || "/");
+
+const HOLD_MS = 4000;
+let held: { at: number; paths: Promise<Set<string>> } | null = null;
+
+/**
+ * The addresses of the pages hidden now. The read is held for a few seconds, since the edge asks for
+ * every page a visitor opens; a page hidden or put back is seen within that time.
+ */
+export async function hiddenSet(client: HostClient, now: number): Promise<Set<string>> {
+  if (!SCHEMA.pages?.length) return new Set();
+  if (!held || now - held.at > HOLD_MS) {
+    const fresh = client.read().then((answer) => hiddenPaths(client, answer));
+    held = { at: now, paths: fresh };
+    fresh.catch(() => {
+      if (held?.paths === fresh) held = null;
+    });
+  }
+  return held.paths;
+}
+
+/** Whether the path is the address of a hidden page. */
+export async function isHidden(client: HostClient, path: string, now: number): Promise<boolean> {
+  return (await hiddenSet(client, now)).has(plainPath(path));
+}
+
+/**
+ * The site's own sitemap with the entries of hidden pages left out: the sitemap is a file the site
+ * ships, which cannot know a page was hidden; the edge asks the editor for it instead. An entry whose
+ * address is not under `origin` is kept as it is.
+ */
+export function withoutHidden(sitemap: string, hidden: Set<string>): string {
+  return sitemap.replace(/[ \t]*<url>[\s\S]*?<\/url>[ \t]*\r?\n?/g, (entry) => {
+    const loc = /<loc>\s*([^<]*?)\s*<\/loc>/.exec(entry)?.[1];
+    if (!loc) return entry;
+    try {
+      return hidden.has(plainPath(new URL(loc, "http://site.invalid").pathname)) ? "" : entry;
+    } catch {
+      return entry;
+    }
+  });
+}
+
+/** Forgets the held read (a test that changes the host's state). */
+export function forgetHidden(): void {
+  held = null;
+}

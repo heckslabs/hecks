@@ -2,6 +2,7 @@
 
 require_relative "../checks"
 require_relative "target"
+require_relative "rules"
 
 module Hecks
   module Projections
@@ -62,9 +63,10 @@ module Hecks
               agg = find(aggregates, row[:aggregate])
               return chapter(aggregates, row, problems, chapters) unless agg
 
-              words = row.slice(:name, :plural, :about, :preview).transform_keys(&:to_s)
+              words = row.slice(:name, :plural, :about, :preview, :preview_unless).transform_keys(&:to_s)
               words["advanced"] = true if row[:advanced]
               agg["words"] = words unless words.empty?
+              problems.concat(Rules.preview_unless(agg, row))
             end
 
             # A row that names a chapter instead gives the chapter its title in the navigation.
@@ -83,10 +85,18 @@ module Hecks
               agg = find(aggregates, row[:aggregate])
               return problems << "EditorField names no aggregate #{row[:aggregate].inspect}" unless agg
 
-              where = [row[:aggregate], row[:command], row[:attribute]].compact.reject(&:empty?).join(".")
+              return Rules.states(agg, row, problems) if Rules.state_row?(agg, row)
+
+              problems.concat(written(agg, row))
+            end
+
+            # Writes what the row says onto what it names, and says what is wrong with it.
+            #
+            # @return [Array<String>] each problem, led by where the row is
+            def written(agg, row)
               held = Target.of(agg, row)
               held.each { |target| write(agg, target, row) }
-              problems.concat(noted(row, where, held))
+              noted(row, [row[:aggregate], row[:command], row[:attribute]].compact.reject(&:empty?).join("."), held)
             end
 
             # @return [Array<String>] what is wrong with a row, each line led by where it is

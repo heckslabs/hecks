@@ -51,7 +51,7 @@ export function approximatePage(agg: Aggregate, id: string | null, values: State
     .join("");
   const shownNames = new Set([titleAttr, picture?.name, ...moments.map((attr) => attr.name), ...lead.map((attr) => attr.name), agg.identity, agg.lifecycle?.field]);
   const rest = agg.attributes.filter((attr): attr is Attr => !shownNames.has(attr.name) && attr.widget !== "body" && held(values[attr.name]));
-  const live = id ? previewUrl(agg, id) : null;
+  const live = id ? previewUrl(agg, id, values) : null;
   const liveLink = live ? `<a class="link" href="${esc(live)}" target="_blank" rel="noopener">View on the live site</a>` : "";
   const note = `<div class="alert alert-warning alert-soft mb-6 items-start" role="note"><div><p class="font-semibold">Preview (approximate)</p><p class="text-sm">This is the editor's own drawing of what you typed, before it is saved. The site may lay it out differently, and nothing here is saved or published. ${liveLink ? `${liveLink} to see what is there now.` : "It is not on the site yet."}</p></div></div>`;
   const main = `${note}

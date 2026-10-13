@@ -104,6 +104,8 @@ export interface Attr {
   markdown?: boolean;
   /** The text is the address of a picture or file kept by the content system, and can be uploaded there. */
   upload?: { collection: string; accept: "image" | "pdf" };
+  /** Copied from a family's `titles` creating command into a member's, to start the page (see `Command.starts`). */
+  starts?: boolean;
   /** The text is the end of a range that starts at this attribute: an end before its start is refused before it is sent. */
   after?: string;
 }
@@ -120,6 +122,8 @@ export interface Lifecycle {
   transitions: Transition[];
   /** Each state's badge tone: `neutral`, `ok`, `info`, `warn` or `danger`. */
   tones: Record<string, string>;
+  /** What a person calls a state, when an `EditorField` row on the lifecycle field says (`down` is "Hidden"). */
+  labels?: Record<string, string>;
 }
 
 export interface Command {
@@ -138,6 +142,13 @@ export interface Command {
   attributes: Attr[];
   /** The arguments that only clear a field and are not offered as inputs: sent as empty lists. */
   empty?: string[];
+  /**
+   * Set on a creating command of a family member whose `titles` aggregate has a creating command: the
+   * form also asks for the page's own facts (`keep`, attributes of that command), and sending it first
+   * makes that record, then this one under the key `<kind>:<identity>` (held by the `key` attribute,
+   * which the form does not show).
+   */
+  starts?: { aggregate: string; command: string; identity: string; key: string; kind: string; keep: string[] };
 }
 
 export interface Query {
@@ -177,6 +188,8 @@ export interface Words {
   plural?: string;
   about?: string;
   preview?: string;
+  /** `<attribute> is|includes <value>`: a record that holds it has no page of its own to preview. */
+  preview_unless?: string;
   /** Tucked behind "More" on the home page and in the navigation. */
   advanced?: boolean;
 }
@@ -279,6 +292,16 @@ export interface Family {
   titles?: string;
 }
 
+/**
+ * Where visitors reach a page of the site, by the page's slug (an `EditorPage` row): its public
+ * addresses, and what the site's template for it does not draw of what an editor can add.
+ */
+export interface SitePageRow {
+  slug: string;
+  routes: string[];
+  undrawn?: string;
+}
+
 export interface Schema {
   /** The first chapter, which names the domain the host is asked for. */
   domain: string;
@@ -288,6 +311,8 @@ export interface Schema {
   media?: Media;
   scheduling?: Scheduling;
   families?: Family[];
+  /** Where each declared page is shown to visitors (see `SitePageRow`). */
+  pages?: SitePageRow[];
 }
 
 export const SCHEMA: Schema = __SCHEMA__;

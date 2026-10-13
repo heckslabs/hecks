@@ -15,18 +15,46 @@ import { EDITOR } from "../config.ts";
 import type { Aggregate } from "../schema.ts";
 import { esc } from "./html.ts";
 import { icon } from "./icons.ts";
-import { partsOf } from "./links.ts";
+import { partsOf, plainText } from "./links.ts";
 import type { Parts } from "./links.ts";
+import { routesOf } from "../site.ts";
 import { pictureAggregate, schedulingAggregate } from "./world.ts";
 import { label } from "./words.ts";
 
 /** A value placed in an address: encoded, with the colon of a key left as it is. */
 const placed = (value: string): string => encodeURIComponent(value).replace(/%3A/gi, ":");
 
-/** The address a record is previewed at, or null when the row names no preview. */
-export function previewUrl(agg: Aggregate, id: string): string | null {
+type State = Record<string, unknown>;
+
+/** The words an attribute holds, one for each item of a list. */
+const heldWords = (value: unknown): string[] => (Array.isArray(value) ? value.map(plainText) : [plainText(value)]);
+
+/**
+ * Whether one of the aggregate's `preview_unless` conditions (`<attribute> is|includes <value>`,
+ * several separated by `;`) holds of the record: then the site has no page for it to show.
+ */
+function withoutPage(agg: Aggregate, values: State): boolean {
+  const rules = (agg.words?.preview_unless ?? "").split(";").map((rule) => rule.trim()).filter(Boolean);
+  return rules.some((rule) => {
+    const found = /^(\w+) (includes|is) (\S.*)$/.exec(rule);
+    if (!found) return false;
+    const [, name, how, wanted] = found;
+    const words = heldWords(values[name]);
+    return how === "is" ? words.length === 1 && words[0] === wanted : words.includes(wanted);
+  });
+}
+
+/**
+ * The address a record is previewed at, or null when there is none to give: a page's own row names
+ * where visitors reach it; else the aggregate's row names a template, unless (given the record's
+ * values) the record is one the site has no page for, such as an article or a draft.
+ */
+export function previewUrl(agg: Aggregate, id: string, values?: State): string | null {
+  const page = routesOf(agg, id)[0];
+  if (page) return page;
   const template = agg.words?.preview ?? EDITOR.preview;
   if (!template) return null;
+  if (values && withoutPage(agg, values)) return null;
   const parts = partsOf(agg, id);
   return template.replace(/\{(key|kind|slug|id)\}/g, (_, name: keyof Parts) => placed(parts[name]));
 }
@@ -80,8 +108,8 @@ ${widths()}
 const shown = (agg: Aggregate): boolean => agg !== pictureAggregate() && agg !== schedulingAggregate();
 
 /** The preview button and drawer for one record, or nothing when the row names no preview or the record has no page. */
-export function previewTools(agg: Aggregate, id: string): Tools {
-  const url = shown(agg) ? previewUrl(agg, id) : null;
+export function previewTools(agg: Aggregate, id: string, values?: State): Tools {
+  const url = shown(agg) ? previewUrl(agg, id, values) : null;
   if (!url) return NONE;
   if (EDITOR.previewIn === "tab") return { button: `<a class="btn" href="${esc(url)}" target="_blank" rel="noopener">${icon("external")}View on the site</a>`, drawer: "" };
   const button = `<a class="btn" href="${esc(url)}" target="_blank" rel="noopener" data-preview-open="preview-toggle">${icon("eye")}Preview</a>`;

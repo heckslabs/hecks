@@ -11,7 +11,7 @@ import type { Aggregate, Attr, Command, Family, Query } from "../schema.ts";
 import { SCHEMA } from "../schema.ts";
 import { drafted } from "./availability.ts";
 import { statusBadge } from "./html.ts";
-import { detailPage as detail, titled as recordTitle } from "./detail.ts";
+import { detailPage as detail, pageShown, titled as recordTitle, undrawnNote } from "./detail.ts";
 import type { Submitted } from "./detail.ts";
 import { confirmDialog } from "./dialogs.ts";
 import { fields, textBox } from "./fields.ts";
@@ -177,7 +177,7 @@ ${table}`;
 /** One instance, with the records and actions that go with it and its preview. `named` is what a person calls it, when that is not its key. */
 export function detailPage(agg: Aggregate, id: string, values: State, shown: Submitted | null, world: World, named?: string): string {
   const crumbs: Crumb[] = [...trail(agg), [named ?? id]];
-  const tools = previewTools(agg, id);
+  const tools = pageShown(agg, id, world) ? previewTools(agg, id, values) : { button: "", drawer: "" };
   const title = named ?? recordTitle(agg, id, values);
   return page(title, detail(agg, id, values, shown, world, tools, named), { active: keyOf(agg), crumbs: [...crumbs.slice(0, -1), [title]], drawer: tools.drawer });
 }
@@ -255,15 +255,17 @@ function draftTools(agg: Aggregate, command: Command, extras: Extras): { bar: st
   const saved = (extras.state ?? {})[drafts.attribute];
   const held = saved != null && !(Array.isArray(saved) && saved.length === 0);
   const make = (name?: string): Command | undefined => agg.commands.find((candidate) => candidate.name === name && candidate.on === agg.name && candidate.attributes.length === 0);
-  const ask = (command: Command | undefined, words: string, classes: string, tone: "neutral" | "error", flush: boolean, hidden: boolean): [string, string] => {
+  const ask = (command: Command | undefined, words: string, classes: string, tone: "neutral" | "error", flush: boolean, hiddenBy: string | null): [string, string] => {
     if (!command) return ["", ""];
     const to = href(...at(agg), "id", id, command.name);
     const link = back ? withBack(to, back.path) : to;
-    const button = `<a class="${classes}" href="${esc(link)}" data-confirm="confirm-${esc(command.name)}"${hidden ? " hidden data-draft-discard" : ""}>${esc(words)}</a>`;
+    const button = `<a class="${classes}" href="${esc(link)}" data-confirm="confirm-${esc(command.name)}"${hiddenBy ? ` hidden ${hiddenBy}` : ""}>${esc(words)}</a>`;
     return [button, confirmDialog(agg, command, to, id, undefined, { back, tone, button: words, flush })];
   };
-  const publish = ask(make(drafts.publish), "Publish draft", "btn btn-neutral", "neutral", true, false);
-  const discard = ask(make(drafts.discard), "Discard draft", "btn btn-error btn-outline", "error", false, !held);
+  // Neither is offered while nothing is saved: there is no draft to publish or to throw away. The
+  // page's script shows both once an autosave has kept one (browser/autosave.js).
+  const publish = ask(make(drafts.publish), "Publish draft", "btn btn-neutral", "neutral", true, held ? null : "data-draft-publish");
+  const discard = ask(make(drafts.discard), "Discard draft", "btn btn-error btn-outline", "error", false, held ? null : "data-draft-discard");
   const live = esc(label(drafts.live).toLowerCase());
   const note = `${held ? "A draft is saved." : "No draft is saved yet."} The live ${live} changes only when the draft is published.`;
   const bar = `<div class="mb-4 flex flex-wrap items-center gap-2" data-draft-bar><p class="mr-auto text-sm text-muted" role="status" aria-live="polite" data-draft-status>${note}</p>${discard[0]}${publish[0]}</div>`;
@@ -309,15 +311,15 @@ export function commandPage(agg: Aggregate, command: Command, action: string, sh
 export function instanceCommandPage(agg: Aggregate, id: string, command: Command, values: State, shown: Submitted | null, choices: Choices = {}, back: Back | null = null, texts: Extras["texts"] = [], named?: string): string {
   const action = href(...at(agg), "id", id, command.name);
   const crumbs: Crumb[] = [...trail(agg), [named ?? id, href(...at(agg), "id", id)], [commandLabel(agg, command)]];
-  const tools = previewTools(agg, id);
+  const tools = previewTools(agg, id, values);
   const title = `${backLink(back)}${head(commandLabel(agg, command), `${capital(nameOf(agg))} ${named ?? id}`, tools.button)}`;
   const cancel = back?.path ?? href(...at(agg), "id", id);
   const frame = { active: keyOf(agg), crumbs, drawer: tools.drawer };
   if (command.destructive && command.attributes.length === 0) {
     const own = shown && shown.command === command.name ? shown.message : null;
-    const ask = `<form class="max-w-3xl" method="post" action="${esc(action)}" data-form>${backInput(back)}${refusal(own)}<p>${esc(command.goal ?? `This applies to ${id}`)}. Choose ${esc(commandLabel(agg, command))} to go ahead.</p>
+    const ask = `<form class="max-w-3xl" method="post" action="${esc(action)}" data-form>${backInput(back)}${refusal(own)}<p>${esc((command.help ?? command.goal ?? `This applies to ${id}`).replace(/\.$/, ""))}. Choose ${esc(commandLabel(agg, command))} to go ahead.</p>
 <div class="mt-6 flex justify-end gap-2"><a class="btn btn-ghost" href="${esc(cancel)}">Cancel</a><button type="submit" class="btn btn-error" data-busy>${esc(commandLabel(agg, command))}</button></div></form>`;
     return page(commandLabel(agg, command), `${title}\n${ask}`, frame);
   }
-  return page(commandLabel(agg, command), `${title}\n${commandForm(agg, command, action, shown, { state: values, cancel, choices, back, id, texts })}`, frame);
+  return page(commandLabel(agg, command), `${title}\n${undrawnNote(agg, id)}${commandForm(agg, command, action, shown, { state: values, cancel, choices, back, id, texts })}`, frame);
 }

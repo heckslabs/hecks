@@ -104,6 +104,8 @@ export interface Attr {
   markdown?: boolean;
   /** The text is the address of a picture or file kept by the content system, and can be uploaded there. */
   upload?: { collection: string; accept: "image" | "pdf" };
+  /** Copied from a family's `titles` creating command into a member's, to start the page (see `Command.starts`). */
+  starts?: boolean;
   /** The text is the end of a range that starts at this attribute: an end before its start is refused before it is sent. */
   after?: string;
 }
@@ -120,6 +122,8 @@ export interface Lifecycle {
   transitions: Transition[];
   /** Each state's badge tone: `neutral`, `ok`, `info`, `warn` or `danger`. */
   tones: Record<string, string>;
+  /** What a person calls a state, when an `EditorField` row on the lifecycle field says (`down` is "Hidden"). */
+  labels?: Record<string, string>;
 }
 
 export interface Command {
@@ -138,6 +142,13 @@ export interface Command {
   attributes: Attr[];
   /** The arguments that only clear a field and are not offered as inputs: sent as empty lists. */
   empty?: string[];
+  /**
+   * Set on a creating command of a family member whose `titles` aggregate has a creating command: the
+   * form also asks for the page's own facts (`keep`, attributes of that command), and sending it first
+   * makes that record, then this one under the key `<kind>:<identity>` (held by the `key` attribute,
+   * which the form does not show).
+   */
+  starts?: { aggregate: string; command: string; identity: string; key: string; kind: string; keep: string[] };
 }
 
 export interface Query {
@@ -177,6 +188,8 @@ export interface Words {
   plural?: string;
   about?: string;
   preview?: string;
+  /** `<attribute> is|includes <value>`: a record that holds it has no page of its own to preview. */
+  preview_unless?: string;
   /** Tucked behind "More" on the home page and in the navigation. */
   advanced?: boolean;
 }
@@ -279,6 +292,16 @@ export interface Family {
   titles?: string;
 }
 
+/**
+ * Where visitors reach a page of the site, by the page's slug (an `EditorPage` row): its public
+ * addresses, and what the site's template for it does not draw of what an editor can add.
+ */
+export interface SitePageRow {
+  slug: string;
+  routes: string[];
+  undrawn?: string;
+}
+
 export interface Schema {
   /** The first chapter, which names the domain the host is asked for. */
   domain: string;
@@ -288,6 +311,8 @@ export interface Schema {
   media?: Media;
   scheduling?: Scheduling;
   families?: Family[];
+  /** Where each declared page is shown to visitors (see `SitePageRow`). */
+  pages?: SitePageRow[];
 }
 
 export const SCHEMA: Schema = {
@@ -359,7 +384,9 @@ export const SCHEMA: Schema = {
             "optional": true,
             "list": false,
             "maxLength": 600,
-            "multiline": true
+            "multiline": true,
+            "label": "Summary",
+            "advanced": true
           },
           {
             "name": "body",
@@ -549,6 +576,25 @@ export const SCHEMA: Schema = {
             "optional": false,
             "list": false
           }
+        ],
+        "LeafletTitle": [
+          {
+            "name": "value",
+            "type": "String",
+            "kind": "text",
+            "optional": false,
+            "list": false
+          }
+        ],
+        "LeafletSlug": [
+          {
+            "name": "value",
+            "type": "String",
+            "kind": "text",
+            "optional": false,
+            "list": false,
+            "fill": "slug_of:title"
+          }
         ]
       },
       "commands": [
@@ -561,18 +607,24 @@ export const SCHEMA: Schema = {
           "destructive": false,
           "attributes": [
             {
-              "name": "key",
-              "type": "LeafletKey",
+              "name": "title",
+              "type": "LeafletTitle",
               "kind": "object",
               "optional": false,
               "list": false,
-              "picker": {
-                "kinds": [
-                  {
-                    "kind": "page"
-                  }
-                ]
-              }
+              "label": "Page title",
+              "starts": true
+            },
+            {
+              "name": "slug",
+              "type": "LeafletSlug",
+              "kind": "object",
+              "optional": false,
+              "list": false,
+              "label": "Address",
+              "advanced": true,
+              "fill": "slug_of:title",
+              "starts": true
             },
             {
               "name": "content",
@@ -581,7 +633,18 @@ export const SCHEMA: Schema = {
               "optional": false,
               "list": false
             }
-          ]
+          ],
+          "starts": {
+            "aggregate": "Leaflets.Leaflet",
+            "command": "Create",
+            "identity": "slug",
+            "key": "key",
+            "kind": "page",
+            "keep": [
+              "title",
+              "slug"
+            ]
+          }
         },
         {
           "name": "Revise",
@@ -1027,6 +1090,25 @@ export const SCHEMA: Schema = {
             "optional": false,
             "list": false
           }
+        ],
+        "LeafletTitle": [
+          {
+            "name": "value",
+            "type": "String",
+            "kind": "text",
+            "optional": false,
+            "list": false
+          }
+        ],
+        "LeafletSlug": [
+          {
+            "name": "value",
+            "type": "String",
+            "kind": "text",
+            "optional": false,
+            "list": false,
+            "fill": "slug_of:title"
+          }
         ]
       },
       "commands": [
@@ -1039,18 +1121,24 @@ export const SCHEMA: Schema = {
           "destructive": false,
           "attributes": [
             {
-              "name": "key",
-              "type": "LeafletKey",
+              "name": "title",
+              "type": "LeafletTitle",
               "kind": "object",
               "optional": false,
               "list": false,
-              "picker": {
-                "kinds": [
-                  {
-                    "kind": "page"
-                  }
-                ]
-              }
+              "label": "Page title",
+              "starts": true
+            },
+            {
+              "name": "slug",
+              "type": "LeafletSlug",
+              "kind": "object",
+              "optional": false,
+              "list": false,
+              "label": "Address",
+              "advanced": true,
+              "fill": "slug_of:title",
+              "starts": true
             },
             {
               "name": "content",
@@ -1059,7 +1147,18 @@ export const SCHEMA: Schema = {
               "optional": false,
               "list": false
             }
-          ]
+          ],
+          "starts": {
+            "aggregate": "Leaflets.Leaflet",
+            "command": "Create",
+            "identity": "slug",
+            "key": "key",
+            "kind": "page",
+            "keep": [
+              "title",
+              "slug"
+            ]
+          }
         },
         {
           "name": "Revise",
@@ -1220,6 +1319,25 @@ export const SCHEMA: Schema = {
             "optional": true,
             "list": false
           }
+        ],
+        "LeafletTitle": [
+          {
+            "name": "value",
+            "type": "String",
+            "kind": "text",
+            "optional": false,
+            "list": false
+          }
+        ],
+        "LeafletSlug": [
+          {
+            "name": "value",
+            "type": "String",
+            "kind": "text",
+            "optional": false,
+            "list": false,
+            "fill": "slug_of:title"
+          }
         ]
       },
       "commands": [
@@ -1232,18 +1350,24 @@ export const SCHEMA: Schema = {
           "destructive": false,
           "attributes": [
             {
-              "name": "key",
-              "type": "LeafletKey",
+              "name": "title",
+              "type": "LeafletTitle",
               "kind": "object",
               "optional": false,
               "list": false,
-              "picker": {
-                "kinds": [
-                  {
-                    "kind": "page"
-                  }
-                ]
-              }
+              "label": "Page title",
+              "starts": true
+            },
+            {
+              "name": "slug",
+              "type": "LeafletSlug",
+              "kind": "object",
+              "optional": false,
+              "list": false,
+              "label": "Address",
+              "advanced": true,
+              "fill": "slug_of:title",
+              "starts": true
             },
             {
               "name": "content",
@@ -1252,7 +1376,18 @@ export const SCHEMA: Schema = {
               "optional": false,
               "list": false
             }
-          ]
+          ],
+          "starts": {
+            "aggregate": "Leaflets.Leaflet",
+            "command": "Create",
+            "identity": "slug",
+            "key": "key",
+            "kind": "page",
+            "keep": [
+              "title",
+              "slug"
+            ]
+          }
         },
         {
           "name": "Revise",
@@ -1522,6 +1657,164 @@ export const SCHEMA: Schema = {
       }
     },
     {
+      "name": "Leaflet",
+      "chapter": "Leaflets",
+      "description": "One page of the leaflet site: its address, its title, and whether it shows.",
+      "identity": "slug",
+      "lifecycle": {
+        "field": "status",
+        "default": "live",
+        "transitions": [
+          {
+            "verb": "TakeDown",
+            "from": [
+              "live"
+            ],
+            "to": "down"
+          },
+          {
+            "verb": "PutBack",
+            "from": [
+              "down"
+            ],
+            "to": "live"
+          }
+        ],
+        "tones": {
+          "live": "neutral",
+          "down": "danger"
+        },
+        "labels": {
+          "live": "Showing",
+          "down": "Hidden"
+        }
+      },
+      "attributes": [
+        {
+          "name": "slug",
+          "type": "LeafletSlug",
+          "kind": "object",
+          "optional": false,
+          "list": false
+        },
+        {
+          "name": "title",
+          "type": "LeafletTitle",
+          "kind": "object",
+          "optional": false,
+          "list": false
+        },
+        {
+          "name": "tags",
+          "type": "LeafletTag",
+          "kind": "object",
+          "optional": false,
+          "list": true
+        }
+      ],
+      "valueObjects": {
+        "LeafletSlug": [
+          {
+            "name": "value",
+            "type": "String",
+            "kind": "text",
+            "optional": false,
+            "list": false,
+            "fill": "slug_of:title"
+          }
+        ],
+        "LeafletTitle": [
+          {
+            "name": "value",
+            "type": "String",
+            "kind": "text",
+            "optional": false,
+            "list": false
+          }
+        ],
+        "LeafletTag": [
+          {
+            "name": "value",
+            "type": "String",
+            "kind": "text",
+            "optional": false,
+            "list": false
+          }
+        ]
+      },
+      "commands": [
+        {
+          "name": "Create",
+          "goal": "Add a page to the leaflet site",
+          "role": "Editor",
+          "creates": true,
+          "on": null,
+          "destructive": false,
+          "attributes": [
+            {
+              "name": "slug",
+              "type": "LeafletSlug",
+              "kind": "object",
+              "optional": false,
+              "list": false,
+              "label": "Address",
+              "advanced": true,
+              "fill": "slug_of:title"
+            },
+            {
+              "name": "title",
+              "type": "LeafletTitle",
+              "kind": "object",
+              "optional": false,
+              "list": false,
+              "label": "Page title"
+            },
+            {
+              "name": "tags",
+              "type": "LeafletTag",
+              "kind": "object",
+              "optional": false,
+              "list": true
+            }
+          ]
+        },
+        {
+          "name": "TakeDown",
+          "goal": "Hide a page and answer not found for it, keeping its record",
+          "role": "Editor",
+          "creates": false,
+          "on": "Leaflet",
+          "destructive": true,
+          "attributes": [],
+          "label": "Hide page",
+          "help": "Visitors will see \"page not found\" for this page. Its words are kept, and you can put it back."
+        },
+        {
+          "name": "PutBack",
+          "goal": "Put a hidden page back",
+          "role": "Editor",
+          "creates": false,
+          "on": "Leaflet",
+          "destructive": false,
+          "attributes": [],
+          "label": "Put page back",
+          "help": "Visitors will see the page again."
+        }
+      ],
+      "queries": [
+        {
+          "name": "Listing",
+          "description": "Every page.",
+          "attributes": []
+        }
+      ],
+      "words": {
+        "name": "page detail",
+        "preview": "/leaflets/{slug}",
+        "preview_unless": "status is down; tags includes private"
+      }
+    },
+    {
       "name": "MediaItem",
       "chapter": "Pictures",
       "description": "A picture that has been uploaded: its record only, the bytes are kept elsewhere.",
@@ -1640,5 +1933,36 @@ export const SCHEMA: Schema = {
     },
     "listing": "Pictures",
     "domain": "Pictures"
-  }
+  },
+  "families": [
+    {
+      "key": "pages",
+      "name": "page",
+      "plural": "pages",
+      "about": "Every page of the leaflet site.",
+      "chapter": "Leaflets",
+      "members": [
+        "Leaflets.NotePage",
+        "Leaflets.GalleryPage",
+        "Leaflets.ChaptersPage"
+      ],
+      "titles": "Leaflets.Leaflet"
+    }
+  ],
+  "pages": [
+    {
+      "slug": "story",
+      "routes": [
+        "/story",
+        "/story/chapters"
+      ],
+      "undrawn": "the parts of a chapter on this page"
+    },
+    {
+      "slug": "note",
+      "routes": [
+        "/note"
+      ]
+    }
+  ]
 };

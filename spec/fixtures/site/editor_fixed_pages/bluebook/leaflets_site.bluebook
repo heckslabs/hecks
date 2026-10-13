@@ -33,6 +33,54 @@ Hecks.bluebook "LeafletsSite" do
       member path: "/*",           kind: "proxy"
     end
 
+    value_object "EditorFamily" do
+      attribute :name,    String
+      attribute :plural,  String
+      attribute :about,   String
+      attribute :members, String
+      attribute :titles,  String
+
+      member name: "page", plural: "pages", members: "NotePage,GalleryPage,ChaptersPage", titles: "Leaflet",
+             about: "Every page of the leaflet site."
+    end
+
+    value_object "EditorPage" do
+      attribute :slug,    String
+      attribute :route,   String
+      attribute :undrawn, String
+
+      member slug: "story", route: "/story,/story/chapters", undrawn: "the parts of a chapter on this page"
+      member slug: "note",  route: "/note"
+    end
+
+    value_object "EditorThing" do
+      attribute :aggregate,      String
+      attribute :name,           String
+      attribute :preview,        String
+      attribute :preview_unless, String
+
+      member aggregate: "Leaflet", name: "page detail", preview: "/leaflets/{slug}", preview_unless: "status is down; tags includes private"
+    end
+
+    value_object "EditorField" do
+      attribute :aggregate, String
+      attribute :command,   String
+      attribute :attribute, String
+      attribute :label,     String
+      attribute :help,      String
+      attribute :advanced,  Boolean
+      attribute :fill,      String
+      attribute :options,   String
+
+      member aggregate: "Leaflet", attribute: "status", options: "live=Showing,down=Hidden"
+      member aggregate: "Leaflet", command: "TakeDown", label: "Hide page",
+             help: "Visitors will see \"page not found\" for this page. Its words are kept, and you can put it back."
+      member aggregate: "Leaflet", command: "PutBack", label: "Put page back", help: "Visitors will see the page again."
+      member aggregate: "Leaflet", command: "Create", attribute: "title", label: "Page title"
+      member aggregate: "Leaflet", command: "Create", attribute: "slug", label: "Address", advanced: true, fill: "slug_of:title"
+      member aggregate: "NotePage", attribute: "content.summary", label: "Summary", advanced: true
+    end
+
     value_object "Editor" do
       attribute :domain,         String
       attribute :chapter,        String
@@ -44,11 +92,14 @@ Hecks.bluebook "LeafletsSite" do
       attribute :roles,          String
       attribute :login,          String
       attribute :title,          String
+      attribute :site_env,       String
+      attribute :site_default,   String
 
       member domain: "domain", chapter: "Leaflets, Pictures",
              base_path: "/editor", session_cookie: "leaflets_editor", host_cookie: "leaflets_session",
              host_env: "LEAFLETS_DOMAIN_SERVICE_URL", host_default: "http://127.0.0.1:4500",
-             roles: "Admin,Owner", login: "/admin-login", title: "Leaflets editor"
+             roles: "Admin,Owner", login: "/admin-login", title: "Leaflets editor",
+             site_env: "LEAFLETS_SITE_URL", site_default: "http://site.invalid"
     end
   end
 end

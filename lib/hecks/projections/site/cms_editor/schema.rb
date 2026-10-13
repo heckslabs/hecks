@@ -47,7 +47,7 @@ module Hecks
             media = pictures ? elsewhere(pictures) : within(shaped, list.first.name)
             worded = Words.apply(shaped, words, chapters: list.map(&:name))
             families = Words.families(worded, words, chapters: list.map(&:name))
-            assemble(list, related(worded, media, words), media, families, words&.runs || [])
+            assemble(list, related(worded, media, words), media, families, words)
           end
 
           # @return [Array<Hash{String => Object}>] each aggregate, as the editor reads it
@@ -67,11 +67,17 @@ module Hecks
 
           # @return [Hash{String => Object}] the schema: the domain, the chapters when several, the
           #   aggregates, and the picture and scheduling aggregates and the families when there are such
-          def self.assemble(list, aggregates, media, families = [], runs = [])
+          def self.assemble(list, aggregates, media, families = [], words = nil)
             chapters = list.size > 1 ? { "chapters" => list.map(&:name) } : {}
-            scheduling = Scheduling.read(aggregates, runs)
-            { "domain" => list.first.name, **chapters, "aggregates" => aggregates, **(media ? { "media" => media } : {}),
-              **(scheduling ? { "scheduling" => scheduling } : {}), **(families.empty? ? {} : { "families" => families }) }
+            { "domain" => list.first.name, **chapters, "aggregates" => aggregates, **extras(aggregates, media, families, words) }
+          end
+
+          # @return [Hash{String => Object}] the parts of the schema a chapter may not have: its picture
+          #   aggregate, its scheduling, its families, and where its pages are shown
+          def self.extras(aggregates, media, families, words)
+            pages = Words.pages(words)
+            { "media" => media, "scheduling" => Scheduling.read(aggregates, words&.runs || []),
+              "families" => (families unless families.empty?), "pages" => (pages unless pages.empty?) }.compact
           end
 
           # The picture aggregate among the editor's own, with the chapter that holds it when that

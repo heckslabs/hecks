@@ -29,8 +29,8 @@ module Hecks
                         media_dir: String, media_max_bytes: String, chapter_roles: String, page_size: [String, Integer],
                         preview: String, preview_in: String, zone: String, upload_env: String,
                         upload_default: String, upload_api: String, members_aggregate: String,
-                        members_email: String, members_role: String, markdown_parse: String,
-                        markdown_render: String, admin_roles: String, sign_in: String, landing: String },
+                        members_email: String, members_role: String, markdown_parse: String, site_env: String,
+                        markdown_render: String, admin_roles: String, sign_in: String, landing: String, site_default: String },
             required: %i[domain chapter host_env login],
             defaults: { base_path: "/editor", session_cookie: "hecks_editor", host_cookie: "hecks_session",
                         host_default: "http://127.0.0.1:4322", roles: "Admin,Owner", title: "Editor", brand: "",
@@ -38,7 +38,7 @@ module Hecks
                         chapter_roles: "", page_size: "25", preview: "", preview_in: "drawer", zone: "Z",
                         upload_env: "", upload_default: "", upload_api: "", members_aggregate: "",
                         members_email: "email", members_role: "role", markdown_parse: "", markdown_render: "",
-                        admin_roles: "Admin,Owner", sign_in: "", landing: "" }
+                        admin_roles: "Admin,Owner", sign_in: "", landing: "", site_env: "", site_default: "" }
           )
 
           # @return [Hash{Symbol => String}] the checked row, defaults filled

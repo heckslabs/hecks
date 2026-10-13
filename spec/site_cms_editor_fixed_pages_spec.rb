@@ -65,6 +65,84 @@ RSpec.describe "the editor's fixed-structure pages, derived from a chapter" do
     end
   end
 
+  describe "what the rows say of pages that can be hidden" do
+    let(:route) { "bluebook/leaflets_site.bluebook" }
+
+    # What the projection says when the route chapter is changed by the pairs of text given, which it refuses.
+    def refused(*edits)
+      changed(route, *edits) do |dir|
+        files_of(dir)
+        "accepted"
+      rescue SystemExit => e
+        e.message
+      end
+    end
+
+    it "gives each page its public addresses and what its template leaves out", :aggregate_failures do
+      pages = schema["pages"]
+
+      expect(pages.map { |page| page["slug"] }).to eq(%w[story note])
+      expect(pages.first).to eq("slug" => "story", "routes" => ["/story", "/story/chapters"],
+                                "undrawn" => "the parts of a chapter on this page")
+      expect(pages.last).to eq("slug" => "note", "routes" => ["/note"])
+    end
+
+    it "refuses an address that is not a path on the site, and a page named twice", :aggregate_failures do
+      message = refused('member slug: "note",  route: "/note"', 'member slug: "note",  route: "note page"')
+      twice = refused('member slug: "note",  route: "/note"',
+                      "member slug: \"note\", route: \"/x\"\n      member slug: \"note\",  route: \"/note\"")
+
+      expect(message).to include('route "note page" is not a path')
+      expect(twice).to include('EditorPage "note" is declared twice')
+    end
+
+    it "words a lifecycle's states, and gives the state that hides a page a danger tone", :aggregate_failures do
+      lifecycle = aggregate("Leaflet")["lifecycle"]
+
+      expect(lifecycle["labels"]).to eq("live" => "Showing", "down" => "Hidden")
+      expect(lifecycle["tones"]["down"]).to eq("danger")
+    end
+
+    it "asks before a move into that state and not before the way back", :aggregate_failures do
+      commands = aggregate("Leaflet")["commands"].to_h { |command| [command["name"], command] }
+
+      expect(commands["TakeDown"]).to include("destructive" => true, "label" => "Hide page")
+      expect(commands["PutBack"]).to include("destructive" => false, "label" => "Put page back")
+    end
+
+    it "refuses a word for a state the lifecycle does not have" do
+      message = refused('options: "live=Showing,down=Hidden"', 'options: "live=Showing,gone=Hidden"')
+
+      expect(message).to include('"gone" is no state of the lifecycle')
+    end
+
+    it "carries the rule that says a record has no page of its own, and refuses one that names nothing", :aggregate_failures do
+      expect(aggregate("Leaflet")["words"]).to include("preview_unless" => "status is down; tags includes private")
+      expect(refused("status is down; tags includes private", "colour is red")).to include('names no attribute "colour"')
+      expect(refused("status is down; tags includes private", "status down")).to include("is not `<attribute> is|includes")
+    end
+
+    it "starts a new page with the page's own title and address, in the form of its type", :aggregate_failures do
+      write = aggregate("NotePage")["commands"].find { |command| command["name"] == "Write" }
+
+      expect(write["attributes"].map { |attr| attr["name"] }).to eq(%w[title slug content])
+      expect(write["starts"]).to eq("aggregate" => "Leaflets.Leaflet", "command" => "Create", "identity" => "slug",
+                                    "key" => "key", "kind" => "page", "keep" => %w[title slug])
+    end
+
+    it "makes the copied address a value to type, with its words, not a choice of pages", :aggregate_failures do
+      write = aggregate("NotePage")["commands"].find { |command| command["name"] == "Write" }
+      address = write["attributes"].find { |attr| attr["name"] == "slug" }
+
+      expect(address).to include("label" => "Address", "fill" => "slug_of:title", "starts" => true)
+      expect(address).not_to have_key("picker")
+    end
+
+    it "folds a part the rows keep behind More options at the level it is in" do
+      expect(part("NotePage", "NoteContent", "summary")).to include("advanced" => true, "label" => "Summary")
+    end
+  end
+
   describe "the working copy of a page" do
     it "finds a value object as the draft a command saves, publishes and discards" do
       expect(aggregate("ChaptersPage")["drafts"]).to eq(

@@ -29,7 +29,7 @@ const clock = () => new Date().toLocaleTimeString([], { hour: "numeric", minute:
 export function startDraft(root, options = {}) {
   const form = options.form ?? root.closest("form");
   const status = document.querySelector("[data-draft-status]");
-  const discard = document.querySelector("[data-draft-discard]");
+  const shown = [...document.querySelectorAll("[data-draft-discard], [data-draft-publish]")];
   let dirty = false;
   let version = 0;
   let timer = null;
@@ -67,7 +67,7 @@ export function startDraft(root, options = {}) {
       }
       if (version === sent) dirty = false;
       say(`Draft saved ${clock()}`);
-      discard?.removeAttribute("hidden");
+      for (const button of shown) button.removeAttribute("hidden");
       document.dispatchEvent(new CustomEvent("editor:saved"));
       return version === sent;
     } catch {

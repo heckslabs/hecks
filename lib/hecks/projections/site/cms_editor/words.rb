@@ -6,6 +6,7 @@ require_relative "words/marks"
 require_relative "words/payload"
 require_relative "words/companions"
 require_relative "words/families"
+require_relative "words/pages"
 
 module Hecks
   module Projections
@@ -25,7 +26,7 @@ module Hecks
           # What a row of each object may carry.
           THINGS = RootRows.new("EditorThing", many: true, required: %i[aggregate],
                                 fields: { aggregate: String, name: String, plural: String, about: String, preview: String,
-                                          advanced: [TrueClass, FalseClass] })
+                                          preview_unless: String, advanced: [TrueClass, FalseClass] })
 
           FIELDS = RootRows.new("EditorField", many: true, required: %i[aggregate],
                                 fields: { aggregate: String, command: String, attribute: String, label: String, help: String,
@@ -47,10 +48,16 @@ module Hecks
           FAMILIES = RootRows.new("EditorFamily", many: true, required: %i[name members],
                                   fields: { name: String, plural: String, about: String, members: String, titles: String })
 
+          # `EditorPage`: where a page of the site is shown to visitors, by the page's slug (the address
+          # the domain's `SitePage` is identified by). `route` is the public address, or several
+          # separated by commas;           # draw of what an editor can add ("chapters on this page"), so the editor can say so.
+          PAGES = RootRows.new("EditorPage", many: true, required: %i[slug route],
+                               fields: { slug: String, route: String, undrawn: String })
+
           # The checked rows of a route chapter; `payload` are the `PayloadField` rows a project
           # declares for its content system, which the editor reads for the same facts.
-          Rows = Struct.new(:things, :fields, :companions, :payload, :zone, :families, :runs) do
-            def none? = [things, fields, companions, payload, families, runs].all?(&:empty?)
+          Rows = Struct.new(:things, :fields, :companions, :payload, :zone, :families, :runs, :pages) do
+            def none? = [things, fields, companions, payload, families, runs, pages || []].all?(&:empty?)
           end
 
           module_function
@@ -61,7 +68,7 @@ module Hecks
           def read(chapter)
             payload = PayloadDriver::FIELD.read(chapter)
             Rows.new(THINGS.read(chapter), FIELDS.read(chapter), COMPANIONS.read(chapter), payload, "Z", FAMILIES.read(chapter),
-                     RUNS.read(chapter))
+                     RUNS.read(chapter), PAGES.read(chapter))
           end
 
           # @param aggregates [Array<Hash{String => Object}>] the aggregates as `Schema` shapes them
@@ -97,6 +104,15 @@ module Hecks
             return [] if rows.nil? || rows.families.empty?
 
             Families.build(aggregates, rows.families, chapters)
+          end
+
+          # @param rows [Rows] the checked rows
+          # @return [Array<Hash{String => Object}>] the `EditorPage` rows as `schema.ts` reads them
+          # @raise [Table::Invalid] naming every row whose address is not a path under the site
+          def pages(rows)
+            return [] if rows.nil? || rows.pages.to_a.empty?
+
+            Pages.build(rows.pages)
           end
 
           # @return [Array<Hash{String => Object}>] the aggregates with each companion record

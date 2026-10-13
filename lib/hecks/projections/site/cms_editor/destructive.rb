@@ -9,6 +9,7 @@ module Hecks
         #
         # A command is destructive when its first word is one of `WORDS` (`WithdrawOffer`,
         # `DiscardDraft`), or when it is a lifecycle move into a state named for one of `STATES`.
+        # A page taken `down` is one of those states: hiding it asks first, and its badge is a danger one.
         # The test reads the bluebook's own words and structure, never a list of aggregates, so a
         # domain with a different vocabulary confirms nothing it did not name that way. A move that
         # can be undone, such as an archive with a restore, is not destructive by that alone.
@@ -21,7 +22,7 @@ module Hecks
           WORDS = %w[withdraw retire discard delete cancel remove].freeze
 
           # The states those commands move into.
-          STATES = %w[withdrawn retired discarded deleted cancelled canceled removed].freeze
+          STATES = %w[withdrawn retired discarded deleted cancelled canceled removed down].freeze
 
           module_function
 

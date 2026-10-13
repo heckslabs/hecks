@@ -11,9 +11,12 @@ import type { Aggregate, Command } from "../schema.ts";
 import { available, drafted, needsPage } from "./availability.ts";
 import type { Problem } from "./blocks.ts";
 import { confirmDialog, dialogId } from "./dialogs.ts";
+import { backInput } from "./links.ts";
 import { copyButton, esc, href, refusal, statusBadge } from "./html.ts";
 import { historyPanel } from "./history.ts";
-import { plainText } from "./links.ts";
+import { plainText, withBack } from "./links.ts";
+import type { Back } from "./links.ts";
+import { pageOf, rowOf, shows } from "../site.ts";
 import { relatedPanels } from "./related.ts";
 import { schedulePanel } from "./schedule.ts";
 import type { Tools } from "./preview.ts";
@@ -39,30 +42,76 @@ export interface Submitted {
   textMessage?: string;
 }
 
-function action(agg: Aggregate, id: string, command: Command, first: boolean): string {
-  const to = href(...at(agg), "id", id, command.name);
+function action(agg: Aggregate, id: string, command: Command, first: boolean, back: Back | null = null): string {
+  const plain = href(...at(agg), "id", id, command.name);
+  const to = back ? withBack(plain, back.path) : plain;
   const text = esc(commandLabel(agg, command));
   const tone = command.destructive ? "btn btn-error btn-outline lg:w-full" : first ? "btn btn-neutral lg:w-full" : "btn lg:w-full";
   const note = command.help ?? command.goal;
   const caption = note ? `<p class="mt-1 text-xs text-muted">${esc(note)}</p>` : "";
-  if (!needsPage(command)) return `<div><form method="post" action="${esc(to)}"><button type="submit" class="${tone}">${text}</button></form>${caption}</div>`;
+  if (!needsPage(command)) return `<div><form method="post" action="${esc(plain)}">${backInput(back)}<button type="submit" class="${tone}">${text}</button></form>${caption}</div>`;
   const confirm = command.destructive && command.attributes.length === 0 ? ` data-confirm="${dialogId(command)}"` : "";
   return `<div><a class="${tone}" href="${esc(to)}"${confirm}>${text}</a>${caption}</div>`;
 }
 
-function dialogs(agg: Aggregate, id: string, commands: Command[]): string {
+function dialogs(agg: Aggregate, id: string, commands: Command[], back: Back | null = null): string {
   return commands
     .filter((command) => command.destructive && command.attributes.length === 0)
-    .map((command) => confirmDialog(agg, command, href(...at(agg), "id", id, command.name), id))
+    .map((command) => confirmDialog(agg, command, href(...at(agg), "id", id, command.name), id, undefined, { back }))
     .join("\n");
 }
 
-function panel(agg: Aggregate, id: string, values: State, commands: Command[]): string {
-  const status = agg.lifecycle ? `<div class="lg:pb-5"><h2 class="mb-2 text-sm">Status</h2><p>${statusBadge(agg, values[agg.lifecycle.field])}</p></div>` : "";
-  const rule = agg.lifecycle ? "lg:border-t lg:border-base-300 lg:pt-5" : "";
-  const buttons = commands.map((command, at) => action(agg, id, command, at === 0));
-  const list = commands.length === 0 ? `<p class="text-muted">Nothing to do with this ${esc(nameOf(agg))} right now.</p>` : `<div class="grid gap-3">${buttons.join("\n")}</div>`;
-  return `<aside class="order-first flex flex-wrap items-start gap-x-8 gap-y-4 border-b border-base-300 pb-5 lg:sticky lg:top-20 lg:order-none lg:block lg:border-b-0 lg:pb-0" aria-label="Status and actions">${status}<div class="${rule}"><h2 class="mb-2 text-sm">Actions</h2>${list}</div></aside>`;
+/**
+ * What a person may do about whether a page shows, when the record is a page of a family whose
+ * `titles` record carries the lifecycle (a page is live or down): that record, and its moves that ask
+ * for nothing. They are offered on the page itself, so hiding a page is not a trip to another record.
+ */
+interface Visibility {
+  titles: Aggregate;
+  id: string;
+  values: State;
+  commands: Command[];
+  shown: boolean;
+}
+
+function visibility(agg: Aggregate, id: string, world: World): Visibility | null {
+  const page = pageOf(agg, id);
+  if (!page || page.titles === agg || !page.titles.lifecycle) return null;
+  const values = world.lookup(page.titles, page.slug);
+  if (!values) return null;
+  const moves = new Set(page.titles.lifecycle.transitions.map((move) => move.verb));
+  const commands = page.titles.commands.filter((command) => command.on === page.titles.name && moves.has(command.name) && command.attributes.length === 0 && available(page.titles, command, values));
+  return { titles: page.titles, id: page.slug, values, commands, shown: shows(page.titles, values) };
+}
+
+/** Whether a record's page is showing: true for a record that is no page, or a page that shows. A hidden page has no "View on the site". */
+export const pageShown = (agg: Aggregate, id: string, world: World): boolean => visibility(agg, id, world)?.shown !== false;
+
+/** What the site's template for a page does not draw of what can be added here, said once and plainly. */
+export function undrawnNote(agg: Aggregate, id: string): string {
+  const page = pageOf(agg, id);
+  const words = page ? rowOf(page.slug)?.undrawn : undefined;
+  if (!words) return "";
+  return `<div class="alert alert-info alert-soft mb-4 items-start" role="note"><p>The public site does not show ${esc(words)} yet. What you add or change here is saved and kept, and will show once the site draws it.</p></div>`;
+}
+
+function panel(agg: Aggregate, id: string, values: State, commands: Command[], page: Visibility | null = null, back: Back | null = null): string {
+  const own = agg.lifecycle ? `<div class="lg:pb-5"><h2 class="mb-2 text-sm">Status</h2><p>${statusBadge(agg, values[agg.lifecycle.field])}</p></div>` : "";
+  const visible = page ? `<div class="lg:pb-5"><h2 class="mb-2 text-sm">On the site</h2><p>${statusBadge(page.titles, page.values[page.titles.lifecycle?.field ?? ""])}</p></div>` : "";
+  const status = `${own}${visible}`;
+  const rule = status === "" ? "" : "lg:border-t lg:border-base-300 lg:pt-5";
+  const buttons = [
+    ...commands.map((command, at) => action(agg, id, command, at === 0)),
+    ...(page ? page.commands.map((command) => action(page.titles, page.id, command, false, back)) : []),
+  ];
+  const list = buttons.length === 0 ? `<p class="text-muted">Nothing to do with this ${esc(nameOf(agg))} right now.</p>` : `<div class="grid gap-3">${buttons.join("\n")}</div>`;
+  return `<aside class="flex flex-wrap items-start gap-x-8 gap-y-4 border-b border-base-300 pb-5 lg:sticky lg:top-20 lg:order-last lg:block lg:border-b-0 lg:pb-0" aria-label="Status and actions">${status}<div class="${rule}"><h2 class="mb-2 text-sm">Actions</h2>${list}</div></aside>`;
+}
+
+/** The notice at the head of a page that is hidden from the site, in the words a visitor's experience of it has. */
+function hiddenNote(page: Visibility | null): string {
+  if (!page || page.shown) return "";
+  return `<p class="mt-2" role="status"><span class="badge badge-soft badge-warning">Hidden from the site</span> <span class="text-sm text-muted">Visitors see "page not found". Its words and pictures are kept here.</span></p>`;
 }
 
 /** The badge that says an edit is saved and not put live yet, when the aggregate keeps one beside its live content. */
@@ -90,21 +139,25 @@ function draftSection(agg: Aggregate, values: State): string {
 export function detailPage(agg: Aggregate, id: string, values: State, shown: Submitted | null, world: World, preview: Tools, named?: string): string {
   const commands = agg.commands.filter((command) => command.on === agg.name && available(agg, command, values));
   const here = href(...at(agg), "id", id);
+  const page = visibility(agg, id, world);
+  const back: Back | null = page ? { path: here, label: named ?? id } : null;
   const panels = [relatedPanels(agg, id, world, here), schedulePanel(agg, id, world, here), world.history ? historyPanel(agg, id, world.history) : ""].filter((html) => html !== "");
   return `<div class="mb-6 flex flex-wrap items-start justify-between gap-3">
-<div><h1 class="break-words text-3xl">${esc(named ?? titled(agg, id, values))}</h1><p class="mt-1 flex items-center gap-2 text-muted"><span>${esc(label(nameOf(agg)))}</span><span aria-hidden="true">·</span><span class="break-all text-sm">${esc(id)}</span>${copyButton(id, "address")}</p>${unpublished(agg, values)}</div>
+<div><h1 class="break-words text-3xl">${esc(named ?? titled(agg, id, values))}</h1><p class="mt-1 flex items-center gap-2 text-muted"><span>${esc(label(nameOf(agg)))}</span><span aria-hidden="true">·</span><span class="break-all text-sm">${esc(id)}</span>${copyButton(id, "address")}</p>${unpublished(agg, values)}${hiddenNote(page)}</div>
 ${preview.button}
 </div>
 ${refusal(shown?.message ?? null)}
 <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_16rem]">
+${panel(agg, id, values, commands, page, back)}
 <div class="grid min-w-0 gap-6">
+${undrawnNote(agg, id)}
 ${draftSection(agg, values)}
 <section class="min-w-0 border border-base-300 bg-base-100 px-4 sm:px-6" aria-label="${esc(label(agg.name))}">
 ${valueRows(agg, agg.attributes.filter((attr) => attr.name !== agg.drafts?.attribute), values)}
 </section>
 ${panels.join("\n")}
 </div>
-${panel(agg, id, values, commands)}
 </div>
-${dialogs(agg, id, commands)}`;
+${dialogs(agg, id, commands)}
+${page ? dialogs(page.titles, page.id, page.commands, back) : ""}`;
 }

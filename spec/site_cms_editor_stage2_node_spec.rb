@@ -253,7 +253,8 @@ RSpec.describe "the generated editor's working-desk parts, run by node" do
 
   describe "people" do
     it "lists who may edit with role and status, in plain words", :aggregate_failures do
-      expect(result["people"]).to include("Ed Editor", "Pat Writer", "Waiting for first sign-in", "This is you.", "Add a person")
+      expect(result["people"]).to include("Ed Editor", "Pat Writer", "Can sign in", "This is you.", "Add a person")
+      expect(result["people"]).not_to include("Waiting for first sign-in")
     end
 
     it "adds a person with the aggregate's own commands" do

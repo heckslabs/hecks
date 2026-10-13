@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "marks"
+require_relative "starts"
 
 module Hecks
   module Projections
@@ -35,11 +36,18 @@ module Hecks
               return nil unless members
 
               key = key_of(row)
-              problems << "EditorFamily #{row[:name]}: its address #{key.inspect} is a chapter's name" if chapters.include?(key)
-              if members.map { |agg| agg["chapter"] }.uniq.size > 1
-                problems << "EditorFamily #{row[:name]}: its members are in different chapters"
-              end
+              problems.concat(placement(row, key, members, chapters))
+              Starts.apply(members, titles, row[:name].downcase.gsub(/[^a-z0-9]+/, "_"))
               shape(row, key, members, titles)
+            end
+
+            # @return [Array<String>] what is wrong with where a family sits: its address and its members' chapters
+            def placement(row, key, members, chapters)
+              found = []
+              found << "EditorFamily #{row[:name]}: its address #{key.inspect} is a chapter's name" if chapters.include?(key)
+              apart = members.map { |agg| agg["chapter"] }.uniq.size > 1
+              found << "EditorFamily #{row[:name]}: its members are in different chapters" if apart
+              found
             end
 
             # @return [Array<Hash{String => Object}>, nil] the member aggregates, or nil when one is missing

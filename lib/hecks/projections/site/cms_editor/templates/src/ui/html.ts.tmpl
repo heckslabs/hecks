@@ -39,15 +39,15 @@ const TONES: Record<string, [classes: string, mark: string]> = {
 };
 
 /** A status as a badge: its words, a shape and a colour. */
-export function badge(status: unknown, tone = "neutral"): string {
+export function badge(status: unknown, tone = "neutral", words?: string): string {
   if (!status) return "";
   const [classes, mark] = TONES[tone] ?? TONES.neutral;
-  return `<span class="${classes}">${icon(mark)}${esc(label(String(status)))}</span>`;
+  return `<span class="${classes}">${icon(mark)}${esc(words ?? label(String(status)))}</span>`;
 }
 
 /** The badge of an aggregate's lifecycle state, in the tone the schema gives that state. */
 export function statusBadge(agg: Aggregate, status: unknown): string {
-  return badge(status, agg.lifecycle?.tones[String(status)] ?? "neutral");
+  return badge(status, agg.lifecycle?.tones[String(status)] ?? "neutral", agg.lifecycle?.labels?.[String(status)]);
 }
 
 /** A button that copies `value` to the clipboard (the page's script shows it and wires it; without a script it stays hidden). */

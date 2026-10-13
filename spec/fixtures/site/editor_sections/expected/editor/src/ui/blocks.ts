@@ -163,7 +163,7 @@ ${slotsOfCard(agg, place, rendering, block, kind, flagged)}
 /** The blocks nested one level in a card (buttons, entries): a group of cards with one template. */
 function group(agg: Aggregate, place: Place, part: Attr, rendering: Rendering, block: Block, prefix: string, problem?: string): string {
   const parts = agg.valueObjects[part.type] ?? [];
-  const noun = singular(part.name.replace(/([^aeiou])ies$/, "$1y").replace(/s$/, ""));
+  const noun = part.noun ? singular(part.noun) : singular(part.name.replace(/([^aeiou])ies$/, "$1y").replace(/s$/, ""));
   const path = `${prefix}${part.name}`;
   const held = Array.isArray(block[part.name]) ? (block[part.name] as Block[]) : [];
   const limit = part.max ?? place.list.limits?.[part.name];
@@ -237,7 +237,7 @@ function summaryOfProblems(name: string, noun: string, problems: Problem[], titl
 export function blockList(agg: Aggregate, attr: Attr, name: string, value: unknown, rendering: Rendering): string {
   const list = attr.blockList ?? plainList(attr);
   const parts = agg.valueObjects[attr.type] ?? [];
-  const noun = singular(attr.type);
+  const noun = attr.noun ? singular(attr.noun) : singular(attr.type);
   const plural = esc(pluralOf(noun));
   const held = Array.isArray(value) ? (value as Block[]) : [];
   const own = rendering.problems.filter((problem) => problem.name.startsWith(`${name}.`));

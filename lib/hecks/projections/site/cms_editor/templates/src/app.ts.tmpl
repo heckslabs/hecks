@@ -31,12 +31,13 @@ import { hostClient, rowsAnswered } from "./host.ts";
 import { aggregateOf, at, keyOf, locate, mayEdit, membersOf, qualified, slugOf } from "./names.ts";
 import { SCHEMA } from "./schema.ts";
 import type { Aggregate, Command, Family } from "./schema.ts";
+import { hiddenSet, isHidden, withoutHidden } from "./site.ts";
 import { available, needsPage } from "./ui/detail.ts";
 import type { Problem } from "./ui/blocks.ts";
 import { href } from "./ui/html.ts";
-import { commandArguments, parseForm, unfilled } from "./ui/input.ts";
+import { commandArguments, parseForm, slugOf as addressOf, unfilled } from "./ui/input.ts";
 import type { Form } from "./ui/input.ts";
-import { backOf, plainValue } from "./ui/links.ts";
+import { backOf, plainText, plainValue } from "./ui/links.ts";
 import type { Back } from "./ui/links.ts";
 import { libraryPage } from "./ui/library.ts";
 import { approximatePage } from "./ui/approximate.ts";
@@ -232,11 +233,41 @@ __MEDIA_SETUP__
     return redirect(`${url.pathname}${url.search}`, 303, sessionCookie(signSession(secret, claims.email, now)));
   }
 
+  /**
+   * The edge's question before it serves a page: is this address a page that is hidden? Answered
+   * without a session (it says nothing a visitor cannot learn from the 404 itself): 404 for a hidden
+   * page, 204 for anything else. The path is `?path=`, or the original address a forwarding proxy sends.
+   */
+  async function gate(url: URL, request: Request): Promise<Response> {
+    const asked = url.searchParams.get("path") ?? request.headers.get("x-forwarded-uri") ?? "";
+    // A host that cannot answer is not a reason to hide the site: an unknown page is shown.
+    const hidden = asked !== "" && (await isHidden(client, asked, now()).catch(() => false));
+    return new Response(hidden ? "Page not found." : null, { status: hidden ? 404 : 204, headers: { "Cache-Control": "no-store", ...(hidden ? { "Content-Type": "text/plain; charset=utf-8" } : {}) } });
+  }
+
+  /**
+   * The site's sitemap without the pages that are hidden (the edge routes `/sitemap.xml` here). The
+   * site's own is read as a visitor would, from the address the Editor row names.
+   */
+  async function sitemap(): Promise<Response> {
+    const origin = (process.env[EDITOR.site?.env ?? ""] || EDITOR.site?.default || "").replace(/\/+$/, "");
+    try {
+      const own = await (options.fetch ?? fetch)(`${origin}/sitemap.xml`, { signal: AbortSignal.timeout(EDITOR.timeoutMs) });
+      if (!own.ok) return plain("The site's sitemap could not be read.", 502);
+      const hidden = await hiddenSet(client, now()).catch(() => new Set<string>());
+      return new Response(withoutHidden(await own.text(), hidden), { status: 200, headers: { "Content-Type": "application/xml; charset=utf-8", "Cache-Control": "no-store" } });
+    } catch {
+      return plain("The site's sitemap could not be read.", 502);
+    }
+  }
+
   async function handle(request: Request): Promise<Response> {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, "") || "/";
     if (path === EDITOR.ssoPath) return enter(url, secret, membership, now);
     if (EDITOR.landing && path === EDITOR.landing) return redirect(href(), 303);
+    if (SCHEMA.pages?.length && path === href("gate") && request.method === "GET") return gate(url, request);
+    if (SCHEMA.pages?.length && EDITOR.site && path === href("sitemap.xml") && request.method === "GET") return sitemap();
     if (path !== EDITOR.basePath && !path.startsWith(`${EDITOR.basePath}/`)) return anonymous(notFound(path), 404);
     if (path === href("logout") && request.method === "POST") return signOut(request);
 
@@ -475,6 +506,39 @@ async function beforeSending(client: HostClient, agg: Aggregate, command: Comman
   return (await unchecked(client, agg, command, args)) ?? backwards(agg, command, args) ?? (await duplicate(client, agg, command, args));
 }
 
+/**
+ * The start of a page. A new page's form asks for its title and address with the rest of it; the
+ * record that holds those (the family's `titles`) is made first, then the page under the key
+ * `<kind>:<address>`, so a person fills in one form. A record of that address that is already there
+ * with no page of this kind under it (an earlier try that was refused after it was made) is used, not
+ * refused. Returns the arguments of the page's own command, or what to show instead.
+ */
+async function startPage(client: HostClient, agg: Aggregate, command: Command, args: State): Promise<{ ok: true; args: State } | { ok: false; message: string; field?: string; problems?: Problem[] }> {
+  const start = command.starts;
+  const titles = start ? aggregateOf(start.aggregate) : undefined;
+  const create = titles?.commands.find((candidate) => candidate.name === start?.command);
+  const keyAttr = start ? agg.attributes.find((attr) => attr.name === start.key) : undefined;
+  if (!start || !titles || !create || !keyAttr) return { ok: true, args };
+  const address = addressOf(plainText(args[start.identity]));
+  const key = `${start.kind}:${address}`;
+  const own: State = Object.fromEntries(Object.entries(args).filter(([name]) => start.keep.includes(name)));
+  const identity = create.attributes.find((attr) => attr.name === start.identity);
+  if (identity && address !== "") own[start.identity] = plainValue(titles, identity, address);
+  const rest: State = { ...Object.fromEntries(Object.entries(args).filter(([name]) => !start.keep.includes(name))), [start.key]: plainValue(agg, keyAttr, key) };
+  const answer = await client.read();
+  if (address !== "" && instanceIn(client, answer, agg, key)) {
+    const named = titleFor(agg, key, (other, id) => instanceIn(client, answer, other, id));
+    return { ok: false, field: start.identity, message: `That address is already used by ${named ?? key}. Change the address, or open that one to edit it.` };
+  }
+  const refused = await beforeSending(client, agg, command, rest);
+  if (refused) return refused;
+  if (address !== "" && instanceIn(client, answer, titles, address)) return { ok: true, args: rest };
+  const sent: State = { ...own };
+  for (const attr of create.attributes) if (attr.list && sent[attr.name] === undefined) sent[attr.name] = [];
+  const made = await runCommand(client, titles, create, sent);
+  return made.ok ? { ok: true, args: rest } : { ok: false, message: made.message, field: made.field, problems: [] };
+}
+
 /** The scheduled-action record the editor makes itself: a creating command gets an identity nobody typed. */
 function withMadeIdentity(agg: Aggregate, command: Command, args: State): State {
   const spec = SCHEMA.scheduling;
@@ -577,7 +641,8 @@ async function post(client: HostClient, request: Request, agg: Aggregate, verb: 
   const to = onInstance ? rest[0] : command.creates ? undefined : (form.get("__to") ?? "");
   if (request.headers.get("x-editor-autosave") === "1") return autosave(client, agg, command, args, to);
   const missing = unfilled(command.attributes, args);
-  const outcome = to === "" ? { ok: false as const, message: "Name the instance to act on." } : (missing ? { ok: false as const, ...missing } : ((await beforeSending(client, agg, command, args)) ?? (await runCommand(client, agg, command, args, to))));
+  const started = to === "" || missing || !command.starts ? { ok: true as const, args } : await startPage(client, agg, command, args);
+  const outcome = to === "" ? { ok: false as const, message: "Name the instance to act on." } : (missing ? { ok: false as const, ...missing } : started.ok ? ((await beforeSending(client, agg, command, started.args)) ?? (await runCommand(client, agg, command, started.args, to))) : started);
   const back = backOf(form.get("__back"));
   if (outcome.ok) {
     const unsaved = await saveTexts(client, agg, outcome.id, textsFor(agg, command, scene.role), form, scene.now);

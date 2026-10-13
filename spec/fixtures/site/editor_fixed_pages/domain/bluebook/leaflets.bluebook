@@ -599,4 +599,78 @@ Hecks.bluebook "Leaflets" do
       description "Every roster page."
     end
   end
+
+  # **The facts of a page** -- its address, its title and whether it shows. Each page type above holds
+  # the page's words under the key `page:<slug>`; this aggregate is what names the page to a person
+  # and what hides it (a hidden page is answered as not found, its words kept).
+  aggregate "Leaflet" do
+    description "One page of the leaflet site: its address, its title, and whether it shows."
+
+    identified_by :slug
+
+    value_object "LeafletSlug" do
+      attribute :value, String
+      invariant("a leaflet has a slug") { !value.to_s.empty? }
+    end
+
+    value_object "LeafletTitle" do
+      attribute :value, String
+      invariant("a leaflet has a title") { !value.to_s.empty? }
+    end
+
+    value_object "LeafletTag" do
+      attribute :value, String
+      invariant("a tag is not blank") { !value.to_s.empty? }
+    end
+
+    attribute :slug,  LeafletSlug
+    attribute :title, LeafletTitle
+    attribute :tags,  list_of(LeafletTag)
+
+    lifecycle :status, default: "live" do
+      transition "TakeDown" => "down", from: "live"
+      transition "PutBack"  => "live", from: "down"
+    end
+
+    command "Create" do
+      role "Editor"
+      goal "Add a page to the leaflet site"
+
+      attribute :slug,  LeafletSlug
+      attribute :title, LeafletTitle
+      attribute :tags,  list_of(LeafletTag)
+
+      sets :slug
+      sets :title
+      sets :tags
+
+      emits "LeafletCreated"
+    end
+
+    command "TakeDown" do
+      role "Editor"
+      goal "Hide a page and answer not found for it, keeping its record"
+
+      reference_to Leaflet
+
+      given("only a live page can be taken down") { status == "live" }
+
+      emits "LeafletTakenDown"
+    end
+
+    command "PutBack" do
+      role "Editor"
+      goal "Put a hidden page back"
+
+      reference_to Leaflet
+
+      given("only a hidden page can be put back") { status == "down" }
+
+      emits "LeafletPutBack"
+    end
+
+    query "Listing" do
+      description "Every page."
+    end
+  end
 end

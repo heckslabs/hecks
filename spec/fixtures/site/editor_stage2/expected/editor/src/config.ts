@@ -34,6 +34,8 @@ export const EDITOR = {
   previewIn: "drawer" as "drawer" | "tab",
   /** Where files are sent to be kept (the content system's API root and its address), or null for none. */
   upload: {"env":"NEWSROOM_FILES_URL","default":"http://127.0.0.1:4501","api":"/files/api"} as { env: string; default: string; api: string } | null,
+  /** Where the site is reached from this server (the environment variable naming its address, and a default), or null. */
+  site: null as { env: string; default: string } | null,
   /** The aggregate of people who may edit, read over the host's own protocol, or null to ask the members list. */
   members: {"domain":"People","aggregate":"People::Person","email":"email","role":"role"} as { domain: string; aggregate: string; email: string; role: string } | null,
   /** The site's own modules for reading and showing Markdown (see browser/markdown_site.js), or null. */

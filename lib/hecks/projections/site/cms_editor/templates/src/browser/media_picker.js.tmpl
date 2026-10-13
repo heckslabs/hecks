@@ -169,7 +169,7 @@ export function openPicker(frame, bar, options) {
     for (const item of staged.filter((entryItem) => !entryItem.done)) {
       const words = item.text.value.trim();
       if (!words) {
-        item.result.textContent = "Add alt text to upload this picture.";
+        item.result.textContent = "Describe the picture to upload it.";
         item.result.className = "text-xs font-semibold text-error";
         item.text.setAttribute("aria-invalid", "true");
         item.text.focus();
@@ -201,7 +201,7 @@ export function openPicker(frame, bar, options) {
   const submit = () => {
     say(null);
     if (!chosen) return say("Choose a picture, or upload one first.");
-    if (!alt.value.trim()) return say("Add alt text: describe the picture for someone who cannot see it.");
+    if (!alt.value.trim()) return say("Describe the picture for someone who cannot see it, then upload it.");
     onPick(chosen, alt.value.trim(), caption.value.trim());
     shut();
   };
