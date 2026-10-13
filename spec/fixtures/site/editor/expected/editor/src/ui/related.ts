@@ -22,7 +22,7 @@ import { capital, singular } from "./words.ts";
 type State = Record<string, unknown>;
 
 /** What a related record is called in the panel's title and its buttons: its shape's noun, or its aggregate's own words. */
-const nounOf = (rel: Related, target: Aggregate): string => (rel.shape === "document" ? "text" : rel.shape === "gallery" ? "pictures" : singular(target.name));
+const nounOf = (rel: Related, target: Aggregate): string => rel.label ?? (rel.shape === "document" ? "text" : rel.shape === "gallery" ? "pictures" : singular(target.name));
 
 /** The words that say what a picture shows, from its record when the editor holds it. */
 function altOf(key: string, world: World): string {
@@ -41,7 +41,20 @@ function thumbnails(keys: string[], world: World): string {
   return `<ul class="flex gap-2 overflow-x-auto pb-1" aria-label="The pictures, in order">${items.join("")}</ul>`;
 }
 
+/** Whether a record meets a companion's `when`: `<attribute> is <value>` or `<attribute> includes <value>`. */
+function holds(when: string | undefined, record: State): boolean {
+  if (!when) return true;
+  const found = /^(\w+) (includes|is) (.+)$/.exec(when);
+  if (!found) return false;
+  const items = [record[found[1]]].flat().map(plainText);
+  return found[2] === "includes" ? items.includes(found[3]) : items[0] === found[3];
+}
+
 function summary(rel: Related, target: Aggregate, values: State, world: World): string {
+  if (rel.shape === "text") {
+    const text = plainText(values[rel.attribute ?? ""]);
+    return text === "" ? `<p class="text-muted">Empty.</p>` : `<pre class="max-h-96 overflow-y-auto whitespace-pre-wrap break-words font-sans text-sm">${esc(text)}</pre>`;
+  }
   if (rel.shape === "document") {
     const body = target.attributes.find((attr) => attr.widget === "body" && !attr.list);
     const draft = target.drafts && values[target.drafts.attribute] != null ? `<p class="mb-3"><span class="badge badge-soft badge-info">Changes not published yet</span></p>` : "";
@@ -79,19 +92,32 @@ function editLink(rel: Related, target: Aggregate, key: string, here: string): s
 function one(rel: Related, index: number, agg: Aggregate, id: string, world: World, here: string): string {
   const target = relatedAggregate(rel);
   if (!target || !mayEdit(target, world.role)) return "";
-  const key = partsOf(agg, id).key;
+  const key = rel.key ? rel.key.split("{slug}").join(id).split("{id}").join(id) : partsOf(agg, id).key;
   const values = world.lookup(target, key);
   const noun = nounOf(rel, target);
+  const help = rel.help ? `<p class="mb-3 text-sm text-muted">${esc(rel.help)}</p>` : "";
   if (values) {
     const edit = `<a class="btn btn-sm" href="${esc(editLink(rel, target, key, here))}">${icon("pencil")}${rel.edit ? "Edit" : "Open"}</a>`;
-    return panel(index, noun, edit, summary(rel, target, values, world));
+    return panel(index, noun, edit, `${help}${summary(rel, target, values, world)}`);
   }
   const add = addLink(rel, target, key, here);
-  const button = add ? `<a class="btn btn-neutral btn-sm" href="${esc(add)}">${icon("plus")}Add ${esc(noun)}</a>` : "";
-  return panel(index, noun, "", `<p class="mb-3 text-muted">No ${esc(noun)} for this ${esc(singular(agg.name))} yet.</p>${button}`);
+  const written = rel.shape === "text";
+  const words = noun.toLowerCase();
+  const button = add ? `<a class="btn btn-neutral btn-sm" href="${esc(add)}">${icon("plus")}${written ? "Write the" : "Add"} ${esc(words)}</a>` : "";
+  const none = written ? `No ${esc(words)} written for this ${esc(singular(agg.name))} yet.` : `No ${esc(noun)} for this ${esc(singular(agg.name))} yet.`;
+  return panel(index, noun, "", `${help}<p class="mb-3 text-muted">${none}</p>${button}`);
 }
 
 /** One panel for each aggregate keyed by `agg`'s records, for the record `id` shown at `here`. */
 export function relatedPanels(agg: Aggregate, id: string, world: World, here: string): string {
-  return (agg.related ?? []).map((rel, index) => one(rel, index, agg, id, world, here)).filter((html) => html !== "").join("\n");
+  const record = world.lookup(agg, id) ?? {};
+  const shown = new Set<string>();
+  const entries = (agg.related ?? []).filter((rel) => {
+    if (rel.shape !== "text") return true;
+    const group = `${rel.aggregate}|${rel.label ?? ""}`;
+    if (shown.has(group) || !holds(rel.when, record)) return false;
+    shown.add(group);
+    return true;
+  });
+  return entries.map((rel, index) => one(rel, index, agg, id, world, here)).filter((html) => html !== "").join("\n");
 }

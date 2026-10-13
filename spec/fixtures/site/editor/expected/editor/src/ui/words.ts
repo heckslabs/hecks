@@ -3,7 +3,7 @@
 // The words the editor shows people. The domain's names are CamelCase and singular; people read
 // sentence case, plural for a list, and the same verb through a whole flow: the button that says
 // "Publish" leaves a notice that says "Published." Nothing here asks the domain; it reads names.
-import type { Aggregate, Command } from "../schema.ts";
+import type { Aggregate, Attr, Command } from "../schema.ts";
 
 /** The lower-case words of a CamelCase or snake_case name: "MediaItem" is "media item". */
 export const humanize = (name: string): string =>
@@ -20,6 +20,7 @@ export const label = (name: string): string => capital(humanize(name));
 
 /** The plural of an English noun, for the common regular shapes. */
 export function pluralOf(noun: string): string {
+  if (/ings$/.test(noun)) return noun;
   if (/[^aeiou]y$/.test(noun)) return `${noun.slice(0, -1)}ies`;
   if (/(s|x|z|ch|sh)$/.test(noun)) return `${noun}es`;
   return `${noun}s`;
@@ -31,6 +32,18 @@ export function plural(name: string): string {
   words[words.length - 1] = pluralOf(words[words.length - 1]);
   return capital(words.join(" "));
 }
+
+/**
+ * What a person calls one of an aggregate's records, lower case: the `EditorThing` row's `name`
+ * when the route chapter declares one, else the aggregate's own name in words.
+ */
+export const nameOf = (agg: Aggregate): string => agg.words?.name ?? humanize(agg.name);
+
+/** What a person calls the aggregate's records together, capitalised: the row's `plural`, else the name made plural. */
+export const pluralName = (agg: Aggregate): string => capital(agg.words?.plural ?? humanize(plural(agg.name)));
+
+/** An attribute's label: the `EditorField` row's `label`, else its name in words. */
+export const labelOf = (attr: Pick<Attr, "name" | "label">): string => attr.label ?? label(attr.name);
 
 /** The limits a list's holder gives it as a sentence ("At least 1 and at most 60."), or nothing when it gives none. */
 export function limitsNote(min?: number, max?: number): string {
@@ -80,6 +93,7 @@ const stem = (word: string): string => word.replace(/(ing|ed|es|e|d|s)$/, "");
  * names, except one that makes something new: "Draft" on the articles page is "Draft article".
  */
 export function commandLabel(agg: Aggregate, command: Command): string {
+  if (command.label) return command.label;
   const words = humanize(command.name).split(" ");
   return capital(command.creates && words.length === 1 ? `${words[0]} ${singular(agg.name)}` : words.join(" "));
 }

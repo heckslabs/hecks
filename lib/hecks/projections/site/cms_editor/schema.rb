@@ -11,6 +11,8 @@ require_relative "media"
 require_relative "pickers"
 require_relative "relations"
 require_relative "scheduling"
+require_relative "single"
+require_relative "words"
 
 module Hecks
   module Projections
@@ -33,16 +35,32 @@ module Hecks
           # @param pictures [Bluebook::Chapter, nil] another chapter whose picture aggregate the
           #   editor's pictures use, in place of any in `chapters`
           # @param roles [Hash{String => Array<String>}] the roles each chapter is limited to
+          # @param words [Words::Rows, nil] the route chapter's `EditorThing`, `EditorField` and
+          #   `EditorCompanion` rows (see `Words`)
           # @return [Hash{String => Object}] the domain's name and its aggregates; `chapters` too
           #   when there are several
           # @raise [ArgumentError] when no aggregate is left, or `pictures` has no picture aggregate
-          def self.read(chapters, skip: [], pictures: nil, roles: {})
+          def self.read(chapters, skip: [], pictures: nil, roles: {}, words: nil)
             list = chapters.is_a?(Array) ? chapters : [chapters]
+            shaped = shape(list, skip, roles)
+            media = pictures ? elsewhere(pictures) : within(shaped, list.first.name)
+            worded = Words.apply(shaped, words, chapters: list.map(&:name))
+            assemble(list, related(worded, media, words), media)
+          end
+
+          # @return [Array<Hash{String => Object}>] each aggregate, as the editor reads it
+          # @raise [ArgumentError] when none is left
+          def self.shape(list, skip, roles)
             shaped = Composition.aggregates(list, skip: skip, roles: roles) { |agg| new(agg).to_h }
             raise ArgumentError, "the #{list.map(&:name).join(", ")} chapter has no aggregate to edit" if shaped.empty?
 
-            media = pictures ? elsewhere(pictures) : within(shaped, list.first.name)
-            assemble(list, Relations.apply(Pickers.apply(shaped, media), media), media)
+            shaped
+          end
+
+          # @return [Array<Hash{String => Object}>] the aggregates with their pickers, the records
+          #   that go with each and the companions the route chapter's rows name
+          def self.related(shaped, media, words)
+            Words.companions(Relations.apply(Pickers.apply(shaped, media), media), words)
           end
 
           # @return [Hash{String => Object}] the schema: the domain, the chapters when several, the
@@ -89,7 +107,7 @@ module Hecks
             held = aggregate_attributes
             drafts = Drafts.of(@agg, held)
             { "name" => @agg.hecks_name, "description" => @agg.description, "identity" => @agg.identified_by.to_s,
-              "lifecycle" => lifecycle, "attributes" => held, "valueObjects" => value_objects,
+              **single, "lifecycle" => lifecycle, "attributes" => held, "valueObjects" => value_objects,
               "commands" => @agg.commands.map { |command| command(command) }, "queries" => queries,
               **(drafts ? { "drafts" => drafts } : {}) }
           end
@@ -97,6 +115,13 @@ module Hecks
           private
 
           def lifecycle_field = @agg.lifecycle&.field
+
+          # `single` when the aggregate's identity is one literal its value object's rule names
+          # (`value == "site"`): there is one record, and its key is that literal.
+          def single
+            found = Single.literal(@agg)
+            found ? { "single" => found } : {}
+          end
 
           # The aggregate's own attributes, bounded by the aggregate's invariants (see `Limits`).
           def aggregate_attributes

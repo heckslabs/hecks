@@ -212,8 +212,8 @@ RSpec.describe "the generated multi-chapter editor, run by node" do
     end
 
     it "shows the overview in groups as well, with the counts of each aggregate", :aggregate_failures do
-      expect(result("home")).to include('<h2 class="mb-2 mt-8 text-lg">Press</h2>', '<h2 class="mb-2 mt-8 text-lg">Library</h2>')
-      expect(result("home")).to include('tabular-nums text-muted">6</span>')
+      expect(result("home")).to include('<h2 class="mb-3 mt-8 text-xl">Press</h2>', '<h2 class="mb-3 mt-8 text-xl">Library</h2>')
+      expect(result("home")).to include('aria-label="How many">6</span>')
     end
 
     it "keeps two aggregates of one name apart, each listing its own instances", :aggregate_failures do
@@ -301,7 +301,7 @@ RSpec.describe "the generated multi-chapter editor, run by node" do
       form = result("draftForm")
 
       expect(form).to include('<select class="select w-full max-w-xl" id="f-categories-0-value" name="categories.0.value">')
-      expect(form).to include('<option value="news">News (news)</option>')
+      expect(form).to include('<option value="news">News</option>')
       expect(form).not_to include('<option value="opinion">')
     end
 

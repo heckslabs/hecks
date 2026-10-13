@@ -1,0 +1,293 @@
+# A community garden's plant catalogue, as the neutral fixture for the editor's task home and its
+# words: a key spelled by the type of another aggregate's identity, a closed set written as one
+# invariant, a long text bounded by an invariant, a moment held as ISO text, a record that is the
+# only one of its kind, a note kept as its own record, and a picture slot whose key pattern asks for
+# a prefix.
+Hecks.bluebook "Garden" do
+  vision "The plants a community garden grows, where, and who looks after them."
+  core
+
+  aggregate "Plant" do
+    description "One kind of plant the garden grows, with where it grows and when it was sown."
+
+    identified_by :slug
+
+    value_object "PlantSlug" do
+      attribute :value, String
+      invariant("a plant has a slug") { !value.to_s.empty? }
+    end
+
+    value_object "PlantName" do
+      attribute :value, String
+      invariant("a plant has a name") { !value.to_s.empty? }
+    end
+
+    value_object "PlantKind" do
+      attribute :value, String
+      invariant("a plant is a herb, a shrub or a tree") { value == "herb" || value == "shrub" || value == "tree" }
+    end
+
+    value_object "BedSlug" do
+      attribute :value, String
+      invariant("a bed is named by its slug") { !value.to_s.empty? }
+    end
+
+    value_object "CaretakerKey" do
+      attribute :value, String
+      invariant("a caretaker is named by a key") { !value.to_s.empty? }
+    end
+
+    value_object "Description" do
+      attribute :value, String
+      invariant("a description is at most 600 characters") { value.to_s.size <= 600 }
+    end
+
+    value_object "SownOn" do
+      attribute :value, String
+      invariant("a sowing is a stated moment") { !value.to_s.empty? }
+    end
+
+    value_object "Visit" do
+      attribute :at,   String
+      attribute :note, String
+    end
+
+    value_object "Figure" do
+      attribute :media_ref, String, pattern: '^media:'
+      attribute :alt,       String
+    end
+
+    attribute :slug,        PlantSlug
+    attribute :name,        PlantName
+    attribute :kind,        PlantKind, optional: true
+    attribute :bed_slug,    BedSlug, optional: true
+    attribute :mentor,      CaretakerKey, optional: true
+    attribute :description, Description, optional: true
+    attribute :sown_on,     SownOn, optional: true
+    attribute :visits,      list_of(Visit)
+    attribute :figure,      Figure, optional: true
+
+    lifecycle :status, default: "draft" do
+      transition "List"   => "listed", from: "draft"
+      transition "Retire" => "retired", from: "listed"
+    end
+
+    command "Sow" do
+      role "Editor"
+      goal "Start a plant the catalogue does not list yet"
+
+      attribute :slug,        PlantSlug
+      attribute :name,        PlantName
+      attribute :kind,        PlantKind, optional: true
+      attribute :bed_slug,    BedSlug, optional: true
+      attribute :mentor,      CaretakerKey, optional: true
+      attribute :description, Description, optional: true
+      attribute :sown_on,     SownOn, optional: true
+      attribute :visits,      list_of(Visit)
+      attribute :figure,      Figure, optional: true
+
+      emits "PlantSown"
+    end
+
+    command "Revise" do
+      role "Editor"
+      goal "Change a plant's name, kind, bed, description or visits"
+      reference_to Plant
+
+      attribute :name,        PlantName
+      attribute :kind,        PlantKind, optional: true
+      attribute :bed_slug,    BedSlug, optional: true
+      attribute :mentor,      CaretakerKey, optional: true
+      attribute :description, Description, optional: true
+      attribute :sown_on,     SownOn, optional: true
+      attribute :visits,      list_of(Visit)
+      attribute :figure,      Figure, optional: true
+
+      emits "PlantRevised"
+    end
+
+    command "List" do
+      role "Editor"
+      goal "Put a sown plant in the catalogue"
+      reference_to Plant
+
+      given("only a draft can be listed") { status == "draft" }
+
+      emits "PlantListed"
+    end
+
+    command "Retire" do
+      role "Editor"
+      goal "Take a plant out of the catalogue, keeping its record"
+      reference_to Plant
+
+      given("only a listed plant can be retired") { status == "listed" }
+
+      emits "PlantRetired"
+    end
+
+    query "Catalogue" do
+      description "The listed plants, by name."
+      where(status: "listed")
+      order_by "name.value", :asc
+    end
+  end
+
+  aggregate "Bed" do
+    description "A planting bed in the garden."
+
+    identified_by :slug
+
+    value_object "BedSlug" do
+      attribute :value, String
+      invariant("a bed has a slug") { !value.to_s.empty? }
+    end
+
+    value_object "BedTitle" do
+      attribute :value, String
+      invariant("a bed has a title") { !value.to_s.empty? }
+    end
+
+    attribute :slug,  BedSlug
+    attribute :title, BedTitle
+
+    command "Mark" do
+      role "Editor"
+      goal "Add a bed plants can be assigned to"
+
+      attribute :slug,  BedSlug
+      attribute :title, BedTitle
+
+      emits "BedMarked"
+    end
+
+    query "Listing" do
+      description "Every bed, by title."
+      order_by "title.value", :asc
+    end
+  end
+
+  aggregate "Gardener" do
+    description "A person who looks after plants."
+
+    identified_by :key
+
+    value_object "MentorKey" do
+      attribute :value, String
+      invariant("a gardener has a key") { !value.to_s.empty? }
+    end
+
+    value_object "GardenerName" do
+      attribute :value, String
+      invariant("a gardener has a name") { !value.to_s.empty? }
+    end
+
+    attribute :key,  MentorKey
+    attribute :name, GardenerName
+
+    command "Enrol" do
+      role "Editor"
+      goal "Add a gardener"
+
+      attribute :key,  MentorKey
+      attribute :name, GardenerName
+
+      emits "GardenerEnrolled"
+    end
+  end
+
+  aggregate "Almanac" do
+    description "The garden's yearly motto. One record, keyed 'almanac'."
+
+    identified_by :key
+
+    value_object "AlmanacKey" do
+      attribute :value, String
+      invariant("the almanac is keyed 'almanac'") { value == "almanac" }
+    end
+
+    value_object "Motto" do
+      attribute :value, String
+    end
+
+    attribute :key,   AlmanacKey
+    attribute :motto, Motto, optional: true
+
+    command "Establish" do
+      role "Editor"
+      goal "Write the almanac for the first time"
+
+      attribute :key,   AlmanacKey
+      attribute :motto, Motto, optional: true
+
+      emits "AlmanacEstablished"
+    end
+
+    command "Reword" do
+      role "Editor"
+      goal "Change the motto"
+      reference_to Almanac
+
+      attribute :motto, Motto, optional: true
+
+      emits "AlmanacReworded"
+    end
+  end
+
+  aggregate "Note" do
+    description "The written note that goes with one record, addressed <kind>.<address>.note."
+
+    identified_by :slug
+
+    value_object "NoteSlug" do
+      attribute :value, String
+      invariant("a note has a slug") { !value.to_s.empty? }
+    end
+
+    value_object "NoteKind" do
+      attribute :value, String
+    end
+
+    value_object "NoteAddress" do
+      attribute :value, String
+    end
+
+    value_object "NoteText" do
+      attribute :value, String
+    end
+
+    value_object "Stamp" do
+      attribute :value, Integer
+    end
+
+    attribute :slug,       NoteSlug
+    attribute :kind,       NoteKind
+    attribute :address,    NoteAddress
+    attribute :text,       NoteText
+    attribute :written_at, Stamp
+
+    command "Write" do
+      role "System"
+      goal "Seed a note with its key and first words"
+
+      attribute :slug,       NoteSlug
+      attribute :kind,       NoteKind
+      attribute :address,    NoteAddress
+      attribute :text,       NoteText
+      attribute :written_at, Stamp
+
+      emits "NoteWritten"
+    end
+
+    command "Rewrite" do
+      role "Editor"
+      goal "Change the words of a note"
+      reference_to Note
+
+      attribute :text,       NoteText
+      attribute :written_at, Stamp
+
+      emits "NoteRewritten"
+    end
+  end
+end

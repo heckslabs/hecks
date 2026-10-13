@@ -94,7 +94,8 @@ RSpec.describe "the rich-text body functions of the generated editor, run by nod
   def generated
     files = Hecks::Tools::SiteRoutes.projection(project, out: "/work/out", editor: "/work/editor")
     kept = files.select do |path, _|
-      (path.match?(%r{/src/(ui/body_|browser/body_doc)}) && path.end_with?(".js")) || path.end_with?("/src/ui/input.ts")
+      body = path.match?(%r{/src/(ui/body_|browser/body_doc)}) && path.end_with?(".js")
+      body || path.end_with?("/src/ui/input.ts", "/src/ui/wall.ts")
     end
     kept.transform_keys { |path| path.delete_prefix("/work/editor/") }
   end

@@ -239,6 +239,9 @@ function markAlt(picture, show) {
   alt.after(Object.assign(document.createElement("p"), { id, className: "text-xs font-semibold text-error", textContent: "Describe the picture for people who cannot see it." }));
 }
 
+/** A picture key without the `media:`-style prefix a model's pattern may ask for; either spelling names the picture. */
+const bare = (key) => key.replace(/^[a-z][a-z0-9_]*:/, "");
+
 /** The registered pictures' addresses by key, fetched once for the thumbnails. */
 let known = null;
 function pictures(url) {
@@ -255,7 +258,8 @@ async function thumb(picture) {
   const image = picture.querySelector("[data-picture-thumb]");
   const key = picture.querySelector(`[name="${picture.dataset.key}"]`)?.value.trim();
   if (!url || !image) return;
-  const found = key ? (await pictures(url)).get(key) : null;
+  const known = key ? await pictures(url) : null;
+  const found = key ? (known.get(key) ?? known.get(bare(key))) : null;
   image.hidden = !found;
   if (found) {
     image.addEventListener("error", () => { image.hidden = true; }, { once: true });
@@ -272,9 +276,9 @@ async function pick(picture, list, afterwards) {
   const { openPicker } = await loadPicker();
   openPicker(picture, picture, {
     url: button.dataset.media,
-    current: { mediaRef: key.value, alt: alt?.value ?? "" },
+    current: { mediaRef: bare(key.value), alt: alt?.value ?? "" },
     onPick: (chosen, text) => {
-      key.value = chosen;
+      key.value = `${picture.dataset.prefix ?? ""}${chosen}`;
       if (alt) alt.value = text;
       key.dispatchEvent(new Event("input", { bubbles: true }));
       markAlt(picture, false);

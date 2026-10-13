@@ -1,0 +1,113 @@
+# A garden's site, with an editor whose words are declared beside its routes: the neutral fixture
+# for the task home, the labels and help, the advanced fields, the moments in a fixed zone, a picked
+# record by name, and a note that belongs to a plant.
+Hecks.bluebook "GardenSite" do
+  vision "The routes of a community garden's site, and the words its editor says."
+
+  aggregate "SiteMap" do
+    description "The garden site's routes."
+
+    attribute :name, MapName
+    identified_by :name
+
+    value_object "MapName" do
+      attribute :value, String
+    end
+
+    value_object "Route" do
+      attribute :path,      String
+      attribute :kind,      String
+      attribute :render,    String
+      attribute :auth,      String
+      attribute :methods,   String
+      attribute :cache,     String
+      attribute :origin,    String
+      attribute :source,    String
+      attribute :indexable, Boolean
+      attribute :label,     String
+      attribute :nav_order, Integer
+
+      member path: "/",            label: "Home", cache: "home", source: "global:home", nav_order: 1
+      member path: "/editor*",     kind: "proxy", origin: "cms", auth: "admin", methods: "GET,POST"
+      member path: "/admin-login", render: "ssr", cache: "no_store", methods: "GET", indexable: false
+      member path: "/*",           kind: "proxy"
+    end
+
+    value_object "Editor" do
+      attribute :domain,         String
+      attribute :chapter,        String
+      attribute :base_path,      String
+      attribute :session_cookie, String
+      attribute :host_cookie,    String
+      attribute :host_env,       String
+      attribute :host_default,   String
+      attribute :roles,          String
+      attribute :login,          String
+      attribute :title,          String
+      attribute :preview_in,     String
+
+      member domain: "domain", chapter: "Garden",
+             base_path: "/editor", session_cookie: "garden_editor", host_cookie: "garden_session",
+             host_env: "GARDEN_DOMAIN_SERVICE_URL", host_default: "http://127.0.0.1:4600",
+             roles: "Admin,Owner", login: "/admin-login", title: "Garden editor", preview_in: "tab"
+    end
+
+    value_object "EditorThing" do
+      attribute :aggregate, String
+      attribute :name,      String
+      attribute :plural,    String
+      attribute :about,     String
+      attribute :preview,   String
+      attribute :advanced,  Boolean
+
+      member aggregate: "Garden", name: "The garden"
+      member aggregate: "Plant", name: "plant", plural: "plants", about: "The plants the garden grows.",
+             preview: "/plants/{slug}"
+      member aggregate: "Almanac", name: "almanac", plural: "almanac"
+      member aggregate: "Note", name: "note", plural: "notes", advanced: true,
+             about: "The words that go with a plant. Edit one from the plant's page."
+    end
+
+    value_object "EditorField" do
+      attribute :aggregate, String
+      attribute :command,   String
+      attribute :attribute, String
+      attribute :label,     String
+      attribute :help,      String
+      attribute :kind,      String
+      attribute :zone,      String
+      attribute :advanced,  Boolean
+      attribute :picks,     String
+      attribute :fill,      String
+
+      member aggregate: "Plant", attribute: "slug", label: "Address", advanced: true, fill: "slug_of:name",
+             help: "Left blank, it is made from the name."
+      member aggregate: "Plant", attribute: "bed_slug", label: "Bed"
+      member aggregate: "Plant", attribute: "mentor", label: "Looked after by", picks: "Gardener"
+      member aggregate: "Plant", attribute: "sown_on", label: "Sown", kind: "datetime", zone: "-07:00",
+             help: "When the seed went in."
+      member aggregate: "Plant", attribute: "visits", label: "Visits"
+      member aggregate: "Plant", attribute: "visits.at", label: "When", kind: "datetime", zone: "-07:00"
+      member aggregate: "Plant", attribute: "visits.note", label: "What was seen", kind: "textarea"
+      member aggregate: "Plant", command: "Sow", label: "Save the plant"
+      member aggregate: "Plant", command: "List", label: "Put in the catalogue"
+      member aggregate: "Note", attribute: "kind", advanced: true, fill: "part:slug:.:0"
+      member aggregate: "Note", attribute: "address", advanced: true, fill: "part:slug:.:1"
+      member aggregate: "Note", attribute: "written_at", advanced: true, fill: "now"
+      member aggregate: "Note", attribute: "text", label: "Words", kind: "textarea", help: "Plain sentences."
+    end
+
+    value_object "EditorCompanion" do
+      attribute :aggregate, String
+      attribute :with,      String
+      attribute :key,       String
+      attribute :field,     String
+      attribute :when,      String
+      attribute :label,     String
+      attribute :help,      String
+
+      member aggregate: "Plant", with: "Note", key: "tree.{slug}.note", field: "text", when: "kind is tree", label: "Notes"
+      member aggregate: "Plant", with: "Note", key: "plant.{slug}.note", field: "text", label: "Notes", help: "Seen by visitors."
+    end
+  end
+end

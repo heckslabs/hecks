@@ -24,12 +24,12 @@ module Hecks
                         host_cookie: String, host_env: String, host_default: String, roles: String, login: String,
                         title: String, brand: String, accent: String, logo: String, skip: String, media: String,
                         media_dir: String, media_max_bytes: String, chapter_roles: String, page_size: [String, Integer],
-                        preview: String },
+                        preview: String, preview_in: String },
             required: %i[domain chapter host_env login],
             defaults: { base_path: "/editor", session_cookie: "hecks_editor", host_cookie: "hecks_session",
                         host_default: "http://127.0.0.1:4322", roles: "Admin,Owner", title: "Editor", brand: "",
                         accent: "", logo: "", skip: "", media: "", media_dir: "media", media_max_bytes: "5242880",
-                        chapter_roles: "", page_size: "25", preview: "" }
+                        chapter_roles: "", page_size: "25", preview: "", preview_in: "drawer" }
           )
 
           # @return [Hash{Symbol => String}] the checked row, defaults filled
@@ -77,6 +77,17 @@ module Hecks
             end
           end
 
+          # @param previews [Array<String>] the templates `EditorThing` rows give
+          # @return [Array<String>] every reason the templates are refused, or the frames cannot
+          #   share the one origin the content security policy names
+          def preview_problems(previews)
+            found = previews.flat_map { |text| Preview.problems(text) }
+            origins = [row.fetch(:preview).strip, *previews].reject(&:empty?).map { |text| Preview.frame_source(text) }.uniq
+            return found unless framing? && origins.size > 1
+
+            [*found, "the previews name more than one origin (#{origins.join(", ")}); a frame may load from one"]
+          end
+
           # @return [String, nil] the URL template a record is previewed at, or nil for no preview
           def preview = row.fetch(:preview).strip.then { |template| template.empty? ? nil : template }
 
@@ -103,18 +114,24 @@ module Hecks
           def package = "#{chapter.gsub(/([a-z])([A-Z])/, '\1-\2').tr("_", "-").downcase}-editor"
 
           # @return [Hash{String => String}] each placeholder to the text that replaces it
-          def tokens
+          def tokens(previews = [])
             { "__BANNER__" => RoutesTs::BANNER, "__PACKAGE__" => package, "__ROLES__" => RoutesTs.literal(roles),
               "__MEDIA_MAX_BYTES__" => row.fetch(:media_max_bytes), "__PAGE_SIZE__" => page_size.to_s,
-              "__CLIENT_VERSION__" => Hecks::VERSION, **preview_tokens, **quoted }
+              "__CLIENT_VERSION__" => Hecks::VERSION, **preview_tokens(previews), **quoted }
           end
 
           # @return [Hash{String => String}] the preview template as a literal, and the policy line
           #   that lets the editor frame its origin, which is empty when there is no preview
-          def preview_tokens
-            source = Preview.frame_source(row.fetch(:preview).strip)
-            { "__PREVIEW__" => JSON.generate(preview), "__FRAME_POLICY__" => source ? "  \"frame-src #{source}\"," : "" }
+          def preview_tokens(previews = [])
+            named = [row.fetch(:preview).strip, *previews].find { |text| !text.empty? }.to_s
+            source = framing? ? Preview.frame_source(named) : nil
+            { "__PREVIEW__" => JSON.generate(preview), "__PREVIEW_IN__" => JSON.generate(row.fetch(:preview_in)),
+              "__FRAME_POLICY__" => source ? "  \"frame-src #{source}\"," : "" }
           end
+
+          # @return [Boolean] whether a preview is shown in a drawer on the editor's own page, which
+          #   is the only way the editor frames the site; `tab` opens the site's page instead
+          def framing? = row.fetch(:preview_in) == "drawer"
 
           # @return [Hash{String => String}] each text field's placeholder to the field as JSON
           def quoted

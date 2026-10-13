@@ -221,6 +221,7 @@ forms are generated from the domain, not written per aggregate.
 | `chapter_roles` | roles a chapter is limited to, `Chapter=Role,Role;Chapter=Role`; its aggregates and its pictures are hidden from and refused to any other role (403) | none |
 | `page_size` | how many instances a list shows to a page (1 to 1000); a page, a search (`_q`) and a state (`_status`) are in the address | `25` |
 | `preview` | where a record is shown on the site, a URL template the editor frames in a side drawer: an `http(s)://` address or a path with one slash, with `{key}`, `{kind}`, `{slug}` and `{id}` filled from the record (a `<kind>:<slug>` identity is split; any other identity is the slug of `<snake-case aggregate>:<id>`). Refused when it is another scheme, names credentials, starts `//`, holds whitespace, an unknown placeholder or a placeholder in the scheme, host or port. Its origin (or `'self'` for a path) is the only `frame-src` the editor's content security policy gets | none |
+| `preview_in` | `drawer` frames the preview in a side drawer; `tab` opens the site's page in a new tab, for a site that refuses to be framed (no `frame-src` is then sent) | `drawer` |
 | `media` | another chapter of the domain whose picture aggregate the pictures use, when this chapter has none (a body here uses the pictures of that chapter) | none |
 | `media_dir` | the directory the local-disk adapter keeps uploaded pictures in, from the server's working directory; used only when the chapter has a picture aggregate | `media` |
 | `media_max_bytes` | the largest picture an upload may be, in bytes (1 to 104857600) | `5242880` |
@@ -317,6 +318,71 @@ refusal is shown on the form with the person's input kept (a `given` as "Not all
 The row is refused when `login` is not a public route, when `base_path` or `sso_path` is malformed or `sso_path` is not under
 `base_path`, when `roles` names none, or when the row has a field this list does not. `--editor` on a project with no `Editor` row
 is refused. `--check` covers the files like the others.
+
+### The words an editor says: jobs, labels, help and what is kept behind "More options"
+
+The domain's names say what the model is, not what a person does, so the editor's home page is a card of jobs for each
+aggregate ("New event", "Edit events") and its labels and help are declared beside the route table, on the site's side,
+as three more value objects of the route chapter. The domain's bluebook stays free of all of it. Each is optional, and a
+row that names an aggregate, command or attribute the chapters do not have is refused, naming every such row at once.
+
+| value object | what a row says |
+|---|---|
+| `EditorThing` | `aggregate` (`Name` or `Chapter::Name`; a chapter's name titles that chapter in the navigation), `name` (one, lower case: "event"), `plural`, `about` (the sentence under the card; the bluebook's `description` otherwise), `preview` (this aggregate's own preview address, see below), `advanced` (the card goes under "More" on the home page and in the navigation) |
+| `EditorField` | `aggregate`, then `attribute` (`part` for a part: `sessions.starts_on`) or `command` (alone, the command's button: `label`, and `help` under it; with `attribute`, the row is about that command's form only). `label`, `help`, `kind`, `zone`, `advanced`, `picks`, `fill`: see below |
+| `EditorCompanion` | `aggregate`, `with` (another aggregate), `key` (a template; `{slug}` is the record's identity), `field` (the text of the companion that is edited), `when` (`<attribute> is <value>` or `<attribute> includes <value>`), `label`, `help` |
+
+What the home page and the pages take from the model without a row:
+
+- **The words of a job.** A card is the aggregate (its `about` row, else its `description`). Under it, "New <name>" for each
+  command that makes a record (not one a `System` role runs) with the command's own `goal` as the sentence beside it, and
+  "Edit <plural>" for the list. An aggregate whose identity's value object is one literal (`value == "site"`) holds one
+  record: the card offers "Change <name>" straight to it, and no "New".
+- **Buttons.** A record's page lists the commands that apply now, each with its `goal` under it. A row's `label` replaces the
+  humanised command name. Publish and discard of a working copy are offered only when a draft is saved, and a saved draft is
+  shown on the record's page above the live content.
+- **A related record by its name.** An attribute is a choice of another aggregate's records, shown by title and storing the key,
+  when it is a value object of one text part that is spelled as the type of that other aggregate's identity
+  (`PracticeTextSlug` on an event, where a practice text is identified by a `PracticeTextSlug`), as well as by the earlier
+  rules (a `<kind>:` pattern, `reference_to`, a `<Stem>Ref`). An aggregate's own identity is never a reference to itself. When
+  the model's names say nothing, a row's `picks` names the aggregate.
+- **A closed set written as one invariant.** `invariant("...") { value == "a" || value == "b" }` is a choice of `a` and `b`,
+  as a `one_of` is.
+
+What a row's fields do:
+
+| field | effect |
+|---|---|
+| `label`, `help` | the input's caption and a sentence under it, the refusal's own wording uses the label |
+| `kind: "textarea"` | a writing box of several lines for a plain text. The model's own way is a bound, `invariant("at most 600 characters") { value.to_s.size <= 600 }` on the value object that holds the text (or a command's `given`): the part carries `maxLength` and, above 200, is a box with the limit. The row is for a text the model does not bound |
+| `kind: "datetime"`, `zone` | the attribute is ISO 8601 text and is entered as the clock of `zone` (`Z` or an offset such as `-07:00`) in a `datetime-local` input; it is stored with the zone's offset and a time the person did not change is sent back exactly as it was held |
+| `advanced: true` | kept behind "More options" on the form |
+| `fill` | what the editor puts in when the input is left blank: `now` (seconds since 1970), `slug_of:<attribute>` (an address made from another attribute), `part:<attribute>:<separator>:<index>` (one piece of another attribute's text). A filled attribute is behind "More options" |
+| `picks` | the aggregate the attribute names |
+
+A companion record is the text that belongs to a record but is held as a record of its own (the body of an event is the
+`body` of the content block keyed `event.<address>.body`). It is shown on the record's page as a panel: its text with an
+Edit link to the companion's own command, or an empty state that opens the creating command with the key filled in and the
+way back to the record. The first row for an aggregate and label whose `when` holds is the one shown.
+
+A `preview` may also be given per aggregate by `EditorThing`; with `preview_in: "tab"` the record's page has a "View on the site"
+link that opens it in a new tab. Previews that are framed must share one origin (a path is the editor's own).
+
+#### What a picture's key is written as
+
+A picture slot's key (`media_ref`) is written as the picker's key, a bare `<sha256>.<ext>`, unless the model's pattern for
+it begins with a literal such as `^media:`, in which case the editor writes that literal first (`media:<key>`). Either
+spelling is read back: the thumbnail and the picker find the picture by the key without the prefix. A site that renders
+the picture should do the same: strip a leading `<word>:` and look the key up. The picker's alt text is the chosen picture's
+own registered description unless the person has typed one, and the caption of the picture being replaced is not carried over.
+
+#### Refusals
+
+A refusal is shown in the field's own label and the rule, not the domain's type names. A rule about a block of a body marks
+the body, and a value that is the wrong shape (`Type.part must match ...`, `Type.part expects String, got nil`) is "<label>
+is not in the form the site needs" (with the row's `help`) or "<label>: <part> is needed". A mark of a refusal comes off when the
+person changes what it names: a field when it is given text, a card (and the summary at the top of the list) when anything in it
+changes, and the page's notice when a draft is saved; the next save marks what is still wrong.
 
 ## Projecting it
 

@@ -202,9 +202,68 @@ export function enhanceRows(scope) {
   for (const repeat of scope.querySelectorAll("[data-repeat]")) if (!repeat.dataset.dressed) repeating(repeat);
 }
 
+/**
+ * Takes a mark of a refusal off a control, with the line that says why. A refusal is about what was
+ * sent; once the person changes what it names, the mark is about something that is no longer there.
+ */
+function unmark(element) {
+  element.removeAttribute("aria-invalid");
+  const kept = [];
+  for (const id of (element.getAttribute("aria-describedby") ?? "").split(" ").filter(Boolean)) {
+    if (/-(error|problem)$/.test(id)) document.getElementById(id)?.remove();
+    else kept.push(id);
+  }
+  if (kept.length > 0) element.setAttribute("aria-describedby", kept.join(" "));
+  else element.removeAttribute("aria-describedby");
+}
+
+/** A card that no longer holds a marked slot is no longer one that needs attention; the list's summary follows. */
+function settle(card) {
+  card.removeAttribute("data-invalid");
+  for (const badge of card.querySelectorAll(":scope > [data-card-head] .badge-error")) badge.remove();
+  const alert = card.closest("[data-block-list]")?.querySelector("[data-block-problems]");
+  const entry = card.id ? alert?.querySelector(`a[href="#${CSS.escape(card.id)}"]`)?.closest("li") : null;
+  entry?.remove();
+  if (!alert) return;
+  const left = alert.querySelectorAll("li").length;
+  if (left === 0) return alert.remove();
+  const count = alert.querySelector("[data-problem-count]");
+  if (count) count.textContent = left === 1 ? `1 ${alert.dataset.one} needs attention` : `${left} ${alert.dataset.many} need attention`;
+}
+
+/** The controls and groups that belong to `card` itself, not to a card nested in it. */
+const ownMarks = (card) => [...card.querySelectorAll('[aria-invalid="true"]')].filter((mark) => mark.closest("[data-card]") === card);
+
+/** Clears the marks of a refusal that the person's edit has answered, wherever on the form they are. */
+function clearStale() {
+  const edited = (event) => {
+    const target = event.target;
+    if (!(target instanceof Element) || !target.closest("form")) return;
+    const control = target.matches("input, select, textarea");
+    if (target.matches('[aria-invalid="true"]') && !(control && target.type !== "checkbox" && target.value.trim() === "")) unmark(target);
+    for (let up = target.parentElement; up && up.localName !== "form"; up = up.parentElement) {
+      if (up.matches('[aria-invalid="true"]') && !up.querySelector('[aria-invalid="true"]')) unmark(up);
+    }
+    // A card the last save refused answered for the card as a whole (a rule about all of its slots),
+    // so changing anything in it takes the card's marks off; the next save marks what is still wrong.
+    for (let up = target.closest("[data-card]"); up; up = up.parentElement?.closest("[data-card]")) {
+      if (!up.hasAttribute("data-invalid")) continue;
+      for (const mark of ownMarks(up)) unmark(mark);
+      for (const note of up.querySelectorAll(':scope > [data-card-panel] > [id$="-problem"]')) note.remove();
+      unmark(up.querySelector(":scope > [data-card-head] [data-action=toggle]") ?? up);
+      settle(up);
+      const list = up.closest("[data-block-list]");
+      if (list?.matches('[aria-invalid="true"]') && !list.querySelector("[data-invalid]")) unmark(list);
+    }
+  };
+  for (const kind of ["input", "change", "editor:changed"]) document.addEventListener(kind, edited);
+  document.addEventListener("editor:saved", () => document.querySelector("[data-refusal]")?.remove());
+}
+
 export function enhanceForms() {
   enhanceRows(document);
   confirming();
   busy();
   firstProblem();
+  clearStale();
 }

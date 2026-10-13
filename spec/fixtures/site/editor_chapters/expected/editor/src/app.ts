@@ -101,6 +101,8 @@ function sameSite(request: Request): boolean {
 interface Scene {
   /** The person's role, which decides the chapters they may edit. */
   role: string | null;
+  /** The clock a form's blank "now" is read from. */
+  now: () => number;
   show(body: string, status?: number, notice?: Flash): Promise<Response>;
   sent(location: string, message: string): Response;
 }
@@ -130,6 +132,7 @@ export function createApp(options: AppOptions = {}): (request: Request) => Promi
   function sceneFor(email: string, role: string | null, flash: Flash | null, from: HostClient): Scene {
     return {
       role,
+      now,
       async show(body, status = 200, notice) {
         const text = decorate(body, { email, role, counts: await counts(from), flash: notice ?? flash });
         const response = new Response(text, { status, headers: PAGE_HEADERS });
@@ -186,12 +189,12 @@ function signOut(request: Request): Response {
 
 async function enter(url: URL, secret: string, membership: Membership, now: () => number): Promise<Response> {
   const result = await signIn(url.searchParams.get("token"), secret, membership, now);
-  if (!result.ok) return plain(result.message, result.status);
+  if (!result.ok) return anonymous(notFound(result.message, "You cannot sign in here"), result.status);
   return redirect(result.location, 302, result.cookie);
 }
 
 function route(client: HostClient, request: Request, url: URL, segments: string[], scene: Scene): Promise<Response> | Response {
-  if (segments.length === 0) return scene.show(home());
+  if (segments.length === 0) return homeView(client, scene);
   if (segments[0] === "assets" && segments.length === 2 && request.method === "GET") return serveAsset(segments[1], request);
   if (segments[0] === "scheduled" && segments.length === 1 && request.method === "GET" && SCHEMA.scheduling) return scheduledView(client, scene);
   const { agg, rest: [verb, ...rest] } = locate(segments);
@@ -203,6 +206,21 @@ function route(client: HostClient, request: Request, url: URL, segments: string[
   if (request.method === "POST") return post(client, request, agg, verb, rest, scene);
   if ((verb === "new" || verb === "run") && rest.length === 1) return commandView(client, agg, verb, rest[0], url, scene);
   return scene.show(notFound(`No page ${segments.join("/")}.`), 404);
+}
+
+/** The home page; it needs to know which one-record aggregates already hold their record. */
+async function homeView(client: HostClient, scene: Scene): Promise<Response> {
+  const singles = SCHEMA.aggregates.filter((agg) => agg.single !== undefined);
+  const existing = new Set<string>();
+  if (singles.length > 0) {
+    try {
+      const answer = await client.read();
+      for (const agg of singles) if (client.instancesOf(answer, qualified(agg)).some(([id]) => id === agg.single)) existing.add(keyOf(agg));
+    } catch {
+      /* a host that cannot say shows the tasks as if none existed */
+    }
+  }
+  return scene.show(home(existing));
 }
 
 /** The pairs of an address a list keeps on every link: its view and that view's arguments, not the filters or the page. */
@@ -353,7 +371,7 @@ async function post(client: HostClient, request: Request, agg: Aggregate, verb: 
   const command = onInstance ? commandFor(agg, "id", rest[1]) : rest.length === 1 ? commandFor(agg, verb, rest[0]) : null;
   if (!command) return scene.show(notFound("No such command."), 404);
   const form = parseForm(await request.text());
-  const args = withMadeIdentity(agg, command, commandArguments(agg, command.attributes, form, command.empty));
+  const args = withMadeIdentity(agg, command, commandArguments(agg, command.attributes, form, command.empty, scene.now));
   const to = onInstance ? rest[0] : command.creates ? undefined : (form.get("__to") ?? "");
   if (request.headers.get("x-editor-autosave") === "1") return autosave(client, agg, command, args, to);
   const outcome = to === "" ? { ok: false as const, message: "Name the instance to act on." } : ((await unchecked(client, agg, command, args)) ?? (await runCommand(client, agg, command, args, to)));

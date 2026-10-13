@@ -105,7 +105,7 @@ function slotsOfCard(agg: Aggregate, place: Place, rendering: Rendering, block: 
   const draw = held.map(({ part, required, mentioned }) => {
     const note = mentioned ? `<p class="-mt-3 mb-3 text-xs text-muted">A rule of this kind of ${esc(singular(place.noun))} reads this.</p>` : "";
     const message = flagged?.slots.includes(part.name) ? flagged.message : undefined;
-    if (picture && part.name === picture.key) return pictureGroup(agg, place, rendering, block, picture, flagged, prefix);
+    if (picture && part.name === picture.key) return pictureGroup(agg, place, rendering, block, picture, flagged, prefix, required);
     if (place.depth === 0 && part.list && part.kind === "object") return group(agg, place, part, rendering, block, prefix, message);
     const rows = place.depth >= 1 && part.list && part.kind === "object";
     return `${rendering.slot(part, prefix, block[part.name], message, required, rows)}${note}`;
@@ -114,17 +114,18 @@ function slotsOfCard(agg: Aggregate, place: Place, rendering: Rendering, block: 
 }
 
 /** A picture's parts as one group: the key and the alt text and a button that opens the picker. */
-function pictureGroup(agg: Aggregate, place: Place, rendering: Rendering, block: Block, picture: { key: string; alt: string; caption?: string }, flagged: Problem | undefined, prefix: string): string {
+function pictureGroup(agg: Aggregate, place: Place, rendering: Rendering, block: Block, picture: { key: string; alt: string; caption?: string; prefix?: string }, flagged: Problem | undefined, prefix: string, required: boolean): string {
   const find = (name: string): Attr | undefined => place.parts.find((part) => part.name === name);
   const key = find(picture.key);
   const alt = find(picture.alt);
   const caption = picture.caption ? find(picture.caption) : undefined;
-  const control = (part: Attr | undefined): string => (part ? rendering.slot(part, prefix, block[part.name], flagged?.slots.includes(part.name) ? flagged.message : undefined) : "");
+  const control = (part: Attr | undefined, needed = false): string =>
+    part ? rendering.slot(part, prefix, block[part.name], flagged?.slots.includes(part.name) ? flagged.message : undefined, needed) : "";
   const pick = rendering.media ? `<button type="button" class="btn btn-sm w-fit" data-action="pick-picture" data-media="${esc(rendering.media)}">${icon("image")}<span>Choose a picture</span></button>` : "";
   const thumb = `<img class="size-20 shrink-0 border border-base-300 object-cover" alt="" width="80" height="80" data-picture-thumb hidden>`;
-  return `<div class="my-4 grid gap-1 border border-base-300 p-3" data-picture data-key="${esc(prefix + picture.key)}" data-alt="${esc(prefix + picture.alt)}">
+  return `<div class="my-4 grid gap-1 border border-base-300 p-3" data-picture data-key="${esc(prefix + picture.key)}" data-alt="${esc(prefix + picture.alt)}"${picture.prefix ? ` data-prefix="${esc(picture.prefix)}"` : ""}>
 <p class="font-semibold">Picture</p>
-<div class="flex flex-wrap items-start gap-3">${thumb}<div class="grid min-w-0 flex-1 gap-1 max-sm:basis-full">${control(key)}${control(alt)}${control(caption)}${pick}</div></div>
+<div class="flex flex-wrap items-start gap-3">${thumb}<div class="grid min-w-0 flex-1 gap-1 max-sm:basis-full">${control(key, required)}${control(alt, required)}${control(caption)}${pick}</div></div>
 <p class="text-xs text-muted">A picture needs a description for people who cannot see it.</p>
 </div>`;
 }
@@ -229,7 +230,7 @@ function summaryOfProblems(name: string, noun: string, problems: Problem[], titl
     return `<li><a href="#${id}">${esc(titles.get(rest[0]) ?? "")}${where}</a>: ${esc(problem.message)}</li>`;
   });
   const words = problems.length === 1 ? `1 ${esc(singular(noun))} needs attention` : `${problems.length} ${esc(pluralOf(singular(noun)))} need attention`;
-  return `<div class="alert alert-error alert-soft mb-4 block" role="alert" tabindex="-1" data-block-problems><p class="font-semibold">${words}</p><ul class="mt-1 list-disc pl-5">${items.join("")}</ul></div>`;
+  return `<div class="alert alert-error alert-soft mb-4 block" role="alert" tabindex="-1" data-block-problems data-one="${esc(singular(noun))}" data-many="${esc(pluralOf(singular(noun)))}"><p class="font-semibold" data-problem-count>${words}</p><ul class="mt-1 list-disc pl-5">${items.join("")}</ul></div>`;
 }
 
 /** An attribute that is a list of mixed blocks, or of one kind of group, as its cards, its add control and its templates. */

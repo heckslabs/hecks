@@ -104,9 +104,18 @@ export function openPicker(frame, bar, options) {
   };
   const shut = () => { window.removeEventListener("resize", fit); window.visualViewport?.removeEventListener("resize", fit); panel.remove(); onClose?.(); };
 
+  // The description and caption in the boxes at first are the ones of the picture being replaced.
+  // Choosing another picture takes that picture's own description, unless the person has typed one.
+  let typedAlt = false;
+  let typedCaption = false;
+  alt.addEventListener("input", () => { typedAlt = true; say(null); });
+  caption.addEventListener("input", () => { typedCaption = true; });
+
   const choose = (picture, button) => {
+    const same = picture.key === current?.mediaRef;
     chosen = picture.key;
-    if (!alt.value.trim()) alt.value = picture.alt;
+    if (!typedAlt) alt.value = picture.alt || (same ? (current?.alt ?? "") : "");
+    if (!typedCaption) caption.value = same ? (current?.caption ?? "") : "";
     for (const other of grid.querySelectorAll("button")) {
       other.removeAttribute("aria-pressed");
       other.classList.remove("ring-2", "ring-primary");
@@ -127,6 +136,10 @@ export function openPicker(frame, bar, options) {
     drop.setAttribute("aria-label", `Remove ${file.name}`);
     const row = make("li", { className: "grid grid-cols-[3.5rem_minmax(0,1fr)_auto] items-start gap-3 border-t border-base-300 py-2" },
       preview, make("div", { className: "grid gap-1" }, make("p", { className: "truncate text-xs text-muted", textContent: file.name }), text, bar, result), drop);
+    text.addEventListener("input", () => {
+      text.removeAttribute("aria-invalid");
+      if (!item.done) { result.textContent = ""; result.className = "text-xs"; }
+    });
     const item = { file, row, text, bar, result, done: false };
     drop.addEventListener("click", () => { staged.splice(staged.indexOf(item), 1); URL.revokeObjectURL(preview.src); row.remove(); refresh(); });
     staged.push(item);

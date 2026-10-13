@@ -12,6 +12,7 @@ import { DomainUnavailable } from "@hecks/client";
 
 import { qualified } from "./names.ts";
 import type { Aggregate, Command } from "./schema.ts";
+import type { Attr } from "./schema.ts";
 import { problemsOf } from "./ui/block_list.js";
 import type { Problem } from "./ui/blocks.ts";
 
@@ -79,9 +80,30 @@ export function applied(agg: Aggregate, command: Command, before: State | undefi
 const label = (name: string): string => name.replace(/_/g, " ");
 
 /** The command's attribute a value object's name stands for, to name the offending field. */
-function fieldOf(command: Command, type: string): string {
-  const held = command.attributes.find((attr) => attr.type === type);
-  return held ? label(held.name) : type;
+function fieldOf(command: Command, type: string, objects: Record<string, Attr[]> = {}): string {
+  const held = attrOfType(command, type, objects);
+  const words = held ? (held.label ?? label(held.name)) : type;
+  return `${words.charAt(0).toUpperCase()}${words.slice(1)}`;
+}
+
+/** `Type.part must match <pattern>, got "x"` and `Type.part expects String, got nil`: the type and what is wrong. */
+const SHAPE = /^(\w+)\.(\w+) (?:must match (.+?), got (.*)|expects (\w+), got (nil|.*))$/s;
+
+/** The command's attribute whose value object (or a part of one it holds) is `type`, for a refusal that names a part. */
+function attrOfType(command: Command, type: string, objects: Record<string, Attr[]> = {}): Attr | undefined {
+  return command.attributes.find((attr) => holds(attr.type, type, objects, new Set()));
+}
+
+/** What a refused shape says in words a person can act on: the field's name, and its help when it has one. */
+function shapeText(found: RegExpExecArray, command: Command, objects: Record<string, Attr[]>): string {
+  const attr = attrOfType(command, found[1], objects);
+  const words = attr ? (attr.label ?? label(attr.name)) : found[1];
+  const name = `${words.charAt(0).toUpperCase()}${words.slice(1)}`;
+  const part = (objects[found[1]] ?? []).find((one) => one.name === found[2]);
+  const partName = part?.label ?? label(found[2]);
+  if (found[3] === undefined) return `${name}${part && part.name !== "value" ? `: ${partName.charAt(0).toUpperCase()}${partName.slice(1)}` : ""} is needed.`;
+  const help = attr?.help ?? part?.help;
+  return `${name} is not in the form the site needs.${help ? ` ${help}` : ""}`;
 }
 
 /**
@@ -89,26 +111,41 @@ function fieldOf(command: Command, type: string): string {
  * as though the condition were the reason, so it is shown as the condition that was not met; an
  * invariant is shown as the field and the rule, without the value that offended (raw JSON).
  */
-export function refusalText(refusal: { kind?: string; error?: string } | undefined, command: Command): string {
+export function refusalText(refusal: { kind?: string; error?: string } | undefined, command: Command, objects: Record<string, Attr[]> = {}): string {
   const error = refusal?.error ?? "";
+  const shape = SHAPE.exec(error);
+  if (shape) return shapeText(shape, command, objects);
   const refused = /^.+? refused — (.+)$/s.exec(error);
   if (refusal?.kind === "GivenNotMet" && refused) return `Not allowed unless ${refused[1]}.`;
   if (refusal?.kind === "EnsuresNotMet" && refused) return `Not allowed: the result would break this rule: ${refused[1]}.`;
   const invariant = /^(.+?) invariant violated — (.+?)(?: \(given .*\))?$/s.exec(error);
-  if (invariant) return `${fieldOf(command, invariant[1])}: ${invariant[2]}.`;
+  if (invariant) return `${fieldOf(command, invariant[1], objects)}: ${invariant[2]}.`;
   if (refusal?.kind === "InvariantViolation" && refused) return `${refused[1]}.`;
   return error || `The domain did not apply ${command.name}.`;
 }
 
 /** The name of the command's attribute a refused invariant is about, so its input can be marked; undefined when none. */
-export function refusedField(refusal: { kind?: string; error?: string } | undefined, command: Command): string | undefined {
-  const invariant = /^(.+?) invariant violated — /s.exec(refusal?.error ?? "");
-  return invariant ? command.attributes.find((attr) => attr.type === invariant[1])?.name : undefined;
+export function refusedField(refusal: { kind?: string; error?: string } | undefined, command: Command, objects: Record<string, Attr[]> = {}, deep = true): string | undefined {
+  const named = /^(.+?) invariant violated — /s.exec(refusal?.error ?? "") ?? SHAPE.exec(refusal?.error ?? "");
+  if (!named) return undefined;
+  const direct = command.attributes.find((attr) => attr.type === named[1])?.name;
+  return direct ?? (deep ? attrOfType(command, named[1], objects)?.name : undefined);
+}
+
+/**
+ * Whether a value object of `type` is, or at any depth holds, the value object a refusal names: a
+ * rule of one block of a body is about the body attribute the block is in.
+ */
+function holds(type: string, named: string, objects: Record<string, Attr[]>, seen: Set<string>): boolean {
+  if (type === named) return true;
+  if (seen.has(type)) return false;
+  seen.add(type);
+  return (objects[type] ?? []).some((part) => holds(part.type, named, objects, seen));
 }
 
 /** The words for a command that changed nothing: the host's last refusal, or a plain statement. */
-export function refusalMessage(answer: Answer, command: Command): string {
-  return refusalText((answer.refusals ?? []).at(-1), command);
+export function refusalMessage(answer: Answer, command: Command, objects: Record<string, Attr[]> = {}): string {
+  return refusalText((answer.refusals ?? []).at(-1), command, objects);
 }
 
 /**
@@ -124,8 +161,8 @@ export async function runCommand(client: HostClient, agg: Aggregate, command: Co
     if (id && applied(agg, command, before, after, answer)) return { ok: true, id };
     const last = (answer.refusals ?? []).at(-1);
     const problems: Problem[] = problemsOf(last?.error, command.attributes, args, agg.valueObjects);
-    const field = refusedField(last, command);
-    return { ok: false, message: refusalMessage(answer, command), field, problems };
+    const field = refusedField(last, command, agg.valueObjects, problems.length === 0);
+    return { ok: false, message: refusalMessage(answer, command, agg.valueObjects), field, problems };
   } catch (err) {
     if (err instanceof DomainUnavailable) return { ok: false, message: `The domain could not be reached: ${err.message}` };
     throw err;

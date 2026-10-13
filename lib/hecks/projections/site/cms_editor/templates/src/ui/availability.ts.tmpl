@@ -7,8 +7,15 @@ type State = Record<string, unknown>;
 
 /** Whether a command applies to an instance in its present state: a lifecycle move only from its states. */
 export function available(agg: Aggregate, command: Command, state: State): boolean {
+  if (agg.drafts && [agg.drafts.publish, agg.drafts.discard].includes(command.name) && !drafted(agg, state)) return false;
   const move = agg.lifecycle?.transitions.find((transition) => transition.verb === command.name);
   return !move || !agg.lifecycle || move.from.includes(String(state[agg.lifecycle.field]));
+}
+
+/** Whether the record holds a saved working copy: publishing or discarding one needs it. */
+export function drafted(agg: Aggregate, state: State): boolean {
+  const held = agg.drafts ? state[agg.drafts.attribute] : undefined;
+  return held !== undefined && held !== null && !(Array.isArray(held) && held.length === 0);
 }
 
 /** What a command needs asked first: it takes input, or it is destructive. */

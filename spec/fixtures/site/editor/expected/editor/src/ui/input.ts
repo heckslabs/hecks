@@ -9,6 +9,7 @@
 // same way: the widget posts its tree as the same dotted-path fields (`body.blocks.0.spans.1.text`),
 // so there is no second encoding.
 import type { Aggregate, Attr } from "../schema.ts";
+import { WALL, fromWall, toWall } from "./wall.ts";
 
 export type Form = Map<string, string>;
 
@@ -40,9 +41,19 @@ function indices(form: Form, path: string): number[] {
   return [...found].sort((a, b) => a - b);
 }
 
+/**
+ * A wall-clock moment as the text it is stored as: what the form held before is kept when the time
+ * shown was not changed, so an untouched moment does not change its spelling.
+ */
+function wallText(raw: string, held: string | undefined, zone: string): string {
+  if (held !== undefined && toWall(held, zone) === raw) return held;
+  return WALL.test(raw) ? fromWall(raw, zone) : raw;
+}
+
 function text(attr: Attr, form: Form, path: string, optional: boolean): unknown {
   const raw = form.get(path);
   if (attr.kind === "boolean") return form.has(path);
+  if (attr.wall !== undefined && raw !== undefined && raw !== "") return wallText(raw, form.get(`${path}__held`), attr.wall);
   if (raw === undefined || (raw === "" && optional)) return undefined;
   if ((attr.kind === "integer" || attr.kind === "number") && raw.trim() !== "" && !Number.isNaN(Number(raw))) return Number(raw);
   return raw;
@@ -82,11 +93,48 @@ export function build(agg: Aggregate, attr: Attr, form: Form, prefix: string, op
 }
 
 /** The arguments a command takes, from a submitted form; `empty` names the list arguments sent empty. */
-export function commandArguments(agg: Aggregate, attrs: Attr[], form: Form, empty: string[] = []): Record<string, unknown> {
+export function commandArguments(agg: Aggregate, attrs: Attr[], form: Form, empty: string[] = [], clock: () => number = Date.now): Record<string, unknown> {
   const args: Record<string, unknown> = Object.fromEntries(empty.map((name) => [name, []]));
   for (const attr of attrs) {
     const value = build(agg, attr, form, "");
     if (value !== undefined) args[attr.name] = value;
   }
-  return args;
+  return filled(agg, attrs, args, clock);
+}
+
+/** The text a value holds, however deep the value object that wraps it. */
+function plain(value: unknown): string {
+  if (value && typeof value === "object") return plain(Object.values(value as object).find((part) => part !== null && part !== undefined));
+  return value === null || value === undefined ? "" : String(value);
+}
+
+/** The words of a text as an address: lower case, unaccented, joined by hyphens. */
+export function slugOf(text: string): string {
+  return text
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/** What a `fill` rule makes of the arguments, or undefined when there is nothing to make it from. */
+function made(rule: string, args: Record<string, unknown>, clock: () => number): string | number | undefined {
+  const [kind, from, separator, index] = rule.split(":");
+  if (kind === "now") return Math.floor(clock() / 1000);
+  const source = plain(args[from]);
+  if (source === "") return undefined;
+  if (kind === "slug_of") return slugOf(source) || undefined;
+  return source.split(separator)[Number(index)] || undefined;
+}
+
+/** A command's arguments with each blank one its `fill` rule names made, in the shape its attribute holds. */
+function filled(agg: Aggregate, attrs: Attr[], args: Record<string, unknown>, clock: () => number): Record<string, unknown> {
+  const done = { ...args };
+  for (const attr of attrs.filter((candidate) => candidate.fill !== undefined && blank(args[candidate.name]))) {
+    const value = made(attr.fill as string, done, clock);
+    const part = attr.kind === "object" ? (agg.valueObjects[attr.type] ?? []) : [];
+    if (value !== undefined) done[attr.name] = part.length === 1 ? { [part[0].name]: value } : value;
+  }
+  return done;
 }

@@ -28,7 +28,12 @@ module Hecks
             base = row[:base_path]
             [*path_problems(row, base), *("Editor roles name no role" if roles.empty?), *login_problems(row[:login], table),
              *media_problems(row), *media_chapter_problems(row), *ThemeChecks.problems(row), *ScaleChecks.problems(row),
-             *Preview.problems(row[:preview].strip)]
+             *Preview.problems(row[:preview].strip), *preview_in_problems(row)]
+          end
+
+          # @return [Array<String>] the problem with `preview_in`, when it is neither word
+          def preview_in_problems(row)
+            %w[drawer tab].include?(row[:preview_in]) ? [] : ["preview_in #{row[:preview_in].inspect} must be drawer or tab"]
           end
 
           # @return [Array<String>] the problems with the base path and the sign-in path

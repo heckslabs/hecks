@@ -9,7 +9,8 @@ import { kindOf, summaryOf } from "./block_list.js";
 import { copyable, esc } from "./html.ts";
 import { isMoment, momentValue } from "./moments.ts";
 import { outline } from "./outline.ts";
-import { label } from "./words.ts";
+import { toWall } from "./wall.ts";
+import { label, labelOf } from "./words.ts";
 
 /** A body shown on a page sits under the page's h1 and its section's h2, so its own headings start at h3. */
 const READ_ONLY_DEMOTE = 2;
@@ -36,17 +37,30 @@ function parts(agg: Aggregate, type: string, held: unknown, depth: number): stri
   const value = held && typeof held === "object" ? (held as State) : {};
   const rows = (agg.valueObjects[type] ?? [])
     .filter((part) => !isBlank(value[part.name]))
-    .map((part) => `<div class="grid gap-1 sm:grid-cols-[8rem_minmax(0,1fr)] sm:gap-3"><dt class="text-muted">${esc(label(part.name))}</dt><dd class="min-w-0 break-words">${valueOf(agg, part, value, depth + 1)}</dd></div>`);
+    .map((part) => `<div class="grid gap-1 sm:grid-cols-[8rem_minmax(0,1fr)] sm:gap-3"><dt class="text-muted">${esc(labelOf(part))}</dt><dd class="min-w-0 break-words">${valueOf(agg, part, value, depth + 1)}</dd></div>`);
   return rows.length === 0 ? `<span class="text-muted">Not set</span>` : `<dl class="grid gap-2">${rows.join("")}</dl>`;
 }
 
 /** Whether the attribute's value object has several parts to show (a one-part value object is shown as its part). */
 const composite = (agg: Aggregate, attr: Attr): boolean => attr.kind === "object" && (agg.valueObjects[attr.type] ?? []).length > 1;
 
+const plainOfValue = (value: unknown): string => (value && typeof value === "object" ? plainOfValue(Object.values(value as object).find((part) => part !== null && part !== undefined)) : value === null || value === undefined ? "" : String(value));
+
+/** A moment held as text, read as the clock of its zone says: "Sat, Nov 14, 2026, 9:00 AM". */
+function wallValue(text: string, zone: string): string {
+  const wall = toWall(text, zone);
+  if (!wall) return text === "" ? `<span class="text-muted">Not set</span>` : esc(text);
+  const [date, time] = wall.split("T");
+  const at = new Date(`${date}T${time}:00Z`);
+  const words = at.toLocaleString("en-US", { timeZone: "UTC", weekday: "short", year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  return `<span>${esc(words)}</span> <span class="text-xs text-muted">${esc(zone === "Z" ? "UTC" : `UTC${zone}`)}</span>`;
+}
+
 /** One attribute's value as markup. */
 export function valueOf(agg: Aggregate, attr: Attr, values: State, depth = 0): string {
   const held = values[attr.name];
   if (isMoment(attr)) return momentValue(attr, held);
+  if (attr.wall !== undefined && !attr.list) return wallValue(plainOfValue(held), attr.wall);
   if (attr.widget === "body") return held && typeof held === "object" ? `<div class="prose">${bodyToHtml(held, READ_ONLY_DEMOTE)}</div>` : `<span class="text-muted">Not set</span>`;
   if (attr.blockList && attr.list) return blockLines(agg, attr, held);
   if (composite(agg, attr) && depth < 5) {
@@ -63,7 +77,7 @@ export function valueRows(agg: Aggregate, attrs: Attr[], values: State): string 
   const rows = attrs.map((attr) => {
     const wide = attr.widget === "body" || attr.list || attr.kind === "object";
     const layout = wide ? "grid gap-2 py-4" : "grid gap-1 py-4 sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-4";
-    return `<div class="${layout}"><dt class="font-medium text-muted">${esc(label(attr.name))}</dt><dd class="min-w-0 break-words">${valueOf(agg, attr, values)}</dd></div>`;
+    return `<div class="${layout}"><dt class="font-medium text-muted">${esc(labelOf(attr))}</dt><dd class="min-w-0 break-words">${valueOf(agg, attr, values)}</dd></div>`;
   });
   return `<dl class="divide-y divide-base-300">\n${rows.join("\n")}\n</dl>`;
 }

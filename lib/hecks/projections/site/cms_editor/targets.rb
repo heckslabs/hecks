@@ -39,6 +39,23 @@ module Hecks
             pick(@aggregates.select { |agg| snake(agg["name"]) == word }, from)
           end
 
+          # @param name [String] an aggregate a row names: `Name`, or `Chapter::Name`
+          # @param from [Hash{String => Object}] the aggregate that holds the attribute
+          # @return [Hash{String => Object}, nil] the target, or nil when none or several match
+          def chosen(name, from)
+            chapter, bare = name.include?("::") ? name.split("::", 2) : [nil, name]
+            pick(@aggregates.select { |agg| agg["name"] == bare && (chapter.nil? || agg["chapter"] == chapter) }, from)
+          end
+
+          # @param type [String] a value object's name
+          # @param from [Hash{String => Object}] the aggregate that holds the attribute
+          # @return [Hash{String => Object}, nil] the target whose identity is spelled by that
+          #   value object, never `from` itself (its own identity is not a reference to it)
+          def keyed_as(type, from)
+            others = @aggregates.reject { |agg| agg["name"] == from["name"] && agg["chapter"] == from["chapter"] }
+            pick(others.select { |agg| identity_type(agg) == type }, from)
+          end
+
           # @return [Hash{String => Object}, nil] the picture aggregate, which offers keys and
           #   accepts any other text as well, since a picture may be named by an address
           def pictures

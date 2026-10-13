@@ -14,7 +14,7 @@ export type SignIn = { ok: true; location: string; cookie: string } | { ok: fals
 /** Checks the hand-off token and starts a session for the person it names. */
 export async function signIn(token: string | null, secret: string, membership: Membership, now: () => number = Date.now): Promise<SignIn> {
   const claims = token && secret ? verifyAccountToken(token, secret, { now, normalizeEmail: true }) : null;
-  if (!claims) return { ok: false, status: 401, message: "Invalid or expired sign-in token." };
-  if (!(await membership.isAdmitted(claims.email))) return { ok: false, status: 403, message: "This account is not an editor." };
+  if (!claims) return { ok: false, status: 401, message: "This sign-in link is not valid any more. Sign in again from the site's admin page to get a new one." };
+  if (!(await membership.isAdmitted(claims.email))) return { ok: false, status: 403, message: "This account is not allowed to edit. Ask someone who runs the site to add you as an editor, then sign in again." };
   return { ok: true, location: EDITOR.basePath, cookie: sessionCookie(signSession(secret, claims.email, now)) };
 }

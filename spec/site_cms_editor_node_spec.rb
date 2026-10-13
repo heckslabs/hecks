@@ -15,6 +15,8 @@ EDITOR_NODE_SCENARIO = <<~JS.freeze
   import { mkdirSync, readdirSync, writeFileSync } from "node:fs";
   import { createApp } from "./editor/src/app.ts";
   import { diskStorage } from "./editor/src/media/storage.ts";
+  import { refusalText, refusedField } from "./editor/src/commands.ts";
+  import { SCHEMA } from "./editor/src/schema.ts";
 
   const SECRET = "scenario-secret";
   let clock = 1_800_000_000_000;
@@ -27,7 +29,8 @@ EDITOR_NODE_SCENARIO = <<~JS.freeze
     tags: [{ value: "news" }], sections: [], body: { blocks: [{ kind: "paragraph", spans: [{ text: "Hi <i>", marks: [{ name: "bold" }] }] }] },
     status: "draft",
   });
-  const instances = { "Press::Article#first": article("first", "First piece") };
+  const held = { ...article("held", "Held piece"), draft_body: { blocks: [{ kind: "paragraph", spans: [{ text: "Draft words", marks: [] }] }] } };
+  const instances = { "Press::Article#first": article("first", "First piece"), "Press::Article#held": held };
 
   const answer = (extra = {}) => ({ ok: true, status: 200, json: async () => ({ instances: structuredClone(instances), refusals: [], ...extra }) });
   const fetch = async (url, init) => {
@@ -89,7 +92,9 @@ EDITOR_NODE_SCENARIO = <<~JS.freeze
   out.detailHeaders = Object.fromEntries(["content-security-policy", "cache-control", "content-type"].map((name) => [name, detailPage.headers.get(name)]));
   out.detail = await detailPage.text();
   out.revisePage = await editor("/editor/Article/id/first/Revise").then((r) => r.text());
-  out.confirmPage = await editor("/editor/Article/id/first/DiscardDraft").then((r) => r.text());
+  out.detailDrafted = await editor("/editor/Article/id/held").then((r) => r.text());
+  out.confirmPage = await editor("/editor/Article/id/held/DiscardDraft").then((r) => r.text());
+  out.noDraftConfirm = await editor("/editor/Article/id/first/DiscardDraft").then((r) => r.status);
   out.missing = await editor("/editor/Article/id/none").then((r) => r.status);
   out.newForm = await editor("/editor/Article/new/Draft").then((r) => r.text());
   out.mastheadList = await editor("/editor/Masthead").then((r) => r.text());
@@ -132,7 +137,7 @@ EDITOR_NODE_SCENARIO = <<~JS.freeze
   out.refused = { status: refused.status, html: await refused.text() };
   refusal = null;
 
-  out.draftForms = await editor("/editor/Article/id/first/PublishDraft").then((r) => r.text());
+  out.draftForms = await editor("/editor/Article/id/held/PublishDraft").then((r) => r.text());
   out.draftReviseForm = await editor("/editor/Article/id/first/SaveDraft").then((r) => r.text());
   out.draftDetail = await editor("/editor/Article/id/first").then((r) => r.text());
   sent = [];
@@ -294,6 +299,13 @@ EDITOR_NODE_SCENARIO = <<~JS.freeze
   }
   out.themeToggle = { stored: remembered, attributes: chosen, labels };
 
+  const articleShape = SCHEMA.aggregates.find((agg) => agg.name === "Article");
+  const revise = articleShape.commands.find((command) => command.name === "Revise");
+  const blockRule = { kind: "InvariantViolation", error: 'Block invariant violated \\u2014 a heading has a level from 1 to 4 (given {"kind":"heading","level":5})' };
+  out.nestedRefusal = { field: refusedField(blockRule, revise, articleShape.valueObjects), wording: refusalText(blockRule, revise, articleShape.valueObjects) };
+  const shapeRule = { kind: "InvariantViolation", error: 'Byline.name expects String, got nil' };
+  out.shapeRefusal = { field: refusedField(shapeRule, revise, articleShape.valueObjects), wording: refusalText(shapeRule, revise, articleShape.valueObjects) };
+
   members = [];
   clock += 61_000;
   out.revoked = await editor("/editor").then((r) => [r.status, r.headers.get("location")]);
@@ -417,7 +429,7 @@ RSpec.describe "the generated editor, run by node" do
       home = result("home")
 
       expect(home).to include('href="/editor/Article"', 'href="/editor/Masthead"')
-      expect(home).to include('<span class="ml-auto text-xs text-muted tabular-nums">1</span>')
+      expect(home).to include('<span class="ml-auto text-xs text-muted tabular-nums">2</span>')
     end
 
     it "marks the page the person is on in the navigation, and only that one", :aggregate_failures do
@@ -461,13 +473,13 @@ RSpec.describe "the generated editor, run by node" do
     it "gives a list headings that sort, a filter, and a count", :aggregate_failures do
       html = result("list")["html"]
 
-      expect(html).to include("data-sortable", 'data-sort="text"', "data-filter", "1 article")
+      expect(html).to include("data-sortable", 'data-sort="text"', "data-filter", "2 articles")
     end
 
     it "says an empty list is empty in one sentence, with the command that makes the first one", :aggregate_failures do
       html = result("mastheadList")
 
-      expect(html).to include("No mastheads yet. Add the first one.", "<span>Establish masthead</span>")
+      expect(html).to include("No mastheads yet. Add the first one.", "<span>New masthead</span>")
       expect(result("emptyList")).not_to include("<table")
     end
 
@@ -565,7 +577,7 @@ RSpec.describe "the generated editor, run by node" do
 
   describe "a destructive command" do
     it "asks first, in a native dialog the page carries, and leaves the other commands as plain buttons", :aggregate_failures do
-      detail = result("detail")
+      detail = result("detailDrafted")
 
       expect(detail).to include('data-confirm="confirm-DiscardDraft"', '<dialog class="modal" id="confirm-DiscardDraft"')
       expect(detail).to include('aria-labelledby="confirm-DiscardDraft-title"', 'formmethod="dialog"', "Discard draft?")
@@ -575,7 +587,7 @@ RSpec.describe "the generated editor, run by node" do
     it "is the same question on a page of its own for a browser with no script", :aggregate_failures do
       page = result("confirmPage")
 
-      expect(page).to include("Choose Discard draft to go ahead.", 'action="/editor/Article/id/first/DiscardDraft"')
+      expect(page).to include("Choose Discard draft to go ahead.", 'action="/editor/Article/id/held/DiscardDraft"')
     end
   end
 
@@ -605,7 +617,7 @@ RSpec.describe "the generated editor, run by node" do
 
     it "labels each button with a sentence-case verb, and makes a creating one say what it makes", :aggregate_failures do
       expect(result("detail")).to include(">Publish</button>", ">Save draft</a>", ">Revise</a>")
-      expect(result("list")["html"]).to include("<span>Draft article</span>")
+      expect(result("list")["html"]).to include("<span>New article</span>")
     end
 
     it "disables the submit button while the form is sent, and has a sticky bar with a cancel", :aggregate_failures do
@@ -675,7 +687,7 @@ RSpec.describe "the generated editor, run by node" do
     it "reads an invariant as the field and the rule, never as the raw offered value", :aggregate_failures do
       html = result("invariant")["html"]
 
-      expect(html).to include("headline: an article has a headline.</p>")
+      expect(html).to include("Headline: an article has a headline.</p>")
       expect(html).not_to include("given")
     end
 
@@ -694,7 +706,7 @@ RSpec.describe "the generated editor, run by node" do
     end
 
     it "offers no field for the argument that only clears, on a form that has no other argument", :aggregate_failures do
-      expect(result("draftForms")).to include('action="/editor/Article/id/first/PublishDraft"')
+      expect(result("draftForms")).to include('action="/editor/Article/id/held/PublishDraft"')
       expect(result("draftForms")).not_to include('name="nothing')
     end
 
@@ -708,7 +720,30 @@ RSpec.describe "the generated editor, run by node" do
 
     it "shows the promoted body and no draft afterwards", :aggregate_failures do
       expect(result("afterPromote")).to include('name="body.blocks.0.spans.0.text" value="Edited"')
-      expect(result("afterPromoteDetail")).to include('Draft body</dt><dd class="min-w-0 break-words"><span class="text-muted">')
+      expect(result("afterPromoteDetail")).not_to include("Saved draft, not published")
+    end
+  end
+
+  describe "a draft's buttons and where a refusal lands" do
+    it "offers publish and discard only for a record that holds a draft", :aggregate_failures do
+      expect(result("detail")).not_to include("PublishDraft", "DiscardDraft", "Saved draft, not published")
+      expect(result("detailDrafted")).to include("PublishDraft", "DiscardDraft")
+      expect(result("noDraftConfirm")).to eq(404)
+    end
+
+    it "reads a saved draft on the record's page, above the live content", :aggregate_failures do
+      html = result("detailDrafted")
+
+      expect(html).to include("Saved draft, not published", "Draft words")
+      expect(html.index("Saved draft, not published")).to be < html.index('aria-label="Article"')
+    end
+
+    it "marks the attribute that holds the value object a refusal names, however deep", :aggregate_failures do
+      expect(result("nestedRefusal")).to eq("field" => "body", "wording" => "Body: a heading has a level from 1 to 4.")
+    end
+
+    it "says a missing part in the field's words" do
+      expect(result("shapeRefusal")["wording"]).to eq("Byline: Name is needed.")
     end
   end
 

@@ -9,9 +9,10 @@ module Hecks
       module CmsEditor
         # What one attribute's names, pattern and closed set say about how a value of it is
         # entered: a moment (see `Moment`), a `<kind>:<slug>` key (see `KeyKinds`) or one of a
-        # closed set's members. A value object with a single plain part is entered as that part,
-        # so the part's pattern and the value object's names count; a value object of several
-        # parts has parts of its own, each read the same way.
+        # closed set's members (a `one_of`, or one invariant that lists the literals). A value
+        # object with a single plain part is entered as that part, so the part's pattern and the
+        # value object's names count; a value object of several parts has parts of its own, each
+        # read the same way.
         class Hints
           # @param objects [Hash{String => Bluebook::ValueObject}] the value objects by name
           def initialize(objects)
@@ -57,10 +58,21 @@ module Hecks
           # members.
           def options(attribute, leaf)
             object = @objects[attribute.type.to_s]
-            return {} unless object&.closed_set?
+            return {} unless object
 
-            members = object.members.filter_map { |member| member[leaf.name] }.uniq
+            members = object.closed_set? ? object.members.filter_map { |member| member[leaf.name] }.uniq : spelled(object, leaf)
             members.empty? ? {} : { "options" => members.map(&:to_s) }
+          end
+
+          # A closed set a value object spells as one invariant, `value == "a" || value == "b"`:
+          # the part is one of those literals, which is what a `one_of` would have said.
+          #
+          # @return [Array<String>] the literals, or none when no invariant is exactly that
+          def spelled(object, leaf)
+            name = Regexp.escape(leaf.name.to_s)
+            same = /\A#{name} == "[^"]*"(?: \|\| #{name} == "[^"]*")*\z/
+            rule = object.invariants.map { |candidate| candidate.canonical.to_s }.find { |text| same.match?(text) }
+            rule ? rule.scan(/"([^"]*)"/).flatten : []
           end
 
           def keys(leaf)

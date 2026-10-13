@@ -83,7 +83,10 @@ function select(options: Choice[], control: Control): string {
   const held = control.value !== "" && !options.some((choice) => choice.key === control.value);
   const blank = `<option value="">${control.optional ? "None" : "Choose..."}</option>`;
   const own = held ? [`<option value="${esc(control.value)}" selected>${esc(control.value)} (not on offer)</option>`] : [];
-  const each = options.map((choice) => `<option value="${esc(choice.key)}"${choice.key === control.value ? " selected" : ""}>${esc(choiceText(choice))}</option>`);
+  const titles = new Map<string, number>();
+  for (const choice of options) titles.set(choice.label, (titles.get(choice.label) ?? 0) + 1);
+  const shown = (choice: Choice): string => ((titles.get(choice.label) ?? 0) === 1 && choice.label !== "" ? choice.label : choiceText(choice));
+  const each = options.map((choice) => `<option value="${esc(choice.key)}"${choice.key === control.value ? " selected" : ""}>${esc(shown(choice))}</option>`);
   const classes = control.invalid ? "select select-error w-full max-w-xl" : "select w-full max-w-xl";
   return `<select class="${classes}" id="${esc(control.id)}" name="${esc(control.name)}"${control.extra}>${[blank, ...own, ...each].join("")}</select>`;
 }

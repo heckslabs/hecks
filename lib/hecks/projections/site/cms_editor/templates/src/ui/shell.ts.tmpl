@@ -19,7 +19,7 @@ import type { Flash } from "../flash.ts";
 import { esc, href } from "./html.ts";
 import { SPRITE, icon } from "./icons.ts";
 import { schedulingAggregate } from "./world.ts";
-import { label, plural } from "./words.ts";
+import { label, pluralName } from "./words.ts";
 
 /** One step of the trail above a page's title; the last has no address. */
 export type Crumb = [label: string, to?: string];
@@ -54,9 +54,16 @@ export const groupOf = (chapter: string, html: string): string => `<!--editor:gr
 
 /** The chapters in the order they are shown, each with the aggregates it holds; one nameless group for an editor of one chapter. */
 export function groups(): [chapter: string | null, aggregates: Aggregate[]][] {
-  if (!SCHEMA.chapters) return [[null, SCHEMA.aggregates]];
-  return SCHEMA.chapters.map((chapter): [string, Aggregate[]] => [chapter, SCHEMA.aggregates.filter((agg) => agg.chapter === chapter)]);
+  const shown = SCHEMA.aggregates.filter((agg) => agg.words?.advanced !== true);
+  if (!SCHEMA.chapters) return [[null, shown]];
+  return SCHEMA.chapters.map((chapter): [string, Aggregate[]] => [chapter, shown.filter((agg) => agg.chapter === chapter)]);
 }
+
+/** The aggregates the route chapter marks as advanced: kept out of the way, under "More". */
+export const tucked = (): Aggregate[] => SCHEMA.aggregates.filter((agg) => agg.words?.advanced === true);
+
+/** What a chapter is called to a person: its `EditorThing` row's name, else its own. */
+export const chapterTitle = (chapter: string): string => SCHEMA.aggregates.find((agg) => agg.chapter === chapter && agg.chapterTitle)?.chapterTitle ?? label(chapter);
 
 function brandMark(extra: string): string {
   const logo = hasLogo() ? `<img class="size-7 rounded object-contain" src="${esc(assetUrl("logo"))}" alt="" width="28" height="28">` : "";
@@ -69,7 +76,7 @@ function navLink(to: string, text: string, current: boolean, extra = ""): string
 
 function navItems(aggregates: Aggregate[], active: string | undefined): string {
   return aggregates
-    .map((agg) => onlyFor(agg, navLink(href(...at(agg)), plural(agg.name), keyOf(agg) === active, `<span class="ml-auto text-xs text-muted tabular-nums">${MARK.count(keyOf(agg))}</span>`)))
+    .map((agg) => onlyFor(agg, navLink(href(...at(agg)), pluralName(agg), keyOf(agg) === active, `<span class="ml-auto text-xs text-muted tabular-nums">${MARK.count(keyOf(agg))}</span>`)))
     .join("\n");
 }
 
@@ -81,13 +88,15 @@ function scheduledLink(active: string | undefined): string {
 
 function navigation(active: string | undefined): string {
   const sections = groups().map(([chapter, aggregates]) => {
-    const heading = `<li class="menu-title mt-4 px-3 text-muted">${chapter === null ? "Content" : esc(label(chapter))}</li>`;
+    const heading = `<li class="menu-title mt-4 px-3 text-muted">${chapter === null ? "Content" : esc(chapterTitle(chapter))}</li>`;
     const section = `${heading}\n${navItems(aggregates, active)}`;
     return chapter === null ? section : groupOf(chapter, section);
   });
+  const more = tucked();
+  if (more.length > 0) sections.push(`<li class="menu-title mt-4 px-3 text-muted">More</li>\n${navItems(more, active)}`);
   return `<nav id="rail" aria-label="Sections" class="flex-1 overflow-y-auto">
 <ul class="menu w-full gap-0.5 p-3">
-${navLink(EDITOR.basePath, "Overview", active === undefined)}
+${navLink(EDITOR.basePath, "Home", active === undefined)}
 ${scheduledLink(active)}${sections.join("\n")}
 </ul>
 </nav>`;

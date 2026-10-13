@@ -148,7 +148,19 @@ module Hecks
             names = object.attributes.reject(&:list?).map { |part| part.name.to_s }
             return nil unless names.include?(PICTURE["key"]) && names.include?(PICTURE["alt"])
 
-            PICTURE.select { |_, part| names.include?(part) }
+            found = PICTURE.select { |_, part| names.include?(part) }
+            prefix = key_prefix(object)
+            prefix ? found.merge("prefix" => prefix) : found
+          end
+
+          # The literal a key's pattern begins with (`^media:`), which the editor writes before the
+          # key it chose so what it saves is a value the model accepts; a key with no such pattern
+          # is written bare. Either spelling is read back.
+          #
+          # @return [String, nil] `media:` for the pattern `^media:...`
+          def key_prefix(object)
+            part = object.attributes.find { |one| one.name.to_s == PICTURE["key"] }
+            part&.pattern.to_s[/\A\^([a-z][a-z0-9_]*:)/, 1]
           end
         end
       end

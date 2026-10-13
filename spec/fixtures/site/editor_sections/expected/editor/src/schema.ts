@@ -42,7 +42,7 @@ export interface BlockList {
   rules?: Record<string, { requires: string[]; uses: string[] }>;
   mentions?: Record<string, string[]>;
   limits?: Record<string, number>;
-  pictures?: Record<string, { key: string; alt: string; caption?: string }>;
+  pictures?: Record<string, { key: string; alt: string; caption?: string; prefix?: string }>;
 }
 
 export interface Attr {
@@ -75,7 +75,22 @@ export interface Attr {
   /** True when `maxLength` is long enough for the text to be written in a box of several lines. */
   multiline?: boolean;
   /** Set when the value object is a picture: the names of its parts that hold the file, its description and its caption. */
-  picture?: { key: string; alt: string; caption?: string };
+  picture?: { key: string; alt: string; caption?: string; prefix?: string };
+  /** What a person calls the attribute, when the route chapter's `EditorField` row says (see `Words`). */
+  label?: string;
+  /** A sentence under the input that says what to put there. */
+  help?: string;
+  /** Kept behind "More options": an input the person rarely needs, or one the editor fills when left blank. */
+  advanced?: boolean;
+  /**
+   * The text holds an ISO 8601 moment, entered as wall-clock time in this zone (`Z` or `-07:00`);
+   * what is stored keeps the zone's offset. Whole seconds since 1970 use `widget` instead.
+   */
+  wall?: string;
+  /** How the editor fills a blank value: `now`, `slug_of:<attribute>` or `part:<attribute>:<separator>:<index>`. */
+  fill?: string;
+  /** The aggregate the row says this attribute names, as `Name` or `Chapter::Name`; the picker is made from it. */
+  picks?: string;
 }
 
 export interface Transition {
@@ -102,6 +117,9 @@ export interface Command {
   on: string | null;
   /** True when the editor asks for confirmation before running it (see the generator's `Destructive`). */
   destructive: boolean;
+  /** What the button says and a sentence for it, when the route chapter's `EditorField` rows say. */
+  label?: string;
+  help?: string;
   attributes: Attr[];
   /** The arguments that only clear a field and are not offered as inputs: sent as empty lists. */
   empty?: string[];
@@ -123,9 +141,29 @@ export interface Related {
   chapter?: string;
   /** The related aggregate's identity attribute, which the key fills. */
   field: string;
-  shape: "document" | "gallery" | "metadata";
+  shape: "document" | "gallery" | "metadata" | "text";
   create?: string;
   edit?: string;
+  /**
+   * A companion record (shape `text`): its key is `key` with `{slug}` the record's identity, shown
+   * only when `when` (`<attribute> is|includes <value>`) holds of the record, and the first that
+   * holds among entries of one aggregate and label is the one shown. `attribute` is the text edited.
+   */
+  key?: string;
+  when?: string;
+  label?: string;
+  attribute?: string;
+  help?: string;
+}
+
+/** What the route chapter says an aggregate is called and where it is previewed (`EditorThing`). */
+export interface Words {
+  name?: string;
+  plural?: string;
+  about?: string;
+  preview?: string;
+  /** Tucked behind "More" on the home page and in the navigation. */
+  advanced?: boolean;
 }
 
 /** An aggregate that keeps a draft of its content beside the live one, and the commands that handle it. */
@@ -146,6 +184,11 @@ export interface Aggregate {
   roles?: string[];
   description: string | null;
   identity: string;
+  /** When the identity is one literal its rule names, the aggregate holds one record, keyed by it. */
+  single?: string;
+  words?: Words;
+  /** What the aggregate's chapter is called in the navigation, when an `EditorThing` row names the chapter. */
+  chapterTitle?: string;
   lifecycle: Lifecycle | null;
   attributes: Attr[];
   valueObjects: Record<string, Attr[]>;

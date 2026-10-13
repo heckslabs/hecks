@@ -15,14 +15,20 @@ import { summary, summaryText } from "./outline.ts";
 import { listHref, statesOf } from "./paging.ts";
 import type { View } from "./paging.ts";
 import type { Choices } from "./pickers.ts";
-import { commandLabel, humanize, label, plural, singular } from "./words.ts";
+import { commandLabel, humanize, label, labelOf, nameOf, pluralName } from "./words.ts";
 
 type State = Record<string, unknown>;
 type Row = [string, State];
 
 const numeric = (attr: Attr): boolean => !attr.list && (attr.kind === "integer" || attr.kind === "number");
 
-const columns = (agg: Aggregate): Attr[] => agg.attributes.filter((attr) => !attr.list && attr.widget !== "body" && attr.name !== agg.identity).slice(0, 4);
+/** The attribute that names a record to a person: its title, name or label, when it has one. */
+const namer = (agg: Aggregate): Attr | undefined => agg.attributes.find((attr) => ["title", "name", "label"].includes(attr.name) && !attr.list && attr.widget !== "body");
+
+const columns = (agg: Aggregate): Attr[] => {
+  const named = namer(agg);
+  return agg.attributes.filter((attr) => !attr.list && attr.widget !== "body" && attr.name !== agg.identity && attr !== named).slice(0, 4);
+};
 
 /** The most characters a cell shows before the rest is cut; the whole text stays in its title. */
 const CLIP = 80;
@@ -42,12 +48,19 @@ function head(attr: Attr | null, text: string): string {
   return `<th scope="col" class="${attr && numeric(attr) ? "text-right " : ""}whitespace-nowrap" data-sort="${kind}">${esc(text)}</th>`;
 }
 
+/** What names a row: its title (or name, or label) when the aggregate has one, else its identity. */
+function words(named: Attr | undefined, state: State, id: string): string {
+  const text = named ? summaryText(state[named.name]) : "";
+  return text === "" ? id : text;
+}
+
 function rows(agg: Aggregate, found: Row[]): string {
   const cols = columns(agg);
-  const heads = [head(null, label(agg.identity)), ...cols.map((attr) => head(attr, label(attr.name))), ...(agg.lifecycle ? [head(null, "Status")] : [])];
+  const named = namer(agg);
+  const heads = [head(null, named ? labelOf(named) : label(agg.identity)), ...cols.map((attr) => head(attr, labelOf(attr))), ...(agg.lifecycle ? [head(null, "Status")] : [])];
   const lines = found.map(([id, state]) => {
     const status = agg.lifecycle ? `<td data-value="${esc(state[agg.lifecycle.field])}">${statusBadge(agg, state[agg.lifecycle.field])}</td>` : "";
-    return `<tr class="hover:bg-base-200/60" data-row><th scope="row" class="font-normal" data-value="${esc(id)}"><a class="link link-hover font-semibold" href="${esc(href(...at(agg), "id", id))}">${esc(id)}</a></th>${cols.map((attr) => cell(attr, state[attr.name])).join("")}${status}</tr>`;
+    return `<tr class="hover:bg-base-200/60" data-row><th scope="row" class="min-w-44 font-normal" data-value="${esc(words(named, state, id))}"><a class="link link-hover font-semibold" href="${esc(href(...at(agg), "id", id))}">${esc(words(named, state, id))}</a>${named ? `<span class="block text-xs text-muted">${esc(id)}</span>` : ""}</th>${cols.map((attr) => cell(attr, state[attr.name])).join("")}${status}</tr>`;
   });
   return `<div class="overflow-x-auto border-y border-base-300 bg-base-100 lg:overflow-visible">
 <table class="table lg:[&_thead_th]:sticky lg:[&_thead_th]:top-14 lg:[&_thead_th]:z-10 [&_thead_th]:bg-base-100 [&_thead_th]:text-xs [&_thead_th]:text-muted" data-sortable>
@@ -60,8 +73,8 @@ ${lines.join("\n")}
 }
 
 function empty(agg: Aggregate, primary: Command | undefined, matching: boolean): string {
-  const noun = esc(humanize(plural(agg.name)));
-  const action = primary && !matching ? `<a class="btn btn-neutral" href="${esc(href(...at(agg), "new", primary.name))}">${icon("plus")}<span>${esc(commandLabel(agg, primary))}</span></a>` : "";
+  const noun = esc(humanize(pluralName(agg)));
+  const action = primary && !matching ? `<a class="btn btn-neutral" href="${esc(href(...at(agg), "new", primary.name))}">${icon("plus")}<span>${esc(`New ${nameOf(agg)}`)}</span></a>` : "";
   const text = matching ? `No ${noun} match.` : `No ${noun} yet.${primary ? " Add the first one." : ""}`;
   return `<div class="grid justify-items-center gap-3 border-y border-base-300 bg-base-100 px-4 py-16 text-center text-muted">${icon("inbox")}<p class="text-lg text-base-content">${text}</p>${action}</div>`;
 }
@@ -71,7 +84,7 @@ function views(agg: Aggregate, current: Query | null): string {
     `<a class="${active ? "tab tab-active font-semibold" : "tab"}" href="${esc(to)}"${active ? ' aria-current="page"' : ""}${title ? ` title="${esc(title)}"` : ""}>${esc(text)}</a>`;
   const all = link(href(...at(agg)), "All", current === null);
   const each = agg.queries.map((query) => link(`${href(...at(agg))}?query=${encodeURIComponent(query.name)}`, label(query.name), current?.name === query.name, query.description ?? ""));
-  return agg.queries.length === 0 ? "" : `<nav class="tabs tabs-border mb-4" aria-label="Views of ${esc(humanize(plural(agg.name)))}">${[all, ...each].join("")}</nav>`;
+  return agg.queries.length === 0 ? "" : `<nav class="tabs tabs-border mb-4" aria-label="Views of ${esc(humanize(pluralName(agg)))}">${[all, ...each].join("")}</nav>`;
 }
 
 function queryForm(agg: Aggregate, query: Query | null, choices: Choices): string {
@@ -85,7 +98,7 @@ ${fields(agg, query.attributes, {}, null, false, choices)}
 /** What the count says: the rows there are, or the range of them this page shows, and that they match when filtered. */
 function countText(agg: Aggregate, view: View): string {
   const active = view.q !== "" || view.status !== "";
-  const noun = view.total === 1 ? singular(agg.name) : humanize(plural(agg.name));
+  const noun = view.total === 1 ? nameOf(agg) : humanize(pluralName(agg));
   const range = view.total > view.size ? `${view.from}–${view.to} of ${view.total}` : String(view.total);
   return `${range} ${noun}${active ? " match" : ""}`;
 }
@@ -100,7 +113,7 @@ function filters(agg: Aggregate, view: View): string {
   const keep = view.params.map(([key, value]) => `<input type="hidden" name="${esc(key)}" value="${esc(value)}">`).join("");
   const active = view.q !== "" || view.status !== "";
   const clear = active ? `<a class="btn btn-ghost btn-sm h-9" href="${esc(listHref(agg, view.params))}" data-clear-filters>Clear</a>` : "";
-  const noun = esc(humanize(plural(agg.name)));
+  const noun = esc(humanize(pluralName(agg)));
   return `<div class="mb-3 flex flex-wrap items-center justify-between gap-3">
 <form class="flex min-w-0 flex-1 flex-wrap items-center gap-2" method="get" action="${esc(href(...at(agg)))}" role="search" aria-label="Search ${noun}" data-list-filters data-list="${esc(at(agg).join("/"))}">${keep}
 <label class="input input-sm h-9 w-full max-w-sm items-center gap-2">${icon("search")}<span class="sr-only">Search ${noun}</span><input type="search" class="grow" name="_q" value="${esc(view.q)}" data-filter placeholder="Search" autocomplete="off"></label>
@@ -118,7 +131,7 @@ function pager(agg: Aggregate, view: View): string {
     enabled
       ? `<a class="join-item btn btn-sm" href="${esc(listHref(agg, [...view.params, ["_q", view.q], ["_status", view.status]], { _page: to === 1 ? "" : String(to) }))}" rel="${to < view.page ? "prev" : "next"}">${text}</a>`
       : `<span class="join-item btn btn-sm btn-disabled" aria-disabled="true">${text}</span>`;
-  return `<nav class="mt-4 flex items-center justify-between gap-3" aria-label="Pages of ${esc(humanize(plural(agg.name)))}">
+  return `<nav class="mt-4 flex items-center justify-between gap-3" aria-label="Pages of ${esc(humanize(pluralName(agg)))}">
 <p class="tabular-nums text-muted">Page ${view.page} of ${view.pages}</p>
 <div class="join">${step(view.page - 1, "Previous", view.page > 1)}${step(view.page + 1, "Next", view.page < view.pages)}</div>
 </nav>`;
@@ -127,7 +140,7 @@ function pager(agg: Aggregate, view: View): string {
 function actions(agg: Aggregate): string {
   const creating = agg.commands.filter((command) => command.creates);
   const elsewhere = agg.commands.filter((command) => !command.creates && command.on !== agg.name);
-  const primary = (command: Command): string => `<a class="btn btn-neutral" href="${esc(href(...at(agg), "new", command.name))}">${icon("plus")}<span>${esc(commandLabel(agg, command))}</span></a>`;
+  const primary = (command: Command): string => `<a class="btn btn-neutral" href="${esc(href(...at(agg), "new", command.name))}">${icon("plus")}<span>${esc(`New ${nameOf(agg)}`)}</span></a>`;
   const secondary = (command: Command, verb: string): string => `<a class="btn" href="${esc(href(...at(agg), verb, command.name))}"><span>${esc(commandLabel(agg, command))}</span></a>`;
   return [...creating.map((command, index) => (index === 0 ? primary(command) : secondary(command, "new"))), ...elsewhere.map((command) => secondary(command, "run"))].join("\n");
 }
@@ -140,7 +153,7 @@ export function listPage(agg: Aggregate, found: Row[], query: Query | null, erro
   const body = found.length > 0 ? rows(agg, found) : !asked || error ? "" : empty(agg, primary, query !== null || filtered);
   const tools = asked && !error && !nothing ? filters(agg, view) : "";
   return `<div class="mb-6 flex flex-wrap items-end justify-between gap-4">
-<div><h1 class="text-3xl">${esc(plural(agg.name))}</h1>${agg.description ? `<p class="mt-1 max-w-prose text-muted">${esc(agg.description)}</p>` : ""}</div>
+<div><h1 class="text-3xl">${esc(pluralName(agg))}</h1>${agg.words?.about ?? agg.description ? `<p class="mt-1 max-w-prose text-muted">${esc(agg.words?.about ?? agg.description)}</p>` : ""}</div>
 <div class="flex flex-wrap gap-2">${actions(agg)}</div>
 </div>
 ${views(agg, query)}

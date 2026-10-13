@@ -22,6 +22,8 @@ export const EDITOR = {
   pageSize: 25,
   /** Where a record is shown on the site, with `{key}`, `{kind}`, `{slug}` and `{id}`; null for no preview. */
   preview: "https://site.example.com/{kind}/{slug}?preview=1" as string | null,
+  /** `drawer` frames the site's page beside the record; `tab` opens it in a new tab (a site that will not be framed). */
+  previewIn: "drawer" as "drawer" | "tab",
   accountPath: "/accounts/me",
   membersPath: "/members",
   rememberMs: 60000,

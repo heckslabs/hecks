@@ -1,0 +1,40 @@
+__BANNER__
+
+// A moment written as text (ISO 8601) and entered as wall-clock time in a fixed zone. The editor
+// shows what a person reads on a clock in that zone and stores the same instant with the zone's
+// offset; a stored value that has not changed is kept exactly as it was held. The arithmetic is on
+// whole minutes, so it needs no time zone database and gives the same answer on every machine.
+
+/** The wall-clock shape a `datetime-local` input holds: `YYYY-MM-DDTHH:mm`. */
+export const WALL = /^\d{4}-\d\d-\d\dT\d\d:\d\d$/;
+
+const ZONED = /(Z|[+-]\d\d:?\d\d)$/;
+
+/** The minutes a zone is ahead of UTC: `Z` is 0 and `-07:00` is -420. */
+export function offsetMinutes(zone: string): number {
+  const found = /^([+-])(\d\d):(\d\d)$/.exec(zone);
+  if (!found) return 0;
+  return (found[1] === "-" ? -1 : 1) * (Number(found[2]) * 60 + Number(found[3]));
+}
+
+/**
+ * The wall-clock time of a stored moment in `zone`, or null when it is not a moment. A text with no
+ * zone of its own was written as wall-clock time already and is returned as it is.
+ */
+export function toWall(text: string, zone: string): string | null {
+  if (!/^\d{4}-\d\d-\d\dT\d\d:\d\d/.test(text)) return null;
+  if (!ZONED.test(text)) return text.slice(0, 16);
+  const at = Date.parse(text);
+  if (Number.isNaN(at)) return null;
+  return new Date(at + offsetMinutes(zone) * 60_000).toISOString().slice(0, 16);
+}
+
+/** The stored text for a wall-clock time in `zone`: seconds are written, and so is the offset. */
+export function fromWall(wall: string, zone: string): string {
+  return `${wall}:00${zone}`;
+}
+
+/** The words that say which clock a moment is on: "Phoenix time" is not known here, only the offset. */
+export function zoneNote(zone: string): string {
+  return zone === "Z" ? "Time is UTC." : `Time is in the center's zone (UTC${zone}).`;
+}

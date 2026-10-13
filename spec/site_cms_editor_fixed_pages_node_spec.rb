@@ -206,6 +206,15 @@ RSpec.describe "the generated fixed-structure page editor, run by node" do
     end
   end
 
+  describe "a picture that is a member of a list", if: EditorNode.available? do
+    it "marks its file and its description as required before any save is refused", :aggregate_failures do
+      html = result("galleryDraft")
+
+      star = '<span class="text-primary" title="Required" aria-hidden="true">*</span>'
+      expect(html).to include("Media ref #{star}", "Alt #{star}")
+    end
+  end
+
   describe "repeated groups that hold groups", if: EditorNode.available? do
     let(:html) { result("storyDraft") }
 

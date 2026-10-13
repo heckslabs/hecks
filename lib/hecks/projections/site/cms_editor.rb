@@ -39,7 +39,7 @@ module Hecks
           src/browser/app.css src/browser/main.js src/browser/shell.js src/browser/forms.js src/browser/toast.js
           src/browser/lists.js src/browser/pickers.js src/browser/epoch.js src/browser/moments.js
           src/browser/body_doc.js src/browser/body_editor.js src/browser/autosave.js src/browser/preview.js
-          src/ui/blocks.ts src/ui/block_list.js src/browser/blocks.js
+          src/ui/blocks.ts src/ui/block_list.js src/browser/blocks.js src/ui/wall.ts
         ].freeze
 
         # The files only an editor of a chapter with a picture aggregate has: the upload, the
@@ -80,16 +80,30 @@ module Hecks
           setting = Setting.read(bluebook, table: options[:table])
           return {} unless setting
 
-          chapters = options[:domain_chapters] || options.fetch(:domain_chapter)
-          schema = Schema.read(chapters, skip: setting.skip, pictures: options[:media_chapter], roles: setting.chapter_roles)
+          words = Words.read(bluebook)
+          previews = words.things.filter_map { |row| row[:preview] }
+          Words.refuse("Editor row's previews", setting.preview_problems(previews))
+          schema = read_schema(setting, options, words)
+          render(setting, schema, previews)
+        end
+
+        # @return [Hash{String => String}] each file's path to its text
+        def render(setting, schema, previews)
           media = schema.key?("media")
-          tokens = tokens(setting, schema, media)
+          tokens = tokens(setting, schema, media, previews)
           [*FILES, *(MEDIA_FILES if media)].to_h { |path| [path, fill(File.read(File.join(TEMPLATES, "#{path}.tmpl")), tokens)] }
         end
 
+        # @return [Hash{String => Object}] the chapters the row names, as the editor reads them
+        def read_schema(setting, options, words)
+          chapters = options[:domain_chapters] || options.fetch(:domain_chapter)
+          Schema.read(chapters, skip: setting.skip, pictures: options[:media_chapter], roles: setting.chapter_roles, words: words)
+        end
+
         # @return [Hash{String => String}] each placeholder of the templates and its text
-        def tokens(setting, schema, media)
-          setting.tokens.merge(look_tokens(setting, schema), "__SCHEMA__" => Pretty.generate(schema), **media_tokens(media))
+        def tokens(setting, schema, media, previews = [])
+          schema_token = { "__SCHEMA__" => Pretty.generate(schema) }
+          setting.tokens(previews).merge(look_tokens(setting, schema), schema_token, media_tokens(media))
         end
 
         # @param media [Boolean] whether the chapter has a picture aggregate

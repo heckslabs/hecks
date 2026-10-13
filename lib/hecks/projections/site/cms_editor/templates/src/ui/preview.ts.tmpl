@@ -25,9 +25,10 @@ const placed = (value: string): string => encodeURIComponent(value).replace(/%3A
 
 /** The address a record is previewed at, or null when the row names no preview. */
 export function previewUrl(agg: Aggregate, id: string): string | null {
-  if (!EDITOR.preview) return null;
+  const template = agg.words?.preview ?? EDITOR.preview;
+  if (!template) return null;
   const parts = partsOf(agg, id);
-  return EDITOR.preview.replace(/\{(key|kind|slug|id)\}/g, (_, name: keyof Parts) => placed(parts[name]));
+  return template.replace(/\{(key|kind|slug|id)\}/g, (_, name: keyof Parts) => placed(parts[name]));
 }
 
 /** What a page needs to offer a preview: the button for the heading, and the drawer for the end of the page. */
@@ -82,6 +83,7 @@ const shown = (agg: Aggregate): boolean => agg !== pictureAggregate() && agg !==
 export function previewTools(agg: Aggregate, id: string): Tools {
   const url = shown(agg) ? previewUrl(agg, id) : null;
   if (!url) return NONE;
+  if (EDITOR.previewIn === "tab") return { button: `<a class="btn" href="${esc(url)}" target="_blank" rel="noopener">${icon("external")}View on the site</a>`, drawer: "" };
   const button = `<a class="btn" href="${esc(url)}" target="_blank" rel="noopener" data-preview-open="preview-toggle">${icon("eye")}Preview</a>`;
   return { button, drawer: drawer(agg, id, url) };
 }

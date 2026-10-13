@@ -21,45 +21,79 @@ import type { View } from "./paging.ts";
 import type { Choices } from "./pickers.ts";
 import { previewTools } from "./preview.ts";
 import { scheduledTable } from "./schedule.ts";
-import { SCHEDULED, countMark, groupOf, groups, onlyFor, page } from "./shell.ts";
+import { SCHEDULED, chapterTitle, countMark, groupOf, groups, onlyFor, page, tucked } from "./shell.ts";
 import type { Crumb } from "./shell.ts";
 import { listPage as list } from "./table.ts";
 import type { World } from "./world.ts";
-import { commandLabel, label, plural } from "./words.ts";
+import { capital, commandLabel, humanize, label, nameOf, pluralName } from "./words.ts";
 
 type State = Record<string, unknown>;
 type Row = [string, State];
 
 export type { Submitted };
 
-const OVERVIEW: Crumb = ["Overview", href()];
+const OVERVIEW: Crumb = ["Home", href()];
 
 const head = (title: string, note: string, extra = ""): string =>
   `<div class="mb-6 flex flex-wrap items-start justify-between gap-3"><div><h1 class="text-3xl">${esc(title)}</h1><p class="mt-1 max-w-prose text-muted">${esc(note)}</p></div>${extra}</div>`;
 
 /** The trail to an aggregate's list: the overview, then the chapter when there are several. */
-const trail = (agg: Aggregate): Crumb[] => [OVERVIEW, ...(agg.chapter ? [[label(agg.chapter)] as Crumb] : []), [plural(agg.name), href(...at(agg))]];
+const trail = (agg: Aggregate): Crumb[] => [OVERVIEW, ...(agg.chapter ? [[chapterTitle(agg.chapter)] as Crumb] : []), [pluralName(agg), href(...at(agg))]];
 
 /** The words a page of an aggregate carries in its title: the plural, and the chapter when it could be mistaken for another. */
-const titleOf = (agg: Aggregate): string => (agg.chapter ? `${plural(agg.name)} (${label(agg.chapter)})` : plural(agg.name));
+const titleOf = (agg: Aggregate): string => (agg.chapter ? `${pluralName(agg)} (${chapterTitle(agg.chapter)})` : pluralName(agg));
 
-function overviewItems(aggregates: Aggregate[]): string {
-  const items = aggregates.map((agg) => {
-    const note = agg.description ? `<span class="text-muted">${esc(agg.description)}</span>` : "";
-    return onlyFor(agg, `<li class="flex items-center justify-between gap-4"><a class="grid flex-1 gap-0.5 p-4 hover:bg-base-200/60" href="${esc(href(...at(agg)))}"><span class="text-base font-semibold">${esc(plural(agg.name))}</span>${note}</a><span class="pr-4 tabular-nums text-muted">${countMark(keyOf(agg))}</span></li>`);
-  });
-  return `<ul class="divide-y divide-base-300 border-y border-base-300 bg-base-100">\n${items.join("\n")}\n</ul>`;
+/** The commands of an aggregate that make a record a person starts: not those only a machine runs. */
+const startersOf = (agg: Aggregate): Command[] => agg.commands.filter((command) => command.creates && command.role !== "System");
+
+/**
+ * One aggregate as a card of jobs: what it is (its description), a "New" task for each command that
+ * makes a record, with the command's own goal as the sentence under it, and an "Edit" task that opens
+ * the list, or the one record when the aggregate holds only one. Words come from the route chapter's
+ * `EditorThing` and `EditorField` rows when it has them, else from the bluebook's names.
+ */
+function taskCard(agg: Aggregate, existing: Set<string>): string {
+  const about = agg.words?.about ?? agg.description;
+  const own = (to: string, text: string, note: string | null | undefined, primary: boolean): string =>
+    `<li class="flex flex-wrap items-baseline gap-x-3 gap-y-1"><a class="btn btn-sm ${primary ? "btn-neutral" : ""}" href="${esc(to)}">${esc(text)}</a>${note ? `<span class="min-w-0 text-sm text-muted">${esc(note)}</span>` : ""}</li>`;
+  const single = agg.single !== undefined;
+  const starters = single && existing.has(keyOf(agg)) ? [] : startersOf(agg);
+  const news = starters.map((command, index) => own(href(...at(agg), "new", command.name), index === 0 ? `New ${nameOf(agg)}` : commandLabel(agg, command), command.help ?? command.goal, index === 0));
+  const edit = single
+    ? existing.has(keyOf(agg))
+      ? [own(href(...at(agg), "id", agg.single as string), `Change ${nameOf(agg)}`, null, true)]
+      : []
+    : [own(href(...at(agg)), `Edit ${humanize(pluralName(agg))}`, null, false)];
+  const count = single ? "" : `<span class="tabular-nums text-muted" aria-label="How many">${countMark(keyOf(agg))}</span>`;
+  const note = about ? `<p class="mt-1 max-w-prose text-sm text-muted">${esc(about)}</p>` : "";
+  return onlyFor(agg, `<section class="border border-base-300 bg-base-100 p-4 sm:p-5" aria-labelledby="task-${esc(keyOf(agg))}">
+<div class="flex items-baseline justify-between gap-3"><h3 id="task-${esc(keyOf(agg))}" class="text-lg">${esc(pluralName(agg))}</h3>${count}</div>${note}
+<ul class="mt-4 grid gap-3">
+${[...news, ...edit].join("\n")}
+</ul>
+</section>`);
 }
 
-/** The overview: every aggregate the domain declares, with what it is and how much of it there is. */
-export function home(): string {
+function cards(aggregates: Aggregate[], existing: Set<string>): string {
+  return `<div class="grid gap-4 lg:grid-cols-2">\n${aggregates.map((agg) => taskCard(agg, existing)).join("\n")}\n</div>`;
+}
+
+/**
+ * The home page: the jobs a person does, by what they are about. Aggregates the route chapter marks
+ * as advanced are one fold at the end. `existing` holds the single-record aggregates that already have
+ * their one record.
+ */
+export function home(existing: Set<string> = new Set()): string {
   const sections = groups().map(([chapter, aggregates]) => {
-    if (chapter === null) return overviewItems(aggregates);
-    return groupOf(chapter, `<h2 class="mb-2 mt-8 text-lg">${esc(label(chapter))}</h2>\n${overviewItems(aggregates)}`);
+    if (chapter === null) return cards(aggregates, existing);
+    return groupOf(chapter, `<h2 class="mb-3 mt-8 text-xl">${esc(chapterTitle(chapter))}</h2>\n${cards(aggregates, existing)}`);
   });
-  const body = `${head(SCHEMA.chapters ? EDITOR.brand : SCHEMA.domain, "Choose what to edit.")}
-${sections.join("\n")}`;
-  return page("Overview", body, { crumbs: [["Overview"]] });
+  const more = tucked();
+  const behind = more.length === 0 ? "" : `<details class="mt-10 border-t border-base-300 pt-4"><summary class="cursor-pointer font-semibold">More</summary><p class="mt-2 text-sm text-muted">What the pages above are made from. Most jobs never need these.</p><div class="mt-4">${cards(more, existing)}</div></details>`;
+  const body = `${head(SCHEMA.chapters ? EDITOR.brand : SCHEMA.domain, "What would you like to do?")}
+${sections.join("\n")}
+${behind}`;
+  return page("Home", body, { crumbs: [["Home"]] });
 }
 
 /**
@@ -69,13 +103,13 @@ ${sections.join("\n")}`;
  */
 export function notFound(what: string, title = "Not found"): string {
   const body = `${head(title, what)}
-<p><a class="btn" href="${esc(href())}">Back to the overview</a></p>`;
+<p><a class="btn" href="${esc(href())}">Back to the home page</a></p>`;
   return page(title, body, { crumbs: [OVERVIEW, [title]] });
 }
 
 /** An aggregate's list: one page of its rows, with the filters in `view`. */
 export function listPage(agg: Aggregate, rows: Row[], query: Query | null, error: string | null, asked: boolean, view: View, choices: Choices = {}): string {
-  return page(titleOf(agg), list(agg, rows, query, error, asked, view, choices), { active: keyOf(agg), crumbs: [OVERVIEW, ...(agg.chapter ? [[label(agg.chapter)] as Crumb] : []), [plural(agg.name)]] });
+  return page(titleOf(agg), list(agg, rows, query, error, asked, view, choices), { active: keyOf(agg), crumbs: [OVERVIEW, ...(agg.chapter ? [[chapterTitle(agg.chapter)] as Crumb] : []), [pluralName(agg)]] });
 }
 
 /** One instance, with the records and actions that go with it and its preview. */
@@ -117,10 +151,10 @@ function invalidOf(own: Submitted | null): Invalid | null {
 }
 
 /** The buttons of a command's form: the command itself, and for one that makes something, the same and then another. */
-function submits(agg: Aggregate, command: Command): string {
+function submits(agg: Aggregate, command: Command, back: Back | null): string {
   const text = esc(commandLabel(agg, command));
   if (command.destructive) return `<button type="submit" class="btn btn-error" data-busy data-confirm="confirm-${esc(command.name)}">${text}</button>`;
-  const again = command.creates ? `<button type="submit" class="btn" name="__again" value="1" data-busy>Save and add another</button>` : "";
+  const again = command.creates && !back ? `<button type="submit" class="btn" name="__again" value="1" data-busy>Save and add another</button>` : "";
   return `${again}<button type="submit" class="btn btn-neutral" data-busy>${text}</button>`;
 }
 
@@ -168,7 +202,8 @@ function draftTools(agg: Aggregate, command: Command, extras: Extras): { bar: st
 export function commandForm(agg: Aggregate, command: Command, action: string, shown: Submitted | null, extras: Extras = {}): string {
   const { state = {}, to = false, choices = {}, back = null } = extras;
   const own = shown && shown.command === command.name ? shown : null;
-  const note = command.goal ? `<p class="mb-4 max-w-prose text-muted">${esc(command.goal)}.</p>` : "";
+  const said = command.help ?? command.goal;
+  const note = said ? `<p class="mb-4 max-w-prose text-muted">${esc(said.replace(/\.$/, ""))}.</p>` : "";
   const target = to
     ? `<div class="my-4 grid gap-1"><label for="f-to" class="font-semibold">${esc(command.on ?? "")} id <span class="text-primary" aria-hidden="true">*</span></label><input type="text" class="input w-full max-w-xl" id="f-to" name="__to" value="${esc(own?.values.__to ?? "")}"></div>`
     : "";
@@ -183,7 +218,7 @@ ${backInput(back)}${refusal(own?.message ?? null)}${note}
 ${draft.bar}
 ${target}
 ${fields(agg, command.attributes, own ? own.values : startingValues(agg, command, state), invalidOf(own), true, choices, draft.bar ? agg.drafts?.attribute : undefined, own?.problems ?? [])}
-<div data-actionbar class="sticky bottom-0 z-10 -mx-4 mt-8 flex items-center justify-end gap-2 border-t border-base-300 bg-base-100 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-8px_16px_-12px_rgb(0_0_0/0.25)]"><p class="mr-auto text-xs text-muted"><span class="text-primary" aria-hidden="true">*</span> Required</p><a class="btn btn-ghost" href="${esc(leave)}">Cancel</a>${submits(agg, command)}</div>
+<div data-actionbar class="sticky bottom-0 z-10 -mx-4 mt-8 flex items-center justify-end gap-2 border-t border-base-300 bg-base-100 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-8px_16px_-12px_rgb(0_0_0/0.25)]"><p class="mr-auto text-xs text-muted"><span class="text-primary" aria-hidden="true">*</span> Required</p><a class="btn btn-ghost" href="${esc(leave)}">Cancel</a>${submits(agg, command, back)}</div>
 </form>
 ${dialog}${draft.dialogs}`;
 }
@@ -192,7 +227,9 @@ ${dialog}${draft.dialogs}`;
 export function commandPage(agg: Aggregate, command: Command, action: string, shown: Submitted | null, choices: Choices = {}, extras: Extras = {}): string {
   const crumbs: Crumb[] = [...trail(agg), [commandLabel(agg, command)]];
   const form = commandForm(agg, command, action, shown, { ...extras, to: command.on !== null && command.on !== agg.name, choices });
-  return page(commandLabel(agg, command), `${backLink(extras.back ?? null)}${head(commandLabel(agg, command), label(agg.name))}\n${form}`, { active: keyOf(agg), crumbs });
+  const title = command.creates ? `New ${nameOf(agg)}` : commandLabel(agg, command);
+  const kind = command.creates ? "" : label(nameOf(agg));
+  return page(title, `${backLink(extras.back ?? null)}${head(title, kind)}\n${form}`, { active: keyOf(agg), crumbs });
 }
 
 /** The page of a command that acts on one instance: its form, or the question a destructive one asks. */

@@ -21,7 +21,8 @@ import type { Problem } from "./blocks.ts";
 import { isMoment, secondsOf } from "./moments.ts";
 import { datalists, pickerControl } from "./pickers.ts";
 import type { Choices } from "./pickers.ts";
-import { label, limitsNote, singular } from "./words.ts";
+import { toWall, zoneNote } from "./wall.ts";
+import { label, labelOf, limitsNote, singular } from "./words.ts";
 
 type Value = unknown;
 
@@ -55,7 +56,8 @@ const member = (value: Value, key: string): Value => (value && typeof value === 
 const idOf = (name: string): string => `f-${name.replace(/[^A-Za-z0-9]+/g, "-")}`;
 
 function caption(attr: Attr, context: Context): string {
-  const text = esc(label(attr.name));
+  const text = esc(labelOf(attr));
+  if (attr.fill) return `${text} <span class="ml-1 text-xs font-normal text-muted">filled in if left blank</span>`;
   if (attr.optional) return `${text} <span class="ml-1 text-xs font-normal text-muted">optional</span>`;
   return context.mark ? `${text} <span class="text-primary" title="Required" aria-hidden="true">*</span>` : text;
 }
@@ -74,14 +76,15 @@ const flagged = (attr: Attr, name: string, context: Context): boolean => refusal
 
 /** The attributes of the control that is invalid: the state and the link to its message (and to its hint, when it has one). */
 function invalidAttrs(name: string, attr: Attr, context: Context, hint = false): string {
-  const ids = [...(hint ? [`${idOf(name)}-hint`] : []), ...(flagged(attr, name, context) ? [`${idOf(name)}-error`] : [])];
+  const ids = [...(hint ? [`${idOf(name)}-hint`] : []), ...(attr.help ? [`${idOf(name)}-help`] : []), ...(flagged(attr, name, context) ? [`${idOf(name)}-error`] : [])];
   const described = ids.length > 0 ? ` aria-describedby="${esc(ids.join(" "))}"` : "";
   return `${flagged(attr, name, context) ? ` aria-invalid="true"` : ""}${described}`;
 }
 
 function problem(name: string, attr: Attr, context: Context): string {
   const text = refusalAt(attr, name, context);
-  return text !== null ? `<p class="text-xs font-semibold text-error" id="${esc(idOf(name))}-error">${esc(text)}</p>` : "";
+  const said = text !== null ? `<p class="text-xs font-semibold text-error" id="${esc(idOf(name))}-error">${esc(text)}</p>` : "";
+  return attr.help ? `<p class="text-xs text-muted" id="${esc(idOf(name))}-help">${esc(attr.help)}</p>${said}` : said;
 }
 
 /** A moment's input: the seconds in a number input; the script swaps it for a native date input in the viewer's zone. */
@@ -116,8 +119,26 @@ function select(attr: Attr, name: string, value: Value, context: Context): strin
   return `<div class="my-4 grid gap-1"><label for="${id}" class="${context.quiet ? "sr-only" : "font-semibold"}">${caption(attr, context)}</label>${input}${problem(name, attr, context)}</div>`;
 }
 
+/**
+ * A moment written as text, entered as wall-clock time in the attribute's zone. The text it was held
+ * as rides in a hidden input, so a moment the person did not change is sent back exactly as it was.
+ */
+function wallInput(attr: Attr, name: string, value: Value, context: Context): string {
+  const id = esc(idOf(name));
+  const held = String(member(value, "value") ?? value ?? "");
+  const zone = attr.wall ?? "Z";
+  const shown = toWall(held, zone) ?? "";
+  const classes = flagged(attr, name, context) ? "input input-error w-full max-w-xl" : "input w-full max-w-xl";
+  const required = context.mark && !attr.optional ? ` aria-required="true"` : "";
+  const keep = held === "" ? "" : `<input type="hidden" name="${esc(name)}__held" value="${esc(held)}">`;
+  const input = `<input type="datetime-local" class="${classes}" id="${id}" name="${esc(name)}" value="${esc(shown)}"${required}${invalidAttrs(name, attr, context)}>`;
+  const note = `<p class="text-xs text-muted">${esc(zoneNote(zone))}</p>`;
+  return `<div class="my-4 grid gap-1"><label for="${id}" class="${context.quiet ? "sr-only" : "font-semibold"}">${caption(attr, context)}</label>${input}${keep}${note}${problem(name, attr, context)}</div>`;
+}
+
 function scalar(attr: Attr, name: string, value: Value, context: Context): string {
   if (isMoment(attr)) return moment(attr, name, value, context);
+  if (attr.wall !== undefined && !attr.list && attr.kind === "text") return wallInput(attr, name, value, context);
   if (attr.options && !attr.list) return select(attr, name, value, context);
   const text = esc(member(value, "value") ?? value ?? "");
   const id = esc(idOf(name));
@@ -130,8 +151,8 @@ function scalar(attr: Attr, name: string, value: Value, context: Context): strin
   const limit = attr.maxLength ? ` maxlength="${attr.maxLength}"` : "";
   if (attr.multiline && !attr.list && attr.kind === "text") {
     const classes = bad ? "textarea textarea-error w-full max-w-3xl" : "textarea w-full max-w-3xl";
-    const hint = `<p class="text-xs text-muted" id="${id}-hint">Up to ${attr.maxLength} characters.</p>`;
-    const box = `<textarea class="${classes}" rows="5" id="${id}" name="${esc(name)}"${limit}${required}${invalidAttrs(name, attr, context, true)}>\n${text}</textarea>`;
+    const hint = attr.maxLength ? `<p class="text-xs text-muted" id="${id}-hint">Up to ${attr.maxLength} characters.</p>` : "";
+    const box = `<textarea class="${classes}" rows="5" id="${id}" name="${esc(name)}"${limit}${required}${invalidAttrs(name, attr, context, Boolean(attr.maxLength))}>\n${text}</textarea>`;
     return `<div class="my-4 grid gap-1"><label for="${id}" class="${context.quiet ? "sr-only" : "font-semibold"}">${caption(attr, context)}</label>${box}${hint}${problem(name, attr, context)}</div>`;
   }
   const classes = bad ? "input input-error w-full max-w-xl" : "input w-full max-w-xl";
@@ -142,7 +163,19 @@ function scalar(attr: Attr, name: string, value: Value, context: Context): strin
 
 /** A value object's one plain part as the attribute that holds it: it takes the attribute's name, picker and moment. */
 function plainOf(attr: Attr, part: Attr, name: string): Attr {
-  return { ...part, name, optional: attr.optional, widget: attr.widget ?? part.widget, picker: attr.picker ?? part.picker, options: attr.options ?? part.options };
+  return {
+    ...part,
+    name,
+    optional: attr.optional,
+    widget: attr.widget ?? part.widget,
+    picker: attr.picker ?? part.picker,
+    options: attr.options ?? part.options,
+    label: attr.label ?? part.label,
+    help: attr.help ?? part.help,
+    multiline: attr.multiline ?? part.multiline,
+    wall: attr.wall ?? part.wall,
+    fill: attr.fill ?? part.fill,
+  };
 }
 
 function parts(agg: Aggregate, attr: Attr, name: string, value: Value, context: Context): string {
@@ -181,7 +214,7 @@ function pictureField(agg: Aggregate, attr: Attr, name: string, value: Value, co
   const bad = said !== null ? ` aria-invalid="true" aria-describedby="${esc(idOf(name))}-error"` : "";
   const why = said !== null ? `<p class="text-xs font-semibold text-error" id="${esc(idOf(name))}-error">${esc(said)}</p>` : "";
   return `<fieldset class="mt-6 [&>legend+*]:clear-both"${bad}><legend class="float-left mb-2 w-full border-t border-base-300 pt-4 text-lg font-semibold">${caption(attr, context)}</legend>
-<div class="my-4 grid gap-1 border border-base-300 p-3" data-picture data-key="${esc(`${name}.${picture.key}`)}" data-alt="${esc(`${name}.${picture.alt}`)}">
+<div class="my-4 grid gap-1 border border-base-300 p-3" data-picture data-key="${esc(`${name}.${picture.key}`)}" data-alt="${esc(`${name}.${picture.alt}`)}"${picture.prefix ? ` data-prefix="${esc(picture.prefix)}"` : ""}>
 <div class="flex flex-wrap items-start gap-3">${thumb}<div class="grid min-w-0 flex-1 gap-1 max-sm:basis-full">${control(picture.key)}${control(picture.alt)}${control(picture.caption)}${pickButton()}</div></div>
 <p class="text-xs text-muted">A picture needs a description for people who cannot see it.</p>
 </div>
@@ -270,6 +303,11 @@ export function field(agg: Aggregate, attr: Attr, value: Value, prefix = "", con
 
 /** The inputs for `attrs`, filled from `values` (an instance's state or a refused submission). */
 export function fields(agg: Aggregate, attrs: Attr[], values: Record<string, Value> = {}, invalid: Invalid | null = null, mark = true, choices: Choices = {}, draft?: string, problems: Problem[] = []): string {
-  const inputs = attrs.map((attr) => field(agg, attr, values[attr.name], "", { mark, invalid, top: true, choices, draft, problems }));
-  return [...inputs, datalists(agg, attrs, choices)].filter((text) => text !== "").join("\n");
+  const draw = (attr: Attr): string => field(agg, attr, values[attr.name], "", { mark, invalid, top: true, choices, draft, problems });
+  const more = attrs.filter((attr) => attr.advanced === true || attr.fill !== undefined);
+  const inputs = attrs.filter((attr) => !more.includes(attr)).map(draw);
+  const rest = more.map(draw).join("\n");
+  const open = rest.includes('aria-invalid="true"') ? " open" : "";
+  const behind = rest === "" ? "" : `<details class="mt-8 border-t border-base-300 pt-3" data-advanced${open}><summary class="cursor-pointer font-semibold">More options</summary>\n${rest}\n</details>`;
+  return [...inputs, behind, datalists(agg, attrs, choices)].filter((text) => text !== "").join("\n");
 }
