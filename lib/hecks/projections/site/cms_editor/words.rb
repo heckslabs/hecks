@@ -21,7 +21,9 @@ module Hecks
         # `datetime` with the `zone` its wall-clock times are in), whether it is `advanced`, which
         # aggregate it `picks` from, and how it is `fill`ed when left blank. `EditorCompanion` is a
         # record of another aggregate that belongs to this one's records by a key made of theirs
-        # (`news.{slug}.body`), shown on their page as one thing.
+        # (`news.{slug}.body`), shown on their page as one thing. `EditorRun` says what a due
+        # scheduled action does to a record of an aggregate: for an `action` word, the `command`s
+        # to try, in order, the first that applies to the record's state being the one that runs.
         module Words
           # What a row of each object may carry.
           THINGS = RootRows.new("EditorThing", many: true, required: %i[aggregate],
@@ -31,7 +33,10 @@ module Hecks
           FIELDS = RootRows.new("EditorField", many: true, required: %i[aggregate],
                                 fields: { aggregate: String, command: String, attribute: String, label: String, help: String,
                                           kind: String, zone: String, advanced: [TrueClass, FalseClass], picks: String,
-                                          fill: String, after: String })
+                                          fill: String, after: String, keys: String, options: String })
+
+          RUNS = RootRows.new("EditorRun", many: true, required: %i[aggregate action command],
+                              fields: { aggregate: String, action: String, command: String })
 
           COMPANIONS = RootRows.new("EditorCompanion", many: true, required: %i[aggregate with key field],
                                     fields: { aggregate: String, with: String, key: String, field: String, when: String,
@@ -39,8 +44,8 @@ module Hecks
 
           # The checked rows of a route chapter; `payload` are the `PayloadField` rows a project
           # declares for its content system, which the editor reads for the same facts.
-          Rows = Struct.new(:things, :fields, :companions, :payload, :zone) do
-            def none? = [things, fields, companions, payload].all?(&:empty?)
+          Rows = Struct.new(:things, :fields, :companions, :payload, :zone, :runs) do
+            def none? = [things, fields, companions, payload, runs].all?(&:empty?)
           end
 
           module_function
@@ -50,7 +55,7 @@ module Hecks
           # @raise [Table::Invalid] when a row is refused
           def read(chapter)
             payload = PayloadDriver::FIELD.read(chapter)
-            Rows.new(THINGS.read(chapter), FIELDS.read(chapter), COMPANIONS.read(chapter), payload, "Z")
+            Rows.new(THINGS.read(chapter), FIELDS.read(chapter), COMPANIONS.read(chapter), payload, "Z", RUNS.read(chapter))
           end
 
           # @param aggregates [Array<Hash{String => Object}>] the aggregates as `Schema` shapes them

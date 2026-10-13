@@ -121,7 +121,7 @@ export function detailPage(agg: Aggregate, id: string, values: State, shown: Sub
 
 /** Every action waiting to run, soonest first. */
 export function scheduledPage(world: World): string {
-  const body = `${head("Scheduled", "What is waiting to run, soonest first. These are saved here and run by something outside this editor.")}
+  const body = `${head("Scheduled", SCHEMA.scheduling?.runs?.length ? "What is waiting to go up or come down, soonest first. The editor does each one when its time comes." : "What is waiting to run, soonest first. These are saved here and run by something outside this editor.")}
 ${scheduledTable(world, href("scheduled"))}`;
   return page("Scheduled", body, { active: SCHEDULED, crumbs: [OVERVIEW, ["Scheduled"]] });
 }

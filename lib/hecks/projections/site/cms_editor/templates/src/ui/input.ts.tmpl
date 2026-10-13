@@ -9,7 +9,7 @@ __BANNER__
 // same way: the widget posts its tree as the same dotted-path fields (`body.blocks.0.spans.1.text`),
 // so there is no second encoding.
 import type { Aggregate, Attr } from "../schema.ts";
-import { WALL, fromWall, toWall } from "./wall.ts";
+import { WALL, fromWall, secondsOfWall, toWall, wallOfSeconds } from "./wall.ts";
 
 export type Form = Map<string, string>;
 
@@ -50,9 +50,21 @@ function wallText(raw: string, held: string | undefined, zone: string): string {
   return WALL.test(raw) ? fromWall(raw, zone) : raw;
 }
 
+/**
+ * A moment held as whole seconds and entered as the clock of a zone: the seconds the form held
+ * before are kept when the time shown was not changed.
+ */
+function zonedSeconds(raw: string, held: string | undefined, zone: string): number | string {
+  const kept = held === undefined ? NaN : Number(held);
+  if (Number.isFinite(kept) && wallOfSeconds(kept, zone).slice(0, raw.length) === raw) return kept;
+  const date = /^\d{4}-\d\d-\d\d$/.test(raw) ? `${raw}T00:00` : raw;
+  return secondsOfWall(date, zone) ?? raw;
+}
+
 function text(attr: Attr, form: Form, path: string, optional: boolean): unknown {
   const raw = form.get(path);
   if (attr.kind === "boolean") return form.has(path);
+  if (attr.wall !== undefined && attr.kind === "integer" && raw !== undefined && raw !== "") return zonedSeconds(raw, form.get(`${path}__held`), attr.wall);
   if (attr.wall !== undefined && raw !== undefined && raw !== "") return wallText(raw, form.get(`${path}__held`), attr.wall);
   if (raw === undefined || (raw === "" && optional)) return undefined;
   if ((attr.kind === "integer" || attr.kind === "number") && raw.trim() !== "" && !Number.isNaN(Number(raw))) return Number(raw);

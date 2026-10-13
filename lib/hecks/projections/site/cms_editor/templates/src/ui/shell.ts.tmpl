@@ -86,6 +86,16 @@ function scheduledLink(active: string | undefined): string {
   return sched ? `${onlyFor(sched, navLink(href("scheduled"), "Scheduled", active === SCHEDULED))}\n` : "";
 }
 
+/** The link to the library of pictures and files, when the editor keeps files anywhere. */
+function libraryLink(active: string | undefined): string {
+  return EDITOR.upload ? `${navLink(href("library"), "Pictures and files", active === "__library")}\n` : "";
+}
+
+/** The link to the People screen, shown only to the roles that administer (the frame cuts it out for the rest). */
+function peopleLink(active: string | undefined): string {
+  return EDITOR.members ? `<!--editor:admin-->${navLink(href("people"), "People", active === "__people")}<!--editor:/admin-->\n` : "";
+}
+
 function navigation(active: string | undefined): string {
   const sections = groups().map(([chapter, aggregates]) => {
     const heading = `<li class="menu-title mt-4 px-3 text-muted">${chapter === null ? "Content" : esc(chapterTitle(chapter))}</li>`;
@@ -97,7 +107,7 @@ function navigation(active: string | undefined): string {
   return `<nav id="rail" aria-label="Sections" class="flex-1 overflow-y-auto">
 <ul class="menu w-full gap-0.5 p-3">
 ${navLink(EDITOR.basePath, "Home", active === undefined)}
-${scheduledLink(active)}${sections.join("\n")}
+${scheduledLink(active)}${libraryLink(active)}${peopleLink(active)}${sections.join("\n")}
 </ul>
 </nav>`;
 }
@@ -202,8 +212,9 @@ function visibleTo(html: string, role: string | null): string {
   const gone = hidden.map((agg): [string, string] => [`<!--editor:only:${keyOf(agg)}-->`, `<!--editor:/only:${keyOf(agg)}-->`]);
   const empty = (SCHEMA.chapters ?? []).filter((chapter) => SCHEMA.aggregates.every((agg) => agg.chapter !== chapter || hidden.includes(agg)));
   const groups = empty.map((chapter): [string, string] => [`<!--editor:group:${chapter}-->`, `<!--editor:/group:${chapter}-->`]);
-  const cut = [...gone, ...groups].reduce((text, [open, close]) => cutBetween(text, open, close), html);
-  return cut.replace(/<!--editor:\/?(?:only|group):[^>]*-->/g, "");
+  const admins: [string, string][] = role !== null && EDITOR.adminRoles.includes(role) ? [] : [["<!--editor:admin-->", "<!--editor:/admin-->"]];
+  const cut = [...gone, ...groups, ...admins].reduce((text, [open, close]) => cutBetween(text, open, close), html);
+  return cut.replace(/<!--editor:\/?(?:only|group|admin):?[^>]*-->/g, "");
 }
 
 /** `html` with the places the frame left filled for this request. */

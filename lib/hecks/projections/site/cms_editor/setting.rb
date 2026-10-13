@@ -27,14 +27,15 @@ module Hecks
                         preview: String, preview_in: String, zone: String, upload_env: String,
                         upload_default: String, upload_api: String, members_aggregate: String,
                         members_email: String, members_role: String, markdown_parse: String,
-                        markdown_render: String },
+                        markdown_render: String, admin_roles: String, sign_in: String, landing: String },
             required: %i[domain chapter host_env login],
             defaults: { base_path: "/editor", session_cookie: "hecks_editor", host_cookie: "hecks_session",
                         host_default: "http://127.0.0.1:4322", roles: "Admin,Owner", title: "Editor", brand: "",
                         accent: "", logo: "", skip: "", media: "", media_dir: "media", media_max_bytes: "5242880",
                         chapter_roles: "", page_size: "25", preview: "", preview_in: "drawer", zone: "Z",
                         upload_env: "", upload_default: "", upload_api: "", members_aggregate: "",
-                        members_email: "email", members_role: "role", markdown_parse: "", markdown_render: "" }
+                        members_email: "email", members_role: "role", markdown_parse: "", markdown_render: "",
+                        admin_roles: "Admin,Owner", sign_in: "", landing: "" }
           )
 
           # @return [Hash{Symbol => String}] the checked row, defaults filled
@@ -148,6 +149,18 @@ module Hecks
           # @return [Array<String>] the roles that count as an editor
           def roles = row.fetch(:roles).split(",").map(&:strip).reject(&:empty?)
 
+          # @return [Array<String>] the roles that manage who may edit (the People screen)
+          def admin_roles = row.fetch(:admin_roles).split(",").map(&:strip).reject(&:empty?)
+
+          # @return [String, nil] the path the host sends a person to once Google has signed them
+          #   in (the host's own `/admin.html`), which the edge routes to the editor so that
+          #   everyone the list admits arrives in it, not on the site's administrator-only page
+          def landing = row.fetch(:landing).strip.then { |path| path.empty? ? nil : path }
+
+          # @return [String, nil] the address that starts a sign-in on the site's own origin (the
+          #   host's Google sign-in), which the editor's own sign-in page leads to; nil for none
+          def sign_in = row.fetch(:sign_in).strip.then { |path| path.empty? ? nil : path }
+
           # @return [String] the generated package's name
           def package = "#{chapter.gsub(/([a-z])([A-Z])/, '\1-\2').tr("_", "-").downcase}-editor"
 
@@ -157,6 +170,8 @@ module Hecks
               "__MEDIA_MAX_BYTES__" => row.fetch(:media_max_bytes), "__PAGE_SIZE__" => page_size.to_s,
               "__CLIENT_VERSION__" => Hecks::VERSION, "__UPLOAD__" => JSON.generate(upload),
               "__MEMBERS__" => JSON.generate(members), "__MARKDOWN__" => JSON.generate(markdown),
+              "__ADMIN_ROLES__" => RoutesTs.literal(admin_roles), "__SIGN_IN__" => JSON.generate(sign_in),
+              "__LANDING__" => JSON.generate(landing),
               "__MARKDOWN_SITE__" => markdown_site, **preview_tokens(previews), **quoted }
           end
 
@@ -190,7 +205,7 @@ module Hecks
           def quoted
             { "TITLE" => :title, "BASE_PATH" => :base_path, "SSO_PATH" => :sso_path, "LOGIN" => :login,
               "SESSION_COOKIE" => :session_cookie, "HOST_COOKIE" => :host_cookie, "HOST_ENV" => :host_env,
-              "HOST_DEFAULT" => :host_default, "MEDIA_DIR" => :media_dir, "LOGO" => :logo }
+              "HOST_DEFAULT" => :host_default, "MEDIA_DIR" => :media_dir, "LOGO" => :logo, "ZONE" => :zone }
               .to_h { |token, field| ["__#{token}__", JSON.generate(row.fetch(field))] }
           end
         end

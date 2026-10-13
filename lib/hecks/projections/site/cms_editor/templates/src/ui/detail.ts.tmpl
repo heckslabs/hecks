@@ -12,6 +12,7 @@ import { available, drafted, needsPage } from "./availability.ts";
 import type { Problem } from "./blocks.ts";
 import { confirmDialog, dialogId } from "./dialogs.ts";
 import { copyButton, esc, href, refusal, statusBadge } from "./html.ts";
+import { historyPanel } from "./history.ts";
 import { plainText } from "./links.ts";
 import { relatedPanels } from "./related.ts";
 import { schedulePanel } from "./schedule.ts";
@@ -89,7 +90,7 @@ function draftSection(agg: Aggregate, values: State): string {
 export function detailPage(agg: Aggregate, id: string, values: State, shown: Submitted | null, world: World, preview: Tools): string {
   const commands = agg.commands.filter((command) => command.on === agg.name && available(agg, command, values));
   const here = href(...at(agg), "id", id);
-  const panels = [relatedPanels(agg, id, world, here), schedulePanel(agg, id, world, here)].filter((html) => html !== "");
+  const panels = [relatedPanels(agg, id, world, here), schedulePanel(agg, id, world, here), world.history ? historyPanel(agg, id, world.history) : ""].filter((html) => html !== "");
   return `<div class="mb-6 flex flex-wrap items-start justify-between gap-3">
 <div><h1 class="break-words text-3xl">${esc(titled(agg, id, values))}</h1><p class="mt-1 flex items-center gap-2 text-muted"><span>${esc(label(nameOf(agg)))}</span><span aria-hidden="true">·</span><span class="break-all text-sm">${esc(id)}</span>${copyButton(id, "address")}</p>${unpublished(agg, values)}</div>
 ${preview.button}

@@ -35,7 +35,7 @@ const CLIP = 80;
 
 function cell(attr: Attr, value: unknown): string {
   const seconds = isMoment(attr) ? secondsOf(value) : null;
-  if (seconds !== null) return `<td data-value="${seconds}">${momentTime(seconds, attr.widget ?? "datetime")}</td>`;
+  if (seconds !== null) return `<td data-value="${seconds}">${momentTime(seconds, attr.widget ?? "datetime", attr.wall)}</td>`;
   const text = summaryText(value);
   const long = text.length > CLIP;
   const classes = numeric(attr) ? "text-right" : long ? "max-w-sm truncate" : "";

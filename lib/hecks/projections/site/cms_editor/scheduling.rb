@@ -26,10 +26,22 @@ module Hecks
 
           # @param aggregates [Array<Hash{String => Object}>] the aggregates as `Pickers` leaves
           #   them
-          # @return [Hash{String => Object}, nil] the scheduling aggregate and its parts; nil when
-          #   none
-          def read(aggregates)
-            aggregates.lazy.filter_map { |agg| shape(agg) }.first
+          # @param runs [Array<Hash{Symbol => String}>] the `EditorRun` rows: what a due action
+          #   does to a record of an aggregate
+          # @return [Hash{String => Object}, nil] the scheduling aggregate and its parts, and the
+          #   `runs` that name an aggregate its subjects can be; nil when none
+          def read(aggregates, runs = [])
+            found = aggregates.lazy.filter_map { |agg| shape(agg) }.first
+            return found unless found && !runs.empty?
+
+            found.merge("runs" => runs.map { |row| run(row) })
+          end
+
+          # @return [Hash{String => Object}] one `EditorRun` row as the runner reads it
+          def run(row)
+            chapter, name = row[:aggregate].include?("::") ? row[:aggregate].split("::", 2) : [nil, row[:aggregate]]
+            { "aggregate" => name, "chapter" => chapter, "action" => row[:action],
+              "commands" => row[:command].split(",").map(&:strip).reject(&:empty?) }.compact
           end
 
           # @return [Hash{String => Object}, nil] `agg` as the scheduling aggregate, or nil
@@ -85,7 +97,20 @@ module Hecks
           # @return [Hash{String => Object}] the commands, query and reason that may be missing
           def optional(agg, parts, schedule)
             { "reschedule" => rescheduling(agg, parts), "cancel" => cancelling(agg), "query" => querying(agg, parts),
-              "reason" => reason(agg, parts), "generated" => generated?(agg, parts, schedule) }
+              "reason" => reason(agg, parts), "generated" => generated?(agg, parts, schedule),
+              **settling(agg, reason(agg, parts)) }
+          end
+
+          # The two commands the runner reports with: the move from the first state to a final state
+          # that takes nothing (the action was done) and the one that takes only the reason (it
+          # could not be). Neither is the cancel, which a person makes.
+          #
+          # @return [Hash{String => String}] `complete` and `fail`, each only when found
+          def settling(agg, reason)
+            moves = agg["commands"].select { |cmd| !cmd["creates"] && !cmd["destructive"] && ends?(agg, cmd) }
+            done = moves.find { |cmd| cmd["attributes"].empty? }
+            failed = reason && moves.find { |cmd| cmd["attributes"].map { |attr| attr["name"] } == [reason] }
+            { "complete" => done&.fetch("name"), "fail" => failed&.fetch("name") }.compact
           end
 
           # @return [String, nil] the command on a record, not a lifecycle move, that takes the

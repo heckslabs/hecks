@@ -50,6 +50,51 @@ function send(url, file, alt, progress) {
   });
 }
 
+/**
+ * The chooser of what is already uploaded: a dialog with a search box and the files as buttons,
+ * each with its small picture, its description and its name. Choosing one fills the field.
+ */
+function openLibrary(root, kind, choose, opener) {
+  const dialog = make("dialog", { className: "modal" });
+  dialog.setAttribute("aria-label", `Choose a ${kind.noun} already uploaded`);
+  const search = make("input", { type: "search", className: "input input-sm w-full max-w-sm" });
+  search.setAttribute("aria-label", "Search by description or file name");
+  const list = make("ul", { className: "mt-3 grid max-h-[60vh] gap-2 overflow-y-auto sm:grid-cols-2" });
+  const status = make("p", { className: "mt-2 text-sm text-muted", role: "status" });
+  const close = make("button", { type: "button", className: "btn btn-ghost" }, "Close");
+  const box = make("div", { className: "modal-box max-w-3xl" }, make("h2", { className: "text-xl" }, `Choose a ${kind.noun} already uploaded`), make("div", { className: "mt-3" }, search), status, list, make("div", { className: "modal-action" }, close));
+  dialog.append(box);
+  document.body.append(dialog);
+  const render = (items) => {
+    list.replaceChildren(...items.map((item) => {
+      const button = make("button", { type: "button", className: "flex w-full items-center gap-3 border border-base-300 bg-base-100 p-2 text-left hover:bg-base-200" });
+      if (item.thumb) button.append(make("img", { src: item.thumb, alt: "", width: 64, height: 48, className: "h-12 w-16 shrink-0 bg-base-200 object-cover" }));
+      button.append(make("span", { className: "min-w-0 break-words" }, make("span", { className: "block font-semibold" }, item.alt || item.filename), make("span", { className: "block text-xs text-muted" }, item.filename)));
+      button.addEventListener("click", () => { dialog.close(); choose(item); });
+      return make("li", {}, button);
+    }));
+    status.textContent = items.length === 0 ? "Nothing matches." : `${items.length} shown, newest first. Search to find an older one.`;
+  };
+  let timer = null;
+  const load = async () => {
+    status.textContent = "Loading...";
+    try {
+      const url = `${root.dataset.library}?collection=${encodeURIComponent(root.dataset.collection)}&q=${encodeURIComponent(search.value.trim())}`;
+      const answer = await (await fetch(url, { headers: { Accept: "application/json" } })).json();
+      if (answer.error) { status.textContent = answer.error; list.replaceChildren(); return; }
+      render(answer.items);
+    } catch (error) {
+      status.textContent = "The list could not be loaded. Try again.";
+    }
+  };
+  search.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(load, 250); });
+  close.addEventListener("click", () => dialog.close());
+  dialog.addEventListener("close", () => { dialog.remove(); opener.focus(); });
+  dialog.showModal();
+  search.focus();
+  load();
+}
+
 function mount(root) {
   if (root.dataset.mounted) return;
   root.dataset.mounted = "true";
@@ -73,7 +118,8 @@ function mount(root) {
   const clear = make("button", { type: "button", className: "btn btn-sm btn-ghost w-fit", hidden: true }, `Remove the ${kind.noun}`);
   const cancel = make("button", { type: "button", className: "btn btn-sm btn-ghost w-fit", hidden: true }, "Cancel");
   const pick = make("div", { className: "grid gap-2" }, make("label", { className: "text-sm font-semibold", htmlFor: file.id }, "Choose a file from this computer"), file);
-  const body = make("div", { className: "grid min-w-0 flex-1 gap-2" }, current, pick, altLabel, progress, make("div", { className: "flex flex-wrap gap-2" }, sendButton, cancel, clear), status);
+  const library = make("button", { type: "button", className: "btn btn-sm w-fit", hidden: !root.dataset.library }, `Choose one already uploaded`);
+  const body = make("div", { className: "grid min-w-0 flex-1 gap-2" }, current, pick, altLabel, progress, make("div", { className: "flex flex-wrap gap-2" }, library, sendButton, cancel, clear), status);
   const row = make("div", { className: "flex flex-wrap items-start gap-3 border border-base-300 bg-base-100 p-3" }, thumb, body);
   address.closest("div[data-upload]").insertBefore(row, address.nextSibling);
 
@@ -166,6 +212,15 @@ function mount(root) {
     }
   };
 
+  const choose = (item) => {
+    forget();
+    address.value = item.address;
+    address.dispatchEvent(new Event("input", { bubbles: true }));
+    showHeld();
+    current.textContent = `Now: ${item.filename}${item.alt ? ` (described as: ${item.alt})` : ""}`;
+    say("Chosen. Save the form to put it on the site.", "ok");
+  };
+  library.addEventListener("click", () => openLibrary(root, kind, choose, library));
   sendButton.addEventListener("click", upload);
   cancel.addEventListener("click", () => {
     forget();
