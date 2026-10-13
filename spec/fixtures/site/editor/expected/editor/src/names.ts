@@ -46,3 +46,10 @@ export const membersOf = (family: Family): Aggregate[] => family.members.flatMap
 
 /** The part of a member's key after the first colon, which names the record of a family's `titles` aggregate. */
 export const slugOf = (id: string): string => id.slice(id.indexOf(":") + 1);
+/** The words a record is called by: its title, name or label when it has a plain one, else its identity. */
+export function instanceTitle(agg: Aggregate, id: string, state: Record<string, unknown>): string {
+  const own = agg.attributes.find((attr) => ["title", "name", "label"].includes(attr.name) && !attr.list && attr.widget !== "body");
+  const held = own ? state[own.name] : undefined;
+  const text = held && typeof held === "object" ? String(Object.values(held as object).find((part) => part !== null && part !== undefined) ?? "") : String(held ?? "");
+  return text === "" ? id : text;
+}

@@ -11,7 +11,7 @@ import type { Aggregate, Attr, Command, Family, Query } from "../schema.ts";
 import { SCHEMA } from "../schema.ts";
 import { drafted } from "./availability.ts";
 import { statusBadge } from "./html.ts";
-import { detailPage as detail } from "./detail.ts";
+import { detailPage as detail, titled as recordTitle } from "./detail.ts";
 import type { Submitted } from "./detail.ts";
 import { confirmDialog } from "./dialogs.ts";
 import { fields, textBox } from "./fields.ts";
@@ -21,6 +21,7 @@ import { backInput, backLink, withBack } from "./links.ts";
 import type { Back } from "./links.ts";
 import type { View } from "./paging.ts";
 import type { Choices } from "./pickers.ts";
+import { PREVIEW_BUTTON, previewAction, previewable } from "./approximate.ts";
 import { previewTools } from "./preview.ts";
 import { scheduledTable } from "./schedule.ts";
 import { SCHEDULED, chapterTitle, countMark, familiesIn, familyCountMark, groupOf, groups, onlyFor, onlyForFamily, page, tucked } from "./shell.ts";
@@ -177,12 +178,13 @@ ${table}`;
 export function detailPage(agg: Aggregate, id: string, values: State, shown: Submitted | null, world: World, named?: string): string {
   const crumbs: Crumb[] = [...trail(agg), [named ?? id]];
   const tools = previewTools(agg, id);
-  return page(named ?? id, detail(agg, id, values, shown, world, tools, named), { active: keyOf(agg), crumbs, drawer: tools.drawer });
+  const title = named ?? recordTitle(agg, id, values);
+  return page(title, detail(agg, id, values, shown, world, tools, named), { active: keyOf(agg), crumbs: [...crumbs.slice(0, -1), [title]], drawer: tools.drawer });
 }
 
 /** Every action waiting to run, soonest first. */
 export function scheduledPage(world: World): string {
-  const body = `${head("Scheduled", "What is waiting to run, soonest first. These are saved here and run by something outside this editor.")}
+  const body = `${head("Scheduled", SCHEMA.scheduling?.runs?.length ? "What is waiting to go up or come down, soonest first. The editor does each one when its time comes." : "What is waiting to run, soonest first. These are saved here and run by something outside this editor.")}
 ${scheduledTable(world, href("scheduled"))}`;
   return page("Scheduled", body, { active: SCHEDULED, crumbs: [OVERVIEW, ["Scheduled"]] });
 }
@@ -218,11 +220,12 @@ function invalidOf(own: Submitted | null): Invalid | null {
 }
 
 /** The buttons of a command's form: the command itself, and for one that makes something, the same and then another. */
-function submits(agg: Aggregate, command: Command, back: Back | null): string {
+function submits(agg: Aggregate, command: Command, back: Back | null, action: string): string {
   const text = esc(commandLabel(agg, command));
   if (command.destructive) return `<button type="submit" class="btn btn-error" data-busy data-confirm="confirm-${esc(command.name)}">${text}</button>`;
   const again = command.creates && !back ? `<button type="submit" class="btn" name="__again" value="1" data-busy>Save and add another</button>` : "";
-  return `${again}<button type="submit" class="btn btn-neutral" data-busy>${text}</button>`;
+  const view = previewable(agg) && command.attributes.length > 0 ? `<button type="submit" class="btn btn-ghost" name="__previewcmd" value="${esc(command.name)}" formaction="${esc(previewAction(action, command.creates))}" formtarget="_blank" formnovalidate>${PREVIEW_BUTTON}</button>` : "";
+  return `${view}${again}<button type="submit" class="btn btn-neutral" data-busy>${text}</button>`;
 }
 
 /** What a command's form may be given beyond the command: the instance's values, the choices on offer and the way back. */
@@ -288,7 +291,7 @@ ${backInput(back)}${refusal(own?.message ?? null)}${note}
 ${draft.bar}
 ${target}
 ${fields(agg, command.attributes, own ? own.values : startingValues(agg, command, state), invalidOf(own), true, choices, draft.bar ? agg.drafts?.attribute : undefined, own?.problems ?? [], boxes)}
-<div data-actionbar class="sticky bottom-0 z-10 -mx-4 mt-8 flex items-center justify-end gap-2 border-t border-base-300 bg-base-100 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-8px_16px_-12px_rgb(0_0_0/0.25)]"><p class="mr-auto text-xs text-muted"><span class="text-primary" aria-hidden="true">*</span> Required</p><a class="btn btn-ghost" href="${esc(leave)}">Cancel</a>${submits(agg, command, back)}</div>
+<div data-actionbar class="sticky bottom-0 z-10 -mx-4 mt-8 flex items-center justify-end gap-2 border-t border-base-300 bg-base-100 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-8px_16px_-12px_rgb(0_0_0/0.25)]"><p class="mr-auto text-xs text-muted"><span class="text-primary" aria-hidden="true">*</span> Required</p><a class="btn btn-ghost" href="${esc(leave)}">Cancel</a>${submits(agg, command, back, action)}</div>
 </form>
 ${dialog}${draft.dialogs}`;
 }

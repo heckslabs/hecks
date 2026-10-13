@@ -16,6 +16,9 @@ module Hecks
             # The kinds an `EditorField` may name.
             KINDS = %w[text textarea datetime markdown image file].freeze
 
+            # A key kind word, as `KeyKinds` reads one.
+            KIND_WORD = /\A[a-z][a-z0-9_]*\z/
+
             # The kinds that are an upload: `image` takes pictures, `file` takes PDFs, and `picks`
             # names the content system's collection that keeps them (`media`, `documents`).
             UPLOADS = { "image" => "image", "file" => "pdf" }.freeze
@@ -32,6 +35,21 @@ module Hecks
             def apply(aggregates, rows, problems, chapters = [])
               rows.things.each { |row| thing(aggregates, row, problems, chapters) }
               rows.fields.each { |row| field(aggregates, row, problems) }
+              (rows.runs || []).each { |row| run(aggregates, row, problems) }
+            end
+
+            # An `EditorRun` row must name an aggregate and commands it has.
+            def run(aggregates, row, problems)
+              agg = find(aggregates, row[:aggregate])
+              return problems << "EditorRun names no aggregate #{row[:aggregate].inspect}" unless agg
+
+              problems.concat(unknown_commands(agg, row))
+            end
+
+            # @return [Array<String>] one line for each command a run row names the aggregate lacks
+            def unknown_commands(agg, row)
+              missing = listed(row[:command]).to_a - agg["commands"].map { |command| command["name"] }
+              missing.map { |name| "EditorRun #{row[:aggregate]}.#{row[:action]}: #{agg["name"]} has no command #{name.inspect}" }
             end
 
             # @return [Hash{String => Object}, nil] the aggregate named `Name` or `Chapter::Name`
@@ -89,7 +107,8 @@ module Hecks
               parts = target["kind"] == "object" ? agg["valueObjects"][target["type"]] : nil
               return unless parts&.size == 1
 
-              parts.first.merge!(marked.slice("multiline", "markdown", "upload", "wall", "fill", "widget", "after").compact)
+              parts.first.merge!(marked.slice("multiline", "markdown", "upload", "wall", "fill", "widget", "after", "options",
+                                              "optionLabels").compact)
             end
 
             # @return [Hash{String => Object}] what a row writes onto its target: a command takes
@@ -112,8 +131,19 @@ module Hecks
             def flags(row)
               { "advanced" => (true if row[:advanced]), "multiline" => (true if %w[textarea markdown].include?(row[:kind])),
                 "markdown" => (true if row[:kind] == "markdown"), "wall" => (row[:zone] || "Z" if row[:kind] == "datetime"),
-                "fill" => row[:fill], "after" => row[:after], **uploading(row) }
+                "fill" => row[:fill], "after" => row[:after], "keys" => listed(row[:keys]), **choices(row[:options]),
+                **uploading(row) }
             end
+
+            # @return [Array<String>, nil] the words of a comma separated list, or nil when empty
+            def listed(text)
+              words = text.to_s.split(",").map(&:strip).reject(&:empty?)
+              words.empty? ? nil : words
+            end
+
+            # @return [Hash{String => Object}] the closed set a row's `options` names (`a,b` or
+            #   `a=Label,b=Label`), in the form the content system's rows use
+            def choices(text) = listed(text) ? Payload.options(text.to_s) : {}
 
             # @return [Hash{String => Object}] the upload mark of an `image` or `file` row, whose
             #   `picks` names a collection, else the aggregate the row picks from
@@ -143,7 +173,13 @@ module Hecks
 
             # @return [Array<String>] what is wrong with a row's `kind`, `zone` and `fill`
             def problems(row)
-              [*kind(row), *zone(row), *fill(row), *upload(row)]
+              [*kind(row), *zone(row), *fill(row), *upload(row), *keys(row)]
+            end
+
+            # @return [Array<String>] the words of `keys` that are not a lower-case kind word
+            def keys(row)
+              bad = Marks.listed(row[:keys]).to_a.grep_v(Marks::KIND_WORD)
+              bad.map { |word| "keys #{word.inspect} is not a kind word (lower case letters, digits and underscores)" }
             end
 
             # @return [Array<String>] the problem with an upload that names no collection

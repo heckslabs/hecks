@@ -174,3 +174,32 @@ This follows the decisions above and does not depart from them, so it is an adde
 - **The people.** The members list is shown only to those who administer, so asking it as the person refused anyone who may edit but not administer. The editor reads the register of people over the host's own protocol (accepted from the same machine only) and also asks the account route. A host or membership model that cannot be read that way keeps the members list.
 - **The text on the form, in order.** A record and the text that goes with it are two records, so they are two commands, run in order, and a failure of the second is said as that. They are not one transaction and are not presented as one.
 - **Not done.** Scheduling and history are not in the generated editor. A refusal the domain does not make (an end before a start) is made by the form only, so another client can still make it.
+
+## Addendum: the working desk (scheduling that runs, history, a library, people, sign-in, preview)
+
+This follows the decisions above and does not depart from them, so it is an addendum. Each part is read from a declaration; the editor
+is still the site's side and the domain's bluebook is unchanged by it.
+
+- **Which side.** Which actions are due and what each does to a record are wiring: `EditorRun` rows beside the route table, with
+  `EditorField` `keys` and `options` for a package that leaves its subject kinds and actions open. The runner, the history, the
+  library, the people screen, the sign-in page and the preview are the generator. The model gains only what a project vendors:
+  a scheduling package whose aggregate is persisted like any other.
+- **The runner lives in the editor's process.** The editor is the one writer of the records of what is due, and the host is reached
+  by it the way a person's save is, so a due action is an ordinary command with the domain's rules; there is nothing more to start
+  on the box. An action settles once, through the package's own `Complete` and `Fail`.
+- **History is the editor's own list.** On the Rust host no event is kept that a person could read back, and who made a change is not
+  kept. The smallest honest thing that works without an era is one line per accepted command, written by the editor's server, with
+  the person who is signed in and the record before and after. Restore is the editing command sent the old values, so rules apply
+  and the restore is itself listed. It says "through this editor" wherever it is shown. A host-side table would cover every writer and
+  is the larger change (a new table written in dispatch, a route, a Ruby counterpart); it is open.
+- **People.** The roles the host's `/members` routes grant are a fixed set that has no editor role, so adding a person and changing a
+  role are the people aggregate's commands over the host's own protocol; turning a person off and on, and the host's guards, are its
+  route. The editor adds the last-administrator guard for the path that goes around that route.
+- **Sign-in.** The host sends everyone to one landing path after Google; a site whose own page behind it admits administrators only
+  turns an editor away from a page that says they are not one. Routing that one path to the editor, at the edge, needs no change to
+  the site or the host.
+- **A preview, since the site cannot be framed.** The editor draws the typed values as a page and says it is approximate. The text
+  is made by the site's own modules in the browser, so it cannot differ from the page; the layout is the editor's.
+- **Not done.** Image focal point and the content system's other derived sizes are its own. Restoring a lifecycle state, a
+  creation, or a record's text deleted outside the editor is not offered.
+

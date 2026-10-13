@@ -1,0 +1,47 @@
+# Who may edit a small newsroom's site: one person, admitted and then given a role.
+Hecks.bluebook "People" do
+  vision "The people who may sign in to edit a small newsroom's site."
+  core
+
+  aggregate "Person" do
+    description "One person who may edit, and the role they hold."
+
+    identified_by :email
+
+    value_object "Email" do
+      attribute :value, String
+    end
+
+    value_object "PersonName" do
+      attribute :value, String
+    end
+
+    value_object "Role" do
+      attribute :value, String
+    end
+
+    attribute :email, Email
+    attribute :name,  PersonName
+    attribute :role,  Role, optional: true
+
+    command "Admit" do
+      role "Admin"
+      goal "Recognize a new person"
+
+      attribute :email, Email
+      attribute :name,  PersonName
+
+      emits "PersonAdmitted"
+    end
+
+    command "GrantAccess" do
+      role "Admin"
+      goal "Give an admitted person a role"
+      reference_to Person
+
+      attribute :role, Role
+
+      emits "PersonGrantedAccess"
+    end
+  end
+end

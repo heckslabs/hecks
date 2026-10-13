@@ -5,6 +5,7 @@ require_relative "../root_rows"
 require_relative "../routes_ts"
 require_relative "checks"
 require_relative "preview"
+require_relative "setting_access"
 require_relative "../../../version"
 
 module Hecks
@@ -17,6 +18,8 @@ module Hecks
         # `docs/site-routes.md` lists the fields. A project that declares no row has no editor to
         # project.
         class Setting
+          include SettingAccess
+
           # The `Editor` row: its fields, which are required and what the others default to.
           ROW = RootRows.new(
             "Editor",
@@ -27,14 +30,15 @@ module Hecks
                         preview: String, preview_in: String, zone: String, upload_env: String,
                         upload_default: String, upload_api: String, members_aggregate: String,
                         members_email: String, members_role: String, markdown_parse: String,
-                        markdown_render: String },
+                        markdown_render: String, admin_roles: String, sign_in: String, landing: String },
             required: %i[domain chapter host_env login],
             defaults: { base_path: "/editor", session_cookie: "hecks_editor", host_cookie: "hecks_session",
                         host_default: "http://127.0.0.1:4322", roles: "Admin,Owner", title: "Editor", brand: "",
                         accent: "", logo: "", skip: "", media: "", media_dir: "media", media_max_bytes: "5242880",
                         chapter_roles: "", page_size: "25", preview: "", preview_in: "drawer", zone: "Z",
                         upload_env: "", upload_default: "", upload_api: "", members_aggregate: "",
-                        members_email: "email", members_role: "role", markdown_parse: "", markdown_render: "" }
+                        members_email: "email", members_role: "role", markdown_parse: "", markdown_render: "",
+                        admin_roles: "Admin,Owner", sign_in: "", landing: "" }
           )
 
           # @return [Hash{Symbol => String}] the checked row, defaults filled
@@ -157,7 +161,7 @@ module Hecks
               "__MEDIA_MAX_BYTES__" => row.fetch(:media_max_bytes), "__PAGE_SIZE__" => page_size.to_s,
               "__CLIENT_VERSION__" => Hecks::VERSION, "__UPLOAD__" => JSON.generate(upload),
               "__MEMBERS__" => JSON.generate(members), "__MARKDOWN__" => JSON.generate(markdown),
-              "__MARKDOWN_SITE__" => markdown_site, **preview_tokens(previews), **quoted }
+              "__MARKDOWN_SITE__" => markdown_site, **access_tokens, **preview_tokens(previews), **quoted }
           end
 
           # @return [String] the body of `browser/markdown_site.js`: the site's own reader and
@@ -190,7 +194,7 @@ module Hecks
           def quoted
             { "TITLE" => :title, "BASE_PATH" => :base_path, "SSO_PATH" => :sso_path, "LOGIN" => :login,
               "SESSION_COOKIE" => :session_cookie, "HOST_COOKIE" => :host_cookie, "HOST_ENV" => :host_env,
-              "HOST_DEFAULT" => :host_default, "MEDIA_DIR" => :media_dir, "LOGO" => :logo }
+              "HOST_DEFAULT" => :host_default, "MEDIA_DIR" => :media_dir, "LOGO" => :logo, "ZONE" => :zone }
               .to_h { |token, field| ["__#{token}__", JSON.generate(row.fetch(field))] }
           end
         end

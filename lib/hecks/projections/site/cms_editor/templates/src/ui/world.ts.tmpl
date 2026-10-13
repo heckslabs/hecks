@@ -3,6 +3,7 @@ __BANNER__
 // What a page of one record may read of the rest of the domain: the records that go with it, and the
 // actions scheduled for it. The server builds it from the one read of the host the page already makes
 // (app.ts), so a page with panels costs no more reads than a page without.
+import type { Entry } from "../history.ts";
 import type { Aggregate, Related } from "../schema.ts";
 import { SCHEMA } from "../schema.ts";
 
@@ -17,6 +18,8 @@ export interface World {
   rows(agg: Aggregate): [string, State][];
   /** The scheduled actions of the record being shown, when the host answered a query for them. */
   actions?: [string, State][];
+  /** The changes made through this editor to the record being shown and its companions, newest first. */
+  history?: Entry[];
 }
 
 /** The aggregate a `related` entry names. */

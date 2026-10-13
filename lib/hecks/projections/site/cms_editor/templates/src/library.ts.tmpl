@@ -1,0 +1,118 @@
+__BANNER__
+
+// The library: the pictures and files the content system already keeps, so a person can choose one
+// that is there instead of uploading it again, and see where each is used. The files are the content
+// system's (its media and documents collections, which the site reads at the addresses it gives);
+// the editor asks it for a page of them as the signed-in person and shows them. Nothing is kept
+// here. "Used on" is read from the domain: every record whose values hold the file's address. It
+// cannot see inside what only the content system holds (the sections of its own pages), and says so.
+import type { HostClient } from "@hecks/client";
+
+import { contentSystem, collections } from "./uploads.ts";
+import type { UploadOptions } from "./uploads.ts";
+import { EDITOR } from "./config.ts";
+import { instanceTitle } from "./names.ts";
+import { qualified } from "./names.ts";
+import { SCHEMA } from "./schema.ts";
+
+type State = Record<string, unknown>;
+
+/** One file of the library, as a page shows it and a chooser picks it. */
+export interface LibraryItem {
+  collection: string;
+  filename: string;
+  /** The address the site reads the file from: what goes in a field. */
+  address: string;
+  /** A small picture of it: the content system's thumbnail for a picture, none for a file. */
+  thumb: string | null;
+  alt: string;
+  mime: string;
+  size: number | null;
+  width: number | null;
+  height: number | null;
+  /** The records that hold this file's address. */
+  used: { aggregate: string; chapter?: string; id: string; title: string }[];
+}
+
+export interface LibraryPage {
+  collection: string;
+  accept: "image" | "pdf";
+  items: LibraryItem[];
+  page: number;
+  pages: number;
+  total: number;
+  q: string;
+}
+
+/** What a collection is called to a person. */
+export const collectionWords = (accept: "image" | "pdf"): { plural: string; singular: string } =>
+  accept === "pdf" ? { plural: "Files", singular: "file" } : { plural: "Pictures", singular: "picture" };
+
+/** The collections the library shows, in the order the schema's fields use them. */
+export const libraryCollections = (): { collection: string; accept: "image" | "pdf" }[] =>
+  [...collections()].map(([collection, accept]) => ({ collection, accept }));
+
+const PAGE = 24;
+
+/** Every record's values as one text each, to look for addresses in. */
+function haystack(client: HostClient, answer: Parameters<HostClient["instancesOf"]>[0]): { aggregate: string; chapter?: string; id: string; title: string; text: string }[] {
+  return SCHEMA.aggregates.flatMap((agg) =>
+    client.instancesOf(answer, qualified(agg)).map(([id, state]) => ({
+      aggregate: agg.name,
+      chapter: agg.chapter,
+      id,
+      title: instanceTitle(agg, id, state as State),
+      text: JSON.stringify(state),
+    })),
+  );
+}
+
+interface Doc {
+  filename?: string;
+  alt?: string;
+  url?: string;
+  mimeType?: string;
+  filesize?: number;
+  width?: number;
+  height?: number;
+  sizes?: Record<string, { url?: string | null }>;
+  thumbnailURL?: string | null;
+}
+
+/** The library's service: a page of files for a person, with where each is used when `client` is given. */
+export function libraryService(options: UploadOptions = {}) {
+  const system = contentSystem(options);
+
+  return async function page(email: string, collection: string, q: string, number: number, client?: HostClient): Promise<LibraryPage | { error: string }> {
+    const accept = collections().get(collection);
+    const settings = system.settings;
+    if (!settings || !accept) return { error: "There is no such library." };
+    const cookie = await system.sessionFor(email).catch(() => null);
+    if (!cookie) return { error: "The content system did not accept your sign-in, so its files cannot be listed. Sign in again and try once more." };
+    const params = new URLSearchParams({ depth: "0", limit: String(PAGE), page: String(Math.max(1, number)), sort: "-createdAt" });
+    if (q !== "") {
+      params.set("where[or][0][alt][like]", q);
+      params.set("where[or][1][filename][like]", q);
+    }
+    let body: { docs?: Doc[]; page?: number; totalPages?: number; totalDocs?: number };
+    try {
+      const res = await system.send(`${system.address()}${settings.api}/${collection}?${params}`, { headers: { Cookie: cookie }, signal: AbortSignal.timeout(EDITOR.timeoutMs * 2) });
+      if (!res.ok) return { error: "The content system did not list its files. Try again in a moment." };
+      body = (await res.json()) as typeof body;
+    } catch {
+      return { error: "The content system could not be reached, so its files cannot be listed. Try again in a moment." };
+    }
+    const records = client ? haystack(client, await client.read()) : [];
+    const items = (body.docs ?? []).flatMap((doc): LibraryItem[] => {
+      if (!doc.filename) return [];
+      const address = `${settings.api}/${collection}/file/${encodeURIComponent(doc.filename)}`;
+      const names = [address, `${settings.api}/${collection}/file/${doc.filename}`];
+      const thumb = accept === "image" ? (doc.sizes?.thumbnail?.url ?? doc.thumbnailURL ?? doc.url ?? address) : null;
+      const used = records
+        .filter((record) => names.some((name) => record.text.includes(name)))
+        .map(({ aggregate, chapter, id, title }) => ({ aggregate, chapter, id, title }));
+      return [{ collection, filename: doc.filename, address, thumb, alt: doc.alt ?? "", mime: doc.mimeType ?? "", size: doc.filesize ?? null, width: doc.width ?? null, height: doc.height ?? null, used }];
+    });
+    return { collection, accept, items, page: body.page ?? 1, pages: body.totalPages ?? 1, total: body.totalDocs ?? items.length, q };
+  };
+}

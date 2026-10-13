@@ -96,13 +96,15 @@ async function reasonOf(res: Response, fallback: string): Promise<string> {
   return body?.errors?.[0]?.message ?? body?.message ?? fallback;
 }
 
-/** The handler of `POST <base>/upload/<collection>`, given the signed-in person's email. */
-export function uploadHandler(options: UploadOptions = {}) {
+/**
+ * The content system as the signed-in person: its address and a session of theirs, from its own
+ * sign-in endpoint, remembered for a few minutes per person. Uploads and the library share it.
+ */
+export function contentSystem(options: UploadOptions = {}) {
   const settings = EDITOR.upload;
   const send = options.fetch ?? fetch;
   const now = options.now ?? Date.now;
   const sessions = new Map<string, { cookie: string; until: number }>();
-  const accepted = collections();
 
   const address = (): string => ((options.url ?? (settings ? process.env[settings.env] || settings.default : "")) as string).replace(/\/+$/, "");
 
@@ -122,6 +124,14 @@ export function uploadHandler(options: UploadOptions = {}) {
     sessions.set(email, { cookie, until: now() + SESSION_MS });
     return cookie;
   }
+
+  return { settings, send, address, sessionFor };
+}
+
+/** The handler of `POST <base>/upload/<collection>`, given the signed-in person's email. */
+export function uploadHandler(options: UploadOptions = {}) {
+  const { settings, send, address, sessionFor } = contentSystem(options);
+  const accepted = collections();
 
   return async (email: string, request: Request, collection: string): Promise<Response> => {
     const accepts = accepted.get(collection);

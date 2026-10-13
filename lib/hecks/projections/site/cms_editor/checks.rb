@@ -37,7 +37,18 @@ module Hecks
           # @return [Array<String>] the problems with where files go, who may edit and the
           #   Markdown modules
           def wiring_problems(row)
-            [*upload_problems(row), *members_problems(row), *markdown_problems(row)]
+            [*upload_problems(row), *members_problems(row), *markdown_problems(row), *sign_in_problems(row)]
+          end
+
+          # @return [Array<String>] the problem with a sign-in address that is not a path on the
+          #   site's own origin
+          def sign_in_problems(row)
+            %i[sign_in landing].flat_map do |field|
+              path = row[field].strip
+              next [] if path.empty? || (path.start_with?("/") && !path.start_with?("//"))
+
+              ["#{field} #{path.inspect} must be a path on the site's own origin, starting with one slash"]
+            end
           end
 
           # A module the editor imports at build time: a relative path to a TypeScript or

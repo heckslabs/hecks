@@ -1,0 +1,4 @@
+Hecks.hecksagon "Documents" do
+  attaches "Governance"
+  persisted_by "Memory"
+end

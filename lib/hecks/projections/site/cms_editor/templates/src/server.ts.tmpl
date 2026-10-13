@@ -9,6 +9,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 
 import { createApp } from "./app.ts";
 import { EDITOR } from "./config.ts";
+import { startRunner } from "./runner.ts";
 import { isUploadPath } from "./uploads.ts";
 
 const MAX_BODY_BYTES = 1_000_000;
@@ -65,3 +66,6 @@ createServer(async (req, res) => {
     res.end(err instanceof RangeError ? "Request too large." : "The editor failed.");
   }
 }).listen(Number(process.env.PORT || 4400), process.env.HOST || "127.0.0.1");
+
+// Scheduled actions that come due are run from here (runner.ts); there is nothing else to start.
+startRunner();

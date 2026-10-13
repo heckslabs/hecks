@@ -47,7 +47,7 @@ module Hecks
             media = pictures ? elsewhere(pictures) : within(shaped, list.first.name)
             worded = Words.apply(shaped, words, chapters: list.map(&:name))
             families = Words.families(worded, words, chapters: list.map(&:name))
-            assemble(list, related(worded, media, words), media, families)
+            assemble(list, related(worded, media, words), media, families, words&.runs || [])
           end
 
           # @return [Array<Hash{String => Object}>] each aggregate, as the editor reads it
@@ -67,9 +67,9 @@ module Hecks
 
           # @return [Hash{String => Object}] the schema: the domain, the chapters when several, the
           #   aggregates, and the picture and scheduling aggregates and the families when there are such
-          def self.assemble(list, aggregates, media, families = [])
+          def self.assemble(list, aggregates, media, families = [], runs = [])
             chapters = list.size > 1 ? { "chapters" => list.map(&:name) } : {}
-            scheduling = Scheduling.read(aggregates)
+            scheduling = Scheduling.read(aggregates, runs)
             { "domain" => list.first.name, **chapters, "aggregates" => aggregates, **(media ? { "media" => media } : {}),
               **(scheduling ? { "scheduling" => scheduling } : {}), **(families.empty? ? {} : { "families" => families }) }
           end

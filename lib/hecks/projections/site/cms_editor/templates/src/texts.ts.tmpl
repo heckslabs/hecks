@@ -11,7 +11,7 @@ import type { HostClient } from "@hecks/client";
 
 import { instanceIn, leaf, runCommand } from "./commands.ts";
 import type { Outcome, State } from "./commands.ts";
-import { mayEdit } from "./names.ts";
+import { mayEdit, qualified } from "./names.ts";
 import type { Aggregate, Attr, Command, Related } from "./schema.ts";
 import { commandArguments } from "./ui/input.ts";
 import type { Form } from "./ui/input.ts";
@@ -85,6 +85,13 @@ export function currentTexts(client: HostClient, answer: Parameters<HostClient["
       return [inputName(text.index), held ? (leaf(held[text.attr.name]) ?? "") : ""];
     }),
   );
+}
+
+/** The companion records of `id` (its texts), as the aggregate and the key each is kept under. */
+export function companionRecords(agg: Aggregate, id: string, record: State, role: string | null): { aggregate: string; id: string }[] {
+  const command = editing(agg);
+  if (!command) return [];
+  return textsFor(agg, command, role).map((text) => ({ aggregate: qualified(text.target), id: chosenFor(text, id, record).key }));
 }
 
 /** What a text refused and why, with the record it was meant for. */

@@ -27,6 +27,12 @@ if (document.querySelector("[data-body-editor]")) {
   import("./body_editor.js").then((editor) => editor.mountAll());
 }
 
+if (document.querySelector("[data-md-render]")) {
+  import("./markdown.js").then((markdown) => markdown.renderAll());
+}
+
+document.querySelector("[data-close-tab]")?.addEventListener("click", () => window.close());
+
 if (document.querySelector("[data-markdown]")) {
   import("./markdown.js").then((markdown) => markdown.mountAll());
 }

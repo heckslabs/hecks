@@ -97,7 +97,10 @@ export function standInHost(schema, { instances = {} } = {}) {
     const state = instances[key];
     const drafts = agg.drafts;
     const move = agg.lifecycle?.transitions.find((transition) => transition.verb === command.name);
-    if (move) state[agg.lifecycle.field] = move.to;
+    if (move) {
+      state[agg.lifecycle.field] = move.to;
+      Object.assign(state, given);
+    }
     else if (drafts?.publish === command.name) promote(state, drafts);
     else if (drafts?.discard === command.name) delete state[drafts.attribute];
     else Object.assign(state, given);

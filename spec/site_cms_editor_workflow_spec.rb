@@ -163,8 +163,8 @@ RSpec.describe "the editor's workflow, derived from the chapters" do
   end
 
   describe "the scheduled actions" do
-    it "finds the aggregate by the shape of its subject, action, due time, lifecycle and commands", :aggregate_failures do
-      expect(schema["scheduling"]).to eq(
+    it "finds the aggregate by the shape of its subject, action, due time, lifecycle and commands" do
+      expect(schema["scheduling"].except("complete", "fail")).to eq(
         "aggregate" => "ScheduledAction", "chapter" => "Schedule", "subject" => "subject", "action" => "action",
         "actions" => %w[publish withdraw], "due" => "due_at", "pending" => "pending", "schedule" => "Schedule",
         "reschedule" => "Reschedule", "cancel" => "Cancel", "query" => "ForSubject", "reason" => "reason", "generated" => true

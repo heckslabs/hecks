@@ -18,6 +18,9 @@ import type { Membership } from "./auth/membership.ts";
 import { clearedCookie, readSession, sessionCookie, signSession } from "./auth/session.ts";
 import { signIn } from "./auth/sso.ts";
 import { choicesFor, unknownKey } from "./choices.ts";
+import { libraryCollections, libraryService } from "./library.ts";
+import { peopleService } from "./people.ts";
+import { actor, entriesFor, entryOf } from "./history.ts";
 import { backwards, duplicate } from "./checks.ts";
 import { idOf, instanceIn, reading, runCommand } from "./commands.ts";
 import type { State } from "./commands.ts";
@@ -35,14 +38,21 @@ import { commandArguments, parseForm, unfilled } from "./ui/input.ts";
 import type { Form } from "./ui/input.ts";
 import { backOf, plainValue } from "./ui/links.ts";
 import type { Back } from "./ui/links.ts";
+import { libraryPage } from "./ui/library.ts";
+import { approximatePage } from "./ui/approximate.ts";
+import { helpPage } from "./ui/help.ts";
+import { loginPage } from "./ui/login.ts";
+import type { LoginNote } from "./ui/login.ts";
+import { peoplePage } from "./ui/people.ts";
 import { commandPage, detailPage, familyPage, home, instanceCommandPage, listPage, notFound, scheduledPage } from "./ui/pages.ts";
 import type { FamilyRow } from "./ui/pages.ts";
 import { titleFor } from "./ui/family.ts";
 import type { Submitted } from "./ui/pages.ts";
 import { knownStatus, narrow, slice, viewOf } from "./ui/paging.ts";
 import type { View } from "./ui/paging.ts";
+import { alreadyThat, restoreArguments, restoreCommand } from "./ui/history.ts";
 import { schedules, subjectQuery } from "./ui/schedule.ts";
-import { currentTexts, editing, inputName, saveTexts, textsFor } from "./texts.ts";
+import { companionRecords, currentTexts, editing, inputName, saveTexts, textsFor } from "./texts.ts";
 import type { Unsaved } from "./texts.ts";
 import { decorate } from "./ui/shell.ts";
 import { uploadHandler } from "./uploads.ts";
@@ -124,6 +134,8 @@ export function createApp(options: AppOptions = {}): (request: Request) => Promi
   const membership = options.membership ?? membershipCheck({ url: options.url, fetch: options.fetch, secret, now });
   const client = hostClient({ url: options.url, fetch: options.fetch });
   const upload = uploadHandler({ url: options.cms, fetch: options.fetch, secret, now });
+  const library = libraryService({ url: options.cms, fetch: options.fetch, secret, now });
+  const people = peopleService({ url: options.url, fetch: options.fetch, secret });
   const media = mediaHandler(options.storage, { url: options.url, fetch: options.fetch });
 
   /**
@@ -138,6 +150,54 @@ export function createApp(options: AppOptions = {}): (request: Request) => Promi
     } catch {
       return {};
     }
+  }
+
+  /**
+   * The People screen and what it posts: add, change a role, turn off, turn on. Only the roles that
+   * administer reach it. A refusal is shown on the screen again, in words; a change that worked
+   * is a notice on the screen.
+   */
+  async function peopleView(email: string, role: string | null, request: Request, segments: string[]): Promise<Response> {
+    const flash = readFlash(request.headers.get("cookie"), secret, now);
+    const scene = sceneFor(email, role, flash, client);
+    if (role === null || !EDITOR.adminRoles.includes(role)) return scene.show(notFound("Only an administrator decides who may edit.", "Not open to your role"), 403);
+    if (request.method === "GET" && segments.length === 1) return scene.show(peoplePage(await people.list(email), email));
+    if (request.method !== "POST" || segments.length !== 2) return scene.show(notFound("No such page."), 404);
+    const form = parseForm(await request.text());
+    const value = (name: string): string => (form.get(name) ?? "").trim();
+    const done = (message: string): Response => scene.sent(href("people"), message);
+    const refuse = async (message: string): Promise<Response> => scene.show(peoplePage(await people.list(email), email, message), 422);
+    const action = segments[1];
+    if (action === "add") {
+      const result = await people.add(email, value("name"), value("email"), value("role"));
+      return result.ok ? done(`${value("email").toLowerCase()} was added as ${value("role")}.`) : refuse(result.message);
+    }
+    if (action === "role") {
+      const result = await people.changeRole(email, value("email"), value("role"));
+      return result.ok ? done(`${value("email").toLowerCase()} is now ${value("role")}.`) : refuse(result.message);
+    }
+    if (action === "turn-off" || action === "turn-on") {
+      const result = await people.setDisabled(email, value("email"), action === "turn-off");
+      return result.ok ? done(`${value("email").toLowerCase()} was turned ${action === "turn-off" ? "off" : "back on"}.`) : refuse(result.message);
+    }
+    return scene.show(notFound("No such page."), 404);
+  }
+
+  /** The library screen, or with `/data` the same page as JSON for a field's chooser. */
+  async function libraryView(email: string, role: string | null, request: Request, url: URL): Promise<Response> {
+    const known = libraryCollections();
+    const wanted = url.searchParams.get("collection") ?? known[0]?.collection ?? "";
+    const collection = known.find((one) => one.collection === wanted)?.collection ?? known[0]?.collection ?? "";
+    const q = (url.searchParams.get("q") ?? "").trim().slice(0, 200);
+    const number = Number.parseInt(url.searchParams.get("page") ?? "1", 10) || 1;
+    const asJson = url.pathname.endsWith("/data");
+    const from = reading(client);
+    const found = await library(email, collection, q, number, asJson ? undefined : from);
+    if (asJson) {
+      return new Response(JSON.stringify(found), { status: "error" in found ? 502 : 200, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" } });
+    }
+    const scene = sceneFor(email, role, readFlash(request.headers.get("cookie"), secret, now), from);
+    return scene.show(libraryPage(found, collection, q));
   }
 
   function sceneFor(email: string, role: string | null, flash: Flash | null, from: HostClient): Scene {
@@ -177,6 +237,7 @@ export function createApp(options: AppOptions = {}): (request: Request) => Promi
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, "") || "/";
     if (path === EDITOR.ssoPath) return enter(url, secret, membership, now);
+    if (EDITOR.landing && path === EDITOR.landing) return redirect(href(), 303);
     if (path !== EDITOR.basePath && !path.startsWith(`${EDITOR.basePath}/`)) return anonymous(notFound(path), 404);
     if (path === href("logout") && request.method === "POST") return signOut(request);
 
@@ -185,20 +246,26 @@ export function createApp(options: AppOptions = {}): (request: Request) => Promi
       const entered = await enterFromSite(request, url);
       if (entered) return entered;
     }
+    if (EDITOR.signIn && path === href("login") && request.method === "GET") {
+      if (email && (await membership.isAdmitted(email))) return redirect(href(), 303);
+      return new Response(loginPage((url.searchParams.get("note") as LoginNote | null) ?? null), { status: 200, headers: PAGE_HEADERS });
+    }
     if (!email || !(await membership.isAdmitted(email))) {
-      return request.method === "GET" ? redirect(EDITOR.login, 302) : plain("Sign in again.", 403);
+      return request.method === "GET" ? redirect(EDITOR.signIn ? href("login") : EDITOR.login, 302) : plain("Sign in again.", 403);
     }
     if (request.method === "POST" && !sameSite(request)) return plain("Cross-site post refused.", 403);
     const segments = path.slice(EDITOR.basePath.length).split("/").filter(Boolean).map(decodeURIComponent);
     if (segments[0] === "upload" && segments.length === 2) return upload(email, request, segments[1]);
     const role = membership.roleOf ? await membership.roleOf(email) : null;
+    if (segments[0] === "library" && request.method === "GET" && EDITOR.upload) return libraryView(email, role, request, url);
+    if (segments[0] === "people" && EDITOR.members) return peopleView(email, role, request, segments);
     if (segments[0] === "media") {
       if (!mediaOpen(role)) return plain("Pictures are not open to your role.", 403);
       return media(client, request, segments.slice(1));
     }
     const reader = request.method === "GET" ? reading(client) : client;
     const scene = sceneFor(email, role, readFlash(request.headers.get("cookie"), secret, now), reader);
-    return route(reader, request, url, segments, scene);
+    return actor.run({ email }, () => route(reader, request, url, segments, scene));
   }
 
   return async (request) => {
@@ -219,7 +286,9 @@ function anonymous(body: string, status: number): Response {
 /** Ends the session: the cookie is cleared and the person is sent to the site's login page. */
 function signOut(request: Request): Response {
   if (!sameSite(request)) return plain("Cross-site post refused.", 403);
-  return redirect(EDITOR.login, 303, clearedCookie());
+  // The site's own sign-in cookie goes too, or the next visit would walk straight back in through it.
+  const host = `${resolveAccountCookieName(process.env.HECKS_SESSION_COOKIE || EDITOR.hostCookie)}=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax`;
+  return redirect(EDITOR.signIn ? `${href("login")}?note=signed-out` : EDITOR.login, 303, clearedCookie(), host);
 }
 
 async function enter(url: URL, secret: string, membership: Membership, now: () => number): Promise<Response> {
@@ -231,6 +300,7 @@ async function enter(url: URL, secret: string, membership: Membership, now: () =
 function route(client: HostClient, request: Request, url: URL, segments: string[], scene: Scene): Promise<Response> | Response {
   if (segments.length === 0) return homeView(client, scene);
   if (segments[0] === "assets" && segments.length === 2 && request.method === "GET") return serveAsset(segments[1], request);
+  if (segments[0] === "help" && segments.length === 1 && request.method === "GET") return scene.show(helpPage());
   if (segments[0] === "scheduled" && segments.length === 1 && request.method === "GET" && SCHEMA.scheduling) return scheduledView(client, scene);
   const family = SCHEMA.families?.find((candidate) => candidate.key === segments[0]);
   if (family && segments.length === 1 && request.method === "GET") return familyView(client, family, scene);
@@ -240,6 +310,10 @@ function route(client: HostClient, request: Request, url: URL, segments: string[
   if (verb === undefined) return list(client, agg, url, scene);
   if (verb === "id" && rest.length === 1 && request.method === "GET") return detail(client, agg, rest[0], null, scene);
   if (verb === "id" && rest.length === 2 && request.method === "GET") return instanceView(client, agg, rest[0], rest[1], url, scene);
+  if (verb === "id" && rest.length === 2 && rest[1] === "restore" && request.method === "POST") return restore(client, request, agg, rest[0], scene);
+  if (request.method === "POST" && rest.at(-1) === "preview" && ((verb === "id" && rest.length === 2) || (verb === "new" && rest.length === 2))) {
+    return approximate(client, request, agg, verb === "id" ? rest[0] : null, scene);
+  }
   if (request.method === "POST") return post(client, request, agg, verb, rest, scene);
   if ((verb === "new" || verb === "run") && rest.length === 1) return commandView(client, agg, verb, rest[0], url, scene);
   return scene.show(notFound(`No page ${segments.join("/")}.`), 404);
@@ -329,6 +403,10 @@ const refused = (agg: Aggregate, command: Command): Flash => ({ kind: "error", m
 /** What a page of one record may read of the rest of the domain, from the read the page already made. */
 async function worldFor(client: HostClient, answer: Answer, role: string | null, record?: { agg: Aggregate; id: string }): Promise<World> {
   const world: World = { role, lookup: (agg, id) => instanceIn(client, answer, agg, id), rows: (agg) => client.instancesOf(answer, qualified(agg)) };
+  if (record) {
+    const own = instanceIn(client, answer, record.agg, record.id) ?? {};
+    world.history = entriesFor([{ aggregate: qualified(record.agg), id: record.id }, ...companionRecords(record.agg, record.id, own, role)]);
+  }
   const asked = record && schedules(record.agg, role) ? subjectQuery(record.agg, record.id) : null;
   const sched = schedulingAggregate();
   if (!asked || !sched) return world;
@@ -457,6 +535,41 @@ async function textRefused(client: HostClient, agg: Aggregate, id: string, unsav
   const shown: Submitted = { command: editor.name, message, values: { ...values, ...typedTexts(form) }, textField: inputName(first.text.index), textMessage: first.message };
   const boxes = await boxesFor(client, agg, editor, scene.role, id);
   return scene.show(instanceCommandPage(agg, id, editor, values, shown, await choicesFor(client, agg, editor.attributes), back, boxes), 422, flash);
+}
+
+/**
+ * The editor's own, approximate preview of what a form holds: the arguments as they would be sent,
+ * over the record as it is now, with the texts typed beside it. Nothing is sent to the domain.
+ */
+async function approximate(client: HostClient, request: Request, agg: Aggregate, id: string | null, scene: Scene): Promise<Response> {
+  const form = parseForm(await request.text());
+  const command = agg.commands.find((candidate) => candidate.name === form.get("__previewcmd")) ?? editing(agg);
+  if (!command) return scene.show(notFound("This cannot be previewed."), 404);
+  const args = commandArguments(agg, command.attributes, form, command.empty, scene.now);
+  const current = id ? (instanceIn(client, await client.read(), agg, id) ?? {}) : {};
+  const values: State = { ...current, ...args };
+  const answer = id ? await client.read() : null;
+  const held = id && answer ? currentTexts(client, answer, agg, id, textsFor(agg, command, scene.role)) : {};
+  const texts = textsFor(agg, command, scene.role).map((text) => ({ label: text.label, value: form.get(inputName(text.index)) ?? held[inputName(text.index)] ?? "" }));
+  return scene.show(approximatePage(agg, id, values, texts));
+}
+
+/**
+ * Puts a record back as it was before one of the changes listed in its History: the change's own
+ * editing command is sent the values the record held, so the domain's rules apply as to any save,
+ * and the restore is itself listed.
+ */
+async function restore(client: HostClient, request: Request, agg: Aggregate, id: string, scene: Scene): Promise<Response> {
+  const form = parseForm(await request.text());
+  const entry = entryOf(form.get("__entry") ?? "");
+  const back = backOf(form.get("__back")) ?? { path: href(...at(agg), "id", id), label: id };
+  const found = entry && entry.id === id ? restoreCommand(entry) : null;
+  if (!entry || !found || found.agg.name !== agg.name) return scene.sent(back.path, "That change cannot be put back.");
+  const values = instanceIn(client, await client.read(), found.agg, id);
+  if (!values) return scene.sent(back.path, "That record is not here any more.");
+  if (alreadyThat(entry, found.command, values)) return scene.sent(back.path, "It already says that; nothing was changed.");
+  const outcome = await runCommand(client, found.agg, found.command, restoreArguments(entry, found.command), id, { restores: entry.n });
+  return scene.sent(back.path, outcome.ok ? "Put back as it was." : `It could not be put back: ${outcome.message}`);
 }
 
 async function post(client: HostClient, request: Request, agg: Aggregate, verb: string, rest: string[], scene: Scene): Promise<Response> {

@@ -1,0 +1,101 @@
+__BANNER__
+
+// What was changed through this editor, by whom and when, and what each record held before. The
+// domain on this host keeps no events a person could read back and drops who made a change, and the
+// editor is the only thing that writes to it, so the editor keeps its own list: one line a change
+// in a file, appended after the host accepted it. It is "changes made through this editor", and says
+// so wherever it is shown; a change made another way (a command line, another system) is not in it.
+// The restore of an entry is not a write of its own: it sends the record's own editing command the
+// values it held, so every rule of the domain still applies and the restore is itself an entry.
+import { randomUUID } from "node:crypto";
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { AsyncLocalStorage } from "node:async_hooks";
+import { dirname, resolve } from "node:path";
+
+type State = Record<string, unknown>;
+
+/** One change, as it was kept. */
+export interface Entry {
+  /** The entry's own identity: what a restore names. */
+  n: string;
+  /** When the host accepted it, as an ISO instant. */
+  at: string;
+  /** The signed-in person's email, or null for the scheduled-action runner. */
+  by: string | null;
+  /** The aggregate, as the host names it (`Chapter::Name`). */
+  aggregate: string;
+  /** The record's identity. */
+  id: string;
+  /** The command that was run, and what the person's screen called it. */
+  command: string;
+  label: string;
+  /** The record before (null when the command made it) and after. */
+  before: State | null;
+  after: State | null;
+  /** The entry a restore put back, when this is one. */
+  restores?: string;
+}
+
+/** The person a change is made for, carried through the request that makes it. */
+export const actor = new AsyncLocalStorage<{ email: string | null }>();
+
+/** The file the list is kept in: `EDITOR_HISTORY_FILE`, else `data/history.jsonl` in the editor's own directory. */
+export const historyFile = (): string => resolve(process.env.EDITOR_HISTORY_FILE || `${import.meta.dirname}/../data/history.jsonl`);
+
+let held: Entry[] | null = null;
+let loadedFrom = "";
+
+/** Every entry in the file, oldest first; a line that does not read is skipped. */
+function load(): Entry[] {
+  const file = historyFile();
+  if (held && loadedFrom === file) return held;
+  const found: Entry[] = [];
+  if (existsSync(file)) {
+    for (const line of readFileSync(file, "utf8").split("\n")) {
+      if (line.trim() === "") continue;
+      try {
+        found.push(JSON.parse(line) as Entry);
+      } catch {
+        /* a torn last line is not an entry */
+      }
+    }
+  }
+  held = found;
+  loadedFrom = file;
+  return found;
+}
+
+/** Forgets what was read, so the next look reads the file again (a test that changes the file). */
+export function forgetHistory(): void {
+  held = null;
+}
+
+/**
+ * Keeps one accepted change. A file that cannot be written is logged and the edit goes on: the
+ * person's save must never fail because the list could not grow.
+ */
+export function record(entry: Omit<Entry, "n" | "at" | "by"> & { at?: string }): Entry | null {
+  const full: Entry = { n: randomUUID().slice(0, 8), at: entry.at ?? new Date().toISOString(), by: actor.getStore()?.email ?? null, ...entry };
+  full.at = entry.at ?? full.at;
+  try {
+    const file = historyFile();
+    mkdirSync(dirname(file), { recursive: true });
+    appendFileSync(file, `${JSON.stringify(full)}\n`);
+    load().push(full);
+    return full;
+  } catch (err) {
+    console.error(`history: could not keep a change (${(err as Error).message})`);
+    return null;
+  }
+}
+
+/** The entries for the given records (`aggregate` and `id` pairs), newest first. */
+export function entriesFor(records: { aggregate: string; id: string }[]): Entry[] {
+  const wanted = new Set(records.map((one) => `${one.aggregate}\u0000${one.id}`));
+  return load()
+    .filter((entry) => wanted.has(`${entry.aggregate}\u0000${entry.id}`))
+    .reverse();
+}
+
+/** One entry by its number, or undefined. */
+export const entryOf = (n: string): Entry | undefined => load().find((entry) => entry.n === n);

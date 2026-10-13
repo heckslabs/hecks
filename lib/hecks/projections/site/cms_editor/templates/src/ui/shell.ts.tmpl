@@ -109,19 +109,32 @@ function familyItems(chapter: string | null, active: string | undefined): string
 }
 
 const capitalPlural = (family: Family): string => family.plural.charAt(0).toUpperCase() + family.plural.slice(1);
+/** The link to the library of pictures and files, when the editor keeps files anywhere. */
+function libraryLink(active: string | undefined): string {
+  return EDITOR.upload ? `${navLink(href("library"), "Pictures and files", active === "__library")}\n` : "";
+}
+
+/** The link to the People screen, shown only to the roles that administer (the frame cuts it out for the rest). */
+function peopleLink(active: string | undefined): string {
+  return EDITOR.members ? `<!--editor:admin-->${navLink(href("people"), "People", active === "__people")}<!--editor:/admin-->\n` : "";
+}
+
+/** The link to the Help page, last in the navigation. */
+const helpLink = (active: string | undefined): string => navLink(href("help"), "Help", active === "__help");
 
 function navigation(active: string | undefined): string {
-  const sections = groups().map(([chapter, aggregates]) => {
+  const sections = groups().filter(([, aggregates]) => aggregates.length > 0).map(([chapter, aggregates]) => {
     const heading = `<li class="menu-title mt-4 px-3 text-muted">${chapter === null ? "Content" : esc(chapterTitle(chapter))}</li>`;
     const section = `${heading}\n${[familyItems(chapter, active), navItems(aggregates, active)].filter((html) => html !== "").join("\n")}`;
     return chapter === null ? section : groupOf(chapter, section);
   });
   const more = tucked();
   if (more.length > 0) sections.push(`<li class="menu-title mt-4 px-3 text-muted">More</li>\n${navItems(more, active)}`);
+  sections.push(`<li class="menu-title mt-4 px-3 text-muted">Help</li>\n${helpLink(active)}`);
   return `<nav id="rail" aria-label="Sections" class="flex-1 overflow-y-auto">
 <ul class="menu w-full gap-0.5 p-3">
 ${navLink(EDITOR.basePath, "Home", active === undefined)}
-${scheduledLink(active)}${sections.join("\n")}
+${scheduledLink(active)}${libraryLink(active)}${peopleLink(active)}${sections.join("\n")}
 </ul>
 </nav>`;
 }
@@ -226,8 +239,9 @@ function visibleTo(html: string, role: string | null): string {
   const gone = hidden.map((agg): [string, string] => [`<!--editor:only:${keyOf(agg)}-->`, `<!--editor:/only:${keyOf(agg)}-->`]);
   const empty = (SCHEMA.chapters ?? []).filter((chapter) => SCHEMA.aggregates.every((agg) => agg.chapter !== chapter || hidden.includes(agg)));
   const groups = empty.map((chapter): [string, string] => [`<!--editor:group:${chapter}-->`, `<!--editor:/group:${chapter}-->`]);
-  const cut = [...gone, ...groups].reduce((text, [open, close]) => cutBetween(text, open, close), html);
-  return cut.replace(/<!--editor:\/?(?:only|group):[^>]*-->/g, "");
+  const admins: [string, string][] = role !== null && EDITOR.adminRoles.includes(role) ? [] : [["<!--editor:admin-->", "<!--editor:/admin-->"]];
+  const cut = [...gone, ...groups, ...admins].reduce((text, [open, close]) => cutBetween(text, open, close), html);
+  return cut.replace(/<!--editor:\/?(?:only|group|admin):?[^>]*-->/g, "");
 }
 
 /** `html` with the places the frame left filled for this request. */
