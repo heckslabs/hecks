@@ -123,14 +123,14 @@ function peopleLink(active: string | undefined): string {
 const helpLink = (active: string | undefined): string => navLink(href("help"), "Help", active === "__help");
 
 function navigation(active: string | undefined): string {
-  const sections = groups().filter(([, aggregates]) => aggregates.length > 0).map(([chapter, aggregates]) => {
+  const sections = groups().filter(([chapter, aggregates]) => aggregates.length > 0 || familiesIn(chapter).length > 0).map(([chapter, aggregates]) => {
     const heading = `<li class="menu-title mt-4 px-3 text-muted">${chapter === null ? "Content" : esc(chapterTitle(chapter))}</li>`;
     const section = `${heading}\n${[familyItems(chapter, active), navItems(aggregates, active)].filter((html) => html !== "").join("\n")}`;
     return chapter === null ? section : groupOf(chapter, section);
   });
   const more = tucked();
   if (more.length > 0) sections.push(`<li class="menu-title mt-4 px-3 text-muted">More</li>\n${navItems(more, active)}`);
-  sections.push(`<li class="menu-title mt-4 px-3 text-muted">Help</li>\n${helpLink(active)}`);
+  sections.push(`<li class="mt-4" aria-hidden="true"></li>\n${helpLink(active)}`);
   return `<nav id="rail" aria-label="Sections" class="flex-1 overflow-y-auto">
 <ul class="menu w-full gap-0.5 p-3">
 ${navLink(EDITOR.basePath, "Home", active === undefined)}
