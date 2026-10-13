@@ -194,7 +194,7 @@ function uploadField(attr: Attr, name: string, value: Value, context: Context): 
   const input = `<input type="text" class="${classes}" id="${id}" name="${esc(name)}" value="${esc(held)}" data-upload-address${required}${invalidAttrs(name, attr, context)}>`;
   const what = upload.accept === "pdf" ? "file" : "picture";
   const note = `<p class="text-xs text-muted">The address the site shows the ${what} from. Choosing a ${what} below fills it in.</p>`;
-  return `<div class="my-4 grid gap-1" data-upload data-endpoint="${esc(href("upload", upload.collection))}" data-library="${esc(href("library", "data"))}" data-collection="${esc(upload.collection)}" data-accept="${esc(upload.accept)}" data-optional="${attr.optional || attr.softOptional ? "true" : "false"}" data-limit="${EDITOR.mediaMaxBytes}"><label for="${id}" class="${context.quiet ? "sr-only" : "font-semibold"}">${caption(attr, context)}</label>${input}${note}${problem(name, attr, context)}</div>`;
+  return `<div class="my-4 grid gap-1" data-upload data-endpoint="${esc(href("upload", upload.collection))}" data-accept="${esc(upload.accept)}" data-library="${esc(href("library", "data"))}" data-collection="${esc(upload.collection)}" data-optional="${attr.optional || attr.softOptional ? "true" : "false"}" data-limit="${EDITOR.mediaMaxBytes}"><label for="${id}" class="${context.quiet ? "sr-only" : "font-semibold"}">${caption(attr, context)}</label>${input}${note}${problem(name, attr, context)}</div>`;
 }
 
 function scalar(attr: Attr, name: string, value: Value, context: Context): string {

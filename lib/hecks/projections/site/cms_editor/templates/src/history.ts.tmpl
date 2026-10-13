@@ -39,8 +39,8 @@ export interface Entry {
 /** The person a change is made for, carried through the request that makes it. */
 export const actor = new AsyncLocalStorage<{ email: string | null }>();
 
-/** The file the list is kept in: `EDITOR_HISTORY_FILE`, else `data/history.jsonl` beside the editor. */
-export const historyFile = (): string => resolve(process.env.EDITOR_HISTORY_FILE || "data/history.jsonl");
+/** The file the list is kept in: `EDITOR_HISTORY_FILE`, else `data/history.jsonl` in the editor's own directory. */
+export const historyFile = (): string => resolve(process.env.EDITOR_HISTORY_FILE || `${import.meta.dirname}/../data/history.jsonl`);
 
 let held: Entry[] | null = null;
 let loadedFrom = "";
