@@ -5,6 +5,7 @@ require_relative "../payload_driver"
 require_relative "words/marks"
 require_relative "words/payload"
 require_relative "words/companions"
+require_relative "words/families"
 
 module Hecks
   module Projections
@@ -37,10 +38,18 @@ module Hecks
                                     fields: { aggregate: String, with: String, key: String, field: String, when: String,
                                               label: String, help: String })
 
+          # `EditorFamily`: aggregates a person thinks of as one kind of thing (the five types of a page)
+          # listed together as one job, each record shown with which of them it is. `members` are the
+          # aggregates, `titles` is an aggregate whose identity is the part of a member's key after the
+          # first colon and which names the record to a person (its title, name or label) and says
+          # whether it shows.
+          FAMILIES = RootRows.new("EditorFamily", many: true, required: %i[name members],
+                                  fields: { name: String, plural: String, about: String, members: String, titles: String })
+
           # The checked rows of a route chapter; `payload` are the `PayloadField` rows a project
           # declares for its content system, which the editor reads for the same facts.
-          Rows = Struct.new(:things, :fields, :companions, :payload, :zone) do
-            def none? = [things, fields, companions, payload].all?(&:empty?)
+          Rows = Struct.new(:things, :fields, :companions, :payload, :zone, :families) do
+            def none? = [things, fields, companions, payload, families].all?(&:empty?)
           end
 
           module_function
@@ -50,7 +59,7 @@ module Hecks
           # @raise [Table::Invalid] when a row is refused
           def read(chapter)
             payload = PayloadDriver::FIELD.read(chapter)
-            Rows.new(THINGS.read(chapter), FIELDS.read(chapter), COMPANIONS.read(chapter), payload, "Z")
+            Rows.new(THINGS.read(chapter), FIELDS.read(chapter), COMPANIONS.read(chapter), payload, "Z", FAMILIES.read(chapter))
           end
 
           # @param aggregates [Array<Hash{String => Object}>] the aggregates as `Schema` shapes them
@@ -75,6 +84,17 @@ module Hecks
             return if problems.empty?
 
             raise Table::Invalid, "the #{what} are refused:\n#{problems.map { |line| "  - #{line}" }.join("\n")}"
+          end
+
+          # @param aggregates [Array<Hash{String => Object}>] the aggregates, with their words
+          # @param rows [Rows] the checked rows
+          # @param chapters [Array<String>] the chapters, whose names a family may not take
+          # @return [Array<Hash{String => Object}>] the families the rows declare, as `schema.ts` reads them
+          # @raise [Table::Invalid] naming every row that names something the chapters do not have
+          def families(aggregates, rows, chapters: [])
+            return [] if rows.nil? || rows.families.empty?
+
+            Families.build(aggregates, rows.families, chapters)
           end
 
           # @return [Array<Hash{String => Object}>] the aggregates with each companion record

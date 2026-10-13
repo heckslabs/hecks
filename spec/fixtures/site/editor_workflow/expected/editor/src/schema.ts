@@ -258,6 +258,21 @@ export interface Scheduling {
   generated?: boolean;
 }
 
+/**
+ * Aggregates a person thinks of as one kind of thing (the types of a page), listed together as one job.
+ * `members` and `titles` are aggregate keys (see `keyOf` in names.ts); `key` is the address under the base path.
+ */
+export interface Family {
+  key: string;
+  name: string;
+  plural: string;
+  about?: string;
+  chapter?: string;
+  members: string[];
+  /** An aggregate whose identity is the part of a member's key after its first colon, and which names and states the record. */
+  titles?: string;
+}
+
 export interface Schema {
   /** The first chapter, which names the domain the host is asked for. */
   domain: string;
@@ -266,6 +281,7 @@ export interface Schema {
   aggregates: Aggregate[];
   media?: Media;
   scheduling?: Scheduling;
+  families?: Family[];
 }
 
 export const SCHEMA: Schema = {

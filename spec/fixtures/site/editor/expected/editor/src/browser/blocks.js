@@ -17,6 +17,7 @@ import { startDraft } from "./autosave.js";
 import { enhanceRows, firstProblem } from "./forms.js";
 import { mountMoments } from "./moments.js";
 import { mountPickers } from "./pickers.js";
+import { mountAll as mountUploads } from "./uploads.js";
 
 /** Loads the picture picker, or is null when the editor has no pictures to choose from. */
 const loadPicker = () => import("./media_picker.js");
@@ -193,6 +194,7 @@ function create(group, kind) {
   enhanceRows(card);
   mountPickers(card);
   mountMoments(card);
+  mountUploads(card);
   return card;
 }
 

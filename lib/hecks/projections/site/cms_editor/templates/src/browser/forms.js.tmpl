@@ -5,6 +5,7 @@ __BANNER__
 // first thing that needs fixing. A form posts the same without any of it.
 
 import { mountPickers, unmountPickers } from "./pickers.js";
+import { mountAll as mountUploads, reset as resetUploads } from "./uploads.js";
 
 const icon = (name) => `<svg class="icon" aria-hidden="true" focusable="false"><use href="#i-${name}"/></svg>`;
 
@@ -77,6 +78,7 @@ function blank(row) {
   const copy = row.cloneNode(true);
   copy.querySelector(":scope > [data-tools]")?.remove();
   unmountPickers(copy);
+  resetUploads(copy);
   for (const input of copy.querySelectorAll("input, textarea")) {
     if (input.type === "checkbox") input.checked = false;
     else input.value = "";
@@ -122,6 +124,7 @@ function repeating(repeat) {
     dress(copy);
     renumber(repeat);
     mountPickers(copy);
+    mountUploads(copy);
     copy.querySelector("input")?.focus();
     say(`Added ${noun} ${at + 1}.`);
   });

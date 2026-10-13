@@ -5,7 +5,7 @@
 // chapter names an aggregate by its own name in all three. An editor of several chapters names it by
 // its chapter as well, so two aggregates of one name in different chapters stay two.
 import { SCHEMA } from "./schema.ts";
-import type { Aggregate } from "./schema.ts";
+import type { Aggregate, Family } from "./schema.ts";
 
 /** The path segments that address an aggregate under the editor's base path. */
 export const at = (agg: Aggregate): string[] => (agg.chapter ? [agg.chapter, agg.name] : [agg.name]);
@@ -34,3 +34,15 @@ export function locate(segments: string[]): { agg: Aggregate | undefined; rest: 
 
 /** Whether a person in `role` may edit `agg`: every role may, unless its chapter limits them. */
 export const mayEdit = (agg: Aggregate, role: string | null): boolean => !agg.roles || (role !== null && agg.roles.includes(role));
+
+/** The family an aggregate is a member of, when the route chapter declares one. */
+export const familyOf = (agg: Aggregate): Family | undefined => SCHEMA.families?.find((family) => family.members.includes(keyOf(agg)));
+
+/** The aggregate a family key names. */
+export const aggregateOf = (key: string): Aggregate | undefined => SCHEMA.aggregates.find((agg) => keyOf(agg) === key);
+
+/** The members of a family, as aggregates. */
+export const membersOf = (family: Family): Aggregate[] => family.members.flatMap((key) => aggregateOf(key) ?? []);
+
+/** The part of a member's key after the first colon, which names the record of a family's `titles` aggregate. */
+export const slugOf = (id: string): string => id.slice(id.indexOf(":") + 1);

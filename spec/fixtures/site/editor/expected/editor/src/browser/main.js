@@ -11,6 +11,7 @@ import { enhancePickers } from "./pickers.js";
 import { enhancePreview } from "./preview.js";
 import { enhanceShell } from "./shell.js";
 import { adoptToasts } from "./toast.js";
+import { mountAll as mountUploads } from "./uploads.js";
 
 rememberFilters();
 enhanceShell();
@@ -20,7 +21,12 @@ enhanceForms();
 enhanceBlocks();
 enhancePreview();
 adoptToasts();
+mountUploads();
 
 if (document.querySelector("[data-body-editor]")) {
   import("./body_editor.js").then((editor) => editor.mountAll());
+}
+
+if (document.querySelector("[data-markdown]")) {
+  import("./markdown.js").then((markdown) => markdown.mountAll());
 }

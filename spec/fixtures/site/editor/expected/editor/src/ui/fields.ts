@@ -12,6 +12,7 @@
 // template, not copied from the page.
 import type { Aggregate, Attr } from "../schema.ts";
 import { SCHEMA } from "../schema.ts";
+import { EDITOR } from "../config.ts";
 import { esc, href } from "./html.ts";
 import { icon } from "./icons.ts";
 import { bodyToFields, bodyToHtml, emptyBody, fieldsToInputs } from "./body_model.js";
@@ -136,10 +137,55 @@ function wallInput(attr: Attr, name: string, value: Value, context: Context): st
   return `<div class="my-4 grid gap-1"><label for="${id}" class="${context.quiet ? "sr-only" : "font-semibold"}">${caption(attr, context)}</label>${input}${keep}${note}${problem(name, attr, context)}</div>`;
 }
 
+/** What a Markdown field's toolbar makes, said once under it: exactly what the site's text reader understands. */
+const MARKDOWN_NOTE = [
+  "A blank line starts a new paragraph. End a line with two spaces to break the line without a new paragraph.",
+  "# at the start of a line makes a heading; ## to #### make smaller ones.",
+  "- or 1. at the start of a line makes a list; indent four spaces for a list inside a list.",
+  "**bold**, *italic* and [link text](https://address).",
+  "To show a * or - as itself, write it as &amp;#42; or &amp;#45;.",
+];
+
+/**
+ * A Markdown text: the writing box, a toolbar the script adds above it for exactly what the site
+ * understands, a note of what can be used, and a preview the script fills with how the site shows
+ * it (the site's own reader is bundled with the editor; see browser/markdown_site.js).
+ */
+function markdown(attr: Attr, name: string, value: Value, context: Context): string {
+  const id = esc(idOf(name));
+  const text = esc(member(value, "value") ?? value ?? "");
+  const bad = flagged(attr, name, context);
+  const classes = bad ? "textarea textarea-error w-full max-w-3xl font-mono text-sm" : "textarea w-full max-w-3xl font-mono text-sm";
+  const required = context.mark && !attr.optional ? ` aria-required="true"` : "";
+  const box = `<textarea class="${classes}" rows="14" id="${id}" name="${esc(name)}" data-markdown-input${required}${invalidAttrs(name, attr, context)}>\n${text}</textarea>`;
+  const note = `<details class="max-w-3xl text-sm" data-markdown-note><summary class="cursor-pointer font-semibold">What you can use</summary><ul class="mt-1 list-disc pl-5 text-muted">${MARKDOWN_NOTE.map((line) => `<li>${line}</li>`).join("")}</ul></details>`;
+  const preview = `<section class="max-w-3xl" aria-labelledby="${id}-preview" data-markdown-preview-box hidden><h3 id="${id}-preview" class="text-sm font-semibold">How it will look on the site</h3><div class="prose mt-1 max-w-none border border-base-300 bg-base-100 p-4" data-markdown-preview></div></section>`;
+  return `<div class="my-4 grid gap-2" data-markdown><label for="${id}" class="${context.quiet ? "sr-only" : "font-semibold"}">${caption(attr, context)}</label><div data-markdown-toolbar-slot></div>${box}${note}${preview}${problem(name, attr, context)}</div>`;
+}
+
+/**
+ * The address of a picture or file the content system keeps, as a text box that holds the address,
+ * with what the script adds: choosing a file, describing it, sending it to be kept, and putting the
+ * address it came back with in the box (see browser/uploads.js). Without the script it is the text box.
+ */
+function uploadField(attr: Attr, name: string, value: Value, context: Context): string {
+  const upload = attr.upload as NonNullable<Attr["upload"]>;
+  const id = esc(idOf(name));
+  const held = String(member(value, "value") ?? value ?? "");
+  const classes = flagged(attr, name, context) ? "input input-error w-full max-w-xl" : "input w-full max-w-xl";
+  const required = context.mark && !attr.optional ? ` aria-required="true"` : "";
+  const input = `<input type="text" class="${classes}" id="${id}" name="${esc(name)}" value="${esc(held)}" data-upload-address${required}${invalidAttrs(name, attr, context)}>`;
+  const what = upload.accept === "pdf" ? "file" : "picture";
+  const note = `<p class="text-xs text-muted">The address the site shows the ${what} from. Choosing a ${what} below fills it in.</p>`;
+  return `<div class="my-4 grid gap-1" data-upload data-endpoint="${esc(href("upload", upload.collection))}" data-accept="${esc(upload.accept)}" data-optional="${attr.optional || attr.softOptional ? "true" : "false"}" data-limit="${EDITOR.mediaMaxBytes}"><label for="${id}" class="${context.quiet ? "sr-only" : "font-semibold"}">${caption(attr, context)}</label>${input}${note}${problem(name, attr, context)}</div>`;
+}
+
 function scalar(attr: Attr, name: string, value: Value, context: Context): string {
   if (isMoment(attr)) return moment(attr, name, value, context);
   if (attr.wall !== undefined && !attr.list && attr.kind === "text") return wallInput(attr, name, value, context);
   if (attr.options && !attr.list) return select(attr, name, value, context);
+  if (attr.upload && !attr.list && attr.kind === "text") return uploadField(attr, name, value, context);
+  if (attr.markdown && !attr.list && attr.kind === "text") return markdown(attr, name, value, context);
   const text = esc(member(value, "value") ?? value ?? "");
   const id = esc(idOf(name));
   if (attr.kind === "boolean") {
@@ -177,6 +223,9 @@ function plainOf(attr: Attr, part: Attr, name: string): Attr {
     fill: attr.fill ?? part.fill,
     optionLabels: attr.optionLabels ?? part.optionLabels,
     softOptional: attr.softOptional ?? part.softOptional,
+    markdown: attr.markdown ?? part.markdown,
+    upload: attr.upload ?? part.upload,
+    after: attr.after ?? part.after,
   };
 }
 
@@ -303,13 +352,24 @@ export function field(agg: Aggregate, attr: Attr, value: Value, prefix = "", con
   return attr.list ? listed(agg, attr, name, value, context) : one(agg, attr, name, value, context);
 }
 
+/**
+ * The box for a companion's text on a record's own form: the companion's text attribute drawn as it
+ * is on its own form (a Markdown field when the rows say so), under the name the server reads it by.
+ */
+export function textBox(agg: Aggregate, attr: Attr, name: string, words: { label: string; help?: string }, value: string, invalid: Invalid | null = null): string {
+  const part = attr.kind === "object" && (agg.valueObjects[attr.type] ?? []).length === 1 ? agg.valueObjects[attr.type][0] : null;
+  const own = part ? plainOf(attr, part, name) : { ...attr, name };
+  const drawn = { ...own, label: words.label, help: words.help, optional: true, fill: undefined, advanced: false };
+  return scalar(drawn, name, value, { mark: false, invalid, top: true });
+}
+
 /** The inputs for `attrs`, filled from `values` (an instance's state or a refused submission). */
-export function fields(agg: Aggregate, attrs: Attr[], values: Record<string, Value> = {}, invalid: Invalid | null = null, mark = true, choices: Choices = {}, draft?: string, problems: Problem[] = []): string {
+export function fields(agg: Aggregate, attrs: Attr[], values: Record<string, Value> = {}, invalid: Invalid | null = null, mark = true, choices: Choices = {}, draft?: string, problems: Problem[] = [], boxes = ""): string {
   const draw = (attr: Attr): string => field(agg, attr, values[attr.name], "", { mark, invalid, top: true, choices, draft, problems });
   const more = attrs.filter((attr) => attr.advanced === true || attr.fill !== undefined);
   const inputs = attrs.filter((attr) => !more.includes(attr)).map(draw);
   const rest = more.map(draw).join("\n");
   const open = rest.includes('aria-invalid="true"') ? " open" : "";
   const behind = rest === "" ? "" : `<details class="mt-8 border-t border-base-300 pt-3" data-advanced${open}><summary class="cursor-pointer font-semibold">More options</summary>\n${rest}\n</details>`;
-  return [...inputs, behind, datalists(agg, attrs, choices)].filter((text) => text !== "").join("\n");
+  return [...inputs, boxes, behind, datalists(agg, attrs, choices)].filter((text) => text !== "").join("\n");
 }

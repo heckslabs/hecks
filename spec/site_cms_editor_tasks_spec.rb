@@ -121,6 +121,23 @@ RSpec.describe "the editor's task words, derived from a chapter and the route ch
     end
   end
 
+  describe "what an EditorFamily row says" do
+    it "names the members and the aggregate that titles them, under the address its plural gives", :aggregate_failures do
+      families = schema["families"]
+
+      expect(families.size).to eq(1)
+      expect(families.first).to include("key" => "plots", "name" => "plot", "plural" => "plots")
+      expect(families.first).to include("members" => %w[Bed Gardener], "titles" => "Plant")
+    end
+
+    it "refuses a member or a titling aggregate the chapters do not have, naming each", :aggregate_failures do
+      message = refused("bluebook/garden_site.bluebook",
+                        'members: "Bed,Gardener", titles: "Plant"', 'members: "Bed,Hedge", titles: "Plants"')
+
+      expect(message).to include("member \"Hedge\"", "titles \"Plants\"")
+    end
+  end
+
   describe "what the content system's PayloadField rows say" do
     it "gives a label (a list's plural, and its one), the description as help, and not a second set", :aggregate_failures do
       visits = attribute("Plant", "visits")

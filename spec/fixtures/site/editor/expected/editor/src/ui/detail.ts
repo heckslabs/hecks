@@ -33,6 +33,9 @@ export interface Submitted {
   field?: string;
   /** The blocks of a list of mixed blocks the refusal is about (see blocks.ts). */
   problems?: Problem[];
+  /** The input of a companion's text the refusal is about, and what it said (see texts.ts). */
+  textField?: string;
+  textMessage?: string;
 }
 
 function action(agg: Aggregate, id: string, command: Command, first: boolean): string {
@@ -83,12 +86,12 @@ function draftSection(agg: Aggregate, values: State): string {
 }
 
 /** One instance: its values, its status, a button for each command that applies to it now, and the records and actions that go with it. */
-export function detailPage(agg: Aggregate, id: string, values: State, shown: Submitted | null, world: World, preview: Tools): string {
+export function detailPage(agg: Aggregate, id: string, values: State, shown: Submitted | null, world: World, preview: Tools, named?: string): string {
   const commands = agg.commands.filter((command) => command.on === agg.name && available(agg, command, values));
   const here = href(...at(agg), "id", id);
   const panels = [relatedPanels(agg, id, world, here), schedulePanel(agg, id, world, here)].filter((html) => html !== "");
   return `<div class="mb-6 flex flex-wrap items-start justify-between gap-3">
-<div><h1 class="break-words text-3xl">${esc(titled(agg, id, values))}</h1><p class="mt-1 flex items-center gap-2 text-muted"><span>${esc(label(nameOf(agg)))}</span><span aria-hidden="true">·</span><span class="break-all text-sm">${esc(id)}</span>${copyButton(id, "address")}</p>${unpublished(agg, values)}</div>
+<div><h1 class="break-words text-3xl">${esc(named ?? titled(agg, id, values))}</h1><p class="mt-1 flex items-center gap-2 text-muted"><span>${esc(label(nameOf(agg)))}</span><span aria-hidden="true">·</span><span class="break-all text-sm">${esc(id)}</span>${copyButton(id, "address")}</p>${unpublished(agg, values)}</div>
 ${preview.button}
 </div>
 ${refusal(shown?.message ?? null)}

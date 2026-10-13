@@ -99,6 +99,12 @@ export interface Attr {
   softOptional?: boolean;
   /** What a new record starts with, when a row says. */
   default?: string;
+  /** The text is written in Markdown: it has a toolbar and a preview of how the site shows it. */
+  markdown?: boolean;
+  /** The text is the address of a picture or file kept by the content system, and can be uploaded there. */
+  upload?: { collection: string; accept: "image" | "pdf" };
+  /** The text is the end of a range that starts at this attribute: an end before its start is refused before it is sent. */
+  after?: string;
 }
 
 export interface Transition {
@@ -252,6 +258,21 @@ export interface Scheduling {
   generated?: boolean;
 }
 
+/**
+ * Aggregates a person thinks of as one kind of thing (the types of a page), listed together as one job.
+ * `members` and `titles` are aggregate keys (see `keyOf` in names.ts); `key` is the address under the base path.
+ */
+export interface Family {
+  key: string;
+  name: string;
+  plural: string;
+  about?: string;
+  chapter?: string;
+  members: string[];
+  /** An aggregate whose identity is the part of a member's key after its first colon, and which names and states the record. */
+  titles?: string;
+}
+
 export interface Schema {
   /** The first chapter, which names the domain the host is asked for. */
   domain: string;
@@ -260,6 +281,7 @@ export interface Schema {
   aggregates: Aggregate[];
   media?: Media;
   scheduling?: Scheduling;
+  families?: Family[];
 }
 
 export const SCHEMA: Schema = {

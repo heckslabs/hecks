@@ -9,7 +9,7 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
 import { EDITOR } from "../config.ts";
-import { KEY_PATTERN } from "./sniff.ts";
+import { KEY_PATTERN } from "../files/sniff.ts";
 
 export interface MediaStorage {
   /** Keeps `bytes` under `key`; keeping the same key again keeps the same bytes. */

@@ -25,9 +25,9 @@ import { EDITOR } from "./config.ts";
 import { flashCookie, readFlash, spentFlash } from "./flash.ts";
 import type { Flash } from "./flash.ts";
 import { hostClient, rowsAnswered } from "./host.ts";
-import { at, keyOf, locate, mayEdit, qualified } from "./names.ts";
+import { aggregateOf, at, keyOf, locate, mayEdit, membersOf, qualified, slugOf } from "./names.ts";
 import { SCHEMA } from "./schema.ts";
-import type { Aggregate, Command } from "./schema.ts";
+import type { Aggregate, Command, Family } from "./schema.ts";
 import { available, needsPage } from "./ui/detail.ts";
 import type { Problem } from "./ui/blocks.ts";
 import { href } from "./ui/html.ts";
@@ -35,7 +35,9 @@ import { commandArguments, parseForm, unfilled } from "./ui/input.ts";
 import type { Form } from "./ui/input.ts";
 import { backOf, plainValue } from "./ui/links.ts";
 import type { Back } from "./ui/links.ts";
-import { commandPage, detailPage, home, instanceCommandPage, listPage, notFound, scheduledPage } from "./ui/pages.ts";
+import { commandPage, detailPage, familyPage, home, instanceCommandPage, listPage, notFound, scheduledPage } from "./ui/pages.ts";
+import type { FamilyRow } from "./ui/pages.ts";
+import { titleFor } from "./ui/family.ts";
 import type { Submitted } from "./ui/pages.ts";
 import { knownStatus, narrow, slice, viewOf } from "./ui/paging.ts";
 import type { View } from "./ui/paging.ts";
@@ -221,6 +223,8 @@ function route(client: HostClient, request: Request, url: URL, segments: string[
   if (segments.length === 0) return homeView(client, scene);
   if (segments[0] === "assets" && segments.length === 2 && request.method === "GET") return serveAsset(segments[1], request);
   if (segments[0] === "scheduled" && segments.length === 1 && request.method === "GET" && SCHEMA.scheduling) return scheduledView(client, scene);
+  const family = SCHEMA.families?.find((candidate) => candidate.key === segments[0]);
+  if (family && segments.length === 1 && request.method === "GET") return familyView(client, family, scene);
   const { agg, rest: [verb, ...rest] } = locate(segments);
   if (!agg) return scene.show(notFound(`No aggregate ${segments.slice(0, SCHEMA.chapters ? 2 : 1).join("/")}.`), 404);
   if (!mayEdit(agg, scene.role)) return scene.show(notFound(`${plural(agg.name)} are not open to your role.`, "Not open to your role"), 403);
@@ -245,6 +249,24 @@ async function homeView(client: HostClient, scene: Scene): Promise<Response> {
     }
   }
   return scene.show(home(existing));
+}
+
+/** A family's list: every record of its members the person may edit, named by the family's `titles` records. */
+async function familyView(client: HostClient, family: Family, scene: Scene): Promise<Response> {
+  const answer = await client.read();
+  const titles = family.titles ? aggregateOf(family.titles) : undefined;
+  const lookup = (agg: Aggregate, id: string) => instanceIn(client, answer, agg, id);
+  const rows = membersOf(family)
+    .filter((member) => mayEdit(member, scene.role))
+    .flatMap((member) =>
+      client.instancesOf(answer, qualified(member)).map(([id, state]): [FamilyRow, State] => {
+        const record = titles ? lookup(titles, slugOf(id)) : undefined;
+        const status = record && titles?.lifecycle ? record[titles.lifecycle.field] : undefined;
+        return [{ member, id, title: titleFor(member, id, lookup) ?? id, status, titles }, state];
+      }),
+    )
+    .sort(([a], [b]) => a.title.localeCompare(b.title));
+  return scene.show(familyPage(family, rows));
 }
 
 /** The pairs of an address a list keeps on every link: its view and that view's arguments, not the filters or the page. */
@@ -325,17 +347,19 @@ async function detail(client: HostClient, agg: Aggregate, id: string, shown: Sub
   if (!values) return scene.show(notFound(`No ${agg.name} ${id}.`), 404);
   const command = agg.commands.find((candidate) => candidate.name === shown?.command);
   const world = await worldFor(client, answer, scene.role, { agg, id });
-  return scene.show(detailPage(agg, id, values, shown, world), status, shown && command ? refused(agg, command) : undefined);
+  return scene.show(detailPage(agg, id, values, shown, world, titleFor(agg, id, world.lookup)), status, shown && command ? refused(agg, command) : undefined);
 }
 
 /** The page of a command that acts on one instance, when that instance is in a state it applies to. */
 async function instanceView(client: HostClient, agg: Aggregate, id: string, name: string, url: URL, scene: Scene): Promise<Response> {
-  const values = instanceIn(client, await client.read(), agg, id);
+  const answer = await client.read();
+  const values = instanceIn(client, answer, agg, id);
   if (!values) return scene.show(notFound(`No ${agg.name} ${id}.`), 404);
   const command = commandFor(agg, "id", name);
   if (!command || !available(agg, command, values)) return scene.show(notFound(`${name} does not apply to ${id} now.`), 404);
   const choices = await choicesFor(client, agg, command.attributes);
-  return scene.show(instanceCommandPage(agg, id, command, values, null, choices, backOf(url.searchParams.get("_back")), await boxesFor(client, agg, command, scene.role, id)));
+  const named = titleFor(agg, id, (other, key) => instanceIn(client, answer, other, key));
+  return scene.show(instanceCommandPage(agg, id, command, values, null, choices, backOf(url.searchParams.get("_back")), await boxesFor(client, agg, command, scene.role, id), named));
 }
 
 /** A command's page; a link may fill its inputs from the address and name the page to return to. */
@@ -452,8 +476,10 @@ async function post(client: HostClient, request: Request, agg: Aggregate, verb: 
 /** The refusal of a command run on one instance: shown on its form, or on the page it was run from. */
 async function refusedOnInstance(client: HostClient, agg: Aggregate, id: string, command: Command, shown: Submitted, scene: Scene, back: Back | null): Promise<Response> {
   if (!needsPage(command)) return detail(client, agg, id, shown, scene, 422);
-  const values = instanceIn(client, await client.read(), agg, id);
+  const answer = await client.read();
+  const values = instanceIn(client, answer, agg, id);
   if (!values) return scene.show(notFound(`No ${agg.name} ${id}.`), 404);
   const texts = await boxesFor(client, agg, command, scene.role, id);
-  return scene.show(instanceCommandPage(agg, id, command, values, shown, await choicesFor(client, agg, command.attributes), back, texts), 422, refused(agg, command));
+  const named = titleFor(agg, id, (other, key) => instanceIn(client, answer, other, key));
+  return scene.show(instanceCommandPage(agg, id, command, values, shown, await choicesFor(client, agg, command.attributes), back, texts, named), 422, refused(agg, command));
 }

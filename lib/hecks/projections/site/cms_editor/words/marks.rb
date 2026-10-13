@@ -97,7 +97,16 @@ module Hecks
             def marks(row)
               base = { "label" => row[:label], "help" => row[:help] }
               base.merge!(flags(row)) unless row[:attribute].to_s.empty?
-              base.compact
+              named(base).compact
+            end
+
+            # A label of `Singular|Plural` is a list's: the plural is the label, the singular is what one
+            # of its items is called (`noun`), as the content system's field rows say it.
+            def named(base)
+              single, plural = base["label"].to_s.split("|", 2)
+              return base if plural.nil?
+
+              base.merge("label" => plural, "noun" => single.downcase)
             end
 
             def flags(row)

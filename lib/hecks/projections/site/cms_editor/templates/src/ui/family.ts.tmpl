@@ -1,0 +1,29 @@
+__BANNER__
+
+// A family of aggregates (the types of a page) is one job: its records are listed together, and each is
+// named to a person by the record of the family's `titles` aggregate that shares its key (a page type's
+// key is `page:<slug>`, its title is the Page `<slug>`'s). Nothing here asks the host; the lookups are
+// the reads the page already made.
+import { aggregateOf, familyOf, slugOf } from "../names.ts";
+import type { Aggregate } from "../schema.ts";
+import { plainText } from "./links.ts";
+
+type State = Record<string, unknown>;
+
+/** The attribute that names a record to a person: its title, name or label. */
+export const namerOf = (agg: Aggregate) => agg.attributes.find((attr) => ["title", "name", "label"].includes(attr.name) && !attr.list && attr.widget !== "body");
+
+/**
+ * What a person calls the record `id` of `agg` when `agg` is in a family that names its records: the
+ * title of the record of the `titles` aggregate whose identity is the part of `id` after the first colon.
+ * Undefined when the family names nothing or has no such record.
+ */
+export function titleFor(agg: Aggregate, id: string, lookup: (agg: Aggregate, id: string) => State | undefined): string | undefined {
+  const family = familyOf(agg);
+  const titles = family?.titles ? aggregateOf(family.titles) : undefined;
+  const namer = titles ? namerOf(titles) : undefined;
+  if (!titles || !namer) return undefined;
+  const held = lookup(titles, slugOf(id));
+  const words = held ? plainText(held[namer.name]) : "";
+  return words === "" ? undefined : words;
+}

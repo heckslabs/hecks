@@ -6,9 +6,11 @@ __BANNER__
 // the states it applies in. An editor of several chapters groups the overview and the navigation by
 // chapter and puts the chapter in each address.
 import { EDITOR } from "../config.ts";
-import { at, keyOf } from "../names.ts";
-import type { Aggregate, Attr, Command, Query } from "../schema.ts";
+import { at, keyOf, membersOf } from "../names.ts";
+import type { Aggregate, Attr, Command, Family, Query } from "../schema.ts";
 import { SCHEMA } from "../schema.ts";
+import { drafted } from "./availability.ts";
+import { statusBadge } from "./html.ts";
 import { detailPage as detail } from "./detail.ts";
 import type { Submitted } from "./detail.ts";
 import { confirmDialog } from "./dialogs.ts";
@@ -21,7 +23,7 @@ import type { View } from "./paging.ts";
 import type { Choices } from "./pickers.ts";
 import { previewTools } from "./preview.ts";
 import { scheduledTable } from "./schedule.ts";
-import { SCHEDULED, chapterTitle, countMark, groupOf, groups, onlyFor, page, tucked } from "./shell.ts";
+import { SCHEDULED, chapterTitle, countMark, familiesIn, familyCountMark, groupOf, groups, onlyFor, onlyForFamily, page, tucked } from "./shell.ts";
 import type { Crumb } from "./shell.ts";
 import { listPage as list } from "./table.ts";
 import type { World } from "./world.ts";
@@ -74,8 +76,31 @@ ${[...news, ...edit].join("\n")}
 </section>`);
 }
 
-function cards(aggregates: Aggregate[], existing: Set<string>): string {
-  return `<div class="grid gap-4 lg:grid-cols-2">\n${aggregates.map((agg) => taskCard(agg, existing)).join("\n")}\n</div>`;
+/**
+ * A family as one card of jobs: a "New" task for each of its members' first creating command, each with
+ * what that member is (its description), and one "Edit" task that opens the list of all of them.
+ */
+function familyCard(family: Family): string {
+  const members = membersOf(family);
+  const own = (to: string, text: string, note: string | null | undefined, primary: boolean): string =>
+    `<li class="flex flex-wrap items-baseline gap-x-3 gap-y-1"><a class="btn btn-sm ${primary ? "btn-neutral" : ""}" href="${esc(to)}">${esc(text)}</a>${note ? `<span class="min-w-0 text-sm text-muted">${esc(note)}</span>` : ""}</li>`;
+  const news = members.flatMap((agg, index) => {
+    const command = startersOf(agg)[0];
+    return command ? [own(href(...at(agg), "new", command.name), `New ${nameOf(agg)}`, agg.words?.about ?? agg.description, index === 0)] : [];
+  });
+  const edit = own(href(family.key), `Edit ${family.plural}`, null, false);
+  const note = family.about ? `<p class="mt-1 max-w-prose text-sm text-muted">${esc(family.about)}</p>` : "";
+  return onlyForFamily(family, `<section class="border border-base-300 bg-base-100 p-4 sm:p-5" aria-labelledby="task-family-${esc(family.key)}">
+<div class="flex items-baseline justify-between gap-3"><h3 id="task-family-${esc(family.key)}" class="text-lg">${esc(capital(family.plural))}</h3><span class="tabular-nums text-muted" aria-label="How many">${familyCountMark(family)}</span></div>${note}
+<ul class="mt-4 grid gap-3">
+${[edit, ...news].join("\n")}
+</ul>
+</section>`);
+}
+
+function cards(aggregates: Aggregate[], existing: Set<string>, chapter: string | null = null): string {
+  const all = [...familiesIn(chapter).map(familyCard), ...aggregates.map((agg) => taskCard(agg, existing))];
+  return `<div class="grid gap-4 lg:grid-cols-2">\n${all.join("\n")}\n</div>`;
 }
 
 /**
@@ -85,8 +110,8 @@ function cards(aggregates: Aggregate[], existing: Set<string>): string {
  */
 export function home(existing: Set<string> = new Set()): string {
   const sections = groups().map(([chapter, aggregates]) => {
-    if (chapter === null) return cards(aggregates, existing);
-    return groupOf(chapter, `<h2 class="mb-3 mt-8 text-xl">${esc(chapterTitle(chapter))}</h2>\n${cards(aggregates, existing)}`);
+    if (chapter === null) return cards(aggregates, existing, null);
+    return groupOf(chapter, `<h2 class="mb-3 mt-8 text-xl">${esc(chapterTitle(chapter))}</h2>\n${cards(aggregates, existing, chapter)}`);
   });
   const more = tucked();
   const behind = more.length === 0 ? "" : `<details class="mt-10 border-t border-base-300 pt-4"><summary class="cursor-pointer font-semibold">More</summary><p class="mt-2 text-sm text-muted">What the pages above are made from. Most jobs never need these.</p><div class="mt-4">${cards(more, existing)}</div></details>`;
@@ -112,11 +137,47 @@ export function listPage(agg: Aggregate, rows: Row[], query: Query | null, error
   return page(titleOf(agg), list(agg, rows, query, error, asked, view, choices), { active: keyOf(agg), crumbs: [OVERVIEW, ...(agg.chapter ? [[chapterTitle(agg.chapter)] as Crumb] : []), [pluralName(agg)]] });
 }
 
-/** One instance, with the records and actions that go with it and its preview. */
-export function detailPage(agg: Aggregate, id: string, values: State, shown: Submitted | null, world: World): string {
-  const crumbs: Crumb[] = [...trail(agg), [id]];
+/** One record of a family, as its list shows it. */
+export interface FamilyRow {
+  member: Aggregate;
+  id: string;
+  title: string;
+  /** The state of the family's `titles` record, when it has a lifecycle (live, down), or undefined. */
+  status?: unknown;
+  titles?: Aggregate;
+}
+
+/** A family's list: every record of every member, named, typed and with whether it shows and has an unpublished edit. */
+export function familyPage(family: Family, rows: [FamilyRow, State][]): string {
+  const members = membersOf(family);
+  const adds = members.flatMap((agg, index) => {
+    const command = startersOf(agg)[0];
+    return command ? [`<a class="btn ${index === 0 ? "btn-neutral" : ""}" href="${esc(href(...at(agg), "new", command.name))}">${esc(`New ${nameOf(agg)}`)}</a>`] : [];
+  });
+  const lines = rows.map(([row, state]) => {
+    const to = href(...at(row.member), "id", row.id);
+    const edit = row.member.drafts ? href(...at(row.member), "id", row.id, row.member.drafts.save) : to;
+    const status = row.titles?.lifecycle && row.status !== undefined ? statusBadge(row.titles, row.status) : "";
+    const unpublished = drafted(row.member, state) ? `<span class="badge badge-soft badge-info">Changes not published yet</span>` : "";
+    return `<tr class="hover:bg-base-200/60" data-row><th scope="row" class="min-w-44 font-normal" data-value="${esc(row.title)}"><a class="link link-hover font-semibold" href="${esc(to)}">${esc(row.title)}</a><span class="block text-xs text-muted">${esc(row.id)}</span></th><td data-value="${esc(nameOf(row.member))}">${esc(capital(nameOf(row.member)))}</td><td data-value="${esc(String(row.status ?? ""))}">${status}</td><td>${unpublished}</td><td class="text-right"><a class="btn btn-sm" href="${esc(edit)}">Edit</a></td></tr>`;
+  });
+  const table = lines.length === 0
+    ? `<p class="border-y border-base-300 bg-base-100 px-4 py-16 text-center text-muted">No ${esc(family.plural)} yet.</p>`
+    : `<div class="overflow-x-auto border-y border-base-300 bg-base-100 lg:overflow-visible"><table class="table [&_thead_th]:bg-base-100 [&_thead_th]:text-xs [&_thead_th]:text-muted" data-sortable><thead><tr><th scope="col" data-sort="text">${esc(capital(family.name))}</th><th scope="col" data-sort="text">Kind</th><th scope="col" data-sort="text">Status</th><th scope="col">Draft</th><th scope="col"><span class="sr-only">Edit</span></th></tr></thead><tbody>
+${lines.join("\n")}
+</tbody></table></div>`;
+  const body = `<div class="mb-6 flex flex-wrap items-end justify-between gap-4"><div><h1 class="text-3xl">${esc(capital(family.plural))}</h1>${family.about ? `<p class="mt-1 max-w-prose text-muted">${esc(family.about)}</p>` : ""}</div><div class="flex flex-wrap gap-2">${adds.join("\n")}</div></div>
+<p class="mb-3 tabular-nums text-muted">${rows.length} ${esc(rows.length === 1 ? family.name : family.plural)}</p>
+${table}`;
+  const crumbs: Crumb[] = [OVERVIEW, ...(family.chapter ? [[chapterTitle(family.chapter)] as Crumb] : []), [capital(family.plural)]];
+  return page(capital(family.plural), body, { active: `family:${family.key}`, crumbs });
+}
+
+/** One instance, with the records and actions that go with it and its preview. `named` is what a person calls it, when that is not its key. */
+export function detailPage(agg: Aggregate, id: string, values: State, shown: Submitted | null, world: World, named?: string): string {
+  const crumbs: Crumb[] = [...trail(agg), [named ?? id]];
   const tools = previewTools(agg, id);
-  return page(id, detail(agg, id, values, shown, world, tools), { active: keyOf(agg), crumbs, drawer: tools.drawer });
+  return page(named ?? id, detail(agg, id, values, shown, world, tools, named), { active: keyOf(agg), crumbs, drawer: tools.drawer });
 }
 
 /** Every action waiting to run, soonest first. */
@@ -242,11 +303,11 @@ export function commandPage(agg: Aggregate, command: Command, action: string, sh
 }
 
 /** The page of a command that acts on one instance: its form, or the question a destructive one asks. */
-export function instanceCommandPage(agg: Aggregate, id: string, command: Command, values: State, shown: Submitted | null, choices: Choices = {}, back: Back | null = null, texts: Extras["texts"] = []): string {
+export function instanceCommandPage(agg: Aggregate, id: string, command: Command, values: State, shown: Submitted | null, choices: Choices = {}, back: Back | null = null, texts: Extras["texts"] = [], named?: string): string {
   const action = href(...at(agg), "id", id, command.name);
-  const crumbs: Crumb[] = [...trail(agg), [id, href(...at(agg), "id", id)], [commandLabel(agg, command)]];
+  const crumbs: Crumb[] = [...trail(agg), [named ?? id, href(...at(agg), "id", id)], [commandLabel(agg, command)]];
   const tools = previewTools(agg, id);
-  const title = `${backLink(back)}${head(commandLabel(agg, command), `${label(agg.name)} ${id}`, tools.button)}`;
+  const title = `${backLink(back)}${head(commandLabel(agg, command), `${capital(nameOf(agg))} ${named ?? id}`, tools.button)}`;
   const cancel = back?.path ?? href(...at(agg), "id", id);
   const frame = { active: keyOf(agg), crumbs, drawer: tools.drawer };
   if (command.destructive && command.attributes.length === 0) {

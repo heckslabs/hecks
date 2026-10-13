@@ -75,6 +75,7 @@ function mount(root) {
   const pick = make("div", { className: "grid gap-2" }, make("label", { className: "text-sm font-semibold", htmlFor: file.id }, "Choose a file from this computer"), file);
   const body = make("div", { className: "grid min-w-0 flex-1 gap-2" }, current, pick, altLabel, progress, make("div", { className: "flex flex-wrap gap-2" }, sendButton, cancel, clear), status);
   const row = make("div", { className: "flex flex-wrap items-start gap-3 border border-base-300 bg-base-100 p-3" }, thumb, body);
+  row.setAttribute("data-upload-made", "");
   address.closest("div[data-upload]").insertBefore(row, address.nextSibling);
 
   let staged = null;
@@ -155,6 +156,12 @@ function mount(root) {
       const made = await send(root.dataset.endpoint, staged, words, (fraction) => { progress.value = fraction; });
       address.value = made.address;
       address.dispatchEvent(new Event("input", { bubbles: true }));
+      // A picture that sits beside a description of its own (a `media_ref` and its `alt`) takes the words just given.
+      const own = document.getElementById(address.id.replace(/media-ref$/, "alt"));
+      if (own && own !== address && own.value.trim() === "") {
+        own.value = words;
+        own.dispatchEvent(new Event("input", { bubbles: true }));
+      }
       forget();
       showHeld();
       say(`Uploaded. Save the form to put it on the site.`, "ok");
@@ -186,6 +193,14 @@ function mount(root) {
   });
   address.addEventListener("change", showHeld);
   showHeld();
+}
+
+/** Makes an upload field that was copied (a new row, a new card) a fresh one: what mounting added is dropped, so it mounts again. */
+export function reset(scope) {
+  for (const root of scope.querySelectorAll("[data-upload]")) {
+    root.querySelectorAll("[data-upload-made]").forEach((made) => made.remove());
+    delete root.dataset.mounted;
+  }
 }
 
 /** Makes every upload field on the page live. */

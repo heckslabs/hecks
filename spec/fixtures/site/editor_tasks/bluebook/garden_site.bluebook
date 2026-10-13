@@ -94,6 +94,19 @@ Hecks.bluebook "GardenSite" do
              about: "The words that go with a plant. Edit one from the plant's page."
     end
 
+    # Beds and gardeners are one job to a person: "Plots", listed together and named by the plant that shares
+    # their address.
+    value_object "EditorFamily" do
+      attribute :name,    String
+      attribute :plural,  String
+      attribute :about,   String
+      attribute :members, String
+      attribute :titles,  String
+
+      member name: "plot", plural: "plots", members: "Bed,Gardener", titles: "Plant",
+             about: "Beds and the people who tend them."
+    end
+
     value_object "EditorField" do
       attribute :aggregate, String
       attribute :command,   String

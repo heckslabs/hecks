@@ -11,9 +11,9 @@
 // button on a narrow one. It works with no script (the checkbox is the state); the script adds the
 // button, the focus handling and Escape.
 import { EDITOR } from "../config.ts";
-import { at, keyOf, mayEdit } from "../names.ts";
+import { at, familyOf, keyOf, mayEdit, membersOf } from "../names.ts";
 import { SCHEMA } from "../schema.ts";
-import type { Aggregate } from "../schema.ts";
+import type { Aggregate, Family } from "../schema.ts";
 import { assetUrl, hasLogo, isBuilt } from "../assets.ts";
 import type { Flash } from "../flash.ts";
 import { esc, href } from "./html.ts";
@@ -54,10 +54,22 @@ export const groupOf = (chapter: string, html: string): string => `<!--editor:gr
 
 /** The chapters in the order they are shown, each with the aggregates it holds; one nameless group for an editor of one chapter. */
 export function groups(): [chapter: string | null, aggregates: Aggregate[]][] {
-  const shown = SCHEMA.aggregates.filter((agg) => agg.words?.advanced !== true);
+  const shown = SCHEMA.aggregates.filter((agg) => agg.words?.advanced !== true && familyOf(agg) === undefined);
   if (!SCHEMA.chapters) return [[null, shown]];
   return SCHEMA.chapters.map((chapter): [string, Aggregate[]] => [chapter, shown.filter((agg) => agg.chapter === chapter)]);
 }
+
+/** The families of a chapter (of the whole editor when it has one chapter), whose members are listed together as one job. */
+export const familiesIn = (chapter: string | null): Family[] => (SCHEMA.families ?? []).filter((family) => (family.chapter ?? null) === chapter);
+
+/** The place a page leaves for how many records a family holds, which is its members' together. */
+export const familyCountMark = (family: Family): string => MARK.count(`family:${family.key}`);
+
+/** `html` as the part of a page that belongs to a family, cut out for a person who may edit none of its members. */
+export const onlyForFamily = (family: Family, html: string): string => {
+  const first = membersOf(family)[0];
+  return first ? onlyFor(first, html) : html;
+};
 
 /** The aggregates the route chapter marks as advanced: kept out of the way, under "More". */
 export const tucked = (): Aggregate[] => SCHEMA.aggregates.filter((agg) => agg.words?.advanced === true);
@@ -86,10 +98,22 @@ function scheduledLink(active: string | undefined): string {
   return sched ? `${onlyFor(sched, navLink(href("scheduled"), "Scheduled", active === SCHEDULED))}\n` : "";
 }
 
+/** The navigation link of a family: current on its own page and on the page of any of its members. */
+function familyItems(chapter: string | null, active: string | undefined): string {
+  return familiesIn(chapter)
+    .map((family) => {
+      const current = active === `family:${family.key}` || membersOf(family).some((member) => keyOf(member) === active);
+      return onlyForFamily(family, navLink(href(family.key), capitalPlural(family), current, `<span class="ml-auto text-xs text-muted tabular-nums">${familyCountMark(family)}</span>`));
+    })
+    .join("\n");
+}
+
+const capitalPlural = (family: Family): string => family.plural.charAt(0).toUpperCase() + family.plural.slice(1);
+
 function navigation(active: string | undefined): string {
   const sections = groups().map(([chapter, aggregates]) => {
     const heading = `<li class="menu-title mt-4 px-3 text-muted">${chapter === null ? "Content" : esc(chapterTitle(chapter))}</li>`;
-    const section = `${heading}\n${navItems(aggregates, active)}`;
+    const section = `${heading}\n${[familyItems(chapter, active), navItems(aggregates, active)].filter((html) => html !== "").join("\n")}`;
     return chapter === null ? section : groupOf(chapter, section);
   });
   const more = tucked();
@@ -215,6 +239,7 @@ export function decorate(html: string, context: Context): string {
     [MARK.initial, esc(context.email.charAt(0).toUpperCase())],
     [MARK.flash, notice(context.flash)],
     ...counts,
+    ...(SCHEMA.families ?? []).map((family) => [familyCountMark(family), String(membersOf(family).reduce((sum, member) => sum + (context.counts[keyOf(member)] ?? 0), 0))] as const),
   ];
   return fills.reduce((text, [marker, value]) => text.split(marker).join(value), visibleTo(html, context.role));
 }

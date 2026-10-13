@@ -49,6 +49,11 @@ export function sniff(bytes: Uint8Array): string | null {
   return isAvif(bytes) ? "image/avif" : null;
 }
 
+/** Whether the bytes are a PDF: the file begins with `%PDF-`. The type a client claims is never used. */
+export function isPdf(bytes: Uint8Array): boolean {
+  return bytes.length >= 5 && ascii(bytes, 0, 5) === "%PDF-";
+}
+
 export interface Size {
   width: number;
   height: number;

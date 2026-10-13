@@ -24,6 +24,7 @@ TASKS_NODE_SCENARIO = <<~JS.freeze
     "Garden::Bed#herb-spiral": { slug: v("herb-spiral"), title: v("The herb spiral") },
     "Garden::Bed#north-row": { slug: v("north-row"), title: v("North row") },
     "Garden::Gardener#ana": { key: v("ana"), name: v("Ana Ruiz") },
+    "Garden::Gardener#thyme": { key: v("thyme"), name: v("Thyme Keeper") },
     "Garden::Almanac#almanac": { key: v("almanac"), motto: v("Water early.") },
     "Garden::Note#plant.thyme.note": { slug: v("plant.thyme.note"), kind: v("plant"), address: v("thyme"), text: v("Pinch the tips."), written_at: v(1_700_000_000) },
   };
@@ -49,6 +50,8 @@ TASKS_NODE_SCENARIO = <<~JS.freeze
   out.noPreview = await (await admin("/editor/Bed/id/north-row")).text();
   out.noteForm = await (await admin("/editor/Note/new/Write?slug.value=plant.oak.note&_back=%2Feditor%2FPlant%2Fid%2Foak")).text();
   out.list = await (await admin("/editor/Plant")).text();
+  out.family = await (await admin("/editor/plots")).text();
+  out.detailKeeper = await (await admin("/editor/Gardener/id/thyme")).text();
   out.notFound = (await call("/editor/api/sso?token=garbage")).status;
   out.notFoundText = await (await call("/editor/api/sso?token=garbage")).text();
 
@@ -109,6 +112,29 @@ RSpec.describe "the generated task editor, run by node" do
 
     it "keeps the aggregates a row calls advanced behind one fold" do
       expect(result("home")).to match(%r{<details[^>]*><summary[^>]*>More</summary>.*Notes.*</details>}m)
+    end
+  end
+
+  describe "a family of aggregates", if: EditorNode.available? do
+    it "is one card on the home page in place of its members' cards, with a task for each member", :aggregate_failures do
+      html = result("home")
+
+      expect(html).to include("task-family-plots", ">Edit plots</a>", "Beds and the people who tend them.")
+      expect(html).to include(">New bed</a>", ">New gardener</a>")
+      expect(html).not_to include("task-Bed", "task-Gardener", "Edit beds")
+    end
+
+    it "lists every record of every member, named by the record that shares its address, and what each is", :aggregate_failures do
+      html = result("family")
+
+      expect(html).to include("4 plots", ">Plots<")
+      expect(html).to include(">Thyme<", "thyme", ">Gardener<", ">Bed<", ">ana<")
+    end
+
+    it "titles a member's own page by that name", :aggregate_failures do
+      html = result("detailKeeper")
+
+      expect(html).to include('<h1 class="break-words text-3xl">Thyme</h1>')
     end
   end
 
