@@ -164,3 +164,13 @@ This follows the decision above and does not depart from it, so it is an addendu
 - **A text that belongs to a record.** The body of an event or a post is its own record in the model (a content block keyed `<kind>.<address>.body`). A companion row says which, and the record's page shows it with an edit link, or the form that makes it with the key filled in. The editor edits that record's own text; it does not convert it to another shape.
 - **Not verified here.** Which Markdown a site renders is the site's: the row's `help` is where a project says it.
 
+
+## Addendum: files, text on the form, the people who may edit, and what is refused before sending
+
+This follows the decisions above and does not depart from them, so it is an addendum. Each item reads a declaration; none changes what a domain accepts.
+
+- **Which side.** Where files go and who may edit are wiring: they are the `Editor` row's (`upload_api`, `members_aggregate`, the site's Markdown modules), the site's side beside the route table, never in the domain. That a field is a picture, a file or Markdown is the words rows' (`PayloadField` `upload`, `EditorField` `image`, `file`, `markdown`). The checks are the generator's, read from names the domain already declares (`starts_*`, `ends_*`) or a row's `after`.
+- **A file belongs to the content system.** The editor keeps no bytes. It checks the file by its first bytes and the row's size cap, requires the description the content system requires, and has the content system keep it as the person, then writes the address it answers with into the field. A site that reads that address keeps reading it.
+- **The people.** The members list is shown only to those who administer, so asking it as the person refused anyone who may edit but not administer. The editor reads the register of people over the host's own protocol (accepted from the same machine only) and also asks the account route. A host or membership model that cannot be read that way keeps the members list.
+- **The text on the form, in order.** A record and the text that goes with it are two records, so they are two commands, run in order, and a failure of the second is said as that. They are not one transaction and are not presented as one.
+- **Not done.** Scheduling and history are not in the generated editor. A refusal the domain does not make (an end before a start) is made by the form only, so another client can still make it.

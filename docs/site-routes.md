@@ -226,6 +226,10 @@ forms are generated from the domain, not written per aggregate.
 | `media` | another chapter of the domain whose picture aggregate the pictures use, when this chapter has none (a body here uses the pictures of that chapter) | none |
 | `media_dir` | the directory the local-disk adapter keeps uploaded pictures in, from the server's working directory; used only when the chapter has a picture aggregate | `media` |
 | `media_max_bytes` | the largest picture an upload may be, in bytes (1 to 104857600) | `5242880` |
+| `upload_api` | the content system's API root (`/cms/api`) that a field marked as an upload sends its file to; its collections keep them, and the address the field holds is `<upload_api>/<collection>/file/<name>`. Needs `upload_env` | none (no upload) |
+| `upload_env`, `upload_default` | the environment variable that names the content system's address for the editor's server, and the address when it is unset | none |
+| `members_aggregate` | `Domain::Aggregate` of the people who may edit (an `email` and a `role` attribute, named by `members_email` and `members_role`). The editor reads it over the host's own protocol, which the host accepts from the same machine, and also asks the host's account route, instead of asking the members list that the host shows only to those who administer it. Without it, the members list is asked, and a person who may edit but not administer cannot sign in | none |
+| `markdown_parse`, `markdown_render` | the site's own reader and renderer of its Markdown, each `<path relative to the editor's directory>#<exported name>`, imported when the editor is built so a Markdown field's preview is made by the code that makes the page. Both or neither | none (no preview) |
 
 | file | what it does |
 |---|---|
@@ -370,6 +374,9 @@ What a row's fields do:
 | `label`, `help` | the input's caption and a sentence under it, the refusal's own wording uses the label |
 | `kind: "textarea"` | a writing box of several lines for a plain text. The model's own way is a bound, `invariant("at most 600 characters") { value.to_s.size <= 600 }` on the value object that holds the text (or a command's `given`): the part carries `maxLength` and, above 200, is a box with the limit. The row is for a text the model does not bound |
 | `kind: "datetime"`, `zone` | the attribute is ISO 8601 text and is entered as the clock of `zone` (`Z` or an offset such as `-07:00`) in a `datetime-local` input; it is stored with the zone's offset and a time the person did not change is sent back exactly as it was held |
+| `kind: "markdown"` | the text is written in Markdown: a toolbar for exactly what the site's reader understands (headings one to four, bold, italic, a link, bulleted and numbered lists, a list inside a list, a line break, a character written as a number so it shows as itself), a note of what can be used, and, with `markdown_parse` and `markdown_render`, a preview made by the site's own code |
+| `kind: "image"` or `"file"`, `picks` | the attribute holds the address of a picture (or a PDF) kept by the content system's collection `picks` names (`media`, `documents`). The field has a way to choose a file, describe it (required: the content system keeps it as the file's description), send it and see it, and takes the address it comes back with. A `PayloadField` row with `kind: "upload"` and a `relation` says the same, with `options: "pdf"` for files; one with no relation is words only |
+| `after` | the attribute ends a range that starts at the attribute it names; an end before its start is refused before anything is sent. Without a row, an attribute named `ends_*` ends the one named `starts_*` (at the top of a command or in the parts of a list's rows) |
 | `advanced: true` | kept behind "More options" on the form |
 | `fill` | what the editor puts in when the input is left blank: `now` (seconds since 1970), `slug_of:<attribute>` (an address made from another attribute), `part:<attribute>:<separator>:<index>` (one piece of another attribute's text). A filled attribute is behind "More options" |
 | `picks` | the aggregate the attribute names |
@@ -563,3 +570,13 @@ the row's `template:` out can still be checked. The check reads no template, so 
 
 Because the check is `settled`, no `--wait` is needed. It prints the report alone, not the whole record: a distribution that
 matches prints the line saying so and exits 0, one that does not prints a line for each difference and exits 1.
+
+## What a record's own form carries, and what the editor refuses before it sends
+
+These are the editor's own courtesy, not the domain's rules: a model that has no such rule still accepts what the form refuses from any other client, and the editor says nothing it cannot see in the declarations.
+
+- **The text that goes with a record is on its form.** An `EditorCompanion` row of a record's text gives the form that makes the record (and the one that edits it, the command that takes the most) one more box, named `__text.<n>`. The record is saved first and then its text, as the roles each command declares. A text that did not change is not written again; a blank one for a record that has no text yet makes none. When the text is refused after the record was kept, the person is told that the record is saved and the text is not, the form that edits the record is shown with what they typed and the refusal marked, and nothing is saved twice.
+- **An address is not taken twice.** A creating command whose identity a record already holds is refused with "That address is already used by `<title>`" (the title, name, heading or label attribute, else the address itself) and the field marked; the record is never overwritten.
+- **A range that ends before it starts** is refused with the end marked, or the row of a list named, before anything is sent. The same moment is allowed.
+- **A file is checked by its bytes.** A picture is JPEG, PNG, WebP, GIF or AVIF and a file is a PDF, by their first bytes and not by the name or the type the browser sent; `media_max_bytes` caps the size; a description is required. The file is sent to the content system as the signed-in person (the editor exchanges a short account token for the content system's own session at `<upload_api>/sso`), kept under a name made of letters, digits, dot, dash and underscore, and the field is given the address it answers with.
+- **A person who may edit but not administer can sign in.** With `members_aggregate` the editor reads the people over the host's own protocol, and a person signed in on the site, who reaches the editor's address with the site's own session cookie, is admitted by the same list. An unadmitted person is told so on a page of the editor.

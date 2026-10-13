@@ -24,6 +24,12 @@ export const EDITOR = {
   preview: "https://site.example.com/{kind}/{slug}?preview=1" as string | null,
   /** `drawer` frames the site's page beside the record; `tab` opens it in a new tab (a site that will not be framed). */
   previewIn: "drawer" as "drawer" | "tab",
+  /** Where files are sent to be kept (the content system's API root and its address), or null for none. */
+  upload: null as { env: string; default: string; api: string } | null,
+  /** The aggregate of people who may edit, read over the host's own protocol, or null to ask the members list. */
+  members: null as { domain: string; aggregate: string; email: string; role: string } | null,
+  /** The site's own modules for reading and showing Markdown (see browser/markdown_site.js), or null. */
+  markdown: null as { parse: string; render: string } | null,
   accountPath: "/accounts/me",
   membersPath: "/members",
   rememberMs: 60000,

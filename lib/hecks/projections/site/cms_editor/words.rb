@@ -31,7 +31,7 @@ module Hecks
           FIELDS = RootRows.new("EditorField", many: true, required: %i[aggregate],
                                 fields: { aggregate: String, command: String, attribute: String, label: String, help: String,
                                           kind: String, zone: String, advanced: [TrueClass, FalseClass], picks: String,
-                                          fill: String })
+                                          fill: String, after: String })
 
           COMPANIONS = RootRows.new("EditorCompanion", many: true, required: %i[aggregate with key field],
                                     fields: { aggregate: String, with: String, key: String, field: String, when: String,

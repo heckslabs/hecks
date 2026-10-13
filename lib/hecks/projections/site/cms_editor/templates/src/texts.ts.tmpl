@@ -1,0 +1,126 @@
+__BANNER__
+
+// The text that goes with a record, written on the record's own form. A companion (see `Related`,
+// shape `text`) is a record of another aggregate whose key is made from this one's identity, such as
+// a post's body kept as a block of text under `news.<address>.body`. Written on its own page it
+// would be a second job; here it is one box on the form that makes or changes the record, and one
+// Save. The two are separate records of the domain, so they are saved in order, the record first and
+// then its text, and when the text is refused after the record was kept the person is told exactly
+// that: the record is saved, the text is not, and what they typed is still in the box.
+import type { HostClient } from "@hecks/client";
+
+import { instanceIn, leaf, runCommand } from "./commands.ts";
+import type { Outcome, State } from "./commands.ts";
+import { mayEdit } from "./names.ts";
+import type { Aggregate, Attr, Command, Related } from "./schema.ts";
+import { commandArguments } from "./ui/input.ts";
+import type { Form } from "./ui/input.ts";
+import { plainName } from "./ui/links.ts";
+import { relatedAggregate } from "./ui/world.ts";
+
+/** One text box on a form: the records it may be saved to (alternatives, the first whose `when` holds is used) and its words. */
+export interface Text {
+  /** The box's number on the form: its input is named `__text.<index>`. */
+  index: number;
+  label: string;
+  help?: string;
+  /** The text attribute of the companion, as the form draws it. */
+  attr: Attr;
+  /** The companion's aggregate. */
+  target: Aggregate;
+  alternatives: Related[];
+}
+
+/** The name of the box's input. */
+export const inputName = (index: number): string => `__text.${index}`;
+
+/** The form command of an aggregate that edits it: the one that is not a move, not a removal, and takes the most. */
+export function editing(agg: Aggregate): Command | undefined {
+  const moves = new Set((agg.lifecycle?.transitions ?? []).map((move) => move.verb));
+  const found = agg.commands.filter((command) => !command.creates && !command.destructive && !moves.has(command.name) && command.attributes.length > 0 && command.on === agg.name);
+  return found.sort((a, b) => b.attributes.length - a.attributes.length)[0];
+}
+
+/** Whether `command`'s form carries the aggregate's text: the commands that make a record, and the one that edits it. */
+const carries = (agg: Aggregate, command: Command): boolean => (command.creates && command.role !== "System") || editing(agg)?.name === command.name;
+
+/** The text boxes the form of `command` has for a person in `role`. */
+export function textsFor(agg: Aggregate, command: Command, role: string | null): Text[] {
+  if (!carries(agg, command)) return [];
+  const groups = new Map<string, Related[]>();
+  for (const rel of (agg.related ?? []).filter((candidate) => candidate.shape === "text" && candidate.attribute && candidate.create && candidate.edit)) {
+    const key = `${rel.aggregate}|${rel.label ?? ""}`;
+    groups.set(key, [...(groups.get(key) ?? []), rel]);
+  }
+  return [...groups.values()].flatMap((alternatives, index) => {
+    const target = relatedAggregate(alternatives[0]);
+    const attr = target?.attributes.find((candidate) => candidate.name === alternatives[0].attribute);
+    if (!target || !attr || !mayEdit(target, role)) return [];
+    return [{ index, label: alternatives[0].label ?? attr.label ?? attr.name, help: alternatives[0].help, attr, target, alternatives }];
+  });
+}
+
+/** Whether a record meets a companion's `when`: `<attribute> is <value>` or `<attribute> includes <value>`. */
+function holds(when: string | undefined, record: State): boolean {
+  if (!when) return true;
+  const found = /^(\w+) (includes|is) (.+)$/.exec(when);
+  if (!found) return false;
+  const items = [record[found[1]]].flat().map((item) => leaf(item));
+  return found[2] === "includes" ? items.includes(found[3]) : items[0] === found[3];
+}
+
+/** The alternative that applies to `record`, and the key of its companion. */
+function chosenFor(text: Text, id: string, record: State): { rel: Related; key: string } {
+  const rel = text.alternatives.find((candidate) => holds(candidate.when, record)) ?? text.alternatives[0];
+  return { rel, key: (rel.key ?? id).split("{slug}").join(id).split("{id}").join(id) };
+}
+
+/** The texts the boxes hold now for the record `id`: what the companion record says, or "" when it has none. */
+export function currentTexts(client: HostClient, answer: Parameters<HostClient["instancesOf"]>[0], agg: Aggregate, id: string, texts: Text[]): Record<string, string> {
+  const record = instanceIn(client, answer, agg, id) ?? {};
+  return Object.fromEntries(
+    texts.map((text) => {
+      const { key } = chosenFor(text, id, record);
+      const held = instanceIn(client, answer, text.target, key);
+      return [inputName(text.index), held ? (leaf(held[text.attr.name]) ?? "") : ""];
+    }),
+  );
+}
+
+/** What a text refused and why, with the record it was meant for. */
+export interface Unsaved {
+  text: Text;
+  message: string;
+}
+
+/** Saves one box's text: written when the companion exists and says something else, or made when it does not and has words. */
+async function saveOne(client: HostClient, agg: Aggregate, id: string, text: Text, typed: string, now: () => number): Promise<Outcome | null> {
+  const answer = await client.read();
+  const { rel, key } = chosenFor(text, id, instanceIn(client, answer, agg, id) ?? {});
+  const held = instanceIn(client, answer, text.target, key);
+  const wanted = (rel.edit ?? "") as string;
+  if (held && (leaf(held[text.attr.name]) ?? "") === typed) return null;
+  if (!held && typed.trim() === "") return null;
+  const command = text.target.commands.find((candidate) => candidate.name === (held ? wanted : rel.create));
+  if (!command) return { ok: false, message: `The ${text.label.toLowerCase()} cannot be saved from here.` };
+  const identity = text.target.attributes.find((attr) => attr.name === text.target.identity) as Attr;
+  const form: Form = new Map([[plainName(text.target, text.attr), typed]]);
+  if (!held) form.set(plainName(text.target, identity), key);
+  const args = commandArguments(text.target, command.attributes, form, command.empty, now);
+  return runCommand(client, text.target, command, args, held ? key : undefined);
+}
+
+/**
+ * Saves each box of a form that was posted, in order, after the record itself was kept. A box
+ * the form did not carry is left alone. Returns the ones that were refused, in the companion's words.
+ */
+export async function saveTexts(client: HostClient, agg: Aggregate, id: string, texts: Text[], form: Form, now: () => number): Promise<Unsaved[]> {
+  const unsaved: Unsaved[] = [];
+  for (const text of texts) {
+    const typed = form.get(inputName(text.index));
+    if (typed === undefined) continue;
+    const outcome = await saveOne(client, agg, id, text, typed, now);
+    if (outcome && !outcome.ok) unsaved.push({ text, message: outcome.message });
+  }
+  return unsaved;
+}

@@ -9,6 +9,7 @@ require_relative "drafts"
 require_relative "limits"
 require_relative "media"
 require_relative "pickers"
+require_relative "ranges"
 require_relative "relations"
 require_relative "scheduling"
 require_relative "single"
@@ -54,7 +55,7 @@ module Hecks
             shaped = Composition.aggregates(list, skip: skip, roles: roles) { |agg| new(agg).to_h }
             raise ArgumentError, "the #{list.map(&:name).join(", ")} chapter has no aggregate to edit" if shaped.empty?
 
-            shaped
+            Ranges.apply(shaped)
           end
 
           # @return [Array<Hash{String => Object}>] the aggregates with their pickers, the records

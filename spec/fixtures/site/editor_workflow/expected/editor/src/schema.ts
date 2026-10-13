@@ -99,6 +99,12 @@ export interface Attr {
   softOptional?: boolean;
   /** What a new record starts with, when a row says. */
   default?: string;
+  /** The text is written in Markdown: it has a toolbar and a preview of how the site shows it. */
+  markdown?: boolean;
+  /** The text is the address of a picture or file kept by the content system, and can be uploaded there. */
+  upload?: { collection: string; accept: "image" | "pdf" };
+  /** The text is the end of a range that starts at this attribute: an end before its start is refused before it is sent. */
+  after?: string;
 }
 
 export interface Transition {

@@ -40,13 +40,13 @@ module Hecks
           src/browser/lists.js src/browser/pickers.js src/browser/epoch.js src/browser/moments.js
           src/browser/body_doc.js src/browser/body_editor.js src/browser/autosave.js src/browser/preview.js
           src/ui/blocks.ts src/ui/block_list.js src/browser/blocks.js src/ui/wall.ts
+          src/checks.ts src/texts.ts src/uploads.ts src/files/multipart.ts src/files/sniff.ts
+          src/browser/uploads.js src/browser/markdown.js src/browser/markdown_site.js
         ].freeze
 
         # The files only an editor of a chapter with a picture aggregate has: the upload, the
         # storage port with its local-disk adapter, and the picker the rich-text editor opens.
-        MEDIA_FILES = %w[
-          src/media/sniff.ts src/media/multipart.ts src/media/storage.ts src/media/handler.ts src/browser/media_picker.js
-        ].freeze
+        MEDIA_FILES = %w[src/media/storage.ts src/media/handler.ts src/browser/media_picker.js].freeze
 
         # What `app.ts` and the body editor hold for a picture upload; each is left out when the
         # chapter has none.

@@ -1,0 +1,190 @@
+__BANNER__
+
+// A Markdown field's toolbar and preview. The field is a plain writing box that posts its text as it
+// is; this adds buttons that insert or wrap text in exactly the forms the site understands (headings
+// one to four, bold, italic, links, lists with a sub-list four spaces in, a line break, and a number
+// written as a character so a * or - shows as itself), and a preview made by the site's own reader.
+// The buttons are in one toolbar that is one tab stop: the arrow keys move between them. Bold and
+// italic and the others say whether the text around the cursor already has them (`aria-pressed`).
+import { available, read } from "./markdown_site.js";
+
+const HEADINGS = [1, 2, 3, 4];
+
+/** The start and end of the lines a selection touches in `text`. */
+function lineRange(text, start, end) {
+  const from = text.lastIndexOf("\n", start - 1) + 1;
+  const found = text.indexOf("\n", end);
+  return [from, found === -1 ? text.length : found];
+}
+
+const LIST = /^(\s*)(?:[-*]|\d+\.)\s+/;
+const HEADING = /^(#{1,6})\s+/;
+
+/** The text of `box` with `change` applied: `change(text, start, end)` gives `{ text, start, end }`. */
+function edit(box, change) {
+  const result = change(box.value, box.selectionStart, box.selectionEnd);
+  box.value = result.text;
+  box.setSelectionRange(result.start, result.end);
+  box.dispatchEvent(new Event("input", { bubbles: true }));
+  box.focus();
+}
+
+/** Wraps the selection in `mark` on both sides, or takes the mark off when it is already there. */
+function wrap(mark, placeholder) {
+  return (text, start, end) => {
+    const around = text.slice(start - mark.length, start) === mark && text.slice(end, end + mark.length) === mark;
+    if (around && !(mark === "*" && text[start - 2] === "*" && text[end + 1] === "*")) {
+      return { text: text.slice(0, start - mark.length) + text.slice(start, end) + text.slice(end + mark.length), start: start - mark.length, end: end - mark.length };
+    }
+    const chosen = start === end ? placeholder : text.slice(start, end);
+    const made = text.slice(0, start) + mark + chosen + mark + text.slice(end);
+    return { text: made, start: start + mark.length, end: start + mark.length + chosen.length };
+  };
+}
+
+/** Whether the selection is wrapped in `mark` (a single * is italic only when it is not the end of **). */
+function wrapped(mark) {
+  return (text, start, end) => {
+    if (text.slice(start - mark.length, start) !== mark || text.slice(end, end + mark.length) !== mark) return false;
+    return mark !== "*" || !(text[start - 2] === "*" && text[end + 1] === "*");
+  };
+}
+
+/** Applies `edit` to each line the selection touches, keeping the selection on the same lines. */
+function lines(change) {
+  return (text, start, end) => {
+    const [from, to] = lineRange(text, start, end);
+    const made = text.slice(from, to).split("\n").map(change).join("\n");
+    return { text: text.slice(0, from) + made + text.slice(to), start: from, end: from + made.length };
+  };
+}
+
+const heading = (level) => lines((line) => {
+  const mark = "#".repeat(level);
+  const held = HEADING.exec(line);
+  if (held && held[1] === mark) return line.slice(held[0].length);
+  return `${mark} ${line.replace(HEADING, "")}`;
+});
+
+const bullet = lines((line) => (/^\s*[-*]\s+/.test(line) ? line.replace(/^(\s*)[-*]\s+/, "$1") : `- ${line.replace(LIST, "$1")}`));
+const numbered = lines((line) => (/^\s*\d+\.\s+/.test(line) ? line.replace(/^(\s*)\d+\.\s+/, "$1") : `1. ${line.replace(LIST, "$1")}`));
+const indent = lines((line) => (line === "" ? line : `    ${line}`));
+const outdent = lines((line) => line.replace(/^( {1,4}|\t)/, ""));
+
+function link(text, start, end) {
+  const chosen = start === end ? "link text" : text.slice(start, end);
+  const address = "https://";
+  const made = `${text.slice(0, start)}[${chosen}](${address})${text.slice(end)}`;
+  const at = start + chosen.length + 3;
+  return { text: made, start: at, end: at + address.length };
+}
+
+function lineBreak(text, start, end) {
+  return { text: `${text.slice(0, start)}  \n${text.slice(end)}`, start: start + 3, end: start + 3 };
+}
+
+/** A character the reader would take for Markdown, written as a number so it shows as itself. */
+function literal(text, start, end) {
+  const chosen = start === end ? "*" : text.slice(start, end);
+  const made = [...chosen].map((char) => `&#${char.codePointAt(0)};`).join("");
+  return { text: text.slice(0, start) + made + text.slice(end), start, end: start + made.length };
+}
+
+/** What each button is: its words, how it acts, a shortcut, and how it says it is on. */
+export function buttons() {
+  const lineOf = (box) => {
+    const [from, to] = lineRange(box.value, box.selectionStart, box.selectionEnd);
+    return box.value.slice(from, to).split("\n")[0];
+  };
+  return [
+    ...HEADINGS.map((level) => ({ id: `h${level}`, text: `H${level}`, label: `Heading ${level}`, act: heading(level), on: (box) => (HEADING.exec(lineOf(box))?.[1] ?? "").length === level })),
+    { id: "bold", text: "B", label: "Bold", key: "b", strong: true, act: wrap("**", "bold text"), on: (box) => wrapped("**")(box.value, box.selectionStart, box.selectionEnd) },
+    { id: "italic", text: "I", label: "Italic", key: "i", em: true, act: wrap("*", "italic text"), on: (box) => wrapped("*")(box.value, box.selectionStart, box.selectionEnd) },
+    { id: "link", text: "Link", label: "Link", key: "k", act: link },
+    { id: "bullets", text: "• List", label: "Bulleted list", act: bullet, on: (box) => /^\s*[-*]\s+/.test(lineOf(box)) },
+    { id: "numbers", text: "1. List", label: "Numbered list", act: numbered, on: (box) => /^\s*\d+\.\s+/.test(lineOf(box)) },
+    { id: "indent", text: "Indent", label: "Indent: make this a list inside the list above", act: indent },
+    { id: "outdent", text: "Outdent", label: "Outdent: take this out of the list inside", act: outdent },
+    { id: "break", text: "Line break", label: "Line break without a new paragraph", act: lineBreak },
+    { id: "literal", text: "Show as is", label: "Show a * or - as itself: writes the selected character as a number", act: literal },
+  ];
+}
+
+function toolbarFor(box) {
+  const bar = document.createElement("div");
+  bar.className = "flex max-w-3xl flex-wrap gap-1 border border-base-300 bg-base-200 p-1";
+  bar.setAttribute("role", "toolbar");
+  bar.setAttribute("aria-label", `Formatting for ${document.querySelector(`label[for="${box.id}"]`)?.textContent?.replace(/\s*optional\s*$/i, "").trim() || "the text"}`);
+  const made = buttons().map((spec) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `btn btn-sm btn-ghost ${spec.strong ? "font-bold" : ""} ${spec.em ? "italic" : ""}`;
+    button.textContent = spec.text;
+    button.title = spec.key ? `${spec.label} (Ctrl+${spec.key.toUpperCase()})` : spec.label;
+    button.setAttribute("aria-label", button.title);
+    button.tabIndex = -1;
+    if (spec.on) button.setAttribute("aria-pressed", "false");
+    button.addEventListener("click", () => edit(box, spec.act));
+    return { spec, button };
+  });
+  made[0].button.tabIndex = 0;
+  bar.append(...made.map((one) => one.button));
+  const refresh = () => {
+    for (const { spec, button } of made) if (spec.on) button.setAttribute("aria-pressed", String(Boolean(spec.on(box))));
+  };
+  bar.addEventListener("keydown", (event) => {
+    const at = made.findIndex((one) => one.button === document.activeElement);
+    const step = { ArrowRight: 1, ArrowLeft: -1 }[event.key];
+    if (at < 0 || step === undefined) return;
+    event.preventDefault();
+    const next = made[(at + step + made.length) % made.length].button;
+    for (const one of made) one.button.tabIndex = one.button === next ? 0 : -1;
+    next.focus();
+  });
+  for (const type of ["input", "keyup", "click", "select"]) box.addEventListener(type, refresh);
+  box.addEventListener("keydown", (event) => {
+    if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
+    const found = made.find((one) => one.spec.key === event.key.toLowerCase());
+    if (!found) return;
+    event.preventDefault();
+    edit(box, found.spec.act);
+  });
+  refresh();
+  return bar;
+}
+
+/** Links in the preview open in a new tab and only to addresses that go somewhere: web, mail or the site's own. */
+function tidy(root) {
+  for (const anchor of root.querySelectorAll("a")) {
+    const address = anchor.getAttribute("href") ?? "";
+    if (!/^(https?:|mailto:|\/|#)/i.test(address)) anchor.removeAttribute("href");
+    anchor.target = "_blank";
+    anchor.rel = "noopener noreferrer";
+  }
+}
+
+function mount(root) {
+  if (root.dataset.mounted) return;
+  root.dataset.mounted = "true";
+  const box = root.querySelector("[data-markdown-input]");
+  root.querySelector("[data-markdown-toolbar-slot]").replaceWith(toolbarFor(box));
+  const section = root.querySelector("[data-markdown-preview-box]");
+  if (!available) return;
+  const out = root.querySelector("[data-markdown-preview]");
+  let timer = 0;
+  const show = () => {
+    out.innerHTML = box.value.trim() === "" ? `<p class="text-muted">Nothing written yet.</p>` : read(box.value);
+    tidy(out);
+  };
+  section.hidden = false;
+  box.addEventListener("input", () => {
+    window.clearTimeout(timer);
+    timer = window.setTimeout(show, 120);
+  });
+  show();
+}
+
+/** Makes every Markdown field on the page live. */
+export function mountAll(scope = document) {
+  for (const root of scope.querySelectorAll("[data-markdown]")) mount(root);
+}

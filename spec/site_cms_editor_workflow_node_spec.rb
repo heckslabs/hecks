@@ -60,7 +60,7 @@ EDITOR_WORKFLOW_SCENARIO = <<~JS.freeze
   out.refusedWording = { status: refusedWording.status, html: await refusedWording.text() };
   const elsewhere = await admin("/editor/Discovery/SearchWording/new/Describe", post("key.value=page%3Aabout&title.value=About&__back=https%3A%2F%2Fevil.test%2Fx"));
   out.elsewhere = { status: elsewhere.status, location: elsewhere.headers.get("location") };
-  const sneaky = await admin("/editor/Discovery/SearchWording/new/Describe", post("key.value=page%3Aabout&title.value=About+again&__back=%2F%2Fevil.test%2Fx"));
+  const sneaky = await admin("/editor/Discovery/SearchWording/new/Describe", post("key.value=post%3Afirst-light&title.value=First+again&__back=%2F%2Fevil.test%2Fx"));
   out.sneaky = { status: sneaky.status, location: sneaky.headers.get("location") };
   out.badBackPage = await text("/editor/Discovery/SearchWording/new/Describe?_back=https%3A%2F%2Fevil.test");
   out.secondAfter = await text(here);
@@ -194,7 +194,7 @@ RSpec.describe "the generated workflow editor, run by node" do
 
     it "follows a way back only when it is a page of the editor", :aggregate_failures do
       expect(result("elsewhere")).to include("status" => 303, "location" => "/editor/Discovery/SearchWording/id/page%3Aabout")
-      expect(result("sneaky")["location"]).to eq("/editor/Discovery/SearchWording/id/page%3Aabout")
+      expect(result("sneaky")).to include("status" => 303, "location" => "/editor/Discovery/SearchWording/id/post%3Afirst-light")
       expect(result("badBackPage")).not_to include("Back to", "evil.test")
     end
 

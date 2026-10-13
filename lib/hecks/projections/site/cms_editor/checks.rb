@@ -31,7 +31,51 @@ module Hecks
             base = row[:base_path]
             [*path_problems(row, base), *("Editor roles name no role" if roles.empty?), *login_problems(row[:login], table),
              *media_problems(row), *media_chapter_problems(row), *ThemeChecks.problems(row), *ScaleChecks.problems(row),
-             *Preview.problems(row[:preview].strip), *preview_in_problems(row), *zone_problems(row)]
+             *Preview.problems(row[:preview].strip), *preview_in_problems(row), *zone_problems(row), *wiring_problems(row)]
+          end
+
+          # @return [Array<String>] the problems with where files go, who may edit and the
+          #   Markdown modules
+          def wiring_problems(row)
+            [*upload_problems(row), *members_problems(row), *markdown_problems(row)]
+          end
+
+          # A module the editor imports at build time: a relative path to a TypeScript or
+          # JavaScript file, `#`, and the name it exports.
+          MODULE = %r{\A\.\.?/[\w./-]+\.(?:ts|mts|js|mjs)#[A-Za-z_$][\w$]*\z}
+
+          # @return [Array<String>] the problems with where uploads are sent: an API root that
+          #   starts with a slash, and a default address or environment variable that is given
+          def upload_problems(row)
+            api = row[:upload_api].strip
+            return [] if api.empty? && row[:upload_env].strip.empty? && row[:upload_default].strip.empty?
+
+            [*("upload_api #{api.inspect} must start with a slash and not end with one" unless BASE_PATH.match?(api)),
+             *("upload_env must name the environment variable the content system is read from" if row[:upload_env].strip.empty?)]
+          end
+
+          # @return [Array<String>] the problem with the aggregate that holds the people, when it is
+          #   not `Domain::Aggregate`
+          def members_problems(row)
+            named = row[:members_aggregate].strip
+            return [] if named.empty? || named.match?(/\A\w+::\w+\z/)
+
+            ["members_aggregate #{named.inspect} must be Domain::Aggregate, such as Membership::Person"]
+          end
+
+          # @return [Array<String>] the problems with the two modules the Markdown preview imports
+          def markdown_problems(row)
+            named = %i[markdown_parse markdown_render].to_h { |field| [field, row[field].strip] }
+            return [] if named.values.all?(&:empty?)
+
+            [*named.reject { |_, path| path.match?(MODULE) }.map { |field, path| module_problem(field, path) },
+             *("markdown_parse and markdown_render are named together" if named.value?(""))]
+          end
+
+          # @return [String] what is wrong with a module a row names
+          def module_problem(field, path)
+            "#{field} #{path.inspect} must be a relative path to a .ts or .js module and the name it exports, " \
+              "such as ../src/read.ts#read"
           end
 
           # @return [Array<String>] the problem with `zone`, when it is not `Z` or an offset

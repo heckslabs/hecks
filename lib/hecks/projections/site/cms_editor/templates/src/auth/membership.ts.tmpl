@@ -4,15 +4,20 @@ __BANNER__
 // (auth/sso.ts) proved the person was admitted then; this asks again on every request, so that
 // disabling or removing someone locks them out at once, not when their session runs out.
 //
-// The question is the host's members list, asked with a short account token signed by the secret the
-// host checks (AUTH_SECRET here is the host's SESSION_SECRET). The person counts when the list holds
-// their email with one of the configured roles and not disabled. The answer is remembered for a
-// minute per email so each request does not cost a round trip; a question that cannot be asked is
-// answered no.
+// The question is asked of the host with a short account token signed by the secret the host checks
+// (AUTH_SECRET here is the host's SESSION_SECRET). The host's members list is shown only to the
+// roles that administer it, so a person who may edit but not administer would be refused there. When
+// the Editor row names the aggregate of people (`members_aggregate`), the person is looked up in it
+// over the host's own protocol, which the host accepts from this machine only, and is admitted when
+// the host's account route also answers for them (it answers no to a person who holds no role or is
+// disabled). Otherwise the members list is asked. The person counts when they hold one of the
+// configured roles. The answer is remembered for a minute per email so each request does not cost a
+// round trip; a question that cannot be asked is answered no.
 import { accountToken, resolveAccountCookieName } from "@hecks/client";
+import type { HostClient } from "@hecks/client";
 
 import { EDITOR } from "../config.ts";
-import { hostUrl } from "../host.ts";
+import { hostClient, hostUrl } from "../host.ts";
 
 const TOKEN_TTL_SECONDS = 60;
 
@@ -30,9 +35,30 @@ export interface Membership {
 
 export interface MembershipOptions {
   url?: string;
+  /** The loopback client to read the people with, when the Editor row names their aggregate (for tests). */
+  client?: HostClient;
   secret?: string;
   fetch?: typeof fetch;
   now?: () => number;
+}
+
+/** The text a value holds, however deep the value object that wraps it. */
+function plain(value: unknown): string | null {
+  if (value && typeof value === "object") return plain(Object.values(value as object).find((part) => part !== null && part !== undefined));
+  return value === null || value === undefined ? null : String(value);
+}
+
+/**
+ * The editor role the aggregate of people gives `email`, or null when none does or the person is
+ * not held there. A person is the instance whose email attribute holds the address.
+ */
+export function roleInPeople(instances: [string, Record<string, unknown>][], email: string): string | null {
+  const members = EDITOR.members;
+  if (!members) return null;
+  const roles: readonly string[] = EDITOR.roles;
+  const held = instances.find(([, state]) => (plain(state[members.email]) ?? "").trim().toLowerCase() === email);
+  const role = held ? plain(held[1][members.role]) : null;
+  return role !== null && roles.includes(role) ? role : null;
 }
 
 /** The editor role the host's members list gives `email`, or null when it holds none or is disabled. */
@@ -59,16 +85,31 @@ export function membershipCheck(options: MembershipOptions = {}): Membership {
   const now = options.now ?? Date.now;
   const send = options.fetch ?? fetch;
 
-  async function ask(email: string): Promise<string | null> {
+  /** The host's answer to a route, asked as `email`. */
+  async function asHost(email: string, path: string): Promise<Response | null> {
     const secret = options.secret ?? authSecret();
     if (!secret) return null;
     const cookieName = resolveAccountCookieName(process.env.HECKS_SESSION_COOKIE || EDITOR.hostCookie);
+    return send(`${hostUrl({ url: options.url })}${path}`, {
+      headers: { Cookie: `${cookieName}=${accountToken(secret, email, TOKEN_TTL_SECONDS)}` },
+      signal: AbortSignal.timeout(EDITOR.timeoutMs),
+    });
+  }
+
+  /** The role the aggregate of people holds for `email`, once the host's account route admits them. */
+  async function inPeople(email: string): Promise<string | null> {
+    const account = await asHost(email, EDITOR.accountPath);
+    if (!account?.ok) return null;
+    const members = EDITOR.members as NonNullable<typeof EDITOR.members>;
+    const client = options.client ?? hostClient({ url: options.url, fetch: options.fetch, domain: members.domain });
+    return roleInPeople(client.instancesOf(await client.read(), members.aggregate), email);
+  }
+
+  async function ask(email: string): Promise<string | null> {
     try {
-      const res = await send(`${hostUrl({ url: options.url })}${EDITOR.membersPath}`, {
-        headers: { Cookie: `${cookieName}=${accountToken(secret, email, TOKEN_TTL_SECONDS)}` },
-        signal: AbortSignal.timeout(EDITOR.timeoutMs),
-      });
-      return res.ok ? roleHeld(await res.json().catch(() => null), email) : null;
+      if (EDITOR.members) return await inPeople(email);
+      const res = await asHost(email, EDITOR.membersPath);
+      return res?.ok ? roleHeld(await res.json().catch(() => null), email) : null;
     } catch {
       return null;
     }

@@ -1,0 +1,167 @@
+# A community orchard's tree register, as the neutral fixture for what a record's own form carries:
+# a picture and a leaflet that are kept as addresses, the text that goes with a tree written on the
+# tree's form, a range that must not end before it starts, a person who may edit though they do not
+# administer, and an address that must not be taken twice.
+Hecks.bluebook "Orchard" do
+  vision "The trees a community orchard grows, and the people who look after the register."
+  core
+
+  aggregate "Tree" do
+    description "One tree of the orchard, with its picture, its leaflet and when it is in fruit."
+
+    identified_by :slug
+
+    value_object "TreeSlug" do
+      attribute :value, String
+      invariant("a tree has a slug") { !value.to_s.empty? }
+    end
+
+    value_object "TreeName" do
+      attribute :value, String
+      invariant("a tree has a name") { !value.to_s.empty? }
+    end
+
+    value_object "PictureRef" do
+      attribute :value, String
+      invariant("a picture reference is not blank") { !value.to_s.empty? }
+    end
+
+    value_object "LeafletRef" do
+      attribute :value, String
+      invariant("a leaflet reference is not blank") { !value.to_s.empty? }
+    end
+
+    value_object "Moment" do
+      attribute :value, String
+    end
+
+    value_object "Picking" do
+      attribute :title,     String
+      attribute :starts_on, String
+      attribute :ends_on,   String
+    end
+
+    attribute :slug,      TreeSlug
+    attribute :name,      TreeName
+    attribute :picture,   PictureRef, optional: true
+    attribute :leaflet,   LeafletRef, optional: true
+    attribute :starts_on, Moment, optional: true
+    attribute :ends_on,   Moment, optional: true
+    attribute :pickings,  list_of(Picking)
+
+    command "Plant" do
+      role "Editor"
+      goal "Add a tree to the register"
+
+      attribute :slug,      TreeSlug
+      attribute :name,      TreeName
+      attribute :picture,   PictureRef, optional: true
+      attribute :leaflet,   LeafletRef, optional: true
+      attribute :starts_on, Moment, optional: true
+      attribute :ends_on,   Moment, optional: true
+      attribute :pickings,  list_of(Picking)
+
+      emits "TreePlanted"
+    end
+
+    command "Revise" do
+      role "Editor"
+      goal "Change a tree's name, picture, leaflet or when it is in fruit"
+      reference_to Tree
+
+      attribute :name,      TreeName
+      attribute :picture,   PictureRef, optional: true
+      attribute :leaflet,   LeafletRef, optional: true
+      attribute :starts_on, Moment, optional: true
+      attribute :ends_on,   Moment, optional: true
+      attribute :pickings,  list_of(Picking)
+
+      emits "TreeRevised"
+    end
+  end
+
+  aggregate "Note" do
+    description "The written note that goes with one tree, addressed tree.<address>.note."
+
+    identified_by :slug
+
+    value_object "NoteSlug" do
+      attribute :value, String
+      invariant("a note has a slug") { !value.to_s.empty? }
+    end
+
+    value_object "NoteKind" do
+      attribute :value, String
+    end
+
+    value_object "NoteAddress" do
+      attribute :value, String
+    end
+
+    value_object "NoteText" do
+      attribute :value, String
+    end
+
+    value_object "Stamp" do
+      attribute :value, Integer
+    end
+
+    attribute :slug,       NoteSlug
+    attribute :kind,       NoteKind
+    attribute :address,    NoteAddress
+    attribute :text,       NoteText
+    attribute :written_at, Stamp
+
+    command "Write" do
+      role "System"
+      goal "Seed a note with its key and first words"
+
+      attribute :slug,       NoteSlug
+      attribute :kind,       NoteKind
+      attribute :address,    NoteAddress
+      attribute :text,       NoteText
+      attribute :written_at, Stamp
+
+      emits "NoteWritten"
+    end
+
+    command "Rewrite" do
+      role "Editor"
+      goal "Change the words of a note"
+      reference_to Note
+
+      attribute :text,       NoteText
+      attribute :written_at, Stamp
+
+      emits "NoteRewritten"
+    end
+  end
+
+  aggregate "Member" do
+    description "A person who may edit the register."
+
+    identified_by :email
+
+    value_object "MemberEmail" do
+      attribute :value, String
+      invariant("a member has an email") { !value.to_s.empty? }
+    end
+
+    value_object "MemberRole" do
+      attribute :value, String
+    end
+
+    attribute :email, MemberEmail
+    attribute :role,  MemberRole
+
+    command "Admit" do
+      role "Admin"
+      goal "Add a person with a role"
+
+      attribute :email, MemberEmail
+      attribute :role,  MemberRole
+
+      emits "MemberAdmitted"
+    end
+  end
+end

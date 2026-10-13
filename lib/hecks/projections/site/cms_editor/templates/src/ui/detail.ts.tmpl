@@ -33,6 +33,9 @@ export interface Submitted {
   field?: string;
   /** The blocks of a list of mixed blocks the refusal is about (see blocks.ts). */
   problems?: Problem[];
+  /** The input of a companion's text the refusal is about, and what it said (see texts.ts). */
+  textField?: string;
+  textMessage?: string;
 }
 
 function action(agg: Aggregate, id: string, command: Command, first: boolean): string {

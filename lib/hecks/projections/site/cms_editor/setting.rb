@@ -24,12 +24,17 @@ module Hecks
                         host_cookie: String, host_env: String, host_default: String, roles: String, login: String,
                         title: String, brand: String, accent: String, logo: String, skip: String, media: String,
                         media_dir: String, media_max_bytes: String, chapter_roles: String, page_size: [String, Integer],
-                        preview: String, preview_in: String, zone: String },
+                        preview: String, preview_in: String, zone: String, upload_env: String,
+                        upload_default: String, upload_api: String, members_aggregate: String,
+                        members_email: String, members_role: String, markdown_parse: String,
+                        markdown_render: String },
             required: %i[domain chapter host_env login],
             defaults: { base_path: "/editor", session_cookie: "hecks_editor", host_cookie: "hecks_session",
                         host_default: "http://127.0.0.1:4322", roles: "Admin,Owner", title: "Editor", brand: "",
                         accent: "", logo: "", skip: "", media: "", media_dir: "media", media_max_bytes: "5242880",
-                        chapter_roles: "", page_size: "25", preview: "", preview_in: "drawer", zone: "Z" }
+                        chapter_roles: "", page_size: "25", preview: "", preview_in: "drawer", zone: "Z",
+                        upload_env: "", upload_default: "", upload_api: "", members_aggregate: "",
+                        members_email: "email", members_role: "role", markdown_parse: "", markdown_render: "" }
           )
 
           # @return [Hash{Symbol => String}] the checked row, defaults filled
@@ -107,6 +112,36 @@ module Hecks
           # @return [String, nil] the accent colour as hex, or nil for the default theme
           def accent = row.fetch(:accent).strip.then { |hex| hex.empty? ? nil : hex }
 
+          # @return [Hash{String => String}, nil] where the editor's pictures and files go to be
+          #   stored (`upload_api`, the content system's API root, such as `/cms/api`, and the
+          #   environment variable that names its address), or nil when the editor stores none
+          def upload
+            api = row.fetch(:upload_api).strip
+            return nil if api.empty?
+
+            { "env" => row.fetch(:upload_env).strip, "default" => row.fetch(:upload_default).strip, "api" => api }
+          end
+
+          # @return [Hash{String => String}, nil] the aggregate whose records are the people who
+          #   may edit, read by the editor itself over the host's own protocol (see
+          #   `members_aggregate` in docs/site-routes.md), or nil to ask the host's members list
+          def members
+            named = row.fetch(:members_aggregate).strip
+            return nil if named.empty?
+
+            domain, aggregate = named.split("::", 2)
+            { "domain" => domain, "aggregate" => "#{domain}::#{aggregate}", "email" => row.fetch(:members_email),
+              "role" => row.fetch(:members_role) }
+          end
+
+          # @return [Hash{String => String}, nil] the two modules of the site that read and render
+          #   its Markdown, which the preview of a Markdown field imports, or nil for no preview
+          def markdown
+            parse = row.fetch(:markdown_parse).strip
+            render = row.fetch(:markdown_render).strip
+            parse.empty? || render.empty? ? nil : { "parse" => parse, "render" => render }
+          end
+
           # @return [Array<String>] the aggregates left out: `Name`, or `Chapter::Name`
           def skip = row.fetch(:skip).split(",").map(&:strip).reject(&:empty?)
 
@@ -120,7 +155,22 @@ module Hecks
           def tokens(previews = [])
             { "__BANNER__" => RoutesTs::BANNER, "__PACKAGE__" => package, "__ROLES__" => RoutesTs.literal(roles),
               "__MEDIA_MAX_BYTES__" => row.fetch(:media_max_bytes), "__PAGE_SIZE__" => page_size.to_s,
-              "__CLIENT_VERSION__" => Hecks::VERSION, **preview_tokens(previews), **quoted }
+              "__CLIENT_VERSION__" => Hecks::VERSION, "__UPLOAD__" => JSON.generate(upload),
+              "__MEMBERS__" => JSON.generate(members), "__MARKDOWN__" => JSON.generate(markdown),
+              "__MARKDOWN_SITE__" => markdown_site, **preview_tokens(previews), **quoted }
+          end
+
+          # @return [String] the body of `browser/markdown_site.js`: the site's own reader and
+          #   renderer imported from the project (paths are the row's, relative to the editor's
+          #   directory, so one level more here), or a preview that says it is not available
+          def markdown_site
+            found = markdown
+            return "export const available = false;\nexport const read = () => \"\";" unless found
+
+            reader, rendering = found.values_at("parse", "render").map { |text| text.split("#", 2) }
+            ["import { #{reader[1]} as parse } from #{JSON.generate("../../#{reader[0]}")};",
+             "import { #{rendering[1]} as render } from #{JSON.generate("../../#{rendering[0]}")};",
+             "export const available = true;", "export const read = (text) => render(parse(text));"].join("\n")
           end
 
           # @return [Hash{String => String}] the preview template as a literal, and the policy line

@@ -1,0 +1,122 @@
+# An orchard's site, with an editor that keeps its pictures and leaflets in the content system, reads
+# who may edit from the register's own people, previews Markdown with the site's own reader, and
+# writes a tree's note on the tree's form: the neutral fixture for uploads, the Editor-role sign-in,
+# the Markdown field, a companion text saved with its record, an address taken twice and a range that
+# ends before it starts.
+Hecks.bluebook "OrchardSite" do
+  vision "The routes of a community orchard's site, and the words its editor says."
+
+  aggregate "SiteMap" do
+    description "The orchard site's routes."
+
+    attribute :name, MapName
+    identified_by :name
+
+    value_object "MapName" do
+      attribute :value, String
+    end
+
+    value_object "Route" do
+      attribute :path,      String
+      attribute :kind,      String
+      attribute :render,    String
+      attribute :auth,      String
+      attribute :methods,   String
+      attribute :cache,     String
+      attribute :origin,    String
+      attribute :source,    String
+      attribute :indexable, Boolean
+      attribute :label,     String
+      attribute :nav_order, Integer
+
+      member path: "/",            label: "Home", cache: "home", source: "global:home", nav_order: 1
+      member path: "/editor*",     kind: "proxy", origin: "cms", auth: "admin", methods: "GET,POST"
+      member path: "/admin-login", render: "ssr", cache: "no_store", methods: "GET", indexable: false
+      member path: "/*",           kind: "proxy"
+    end
+
+    value_object "Editor" do
+      attribute :domain,            String
+      attribute :chapter,           String
+      attribute :skip,              String
+      attribute :base_path,         String
+      attribute :session_cookie,    String
+      attribute :host_cookie,       String
+      attribute :host_env,          String
+      attribute :host_default,      String
+      attribute :roles,             String
+      attribute :login,             String
+      attribute :title,             String
+      attribute :preview_in,        String
+      attribute :upload_env,        String
+      attribute :upload_default,    String
+      attribute :upload_api,        String
+      attribute :members_aggregate, String
+      attribute :markdown_parse,    String
+      attribute :markdown_render,   String
+
+      member domain: "domain", chapter: "Orchard", skip: "Member",
+             base_path: "/editor", session_cookie: "orchard_editor", host_cookie: "orchard_session",
+             host_env: "ORCHARD_DOMAIN_SERVICE_URL", host_default: "http://127.0.0.1:4700",
+             roles: "Admin,Owner,Editor", login: "/admin-login", title: "Orchard editor", preview_in: "tab",
+             upload_env: "ORCHARD_CMS_URL", upload_default: "http://cms.test", upload_api: "/cms/api",
+             members_aggregate: "Orchard::Member",
+             markdown_parse: "../site/read.mjs#toNodes", markdown_render: "../site/show.mjs#toHtml"
+    end
+
+    value_object "PayloadField" do
+      attribute :aggregate,   String
+      attribute :attribute,   String
+      attribute :field,       String
+      attribute :kind,        String
+      attribute :options,     String
+      attribute :relation,    String
+      attribute :via,         String
+      attribute :label,       String
+      attribute :description, String
+      attribute :required,    Boolean
+      attribute :default,     String
+
+      member aggregate: "Tree", attribute: "picture", kind: "upload", relation: "media", description: "Shown with the tree."
+      member aggregate: "Tree", attribute: "leaflet", kind: "upload", relation: "documents", options: "pdf"
+      member aggregate: "Tree", attribute: "starts_on", kind: "date"
+      member aggregate: "Tree", attribute: "ends_on", kind: "date"
+      member aggregate: "Tree", attribute: "pickings", label: "Picking|Pickings"
+      member aggregate: "Tree", attribute: "pickings.starts_on", kind: "date"
+      member aggregate: "Tree", attribute: "pickings.ends_on", kind: "date", required: false
+    end
+
+    value_object "EditorField" do
+      attribute :aggregate, String
+      attribute :command,   String
+      attribute :attribute, String
+      attribute :label,     String
+      attribute :help,      String
+      attribute :kind,      String
+      attribute :zone,      String
+      attribute :advanced,  Boolean
+      attribute :picks,     String
+      attribute :fill,      String
+      attribute :after,     String
+
+      member aggregate: "Tree", attribute: "slug", label: "Address", advanced: true, fill: "slug_of:name"
+      member aggregate: "Tree", command: "Plant", label: "Save the tree"
+      member aggregate: "Note", attribute: "kind", advanced: true, fill: "part:slug:.:0"
+      member aggregate: "Note", attribute: "address", advanced: true, fill: "part:slug:.:1"
+      member aggregate: "Note", attribute: "written_at", advanced: true, fill: "now"
+      member aggregate: "Note", attribute: "text", label: "Words", kind: "markdown"
+    end
+
+    value_object "EditorCompanion" do
+      attribute :aggregate, String
+      attribute :with,      String
+      attribute :key,       String
+      attribute :field,     String
+      attribute :when,      String
+      attribute :label,     String
+      attribute :help,      String
+
+      member aggregate: "Tree", with: "Note", key: "tree.{slug}.note", field: "text", label: "Note", help: "Seen by visitors."
+    end
+  end
+end

@@ -12,7 +12,7 @@ import { SCHEMA } from "../schema.ts";
 import { detailPage as detail } from "./detail.ts";
 import type { Submitted } from "./detail.ts";
 import { confirmDialog } from "./dialogs.ts";
-import { fields } from "./fields.ts";
+import { fields, textBox } from "./fields.ts";
 import type { Invalid } from "./fields.ts";
 import { esc, href, refusal } from "./html.ts";
 import { backInput, backLink, withBack } from "./links.ts";
@@ -174,6 +174,8 @@ interface Extras {
   back?: Back | null;
   /** The instance the form acts on, which a draft's buttons need. */
   id?: string;
+  /** The text of the records that go with this one, written on this form (see texts.ts): each box and what it holds now. */
+  texts?: { index: number; label: string; help?: string; attr: Attr; target: Aggregate; value: string }[];
 }
 
 /**
@@ -219,11 +221,12 @@ export function commandForm(agg: Aggregate, command: Command, action: string, sh
   const whole = saved !== undefined && saved.widget !== "body" && saved.blockList === undefined;
   const mode = draft.bar ? ` data-draft="${esc(agg.drafts?.attribute)}"${whole ? " data-draft-form" : ""}` : "";
   const leave = back?.path ?? extras.cancel ?? href(...at(agg));
+  const boxes = (extras.texts ?? []).map((box) => textBox(box.target, box.attr, `__text.${box.index}`, box, own ? String(own.values[`__text.${box.index}`] ?? "") : box.value, own?.textField === `__text.${box.index}` && own.textMessage ? { field: `__text.${box.index}`, message: own.textMessage } : null)).join("\n");
   return `<form class="max-w-3xl" id="${FORM}" method="post" action="${esc(action)}" data-form${mode}>
 ${backInput(back)}${refusal(own?.message ?? null)}${note}
 ${draft.bar}
 ${target}
-${fields(agg, command.attributes, own ? own.values : startingValues(agg, command, state), invalidOf(own), true, choices, draft.bar ? agg.drafts?.attribute : undefined, own?.problems ?? [])}
+${fields(agg, command.attributes, own ? own.values : startingValues(agg, command, state), invalidOf(own), true, choices, draft.bar ? agg.drafts?.attribute : undefined, own?.problems ?? [], boxes)}
 <div data-actionbar class="sticky bottom-0 z-10 -mx-4 mt-8 flex items-center justify-end gap-2 border-t border-base-300 bg-base-100 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-8px_16px_-12px_rgb(0_0_0/0.25)]"><p class="mr-auto text-xs text-muted"><span class="text-primary" aria-hidden="true">*</span> Required</p><a class="btn btn-ghost" href="${esc(leave)}">Cancel</a>${submits(agg, command, back)}</div>
 </form>
 ${dialog}${draft.dialogs}`;
@@ -239,7 +242,7 @@ export function commandPage(agg: Aggregate, command: Command, action: string, sh
 }
 
 /** The page of a command that acts on one instance: its form, or the question a destructive one asks. */
-export function instanceCommandPage(agg: Aggregate, id: string, command: Command, values: State, shown: Submitted | null, choices: Choices = {}, back: Back | null = null): string {
+export function instanceCommandPage(agg: Aggregate, id: string, command: Command, values: State, shown: Submitted | null, choices: Choices = {}, back: Back | null = null, texts: Extras["texts"] = []): string {
   const action = href(...at(agg), "id", id, command.name);
   const crumbs: Crumb[] = [...trail(agg), [id, href(...at(agg), "id", id)], [commandLabel(agg, command)]];
   const tools = previewTools(agg, id);
@@ -252,5 +255,5 @@ export function instanceCommandPage(agg: Aggregate, id: string, command: Command
 <div class="mt-6 flex justify-end gap-2"><a class="btn btn-ghost" href="${esc(cancel)}">Cancel</a><button type="submit" class="btn btn-error" data-busy>${esc(commandLabel(agg, command))}</button></div></form>`;
     return page(commandLabel(agg, command), `${title}\n${ask}`, frame);
   }
-  return page(commandLabel(agg, command), `${title}\n${commandForm(agg, command, action, shown, { state: values, cancel, choices, back, id })}`, frame);
+  return page(commandLabel(agg, command), `${title}\n${commandForm(agg, command, action, shown, { state: values, cancel, choices, back, id, texts })}`, frame);
 }

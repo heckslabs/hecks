@@ -14,7 +14,11 @@ module Hecks
           # command or attribute the chapters do not have adds a problem instead.
           module Marks
             # The kinds an `EditorField` may name.
-            KINDS = %w[text textarea datetime].freeze
+            KINDS = %w[text textarea datetime markdown image file].freeze
+
+            # The kinds that are an upload: `image` takes pictures, `file` takes PDFs, and `picks`
+            # names the content system's collection that keeps them (`media`, `documents`).
+            UPLOADS = { "image" => "image", "file" => "pdf" }.freeze
 
             # How a blank value is filled: now, the slug of another attribute, or one piece of it.
             FILL = /\A(?:now|slug_of:\w+|part:\w+:[^:]+:\d+)\z/
@@ -85,7 +89,7 @@ module Hecks
               parts = target["kind"] == "object" ? agg["valueObjects"][target["type"]] : nil
               return unless parts&.size == 1
 
-              parts.first.merge!(marked.slice("multiline", "wall", "fill", "widget").compact)
+              parts.first.merge!(marked.slice("multiline", "markdown", "upload", "wall", "fill", "widget", "after").compact)
             end
 
             # @return [Hash{String => Object}] what a row writes onto its target: a command takes
@@ -97,8 +101,28 @@ module Hecks
             end
 
             def flags(row)
-              { "advanced" => (true if row[:advanced]), "multiline" => (true if row[:kind] == "textarea"),
-                "wall" => (row[:zone] || "Z" if row[:kind] == "datetime"), "fill" => row[:fill], "picks" => row[:picks] }
+              { "advanced" => (true if row[:advanced]), "multiline" => (true if %w[textarea markdown].include?(row[:kind])),
+                "markdown" => (true if row[:kind] == "markdown"), "wall" => (row[:zone] || "Z" if row[:kind] == "datetime"),
+                "fill" => row[:fill], "after" => row[:after], **uploading(row) }
+            end
+
+            # @return [Hash{String => Object}] the upload mark of an `image` or `file` row, whose
+            #   `picks` names a collection, else the aggregate the row picks from
+            def uploading(row)
+              return { "picks" => row[:picks] } unless UPLOADS.key?(row[:kind])
+
+              { "upload" => Upload.of(UPLOADS.fetch(row[:kind]), row[:picks]) }
+            end
+          end
+
+          # What an upload mark holds: the collection the content system keeps the files in,
+          # and what it accepts there (`image` or `pdf`).
+          module Upload
+            module_function
+
+            # @return [Hash{String => String}] the mark
+            def of(accept, collection)
+              { "collection" => collection.to_s, "accept" => accept }
             end
           end
 
@@ -110,7 +134,14 @@ module Hecks
 
             # @return [Array<String>] what is wrong with a row's `kind`, `zone` and `fill`
             def problems(row)
-              [*kind(row), *zone(row), *fill(row)]
+              [*kind(row), *zone(row), *fill(row), *upload(row)]
+            end
+
+            # @return [Array<String>] the problem with an upload that names no collection
+            def upload(row)
+              return [] unless Marks::UPLOADS.key?(row[:kind]) && row[:picks].to_s.empty?
+
+              ["kind #{row[:kind]} needs picks: the content system's collection the files are kept in"]
             end
 
             def kind(row)
