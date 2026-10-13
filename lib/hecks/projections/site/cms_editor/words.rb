@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
 require_relative "../root_rows"
+require_relative "../payload_driver"
 require_relative "words/marks"
+require_relative "words/payload"
 require_relative "words/companions"
 
 module Hecks
@@ -35,9 +37,10 @@ module Hecks
                                     fields: { aggregate: String, with: String, key: String, field: String, when: String,
                                               label: String, help: String })
 
-          # The checked rows of a route chapter.
-          Rows = Struct.new(:things, :fields, :companions) do
-            def none? = to_a.all?(&:empty?)
+          # The checked rows of a route chapter; `payload` are the `PayloadField` rows a project
+          # declares for its content system, which the editor reads for the same facts.
+          Rows = Struct.new(:things, :fields, :companions, :payload, :zone) do
+            def none? = [things, fields, companions, payload].all?(&:empty?)
           end
 
           module_function
@@ -46,7 +49,8 @@ module Hecks
           # @return [Rows] the checked rows, each list empty when the chapter declares none
           # @raise [Table::Invalid] when a row is refused
           def read(chapter)
-            Rows.new(THINGS.read(chapter), FIELDS.read(chapter), COMPANIONS.read(chapter))
+            payload = PayloadDriver::FIELD.read(chapter)
+            Rows.new(THINGS.read(chapter), FIELDS.read(chapter), COMPANIONS.read(chapter), payload, "Z")
           end
 
           # @param aggregates [Array<Hash{String => Object}>] the aggregates as `Schema` shapes them
@@ -57,6 +61,7 @@ module Hecks
           def apply(aggregates, rows, chapters: [])
             return aggregates if rows.nil? || rows.none?
 
+            Payload.apply(aggregates, rows.payload, rows.zone || "Z")
             problems = []
             Marks.apply(aggregates, rows, problems, chapters)
             refuse("editor's words", problems)

@@ -141,6 +141,12 @@ function startingValues(agg: Aggregate, command: Command, state: State): State {
     const held = agg.attributes.find((other) => other.type === attr.type && other.name !== attr.name && !unset(state[other.name]));
     if (held) values[attr.name] = state[held.name];
   }
+  if (command.creates) {
+    for (const attr of command.attributes.filter((candidate: Attr) => candidate.default !== undefined && unset(values[candidate.name]))) {
+      const parts = attr.kind === "object" ? (agg.valueObjects[attr.type] ?? []) : [];
+      values[attr.name] = parts.length === 1 ? { [parts[0].name]: attr.default } : attr.default;
+    }
+  }
   return values;
 }
 

@@ -15,6 +15,9 @@ module Hecks
           # A base path: one or more segments, starting with a slash and not ending with one.
           BASE_PATH = %r{\A(/[^/\s]+)+\z}
 
+          # A wall-clock zone: `Z` or a fixed offset.
+          ZONE = /\A(?:Z|[+-]\d\d:\d\d)\z/
+
           # The largest upload size cap a row may name: 100 MiB.
           MAX_UPLOAD = 104_857_600
 
@@ -28,7 +31,12 @@ module Hecks
             base = row[:base_path]
             [*path_problems(row, base), *("Editor roles name no role" if roles.empty?), *login_problems(row[:login], table),
              *media_problems(row), *media_chapter_problems(row), *ThemeChecks.problems(row), *ScaleChecks.problems(row),
-             *Preview.problems(row[:preview].strip), *preview_in_problems(row)]
+             *Preview.problems(row[:preview].strip), *preview_in_problems(row), *zone_problems(row)]
+          end
+
+          # @return [Array<String>] the problem with `zone`, when it is not `Z` or an offset
+          def zone_problems(row)
+            ZONE.match?(row[:zone]) ? [] : ["zone #{row[:zone].inspect} must be Z or an offset such as -07:00"]
           end
 
           # @return [Array<String>] the problem with `preview_in`, when it is neither word

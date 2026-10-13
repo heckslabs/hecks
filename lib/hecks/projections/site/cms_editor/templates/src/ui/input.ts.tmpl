@@ -128,6 +128,22 @@ function made(rule: string, args: Record<string, unknown>, clock: () => number):
   return source.split(separator)[Number(index)] || undefined;
 }
 
+/**
+ * An attribute that is left blank and is made from another one that is blank too: the person is
+ * told what to fill in (the other one), in its own words, instead of the domain being asked for an
+ * address it was never given.
+ */
+export function unfilled(attrs: Attr[], args: Record<string, unknown>): { field: string; message: string } | null {
+  for (const attr of attrs.filter((candidate) => candidate.fill !== undefined && candidate.fill !== "now" && blank(args[candidate.name]))) {
+    const source = attrs.find((other) => other.name === (attr.fill as string).split(":")[1]);
+    if (source && !source.optional && blank(args[source.name])) {
+      const words = source.label ?? source.name.replace(/_/g, " ");
+      return { field: source.name, message: `${words.charAt(0).toUpperCase()}${words.slice(1)} is needed.` };
+    }
+  }
+  return null;
+}
+
 /** A command's arguments with each blank one its `fill` rule names made, in the shape its attribute holds. */
 function filled(agg: Aggregate, attrs: Attr[], args: Record<string, unknown>, clock: () => number): Record<string, unknown> {
   const done = { ...args };

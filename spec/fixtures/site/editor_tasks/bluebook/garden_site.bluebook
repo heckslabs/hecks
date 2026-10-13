@@ -45,11 +45,37 @@ Hecks.bluebook "GardenSite" do
       attribute :login,          String
       attribute :title,          String
       attribute :preview_in,     String
+      attribute :zone,           String
 
       member domain: "domain", chapter: "Garden",
              base_path: "/editor", session_cookie: "garden_editor", host_cookie: "garden_session",
              host_env: "GARDEN_DOMAIN_SERVICE_URL", host_default: "http://127.0.0.1:4600",
-             roles: "Admin,Owner", login: "/admin-login", title: "Garden editor", preview_in: "tab"
+             roles: "Admin,Owner", login: "/admin-login", title: "Garden editor", preview_in: "tab", zone: "-07:00"
+    end
+
+    # The content system's own rows, which the editor reads for the same words: a label, a
+    # description, a kind, options, a relation, whether it is required and what it starts as.
+    value_object "PayloadField" do
+      attribute :aggregate,   String
+      attribute :attribute,   String
+      attribute :field,       String
+      attribute :kind,        String
+      attribute :options,     String
+      attribute :relation,    String
+      attribute :via,         String
+      attribute :label,       String
+      attribute :description, String
+      attribute :required,    Boolean
+      attribute :default,     String
+
+      member aggregate: "Plant", attribute: "kind", kind: "select", options: "herb=Herb,shrub=Shrub,tree=Tree",
+             default: "herb", description: "What sort of plant it is."
+      member aggregate: "Plant", attribute: "mentor", kind: "relationship", relation: "gardeners", label: "Looked after by"
+      member aggregate: "Plant", attribute: "sown_on", kind: "date", description: "When the seed went in."
+      member aggregate: "Plant", attribute: "description", kind: "textarea"
+      member aggregate: "Plant", attribute: "visits", label: "Visit|Visits", description: "Each time someone looked."
+      member aggregate: "Plant", attribute: "visits.at", kind: "date"
+      member aggregate: "Plant", attribute: "visits.note", kind: "textarea", required: false
     end
 
     value_object "EditorThing" do
@@ -83,12 +109,6 @@ Hecks.bluebook "GardenSite" do
       member aggregate: "Plant", attribute: "slug", label: "Address", advanced: true, fill: "slug_of:name",
              help: "Left blank, it is made from the name."
       member aggregate: "Plant", attribute: "bed_slug", label: "Bed"
-      member aggregate: "Plant", attribute: "mentor", label: "Looked after by", picks: "Gardener"
-      member aggregate: "Plant", attribute: "sown_on", label: "Sown", kind: "datetime", zone: "-07:00",
-             help: "When the seed went in."
-      member aggregate: "Plant", attribute: "visits", label: "Visits"
-      member aggregate: "Plant", attribute: "visits.at", label: "When", kind: "datetime", zone: "-07:00"
-      member aggregate: "Plant", attribute: "visits.note", label: "What was seen", kind: "textarea"
       member aggregate: "Plant", command: "Sow", label: "Save the plant"
       member aggregate: "Plant", command: "List", label: "Put in the catalogue"
       member aggregate: "Note", attribute: "kind", advanced: true, fill: "part:slug:.:0"

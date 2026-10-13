@@ -80,7 +80,7 @@ module Hecks
           setting = Setting.read(bluebook, table: options[:table])
           return {} unless setting
 
-          words = Words.read(bluebook)
+          words = Words.read(bluebook).tap { |rows| rows.zone = setting.zone }
           previews = words.things.filter_map { |row| row[:preview] }
           Words.refuse("Editor row's previews", setting.preview_problems(previews))
           schema = read_schema(setting, options, words)

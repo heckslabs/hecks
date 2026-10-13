@@ -29,7 +29,7 @@ import { SCHEMA } from "./schema.ts";
 import type { Aggregate, Command } from "./schema.ts";
 import { available, needsPage } from "./ui/detail.ts";
 import { href } from "./ui/html.ts";
-import { commandArguments, parseForm } from "./ui/input.ts";
+import { commandArguments, parseForm, unfilled } from "./ui/input.ts";
 import { backOf, plainValue } from "./ui/links.ts";
 import type { Back } from "./ui/links.ts";
 import { commandPage, detailPage, home, instanceCommandPage, listPage, notFound, scheduledPage } from "./ui/pages.ts";
@@ -375,7 +375,8 @@ async function post(client: HostClient, request: Request, agg: Aggregate, verb: 
   const args = withMadeIdentity(agg, command, commandArguments(agg, command.attributes, form, command.empty, scene.now));
   const to = onInstance ? rest[0] : command.creates ? undefined : (form.get("__to") ?? "");
   if (request.headers.get("x-editor-autosave") === "1") return autosave(client, agg, command, args, to);
-  const outcome = to === "" ? { ok: false as const, message: "Name the instance to act on." } : ((await unchecked(client, agg, command, args)) ?? (await runCommand(client, agg, command, args, to)));
+  const missing = unfilled(command.attributes, args);
+  const outcome = to === "" ? { ok: false as const, message: "Name the instance to act on." } : (missing ? { ok: false as const, ...missing } : ((await unchecked(client, agg, command, args)) ?? (await runCommand(client, agg, command, args, to))));
   const back = backOf(form.get("__back"));
   if (outcome.ok) return scene.sent(afterwards(agg, command, form.get("__again") === "1", outcome.id, back), done(agg, command));
   const shown: Submitted = { command: command.name, message: outcome.message, values: { ...args, __to: to }, field: outcome.field, problems: "problems" in outcome ? outcome.problems : undefined };

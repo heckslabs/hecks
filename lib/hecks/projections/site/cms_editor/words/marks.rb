@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative "../checks"
 require_relative "target"
 
 module Hecks
@@ -19,7 +20,7 @@ module Hecks
             FILL = /\A(?:now|slug_of:\w+|part:\w+:[^:]+:\d+)\z/
 
             # A wall-clock zone: `Z` or a fixed offset.
-            ZONE = /\A(?:Z|[+-]\d\d:\d\d)\z/
+            ZONE = Checks::ZONE
 
             module_function
 
@@ -75,16 +76,16 @@ module Hecks
 
             def write(agg, target, row)
               target.merge!(marks(row))
-              inward(agg, target, row)
+              inward(agg, target, flags(row))
             end
 
             # A value object of one part is entered as that part, which is what a form is read
             # against, so the flags that decide how a value is read go to the part as well.
-            def inward(agg, target, row)
+            def inward(agg, target, marked)
               parts = target["kind"] == "object" ? agg["valueObjects"][target["type"]] : nil
               return unless parts&.size == 1
 
-              parts.first.merge!(flags(row).slice("multiline", "wall", "fill").compact)
+              parts.first.merge!(marked.slice("multiline", "wall", "fill", "widget").compact)
             end
 
             # @return [Hash{String => Object}] what a row writes onto its target: a command takes

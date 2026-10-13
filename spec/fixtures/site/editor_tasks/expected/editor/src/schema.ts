@@ -91,6 +91,14 @@ export interface Attr {
   fill?: string;
   /** The aggregate the row says this attribute names, as `Name` or `Chapter::Name`; the picker is made from it. */
   picks?: string;
+  /** What a person calls one row of a list, when a row says (`Session|Sessions`). */
+  noun?: string;
+  /** Each option's words, by its value, when a `value=Label` pair says. */
+  optionLabels?: Record<string, string>;
+  /** The caption says "optional" though the domain needs a value: an empty one is sent as empty text. */
+  softOptional?: boolean;
+  /** What a new record starts with, when a row says. */
+  default?: string;
 }
 
 export interface Transition {
@@ -315,7 +323,14 @@ export const SCHEMA: Schema = {
             "herb",
             "shrub",
             "tree"
-          ]
+          ],
+          "help": "What sort of plant it is.",
+          "default": "herb",
+          "optionLabels": {
+            "herb": "Herb",
+            "shrub": "Shrub",
+            "tree": "Tree"
+          }
         },
         {
           "name": "bed_slug",
@@ -338,7 +353,8 @@ export const SCHEMA: Schema = {
           "kind": "object",
           "optional": true,
           "list": false,
-          "label": "Looked after by",
+          "label": "Looked after bys",
+          "noun": "looked after by",
           "picks": "Gardener",
           "picker": {
             "target": "Gardener",
@@ -352,7 +368,8 @@ export const SCHEMA: Schema = {
           "type": "Description",
           "kind": "object",
           "optional": true,
-          "list": false
+          "list": false,
+          "multiline": true
         },
         {
           "name": "sown_on",
@@ -360,7 +377,6 @@ export const SCHEMA: Schema = {
           "kind": "object",
           "optional": true,
           "list": false,
-          "label": "Sown",
           "help": "When the seed went in.",
           "wall": "-07:00"
         },
@@ -370,7 +386,9 @@ export const SCHEMA: Schema = {
           "kind": "object",
           "optional": false,
           "list": true,
-          "label": "Visits"
+          "label": "Visits",
+          "noun": "visit",
+          "help": "Each time someone looked."
         },
         {
           "name": "figure",
@@ -460,7 +478,6 @@ export const SCHEMA: Schema = {
             "kind": "text",
             "optional": false,
             "list": false,
-            "label": "When",
             "wall": "-07:00"
           },
           {
@@ -469,7 +486,7 @@ export const SCHEMA: Schema = {
             "kind": "text",
             "optional": false,
             "list": false,
-            "label": "What was seen",
+            "softOptional": true,
             "multiline": true
           }
         ],
@@ -534,7 +551,14 @@ export const SCHEMA: Schema = {
                 "herb",
                 "shrub",
                 "tree"
-              ]
+              ],
+              "help": "What sort of plant it is.",
+              "default": "herb",
+              "optionLabels": {
+                "herb": "Herb",
+                "shrub": "Shrub",
+                "tree": "Tree"
+              }
             },
             {
               "name": "bed_slug",
@@ -557,7 +581,8 @@ export const SCHEMA: Schema = {
               "kind": "object",
               "optional": true,
               "list": false,
-              "label": "Looked after by",
+              "label": "Looked after bys",
+              "noun": "looked after by",
               "picks": "Gardener",
               "picker": {
                 "target": "Gardener",
@@ -571,7 +596,8 @@ export const SCHEMA: Schema = {
               "type": "Description",
               "kind": "object",
               "optional": true,
-              "list": false
+              "list": false,
+              "multiline": true
             },
             {
               "name": "sown_on",
@@ -579,7 +605,6 @@ export const SCHEMA: Schema = {
               "kind": "object",
               "optional": true,
               "list": false,
-              "label": "Sown",
               "help": "When the seed went in.",
               "wall": "-07:00"
             },
@@ -589,7 +614,9 @@ export const SCHEMA: Schema = {
               "kind": "object",
               "optional": false,
               "list": true,
-              "label": "Visits"
+              "label": "Visits",
+              "noun": "visit",
+              "help": "Each time someone looked."
             },
             {
               "name": "figure",
@@ -631,7 +658,14 @@ export const SCHEMA: Schema = {
                 "herb",
                 "shrub",
                 "tree"
-              ]
+              ],
+              "help": "What sort of plant it is.",
+              "default": "herb",
+              "optionLabels": {
+                "herb": "Herb",
+                "shrub": "Shrub",
+                "tree": "Tree"
+              }
             },
             {
               "name": "bed_slug",
@@ -654,7 +688,8 @@ export const SCHEMA: Schema = {
               "kind": "object",
               "optional": true,
               "list": false,
-              "label": "Looked after by",
+              "label": "Looked after bys",
+              "noun": "looked after by",
               "picks": "Gardener",
               "picker": {
                 "target": "Gardener",
@@ -668,7 +703,8 @@ export const SCHEMA: Schema = {
               "type": "Description",
               "kind": "object",
               "optional": true,
-              "list": false
+              "list": false,
+              "multiline": true
             },
             {
               "name": "sown_on",
@@ -676,7 +712,6 @@ export const SCHEMA: Schema = {
               "kind": "object",
               "optional": true,
               "list": false,
-              "label": "Sown",
               "help": "When the seed went in.",
               "wall": "-07:00"
             },
@@ -686,7 +721,9 @@ export const SCHEMA: Schema = {
               "kind": "object",
               "optional": false,
               "list": true,
-              "label": "Visits"
+              "label": "Visits",
+              "noun": "visit",
+              "help": "Each time someone looked."
             },
             {
               "name": "figure",

@@ -91,6 +91,14 @@ export interface Attr {
   fill?: string;
   /** The aggregate the row says this attribute names, as `Name` or `Chapter::Name`; the picker is made from it. */
   picks?: string;
+  /** What a person calls one row of a list, when a row says (`Session|Sessions`). */
+  noun?: string;
+  /** Each option's words, by its value, when a `value=Label` pair says. */
+  optionLabels?: Record<string, string>;
+  /** The caption says "optional" though the domain needs a value: an empty one is sent as empty text. */
+  softOptional?: boolean;
+  /** What a new record starts with, when a row says. */
+  default?: string;
 }
 
 export interface Transition {

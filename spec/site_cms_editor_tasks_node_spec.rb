@@ -69,7 +69,8 @@ TASKS_NODE_SCENARIO = <<~JS.freeze
   out.noteMade = sentVerbs();
 
   host.refuseNext("Sow", { kind: "InvariantViolation", error: 'PlantName invariant violated \\u2014 a plant has a name (given {"value":""})' });
-  const refused = await admin("/editor/Plant/new/Sow", post("name.value=&kind.value=herb"));
+  const refused = await admin("/editor/Plant/new/Sow", post("name.value=Dock&kind.value=herb"));
+  out.blankName = await (await admin("/editor/Plant/new/Sow", post("name.value=&kind.value=herb&slug.value="))).text();
   out.refused = { status: refused.status, html: await refused.text() };
   host.refuseNext("Sow", { kind: "InvariantViolation", error: "Visit.at expects String, got nil" });
   out.shape = await (await admin("/editor/Plant/new/Sow", post("name.value=Dock"))).text();
@@ -237,7 +238,14 @@ RSpec.describe "the generated task editor, run by node" do
     end
 
     it "says a missing part is needed, in the field's words", :aggregate_failures do
-      expect(result("shape")).to include("Visits: When is needed.")
+      expect(result("shape")).to include("Visits: At is needed.")
+    end
+  end
+
+  describe "an address that cannot be made" do
+    it "asks for what it is made from, in that field's words, and sends nothing", :aggregate_failures do
+      expect(result("blankName")).to include("Name is needed.")
+      expect(result("blankName")).not_to include("was not given")
     end
   end
 

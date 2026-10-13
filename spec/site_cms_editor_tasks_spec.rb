@@ -121,6 +121,39 @@ RSpec.describe "the editor's task words, derived from a chapter and the route ch
     end
   end
 
+  describe "what the content system's PayloadField rows say" do
+    it "gives a label (a list's plural, and its one), the description as help, and not a second set", :aggregate_failures do
+      visits = attribute("Plant", "visits")
+
+      expect(visits).to include("label" => "Visits", "noun" => "visit", "help" => "Each time someone looked.")
+      expect(attribute("Plant", "sown_on")).to include("help" => "When the seed went in.")
+    end
+
+    it "makes a select of options with their words, and what a new record starts as", :aggregate_failures do
+      kind = attribute("Plant", "kind")
+
+      words = { "herb" => "Herb", "shrub" => "Shrub", "tree" => "Tree" }
+      expect(kind).to include("options" => %w[herb shrub tree], "optionLabels" => words)
+      expect(kind["default"]).to eq("herb")
+    end
+
+    it "takes a date on text as the clock of the Editor row's zone, and a textarea", :aggregate_failures do
+      expect(part("Plant", "SownOn", "value")["wall"]).to eq("-07:00")
+      expect(part("Plant", "Visit", "note")).to include("multiline" => true, "softOptional" => true)
+    end
+
+    it "makes a relationship to a collection a choice of the aggregate it names" do
+      expect(attribute("Plant", "mentor")["picker"]).to include("target" => "Gardener", "label" => "name", "strict" => true)
+    end
+
+    it "is the same text the editor's own row would override, a row of the editor's winning" do
+      changed("bluebook/garden_site.bluebook", 'member aggregate: "Plant", attribute: "bed_slug", label: "Bed"',
+              'member aggregate: "Plant", attribute: "visits", label: "Calls"') do |dir|
+        expect(attribute("Plant", "visits", dir)["label"]).to eq("Calls")
+      end
+    end
+  end
+
   describe "what the chapter's own declarations say" do
     it "offers another aggregate's records where a value object is spelled as its identity", :aggregate_failures do
       picker = attribute("Plant", "bed_slug")["picker"]
@@ -131,10 +164,6 @@ RSpec.describe "the editor's task words, derived from a chapter and the route ch
     it "never makes an aggregate's own identity a reference to itself", :aggregate_failures do
       expect(attribute("Bed", "slug")).not_to have_key("picker")
       expect(aggregate("Bed")["commands"].first["attributes"].first).not_to have_key("picker")
-    end
-
-    it "offers the records a row names, when the model's names say nothing" do
-      expect(attribute("Plant", "mentor")["picker"]).to include("target" => "Gardener", "label" => "name")
     end
 
     it "reads a closed set written as one invariant as a choice", :aggregate_failures do

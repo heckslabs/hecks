@@ -221,6 +221,7 @@ forms are generated from the domain, not written per aggregate.
 | `chapter_roles` | roles a chapter is limited to, `Chapter=Role,Role;Chapter=Role`; its aggregates and its pictures are hidden from and refused to any other role (403) | none |
 | `page_size` | how many instances a list shows to a page (1 to 1000); a page, a search (`_q`) and a state (`_status`) are in the address | `25` |
 | `preview` | where a record is shown on the site, a URL template the editor frames in a side drawer: an `http(s)://` address or a path with one slash, with `{key}`, `{kind}`, `{slug}` and `{id}` filled from the record (a `<kind>:<slug>` identity is split; any other identity is the slug of `<snake-case aggregate>:<id>`). Refused when it is another scheme, names credentials, starts `//`, holds whitespace, an unknown placeholder or a placeholder in the scheme, host or port. Its origin (or `'self'` for a path) is the only `frame-src` the editor's content security policy gets | none |
+| `zone` | the clock a moment held as text is entered in (`Z` or an offset such as `-07:00`); what a `PayloadField` `date` row on a text attribute means | `Z` |
 | `preview_in` | `drawer` frames the preview in a side drawer; `tab` opens the site's page in a new tab, for a site that refuses to be framed (no `frame-src` is then sent) | `drawer` |
 | `media` | another chapter of the domain whose picture aggregate the pictures use, when this chapter has none (a body here uses the pictures of that chapter) | none |
 | `media_dir` | the directory the local-disk adapter keeps uploaded pictures in, from the server's working directory; used only when the chapter has a picture aggregate | `media` |
@@ -331,6 +332,19 @@ row that names an aggregate, command or attribute the chapters do not have is re
 | `EditorThing` | `aggregate` (`Name` or `Chapter::Name`; a chapter's name titles that chapter in the navigation), `name` (one, lower case: "event"), `plural`, `about` (the sentence under the card; the bluebook's `description` otherwise), `preview` (this aggregate's own preview address, see below), `advanced` (the card goes under "More" on the home page and in the navigation) |
 | `EditorField` | `aggregate`, then `attribute` (`part` for a part: `sessions.starts_on`) or `command` (alone, the command's button: `label`, and `help` under it; with `attribute`, the row is about that command's form only). `label`, `help`, `kind`, `zone`, `advanced`, `picks`, `fill`: see below |
 | `EditorCompanion` | `aggregate`, `with` (another aggregate), `key` (a template; `{slug}` is the record's identity), `field` (the text of the companion that is edited), `when` (`<attribute> is <value>` or `<attribute> includes <value>`), `label`, `help` |
+
+**`PayloadField` rows are read first.** A project that already declares `PayloadField` rows for a content system has said most of
+this: the editor reads the same rows, so a field's words are written once. A row's `label` (a list's is `Singular|Plural`) is
+the caption (and the name of one row of the list), `description` is the help under it, `kind` `textarea` is a writing box,
+`select` with `options` (`value=Label` pairs or bare values) is a choice with its words, `date` on a text is the clock of the
+`Editor` row's `zone` and on a whole number is a date and time (`day`: a date), `relationship` is a choice of the aggregate its
+`relation` collection names (`practice-texts` is `PracticeText`), `required: false` shows "optional" (an empty value is still
+sent, as the content system sends it) and `default` is what a new record starts with. An `upload` is read for its words only:
+the editor has no store for files of its own, so it stays a text input. A row that names an aggregate the editor does not edit,
+or an attribute the chapters lack, is skipped here (the content system's projection refuses it). `EditorField` rows are
+applied after and win; they hold only what `PayloadField` cannot say (advanced, fill, a command's button, and aggregates the
+content system's rows do not drive). The `Editor` row's `zone` (`Z` or an offset, default `Z`) is the clock moments held as
+text are entered in.
 
 What the home page and the pages take from the model without a row:
 

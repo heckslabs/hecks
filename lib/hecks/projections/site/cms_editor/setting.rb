@@ -24,12 +24,12 @@ module Hecks
                         host_cookie: String, host_env: String, host_default: String, roles: String, login: String,
                         title: String, brand: String, accent: String, logo: String, skip: String, media: String,
                         media_dir: String, media_max_bytes: String, chapter_roles: String, page_size: [String, Integer],
-                        preview: String, preview_in: String },
+                        preview: String, preview_in: String, zone: String },
             required: %i[domain chapter host_env login],
             defaults: { base_path: "/editor", session_cookie: "hecks_editor", host_cookie: "hecks_session",
                         host_default: "http://127.0.0.1:4322", roles: "Admin,Owner", title: "Editor", brand: "",
                         accent: "", logo: "", skip: "", media: "", media_dir: "media", media_max_bytes: "5242880",
-                        chapter_roles: "", page_size: "25", preview: "", preview_in: "drawer" }
+                        chapter_roles: "", page_size: "25", preview: "", preview_in: "drawer", zone: "Z" }
           )
 
           # @return [Hash{Symbol => String}] the checked row, defaults filled
@@ -87,6 +87,9 @@ module Hecks
 
             [*found, "the previews name more than one origin (#{origins.join(", ")}); a frame may load from one"]
           end
+
+          # @return [String] the zone a moment held as text is entered in: `Z` or an offset
+          def zone = row.fetch(:zone)
 
           # @return [String, nil] the URL template a record is previewed at, or nil for no preview
           def preview = row.fetch(:preview).strip.then { |template| template.empty? ? nil : template }

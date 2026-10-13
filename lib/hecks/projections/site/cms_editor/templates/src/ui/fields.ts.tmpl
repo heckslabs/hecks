@@ -58,7 +58,7 @@ const idOf = (name: string): string => `f-${name.replace(/[^A-Za-z0-9]+/g, "-")}
 function caption(attr: Attr, context: Context): string {
   const text = esc(labelOf(attr));
   if (attr.fill) return `${text} <span class="ml-1 text-xs font-normal text-muted">filled in if left blank</span>`;
-  if (attr.optional) return `${text} <span class="ml-1 text-xs font-normal text-muted">optional</span>`;
+  if (attr.optional || attr.softOptional) return `${text} <span class="ml-1 text-xs font-normal text-muted">optional</span>`;
   return context.mark ? `${text} <span class="text-primary" title="Required" aria-hidden="true">*</span>` : text;
 }
 
@@ -114,7 +114,7 @@ function select(attr: Attr, name: string, value: Value, context: Context): strin
   const required = context.mark && !attr.optional ? ` aria-required="true"` : "";
   const classes = flagged(attr, name, context) ? "select select-error w-full max-w-xl" : "select w-full max-w-xl";
   const blank = attr.optional || held === "" ? `<option value=""${held === "" ? " selected" : ""}>${attr.optional ? "None" : "Choose"}</option>` : "";
-  const options = (attr.options ?? []).map((option) => `<option value="${esc(option)}"${option === held ? " selected" : ""}>${esc(label(option))}</option>`);
+  const options = (attr.options ?? []).map((option) => `<option value="${esc(option)}"${option === held ? " selected" : ""}>${esc(attr.optionLabels?.[option] ?? label(option))}</option>`);
   const input = `<select class="${classes}" id="${id}" name="${esc(name)}"${required}${invalidAttrs(name, attr, context)}>${blank}${options.join("")}</select>`;
   return `<div class="my-4 grid gap-1"><label for="${id}" class="${context.quiet ? "sr-only" : "font-semibold"}">${caption(attr, context)}</label>${input}${problem(name, attr, context)}</div>`;
 }
@@ -175,6 +175,8 @@ function plainOf(attr: Attr, part: Attr, name: string): Attr {
     multiline: attr.multiline ?? part.multiline,
     wall: attr.wall ?? part.wall,
     fill: attr.fill ?? part.fill,
+    optionLabels: attr.optionLabels ?? part.optionLabels,
+    softOptional: attr.softOptional ?? part.softOptional,
   };
 }
 
@@ -241,7 +243,7 @@ function listed(agg: Aggregate, attr: Attr, name: string, value: Value, context:
   const inside = { ...context, mark: false, top: false };
   const members = agg.valueObjects[attr.type] ?? [];
   const only = attr.kind === "object" && members.length === 1 && members[0].kind !== "object" && !members[0].list ? members[0] : null;
-  const word = attr.name.replace(/([^aeiou])ies$/, "$1y").replace(/s$/, "");
+  const word = attr.noun ?? attr.name.replace(/([^aeiou])ies$/, "$1y").replace(/s$/, "");
   const rows = [...held, undefined].map((item, index) => {
     const body = only
       ? scalar({ ...plainOf(attr, only, word), optional: only.optional }, `${name}.${index}.${only.name}`, member(item, only.name), { ...inside, quiet: true })
