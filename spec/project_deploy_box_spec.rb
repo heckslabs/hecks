@@ -361,7 +361,7 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
 
     it "names a Graviton AMI for t4g and the region's own DNS suffix for the origin", :aggregate_failures do
       box = files["box.yaml"]
-      expect(box).to include("al2023-ami-kernel-default-arm64")
+      expect(files["Makefile"]).to include("al2023-ami-kernel-default-arm64")
       expect(box).to include(".eu-west-1.compute.amazonaws.com")
       expect(box).to include("Default: t4g.large", "Default: 50")
     end
@@ -803,6 +803,36 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
     end
   end
 
+  describe "the box image (ADR 0108)" do
+    let(:files) { cached("default", BOX_WORLDS.fetch("default")).first }
+
+    it "takes AmiId as a plain image id with no default, so a template update cannot re-resolve it", :aggregate_failures do
+      param = template_of(files["box.yaml"])["Parameters"]["AmiId"]
+      expect(param["Type"]).to eq("AWS::EC2::Image::Id")
+      expect(param).not_to include("Default")
+      expect(files["box.yaml"]).not_to include("AWS::SSM::Parameter", "ami-amazon-linux-latest")
+    end
+
+    it "makes stacks pass the running box's image, and look the latest up only for a first create", :aggregate_failures do
+      make = files["Makefile"]
+      expect(make).to include("--logical-resource-id Box", "describe-instances --instance-ids", "AmiId=$$AMI",
+                              "ssm get-parameter --name /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-arm64",
+                              "AMI_ID ?=", "AMI=\"$(AMI_ID)\"")
+      expect(make.index("--logical-resource-id Box")).to be < make.index("ssm get-parameter")
+    end
+
+    it "stops before it changes the box stack when no image is found" do
+      make = files["Makefile"]
+      expect(make.index("pass one with AMI_ID=ami-...")).to be < make.index("--template-file box.yaml")
+    end
+
+    it "generates the same Makefile pinning for a world with a cdn and for one without", :aggregate_failures do
+      cdn = cached("cdn", BOX_WORLDS.fetch("cdn")).first["Makefile"]
+      expect(cdn).to include("AmiId=$$AMI")
+      expect(files["Makefile"]).not_to include("CdnPrefixListId")
+    end
+  end
+
   describe "a world that declares no cdn" do
     let(:files) { cached("default", BOX_WORLDS.fetch("default")).first }
 
@@ -868,7 +898,7 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
 
     it "uses an x86 image for a non-Graviton instance type" do
       files, = generate(world_source('instance_type "m5.large"', 'containers [{ name: "web", port: 8080 }]'))
-      expect(files["box.yaml"]).to include("al2023-ami-kernel-default-x86_64")
+      expect(files["Makefile"]).to include("al2023-ami-kernel-default-x86_64")
     end
   end
 end

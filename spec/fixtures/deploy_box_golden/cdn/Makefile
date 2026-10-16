@@ -1,11 +1,14 @@
 # widget-shop: one app box and one RDS instance.
 #   make stacks VPC=vpc-... PRIVATE_SUBNETS=subnet-a,subnet-b PUBLIC_SUBNET=subnet-c [REHEARSAL=true]
 #   make deploy [TAGS="web=20260101 worker=20260101"]
+# `make stacks` keeps a live box on the image it runs, so an update never replaces the instance.
+# To move to a newer image on purpose:  make stacks ... AMI_ID=ami-...
 RDS_STACK = hecks-widget-shop-rds
 BOX_STACK = hecks-widget-shop-box
 # true makes a throwaway pair: the database is deleted with its stack and the box has no
 # Elastic IP. The default is a production pair, with deletion protection.
 REHEARSAL ?= false
+AMI_ID ?=
 
 HECKS ?= hecks
 
@@ -14,10 +17,21 @@ stacks:
 	@aws ec2 describe-managed-prefix-lists --region eu-west-1 --filters Name=prefix-list-name,Values=com.amazonaws.global.cloudfront.origin-facing --query "PrefixLists[0].PrefixListId" --output text | grep -q '^pl-' || { echo "no com.amazonaws.global.cloudfront.origin-facing prefix list in eu-west-1: the box would admit no CDN and answer 504" >&2; exit 1; }
 	aws cloudformation deploy --template-file rds.yaml --stack-name $(RDS_STACK) --capabilities CAPABILITY_IAM \
 		--parameter-overrides VpcId=$(VPC) PrivateSubnetIds=$(PRIVATE_SUBNETS) Rehearsal=$(REHEARSAL)
+	@AMI="$(AMI_ID)"; SRC="given as AMI_ID"; \
+	if [ -z "$$AMI" ]; then \
+		BOX=$$(aws cloudformation describe-stack-resource --stack-name $(BOX_STACK) --logical-resource-id Box --query StackResourceDetail.PhysicalResourceId --output text 2>/dev/null); \
+		case "$$BOX" in \
+			i-*) AMI=$$(aws ec2 describe-instances --instance-ids "$$BOX" --query "Reservations[0].Instances[0].ImageId" --output text); SRC="pinned: the image $$BOX runs" ;; \
+			*) AMI=$$(aws ssm get-parameter --name /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-arm64 --query Parameter.Value --output text); SRC="new: no $(BOX_STACK) stack yet, so the latest image" ;; \
+		esac; \
+	fi; \
+	case "$$AMI" in ami-*) ;; *) echo "no ami- image found for $(BOX_STACK): pass one with AMI_ID=ami-..." >&2; exit 1 ;; esac; \
+	echo "==> AmiId $$AMI ($$SRC)"; \
 	aws cloudformation deploy --template-file box.yaml --stack-name $(BOX_STACK) --capabilities CAPABILITY_IAM \
 		--parameter-overrides VpcId=$(VPC) SubnetId=$(PUBLIC_SUBNET) \
 		DbSecurityGroupId=$$(aws cloudformation describe-stacks --stack-name $(RDS_STACK) --query "Stacks[0].Outputs[?OutputKey=='DbSecurityGroupId'].OutputValue" --output text) \
 		DbSecretArn=$$(aws cloudformation describe-stacks --stack-name $(RDS_STACK) --query "Stacks[0].Outputs[?OutputKey=='DbSecretArn'].OutputValue" --output text) \
+		AmiId=$$AMI \
 		AlertTopicArn=$$(aws cloudformation describe-stacks --stack-name $(RDS_STACK) --query "Stacks[0].Outputs[?OutputKey=='AlertTopicArn'].OutputValue" --output text) \
 		CdnPrefixListId=$$(aws ec2 describe-managed-prefix-lists --region eu-west-1 --filters Name=prefix-list-name,Values=com.amazonaws.global.cloudfront.origin-facing --query "PrefixLists[0].PrefixListId" --output text) \
 		Rehearsal=$(REHEARSAL)

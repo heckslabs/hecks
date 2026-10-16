@@ -97,16 +97,21 @@ module Hecks
           # @param region [String] the validated region
           # @return [String] a Makefile whose targets create the two stacks and roll the box
           def makefile(plan, region)
-            hint = plan.task_definition ? "[TASKDEF=family:revision]" : '[TAGS="web=20260101 worker=20260101"]'
-            values = { "STACK" => plan.infra_name, "DEPLOY_HINT" => hint, "RDS_STACK" => plan.rds_stack,
-                       "BOX_STACK" => plan.box_stack, "DEPLOY_RECIPE" => RollRecipe.deploy(plan) }
-            values = values.merge(database_makefile_values(plan), edge_makefile_values(plan, region))
+            values = makefile_values(plan, region)
             base = template("Makefile.tmpl", values)
             includes = [("hosting.mk" if plan.hosting), ("edge.mk" if plan.cdn)].compact
             includes.empty? ? base : "#{base}\n#{includes.map { |file| "include #{file}\n" }.join}"
           end
 
           private
+
+          def makefile_values(plan, region)
+            hint = plan.task_definition ? "[TASKDEF=family:revision]" : '[TAGS="web=20260101 worker=20260101"]'
+            { "STACK" => plan.infra_name, "DEPLOY_HINT" => hint, "RDS_STACK" => plan.rds_stack,
+              "BOX_STACK" => plan.box_stack, "DEPLOY_RECIPE" => RollRecipe.deploy(plan),
+              "AMI_PARAMETER" => ami_parameter(plan.instance_type) }
+              .merge(database_makefile_values(plan), edge_makefile_values(plan, region))
+          end
 
           def schema_list(migration)
             migration.schemas.map { |name| "`#{name}`" }.join(", ")
