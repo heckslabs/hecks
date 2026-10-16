@@ -84,6 +84,18 @@ Resources:
       SourceSecurityGroupId: !Ref BoxSecurityGroup
       Description: App box
 
+  # Every container's log, one stream per service. The group is made here and not by Docker
+  # (awslogs-create-group is "false"), so the role below needs no right to create groups, and the
+  # retention is a declaration. A production group outlives the stack: the evidence a container
+  # wrote must not go with a deleted stack.
+  BoxLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: !If [IsProduction, Retain, Delete]
+    UpdateReplacePolicy: !If [IsProduction, Retain, Delete]
+    Properties:
+      LogGroupName: /hecks-widget-shop-box
+      RetentionInDays: 30
+
   BoxRole:
     Type: AWS::IAM::Role
     Properties:
@@ -107,6 +119,13 @@ Resources:
                   - !Ref DbSecretArn
                   - !Sub "arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:widget-shop/*"
                   - !Sub "arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:widget/origin-secret-*"
+        - PolicyName: write-logs
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: [logs:CreateLogStream, logs:PutLogEvents, logs:DescribeLogStreams]
+                Resource: !GetAtt BoxLogGroup.Arn
 
   BoxProfile:
     Type: AWS::IAM::InstanceProfile

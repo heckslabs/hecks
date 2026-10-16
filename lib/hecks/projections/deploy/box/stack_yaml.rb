@@ -24,7 +24,8 @@ module Hecks
                      "SECRET_RESOURCES" => secret_resources(plan), "WRITABLE_SECRETS" => writable_secrets(plan),
                      "TUNNEL_EGRESS" => tunnel_egress(plan),
                      "SWAP_COMMANDS" => swap_commands(plan), "ECR_REPOSITORIES" => ecr_repositories(plan),
-                     "ECR_OUTPUTS" => ecr_outputs(plan), "S3_POLICY" => s3_policy(plan))
+                     "ECR_OUTPUTS" => ecr_outputs(plan), "S3_POLICY" => s3_policy(plan),
+                     "LOG_GROUP" => log_group_yaml(plan), "LOG_POLICY" => log_policy_yaml(plan))
           end
 
           # Graviton families end their generation digit with `g` (`t4g`, `m7gd`, `c6gn`).

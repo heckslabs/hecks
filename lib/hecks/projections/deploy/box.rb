@@ -5,6 +5,7 @@ require_relative "box/hosting"
 require_relative "box/roll_recipe"
 require_relative "box/caddy"
 require_relative "box/access"
+require_relative "box/logging"
 require_relative "box/stack_yaml"
 require_relative "box/compose"
 require_relative "box/shared_database"
@@ -22,6 +23,7 @@ module Hecks
         extend Projector::Target
         extend Caddy
         extend Access
+        extend Logging
         extend StackYaml
         extend Compose
         extend SharedDatabase

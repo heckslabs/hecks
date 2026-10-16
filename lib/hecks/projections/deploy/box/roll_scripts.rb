@@ -45,7 +45,8 @@ module Hecks
                                            "RDS_STACK" => plan.rds_stack, "REGION" => region,
                                            "DIR" => "/opt/#{plan.infra_name}", "HEALTH_CHECKS" => health_checks(plan),
                                            "SMOKE_HEADER" => smoke_header(plan), "USAGE" => deploy_usage(plan),
-                                           "DB_SECRET_LINE" => database_secret_line(plan))
+                                           "DB_SECRET_LINE" => database_secret_line(plan),
+                                           **log_roll_values(plan))
           end
 
           # @param plan [Settings::Plan] the resolved settings

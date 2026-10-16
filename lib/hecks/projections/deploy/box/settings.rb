@@ -5,6 +5,7 @@ require_relative "settings/checks"
 require_relative "settings/containers"
 require_relative "settings/origin"
 require_relative "settings/cdn"
+require_relative "settings/logs"
 
 module Hecks
   module Projections
@@ -23,6 +24,7 @@ module Hecks
           extend ContainerReaders
           extend OriginReaders
           extend CdnReaders
+          extend LogReaders
 
           module_function
 
@@ -52,7 +54,7 @@ module Hecks
               shared_database: read_shared_database(settings),
               s3_buckets: read_s3_access(settings.fetch(:s3_access, [])),
               hosting: HostingSettings.read(settings, task_definition)
-            }
+            }.merge(read_logs(settings))
           end
 
           # @param settings [Hash{Symbol => Object}] the world's `AwsBox` settings

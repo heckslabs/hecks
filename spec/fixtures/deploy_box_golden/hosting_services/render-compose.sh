@@ -6,6 +6,11 @@
 # Tags default to "latest". Every container gets DB_HOST, DB_NAME, DB_SECRET_ARN and PORT, and runs on the
 # box's own network, so the proxy reaches each one on 127.0.0.1:<port>. Secrets named in services.json
 # are written to secrets.json for fetch-secrets.sh to resolve on the box.
+#
+# Every service logs to the CloudWatch group the box stack creates (one stream per service). A
+# container whose stream cannot be written does not start, so update the box stack (make stacks:
+# the group and the role's logs policy) before the first roll that uses this file. `docker logs`
+# still reads the box's local copy.
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 DB_HOST=${1:?rds endpoint}
@@ -18,20 +23,20 @@ ECR="$ACCOUNT.dkr.ecr.$REGION.amazonaws.com"
 TAGS=$(printf '%s\n' "$@" | jq -R 'select(length > 0) | split("=") | {(.[0]): .[1]}' | jq -s 'add // {}')
 
 jq --arg ecr "$ECR" --argjson tags "$TAGS" --arg host "$DB_HOST" --arg secret "$DB_SECRET" --arg db "widgetshop" '
-  def log: {driver: "json-file", options: {"max-size": "10m", "max-file": "3"}};
+  def log($service): {driver: "awslogs", options: {"awslogs-region": "us-east-1", "awslogs-group": "/hecks-widget-shop-box", "awslogs-create-group": "false", tag: $service}};
   . as $in
   | {services: (
       ($in.services | with_entries(.value |= (
         {image: ($ecr + "/" + .repository + ":" + ($tags[.name] // "latest")),
-         network_mode: "host", restart: "unless-stopped", logging: log,
+         network_mode: "host", restart: "unless-stopped", logging: log(.name),
          environment: ({PORT: (.port | tostring), DB_HOST: $host, DB_NAME: $db, DB_SECRET_ARN: $secret} + .env)}
         + (if (.secrets | length) > 0 then {env_file: [(.name + ".secrets.env")]} else {} end))))
       + {caddy: ({image: "public.ecr.aws/docker/library/caddy:2.8@sha256:226d1f059b75399fe19182893c7184591c07b97afc8dfcf44eeb80c9a77a530f", network_mode: "host", restart: "unless-stopped",
-                  volumes: ["./Caddyfile:/etc/caddy/Caddyfile:ro", "./caddy-extra:/etc/caddy/extra:ro"], logging: log}
+                  volumes: ["./Caddyfile:/etc/caddy/Caddyfile:ro", "./caddy-extra:/etc/caddy/extra:ro"], logging: log("caddy")}
                  + (if $in.origin then {env_file: ["caddy.secrets.env"]} else {} end))}
       + (if $in.tunnel then {cloudflared: {image: $in.tunnel.image, network_mode: "host", restart: "unless-stopped",
                   command: ["tunnel", "--no-autoupdate", "--url", $in.tunnel.url, "run"],
-                  env_file: ["cloudflared.secrets.env"], logging: log}} else {} end))}' \
+                  env_file: ["cloudflared.secrets.env"], logging: log("cloudflared")}} else {} end))}' \
   "$HERE/services.json" > compose.json
 
 jq '. as $in

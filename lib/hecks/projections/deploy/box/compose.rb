@@ -13,11 +13,13 @@ module Hecks
           #   an ECS task definition when the world names one
           def render_compose_sh(plan, region)
             if plan.task_definition
-              template("render-compose-taskdef.sh.tmpl", "STACK" => plan.infra_name, "FAMILY" => plan.task_definition,
-                                                          "PROXY_IMAGE" => plan.proxy_image)
+              template("render-compose-taskdef.sh.tmpl",
+                       { "STACK" => plan.infra_name, "FAMILY" => plan.task_definition, "PROXY_IMAGE" => plan.proxy_image }
+                         .merge(compose_log_values(plan, region, "$s.name")))
             else
-              template("render-compose.sh.tmpl", "STACK" => plan.infra_name, "REGION" => region,
-                                                 "DB_NAME" => plan.database_name, "PROXY_IMAGE" => plan.proxy_image)
+              template("render-compose.sh.tmpl",
+                       { "STACK" => plan.infra_name, "REGION" => region, "DB_NAME" => plan.database_name,
+                         "PROXY_IMAGE" => plan.proxy_image }.merge(compose_log_values(plan, region, ".name")))
             end
           end
 

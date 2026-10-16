@@ -1,0 +1,164 @@
+#!/bin/bash
+# Roll scratch-fixture's app box: render the compose files, push them over SSM, start the containers and check
+# them. Exits non-zero if the roll fails or the box does not answer as expected.
+#
+# Exit codes (the ones `hecks deploy box_roll.run` names; a step that fails under `set -e` ends with its
+# own status, 1 from bash and 254/255 from the aws CLI):
+#   0   the roll succeeded and the box answered healthy
+#   40  the box stack has no instance
+#   41  the roll did not succeed on the box
+#   42  the roll succeeded but the box is not healthy after it
+#   43  no restore anchor: the database's backups cannot be read, or are kept fewer days than
+#       MIN_BACKUP_RETENTION_DAYS (default 3)
+#
+# Before anything changes, the roll names the point the database can be restored to: the instance, the
+# moment this roll starts, and how long its continuous backups are kept. A roll that mints a new era is
+# a one-way door, so this is the rollback anchor, and it costs nothing (a point-in-time restore uses the
+# backups the instance already keeps, where a manual snapshot would be stored until someone deleted it).
+# SKIP_RESTORE_ANCHOR=1 skips it.
+#
+# Before the roll replaces a container, the box saves that container's log to
+# /var/log/hecks-captures/<container>-<UTC timestamp>.log and keeps the newest 14 per container
+# (a roll deletes the old container's log with it). A capture never changes the exit codes: if it
+# cannot run, the roll goes on. SKIP_LOG_CAPTURE=1 skips it; LOG_CAPTURE_SERVICES="a b" limits it to
+# those services (deploy-service.sh sets the one it rolls).
+#
+#   deploy-box.sh [name=tag ...]
+#
+# A container named without a tag runs its "latest" image. Secret values are resolved on the box by
+# fetch-secrets.sh and never pass through the SSM command.
+set -euo pipefail
+HERE=$(cd "$(dirname "$0")" && pwd)
+BOX_STACK=hecks-scratch-fixture-box
+RDS_STACK=hecks-scratch-fixture-rds
+REGION=us-east-1
+DIR=/opt/scratch-fixture
+out() { aws cloudformation describe-stacks --stack-name "$1" --query "Stacks[0].Outputs[?OutputKey==\`$2\`].OutputValue" --output text; }
+
+BOX=$(out "$BOX_STACK" InstanceId)
+DB_HOST=$(out "$RDS_STACK" DbEndpoint)
+DB_SECRET=$(out "$RDS_STACK" DbSecretArn)
+[ -n "$BOX" ] && [ "$BOX" != None ] || { echo "no instance in stack $BOX_STACK" >&2; exit 40; }
+ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+
+if [ "${SKIP_RESTORE_ANCHOR:-}" = 1 ]; then
+  echo "==> skipping the restore anchor (SKIP_RESTORE_ANCHOR=1)"
+else
+  DB_ID=${DB_HOST%%.*}
+  BACKUPS=$(aws rds describe-db-instances --db-instance-identifier "$DB_ID" \
+    --query 'DBInstances[0].[BackupRetentionPeriod,LatestRestorableTime]' --output text) || BACKUPS=
+  read -r KEPT_DAYS RESTORABLE <<< "$BACKUPS"
+  case "${KEPT_DAYS:-}" in ''|*[!0-9]*)
+    echo "==> no restore anchor: could not read the backups of $DB_ID (SKIP_RESTORE_ANCHOR=1 rolls without one)" >&2
+    exit 43 ;;
+  esac
+  if [ "$KEPT_DAYS" -lt "${MIN_BACKUP_RETENTION_DAYS:-3}" ]; then
+    echo "==> no restore anchor: $DB_ID keeps backups $KEPT_DAYS day(s), fewer than ${MIN_BACKUP_RETENTION_DAYS:-3}" >&2
+    exit 43
+  fi
+  ANCHOR_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  echo "==> restore anchor: $DB_ID restorable to $ANCHOR_AT (latest $RESTORABLE, backups kept $KEPT_DAYS days)"
+  echo "    to return: aws rds restore-db-instance-to-point-in-time --source-db-instance-identifier $DB_ID \\"
+  echo "      --target-db-instance-identifier $DB_ID-restore --restore-time $ANCHOR_AT"
+fi
+
+WORK=$(mktemp -d); trap 'rm -rf "$WORK"' EXIT
+
+# SMOKE_LISTENER=1 (a rehearsal box only) mounts a loopback HTTPS site on 127.0.0.1:8443 that adds the
+# origin secret, so a browser-driven smoke run can reach the box through an SSM port-forward without the
+# CDN. TLS because a site that treats a request carrying the origin secret as https expects an https
+# Origin on every form post.
+cat > "$WORK/smoke.caddy" <<'SMOKE_EOF'
+https://127.0.0.1:8443 {
+	tls internal
+	reverse_proxy 127.0.0.1:80 {
+	}
+}
+SMOKE_EOF
+( cd "$WORK" && bash "$HERE/render-compose.sh" "$DB_HOST" "$DB_SECRET" "$@" )
+
+# Run a script on the box over SSM, wait for it, print its output, return its status.
+run_on_box() {
+  local cid st i
+  cid=$(aws ssm send-command --instance-ids "$BOX" --document-name AWS-RunShellScript --timeout-seconds 900 \
+    --parameters "$1" --query 'Command.CommandId' --output text) || return 1
+  sleep 3
+  for i in $(seq 1 150); do
+    st=$(aws ssm get-command-invocation --command-id "$cid" --instance-id "$BOX" --query Status --output text)
+    [ "$st" != InProgress ] && [ "$st" != Pending ] && break
+    sleep 5
+  done
+  aws ssm get-command-invocation --command-id "$cid" --instance-id "$BOX" --query StandardOutputContent --output text
+  [ "$st" = Success ]
+}
+
+B64() { base64 < "$1" | tr -d '\n'; }
+ROLL=$(jq -n --arg compose "$(B64 "$WORK/compose.json")" --arg secrets "$(B64 "$WORK/secrets.json")" \
+  --arg caddy "$(B64 "$HERE/Caddyfile")" --arg fetch "$(B64 "$HERE/fetch-secrets.sh")" \
+  --arg smokefile "$(B64 "$WORK/smoke.caddy")" --arg smoke "${SMOKE_LISTENER:-}" \
+  --arg registry "$ACCOUNT.dkr.ecr.$REGION.amazonaws.com" --arg dir "$DIR" '
+  {commands: ["cloud-init status --wait >/dev/null 2>&1 || true",
+    "set -e", "mkdir -p \($dir)/caddy-extra && cd \($dir)", "umask 077",
+    "CADDY_BEFORE=$(cat Caddyfile 2>/dev/null | sha256sum)",
+    "echo \($compose) | base64 -d > compose.json; echo \($secrets) | base64 -d > secrets.json",
+    "echo \($caddy) | base64 -d > Caddyfile; echo \($fetch) | base64 -d > fetch-secrets.sh",
+    "bash fetch-secrets.sh",
+    (if $smoke == "1" then "echo \($smokefile) | base64 -d > caddy-extra/smoke.caddy" else "rm -f caddy-extra/smoke.caddy" end),
+    "aws ecr get-login-password --region '"$REGION"' | docker login --username AWS --password-stdin \($registry) >/dev/null",
+    "docker compose -f compose.json pull --quiet",
+    "docker compose -f compose.json up -d --remove-orphans",
+    "[ \"$(sha256sum < Caddyfile)\" = \"$CADDY_BEFORE\" ] || docker compose -f compose.json restart caddy",
+    "for i in $(seq 1 40); do docker compose -f compose.json ps --format \"{{.Status}}\" | grep -qE \"^Up (Less than a second|[0-4] seconds?)|Restarting|Created|Exited\" || break; sleep 1; done; docker compose -f compose.json ps --format \"table {{.Service}}\\t{{.Status}}\""],
+   executionTimeout: ["900"]}')
+
+# Saves the log of each running container about to be replaced. It only reads containers and writes
+# files under /var/log/hecks-captures, skips on low disk, never prints a log's contents, and ends 0.
+CAPTURE=$(cat <<'CAPTURE_EOF'
+umask 027
+cd "${CAPTURE_HOME:-/opt/scratch-fixture}" 2>/dev/null && [ -f compose.json ] || { echo "log capture: no running roll to capture"; exit 0; }
+LOGDIR=${CAPTURE_DIR:-/var/log/hecks-captures}; KEEP=14
+FREE_KB=$(df -Pk "${CAPTURE_DF_PATH:-/var/log}" 2>/dev/null | awk 'NR==2 {print $4}')
+if [ "${FREE_KB:-0}" -lt "${CAPTURE_MIN_FREE_KB:-2097152}" ]; then
+  echo "WARNING log capture skipped: under 2 GiB free on /var/log"; exit 0
+fi
+mkdir -p "$LOGDIR" && chmod 750 "$LOGDIR" || { echo "WARNING log capture skipped: cannot create $LOGDIR"; exit 0; }
+STAMP=$(date -u +%Y%m%dT%H%M%SZ)
+docker compose -f compose.json ps --format '{{.Service}} {{.Name}}' 2>/dev/null | while read -r svc name; do
+  [ -z "$ONLY" ] || printf ' %s ' "$ONLY" | grep -qF " $svc " || continue
+  f="$LOGDIR/$name-$STAMP.log"
+  if docker logs "$name" > "$f" 2>&1 < /dev/null; then
+    chmod 640 "$f"; echo "captured $f $(wc -c < "$f" | tr -d ' ') bytes"
+  else
+    rm -f "$f"; echo "WARNING log capture failed for $name; the roll goes on"
+  fi
+  ls -1 "$LOGDIR/$name"-[0-9]*T[0-9]*Z.log 2>/dev/null | sort -r | tail -n +$((KEEP + 1)) | while read -r old; do rm -f "$old"; done
+done
+exit 0
+CAPTURE_EOF
+)
+if [ "${SKIP_LOG_CAPTURE:-}" = 1 ]; then
+  echo "==> skipping the log capture (SKIP_LOG_CAPTURE=1)"
+else
+  echo "==> capturing the logs of the containers about to be replaced"
+  ONLY=$(printf '%s' "${LOG_CAPTURE_SERVICES:-}" | tr -cd 'A-Za-z0-9_. -')
+  CAPTURE_JSON=$(jq -n --arg c "$(printf "ONLY='%s'\n%s\n" "$ONLY" "$CAPTURE" | base64 | tr -d '\n')" '{commands: ["echo \($c) | base64 -d | bash"]}')
+  run_on_box "$CAPTURE_JSON" || echo "WARNING the log capture could not run on the box; the roll goes on" >&2
+fi
+
+echo "==> rolling $BOX_STACK ($BOX) at $(date -u +%H:%M:%SZ)"
+run_on_box "$ROLL" || { echo "==> the roll did not succeed" >&2; exit 41; }
+
+echo "==> checking the box"
+CHECK=$(cat <<'CHECK_EOF'
+cd /opt/scratch-fixture
+BAD=0
+code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 40 localhost/)
+[ "${code#5}" = "$code" ] && echo "ok   the proxy serves / -> $code" || { echo "FAIL the proxy serves / -> $code"; BAD=1; }
+DOWN=$(docker compose -f compose.json ps --format "{{.Service}} {{.Status}}" | grep -vE " Up " || true)
+if [ -z "$DOWN" ]; then echo "ok   every container is up"; else echo "FAIL containers not up: $DOWN"; BAD=1; fi
+[ "$BAD" = 0 ]
+CHECK_EOF
+)
+CHECK_JSON=$(jq -n --arg c "$(printf '%s' "$CHECK" | base64 | tr -d '\n')" '{commands: ["echo \($c) | base64 -d | bash"]}')
+run_on_box "$CHECK_JSON" || { echo "==> the box is NOT healthy after the roll" >&2; exit 42; }
+echo "==> box roll done ($(date -u +%H:%M:%SZ))"
