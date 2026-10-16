@@ -18,6 +18,7 @@ a `.strip` guard) and the editor's forms. `spec/fuzzing` now runs on push, not a
 
 ### Added
 
+- **An `AwsBox` world declares its CloudFront edge (ADR 0107).** `cdn({ aliases: [...] })` inside `deployed_to("AwsBox")` makes `hecks deploy project` also write `edge.yaml` (one distribution in front of the box, the origin-secret header read from Secrets Manager, caching off, the ACM certificate a parameter) and `edge.mk` (`make edge CERTIFICATE_ARN=...`), and `make stacks` looks CloudFront's managed prefix list up by name and passes it as `CdnPrefixListId`, so a box can no longer be deployed with no inbound rule and answer 504. A world without `cdn` generates what it did before.
 - **`model_check` warns when an attribute copies another aggregate's identity by value.** The new `:key_by_value` finding (a warning, so no run fails on it) flags an aggregate attribute whose type is the identity type of another aggregate in the same domain, such as a `Ledger` holding an `AccountNumber` that is `Account`'s identity, and recommends `reference_to Account`, which states the link and has it enforced. Reference attributes, an owner's own single identity attribute, list attributes and primitive types are not flagged; a key held as one head of a composite identity is flagged, and an aggregate with a composite identity never owns a key. Ruby only: there is no Rust `model_check`. The rule lives in `Hecks::Bluebook::ModelCheck::ReferenceChecks`.
 
 ### Changed

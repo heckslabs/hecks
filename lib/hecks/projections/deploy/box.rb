@@ -9,6 +9,7 @@ require_relative "box/stack_yaml"
 require_relative "box/compose"
 require_relative "box/shared_database"
 require_relative "box/roll_scripts"
+require_relative "box/edge"
 
 module Hecks
   module Projections
@@ -25,6 +26,7 @@ module Hecks
         extend Compose
         extend SharedDatabase
         extend RollScripts
+        extend Edge
 
         projects_as :aws_box, needs_world: true, emits: :files
 
@@ -123,7 +125,15 @@ module Hecks
             volume_gb: { value: settings.fetch(:volume_gb, 30) },
             database_class: { value: settings.fetch(:database_class, "db.t4g.small") },
             storage_gb: { value: settings.fetch(:storage_gb, 20) }
-          }
+          }.merge(cdn_arguments(settings[:cdn]))
+        end
+
+        # @param cdn [Hash{Symbol => Object}, nil] the world's `cdn` setting
+        # @return [Hash{Symbol => Array}] the `cdn_aliases` argument, or nothing without a `cdn`
+        def cdn_arguments(cdn)
+          return {} unless cdn.is_a?(Hash) && cdn[:aliases].is_a?(Array)
+
+          { cdn_aliases: cdn[:aliases].map { |name| { value: name } } }
         end
 
         # @param plan [Settings::Plan] the resolved settings
@@ -136,8 +146,8 @@ module Hecks
             "render-compose.sh" => render_compose_sh(plan, region),
             "fetch-secrets.sh" => File.read(File.join(TEMPLATE_DIR, "fetch-secrets.sh")),
             "deploy-box.sh" => deploy_box_sh(plan, region),
-            "Makefile" => makefile(plan)
-          }.merge(database_files(plan)).merge(migration_files(plan))
+            "Makefile" => makefile(plan, region)
+          }.merge(database_files(plan)).merge(migration_files(plan)).merge(edge_files(plan, region))
             .then { |files| Hosting.extend_files(files, plan: plan, region: region) }
         end
 

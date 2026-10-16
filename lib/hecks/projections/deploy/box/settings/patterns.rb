@@ -37,6 +37,10 @@ module Hecks
                            "(the secret holding the tunnel token)".freeze
             ORIGIN_ENV_SHAPE = "origin_env: the container environment variable names that hold the origin secret " \
                                "need an origin_secret and a task_definition to compare against".freeze
+            CDN_ALIAS = /\A[a-z0-9.-]{4,253}\z/
+            CDN_SHAPE = "cdn: a hash with `aliases`, the non-empty list of host names the CloudFront edge answers on".freeze
+            CDN_NEEDS_ORIGIN = "cdn: the box admits CloudFront's addresses on port 80, so it needs the origin guard " \
+                               "that refuses every other caller; declare origin_header and origin_secret".freeze
             ORIGIN_PAIR = "origin_header and origin_secret go together: the header a CDN sends, " \
                           "and the secret that holds its value".freeze
           end

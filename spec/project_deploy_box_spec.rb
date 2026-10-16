@@ -79,6 +79,18 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
         end
       end
     WORLD
+    "cdn"              => <<~WORLD,
+      Hecks.world "Scratch" do
+        deployed_to("AwsBox") do
+          region "eu-west-1"
+          stack_name "widget-shop"
+          containers [{ name: "web", port: 8080 }]
+          origin_header "X-Origin-Secret"
+          origin_secret "widget/origin-secret"
+          cdn({ aliases: ["platform.example.test", "auth.example.test"] })
+        end
+      end
+    WORLD
     "taskdef"          => <<~WORLD,
       Hecks.world "Scratch" do
         deployed_to("AwsBox") do
@@ -748,6 +760,83 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
 
       expect(files).to be_nil
       expect(stderr).to include("shared_database")
+    end
+  end
+
+  describe "the cdn world" do
+    let(:files) { cached("cdn", BOX_WORLDS.fetch("cdn")).first }
+    let(:distribution) { template_of(files["edge.yaml"])["Resources"]["Distribution"]["Properties"]["DistributionConfig"] }
+
+    it "fronts the box's origin with the secret header resolved from Secrets Manager", :aggregate_failures do
+      origin = distribution["Origins"].first
+      header = origin["OriginCustomHeaders"].first
+
+      expect(origin["DomainName"]).to eq({ "Ref" => "AppOriginDomain" })
+      expect(header).to eq({ "HeaderName"  => "X-Origin-Secret",
+                             "HeaderValue" => "{{resolve:secretsmanager:widget/origin-secret:SecretString}}" })
+    end
+
+    it "caches nothing and forwards everything the viewer sent", :aggregate_failures do
+      behavior = distribution["DefaultCacheBehavior"]
+
+      expect(behavior["CachePolicyId"]).to start_with("4135ea2d")
+      expect(behavior["OriginRequestPolicyId"]).to start_with("216adef6")
+    end
+
+    it "answers on the aliases and takes the certificate as a parameter, creating none", :aggregate_failures do
+      template = template_of(files["edge.yaml"])
+
+      expect(template["Parameters"]["DomainNames"]["Default"]).to eq("platform.example.test,auth.example.test")
+      expect(template["Parameters"]["CertificateArn"]["AllowedPattern"]).to start_with("arn:aws:acm:us-east-1")
+      expect(template["Resources"].values.map { |r| r["Type"] }).to eq(["AWS::CloudFront::Distribution"])
+    end
+
+    it "gives `make stacks` the CloudFront prefix list, found by name, and refuses to run without it", :aggregate_failures do
+      expect(files["Makefile"]).to include("CdnPrefixListId=$$(aws ec2 describe-managed-prefix-lists --region eu-west-1",
+                                           "com.amazonaws.global.cloudfront.origin-facing", "answer 504")
+      expect(files["Makefile"].index("answer 504")).to be < files["Makefile"].index("aws cloudformation deploy")
+    end
+
+    it "adds `make edge`, which needs the certificate ARN", :aggregate_failures do
+      expect(files["Makefile"]).to include("include edge.mk")
+      expect(files["edge.mk"]).to include("EDGE_STACK = hecks-widget-shop-edge", "usage: make edge CERTIFICATE_ARN=")
+    end
+  end
+
+  describe "a world that declares no cdn" do
+    let(:files) { cached("default", BOX_WORLDS.fetch("default")).first }
+
+    it "renders no edge stack and no prefix list lookup", :aggregate_failures do
+      expect(files.keys).not_to include("edge.yaml", "edge.mk")
+      expect(files["Makefile"]).not_to include("edge.mk", "CdnPrefixListId", "prefix-list")
+    end
+  end
+
+  describe "a cdn that is wrong" do
+    let(:guard) { ['origin_header "X-Origin-Secret"', 'origin_secret "widget/origin-secret"'] }
+
+    def refused(*lines)
+      files, stderr = generate(world_source('containers [{ name: "web", port: 8080 }]', *lines))
+      expect(files).to be_nil
+      stderr
+    end
+
+    it "refuses an alias that is not a host name, naming the block", :aggregate_failures do
+      stderr = refused(*guard, 'cdn({ aliases: ["Not_A_Host"] })')
+
+      expect(stderr).to include('deployed_to("AwsBox") is invalid').and include("lowercase host name")
+    end
+
+    it "refuses a cdn with no origin guard, which would open the box to every CloudFront customer" do
+      expect(refused('cdn({ aliases: ["app.example.test"] })')).to include("origin_header and origin_secret")
+    end
+
+    it "refuses a cdn that names no alias" do
+      expect(refused(*guard, "cdn({ aliases: [] })")).to include("cdn: a hash with `aliases`")
+    end
+
+    it "refuses a cdn setting it does not know" do
+      expect(refused(*guard, 'cdn({ aliases: ["app.example.test"], price_class: "all" })')).to include("cdn: a hash with")
     end
   end
 

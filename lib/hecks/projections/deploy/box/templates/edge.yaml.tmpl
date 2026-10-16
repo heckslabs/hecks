@@ -1,0 +1,65 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  The CloudFront edge of @@STACK@@: one distribution in front of the app box. Its only origin is the
+  box's public DNS name over plain http on port 80, and every request to it carries the origin secret
+  header the box's proxy checks. Nothing is cached: the origin decides what a response means.
+
+Parameters:
+  AppOriginDomain:
+    Type: String
+    AllowedPattern: ".+"
+    ConstraintDescription: the box stack's AppOriginDomain output
+    Description: DNS name of the app box, the distribution's only origin.
+  CertificateArn:
+    Type: String
+    AllowedPattern: "arn:aws:acm:us-east-1:.+"
+    ConstraintDescription: an ACM certificate in us-east-1 that covers every alias
+    Description: >
+      An issued ACM certificate in us-east-1 that covers every name in DomainNames. It is never created
+      here: DNS validation is a step an operator performs.
+  DomainNames:
+    Type: CommaDelimitedList
+    Default: "@@ALIASES@@"
+    Description: The host names the distribution answers on.
+
+Resources:
+  Distribution:
+    Type: AWS::CloudFront::Distribution
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        Aliases: !Ref DomainNames
+        ViewerCertificate:
+          AcmCertificateArn: !Ref CertificateArn
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1.2_2021
+        Origins:
+          - Id: BoxOrigin
+            DomainName: !Ref AppOriginDomain
+            OriginCustomHeaders:
+              # Resolved by CloudFormation from Secrets Manager when the stack deploys, so the value
+              # never appears on a command line or in this file.
+              - HeaderName: @@ORIGIN_HEADER@@
+                HeaderValue: "{{resolve:secretsmanager:@@ORIGIN_SECRET@@:SecretString}}"
+            CustomOriginConfig:
+              OriginProtocolPolicy: http-only
+              OriginSSLProtocols: [TLSv1.2]
+        DefaultCacheBehavior:
+          TargetOriginId: BoxOrigin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE]
+          CachedMethods: [GET, HEAD]
+          Compress: true
+          CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad # Managed-CachingDisabled
+          OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3 # Managed-AllViewer
+
+Outputs:
+  DistributionId:
+    Value: !Ref Distribution
+  DistributionDomainName:
+    Description: Point each alias's DNS record (CNAME or alias) at this name.
+    Value: !GetAtt Distribution.DomainName

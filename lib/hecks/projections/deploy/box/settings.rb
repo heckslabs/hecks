@@ -4,6 +4,7 @@ require_relative "settings/types"
 require_relative "settings/checks"
 require_relative "settings/containers"
 require_relative "settings/origin"
+require_relative "settings/cdn"
 
 module Hecks
   module Projections
@@ -21,6 +22,7 @@ module Hecks
           extend Checks
           extend ContainerReaders
           extend OriginReaders
+          extend CdnReaders
 
           module_function
 
@@ -62,7 +64,7 @@ module Hecks
             origin_env = read_origin_env(settings, secret, task_definition)
             tunnel, tunnel_service = read_tunnel(settings.fetch(:tunnel, false), containers)
             { origin_header: header, origin_secret: secret, origin_env: origin_env,
-              tunnel: tunnel, tunnel_service: tunnel_service }
+              tunnel: tunnel, tunnel_service: tunnel_service, cdn: read_cdn(settings[:cdn], header) }
           end
 
           # @return [Hash{Symbol => Object}] the plan's names, sizes, routes and secret scopes

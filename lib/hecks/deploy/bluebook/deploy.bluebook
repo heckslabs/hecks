@@ -212,6 +212,7 @@ Hecks.bluebook "Deploy" do
     attribute :volume_gb,      VolumeGb
     attribute :database_class, DatabaseClass
     attribute :storage_gb,     StorageGb
+    attribute :cdn_aliases,    list_of(CdnAlias), optional: true
 
     value_object "DomainName" do
       attribute :value, String
@@ -251,8 +252,19 @@ Hecks.bluebook "Deploy" do
       invariant("storage is at most 65536 GB") { value <= 65536 }
     end
 
-    # All six required for the same reason as `FargateTarget.Declare`; this validates a target
-    # already resolved by `hecks deploy project`'s defaults.
+    # A host name the CloudFront edge answers on, such as app.example.com. Lowercase labels only:
+    # CloudFront refuses a name its certificate does not cover at deploy, which this cannot see.
+    value_object "CdnAlias" do
+      attribute :value, String
+      invariant("a CDN alias is a lowercase host name such as app.example.com") do
+        value.to_s.match?(/\A([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{0,61}[a-z0-9]\z/)
+      end
+      invariant("a CDN alias is at most 253 characters") { value.to_s.length <= 253 }
+    end
+
+    # The first six are required for the same reason as `FargateTarget.Declare`; this validates a
+    # target already resolved by `hecks deploy project`'s defaults. `cdn_aliases` is the one
+    # optional setting: naming at least one asks for the CloudFront edge stack.
     command "Declare" do
       goal "Validate one domain's AwsBox deploy target before anything is generated from it"
 
@@ -262,6 +274,7 @@ Hecks.bluebook "Deploy" do
       attribute :volume_gb,      VolumeGb
       attribute :database_class, DatabaseClass
       attribute :storage_gb,     StorageGb
+      attribute :cdn_aliases,    list_of(CdnAlias), optional: true
 
       sets :domain
       sets :region
@@ -269,6 +282,7 @@ Hecks.bluebook "Deploy" do
       sets :volume_gb
       sets :database_class
       sets :storage_gb
+      sets :cdn_aliases
 
       emits "BoxTargetDeclared"
     end
