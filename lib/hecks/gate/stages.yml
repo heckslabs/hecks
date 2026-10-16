@@ -94,6 +94,38 @@ unguarded_push:
     - *check_comment_blocks
     - *check_fuzzing
 
+# The Rust io specs `ci-rust-io.yml` runs in its `rspec_rust_io` job, for a push that wants their
+# answer first: `hecks gate_run.gate stage=rust_io --wait`. No hook or workflow runs it. It sets CI
+# as the job does, so a skipped example fails here as it fails there. rust/src/generated is not
+# committed, so the check materializes it first, as the job's generated-rust action does. The specs
+# mutate rust/, and a stage's checks run at once, so the job's two legs run one after the other in
+# a single check. spec/gate_rust_io_stage_spec.rb pins the spec lists to the workflow's matrix.
+rust_io:
+  env:
+    CI: "true"
+    HECKS_ENVIRONMENT: memory
+  checks:
+    - id: rust_io
+      title: rust io specs, conformance, coercion, has_many, semantics corpus and feature exclusivity
+      run:
+        - sh
+        - -ec
+        - |
+          # Building the banking crate makes banking the default feature and rewrites the module
+          # list, both tracked. They are put back on the way out, and the check will not start over
+          # a person's uncommitted edits to them.
+          rewritten="rust/Cargo.toml rust/src/generated/mod.rs"
+          if [ -n "$(git status --porcelain -- $rewritten)" ]; then
+            echo "uncommitted changes in $rewritten; commit or discard them first" >&2
+            exit 1
+          fi
+          trap 'git checkout -q -- $rewritten' EXIT
+          env -u CARGO_TARGET_DIR bundle exec exe/hecks regeneration_run.regenerate_corpus --confirm --wait
+          bundle exec exe/hecks build.project_rust domain=examples/banking --wait
+          bundle exec rspec --tag io --profile 8 spec/rust_conformance_spec.rb spec/rust_conformance_fuzz_spec.rb spec/rust_numeric_coercion_spec.rb spec/rust_generated/has_many_spec.rb spec/semantics_corpus_spec.rb
+          bundle exec rspec --tag io --profile 8 spec/rust_generated/domain_feature_exclusivity_spec.rb
+      blocked: a Rust io spec failed, or skipped; the crate it built is under rust/target.
+
 # The checks `.github/workflows/ci-checks.yml` runs. It sets no `env`: the job's journal choice
 # (the `hecks-environment` action) reaches every check, as it reached each command before.
 ci:
