@@ -32358,6 +32358,32 @@
             [
               [
                 "name",
+                "release_only"
+              ],
+              [
+                "workflow",
+                "ci.yml"
+              ],
+              [
+                "mode",
+                "release_only"
+              ],
+              [
+                "pattern",
+                ""
+              ],
+              [
+                "push",
+                "before_sha"
+              ],
+              [
+                "label",
+                "is this change only a release bump on a certified base?"
+              ]
+            ],
+            [
+              [
+                "name",
                 "postgres_io_relevant_changed"
               ],
               [
@@ -32390,7 +32416,118 @@
               "admits": null,
               "default": null,
               "list": false,
+              "name": "path",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "lines",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "path",
+                "lib/hecks/version.rb"
+              ],
+              [
+                "lines",
+                "^\\s*VERSION = \"[0-9]+\\.[0-9]+\\.[0-9]+\"\\.freeze$"
+              ]
+            ],
+            [
+              [
+                "path",
+                "CHANGELOG.md"
+              ],
+              [
+                "lines",
+                ""
+              ]
+            ],
+            [
+              [
+                "path",
+                "README.md"
+              ],
+              [
+                "lines",
+                "^(\\*\\*Status:\\*\\* )?Current release: `[0-9]+\\.[0-9]+\\.[0-9]+`"
+              ]
+            ],
+            [
+              [
+                "path",
+                "Gemfile.lock"
+              ],
+              [
+                "lines",
+                "^    hecks \\([0-9]+\\.[0-9]+\\.[0-9]+\\)$"
+              ]
+            ],
+            [
+              [
+                "path",
+                "rust/host/HECKS_RELEASE"
+              ],
+              [
+                "lines",
+                "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+              ]
+            ],
+            [
+              [
+                "path",
+                "packages/hecks-client/package.json"
+              ],
+              [
+                "lines",
+                "^\\s*\"version\": \"[0-9]+\\.[0-9]+\\.[0-9]+\",?$"
+              ]
+            ],
+            [
+              [
+                "path",
+                "packages/hecks-client/package-lock.json"
+              ],
+              [
+                "lines",
+                "^\\s*\"version\": \"[0-9]+\\.[0-9]+\\.[0-9]+\",?$"
+              ]
+            ]
+          ],
+          "name": "ReleaseFile"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
               "name": "name",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "runs",
               "optional": false,
               "pattern": null,
               "relationship": null,
@@ -32454,6 +32591,16 @@
               [
                 "name",
                 "rspec_fuzzing"
+              ]
+            ],
+            [
+              [
+                "name",
+                "release_consistency"
+              ],
+              [
+                "runs",
+                "always"
               ]
             ]
           ],
