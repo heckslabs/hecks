@@ -2,11 +2,13 @@
 //!
 //! ## The order is the contract
 //!
-//! The checks run in a fixed order and the first failure is the verdict: the site's cookie, then the
+//! The checks run in a fixed order and the first failure is the verdict: the site's cookie, then
+//! the
 //! state, the size, the structure, the header, the key and signature, the claims, the nonce, the
 //! single-use identifier, and last the identity. Three consequences matter:
 //!
-//! - A request that fails early learns nothing about later checks (a forged request with a bad state
+//! - A request that fails early learns nothing about later checks (a forged request with a bad
+//! state
 //!   is not told whether its token was expired).
 //! - The `jti` is spent only after every check before it passed, so an attacker who replays a
 //!   victim's token with the wrong nonce cannot burn it.
@@ -19,10 +21,33 @@
 //! time. State and nonce are compared through an injected comparison so a test can see that it is
 //! the one in use; the default hashes both sides and compares fixed-length digests.
 
+use jsonwebtoken::{Algorithm, DecodingKey};
+use sha2::{Digest, Sha256};
+
 use super::config::PlatformSigninConfig;
 use super::jti::JtiStore;
-use super::jwks::KeySource;
-use super::strict_json::JsonObject;
+use super::jwks::{KeySource, VerifyingKey};
+use super::jws::{CompactJws, JwsFault};
+use super::strict_json::{Json, JsonObject};
+
+/// The only signature algorithm accepted, compared exactly.
+const ALGORITHM: &str = "EdDSA";
+/// The only token type accepted, compared exactly.
+const TOKEN_TYPE: &str = "JWT";
+/// The claims every token must carry, present and not `null`.
+const REQUIRED_CLAIMS: [&str; 11] = [
+    "iss",
+    "aud",
+    "env",
+    "sub",
+    "email",
+    "email_verified",
+    "nonce",
+    "iat",
+    "nbf",
+    "exp",
+    "jti",
+];
 
 /// Why a token was refused; the stable code is the contract with the issuer's reference verifier.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -72,13 +97,31 @@ impl Reason {
 
     /// Returns the stable lowercase code, such as `"bad_aud"`.
     pub fn code(self) -> &'static str {
-        todo!("Reason::code")
+        match self {
+            Reason::MissingCookie => "missing_cookie",
+            Reason::StateMismatch => "state_mismatch",
+            Reason::TooLarge => "too_large",
+            Reason::Malformed => "malformed",
+            Reason::BadAlg => "bad_alg",
+            Reason::UnknownKid => "unknown_kid",
+            Reason::BadSignature => "bad_signature",
+            Reason::BadIss => "bad_iss",
+            Reason::BadAud => "bad_aud",
+            Reason::BadEnv => "bad_env",
+            Reason::MissingClaim => "missing_claim",
+            Reason::NotYetValid => "not_yet_valid",
+            Reason::Expired => "expired",
+            Reason::Lifetime => "lifetime",
+            Reason::NonceMismatch => "nonce_mismatch",
+            Reason::Replay => "replay",
+            Reason::EmailUnverified => "email_unverified",
+            Reason::SubjectMismatch => "subject_mismatch",
+        }
     }
 
     /// Finds the reason that has this code.
     pub fn from_code(code: &str) -> Option<Reason> {
-        let _ = code;
-        todo!("Reason::from_code")
+        Self::ALL.into_iter().find(|reason| reason.code() == code)
     }
 }
 
@@ -140,12 +183,16 @@ pub struct VerifiedClaims {
 /// A comparison of two secrets for equality, injected so tests can observe its use.
 pub type SecureCompare = Box<dyn Fn(&str, &str) -> bool + Send + Sync>;
 
-/// Compares two strings without the timing depending on where they first differ or on their lengths.
+/// Compares two strings without the timing depending on where they first differ or on their
+/// lengths.
 ///
 /// Both sides are hashed first so the comparison runs over equal-length digests.
 pub fn secure_compare(a: &str, b: &str) -> bool {
-    let _ = (a, b);
-    todo!("secure_compare")
+    let (left, right) = (Sha256::digest(a.as_bytes()), Sha256::digest(b.as_bytes()));
+    left.iter()
+        .zip(right.iter())
+        .fold(0u8, |difference, (x, y)| difference | (x ^ y))
+        == 0
 }
 
 /// Runs the ordered checks against one issuer, site and environment.
@@ -159,7 +206,12 @@ pub struct Verifier<K: KeySource> {
 impl<K: KeySource> Verifier<K> {
     /// Builds a verifier that uses [`secure_compare`] for state and nonce.
     pub fn new(config: PlatformSigninConfig, keys: K, jti_store: JtiStore) -> Self {
-        Self { config, keys, jti_store, compare: Box::new(secure_compare) }
+        Self {
+            config,
+            keys,
+            jti_store,
+            compare: Box::new(secure_compare),
+        }
     }
 
     /// Replaces the comparison used for state and nonce.
@@ -180,8 +232,217 @@ impl<K: KeySource> Verifier<K> {
     /// Returns the [`Refusal`] of the first check that fails, in the order the module documents.
     /// Never panics on hostile input.
     pub fn verify(&self, request: &SigninRequest<'_>, now: i64) -> Result<VerifiedClaims, Refusal> {
-        let _ = (request, now, &self.config, &self.keys, &self.compare);
-        todo!("Verifier::verify")
+        self.run_checks(request, now)
+            .map_err(|reason| Refusal { reason })
+    }
+
+    fn run_checks(&self, request: &SigninRequest<'_>, now: i64) -> Result<VerifiedClaims, Reason> {
+        let cookie = self.check_cookie_and_state(request)?;
+        let jws = parse_token(request.token, self.config.max_token_bytes)?;
+        self.check_signature(&jws, now)?;
+        let claims = &jws.claims;
+        self.check_pinned_claims(claims)?;
+        self.check_times(claims, now)?;
+        self.check_nonce(claims, cookie)?;
+        self.spend_jti(claims, now)?;
+        check_identity(claims)?;
+        Ok(accepted(jws.claims))
+    }
+
+    /// The site's own cookie must be present, and its state must equal the query's.
+    fn check_cookie_and_state<'r>(
+        &self,
+        request: &SigninRequest<'r>,
+    ) -> Result<&'r SigninCookie, Reason> {
+        let cookie = request
+            .cookie
+            .filter(|c| !c.nonce.is_empty() && !c.state.is_empty())
+            .ok_or(Reason::MissingCookie)?;
+        let state = request
+            .state
+            .filter(|s| !s.is_empty())
+            .ok_or(Reason::StateMismatch)?;
+        if (self.compare)(state, &cookie.state) {
+            Ok(cookie)
+        } else {
+            Err(Reason::StateMismatch)
+        }
+    }
+
+    /// The algorithm is pinned before any key is looked up, so a header can never choose its own
+    /// check.
+    fn check_signature(&self, jws: &CompactJws, now: i64) -> Result<(), Reason> {
+        if jws.header.get_str("alg") != Some(ALGORITHM) {
+            return Err(Reason::BadAlg);
+        }
+        if jws.header.get_str("typ") != Some(TOKEN_TYPE) {
+            return Err(Reason::Malformed);
+        }
+        jws.signature_bytes().ok_or(Reason::Malformed)?;
+        let key = jws
+            .header
+            .get_str("kid")
+            .and_then(|kid| self.keys.key_for(kid, now))
+            .ok_or(Reason::UnknownKid)?;
+        if signature_verifies(&key, jws) {
+            Ok(())
+        } else {
+            Err(Reason::BadSignature)
+        }
+    }
+
+    /// Presence, then the exact issuer, site and environment, in that order.
+    fn check_pinned_claims(&self, claims: &JsonObject) -> Result<(), Reason> {
+        if REQUIRED_CLAIMS.iter().any(|name| !claims.is_present(name)) {
+            return Err(Reason::MissingClaim);
+        }
+        if claims.get_str("iss") != Some(self.config.issuer_url.as_str()) {
+            return Err(Reason::BadIss);
+        }
+        if claims.get_str("aud") != Some(self.config.site_id.as_str()) {
+            return Err(Reason::BadAud);
+        }
+        if claims.get_str("env") != Some(self.config.environment.as_str()) {
+            return Err(Reason::BadEnv);
+        }
+        Ok(())
+    }
+
+    /// Integer times only, then not-yet-valid, expired and lifetime, in that order.
+    fn check_times(&self, claims: &JsonObject, now: i64) -> Result<(), Reason> {
+        let (iat, nbf, exp) = (
+            integer(claims, "iat"),
+            integer(claims, "nbf"),
+            integer(claims, "exp"),
+        );
+        let (Some(iat), Some(nbf), Some(exp)) = (iat, nbf, exp) else {
+            return Err(Reason::Malformed);
+        };
+        let (now, skew) = (i128::from(now), i128::from(self.config.skew_seconds));
+        if nbf > now.saturating_add(skew) {
+            return Err(Reason::NotYetValid);
+        }
+        if exp <= now.saturating_sub(skew) {
+            return Err(Reason::Expired);
+        }
+        let lifetime = exp.saturating_sub(iat);
+        if (1..=i128::from(self.config.max_lifetime_seconds)).contains(&lifetime) {
+            Ok(())
+        } else {
+            Err(Reason::Lifetime)
+        }
+    }
+
+    fn check_nonce(&self, claims: &JsonObject, cookie: &SigninCookie) -> Result<(), Reason> {
+        match claims.get_str("nonce") {
+            Some(nonce) if (self.compare)(nonce, &cookie.nonce) => Ok(()),
+            _ => Err(Reason::NonceMismatch),
+        }
+    }
+
+    /// Spends the `jti`. Called only after every check before it passed, so a request that fails
+    /// earlier can never burn a token that belongs to someone else.
+    fn spend_jti(&self, claims: &JsonObject, now: i64) -> Result<(), Reason> {
+        let jti = claims
+            .get_str("jti")
+            .filter(|jti| !jti.is_empty())
+            .ok_or(Reason::Replay)?;
+        let remembered_until = clamp(
+            integer(claims, "exp")
+                .unwrap_or(0)
+                .saturating_add(i128::from(self.config.skew_seconds)),
+        );
+        if self.jti_store.claim(jti, remembered_until, now) {
+            Ok(())
+        } else {
+            Err(Reason::Replay)
+        }
+    }
+}
+
+fn parse_token(token: Option<&str>, max_bytes: usize) -> Result<CompactJws, Reason> {
+    let token = token.ok_or(Reason::Malformed)?;
+    CompactJws::parse(token, max_bytes).map_err(|fault| match fault {
+        JwsFault::TooLarge => Reason::TooLarge,
+        JwsFault::Malformed => Reason::Malformed,
+    })
+}
+
+fn signature_verifies(key: &VerifyingKey, jws: &CompactJws) -> bool {
+    let Ok(decoding_key) = DecodingKey::from_ed_components(key.x()) else {
+        return false;
+    };
+    jsonwebtoken::crypto::verify(
+        &jws.signature_segment,
+        jws.signing_input.as_bytes(),
+        &decoding_key,
+        Algorithm::EdDSA,
+    )
+    .unwrap_or(false)
+}
+
+fn integer(claims: &JsonObject, name: &str) -> Option<i128> {
+    match claims.get(name) {
+        Some(Json::Int(value)) => Some(*value),
+        _ => None,
+    }
+}
+
+fn clamp(value: i128) -> i64 {
+    i64::try_from(value).unwrap_or(if value < 0 { i64::MIN } else { i64::MAX })
+}
+
+/// A verified token must say the provider verified the email, and `sub` must be that email
+/// lowercased.
+fn check_identity(claims: &JsonObject) -> Result<(), Reason> {
+    if claims.get("email_verified") != Some(&Json::Bool(true)) {
+        return Err(Reason::EmailUnverified);
+    }
+    let (Some(email), Some(subject)) = (claims.get_str("email"), claims.get_str("sub")) else {
+        return Err(Reason::Malformed);
+    };
+    if subject == email.to_lowercase() {
+        Ok(())
+    } else {
+        Err(Reason::SubjectMismatch)
+    }
+}
+
+fn accepted(all: JsonObject) -> VerifiedClaims {
+    let text = |name: &str| all.get_str(name).unwrap_or_default().to_string();
+    let optional = |name: &str| all.get_str(name).map(str::to_string);
+    let time = |name: &str| clamp(integer(&all, name).unwrap_or(0));
+    VerifiedClaims {
+        issuer: text("iss"),
+        audience: text("aud"),
+        environment: text("env"),
+        subject: text("sub"),
+        email: text("email").to_lowercase(),
+        idp_issuer: optional("idp_iss"),
+        idp_subject: optional("idp_sub"),
+        roles: role_names(&all),
+        nonce: text("nonce"),
+        jti: text("jti"),
+        issued_at: time("iat"),
+        not_before: time("nbf"),
+        expires_at: time("exp"),
+        all,
+    }
+}
+
+fn role_names(claims: &JsonObject) -> Vec<String> {
+    match claims.get("roles") {
+        Some(Json::Array(items)) => items
+            .iter()
+            .filter_map(|item| {
+                if let Json::Str(role) = item {
+                    Some(role.clone())
+                } else {
+                    None
+                }
+            })
+            .collect(),
+        _ => Vec::new(),
     }
 }
 
@@ -209,7 +470,13 @@ mod tests {
         for text in ["", "BadAud", "bad_aud ", "accept", "refuse", "unknown"] {
             assert_eq!(Reason::from_code(text), None, "{text:?}");
         }
-        assert_eq!(Refusal { reason: Reason::Replay }.code(), "replay");
+        assert_eq!(
+            Refusal {
+                reason: Reason::Replay
+            }
+            .code(),
+            "replay"
+        );
     }
 
     #[test]
@@ -223,7 +490,9 @@ mod tests {
         assert!(!secure_compare("\u{e9}", "e"));
     }
 
-    fn spy() -> (SecureCompare, Arc<Mutex<Vec<(String, String)>>>) {
+    type Calls = Arc<Mutex<Vec<(String, String)>>>;
+
+    fn spy() -> (SecureCompare, Calls) {
         let calls = Arc::new(Mutex::new(Vec::new()));
         let seen = calls.clone();
         let compare: SecureCompare = Box::new(move |a, b| {
@@ -240,16 +509,28 @@ mod tests {
         let scenario = Scenario::good();
         assert!(scenario.run(&verifier).is_ok());
         let calls = calls.lock().unwrap();
-        assert!(calls.contains(&(STATE.to_string(), STATE.to_string())), "state goes through the seam: {calls:?}");
-        assert!(calls.contains(&(NONCE.to_string(), NONCE.to_string())), "nonce goes through the seam: {calls:?}");
+        assert!(
+            calls.contains(&(STATE.to_string(), STATE.to_string())),
+            "state goes through the seam: {calls:?}"
+        );
+        assert!(
+            calls.contains(&(NONCE.to_string(), NONCE.to_string())),
+            "nonce goes through the seam: {calls:?}"
+        );
     }
 
     #[test]
     fn a_seam_that_says_no_refuses_even_equal_state_and_equal_nonce() {
         let state_refused = verifier_for(&[&KEY_A]).with_compare(Box::new(|a, _| a != STATE));
-        assert_eq!(Scenario::good().run(&state_refused).unwrap_err().reason, Reason::StateMismatch);
+        assert_eq!(
+            Scenario::good().run(&state_refused).unwrap_err().reason,
+            Reason::StateMismatch
+        );
         let nonce_refused = verifier_for(&[&KEY_A]).with_compare(Box::new(|a, _| a != NONCE));
-        assert_eq!(Scenario::good().run(&nonce_refused).unwrap_err().reason, Reason::NonceMismatch);
+        assert_eq!(
+            Scenario::good().run(&nonce_refused).unwrap_err().reason,
+            Reason::NonceMismatch
+        );
     }
 
     #[test]
@@ -257,8 +538,13 @@ mod tests {
         let verifier = verifier_for(&[&KEY_A]).with_compare(Box::new(|_, _| true));
         let mut scenario = Scenario::good();
         scenario.state = Some("not-the-cookies-state".into());
-        scenario.claims.insert("nonce".into(), "not-the-cookies-nonce".into());
-        assert!(scenario.run(&verifier).is_ok(), "the verdict is the seam's, nothing else compares them");
+        scenario
+            .claims
+            .insert("nonce".into(), "not-the-cookies-nonce".into());
+        assert!(
+            scenario.run(&verifier).is_ok(),
+            "the verdict is the seam's, nothing else compares them"
+        );
     }
 
     #[test]
@@ -267,23 +553,41 @@ mod tests {
         let verifier = verifier_for(&[&KEY_A]).with_compare(compare);
         let mut scenario = Scenario::good();
         scenario.flip_signature = true;
-        assert_eq!(scenario.run(&verifier).unwrap_err().reason, Reason::BadSignature);
-        assert!(calls.lock().unwrap().iter().all(|(a, _)| a == STATE), "only the state was compared");
+        assert_eq!(
+            scenario.run(&verifier).unwrap_err().reason,
+            Reason::BadSignature
+        );
+        assert!(
+            calls.lock().unwrap().iter().all(|(a, _)| a == STATE),
+            "only the state was compared"
+        );
     }
 
     #[test]
     fn a_good_token_yields_typed_claims_with_the_email_lowercased() {
         let verifier = verifier_for(&[&KEY_A]);
         let mut scenario = Scenario::good();
-        scenario.claims.insert("email".into(), "Person@Example.Test".into());
+        scenario
+            .claims
+            .insert("email".into(), "Person@Example.Test".into());
         let claims = scenario.run(&verifier).expect("accepted");
         assert_eq!(claims.email, "person@example.test");
         assert_eq!(claims.subject, "person@example.test");
-        assert_eq!((claims.issuer.as_str(), claims.audience.as_str(), claims.environment.as_str()), (ISSUER, SITE, ENVIRONMENT));
+        assert_eq!(
+            (
+                claims.issuer.as_str(),
+                claims.audience.as_str(),
+                claims.environment.as_str()
+            ),
+            (ISSUER, SITE, ENVIRONMENT)
+        );
         assert_eq!(claims.roles, vec!["Admin".to_string()]);
         assert_eq!(claims.idp_issuer.as_deref(), Some("https://idp.example"));
         assert_eq!(claims.idp_subject.as_deref(), Some("idp-subject-0001"));
-        assert_eq!((claims.issued_at, claims.not_before, claims.expires_at), (NOW, NOW, NOW + 60));
+        assert_eq!(
+            (claims.issued_at, claims.not_before, claims.expires_at),
+            (NOW, NOW, NOW + 60)
+        );
         assert_eq!(claims.nonce, NONCE);
         assert_eq!(claims.all.get_str("email"), Some("Person@Example.Test"));
     }
