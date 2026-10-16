@@ -10,6 +10,7 @@
 #   42  the roll succeeded but the box is not healthy after it
 #   43  no restore anchor: the database's backups cannot be read, or are kept fewer days than
 #       MIN_BACKUP_RETENTION_DAYS (default 3)
+#   44  the box stack has no log group yet: update the stack (make stacks) before rolling
 #
 # Before anything changes, the roll names the point the database can be restored to: the instance, the
 # moment this roll starts, and how long its continuous backups are kept. A roll that mints a new era is
@@ -22,6 +23,11 @@
 # (a roll deletes the old container's log with it). A capture never changes the exit codes: if it
 # cannot run, the roll goes on. SKIP_LOG_CAPTURE=1 skips it; LOG_CAPTURE_SERVICES="a b" limits it to
 # those services (deploy-service.sh sets the one it rolls).
+#
+# Every container logs to the CloudWatch group the box stack creates. A container whose log
+# stream cannot be written does not start, so the roll first checks that the stack has the
+# group (and the role's right to write it) and exits 44 if not. SKIP_LOG_GROUP_CHECK=1 skips it.
+# `docker logs` and the log capture below still read the box's local copy (Docker's dual-logging cache).
 #
 #   deploy-box.sh [name=tag ...]
 #
@@ -40,6 +46,13 @@ DB_HOST=$(out "$RDS_STACK" DbEndpoint)
 DB_SECRET=$(aws secretsmanager describe-secret --secret-id scratch-fixture/database --query ARN --output text)
 [ -n "$BOX" ] && [ "$BOX" != None ] || { echo "no instance in stack $BOX_STACK" >&2; exit 40; }
 ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+if [ "${SKIP_LOG_GROUP_CHECK:-}" = 1 ]; then
+  echo "==> skipping the log group check (SKIP_LOG_GROUP_CHECK=1)"
+elif ! aws cloudformation describe-stack-resource --stack-name "$BOX_STACK" --logical-resource-id BoxLogGroup >/dev/null 2>&1; then
+  echo "==> $BOX_STACK has no BoxLogGroup: its containers would fail to start on the awslogs driver." >&2
+  echo "    Run make stacks to update box.yaml (log group and the role's logs policy) first, then roll again." >&2
+  exit 44
+fi
 
 if [ "${SKIP_RESTORE_ANCHOR:-}" = 1 ]; then
   echo "==> skipping the restore anchor (SKIP_RESTORE_ANCHOR=1)"

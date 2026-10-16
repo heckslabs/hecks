@@ -1,0 +1,12 @@
+{
+  "services": {
+    "web": {
+      "name": "web",
+      "repository": "scratch-fixture-web",
+      "port": 8080,
+      "env": {},
+      "secrets": {}
+    }
+  },
+  "origin": null
+}
