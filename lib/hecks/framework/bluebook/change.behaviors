@@ -1,0 +1,30 @@
+Hecks.behaviors "Change" do
+  vision "A change names its script, faults when that script cannot plan it, and is confirmed only from a plan."
+
+  loads "change.bluebook", "governance.bluebook", "change.hecksagon", "../../../../spec/fixtures/change/governance.hecksagon"
+
+  test "Request refuses a change that names no script" do
+    tests "Request", on: "Change"
+    input run: { value: "c1" }, script: { value: "" }
+    expect refused: "must match"
+  end
+
+  test "Request refuses a change that is not named" do
+    tests "Request", on: "Change"
+    input run: { value: "" }, script: { value: "rename" }
+    expect refused: "must match"
+  end
+
+  test "Request faults a change whose script nobody registered" do
+    tests "Request", on: "Change"
+    input run: { value: "c2" }, script: { value: "no_such_script" }
+    expect status: "faulted"
+  end
+
+  test "Confirm refuses a change that was never planned" do
+    tests "Confirm", on: "Change"
+    setup  "Change::Change.Request", run: { value: "c3" }, script: { value: "no_such_script" }
+    input  run: { value: "c3" }, digest: { value: "ab12" }
+    expect refused: "the digest confirmed is the digest planned"
+  end
+end

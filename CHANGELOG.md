@@ -7,6 +7,11 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+- **A `Change` framework chapter previews a change before it is applied (ADR 0114, proposed).** `attaches "Change"` gives a domain an
+  aggregate that is requested, planned, confirmed against the digest of exactly that plan, and only then applied; a plan that moved
+  between confirming and applying faults instead of running. What a change does sits behind the `Script` port, answered here by an
+  in-process `ScriptRunner` that scripts register with. Nothing existing moves onto it yet.
+
 ## [3.12.0] - 2026-10-16
 
 A minor. One behavior change, for projects that generate an `AwsBox` box: a regenerated box now ships every container's log to CloudWatch Logs by default (ADR 0113). Update the box stack (it creates the log group and the role policy) BEFORE rolling the regenerated box, or `deploy-box.sh` exits 44; `logs "local"` keeps the old output. A running system is unchanged until it is regenerated. The other entries are opt-in.

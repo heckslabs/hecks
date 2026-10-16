@@ -1,0 +1,3 @@
+Hecks.adapter "ScriptRunner" do
+  port "Script"
+end

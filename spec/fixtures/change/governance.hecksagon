@@ -1,0 +1,6 @@
+# The Governance sibling `change.hecksagon` attaches, for `change.behaviors`. It lives outside the
+# framework directory so booting that directory, which binds Governance in framework.hecksagon,
+# never sees a second binding.
+Hecks.hecksagon "Governance" do
+  persisted_by "Memory"
+end
