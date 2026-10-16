@@ -1,0 +1,1742 @@
+{
+  "version": 1,
+  "generator": "embryonaut_platform spec/support/sso_vectors.rb",
+  "issuer": "https://issuer.example",
+  "jwks": {
+    "keys": [
+      {
+        "kty": "OKP",
+        "crv": "Ed25519",
+        "x": "BrQXFhWGK4Fmi8rRsnn1KzomYanZaWCsFWaS0Dgv62k",
+        "kid": "SwpkMw_CknhH156gpWgzPJOQNEGnS25LhD1OqeNsQko",
+        "alg": "EdDSA",
+        "use": "sig"
+      }
+    ]
+  },
+  "now": 1800000000,
+  "config": {
+    "iss": "https://issuer.example",
+    "aud": "site-a",
+    "env": "production",
+    "skew_seconds": 30,
+    "max_lifetime_seconds": 60,
+    "max_token_bytes": 4096
+  },
+  "vectors": [
+    {
+      "type": "single",
+      "name": "valid",
+      "description": "A token the issuer would send: the positive twin of every refusal below.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDAxLXZlY3RvcjAwMDAwMDAwMDAifQ.m90eoCtqWSpwpZOn0hzLzuPqu30JgfSvKEOuegJjV2L9y9aLOr6ruMBy_Q9fQTb4utF2TH51W6tB8X1TZhVRBA",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "accept",
+      "claims": {
+        "iss": "https://issuer.example",
+        "aud": "site-a",
+        "env": "production",
+        "sub": "person@example.test",
+        "idp_iss": "https://idp.example",
+        "idp_sub": "idp-subject-0001",
+        "email": "person@example.test",
+        "email_verified": true,
+        "roles": [
+          "Admin"
+        ],
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "iat": 1800000000,
+        "nbf": 1800000000,
+        "exp": 1800000060,
+        "jti": "jti-001-vector0000000000"
+      },
+      "email": "person@example.test"
+    },
+    {
+      "type": "single",
+      "name": "valid_nbf_at_skew_edge",
+      "description": "nbf = now + skew is still accepted (nbf > now + skew is the refusal).",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAzMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDAyLXZlY3RvcjAwMDAwMDAwMDAifQ.D1uQUKIWT2IJtvfI94necFZkx3JujnZDKwsNDeyCqI3gBys43MMdgCcflhpa6-JwTz9PERYrzAe6R_aaKDkPCw",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "accept",
+      "claims": {
+        "iss": "https://issuer.example",
+        "aud": "site-a",
+        "env": "production",
+        "sub": "person@example.test",
+        "idp_iss": "https://idp.example",
+        "idp_sub": "idp-subject-0001",
+        "email": "person@example.test",
+        "email_verified": true,
+        "roles": [
+          "Admin"
+        ],
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "iat": 1800000000,
+        "nbf": 1800000030,
+        "exp": 1800000060,
+        "jti": "jti-002-vector0000000000"
+      },
+      "email": "person@example.test"
+    },
+    {
+      "type": "single",
+      "name": "valid_exp_just_inside_skew",
+      "description": "exp = now - skew + 1 is still accepted (exp <= now - skew is the refusal).",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE3OTk5OTk5MTEsIm5iZiI6MTc5OTk5OTkxMSwiZXhwIjoxNzk5OTk5OTcxLCJqdGkiOiJqdGktMDAzLXZlY3RvcjAwMDAwMDAwMDAifQ.kGibmDWJ7gz7xPK4xOpmRfxmZC5G26fpElHBGIKChX1BjfpGo63ffk2YPuZBr7eaqB_W0i-ITuP5icWTDWvXAg",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "accept",
+      "claims": {
+        "iss": "https://issuer.example",
+        "aud": "site-a",
+        "env": "production",
+        "sub": "person@example.test",
+        "idp_iss": "https://idp.example",
+        "idp_sub": "idp-subject-0001",
+        "email": "person@example.test",
+        "email_verified": true,
+        "roles": [
+          "Admin"
+        ],
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "iat": 1799999911,
+        "nbf": 1799999911,
+        "exp": 1799999971,
+        "jti": "jti-003-vector0000000000"
+      },
+      "email": "person@example.test"
+    },
+    {
+      "type": "single",
+      "name": "valid_exactly_max_bytes",
+      "description": "A validly signed token of exactly max_token_bytes bytes is accepted.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDA0LXZlY3RvcjAwMDAwMDAwMDAiLCJwYWQiOiJ4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHgifQ.s4LU-N6u1py2DWyDv0Ylq8TftuHGTAnGRp3KjOmdu8aPbwA0JQYhnFb_CtW4YU8QEFDzqYRUOmz76VYCot3RAg",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "accept",
+      "claims": {
+        "iss": "https://issuer.example",
+        "aud": "site-a",
+        "env": "production",
+        "sub": "person@example.test",
+        "idp_iss": "https://idp.example",
+        "idp_sub": "idp-subject-0001",
+        "email": "person@example.test",
+        "email_verified": true,
+        "roles": [
+          "Admin"
+        ],
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "iat": 1800000000,
+        "nbf": 1800000000,
+        "exp": 1800000060,
+        "jti": "jti-004-vector0000000000",
+        "pad": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "email": "person@example.test"
+    },
+    {
+      "type": "single",
+      "name": "alg_none_empty_signature",
+      "description": "alg none with an empty signature segment.",
+      "token": "eyJhbGciOiJub25lIiwidHlwIjoiSldUIiwia2lkIjoiU3dwa013X0NrbmhIMTU2Z3BXZ3pQSk9RTkVHblMyNUxoRDFPcWVOc1FrbyJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDA1LXZlY3RvcjAwMDAwMDAwMDAifQ.",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "bad_alg"
+    },
+    {
+      "type": "single",
+      "name": "alg_none_with_signature",
+      "description": "alg none with a made-up 64-byte signature.",
+      "token": "eyJhbGciOiJub25lIiwidHlwIjoiSldUIiwia2lkIjoiU3dwa013X0NrbmhIMTU2Z3BXZ3pQSk9RTkVHblMyNUxoRDFPcWVOc1FrbyJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDA1LXZlY3RvcjAwMDAwMDAwMDAifQ.eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eA",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "bad_alg"
+    },
+    {
+      "type": "single",
+      "name": "alg_None_mixed_case",
+      "description": "alg 'None' (case variants of none are not special).",
+      "token": "eyJhbGciOiJOb25lIiwidHlwIjoiSldUIiwia2lkIjoiU3dwa013X0NrbmhIMTU2Z3BXZ3pQSk9RTkVHblMyNUxoRDFPcWVOc1FrbyJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDA1LXZlY3RvcjAwMDAwMDAwMDAifQ.",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "bad_alg"
+    },
+    {
+      "type": "single",
+      "name": "alg_confusion_hs256_public_key_secret",
+      "description": "HS256 with a valid HMAC keyed by the raw public key: algorithm confusion.",
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDA1LXZlY3RvcjAwMDAwMDAwMDAifQ.26XJO53gfQ1k_WhVFzL5Utwy2ueV9d6BLgZtQCVRFPE",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "bad_alg"
+    },
+    {
+      "type": "single",
+      "name": "alg_RS256",
+      "description": "alg \"RS256\" with a VALID EdDSA signature over that header: only the exact string EdDSA passes.",
+      "token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDA1LXZlY3RvcjAwMDAwMDAwMDAifQ.nvL5_bxYFUiUIRP8iWyGXtanJZ4i0eZX61wLkLy5dofcThEf_3Oa_fZmJxWMcxBpxGl4gFgUjD-Gex60bX_PCA",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "bad_alg"
+    },
+    {
+      "type": "single",
+      "name": "alg_ES256",
+      "description": "alg \"ES256\" with a VALID EdDSA signature over that header: only the exact string EdDSA passes.",
+      "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDA1LXZlY3RvcjAwMDAwMDAwMDAifQ.nOx4fcZsgfsuDfagrjfBvepwrW2CgLqIdOvKTVGyNv9z0X99F2493LH-65lHg2m0vNaw7h7Bx5gyHjhEhEkrAw",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "bad_alg"
+    },
+    {
+      "type": "single",
+      "name": "alg_eddsa_lowercase",
+      "description": "alg \"eddsa\" with a VALID EdDSA signature over that header: only the exact string EdDSA passes.",
+      "token": "eyJhbGciOiJlZGRzYSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDA1LXZlY3RvcjAwMDAwMDAwMDAifQ.SZAJSJc7wJLoHsVQmqnBx43XVttrWdrG9_yMSid0ed7iwJmr9nBbWAdaZOyp32qygD541tYiVDh6VYF-4Zs7Bg",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "bad_alg"
+    },
+    {
+      "type": "single",
+      "name": "alg_Ed25519_name",
+      "description": "alg \"Ed25519\" with a VALID EdDSA signature over that header: only the exact string EdDSA passes.",
+      "token": "eyJhbGciOiJFZDI1NTE5IiwidHlwIjoiSldUIiwia2lkIjoiU3dwa013X0NrbmhIMTU2Z3BXZ3pQSk9RTkVHblMyNUxoRDFPcWVOc1FrbyJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDA1LXZlY3RvcjAwMDAwMDAwMDAifQ.LXVU59YuS4l9920VKOXMNKwL9RncgThZG69gsGI4grHMCMSrdyvruD9TPtLpyNHEhXZ9xyMyx57tGR34jkCEDA",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "bad_alg"
+    },
+    {
+      "type": "single",
+      "name": "alg_missing",
+      "description": "No alg in the header, validly signed.",
+      "token": "eyJ0eXAiOiJKV1QiLCJraWQiOiJTd3BrTXdfQ2tuaEgxNTZncFdnelBKT1FORUduUzI1TGhEMU9xZU5zUWtvIn0.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDA1LXZlY3RvcjAwMDAwMDAwMDAifQ.A2Rg32L9YoZa1v974J0WUWKbWgp9dyJgvsF_vF37JufjYMk6TcmVrv9i6TXemcvSVf4C4jo80Bv7u2zD8lP4BA",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "bad_alg"
+    },
+    {
+      "type": "single",
+      "name": "typ_wrong",
+      "description": "Header typ is not JWT, validly signed.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpPU0UiLCJraWQiOiJTd3BrTXdfQ2tuaEgxNTZncFdnelBKT1FORUduUzI1TGhEMU9xZU5zUWtvIn0.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDA1LXZlY3RvcjAwMDAwMDAwMDAifQ.b1UfV2Djn0Xt5G7dIFf1fd5_qQtYwEYisj3aRp_9jMirx8VRAwI3oW6sE1IUlEtIeLs__t1dAau1mUOmonvDDw",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "malformed"
+    },
+    {
+      "type": "single",
+      "name": "typ_missing",
+      "description": "No typ in the header, validly signed.",
+      "token": "eyJhbGciOiJFZERTQSIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDA1LXZlY3RvcjAwMDAwMDAwMDAifQ.pOzlH4oKA-uedac6EKyB2v-DzXr7J8W_2xlylwu8RpaRW1mFheMdUXhx3-eiA9nOg0lfGM50RvdVDrbVZmFuCg",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "malformed"
+    },
+    {
+      "type": "single",
+      "name": "kid_unknown",
+      "description": "Validly signed by another key whose kid is not in the JWKS.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InhfdERaY3prSWdTcUk0UE1vRkYtcVhLM2dWSmo0WDc2YnZHakJCc21yOUUifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDA3LXZlY3RvcjAwMDAwMDAwMDAifQ.Lpnax1XGk2mwwSjoeVjDKVB1k7kmykDOuoLdKNoLhc4uiQt-N7ovXwUI7VOYp371jwKBMBL6Xi0SWJQ8axY0Cg",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "unknown_kid"
+    },
+    {
+      "type": "single",
+      "name": "kid_missing",
+      "description": "No kid in the header, validly signed.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDA2LXZlY3RvcjAwMDAwMDAwMDAifQ.jIHzvZsex9AXlDbb0Zfh6f6mJDv0zj655I6_S7f3DIAa1ySNKCoGhAnMNFlfHV-VBLGQ1RlB03bFS-Yj8jiNAQ",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "unknown_kid"
+    },
+    {
+      "type": "single",
+      "name": "attacker_key_claims_real_kid",
+      "description": "Signed by another key but the header names the real kid.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDA2LXZlY3RvcjAwMDAwMDAwMDAifQ.MK7yldADeB4KwkR-j3uDW3BlAwaWznL0YSaKRdKF-LJfpT1NXsCPq3yP-NouVMNiogITfQGmQtKMaKRekT8UBQ",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "bad_signature"
+    },
+    {
+      "type": "single",
+      "name": "embedded_jwk_and_jku_ignored",
+      "description": "Header carries the attacker's jwk and a jku; keys only come from the JWKS.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28iLCJqd2siOnsia3R5IjoiT0tQIiwiY3J2IjoiRWQyNTUxOSIsIngiOiJ5NGViOWgzSEwtT2podTZicDg3bHZFMU5sNmI4WWpJcU1fQUdYVFJNZUIwIiwia2lkIjoieF90RFpjemtJZ1NxSTRQTW9GRi1xWEszZ1ZKajRYNzZidkdqQkJzbXI5RSIsImFsZyI6IkVkRFNBIiwidXNlIjoic2lnIn0sImprdSI6Imh0dHBzOi8vZXZpbC5leGFtcGxlL2p3a3MuanNvbiJ9.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDA2LXZlY3RvcjAwMDAwMDAwMDAifQ.iX3jX2ZIE9iClq81vVvyUDmv2dN2uc3NkQ4t8f_FsbpHLT1kgYEitsOaIlrSkZoUbjAbeZoyJSu6dKUPxnbxAg",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "bad_signature"
+    },
+    {
+      "type": "single",
+      "name": "payload_tampered",
+      "description": "Payload replaced after signing.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6ImF0dGFja2VyQGV2aWwuZXhhbXBsZSIsImlkcF9pc3MiOiJodHRwczovL2lkcC5leGFtcGxlIiwiaWRwX3N1YiI6ImlkcC1zdWJqZWN0LTAwMDEiLCJlbWFpbCI6ImF0dGFja2VyQGV2aWwuZXhhbXBsZSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJyb2xlcyI6WyJBZG1pbiJdLCJub25jZSI6Ik5uMG5jZU5uMG5jZU5uMG5jZUFBIiwiaWF0IjoxODAwMDAwMDAwLCJuYmYiOjE4MDAwMDAwMDAsImV4cCI6MTgwMDAwMDA2MCwianRpIjoianRpLTAwOC12ZWN0b3IwMDAwMDAwMDAwIn0.3YIyWMnBFEBqhs5kt70R9eg47VRVLfN3hyB4_IbvJMHunBLb55GHIFKTBJdeUZXvBCyODvrxwyvUO2v_D8AhAA",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "bad_signature"
+    },
+    {
+      "type": "single",
+      "name": "header_tampered",
+      "description": "Header changed (an extra member) after signing.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28iLCJ4IjoxfQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDA2LXZlY3RvcjAwMDAwMDAwMDAifQ.3YIyWMnBFEBqhs5kt70R9eg47VRVLfN3hyB4_IbvJMHunBLb55GHIFKTBJdeUZXvBCyODvrxwyvUO2v_D8AhAA",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "bad_signature"
+    },
+    {
+      "type": "single",
+      "name": "signature_bit_flipped",
+      "description": "One bit of the signature flipped.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDA2LXZlY3RvcjAwMDAwMDAwMDAifQ.3IIyWMnBFEBqhs5kt70R9eg47VRVLfN3hyB4_IbvJMHunBLb55GHIFKTBJdeUZXvBCyODvrxwyvUO2v_D8AhAA",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "bad_signature"
+    },
+    {
+      "type": "single",
+      "name": "signature_too_short",
+      "description": "Signature of 63 bytes.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDA2LXZlY3RvcjAwMDAwMDAwMDAifQ.3YIyWMnBFEBqhs5kt70R9eg47VRVLfN3hyB4_IbvJMHunBLb55GHIFKTBJdeUZXvBCyODvrxwyvUO2v_D8Ah",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "bad_signature"
+    },
+    {
+      "type": "single",
+      "name": "signature_too_long",
+      "description": "Signature of 65 bytes.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDA2LXZlY3RvcjAwMDAwMDAwMDAifQ.3YIyWMnBFEBqhs5kt70R9eg47VRVLfN3hyB4_IbvJMHunBLb55GHIFKTBJdeUZXvBCyODvrxwyvUO2v_D8AhAHg",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "bad_signature"
+    },
+    {
+      "type": "single",
+      "name": "signature_empty",
+      "description": "Signature segment empty.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDA2LXZlY3RvcjAwMDAwMDAwMDAifQ.",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "bad_signature"
+    },
+    {
+      "type": "single",
+      "name": "truncated_token",
+      "description": "The last 10 characters removed.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDA5LXZlY3RvcjAwMDAwMDAwMDAifQ.Tvsv5G52dkdQR0mk6frT3_jqd3K7K0Bosntq8hkvn9gOFyGswfy6OIlpuLJ8vx1n_qy_mAjrCfQx",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "bad_signature"
+    },
+    {
+      "type": "single",
+      "name": "two_segments",
+      "description": "Header and payload only.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDA5LXZlY3RvcjAwMDAwMDAwMDAifQ",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "malformed"
+    },
+    {
+      "type": "single",
+      "name": "one_segment",
+      "description": "Header only.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "malformed"
+    },
+    {
+      "type": "single",
+      "name": "extra_segment",
+      "description": "Four segments.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDA5LXZlY3RvcjAwMDAwMDAwMDAifQ.Tvsv5G52dkdQR0mk6frT3_jqd3K7K0Bosntq8hkvn9gOFyGswfy6OIlpuLJ8vx1n_qy_mAjrCfQxtdm8PS8PBQ.extra",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "malformed"
+    },
+    {
+      "type": "single",
+      "name": "duplicated_signature_segment",
+      "description": "Signature repeated as a fourth segment.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDA5LXZlY3RvcjAwMDAwMDAwMDAifQ.Tvsv5G52dkdQR0mk6frT3_jqd3K7K0Bosntq8hkvn9gOFyGswfy6OIlpuLJ8vx1n_qy_mAjrCfQxtdm8PS8PBQ.Tvsv5G52dkdQR0mk6frT3_jqd3K7K0Bosntq8hkvn9gOFyGswfy6OIlpuLJ8vx1n_qy_mAjrCfQxtdm8PS8PBQ",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "malformed"
+    },
+    {
+      "type": "single",
+      "name": "empty_token",
+      "description": "Empty string.",
+      "token": "",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "malformed"
+    },
+    {
+      "type": "single",
+      "name": "dots_only",
+      "description": "Two dots.",
+      "token": "..",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "malformed"
+    },
+    {
+      "type": "single",
+      "name": "token_absent",
+      "description": "No token at all (JSON null).",
+      "token": null,
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "malformed"
+    },
+    {
+      "type": "single",
+      "name": "padding_in_header",
+      "description": "A base64 padding character in the header segment.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ=.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDA5LXZlY3RvcjAwMDAwMDAwMDAifQ.Tvsv5G52dkdQR0mk6frT3_jqd3K7K0Bosntq8hkvn9gOFyGswfy6OIlpuLJ8vx1n_qy_mAjrCfQxtdm8PS8PBQ",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "malformed"
+    },
+    {
+      "type": "single",
+      "name": "standard_alphabet_plus",
+      "description": "A '+' (standard alphabet) in the header segment.",
+      "token": "+yJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDA5LXZlY3RvcjAwMDAwMDAwMDAifQ.Tvsv5G52dkdQR0mk6frT3_jqd3K7K0Bosntq8hkvn9gOFyGswfy6OIlpuLJ8vx1n_qy_mAjrCfQxtdm8PS8PBQ",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "malformed"
+    },
+    {
+      "type": "single",
+      "name": "not_base64_header",
+      "description": "Header segment '!!!'.",
+      "token": "!!!.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDA5LXZlY3RvcjAwMDAwMDAwMDAifQ.Tvsv5G52dkdQR0mk6frT3_jqd3K7K0Bosntq8hkvn9gOFyGswfy6OIlpuLJ8vx1n_qy_mAjrCfQxtdm8PS8PBQ",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "malformed"
+    },
+    {
+      "type": "single",
+      "name": "whitespace_in_payload",
+      "description": "A space inside the payload segment.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDA5LXZlY3RvcjAwMDAwMDAwMDAifQ .Tvsv5G52dkdQR0mk6frT3_jqd3K7K0Bosntq8hkvn9gOFyGswfy6OIlpuLJ8vx1n_qy_mAjrCfQxtdm8PS8PBQ",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "malformed"
+    },
+    {
+      "type": "single",
+      "name": "non_ascii_in_payload",
+      "description": "A non-ASCII character in the payload segment.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.éeyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDA5LXZlY3RvcjAwMDAwMDAwMDAifQ.Tvsv5G52dkdQR0mk6frT3_jqd3K7K0Bosntq8hkvn9gOFyGswfy6OIlpuLJ8vx1n_qy_mAjrCfQxtdm8PS8PBQ",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "malformed"
+    },
+    {
+      "type": "single",
+      "name": "header_not_json",
+      "description": "Header decodes to text that is not JSON.",
+      "token": "bm90IGpzb24.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDA5LXZlY3RvcjAwMDAwMDAwMDAifQ.Tvsv5G52dkdQR0mk6frT3_jqd3K7K0Bosntq8hkvn9gOFyGswfy6OIlpuLJ8vx1n_qy_mAjrCfQxtdm8PS8PBQ",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "malformed"
+    },
+    {
+      "type": "single",
+      "name": "payload_not_json",
+      "description": "Payload decodes to text that is not JSON.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.bm90IGpzb24.Tvsv5G52dkdQR0mk6frT3_jqd3K7K0Bosntq8hkvn9gOFyGswfy6OIlpuLJ8vx1n_qy_mAjrCfQxtdm8PS8PBQ",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "malformed"
+    },
+    {
+      "type": "single",
+      "name": "header_is_array",
+      "description": "Header is a JSON array.",
+      "token": "W10.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDA5LXZlY3RvcjAwMDAwMDAwMDAifQ.Tvsv5G52dkdQR0mk6frT3_jqd3K7K0Bosntq8hkvn9gOFyGswfy6OIlpuLJ8vx1n_qy_mAjrCfQxtdm8PS8PBQ",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "malformed"
+    },
+    {
+      "type": "single",
+      "name": "payload_is_array",
+      "description": "Payload is a JSON array.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.W10.Tvsv5G52dkdQR0mk6frT3_jqd3K7K0Bosntq8hkvn9gOFyGswfy6OIlpuLJ8vx1n_qy_mAjrCfQxtdm8PS8PBQ",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "malformed"
+    },
+    {
+      "type": "single",
+      "name": "payload_is_string",
+      "description": "Payload is a JSON string.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.Ingi.Tvsv5G52dkdQR0mk6frT3_jqd3K7K0Bosntq8hkvn9gOFyGswfy6OIlpuLJ8vx1n_qy_mAjrCfQxtdm8PS8PBQ",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "malformed"
+    },
+    {
+      "type": "single",
+      "name": "signature_non_canonical",
+      "description": "Signature segment whose trailing bits are not zero (a second spelling of the same bytes).",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDA5LXZlY3RvcjAwMDAwMDAwMDAifQ.Tvsv5G52dkdQR0mk6frT3_jqd3K7K0Bosntq8hkvn9gOFyGswfy6OIlpuLJ8vx1n_qy_mAjrCfQxtdm8PS8PBR",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "malformed"
+    },
+    {
+      "type": "single",
+      "name": "payload_duplicate_key",
+      "description": "Payload object repeats a key, validly signed over exactly that text.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiaXNzIjoiaHR0cHM6Ly9pc3N1ZXIuZXhhbXBsZSJ9.Gm7yoeKj8MI1tf5AdYKs75kq5e2nGnM-ZaLd-c8n3FX-KPqPMnKnIi26KaOCSCSKg3Jzcwq5l8eoh1hWtnS1BA",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "malformed"
+    },
+    {
+      "type": "single",
+      "name": "oversized_validly_signed",
+      "description": "A validly signed token one byte over max_token_bytes: refused unparsed.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDEwLXZlY3RvcjAwMDAwMDAwMDAiLCJwYWQiOiJ4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4In0.o_SxmbO1TNU7mfLfZg2AceFXN0OXjLqIZSqIOCf13wv19Bf9I4j3cjR5cJq-bYC9YNr_9KMIbb3wXo4_7R6HAg",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "too_large"
+    },
+    {
+      "type": "single",
+      "name": "oversized_garbage",
+      "description": "8192 characters of 'a': refused on size alone.",
+      "token": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "too_large"
+    },
+    {
+      "type": "single",
+      "name": "wrong_iss_foreign",
+      "description": "iss \"https://evil.example\": the pin is an exact string match.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2V2aWwuZXhhbXBsZSIsImF1ZCI6InNpdGUtYSIsImVudiI6InByb2R1Y3Rpb24iLCJzdWIiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiaWRwX2lzcyI6Imh0dHBzOi8vaWRwLmV4YW1wbGUiLCJpZHBfc3ViIjoiaWRwLXN1YmplY3QtMDAwMSIsImVtYWlsIjoicGVyc29uQGV4YW1wbGUudGVzdCIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJyb2xlcyI6WyJBZG1pbiJdLCJub25jZSI6Ik5uMG5jZU5uMG5jZU5uMG5jZUFBIiwiaWF0IjoxODAwMDAwMDAwLCJuYmYiOjE4MDAwMDAwMDAsImV4cCI6MTgwMDAwMDA2MCwianRpIjoianRpLTAxMS12ZWN0b3IwMDAwMDAwMDAwIn0.Iz6EYsxfRlQXzC9w0eMH9lqisJiBow4XJWDFp98gKV-TnF1SQRX_m9-W34adHuGIxthdPws9rOByk4VjquamDg",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "bad_iss"
+    },
+    {
+      "type": "single",
+      "name": "wrong_iss_trailing_slash",
+      "description": "iss \"https://issuer.example/\": the pin is an exact string match.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlLyIsImF1ZCI6InNpdGUtYSIsImVudiI6InByb2R1Y3Rpb24iLCJzdWIiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiaWRwX2lzcyI6Imh0dHBzOi8vaWRwLmV4YW1wbGUiLCJpZHBfc3ViIjoiaWRwLXN1YmplY3QtMDAwMSIsImVtYWlsIjoicGVyc29uQGV4YW1wbGUudGVzdCIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJyb2xlcyI6WyJBZG1pbiJdLCJub25jZSI6Ik5uMG5jZU5uMG5jZU5uMG5jZUFBIiwiaWF0IjoxODAwMDAwMDAwLCJuYmYiOjE4MDAwMDAwMDAsImV4cCI6MTgwMDAwMDA2MCwianRpIjoianRpLTAxMi12ZWN0b3IwMDAwMDAwMDAwIn0.KqxU5BFLrXdwwjzA3d3cMilB9RKiCppYAJIFLhTD8CXmYMTjPgNLGIQ_O_Yq8r-tMnPEIOOnM2bxXyXOQ7dGBg",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "bad_iss"
+    },
+    {
+      "type": "single",
+      "name": "wrong_iss_http",
+      "description": "iss \"http://issuer.example\": the pin is an exact string match.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwOi8vaXNzdWVyLmV4YW1wbGUiLCJhdWQiOiJzaXRlLWEiLCJlbnYiOiJwcm9kdWN0aW9uIiwic3ViIjoicGVyc29uQGV4YW1wbGUudGVzdCIsImlkcF9pc3MiOiJodHRwczovL2lkcC5leGFtcGxlIiwiaWRwX3N1YiI6ImlkcC1zdWJqZWN0LTAwMDEiLCJlbWFpbCI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwicm9sZXMiOlsiQWRtaW4iXSwibm9uY2UiOiJObjBuY2VObjBuY2VObjBuY2VBQSIsImlhdCI6MTgwMDAwMDAwMCwibmJmIjoxODAwMDAwMDAwLCJleHAiOjE4MDAwMDAwNjAsImp0aSI6Imp0aS0wMTMtdmVjdG9yMDAwMDAwMDAwMCJ9.NO8NLkrERYecqYKxoJIuuRE5NE1eCjp0fX2WRLn2EqBGJSn6NtpaoC40PBmyCuIu1q-hgJdsMtdUu9dPlNXmCw",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "bad_iss"
+    },
+    {
+      "type": "single",
+      "name": "wrong_iss_upcase_host",
+      "description": "iss \"https://ISSUER.example\": the pin is an exact string match.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL0lTU1VFUi5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDE0LXZlY3RvcjAwMDAwMDAwMDAifQ.rF0CZs0ls3gsU4dNhapVxw_gisNiumc_9QJYSDsmmyFrBNt2Sj5pVeLY5ylLNyNO6OKosLMmkAHXSw_jG0IQCw",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "bad_iss"
+    },
+    {
+      "type": "single",
+      "name": "wrong_iss_suffix_lookalike",
+      "description": "iss \"https://issuer.example.evil.example\": the pin is an exact string match.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlLmV2aWwuZXhhbXBsZSIsImF1ZCI6InNpdGUtYSIsImVudiI6InByb2R1Y3Rpb24iLCJzdWIiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiaWRwX2lzcyI6Imh0dHBzOi8vaWRwLmV4YW1wbGUiLCJpZHBfc3ViIjoiaWRwLXN1YmplY3QtMDAwMSIsImVtYWlsIjoicGVyc29uQGV4YW1wbGUudGVzdCIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJyb2xlcyI6WyJBZG1pbiJdLCJub25jZSI6Ik5uMG5jZU5uMG5jZU5uMG5jZUFBIiwiaWF0IjoxODAwMDAwMDAwLCJuYmYiOjE4MDAwMDAwMDAsImV4cCI6MTgwMDAwMDA2MCwianRpIjoianRpLTAxNS12ZWN0b3IwMDAwMDAwMDAwIn0.6U9KawghYFUaWvMF8Sp-UMd0yQVo7XKsvEMfJl-IPvVGVMt_p6lOy0hmg_eXuakuNN0WJTIjfHJg51kt9uGvDg",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "bad_iss"
+    },
+    {
+      "type": "single",
+      "name": "wrong_aud_1",
+      "description": "aud \"other-site\".",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoib3RoZXItc2l0ZSIsImVudiI6InByb2R1Y3Rpb24iLCJzdWIiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiaWRwX2lzcyI6Imh0dHBzOi8vaWRwLmV4YW1wbGUiLCJpZHBfc3ViIjoiaWRwLXN1YmplY3QtMDAwMSIsImVtYWlsIjoicGVyc29uQGV4YW1wbGUudGVzdCIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJyb2xlcyI6WyJBZG1pbiJdLCJub25jZSI6Ik5uMG5jZU5uMG5jZU5uMG5jZUFBIiwiaWF0IjoxODAwMDAwMDAwLCJuYmYiOjE4MDAwMDAwMDAsImV4cCI6MTgwMDAwMDA2MCwianRpIjoianRpLTAxNi12ZWN0b3IwMDAwMDAwMDAwIn0.0b4NEh1RFVhMiXXD61Dy2duPFTChoCpBQJueZl7GACpNrAQUajjiiEip1L-YIFMvgZrY9_jp3RyxFarQHarJDw",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "bad_aud"
+    },
+    {
+      "type": "single",
+      "name": "wrong_aud_2",
+      "description": "aud \"SITE-A\".",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoiU0lURS1BIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDE3LXZlY3RvcjAwMDAwMDAwMDAifQ.bQ-YMEheOFA2FAlABudt4A6tDI4cpRtIj526mpp9l5rXApqo9oCxvv4-nwIRnUTWhIK3j3i2SK0FLK9EXdJsBA",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "bad_aud"
+    },
+    {
+      "type": "single",
+      "name": "wrong_aud_3",
+      "description": "aud \"site-a \".",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hICIsImVudiI6InByb2R1Y3Rpb24iLCJzdWIiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiaWRwX2lzcyI6Imh0dHBzOi8vaWRwLmV4YW1wbGUiLCJpZHBfc3ViIjoiaWRwLXN1YmplY3QtMDAwMSIsImVtYWlsIjoicGVyc29uQGV4YW1wbGUudGVzdCIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJyb2xlcyI6WyJBZG1pbiJdLCJub25jZSI6Ik5uMG5jZU5uMG5jZU5uMG5jZUFBIiwiaWF0IjoxODAwMDAwMDAwLCJuYmYiOjE4MDAwMDAwMDAsImV4cCI6MTgwMDAwMDA2MCwianRpIjoianRpLTAxOC12ZWN0b3IwMDAwMDAwMDAwIn0.qAu7InCofuhM0JLYjLyGGdmip-t-DOhXD83LY522zslSw5V0AUnbXkL-hNKpVG2_xeiTV-8I-9VNpYWmOtq3AA",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "bad_aud"
+    },
+    {
+      "type": "single",
+      "name": "wrong_aud_4",
+      "description": "aud \"site-a:production\".",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hOnByb2R1Y3Rpb24iLCJlbnYiOiJwcm9kdWN0aW9uIiwic3ViIjoicGVyc29uQGV4YW1wbGUudGVzdCIsImlkcF9pc3MiOiJodHRwczovL2lkcC5leGFtcGxlIiwiaWRwX3N1YiI6ImlkcC1zdWJqZWN0LTAwMDEiLCJlbWFpbCI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwicm9sZXMiOlsiQWRtaW4iXSwibm9uY2UiOiJObjBuY2VObjBuY2VObjBuY2VBQSIsImlhdCI6MTgwMDAwMDAwMCwibmJmIjoxODAwMDAwMDAwLCJleHAiOjE4MDAwMDAwNjAsImp0aSI6Imp0aS0wMTktdmVjdG9yMDAwMDAwMDAwMCJ9.lOxTp_AALlTrHs9xHgQSmCE9WyxtwuIgfA3VIkhsedvJewtOKSZ-3KpIVPVrOvMsb1-uCwyicH7f2Ssc2sXsAQ",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "bad_aud"
+    },
+    {
+      "type": "single",
+      "name": "wrong_aud_5",
+      "description": "aud \"\".",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoiIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDIwLXZlY3RvcjAwMDAwMDAwMDAifQ.vLMdwJ7Pn0gqxpxJ99wt0Ymo3y5Nytc0t1z-duXy6EofOqybEdQN0DrjinilCYgBhb0Qshm1DfPrxHdfoYWICw",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "bad_aud"
+    },
+    {
+      "type": "single",
+      "name": "aud_array",
+      "description": "aud as an array containing the right site.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjpbInNpdGUtYSIsIm90aGVyIl0sImVudiI6InByb2R1Y3Rpb24iLCJzdWIiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiaWRwX2lzcyI6Imh0dHBzOi8vaWRwLmV4YW1wbGUiLCJpZHBfc3ViIjoiaWRwLXN1YmplY3QtMDAwMSIsImVtYWlsIjoicGVyc29uQGV4YW1wbGUudGVzdCIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJyb2xlcyI6WyJBZG1pbiJdLCJub25jZSI6Ik5uMG5jZU5uMG5jZU5uMG5jZUFBIiwiaWF0IjoxODAwMDAwMDAwLCJuYmYiOjE4MDAwMDAwMDAsImV4cCI6MTgwMDAwMDA2MCwianRpIjoianRpLTAyMS12ZWN0b3IwMDAwMDAwMDAwIn0.svhaemR331WxYHJfRysEKzL3NkyEeQXHByj6K39e5DSqyBbh5RhJJtroLvMm0idOplA_lk8XCV_gawt2w4AdBA",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "bad_aud"
+    },
+    {
+      "type": "single",
+      "name": "wrong_env_1",
+      "description": "env \"staging\".",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52Ijoic3RhZ2luZyIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDIyLXZlY3RvcjAwMDAwMDAwMDAifQ.poYgwDlegizWRIWvUYwiyMPsrwBk1Qr210NeOebPPZ7yCmqRHPS82bQ8uSrTeEa1VyUiONnu_l8Y7EdIPOqvAQ",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "bad_env"
+    },
+    {
+      "type": "single",
+      "name": "wrong_env_2",
+      "description": "env \"Production\".",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoiUHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDIzLXZlY3RvcjAwMDAwMDAwMDAifQ.McXyx329RHPOuRdTrS3N31rr03jd1Zi2ddm2HIIPxB5A5H8_WbxYbjqjqd_LJ5j4EHH-RfcHa7D0JWyUHFC0Dw",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "bad_env"
+    },
+    {
+      "type": "single",
+      "name": "wrong_env_3",
+      "description": "env \"prod\".",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZCIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDI0LXZlY3RvcjAwMDAwMDAwMDAifQ.FD29cF1WAJy2P2PLzGZ3RhOu6JlLj-JnJ4DMlOIeangCEAQS0sKUSRi2GvCc566-ODTygTkXSiYL-55ZVdQXCg",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "bad_env"
+    },
+    {
+      "type": "single",
+      "name": "wrong_env_4",
+      "description": "env \"\".",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoiIiwic3ViIjoicGVyc29uQGV4YW1wbGUudGVzdCIsImlkcF9pc3MiOiJodHRwczovL2lkcC5leGFtcGxlIiwiaWRwX3N1YiI6ImlkcC1zdWJqZWN0LTAwMDEiLCJlbWFpbCI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwicm9sZXMiOlsiQWRtaW4iXSwibm9uY2UiOiJObjBuY2VObjBuY2VObjBuY2VBQSIsImlhdCI6MTgwMDAwMDAwMCwibmJmIjoxODAwMDAwMDAwLCJleHAiOjE4MDAwMDAwNjAsImp0aSI6Imp0aS0wMjUtdmVjdG9yMDAwMDAwMDAwMCJ9.csE-nThuuOuY8DKdgg3u0D7Gf-kbNVdiKYzX_vhrvfMeWlDE3OudCrWe3JBJI7r_4aOiQiFPRK7j0W3xPDmVBA",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "bad_env"
+    },
+    {
+      "type": "single",
+      "name": "env_array",
+      "description": "env as an array containing the right value.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjpbInByb2R1Y3Rpb24iXSwic3ViIjoicGVyc29uQGV4YW1wbGUudGVzdCIsImlkcF9pc3MiOiJodHRwczovL2lkcC5leGFtcGxlIiwiaWRwX3N1YiI6ImlkcC1zdWJqZWN0LTAwMDEiLCJlbWFpbCI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwicm9sZXMiOlsiQWRtaW4iXSwibm9uY2UiOiJObjBuY2VObjBuY2VObjBuY2VBQSIsImlhdCI6MTgwMDAwMDAwMCwibmJmIjoxODAwMDAwMDAwLCJleHAiOjE4MDAwMDAwNjAsImp0aSI6Imp0aS0wMjYtdmVjdG9yMDAwMDAwMDAwMCJ9.bsIqkjGzLszmGpDpZ21wWYE6vdUEPwzr-bHCCwYRDyiaoBVqbLSAt8XItqTB75hwtvSmFjl1PHC6Ulpk8JmxCQ",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "bad_env"
+    },
+    {
+      "type": "single",
+      "name": "missing_exp",
+      "description": "The exp claim absent, validly signed.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwianRpIjoianRpLTAyNy12ZWN0b3IwMDAwMDAwMDAwIn0.25M_zVrxt_KQFyamI8Ru-_eMLj__2VOYKQgOkCKCjshthdHU4x0ouP4Apz57aHhnWrJYw_3lS9Emfr0qKeioDg",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "missing_claim"
+    },
+    {
+      "type": "single",
+      "name": "missing_iat",
+      "description": "The iat claim absent, validly signed.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJuYmYiOjE4MDAwMDAwMDAsImV4cCI6MTgwMDAwMDA2MCwianRpIjoianRpLTAyOC12ZWN0b3IwMDAwMDAwMDAwIn0.-tifAetLb0hrRfHm8MsFKmcz0dFiPUKg08vAu7Aal4X7FS7L0FRkRbh4wf9bSXi8ABWMdh4FZ0bvXAfLjXk1Dg",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "missing_claim"
+    },
+    {
+      "type": "single",
+      "name": "missing_jti",
+      "description": "The jti claim absent, validly signed.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwfQ.CnQKHVOPNHXZYrhdVq67iEmdre6iGqP_2kOkzybOnMbO7O9V9tRjNo4ufKjD3CNT3i0j_Dnkfh2f3oBMEBk7Cw",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "missing_claim"
+    },
+    {
+      "type": "single",
+      "name": "missing_nonce",
+      "description": "The nonce claim absent, validly signed.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sImlhdCI6MTgwMDAwMDAwMCwibmJmIjoxODAwMDAwMDAwLCJleHAiOjE4MDAwMDAwNjAsImp0aSI6Imp0aS0wMzAtdmVjdG9yMDAwMDAwMDAwMCJ9.N__sQChjP5rIMYSKxXPw4rBEE0b8rzGXzLOd6Zv76gj4YxUfwn66S-zRmb-5PCfnarZKVCM5Fds6GoME34ScBA",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "missing_claim"
+    },
+    {
+      "type": "single",
+      "name": "missing_aud",
+      "description": "The aud claim absent, validly signed.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDMxLXZlY3RvcjAwMDAwMDAwMDAifQ.ZCiiHvW27J4e8grf6n8R9Oop9nsbZkK-qjPBcf8b1_UPMNAdOAJ_F1IVu-6h5UEmLwCXa-AqDWIDOsuLeiY1Ag",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "missing_claim"
+    },
+    {
+      "type": "single",
+      "name": "missing_iss",
+      "description": "The iss claim absent, validly signed.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJhdWQiOiJzaXRlLWEiLCJlbnYiOiJwcm9kdWN0aW9uIiwic3ViIjoicGVyc29uQGV4YW1wbGUudGVzdCIsImlkcF9pc3MiOiJodHRwczovL2lkcC5leGFtcGxlIiwiaWRwX3N1YiI6ImlkcC1zdWJqZWN0LTAwMDEiLCJlbWFpbCI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwicm9sZXMiOlsiQWRtaW4iXSwibm9uY2UiOiJObjBuY2VObjBuY2VObjBuY2VBQSIsImlhdCI6MTgwMDAwMDAwMCwibmJmIjoxODAwMDAwMDAwLCJleHAiOjE4MDAwMDAwNjAsImp0aSI6Imp0aS0wMzItdmVjdG9yMDAwMDAwMDAwMCJ9.EL74aPgKQXoquAvmeeF77NFtv7ugrx6-AyRVSaw0mUBGKwIYRDpkMm2yEA0mKVtuw5A3Wzv3Q9EtVY19aoRQDQ",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "missing_claim"
+    },
+    {
+      "type": "single",
+      "name": "missing_nbf",
+      "description": "The nbf claim absent, validly signed.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsImV4cCI6MTgwMDAwMDA2MCwianRpIjoianRpLTAzMy12ZWN0b3IwMDAwMDAwMDAwIn0.MAQBoOS-e8TP6S2z6aKRV6-P0SCoOdB-le1KG8ZoVsmJrwwcylRd8J8IuZ_TmVy-ijAhQKQhMZUikP7XYxRiDw",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "missing_claim"
+    },
+    {
+      "type": "single",
+      "name": "missing_sub",
+      "description": "The sub claim absent, validly signed.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsImlkcF9pc3MiOiJodHRwczovL2lkcC5leGFtcGxlIiwiaWRwX3N1YiI6ImlkcC1zdWJqZWN0LTAwMDEiLCJlbWFpbCI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwicm9sZXMiOlsiQWRtaW4iXSwibm9uY2UiOiJObjBuY2VObjBuY2VObjBuY2VBQSIsImlhdCI6MTgwMDAwMDAwMCwibmJmIjoxODAwMDAwMDAwLCJleHAiOjE4MDAwMDAwNjAsImp0aSI6Imp0aS0wMzQtdmVjdG9yMDAwMDAwMDAwMCJ9.ZfNYOJTPDMuVfgEUs2PI_cdbegzV4Mq1jdXkXCCDbFvtWAtI5u04E5YXoA8Niw8XaZm9NO-sdowg2DNV_A28AQ",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "missing_claim"
+    },
+    {
+      "type": "single",
+      "name": "missing_email",
+      "description": "The email claim absent, validly signed.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDM1LXZlY3RvcjAwMDAwMDAwMDAifQ.vX9vwSGN6RY_qcV-0V91lwGBwcatp0qPq7LRM4iraIQPTyxltHDC5R5g8MNNCsU-Z2yKak7wnqLDgo6leHwYAw",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "missing_claim"
+    },
+    {
+      "type": "single",
+      "name": "missing_email_verified",
+      "description": "The email_verified claim absent, validly signed.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0Iiwicm9sZXMiOlsiQWRtaW4iXSwibm9uY2UiOiJObjBuY2VObjBuY2VObjBuY2VBQSIsImlhdCI6MTgwMDAwMDAwMCwibmJmIjoxODAwMDAwMDAwLCJleHAiOjE4MDAwMDAwNjAsImp0aSI6Imp0aS0wMzYtdmVjdG9yMDAwMDAwMDAwMCJ9.5rNz2X4zVZDBkSLGe_57MOTpj1a05rEEx6rraLzmPKIdqd0tXJm_Qz0P2793K4tRNN6TIeha7vZr0c3-QLmPDg",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "missing_claim"
+    },
+    {
+      "type": "single",
+      "name": "missing_env",
+      "description": "The env claim absent, validly signed.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwic3ViIjoicGVyc29uQGV4YW1wbGUudGVzdCIsImlkcF9pc3MiOiJodHRwczovL2lkcC5leGFtcGxlIiwiaWRwX3N1YiI6ImlkcC1zdWJqZWN0LTAwMDEiLCJlbWFpbCI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwicm9sZXMiOlsiQWRtaW4iXSwibm9uY2UiOiJObjBuY2VObjBuY2VObjBuY2VBQSIsImlhdCI6MTgwMDAwMDAwMCwibmJmIjoxODAwMDAwMDAwLCJleHAiOjE4MDAwMDAwNjAsImp0aSI6Imp0aS0wMzctdmVjdG9yMDAwMDAwMDAwMCJ9.UyeaXc3GlC0M5ubPKg_SyrTc1lpNLS9RucRHC5fBKlwT-Widl19JMYsTiifuJCvbqGV1n2VaR0mj62Blz7x2Bw",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "missing_claim"
+    },
+    {
+      "type": "single",
+      "name": "claim_null_iat",
+      "description": "iat present but null.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOm51bGwsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDM4LXZlY3RvcjAwMDAwMDAwMDAifQ.qcHW9ewoToQLbuMinq4Lf-lVTErfxsWWtMDGbsfw7pu0ULj0INtdnQpOSvgyaQZNVrK9jNbNPbenzT_IFncYCQ",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "missing_claim"
+    },
+    {
+      "type": "single",
+      "name": "exp_as_string",
+      "description": "exp as a JSON string.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoiMTgwMDAwMDA2MCIsImp0aSI6Imp0aS0wMzktdmVjdG9yMDAwMDAwMDAwMCJ9.MaBBZA2RKY4D5_K5jvBeEcWjK1x2SXaG3oZIIVxy83IodKQIZ950NBc1E8wzFYMPGcS9UnmYujUxIEC8XOjvBA",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "malformed"
+    },
+    {
+      "type": "single",
+      "name": "exp_as_float",
+      "description": "exp as a JSON float.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLjAsImp0aSI6Imp0aS0wNDAtdmVjdG9yMDAwMDAwMDAwMCJ9.UWX7luse8W00QMITTs29SRZ_7Bk8WS3saDRAe6Y9LhfjzQASFXJ3XoaTDgWFtAmCjBewqueUU_pnVAwSzk9iCg",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "malformed"
+    },
+    {
+      "type": "single",
+      "name": "expired",
+      "description": "exp = now - skew exactly: expired.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE3OTk5OTk5MTAsIm5iZiI6MTc5OTk5OTkxMCwiZXhwIjoxNzk5OTk5OTcwLCJqdGkiOiJqdGktMDQxLXZlY3RvcjAwMDAwMDAwMDAifQ.BcNnfvSyKUE7OIKOf_GW-HLsKOrr2n7LEj5QXBiJzl1UwvxXw-SsZDZ27BYz6yTxwRJLnD6LzhNx-HzJSh0cBQ",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "expired"
+    },
+    {
+      "type": "single",
+      "name": "expired_long_ago",
+      "description": "An hour old.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE3OTk5OTY0MDAsIm5iZiI6MTc5OTk5NjQwMCwiZXhwIjoxNzk5OTk2NDYwLCJqdGkiOiJqdGktMDQyLXZlY3RvcjAwMDAwMDAwMDAifQ.ZvCSeIvoKICVmbk0QKyfodq0AO784FWxK5imSFuDXlkoiG4FlBwtN-PwiFdN3ykvu2ItWEutWkKMm5RvlQxgBQ",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "expired"
+    },
+    {
+      "type": "single",
+      "name": "not_yet_valid",
+      "description": "nbf = now + skew + 1.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMzEsIm5iZiI6MTgwMDAwMDAzMSwiZXhwIjoxODAwMDAwMDkxLCJqdGkiOiJqdGktMDQzLXZlY3RvcjAwMDAwMDAwMDAifQ.zKBWIzDTYjdb4FzYonN37PLPambxveLyu-PCN8cxwL2TCzud48Sec-HHgJyctzScCCX1vfhvMoHzzai7QRppBg",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "not_yet_valid"
+    },
+    {
+      "type": "single",
+      "name": "not_yet_valid_hour_ahead",
+      "description": "An hour ahead.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDM2MDAsIm5iZiI6MTgwMDAwMzYwMCwiZXhwIjoxODAwMDAzNjYwLCJqdGkiOiJqdGktMDQ0LXZlY3RvcjAwMDAwMDAwMDAifQ.9BcZ5wD_Nq7XCNLPGfYio4dpHHL4kqit0RxxB4211OAMl7o7wEkmo98KcKW6Slvel5Iaxby-EX09TH_1Rz4HBw",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "not_yet_valid"
+    },
+    {
+      "type": "single",
+      "name": "lifetime_61_seconds",
+      "description": "exp - iat = 61 although currently valid.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYxLCJqdGkiOiJqdGktMDQ1LXZlY3RvcjAwMDAwMDAwMDAifQ.-VvhBMSHCwRgYn6TLhdvPV6gBN9TqkIYjnHtn03n4Zq7EiMuEw7mmkobpFDzL4axIdOHArpJgcAX5ClQVJolCA",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "lifetime"
+    },
+    {
+      "type": "single",
+      "name": "lifetime_one_day",
+      "description": "exp - iat = 86400.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDg2NDAwLCJqdGkiOiJqdGktMDQ2LXZlY3RvcjAwMDAwMDAwMDAifQ.6SboS-8X1lFICio5BxJ7HSq5HMo1hR7egsMoqOYnIfLXbRdnEyE9mujdsQ25-PRRt6XXPTvomslouxsUmT6RBw",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "lifetime"
+    },
+    {
+      "type": "single",
+      "name": "lifetime_zero",
+      "description": "exp = iat.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDAwLCJqdGkiOiJqdGktMDQ3LXZlY3RvcjAwMDAwMDAwMDAifQ.olsDiTtgQkV71-MRh_lOUsqYYhUHw2_4qtnUmMxDaiITe-N3JcvGE5p0Kfc-rc5IM0xYn8EGKe0x8Y9hn4mFDg",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "lifetime"
+    },
+    {
+      "type": "single",
+      "name": "lifetime_negative",
+      "description": "exp before iat.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxNzk5OTk5OTk1LCJqdGkiOiJqdGktMDQ4LXZlY3RvcjAwMDAwMDAwMDAifQ.FuXJlb-hZMVZd96-TbzkTdmQ1y12hCPlid2Dob-y1O2flzoCq4VlzNBaPYkj1i3BMlk6sSzR3lfMhnF_vyMRCw",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "lifetime"
+    },
+    {
+      "type": "single",
+      "name": "valid_lifetime_one_second",
+      "description": "exp - iat = 1 is the shortest accepted lifetime.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDAxLCJqdGkiOiJqdGktMDQ5LXZlY3RvcjAwMDAwMDAwMDAifQ.29AHnJyFFU7OJ-5Xl7myysLRR-RDP3BIGDPZLWE9UNlkGcRVr0xt6vT5BsCdyj3oEhTy_oNSIvD2SqV5C5mkBQ",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "accept",
+      "claims": {
+        "iss": "https://issuer.example",
+        "aud": "site-a",
+        "env": "production",
+        "sub": "person@example.test",
+        "idp_iss": "https://idp.example",
+        "idp_sub": "idp-subject-0001",
+        "email": "person@example.test",
+        "email_verified": true,
+        "roles": [
+          "Admin"
+        ],
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "iat": 1800000000,
+        "nbf": 1800000000,
+        "exp": 1800000001,
+        "jti": "jti-049-vector0000000000"
+      },
+      "email": "person@example.test"
+    },
+    {
+      "type": "single",
+      "name": "cookie_absent",
+      "description": "No sign-in cookie (JSON null): a flow this browser never started.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDUwLXZlY3RvcjAwMDAwMDAwMDAifQ.84HTfgBq2kLjaaLenJ8vIXSssEgETXTIchC78bzuOJRubv4VnUo_8B1oOksf0z5HNIc2n5OSbVLGHItc1MbDBw",
+      "cookie": null,
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "missing_cookie"
+    },
+    {
+      "type": "single",
+      "name": "cookie_without_state",
+      "description": "Cookie holding only a nonce.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDUwLXZlY3RvcjAwMDAwMDAwMDAifQ.84HTfgBq2kLjaaLenJ8vIXSssEgETXTIchC78bzuOJRubv4VnUo_8B1oOksf0z5HNIc2n5OSbVLGHItc1MbDBw",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "missing_cookie"
+    },
+    {
+      "type": "single",
+      "name": "cookie_empty_state",
+      "description": "Cookie with an empty state.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDUwLXZlY3RvcjAwMDAwMDAwMDAifQ.84HTfgBq2kLjaaLenJ8vIXSssEgETXTIchC78bzuOJRubv4VnUo_8B1oOksf0z5HNIc2n5OSbVLGHItc1MbDBw",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": ""
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "missing_cookie"
+    },
+    {
+      "type": "single",
+      "name": "state_mismatch",
+      "description": "State parameter differs from the cookie's.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDUwLXZlY3RvcjAwMDAwMDAwMDAifQ.84HTfgBq2kLjaaLenJ8vIXSssEgETXTIchC78bzuOJRubv4VnUo_8B1oOksf0z5HNIc2n5OSbVLGHItc1MbDBw",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "AnotherStateAnotherState00",
+      "expect": "refuse",
+      "refusal": "state_mismatch"
+    },
+    {
+      "type": "single",
+      "name": "state_absent",
+      "description": "No state parameter (JSON null).",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDUwLXZlY3RvcjAwMDAwMDAwMDAifQ.84HTfgBq2kLjaaLenJ8vIXSssEgETXTIchC78bzuOJRubv4VnUo_8B1oOksf0z5HNIc2n5OSbVLGHItc1MbDBw",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": null,
+      "expect": "refuse",
+      "refusal": "state_mismatch"
+    },
+    {
+      "type": "single",
+      "name": "state_empty",
+      "description": "Empty state parameter.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDUwLXZlY3RvcjAwMDAwMDAwMDAifQ.84HTfgBq2kLjaaLenJ8vIXSssEgETXTIchC78bzuOJRubv4VnUo_8B1oOksf0z5HNIc2n5OSbVLGHItc1MbDBw",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "",
+      "expect": "refuse",
+      "refusal": "state_mismatch"
+    },
+    {
+      "type": "single",
+      "name": "nonce_mismatch",
+      "description": "The token's nonce is not the cookie's nonce: login CSRF.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDUwLXZlY3RvcjAwMDAwMDAwMDAifQ.84HTfgBq2kLjaaLenJ8vIXSssEgETXTIchC78bzuOJRubv4VnUo_8B1oOksf0z5HNIc2n5OSbVLGHItc1MbDBw",
+      "cookie": {
+        "nonce": "someone-elses-nonce-0000",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "nonce_mismatch"
+    },
+    {
+      "type": "single",
+      "name": "token_nonce_is_attackers",
+      "description": "The token carries a different nonce than the cookie.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiYW4tYXR0YWNrZXJzLW93bi1ub25jZS0xIiwiaWF0IjoxODAwMDAwMDAwLCJuYmYiOjE4MDAwMDAwMDAsImV4cCI6MTgwMDAwMDA2MCwianRpIjoianRpLTA1MS12ZWN0b3IwMDAwMDAwMDAwIn0.F4d7itlkkhNux6BR0_LfJWXCE_iucxdeo-_D-AcvsF_g7RYUfAz_L5VkBmcTNJpH7z8qIcPuif108HyJlC6dBQ",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "nonce_mismatch"
+    },
+    {
+      "type": "single",
+      "name": "email_unverified",
+      "description": "email_verified false.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOmZhbHNlLCJyb2xlcyI6WyJBZG1pbiJdLCJub25jZSI6Ik5uMG5jZU5uMG5jZU5uMG5jZUFBIiwiaWF0IjoxODAwMDAwMDAwLCJuYmYiOjE4MDAwMDAwMDAsImV4cCI6MTgwMDAwMDA2MCwianRpIjoianRpLTA1Mi12ZWN0b3IwMDAwMDAwMDAwIn0.Kf14GcXp48yRqP5LdQZEukp1kKdJDYTTHsRl8QusFu3IfWm0_T6JiM8bRwr-MKF3hdupk34oSZh4_W65MOSECw",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "email_unverified"
+    },
+    {
+      "type": "single",
+      "name": "email_verified_string",
+      "description": "email_verified is the string \"true\".",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOiJ0cnVlIiwicm9sZXMiOlsiQWRtaW4iXSwibm9uY2UiOiJObjBuY2VObjBuY2VObjBuY2VBQSIsImlhdCI6MTgwMDAwMDAwMCwibmJmIjoxODAwMDAwMDAwLCJleHAiOjE4MDAwMDAwNjAsImp0aSI6Imp0aS0wNTMtdmVjdG9yMDAwMDAwMDAwMCJ9.MQ2esm3VGQ3mjrqFRHIeSrjkIep-i33Oa6sL9mQb1nsGoHwOL2KJMMnNRffwO55Px139fRKWkkEHJxzkCgeoDg",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "email_unverified"
+    },
+    {
+      "type": "single",
+      "name": "email_mixed_case_sub_lowercase",
+      "description": "email not lowercase while sub is: accepted, and the verdict's email is the lowercased address.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJQZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDU0LXZlY3RvcjAwMDAwMDAwMDAifQ.ZuhyhO8ylE5OnSaI26cVA5pe1JG8ZJ6-sDyZE_kKwStRsCXL4Lem99wNv1KqkA_Zxg_kLEzNOGpe4mhkrRk9Bw",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "accept",
+      "claims": {
+        "iss": "https://issuer.example",
+        "aud": "site-a",
+        "env": "production",
+        "sub": "person@example.test",
+        "idp_iss": "https://idp.example",
+        "idp_sub": "idp-subject-0001",
+        "email": "Person@example.test",
+        "email_verified": true,
+        "roles": [
+          "Admin"
+        ],
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "iat": 1800000000,
+        "nbf": 1800000000,
+        "exp": 1800000060,
+        "jti": "jti-054-vector0000000000"
+      },
+      "email": "person@example.test"
+    },
+    {
+      "type": "single",
+      "name": "sub_not_lowercase",
+      "description": "sub with upper case letters although email is lowercase.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6IlBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDU1LXZlY3RvcjAwMDAwMDAwMDAifQ.JXLBjWu4xFqKpRKZ8JYp1n2o1NxpU1K3BPzN1Ox7brbUAArJJ2_oWldtomODYaweVMogcBVvpVzds5eWTAIGDQ",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "subject_mismatch"
+    },
+    {
+      "type": "single",
+      "name": "sub_differs_from_email",
+      "description": "sub is another address.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6Im90aGVyQGV4YW1wbGUudGVzdCIsImlkcF9pc3MiOiJodHRwczovL2lkcC5leGFtcGxlIiwiaWRwX3N1YiI6ImlkcC1zdWJqZWN0LTAwMDEiLCJlbWFpbCI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwicm9sZXMiOlsiQWRtaW4iXSwibm9uY2UiOiJObjBuY2VObjBuY2VObjBuY2VBQSIsImlhdCI6MTgwMDAwMDAwMCwibmJmIjoxODAwMDAwMDAwLCJleHAiOjE4MDAwMDAwNjAsImp0aSI6Imp0aS0wNTYtdmVjdG9yMDAwMDAwMDAwMCJ9.66ZedJQyVjyvB02AWZXGhnQFbLaf45tCy5O9rClECuMx-r8UQ_j5_1-RGrR0eoGzp4blCxl0VuuSpradcgetCA",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "subject_mismatch"
+    },
+    {
+      "type": "single",
+      "name": "order_state_before_token",
+      "description": "A bad state and a garbage token: state_mismatch, the token is never looked at.",
+      "token": "garbage",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "wrong",
+      "expect": "refuse",
+      "refusal": "state_mismatch"
+    },
+    {
+      "type": "single",
+      "name": "order_cookie_before_state",
+      "description": "No cookie and a bad state: missing_cookie.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDU3LXZlY3RvcjAwMDAwMDAwMDAifQ.ap3JzJckjHhokhKCdVKPVsNKAmzFiGxDhRHNldY9r_TGXPGzePR7TpsxXzlYxc28Gql83MFnKhWtp_xQcyDjAw",
+      "cookie": null,
+      "state": "wrong",
+      "expect": "refuse",
+      "refusal": "missing_cookie"
+    },
+    {
+      "type": "single",
+      "name": "order_aud_before_time",
+      "description": "Wrong aud AND expired: bad_aud.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoib3RoZXIiLCJlbnYiOiJwcm9kdWN0aW9uIiwic3ViIjoicGVyc29uQGV4YW1wbGUudGVzdCIsImlkcF9pc3MiOiJodHRwczovL2lkcC5leGFtcGxlIiwiaWRwX3N1YiI6ImlkcC1zdWJqZWN0LTAwMDEiLCJlbWFpbCI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwicm9sZXMiOlsiQWRtaW4iXSwibm9uY2UiOiJObjBuY2VObjBuY2VObjBuY2VBQSIsImlhdCI6MTc5OTk5OTkxMCwibmJmIjoxNzk5OTk5OTEwLCJleHAiOjE3OTk5OTk5NzAsImp0aSI6Imp0aS0wNTgtdmVjdG9yMDAwMDAwMDAwMCJ9.ZJdGj9HKH5cmz-AiAr4UH-_xFJh3T5OJfPzPCjUqkIZ7LCNWnIEm7k6leELVCLbfKuBopw_EEcyYcdaTPPzGCA",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "bad_aud"
+    },
+    {
+      "type": "single",
+      "name": "order_iss_before_aud",
+      "description": "Wrong iss AND wrong aud: bad_iss.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2V2aWwuZXhhbXBsZSIsImF1ZCI6Im90aGVyIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDU5LXZlY3RvcjAwMDAwMDAwMDAifQ.-dkAinS6ZbgFtDKPY_ESew5oFyuAMQb2J09vorNQ9P_se0D6EfYrR0ouMr22CKOyMH8uKfiJgwT1y1NDUjOLBw",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "bad_iss"
+    },
+    {
+      "type": "single",
+      "name": "order_signature_before_claims",
+      "description": "Signed by another key AND wrong aud: bad_signature.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoib3RoZXIiLCJlbnYiOiJwcm9kdWN0aW9uIiwic3ViIjoicGVyc29uQGV4YW1wbGUudGVzdCIsImlkcF9pc3MiOiJodHRwczovL2lkcC5leGFtcGxlIiwiaWRwX3N1YiI6ImlkcC1zdWJqZWN0LTAwMDEiLCJlbWFpbCI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwicm9sZXMiOlsiQWRtaW4iXSwibm9uY2UiOiJObjBuY2VObjBuY2VObjBuY2VBQSIsImlhdCI6MTgwMDAwMDAwMCwibmJmIjoxODAwMDAwMDAwLCJleHAiOjE4MDAwMDAwNjAsImp0aSI6Imp0aS0wNjAtdmVjdG9yMDAwMDAwMDAwMCJ9.vgRL3WFHgqJiFz7Csw8FVWY-J6vXyf3LhIQlGAyphwici_m6FM9mAoeaF2W2oDLBhVbAie5-lkzANTUJa0xABQ",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "bad_signature"
+    },
+    {
+      "type": "single",
+      "name": "order_missing_before_iss",
+      "description": "A claim missing AND wrong iss: missing_claim.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2V2aWwuZXhhbXBsZSIsImF1ZCI6InNpdGUtYSIsImVudiI6InByb2R1Y3Rpb24iLCJzdWIiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiaWRwX2lzcyI6Imh0dHBzOi8vaWRwLmV4YW1wbGUiLCJpZHBfc3ViIjoiaWRwLXN1YmplY3QtMDAwMSIsImVtYWlsIjoicGVyc29uQGV4YW1wbGUudGVzdCIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJyb2xlcyI6WyJBZG1pbiJdLCJub25jZSI6Ik5uMG5jZU5uMG5jZU5uMG5jZUFBIiwiaWF0IjoxODAwMDAwMDAwLCJuYmYiOjE4MDAwMDAwMDAsImV4cCI6MTgwMDAwMDA2MH0.tDpAL_ebQj3LIIYpOL_E98CvaHgedgNE-MLjXECM_HSSMDq-5TYLerrsXzQwCakTfO5F0PLGDIbpBeTVp6KuBg",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "missing_claim"
+    },
+    {
+      "type": "single",
+      "name": "order_expired_before_lifetime",
+      "description": "Expired AND lifetime too long: expired.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE3OTk5OTk1MDAsIm5iZiI6MTc5OTk5OTUwMCwiZXhwIjoxNzk5OTk5OTAwLCJqdGkiOiJqdGktMDYyLXZlY3RvcjAwMDAwMDAwMDAifQ.rnJLPQi-raPqF-mH4rbYvC3rthwDmnjA1FeRKRXyJiLFqwYoiAZp3BdgBt-16Fe9GkKvIxyyEqfJ0jq_6pxtCw",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "expired"
+    },
+    {
+      "type": "single",
+      "name": "order_time_before_nonce",
+      "description": "Expired AND nonce mismatch: expired.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoieCIsImlhdCI6MTc5OTk5OTkxMCwibmJmIjoxNzk5OTk5OTEwLCJleHAiOjE3OTk5OTk5NzAsImp0aSI6Imp0aS0wNjMtdmVjdG9yMDAwMDAwMDAwMCJ9.NeyUgfo6kTb5vw7y8xmC5sj2ou6wvv4lf4ePd05b424IGCA0x8Ijzx86PapxXBce78a6dBBpogcotucCl39lAw",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "expired"
+    },
+    {
+      "type": "single",
+      "name": "order_nonce_before_unverified",
+      "description": "Nonce mismatch AND email_verified false: nonce_mismatch.",
+      "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOmZhbHNlLCJyb2xlcyI6WyJBZG1pbiJdLCJub25jZSI6IngiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDY0LXZlY3RvcjAwMDAwMDAwMDAifQ.z-xG8LtTy1Cs8gkmBoeXuQkr3pL52komt60hMDHP57u410yA4_vNzI5woXSeyg-xD6t8_69MOMZGzguCpGMFDA",
+      "cookie": {
+        "nonce": "Nn0nceNn0nceNn0nceAA",
+        "state": "StateStateState0123456789"
+      },
+      "state": "StateStateState0123456789",
+      "expect": "refuse",
+      "refusal": "nonce_mismatch"
+    },
+    {
+      "type": "sequence",
+      "name": "replay_same_token_twice",
+      "description": "The same token presented twice against one jti store: accepted, then replay.",
+      "steps": [
+        {
+          "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDY1LXZlY3RvcjAwMDAwMDAwMDAifQ.lko9bnLs8EB9HiwLytoT8MTYZ10ri3ve_MFml181dA7RmQTsigWV8dvWjiTXr1jhSIfVIcLxAI9hYKL8h8dEBw",
+          "cookie": {
+            "nonce": "Nn0nceNn0nceNn0nceAA",
+            "state": "StateStateState0123456789"
+          },
+          "state": "StateStateState0123456789",
+          "expect": "accept",
+          "claims": {
+            "iss": "https://issuer.example",
+            "aud": "site-a",
+            "env": "production",
+            "sub": "person@example.test",
+            "idp_iss": "https://idp.example",
+            "idp_sub": "idp-subject-0001",
+            "email": "person@example.test",
+            "email_verified": true,
+            "roles": [
+              "Admin"
+            ],
+            "nonce": "Nn0nceNn0nceNn0nceAA",
+            "iat": 1800000000,
+            "nbf": 1800000000,
+            "exp": 1800000060,
+            "jti": "jti-065-vector0000000000"
+          },
+          "email": "person@example.test"
+        },
+        {
+          "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDY1LXZlY3RvcjAwMDAwMDAwMDAifQ.lko9bnLs8EB9HiwLytoT8MTYZ10ri3ve_MFml181dA7RmQTsigWV8dvWjiTXr1jhSIfVIcLxAI9hYKL8h8dEBw",
+          "cookie": {
+            "nonce": "Nn0nceNn0nceNn0nceAA",
+            "state": "StateStateState0123456789"
+          },
+          "state": "StateStateState0123456789",
+          "expect": "refuse",
+          "refusal": "replay"
+        }
+      ]
+    },
+    {
+      "type": "sequence",
+      "name": "replay_refused_forever_within_window",
+      "description": "A third presentation is still a replay.",
+      "steps": [
+        {
+          "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDY2LXZlY3RvcjAwMDAwMDAwMDAifQ.uMlCmIh8gkrsl88FpdhX3Q3dt3j-ZkdbNl4v8yvb2Lya7SxwpSs2Q-XrVH6ICQgF3GKy6RG2sk0h17gW7d6-Dw",
+          "cookie": {
+            "nonce": "Nn0nceNn0nceNn0nceAA",
+            "state": "StateStateState0123456789"
+          },
+          "state": "StateStateState0123456789",
+          "expect": "accept",
+          "claims": {
+            "iss": "https://issuer.example",
+            "aud": "site-a",
+            "env": "production",
+            "sub": "person@example.test",
+            "idp_iss": "https://idp.example",
+            "idp_sub": "idp-subject-0001",
+            "email": "person@example.test",
+            "email_verified": true,
+            "roles": [
+              "Admin"
+            ],
+            "nonce": "Nn0nceNn0nceNn0nceAA",
+            "iat": 1800000000,
+            "nbf": 1800000000,
+            "exp": 1800000060,
+            "jti": "jti-066-vector0000000000"
+          },
+          "email": "person@example.test"
+        },
+        {
+          "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDY2LXZlY3RvcjAwMDAwMDAwMDAifQ.uMlCmIh8gkrsl88FpdhX3Q3dt3j-ZkdbNl4v8yvb2Lya7SxwpSs2Q-XrVH6ICQgF3GKy6RG2sk0h17gW7d6-Dw",
+          "cookie": {
+            "nonce": "Nn0nceNn0nceNn0nceAA",
+            "state": "StateStateState0123456789"
+          },
+          "state": "StateStateState0123456789",
+          "expect": "refuse",
+          "refusal": "replay"
+        },
+        {
+          "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDY2LXZlY3RvcjAwMDAwMDAwMDAifQ.uMlCmIh8gkrsl88FpdhX3Q3dt3j-ZkdbNl4v8yvb2Lya7SxwpSs2Q-XrVH6ICQgF3GKy6RG2sk0h17gW7d6-Dw",
+          "cookie": {
+            "nonce": "Nn0nceNn0nceNn0nceAA",
+            "state": "StateStateState0123456789"
+          },
+          "state": "StateStateState0123456789",
+          "expect": "refuse",
+          "refusal": "replay"
+        }
+      ]
+    },
+    {
+      "type": "sequence",
+      "name": "failed_check_does_not_burn_jti",
+      "description": "A request failing an earlier check (nonce) must not spend the jti: the genuine request still succeeds.",
+      "steps": [
+        {
+          "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDY3LXZlY3RvcjAwMDAwMDAwMDAifQ.8PV8HyKEdI5ZCIdodg76dcBS29V5Yz6rb6K-sc8n1GD_0jXPn7N_r7fT-LFva9L5yy2jfpv4bskvY90i4_lCDw",
+          "cookie": {
+            "nonce": "someone-elses-nonce-0000",
+            "state": "StateStateState0123456789"
+          },
+          "state": "StateStateState0123456789",
+          "expect": "refuse",
+          "refusal": "nonce_mismatch"
+        },
+        {
+          "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDY3LXZlY3RvcjAwMDAwMDAwMDAifQ.8PV8HyKEdI5ZCIdodg76dcBS29V5Yz6rb6K-sc8n1GD_0jXPn7N_r7fT-LFva9L5yy2jfpv4bskvY90i4_lCDw",
+          "cookie": {
+            "nonce": "Nn0nceNn0nceNn0nceAA",
+            "state": "StateStateState0123456789"
+          },
+          "state": "StateStateState0123456789",
+          "expect": "accept",
+          "claims": {
+            "iss": "https://issuer.example",
+            "aud": "site-a",
+            "env": "production",
+            "sub": "person@example.test",
+            "idp_iss": "https://idp.example",
+            "idp_sub": "idp-subject-0001",
+            "email": "person@example.test",
+            "email_verified": true,
+            "roles": [
+              "Admin"
+            ],
+            "nonce": "Nn0nceNn0nceNn0nceAA",
+            "iat": 1800000000,
+            "nbf": 1800000000,
+            "exp": 1800000060,
+            "jti": "jti-067-vector0000000000"
+          },
+          "email": "person@example.test"
+        }
+      ]
+    },
+    {
+      "type": "sequence",
+      "name": "distinct_tokens_do_not_collide",
+      "description": "Two tokens with different jti values are both accepted.",
+      "steps": [
+        {
+          "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDY4LXZlY3RvcjAwMDAwMDAwMDAifQ.PhJUiW2jSvxReYigDkiDZHIf9_bej3UNx_8fOnnTv7J-L21h41e_tCnZQ6sc6d_qaCPv41-KZv-a4tHf4bUODg",
+          "cookie": {
+            "nonce": "Nn0nceNn0nceNn0nceAA",
+            "state": "StateStateState0123456789"
+          },
+          "state": "StateStateState0123456789",
+          "expect": "accept",
+          "claims": {
+            "iss": "https://issuer.example",
+            "aud": "site-a",
+            "env": "production",
+            "sub": "person@example.test",
+            "idp_iss": "https://idp.example",
+            "idp_sub": "idp-subject-0001",
+            "email": "person@example.test",
+            "email_verified": true,
+            "roles": [
+              "Admin"
+            ],
+            "nonce": "Nn0nceNn0nceNn0nceAA",
+            "iat": 1800000000,
+            "nbf": 1800000000,
+            "exp": 1800000060,
+            "jti": "jti-068-vector0000000000"
+          },
+          "email": "person@example.test"
+        },
+        {
+          "token": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6IlN3cGtNd19Da25oSDE1NmdwV2d6UEpPUU5FR25TMjVMaEQxT3FlTnNRa28ifQ.eyJpc3MiOiJodHRwczovL2lzc3Vlci5leGFtcGxlIiwiYXVkIjoic2l0ZS1hIiwiZW52IjoicHJvZHVjdGlvbiIsInN1YiI6InBlcnNvbkBleGFtcGxlLnRlc3QiLCJpZHBfaXNzIjoiaHR0cHM6Ly9pZHAuZXhhbXBsZSIsImlkcF9zdWIiOiJpZHAtc3ViamVjdC0wMDAxIiwiZW1haWwiOiJwZXJzb25AZXhhbXBsZS50ZXN0IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInJvbGVzIjpbIkFkbWluIl0sIm5vbmNlIjoiTm4wbmNlTm4wbmNlTm4wbmNlQUEiLCJpYXQiOjE4MDAwMDAwMDAsIm5iZiI6MTgwMDAwMDAwMCwiZXhwIjoxODAwMDAwMDYwLCJqdGkiOiJqdGktMDY5LXZlY3RvcjAwMDAwMDAwMDAifQ.FIaqK2Sp4vGk0UTj4Pki2zw2n64xVmRR60qUUBplSemPdcnHIcpRlJOV5cmMHvPXYCLN_WGBXZz_5UtEuXBHDA",
+          "cookie": {
+            "nonce": "Nn0nceNn0nceNn0nceAA",
+            "state": "StateStateState0123456789"
+          },
+          "state": "StateStateState0123456789",
+          "expect": "accept",
+          "claims": {
+            "iss": "https://issuer.example",
+            "aud": "site-a",
+            "env": "production",
+            "sub": "person@example.test",
+            "idp_iss": "https://idp.example",
+            "idp_sub": "idp-subject-0001",
+            "email": "person@example.test",
+            "email_verified": true,
+            "roles": [
+              "Admin"
+            ],
+            "nonce": "Nn0nceNn0nceNn0nceAA",
+            "iat": 1800000000,
+            "nbf": 1800000000,
+            "exp": 1800000060,
+            "jti": "jti-069-vector0000000000"
+          },
+          "email": "person@example.test"
+        }
+      ]
+    }
+  ]
+}
