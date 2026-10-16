@@ -10,12 +10,14 @@ HECKS ?= hecks
 
 @@PHONY@@
 stacks:
+@@CDN_CHECK@@
 @@RDS_DEPLOY@@
 	aws cloudformation deploy --template-file box.yaml --stack-name $(BOX_STACK) --capabilities CAPABILITY_IAM \
 		--parameter-overrides VpcId=$(VPC) SubnetId=$(PUBLIC_SUBNET) \
 		DbSecurityGroupId=$$(aws cloudformation describe-stacks --stack-name $(RDS_STACK) --query "Stacks[0].Outputs[?OutputKey=='DbSecurityGroupId'].OutputValue" --output text) \
 @@DB_SECRET_PARAM@@
 		AlertTopicArn=$$(aws cloudformation describe-stacks --stack-name $(RDS_STACK) --query "Stacks[0].Outputs[?OutputKey=='AlertTopicArn'].OutputValue" --output text) \
+@@CDN_PARAM@@
 		Rehearsal=$(REHEARSAL)
 
 @@PROVISION@@

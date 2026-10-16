@@ -94,14 +94,16 @@ module Hecks
           end
 
           # @param plan [Settings::Plan] the resolved settings
+          # @param region [String] the validated region
           # @return [String] a Makefile whose targets create the two stacks and roll the box
-          def makefile(plan)
+          def makefile(plan, region)
             hint = plan.task_definition ? "[TASKDEF=family:revision]" : '[TAGS="web=20260101 worker=20260101"]'
-            base = template("Makefile.tmpl", { "STACK" => plan.infra_name, "DEPLOY_HINT" => hint,
-                                               "RDS_STACK" => plan.rds_stack, "BOX_STACK" => plan.box_stack,
-                                               "DEPLOY_RECIPE" => RollRecipe.deploy(plan) }
-                                               .merge(database_makefile_values(plan)))
-            plan.hosting ? "#{base}\ninclude hosting.mk\n" : base
+            values = { "STACK" => plan.infra_name, "DEPLOY_HINT" => hint, "RDS_STACK" => plan.rds_stack,
+                       "BOX_STACK" => plan.box_stack, "DEPLOY_RECIPE" => RollRecipe.deploy(plan) }
+            values = values.merge(database_makefile_values(plan), edge_makefile_values(plan, region))
+            base = template("Makefile.tmpl", values)
+            includes = [("hosting.mk" if plan.hosting), ("edge.mk" if plan.cdn)].compact
+            includes.empty? ? base : "#{base}\n#{includes.map { |file| "include #{file}\n" }.join}"
           end
 
           private

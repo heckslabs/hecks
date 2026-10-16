@@ -535,6 +535,16 @@ To reach a container through a Cloudflare Tunnel instead of the CDN origin, add
 waits for a registered connection. `tunnel true` alone only opens the outbound
 port, for a tunnel you run yourself.
 
+To put CloudFront in front of the box, add `cdn({ aliases: ["app.example.com", "auth.example.com"] })`
+([ADR 0107](../../decisions/0107-an-awsbox-world-declares-its-cloudfront-edge.md)). It needs `origin_header` and
+`origin_secret`: the box then admits CloudFront's addresses on port 80 and the proxy refuses every request without the
+secret. Two files are written. `edge.yaml` is one distribution answering on the aliases, with the box as its only
+origin, the secret header read from Secrets Manager when the stack deploys, caching off and every viewer header
+forwarded. `edge.mk` adds `make edge CERTIFICATE_ARN=arn:aws:acm:us-east-1:...`; the certificate is a parameter that
+is never created, so issue and validate it first. `make stacks` looks CloudFront's managed prefix list up by name in
+the world's region and passes it to the box stack, and stops before changing anything if it cannot find it. A world
+without `cdn` is unchanged.
+
 A project that already runs on Fargate can point the box at the task definition it
 has: `task_definition "acme-platform"`. The box is then rendered at deploy time from
 that task, so its images, environment and secrets are the task's, and the world
