@@ -119,9 +119,13 @@ module Hecks
           ["pg_restore", "--no-owner", "--no-privileges", "-d", database_name, file]
         end
 
+        # What the URL names, and nothing it leaves out: `postgres:///postgres` parses with an empty
+        # host, which would override a `PGHOST` the environment sets and send the restore to the
+        # local socket while the rest of the rehearsal reached the server by TCP.
         def restore_env
           uri = URI.parse(server_url)
-          { "PGHOST" => uri.host, "PGPORT" => uri.port&.to_s, "PGUSER" => uri.user, "PGPASSWORD" => uri.password }.compact
+          { "PGHOST" => uri.host, "PGPORT" => uri.port&.to_s, "PGUSER" => uri.user, "PGPASSWORD" => uri.password }
+            .reject { |_name, value| value.to_s.empty? }
         end
       end
     end

@@ -7,6 +7,10 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+- A rehearsal that restores a dump no longer sends `pg_restore` to the local socket when the world's server URL names no
+  host (`postgres:///postgres`). The empty host overrode the `PGHOST` the environment sets; now a part the URL leaves out
+  is left to the environment. `rehearsal_store_spec` runs in the Postgres io shards again.
+
 - `build.build_host` downloads the host hecks already built instead of compiling it (ADR 0110). The binaries hecks publishes are
   `PrebuiltBinary` rows of the Vocabulary chapter; `hecks regeneration_run.project_lanes` writes `publish-host.yml` from them, and
   each release `host-<key>` is named by a hash of `rust/host`'s build inputs and carries a `.sha256` the download is checked
