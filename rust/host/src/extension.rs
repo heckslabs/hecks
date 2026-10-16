@@ -83,7 +83,6 @@ pub fn installed() -> &'static [Arc<dyn HostExtension>] {
 fn default_extensions() -> Vec<Arc<dyn HostExtension>> {
     let vars = crate::platform_signin::settings::PROCESS_VARIABLES
         .iter()
-        .chain([&crate::platform_signin::settings::ACCOUNT_COOKIE_VARIABLE])
         .filter_map(|name| std::env::var(name).ok().map(|value| (name.to_string(), value)))
         .collect();
     default_extensions_from(&vars)

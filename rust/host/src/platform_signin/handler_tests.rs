@@ -12,7 +12,8 @@ use crate::auth;
 const AUTHORIZE: &str = "https://issuer.example/sso/authorize?site=site-a&env=production";
 
 fn started(log: Arc<Recorder>) -> (SigninHandler, Value) {
-    let handler = vector_handler("alongside", log).with_random(scripted_random(&[NONCE_A, STATE_A]));
+    let handler =
+        vector_handler("alongside", log).with_random(scripted_random(&[NONCE_A, STATE_A]));
     let response = handler.start();
     (handler, response)
 }
@@ -43,7 +44,10 @@ fn only_clears_the_cookie(response: &Value) -> bool {
 fn start_redirects_to_the_exact_authorize_url() {
     let (_, response) = started(Arc::new(Recorder::default()));
     assert_eq!(status(&response), 302);
-    assert_eq!(response["headers"]["location"], format!("{AUTHORIZE}&nonce={NONCE_A}&state={STATE_A}"));
+    assert_eq!(
+        response["headers"]["location"],
+        format!("{AUTHORIZE}&nonce={NONCE_A}&state={STATE_A}")
+    );
 }
 
 #[test]
@@ -63,7 +67,12 @@ fn fresh_values_are_long_url_safe_and_different_every_time() {
     let values: Vec<String> = (0..50).map(|_| fresh_value()).collect();
     for value in &values {
         assert!(value.len() >= 22 && value.len() <= 128, "{value}");
-        assert!(value.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_'), "{value}");
+        assert!(
+            value
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_'),
+            "{value}"
+        );
     }
     let unique: std::collections::HashSet<_> = values.iter().collect();
     assert_eq!(unique.len(), values.len());
@@ -74,10 +83,18 @@ fn the_real_start_gives_nonce_and_state_that_differ() {
     let handler = vector_handler("alongside", Arc::new(Recorder::default()));
     let response = handler.start();
     let set = cookies_of(&response).remove(0);
-    let value = set.split(';').next().unwrap().trim_start_matches("__Host-signin=").to_string();
+    let value = set
+        .split(';')
+        .next()
+        .unwrap()
+        .trim_start_matches("__Host-signin=")
+        .to_string();
     let (nonce, state) = value.split_once('.').unwrap();
     assert_ne!(nonce, state);
-    assert!(response["headers"]["location"].as_str().unwrap().contains(&format!("nonce={nonce}&state={state}")));
+    assert!(response["headers"]["location"]
+        .as_str()
+        .unwrap()
+        .contains(&format!("nonce={nonce}&state={state}")));
 }
 
 #[test]
@@ -102,8 +119,17 @@ async fn a_genuine_token_signs_the_member_in() {
     assert_eq!(cookies[1], cookie::clear_header());
     let account = &cookies[0];
     assert!(account.starts_with(&format!("{}=", auth::DEFAULT_ACCOUNT_COOKIE)));
-    let token = account.split(';').next().unwrap().split_once('=').unwrap().1;
-    assert_eq!(auth::verify_account_token(SECRET, token).as_deref(), Some("person@example.test"));
+    let token = account
+        .split(';')
+        .next()
+        .unwrap()
+        .split_once('=')
+        .unwrap()
+        .1;
+    assert_eq!(
+        auth::verify_account_token(SECRET, token).as_deref(),
+        Some("person@example.test")
+    );
 }
 
 #[tokio::test]
@@ -113,7 +139,16 @@ async fn the_account_cookie_carries_the_hosts_flags_and_lifetime() {
     let response = finish(&handler, &single(&doc, "valid"), &admin()).await;
     let account = cookies_of(&response).remove(0);
     let attributes: Vec<&str> = account.split("; ").skip(1).collect();
-    assert_eq!(attributes, ["Path=/", "HttpOnly", "Secure", "SameSite=Lax", &format!("Max-Age={}", auth::SESSION_TTL_SECS)]);
+    assert_eq!(
+        attributes,
+        [
+            "Path=/",
+            "HttpOnly",
+            "Secure",
+            "SameSite=Lax",
+            &format!("Max-Age={}", auth::SESSION_TTL_SECS)
+        ]
+    );
 }
 
 #[tokio::test]
@@ -132,8 +167,17 @@ async fn the_session_is_minted_for_the_members_own_email() {
     let members = FakeMembers::resolving(Person::new("Member.Row@example.test", Some("Admin")));
     let response = finish(&handler, &single(&doc, "valid"), &members).await;
     let account = cookies_of(&response).remove(0);
-    let token = account.split(';').next().unwrap().split_once('=').unwrap().1;
-    assert_eq!(auth::verify_account_token(SECRET, token).as_deref(), Some("Member.Row@example.test"));
+    let token = account
+        .split(';')
+        .next()
+        .unwrap()
+        .split_once('=')
+        .unwrap()
+        .1;
+    assert_eq!(
+        auth::verify_account_token(SECRET, token).as_deref(),
+        Some("Member.Row@example.test")
+    );
 }
 
 // ---- callback: the member mapping ----
@@ -154,7 +198,10 @@ async fn an_unresolved_identity_provisions_by_email_with_the_tokens_identity() {
     let members = FakeMembers::provisioning(Person::new("person@example.test", Some("Admin")));
     let response = finish(&handler, &single(&doc, "valid"), &members).await;
     assert_eq!(status(&response), 302);
-    assert_eq!(members.called().last().unwrap(), "provision person@example.test https://idp.example idp-subject-0001");
+    assert_eq!(
+        members.called().last().unwrap(),
+        "provision person@example.test https://idp.example idp-subject-0001"
+    );
 }
 
 #[tokio::test]
@@ -173,7 +220,10 @@ async fn there_is_no_fallback_by_email_when_the_identity_does_not_resolve() {
     let doc = vectors();
     let handler = vector_handler("alongside", Arc::new(Recorder::default()));
     let mut members = FakeMembers::default();
-    members.linked.insert("identity-1".into(), Person::new("person@example.test", Some("Admin")));
+    members.linked.insert(
+        "identity-1".into(),
+        Person::new("person@example.test", Some("Admin")),
+    );
     let response = finish(&handler, &single(&doc, "valid"), &members).await;
     assert_eq!(status(&response), 403);
     assert!(only_clears_the_cookie(&response));
@@ -194,7 +244,10 @@ async fn a_disabled_or_unknown_member_the_store_does_not_return_is_refused() {
     let doc = vectors();
     let handler = vector_handler("alongside", Arc::new(Recorder::default()));
     let mut members = FakeMembers::default();
-    members.identities.insert(("https://idp.example".into(), "idp-subject-0001".into()), "identity-1".into());
+    members.identities.insert(
+        ("https://idp.example".into(), "idp-subject-0001".into()),
+        "identity-1".into(),
+    );
     let response = finish(&handler, &single(&doc, "valid"), &members).await;
     assert_eq!(status(&response), 403);
 }
@@ -203,7 +256,10 @@ async fn a_disabled_or_unknown_member_the_store_does_not_return_is_refused() {
 async fn a_store_fault_is_our_fault_not_a_refusal_and_still_clears_the_cookie() {
     let doc = vectors();
     let handler = vector_handler("alongside", Arc::new(Recorder::default()));
-    let members = FakeMembers { fail: true, ..FakeMembers::default() };
+    let members = FakeMembers {
+        fail: true,
+        ..FakeMembers::default()
+    };
     let response = finish(&handler, &single(&doc, "valid"), &members).await;
     assert_eq!(status(&response), 500);
     assert!(page_has_code(&response, "platform_unavailable"));
@@ -218,7 +274,9 @@ async fn role_drift_is_logged_and_nothing_is_written() {
     let members = FakeMembers::resolving(Person::new("person@example.test", Some("Member")));
     let response = finish(&handler, &single(&doc, "valid"), &members).await;
     assert_eq!(status(&response), 302);
-    let drift = log.fields_of("platform_signin_role_drift").expect("drift logged");
+    let drift = log
+        .fields_of("platform_signin_role_drift")
+        .expect("drift logged");
     assert_eq!(drift["token_role"], "Admin");
     assert_eq!(drift["local_role"], "Member");
     assert_eq!(members.called(), ["identity_for", "session_for_identity"]);
@@ -261,7 +319,12 @@ async fn every_vector_gets_the_right_status_code_and_never_a_session_when_refuse
             } else {
                 let refusal = step["refusal"].as_str().unwrap();
                 let params_fault = refusal == "malformed" && step["token"].is_null();
-                let code = if params_fault || (step["state"].is_null() && refusal == "state_mismatch") { "platform_params" } else { expected_code(refusal) };
+                let code =
+                    if params_fault || (step["state"].is_null() && refusal == "state_mismatch") {
+                        "platform_params"
+                    } else {
+                        expected_code(refusal)
+                    };
                 assert_eq!(status(&response), 400, "{name}");
                 assert!(page_has_code(&response, code), "{name}: wanted {code}");
                 assert!(only_clears_the_cookie(&response), "{name}");
@@ -323,7 +386,10 @@ async fn missing_repeated_oversized_or_undecodable_parameters_are_refused() {
         format!("token={token}&state={state}&pad={}", "a".repeat(20_000)),
         format!("token=%zz&state={state}"),
     ] {
-        let bad = CallbackRequest { raw_query: query, ..request.clone() };
+        let bad = CallbackRequest {
+            raw_query: query,
+            ..request.clone()
+        };
         let (response, members) = answer(bad).await;
         assert_eq!(status(&response), 400);
         assert!(page_has_code(&response, "platform_params"));
@@ -348,7 +414,8 @@ async fn a_replayed_token_is_refused_the_second_time() {
 async fn an_expired_token_is_refused_by_the_clock_the_handler_was_given() {
     let doc = vectors();
     let now = doc["now"].as_i64().unwrap();
-    let handler = vector_handler("alongside", Arc::new(Recorder::default())).with_clock(Box::new(move || now + 3600));
+    let handler = vector_handler("alongside", Arc::new(Recorder::default()))
+        .with_clock(Box::new(move || now + 3600));
     let response = finish(&handler, &single(&doc, "valid"), &admin()).await;
     assert_eq!(status(&response), 400);
     assert!(only_clears_the_cookie(&response));
@@ -357,7 +424,15 @@ async fn an_expired_token_is_refused_by_the_clock_the_handler_was_given() {
 #[tokio::test]
 async fn the_member_store_is_not_asked_until_the_token_has_verified() {
     let doc = vectors();
-    for name in ["state_mismatch", "nonce_mismatch", "wrong_aud_1", "wrong_env_1", "expired", "payload_tampered", "cookie_absent"] {
+    for name in [
+        "state_mismatch",
+        "nonce_mismatch",
+        "wrong_aud_1",
+        "wrong_env_1",
+        "expired",
+        "payload_tampered",
+        "cookie_absent",
+    ] {
         let handler = vector_handler("alongside", Arc::new(Recorder::default()));
         let members = admin();
         let response = finish(&handler, &single(&doc, name), &members).await;
@@ -373,12 +448,31 @@ async fn no_log_line_ever_holds_a_token_nonce_state_or_full_email() {
     let doc = vectors();
     let log = Arc::new(Recorder::default());
     let handler = vector_handler("alongside", log.clone());
-    for name in ["valid", "valid", "state_mismatch", "nonce_mismatch", "wrong_aud_1", "payload_tampered", "expired"] {
+    for name in [
+        "valid",
+        "valid",
+        "state_mismatch",
+        "nonce_mismatch",
+        "wrong_aud_1",
+        "payload_tampered",
+        "expired",
+    ] {
         let step = single(&doc, name);
-        finish(&handler, &step, &FakeMembers::resolving(Person::new("person@example.test", Some("Member")))).await;
+        finish(
+            &handler,
+            &step,
+            &FakeMembers::resolving(Person::new("person@example.test", Some("Member"))),
+        )
+        .await;
         finish(&handler, &step, &FakeMembers::default()).await;
         let text = log.text();
-        for secret in [step["token"].as_str().unwrap_or("-"), step["state"].as_str().unwrap_or("-"), "Nn0nceNn0nceNn0nceAA", "StateStateState0123456789", "person@example.test"] {
+        for secret in [
+            step["token"].as_str().unwrap_or("-"),
+            step["state"].as_str().unwrap_or("-"),
+            "Nn0nceNn0nceNn0nceAA",
+            "StateStateState0123456789",
+            "person@example.test",
+        ] {
             assert!(!text.contains(secret), "{name} leaked {secret}");
         }
     }
@@ -391,7 +485,10 @@ async fn a_refusal_is_logged_by_its_stable_code() {
     let log = Arc::new(Recorder::default());
     let handler = vector_handler("alongside", log.clone());
     finish(&handler, &single(&doc, "nonce_mismatch"), &admin()).await;
-    assert_eq!(log.fields_of("platform_signin_refused").unwrap()["reason"], "nonce_mismatch");
+    assert_eq!(
+        log.fields_of("platform_signin_refused").unwrap()["reason"],
+        "nonce_mismatch"
+    );
 }
 
 // ---- L6: attack mirror at the handler ----
@@ -411,7 +508,11 @@ async fn open_redirect_parameters_on_the_callback_are_ignored() {
     let token = encode(step["token"].as_str().unwrap());
     let state = encode(step["state"].as_str().unwrap());
     let query = format!("return=https%3A%2F%2Fevil.example&token={token}&next=//evil.example&redirect_uri=https://evil.example&state={state}&callback=//e");
-    let (response, _) = answer(CallbackRequest { raw_query: query, ..request }).await;
+    let (response, _) = answer(CallbackRequest {
+        raw_query: query,
+        ..request
+    })
+    .await;
     assert_eq!(response["headers"]["location"], "/admin.html");
 }
 
@@ -431,7 +532,12 @@ async fn a_cookie_with_no_matching_state_param_is_refused() {
     let doc = vectors();
     let handler = vector_handler("alongside", Arc::new(Recorder::default()));
     let mut request = request_for(&single(&doc, "valid"));
-    request.raw_query = request.raw_query.split('&').filter(|p| !p.starts_with("state=")).collect::<Vec<_>>().join("&");
+    request.raw_query = request
+        .raw_query
+        .split('&')
+        .filter(|p| !p.starts_with("state="))
+        .collect::<Vec<_>>()
+        .join("&");
     let response = handler.callback(&request, &admin()).await;
     assert_eq!(status(&response), 400);
 }

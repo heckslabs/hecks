@@ -39,29 +39,70 @@ impl Failure {
 
     /// Returns the stable code shown on the page and logged.
     pub fn code(self) -> &'static str {
-        todo!()
+        match self {
+            Failure::Cookie => "platform_cookie",
+            Failure::State => "platform_state",
+            Failure::Params => "platform_params",
+            Failure::Token => "platform_token",
+            Failure::Unlinked => "google_unlinked",
+            Failure::Unavailable => "platform_unavailable",
+        }
     }
 
     /// Returns the HTTP status.
     pub fn status(self) -> u16 {
-        todo!()
+        match self {
+            Failure::Unlinked => 403,
+            Failure::Unavailable => 500,
+            _ => 400,
+        }
     }
 
     fn message(self) -> &'static str {
-        todo!()
+        match self {
+            Failure::Unlinked => "This account does not have access to this site.",
+            Failure::Unavailable => "Sign-in is unavailable. Please try again later.",
+            _ => "This sign-in link is not valid or has expired. Please start again from the site you came from.",
+        }
     }
 }
 
 /// Builds the refusal page, which also deletes the sign-in cookie.
 pub fn refusal(failure: Failure) -> Value {
-    let _ = failure;
-    todo!()
+    let body = format!(
+        "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><title>Sign-in</title></head>\
+         <body><p>{}</p><p>Code: {}</p></body></html>\n",
+        failure.message(),
+        failure.code()
+    );
+    json!({
+        "statusCode": failure.status(),
+        "headers": page_headers(),
+        "cookies": [cookie::clear_header()],
+        "body": body,
+        "isBase64Encoded": false,
+    })
+}
+
+fn page_headers() -> Value {
+    json!({
+        "content-type": "text/html; charset=utf-8",
+        "cache-control": "no-store",
+        "referrer-policy": "no-referrer",
+        "x-content-type-options": "nosniff",
+        "content-security-policy": "default-src 'none'; frame-ancestors 'none'",
+    })
 }
 
 /// Builds a redirect that carries `cookies` and is never cached.
 pub fn redirect(location: &str, cookies: &[String]) -> Value {
-    let _ = (location, cookies);
-    todo!()
+    json!({
+        "statusCode": 302,
+        "headers": {"location": location, "cache-control": "no-store", "referrer-policy": "no-referrer"},
+        "cookies": cookies,
+        "body": "",
+        "isBase64Encoded": false,
+    })
 }
 
 #[cfg(test)]
@@ -69,7 +110,12 @@ mod tests {
     use super::*;
 
     fn cookies(response: &Value) -> Vec<String> {
-        response["cookies"].as_array().unwrap().iter().map(|c| c.as_str().unwrap().to_string()).collect()
+        response["cookies"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|c| c.as_str().unwrap().to_string())
+            .collect()
     }
 
     #[test]
@@ -77,7 +123,14 @@ mod tests {
         let codes: Vec<&str> = Failure::ALL.iter().map(|f| f.code()).collect();
         assert_eq!(
             codes,
-            ["platform_cookie", "platform_state", "platform_params", "platform_token", "google_unlinked", "platform_unavailable"]
+            [
+                "platform_cookie",
+                "platform_state",
+                "platform_params",
+                "platform_token",
+                "google_unlinked",
+                "platform_unavailable"
+            ]
         );
     }
 
@@ -90,7 +143,11 @@ mod tests {
     #[test]
     fn every_refusal_deletes_the_sign_in_cookie_and_nothing_else() {
         for failure in Failure::ALL {
-            assert_eq!(cookies(&refusal(failure)), vec![cookie::clear_header()], "{failure:?}");
+            assert_eq!(
+                cookies(&refusal(failure)),
+                vec![cookie::clear_header()],
+                "{failure:?}"
+            );
         }
     }
 
@@ -103,7 +160,10 @@ mod tests {
         assert_eq!(headers["cache-control"], "no-store");
         assert_eq!(headers["referrer-policy"], "no-referrer");
         assert_eq!(headers["x-content-type-options"], "nosniff");
-        assert_eq!(headers["content-security-policy"], "default-src 'none'; frame-ancestors 'none'");
+        assert_eq!(
+            headers["content-security-policy"],
+            "default-src 'none'; frame-ancestors 'none'"
+        );
         assert!(headers.get("location").is_none());
     }
 
@@ -136,6 +196,9 @@ mod tests {
 
     #[test]
     fn a_redirect_keeps_the_address_out_of_the_referrer() {
-        assert_eq!(redirect("/x", &[])["headers"]["referrer-policy"], "no-referrer");
+        assert_eq!(
+            redirect("/x", &[])["headers"]["referrer-policy"],
+            "no-referrer"
+        );
     }
 }

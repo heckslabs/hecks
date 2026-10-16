@@ -7,10 +7,10 @@ use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
 use serde_json::{json, Value};
 
-use super::handler::{CallbackRequest, Random, SigninHandler, SigninLog};
-use super::jwks::parse_jwks;
-use super::jti::JtiStore;
 use super::config::PlatformSigninConfig;
+use super::handler::{CallbackRequest, Random, SigninHandler, SigninLog};
+use super::jti::JtiStore;
+use super::jwks::parse_jwks;
 use super::session::MemberDirectory;
 use super::settings::SigninSettings;
 use super::test_support::StaticKeys;
@@ -43,7 +43,9 @@ pub fn env_map(mode: &str) -> HashMap<String, String> {
 
 /// Validated settings for `mode`.
 pub fn settings(mode: &str) -> SigninSettings {
-    SigninSettings::from_env_map(&env_map(mode)).expect("valid").expect("switched on")
+    SigninSettings::from_env_map(&env_map(mode))
+        .expect("valid")
+        .expect("switched on")
 }
 
 /// A log that keeps every event.
@@ -59,17 +61,33 @@ impl SigninLog for Recorder {
 impl Recorder {
     /// Every recorded event as one text, for searching.
     pub fn text(&self) -> String {
-        self.0.lock().unwrap().iter().map(|(e, f)| format!("{e} {f}")).collect::<Vec<_>>().join("\n")
+        self.0
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|(e, f)| format!("{e} {f}"))
+            .collect::<Vec<_>>()
+            .join("\n")
     }
 
     /// The names of the recorded events, in order.
     pub fn events(&self) -> Vec<String> {
-        self.0.lock().unwrap().iter().map(|(e, _)| e.clone()).collect()
+        self.0
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|(e, _)| e.clone())
+            .collect()
     }
 
     /// The fields of the first event called `name`.
     pub fn fields_of(&self, name: &str) -> Option<Value> {
-        self.0.lock().unwrap().iter().find(|(e, _)| e == name).map(|(_, f)| f.clone())
+        self.0
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|(e, _)| e == name)
+            .map(|(_, f)| f.clone())
     }
 }
 
@@ -81,12 +99,21 @@ pub struct Person {
 }
 
 impl Person {
+    /// Builds a person with this email and local role.
     pub fn new(email: &str, role: Option<&str>) -> Self {
-        Self { email: email.into(), role: role.map(str::to_string) }
+        Self {
+            email: email.into(),
+            role: role.map(str::to_string),
+        }
     }
 
     fn session(&self) -> Session {
-        Session { identity_id: "identity-1".into(), email: self.email.clone(), name: "Person".into(), role: self.role.clone() }
+        Session {
+            identity_id: "identity-1".into(),
+            email: self.email.clone(),
+            name: "Person".into(),
+            role: self.role.clone(),
+        }
     }
 }
 
@@ -107,16 +134,23 @@ impl FakeMembers {
     /// A store where the vectors' identity resolves to `person`.
     pub fn resolving(person: Person) -> Self {
         let mut store = Self::default();
-        store.identities.insert(("https://idp.example".into(), "idp-subject-0001".into()), "identity-1".into());
+        store.identities.insert(
+            ("https://idp.example".into(), "idp-subject-0001".into()),
+            "identity-1".into(),
+        );
         store.linked.insert("identity-1".into(), person);
         store
     }
 
     /// A store where nothing resolves and linking by email yields `person`.
     pub fn provisioning(person: Person) -> Self {
-        Self { provisions: Some(person), ..Self::default() }
+        Self {
+            provisions: Some(person),
+            ..Self::default()
+        }
     }
 
+    /// Lists the calls made so far, in order.
     pub fn called(&self) -> Vec<String> {
         self.calls.lock().unwrap().clone()
     }
@@ -134,7 +168,10 @@ impl FakeMembers {
 impl MemberDirectory for FakeMembers {
     async fn identity_for(&self, issuer: &str, subject: &str) -> anyhow::Result<Option<String>> {
         self.note("identity_for")?;
-        Ok(self.identities.get(&(issuer.to_string(), subject.to_string())).cloned())
+        Ok(self
+            .identities
+            .get(&(issuer.to_string(), subject.to_string()))
+            .cloned())
     }
 
     async fn session_for_identity(&self, identity_id: &str) -> anyhow::Result<Option<Session>> {
@@ -142,7 +179,12 @@ impl MemberDirectory for FakeMembers {
         Ok(self.linked.get(identity_id).map(Person::session))
     }
 
-    async fn provision(&self, email: &str, issuer: &str, subject: &str) -> anyhow::Result<Option<Session>> {
+    async fn provision(
+        &self,
+        email: &str,
+        issuer: &str,
+        subject: &str,
+    ) -> anyhow::Result<Option<Session>> {
         self.note(&format!("provision {email} {issuer} {subject}"))?;
         Ok(self.provisions.as_ref().map(Person::session))
     }
@@ -150,7 +192,10 @@ impl MemberDirectory for FakeMembers {
 
 /// The known-answer file.
 pub fn vectors() -> Value {
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/platform_signin_vectors.json");
+    let path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/fixtures/platform_signin_vectors.json"
+    );
     serde_json::from_slice(&std::fs::read(path).expect("vectors")).expect("json")
 }
 
@@ -158,7 +203,12 @@ pub fn vectors() -> Value {
 pub fn vector_verifier(doc: &Value) -> Verifier<StaticKeys> {
     let pins = &doc["config"];
     let text = |name: &str| pins[name].as_str().expect("string").to_string();
-    let config = PlatformSigninConfig::new(&text("iss"), &format!("{}/.well-known/jwks.json", text("iss")), &text("aud"), &text("env"));
+    let config = PlatformSigninConfig::new(
+        &text("iss"),
+        &format!("{}/.well-known/jwks.json", text("iss")),
+        &text("aud"),
+        &text("env"),
+    );
     let parsed = parse_jwks(&doc["jwks"].to_string()).expect("key set");
     Verifier::new(config, StaticKeys(parsed.keys), JtiStore::new())
 }
@@ -166,7 +216,13 @@ pub fn vector_verifier(doc: &Value) -> Verifier<StaticKeys> {
 /// Percent-encodes everything outside the unreserved set.
 pub fn encode(text: &str) -> String {
     text.bytes()
-        .map(|b| if b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'.' | b'~') { (b as char).to_string() } else { format!("%{b:02X}") })
+        .map(|b| {
+            if b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'.' | b'~') {
+                (b as char).to_string()
+            } else {
+                format!("%{b:02X}")
+            }
+        })
         .collect()
 }
 
@@ -190,12 +246,20 @@ pub fn request_for(step: &Value) -> CallbackRequest {
             vec![format!("__Host-signin={value}")]
         }
     };
-    CallbackRequest { raw_query: query.join("&"), cookie_pairs }
+    CallbackRequest {
+        raw_query: query.join("&"),
+        cookie_pairs,
+    }
 }
 
 /// A random source that hands out `values` in order.
 pub fn scripted_random(values: &[&str]) -> Random {
-    let queue = Mutex::new(values.iter().map(|v| v.to_string()).collect::<std::collections::VecDeque<_>>());
+    let queue = Mutex::new(
+        values
+            .iter()
+            .map(|v| v.to_string())
+            .collect::<std::collections::VecDeque<_>>(),
+    );
     Box::new(move || queue.lock().unwrap().pop_front().expect("a scripted value"))
 }
 
@@ -203,7 +267,8 @@ pub fn scripted_random(values: &[&str]) -> Random {
 pub fn vector_handler(mode: &str, log: Arc<Recorder>) -> SigninHandler {
     let doc = vectors();
     let now = doc["now"].as_i64().expect("now");
-    SigninHandler::new(settings(mode), Arc::new(vector_verifier(&doc)), log).with_clock(Box::new(move || now))
+    SigninHandler::new(settings(mode), Arc::new(vector_verifier(&doc)), log)
+        .with_clock(Box::new(move || now))
 }
 
 /// The verified claims of an accepted vector.
@@ -214,18 +279,38 @@ pub fn vector_claims(doc: &Value, name: &str) -> super::verify::VerifiedClaims {
         nonce: step["cookie"]["nonce"].as_str().unwrap().to_string(),
         state: step["cookie"]["state"].as_str().unwrap().to_string(),
     };
-    let request = SigninRequest { token: step["token"].as_str(), state: step["state"].as_str(), cookie: Some(&cookie) };
-    vector_verifier(doc).verify(&request, doc["now"].as_i64().unwrap()).expect("an accepted vector")
+    let request = SigninRequest {
+        token: step["token"].as_str(),
+        state: step["state"].as_str(),
+        cookie: Some(&cookie),
+    };
+    vector_verifier(doc)
+        .verify(&request, doc["now"].as_i64().unwrap())
+        .expect("an accepted vector")
 }
 
 /// The cookies of a response.
 pub fn cookies_of(response: &Value) -> Vec<String> {
-    response.get("cookies").and_then(Value::as_array).map(|a| a.iter().filter_map(|c| c.as_str().map(str::to_string)).collect()).unwrap_or_default()
+    response
+        .get("cookies")
+        .and_then(Value::as_array)
+        .map(|a| {
+            a.iter()
+                .filter_map(|c| c.as_str().map(str::to_string))
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 /// The vector with this name.
 pub fn single(doc: &Value, name: &str) -> Value {
-    doc["vectors"].as_array().unwrap().iter().find(|v| v["name"] == name).unwrap_or_else(|| panic!("vector {name}")).clone()
+    doc["vectors"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|v| v["name"] == name)
+        .unwrap_or_else(|| panic!("vector {name}"))
+        .clone()
 }
 
 #[allow(dead_code)]
