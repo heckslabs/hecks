@@ -487,7 +487,7 @@ stacks exist.
 
 `make stacks` never moves a live box to a newer image. It passes `AmiId` as the image the
 running `Box` instance already uses, and looks the latest Amazon Linux image up only when the
-box stack does not exist yet (ADR 0108). It prints which one it used and whether it was
+box stack does not exist yet (ADR 0109). It prints which one it used and whether it was
 pinned or new. A newer image replaces the instance and its Elastic IP association, so ask for
 it on purpose, after previewing the change set:
 
@@ -548,7 +548,7 @@ waits for a registered connection. `tunnel true` alone only opens the outbound
 port, for a tunnel you run yourself.
 
 To put CloudFront in front of the box, add `cdn({ aliases: ["app.example.com", "auth.example.com"] })`
-([ADR 0107](../../decisions/0107-an-awsbox-world-declares-its-cloudfront-edge.md)). It needs `origin_header` and
+([ADR 0108](../../decisions/0108-an-awsbox-world-declares-its-cloudfront-edge.md)). It needs `origin_header` and
 `origin_secret`: the box then admits CloudFront's addresses on port 80 and the proxy refuses every request without the
 secret. Two files are written. `edge.yaml` is one distribution answering on the aliases, with the box as its only
 origin, the secret header read from Secrets Manager when the stack deploys, caching off and every viewer header

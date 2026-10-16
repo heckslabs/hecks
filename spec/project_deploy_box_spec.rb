@@ -803,7 +803,7 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
     end
   end
 
-  describe "the box image (ADR 0108)" do
+  describe "the box image (ADR 0109)" do
     let(:files) { cached("default", BOX_WORLDS.fetch("default")).first }
 
     it "takes AmiId as a plain image id with no default, so a template update cannot re-resolve it", :aggregate_failures do
