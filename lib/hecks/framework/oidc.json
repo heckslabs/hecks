@@ -1,54 +1,34 @@
 {
-  "audience": "Compliance",
+  "audience": "Change",
   "scopes": [
     {
-      "scope": "compliance:account_freeze_review.clear",
-      "verb": "Compliance::AccountFreezeReview.Clear",
-      "role": "Compliance officer"
-    },
-    {
-      "scope": "compliance:account_freeze_review.escalate",
-      "verb": "Compliance::AccountFreezeReview.Escalate",
-      "role": "Compliance officer"
-    },
-    {
-      "scope": "compliance:account_freeze_review.open",
-      "verb": "Compliance::AccountFreezeReview.Open",
+      "scope": "change:change.complete",
+      "verb": "Change::Change.Complete",
       "role": "System"
     },
     {
-      "scope": "compliance:box_surrender_review.clear",
-      "verb": "Compliance::BoxSurrenderReview.Clear",
-      "role": "Compliance officer"
+      "scope": "change:change.confirm",
+      "verb": "Change::Change.Confirm",
+      "role": "Maintainer"
     },
     {
-      "scope": "compliance:box_surrender_review.escalate",
-      "verb": "Compliance::BoxSurrenderReview.Escalate",
-      "role": "Compliance officer"
-    },
-    {
-      "scope": "compliance:box_surrender_review.open",
-      "verb": "Compliance::BoxSurrenderReview.Open",
+      "scope": "change:change.fault",
+      "verb": "Change::Change.Fault",
       "role": "System"
     },
     {
-      "scope": "compliance:privacy_review.clear",
-      "verb": "Compliance::PrivacyReview.Clear",
-      "role": "Compliance officer"
-    },
-    {
-      "scope": "compliance:privacy_review.escalate",
-      "verb": "Compliance::PrivacyReview.Escalate",
-      "role": "Compliance officer"
-    },
-    {
-      "scope": "compliance:privacy_review.open",
-      "verb": "Compliance::PrivacyReview.Open",
+      "scope": "change:change.plan",
+      "verb": "Change::Change.Plan",
       "role": "System"
+    },
+    {
+      "scope": "change:change.request",
+      "verb": "Change::Change.Request",
+      "role": "Maintainer"
     }
   ],
   "roles": [
-    "Compliance officer",
+    "Maintainer",
     "System"
   ]
 }
