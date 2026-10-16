@@ -7,6 +7,11 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+- **A quoted `member` cell stays a string (ADR 0112).** A registry's chapter now equals what its builder made: `member x: "true"` or
+  `"1"` is a String, and a bare `true` or `1` is still a boolean or number. Before, the meta-domain read both spellings back as the
+  boolean or number, so a quoted cell differed from the builder's IR and from the Rust runtime. A chapter that quoted a number or
+  boolean in a closed set now sees the String; write the cell bare to keep it typed. The frozen IR of the language's own chapters
+  changes where a cell was quoted.
 - **The host can sign people in through a platform issuer (ADR 0111).** Off unless `PLATFORM_SIGNIN` is `alongside` or `default`; with it
   unset the host behaves exactly as before. `alongside` adds `GET /auth/platform` and `/auth/platform/callback` next to `/auth/google`;
   `default` sends `/auth/google` to the issuer and keeps `/auth/google?via=google` as the break-glass. Settings: `PLATFORM_SIGNIN`,

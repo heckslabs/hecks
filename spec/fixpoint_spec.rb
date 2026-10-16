@@ -85,9 +85,8 @@ RSpec.describe "the language's own definition" do
     end
   end
 
-  # `:members` values are stringified on both sides: the raw load keeps declared types,
-  # while `Assembly::Marks#member` guesses types (`unmark_scalar`), which
-  # spec/vocabulary_conformance_spec.rb relies on. Everything else compares byte for byte.
+  # `:members` values are stringified on both sides, so this compares what a cell spells, not its
+  # type; spec/dispatch_load_spec.rb holds the types. Everything else compares byte for byte.
   def stringify_members(node)
     case node
     when Hash

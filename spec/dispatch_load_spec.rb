@@ -51,9 +51,6 @@ RSpec.describe "a chapter loaded by dispatching its own declarations" do
 
   def both?(left, right, kind) = left.is_a?(kind) && right.is_a?(kind)
 
-  # A quoted scalar the product holds as the number or boolean it spells.
-  SPELLED_SCALAR = /built "(true|false|-?\d+(?:\.\d+)?)", product \1\z/
-
   def report(found) = "#{found.size} differences, first ten:\n#{found.first(10).join("\n")}"
 
   DISPATCH_CORPUS.each do |name, file|
@@ -66,17 +63,15 @@ RSpec.describe "a chapter loaded by dispatching its own declarations" do
     end
   end
 
-  # The language's own `member` rows quote their cells (`at: "1"`, `required: "true"`), and the
-  # meta-domain stores a cell as text, so the product holds each as the number or boolean it
-  # spells. spec/golden/ir freezes that, so it is a wire-format fact, not an accident; any other
-  # difference between the builder and the product is a loss and fails here.
+  # The language's own `member` rows quote their cells (`at: "1"`, `required: "true"`); a quoted
+  # cell is a String in the builder and stays one in the product.
   %w[Bluebook World Hecksagon].each do |name|
-    it "#{name}, the language itself, differs from the builder only in quoted member cells" do
+    it "#{name}, the language itself, comes out as the builder made it" do
       built = Hecks::Bluebook::MetaValidator.load_grammar_into(Hecks::Runtime::Registry.new).bluebook(name)
       product = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook(name)
-      other = differences(plain(built.to_h), plain(product.to_h)).grep_v(SPELLED_SCALAR)
+      found = differences(plain(built.to_h), plain(product.to_h))
 
-      expect(other).to be_empty, report(other)
+      expect(found).to be_empty, report(found)
     end
   end
 end
