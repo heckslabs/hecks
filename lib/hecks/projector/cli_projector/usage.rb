@@ -34,8 +34,7 @@ module Hecks
 
         # The whole help: the two tables, the chapters, then the hints.
         def full_usage(bluebook, commands, questions, options, program)
-          shown = [CliAudience.without_hidden(commands, options[:hide]),
-                   CliAudience.without_hidden(questions, options[:hide])]
+          shown = [commands, questions].map { |specs| CliAudience.audience_specs(specs, options) }
           [usage_header(bluebook, program),
            tables(*shown, all: options[:all], notes: aggregate_notes(bluebook)),
            CliAudience.chapter_lines(program, options[:chapters]),
@@ -57,6 +56,11 @@ module Hecks
         # The pointers after the tables: `--help`, `--all`, `--maintainer` and an example call.
         def usage_footer(program, shown, options, hidden_count)
           out = ["", "  #{program} <command> --help       what one command wants, and every way it refuses"]
+          if Array(options[:only]).any?
+            out.concat(CliAudience.newcomer_hint(program, options[:only]))
+            return out << "  start with #{program} init! — it writes the stub files of a new domain"
+          end
+
           out.concat(all_hint(program, *shown)) unless options[:all]
           out.concat(CliAudience.maintainer_hint(program, hidden_count))
           out << "  a command is called with its aggregate — #{example_qualified(shown.first)}"
@@ -64,8 +68,15 @@ module Hecks
 
         # The commands table then the queries table.
         def tables(commands, questions, all:, notes:)
-          ["commands:", *listing(commands, all: all, notes: notes) { |spec| spec[:summary] }, "",
-           "queries (nothing here changes anything):",
+          ["commands:", *listing(commands, all: all, notes: notes) { |spec| spec[:summary] },
+           *queries_table(questions, all: all, notes: notes)]
+        end
+
+        # The queries table, or nothing when the audience is shown no query.
+        def queries_table(questions, all:, notes:)
+          return [] if questions.empty?
+
+          ["", "queries (nothing here changes anything):",
            *listing(questions, all: all, notes: notes) { |spec| first_sentence(spec[:summary]) }]
         end
 
