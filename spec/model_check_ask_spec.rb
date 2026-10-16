@@ -46,8 +46,11 @@ RSpec.describe "model_check over ask" do
   end
 
   it "reports a port-naming trigger as a warning" do
-    triggered = findings(File.join(ERRAND_DIR, "errand.hecksagon"), bluebook: triggering_bluebook.path)
+    file = triggering_bluebook
+    triggered = findings(File.join(ERRAND_DIR, "errand.hecksagon"), bluebook: file.path)
 
     expect(triggered).to include([:port_trigger, :warning, "RunWhenRequested"])
+  ensure
+    file&.close!
   end
 end
