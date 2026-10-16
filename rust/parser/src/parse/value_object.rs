@@ -140,7 +140,7 @@ pub fn parse_body(
 fn build_value_object_attribute(
     file: &str,
     args: &super::ArgumentGateResult,
-) -> ParseResult<(ir::Attribute, Option<Vec<String>>, Option<ir::ValueObject>)> {
+) -> ParseResult<(ir::Attribute, Option<Vec<ruby_value::Value>>, Option<ir::ValueObject>)> {
     let (attribute, closed_set) = super::build_attribute(file, 0, "attribute", args)?;
     let one_of = super::named_raw(args, "one_of").map(|raw| {
         let trimmed = raw.trim();
@@ -150,7 +150,7 @@ fn build_value_object_attribute(
             .unwrap_or(trimmed);
         ruby_value::split_items(inner)
             .into_iter()
-            .map(|segment| ruby_value::to_s(&ruby_value::read(segment.trim())))
+            .map(|segment| cell_value(segment.trim()))
             .collect()
     });
     Ok((attribute, one_of, closed_set))
@@ -164,7 +164,7 @@ fn install_inline_closed_set(
     vo_name: &str,
     vo: &mut ir::ValueObject,
     field: &str,
-    values: &[String],
+    values: &[ruby_value::Value],
 ) -> ParseResult<()> {
     if !vo.attributes.is_empty() {
         return Err(Diagnostic::new(
@@ -182,11 +182,11 @@ fn install_inline_closed_set(
     }
 
     vo.closed_set = true;
-    // Unmarked like a bare `member` row (`push_member`): Ruby round-trips these through
-    // `Marks#member`, so `true`/`false` export as JSON booleans, not strings.
+    // Read like a `member` row (`push_member`): a quoted value stays a String and a bare
+    // `true`, `false` or number keeps its type, as Ruby's builder holds them.
     vo.members = values
         .iter()
-        .map(|value| vec![(field.to_string(), unmark_scalar(value))])
+        .map(|value| vec![(field.to_string(), value.clone())])
         .collect();
     Ok(())
 }
@@ -207,15 +207,27 @@ fn push_member(
     let fields = args
         .named
         .iter()
-        .map(|(field, raw)| (field.clone(), unmark_scalar(&ruby_value::to_s(&ruby_value::read(raw)))))
+        .map(|(field, raw)| (field.clone(), cell_value(raw)))
         .collect();
     members.push(fields);
     Ok(())
 }
 
-/// Port of `Marks#unmark_scalar` (lib/hecks/bluebook/assembly/marks.rb).
-/// Ruby stores every member field as text and infers Bool/Integer/Float from its shape, so a
-/// quoted "true" or "1" unmarks to a real `true` or `1`.
+/// Reads one member cell from its source spelling, as `Scalars.unmark` reads a stored one
+/// (lib/hecks/bluebook/assembly/scalars.rb): a quoted cell is a String whatever it spells, and a
+/// bare boolean or number keeps its type. Anything else is read through its text.
+fn cell_value(raw: &str) -> ruby_value::Value {
+    match ruby_value::read(raw) {
+        held @ (ruby_value::Value::Str(_)
+        | ruby_value::Value::Bool(_)
+        | ruby_value::Value::Int(_)
+        | ruby_value::Value::Float(_)) => held,
+        other => unmark_scalar(&ruby_value::to_s(&other)),
+    }
+}
+
+/// The text-shape half of `Scalars.unmark`: for a cell that is neither a quoted String nor a
+/// bare boolean or number, `true`, `false` and number-shaped text read back typed.
 fn unmark_scalar(text: &str) -> ruby_value::Value {
     if text == "true" {
         return ruby_value::Value::Bool(true);

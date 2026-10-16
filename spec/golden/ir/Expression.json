@@ -1777,7 +1777,7 @@
               ],
               [
                 "replacement",
-                86400
+                "86400"
               ],
               [
                 "boundary",
@@ -1799,7 +1799,7 @@
               ],
               [
                 "replacement",
-                3600
+                "3600"
               ],
               [
                 "boundary",
@@ -1821,7 +1821,7 @@
               ],
               [
                 "replacement",
-                60
+                "60"
               ],
               [
                 "boundary",

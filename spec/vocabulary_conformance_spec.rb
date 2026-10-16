@@ -3,8 +3,9 @@ require "spec_helper"
 # The declared vocabularies must equal the tables the runtime uses: the comparison operators, sign
 # tests, primitives, normalisation strategies, mutation ops, load order and domain refusals.
 RSpec.describe "the declared vocabularies" do
-  # grammar_registry runs the fixpoint at boot, so member values arrive typed (`true`, not "true").
-  # A regression to the raw builder graph fails every typed-vs-string assertion below.
+  # grammar_registry runs the fixpoint at boot, so a bare member cell arrives typed (`true`) and a
+  # quoted one stays a String. A regression to the raw builder graph fails every typed-vs-string
+  # assertion below.
   def self.judged_meta = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
 
   def self.vocabularies
@@ -40,11 +41,12 @@ RSpec.describe "the declared vocabularies" do
     terms
   end
 
-  # What Evaluator::OPERATORS computes with, by symbol. Members decode through typed literal
-  # decoding, so these are real booleans, not text.
+  # What Evaluator::OPERATORS computes with, by symbol, spelled as the table spells each cell: the
+  # text `"true"` or `"false"`, since the Comparison attributes are Strings.
   def evaluator_algebra
     Hecks::Bluebook::Expression::Evaluator::OPERATORS.to_h do |op|
-      [op.symbol, { compares_less_than: op.compares_less_than, compares_equal: op.compares_equal, negated: op.negated }]
+      algebra = { compares_less_than: op.compares_less_than, compares_equal: op.compares_equal, negated: op.negated }
+      [op.symbol, algebra.transform_values(&:to_s)]
     end
   end
 

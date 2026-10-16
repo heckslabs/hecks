@@ -61,7 +61,7 @@ module Hecks
         "Member"    => Contract.new(
           holder: nil, make: nil,
           fields: {},
-          rows: { pairs: :pair_rows },
+          rows: { pairs: :member_pair_rows },
           derived: { position: :walk, pairs: [:folded, %i[members], nil] }
         )
       }.freeze
