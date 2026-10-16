@@ -7,6 +7,15 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+## [3.11.0] - 2026-10-15
+
+A minor release with two breaking changes: an adapter declares its defaults in the `.adapter` file
+(ADR 0106) and doors are driving adapters (ADR 0103). It adds the era rehearsal (`RehearsalRun`,
+ADR 0104), lifecycle marks such as `frees_seat` (ADR 0097), the code-quality inspection commands,
+`driven_by`, policy `ask`, command arithmetic and capability kinds, and more of the generated
+content editor. The fixes are mostly Rust/Ruby parity (a mint audit, a pattern, a `for_each` query,
+a `.strip` guard) and the editor's forms. `spec/fuzzing` now runs on push, not after each commit.
+
 ### Added
 
 - **`model_check` warns when an attribute copies another aggregate's identity by value.** The new `:key_by_value` finding (a warning, so no run fails on it) flags an aggregate attribute whose type is the identity type of another aggregate in the same domain, such as a `Ledger` holding an `AccountNumber` that is `Account`'s identity, and recommends `reference_to Account`, which states the link and has it enforced. Reference attributes, an owner's own single identity attribute, list attributes and primitive types are not flagged; a key held as one head of a composite identity is flagged, and an aggregate with a composite identity never owns a key. Ruby only: there is no Rust `model_check`. The rule lives in `Hecks::Bluebook::ModelCheck::ReferenceChecks`.
