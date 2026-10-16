@@ -14,11 +14,8 @@ on:
 # The spec files this workflow never runs — the Rust-building and shared-
 # hecks_pizzas files other jobs own. One copy, read by the shards' committed
 # file list check and by hecks write_io_parallel_spec_list.
-# rehearsal_store_spec is left out until it connects the way the shards do: it opens
-# `postgres:///postgres` over the local socket as the postgres role, which a shard refuses
-# (peer authentication), and it was never listed, so it has not run in CI before.
 env:
-  IO_PARALLEL_EXCLUDE_PATTERN: '(/|^)(parser_parity_spec|grammar_corpus_spec|project_deploy_parity_gate_spec|hecks_build_pipeline_spec|rust_conformance_spec|rust_conformance_fuzz_spec|semantics_corpus_spec|codegen_planted_gaps_spec|rust_numeric_coercion_spec|rust_host_lineage_conformance_spec|rust_host_expr_json_conformance_spec|rust_host_query_step_spec|parser_coverage_spec|domain_feature_exclusivity_spec|naming_landmines_spec|dsl_spec|guides_spec|domain_refusal_spec|diagrams_spec|storehouse_spec|oidc_manifest_spec|rehearsal_store_spec)\.rb$'
+  IO_PARALLEL_EXCLUDE_PATTERN: '(/|^)(parser_parity_spec|grammar_corpus_spec|project_deploy_parity_gate_spec|hecks_build_pipeline_spec|rust_conformance_spec|rust_conformance_fuzz_spec|semantics_corpus_spec|codegen_planted_gaps_spec|rust_numeric_coercion_spec|rust_host_lineage_conformance_spec|rust_host_expr_json_conformance_spec|rust_host_query_step_spec|parser_coverage_spec|domain_feature_exclusivity_spec|naming_landmines_spec|dsl_spec|guides_spec|domain_refusal_spec|diagrams_spec|storehouse_spec|oidc_manifest_spec)\.rb$'
 
 jobs:
   # Skip gate for the shard job. A job-level `if:` is the only way to skip Postgres
