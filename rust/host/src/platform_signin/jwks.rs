@@ -26,6 +26,8 @@ use super::strict_json::{self, Json};
 pub const DEFAULT_TTL_SECONDS: i64 = 300;
 /// The fewest seconds between two fetch attempts, however many unknown keys arrive.
 pub const DEFAULT_MIN_REFETCH_SECONDS: i64 = 30;
+/// The longest time to live a fetcher's hint can stretch the cache to.
+pub const MAX_TTL_SECONDS: i64 = 3600;
 /// The size of an Ed25519 public key in bytes.
 pub const ED25519_PUBLIC_KEY_BYTES: usize = 32;
 
@@ -141,6 +143,14 @@ pub trait JwksFetcher: Send + Sync {
     ///
     /// Returns [`FetchFailed`] for any failure; the cache treats every failure alike.
     fn fetch(&self) -> Result<String, FetchFailed>;
+
+    /// How long the issuer allows the last fetched document to be cached, in seconds, if it said.
+    ///
+    /// The cache honours it between its refetch interval and [`MAX_TTL_SECONDS`]; `None` keeps the
+    /// cache's own time to live.
+    fn ttl_hint(&self) -> Option<i64> {
+        None
+    }
 }
 
 /// Where a verifier gets the public key for a token's `kid`.
