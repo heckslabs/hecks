@@ -82,8 +82,9 @@ module Hecks
           # with the first sentence of what it is for.
           #
           # @return [Hash{Symbol => Object}] `:hide` and `:chapters` (pairs of word and summary)
-          def audience(runtime, launcher, maintainer: LauncherOptions.maintainer?)
-            shown = LauncherOptions.audience(launcher, maintainer)
+          def audience(runtime, launcher, maintainer: LauncherOptions.maintainer?,
+                       newcomer: !maintainer && Newcomer.applies?)
+            shown = (newcomer && Newcomer.audience(launcher)) || LauncherOptions.audience(launcher, maintainer)
             return shown unless shown[:chapters]
 
             shown.merge(chapters: chapter_summaries(runtime, shown[:chapters]))
@@ -102,7 +103,9 @@ module Hecks
 
           # Names who the help is for, so the help remembered for one is not given to the other.
           def audience_key
-            LauncherOptions.maintainer? ? "maintainer" : "project"
+            return "maintainer" if LauncherOptions.maintainer?
+
+            Newcomer.applies? ? "newcomer" : "project"
           end
 
           # Reads the entry words of a line: whether it asks a query, the bare name, and the words

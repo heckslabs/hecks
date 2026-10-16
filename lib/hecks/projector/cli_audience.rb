@@ -13,6 +13,25 @@ module Hecks
         hidden.empty? ? specs : specs.reject { |_, spec| hidden.include?(spec[:group]) }
       end
 
+      # The specs the options' audience is shown: those not hidden, and only those listed, if any are.
+      def audience_specs(specs, options)
+        only_listed(without_hidden(specs, options[:hide]), options[:only])
+      end
+
+      # The specs a newcomer is shown: only those named, or all of them when none are.
+      def only_listed(specs, only)
+        listed = Array(only)
+        listed.empty? ? specs : specs.slice(*listed)
+      end
+
+      # The line saying the help lists only the first steps and how to list the rest, or no line
+      # when it lists everything.
+      def newcomer_hint(program, only)
+        return [] if Array(only).empty?
+
+        ["  #{program} --all                  also list every command (no bluebook is in this folder yet)"]
+      end
+
       # The attached chapters the help points at, one line each, under the call that opens them.
       #
       # @param chapters [Array<Array(String, String)>, nil] each chapter's word and its summary
