@@ -5,6 +5,7 @@ require "open3"
 require "hecks/vocabulary"
 require_relative "../tools"
 require_relative "ci_gates"
+require_relative "release_only"
 
 module Hecks
   module Tools
@@ -43,6 +44,8 @@ module Hecks
       # @param env [Hash{String => String}] the runner's environment
       # @return [Boolean] whether the gated job should run
       def touched?(gate, root:, env:)
+        return !inherits?(gate, root: root, env: env) if gate.fetch("mode") == "release_only"
+
         changed, reason = change_set(gate, root: root, env: env)
         if reason
           explain(gate, reason)
@@ -52,6 +55,38 @@ module Hecks
 
         matches = changed.map { |path| path.match?(Regexp.new(gate.fetch("pattern"))) }
         gate.fetch("mode") == "touches" ? matches.any? : matches.any?(false)
+      end
+
+      # Whether the change is only a release bump on a base whose required checks all passed, so
+      # the run may inherit the base's certification (`ReleaseOnly`). Anything unconfirmed answers
+      # false and the suite runs.
+      #
+      # @param gate [Hash{String => String}] the `CiGate` row
+      # @return [Boolean]
+      def inherits?(gate, root:, env:)
+        base = base_of(gate, root: root, env: env)
+        reason = inheritance_refusal(base, root: root, env: env)
+        warn "decide_ci_gate: #{reason}: running the suite rather than inheriting certification" if reason
+        reason.nil?
+      end
+
+      # @return [String, nil] why the change cannot inherit, nil when it can
+      def inheritance_refusal(base, root:, env:)
+        return "no usable base to diff against" if base.nil? || base.empty? || base == NO_COMMIT
+
+        changes = ReleaseOnly.changes(base, env.fetch("GITHUB_SHA", "HEAD"), root: root)
+        return "git diff itself failed" if changes.nil?
+        return "the change is not only release files and lines" unless ReleaseOnly.release_only?(changes)
+
+        base_refusal(base, env)
+      end
+
+      # @return [String, nil] why the base is not certified, nil when it is
+      def base_refusal(base, env)
+        runs = ReleaseOnly.check_runs(env.fetch("GITHUB_REPOSITORY", ""), base, env: env)
+        return "the base's check runs could not be read" if runs.nil?
+
+        "the base is not fully certified" unless ReleaseOnly.certified?(runs)
       end
 
       # @return [Array(Array<String>, nil), Array(nil, String)] the changed paths, or the reason the

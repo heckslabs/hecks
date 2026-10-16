@@ -63,6 +63,10 @@
           {
             "context": "rspec_fuzzing",
             "integration_id": 15368
+          },
+          {
+            "context": "release_consistency",
+            "integration_id": 15368
           }
         ]
       }

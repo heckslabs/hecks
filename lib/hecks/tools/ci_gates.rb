@@ -46,7 +46,7 @@ module Hecks
 
       # The values a row's `mode` and `push` may take: the language holds one closed set to a value
       # object, so the rest are held here.
-      MODES = %w[touches skips_unless].freeze
+      MODES = %w[touches skips_unless release_only].freeze
       PUSHES = %w[skip before_sha].freeze
 
       # @return [Array<Hash{String => String}>] the `CiGate` rows
@@ -111,14 +111,33 @@ module Hecks
          "  #{name}:",
          "    runs-on: ubuntu-latest",
          "    timeout-minutes: 10",
+         *job_permissions(gate),
          *job_condition(gate)]
       end
 
       # @return [Array<String>] the deciding step and the closing marker
       def job_footer(gate, name)
         ["        name: #{quoted(gate.fetch("label"))}",
+         *job_env(gate),
          "        run: bundle exec exe/hecks regeneration_run.decide_ci_gate gate=#{name} --wait",
          "  # END GENERATED ci_gate #{name}"]
+      end
+
+      # A `release_only` gate reads the base commit's check runs through the API, so its job may
+      # read checks and nothing more.
+      #
+      # @return [Array<String>] the job's `permissions:` lines, none for any other mode
+      def job_permissions(gate)
+        return [] unless gate.fetch("mode") == "release_only"
+
+        ["    permissions:", "      contents: read", "      checks: read"]
+      end
+
+      # @return [Array<String>] the deciding step's `env:` lines, none unless the gate calls the API
+      def job_env(gate)
+        return [] unless gate.fetch("mode") == "release_only"
+
+        ["        env:", "          GH_TOKEN: ${{ github.token }}"]
       end
 
       # @param gate [Hash{String => String}] a `CiGate` row
