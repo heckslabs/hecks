@@ -7,6 +7,13 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+- **The host can sign people in through a platform issuer (ADR 0111).** Off unless `PLATFORM_SIGNIN` is `alongside` or `default`; with it
+  unset the host behaves exactly as before. `alongside` adds `GET /auth/platform` and `/auth/platform/callback` next to `/auth/google`;
+  `default` sends `/auth/google` to the issuer and keeps `/auth/google?via=google` as the break-glass. Settings: `PLATFORM_SIGNIN`,
+  `PLATFORM_ISSUER_URL`, `PLATFORM_JWKS_URL`, `PLATFORM_SITE_ID`, `PLATFORM_ENVIRONMENT` (with `SITE_URL`, `SESSION_SECRET` and
+  `HECKS_SERVE_MODE=1`); a missing or malformed one refuses the boot naming the variable. The account cookie is now `Secure` by
+  `SITE_URL` when `GOOGLE_REDIRECT_URI` is not set (an `http://` `SITE_URL` with neither Google variable no longer demands `Secure`).
+
 - A rehearsal that restores a dump no longer sends `pg_restore` to the local socket when the world's server URL names no
   host (`postgres:///postgres`). The empty host overrode the `PGHOST` the environment sets; now a part the URL leaves out
   is left to the environment. `rehearsal_store_spec` runs in the Postgres io shards again.
