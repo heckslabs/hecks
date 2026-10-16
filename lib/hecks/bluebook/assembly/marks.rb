@@ -35,10 +35,10 @@ module Hecks
         # One identity part, as the String path `identity_paths` splits.
         def identity_path(part) = part[:value].to_s
 
-        # A member's fields, an open map, so the pairs arrive as a list.
-        # Values are unmarked because `ValueObject#to_h` spells them with `to_s`.
+        # A member's fields, an open map, so the pairs arrive as a list. Each value is already
+        # typed: `Reconstruction` reads a stored cell with `Scalars.unmark` before it gets here.
         def member(pairs)
-          pairs.to_h { |key, value| [key.to_sym, unmark_scalar(value)] }
+          pairs.to_h { |key, value| [key.to_sym, value] }
         end
 
         # A read model's gathered head; `as` is a Symbol because `ReadModel#to_h` spells it `to_s`.
@@ -48,18 +48,6 @@ module Hecks
 
         # Matches the builder's native `{field: :symbol}` shape.
         def group_by_field(row) = { field: row[:field].to_sym }
-
-        # Reads a member's scalar back from text. Unlike `read`, a bare word stays a
-        # String, because a closed set admits words far more often than symbols.
-        def unmark_scalar(value)
-          text = value.to_s
-          return true       if text == "true"
-          return false      if text == "false"
-          return text.to_i  if text.match?(/\A-?\d+\z/)
-          return text.to_f  if text.match?(/\A-?\d+\.\d+\z/)
-
-          text
-        end
 
         # A saga's argument bindings; Literal marks a Symbol with a leading colon.
         def bindings(with) = Array(with).to_h { |key, value| [key.to_sym, read(value)] }

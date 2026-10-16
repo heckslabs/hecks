@@ -47,9 +47,14 @@ module Hecks
         declared = algebra.fetch(operator[:symbol]) do
           raise Refused, "#{operator[:symbol]} is admitted but Vocabulary::Comparison declares no algebra for it"
         end
-        row.merge(compares_less_than: declared[:compares_less_than],
-                  compares_equal: declared[:compares_equal], negated: declared[:negated])
+        row.merge(compares_less_than: spelled_true?(declared[:compares_less_than]),
+                  compares_equal:     spelled_true?(declared[:compares_equal]),
+                  negated:            spelled_true?(declared[:negated]))
       end
+
+      # @param cell [Object] a `Comparison` cell, declared as the text `"true"` or `"false"`
+      # @return [Boolean] whether the cell spells true
+      def spelled_true?(cell) = cell.to_s == "true"
 
       # @param dropped [Hash{String => Array<String>}] operator to the guards evaluating through it
       # @return [String] one line for each operator a projection would strand

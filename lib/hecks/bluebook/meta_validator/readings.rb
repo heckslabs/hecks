@@ -70,6 +70,12 @@ module Hecks
           Array(map&.to_h).map { |key, value| { key: key, value: value } }
         end
 
+        # A member's cells, each spelled so a quoted `"true"` stays a String and a bare `true` a
+        # boolean.
+        def member_pair_rows(map)
+          Array(map&.to_h).map { |key, value| { key: key, value: Assembly::Scalars.mark(value) } }
+        end
+
         # Flattens options via `extra_options_to_h` — a new option needs no
         # change here. `filters: true` reads wheres/order_by/limit live off
         # the node, not `to_h`, so wire-format changes there don't affect it.

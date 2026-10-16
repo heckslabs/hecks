@@ -1,0 +1,10 @@
+# `one_of:` values are member rows, so a quoted value is a String whatever it spells
+# (Scalars.mark): "true", "false" and "0" export as JSON strings, the shape Ruby's own IR
+# carries — vocabulary.bluebook's RustReservedWord lists the words `true` and `false`.
+Hecks.bluebook "FixtureOneOfQuotedValues" do
+  aggregate "Widget" do
+    value_object "Word" do
+      attribute :word, String, one_of: ["as", "false", "true", "0"]
+    end
+  end
+end

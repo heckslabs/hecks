@@ -53,14 +53,14 @@ fn now_implemented_fixtures_parse_for_real() {
 }
 
 #[test]
-fn one_of_values_unmark_like_member_rows() {
-    // Ruby's `one_of:` member rows round-trip through `Marks#unmark_scalar`, so a quoted
-    // "true"/"false"/"0" exports as a JSON boolean or integer, like a bare `member` row.
-    let path = fixture("one_of_unmarked.bluebook");
+fn one_of_values_keep_a_quoted_value_a_string() {
+    // Ruby's `one_of:` member rows keep a quoted value a String (`Scalars.mark`), so a
+    // quoted "true"/"false"/"0" exports as a JSON string, not a boolean or an integer.
+    let path = fixture("one_of_quoted_values.bluebook");
     let output = run(&[
         "chapter",
         "--chapter",
-        "FixtureOneOfUnmarked",
+        "FixtureOneOfQuotedValues",
         path.to_str().unwrap(),
     ]);
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -73,19 +73,21 @@ fn one_of_values_unmark_like_member_rows() {
     let compact: String = stdout.split_whitespace().collect();
     for expected in [
         r#"[["word","as"]]"#,
-        r#"[["word",false]]"#,
-        r#"[["word",true]]"#,
-        r#"[["word",0]]"#,
+        r#"[["word","false"]]"#,
+        r#"[["word","true"]]"#,
+        r#"[["word","0"]]"#,
     ] {
         assert!(
             compact.contains(expected),
             "missing member {expected}: {stdout}"
         );
     }
-    assert!(
-        !compact.contains(r#""true"]"#),
-        "\"true\" stayed a string: {stdout}"
-    );
+    for typed in [r#"[["word",false]]"#, r#"[["word",true]]"#, r#"[["word",0]]"#] {
+        assert!(
+            !compact.contains(typed),
+            "a quoted value became {typed}: {stdout}"
+        );
+    }
 }
 
 #[test]

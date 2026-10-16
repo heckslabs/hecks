@@ -41,13 +41,13 @@ module Hecks
         # dispatched state, one member at a time, not behind a `DeclaredIn` query.
         def members_row(row) = members_of(row)
 
-        # The key is stringified, never the value: a pair's value is read back from its text the
-        # way `Assembly::Marks` reads it, so `true`, `false` and numbers return as the builder
-        # holds them.
+        # The key is stringified, never the value: a pair's value is read back from its text by
+        # `Assembly::Scalars`, so a quoted cell returns a String and `true`, `false` and numbers
+        # return as the builder holds them.
         def members_of(value_object_row)
           Array(value_object_row[:members]).map do |member|
             Array(member[:pairs]).map do |pair|
-              [text(pair[:key]).to_s, Assembly::Marks.unmark_scalar(text(pair[:value]))]
+              [text(pair[:key]).to_s, Assembly::Scalars.unmark(text(pair[:value]))]
             end
           end
         end
