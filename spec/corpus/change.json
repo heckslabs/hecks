@@ -1,0 +1,26 @@
+{
+  "name": "change-parity",
+  "note": "A change asks for a script nobody registered, so the Script port refuses it and the change faults; then a confirmation of a digest the change never planned is refused. Proves Request dispatches and starts the Examine ask, the refusal reaches Fault, and Confirm holds its digest guard. A script that plans and applies needs one registered with the adapter, which a corpus run has none of, so spec/change_chapter_spec.rb walks that path.",
+  "expectations": {
+    "events": 3
+  },
+  "steps": [
+    {
+      "verb": "Change::Change.Request",
+      "args": {
+        "run": { "value": "c1" },
+        "script": { "value": "no_such_script" },
+        "arguments": [
+          { "key": "from", "value": "a" }
+        ]
+      }
+    },
+    {
+      "verb": "Change::Change.Confirm",
+      "args": {
+        "run": { "value": "c1" },
+        "digest": { "value": "ab12" }
+      }
+    }
+  ]
+}
