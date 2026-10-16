@@ -32,6 +32,11 @@ module Hecks
             permissions:
               contents: read
 
+            # A newer push to the same PR supersedes the run in flight; pushes to main each keep their own run.
+            concurrency:
+              group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+              cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
             jobs:
               routes-current-and-parity:
                 runs-on: ubuntu-24.04
