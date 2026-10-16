@@ -23,6 +23,13 @@ module Hecks
             S3_BUCKET   = /\A[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]\z/
             S3_SHAPE    = "s3_access: a list of `{ bucket: \"name\", write: true }` hashes (write is optional)".freeze
             FROM_TASKDEF = %i[env secrets repository].freeze
+            LOG_DESTINATIONS = %w[cloudwatch local].freeze
+            DEFAULT_LOG_RETENTION_DAYS = 30
+            # The retention periods CloudWatch Logs accepts, in days, without "never expire".
+            LOG_RETENTION_DAYS = [1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1096, 1827, 2192, 2557,
+                                  2922, 3288, 3653].freeze
+            LOGS_SHAPE = "logs: \"cloudwatch\" ships every container's log to CloudWatch Logs; " \
+                         "\"local\" keeps Docker's rotating json-file logs on the box".freeze
 
             # The settings that size an RDS instance: with `shared_database` they are the shared
             # instance's.

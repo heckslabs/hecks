@@ -85,7 +85,7 @@ Resources:
       SourceSecurityGroupId: !Ref BoxSecurityGroup
       Description: App box
 
-  BoxRole:
+@@LOG_GROUP@@  BoxRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -109,6 +109,7 @@ Resources:
 @@SECRET_RESOURCES@@
 @@WRITABLE_SECRETS@@
 @@S3_POLICY@@
+@@LOG_POLICY@@
 
   BoxProfile:
     Type: AWS::IAM::InstanceProfile

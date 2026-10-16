@@ -13,6 +13,11 @@
 # When the world names origin_env, the named origin secret is compared with those variables in the
 # task definition and the render refuses on any difference (Caddy checks the CDN's header against
 # the secret; the containers check it against their own copy). Values are never printed.
+#
+# Every service logs to the CloudWatch group the box stack creates (one stream per service). A
+# container whose stream cannot be written does not start, so update the box stack (make stacks:
+# the group and the role's logs policy) before the first roll that uses this file. `docker logs`
+# still reads the box's local copy.
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 DB_HOST=${1:?rds endpoint}
@@ -36,7 +41,7 @@ if [ -n "$ORIGIN_ENV" ]; then
 fi
 
 jq --argjson def "$DEF" --arg host "$DB_HOST" --arg secret "$DB_SECRET" '
-  def log: {driver: "json-file", options: {"max-size": "10m", "max-file": "3"}};
+  def log($service): {driver: "awslogs", options: {"awslogs-region": "us-east-1", "awslogs-group": "/hecks-widget-shop-box", "awslogs-create-group": "false", tag: $service}};
   def env(c): ((c.environment // []) | map({(.name): .value}) | add // {})
     | (if has("DB_HOST") then .DB_HOST = $host | .DB_SECRET_ARN = $secret else . end);
   . as $in
@@ -44,16 +49,16 @@ jq --argjson def "$DEF" --arg host "$DB_HOST" --arg secret "$DB_SECRET" '
       ($in.services | with_entries(.value |= (. as $s
         | ($def | map(select(.name == $s.name)) | first) as $c
         | if $c == null then error("task definition has no container named " + $s.name) else
-            {image: $c.image, network_mode: "host", restart: "unless-stopped", logging: log,
+            {image: $c.image, network_mode: "host", restart: "unless-stopped", logging: log($s.name),
              environment: ({PORT: ($s.port | tostring)} + env($c))}
             + (if (($c.secrets // []) | length) > 0 then {env_file: [($s.name + ".secrets.env")]} else {} end)
           end)))
       + {caddy: ({image: "public.ecr.aws/docker/library/caddy:2.8@sha256:226d1f059b75399fe19182893c7184591c07b97afc8dfcf44eeb80c9a77a530f", network_mode: "host", restart: "unless-stopped",
-                  volumes: ["./Caddyfile:/etc/caddy/Caddyfile:ro", "./caddy-extra:/etc/caddy/extra:ro"], logging: log}
+                  volumes: ["./Caddyfile:/etc/caddy/Caddyfile:ro", "./caddy-extra:/etc/caddy/extra:ro"], logging: log("caddy")}
                  + (if $in.origin then {env_file: ["caddy.secrets.env"]} else {} end))}
       + (if $in.tunnel then {cloudflared: {image: $in.tunnel.image, network_mode: "host", restart: "unless-stopped",
                   command: ["tunnel", "--no-autoupdate", "--url", $in.tunnel.url, "run"],
-                  env_file: ["cloudflared.secrets.env"], logging: log}} else {} end))}' \
+                  env_file: ["cloudflared.secrets.env"], logging: log("cloudflared")}} else {} end))}' \
   "$HERE/services.json" > compose.json
 
 jq --argjson def "$DEF" '. as $in

@@ -59,6 +59,15 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
         end
       end
     WORLD
+    "logs_local"       => <<~WORLD,
+      Hecks.world "Scratch" do
+        deployed_to("AwsBox") do
+          region "us-east-1"
+          containers [{ name: "web", port: 8080 }]
+          logs "local"
+        end
+      end
+    WORLD
     "shared"           => <<~WORLD,
       Hecks.world "Scratch" do
         deployed_to("AwsBox") do
@@ -235,6 +244,8 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
     dir = File.join(BOX_GOLDEN_DIR, name)
     Dir.children(dir).sort.to_h { |file| [file, File.read(File.join(dir, file))] }
   end
+
+  def box_policy(box_yaml, name) = box_policies(box_yaml).find { |policy| policy["PolicyName"] == name }
 
   def box_policies(box_yaml) = template_of(box_yaml)["Resources"]["BoxRole"]["Properties"]["Policies"]
 
@@ -512,14 +523,14 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
     end
 
     it "gives the role read on every bucket the world declares", :aggregate_failures do
-      read, = box_policies(full["box.yaml"]).last["PolicyDocument"]["Statement"]
+      read, = box_policy(full["box.yaml"], "s3-access")["PolicyDocument"]["Statement"]
 
       expect(read["Action"]).to eq(%w[s3:GetObject s3:ListBucket])
       expect(read["Resource"].size).to eq(4)
     end
 
     it "gives the role write on a production box, only where declared", :aggregate_failures do
-      write = box_policies(full["box.yaml"]).last["PolicyDocument"]["Statement"].last["Fn::If"]
+      write = box_policy(full["box.yaml"], "s3-access")["PolicyDocument"]["Statement"].last["Fn::If"]
 
       expect(write.first).to eq("IsProduction")
       expect(write[1]["Resource"].size).to eq(1)
@@ -545,7 +556,7 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
 
     it "grants no S3 access to a world that declares none" do
       policies = template_of(minimal["box.yaml"])["Resources"]["BoxRole"]["Properties"]["Policies"]
-      expect(policies.map { |policy| policy["PolicyName"] }).to eq(["read-secrets"])
+      expect(policies.map { |policy| policy["PolicyName"] }).to eq(%w[read-secrets write-logs])
     end
   end
 

@@ -56,7 +56,8 @@ module Hecks
               :storage_gb, :backup_days, :snapshots_keep, :database_name, :engine_version,
               :containers, :routes, :default_container, :origin_header, :origin_secret,
               :secret_prefixes, :writable_secrets, :origin_env, :tunnel, :tunnel_service, :proxy_image,
-              :task_definition, :migration, :s3_buckets, :hosting, :shared_database, :cdn, keyword_init: true
+              :task_definition, :migration, :s3_buckets, :hosting, :shared_database, :cdn,
+              :logs, :log_retention_days, keyword_init: true
             ) do
               # @return [String] the CloudFormation stack that holds the database: the shared
               #   instance's when the world names one, else this site's own
@@ -64,6 +65,12 @@ module Hecks
 
               # @return [String] the CloudFormation stack that holds the CloudFront edge
               def edge_stack = "#{stack_prefix}-#{infra_name}-edge"
+
+              # @return [String] the CloudWatch log group the box's containers write to
+              def log_group = "/#{box_stack}"
+
+              # @return [Boolean] whether the containers' logs ship to CloudWatch Logs
+              def cloudwatch_logs? = logs == "cloudwatch"
 
               # @return [Boolean] whether the database lives on an instance shared with other sites
               def shared? = !shared_database.nil?

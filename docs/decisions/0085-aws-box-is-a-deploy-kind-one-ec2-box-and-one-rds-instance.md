@@ -16,7 +16,7 @@ That reference is merged in that client's repository (`deploy-aws/rds`, `deploy-
 
 ## Decision
 
-1. Add a deploy kind, `deployed_to("AwsBox")`, as a sibling of `AwsFargate`. Its settings: `containers` (required), `routes`, `default_container`, `origin_header` + `origin_secret`, `secret_prefixes`, `tunnel`, `swap_gb`, `backup_days`, `snapshots_keep`, `database_name`, `engine_version`, `stack_prefix`, `stack_name`, plus the sizes `instance_type`, `volume_gb`, `database_class` and `storage_gb`.
+1. Add a deploy kind, `deployed_to("AwsBox")`, as a sibling of `AwsFargate`. Its settings: `containers` (required), `routes`, `default_container`, `origin_header` + `origin_secret`, `secret_prefixes`, `tunnel`, `swap_gb`, `backup_days`, `snapshots_keep`, `database_name`, `engine_version`, `stack_prefix`, `stack_name`, plus the sizes `instance_type`, `volume_gb`, `database_class` and `storage_gb`. `logs` and `log_retention_days` (ADR 0112) say where the containers' logs go.
 2. The sizes are validated by a `Deploy::BoxTarget.Declare` command in the Deploy bluebook (so they are in the journal and the OIDC manifest like the other targets). Every other setting is checked by `Box::Settings` before a template is written; every string that reaches a template or script is matched against a conservative pattern.
 3. The projection (`projects_as :aws_box`) emits eight files: `rds.yaml`, `box.yaml`, `Caddyfile`, `services.json`, `render-compose.sh`, `fetch-secrets.sh`, `deploy-box.sh` and a `Makefile`, and three more when the world declares a `migration` (decision 9).
 4. The box is described by `services.json`, not by an ECS task definition. The generated `deploy-box.sh` renders a Compose file from it, rolls it over SSM and health-checks the proxy.

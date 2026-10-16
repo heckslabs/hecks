@@ -1,0 +1,12 @@
+  # Every container's log, one stream per service. The group is made here and not by Docker
+  # (awslogs-create-group is "false"), so the role below needs no right to create groups, and the
+  # retention is a declaration. A production group outlives the stack: the evidence a container
+  # wrote must not go with a deleted stack.
+  BoxLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: !If [IsProduction, Retain, Delete]
+    UpdateReplacePolicy: !If [IsProduction, Retain, Delete]
+    Properties:
+      LogGroupName: @@LOG_GROUP@@
+      RetentionInDays: @@RETENTION_DAYS@@
+

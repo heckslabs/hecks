@@ -175,6 +175,20 @@ RSpec.describe Hecks::Projections::Deploy::Box::Settings do
     end
   end
 
+  describe "logs" do
+    it "ship to CloudWatch for 30 days unless the world says otherwise", :aggregate_failures do
+      expect(resolve).to have_attributes(logs: "cloudwatch", log_retention_days: 30, log_group: "/hecks-shop-box")
+      expect(resolve(logs: "local")).to have_attributes(logs: "local", cloudwatch_logs?: false)
+    end
+
+    it "accept only a destination and a retention CloudWatch knows", :aggregate_failures do
+      expect(resolve(log_retention_days: 365).log_retention_days).to eq(365)
+      expect(refusal(logs: "syslog")).to include("logs:")
+      expect(refusal(log_retention_days: 45)).to include("log_retention_days")
+      expect(refusal(log_retention_days: "30")).to include("log_retention_days")
+    end
+  end
+
   describe "a task definition" do
     it "is nil unless the world names one", :aggregate_failures do
       expect(resolve.task_definition).to be_nil
