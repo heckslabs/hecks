@@ -1,0 +1,162 @@
+Hecks.bluebook "Change" do
+  vision "A change you can preview: it is planned, shown, confirmed against exactly that plan, and only then carried out, whatever script it runs."
+  supporting
+
+  # A framework member like Governance and Identity: attach it with `attaches "Change"` in the
+  # consuming domain's own `.hecksagon`. The script is the port's adapter, so what a change
+  # does lives behind the `Script` port, and this chapter holds only how any change moves.
+  aggregate "Change" do
+    description "One change a script makes, previewed before it is carried out and applied only if its plan is unchanged."
+
+    attribute :run,            RunKey
+    attribute :script,         ScriptName
+    attribute :arguments,      list_of(Argument), optional: true
+    attribute :plan,           Report,            optional: true
+    attribute :planned_digest, Digest,            optional: true
+    attribute :report,         Report,            optional: true
+    attribute :refusal,        Report,            optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a change is named") { !value.to_s.empty? }
+    end
+
+    # The name the script is registered under with the adapter.
+    value_object "ScriptName" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a change names its script") { !value.to_s.empty? }
+    end
+
+    # One argument of the script, spelled as text; the script says what each key means.
+    value_object "Argument" do
+      attribute :key,   String
+      attribute :value, String
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    # A fingerprint of the plan, the script and its arguments: confirming one digest applies
+    # that plan and no other.
+    value_object "Digest" do
+      attribute :value, String, pattern: '[0-9a-f]+'
+
+      invariant("a plan has a digest") { !value.to_s.empty? }
+    end
+
+    lifecycle :status, default: "requested" do
+      mark :failure, "faulted"
+      transition "Plan"     => "planned",   from: "requested"
+      transition "Confirm"  => "confirmed", from: "planned"
+      transition "Complete" => "applied",   from: "confirmed"
+      transition "Fault"    => "faulted",   from: ["requested", "planned", "confirmed"]
+    end
+
+    command "Request" do
+      role "Maintainer"
+      goal "Ask for a change by naming its script and giving the script's arguments"
+
+      attribute :run,       RunKey
+      attribute :script,    ScriptName
+      attribute :arguments, list_of(Argument), optional: true
+
+      sets :run
+      sets :script
+      sets :arguments
+
+      emits ChangeRequested
+    end
+
+    command "Plan" do
+      role "System"
+      goal "Record what the script would do, and the digest that stands for it"
+
+      reference_to Change
+      attribute :plan,   Report
+      attribute :digest, Digest
+
+      sets :plan
+      sets :planned_digest, to: :digest
+
+      emits ChangePlanned
+    end
+
+    command "Confirm" do
+      role "Maintainer"
+      goal "Agree to the plan shown, by naming its digest"
+
+      reference_to Change
+      attribute :digest, Digest
+
+      given("the digest confirmed is the digest planned") { digest.value == planned_digest.value }
+
+      emits ChangeConfirmed
+    end
+
+    command "Complete" do
+      role "System"
+      goal "Record that the confirmed plan was carried out, and what the script reported"
+
+      reference_to Change
+      attribute :report, Report
+
+      sets :report
+
+      emits ChangeApplied
+    end
+
+    command "Fault" do
+      role "System"
+      goal "Record that the change was refused or could not be carried out, and why"
+
+      reference_to Change
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits ChangeFaulted
+    end
+
+    query "Outcome" do
+      description "How one change stands: its status, its plan, and what it reported or why it failed."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "Faulted" do
+      description "Every change that was refused or could not be carried out."
+      where(status: "faulted")
+      order_by :run
+    end
+  end
+
+  policy "ExamineWhenRequested" do
+    on      "Change.ChangeRequested"
+    trigger Change::Script::Examine, with: { run: :run }
+  end
+
+  policy "RecordThePlanWhenExamined" do
+    on      "Change.ChangeExamined"
+    trigger Change::Plan, with: { plan: :plan, digest: :digest }
+  end
+
+  policy "PerformWhenConfirmed" do
+    on      "Change.ChangeConfirmed"
+    trigger Change::Script::Perform, with: { run: :run }
+  end
+
+  policy "RecordTheOutcomeWhenPerformed" do
+    on      "Change.ChangeAnswered"
+    trigger Change::Complete, with: { report: :report }
+  end
+
+  policy "RecordTheRefusal" do
+    on      "Change.ChangeRefused"
+    trigger Change::Fault, with: { refusal: :refusal }
+  end
+end

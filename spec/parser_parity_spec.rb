@@ -71,7 +71,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
   PENDING_MEMBERS = (PARITY_CORPUS_MEMBERS.map(&:first) -
                      %w[pizzas identity governance console_settings expression translation banking compliance
                         compliance_framework roster chess directory bluebook_language embryonaut_vendoring_demo
-                        privacy] -
+                        privacy change] -
                      PARITY_FIXTURE_MEMBERS.map { |member| fixture_stem(member) })
                     .to_h { |stem| [stem, "Stage 1: parser not implemented yet — see rust/parser/src/parse/mod.rs"] }.freeze
 
@@ -91,7 +91,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
     # Framework chapters stand alone: no `.hecksagon`, so no `attaches` resolution is
     # involved. `compliance` is keyed through `framework_stem` because `examples/compliance`
     # has the same bare stem.
-    %w[identity governance console_settings compliance privacy].to_h do |stem|
+    %w[identity governance console_settings compliance privacy change].to_h do |stem|
       bluebook = PARITY_FRAMEWORK_MEMBERS.find { |path| File.basename(path, ".bluebook") == stem } or
         raise "no lib/hecks/framework/bluebook/#{stem}.bluebook"
       chapter_name = chapter_name_of(bluebook) or raise "#{bluebook} has no 'Hecks.bluebook \"Name\"' header"
