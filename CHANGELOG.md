@@ -7,6 +7,10 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+## [3.12.0] - 2026-10-16
+
+A minor. One behavior change, for projects that generate an `AwsBox` box: a regenerated box now ships every container's log to CloudWatch Logs by default (ADR 0113). Update the box stack (it creates the log group and the role policy) BEFORE rolling the regenerated box, or `deploy-box.sh` exits 44; `logs "local"` keeps the old output. A running system is unchanged until it is regenerated. The other entries are opt-in.
+
 - **A quoted `member` cell stays a string (ADR 0112).** A registry's chapter now equals what its builder made: `member x: "true"` or
   `"1"` is a String, and a bare `true` or `1` is still a boolean or number. Before, the meta-domain read both spellings back as the
   boolean or number, so a quoted cell differed from the builder's IR and from the Rust runtime. A chapter that quoted a number or
