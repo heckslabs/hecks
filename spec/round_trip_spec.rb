@@ -85,17 +85,39 @@ RSpec.describe "a bluebook dispatched in and read back out" do
     end
   end
 
+  # Every difference between the builder's IR and what the meta-domain gives back, one line each.
+  def round_trip_differences(bluebook, back)
+    differences(strip_invariant_ast(strip_ports(canonical(bluebook.to_h.slice(*back.keys)))),
+                strip_invariant_ast(canonical(back)))
+  end
+
+  shared_examples "a bluebook that comes back exactly as the builder made it" do
+    it "comes back exactly as the builder made it", :aggregate_failures do
+      back, refusals = read_back(bluebook)
+      found = round_trip_differences(bluebook, back)
+
+      expect(refusals).to be_empty, "the language refused it: #{refusals.inspect}"
+      expect(found).to be_empty, "#{found.size} differences, first ten:\n#{found.first(10).join("\n")}"
+    end
+  end
+
   ROUND_TRIP_CORPUS.each do |name, file|
     context name do
       let(:bluebook) { load_corpus(file).bluebook(name) }
 
-      it "comes back exactly as the builder made it", :aggregate_failures do
-        back, refusals = read_back(bluebook)
+      it_behaves_like "a bluebook that comes back exactly as the builder made it"
+    end
+  end
 
-        expect(refusals).to be_empty, "the language refused it: #{refusals.inspect}"
-        expect(differences(strip_invariant_ast(strip_ports(canonical(bluebook.to_h.slice(*back.keys)))),
-                           strip_invariant_ast(canonical(back)))).to be_empty
-      end
+  # The language's own chapters come from the bootstrap registry, as in spec/ir_golden_spec.rb:
+  # judging one while loading it from a file would recurse.
+  LANGUAGE_CHAPTERS = %w[Bluebook World Hecksagon].freeze
+
+  LANGUAGE_CHAPTERS.each do |name|
+    context name do
+      let(:bluebook) { Hecks::Bluebook::MetaValidator.grammar_registry.bluebook(name) }
+
+      it_behaves_like "a bluebook that comes back exactly as the builder made it"
     end
   end
 
