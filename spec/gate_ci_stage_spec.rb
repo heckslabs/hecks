@@ -74,7 +74,7 @@ RSpec.describe "the ci gate stage" do
 
   describe "every hecks command a stage's check names" do
     def launcher_calls
-      checks = stages.values_at("ci", "unguarded_push").flat_map { |stage| stage.fetch("checks") }
+      checks = stages.values_at("ci", "unguarded_push", "rust_io").flat_map { |stage| stage.fetch("checks") }
       checks.flat_map { |check| hecks_calls(check.fetch("run").join(" ")) }.uniq
     end
 
