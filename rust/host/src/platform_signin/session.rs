@@ -123,7 +123,7 @@ pub struct HostMembers<'a> {
 #[async_trait]
 impl MemberDirectory for HostMembers<'_> {
     async fn identity_for(&self, issuer: &str, subject: &str) -> anyhow::Result<Option<String>> {
-        auth::resolve_identity_from_head(self.client, self.domain_ir, issuer, subject).await
+        auth::resolve_identity_anywhere(self.client, self.wasm_path, self.domain_ir, issuer, subject).await
     }
 
     async fn session_for_identity(&self, identity_id: &str) -> anyhow::Result<Option<Session>> {

@@ -260,6 +260,43 @@ fn identity_id_from_state(state: &Value) -> Option<String> {
         })
 }
 
+/// Resolves an external identity the way the Google callback does: the PostgresEra head first,
+/// then the flat journal's `instances`. A domain whose Identity chapter keeps no head of its own
+/// (its heads cover its own aggregates and the membership aggregate) holds the link only there.
+///
+/// # Errors
+///
+/// Returns the flat journal's read error, except that a missing flat journal means no link there. A
+/// head that cannot be read is logged and skipped, as the Google callback does, so the flat journal
+/// still gets its turn.
+pub async fn resolve_identity_anywhere(
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    domain_ir: &Value,
+    issuer: &str,
+    subject: &str,
+) -> anyhow::Result<Option<String>> {
+    match resolve_identity_from_head(client, domain_ir, issuer, subject).await {
+        Ok(Some(found)) => return Ok(Some(found)),
+        Ok(None) => {}
+        Err(error) => eprintln!("resolve_identity: identity head: {error:#}"),
+    }
+    let read = match dispatch::read(client, wasm_path).await {
+        Ok(read) => read,
+        Err(error) if flat_journal_is_absent(&error) => return Ok(None),
+        Err(error) => return Err(error),
+    };
+    Ok(resolve_identity(read.get("instances").unwrap_or(&Value::Null), issuer, subject))
+}
+
+// A store with heads only has no flat journal to read; that is "no link there", not an outage.
+fn flat_journal_is_absent(error: &anyhow::Error) -> bool {
+    error
+        .chain()
+        .filter_map(|cause| cause.downcast_ref::<tokio_postgres::Error>())
+        .any(|db| db.code() == Some(&tokio_postgres::error::SqlState::UNDEFINED_TABLE))
+}
+
 /// Identity lives in the PostgresEra head, not `dispatch::read`'s
 /// `instances` — tries both the domain-qualified and the bare relation name.
 pub async fn resolve_identity_from_head(
@@ -1100,6 +1137,27 @@ mod tests {
         let identity_id = resolve_identity(&instances, "google", "sub-1");
         assert_eq!(identity_id.as_deref(), Some("id-1"));
         assert!(resolve_identity(&instances, "google", "nope").is_none());
+    }
+
+    #[test]
+    fn resolve_identity_finds_a_link_that_only_the_flat_journal_holds() {
+        // The shape `ExternalIdentifier.Link` leaves in the flat snapshot of a domain whose Identity
+        // chapter has no head of its own; the key carries the issuer URL and the subject.
+        let instances = json!({
+            "Identity::ExternalIdentifier#https://accounts.google.com:111": {
+                "identity": "471ef402-8609-4fa4-9288-6372fc74650d",
+                "key": {"value": "https://accounts.google.com:111"},
+                "issuer": {"value": "https://accounts.google.com"},
+                "subject": {"value": "111"},
+            },
+        });
+        let read = json!({ "instances": instances });
+        assert_eq!(
+            resolve_identity(read.get("instances").unwrap_or(&Value::Null), "https://accounts.google.com", "111").as_deref(),
+            Some("471ef402-8609-4fa4-9288-6372fc74650d")
+        );
+        assert!(resolve_identity(read.get("instances").unwrap_or(&Value::Null), "https://accounts.google.com", "112").is_none());
+        assert!(resolve_identity(&Value::Null, "https://accounts.google.com", "111").is_none());
     }
 
     #[test]
