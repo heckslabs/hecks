@@ -36,6 +36,8 @@
 # checkout runs (Codebase, and releasing hecks itself): the help leaves them out anywhere else and
 # `--maintainer` lists them; `chapters` names the attached chapters the help points at, one line each
 # (`hecks deploy`), and `maintainer_chapters` the language's own, added inside a checkout.
+# `newcomer` names the only commands the help lists in a folder holding no bluebook yet
+# (`hecks --all` lists the rest), so a first run shows how to start and nothing else.
 Hecks.world "Hecks" do
   realm "Hecks"
   default_adapter "PostgresEra"
@@ -58,6 +60,7 @@ Hecks.world "Hecks" do
                        maintainer: %w[LanguageRun KernelRun ConformanceRun RegenerationRun GateRun StyleRun InspectionRun
                                       CodemodRun TestSuiteRun CorpusRun PublishingRun PromotionRun Release
                                       SyntaxBootCache],
+                       newcomer: %w[launch.init launch.interview operation.open_console],
                        chapters: %w[Deploy Governance Tenancy Site Tickets QualityControl],
                        maintainer_chapters: %w[Bluebook Hecksagon World Adapter Port Translation Expression],
                        memory_commands: %w[console init interview],
