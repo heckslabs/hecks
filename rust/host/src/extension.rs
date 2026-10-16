@@ -81,7 +81,20 @@ pub fn installed() -> &'static [Arc<dyn HostExtension>] {
 }
 
 fn default_extensions() -> Vec<Arc<dyn HostExtension>> {
-    vec![Arc::new(crate::web::Commerce)]
+    let vars = crate::platform_signin::settings::PROCESS_VARIABLES
+        .iter()
+        .chain([&crate::platform_signin::settings::ACCOUNT_COOKIE_VARIABLE])
+        .filter_map(|name| std::env::var(name).ok().map(|value| (name.to_string(), value)))
+        .collect();
+    default_extensions_from(&vars)
+}
+
+/// The default extensions for an explicit set of settings: commerce, plus platform sign-in when
+/// it is switched on (or its boot refusal when its settings are wrong).
+pub(crate) fn default_extensions_from(vars: &HashMap<String, String>) -> Vec<Arc<dyn HostExtension>> {
+    let mut extensions: Vec<Arc<dyn HostExtension>> = vec![Arc::new(crate::web::Commerce)];
+    extensions.extend(crate::platform_signin::extension::extensions_for(vars));
+    extensions
 }
 
 /// The loaded domain IR, for an extension that needs it in the guest phase.

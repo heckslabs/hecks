@@ -1,0 +1,240 @@
+//! The settings that switch platform sign-in on, read once at boot from an explicit map.
+//!
+//! The switch is `PLATFORM_SIGNIN`. Unset or empty means the feature does not exist: no extension
+//! is installed and the host answers exactly as it did before, whatever other `PLATFORM_*`
+//! variables are present, so switching off is one unset. Any other value must be `alongside` or
+//! `default`, and then every other setting the flow needs must be present and valid, or the boot
+//! is refused. A refusal names the variable and the kind of mistake, never the value, because a
+//! mistyped value is often a pasted secret.
+//!
+//! Nothing here reads the process environment: [`SigninSettings::from_env_map`] takes a map, and
+//! [`PROCESS_VARIABLES`] lists the names a caller copies from the process into it.
+
+use std::collections::HashMap;
+use std::fmt;
+
+use super::config::{ConfigError, PlatformSigninConfig};
+
+/// The variable that switches the feature on and chooses how.
+pub const MODE_VARIABLE: &str = "PLATFORM_SIGNIN";
+/// The public address of this site; the callback and the cookie flags derive from it.
+pub const SITE_URL_VARIABLE: &str = "SITE_URL";
+/// The secret that signs the account cookie.
+pub const SESSION_SECRET_VARIABLE: &str = "SESSION_SECRET";
+/// The variable that says this process is one long-lived server.
+pub const SERVE_MODE_VARIABLE: &str = "HECKS_SERVE_MODE";
+/// The variable that names the account cookie.
+pub const ACCOUNT_COOKIE_VARIABLE: &str = "HECKS_SESSION_COOKIE";
+
+/// Every variable the settings read, so a caller can copy exactly these from the process.
+pub const PROCESS_VARIABLES: [&str; 8] = [
+    MODE_VARIABLE,
+    super::config::ISSUER_URL_VARIABLE,
+    super::config::JWKS_URL_VARIABLE,
+    super::config::SITE_ID_VARIABLE,
+    super::config::ENVIRONMENT_VARIABLE,
+    SITE_URL_VARIABLE,
+    SESSION_SECRET_VARIABLE,
+    SERVE_MODE_VARIABLE,
+];
+
+/// How the platform flow sits next to the site's existing Google sign-in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Mode {
+    /// `GET /auth/platform` starts the platform flow; `/auth/google` is untouched.
+    Alongside,
+    /// `GET /auth/google` starts the platform flow, `?via=google` keeps the Google one.
+    Default,
+}
+
+/// Everything the flow needs, validated.
+#[derive(Debug, Clone)]
+pub struct SigninSettings {
+    pub mode: Mode,
+    pub config: PlatformSigninConfig,
+    /// The site's public address without a trailing slash; always https.
+    pub site_url: String,
+    pub session_secret: String,
+    pub account_cookie: String,
+}
+
+/// A refused setting: which variable, and what kind of mistake, never the value.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SettingsError {
+    /// One of the issuer, key set, site or environment settings.
+    Config(ConfigError),
+    /// Any other setting.
+    Setting {
+        variable: &'static str,
+        problem: &'static str,
+    },
+}
+
+impl fmt::Display for SettingsError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        todo!()
+    }
+}
+
+impl std::error::Error for SettingsError {}
+
+impl SettingsError {
+    /// Returns the name of the variable at fault.
+    pub fn variable(&self) -> &'static str {
+        todo!()
+    }
+}
+
+impl SigninSettings {
+    /// Builds the settings, or `None` when `PLATFORM_SIGNIN` is unset or empty.
+    ///
+    /// # Errors
+    ///
+    /// Returns the first setting that is missing or malformed once the switch is on.
+    pub fn from_env_map(vars: &HashMap<String, String>) -> Result<Option<Self>, SettingsError> {
+        let _ = vars;
+        todo!()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn full() -> HashMap<String, String> {
+        [
+            ("PLATFORM_SIGNIN", "alongside"),
+            ("PLATFORM_ISSUER_URL", "https://issuer.example"),
+            ("PLATFORM_SITE_ID", "site-a"),
+            ("PLATFORM_ENVIRONMENT", "production"),
+            ("SITE_URL", "https://site.example"),
+            ("SESSION_SECRET", "a-long-session-secret-for-tests"),
+            ("HECKS_SERVE_MODE", "1"),
+        ]
+        .into_iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect()
+    }
+
+    fn without(name: &str) -> HashMap<String, String> {
+        let mut vars = full();
+        vars.remove(name);
+        vars
+    }
+
+    fn with(name: &str, value: &str) -> HashMap<String, String> {
+        let mut vars = full();
+        vars.insert(name.to_string(), value.to_string());
+        vars
+    }
+
+    fn refused(vars: &HashMap<String, String>) -> SettingsError {
+        SigninSettings::from_env_map(vars).expect_err("the settings are refused")
+    }
+
+    #[test]
+    fn an_unset_switch_means_no_feature_even_when_other_variables_are_set() {
+        let vars = without("PLATFORM_SIGNIN");
+        assert!(SigninSettings::from_env_map(&vars).unwrap().is_none());
+        assert!(SigninSettings::from_env_map(&HashMap::new()).unwrap().is_none());
+    }
+
+    #[test]
+    fn an_empty_switch_means_no_feature() {
+        assert!(SigninSettings::from_env_map(&with("PLATFORM_SIGNIN", "")).unwrap().is_none());
+    }
+
+    #[test]
+    fn alongside_and_default_are_the_two_modes() {
+        let alongside = SigninSettings::from_env_map(&full()).unwrap().unwrap();
+        assert_eq!(alongside.mode, Mode::Alongside);
+        let default = SigninSettings::from_env_map(&with("PLATFORM_SIGNIN", "default")).unwrap().unwrap();
+        assert_eq!(default.mode, Mode::Default);
+    }
+
+    #[test]
+    fn any_other_switch_value_refuses_naming_only_the_variable() {
+        for bad in ["ALONGSIDE", "on", "off", "true", "1", "Default", " alongside", "alongside ", "both"] {
+            let error = refused(&with("PLATFORM_SIGNIN", bad));
+            assert_eq!(error.variable(), "PLATFORM_SIGNIN", "{bad:?}");
+            assert!(!error.to_string().contains(bad.trim()) || bad.trim().len() < 3, "{bad:?} leaked: {error}");
+        }
+    }
+
+    #[test]
+    fn each_required_setting_missing_refuses_naming_it() {
+        for name in [
+            "PLATFORM_ISSUER_URL",
+            "PLATFORM_SITE_ID",
+            "PLATFORM_ENVIRONMENT",
+            "SITE_URL",
+            "SESSION_SECRET",
+            "HECKS_SERVE_MODE",
+        ] {
+            let error = refused(&without(name));
+            assert_eq!(error.variable(), name);
+            assert!(error.to_string().starts_with(name), "{error}");
+        }
+    }
+
+    #[test]
+    fn the_key_set_address_stays_optional() {
+        let settings = SigninSettings::from_env_map(&full()).unwrap().unwrap();
+        assert_eq!(settings.config.jwks_url, "https://issuer.example/.well-known/jwks.json");
+        let own = with("PLATFORM_JWKS_URL", "https://issuer.example/keys.json");
+        assert_eq!(SigninSettings::from_env_map(&own).unwrap().unwrap().config.jwks_url, "https://issuer.example/keys.json");
+    }
+
+    #[test]
+    fn a_bad_pinned_value_refuses_naming_the_variable_and_never_the_value() {
+        let sentinel = "http://leaky-sentinel.example/path?secret=hunter2";
+        for name in ["PLATFORM_ISSUER_URL", "PLATFORM_JWKS_URL", "PLATFORM_SITE_ID", "PLATFORM_ENVIRONMENT", "SITE_URL"] {
+            let error = refused(&with(name, sentinel));
+            assert_eq!(error.variable(), name);
+            let text = error.to_string();
+            assert!(!text.contains("sentinel") && !text.contains("hunter2"), "{name}: {text}");
+        }
+    }
+
+    #[test]
+    fn the_site_address_must_be_a_plain_https_origin() {
+        for bad in ["http://site.example", "site.example", "https://site.example/app", "https://site.example?x=1", "https://user@site.example"] {
+            assert_eq!(refused(&with("SITE_URL", bad)).variable(), "SITE_URL", "{bad}");
+        }
+        let trimmed = SigninSettings::from_env_map(&with("SITE_URL", "https://site.example/")).unwrap().unwrap();
+        assert_eq!(trimmed.site_url, "https://site.example");
+    }
+
+    #[test]
+    fn a_session_secret_is_required_and_never_printed() {
+        assert_eq!(refused(&with("SESSION_SECRET", "")).variable(), "SESSION_SECRET");
+        let error = refused(&without("SESSION_SECRET"));
+        assert!(!error.to_string().contains("a-long-session-secret"));
+    }
+
+    #[test]
+    fn the_per_process_jti_record_needs_the_single_server_mode() {
+        for bad in ["0", "", "true", "yes"] {
+            assert_eq!(refused(&with("HECKS_SERVE_MODE", bad)).variable(), "HECKS_SERVE_MODE", "{bad:?}");
+        }
+    }
+
+    #[test]
+    fn the_account_cookie_name_defaults_and_an_invalid_one_refuses() {
+        let default = SigninSettings::from_env_map(&full()).unwrap().unwrap();
+        assert_eq!(default.account_cookie, crate::auth::DEFAULT_ACCOUNT_COOKIE);
+        let named = SigninSettings::from_env_map(&with("HECKS_SESSION_COOKIE", "site_session")).unwrap().unwrap();
+        assert_eq!(named.account_cookie, "site_session");
+        assert_eq!(refused(&with("HECKS_SESSION_COOKIE", "bad name;")).variable(), "HECKS_SESSION_COOKIE");
+    }
+
+    #[test]
+    fn the_process_variable_list_names_exactly_what_is_read() {
+        for name in PROCESS_VARIABLES {
+            let vars = without(name);
+            let _ = SigninSettings::from_env_map(&vars);
+        }
+        assert!(PROCESS_VARIABLES.contains(&"PLATFORM_SIGNIN"));
+        assert!(PROCESS_VARIABLES.contains(&"SESSION_SECRET"));
+    }
+}

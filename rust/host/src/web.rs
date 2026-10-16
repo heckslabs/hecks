@@ -1697,6 +1697,14 @@ fn cookie_flags() -> &'static str {
     }
 }
 
+// The flags for the account cookie given the Google redirect URI and the site's public address.
+// A host that sets the redirect URI is judged by it, as ever; a host that has stopped setting it
+// is judged by SITE_URL, and with neither set the cookie is Secure.
+pub(crate) fn account_cookie_flags(redirect_uri: &str, site_url: &str) -> &'static str {
+    let _ = (redirect_uri, site_url);
+    todo!()
+}
+
 fn redirect_with_cookie(location: &str, cookie: &str) -> Value {
     json!({"statusCode": 302, "headers": {"location": location}, "cookies": [cookie], "body": "", "isBase64Encoded": false})
 }
@@ -2983,6 +2991,38 @@ mod tests {
         assert_eq!(names, [json!(null), json!("Ada"), json!("bob"), json!("Cy")]);
     }
 
+}
+
+#[cfg(test)]
+mod cookie_flag_tests {
+    use super::account_cookie_flags;
+
+    const SECURE: &str = "; Path=/; HttpOnly; Secure; SameSite=Lax";
+    const PLAIN: &str = "; Path=/; HttpOnly; SameSite=Lax";
+
+    #[test]
+    fn a_host_that_sets_the_redirect_uri_is_judged_by_it_as_before() {
+        assert_eq!(account_cookie_flags("https://site.example/auth/google/callback", ""), SECURE);
+        assert_eq!(account_cookie_flags("http://localhost:4567/auth/google/callback", ""), PLAIN);
+        assert_eq!(account_cookie_flags("https://site.example/cb", "http://localhost:4321"), SECURE);
+        assert_eq!(account_cookie_flags("http://localhost:4567/cb", "https://site.example"), PLAIN);
+    }
+
+    #[test]
+    fn a_host_with_no_redirect_uri_and_an_https_site_url_still_sets_secure() {
+        assert_eq!(account_cookie_flags("", "https://site.example"), SECURE);
+        assert_eq!(account_cookie_flags("", "https://site.example/"), SECURE);
+    }
+
+    #[test]
+    fn a_host_with_no_redirect_uri_and_an_http_site_url_does_not_demand_secure() {
+        assert_eq!(account_cookie_flags("", "http://localhost:4321"), PLAIN);
+    }
+
+    #[test]
+    fn a_host_with_neither_setting_stays_secure() {
+        assert_eq!(account_cookie_flags("", ""), SECURE);
+    }
 }
 
 #[cfg(test)]
