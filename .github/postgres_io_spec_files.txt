@@ -15,7 +15,6 @@ spec/adapters/driven/postgres_era_concurrent_dispatch_spec.rb
 spec/adapters/driven/postgres_era_spec.rb
 spec/adapters/driven/postgres_spec.rb
 spec/adapters/driven/process_pool_spec.rb
-spec/adapters/driven/rehearsal_store_spec.rb
 spec/adapters/driven/rust_toolchain_spec.rb
 spec/adapters/query_agreement_spec.rb
 spec/adapters/query_hop_agreement_spec.rb
