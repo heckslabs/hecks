@@ -13,7 +13,8 @@ module Hecks
         hidden.empty? ? specs : specs.reject { |_, spec| hidden.include?(spec[:group]) }
       end
 
-      # The specs the options' audience is shown: those not hidden, and only those listed, if any are.
+      # The specs the options' audience is shown: those not hidden, and only those listed, if any
+      # are.
       def audience_specs(specs, options)
         only_listed(without_hidden(specs, options[:hide]), options[:only])
       end

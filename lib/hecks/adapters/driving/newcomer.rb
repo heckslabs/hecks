@@ -7,8 +7,9 @@ module Hecks
       # for the commands that act on a domain, so the help lists only the `newcomer` commands the
       # chapter's `launcher` setting names (`hecks --all` lists the rest).
       module Newcomer
-        # How deep under a directory a bluebook may sit and still make it a project: `Hecks.bluebook`
-        # beside it, or `bluebook/pizzas.bluebook` one folder down, as the examples keep theirs.
+        # How deep under a directory a bluebook may sit and still make it a project:
+        # `Hecks.bluebook` beside it, or `bluebook/pizzas.bluebook` one folder down, as the
+        # examples keep theirs.
         PROJECT_GLOBS = ["*.bluebook", "*/*.bluebook", "*/*/*.bluebook"].freeze
 
         module_function
@@ -35,7 +36,8 @@ module Hecks
           { only: Array(settings[:newcomer]).map(&:to_s), chapters: [] }
         end
 
-        # Whether `pattern` finds a bluebook under `dir`; a folder the person may not read holds none.
+        # Whether `pattern` finds a bluebook under `dir`; a folder the person may not read holds
+        # none.
         # @api private
         def bluebook_under?(dir, pattern)
           Dir.glob(File.join(File.expand_path(dir), pattern)).any?
