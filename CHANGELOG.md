@@ -7,6 +7,11 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+- `build.build_host` downloads the host hecks already built instead of compiling it (ADR 0110). The binaries hecks publishes are
+  `PrebuiltBinary` rows of the Vocabulary chapter; `hecks regeneration_run.project_lanes` writes `publish-host.yml` from them, and
+  each release `host-<key>` is named by a hash of `rust/host`'s build inputs and carries a `.sha256` the download is checked
+  against. Any miss compiles as before; `HECKS_PREBUILT=off` skips the download.
+
 ## [3.11.0] - 2026-10-15
 
 A minor release with two breaking changes: an adapter declares its defaults in the `.adapter` file
