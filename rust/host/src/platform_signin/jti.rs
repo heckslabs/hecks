@@ -1,7 +1,7 @@
 //! The single-use record of token identifiers.
 //!
-//! A token may be redeemed once. The store remembers each `jti` until the token could no longer
-//! pass the time checks (`exp` plus the skew), so a replay inside that window is refused and
+//! A token may be redeemed once. The store remembers each `jti` until its time window has
+//! closed (`exp` plus the skew), so a replay inside that window is refused and
 //! nothing is kept longer than it must be.
 //!
 //! ## Per process, on purpose
@@ -37,8 +37,10 @@ impl JtiStore {
 
     /// Builds an empty store that remembers at most `max_entries` identifiers.
     pub fn with_capacity(max_entries: usize) -> Self {
-        let _ = (max_entries, &Mutex::new(HashMap::<String, i64>::new()));
-        todo!("JtiStore::with_capacity")
+        Self {
+            max_entries,
+            seen: Mutex::new(HashMap::new()),
+        }
     }
 
     /// Records `jti` as spent until `expires_at` (Unix seconds) unless it is already remembered.
@@ -47,14 +49,26 @@ impl JtiStore {
     /// is full. Checking and recording are one step under one lock, so of any number of concurrent
     /// claims of the same identifier exactly one wins.
     pub fn claim(&self, jti: &str, expires_at: i64, now: i64) -> bool {
-        let _ = (jti, expires_at, now, &self.seen, self.max_entries);
-        todo!("JtiStore::claim")
+        let mut seen = self.lock();
+        seen.retain(|_, expiry| *expiry > now);
+        if seen.contains_key(jti) || seen.len() >= self.max_entries {
+            return false;
+        }
+        seen.insert(jti.to_string(), expires_at);
+        true
+    }
+
+    fn lock(&self) -> std::sync::MutexGuard<'_, HashMap<String, i64>> {
+        // A panic in another thread cannot leave the map half-updated, and refusing everything
+        // forever would be a lock-out, so a poisoned lock is simply taken over.
+        self.seen
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
     }
 
     /// Counts the identifiers still remembered at `now`; expired ones are not counted.
     pub fn len(&self, now: i64) -> usize {
-        let _ = now;
-        todo!("JtiStore::len")
+        self.lock().values().filter(|expiry| **expiry > now).count()
     }
 
     /// Tells whether nothing is remembered at `now`.
@@ -92,7 +106,10 @@ mod tests {
         assert!(store.claim("a", NOW + 90, NOW));
         assert!(!store.claim("a", NOW + 90, NOW + 89));
         assert_eq!(store.len(NOW + 89), 1);
-        assert!(store.claim("a", NOW + 200, NOW + 90), "forgotten exactly at expires_at");
+        assert!(
+            store.claim("a", NOW + 200, NOW + 90),
+            "forgotten exactly at expires_at"
+        );
         assert_eq!(store.len(NOW + 90), 1);
     }
 
@@ -101,8 +118,14 @@ mod tests {
         let store = JtiStore::with_capacity(2);
         assert!(store.claim("a", NOW + 10, NOW));
         assert!(store.claim("b", NOW + 10, NOW));
-        assert!(!store.claim("c", NOW + 100, NOW + 5), "full while both are live");
-        assert!(store.claim("c", NOW + 100, NOW + 10), "expired entries make room");
+        assert!(
+            !store.claim("c", NOW + 100, NOW + 5),
+            "full while both are live"
+        );
+        assert!(
+            store.claim("c", NOW + 100, NOW + 10),
+            "expired entries make room"
+        );
         assert_eq!(store.len(NOW + 10), 1);
         assert!(store.is_empty(NOW + 100));
     }
@@ -113,9 +136,15 @@ mod tests {
         for id in ["a", "b", "c"] {
             assert!(store.claim(id, NOW + 90, NOW));
         }
-        assert!(!store.claim("d", NOW + 90, NOW), "a new identifier is refused, not stored");
+        assert!(
+            !store.claim("d", NOW + 90, NOW),
+            "a new identifier is refused, not stored"
+        );
         assert_eq!(store.len(NOW), 3);
-        assert!(!store.claim("a", NOW + 90, NOW), "and an old one is still a replay");
+        assert!(
+            !store.claim("a", NOW + 90, NOW),
+            "and an old one is still a replay"
+        );
     }
 
     #[test]
@@ -123,7 +152,10 @@ mod tests {
         let store = JtiStore::with_capacity(1);
         assert!(store.claim("a", NOW + 10, NOW));
         assert!(!store.claim("b", NOW + 10, NOW));
-        assert!(store.claim("b", NOW + 100, NOW + 10), "b was never remembered");
+        assert!(
+            store.claim("b", NOW + 100, NOW + 10),
+            "b was never remembered"
+        );
     }
 
     #[test]

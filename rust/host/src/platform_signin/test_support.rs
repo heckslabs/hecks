@@ -27,7 +27,6 @@ pub const STATE: &str = "StateStateState0123456789";
 pub const X_A: &str = "BrQXFhWGK4Fmi8rRsnn1KzomYanZaWCsFWaS0Dgv62k";
 pub const KID_A: &str = "SwpkMw_CknhH156gpWgzPJOQNEGnS25LhD1OqeNsQko";
 pub const X_B: &str = "y4eb9h3HL-Ojhu6bp87lvE1Nl6b8YjIqM_AGXTRMeB0";
-pub const X_C: &str = "VQkfo2GZY1E9zxkI9Sm23OrMYRcXS6PkolH_odg-rS8";
 
 /// A throwaway Ed25519 key pair: its seed and its public `x`.
 #[derive(Clone, Copy)]
@@ -36,22 +35,32 @@ pub struct TestKey {
     pub x: &'static str,
 }
 
-pub const KEY_A: TestKey = TestKey { seed: b"TEST-ONLY-KNOWN-ANSWER-SEED-0001", x: X_A };
-pub const KEY_B: TestKey = TestKey { seed: b"TEST-ONLY-KNOWN-ANSWER-SEED-0002", x: X_B };
-pub const KEY_C: TestKey = TestKey { seed: b"TEST-ONLY-KNOWN-ANSWER-SEED-0003", x: X_C };
+pub const KEY_A: TestKey = TestKey {
+    seed: b"TEST-ONLY-KNOWN-ANSWER-SEED-0001",
+    x: X_A,
+};
+pub const KEY_B: TestKey = TestKey {
+    seed: b"TEST-ONLY-KNOWN-ANSWER-SEED-0002",
+    x: X_B,
+};
 
 impl TestKey {
+    /// Returns the key's thumbprint, which is its `kid`.
     pub fn kid(&self) -> String {
         thumbprint(self.x)
     }
 
+    /// Returns the public half as a verifying key.
     pub fn verifying(&self) -> VerifyingKey {
         VerifyingKey::from_x(self.x).expect("a valid public key")
     }
 
     /// Signs `input` as EdDSA and returns the unpadded base64url signature.
     pub fn sign(&self, input: &str) -> String {
-        let mut der = vec![0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x04, 0x22, 0x04, 0x20];
+        let mut der = vec![
+            0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x04, 0x22,
+            0x04, 0x20,
+        ];
         der.extend_from_slice(self.seed);
         let key = EncodingKey::from_ed_der(&der);
         jsonwebtoken::crypto::sign(input.as_bytes(), &key, Algorithm::EdDSA).expect("signs")
@@ -60,7 +69,11 @@ impl TestKey {
 
 /// Builds `header.claims.signature` from raw JSON texts, signed by `key`.
 pub fn assemble(header_text: &str, claims_text: &str, key: &TestKey) -> String {
-    let input = format!("{}.{}", encode_base64url(header_text.as_bytes()), encode_base64url(claims_text.as_bytes()));
+    let input = format!(
+        "{}.{}",
+        encode_base64url(header_text.as_bytes()),
+        encode_base64url(claims_text.as_bytes())
+    );
     format!("{input}.{}", key.sign(&input))
 }
 
@@ -73,20 +86,32 @@ impl KeySource for StaticKeys {
     }
 }
 
+/// Builds a key source holding exactly `keys`.
 pub fn static_keys(keys: &[&TestKey]) -> StaticKeys {
     StaticKeys(keys.iter().map(|k| (k.kid(), k.verifying())).collect())
 }
 
+/// Returns the pinned configuration the vectors use.
 pub fn config() -> PlatformSigninConfig {
-    PlatformSigninConfig::new(ISSUER, "https://issuer.example/.well-known/jwks.json", SITE, ENVIRONMENT)
+    PlatformSigninConfig::new(
+        ISSUER,
+        "https://issuer.example/.well-known/jwks.json",
+        SITE,
+        ENVIRONMENT,
+    )
 }
 
+/// Builds a verifier that trusts exactly `keys`, with an empty single-use record.
 pub fn verifier_for(keys: &[&TestKey]) -> Verifier<StaticKeys> {
     Verifier::new(config(), static_keys(keys), JtiStore::new())
 }
 
+/// Returns the sign-in cookie that matches a good scenario.
 pub fn good_cookie() -> SigninCookie {
-    SigninCookie { nonce: NONCE.into(), state: STATE.into() }
+    SigninCookie {
+        nonce: NONCE.into(),
+        state: STATE.into(),
+    }
 }
 
 /// Turns a verified or raw claim object into a `serde_json::Value`, for comparisons.
@@ -102,8 +127,14 @@ pub fn to_value(json: &Json) -> Value {
     }
 }
 
+/// Turns a parsed object into a `serde_json::Value`.
 pub fn object_to_value(object: &JsonObject) -> Value {
-    Value::Object(object.keys().map(|k| (k.clone(), to_value(object.get(k).expect("member")))).collect())
+    Value::Object(
+        object
+            .keys()
+            .map(|k| (k.clone(), to_value(object.get(k).expect("member"))))
+            .collect(),
+    )
 }
 
 /// One sign-in attempt, built from a good one by mutating the pieces a test wants to break.
@@ -120,6 +151,7 @@ pub struct Scenario {
 }
 
 impl Scenario {
+    /// Builds a scenario that a verifier accepts.
     pub fn good() -> Self {
         let claims = json!({
             "iss": ISSUER, "aud": SITE, "env": ENVIRONMENT, "sub": EMAIL,
@@ -149,17 +181,29 @@ impl Scenario {
         let header = Value::Object(self.header.clone()).to_string();
         let claims = Value::Object(self.claims.clone()).to_string();
         let token = assemble(&header, &claims, &self.signer);
-        if self.flip_signature { flip_last_signature_bit(&token) } else { token }
+        if self.flip_signature {
+            flip_last_signature_bit(&token)
+        } else {
+            token
+        }
     }
 
     /// Runs the scenario through `verifier`, spending the jti first when asked.
     pub fn run(&self, verifier: &Verifier<StaticKeys>) -> Result<VerifiedClaims, Refusal> {
         if self.spend_first {
-            let jti = self.claims.get("jti").and_then(Value::as_str).expect("a jti to spend");
+            let jti = self
+                .claims
+                .get("jti")
+                .and_then(Value::as_str)
+                .expect("a jti to spend");
             assert!(verifier.jti_store().claim(jti, self.now + 90, self.now));
         }
         let token = self.token();
-        let request = SigninRequest { token: Some(&token), state: self.state.as_deref(), cookie: self.cookie.as_ref() };
+        let request = SigninRequest {
+            token: Some(&token),
+            state: self.state.as_deref(),
+            cookie: self.cookie.as_ref(),
+        };
         verifier.verify(&request, self.now)
     }
 }
@@ -183,6 +227,9 @@ impl super::jwks::JwksFetcher for FnFetcher {
 
 /// A key set document listing `keys`.
 pub fn jwks_document(keys: &[&TestKey]) -> String {
-    let entries: Vec<String> = keys.iter().map(|k| format!(r#"{{"kty":"OKP","crv":"Ed25519","x":"{}"}}"#, k.x)).collect();
+    let entries: Vec<String> = keys
+        .iter()
+        .map(|k| format!(r#"{{"kty":"OKP","crv":"Ed25519","x":"{}"}}"#, k.x))
+        .collect();
     format!(r#"{{"keys":[{}]}}"#, entries.join(","))
 }

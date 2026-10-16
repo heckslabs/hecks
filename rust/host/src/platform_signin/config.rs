@@ -2,7 +2,8 @@
 //!
 //! The values are the issuer's address, the address of its key set, this site's reference, and the
 //! environment this site runs as. A token is accepted only if it names exactly these. Validation
-//! happens when the value is built, so a mistake (an `http` issuer, a trailing slash that would make
+//! happens when the value is built, so a mistake (an `http` issuer, a trailing slash that would
+//! make
 //! every token fail the exact `iss` comparison, an environment typo) stops the boot rather than
 //! silently locking everyone out or, worse, letting something through.
 //!
@@ -66,7 +67,9 @@ impl ConfigProblem {
             ConfigProblem::Missing => "is not set",
             ConfigProblem::NotHttps => "must be an https URL",
             ConfigProblem::CredentialsInUrl => "must not carry credentials",
-            ConfigProblem::PathQueryOrFragment => "must not carry a path, query or fragment (no trailing slash)",
+            ConfigProblem::PathQueryOrFragment => {
+                "must not carry a path, query or fragment (no trailing slash)"
+            }
             ConfigProblem::BadHost => "must name a plain lowercase host and an optional port",
             ConfigProblem::UpperCase => "must be lowercase",
             ConfigProblem::BadShape => "has an invalid shape",
@@ -98,8 +101,15 @@ impl PlatformSigninConfig {
     /// callers that have already validated. Use [`PlatformSigninConfig::from_env_map`] for input
     /// that came from outside.
     pub fn new(issuer_url: &str, jwks_url: &str, site_id: &str, environment: &str) -> Self {
-        let _ = (issuer_url, jwks_url, site_id, environment);
-        todo!("PlatformSigninConfig::new")
+        Self {
+            issuer_url: issuer_url.to_string(),
+            jwks_url: jwks_url.to_string(),
+            site_id: site_id.to_string(),
+            environment: environment.to_string(),
+            skew_seconds: DEFAULT_SKEW_SECONDS,
+            max_lifetime_seconds: DEFAULT_MAX_LIFETIME_SECONDS,
+            max_token_bytes: DEFAULT_MAX_TOKEN_BYTES,
+        }
     }
 
     /// Builds a validated configuration from a map of variable names to values.
@@ -109,8 +119,136 @@ impl PlatformSigninConfig {
     /// Returns a [`ConfigError`] naming the first variable that is missing or malformed. The error
     /// never contains the value.
     pub fn from_env_map(vars: &HashMap<String, String>) -> Result<Self, ConfigError> {
-        let _ = vars;
-        todo!("PlatformSigninConfig::from_env_map")
+        let issuer_url = required(vars, ISSUER_URL_VARIABLE)?;
+        let issuer_authority =
+            issuer_authority(issuer_url).map_err(|problem| fail(ISSUER_URL_VARIABLE, problem))?;
+        let jwks_url = match optional(vars, JWKS_URL_VARIABLE) {
+            Some(url) => check_jwks_url(url, issuer_authority)
+                .map_err(|problem| fail(JWKS_URL_VARIABLE, problem))?,
+            None => format!("{issuer_url}{DEFAULT_JWKS_PATH}"),
+        };
+        let site_id = required(vars, SITE_ID_VARIABLE)?;
+        check_site_id(site_id).map_err(|problem| fail(SITE_ID_VARIABLE, problem))?;
+        let environment = required(vars, ENVIRONMENT_VARIABLE)?;
+        check_environment(environment).map_err(|problem| fail(ENVIRONMENT_VARIABLE, problem))?;
+        Ok(Self::new(issuer_url, &jwks_url, site_id, environment))
+    }
+}
+
+fn fail(variable: &'static str, problem: ConfigProblem) -> ConfigError {
+    ConfigError { variable, problem }
+}
+
+fn optional<'a>(vars: &'a HashMap<String, String>, name: &str) -> Option<&'a str> {
+    vars.get(name)
+        .map(String::as_str)
+        .filter(|value| !value.is_empty())
+}
+
+fn required<'a>(
+    vars: &'a HashMap<String, String>,
+    name: &'static str,
+) -> Result<&'a str, ConfigError> {
+    optional(vars, name).ok_or_else(|| fail(name, ConfigProblem::Missing))
+}
+
+const HTTPS: &str = "https://";
+
+/// Splits an `https` URL into its authority and whatever follows it.
+fn split_https(url: &str) -> Result<(&str, &str), ConfigProblem> {
+    let rest = url.strip_prefix(HTTPS).ok_or(ConfigProblem::NotHttps)?;
+    let end = rest.find(['/', '?', '#', '\\']).unwrap_or(rest.len());
+    Ok(rest.split_at(end))
+}
+
+/// Validates the issuer URL, which is both an address and the exact `iss` string, and returns its
+/// authority.
+fn issuer_authority(url: &str) -> Result<&str, ConfigProblem> {
+    let (authority, remainder) = split_https(url)?;
+    if !remainder.is_empty() {
+        return Err(ConfigProblem::PathQueryOrFragment);
+    }
+    check_authority(authority)?;
+    Ok(authority)
+}
+
+fn check_authority(authority: &str) -> Result<(), ConfigProblem> {
+    if authority.contains('@') {
+        return Err(ConfigProblem::CredentialsInUrl);
+    }
+    if authority.bytes().any(|b| b.is_ascii_uppercase()) {
+        return Err(ConfigProblem::UpperCase);
+    }
+    let (host, port) = match authority.split_once(':') {
+        Some((host, port)) => (host, Some(port)),
+        None => (authority, None),
+    };
+    let port_ok = port.is_none_or(|p| {
+        !p.is_empty()
+            && p.bytes().all(|b| b.is_ascii_digit())
+            && p.parse::<u16>().is_ok_and(|n| n > 0)
+    });
+    if port_ok && valid_host(host) {
+        Ok(())
+    } else {
+        Err(ConfigProblem::BadHost)
+    }
+}
+
+fn valid_host(host: &str) -> bool {
+    host.len() <= 253 && host.split('.').all(valid_label)
+}
+
+fn valid_label(label: &str) -> bool {
+    !label.is_empty()
+        && label.len() <= 63
+        && !label.starts_with('-')
+        && !label.ends_with('-')
+        && label
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
+}
+
+/// Validates the key set URL: https, on the issuer's own host and port, with a plain path.
+fn check_jwks_url(url: &str, issuer_authority: &str) -> Result<String, ConfigProblem> {
+    let (authority, remainder) = split_https(url)?;
+    if authority.contains('@') {
+        return Err(ConfigProblem::CredentialsInUrl);
+    }
+    if authority != issuer_authority {
+        return Err(ConfigProblem::WrongHostForIssuer);
+    }
+    if remainder.contains(['?', '#']) {
+        return Err(ConfigProblem::PathQueryOrFragment);
+    }
+    let printable = remainder.bytes().all(|b| b.is_ascii_graphic());
+    if remainder.starts_with('/') && printable && !remainder.contains('\\') {
+        Ok(url.to_string())
+    } else {
+        Err(ConfigProblem::BadShape)
+    }
+}
+
+/// A site reference is lowercase letters, digits and hyphens, 1 to 63 long, not starting with a
+/// hyphen.
+fn check_site_id(site: &str) -> Result<(), ConfigProblem> {
+    let mut bytes = site.bytes();
+    let first_ok = bytes
+        .next()
+        .is_some_and(|b| b.is_ascii_lowercase() || b.is_ascii_digit());
+    let rest_ok = bytes.all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-');
+    if first_ok && rest_ok && site.len() <= 63 {
+        Ok(())
+    } else {
+        Err(ConfigProblem::BadShape)
+    }
+}
+
+fn check_environment(environment: &str) -> Result<(), ConfigProblem> {
+    if ENVIRONMENTS.contains(&environment) {
+        Ok(())
+    } else {
+        Err(ConfigProblem::NotAnEnvironment)
     }
 }
 
@@ -141,9 +279,24 @@ mod tests {
 
     #[test]
     fn explicit_values_get_the_default_windows() {
-        let c = PlatformSigninConfig::new("https://issuer.example", "https://issuer.example/k", "site-a", "staging");
-        assert_eq!((c.skew_seconds, c.max_lifetime_seconds, c.max_token_bytes), (30, 60, 4096));
-        assert_eq!((c.issuer_url.as_str(), c.site_id.as_str(), c.environment.as_str()), ("https://issuer.example", "site-a", "staging"));
+        let c = PlatformSigninConfig::new(
+            "https://issuer.example",
+            "https://issuer.example/k",
+            "site-a",
+            "staging",
+        );
+        assert_eq!(
+            (c.skew_seconds, c.max_lifetime_seconds, c.max_token_bytes),
+            (30, 60, 4096)
+        );
+        assert_eq!(
+            (
+                c.issuer_url.as_str(),
+                c.site_id.as_str(),
+                c.environment.as_str()
+            ),
+            ("https://issuer.example", "site-a", "staging")
+        );
     }
 
     #[test]
@@ -151,13 +304,22 @@ mod tests {
         let c = PlatformSigninConfig::from_env_map(&good()).expect("valid");
         assert_eq!(c.issuer_url, "https://issuer.example");
         assert_eq!(c.jwks_url, "https://issuer.example/.well-known/jwks.json");
-        assert_eq!((c.site_id.as_str(), c.environment.as_str()), ("site-a", "production"));
+        assert_eq!(
+            (c.site_id.as_str(), c.environment.as_str()),
+            ("site-a", "production")
+        );
     }
 
     #[test]
     fn an_explicit_key_set_address_on_the_issuers_host_is_kept() {
-        let vars = with(JWKS_URL_VARIABLE, "https://issuer.example/keys/current.json");
-        assert_eq!(PlatformSigninConfig::from_env_map(&vars).unwrap().jwks_url, "https://issuer.example/keys/current.json");
+        let vars = with(
+            JWKS_URL_VARIABLE,
+            "https://issuer.example/keys/current.json",
+        );
+        assert_eq!(
+            PlatformSigninConfig::from_env_map(&vars).unwrap().jwks_url,
+            "https://issuer.example/keys/current.json"
+        );
     }
 
     #[test]
@@ -174,14 +336,20 @@ mod tests {
             let mut vars = good();
             vars.remove(name);
             let error = refusal(&vars);
-            assert_eq!((error.variable, error.problem), (name, ConfigProblem::Missing));
+            assert_eq!(
+                (error.variable, error.problem),
+                (name, ConfigProblem::Missing)
+            );
             assert!(error.to_string().starts_with(name));
         }
     }
 
     #[test]
     fn an_empty_value_counts_as_missing() {
-        assert_eq!(refusal(&with(SITE_ID_VARIABLE, "")).problem, ConfigProblem::Missing);
+        assert_eq!(
+            refusal(&with(SITE_ID_VARIABLE, "")).problem,
+            ConfigProblem::Missing
+        );
     }
 
     #[test]
@@ -190,13 +358,34 @@ mod tests {
             ("http://issuer.example", ConfigProblem::NotHttps),
             ("issuer.example", ConfigProblem::NotHttps),
             ("HTTPS://issuer.example", ConfigProblem::NotHttps),
-            ("https://issuer.example/", ConfigProblem::PathQueryOrFragment),
-            ("https://issuer.example/path", ConfigProblem::PathQueryOrFragment),
-            ("https://issuer.example?x=1", ConfigProblem::PathQueryOrFragment),
-            ("https://issuer.example#frag", ConfigProblem::PathQueryOrFragment),
-            ("https://issuer.example\\evil", ConfigProblem::PathQueryOrFragment),
-            ("https://user:pw@issuer.example", ConfigProblem::CredentialsInUrl),
-            ("https://issuer.example@evil.example", ConfigProblem::CredentialsInUrl),
+            (
+                "https://issuer.example/",
+                ConfigProblem::PathQueryOrFragment,
+            ),
+            (
+                "https://issuer.example/path",
+                ConfigProblem::PathQueryOrFragment,
+            ),
+            (
+                "https://issuer.example?x=1",
+                ConfigProblem::PathQueryOrFragment,
+            ),
+            (
+                "https://issuer.example#frag",
+                ConfigProblem::PathQueryOrFragment,
+            ),
+            (
+                "https://issuer.example\\evil",
+                ConfigProblem::PathQueryOrFragment,
+            ),
+            (
+                "https://user:pw@issuer.example",
+                ConfigProblem::CredentialsInUrl,
+            ),
+            (
+                "https://issuer.example@evil.example",
+                ConfigProblem::CredentialsInUrl,
+            ),
             ("https://Issuer.example", ConfigProblem::UpperCase),
             ("https://", ConfigProblem::BadHost),
             ("https://issuer .example", ConfigProblem::BadHost),
@@ -221,10 +410,22 @@ mod tests {
         let cases = [
             ("http://issuer.example/k", ConfigProblem::NotHttps),
             ("https://other.example/k", ConfigProblem::WrongHostForIssuer),
-            ("https://issuer.example.evil.example/k", ConfigProblem::WrongHostForIssuer),
-            ("https://user@issuer.example/k", ConfigProblem::CredentialsInUrl),
-            ("https://issuer.example/k?x=1", ConfigProblem::PathQueryOrFragment),
-            ("https://issuer.example/k#f", ConfigProblem::PathQueryOrFragment),
+            (
+                "https://issuer.example.evil.example/k",
+                ConfigProblem::WrongHostForIssuer,
+            ),
+            (
+                "https://user@issuer.example/k",
+                ConfigProblem::CredentialsInUrl,
+            ),
+            (
+                "https://issuer.example/k?x=1",
+                ConfigProblem::PathQueryOrFragment,
+            ),
+            (
+                "https://issuer.example/k#f",
+                ConfigProblem::PathQueryOrFragment,
+            ),
             ("https://issuer.example", ConfigProblem::BadShape),
             ("https://issuer.example/a b", ConfigProblem::BadShape),
         ];
@@ -237,11 +438,25 @@ mod tests {
 
     #[test]
     fn bad_site_references_name_the_site_variable() {
-        for value in ["Site-A", "-site", "site_a", "site a", "a/b", &"a".repeat(64), "sité"] {
+        for value in [
+            "Site-A",
+            "-site",
+            "site_a",
+            "site a",
+            "a/b",
+            &"a".repeat(64),
+            "sité",
+        ] {
             let error = refusal(&with(SITE_ID_VARIABLE, value));
-            assert_eq!((error.variable, error.problem), (SITE_ID_VARIABLE, ConfigProblem::BadShape), "{value:?}");
+            assert_eq!(
+                (error.variable, error.problem),
+                (SITE_ID_VARIABLE, ConfigProblem::BadShape),
+                "{value:?}"
+            );
         }
-        assert!(PlatformSigninConfig::from_env_map(&with(SITE_ID_VARIABLE, &"a".repeat(63))).is_ok());
+        assert!(
+            PlatformSigninConfig::from_env_map(&with(SITE_ID_VARIABLE, &"a".repeat(63))).is_ok()
+        );
         assert!(PlatformSigninConfig::from_env_map(&with(SITE_ID_VARIABLE, "0-site")).is_ok());
     }
 
@@ -249,7 +464,11 @@ mod tests {
     fn only_production_and_staging_are_environments() {
         for value in ["Production", "prod", "dev", "production ", "production\n"] {
             let error = refusal(&with(ENVIRONMENT_VARIABLE, value));
-            assert_eq!((error.variable, error.problem), (ENVIRONMENT_VARIABLE, ConfigProblem::NotAnEnvironment), "{value:?}");
+            assert_eq!(
+                (error.variable, error.problem),
+                (ENVIRONMENT_VARIABLE, ConfigProblem::NotAnEnvironment),
+                "{value:?}"
+            );
         }
         assert!(PlatformSigninConfig::from_env_map(&with(ENVIRONMENT_VARIABLE, "staging")).is_ok());
     }
@@ -258,9 +477,18 @@ mod tests {
     fn no_error_ever_echoes_the_value() {
         let marker = "very-secret-marker-9137";
         let values = [
-            (ISSUER_URL_VARIABLE, format!("http://user:{marker}@{marker}.example/{marker}")),
-            (ISSUER_URL_VARIABLE, format!("https://{marker}.example/{marker}")),
-            (JWKS_URL_VARIABLE, format!("https://{marker}.example/{marker}?{marker}")),
+            (
+                ISSUER_URL_VARIABLE,
+                format!("http://user:{marker}@{marker}.example/{marker}"),
+            ),
+            (
+                ISSUER_URL_VARIABLE,
+                format!("https://{marker}.example/{marker}"),
+            ),
+            (
+                JWKS_URL_VARIABLE,
+                format!("https://{marker}.example/{marker}?{marker}"),
+            ),
             (SITE_ID_VARIABLE, format!("Bad {marker}")),
             (ENVIRONMENT_VARIABLE, marker.to_string()),
         ];

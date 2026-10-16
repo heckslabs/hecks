@@ -20,11 +20,17 @@
 //! It does not log, and nothing in it ever formats a token. It is not a session: mapping a verified
 //! identity to a member of the site is the caller's job.
 
+/// Validated settings: the pinned issuer, key set address, site and environment.
 pub mod config;
+/// The bounded in-memory record that makes each token single-use.
 pub mod jti;
+/// The issuer's public keys: parsing, thumbprint indexing and a rate-limited cache.
 pub mod jwks;
+/// Strict compact JWS parsing and canonical base64url.
 pub mod jws;
+/// A JSON object reader that refuses repeated keys and deep nesting.
 pub mod strict_json;
+/// The ordered checks, the stable refusal reasons and the verified claims.
 pub mod verify;
 
 #[cfg(test)]

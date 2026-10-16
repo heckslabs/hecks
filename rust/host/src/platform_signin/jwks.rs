@@ -5,7 +5,8 @@
 //! Every key is indexed by the RFC 7638 thumbprint computed from its own material, never by the
 //! `kid` the document claims. A token's `kid` header is then only a way to ask "the key whose
 //! thumbprint is this"; a document that labels one key with another's identifier cannot make a
-//! token verify under the wrong key. Only `OKP` / `Ed25519` keys with a 32-byte canonical `x` and no
+//! token verify under the wrong key. Only `OKP` / `Ed25519` keys with a 32-byte canonical `x` and
+//! no
 //! private member `d` are kept; everything else in the document is dropped and reported.
 //!
 //! ## No network here
@@ -15,6 +16,8 @@
 
 use std::collections::HashMap;
 use std::sync::Mutex;
+
+use sha2::{Digest, Sha256};
 
 use super::jws::{decode_base64url, encode_base64url};
 use super::strict_json::{self, Json};
@@ -33,10 +36,11 @@ pub struct VerifyingKey {
 }
 
 impl VerifyingKey {
-    /// Builds a key from the JWK `x` member, or `None` unless it is canonical base64url of 32 bytes.
+    /// Builds a key from the JWK `x` member, or `None` unless it is canonical base64url of 32
+    /// bytes.
     pub fn from_x(x: &str) -> Option<Self> {
-        let _ = (x, ED25519_PUBLIC_KEY_BYTES, decode_base64url, encode_base64url);
-        todo!("VerifyingKey::from_x")
+        let raw = decode_base64url(x)?;
+        (raw.len() == ED25519_PUBLIC_KEY_BYTES).then(|| Self { x: x.to_string() })
     }
 
     /// Returns the `x` member, canonical unpadded base64url.
@@ -55,8 +59,8 @@ impl VerifyingKey {
 /// The thumbprint is the unpadded base64url SHA-256 of the JSON object with members `crv`, `kty`
 /// and `x`, in that lexicographic order, with no whitespace.
 pub fn thumbprint(x: &str) -> String {
-    let _ = x;
-    todo!("thumbprint")
+    let canonical = format!(r#"{{"crv":"Ed25519","kty":"OKP","x":"{x}"}}"#);
+    encode_base64url(&Sha256::digest(canonical.as_bytes()))
 }
 
 /// Why one entry of a key set was not kept.
@@ -90,8 +94,39 @@ pub struct JwksMalformed;
 /// has no `keys` array. Individual bad entries are not errors: they are dropped and listed in
 /// [`ParsedKeys::refused`].
 pub fn parse_jwks(body: &str) -> Result<ParsedKeys, JwksMalformed> {
-    let _ = (body, strict_json::parse_object, Json::Null);
-    todo!("parse_jwks")
+    let document = strict_json::parse_object(body.as_bytes()).ok_or(JwksMalformed)?;
+    let Some(Json::Array(entries)) = document.get("keys") else {
+        return Err(JwksMalformed);
+    };
+    let mut parsed = ParsedKeys::default();
+    for entry in entries {
+        match key_from_entry(entry) {
+            Ok(key) => {
+                parsed.keys.insert(key.thumbprint(), key);
+            }
+            Err(refusal) => parsed.refused.push(refusal),
+        }
+    }
+    Ok(parsed)
+}
+
+fn key_from_entry(entry: &Json) -> Result<VerifyingKey, KeyRefusal> {
+    let Json::Object(jwk) = entry else {
+        return Err(KeyRefusal::NotAnObject);
+    };
+    // A private member means the issuer published a secret; the entry is never trusted or indexed.
+    if jwk.get("d").is_some() {
+        return Err(KeyRefusal::CarriesPrivateKey);
+    }
+    if jwk.get_str("kty") != Some("OKP") {
+        return Err(KeyRefusal::NotOkp);
+    }
+    if jwk.get_str("crv") != Some("Ed25519") {
+        return Err(KeyRefusal::NotEd25519);
+    }
+    jwk.get_str("x")
+        .and_then(VerifyingKey::from_x)
+        .ok_or(KeyRefusal::BadX)
 }
 
 /// A failed attempt to get the key set document. It carries no detail on purpose.
@@ -142,15 +177,60 @@ impl<F: JwksFetcher> JwksCache<F> {
 
     /// Builds a cache with explicit timing, in seconds.
     pub fn with_timing(fetcher: F, ttl_seconds: i64, min_refetch_seconds: i64) -> Self {
-        let _ = (&fetcher, ttl_seconds, min_refetch_seconds);
-        todo!("JwksCache::with_timing")
+        Self {
+            fetcher,
+            ttl_seconds,
+            min_refetch_seconds,
+            state: Mutex::new(CacheState::default()),
+        }
+    }
+
+    fn lock(&self) -> std::sync::MutexGuard<'_, CacheState> {
+        // The state is only ever replaced whole, so a panic elsewhere cannot leave it half-written.
+        self.state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
+    fn is_stale(&self, state: &CacheState, now: i64) -> bool {
+        state
+            .fetched_at
+            .is_none_or(|fetched| now.saturating_sub(fetched) >= self.ttl_seconds)
+    }
+
+    fn refresh_due(&self, state: &CacheState, kid: &str, now: i64) -> bool {
+        let Some(attempted) = state.attempted_at else {
+            return true;
+        };
+        let wanted = self.is_stale(state, now) || !state.keys.contains_key(kid);
+        wanted && now.saturating_sub(attempted) >= self.min_refetch_seconds
+    }
+
+    /// A failed fetch still counts as an attempt and leaves the old keys to age out.
+    fn refresh(&self, state: &mut CacheState, now: i64) {
+        state.attempted_at = Some(now);
+        let parsed = self
+            .fetcher
+            .fetch()
+            .ok()
+            .and_then(|body| parse_jwks(&body).ok());
+        if let Some(parsed) = parsed {
+            state.keys = parsed.keys;
+            state.fetched_at = Some(now);
+        }
     }
 }
 
 impl<F: JwksFetcher> KeySource for JwksCache<F> {
     fn key_for(&self, kid: &str, now: i64) -> Option<VerifyingKey> {
-        let _ = (kid, now, &self.state);
-        todo!("JwksCache::key_for")
+        let mut state = self.lock();
+        if self.refresh_due(&state, kid, now) {
+            self.refresh(&mut state, now);
+        }
+        if self.is_stale(&state, now) {
+            return None;
+        }
+        state.keys.get(kid).cloned()
     }
 }
 
@@ -172,7 +252,10 @@ mod tests {
     fn the_thumbprint_hashes_the_members_in_rfc_7638_order() {
         use sha2::{Digest, Sha256};
         let text = format!(r#"{{"crv":"Ed25519","kty":"OKP","x":"{X_B}"}}"#);
-        assert_eq!(thumbprint(X_B), encode_base64url(&Sha256::digest(text.as_bytes())));
+        assert_eq!(
+            thumbprint(X_B),
+            encode_base64url(&Sha256::digest(text.as_bytes()))
+        );
     }
 
     #[test]
@@ -183,7 +266,14 @@ mod tests {
         let mut spare_bits = X_A.to_string();
         spare_bits.pop();
         spare_bits.push('l');
-        for x in [short.as_str(), long.as_str(), "", "!!", &format!("{X_A}="), spare_bits.as_str()] {
+        for x in [
+            short.as_str(),
+            long.as_str(),
+            "",
+            "!!",
+            &format!("{X_A}="),
+            spare_bits.as_str(),
+        ] {
             assert!(VerifyingKey::from_x(x).is_none(), "{x:?}");
         }
     }
@@ -198,8 +288,14 @@ mod tests {
 
     #[test]
     fn a_good_document_is_indexed_by_the_computed_thumbprint() {
-        let parsed = parse_jwks(&document(&[jwk(&format!(r#","kid":"{KID_A}","alg":"EdDSA","use":"sig""#))])).unwrap();
-        assert_eq!(parsed.keys.keys().collect::<Vec<_>>(), vec![&KID_A.to_string()]);
+        let parsed = parse_jwks(&document(&[jwk(&format!(
+            r#","kid":"{KID_A}","alg":"EdDSA","use":"sig""#
+        ))]))
+        .unwrap();
+        assert_eq!(
+            parsed.keys.keys().collect::<Vec<_>>(),
+            vec![&KID_A.to_string()]
+        );
         assert!(parsed.refused.is_empty());
     }
 
@@ -207,7 +303,10 @@ mod tests {
     fn a_claimed_kid_never_names_a_key() {
         let parsed = parse_jwks(&document(&[jwk(r#","kid":"claimed-by-the-document""#)])).unwrap();
         assert!(!parsed.keys.contains_key("claimed-by-the-document"));
-        assert_eq!(parsed.keys.get(KID_A).map(|k| k.x().to_string()), Some(X_A.to_string()));
+        assert_eq!(
+            parsed.keys.get(KID_A).map(|k| k.x().to_string()),
+            Some(X_A.to_string())
+        );
     }
 
     #[test]
@@ -221,19 +320,40 @@ mod tests {
     #[test]
     fn every_entry_that_is_not_a_plain_ed25519_public_key_is_dropped_and_reported() {
         let entries = [
-            (r#"{"kty":"RSA","n":"AQAB","e":"AQAB"}"#.to_string(), KeyRefusal::NotOkp),
-            (format!(r#"{{"kty":"EC","crv":"P-256","x":"{X_A}"}}"#), KeyRefusal::NotOkp),
-            (format!(r#"{{"kty":"OKP","crv":"Ed448","x":"{X_A}"}}"#), KeyRefusal::NotEd25519),
-            (format!(r#"{{"kty":"OKP","crv":"X25519","x":"{X_A}"}}"#), KeyRefusal::NotEd25519),
-            (r#"{"kty":"OKP","crv":"Ed25519"}"#.to_string(), KeyRefusal::BadX),
-            (r#"{"kty":"OKP","crv":"Ed25519","x":"AAAA"}"#.to_string(), KeyRefusal::BadX),
-            (r#"{"kty":"OKP","crv":"Ed25519","x":7}"#.to_string(), KeyRefusal::BadX),
+            (
+                r#"{"kty":"RSA","n":"AQAB","e":"AQAB"}"#.to_string(),
+                KeyRefusal::NotOkp,
+            ),
+            (
+                format!(r#"{{"kty":"EC","crv":"P-256","x":"{X_A}"}}"#),
+                KeyRefusal::NotOkp,
+            ),
+            (
+                format!(r#"{{"kty":"OKP","crv":"Ed448","x":"{X_A}"}}"#),
+                KeyRefusal::NotEd25519,
+            ),
+            (
+                format!(r#"{{"kty":"OKP","crv":"X25519","x":"{X_A}"}}"#),
+                KeyRefusal::NotEd25519,
+            ),
+            (
+                r#"{"kty":"OKP","crv":"Ed25519"}"#.to_string(),
+                KeyRefusal::BadX,
+            ),
+            (
+                r#"{"kty":"OKP","crv":"Ed25519","x":"AAAA"}"#.to_string(),
+                KeyRefusal::BadX,
+            ),
+            (
+                r#"{"kty":"OKP","crv":"Ed25519","x":7}"#.to_string(),
+                KeyRefusal::BadX,
+            ),
             (jwk(r#","d":"c2VjcmV0""#), KeyRefusal::CarriesPrivateKey),
             ("[]".to_string(), KeyRefusal::NotAnObject),
             ("\"x\"".to_string(), KeyRefusal::NotAnObject),
         ];
         for (entry, why) in entries {
-            let parsed = parse_jwks(&document(&[entry.clone()])).unwrap();
+            let parsed = parse_jwks(&document(std::slice::from_ref(&entry))).unwrap();
             assert!(parsed.keys.is_empty(), "{entry}");
             assert_eq!(parsed.refused, vec![why], "{entry}");
         }
@@ -241,7 +361,11 @@ mod tests {
 
     #[test]
     fn a_private_key_in_the_document_does_not_poison_its_good_neighbours() {
-        let parsed = parse_jwks(&document(&[jwk(r#","d":"c2VjcmV0""#), format!(r#"{{"kty":"OKP","crv":"Ed25519","x":"{X_B}"}}"#)])).unwrap();
+        let parsed = parse_jwks(&document(&[
+            jwk(r#","d":"c2VjcmV0""#),
+            format!(r#"{{"kty":"OKP","crv":"Ed25519","x":"{X_B}"}}"#),
+        ]))
+        .unwrap();
         assert_eq!(parsed.keys.len(), 1);
         assert!(parsed.keys.contains_key(&thumbprint(X_B)));
         assert_eq!(parsed.refused, vec![KeyRefusal::CarriesPrivateKey]);
@@ -250,7 +374,16 @@ mod tests {
     #[test]
     fn a_document_that_is_not_a_strict_object_with_a_keys_array_is_malformed() {
         let duplicate = format!(r#"{{"keys":[],"keys":[{}]}}"#, jwk(""));
-        for body in ["", "[]", "null", "{}", r#"{"keys":{}}"#, r#"{"keys":"x"}"#, "not json", duplicate.as_str()] {
+        for body in [
+            "",
+            "[]",
+            "null",
+            "{}",
+            r#"{"keys":{}}"#,
+            r#"{"keys":"x"}"#,
+            "not json",
+            duplicate.as_str(),
+        ] {
             assert_eq!(parse_jwks(body), Err(JwksMalformed), "{body:?}");
         }
         assert!(parse_jwks(r#"{"keys":[]}"#).unwrap().keys.is_empty());
@@ -258,7 +391,9 @@ mod tests {
 
     #[test]
     fn a_repeated_member_inside_a_key_makes_the_document_malformed() {
-        let body = document(&[format!(r#"{{"kty":"OKP","crv":"Ed25519","x":"{X_A}","x":"{X_B}"}}"#)]);
+        let body = document(&[format!(
+            r#"{{"kty":"OKP","crv":"Ed25519","x":"{X_A}","x":"{X_B}"}}"#
+        )]);
         assert_eq!(parse_jwks(&body), Err(JwksMalformed));
     }
 
@@ -271,18 +406,27 @@ mod tests {
         fn fetch(&self) -> Result<String, FetchFailed> {
             self.calls.fetch_add(1, Ordering::SeqCst);
             let mut script = self.script.lock().unwrap();
-            if script.len() > 1 { script.pop_front().unwrap() } else { script.front().cloned().unwrap_or(Err(FetchFailed)) }
+            if script.len() > 1 {
+                script.pop_front().unwrap()
+            } else {
+                script.front().cloned().unwrap_or(Err(FetchFailed))
+            }
         }
     }
 
     fn cache_of(script: Vec<Result<String, FetchFailed>>) -> (JwksCache<Canned>, Arc<AtomicUsize>) {
         let calls = Arc::new(AtomicUsize::new(0));
-        let fetcher = Canned { script: Mutex::new(script.into()), calls: calls.clone() };
+        let fetcher = Canned {
+            script: Mutex::new(script.into()),
+            calls: calls.clone(),
+        };
         (JwksCache::new(fetcher), calls)
     }
 
     fn one_key(x: &str) -> Result<String, FetchFailed> {
-        Ok(document(&[format!(r#"{{"kty":"OKP","crv":"Ed25519","x":"{x}"}}"#)]))
+        Ok(document(&[format!(
+            r#"{{"kty":"OKP","crv":"Ed25519","x":"{x}"}}"#
+        )]))
     }
 
     #[test]
@@ -299,9 +443,15 @@ mod tests {
         let (cache, calls) = cache_of(vec![one_key(X_A)]);
         assert!(cache.key_for(KID_A, NOW).is_some());
         for i in 0..50 {
-            assert!(cache.key_for(&format!("unknown-{i}"), NOW + 1 + (i % 28)).is_none());
+            assert!(cache
+                .key_for(&format!("unknown-{i}"), NOW + 1 + (i % 28))
+                .is_none());
         }
-        assert_eq!(calls.load(Ordering::SeqCst), 1, "all inside the 30 second interval");
+        assert_eq!(
+            calls.load(Ordering::SeqCst),
+            1,
+            "all inside the 30 second interval"
+        );
         assert!(cache.key_for("unknown-later", NOW + 30).is_none());
         assert_eq!(calls.load(Ordering::SeqCst), 2);
         assert!(cache.key_for("unknown-again", NOW + 31).is_none());
@@ -325,9 +475,15 @@ mod tests {
         assert!(cache.key_for(KID_A, NOW).is_some());
         assert!(cache.key_for("unknown", NOW + 31).is_none());
         assert_eq!(calls.load(Ordering::SeqCst), 2);
-        assert!(cache.key_for(KID_A, NOW + 60).is_some(), "old key still served");
+        assert!(
+            cache.key_for(KID_A, NOW + 60).is_some(),
+            "old key still served"
+        );
         assert!(cache.key_for(KID_A, NOW + 299).is_some());
-        assert!(cache.key_for(KID_A, NOW + 300).is_none(), "stale at the time to live, and the refetch failed");
+        assert!(
+            cache.key_for(KID_A, NOW + 300).is_none(),
+            "stale at the time to live, and the refetch failed"
+        );
     }
 
     #[test]
@@ -347,7 +503,10 @@ mod tests {
         let (cache, _) = cache_of(vec![Ok(both), one_key(X_B)]);
         assert!(cache.key_for(KID_A, NOW).is_some());
         assert!(cache.key_for(&thumbprint(X_B), NOW).is_some());
-        assert!(cache.key_for(KID_A, NOW + 300).is_none(), "refetched document no longer lists it");
+        assert!(
+            cache.key_for(KID_A, NOW + 300).is_none(),
+            "refetched document no longer lists it"
+        );
         assert!(cache.key_for(&thumbprint(X_B), NOW + 300).is_some());
     }
 
