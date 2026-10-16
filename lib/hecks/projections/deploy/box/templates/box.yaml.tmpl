@@ -20,9 +20,12 @@ Parameters:
     Type: String
     Default: @@INSTANCE_TYPE@@
   AmiId:
-    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
-    Default: @@AMI_PARAMETER@@
-    Description: Never re-resolve this on a live box, because a newer image replaces the instance.
+    Type: AWS::EC2::Image::Id
+    Description: >-
+      The image the box runs, always given and never resolved here. Resolving the public image
+      key again on a live box finds the newest image, and a changed ImageId replaces the instance
+      and its Elastic IP association. make stacks passes the running box's own image, and takes a
+      newer one only when AMI_ID is given.
   RootVolumeGb:
     Type: Number
     Default: @@VOLUME_GB@@

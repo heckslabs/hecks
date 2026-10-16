@@ -20,7 +20,6 @@ module Hecks
             template("box.yaml.tmpl",
                      "STACK" => plan.infra_name, "INSTANCE_TYPE" => plan.instance_type,
                      "VOLUME_GB" => plan.volume_gb.to_s, "SNAPSHOTS_KEEP" => plan.snapshots_keep.to_s,
-                     "AMI_PARAMETER" => ami_parameter(plan.instance_type),
                      "COMPUTE_DOMAIN" => compute_domain(region),
                      "SECRET_RESOURCES" => secret_resources(plan), "WRITABLE_SECRETS" => writable_secrets(plan),
                      "TUNNEL_EGRESS" => tunnel_egress(plan),
@@ -29,6 +28,9 @@ module Hecks
           end
 
           # Graviton families end their generation digit with `g` (`t4g`, `m7gd`, `c6gn`).
+          #
+          # Only a first create reads it, from `make stacks`: a live box keeps the image it runs,
+          # because a newer one would replace the instance.
           #
           # @param instance_type [String] an EC2 instance type
           # @return [String] the SSM parameter of the matching Amazon Linux image

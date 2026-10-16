@@ -483,6 +483,18 @@ how to try the generated stacks without touching anything that matters. The
 deploy waits for the box's first boot to finish, so it can be run as soon as the
 stacks exist.
 
+### Upgrading the AMI deliberately
+
+`make stacks` never moves a live box to a newer image. It passes `AmiId` as the image the
+running `Box` instance already uses, and looks the latest Amazon Linux image up only when the
+box stack does not exist yet (ADR 0108). It prints which one it used and whether it was
+pinned or new. A newer image replaces the instance and its Elastic IP association, so ask for
+it on purpose, after previewing the change set:
+
+```sh
+make stacks VPC=vpc-... PRIVATE_SUBNETS=subnet-a,subnet-b PUBLIC_SUBNET=subnet-c AMI_ID=ami-...
+```
+
 To check what the stacks cost against a budget, run
 `hecks deploy cost_check.check budget=75 since=2026-10-05 --wait`. It reads the
 daily bill from `since` up to yesterday (today is still partial), scales the mean
