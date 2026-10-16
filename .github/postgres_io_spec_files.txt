@@ -15,6 +15,7 @@ spec/adapters/driven/postgres_era_concurrent_dispatch_spec.rb
 spec/adapters/driven/postgres_era_spec.rb
 spec/adapters/driven/postgres_spec.rb
 spec/adapters/driven/process_pool_spec.rb
+spec/adapters/driven/rehearsal_store_spec.rb
 spec/adapters/driven/rust_toolchain_spec.rb
 spec/adapters/query_agreement_spec.rb
 spec/adapters/query_hop_agreement_spec.rb
@@ -91,6 +92,7 @@ spec/query_answers_from_outside_spec.rb
 spec/referral_chain_spec.rb
 spec/runtime/boot_loads_bound_plugins_spec.rb
 spec/runtime/era_check_postgres_vendored_bluebook_spec.rb
+spec/runtime/era_check_postgres_vendored_chapter_name_spec.rb
 spec/runtime/outbox_postgres_spec.rb
 spec/runtime/postgres_era_shared_connection_spec.rb
 spec/runtime/postgres_era_storage_name_collision_spec.rb
@@ -98,6 +100,7 @@ spec/runtime/postgres_shared_connection_spec.rb
 spec/runtime/saga_durability_postgres_spec.rb
 spec/rust_conformance_dry_runs_spec.rb
 spec/rust_generated/has_many_spec.rb
+spec/rust_host_reference_validate_conformance_spec.rb
 spec/self_consistency_rust_spec.rb
 spec/smoke_harness_node_spec.rb
 spec/smoke_http_spec.rb
