@@ -164,6 +164,8 @@ struct CacheState {
     keys: HashMap<String, VerifyingKey>,
     fetched_at: Option<i64>,
     attempted_at: Option<i64>,
+    /// The time to live the last successful fetch earned, when the issuer named one.
+    hinted_ttl: Option<i64>,
 }
 
 /// A key set cache with a time to live and a rate-limited refetch on an unknown key.
@@ -203,9 +205,18 @@ impl<F: JwksFetcher> JwksCache<F> {
     }
 
     fn is_stale(&self, state: &CacheState, now: i64) -> bool {
+        let ttl = state.hinted_ttl.unwrap_or(self.ttl_seconds);
         state
             .fetched_at
-            .is_none_or(|fetched| now.saturating_sub(fetched) >= self.ttl_seconds)
+            .is_none_or(|fetched| now.saturating_sub(fetched) >= ttl)
+    }
+
+    /// The issuer's hint, kept between the refetch interval and the cap so that neither a zero nor
+    /// a huge value can turn the cache into a fetch amplifier or a stale-key hazard.
+    fn bounded_hint(&self) -> Option<i64> {
+        self.fetcher
+            .ttl_hint()
+            .map(|hint| hint.clamp(self.min_refetch_seconds, MAX_TTL_SECONDS))
     }
 
     fn refresh_due(&self, state: &CacheState, kid: &str, now: i64) -> bool {
@@ -227,6 +238,7 @@ impl<F: JwksFetcher> JwksCache<F> {
         if let Some(parsed) = parsed {
             state.keys = parsed.keys;
             state.fetched_at = Some(now);
+            state.hinted_ttl = self.bounded_hint();
         }
     }
 }

@@ -28,7 +28,10 @@ const START: i64 = 1_000;
 fn cache(hint: i64) -> (JwksCache<Hinted>, Arc<AtomicUsize>, Arc<AtomicI64>) {
     let fetches = Arc::new(AtomicUsize::new(0));
     let hint = Arc::new(AtomicI64::new(hint));
-    let fetcher = Hinted { fetches: fetches.clone(), hint: hint.clone() };
+    let fetcher = Hinted {
+        fetches: fetches.clone(),
+        hint: hint.clone(),
+    };
     (JwksCache::new(fetcher), fetches, hint)
 }
 

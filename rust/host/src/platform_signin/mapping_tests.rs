@@ -27,13 +27,23 @@ fn domain_ir() -> Value {
 }
 
 async fn scratch(name: &str) -> Mutex<Client> {
-    let (admin, conn) = tokio_postgres::connect(&crate::test_pg::conninfo("postgres"), NoTls).await.expect("postgres");
+    let (admin, conn) = tokio_postgres::connect(&crate::test_pg::conninfo("postgres"), NoTls)
+        .await
+        .expect("postgres");
     tokio::spawn(async move {
         let _ = conn.await;
     });
-    admin.batch_execute(&format!("DROP DATABASE IF EXISTS {name} WITH (FORCE)")).await.unwrap();
-    admin.batch_execute(&format!("CREATE DATABASE {name}")).await.unwrap();
-    let (client, conn) = tokio_postgres::connect(&crate::test_pg::conninfo(name), NoTls).await.expect("scratch");
+    admin
+        .batch_execute(&format!("DROP DATABASE IF EXISTS {name} WITH (FORCE)"))
+        .await
+        .unwrap();
+    admin
+        .batch_execute(&format!("CREATE DATABASE {name}"))
+        .await
+        .unwrap();
+    let (client, conn) = tokio_postgres::connect(&crate::test_pg::conninfo(name), NoTls)
+        .await
+        .expect("scratch");
     tokio::spawn(async move {
         let _ = conn.await;
     });
@@ -49,7 +59,13 @@ async fn scratch(name: &str) -> Mutex<Client> {
     Mutex::new(client)
 }
 
-async fn member(db: &Mutex<Client>, email: &str, role: Option<&str>, identity: Option<&str>, disabled: bool) {
+async fn member(
+    db: &Mutex<Client>,
+    email: &str,
+    role: Option<&str>,
+    identity: Option<&str>,
+    disabled: bool,
+) {
     let state = json!({
         "name": {"value": "Person"}, "email": {"value": email},
         "role": role.map(|r| json!({"value": r})), "identity_id": identity.map(|i| json!({"value": i})), "disabled": disabled,
@@ -58,7 +74,8 @@ async fn member(db: &Mutex<Client>, email: &str, role: Option<&str>, identity: O
 }
 
 async fn known_identity(db: &Mutex<Client>, issuer: &str, subject: &str, identity: &str) {
-    let state = json!({"issuer": {"value": issuer}, "subject": {"value": subject}, "identity": identity});
+    let state =
+        json!({"issuer": {"value": issuer}, "subject": {"value": subject}, "identity": identity});
     let id = format!("{issuer}:{subject}");
     db.lock().await.execute("INSERT INTO acme_external_identifier_head_snapshot_1 (id, ordinal, state) VALUES ($1, 1, $2::jsonb)", &[&id, &state]).await.unwrap();
 }
@@ -71,11 +88,25 @@ struct World {
 
 impl World {
     async fn new(name: &str) -> Self {
-        Self { db: scratch(name).await, ir: domain_ir(), config: LineageConfig { domain: "Acme".into(), era: Some(1), mirrored: None } }
+        Self {
+            db: scratch(name).await,
+            ir: domain_ir(),
+            config: LineageConfig {
+                domain: "Acme".into(),
+                era: Some(1),
+                mirrored: None,
+            },
+        }
     }
 
     fn members(&self) -> HostMembers<'_> {
-        HostMembers { client: &self.db, domain_ir: &self.ir, wasm_path: Path::new("unused.wasm"), config: &self.config, invoker: &NeverInvoker }
+        HostMembers {
+            client: &self.db,
+            domain_ir: &self.ir,
+            wasm_path: Path::new("unused.wasm"),
+            config: &self.config,
+            invoker: &NeverInvoker,
+        }
     }
 
     async fn signs_in(&self) -> Option<crate::auth::Session> {
@@ -88,8 +119,21 @@ impl World {
 #[tokio::test]
 async fn a_resolved_identity_signs_its_linked_member_in() {
     let world = World::new("hecks_host_signin_resolves").await;
-    member(&world.db, "linked@example.test", Some("Admin"), Some("identity-1"), false).await;
-    known_identity(&world.db, "https://idp.example", "idp-subject-0001", "identity-1").await;
+    member(
+        &world.db,
+        "linked@example.test",
+        Some("Admin"),
+        Some("identity-1"),
+        false,
+    )
+    .await;
+    known_identity(
+        &world.db,
+        "https://idp.example",
+        "idp-subject-0001",
+        "identity-1",
+    )
+    .await;
     let session = world.signs_in().await.expect("signed in");
     assert_eq!(session.email, "linked@example.test");
     assert_eq!(session.role.as_deref(), Some("Admin"));
@@ -98,7 +142,14 @@ async fn a_resolved_identity_signs_its_linked_member_in() {
 #[tokio::test]
 async fn a_member_linked_to_another_identity_is_not_signed_in() {
     let world = World::new("hecks_host_signin_other_identity").await;
-    member(&world.db, "person@example.test", Some("Admin"), Some("identity-other"), false).await;
+    member(
+        &world.db,
+        "person@example.test",
+        Some("Admin"),
+        Some("identity-other"),
+        false,
+    )
+    .await;
     assert!(world.signs_in().await.is_none());
 }
 
@@ -114,16 +165,42 @@ async fn a_disabled_member_is_not_signed_in_by_identity_or_by_email() {
     member(&world.db, "person@example.test", Some("Admin"), None, true).await;
     assert!(world.signs_in().await.is_none());
     let linked = World::new("hecks_host_signin_disabled_linked").await;
-    member(&linked.db, "linked@example.test", Some("Admin"), Some("identity-1"), true).await;
-    known_identity(&linked.db, "https://idp.example", "idp-subject-0001", "identity-1").await;
+    member(
+        &linked.db,
+        "linked@example.test",
+        Some("Admin"),
+        Some("identity-1"),
+        true,
+    )
+    .await;
+    known_identity(
+        &linked.db,
+        "https://idp.example",
+        "idp-subject-0001",
+        "identity-1",
+    )
+    .await;
     assert!(linked.signs_in().await.is_none());
 }
 
 #[tokio::test]
 async fn a_member_without_a_role_is_not_signed_in() {
     let world = World::new("hecks_host_signin_no_role").await;
-    member(&world.db, "linked@example.test", None, Some("identity-1"), false).await;
-    known_identity(&world.db, "https://idp.example", "idp-subject-0001", "identity-1").await;
+    member(
+        &world.db,
+        "linked@example.test",
+        None,
+        Some("identity-1"),
+        false,
+    )
+    .await;
+    known_identity(
+        &world.db,
+        "https://idp.example",
+        "idp-subject-0001",
+        "identity-1",
+    )
+    .await;
     assert!(world.signs_in().await.is_none());
     let unlinked = World::new("hecks_host_signin_no_role_email").await;
     member(&unlinked.db, "person@example.test", None, None, false).await;
@@ -133,8 +210,21 @@ async fn a_member_without_a_role_is_not_signed_in() {
 #[tokio::test]
 async fn the_whole_callback_over_a_real_store_sets_the_session_and_clears_the_cookie() {
     let world = World::new("hecks_host_signin_whole").await;
-    member(&world.db, "linked@example.test", Some("Admin"), Some("identity-1"), false).await;
-    known_identity(&world.db, "https://idp.example", "idp-subject-0001", "identity-1").await;
+    member(
+        &world.db,
+        "linked@example.test",
+        Some("Admin"),
+        Some("identity-1"),
+        false,
+    )
+    .await;
+    known_identity(
+        &world.db,
+        "https://idp.example",
+        "idp-subject-0001",
+        "identity-1",
+    )
+    .await;
     let doc = vectors();
     let request = request_for(&single(&doc, "valid"));
     let ext = PlatformSignin::new(vector_handler("alongside", Arc::new(Recorder::default())));
@@ -147,7 +237,14 @@ async fn the_whole_callback_over_a_real_store_sets_the_session_and_clears_the_co
 #[tokio::test]
 async fn the_whole_callback_over_a_real_store_refuses_an_unlinked_person() {
     let world = World::new("hecks_host_signin_whole_unlinked").await;
-    member(&world.db, "person@example.test", Some("Admin"), Some("identity-other"), false).await;
+    member(
+        &world.db,
+        "person@example.test",
+        Some("Admin"),
+        Some("identity-other"),
+        false,
+    )
+    .await;
     let doc = vectors();
     let request = request_for(&single(&doc, "valid"));
     let ext = PlatformSignin::new(vector_handler("alongside", Arc::new(Recorder::default())));

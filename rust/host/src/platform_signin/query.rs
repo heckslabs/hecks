@@ -35,16 +35,67 @@ pub enum ParamFault {
 ///
 /// Returns the [`ParamFault`] that says why the pair is not usable.
 pub fn parse_callback(raw_query: &str) -> Result<CallbackParams, ParamFault> {
-    let _ = raw_query;
-    todo!()
+    let pairs = decode_pairs(raw_query)?;
+    Ok(CallbackParams {
+        token: single(&pairs, "token")?,
+        state: single(&pairs, "state")?,
+    })
+}
+
+fn single(pairs: &[(String, String)], name: &str) -> Result<String, ParamFault> {
+    let mut found = pairs
+        .iter()
+        .filter(|(key, _)| key == name)
+        .map(|(_, value)| value);
+    let value = found.next().ok_or(ParamFault::Missing)?;
+    if found.next().is_some() {
+        return Err(ParamFault::Repeated);
+    }
+    Ok(value.clone())
+}
+
+fn decode_pairs(raw_query: &str) -> Result<Vec<(String, String)>, ParamFault> {
+    if raw_query.len() > MAX_QUERY_BYTES {
+        return Err(ParamFault::Oversized);
+    }
+    raw_query
+        .split('&')
+        .filter(|pair| !pair.is_empty())
+        .map(|pair| {
+            let (name, value) = pair.split_once('=').unwrap_or((pair, ""));
+            Ok((decode(name)?, decode(value)?))
+        })
+        .collect()
+}
+
+/// Decodes percent escapes; a plus stays a plus, as it does in the host's other query reading.
+fn decode(text: &str) -> Result<String, ParamFault> {
+    let bytes = text.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' {
+            let pair = bytes.get(i + 1..i + 3).ok_or(ParamFault::BadEncoding)?;
+            out.push(hex_byte(pair).ok_or(ParamFault::BadEncoding)?);
+            i += 3;
+        } else {
+            out.push(bytes[i]);
+            i += 1;
+        }
+    }
+    String::from_utf8(out).map_err(|_| ParamFault::BadEncoding)
+}
+
+fn hex_byte(pair: &[u8]) -> Option<u8> {
+    let digit = |b: u8| (b as char).to_digit(16);
+    Some((digit(pair[0])? * 16 + digit(pair[1])?) as u8)
 }
 
 /// Tells whether the query carries `name` with exactly `value` at least once.
 ///
 /// A malformed query carries nothing.
 pub fn has_value(raw_query: &str, name: &str, value: &str) -> bool {
-    let _ = (raw_query, name, value);
-    todo!()
+    decode_pairs(raw_query).is_ok_and(|pairs| pairs.iter().any(|(k, v)| k == name && v == value))
 }
 
 #[cfg(test)]
@@ -53,8 +104,16 @@ mod tests {
 
     #[test]
     fn token_and_state_are_read_and_the_rest_is_ignored() {
-        let params = parse_callback("token=a.b.c&state=S1&return=https%3A%2F%2Fevil.example&next=/x").unwrap();
-        assert_eq!(params, CallbackParams { token: "a.b.c".into(), state: "S1".into() });
+        let params =
+            parse_callback("token=a.b.c&state=S1&return=https%3A%2F%2Fevil.example&next=/x")
+                .unwrap();
+        assert_eq!(
+            params,
+            CallbackParams {
+                token: "a.b.c".into(),
+                state: "S1".into()
+            }
+        );
     }
 
     #[test]
@@ -85,35 +144,59 @@ mod tests {
 
     #[test]
     fn a_repeated_parameter_is_refused_even_when_the_values_agree() {
-        assert_eq!(parse_callback("token=T&token=T&state=S"), Err(ParamFault::Repeated));
-        assert_eq!(parse_callback("token=T&state=S&state=S"), Err(ParamFault::Repeated));
-        assert_eq!(parse_callback("token=T&state=S&token=U"), Err(ParamFault::Repeated));
+        assert_eq!(
+            parse_callback("token=T&token=T&state=S"),
+            Err(ParamFault::Repeated)
+        );
+        assert_eq!(
+            parse_callback("token=T&state=S&state=S"),
+            Err(ParamFault::Repeated)
+        );
+        assert_eq!(
+            parse_callback("token=T&state=S&token=U"),
+            Err(ParamFault::Repeated)
+        );
     }
 
     #[test]
     fn array_style_names_are_different_names() {
-        assert_eq!(parse_callback("token[]=T&state=S"), Err(ParamFault::Missing));
+        assert_eq!(
+            parse_callback("token[]=T&state=S"),
+            Err(ParamFault::Missing)
+        );
         let params = parse_callback("token=T&state=S&token[]=U").unwrap();
         assert_eq!(params.token, "T");
     }
 
     #[test]
     fn a_percent_encoded_name_counts_as_the_name() {
-        assert_eq!(parse_callback("tok%65n=T&token=U&state=S"), Err(ParamFault::Repeated));
+        assert_eq!(
+            parse_callback("tok%65n=T&token=U&state=S"),
+            Err(ParamFault::Repeated)
+        );
     }
 
     #[test]
     fn an_oversized_query_is_refused_before_it_is_read() {
         let big = format!("token={}&state=S", "a".repeat(MAX_QUERY_BYTES));
         assert_eq!(parse_callback(&big), Err(ParamFault::Oversized));
-        let exact = format!("token={}&state=S", "a".repeat(MAX_QUERY_BYTES - "token=&state=S".len()));
+        let exact = format!(
+            "token={}&state=S",
+            "a".repeat(MAX_QUERY_BYTES - "token=&state=S".len())
+        );
         assert_eq!(exact.len(), MAX_QUERY_BYTES);
         assert!(parse_callback(&exact).is_ok());
     }
 
     #[test]
     fn a_bad_percent_escape_or_invalid_utf8_is_a_fault() {
-        for bad in ["token=%&state=S", "token=%G1&state=S", "token=%4&state=S", "token=%ff%fe&state=S", "token=T&state=%c3"] {
+        for bad in [
+            "token=%&state=S",
+            "token=%G1&state=S",
+            "token=%4&state=S",
+            "token=%ff%fe&state=S",
+            "token=T&state=%c3",
+        ] {
             assert_eq!(parse_callback(bad), Err(ParamFault::BadEncoding), "{bad}");
         }
     }
@@ -133,7 +216,17 @@ mod tests {
 
     #[test]
     fn has_value_is_exact_and_tolerates_junk() {
-        for query in ["", "via=", "via=Google", "via=google2", "via=googl", "xvia=google", "via", "via=%", "a=via=google"] {
+        for query in [
+            "",
+            "via=",
+            "via=Google",
+            "via=google2",
+            "via=googl",
+            "xvia=google",
+            "via",
+            "via=%",
+            "a=via=google",
+        ] {
             assert!(!has_value(query, "via", "google"), "{query:?}");
         }
     }

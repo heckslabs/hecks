@@ -1686,24 +1686,28 @@ fn redirect(location: &str) -> Value {
     json!({"statusCode": 302, "headers": {"location": location}, "body": "", "isBase64Encoded": false})
 }
 
-// HttpOnly + SameSite always; Secure only when GOOGLE_REDIRECT_URI is
-// https — a localhost http:// callback can't set a Secure cookie.
+// HttpOnly + SameSite always; Secure unless the host's own address is plain http — a localhost
+// http:// callback can't set a Secure cookie. See `account_cookie_flags` for which address counts.
 fn cookie_flags() -> &'static str {
-    let uri = std::env::var("GOOGLE_REDIRECT_URI").unwrap_or_default();
-    if uri.starts_with("http://") {
-        "; Path=/; HttpOnly; SameSite=Lax"
-    } else {
-        "; Path=/; HttpOnly; Secure; SameSite=Lax"
-    }
+    let redirect_uri = std::env::var("GOOGLE_REDIRECT_URI").unwrap_or_default();
+    let site_url = std::env::var("SITE_URL").unwrap_or_default();
+    account_cookie_flags(&redirect_uri, &site_url)
 }
 
 // The flags for the account cookie given the Google redirect URI and the site's public address.
 // A host that sets the redirect URI is judged by it, as ever; a host that has stopped setting it
 // is judged by SITE_URL, and with neither set the cookie is Secure.
 pub(crate) fn account_cookie_flags(redirect_uri: &str, site_url: &str) -> &'static str {
-    let _ = (redirect_uri, site_url);
-    todo!()
+    let judged_by = if redirect_uri.is_empty() { site_url } else { redirect_uri };
+    if judged_by.starts_with("http://") {
+        COOKIE_FLAGS_PLAIN
+    } else {
+        COOKIE_FLAGS_SECURE
+    }
 }
+
+pub(crate) const COOKIE_FLAGS_SECURE: &str = "; Path=/; HttpOnly; Secure; SameSite=Lax";
+const COOKIE_FLAGS_PLAIN: &str = "; Path=/; HttpOnly; SameSite=Lax";
 
 fn redirect_with_cookie(location: &str, cookie: &str) -> Value {
     json!({"statusCode": 302, "headers": {"location": location}, "cookies": [cookie], "body": "", "isBase64Encoded": false})
