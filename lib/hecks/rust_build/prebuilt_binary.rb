@@ -10,12 +10,13 @@ module Hecks
   module RustBuild
     # A binary hecks has already compiled and published, named by what went into it (ADR 0110).
     #
-    # The `PrebuiltBinary` rows of the Vocabulary chapter say which binaries are published: the crate
-    # to key, the Cargo binary, the target it is built for. A release tagged `<name>-<key>` holds the
-    # binary and its `.sha256`; the key is a hash of the crate's build inputs, so the same bytes are
-    # the same release, whichever commit they come from. `fetch` downloads it and checks its hash, and
-    # answers nil on any miss (not published yet, no network, a hash that does not match) so a caller
-    # compiles as it always did. `HECKS_PREBUILT=off` turns the download off.
+    # The `PrebuiltBinary` rows of the Vocabulary chapter say which binaries are published: the
+    # crate to key, the Cargo binary, the target it is built for. A release tagged `<name>-<key>`
+    # holds the binary and its `.sha256`; the key is a hash of the crate's build inputs, so the
+    # same bytes are the same release, whichever commit they come from. `fetch` downloads it and
+    # checks its hash, and answers nil on any miss (not published yet, no network, a hash that
+    # does not match) so a caller compiles as it always did. `HECKS_PREBUILT=off` turns the
+    # download off.
     module PrebuiltBinary
       # Where releases are published.
       REPOSITORY = "heckslabs/hecks"
@@ -56,7 +57,7 @@ module Hecks
       # @return [String] the file the release holds the binary as
       def asset(name)
         found = row(name)
-        "#{found["bin"]}-#{found["target"]}"
+        "#{found["executable"]}-#{found["target"]}"
       end
 
       # @param name [String] a row's name
@@ -78,7 +79,8 @@ module Hecks
         nil
       end
 
-      # @return [String, nil] the published binary, nil unless its bytes hash to the published sha256
+      # @return [String, nil] the published binary, nil unless its bytes hash to the published
+      #   sha256
       def verified(name, crate_dir)
         base = "https://github.com/#{REPOSITORY}/releases/download/#{tag(name, key(crate_dir))}/#{asset(name)}"
         expected = get("#{base}.sha256")&.split&.first

@@ -116,6 +116,6 @@ RSpec.describe Hecks::RustBuild::PrebuiltBinary do
   end
 
   it "has a row for the host, which is what the publish workflow is projected from" do
-    expect(described_class.row("host")).to include("crate" => "rust/host", "bin" => "bootstrap")
+    expect(described_class.row("host")).to include("crate" => "rust/host", "executable" => "bootstrap")
   end
 end

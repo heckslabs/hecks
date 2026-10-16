@@ -32763,6 +32763,89 @@
               "admits": null,
               "default": null,
               "list": false,
+              "name": "crate",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "executable",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "target",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "runner",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "name",
+                "host"
+              ],
+              [
+                "crate",
+                "rust/host"
+              ],
+              [
+                "executable",
+                "bootstrap"
+              ],
+              [
+                "target",
+                "x86_64-unknown-linux-gnu"
+              ],
+              [
+                "runner",
+                "ubuntu-24.04"
+              ]
+            ]
+          ],
+          "name": "PrebuiltBinary"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
               "name": "type",
               "optional": false,
               "pattern": null,

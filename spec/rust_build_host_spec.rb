@@ -73,12 +73,16 @@ RSpec.describe Hecks::RustBuild::Host do
     expect(options[:env]).to include("CARGO_TARGET_DIR" => File.join(dir, "cache"))
   end
 
-  it "compiles nothing when hecks has published this crate's host, and stages the one it downloaded", :aggregate_failures do
+  def publish_host
     allow(Hecks::RustBuild::PrebuiltBinary).to receive(:fetch) do |_name, _crate, target:, into:|
       FileUtils.mkdir_p(File.dirname(into))
       File.write(into, "published host for #{target}")
       into
     end
+  end
+
+  it "compiles nothing when hecks has published this crate's host, and stages the one it downloaded", :aggregate_failures do
+    publish_host
 
     expect(build).to eq(0)
     expect(cargo_calls).to be_empty
