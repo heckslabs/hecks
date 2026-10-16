@@ -709,6 +709,28 @@ Hecks.bluebook "Bluebook" do
              release_trailer: "Release-Approved-By"
     end
 
+    # A binary hecks builds once per change to its crate and publishes, so a client that needs the
+    # same binary downloads it instead of compiling it (ADR 0110). `hecks regeneration_run.project_lanes`
+    # writes .github/workflows/publish-<name>.yml from each row; `Hecks::RustBuild::PrebuiltBinary`
+    # reads the same rows to name what to download.
+    #
+    # `crate` is the directory under the checkout that is built and keyed: the key is a hash of every
+    # file in it that goes into the build, so the same bytes in the crate are the same release.
+    # `executable` is the Cargo binary and `target` the Rust triple it is built for. `runner` is the
+    # GitHub-hosted image it is built on, pinned (never `-latest`) because a binary links the
+    # runner's glibc and must run on every host that runs that image or a newer one.
+    # The release is tagged `<name>-<key>` and carries `<executable>-<target>` and its `.sha256`.
+    value_object "PrebuiltBinary" do
+      attribute :name,   String
+      attribute :crate,  String
+      attribute :executable, String
+      attribute :target, String
+      attribute :runner, String
+
+      member name: "host", crate: "rust/host", executable: "bootstrap", target: "x86_64-unknown-linux-gnu",
+             runner: "ubuntu-24.04"
+    end
+
     # The dials of the hecks_qa loop: what each is called, the type of value it takes and what it
     # does. qa/settings.yml holds the values, which are edited and reviewed as a diff; this table
     # holds the rest, so the loader (`Hecks::Fuzzing::QaSettings`) checks the file against it and
