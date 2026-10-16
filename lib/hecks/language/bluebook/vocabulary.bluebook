@@ -611,6 +611,10 @@ Hecks.bluebook "Bluebook" do
     # `mode` is how `pattern` (an extended regex over changed paths) decides:
     # `touches` runs the job when any changed path matches, `skips_unless` runs it
     # when any changed path does NOT match (the pattern is the safe-to-skip list).
+    # `release_only` answers a different question and ignores `pattern`: `touched` is false only
+    # when the change edits nothing but the `ReleaseFile` rows' files and lines and the base it is
+    # measured against has every inheritable `RequiredCheck` green (ADR 0107), so the run may
+    # inherit that certification.
     # `push` is what a push event does: `skip` leaves the gate out of push runs,
     # `before_sha` diffs against the push's `before` commit.
     value_object "CiGate" do
@@ -624,10 +628,31 @@ Hecks.bluebook "Bluebook" do
       member name: "runtime_changed", workflow: "ci.yml", mode: "touches",
              pattern: '^lib/hecks/runtime/', push: "before_sha",
              label: "does this change touch lib/hecks/runtime/**?"
+      member name: "release_only", workflow: "ci.yml", mode: "release_only",
+             pattern: "", push: "before_sha",
+             label: "is this change only a release bump on a certified base?"
       member name: "postgres_io_relevant_changed", workflow: "ci-postgres-io-parallel.yml", mode: "skips_unless",
              pattern: '^(docs/|editors/|release/|deploy/|\.claude/|\.githooks/|rust/(parser|codegen|host|build|lsp|web|tests)/|\.rubocop\.yml$|\.rubocop_todo\.yml$|\.mcp\.json$|\.rspec-local\.example$|README\.md$|CHANGELOG\.md$|CONTRIBUTING\.md$|SECURITY\.md$|LICENSE$|\.gitignore$)',
              push: "skip",
              label: "does this change touch anything rspec_postgres_io_parallel covers?"
+    end
+
+    # The files a release bump edits, and the lines of each it may change. A commit whose whole
+    # diff against a certified base falls inside these rows inherits the base's certification
+    # (`CiGate` `release_only`, ADR 0107): its checks report success without their jobs running,
+    # and the `release_consistency` check still runs on it. `path` is the file, exact; `lines` is
+    # an extended regex every added or removed line of that file must match, empty for any line.
+    value_object "ReleaseFile" do
+      attribute :path,  String
+      attribute :lines, String
+
+      member path: "lib/hecks/version.rb", lines: '^\s*VERSION = "[0-9]+\.[0-9]+\.[0-9]+"\.freeze$'
+      member path: "CHANGELOG.md", lines: ""
+      member path: "README.md", lines: '^(\*\*Status:\*\* )?Current release: `[0-9]+\.[0-9]+\.[0-9]+`'
+      member path: "Gemfile.lock", lines: '^    hecks \([0-9]+\.[0-9]+\.[0-9]+\)$'
+      member path: "rust/host/HECKS_RELEASE", lines: '^[0-9]+\.[0-9]+\.[0-9]+$'
+      member path: "packages/hecks-client/package.json", lines: '^\s*"version": "[0-9]+\.[0-9]+\.[0-9]+",?$'
+      member path: "packages/hecks-client/package-lock.json", lines: '^\s*"version": "[0-9]+\.[0-9]+\.[0-9]+",?$'
     end
 
     # The checks a commit must have passed before a `Promotion` moves it onto a guarded lane. Each
@@ -635,8 +660,12 @@ Hecks.bluebook "Bluebook" do
     # that a path gate skipped reports `skipped`, which counts as passed. `hecks promote` reads
     # these rows, and hecks project_lanes writes them into the ruleset of any lane that requires
     # them, so the list lives here and nowhere else.
+    #
+    # `runs` is `always` for a check a release bump still runs (it is not inherited from the base);
+    # empty for a check a bump may inherit.
     value_object "RequiredCheck" do
       attribute :name, String
+      attribute :runs, String
 
       member name: "rspec"
       member name: "checks"
@@ -647,6 +676,7 @@ Hecks.bluebook "Bluebook" do
       member name: "rspec_rust_codegen"
       member name: "rspec_rust_host"
       member name: "rspec_fuzzing"
+      member name: "release_consistency", runs: "always"
     end
 
     # The branches a change travels along. `main` takes pushes with no gate; `stable` takes only

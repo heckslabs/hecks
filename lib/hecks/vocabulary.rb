@@ -51,6 +51,7 @@ module Hecks
       ].freeze,
       "CiGate" => [
         {"name"=>"runtime_changed", "workflow"=>"ci.yml", "mode"=>"touches", "pattern"=>"^lib/hecks/runtime/", "push"=>"before_sha", "label"=>"does this change touch lib/hecks/runtime/**?"}.freeze,
+        {"name"=>"release_only", "workflow"=>"ci.yml", "mode"=>"release_only", "pattern"=>"", "push"=>"before_sha", "label"=>"is this change only a release bump on a certified base?"}.freeze,
         {"name"=>"postgres_io_relevant_changed", "workflow"=>"ci-postgres-io-parallel.yml", "mode"=>"skips_unless", "pattern"=>"^(docs/|editors/|release/|deploy/|\\.claude/|\\.githooks/|rust/(parser|codegen|host|build|lsp|web|tests)/|\\.rubocop\\.yml$|\\.rubocop_todo\\.yml$|\\.mcp\\.json$|\\.rspec-local\\.example$|README\\.md$|CHANGELOG\\.md$|CONTRIBUTING\\.md$|SECURITY\\.md$|LICENSE$|\\.gitignore$)", "push"=>"skip", "label"=>"does this change touch anything rspec_postgres_io_parallel covers?"}.freeze
       ].freeze,
       "Comparison" => [
@@ -363,6 +364,15 @@ module Hecks
         {"refusal"=>"AttributeAbsent", "site"=>"absent_read", "template"=>"{aggregate} {field} is absent on this record — declared, not optional, and added since it was written. Backfill it in a translation (backfill :{field}, default: ...), or declare it optional: true"}.freeze,
         {"refusal"=>"ProjectionAbsent", "site"=>"absent_read", "template"=>"{aggregate} {field} is not yet projected on this record — declared via projects :{field}, but no rebuild sweep has populated it. Run the sweep, or read {reference}.{remote_field} directly if this rule cannot wait"}.freeze
       ].freeze,
+      "ReleaseFile" => [
+        {"path"=>"lib/hecks/version.rb", "lines"=>"^\\s*VERSION = \"[0-9]+\\.[0-9]+\\.[0-9]+\"\\.freeze$"}.freeze,
+        {"path"=>"CHANGELOG.md", "lines"=>""}.freeze,
+        {"path"=>"README.md", "lines"=>"^(\\*\\*Status:\\*\\* )?Current release: `[0-9]+\\.[0-9]+\\.[0-9]+`"}.freeze,
+        {"path"=>"Gemfile.lock", "lines"=>"^    hecks \\([0-9]+\\.[0-9]+\\.[0-9]+\\)$"}.freeze,
+        {"path"=>"rust/host/HECKS_RELEASE", "lines"=>"^[0-9]+\\.[0-9]+\\.[0-9]+$"}.freeze,
+        {"path"=>"packages/hecks-client/package.json", "lines"=>"^\\s*\"version\": \"[0-9]+\\.[0-9]+\\.[0-9]+\",?$"}.freeze,
+        {"path"=>"packages/hecks-client/package-lock.json", "lines"=>"^\\s*\"version\": \"[0-9]+\\.[0-9]+\\.[0-9]+\",?$"}.freeze
+      ].freeze,
       "RequiredCheck" => [
         {"name"=>"rspec"}.freeze,
         {"name"=>"checks"}.freeze,
@@ -372,7 +382,8 @@ module Hecks
         {"name"=>"rspec_rust_parser"}.freeze,
         {"name"=>"rspec_rust_codegen"}.freeze,
         {"name"=>"rspec_rust_host"}.freeze,
-        {"name"=>"rspec_fuzzing"}.freeze
+        {"name"=>"rspec_fuzzing"}.freeze,
+        {"name"=>"release_consistency", "runs"=>"always"}.freeze
       ].freeze,
       "RetiredScript" => [
         {"script"=>"ir", "section"=>"Custodian", "aggregate"=>"Introspection", "verb"=>"ir"}.freeze,

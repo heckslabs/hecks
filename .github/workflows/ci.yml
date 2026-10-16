@@ -56,8 +56,69 @@ jobs:
           job: rspec_impl
           result: ${{ needs.rspec_impl.result }}
 
+  # A commit that is only a release bump on a fully certified base inherits that base's
+  # certification (ADR 0107). `release_only` answers `touched=false` for it; this job then writes
+  # the same attestation note a local pre-push writes, for this tree, which every detector below
+  # already honours, so each required check reports success without its heavy job running. Any
+  # other commit skips this job and the detectors find no note, so the suite runs as it always did.
+  # BEGIN GENERATED ci_gate release_only (CiGate vocabulary; hecks project_ci_gates). Do not hand-edit.
+  release_only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      checks: read
+    outputs:
+      touched: ${{ steps.diff.outputs.touched }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history: the diff needs both endpoints present as real objects.
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-ruby
+      - uses: ./.github/actions/hecks-environment
+      - id: diff
+        name: 'is this change only a release bump on a certified base?'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bundle exec exe/hecks regeneration_run.decide_ci_gate gate=release_only --wait
+  # END GENERATED ci_gate release_only
+
+  inherit_certification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: release_only
+    if: needs.release_only.outputs.touched == 'false'
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Attest this tree for the checks its certified base already passed
+        uses: ./.github/actions/write-attestation
+        with:
+          checks: doc_coverage,engine_agreement,model_check,rspec,rubocop,rspec_rust_io,rspec_rust_parser,rspec_rust_codegen,rspec_rust_host,rspec_fuzzing,checks_fuzz,checks_fuzz_postgres,checks_fuzz_sqlite,checks_codegen_drift,rspec_postgres_io,rspec_postgres_io_parallel
+          hmac-key: ${{ secrets.HECKS_CI_ATTEST_KEY }}
+
+  # Runs on every commit, release bump or not, so a half-done bump cannot be certified: the files
+  # a bump edits by hand must still agree with each other. It is a RequiredCheck marked
+  # `runs: always`, which is why a bump inherits every other check but not this one.
+  release_consistency:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-ruby
+      - uses: ./.github/actions/hecks-environment
+      - name: The version files, the changelog and the release workflow agree
+        run: >-
+          bundle exec rspec spec/readme_version_spec.rb spec/hecks_client_version_spec.rb
+          spec/host_release_sync_spec.rb spec/changelog_planned_release_spec.rb
+          spec/docs_stale_version_spec.rb spec/release_workflow_spec.rb
+
   # Calls ci-rspec.yml; secrets are passed explicitly.
   rspec_impl:
+    needs: inherit_certification
+    if: ${{ !cancelled() }}
     uses: ./.github/workflows/ci-rspec.yml
     secrets:
       HECKS_CI_ATTEST_KEY: ${{ secrets.HECKS_CI_ATTEST_KEY }}
@@ -86,6 +147,8 @@ jobs:
 
   # Calls ci-checks.yml; secrets are passed explicitly.
   checks_impl:
+    needs: inherit_certification
+    if: ${{ !cancelled() }}
     uses: ./.github/workflows/ci-checks.yml
     secrets:
       HECKS_CI_ATTEST_KEY: ${{ secrets.HECKS_CI_ATTEST_KEY }}
@@ -171,6 +234,8 @@ jobs:
 
   # Calls ci-postgres-io.yml; secrets are passed explicitly, same as rspec_impl/checks_impl.
   rspec_postgres_io_impl:
+    needs: inherit_certification
+    if: ${{ !cancelled() }}
     uses: ./.github/workflows/ci-postgres-io.yml
     secrets:
       HECKS_CI_ATTEST_KEY: ${{ secrets.HECKS_CI_ATTEST_KEY }}
@@ -203,6 +268,8 @@ jobs:
 
   # Calls ci-postgres-io-parallel.yml; secrets are passed explicitly, same as rspec_impl/checks_impl.
   rspec_postgres_io_parallel_impl:
+    needs: inherit_certification
+    if: ${{ !cancelled() }}
     uses: ./.github/workflows/ci-postgres-io-parallel.yml
     secrets:
       HECKS_CI_ATTEST_KEY: ${{ secrets.HECKS_CI_ATTEST_KEY }}
@@ -235,6 +302,8 @@ jobs:
 
   # Calls ci-rust-io.yml; secrets are passed explicitly, same as rspec_impl/checks_impl.
   rspec_rust_io_impl:
+    needs: inherit_certification
+    if: ${{ !cancelled() }}
     uses: ./.github/workflows/ci-rust-io.yml
     secrets:
       HECKS_CI_ATTEST_KEY: ${{ secrets.HECKS_CI_ATTEST_KEY }}
@@ -341,6 +410,8 @@ jobs:
 
   # Calls ci-rust-parser.yml; secrets are passed explicitly, same as rspec_impl/checks_impl.
   rspec_rust_parser_impl:
+    needs: inherit_certification
+    if: ${{ !cancelled() }}
     uses: ./.github/workflows/ci-rust-parser.yml
     secrets:
       HECKS_CI_ATTEST_KEY: ${{ secrets.HECKS_CI_ATTEST_KEY }}
@@ -372,6 +443,8 @@ jobs:
 
   # Calls ci-rust-codegen.yml; secrets are passed explicitly, same as rspec_impl/checks_impl.
   rspec_rust_codegen_impl:
+    needs: inherit_certification
+    if: ${{ !cancelled() }}
     uses: ./.github/workflows/ci-rust-codegen.yml
     secrets:
       HECKS_CI_ATTEST_KEY: ${{ secrets.HECKS_CI_ATTEST_KEY }}
@@ -403,6 +476,8 @@ jobs:
 
   # Calls ci-rust-host.yml; secrets are passed explicitly, same as rspec_impl/checks_impl.
   rspec_rust_host_impl:
+    needs: inherit_certification
+    if: ${{ !cancelled() }}
     uses: ./.github/workflows/ci-rust-host.yml
     secrets:
       HECKS_CI_ATTEST_KEY: ${{ secrets.HECKS_CI_ATTEST_KEY }}
@@ -420,6 +495,8 @@ jobs:
   ci_attestation_rspec_fuzzing:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    needs: inherit_certification
+    if: ${{ !cancelled() }}
 
     outputs:
       attested: ${{ steps.attest.outputs.attested }}
