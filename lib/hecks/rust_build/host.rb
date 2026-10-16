@@ -4,6 +4,7 @@ require "fileutils"
 require "open3"
 require_relative "../rust_build"
 require_relative "wasm"
+require_relative "prebuilt_binary"
 
 module Hecks
   module RustBuild
@@ -102,13 +103,19 @@ module Hecks
       def compile(target)
         host_dir = File.join(RustBuild.rust_dir, "host")
         target_dir = ENV.fetch("CARGO_TARGET_DIR", File.join(host_dir, "target"))
-        puts "== cargo build --release --target #{target} --bin #{BINARY} (rust/host) =="
-        env = { "CARGO_TARGET_DIR" => target_dir }.merge(linker_for(target))
-        RustBuild.command!("rustup", "run", TOOLCHAIN, "cargo", "build", "--release", "--target", target,
-                           "--bin", BINARY, chdir: host_dir, env: env)
-        File.join(target_dir, target, "release", BINARY)
+        binary = File.join(target_dir, target, "release", BINARY)
+        return binary if PrebuiltBinary.fetch("host", host_dir, target: target, into: binary)
+
+        cargo_build(target, host_dir, { "CARGO_TARGET_DIR" => target_dir }.merge(linker_for(target)))
+        binary
       rescue Failure => e
         raise Failure, "#{e.message}#{cross_hint(target)}"
+      end
+
+      def cargo_build(target, host_dir, env)
+        puts "== cargo build --release --target #{target} --bin #{BINARY} (rust/host) =="
+        RustBuild.command!("rustup", "run", TOOLCHAIN, "cargo", "build", "--release", "--target", target,
+                           "--bin", BINARY, chdir: host_dir, env: env)
       end
 
       def linker_for(target)

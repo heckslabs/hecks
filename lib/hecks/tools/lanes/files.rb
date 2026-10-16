@@ -18,6 +18,7 @@ module Hecks
         def projection
           rulesets.merge(workflow(Lanes::WORKFLOW, "follows") { |lanes| Lanes.workflow(lanes) })
                   .merge(workflow(Lanes::WATCH_WORKFLOW, "alert_after") { |lanes| WatchWorkflow.text(lanes) })
+                  .merge(prebuilt)
         end
 
         # @param files [Hash{String => String}] the projection
@@ -42,6 +43,13 @@ module Hecks
 
         def rulesets
           Lanes.rulesets.to_h { |name, ruleset| [ruleset_path(name), "#{JSON.pretty_generate(ruleset)}\n"] }
+        end
+
+        # The workflow that publishes each `PrebuiltBinary` row.
+        def prebuilt
+          Hecks::Vocabulary.rows("PrebuiltBinary").to_h do |row|
+            [File.join(@root, PrebuiltWorkflow.path(row)), PrebuiltWorkflow.text(row)]
+          end
         end
 
         # The workflow at `path` for the lanes whose `column` is set, or no file if none is.
