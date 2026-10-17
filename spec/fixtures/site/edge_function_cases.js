@@ -72,8 +72,37 @@ test("encodes a decoded line break so the header cannot be split", () => {
 test("encodes a decoded unicode value as UTF-8", () => {
   assert.strictEqual(location(handler(event(alias, first, { x: { value: "café ✓" } }))), to(first, "?x=caf%C3%A9%20%E2%9C%93"));
 });
-test("does not throw on a lone surrogate", () => {
-  assert.ok(location(handler(event(alias, first, { x: { value: "a\uD800b" } }))).startsWith(to(first, "?x=a")));
+test("encodes an astral character (a surrogate pair) as one UTF-8 sequence", () => {
+  assert.strictEqual(location(handler(event(alias, first, { x: { value: "\u{1F600}" } }))), to(first, "?x=%F0%9F%98%80"));
+});
+test("encodes astral characters next to other text and to each other", () => {
+  const value = "a\u{1F600}\u{1F4A9} b\u{10FFFF}";
+  assert.strictEqual(location(handler(event(alias, first, { x: { value } }))), to(first, "?x=a%F0%9F%98%80%F0%9F%92%A9%20b%F4%8F%BF%BF"));
+});
+test("encodes an astral character in a key", () => {
+  assert.strictEqual(location(handler(event(alias, first, { "\u{1F600}": { value: "1" } }))), to(first, "?%F0%9F%98%80=1"));
+});
+test("turns a lone high surrogate into U+FFFD without throwing", () => {
+  assert.strictEqual(location(handler(event(alias, first, { x: { value: "a\uD800b" } }))), to(first, "?x=a%EF%BF%BDb"));
+});
+test("turns a lone high surrogate at the end into U+FFFD", () => {
+  assert.strictEqual(location(handler(event(alias, first, { x: { value: "a\uDBFF" } }))), to(first, "?x=a%EF%BF%BD"));
+});
+test("turns a lone low surrogate into U+FFFD", () => {
+  assert.strictEqual(location(handler(event(alias, first, { x: { value: "\uDC00a" } }))), to(first, "?x=%EF%BF%BDa"));
+});
+test("turns a reversed pair (low then high) into two U+FFFD", () => {
+  assert.strictEqual(location(handler(event(alias, first, { x: { value: "\uDC00\uD800" } }))), to(first, "?x=%EF%BF%BD%EF%BF%BD"));
+});
+test("a high surrogate followed by a plain character keeps the character", () => {
+  assert.strictEqual(location(handler(event(alias, first, { x: { value: "\uD800a" } }))), to(first, "?x=%EF%BF%BDa"));
+});
+test("keeps a valid percent escape and encodes a bare percent", () => {
+  const query = { a: { value: "100%25" }, b: { value: "50%" }, c: { value: "%zz" }, d: { value: "%2541" }, e: { value: "%e" } };
+  assert.strictEqual(location(handler(event(alias, first, query))), to(first, "?a=100%25&b=50%25&c=%25zz&d=%2541&e=%25e"));
+});
+test("keeps a plus sign as it is", () => {
+  assert.strictEqual(location(handler(event(alias, first, { p: { value: "a+b" } }))), to(first, "?p=a+b"));
 });
 test("encodes a key as well as a value", () => {
   assert.strictEqual(location(handler(event(alias, first, { "a b": { value: "1" } }))), to(first, "?a%20b=1"));

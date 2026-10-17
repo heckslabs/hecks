@@ -30,9 +30,36 @@ function handler(event) {
 
 // Percent-encodes what cannot stand in a query string and keeps what is already encoded, so the
 // location header carries no space, control character, "&" or "#" whether the runtime hands over
-// the raw text or the decoded one.
+// the raw text or the decoded one. It walks the text one UTF-16 unit at a time and pairs the
+// surrogates itself (a lone one becomes U+FFFD), because CloudFront's regex engine refuses a
+// pattern that names a surrogate code point and fails the whole function at compile time.
+var SAFE = /[A-Za-z0-9\-._~!$'()*,;:@\/?+]/;
+var HEX = /^[0-9A-Fa-f]{2}$/;
+var REPLACEMENT = "%EF%BF%BD";
+
 function encode(text) {
-  return String(text).replace(/%(?![0-9A-Fa-f]{2})|[\uD800-\uDBFF][\uDC00-\uDFFF]|[^A-Za-z0-9\-._~!$'()*,;:@\/?+%]/g, function (unit) {
-    try { return encodeURIComponent(unit); } catch (error) { return "%EF%BF%BD"; }
-  });
+  var input = String(text);
+  var output = "";
+  var index = 0;
+  while (index < input.length) {
+    var unit = input.charAt(index);
+    var code = input.charCodeAt(index);
+    index += 1;
+    if (code >= 55296 && code <= 56319) {
+      var next = index < input.length ? input.charCodeAt(index) : 0;
+      if (next >= 56320 && next <= 57343) {
+        output += encodeURIComponent(unit + input.charAt(index));
+        index += 1;
+      } else {
+        output += REPLACEMENT;
+      }
+    } else if (code >= 56320 && code <= 57343) {
+      output += REPLACEMENT;
+    } else if (unit === "%") {
+      output += HEX.test(input.substr(index, 2)) ? unit : "%25";
+    } else {
+      output += SAFE.test(unit) ? unit : encodeURIComponent(unit);
+    }
+  }
+  return output;
 }
