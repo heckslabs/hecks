@@ -74,7 +74,8 @@ module Hecks
         { report: { value: child(:lint, paths).dig(:output, :value) } }
       end
 
-      # Projects each domain's OIDC client and scope manifest into its `oidc.json`, through
+      # Projects each domain's OIDC client and scope manifest into its `oidc.json`, or into one
+      # `<chapter>.oidc.json` for each chapter of a directory that holds several, through
       # `hecks deploy oidc_manifest.project_oidc`.
       #
       # @param held [Hash] the `OidcManifest` record: `domains` (comma separated directories; every

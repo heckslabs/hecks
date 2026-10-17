@@ -11,6 +11,11 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
   aggregate that is requested, planned, confirmed against the digest of exactly that plan, and only then applied; a plan that moved
   between confirming and applying faults instead of running. What a change does sits behind the `Script` port, answered here by an
   in-process `ScriptRunner` that scripts register with. Nothing existing moves onto it yet.
+- **`hecks deploy oidc_manifest.project_oidc` writes one manifest for each chapter of a directory that holds several.** A domain of one
+  chapter keeps `oidc.json`. A directory of several, such as the framework members, used to get one `oidc.json` describing whichever
+  chapter loaded first, so adding a chapter could replace another's scopes; it now gets `<chapter>.oidc.json` for each chapter it
+  declares (an attached chapter is not its own to describe). `lib/hecks/framework` and `lib/hecks/grammar` change accordingly, and the
+  drift spec checks that a directory holds exactly one manifest per chapter.
 
 ## [3.12.0] - 2026-10-16
 

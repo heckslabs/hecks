@@ -1,0 +1,48 @@
+{
+  "audience": "Translation",
+  "scopes": [
+    {
+      "scope": "translation:map.declare",
+      "verb": "Translation::Map.Declare",
+      "role": "Author"
+    },
+    {
+      "scope": "translation:map.draft",
+      "verb": "Translation::Map.Draft",
+      "role": "Author"
+    },
+    {
+      "scope": "translation:map.seal",
+      "verb": "Translation::Map.Seal",
+      "role": "Author"
+    },
+    {
+      "scope": "translation:map.supersede",
+      "verb": "Translation::Map.Supersede",
+      "role": "Author"
+    },
+    {
+      "scope": "translation:rule.admit",
+      "verb": "Translation::Rule.Admit",
+      "role": "Author"
+    },
+    {
+      "scope": "translation:rule.execute",
+      "verb": "Translation::Rule.Execute",
+      "role": "Author"
+    },
+    {
+      "scope": "translation:rule.propose",
+      "verb": "Translation::Rule.Propose",
+      "role": "Author"
+    },
+    {
+      "scope": "translation:rule.retire",
+      "verb": "Translation::Rule.Retire",
+      "role": "Author"
+    }
+  ],
+  "roles": [
+    "Author"
+  ]
+}

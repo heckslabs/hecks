@@ -1,0 +1,18 @@
+{
+  "audience": "Identity",
+  "scopes": [
+    {
+      "scope": "identity:external_identifier.link",
+      "verb": "Identity::ExternalIdentifier.Link",
+      "role": "Identity registrar"
+    },
+    {
+      "scope": "identity:identity.register",
+      "verb": "Identity::Identity.Register",
+      "role": "Identity registrar"
+    }
+  ],
+  "roles": [
+    "Identity registrar"
+  ]
+}
