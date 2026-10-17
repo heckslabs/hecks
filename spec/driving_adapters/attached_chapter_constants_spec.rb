@@ -28,7 +28,7 @@ RSpec.describe "Facade install of attached chapters" do
        QualityControl Bluebook Hecksagon Expression]
   end
 
-  it "adds no attached chapter or chapter aggregate as a top-level constant", :aggregate_failures do
+  it "adds no attached chapter or chapter aggregate as a top-level constant", :aggregate_failures, :process do
     added = booted.first.lines.map(&:strip).grep(/\A[A-Z]\w*\z/)
 
     expect(booted.last).to be_success

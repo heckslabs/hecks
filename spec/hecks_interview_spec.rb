@@ -1,8 +1,7 @@
 require "spec_helper"
-require "open3"
-require "rbconfig"
 require "tmpdir"
 require "fileutils"
+require_relative "support/in_process_launcher"
 
 # `hecks interview` through the generated launcher (ADR 0088), with the agent left out: the same
 # session, typed findings, no model. The agent path is covered by interview_session_spec.rb with a
@@ -15,8 +14,8 @@ RSpec.describe "hecks interview" do
   # Memory itself.
   def interview(dir, keys, *words)
     env = { "HECKS_ENVIRONMENT" => nil, "PGHOST" => "/nonexistent-postgres-socket-dir", "PGPORT" => "1" }
-    Open3.capture3(env, RbConfig.ruby, File.join(InMemoryDomain::ROOT, "exe/hecks"), "interview", "Lending",
-                   "--no-ai", "--expert=Maria", "--adapter=Memory", *words, stdin_data: "#{keys.join("\n")}\n", chdir: dir)
+    InProcessLauncher.capture3(env, "interview", "Lending", "--no-ai", "--expert=Maria", "--adapter=Memory", *words,
+                               stdin_data: "#{keys.join("\n")}\n", chdir: dir)
   end
 
   def written(dir) = Dir.glob("**/*", File::FNM_DOTMATCH, base: dir).select { |path| File.file?(File.join(dir, path)) }.sort

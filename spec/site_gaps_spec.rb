@@ -366,7 +366,7 @@ RSpec.describe "the Site chapter beyond the studio sample" do
       "off" => [false, 3], "search" => [true, false]
     }.freeze
 
-    it "loads under a commonjs package and matches a trailing * as the CDN reads it", :aggregate_failures do
+    it "loads under a commonjs package and matches a trailing * as the CDN reads it", :aggregate_failures, :process do
       skip "node is not installed" unless node?
 
       out, status, err = run_node(NODE_ROUTES_CHECK)

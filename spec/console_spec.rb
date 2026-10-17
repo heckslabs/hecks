@@ -33,7 +33,7 @@ RSpec.describe "Hecks::CLI::Console" do
                    stdin_data: stdin, chdir: InMemoryDomain::ROOT)
   end
 
-  it "boots pizzas on the in-memory adapter by default and dispatches with no Postgres", :aggregate_failures do
+  it "boots pizzas on the in-memory adapter by default and dispatches with no Postgres", :aggregate_failures, :process do
     stdout, stderr, status = run_console(stdin: CONSOLE_PIZZA_SESSION)
 
     expect(status).to be_success, stderr
@@ -41,7 +41,7 @@ RSpec.describe "Hecks::CLI::Console" do
     expect(stderr).not_to include("PostgresEra")
   end
 
-  it "still boots an explicit domain directory as that directory is wired", :aggregate_failures do
+  it "still boots an explicit domain directory as that directory is wired", :aggregate_failures, :process do
     _stdout, stderr, status = run_console("examples/directory", stdin: "exit\n")
 
     expect(status).not_to be_success
@@ -49,7 +49,7 @@ RSpec.describe "Hecks::CLI::Console" do
   end
 
   describe ".overview" do
-    it "prints each aggregate's description under its commands", :aggregate_failures do
+    it "prints each aggregate's description under its commands", :aggregate_failures, :process do
       stdout, stderr, status = run_console(stdin: "exit\n")
 
       expect(status).to be_success, stderr

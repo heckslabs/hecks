@@ -65,7 +65,7 @@ RSpec.describe Hecks::CLI::DomainStub do
   end
 
   described_class.adapters.each do |adapter|
-    it "boots the #{adapter} stub and runs its creating command", :aggregate_failures do
+    it "boots the #{adapter} stub and runs its creating command", :aggregate_failures, :process do
       out, err, status = boot_stub(adapter)
 
       expect(status).to be_success, err

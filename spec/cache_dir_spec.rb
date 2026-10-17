@@ -94,7 +94,8 @@ RSpec.describe Hecks::CacheDir do
       Dir.glob(File.join(gem_root, "tmp", "{storehouse,hecks_syntax_boot_cache}", "**", "*"))
     end
 
-    it "writes the audit log and the syntax-boot cache under the cache root, not under <gem root>/tmp", :aggregate_failures do
+    it "writes the audit log and the syntax-boot cache under the cache root, not under <gem root>/tmp", :aggregate_failures,
+       :process do
       before = gem_tmp_entries
 
       run_process("XDG_CACHE_HOME" => scratch, "HECKS_SYNTAX_BOOT_CACHE" => nil)
@@ -104,7 +105,7 @@ RSpec.describe Hecks::CacheDir do
       expect(gem_tmp_entries).to eq(before)
     end
 
-    it "still writes no syntax-boot cache under HECKS_SYNTAX_BOOT_CACHE=off" do
+    it "still writes no syntax-boot cache under HECKS_SYNTAX_BOOT_CACHE=off", :process do
       run_process("XDG_CACHE_HOME" => scratch, "HECKS_SYNTAX_BOOT_CACHE" => "off")
 
       expect(Dir.glob(File.join(scratch, "hecks", "hecks_syntax_boot_cache", "*"))).to be_empty

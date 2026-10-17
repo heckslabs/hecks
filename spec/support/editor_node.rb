@@ -48,15 +48,34 @@ module EditorNode
     end
   end
 
+  # Copies the transformed client into the sandbox's node_modules.
   def install_client(dir)
     modules = File.join(dir, "node_modules/@hecks/client")
+    FileUtils.mkdir_p(File.dirname(modules))
+    FileUtils.cp_r(transformed_client, modules)
+  end
+
+  # The client's transformed modules, built under node once per process: its source is the same for
+  # every scenario, so each sandbox gets a copy instead of its own transform run.
+  def transformed_client
+    @transformed_client ||= begin
+      built = Dir.mktmpdir("cms_editor_client")
+      at_exit { FileUtils.rm_rf(built) }
+      transform_client(built)
+    end
+  end
+
+  # Runs the transform into `built/client` and writes the package manifest beside its modules.
+  def transform_client(built)
+    write(File.join(built, "strip.mjs"), STRIP)
+    modules = File.join(built, "client")
     FileUtils.mkdir_p(modules)
-    write(File.join(dir, "strip.mjs"), STRIP)
-    _, err, status = Open3.capture3(ENVIRONMENT, "node", File.join(dir, "strip.mjs"), File.join(CLIENT, "src"), modules)
+    _, err, status = Open3.capture3(ENVIRONMENT, "node", File.join(built, "strip.mjs"), File.join(CLIENT, "src"), modules)
     raise "could not prepare @hecks/client:\n#{err}" unless status.success?
 
     manifest = { "name" => "@hecks/client", "type" => "module", "exports" => "./index.mjs" }
     write(File.join(modules, "package.json"), JSON.generate(manifest))
+    modules
   end
 
   def write(path, text)

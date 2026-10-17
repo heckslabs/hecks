@@ -26,6 +26,8 @@ require_relative "support/ci_skip_backstop"
 require_relative "support/hecks_memory_environment"
 require_relative "support/repo_tool"
 require_relative "support/facade_constant_isolation"
+require_relative "support/declaration_cache"
+require_relative "support/prism_source_memo"
 
 # A push runs the pre-push hook with GIT_DIR and friends exported, and every
 # `git` the suite starts inherits them. Specs build scratch repositories and
@@ -160,6 +162,14 @@ RSpec.configure do |config|
   # CI always sets `CI` and runs these unfiltered; locally use
   # `CI=true bundle exec rspec` or `bundle exec rspec --tag io`.
   config.filter_run_excluding io: true unless ENV["CI"]
+
+  # `process: true` marks an example whose subject is a process of its own: it starts a child (a
+  # Ruby, `node`, an MCP server, a launcher) and reads its pipes, exit status or environment. Each
+  # one pays for an interpreter and a cold load of the library, which together were about half the
+  # time of a plain run, so a plain local run leaves them out. CI sets `CI` and runs them with the
+  # rest, and so does the pre-push gate (`HECKS_PROCESS_SPECS=1`); locally use `CI=true bundle exec
+  # rspec`, `HECKS_PROCESS_SPECS=1 bundle exec rspec` or `bundle exec rspec --tag process`.
+  config.filter_run_excluding process: true unless ENV.key?("CI") || ENV.key?("HECKS_PROCESS_SPECS")
 
   # `fuzzing: true` tags every example under spec/fuzzing/ by path
   # (`define_derived_metadata`) rather than by hand per file. Slow for a

@@ -28,8 +28,9 @@ skip themselves quietly if nothing answers on `localhost`.
 ## Running the suite
 
 ```sh
-bundle exec rspec                 # the whole suite
-bundle exec parallel_rspec spec   # same suite, split across your machine's cores
+bundle exec rspec                 # the whole suite, split across your machine's cores
+bundle exec rspec spec/foo_spec.rb:12   # any argument runs serially, in this process
+HECKS_SERIAL=1 bundle exec rspec  # the whole suite, in one process
 bundle exec rubocop -c .rubocop.yml
 ```
 
@@ -41,7 +42,7 @@ code is held to it, and no file is excluded: fix an offense rather than
 parking it. Fix `Style/GuardClause`, `Style/Next` and the other cops
 that move control flow by hand, not with autocorrect.
 
-Two tags are excluded from a plain `rspec` run and worth knowing about
+Three tags are excluded from a plain `rspec` run and worth knowing about
 before you assume a red suite everywhere:
 
 - `fuzzing: true` — `spec/fuzzing/`, live-generated-history replays,
@@ -51,6 +52,15 @@ before you assume a red suite everywhere:
   CI runs these; locally, `bundle exec rspec spec/adapters/query_agreement_spec.rb
   --tag io` is the one cheap enough to run by hand (see its own header
   for why it earns a slot pre-push and the rest don't).
+- `process: true` — an example whose subject is a process of its own: it
+  starts a child (a Ruby, `node`, an MCP server, a launcher) and reads its
+  pipes, exit status or environment. Each pays for an interpreter and a
+  cold load of the library, about half the time of a plain run. CI runs
+  these with everything else, and so does the pre-push gate
+  (`HECKS_PROCESS_SPECS=1`); locally use `HECKS_PROCESS_SPECS=1 bundle
+  exec rspec`, `CI=true bundle exec rspec`, or `bundle exec rspec --tag
+  process`. A new example that starts a child process should say
+  `:process`.
 
 Install the pre-push hook once — it's the local bar a change has to
 clear before it leaves your machine, and matching it locally means you
@@ -119,10 +129,21 @@ createdb hecks_pizzas   # examples/pizzas/bluebook/pizzas.world wires straight a
 CI=true bundle exec rspec spec/adapters/driven/postgres_spec.rb   # or whichever file you're on
 ```
 
-`bundle exec parallel_rspec spec` (12+ workers on a typical dev
-machine, ~40s for the whole non-`io`/`fuzzing` suite) is your "did I
-break anything nearby" check before a push — not something to run on
-every edit.
+A bare `bundle exec rspec` (`spec/support/parallel_default.rb`) hands
+over to `parallel_rspec spec`, one worker per core, grouped by the file
+runtimes the last run left in `tmp/parallel_runtime_rspec.log`. It runs
+the whole non-`io`/`fuzzing`/`process` suite in about 40s on a 12-core
+machine; the first run has no log and groups by file size, so it is
+slower. Any
+argument (a file, `file:line`, `--tag`, `-e`, `--only-failures`), `CI` or
+`HECKS_SERIAL=1` keeps the run in one process. It is your "did I break
+anything nearby" check before a push — not something to run on every edit.
+
+Specs that boot a domain share what a boot loads
+(`spec/support/declaration_cache.rb`): the first boot of an unchanged
+domain directory loads it, later ones get a fresh registry holding a copy
+of the loaded declarations. A changed file is a different key;
+`HECKS_NO_DECLARATION_CACHE=1` turns it off when you suspect it.
 
 ## Verification beyond the suite
 

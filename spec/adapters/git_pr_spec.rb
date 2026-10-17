@@ -39,38 +39,38 @@ RSpec.describe Hecks::Adapters::GitPr do
   after { FileUtils.remove_entry(@repo) }
 
   describe "the checkout" do
-    it "names the branch and the head commit", :aggregate_failures do
+    it "names the branch and the head commit", :aggregate_failures, :process do
       git("checkout", "-qb", "qa/x")
 
       expect(adapter.branch).to eq("qa/x")
       expect(adapter.head).to eq(@first)
     end
 
-    it "refuses a directory that is not a checkout" do
+    it "refuses a directory that is not a checkout", :process do
       Dir.mktmpdir("git_pr_not_a_repo") do |dir|
         expect { described_class.new(repo_dir: dir).branch }.to raise_error(described_class::Refusal, /not a git checkout/)
       end
     end
 
-    it "refuses a dirty tree, and names what is dirty" do
+    it "refuses a dirty tree, and names what is dirty", :process do
       File.write(File.join(@repo, "loose"), "x")
 
       expect { adapter.assert_clean_tree! }.to raise_error(described_class::Refusal, /dirty.*loose/m)
     end
 
-    it "takes a clean tree" do
+    it "takes a clean tree", :process do
       expect { adapter.assert_clean_tree! }.not_to raise_error
     end
   end
 
   describe "the fix commit" do
-    it "takes a commit the branch carries" do
+    it "takes a commit the branch carries", :process do
       commit_file("two")
 
       expect { adapter.assert_ancestor!(commit: @first, owner: "BUG#1") }.not_to raise_error
     end
 
-    it "refuses a commit the branch does not carry, naming what it belongs to" do
+    it "refuses a commit the branch does not carry, naming what it belongs to", :process do
       expect { adapter.assert_ancestor!(commit: "deadbeef1", owner: "BUG#1") }
         .to raise_error(described_class::Refusal, /BUG#1's own fix commit deadbee is not an ancestor of HEAD/)
     end
@@ -86,12 +86,12 @@ RSpec.describe Hecks::Adapters::GitPr do
 
     after { FileUtils.remove_entry(@remote) }
 
-    it "refuses a branch that is not pushed, even when HEAD carries the commit" do
+    it "refuses a branch that is not pushed, even when HEAD carries the commit", :process do
       expect { adapter.assert_pushed!(branch: "qa/x", commit: @first, owner: "BUG#1") }
         .to raise_error(described_class::Refusal, %r{qa/x is not pushed to origin})
     end
 
-    it "refuses a commit made after the last push" do
+    it "refuses a commit made after the last push", :process do
       git("push", "-q", "origin", "qa/x")
       fix = commit_file("fix")
 
@@ -99,14 +99,14 @@ RSpec.describe Hecks::Adapters::GitPr do
         .to raise_error(described_class::Refusal, %r{not an ancestor of the pushed origin/qa/x})
     end
 
-    it "takes a commit the pushed tip carries" do
+    it "takes a commit the pushed tip carries", :process do
       fix = commit_file("fix")
       git("push", "-q", "origin", "qa/x")
 
       expect { adapter.assert_pushed!(branch: "qa/x", commit: fix, owner: "BUG#1") }.not_to raise_error
     end
 
-    it "refuses a PR head that does not carry the commit", :aggregate_failures do
+    it "refuses a PR head that does not carry the commit", :aggregate_failures, :process do
       fix = commit_file("fix")
 
       expect { adapter.assert_pr_head!(head: @first, commit: fix, owner: "BUG#1") }
@@ -116,7 +116,7 @@ RSpec.describe Hecks::Adapters::GitPr do
   end
 
   describe "a commit that is not a sha" do
-    it "is refused before it reaches git, so it cannot pass as an option", :aggregate_failures do
+    it "is refused before it reaches git, so it cannot pass as an option", :aggregate_failures, :process do
       allow(Open3).to receive(:capture3)
 
       expect { adapter.assert_ancestor!(commit: "--all", owner: "BUG#1") }
@@ -126,13 +126,13 @@ RSpec.describe Hecks::Adapters::GitPr do
   end
 
   describe "pull requests" do
-    it "finds the open one for a branch" do
+    it "finds the open one for a branch", :process do
       gh_answers(JSON.generate(number: 7, state: "OPEN", url: "u", headRefName: "qa/x", headRefOid: @first, title: "t"))
 
       expect(adapter.open_pull_request("qa/x")).to include(number: 7, headRefOid: @first)
     end
 
-    it "finds none when the branch's PR is closed, or gh knows none", :aggregate_failures do
+    it "finds none when the branch's PR is closed, or gh knows none", :aggregate_failures, :process do
       gh_answers(JSON.generate(number: 7, state: "MERGED"))
       expect(adapter.open_pull_request("qa/x")).to be_nil
 
@@ -140,21 +140,21 @@ RSpec.describe Hecks::Adapters::GitPr do
       expect(adapter.open_pull_request("qa/x")).to be_nil
     end
 
-    it "does not read a gh network failure as there being no PR" do
+    it "does not read a gh network failure as there being no PR", :process do
       gh_answers("", success: false, stderr: "error connecting to api.github.com")
 
       expect { adapter.open_pull_request("qa/x") }
         .to raise_error(described_class::CommandFailed, %r{gh pr view qa/x failed — error connecting})
     end
 
-    it "refuses clearly when gh or git is not installed, not with Errno::ENOENT", :aggregate_failures do
+    it "refuses clearly when gh or git is not installed, not with Errno::ENOENT", :aggregate_failures, :process do
       allow(Open3).to receive(:capture3).and_raise(Errno::ENOENT)
 
       expect { adapter.open_pull_request("qa/x") }.to raise_error(described_class::Refusal, /gh is not installed/)
       expect { adapter.branch }.to raise_error(described_class::Refusal, /git is not installed/)
     end
 
-    it "opens one, as a draft when asked" do
+    it "opens one, as a draft when asked", :process do
       allow(Open3).to receive(:capture3)
         .with("gh", "pr", "create", "--head", "qa/x", "--title", "t", "--body", "b", "--draft", chdir: @repo)
         .and_return(gh_ok("https://example.com/pull/7"))
@@ -163,33 +163,33 @@ RSpec.describe Hecks::Adapters::GitPr do
         .to eq("https://example.com/pull/7")
     end
 
-    it "says what gh said when it refuses to open one" do
+    it "says what gh said when it refuses to open one", :process do
       gh_answers("", success: false, stderr: "no permission")
 
       expect { adapter.create_pull_request(branch: "qa/x", title: "t", body: "b") }
         .to raise_error(described_class::CommandFailed, /gh pr create failed — no permission/)
     end
 
-    it "queues the merge for when checks pass" do
+    it "queues the merge for when checks pass", :process do
       allow(Open3).to receive(:capture3)
         .with("gh", "pr", "merge", "7", "--auto", "--squash", chdir: @repo).and_return(gh_ok)
 
       expect { adapter.merge_when_green(7) }.not_to raise_error
     end
 
-    it "reads a tracked PR's state" do
+    it "reads a tracked PR's state", :process do
       gh_answers(JSON.generate(state: "OPEN", headRefOid: @first, url: "u"))
 
       expect(adapter.pull_request(7)).to eq(state: "OPEN", headRefOid: @first, url: "u")
     end
 
-    it "reads a tracked PR's checks" do
+    it "reads a tracked PR's checks", :process do
       gh_answers(JSON.generate([{ name: "rspec", bucket: "pass" }]))
 
       expect(adapter.checks(7)).to eq([{ name: "rspec", bucket: "pass" }])
     end
 
-    it "reports a failure to read a tracked PR's checks by name" do
+    it "reports a failure to read a tracked PR's checks by name", :process do
       gh_answers("", success: false, stderr: "rate limited")
 
       expect { adapter.checks(7) }.to raise_error(described_class::CommandFailed, /gh pr checks failed — rate limited/)

@@ -91,7 +91,7 @@ RSpec.describe "hecks check_engine_agreement" do
     File.write(in_memory_path, poisoned)
   end
 
-  it "passes cleanly against the real, current repo — Tiers 1-4 already unified the two engines", :aggregate_failures do
+  it "passes cleanly against the real, current repo — Tiers 1-4 already unified the two engines", :aggregate_failures, :process do
     stdout, stderr, status = check_engine_agreement
 
     expect(status).to be_success, "expected 0 problems, got:\n#{stdout}#{stderr}"
@@ -100,7 +100,8 @@ RSpec.describe "hecks check_engine_agreement" do
     expect(stdout).to include(*DECLARED_COMPARATORS)
   end
 
-  it "refuses cleanly rather than crashing uninformatively against a scratch root with nothing tracked", :aggregate_failures do
+  it "refuses cleanly rather than crashing uninformatively against a scratch root with nothing tracked", :aggregate_failures,
+     :process do
     Dir.mktmpdir("check-engine-agreement-empty-") do |dir|
       _stdout, stderr, status = run_against(dir)
 
@@ -110,14 +111,14 @@ RSpec.describe "hecks check_engine_agreement" do
   end
 
   it "flags a declared comparator with NO shared-module case (the " \
-     "10th-comparator gap comparison.rb's own `else` guards)", :aggregate_failures do
+     "10th-comparator gap comparison.rb's own `else` guards)", :aggregate_failures, :process do
     succeeded, report = report_after_mutating { |dir| drop_gt_case(dir) }
 
     expect(succeeded).to be(false)
     expect(report).to include('"gt"', "no `when` case")
   end
 
-  it "flags a declared comparator with a shared case but NO cross-engine agreement spec", :aggregate_failures do
+  it "flags a declared comparator with a shared case but NO cross-engine agreement spec", :aggregate_failures, :process do
     succeeded, report = report_after_mutating { |dir| strip_gt_from_agreement_specs(dir) }
 
     expect(succeeded).to be(false)
@@ -125,7 +126,7 @@ RSpec.describe "hecks check_engine_agreement" do
   end
 
   it "flags an engine file that grows its own comparator `when`, " \
-     "instead of routing through Comparison.holds?", :aggregate_failures do
+     "instead of routing through Comparison.holds?", :aggregate_failures, :process do
     succeeded, report = report_after_mutating { |dir| grow_private_comparator(dir) }
 
     expect(succeeded).to be(false)

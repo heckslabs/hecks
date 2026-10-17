@@ -52,11 +52,11 @@ RSpec.describe "the words of a success notice, run by node" do
     projected.select { |path, _| path.start_with?("/work/editor/") }.transform_keys { |path| path.delete_prefix("/work/editor/") }
   end
 
-  it "reads naturally for each verb and noun, and never says a word twice" do
+  it "reads naturally for each verb and noun, and never says a word twice", :process do
     expect(result["out"]).to eq(EditorWordsTable::NOTICE_ROWS.map(&:last))
   end
 
-  it "puts irregular and regular verbs in one past tense" do
+  it "puts irregular and regular verbs in one past tense", :process do
     expect(result["participles"]).to eq(EditorWordsTable::NOTICE_PARTICIPLES)
   end
 end

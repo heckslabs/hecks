@@ -60,7 +60,7 @@ RSpec.describe "hecks console through the launcher, at a terminal" do
     end
   end
 
-  it "reaches a prompt quietly, evaluates what is typed, and ends without a record", :aggregate_failures do
+  it "reaches a prompt quietly, evaluates what is typed, and ends without a record", :aggregate_failures, :process do
     with_console do |reader, writer, pid|
       expect_quiet_prompt(reader)
       expect_typed_input_evaluated(reader, writer)

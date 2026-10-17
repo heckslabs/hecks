@@ -34,7 +34,7 @@ RSpec.describe "the launcher's memory commands" do
   NO_DATABASE_ENV = { "PGHOST" => "/nonexistent-postgres-socket-dir", "PGPORT" => "1", "IRBRC" => File::NULL,
                       "HECKS_ENVIRONMENT" => nil }.freeze
 
-  it "opens the console with no database reachable and no environment variable", :aggregate_failures do
+  it "opens the console with no database reachable and no environment variable", :aggregate_failures, :process do
     _out, err, status = Open3.capture3(NO_DATABASE_ENV, RbConfig.ruby, "exe/hecks", "console",
                                        stdin_data: "exit\n", chdir: InMemoryDomain::ROOT)
 

@@ -68,54 +68,54 @@ RSpec.describe Hecks::Tools::CiGateDecision do
     commit("README.md")
   end
 
-  it "runs the runtime gate for a change under lib/hecks/runtime/" do
+  it "runs the runtime gate for a change under lib/hecks/runtime/", :process do
     base = git("rev-parse", "HEAD")
     commit("lib/hecks/runtime/dispatch.rb")
 
     expect(touched("runtime_changed", event: "pull_request", payload: pull_request(base)).first).to eq("true")
   end
 
-  it "skips the runtime gate for a change that leaves lib/hecks/runtime/ alone" do
+  it "skips the runtime gate for a change that leaves lib/hecks/runtime/ alone", :process do
     base = git("rev-parse", "HEAD")
     commit("docs/notes.md", "lib/hecks/other.rb")
 
     expect(touched("runtime_changed", event: "pull_request", payload: pull_request(base)).first).to eq("false")
   end
 
-  it "treats a base it cannot diff against as a reason to run, and says so" do
+  it "treats a base it cannot diff against as a reason to run, and says so", :process do
     commit("docs/notes.md")
 
     answer, err = touched("runtime_changed", event: "pull_request", payload: pull_request("deadbeef" * 5))
     expect([answer, err]).to match(["true", /git diff itself failed/])
   end
 
-  it "treats no base at all as a reason to run" do
+  it "treats no base at all as a reason to run", :process do
     commit("docs/notes.md")
 
     answer, err = touched("runtime_changed", event: "pull_request", payload: {})
     expect([answer, err]).to match(["true", /no usable base/])
   end
 
-  it "answers false when the diff is empty" do
+  it "answers false when the diff is empty", :process do
     head = git("rev-parse", "HEAD")
 
     expect(touched("runtime_changed", event: "pull_request", payload: pull_request(head)).first).to eq("false")
   end
 
-  it "refuses a gate no CiGate row names", :aggregate_failures do
+  it "refuses a gate no CiGate row names", :aggregate_failures, :process do
     expect { described_class.main(["gate=no_such_gate"], root: repo, env: {}) }
       .to raise_error(SystemExit) { |error| expect(error.status).to eq(1) }
       .and output(/no CiGate row named no_such_gate/).to_stderr
   end
 
-  it "refuses a call that names no gate" do
+  it "refuses a call that names no gate", :process do
     expect { described_class.main([], root: repo, env: {}) }
       .to raise_error(SystemExit)
       .and output(/name a gate/).to_stderr
   end
 
   context "with the allowlist gate" do
-    it "skips a change made only of skippable paths" do
+    it "skips a change made only of skippable paths", :process do
       base = git("rev-parse", "HEAD")
       commit("docs/notes.md", "rust/host/src/web.rs", "CHANGELOG.md")
 
@@ -123,7 +123,7 @@ RSpec.describe Hecks::Tools::CiGateDecision do
         .to eq("false")
     end
 
-    it "runs when any changed path falls outside the allowlist" do
+    it "runs when any changed path falls outside the allowlist", :process do
       base = git("rev-parse", "HEAD")
       commit("docs/notes.md", "lib/hecks/other.rb")
 
@@ -131,7 +131,7 @@ RSpec.describe Hecks::Tools::CiGateDecision do
         .to eq("true")
     end
 
-    it "diffs a push against the commit before it" do
+    it "diffs a push against the commit before it", :process do
       before = git("rev-parse", "HEAD")
       commit("lib/hecks/other.rb")
 
@@ -139,7 +139,7 @@ RSpec.describe Hecks::Tools::CiGateDecision do
         .to eq("true")
     end
 
-    it "runs on a push whose before commit is the null sha" do
+    it "runs on a push whose before commit is the null sha", :process do
       commit("docs/notes.md")
 
       answer, err = touched("postgres_io_relevant_changed", event: "push", payload: { "before" => "0" * 40 })
@@ -159,7 +159,7 @@ RSpec.describe Hecks::Tools::CiGateDecision do
       previous_entry
     end
 
-    it "sees the files of the entries queued before it" do
+    it "sees the files of the entries queued before it", :process do
       previous_entry = queue_two_entries
 
       payload = { "merge_group" => { "base_sha" => previous_entry, "base_ref" => "refs/heads/main" } }

@@ -125,32 +125,33 @@ RSpec.describe "the rich-text body functions of the generated editor, run by nod
   end
 
   describe "bodyToHtml and htmlToBody" do
-    it "round-trip a body that holds every field of the document shape" do
+    it "round-trip a body that holds every field of the document shape", :process do
       expect(result("roundTrip")).to be(true)
     end
 
-    it "give the same text for the same body, and the same body for the same text", :aggregate_failures do
+    it "give the same text for the same body, and the same body for the same text", :aggregate_failures, :process do
       expect(result("deterministic")).to be(true)
       expect(result("again")).to be(true)
     end
 
-    it "write a line break as a break, a block's layout as data attributes, and a list as flat items", :aggregate_failures do
+    it "write a line break as a break, a block's layout as data attributes, and a list as flat items", :aggregate_failures,
+       :process do
       html = result("html")
 
       expect(html).to include('<h3 data-align="center" data-indent="1">', "</u><br><a href=")
       expect(html).to include('<li data-depth="5" data-list-kind="numbered_list">', 'data-caption="Good &#60;dog&#62;"')
     end
 
-    it "move a heading down for a body shown under a page's own headings, and not otherwise", :aggregate_failures do
+    it "move a heading down for a body shown under a page's own headings, and not otherwise", :aggregate_failures, :process do
       expect(result("demoted")).to eq("<h3>T</h3>\n<h6>U</h6>")
       expect(result("undemoted")).to eq("<h1>T</h1>")
     end
 
-    it "read a form's line breaks as one LF, so a saved break does not grow when it is opened again" do
+    it "read a form's line breaks as one LF, so a saved break does not grow when it is opened again", :process do
       expect(result("crlf")).to eq(['a="x\ny"', 'b="p\nq"', 'c="r\ns"'])
     end
 
-    it "make nothing of an empty body" do
+    it "make nothing of an empty body", :process do
       expect(result("empty")).to eq(['{"blocks":[]}', "", '{"blocks":[]}'])
     end
   end
@@ -166,26 +167,26 @@ RSpec.describe "the rich-text body functions of the generated editor, run by nod
 
     def markup_of(html) = html.scan(/<[^>]*>/)
 
-    it "leaves no markup that came from a span, an alt text, a caption or a media key", :aggregate_failures do
+    it "leaves no markup that came from a span, an alt text, a caption or a media key", :aggregate_failures, :process do
       expect(markup_of(hostile)).to all(match(SAFE_TAG))
       expect(hostile).to include("&#60;script&#62;alert(1)&#60;/script&#62;", "&#60;b onclick=1&#62;")
     end
 
-    it "keeps an address that carries a quote inside its attribute", :aggregate_failures do
+    it "keeps an address that carries a quote inside its attribute", :aggregate_failures, :process do
       expect(hostile).not_to match(/href="[^"]*"\s+onmouseover/)
       expect(hostile.scan(/href="([^"]*)"/).flatten).to all(match(%r{\A(/|https?://)}))
     end
 
-    it "drops every link whose address is not a path, http(s), mailto or tel", :aggregate_failures do
+    it "drops every link whose address is not a path, http(s), mailto or tel", :aggregate_failures, :process do
       expect(hostile).not_to match(%r{javascript:|data:|href="//}i)
       expect(hostile.scan("<a ").size).to eq(1)
     end
 
-    it "is as safe after a round trip as before" do
+    it "is as safe after a round trip as before", :process do
       expect(markup_of(result("hostileAgain"))).to all(match(SAFE_TAG))
     end
 
-    it "allows only a path, http://, https://, mailto: and tel: as an address" do
+    it "allows only a path, http://, https://, mailto: and tel: as an address", :process do
       allowed = ["/", "/a/b", "http://x.test", "HTTPS://x.test", "mailto:a@b.test", "tel:+1"]
 
       expect(result("hrefs")).to eq(allowed + Array.new(8))
@@ -197,26 +198,26 @@ RSpec.describe "the rich-text body functions of the generated editor, run by nod
 
     def kinds = word["body"]["blocks"].map { |block| block["kind"] }
 
-    it "is reduced to the nearest block and mark, keeping its text", :aggregate_failures do
+    it "is reduced to the nearest block and mark, keeping its text", :aggregate_failures, :process do
       expect(kinds).to eq(%w[heading paragraph paragraph bullet_list paragraph])
       expect(word["body"]["blocks"][0]).to include("level" => 4)
     end
 
-    it "keeps nested lists as flat items with a depth, and a nested ordered list's kind", :aggregate_failures do
+    it "keeps nested lists as flat items with a depth, and a nested ordered list's kind", :aggregate_failures, :process do
       items = word["body"]["blocks"][3]["items"]
 
       expect(items.map { |item| item["depth"] }).to eq([0, 1, 2])
       expect(items.last).to include("list_kind" => "numbered_list")
     end
 
-    it "says what it reduced, and says nothing when nothing was reduced", :aggregate_failures do
+    it "says what it reduced, and says nothing when nothing was reduced", :aggregate_failures, :process do
       expect(word["notes"]).to include("<h5> was reduced to a level 4 heading", "<script> content was removed")
       expect(word["notes"]).to include("a table was reduced to paragraphs")
       expect(word["notes"]).to include("a link to an address that is not a path, http(s), mailto or tel was reduced to text")
       expect(result("plain")).to eq([])
     end
 
-    it "reads marks from tags and from styles, and entities, breaks and loose text", :aggregate_failures do
+    it "reads marks from tags and from styles, and entities, breaks and loose text", :aggregate_failures, :process do
       blocks = result("foreign")["blocks"]
 
       expect(blocks.map { |block| block["kind"] }).to eq(%w[paragraph paragraph paragraph divider quote quote])
@@ -229,11 +230,11 @@ RSpec.describe "the rich-text body functions of the generated editor, run by nod
     ITEM_TYPES = %w[flatListItemUnordered flatListItemOrdered flatListItemOrdered flatListItemUnordered
                     flatListItemOrdered flatListItemOrdered].freeze
 
-    it "converts to the body it came from, for a body that holds every field of the document shape" do
+    it "converts to the body it came from, for a body that holds every field of the document shape", :process do
       expect(result("docRoundTrip")).to be(true)
     end
 
-    it "holds a list as flat items with their indent, numbering the ordered ones", :aggregate_failures do
+    it "holds a list as flat items with their indent, numbering the ordered ones", :aggregate_failures, :process do
       items = result("docItems")
 
       expect(items.map(&:first)).to eq(ITEM_TYPES)
@@ -241,20 +242,20 @@ RSpec.describe "the rich-text body functions of the generated editor, run by nod
       expect(items.map(&:last)).to eq([nil, 1, 1, nil, 1, 1])
     end
 
-    it "is one empty paragraph for an empty body, and an empty body for that" do
+    it "is one empty paragraph for an empty body, and an empty body for that", :process do
       expect(result("docEmpty")).to eq(['{"type":"doc","content":[{"type":"paragraph","attrs":{}}]}', '{"blocks":[]}'])
     end
 
-    it "keeps no address that is not a path, http(s), mailto or tel, in either direction", :aggregate_failures do
+    it "keeps no address that is not a path, http(s), mailto or tel, in either direction", :aggregate_failures, :process do
       expect(result("docHostile")).not_to match(/javascript:|data:/i)
       expect(result("docMarks")).not_to include("javascript:")
     end
 
-    it "writes marks in the body's own order, whatever order the editor kept them in" do
+    it "writes marks in the body's own order, whatever order the editor kept them in", :process do
       expect(result("docMarks")).to include('"marks":[{"name":"bold"},{"name":"code"}]')
     end
 
-    it "moves a list item that skips a level up to one below the item above, and says so", :aggregate_failures do
+    it "moves a list item that skips a level up to one below the item above, and says so", :aggregate_failures, :process do
       depths, notes = result("docJump")
 
       expect(depths).to eq([0, 1])
@@ -263,7 +264,7 @@ RSpec.describe "the rich-text body functions of the generated editor, run by nod
   end
 
   describe "the form fields" do
-    it "are named by dotted path, the encoding the editor's other lists use", :aggregate_failures do
+    it "are named by dotted path, the encoding the editor's other lists use", :aggregate_failures, :process do
       fields = result("fields")
 
       expect(fields).to include("body.blocks.0.kind=heading", "body.blocks.0.spans.0.marks.1.name=italic")

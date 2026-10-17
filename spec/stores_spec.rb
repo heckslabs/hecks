@@ -15,7 +15,7 @@ RSpec.describe "hecks stores" do
     end
   end
 
-  it "exits non-zero with a clear message for a nonexistent domain path", :aggregate_failures do
+  it "exits non-zero with a clear message for a nonexistent domain path", :aggregate_failures, :process do
     missing = File.join(@dir, "no-such-domain")
     stdout, stderr, status = Open3.capture3(RbConfig.ruby, STORES_LAUNCHER, "stores", missing)
 
@@ -24,7 +24,7 @@ RSpec.describe "hecks stores" do
     expect(stderr).to include(missing)
   end
 
-  it "requires a domain argument at all", :aggregate_failures do
+  it "requires a domain argument at all", :aggregate_failures, :process do
     _stdout, stderr, status = Open3.capture3(RbConfig.ruby, STORES_LAUNCHER, "stores")
 
     expect(status).not_to be_success
