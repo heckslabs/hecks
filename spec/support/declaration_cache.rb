@@ -1,3 +1,4 @@
+require "digest"
 require "hecks"
 
 # Loads a domain directory's declarations once per process and hands every later boot of the same
@@ -10,12 +11,21 @@ module DeclarationCache
   # @return [Hash] the copied declarations, by what produced them and the files they came from
   def self.cache = @cache ||= {}
 
-  # @return [Array] the directory's files with size and mtime, the key's part that notices an edit
+  # @return [Array] what identifies the directory's files for the key. A directory under the system
+  #   temp dir is a scratch copy with a name no other boot shares, so it is known by its files'
+  #   relative paths and contents; any other is known by its files' paths, sizes and mtimes.
   def self.signature(directory)
+    scratch = directory.start_with?(Dir.tmpdir)
     Dir.glob(File.join(directory, "**", "*")).filter_map do |path|
-      stat = File.stat(path)
-      [path, stat.size, stat.mtime.to_r] if stat.file?
-    end
+      next unless File.file?(path)
+
+      scratch ? [path.delete_prefix(directory), Digest::MD5.file(path).hexdigest] : file_stamp(path)
+    end.unshift(scratch ? :scratch : directory)
+  end
+
+  def self.file_stamp(path)
+    stat = File.stat(path)
+    [path, stat.size, stat.mtime.to_r]
   end
 
   # @param declared [Hecks::Runtime::Registry::Declarations] what a load gathered
@@ -53,7 +63,7 @@ module DeclarationCache
     def load_declarations(loading, directory, shared, overlay)
       return super if ENV["HECKS_NO_DECLARATION_CACHE"]
 
-      key = [directory, shared, overlay, DeclarationCache.signature(directory)]
+      key = [shared, overlay, DeclarationCache.signature(directory)]
       DeclarationCache.fetch(key, root: File.dirname(directory)) { super }
     end
   end
