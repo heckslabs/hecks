@@ -69,12 +69,16 @@ jobs:
           crate-root: rust/parser
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: "rspec: Rust parser parity + coverage + grammar corpus"
+      - name: "rspec: Rust parser parity + coverage + grammar corpus + the Composer's check"
         run: |
           bundle exec rspec --tag io \
             spec/parser_parity_spec.rb \
             spec/parser_coverage_spec.rb \
-            spec/grammar_corpus_spec.rb
+            spec/grammar_corpus_spec.rb \
+            spec/composer_check_spec.rb \
+            spec/composer_web_spec.rb \
+            spec/composer_panels_spec.rb \
+            spec/composer_agent_spec.rb
 
       # The crate's own unit and tests/gates.rs suite; reuses the target dir built above.
       - name: "cargo test: rust/parser (hecks-parse)"

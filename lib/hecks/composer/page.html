@@ -1,0 +1,717 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hecks Composer</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/show-hint.min.css">
+<style>
+  :root {
+    --bg: #f6f6f4; --panel: #ffffff; --edge: #dcdcd6; --ink: #1d1d1b; --dim: #6b6b64;
+    --accent: #2f6fed; --bad: #c0392b; --warn: #b7791f; --ok: #2f855a; --line: #fdecea;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161616; --panel: #1e1e1e; --edge: #333330; --ink: #e8e8e3; --dim: #9a9a92;
+      --accent: #6c9cff; --bad: #ff7b6b; --warn: #e0b04a; --ok: #6fcf97; --line: #3a2220;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--bg); color: var(--ink); font: 13px/1.45 ui-sans-serif, system-ui, sans-serif; display: flex; flex-direction: column; }
+  header { display: flex; align-items: center; gap: 12px; padding: 6px 12px; border-bottom: 1px solid var(--edge); background: var(--panel); }
+  header h1 { font-size: 13px; margin: 0; letter-spacing: .04em; }
+  header .grow { flex: 1; }
+  button { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--edge); border-radius: 4px; padding: 3px 10px; cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  main { flex: 1; display: grid; grid-template-columns: 200px minmax(0, 1fr) 6px var(--right, 42%); grid-template-rows: minmax(0, 1fr); min-height: 0; overflow: hidden; }
+  aside, section { background: var(--panel); min-height: 0; overflow: auto; }
+  aside { border-right: 1px solid var(--edge); }
+  .title { padding: 6px 10px; color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+  .file { display: flex; padding: 3px 10px; cursor: pointer; gap: 6px; }
+  .file:hover { background: var(--bg); }
+  .file.active { background: var(--bg); border-left: 2px solid var(--accent); padding-left: 8px; }
+  .file .dot { color: var(--warn); visibility: hidden; }
+  .file.dirty .dot { visibility: visible; }
+  .file .side { margin-left: auto; color: var(--dim); font-size: 11px; }
+  #editor { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
+  #tabs { display: flex; border-bottom: 1px solid var(--edge); overflow-x: auto; }
+  #tabs .tab { padding: 5px 12px; border-right: 1px solid var(--edge); color: var(--dim); white-space: nowrap; cursor: pointer; }
+  #tabs .tab.active { color: var(--ink); background: var(--bg); }
+  .CodeMirror { flex: 1; height: auto; font: 13px/1.5 ui-monospace, Menlo, monospace; background: var(--panel); color: var(--ink); }
+  .CodeMirror-gutters { background: var(--panel); border-right: 1px solid var(--edge); }
+  .CodeMirror-cursor { border-left-color: var(--ink); }
+  .cm-s-default .cm-keyword { color: var(--accent); }
+  .cm-s-default .cm-string, .cm-s-default .cm-string-2 { color: var(--ok); }
+  .cm-s-default .cm-comment { color: var(--dim); }
+  .cm-s-default .cm-atom, .cm-s-default .cm-number { color: var(--warn); }
+  .cm-s-default .cm-variable, .cm-s-default .cm-variable-2, .cm-s-default .cm-def { color: var(--ink); }
+  .bad-line { background: var(--line); }
+  #splitter { background: var(--edge); cursor: col-resize; }
+  #right { display: flex; flex-direction: column; }
+  #panels { display: flex; border-bottom: 1px solid var(--edge); }
+  #panels .tab { padding: 5px 12px; color: var(--dim); cursor: pointer; }
+  #panels .tab.active { color: var(--ink); border-bottom: 2px solid var(--accent); }
+  .pane { display: none; padding: 10px 12px; overflow: auto; flex: 1; min-height: 0; }
+  .pane.active { display: block; }
+  .pane ul { margin: 0; padding-left: 18px; }
+  .pane li { margin: 2px 0; }
+  .finding.error { color: var(--bad); } .finding.warning { color: var(--warn); }
+  #diagram svg { max-width: 100%; height: auto; }
+  select { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--edge); border-radius: 4px; margin-bottom: 8px; }
+  footer { padding: 4px 12px; border-top: 1px solid var(--edge); background: var(--panel); color: var(--dim); display: flex; gap: 12px; }
+  footer #status { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  footer .bad { color: var(--bad); } footer .ok { color: var(--ok); }
+  .jump { cursor: pointer; text-decoration: underline dotted; }
+  .entry { display: flex; padding: 1px 10px 1px 16px; cursor: pointer; gap: 6px; }
+  .entry:hover { background: var(--bg); }
+  .entry .kind { color: var(--dim); font-size: 11px; min-width: 52px; }
+  #lower { border-top: 1px solid var(--edge); background: var(--panel); height: 36%; min-height: 120px; display: flex; flex-direction: column; }
+  #lowerTabs { display: flex; align-items: center; border-bottom: 1px solid var(--edge); }
+  #lowerTabs .tab { padding: 4px 12px; color: var(--dim); cursor: pointer; }
+  #lowerTabs .tab.active { color: var(--ink); border-bottom: 2px solid var(--accent); }
+  #lowerTabs .grow { flex: 1; } #lowerTabs button { margin-right: 8px; }
+  .lane { display: none; overflow: auto; flex: 1; min-height: 0; padding: 6px 12px; }
+  .lane.active { display: block; }
+  .lane pre { margin: 0 0 8px; font: 12px/1.45 ui-monospace, Menlo, monospace; white-space: pre-wrap; }
+  .lane .row { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 6px; flex-wrap: wrap; }
+  .lane textarea { font: 12px/1.4 ui-monospace, Menlo, monospace; color: var(--ink); background: var(--bg); border: 1px solid var(--edge); border-radius: 4px; min-width: 280px; min-height: 64px; }
+  .lane input[type=text], .lane input[type=number] { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--edge); border-radius: 4px; padding: 3px 6px; }
+  .lane .ok, pre.ok { color: var(--ok); } .lane .bad, pre.bad { color: var(--bad); }
+  .lane .title { padding: 4px 0; } .lane .rev { display: flex; gap: 10px; align-items: center; margin: 2px 0; }
+  .run-mark { color: var(--ok); cursor: pointer; padding-left: 3px; } .run-gutter { width: 16px; }
+  #palette { position: fixed; inset: 0; background: rgba(0, 0, 0, .35); z-index: 20; display: flex; justify-content: center; align-items: flex-start; padding-top: 10vh; }
+  #palette[hidden] { display: none; }
+  #palette .box { width: min(720px, 92vw); max-height: 76vh; overflow: auto; background: var(--panel); border: 1px solid var(--edge); border-radius: 6px; padding: 10px; }
+  #palette .head { display: flex; gap: 10px; align-items: center; } #paletteInput { flex: 1; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--edge); border-radius: 4px; padding: 6px 8px; }
+  .pitem { padding: 3px 6px; cursor: pointer; border-radius: 3px; } .pitem:hover { background: var(--bg); }
+  #paletteDetail { margin-top: 8px; } #paletteDetail textarea, #paletteDetail input { width: 100%; margin: 4px 0; }
+  #turns .turn { margin: 2px 0; } #turns .who { color: var(--dim); font-size: 11px; text-transform: uppercase; margin-right: 6px; }
+  #turns .agent .who { color: var(--accent); }
+  #askForm { display: flex; gap: 8px; margin-top: 6px; } #prompt { flex: 1; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--edge); border-radius: 4px; padding: 5px 8px; }
+  #changes .file-diff { margin: 6px 0; border: 1px solid var(--edge); border-radius: 4px; } #changes .head { display: flex; gap: 8px; padding: 3px 8px; background: var(--bg); }
+  #changes pre { margin: 0; padding: 4px 8px; font: 12px/1.45 ui-monospace, Menlo, monospace; max-height: 200px; overflow: auto; }
+  #changes .add { background: rgba(47, 133, 90, .18); } #changes .del { background: rgba(192, 57, 43, .18); }
+  #tip { position: fixed; z-index: 10; max-width: 340px; padding: 4px 8px; background: var(--ink); color: var(--bg); border-radius: 4px; display: none; pointer-events: none; }
+  table.wire { border-collapse: collapse; margin-bottom: 12px; } table.wire td, table.wire th { border-bottom: 1px solid var(--edge); padding: 2px 10px 2px 0; text-align: left; }
+  #diagramView .node, #diagramView .nodeLabel { cursor: pointer; }
+  @media (max-width: 760px) { main { grid-template-columns: 1fr; } aside, #splitter { display: none; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>HECKS COMPOSER</h1>
+  <span id="workspace" class="grow" style="color:var(--dim)"></span>
+  <button id="save" title="Save the open file (Ctrl/Cmd-S)">Save</button>
+</header>
+<main id="main">
+  <aside><div class="title">Explorer</div><div id="files"></div><div class="title">Outline</div><div id="outline"></div></aside>
+  <div id="editor"><div id="tabs"></div><div id="cm" style="flex:1;min-height:0;display:flex"></div></div>
+  <div id="splitter"></div>
+  <section id="right">
+    <div id="panels">
+      <div class="tab active" data-pane="diagram">Diagram</div>
+      <div class="tab" data-pane="statements">Statements</div>
+      <div class="tab" data-pane="findings">Findings <span id="findingCount"></span></div>
+      <div class="tab" data-pane="wiring">Wiring</div>
+    </div>
+    <div class="pane active" id="diagram"><select id="diagramPick"></select><div id="diagramView"></div></div>
+    <div class="pane" id="statements"><ul id="statementList"></ul></div>
+    <div class="pane" id="findings"><ul id="findingList"></ul></div>
+    <div class="pane" id="wiring"><div id="wiringView"></div></div>
+  </section>
+</main>
+<section id="lower">
+  <div id="lowerTabs">
+    <div class="tab active" data-lane="agent">Agent</div>
+    <div class="tab" data-lane="console">Console</div>
+    <div class="tab" data-lane="records">Records</div>
+    <div class="tab" data-lane="behaviors">Behaviors</div>
+    <div class="tab" data-lane="eras">Eras</div>
+    <div class="tab" data-lane="fuzz">Fuzz</div>
+    <div class="tab" data-lane="timeline">Timeline</div>
+    <span class="grow"></span>
+    <button id="paletteOpen" title="Hecks commands (Ctrl/Cmd-K)">Commands ⌘K</button>
+  </div>
+  <div class="lane active" id="lane-agent">
+    <div id="turns"></div>
+    <div id="changes"></div>
+    <form id="askForm"><input id="prompt" placeholder="Ask the agent to change the domain, or how it is wired…" autocomplete="off"><button id="ask">Ask</button></form>
+  </div>
+  <div class="lane" id="lane-console">
+    <div class="row"><select id="consoleVerb"></select><input type="text" id="consoleTo" placeholder="record id"><button id="consoleRun">Run</button><span id="consoleGoal" style="color:var(--dim)"></span></div>
+    <div class="row"><textarea id="consoleArgs" spellcheck="false" placeholder="arguments as JSON"></textarea></div>
+    <pre id="consoleOut"></pre>
+  </div>
+  <div class="lane" id="lane-records"><div class="row"><button id="recordsRefresh">Refresh</button></div><div id="recordsView"></div></div>
+  <div class="lane" id="lane-behaviors"><div class="row"><button id="behaviorsRun">Run behaviors</button></div><pre id="behaviorsView"></pre></div>
+  <div class="lane" id="lane-eras"><div class="row"><button id="erasRefresh">Refresh</button><span style="color:var(--dim)">read-only: the era queries over the workspace</span></div><div id="erasView"></div></div>
+  <div class="lane" id="lane-fuzz">
+    <div class="row">
+      <label>seeds <input type="number" id="fuzzSeeds" value="5" min="1" style="width:70px"></label>
+      <label>steps <input type="number" id="fuzzSteps" value="20" min="1" style="width:70px"></label>
+      <button id="fuzzStart">Fuzz</button>
+      <input type="text" id="conformArtifact" placeholder="Rust artifact path" style="width:240px"><button id="conformStart">Check conformance</button>
+      <button id="jobCancel">Cancel</button><span id="jobStatus" style="color:var(--dim)">idle</span>
+    </div>
+    <pre id="jobOut"></pre>
+  </div>
+  <div class="lane" id="lane-timeline"><div id="timelineView"></div></div>
+</section>
+<div id="palette" hidden>
+  <div class="box">
+    <div class="head"><input id="paletteInput" placeholder="Search Hecks commands and queries…" autocomplete="off"><label><input type="checkbox" id="paletteGuarded"> show guarded</label></div>
+    <div id="paletteList"></div>
+    <div id="paletteDetail"></div>
+  </div>
+</div>
+<div id="tip"></div>
+<footer><span id="status">loading</span><span id="timing"></span></footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/ruby/ruby.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/show-hint.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"></script>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const api = async (method, path, body) => {
+    const res = await fetch("/composer/" + path, { method, headers: { "content-type": "application/json" }, body: body && JSON.stringify(body) });
+    return res.json();
+  };
+  const dark = matchMedia("(prefers-color-scheme: dark)").matches;
+  mermaid.initialize({ startOnLoad: false, theme: dark ? "dark" : "default", securityLevel: "strict" });
+
+  const state = { docs: {}, disk: {}, open: null, diagrams: {}, diagnostic: null, badLine: null, serial: 0, outline: [], lane: "agent" };
+  const editor = CodeMirror($("cm"), { mode: "ruby", lineNumbers: true, indentUnit: 2, gutters: ["CodeMirror-linenumbers", "run-gutter"], extraKeys: {
+    "Ctrl-S": save, "Cmd-S": save, "Ctrl-Space": complete
+  } });
+  editor.setSize("100%", "100%");
+
+  const dirty = (path) => state.docs[path].getValue() !== state.disk[path];
+  const side = (path) => path.endsWith(".bluebook") ? "bluebook" : path.endsWith(".behaviors") ? "behaviors" : "hecksagon";
+  const buffers = () => Object.fromEntries(Object.keys(state.docs).filter(dirty).map((p) => [p, state.docs[p].getValue()]));
+
+  function renderFiles() {
+    $("files").replaceChildren(...Object.keys(state.docs).sort().map((path) => {
+      const row = document.createElement("div");
+      row.className = "file" + (path === state.open ? " active" : "") + (dirty(path) ? " dirty" : "");
+      row.innerHTML = `<span class="dot">●</span><span></span><span class="side">${side(path)}</span>`;
+      row.children[1].textContent = path;
+      row.onclick = () => openFile(path);
+      return row;
+    }));
+    $("tabs").replaceChildren(...(state.open ? [state.open] : []).map((path) => {
+      const tab = document.createElement("div");
+      tab.className = "tab active";
+      tab.textContent = path + (dirty(path) ? " ●" : "");
+      return tab;
+    }));
+  }
+
+  function openFile(path) {
+    state.open = path;
+    editor.swapDoc(state.docs[path]);
+    paintBadLine();
+    markRunGutter();
+    renderFiles();
+    editor.focus();
+    if (state.lane === "timeline") loadTimeline();
+  }
+
+  function paintBadLine() {
+    if (state.badLine !== null) { editor.removeLineClass(state.badLine, "background", "bad-line"); state.badLine = null; }
+    const d = state.diagnostic;
+    if (d && d.file === state.open && d.line) {
+      state.badLine = d.line - 1;
+      editor.addLineClass(state.badLine, "background", "bad-line");
+    }
+  }
+
+  function showDiagnostic(d) {
+    state.diagnostic = d;
+    paintBadLine();
+    const status = $("status");
+    if (!d) { status.className = "ok"; status.textContent = "ok"; return; }
+    status.className = "bad";
+    const where = d.line ? `${d.file}:${d.line} ` : "";
+    const expected = d.expected && d.expected.length ? ` — expected one of: ${d.expected.join(", ")}` : "";
+    status.textContent = where + d.message + expected;
+    status.title = status.textContent;
+  }
+
+  let parseTimer, checkTimer;
+  function changed() {
+    renderFiles();
+    clearTimeout(parseTimer); clearTimeout(checkTimer);
+    const serial = ++state.serial;
+    parseTimer = setTimeout(async () => {
+      const { diagnostic } = await api("POST", "parse", { buffers: buffers() });
+      if (serial === state.serial) showDiagnostic(diagnostic);
+    }, 120);
+    checkTimer = setTimeout(async () => {
+      const result = await api("POST", "check", { buffers: buffers() });
+      if (serial === state.serial) applyCheck(result);
+    }, 450);
+  }
+
+  function entryNamed(name) {
+    const last = String(name).split(/[.:\s]/).filter(Boolean).pop();
+    return state.outline.find((e) => e.name === name) || state.outline.find((e) => e.name === last);
+  }
+
+  function jumpTo(file, line) {
+    if (file !== state.open) openFile(file);
+    editor.setCursor({ line: line - 1, ch: 0 });
+    editor.scrollIntoView({ line: line - 1, ch: 0 }, 120);
+    editor.focus();
+  }
+
+  function renderOutline() {
+    $("outline").replaceChildren(...state.outline.filter((e) => e.kind !== "value_object").map((e) => {
+      const row = document.createElement("div");
+      row.className = "entry";
+      row.innerHTML = '<span class="kind"></span><span></span>';
+      row.children[0].textContent = e.kind;
+      row.children[1].textContent = e.name;
+      row.onclick = () => jumpTo(e.file, e.line);
+      return row;
+    }));
+  }
+
+  function renderWiring(w) {
+    const view = $("wiringView");
+    if (!w) { view.textContent = "Nothing is wired until the workspace loads."; return; }
+    const table = (heads, rows) => {
+      const t = document.createElement("table");
+      t.className = "wire";
+      t.innerHTML = "<tr>" + heads.map((h) => `<th>${h}</th>`).join("") + "</tr>";
+      rows.forEach((r) => { const tr = document.createElement("tr"); r.forEach((c) => { const td = document.createElement("td"); td.textContent = c ?? ""; tr.appendChild(td); }); t.appendChild(tr); });
+      return t;
+    };
+    const facts = [["default adapter", w.default_adapter || "(none)"], ["attaches", w.attaches.join(", ") || "(none)"],
+                   ["driven by", w.driving.join(", ") || "(any)"]];
+    const ports = Object.entries(w.ports).map(([port, adapters]) => [port, adapters.join(", ") || "unbound"]);
+    view.replaceChildren(table(["", ""], facts), table(["bind", "aggregate", "adapter", "role"], w.binds.map((b) => [b.verb, b.aggregate, b.adapter, b.role])), table(["port", "adapters"], ports));
+  }
+
+  function applyCheck(result) {
+    showDiagnostic(result.diagnostic);
+    $("timing").textContent = result.elapsed_ms == null ? "" : `${result.elapsed_ms} ms`;
+    state.outline = result.outline || [];
+    renderOutline();
+    markRunGutter();
+    if (["records", "timeline"].includes(state.lane)) refreshLane(state.lane);
+    if (result.diagnostic) return;
+    renderWiring(result.wiring);
+    state.diagrams = result.diagrams;
+    const pick = $("diagramPick");
+    const names = Object.keys(result.diagrams);
+    const keep = names.includes(pick.value) ? pick.value : (names.find((n) => n.endsWith("_surface.mmd")) || names[0]);
+    pick.replaceChildren(...names.map((n) => new Option(n.replace(/\.mmd$/, ""), n)));
+    pick.value = keep;
+    drawDiagram();
+    $("statementList").replaceChildren(...result.statements.map((s) => Object.assign(document.createElement("li"), { textContent: s })));
+    $("findingList").replaceChildren(...result.findings.map((f) => {
+      const li = Object.assign(document.createElement("li"), { className: "finding " + f.severity, textContent: `${f.kind} ${f.subject} — ${f.message}` });
+      const hit = entryNamed(f.subject);
+      if (hit) { li.classList.add("jump"); li.onclick = () => jumpTo(hit.file, hit.line); }
+      return li;
+    }));
+    $("findingCount").textContent = result.findings.length ? `(${result.findings.length})` : "";
+  }
+
+  async function drawDiagram() {
+    const text = state.diagrams[$("diagramPick").value];
+    if (!text) { $("diagramView").replaceChildren(); return; }
+    try {
+      const { svg } = await mermaid.render("d" + Date.now(), text);
+      $("diagramView").innerHTML = svg;
+    } catch (e) {
+      $("diagramView").textContent = String(e.message || e);
+    }
+  }
+  $("diagramPick").onchange = drawDiagram;
+  $("diagramView").addEventListener("click", (e) => {
+    const node = e.target.closest(".node, .nodeLabel, .label, text");
+    const hit = node && entryNamed(node.textContent.trim());
+    if (hit) jumpTo(hit.file, hit.line);
+  });
+
+  const tip = $("tip");
+  editor.getWrapperElement().addEventListener("mousemove", (e) => {
+    const at = editor.coordsChar({ left: e.clientX, top: e.clientY }, "window");
+    const entry = state.outline.find((o) => o.file === state.open && o.line === at.line + 1 && o.summary);
+    if (!entry) { tip.style.display = "none"; return; }
+    tip.textContent = entry.summary;
+    tip.style.left = e.clientX + 14 + "px"; tip.style.top = e.clientY + 14 + "px"; tip.style.display = "block";
+  });
+  editor.getWrapperElement().addEventListener("mouseleave", () => { tip.style.display = "none"; });
+
+  async function complete() {
+    const d = state.diagnostic;
+    if (!d || !d.expected || !d.expected.length) return;
+    CodeMirror.showHint(editor, () => {
+      const cur = editor.getCursor();
+      return { list: d.expected, from: cur, to: cur };
+    }, { completeSingle: false });
+  }
+
+  async function save() {
+    const path = state.open;
+    if (!path) return;
+    const text = state.docs[path].getValue();
+    await api("PUT", "file", { path, text });
+    state.disk[path] = text;
+    renderFiles();
+    if (state.lane === "timeline") loadTimeline();
+  }
+  $("save").onclick = save;
+
+  async function saveAll() {
+    for (const path of Object.keys(state.docs).filter(dirty)) {
+      const text = state.docs[path].getValue();
+      await api("PUT", "file", { path, text });
+      state.disk[path] = text;
+    }
+    renderFiles();
+  }
+
+  // Puts what the agent left on disk into the editor's documents without marking them unsaved.
+  function adopt(path, text) {
+    if (text === null) { delete state.docs[path]; delete state.disk[path]; if (state.open === path) state.open = Object.keys(state.docs).sort()[0] || null; return; }
+    state.disk[path] = text;
+    if (state.docs[path]) state.docs[path].setValue(text);
+    else state.docs[path] = CodeMirror.Doc(text, "ruby");
+  }
+
+  // A line diff by longest common subsequence: enough for files of a few hundred lines.
+  function lineDiff(before, after) {
+    const a = (before ?? "").split("\n"), b = (after ?? "").split("\n");
+    const table = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));
+    for (let i = a.length - 1; i >= 0; i--) for (let j = b.length - 1; j >= 0; j--)
+      table[i][j] = a[i] === b[j] ? table[i + 1][j + 1] + 1 : Math.max(table[i + 1][j], table[i][j + 1]);
+    const out = []; let i = 0, j = 0;
+    while (i < a.length && j < b.length) {
+      if (a[i] === b[j]) { out.push([" ", a[i]]); i++; j++; }
+      else if (table[i + 1][j] >= table[i][j + 1]) out.push(["-", a[i++]]);
+      else out.push(["+", b[j++]]);
+    }
+    while (i < a.length) out.push(["-", a[i++]]);
+    while (j < b.length) out.push(["+", b[j++]]);
+    return out;
+  }
+
+  function showChanges(changed) {
+    const box = $("changes");
+    const paths = Object.keys(changed);
+    if (!paths.length) { box.replaceChildren(); return; }
+    const files = paths.map((path) => {
+      const card = document.createElement("div");
+      card.className = "file-diff";
+      const pre = document.createElement("pre");
+      for (const [mark, line] of lineDiff(changed[path].before, changed[path].after)) {
+        if (mark === " ") continue;
+        const row = document.createElement("div");
+        row.className = mark === "+" ? "add" : "del";
+        row.textContent = mark + " " + line;
+        pre.appendChild(row);
+      }
+      const head = document.createElement("div");
+      head.className = "head";
+      head.textContent = path + (changed[path].before === null ? " (new)" : "");
+      card.append(head, pre);
+      return card;
+    });
+    const keep = Object.assign(document.createElement("button"), { textContent: "Keep" });
+    const undo = Object.assign(document.createElement("button"), { textContent: "Undo" });
+    keep.onclick = () => box.replaceChildren();
+    undo.onclick = async () => {
+      for (const path of paths) {
+        const before = changed[path].before;
+        if (before === null) await api("DELETE", "file", { path });
+        else await api("PUT", "file", { path, text: before });
+        adopt(path, before);
+      }
+      if (state.open && state.docs[state.open]) openFile(state.open);
+      box.replaceChildren();
+      renderFiles();
+      applyCheck(await api("POST", "check", { buffers: {} }));
+    };
+    const bar = document.createElement("div");
+    bar.append(keep, " ", undo);
+    box.replaceChildren(...files, bar);
+  }
+
+  function showTurns(draft) {
+    $("turns").replaceChildren(...((draft && draft.turns) || []).map((turn) => {
+      const row = document.createElement("div");
+      row.className = "turn " + turn.speaker;
+      row.innerHTML = '<span class="who"></span><span></span>';
+      row.children[0].textContent = turn.speaker;
+      row.children[1].textContent = turn.said;
+      return row;
+    }));
+  }
+
+  $("askForm").onsubmit = async (event) => {
+    event.preventDefault();
+    const prompt = $("prompt").value.trim();
+    if (!prompt) return;
+    $("ask").disabled = true;
+    editor.setOption("readOnly", "nocursor");
+    $("status").className = ""; $("status").textContent = "asking the agent…";
+    try {
+      await saveAll();
+      const result = await api("POST", "ask", { prompt });
+      if (result.error) { $("status").className = "bad"; $("status").textContent = result.error; return; }
+      for (const [path, { after }] of Object.entries(result.changed)) adopt(path, after);
+      if (state.open && state.docs[state.open]) { editor.swapDoc(state.docs[state.open]); }
+      $("prompt").value = "";
+      renderFiles();
+      applyCheck(result.check);
+      showChanges(result.changed);
+      if (result.layout) { showRight(result.layout.right); showLower(result.layout.bottom); }
+      showTurns((await api("GET", "draft")).draft);
+      if (!result.check.diagnostic) { $("status").className = "ok"; $("status").textContent = `${result.intent}: ${result.note}`; }
+    } finally {
+      editor.setOption("readOnly", false);
+      $("ask").disabled = false;
+    }
+  };
+
+  function showRight(name) {
+    document.querySelectorAll("#panels .tab, .pane").forEach((el) => el.classList.remove("active"));
+    document.querySelector(`#panels .tab[data-pane="${name}"]`)?.classList.add("active");
+    $(name)?.classList.add("active");
+  }
+  document.querySelectorAll("#panels .tab").forEach((tab) => tab.onclick = () => showRight(tab.dataset.pane));
+
+  // The lower drawer: one lane at a time, each loading what it shows when it opens.
+  function showLower(name) {
+    document.querySelectorAll("#lowerTabs .tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.lane === name));
+    document.querySelectorAll(".lane").forEach((lane) => lane.classList.toggle("active", lane.id === "lane-" + name));
+    state.lane = name;
+    return refreshLane(name);
+  }
+  document.querySelectorAll("#lowerTabs .tab").forEach((tab) => tab.onclick = () => showLower(tab.dataset.lane));
+
+  function refreshLane(name) {
+    const loaders = { console: loadConsole, records: loadRecords, behaviors: runBehaviors, eras: loadEras, fuzz: renderJob, timeline: loadTimeline };
+    return loaders[name] ? loaders[name]() : Promise.resolve();
+  }
+
+  function section(title, lines) {
+    const box = document.createElement("div");
+    const head = Object.assign(document.createElement("div"), { className: "title", textContent: title });
+    const pre = Object.assign(document.createElement("pre"), { textContent: lines.join("\n") || "(none)" });
+    box.append(head, pre);
+    return box;
+  }
+
+  // Console: dispatch a command of the workspace against a booted copy of it.
+  const consoleState = { commands: [] };
+  const currentCommand = () => consoleState.commands.find((c) => c.verb === $("consoleVerb").value);
+
+  async function loadConsole() {
+    const result = await api("POST", "live/commands", { buffers: buffers() });
+    if (result.error) { $("consoleOut").className = "bad"; $("consoleOut").textContent = result.error; return; }
+    consoleState.commands = result.commands;
+    const pick = $("consoleVerb");
+    const keep = pick.value;
+    pick.replaceChildren(...result.commands.map((c) => new Option(`${c.aggregate}.${c.command}`, c.verb)));
+    if (result.commands.some((c) => c.verb === keep)) pick.value = keep;
+    fillConsoleForm();
+  }
+
+  function fillConsoleForm() {
+    const command = currentCommand();
+    if (!command) return;
+    $("consoleTo").style.display = command.creates ? "none" : "";
+    $("consoleArgs").value = JSON.stringify(command.template, null, 2);
+    $("consoleGoal").textContent = command.goal || "";
+  }
+  $("consoleVerb").onchange = fillConsoleForm;
+
+  $("consoleRun").onclick = async () => {
+    const command = currentCommand();
+    if (!command) return;
+    let args;
+    try { args = JSON.parse($("consoleArgs").value || "{}"); }
+    catch (e) { $("consoleOut").className = "bad"; $("consoleOut").textContent = "the arguments are not JSON: " + e.message; return; }
+    const reply = await api("POST", "live/dispatch", { buffers: buffers(), verb: command.verb, to: command.creates ? null : $("consoleTo").value, with: args });
+    $("consoleOut").className = reply.ok ? "ok" : "bad";
+    $("consoleOut").textContent = reply.ok ? `${reply.events.join(", ")}\n${JSON.stringify(reply.instance, null, 2)}` : `${reply.kind || "error"}: ${reply.error}`;
+  };
+
+  // A play mark beside each command of the open file opens it in the Console.
+  function markRunGutter() {
+    editor.clearGutter("run-gutter");
+    let aggregate = null;
+    for (const entry of state.outline.filter((o) => o.file === state.open)) {
+      if (entry.kind === "aggregate") aggregate = entry.name;
+      if (entry.kind !== "command") continue;
+      const mark = Object.assign(document.createElement("span"), { textContent: "▶", className: "run-mark", title: `Run ${entry.name} in the Console` });
+      const owner = aggregate;
+      mark.onclick = () => runFromGutter(owner, entry.name);
+      editor.setGutterMarker(entry.line - 1, "run-gutter", mark);
+    }
+  }
+
+  async function runFromGutter(aggregate, command) {
+    await showLower("console");
+    const found = consoleState.commands.find((c) => c.aggregate === aggregate && c.command === command);
+    if (found) { $("consoleVerb").value = found.verb; fillConsoleForm(); }
+  }
+
+  // Records and history of the booted copy the Console runs against.
+  async function loadRecords() {
+    const reply = await api("POST", "live/records", { buffers: buffers() });
+    if (reply.error) { $("recordsView").textContent = reply.error; return; }
+    const tables = Object.entries(reply.records).map(([name, rows]) => section(`${name} (${rows.length})`, rows.map((row) => JSON.stringify(row))));
+    const events = reply.history.slice().reverse().map((e) => `${e.name}  ${e.id ?? ""}  ${JSON.stringify(e.payload)}`);
+    $("recordsView").replaceChildren(...tables, section(`History (${reply.history.length})`, events));
+  }
+  $("recordsRefresh").onclick = loadRecords;
+
+  async function runBehaviors() {
+    const reply = await api("POST", "behaviors", { buffers: buffers() });
+    if (!reply.files || !reply.files.length) { $("behaviorsView").textContent = "This workspace has no .behaviors file."; return; }
+    const lines = [];
+    for (const file of reply.files) {
+      lines.push(file.path);
+      if (file.parse_error) lines.push("  PARSE ERROR — " + file.parse_error);
+      for (const run of file.runs) {
+        lines.push(`  ${run.status === "pass" ? "ok  " : "FAIL"} ${run.description}`);
+        if (run.message) lines.push("       " + run.message);
+      }
+    }
+    const s = reply.summary;
+    lines.push("", `${s.total} tests: ${s.passed} passed, ${s.failed} failed, ${s.errored} errored`);
+    $("behaviorsView").textContent = lines.join("\n");
+  }
+  $("behaviorsRun").onclick = runBehaviors;
+
+  async function loadEras() {
+    const reply = await api("GET", "eras");
+    $("erasView").replaceChildren(...Object.entries(reply).map(([name, run]) => section(name.replace(/_/g, " "), [run.output || run.error || ""])));
+  }
+  $("erasRefresh").onclick = loadEras;
+
+  // Fuzz and conformance run as one background job on the saved files; the page polls it.
+  let jobTimer = null;
+  function startJob(verb, args) {
+    if (Object.keys(state.docs).some(dirty)) { $("jobOut").textContent = "Save your files first: a job runs on what is on disk."; return; }
+    if (state.diagnostic) { $("jobOut").textContent = "Fix the refusal first: a job needs a workspace that loads."; return; }
+    api("POST", "job", { kind: "command", verb, args }).then((reply) => { if (!reply.started) $("jobOut").textContent = reply.error; renderJob(); });
+  }
+  $("fuzzStart").onclick = () => startJob("fuzz_run.fuzz", { "domain.value": "$WORKSPACE", "seeds.value": $("fuzzSeeds").value, "steps.value": $("fuzzSteps").value, "workers.value": "1", "adapter.value": "memory" });
+  $("conformStart").onclick = () => startJob("build.fuzz_conformance", { "domain.value": "$WORKSPACE", "artifact.value": $("conformArtifact").value });
+  $("jobCancel").onclick = async () => { await api("DELETE", "job"); renderJob(); };
+
+  async function renderJob() {
+    const job = await api("GET", "job");
+    $("jobStatus").textContent = job.status + (job.verb ? ` — ${job.verb}` : "");
+    $("jobOut").textContent = job.output || "";
+    clearTimeout(jobTimer);
+    if (job.status === "running") jobTimer = setTimeout(renderJob, 2000);
+  }
+
+  // Timeline: what the open file held at each save, with a way back to any of it.
+  async function loadTimeline() {
+    const path = state.open;
+    if (!path) return;
+    const { revisions } = await api("POST", "timeline", { path });
+    const box = $("timelineView");
+    if (!revisions.length) { box.textContent = "Nothing saved for this file yet. Save it to start its timeline."; return; }
+    box.replaceChildren(...revisions.map((rev) => {
+      const row = Object.assign(document.createElement("div"), { className: "rev" });
+      const load = Object.assign(document.createElement("button"), { textContent: "Load into editor" });
+      load.onclick = () => { state.docs[path].setValue(rev.text ?? ""); changed(); };
+      row.append(Object.assign(document.createElement("span"), { textContent: `${rev.at}  ${rev.name}` }), load);
+      return row;
+    }));
+  }
+
+  // The command palette: Hecks's own commands and queries, the guarded ones hidden until asked for.
+  let catalog = null;
+  async function openPalette() {
+    $("palette").hidden = false;
+    $("paletteInput").value = "";
+    $("paletteDetail").replaceChildren();
+    $("paletteInput").focus();
+    if (!catalog) catalog = (await api("GET", "catalog")).catalog;
+    renderPalette();
+  }
+  function closePalette() { $("palette").hidden = true; editor.focus(); }
+
+  function paletteRows() {
+    const needle = $("paletteInput").value.toLowerCase();
+    const guarded = $("paletteGuarded").checked;
+    return (catalog || []).filter((r) => (guarded || !r.guarded) && `${r.verb} ${r.goal || ""}`.toLowerCase().includes(needle)).slice(0, 60);
+  }
+
+  function renderPalette() {
+    $("paletteList").replaceChildren(...paletteRows().map((row) => {
+      const item = Object.assign(document.createElement("div"), { className: "pitem" });
+      item.textContent = `${row.kind === "query" ? "?" : "!"} ${row.verb}${row.guarded ? "  [guarded]" : ""} — ${row.goal || ""}`;
+      item.onclick = () => choose(row);
+      return item;
+    }));
+  }
+
+  function parseArgs(text) {
+    return Object.fromEntries(text.split("\n").map((l) => l.trim()).filter(Boolean).map((l) => [l.slice(0, l.indexOf("=")), l.slice(l.indexOf("=") + 1)]));
+  }
+
+  async function choose(row) {
+    const { help } = await api("POST", "help", { kind: row.kind, verb: row.verb });
+    const detail = $("paletteDetail");
+    const text = Object.assign(document.createElement("pre"), { textContent: help });
+    const args = Object.assign(document.createElement("textarea"), { placeholder: "name.value=…, one per line; $WORKSPACE is this workspace", rows: 3 });
+    const confirm = Object.assign(document.createElement("input"), { placeholder: `type RUN ${row.verb} to run a guarded command` });
+    const out = Object.assign(document.createElement("pre"), { textContent: "" });
+    const run = Object.assign(document.createElement("button"), { textContent: "Run" });
+    run.onclick = async () => {
+      const reply = await api("POST", "run", { kind: row.kind, verb: row.verb, args: parseArgs(args.value), confirm: confirm.value });
+      out.className = reply.ok ? "ok" : "bad";
+      out.textContent = reply.ok ? reply.output : (reply.error || reply.output);
+    };
+    detail.replaceChildren(text, args, ...(row.guarded ? [confirm] : []), run, out);
+  }
+
+  $("paletteOpen").onclick = openPalette;
+  $("paletteInput").oninput = renderPalette;
+  $("paletteGuarded").onchange = renderPalette;
+  $("paletteInput").onkeydown = (e) => { if (e.key === "Enter") { const first = paletteRows()[0]; if (first) choose(first); } };
+  $("palette").onclick = (e) => { if (e.target === $("palette")) closePalette(); };
+  addEventListener("keydown", (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); openPalette(); }
+    if (e.key === "Escape" && !$("palette").hidden) closePalette();
+  }, true);
+
+  $("splitter").onmousedown = (down) => {
+    const move = (e) => $("main").style.setProperty("--right", Math.max(240, innerWidth - e.clientX) + "px");
+    const up = () => { removeEventListener("mousemove", move); removeEventListener("mouseup", up); };
+    addEventListener("mousemove", move); addEventListener("mouseup", up);
+    down.preventDefault();
+  };
+
+  editor.on("change", (cm, change) => { if (change.origin !== "setValue") changed(); });
+  editor.on("inputRead", (cm, change) => { if (/\w/.test(change.text.join("")) && state.diagnostic && state.diagnostic.expected.length) complete(); });
+
+  (async () => {
+    const { files } = await api("GET", "files");
+    for (const { path, text } of files) { state.disk[path] = text; state.docs[path] = CodeMirror.Doc(text, "ruby"); }
+    const first = Object.keys(state.docs).sort().find((p) => p.endsWith(".bluebook")) || Object.keys(state.docs).sort()[0];
+    if (first) openFile(first);
+    $("workspace").textContent = `${files.length} files`;
+    renderFiles();
+    const result = await api("POST", "check", { buffers: {} });
+    applyCheck(result);
+  })();
+})();
+</script>
+</body>
+</html>
