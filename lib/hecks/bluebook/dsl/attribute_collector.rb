@@ -34,13 +34,12 @@ module Hecks
         # Declares one field on the owning construct; the type is a bare constant (ADR 0025).
         #
         #   attribute :op, String, admits: "Vocabulary::QueryComparator"
-        # `admits:` names an already-declared closed set as qualified text, checked on read.
-        # `one_of:` declares an inline closed set, meaningful only inside a `value_object`.
+        # `admits:` names a declared closed set as qualified text. `one_of:` declares an inline one.
         #
         # @param name [Symbol] the field's name
         # @param type [Module, ListOf, OneOf] a bare constant or a wrapper
-        # @param options [Hash] `default:`, `optional:`, `pattern:`, `matches:` (a NamedPattern), `admits:` or
-        #   `one_of:`
+        # @param options [Hash] `default:`, `optional:`, `pattern:`, `matches:` (a `NamedPattern`),
+        #   `admits:` or `one_of:`
         # @return [void]
         # @raise [Malformed] on a duplicate name, a missing or quoted type, a disallowed pattern
         # @raise [ArgumentError] on any other keyword
