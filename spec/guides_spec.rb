@@ -38,7 +38,8 @@ RSpec.describe "the guides" do
 
   DoctestNames.guides.each do |path|
     # Parsed at collection time so the postgres pragma can set `io: true` before the example runs.
-    it "#{File.basename(path)} says nothing its examples cannot back", :aggregate_failures, io: Doctest.parse(path).postgres do
+    it "#{File.basename(path)} says nothing its examples cannot back", :aggregate_failures, :process,
+       io: Doctest.parse(path).postgres do
       guide = Doctest.parse(path)
       # Vacuous-pass guard: a guide with no executable fence (`ruby skip` doesn't count) fails
       # instead of passing with nothing to run.

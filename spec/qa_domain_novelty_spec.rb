@@ -14,7 +14,7 @@ RSpec.describe "hecks quality_control judge_novelty" do
     QaLibCli.capture3("qa_domain_novelty", *args)
   end
 
-  it "names the pairs a candidate meets that the existing targets do not, and exits 0", :aggregate_failures do
+  it "names the pairs a candidate meets that the existing targets do not, and exits 0", :aggregate_failures, :process do
     out, err, status = run_novelty(HOPPER, "--against", BASELINE)
 
     expect(status.exitstatus).to eq(0), "stdout:\n#{out}\nstderr:\n#{err}"
@@ -25,7 +25,7 @@ RSpec.describe "hecks quality_control judge_novelty" do
     expect(out).not_to include("lifecycle + reference_attr")
   end
 
-  it "exits 1, saying so, when every pair the candidate meets is already met", :aggregate_failures do
+  it "exits 1, saying so, when every pair the candidate meets is already met", :aggregate_failures, :process do
     out, _err, status = run_novelty(BASELINE, "--against", HOPPER)
 
     expect(status.exitstatus).to eq(1)
@@ -33,7 +33,7 @@ RSpec.describe "hecks quality_control judge_novelty" do
     expect(out).to include("FormCensus::FORMS")
   end
 
-  it "leaves the candidate's own path out of the comparison when it is already a target", :aggregate_failures do
+  it "leaves the candidate's own path out of the comparison when it is already a target", :aggregate_failures, :process do
     out, _err, status = run_novelty(HOPPER, "--against", HOPPER, BASELINE)
 
     expect(status.exitstatus).to eq(0)
@@ -41,7 +41,7 @@ RSpec.describe "hecks quality_control judge_novelty" do
     expect(out).to include("multi_hop_where + reference_attr")
   end
 
-  it "refuses a candidate that is not shaped <name>/bluebook/<name>.bluebook, exit 2", :aggregate_failures do
+  it "refuses a candidate that is not shaped <name>/bluebook/<name>.bluebook, exit 2", :aggregate_failures, :process do
     _out, err, status = run_novelty(File.join(NOVELTY_FIXTURES, "flat.bluebook"), "--against", BASELINE)
 
     expect(status.exitstatus).to eq(2)
@@ -49,7 +49,7 @@ RSpec.describe "hecks quality_control judge_novelty" do
     expect(err).to include("bluebook/flat.bluebook.bluebook")
   end
 
-  it "reports, and skips, an --against path with nothing on disk rather than failing", :aggregate_failures do
+  it "reports, and skips, an --against path with nothing on disk rather than failing", :aggregate_failures, :process do
     out, err, status = run_novelty(HOPPER, "--against", BASELINE, File.join(NOVELTY_FIXTURES, "__nowhere__"))
 
     expect(status.exitstatus).to eq(0)
@@ -57,7 +57,7 @@ RSpec.describe "hecks quality_control judge_novelty" do
     expect(out).to include("1 domain(s) from --against")
   end
 
-  it "exits 2 with usage when given no candidate", :aggregate_failures do
+  it "exits 2 with usage when given no candidate", :aggregate_failures, :process do
     _out, err, status = run_novelty
 
     expect(status.exitstatus).to eq(2)

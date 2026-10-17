@@ -197,7 +197,7 @@ RSpec.describe "the generated multi-chapter editor, run by node" do
   def verbs_of(key) = result(key)["sent"].map { |body| body["verb"] }
 
   describe "the navigation" do
-    it "groups the aggregates under a heading for each chapter, in the order the row gives them", :aggregate_failures do
+    it "groups the aggregates under a heading for each chapter, in the order the row gives them", :aggregate_failures, :process do
       home = result("home")
 
       expect(home).to include('<li class="menu-title mt-4 px-3 text-muted">Press</li>',
@@ -205,36 +205,37 @@ RSpec.describe "the generated multi-chapter editor, run by node" do
       expect(home.index(">Press</li>")).to be < home.index(">Library</li>")
     end
 
-    it "addresses each aggregate by its chapter and its name", :aggregate_failures do
+    it "addresses each aggregate by its chapter and its name", :aggregate_failures, :process do
       expect(result("home")).to include('href="/editor/Press/Article"', 'href="/editor/Library/Gallery"',
                                         'href="/editor/Library/Category"')
       expect(result("noChapterPath")).to eq(404)
     end
 
-    it "shows the overview in groups as well, with the counts of each aggregate", :aggregate_failures do
+    it "shows the overview in groups as well, with the counts of each aggregate", :aggregate_failures, :process do
       expect(result("home")).to include('<h2 class="mb-2 mt-8 text-lg">Press</h2>', '<h2 class="mb-2 mt-8 text-lg">Library</h2>')
       expect(result("home")).to include('tabular-nums text-muted">6</span>')
     end
 
-    it "keeps two aggregates of one name apart, each listing its own instances", :aggregate_failures do
+    it "keeps two aggregates of one name apart, each listing its own instances", :aggregate_failures, :process do
       expect(result("pressCategories")).to include("Guides", "<title>Categories (Press) - Press editor</title>")
       expect(result("libraryCategories")).to include("News photos")
       expect(result("libraryCategories")).not_to include("Guides")
     end
 
-    it "marks only the page the person is on, by chapter and name", :aggregate_failures do
+    it "marks only the page the person is on, by chapter and name", :aggregate_failures, :process do
       expect(result("pressCategories")).to include('<a href="/editor/Press/Category" aria-current="page">')
       expect(result("pressCategories")).not_to include('<a href="/editor/Library/Category" aria-current="page">')
     end
   end
 
   describe "the roles of a chapter" do
-    it "leaves a chapter out of the navigation and the overview for a role it is not open to", :aggregate_failures do
+    it "leaves a chapter out of the navigation and the overview for a role it is not open to", :aggregate_failures, :process do
       expect(result("ownerHome")).to include('href="/editor/Press/Article"')
       expect(result("ownerHome")).not_to include("Library", "/editor/Library/")
     end
 
-    it "refuses the pages of that chapter, and its pictures, to that role, and serves them to the others", :aggregate_failures do
+    it "refuses the pages of that chapter, and its pictures, to that role, and serves them to the others", :aggregate_failures,
+       :process do
       expect(result("ownerGallery")).to eq(403)
       expect(result("ownerPicture")).to eq(403)
       expect(result("adminGallery")).to eq(200)
@@ -242,7 +243,7 @@ RSpec.describe "the generated multi-chapter editor, run by node" do
   end
 
   describe "a list at scale" do
-    it "shows one page of rows, with the range and total, and links to the next page", :aggregate_failures do
+    it "shows one page of rows, with the range and total, and links to the next page", :aggregate_failures, :process do
       html = result("listPage")
 
       expect(html).to include("1–2 of 6 articles", "Page 1 of 3", 'href="/editor/Press/Article?_page=2"')
@@ -250,54 +251,56 @@ RSpec.describe "the generated multi-chapter editor, run by node" do
       expect(html).not_to include("charlie")
     end
 
-    it "asks the host for one read, which the page and the counts share" do
+    it "asks the host for one read, which the page and the counts share", :process do
       expect(result("listReads")).to eq(1)
     end
 
-    it "follows the page asked for, clamps one past the end, and takes nonsense for the first", :aggregate_failures do
+    it "follows the page asked for, clamps one past the end, and takes nonsense for the first", :aggregate_failures, :process do
       expect(result("pageTwo")).to include("charlie", "delta", "3–4 of 6", 'rel="prev"')
       expect(result("pageTwo")).not_to include("alpha")
       expect(result("pageClamped")).to include("Page 3 of 3", "foxtrot")
       expect(result("pageJunk")).to include("Page 1 of 3")
     end
 
-    it "filters by a lifecycle state on the server, and keeps the filter on the links to other pages", :aggregate_failures do
+    it "filters by a lifecycle state on the server, and keeps the filter on the links to other pages", :aggregate_failures,
+       :process do
       expect(result("drafts")).to include("1–2 of 3 articles match", "bravo", "delta")
       expect(result("drafts")).to include('href="/editor/Press/Article?_status=draft&#38;_page=2"')
       expect(result("draftsTwo")).to include("foxtrot")
       expect(result("draftsTwo")).not_to include("delta")
     end
 
-    it "ignores a state the lifecycle does not have", :aggregate_failures do
+    it "ignores a state the lifecycle does not have", :aggregate_failures, :process do
       expect(result("badStatus")).to include("1–2 of 6 articles")
       expect(result("badStatus")).not_to include(" match")
     end
 
-    it "searches the identity and the title, without regard to case", :aggregate_failures do
+    it "searches the identity and the title, without regard to case", :aggregate_failures, :process do
       expect(result("searchTitle")).to include("1 article match", "bravo")
       expect(result("searchIdentity")).to include("1 article match", "echo")
     end
 
-    it "says nothing matches, keeping the search box, and combines a search with a state", :aggregate_failures do
+    it "says nothing matches, keeping the search box, and combines a search with a state", :aggregate_failures, :process do
       expect(result("searchNone")).to include("No articles match.", 'name="_q" value="zzz"')
       expect(result("searchAndStatus")).to include("2 articles match", "alpha", "charlie")
     end
 
-    it "keeps the view of the domain's own query on every link", :aggregate_failures do
+    it "keeps the view of the domain's own query on every link", :aggregate_failures, :process do
       html = result("viewPaged")
 
       expect(html).to include('name="query" value="Published"', "2 articles")
       expect(html).not_to include("Page 1 of")
     end
 
-    it "offers the status filter only for an aggregate that has a lifecycle", :aggregate_failures do
+    it "offers the status filter only for an aggregate that has a lifecycle", :aggregate_failures, :process do
       expect(result("listPage")).to include('name="_status"', "<option value=\"draft\">Draft</option>")
       expect(result("noteList")).not_to include('name="_status"')
     end
   end
 
   describe "the pickers" do
-    it "offers a select of the categories the target's active query lists, and not a retired one", :aggregate_failures do
+    it "offers a select of the categories the target's active query lists, and not a retired one", :aggregate_failures,
+       :process do
       form = result("draftForm")
 
       expect(form).to include('<select class="select w-full max-w-xl" id="f-categories-0-value" name="categories.0.value">')
@@ -305,15 +308,15 @@ RSpec.describe "the generated multi-chapter editor, run by node" do
       expect(form).not_to include('<option value="opinion">')
     end
 
-    it "asks each target's own query, in its own chapter, for what to offer" do
+    it "asks each target's own query, in its own chapter, for what to offer", :process do
       expect(result("draftAsked").map { |body| body["query"] }).to eq(["Press::Category.Active", "Library::MediaItem.Pictures"])
     end
 
-    it "keeps a key the form already names that is no longer offered, saying so", :aggregate_failures do
+    it "keeps a key the form already names that is no longer offered, saying so", :aggregate_failures, :process do
       expect(result("reviseForm")).to include('<option value="opinion" selected>opinion (not on offer)</option>')
     end
 
-    it "refuses a key the target does not hold before anything is sent, naming the field", :aggregate_failures do
+    it "refuses a key the target does not hold before anything is sent, naming the field", :aggregate_failures, :process do
       missing = result("missingCategory")
 
       expect(missing["status"]).to eq(422)
@@ -321,7 +324,7 @@ RSpec.describe "the generated multi-chapter editor, run by node" do
       expect(missing["sent"]).to be_empty
     end
 
-    it "sends the command, with the keys in order, when each key is there", :aggregate_failures do
+    it "sends the command, with the keys in order, when each key is there", :aggregate_failures, :process do
       accepted = result("acceptedCategory")
 
       expect(accepted["status"]).to eq(303)
@@ -330,74 +333,77 @@ RSpec.describe "the generated multi-chapter editor, run by node" do
       end).to eq([["Press::Article.Draft", [{ "value" => "news" }, { "value" => "guides" }]]])
     end
 
-    it "accepts a key that is retired, since it exists", :aggregate_failures do
+    it "accepts a key that is retired, since it exists", :aggregate_failures, :process do
       expect(result("retiredKept")["status"]).to eq(303)
       expect(verbs_of("retiredKept")).to eq(["Press::Article.Revise"])
     end
 
-    it "suggests pictures in a text box that accepts an address as well", :aggregate_failures do
+    it "suggests pictures in a text box that accepts an address as well", :aggregate_failures, :process do
       expect(result("draftForm")).to include('list="choices-Library-MediaItem"')
       expect(result("draftForm")).to include('<option value="aa.png" label="A red door (aa.png)">')
       expect(result("draftForm")).not_to include('list="choices-Library-MediaItem" autocomplete="off" data-strict')
     end
 
-    it "gives a `<kind>:<key>` value its kinds, and for each the records of the aggregate it names", :aggregate_failures do
+    it "gives a `<kind>:<key>` value its kinds, and for each the records of the aggregate it names", :aggregate_failures,
+       :process do
       form = result("composeForm")
 
       expect(form).to include("data-key-picker", "&#34;kind&#34;:&#34;article&#34;", "&#34;kind&#34;:&#34;note&#34;")
       expect(form).to include("&#34;key&#34;:&#34;alpha&#34;")
     end
 
-    it "refuses a kind it does not have and a record that is not there", :aggregate_failures do
+    it "refuses a kind it does not have and a record that is not there", :aggregate_failures, :process do
       expect(result("galleryKind")["html"]).to include("Start with one of article, note and a colon, as in article:key.")
       expect(result("galleryMissing")["html"]).to include("No article has the key &#34;zzz&#34;.")
       expect(result("galleryMissing")["sent"]).to be_empty
     end
 
-    it "sends a gallery named for a record that is there, in the chapter that declares the gallery", :aggregate_failures do
+    it "sends a gallery named for a record that is there, in the chapter that declares the gallery", :aggregate_failures,
+       :process do
       expect(result("galleryOk")["status"]).to eq(303)
       expect(verbs_of("galleryOk")).to eq(["Library::Gallery.Compose"])
     end
   end
 
   describe "dispatch" do
-    it "names each verb with its chapter, so aggregates of one name are not confused", :aggregate_failures do
+    it "names each verb with its chapter, so aggregates of one name are not confused", :aggregate_failures, :process do
       expect(verbs_of("acceptedCategory")).to eq(["Press::Article.Draft"])
       expect(result("galleryOk")["location"]).to eq("/editor/Library/Gallery/id/article%3Abravo")
     end
 
-    it "sends the person to the new instance's page, in its chapter" do
+    it "sends the person to the new instance's page, in its chapter", :process do
       expect(result("acceptedCategory")["location"]).to eq("/editor/Press/Article/id/golf")
     end
   end
 
   describe "save and add another" do
-    it "is offered on a form that makes something, beside the command's own button", :aggregate_failures do
+    it "is offered on a form that makes something, beside the command's own button", :aggregate_failures, :process do
       button = '<button type="submit" class="btn" name="__again" value="1" data-busy>Save and add another</button>'
       expect(result("draftForm")).to include(button)
       expect(result("reviseForm")).not_to include("Save and add another")
     end
 
-    it "starts the form again when it was the button pressed, and shows the new instance when it was not" do
+    it "starts the form again when it was the button pressed, and shows the new instance when it was not", :process do
       expect(result("again")["location"]).to eq("/editor/Press/Article/new/Draft")
     end
   end
 
   describe "moments" do
-    it "gives a date a field that holds the seconds, which the script swaps for a native date input", :aggregate_failures do
+    it "gives a date a field that holds the seconds, which the script swaps for a native date input", :aggregate_failures,
+       :process do
       form = result("draftForm")
 
       expect(form).to include('data-moment-field="date"', 'name="published_on.value"', "data-epoch-raw")
       expect(result("noteForm")).to include('data-moment-field="datetime"', 'name="remind_at.value"')
     end
 
-    it "shows a moment read-only in UTC, with the seconds for the script to restate", :aggregate_failures do
+    it "shows a moment read-only in UTC, with the seconds for the script to restate", :aggregate_failures, :process do
       element = '<time class="whitespace-nowrap" datetime="2026-09-21T14:13:20.000Z" data-moment="date" data-epoch="1790000000">'
       expect(result("detail")).to include("#{element}2026-09-21</time>")
       expect(result("noteDetail")).to include('data-moment="datetime" data-epoch="1790000000">2026-09-21 14:13 UTC</time>')
     end
 
-    it "sorts a list's moments by their seconds, as numbers", :aggregate_failures do
+    it "sorts a list's moments by their seconds, as numbers", :aggregate_failures, :process do
       expect(result("listPage")).to include('<td data-value="1790000000"><time')
       expect(result("listPage")).to include('data-sort="number">Published on</th>')
     end
@@ -411,7 +417,7 @@ RSpec.describe "the generated multi-chapter editor, run by node" do
     end
 
     EDITOR_ZONES.each do |zone, (local, offset, day)|
-      it "reads and writes the same moment in #{zone}", :aggregate_failures do
+      it "reads and writes the same moment in #{zone}", :aggregate_failures, :process do
         out = in_zone(zone)
 
         expect(out.values_at("datetime", "date")).to eq([local, local[0, 10]])
@@ -420,14 +426,14 @@ RSpec.describe "the generated multi-chapter editor, run by node" do
       end
     end
 
-    it "reads nothing from text that is not a date, or a day that is not there", :aggregate_failures do
+    it "reads nothing from text that is not a date, or a day that is not there", :aggregate_failures, :process do
       out = in_zone("UTC")
 
       expect(out["impossible"]).to be_nil
       expect(out["garbage"]).to eq([nil, nil, nil])
     end
 
-    it "says how far a moment is, in words, for a time and for a day", :aggregate_failures do
+    it "says how far a moment is, in words, for a time and for a day", :aggregate_failures, :process do
       out = in_zone("UTC")
 
       expect(out.values_at("inThreeDays", "hoursAgo", "tomorrow")).to eq(["in 3 days", "2 hours ago", "tomorrow"])

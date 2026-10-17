@@ -20,8 +20,11 @@
 # with `only=`: several of them write generated files and compare, so the stage is not meant to
 # run whole in one checkout.
 pre_push:
+  # HECKS_PROCESS_SPECS keeps the examples tagged `process` (they start child processes, so a plain
+  # `rspec` leaves them out) in the suite this stage runs.
   env:
     HECKS_ENVIRONMENT: memory
+    HECKS_PROCESS_SPECS: "1"
   checks:
     - id: rspec
       title: rspec (parallel)

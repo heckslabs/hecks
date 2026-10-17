@@ -47,12 +47,12 @@ RSpec.describe "hecks gate" do
     $stderr = STDERR
   end
 
-  it "answers 0 and names the checks when every one passes" do
+  it "answers 0 and names the checks when every one passes", :process do
     status, out, = run_gate("demo", "only=passes,reads_env")
     expect([status, out]).to eq([0, "[gate demo] green: passes, reads_env\n"])
   end
 
-  it "runs every check and reports each red one with its output and what it means", :aggregate_failures do
+  it "runs every check and reports each red one with its output and what it means", :aggregate_failures, :process do
     status, out, = run_gate("demo")
     expect(status).to eq(1)
     expect(out).to include("a check that fails", "broken", "BLOCKED: fix the broken thing", "red: fails")
@@ -64,7 +64,7 @@ RSpec.describe "hecks gate" do
 
     after { ENV.delete("GATE_SPEC_ENV") }
 
-    it "keeps the caller's environment over the stage's", :aggregate_failures do
+    it "keeps the caller's environment over the stage's", :aggregate_failures, :process do
       status, out, = run_gate("demo", "only=reads_env")
       expect(status).to eq(1)
       expect(out).to include("env was not set")

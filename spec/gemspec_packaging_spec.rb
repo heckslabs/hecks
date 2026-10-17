@@ -42,7 +42,7 @@ RSpec.describe "gem packaging" do
 
   def relative_to_root(path) = Pathname.new(path).relative_path_from(root).to_s
 
-  it "packages every file `Hecks::Framework.members` finds" do
+  it "packages every file `Hecks::Framework.members` finds", :process do
     packaged = gemspec.files.to_set
     missing = Hecks::Framework.members.values.reject { |path| packaged.include?(relative_to_root(path)) }
 
@@ -74,7 +74,7 @@ RSpec.describe "gem packaging" do
     end
   end
 
-  it "ships only tracked files in a git checkout, so untracked and gitignored files stay out", :aggregate_failures do
+  it "ships only tracked files in a git checkout, so untracked and gitignored files stay out", :aggregate_failures, :process do
     with_scratch_dir("gemspec-git") do |dir|
       spec = gemspec_in(dir, CHECKOUT_FILES) { track_in_git(dir) }
 
@@ -83,7 +83,7 @@ RSpec.describe "gem packaging" do
     end
   end
 
-  it "ships the caches a release builds into prebuilt/, though git does not track them" do
+  it "ships the caches a release builds into prebuilt/, though git does not track them", :process do
     with_scratch_dir("gemspec-prebuilt") do |dir|
       spec = gemspec_in(dir, CHECKOUT_FILES.merge("prebuilt/verdicts-a.json" => "{}")) { track_in_git(dir) }
 
@@ -91,7 +91,7 @@ RSpec.describe "gem packaging" do
     end
   end
 
-  it "falls back to globbing when there is no git checkout" do
+  it "falls back to globbing when there is no git checkout", :process do
     Dir.mktmpdir("gemspec-plain") do |tmp|
       spec = gemspec_in(File.realpath(tmp), "lib/plain.rb" => "", "exe/hecks" => "", "qa/settings.yml" => "")
 
@@ -99,7 +99,7 @@ RSpec.describe "gem packaging" do
     end
   end
 
-  it "leaves out every crate's own tests/, which only the corpus needs", :aggregate_failures do
+  it "leaves out every crate's own tests/, which only the corpus needs", :aggregate_failures, :process do
     Dir.mktmpdir("gemspec-tests") do |tmp|
       spec = gemspec_in(File.realpath(tmp), CRATE_TEST_FILES)
 
@@ -165,18 +165,19 @@ RSpec.describe "gem packaging" do
     end
     let(:in_tooling) { ->(file) { tooling.any? { |path| file == path || file.start_with?(path) } } }
 
-    it "ships exe/hecks, executable, as the gem's one command", :aggregate_failures do
+    it "ships exe/hecks, executable, as the gem's one command", :aggregate_failures, :process do
       expect(gemspec.files).to include("exe/hecks")
       expect(gemspec.bindir).to eq("exe")
       expect(gemspec.executables).to eq(["hecks"])
       expect(File.executable?(File.join(root, "exe/hecks"))).to be(true)
     end
 
-    it "ships qa/settings.yml, the dials the Hecks chapter reads when it boots" do
+    it "ships qa/settings.yml, the dials the Hecks chapter reads when it boots", :process do
       expect(gemspec.files).to include("qa/settings.yml")
     end
 
-    it "ships the pizzas example `hecks console` opens when given no domain, and not its glossary", :aggregate_failures do
+    it "ships the pizzas example `hecks console` opens when given no domain, and not its glossary", :aggregate_failures,
+       :process do
       opened = Hecks::CLI::Console::DEFAULT_FILES.map { |file| file.delete_prefix("#{root}/") }
 
       expect(gemspec.files).to include(*opened)
@@ -184,7 +185,7 @@ RSpec.describe "gem packaging" do
       expect(gemspec.files.grep(%r{\Aexamples/}).grep_v(%r{\Aexamples/pizzas/})).to be_empty
     end
 
-    it "ships the tooling the commands load on demand", :aggregate_failures do
+    it "ships the tooling the commands load on demand", :aggregate_failures, :process do
       missing = tooling.reject { |path| File.exist?(File.join(root, path)) }
       expect(missing).to be_empty, "named here but gone from the repository: #{missing.join(", ")}"
 
@@ -192,7 +193,7 @@ RSpec.describe "gem packaging" do
       expect(unshipped).to be_empty, "tooling missing from the packaged gem: #{unshipped.join(", ")}"
     end
 
-    it "loads none of the tooling from `require \"hecks\"`", :aggregate_failures do
+    it "loads none of the tooling from `require \"hecks\"`", :aggregate_failures, :process do
       out, err, status = unbundled_ruby("-I", File.join(root, "lib"), "-e", LOAD_ONLY_HECKS, chdir: root)
       expect(status).to be_success, err
 
@@ -203,7 +204,7 @@ RSpec.describe "gem packaging" do
     describe "the Rust workspace" do
       let(:rust) { gemspec.files.select { |file| file.start_with?("rust/") } }
 
-      it "ships the kernel and every crate a domain build uses", :aggregate_failures do
+      it "ships the kernel and every crate a domain build uses", :aggregate_failures, :process do
         # `rust/codegen/src/json.rs` is compiled into `hecks-build` by path, so it ships with it.
         expected = %w[rust/Cargo.toml rust/Cargo.lock rust/src/lib.rs rust/src/main.rs
                       rust/codegen/Cargo.toml rust/codegen/src/json.rs rust/parser/Cargo.toml
@@ -212,7 +213,7 @@ RSpec.describe "gem packaging" do
         expect(rust.grep(%r{\Arust/src/kernel/})).not_to be_empty
       end
 
-      it "ships no build output, no corpus tests and no generated corpus domain", :aggregate_failures do
+      it "ships no build output, no corpus tests and no generated corpus domain", :aggregate_failures, :process do
         stray = rust.grep(%r{\Arust/(tests/|[^/]+/tests/|src/generated/)|(\A|/)target/})
         expect(stray).to be_empty, "in the packaged gem: #{stray.first(5).join(", ")}"
         expect(Dir.exist?(File.join(root, "rust/src/generated"))).to be(true), "the corpus's generated modules moved"

@@ -208,14 +208,14 @@ RSpec.describe "Hecks::Tools::CommentStyle" do
         expect(long_block_run(file, held).violations.map(&:category)).to eq(["long_block"])
       end
 
-      it "makes --check exit non-zero for a new long block", :aggregate_failures do
+      it "makes --check exit non-zero for a new long block", :aggregate_failures, :process do
         output, status = check_long_block(write_example(limit + 1))
 
         expect(status.exitstatus).to eq(1)
         expect(output).to include("[long_block]")
       end
 
-      it "makes --check exit zero for a short block" do
+      it "makes --check exit zero for a short block", :process do
         _, status = check_long_block(write_example(limit))
 
         expect(status.exitstatus).to eq(0)

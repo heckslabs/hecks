@@ -1,7 +1,6 @@
 require "spec_helper"
-require "open3"
-require "rbconfig"
 require "tmpdir"
+require_relative "support/in_process_launcher"
 
 # `hecks init` through the generated launcher (ADR 0087): a stub is written from a clean
 # directory with no environment variable and no database, nothing is ever replaced, and a refusal
@@ -10,7 +9,7 @@ RSpec.describe "hecks init" do
   # No database is reachable, and no environment is chosen: the launcher must pick Memory for itself.
   def init(dir, *words)
     env = { "HECKS_ENVIRONMENT" => nil, "PGHOST" => "/nonexistent-postgres-socket-dir", "PGPORT" => "1" }
-    Open3.capture3(env, RbConfig.ruby, File.join(InMemoryDomain::ROOT, "exe/hecks"), "init", *words, chdir: dir)
+    InProcessLauncher.capture3(env, "init", *words, chdir: dir)
   end
 
   def written(dir) = Dir.glob("**/*", File::FNM_DOTMATCH, base: dir).select { |path| File.file?(File.join(dir, path)) }.sort

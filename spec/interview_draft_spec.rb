@@ -298,7 +298,7 @@ status: "accepted" }])
 
     after { FileUtils.rm_rf(dir) }
 
-    it "turns a real interview into a domain that boots and runs", :aggregate_failures do
+    it "turns a real interview into a domain that boots and runs", :aggregate_failures, :process do
       run_ruby!(DRAFT_TRIP, dir)
       out = run_ruby!(DRAFT_BOOT, dir)
 

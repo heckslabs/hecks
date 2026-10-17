@@ -193,7 +193,7 @@ RSpec.describe "shadow-parsing frozen era text against a legacy grammar" do
                       chdir: InMemoryDomain::ROOT)
     end
 
-    it "builds, as it does when anything else asks first" do
+    it "builds, as it does when anything else asks first", :process do
       output, status = cold_grammar_build
 
       expect([status.success?, output.lines.last.to_s.strip]).to eq([true, "built"])

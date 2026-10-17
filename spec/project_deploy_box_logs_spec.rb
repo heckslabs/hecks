@@ -90,7 +90,8 @@ RSpec.describe "hecks deploy project — an AwsBox box's logs" do
   let(:tunnelled) { generate(world('tunnel({ to: "stats", token_secret: "widget/tunnel-token" })')).first }
 
   describe "by default" do
-    it "gives every service, the proxy and the tunnel their own awslogs stream in the box's group", :aggregate_failures do
+    it "gives every service, the proxy and the tunnel their own awslogs stream in the box's group", :aggregate_failures,
+       :process do
       services = compose_services(tunnelled)
 
       expect(services.keys).to contain_exactly("web", "stats", "caddy", "cloudflared")
@@ -134,7 +135,7 @@ RSpec.describe "hecks deploy project — an AwsBox box's logs" do
   describe 'logs "local"' do
     let(:local) { generate(world('logs "local"')).first }
 
-    it "keeps the rotating json-file logging on every service", :aggregate_failures do
+    it "keeps the rotating json-file logging on every service", :aggregate_failures, :process do
       logging = compose_services(local).values.map { |service| service["logging"] }
 
       expect(logging.uniq).to eq([{ "driver" => "json-file", "options" => { "max-size" => "10m", "max-file" => "3" } }])

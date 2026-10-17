@@ -8,7 +8,7 @@ require_relative "support/qa_mine_combinations_helpers"
 RSpec.describe "hecks quality_control mine_combinations" do
   include QaMineCombinationsHelpers
 
-  it "prints the agent's brief — unmet pairs, corpus, bug history — and stops, with --brief", :aggregate_failures do
+  it "prints the agent's brief — unmet pairs, corpus, bug history — and stops, with --brief", :aggregate_failures, :process do
     out, status = run_miner("--brief", "--candidates", "4", mode: "silent")
 
     expect(status.exitstatus).to eq(0), out
@@ -17,14 +17,14 @@ RSpec.describe "hecks quality_control mine_combinations" do
     expect(out).not_to match(/\{\{\w+\}\}/)
   end
 
-  it "exits 1 when the agent writes nothing", :aggregate_failures do
+  it "exits 1 when the agent writes nothing", :aggregate_failures, :process do
     out, status = run_miner("--candidates", "1", mode: "silent")
 
     expect(status.exitstatus).to eq(1), out
     expect(out).to include("the agent wrote no candidates")
   end
 
-  it "refuses --confine for an agent that is not the default claude command", :aggregate_failures do
+  it "refuses --confine for an agent that is not the default claude command", :aggregate_failures, :process do
     out, status = run_miner("--confine", "--candidates", "1")
 
     expect(status.exitstatus).to eq(1), out

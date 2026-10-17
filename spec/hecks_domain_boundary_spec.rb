@@ -39,11 +39,11 @@ RSpec.describe "the Hecks domain stays out of a client's runtime" do
     puts JSON.generate(loaded: $LOADED_FEATURES.grep(#{HECKS_DOMAIN_PATTERN}), chapters: runtime.registry.bluebooks.keys)
   RUBY
 
-  it "is never loaded by `require \"hecks\"`" do
+  it "is never loaded by `require \"hecks\"`", :process do
     expect(probe(REQUIRE_PROBE)["loaded"]).to be_empty
   end
 
-  it "is never loaded by a client launcher's boot and dispatch, and is not in its registry", :aggregate_failures do
+  it "is never loaded by a client launcher's boot and dispatch, and is not in its registry", :aggregate_failures, :process do
     result = probe(LAUNCHER_PROBE)
 
     expect(result["loaded"]).to be_empty

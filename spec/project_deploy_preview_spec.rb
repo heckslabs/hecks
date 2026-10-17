@@ -313,7 +313,7 @@ RSpec.describe Hecks::Projections::Deploy::Preview do
       expect(other["Properties"]["ContainerDefinitions"].first["Image"]).to eq("registry.example/psql:1")
     end
 
-    it "is a script `sh` can parse, with the case/for/if structure closed" do
+    it "is a script `sh` can parse, with the case/for/if structure closed", :process do
       script = task["Command"].last
       out, status = Open3.capture2e("sh", "-n", stdin_data: script)
 

@@ -385,42 +385,43 @@ RSpec.describe "the generated editor, run by node" do
   end
 
   describe "the sign-in gate" do
-    it "sends a visitor with no session to the site's login page, and refuses a post", :aggregate_failures do
+    it "sends a visitor with no session to the site's login page, and refuses a post", :aggregate_failures, :process do
       expect(result("anonymousGet")).to eq([302, "/admin-login"])
       expect(result("anonymousPost")).to eq(403)
     end
 
-    it "does not take a forged session cookie" do
+    it "does not take a forged session cookie", :process do
       expect(result("forgedCookie")).to eq([302, "/admin-login"])
     end
 
-    it "refuses a token for an account the members list does not admit, and a token that does not verify", :aggregate_failures do
+    it "refuses a token for an account the members list does not admit, and a token that does not verify", :aggregate_failures,
+       :process do
       expect(result("notAnEditor")).to eq(403)
       expect(result("badToken")).to eq(401)
     end
 
-    it "starts the editor's own session cookie from a valid hand-off" do
+    it "starts the editor's own session cookie from a valid hand-off", :process do
       expect(result("cookie")).to eq("press_editor")
     end
 
-    it "asks the members list again, so removing someone locks them out" do
+    it "asks the members list again, so removing someone locks them out", :process do
       expect(result("revoked")).to eq([302, "/admin-login"])
     end
 
-    it "refuses a post the browser says came from another site" do
+    it "refuses a post the browser says came from another site", :process do
       expect(result("crossSite")).to eq(403)
     end
   end
 
   describe "the pages" do
-    it "shows a navigation of every aggregate, with how many each holds", :aggregate_failures do
+    it "shows a navigation of every aggregate, with how many each holds", :aggregate_failures, :process do
       home = result("home")
 
       expect(home).to include('href="/editor/Article"', 'href="/editor/Masthead"')
       expect(home).to include('<span class="ml-auto text-xs text-muted tabular-nums">1</span>')
     end
 
-    it "marks the page the person is on in the navigation, and only that one", :aggregate_failures do
+    it "marks the page the person is on in the navigation, and only that one", :aggregate_failures, :process do
       list = result("list")["html"]
 
       expect(list).to include('<a href="/editor/Article" aria-current="page">')
@@ -428,14 +429,14 @@ RSpec.describe "the generated editor, run by node" do
       expect(result("home")).to include('<a href="/editor" aria-current="page">')
     end
 
-    it "names who is signed in and their role, escaped", :aggregate_failures do
+    it "names who is signed in and their role, escaped", :aggregate_failures, :process do
       expect(result("home")).to include("ed@example.org", "Admin")
       expect(result("escapedPerson")).to include("&#60;i&#62;@example.org")
       expect(result("escapedPerson")).not_to include("<i>@example.org")
     end
 
     it "has a skip link, one main landmark, a banner and a labelled navigation, in a document with a language",
-       :aggregate_failures do
+       :aggregate_failures, :process do
       home = result("home")
 
       expect(home).to include('<html lang="en">', 'href="#main"', '<main id="main"', '<header class="navbar',
@@ -443,13 +444,13 @@ RSpec.describe "the generated editor, run by node" do
       expect(home.scan("<main").size).to eq(1)
     end
 
-    it "gives each page a title of its own, and exactly one first-level heading", :aggregate_failures do
+    it "gives each page a title of its own, and exactly one first-level heading", :aggregate_failures, :process do
       expect(result("detail")).to include("<title>first - Press editor</title>")
       expect(result("list")["html"]).to include("<title>Articles - Press editor</title>")
       expect(result("list")["html"].scan("<h1").size).to eq(1)
     end
 
-    it "renders the rows of the query it asked the host, with the status as words and a shape", :aggregate_failures do
+    it "renders the rows of the query it asked the host, with the status as words and a shape", :aggregate_failures, :process do
       list = result("list")
 
       expect(list["status"]).to eq(200)
@@ -458,53 +459,53 @@ RSpec.describe "the generated editor, run by node" do
       expect(list["sent"]).to eq([{ "query" => "Press::Article.Published", "args" => {} }])
     end
 
-    it "gives a list headings that sort, a filter, and a count", :aggregate_failures do
+    it "gives a list headings that sort, a filter, and a count", :aggregate_failures, :process do
       html = result("list")["html"]
 
       expect(html).to include("data-sortable", 'data-sort="text"', "data-filter", "1 article")
     end
 
-    it "says an empty list is empty in one sentence, with the command that makes the first one", :aggregate_failures do
+    it "says an empty list is empty in one sentence, with the command that makes the first one", :aggregate_failures, :process do
       html = result("mastheadList")
 
       expect(html).to include("No mastheads yet. Add the first one.", "<span>Establish masthead</span>")
       expect(result("emptyList")).not_to include("<table")
     end
 
-    it "shows an instance with its state as a badge and a rich-text body read-only", :aggregate_failures do
+    it "shows an instance with its state as a badge and a rich-text body read-only", :aggregate_failures, :process do
       detail = result("detail")
 
       expect(detail).to include("Draft</span>", '<div class="prose"><p><strong>Hi &#60;i&#62;</strong></p></div>')
       expect(detail).to include('action="/editor/Article/id/first/Publish"', 'data-copy="first"')
     end
 
-    it "shows the status and the commands that apply in a margin panel", :aggregate_failures do
+    it "shows the status and the commands that apply in a margin panel", :aggregate_failures, :process do
       detail = result("detail")
 
       expect(detail).to include('aria-label="Status and actions"', ">Status</h2>", ">Actions</h2>")
       expect(detail).to include('href="/editor/Article/id/first/Revise"')
     end
 
-    it "shows the rich-text widget on the form that edits a body, filled from the instance", :aggregate_failures do
+    it "shows the rich-text widget on the form that edits a body, filled from the instance", :aggregate_failures, :process do
       form = result("revisePage")
 
       expect(form).to include("data-body-editor", 'name="body.blocks.0.spans.0.text" value="Hi &#60;i&#62;"')
       expect(form).to include("Editing this text needs scripts turned on in the browser.")
     end
 
-    it "never lets a body's text become markup", :aggregate_failures do
+    it "never lets a body's text become markup", :aggregate_failures, :process do
       detail = result("detail")
 
       expect(detail).not_to include("<i>")
       expect(detail).to include("Hi &#60;i&#62;")
     end
 
-    it "serves a stylesheet and scripts that the page names by version", :aggregate_failures do
+    it "serves a stylesheet and scripts that the page names by version", :aggregate_failures, :process do
       expect(result("assetLinks")).to eq("sheet" => true, "script" => true, "head" => true)
       expect(result("asset")["theme"]).to eq([200, "text/javascript; charset=utf-8", "//"])
     end
 
-    it "sends each file with an ETag that names its version, kept for good under that version", :aggregate_failures do
+    it "sends each file with an ETag that names its version, kept for good under that version", :aggregate_failures, :process do
       asset = result("asset")
 
       expect([asset["status"], asset["type"]]).to eq([200, "text/css; charset=utf-8"])
@@ -513,20 +514,22 @@ RSpec.describe "the generated editor, run by node" do
       expect(asset["nosniff"]).to eq("nosniff")
     end
 
-    it "revalidates a file asked for without its version, and answers 304 when the browser holds it", :aggregate_failures do
+    it "revalidates a file asked for without its version, and answers 304 when the browser holds it", :aggregate_failures,
+       :process do
       asset = result("asset")
 
       expect(asset["plain"]).to eq("private, no-cache")
       expect(asset["notModified"]).to eq([304, 0])
     end
 
-    it "serves files to a signed-in editor only, and no file that is not one of its own", :aggregate_failures do
+    it "serves files to a signed-in editor only, and no file that is not one of its own", :aggregate_failures, :process do
       expect(result("assetAnonymous")).to eq(302)
       expect(result("assetUnknown")).to eq([404, 404, 404, 404])
       expect(result("assetLogo")).to eq(404)
     end
 
-    it "sends every page with a policy that allows no inline script or style and no other origin", :aggregate_failures do
+    it "sends every page with a policy that allows no inline script or style and no other origin", :aggregate_failures,
+       :process do
       headers = result("detailHeaders")
       policy = headers["content-security-policy"]
 
@@ -535,36 +538,37 @@ RSpec.describe "the generated editor, run by node" do
       expect(headers).to include("cache-control" => "no-store", "content-type" => "text/html; charset=utf-8")
     end
 
-    it "writes no style attribute and no inline script into a page", :aggregate_failures do
+    it "writes no style attribute and no inline script into a page", :aggregate_failures, :process do
       pages = %w[home detail revisePage newForm].map { |key| result(key) }.join
 
       expect(pages).not_to match(/\sstyle=|<style|<script>|\sonclick=/)
     end
 
-    it "offers a lifecycle move only from the states it applies in" do
+    it "offers a lifecycle move only from the states it applies in", :process do
       expect(result("detail")).not_to include("/Restore")
     end
 
-    it "builds a creating command's form from its attributes, with a blank row to fill", :aggregate_failures do
+    it "builds a creating command's form from its attributes, with a blank row to fill", :aggregate_failures, :process do
       form = result("newForm")
 
       expect(form).to include('name="slug.value"', 'name="sections.0.links.0.label"', 'name="tags.0.value"')
       expect(form).to include("optional</span>", 'aria-required="true"', "data-repeat", "data-row")
     end
 
-    it "marks the fields that must be filled and says so under the form", :aggregate_failures do
+    it "marks the fields that must be filled and says so under the form", :aggregate_failures, :process do
       form = result("newForm")
 
       expect(form).to include('title="Required" aria-hidden="true">*</span>', "* </span> Required".sub("* </span>", "*</span>"))
     end
 
-    it "answers 404 for an instance that is not there" do
+    it "answers 404 for an instance that is not there", :process do
       expect(result("missing")).to eq(404)
     end
   end
 
   describe "a destructive command" do
-    it "asks first, in a native dialog the page carries, and leaves the other commands as plain buttons", :aggregate_failures do
+    it "asks first, in a native dialog the page carries, and leaves the other commands as plain buttons", :aggregate_failures,
+       :process do
       detail = result("detail")
 
       expect(detail).to include('data-confirm="confirm-DiscardDraft"', '<dialog class="modal" id="confirm-DiscardDraft"')
@@ -572,7 +576,7 @@ RSpec.describe "the generated editor, run by node" do
       expect(detail).not_to include("confirm-Publish")
     end
 
-    it "is the same question on a page of its own for a browser with no script", :aggregate_failures do
+    it "is the same question on a page of its own for a browser with no script", :aggregate_failures, :process do
       page = result("confirmPage")
 
       expect(page).to include("Choose Discard draft to go ahead.", 'action="/editor/Article/id/first/DiscardDraft"')
@@ -580,7 +584,7 @@ RSpec.describe "the generated editor, run by node" do
   end
 
   describe "the command forms" do
-    it "posts a lifecycle move as its verb, to the instance, as the role the command declares", :aggregate_failures do
+    it "posts a lifecycle move as its verb, to the instance, as the role the command declares", :aggregate_failures, :process do
       publish = result("publish")
 
       expect(publish["sent"]).to eq([{ "verb" => "Press::Article.Publish", "to" => "first", "with" => {}, "role" => "Editor" }])
@@ -595,7 +599,8 @@ RSpec.describe "the generated editor, run by node" do
                                  "spans" => [{ "text" => "Hello", "marks" => [{ "name" => "bold" }] }] }] }
     }.freeze
 
-    it "posts a creating command with its nested value objects and rows, leaving out what is blank", :aggregate_failures do
+    it "posts a creating command with its nested value objects and rows, leaving out what is blank", :aggregate_failures,
+       :process do
       create = result("create")
 
       expect(create["sent"].first["with"]).to eq(DRAFTED)
@@ -603,12 +608,13 @@ RSpec.describe "the generated editor, run by node" do
       expect([create["status"], create["location"]]).to eq([303, "/editor/Article/id/second"])
     end
 
-    it "labels each button with a sentence-case verb, and makes a creating one say what it makes", :aggregate_failures do
+    it "labels each button with a sentence-case verb, and makes a creating one say what it makes", :aggregate_failures,
+       :process do
       expect(result("detail")).to include(">Publish</button>", ">Save draft</a>", ">Revise</a>")
       expect(result("list")["html"]).to include("<span>Draft article</span>")
     end
 
-    it "disables the submit button while the form is sent, and has a sticky bar with a cancel", :aggregate_failures do
+    it "disables the submit button while the form is sent, and has a sticky bar with a cancel", :aggregate_failures, :process do
       form = result("revisePage")
 
       expect(form).to include("data-busy", "sticky bottom-0", 'href="/editor/Article/id/first">Cancel</a>')
@@ -618,12 +624,12 @@ RSpec.describe "the generated editor, run by node" do
   describe "a notice after a command" do
     COOKIE = %r{\Apress_editor_flash=[\w-]+\.[\w-]+; Path=/editor; HttpOnly; SameSite=Lax; Max-Age=60}
 
-    it "is carried to the next page by a short-lived signed cookie" do
+    it "is carried to the next page by a short-lived signed cookie", :process do
       expect(result("publish")["setCookie"]).to match(COOKIE)
     end
 
     it "shows once: the next page has it, clears the cookie in the same response, and the page after has none",
-       :aggregate_failures do
+       :aggregate_failures, :process do
       notice = result("notice")
 
       expect(notice["html"]).to include('role="status"', "<p>Published.</p>")
@@ -631,25 +637,25 @@ RSpec.describe "the generated editor, run by node" do
       expect(result("noticeGone")).not_to include("<p>Published.</p>")
     end
 
-    it "is not shown when it was made up, or has expired", :aggregate_failures do
+    it "is not shown when it was made up, or has expired", :aggregate_failures, :process do
       expect(result("noticeForged")).not_to include("Forged.")
       expect(result("noticeExpired")).not_to include("Published.")
     end
 
-    it "escapes what it says", :aggregate_failures do
+    it "escapes what it says", :aggregate_failures, :process do
       escaped = result("noticeEscaped")
 
       expect(escaped).to include("&#60;img src=x onerror=alert(1)&#62;")
       expect(escaped).not_to include("<img src=x")
     end
 
-    it "uses the same verb as the button: the one that says Publish leaves Published." do
+    it "uses the same verb as the button: the one that says Publish leaves Published.", :process do
       expect(result("notice")["html"]).to include("Published.")
     end
   end
 
   describe "a refusal" do
-    it "is shown inline on the form, with the person's input kept, and is not a redirect", :aggregate_failures do
+    it "is shown inline on the form, with the person's input kept, and is not a redirect", :aggregate_failures, :process do
       refused = result("refused")
 
       expect(refused["status"]).to eq(422)
@@ -657,7 +663,7 @@ RSpec.describe "the generated editor, run by node" do
       expect(refused["html"]).to include('name="byline.name" value="Ann"')
     end
 
-    it "is announced as well by a notice that says what was not applied", :aggregate_failures do
+    it "is announced as well by a notice that says what was not applied", :aggregate_failures, :process do
       html = result("refused")["html"]
 
       expect(html).to include('role="alert" data-toast', "Revise was not applied. Fix what is marked and try again.")
@@ -665,21 +671,21 @@ RSpec.describe "the generated editor, run by node" do
   end
 
   describe "a refusal's words" do
-    it "reads a given as the condition that was not met, not as the reason", :aggregate_failures do
+    it "reads a given as the condition that was not met, not as the reason", :aggregate_failures, :process do
       html = result("publishNoDraft")["html"]
 
       expect(result("publishNoDraft")["status"]).to eq(422)
       expect(html).to include("Not allowed unless an edit is saved.</p>")
     end
 
-    it "reads an invariant as the field and the rule, never as the raw offered value", :aggregate_failures do
+    it "reads an invariant as the field and the rule, never as the raw offered value", :aggregate_failures, :process do
       html = result("invariant")["html"]
 
       expect(html).to include("headline: an article has a headline.</p>")
       expect(html).not_to include("given")
     end
 
-    it "marks the field an invariant names, and gives its message beside it", :aggregate_failures do
+    it "marks the field an invariant names, and gives its message beside it", :aggregate_failures, :process do
       html = result("invariant")["html"]
 
       expect(html).to include('aria-invalid="true" aria-describedby="f-headline-value-error"')
@@ -688,17 +694,17 @@ RSpec.describe "the generated editor, run by node" do
   end
 
   describe "a draft, saved and promoted" do
-    it "starts a draft's form from the body the article holds, until a draft is saved", :aggregate_failures do
+    it "starts a draft's form from the body the article holds, until a draft is saved", :aggregate_failures, :process do
       expect(result("draftReviseForm")).to include('name="draft_body.blocks.0.spans.0.text" value="Hi &#60;i&#62;"')
       expect(result("afterSave")).to include('name="draft_body.blocks.0.spans.0.text" value="Edited"')
     end
 
-    it "offers no field for the argument that only clears, on a form that has no other argument", :aggregate_failures do
+    it "offers no field for the argument that only clears, on a form that has no other argument", :aggregate_failures, :process do
       expect(result("draftForms")).to include('action="/editor/Article/id/first/PublishDraft"')
       expect(result("draftForms")).not_to include('name="nothing')
     end
 
-    it "sends nothing for it, and judges the promotion applied by the state that comes back", :aggregate_failures do
+    it "sends nothing for it, and judges the promotion applied by the state that comes back", :aggregate_failures, :process do
       promoted = result("promoted")
 
       sent = { "verb" => "Press::Article.PublishDraft", "to" => "first", "with" => {}, "role" => "Editor" }
@@ -706,32 +712,32 @@ RSpec.describe "the generated editor, run by node" do
       expect([promoted["status"], promoted["location"]]).to eq([303, "/editor/Article/id/first"])
     end
 
-    it "shows the promoted body and no draft afterwards", :aggregate_failures do
+    it "shows the promoted body and no draft afterwards", :aggregate_failures, :process do
       expect(result("afterPromote")).to include('name="body.blocks.0.spans.0.text" value="Edited"')
       expect(result("afterPromoteDetail")).to include('Draft body</dt><dd class="min-w-0 break-words"><span class="text-muted">')
     end
   end
 
   describe "signing in and out" do
-    it "sends the person to the editor's clean path once the token is spent" do
+    it "sends the person to the editor's clean path once the token is spent", :process do
       expect(result("signInRedirect")).to eq([302, "/editor"])
     end
 
-    it "ends the session on a post to the logout path, and sends the person to the login page", :aggregate_failures do
+    it "ends the session on a post to the logout path, and sends the person to the login page", :aggregate_failures, :process do
       logout = result("logout")
 
       expect([logout["status"], logout["location"]]).to eq([303, "/admin-login"])
       expect(logout["cookie"]).to include("press_editor=;", "Max-Age=0")
     end
 
-    it "offers the button in the header, and refuses it from another site", :aggregate_failures do
+    it "offers the button in the header, and refuses it from another site", :aggregate_failures, :process do
       expect(result("signOutButton")).to be(true)
       expect(result("logoutCrossSite")).to eq(403)
     end
   end
 
   describe "the writing surface's link and picture forms" do
-    it "asks in a popover attached to the toolbar, never with the browser's blocking prompt", :aggregate_failures do
+    it "asks in a popover attached to the toolbar, never with the browser's blocking prompt", :aggregate_failures, :process do
       expect(result("assetPopover")).to be(true)
       expect(result("assetPrompts")).to be(false)
     end
@@ -740,11 +746,11 @@ RSpec.describe "the generated editor, run by node" do
   # The browser scripts that need no page: the theme the person chose is applied before paint and kept
   # where storage allows, and not lost when storage is blocked.
   describe "the theme" do
-    it "is applied from the remembered choice, and follows the system when storage is blocked", :aggregate_failures do
+    it "is applied from the remembered choice, and follows the system when storage is blocked", :aggregate_failures, :process do
       expect(result("themeApplied")).to eq("saved" => "editor-dark", "blocked" => nil, "script" => true)
     end
 
-    it "is switched by the button, remembered, and shown by the button's own icon", :aggregate_failures do
+    it "is switched by the button, remembered, and shown by the button's own icon", :aggregate_failures, :process do
       toggle = result("themeToggle")
 
       expect(toggle["stored"]).to eq([%w[editor-theme dark], %w[editor-theme light]])
@@ -788,7 +794,7 @@ RSpec.describe "the generated editor, run by node" do
     end
 
     describe "an upload" do
-      it "stores the bytes under a key made from their digest and returns it", :aggregate_failures do
+      it "stores the bytes under a key made from their digest and returns it", :aggregate_failures, :process do
         upload = result("upload")
 
         expect(upload["status"]).to eq(201)
@@ -796,7 +802,7 @@ RSpec.describe "the generated editor, run by node" do
         expect(upload["kept"]).to eq([upload["expectedKey"]])
       end
 
-      it "registers the picture with the domain: its key, alt text, type and size, and never its bytes" do
+      it "registers the picture with the domain: its key, alt text, type and size, and never its bytes", :process do
         key = result("upload")["expectedKey"]
         record = { "key" => { "value" => key }, "alt" => { "value" => "A cat" }, "mime_type" => { "value" => "image/png" },
                    "width" => { "value" => 1 }, "height" => { "value" => 1 } }
@@ -805,28 +811,28 @@ RSpec.describe "the generated editor, run by node" do
         expect(result("upload")["sent"]).to eq([registered])
       end
 
-      it "answers with the picture already registered when the same bytes come again", :aggregate_failures do
+      it "answers with the picture already registered when the same bytes come again", :aggregate_failures, :process do
         again = result("uploadAgain")
 
         expect(again["status"]).to eq(200)
         expect(again["sent"]).to be_empty
       end
 
-      it "refuses an SVG, bytes that are not a picture, and a type the bytes do not bear out", :aggregate_failures do
+      it "refuses an SVG, bytes that are not a picture, and a type the bytes do not bear out", :aggregate_failures, :process do
         svg = result("svg")
 
         expect(svg.values_at("asSvg", "asPng", "text")).to eq([415, 415, 415])
         expect([svg["sent"], svg["kept"].size]).to eq([[], 1])
       end
 
-      it "refuses a body over the size cap, with or without the form's framing", :aggregate_failures do
+      it "refuses a body over the size cap, with or without the form's framing", :aggregate_failures, :process do
         oversize = result("oversize")
 
         expect(oversize.values_at("status", "huge")).to eq([413, 413])
         expect([oversize["sent"], oversize["kept"].size]).to eq([[], 1])
       end
 
-      it "refuses a picture with no alt text inline, keeping and registering nothing", :aggregate_failures do
+      it "refuses a picture with no alt text inline, keeping and registering nothing", :aggregate_failures, :process do
         no_alt = result("noAlt")
 
         expect(no_alt["status"]).to eq(422)
@@ -834,24 +840,25 @@ RSpec.describe "the generated editor, run by node" do
         expect([no_alt["sent"], no_alt["kept"].size]).to eq([[], 1])
       end
 
-      it "shows the domain's own refusal inline" do
+      it "shows the domain's own refusal inline", :process do
         expect(result("domainRefusal")).to eq("status" => 422,
                                               "json"   => { "error" => "RegisterPicture refused: a picture has alt text" })
       end
 
-      it "refuses an upload with no file and a body that is not multipart", :aggregate_failures do
+      it "refuses an upload with no file and a body that is not multipart", :aggregate_failures, :process do
         expect(result("noFile")).to eq(400)
         expect(result("notMultipart")).to eq(400)
       end
 
-      it "is for a signed-in editor, from this site only", :aggregate_failures do
+      it "is for a signed-in editor, from this site only", :aggregate_failures, :process do
         expect(result("uploadAnonymous")).to eq(403)
         expect(result("uploadCrossSite")).to eq(403)
       end
     end
 
     describe "the registered pictures" do
-      it "are listed from the aggregate's listing query, each with the address the adapter shows it at", :aggregate_failures do
+      it "are listed from the aggregate's listing query, each with the address the adapter shows it at", :aggregate_failures,
+         :process do
         listing = result("listing")
         key = result("upload")["expectedKey"]
 
@@ -862,32 +869,32 @@ RSpec.describe "the generated editor, run by node" do
     end
 
     describe "a stored picture" do
-      it "is served to a signed-in editor with its own type and no sniffing" do
+      it "is served to a signed-in editor with its own type and no sniffing", :process do
         expect(result("serve")).to include("status" => 200, "type" => "image/png", "nosniff" => "nosniff", "same" => true)
       end
 
-      it "is not served for a key that is not one the editor made, so no path leaves the directory" do
+      it "is not served for a key that is not one the editor made, so no path leaves the directory", :process do
         expect(result("traversal")).to all(eq(404))
       end
 
-      it "is not served to a visitor with no session" do
+      it "is not served to a visitor with no session", :process do
         expect(result("mediaAnonymous")).to eq([302, 302])
       end
     end
 
     describe "the widget" do
-      it "is given the picker's address and script when the chapter registers pictures", :aggregate_failures do
+      it "is given the picker's address and script when the chapter registers pictures", :aggregate_failures, :process do
         expect(result("newFormMedia")).to be(true)
         expect(result("pickerLoaded")).to be(true)
       end
 
-      it "keeps the prompt, and offers no upload, when the chapter has no picture aggregate", :aggregate_failures do
+      it "keeps the prompt, and offers no upload, when the chapter has no picture aggregate", :aggregate_failures, :process do
         expect(bare("form")).to include("data-body-editor")
         expect(bare("form")).not_to include("data-media")
         expect(bare("mediaList")).to eq(404)
       end
 
-      it "links no stylesheet or script before the build has written them, and serves none", :aggregate_failures do
+      it "links no stylesheet or script before the build has written them, and serves none", :aggregate_failures, :process do
         expect(bare("unlinked")).to be(true)
         expect(bare("noBuild")).to eq(404)
       end
@@ -958,21 +965,22 @@ RSpec.describe "the generated editor, run by node" do
       project_with('media: "Library"') { |dir| EditorNode.run(editor_files(dir), EDITOR_ELSEWHERE_SCENARIO) }
     end
 
-    it "gives the body's widget the picker, though the chapter has no picture aggregate of its own", :aggregate_failures do
+    it "gives the body's widget the picker, though the chapter has no picture aggregate of its own", :aggregate_failures,
+       :process do
       out = run
 
       expect(out["form"]).to include('data-media="/editor/media"')
       expect(out["nav"]).not_to include("MediaItem")
     end
 
-    it "registers an upload with the picture chapter's domain", :aggregate_failures do
+    it "registers an upload with the picture chapter's domain", :aggregate_failures, :process do
       out = run
 
       expect(out["upload"]).to eq(201)
       expect(out["registered"].map { |sent| sent["verb"] }).to eq(["Library::MediaItem.RegisterPicture"])
     end
 
-    it "lists the pictures from the picture chapter's query" do
+    it "lists the pictures from the picture chapter's query", :process do
       out = run
 
       expect(out["asked"]).to eq([{ "query" => "Library::MediaItem.Pictures", "args" => {} }])

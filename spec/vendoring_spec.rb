@@ -24,7 +24,7 @@ RSpec.describe Hecks::Vendoring do
                         glob: "*.bluebook", **overrides, &)
   end
 
-  it "exports only the top-level files matching the glob, keeping the subtree's own name", :aggregate_failures do
+  it "exports only the top-level files matching the glob, keeping the subtree's own name", :aggregate_failures, :process do
     seed
 
     result = pin
@@ -34,7 +34,7 @@ RSpec.describe Hecks::Vendoring do
     expect(result.dir).to eq(File.join(into, "bluebook"))
   end
 
-  it "records the full commit id in the marker", :aggregate_failures do
+  it "records the full commit id in the marker", :aggregate_failures, :process do
     commit = seed
 
     result = pin
@@ -56,7 +56,7 @@ RSpec.describe Hecks::Vendoring do
     File.write(File.join(into, "bluebook.lock"), "old lock\n")
   end
 
-  it "exports the commit, never the working tree or a later commit" do
+  it "exports the commit, never the working tree or a later commit", :process do
     first = seed
     commit_second_version
     repo.write("widgets/bluebook/widgets.bluebook" => "uncommitted\n")
@@ -66,7 +66,7 @@ RSpec.describe Hecks::Vendoring do
     expect(File.read(File.join(into, "bluebook", "widgets.bluebook"))).to eq("first\n")
   end
 
-  it "replaces what was there, dropping files the source no longer has" do
+  it "replaces what was there, dropping files the source no longer has", :process do
     seed
     leave_stale_files
 
@@ -75,7 +75,7 @@ RSpec.describe Hecks::Vendoring do
     expect(Dir.children(into).sort).to eq(%w[VENDORED_COMMIT bluebook])
   end
 
-  it "writes the extra files a block returns beside the marker" do
+  it "writes the extra files a block returns beside the marker", :process do
     seed
 
     pin { |staged, commit| { "notes.txt" => "#{Dir.children(staged).size} files at #{commit[0, 7]}\n" } }
@@ -83,7 +83,7 @@ RSpec.describe Hecks::Vendoring do
     expect(File.read(File.join(into, "notes.txt"))).to match(/\A2 files at \h{7}\n\z/)
   end
 
-  it "leaves the existing directory alone when the block refuses", :aggregate_failures do
+  it "leaves the existing directory alone when the block refuses", :aggregate_failures, :process do
     seed
     pin
     commit_second_version
@@ -92,13 +92,13 @@ RSpec.describe Hecks::Vendoring do
     expect(File.read(File.join(into, "bluebook", "widgets.bluebook"))).to eq("first\n")
   end
 
-  it "refuses a ref that names no commit" do
+  it "refuses a ref that names no commit", :process do
     seed
 
     expect { pin(ref: "nope") }.to raise_error(Hecks::Vendoring::Error, /no commit "nope"/)
   end
 
-  it "refuses a subtree with no matching file, without creating the destination", :aggregate_failures do
+  it "refuses a subtree with no matching file, without creating the destination", :aggregate_failures, :process do
     seed
 
     expect { pin(subtree: "widgets/spec", glob: "*.bluebook") }
