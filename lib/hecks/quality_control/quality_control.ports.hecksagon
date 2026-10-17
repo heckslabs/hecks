@@ -33,6 +33,7 @@ Hecks.hecksagon "QualityControl" do
     answers_query "CheckGeneratedDomains"
     answers_query "MineCombinations"
     answers_query "JudgeNovelty"
+    answers_query "RoundTrip"
     answers_query "DiscoverExternalDomains"
   end
 

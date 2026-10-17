@@ -17,6 +17,7 @@ module Hecks
         "qa_generated_domains"         => ["QaGeneratedDomains", :argv_root],
         "qa_mine_combinations"         => ["QaMineCombinations", :argv_root],
         "qa_domain_novelty"            => ["QaDomainNovelty", :argv_root],
+        "qa_round_trip"                => ["QaRoundTrip", :argv_root],
         "qa_discover_external_domains" => ["QaDiscoverExternalDomains", :argv_root],
         "qa_concurrency_racer"         => ["QaConcurrencyRacer", :argv_root],
         "qa_postgres_migrate"          => ["QaPostgresMigrate", :argv],

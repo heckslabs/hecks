@@ -26,6 +26,13 @@ module Hecks
         run_command("qa_mine_combinations", *words(arguments), answers: [0, 1])
       end
 
+      # @param arguments [Hash, String, nil] `prepare` or `score` and its flags, such as
+      #   `prepare --seed 46 --out bench`
+      # @return [Hash] `text:` what was prepared, or the score's report
+      def round_trip(arguments: nil)
+        run_command("qa_round_trip", *words(arguments), answers: [0, 1])
+      end
+
       # @param domain [Hash, String] the candidate stress domain's path
       # @param arguments [Hash, String, nil] `--against` and the paths to compare with
       # @return [Hash] `text:` the new form pairs it earns its place with, or that it earns none
