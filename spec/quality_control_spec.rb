@@ -44,7 +44,9 @@ RSpec.describe "QualityControl" do
       sibling_governance!
     end
 
-    registry.verify!
+    # Memory has no `save_saga`, on purpose: the ledger boots in-process, so verify! warns once
+    # that BugCiWatch/ImprovementCiWatch would be lost on restart. Expected here, so it is asserted.
+    expect { registry.verify! }.to output(/QualityControl declares process_manager\(s\).*no save_saga/).to_stderr
     Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
