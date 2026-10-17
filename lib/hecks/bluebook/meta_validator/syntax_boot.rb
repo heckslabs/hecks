@@ -37,19 +37,23 @@ module Hecks
         end
 
         # Dispatches every seed row into a fresh "Bluebook" instance and
-        # reads the result back.
+        # reads the result back. The table is memoized for the process, so it is built with no
+        # ambient caller: an enclosing `Hecks.as_caller` would have the language's own
+        # `Language`-role commands refused.
         def boot
-          bluebook = MetaValidator.grammar_registry.bluebook("Bluebook")
-          # `fresh_runtime`, not a new `Runtime::Registry` — the grammar
-          # registry already has "Bluebook" registered and its adapter
-          # ports already loaded.
-          runtime = MetaValidator.fresh_runtime
+          Runtime::Caller.without do
+            bluebook = MetaValidator.grammar_registry.bluebook("Bluebook")
+            # `fresh_runtime`, not a new `Runtime::Registry` — the grammar
+            # registry already has "Bluebook" registered and its adapter
+            # ports already loaded.
+            runtime = MetaValidator.fresh_runtime
 
-          declare_syntax(runtime, bluebook)
-          admit_keywords(runtime, bluebook)
-          admit_arguments(runtime, bluebook)
+            declare_syntax(runtime, bluebook)
+            admit_keywords(runtime, bluebook)
+            admit_arguments(runtime, bluebook)
 
-          read_back(runtime, bluebook)
+            read_back(runtime, bluebook)
+          end
         end
 
         # An Integer stays an Integer — `position` is `Position`-typed, so
