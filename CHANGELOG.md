@@ -7,6 +7,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+- **The roles that may manage payments are a setting of the host (ADR 0116, proposed).** `HECKS_PAYMENTS_MANAGER_ROLES` is a comma-separated list of exact role names; unset it means `Owner`, so a site that sets nothing behaves exactly as before. A site that wants more than its owner to manage payments (connect, save keys, disconnect, read the Payments state) sets it, for example to `Owner,Admin`. The check is exact-case membership, with no hierarchy and no wildcard; the 403 and its message are unchanged, and enabling or disabling real payments stays with the platform operator. A malformed value (an empty list or entry, a character other than letters, digits, spaces and hyphens, more than 8 entries, an entry over 32 characters) refuses the boot, naming the variable and never the value. The value is read once at boot; changing it takes a restart.
+
 ## [3.13.0] - 2026-10-17
 
 A minor. One behavior change, for projects with a generated Payload CMS: only the Admin and Owner roles can sign in to the editor, matching the site's admin gate; a Member who could open it before no longer can. Regenerate with `hecks site site_projection.project_site <project>`, commit `cms/src/generated/auth/membership.ts` and roll the CMS (the domain host needs no change). The other entries are additive or opt-in.
