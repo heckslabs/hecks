@@ -1,0 +1,7 @@
+Hecks.port "composer_agent" do
+  verb    "asked_by"
+  signal  :reply
+  answers :draft
+  answers :wire
+  answers :classify
+end
