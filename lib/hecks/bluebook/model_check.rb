@@ -4,6 +4,7 @@ require_relative "model_check/client_profile"
 require_relative "model_check/lifecycle_checks"
 require_relative "model_check/saga_checks"
 require_relative "model_check/policy_checks"
+require_relative "model_check/forwarded_payload_checks"
 require_relative "model_check/ask_checks"
 require_relative "model_check/reference_checks"
 require_relative "model_check/verbs"
@@ -34,6 +35,7 @@ module Hecks
       extend LifecycleChecks
       extend SagaChecks
       extend PolicyChecks
+      extend ForwardedPayloadChecks
       extend AskChecks
       extend ReferenceChecks
       extend Verbs

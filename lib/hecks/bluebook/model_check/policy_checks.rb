@@ -2,7 +2,8 @@ module Hecks
   module Bluebook
     module ModelCheck
       # The checks over a policy: reactions to events nothing emits, triggers that name no
-      # command, and the relationship a cross-domain reaction claims against its hecksagon.
+      # command, triggers that can never take their event, and the relationship a cross-domain
+      # reaction claims against its hecksagon.
       module PolicyChecks
         # Runs every same-domain policy check, or defers to
         # cross_domain_policy_findings for a cross-domain policy.
@@ -12,6 +13,7 @@ module Hecks
           [
             deaf_policy_finding(policy, emitted_events(bluebook), global_emitted_events),
             policy.asks? ? nil : unknown_trigger_finding(bluebook, policy),
+            policy.asks? ? nil : forwarded_payload_finding(bluebook, policy),
             ask_finding(bluebook, policy)
           ].compact
         end
