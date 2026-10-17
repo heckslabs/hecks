@@ -28,8 +28,9 @@ skip themselves quietly if nothing answers on `localhost`.
 ## Running the suite
 
 ```sh
-bundle exec rspec                 # the whole suite
-bundle exec parallel_rspec spec   # same suite, split across your machine's cores
+bundle exec rspec                 # the whole suite, split across your machine's cores
+bundle exec rspec spec/foo_spec.rb:12   # any argument runs serially, in this process
+HECKS_SERIAL=1 bundle exec rspec  # the whole suite, in one process
 bundle exec rubocop -c .rubocop.yml
 ```
 
@@ -119,10 +120,20 @@ createdb hecks_pizzas   # examples/pizzas/bluebook/pizzas.world wires straight a
 CI=true bundle exec rspec spec/adapters/driven/postgres_spec.rb   # or whichever file you're on
 ```
 
-`bundle exec parallel_rspec spec` (12+ workers on a typical dev
-machine, ~40s for the whole non-`io`/`fuzzing` suite) is your "did I
-break anything nearby" check before a push — not something to run on
-every edit.
+A bare `bundle exec rspec` (`spec/support/parallel_default.rb`) hands
+over to `parallel_rspec spec`, one worker per core, grouped by the file
+runtimes the last run left in `tmp/parallel_runtime_rspec.log`. It runs
+the whole non-`io`/`fuzzing` suite in about 85s on a 12-core machine; the
+first run has no log and groups by file size, so it is slower. Any
+argument (a file, `file:line`, `--tag`, `-e`, `--only-failures`), `CI` or
+`HECKS_SERIAL=1` keeps the run in one process. It is your "did I break
+anything nearby" check before a push — not something to run on every edit.
+
+Specs that boot a domain share what a boot loads
+(`spec/support/declaration_cache.rb`): the first boot of an unchanged
+domain directory loads it, later ones get a fresh registry holding a copy
+of the loaded declarations. A changed file is a different key;
+`HECKS_NO_DECLARATION_CACHE=1` turns it off when you suspect it.
 
 ## Verification beyond the suite
 
