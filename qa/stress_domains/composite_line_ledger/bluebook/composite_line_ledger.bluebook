@@ -12,7 +12,7 @@ Hecks.bluebook "CompositeLineLedger" do
     attribute :lines, list_of(Line)
 
     value_object "VenueCode" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a VenueCode is not blank") { !value.to_s.empty? }
     end
 
@@ -26,12 +26,12 @@ Hecks.bluebook "CompositeLineLedger" do
     end
 
     value_object "LineBatch" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a LineBatch is not blank") { !value.to_s.empty? }
     end
 
     value_object "LineLabel" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a LineLabel is not blank") { !value.to_s.empty? }
     end
 
@@ -92,7 +92,7 @@ Hecks.bluebook "CompositeLineLedger" do
     attribute :code, HangarCode
 
     value_object "HangarCode" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a HangarCode is not blank") { !value.to_s.empty? }
     end
 

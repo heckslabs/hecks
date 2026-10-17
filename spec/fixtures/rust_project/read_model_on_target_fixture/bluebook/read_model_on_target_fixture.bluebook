@@ -14,7 +14,7 @@ Hecks.bluebook "ReadModelOnTargetFixture" do
     attribute :reference, BoardReference
 
     value_object "BoardReference" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a board is referenced") { !value.to_s.empty? }
     end
 
@@ -43,7 +43,7 @@ Hecks.bluebook "ReadModelOnTargetFixture" do
     end
 
     value_object "CardReference" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a card is referenced") { !value.to_s.empty? }
     end
 
@@ -88,7 +88,7 @@ Hecks.bluebook "ReadModelOnTargetFixture" do
     end
 
     value_object "NoteReference" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a note is referenced") { !value.to_s.empty? }
     end
 

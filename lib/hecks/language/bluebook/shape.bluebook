@@ -19,14 +19,14 @@ Hecks.bluebook "Bluebook" do
     end
 
     value_object "ValueObjectName" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a value object is named") { !value.to_s.empty? }
     end
 
     value_object "ShapeField" do
-      attribute :name,    String, pattern: '[^ \t\n\r]'
-      attribute :type,    String, pattern: '[^ \t\n\r]'
-      attribute :list,    String, pattern: '[^ \t\n\r]'
+      attribute :name,    String, present: true
+      attribute :type,    String, present: true
+      attribute :list,    String, present: true
       attribute :optional, String, optional: true
       attribute :pattern,  String, optional: true
       # optional: a declaration with no default has none
@@ -40,8 +40,8 @@ Hecks.bluebook "Bluebook" do
     end
 
     value_object "Assertion" do
-      attribute :description, String, pattern: '[^ \t\n\r]'
-      attribute :canonical,   String, pattern: '[^ \t\n\r]'
+      attribute :description, String, present: true
+      attribute :canonical,   String, present: true
       invariant("an assertion description is present") { !description.to_s.empty? }
       invariant("an assertion canonical form is present") { !canonical.to_s.empty? }
     end
@@ -59,7 +59,7 @@ Hecks.bluebook "Bluebook" do
     end
 
     value_object "Pair" do
-      attribute :key,   String, pattern: '[^ \t\n\r]'
+      attribute :key,   String, present: true
       attribute :value, String
       # Keys must be named; values may be empty or numeric.
       invariant("a pair key is present") { !key.to_s.empty? }
@@ -230,6 +230,7 @@ Hecks.bluebook "Bluebook" do
       member keyword: "attribute",       context: "ValueObject", at: "",  named: "default",  kind: "literal",  required: "false", fills: "default"
       member keyword: "attribute",       context: "ValueObject", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
       member keyword: "attribute",       context: "ValueObject", at: "",  named: "pattern",  kind: "text",     required: "false", fills: "pattern"
+      member keyword: "attribute",       context: "ValueObject", at: "",  named: "present",  kind: "flag",     required: "false", fills: "present"
       member keyword: "attribute",       context: "ValueObject", at: "",  named: "admits",   kind: "text",     required: "false", fills: "admits"
       member keyword: "attribute",       context: "ValueObject", at: "",  named: "one_of",   kind: "list",     required: "false", fills: "one_of"
       member keyword: "invariant",       context: "ValueObject", at: "1", named: "",         kind: "text",     required: "true",  fills: "description"

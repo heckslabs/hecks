@@ -6,8 +6,8 @@ module Hecks
     # The bluebook text of one accepted thing: its aggregate, with its value objects, commands and
     # lifecycle. `InterviewDraft` extends it, and supplies the naming and citing helpers it calls.
     module InterviewAggregate
-      # The pattern every generated string field carries: it refuses a blank value.
-      PATTERN = %q('[^ \t\n\r]').freeze
+      # The option every generated string field carries: it refuses a blank value.
+      PRESENT = "present: true".freeze
 
       # What stands in for a creating command nothing in the interview named.
       STUB_NOTE = "    # TODO: no action that creates was accepted; replace Create with the real one.".freeze
@@ -15,7 +15,7 @@ module Hecks
       # One accepted thing: what it is called and identified by, its fields, its transitions, the
       # actions that create it and the others.
       Shape = Struct.new(:name, :identifier, :type, :fields, :steps, :creating, :rest, keyword_init: true)
-      private_constant :PATTERN, :STUB_NOTE, :Shape
+      private_constant :PRESENT, :STUB_NOTE, :Shape
 
       # @api private
       def aggregate(interview, thing, actions)
@@ -66,7 +66,7 @@ module Hecks
       # @api private
       def type_lines(shape)
         ["    value_object #{shape.type.inspect} do",
-         "      attribute :value, String, pattern: #{PATTERN}", "    end",
+         "      attribute :value, String, #{PRESENT}", "    end",
          *InterviewShape.value_objects(shape.fields)]
       end
 

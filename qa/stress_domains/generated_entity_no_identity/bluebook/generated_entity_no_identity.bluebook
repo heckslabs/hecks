@@ -12,7 +12,7 @@ Hecks.bluebook "GeneratedEntityNoIdentity" do
     attribute :lines, list_of(Line)
 
     value_object "KioskCode" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a KioskCode is not blank") { !value.to_s.empty? }
     end
 
@@ -22,12 +22,12 @@ Hecks.bluebook "GeneratedEntityNoIdentity" do
     end
 
     value_object "LineBatch" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a LineBatch is not blank") { !value.to_s.empty? }
     end
 
     value_object "LineLabel" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a LineLabel is not blank") { !value.to_s.empty? }
     end
 

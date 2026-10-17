@@ -18,14 +18,14 @@ Hecks.bluebook "Change" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
 
       invariant("a change is named") { !value.to_s.empty? }
     end
 
     # The name the script is registered under with the adapter.
     value_object "ScriptName" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
 
       invariant("a change names its script") { !value.to_s.empty? }
     end

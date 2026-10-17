@@ -3365,6 +3365,36 @@
               ],
               [
                 "named",
+                "present"
+              ],
+              [
+                "kind",
+                "flag"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "present"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "attribute"
+              ],
+              [
+                "context",
+                "PortOperation"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
                 "admits"
               ],
               [

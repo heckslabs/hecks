@@ -96,7 +96,7 @@ module Hecks
               attribute :name, ExampleName
 
               value_object "ExampleName" do
-                attribute :value, String, pattern: '[^ \\t\\n\\r]'
+                attribute :value, String, present: true
               end
 
               # TODO: replace Create with the first thing that happens to an Example.

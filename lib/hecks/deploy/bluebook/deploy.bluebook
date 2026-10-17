@@ -581,7 +581,7 @@ Hecks.bluebook "Deploy" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
 
       invariant("a run is named") { !value.to_s.empty? }
     end
@@ -707,7 +707,7 @@ Hecks.bluebook "Deploy" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
 
       invariant("a run is named") { !value.to_s.empty? }
     end
@@ -813,7 +813,7 @@ Hecks.bluebook "Deploy" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
 
       invariant("a run is named") { !value.to_s.empty? }
     end
@@ -909,7 +909,7 @@ Hecks.bluebook "Deploy" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
 
       invariant("a run is named") { !value.to_s.empty? }
     end
@@ -1020,7 +1020,7 @@ Hecks.bluebook "Deploy" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
 
       invariant("a run is named") { !value.to_s.empty? }
     end
@@ -1159,7 +1159,7 @@ Hecks.bluebook "Deploy" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
 
       invariant("a run is named") { !value.to_s.empty? }
     end
@@ -1352,7 +1352,7 @@ Hecks.bluebook "Deploy" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
 
       invariant("a run is named") { !value.to_s.empty? }
     end
@@ -1538,7 +1538,7 @@ Hecks.bluebook "Deploy" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
 
       invariant("a run is named") { !value.to_s.empty? }
     end
@@ -1826,7 +1826,7 @@ Hecks.bluebook "Deploy" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
 
       invariant("a run is named") { !value.to_s.empty? }
     end
@@ -1984,7 +1984,7 @@ Hecks.bluebook "Deploy" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
 
       invariant("a run is named") { !value.to_s.empty? }
     end
@@ -2134,7 +2134,7 @@ Hecks.bluebook "Deploy" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
 
       invariant("a run is named") { !value.to_s.empty? }
     end
@@ -2510,7 +2510,7 @@ Hecks.bluebook "Deploy" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
 
       invariant("a run is named") { !value.to_s.empty? }
     end
@@ -2656,7 +2656,7 @@ Hecks.bluebook "Deploy" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
 
       invariant("a run is named") { !value.to_s.empty? }
     end
@@ -2785,7 +2785,7 @@ Hecks.bluebook "Deploy" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
 
       invariant("a run is named") { !value.to_s.empty? }
     end

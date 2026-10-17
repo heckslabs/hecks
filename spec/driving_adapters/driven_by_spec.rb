@@ -3,7 +3,7 @@ require "tmpdir"
 
 RSpec.describe "driven_by, the hecksagon word that admits a driving adapter" do
   def bluebook_text
-    <<~'RUBY'
+    <<~RUBY
       Hecks.bluebook "Lending" do
         vision "Lend something and take it back."
         supporting
@@ -14,7 +14,7 @@ RSpec.describe "driven_by, the hecksagon word that admits a driving adapter" do
           identified_by :name
 
           value_object "LoanName" do
-            attribute :value, String, pattern: '[^ \t\n\r]'
+            attribute :value, String, present: true
             invariant("a loan is named") { !value.to_s.empty? }
           end
 

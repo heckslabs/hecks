@@ -56,7 +56,7 @@ Hecks.bluebook "Pizzas" do
     attribute :customer_name, CustomerName
 
     value_object "PizzaName" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a pizza is named") { !value.to_s.empty? }
     end
 
@@ -66,12 +66,12 @@ Hecks.bluebook "Pizzas" do
     end
 
     value_object "CustomerName" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a customer is named") { !value.to_s.empty? }
     end
 
     value_object "ToppingName" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a topping is named") { !value.to_s.empty? }
     end
 
@@ -81,7 +81,7 @@ Hecks.bluebook "Pizzas" do
     end
 
     value_object "Topping" do
-      attribute :name,   String, pattern: '[^ \t\n\r]'
+      attribute :name,   String, present: true
       attribute :amount, Integer
     end
 

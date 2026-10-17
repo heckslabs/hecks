@@ -11,18 +11,18 @@ Hecks.bluebook "Banking" do
     attribute :standing,  CustomerStanding
 
     value_object "CustomerNumber" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a customer reference is present") { !value.to_s.empty? }
     end
 
     value_object "CustomerStanding" do
-      attribute :value, String, default: "good", pattern: '[^ \t\n\r]'
+      attribute :value, String, default: "good", present: true
       invariant("a standing is named") { !value.to_s.empty? }
     end
 
     value_object "PersonName" do
-      attribute :given,  String, pattern: '[^ \t\n\r]'
-      attribute :family, String, pattern: '[^ \t\n\r]'
+      attribute :given,  String, present: true
+      attribute :family, String, present: true
 
       invariant("a given name is present")  { !given.to_s.empty? }
       invariant("a family name is present") { !family.to_s.empty? }

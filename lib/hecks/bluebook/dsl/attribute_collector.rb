@@ -17,8 +17,10 @@ module Hecks
         private_constant :UNSET
 
         ATTRIBUTE_FIELD_OPTIONS = %i[default optional pattern admits].freeze
-        ATTRIBUTE_OPTIONS = [*ATTRIBUTE_FIELD_OPTIONS, :one_of].freeze
-        private_constant :ATTRIBUTE_FIELD_OPTIONS, :ATTRIBUTE_OPTIONS
+        ATTRIBUTE_OPTIONS = [*ATTRIBUTE_FIELD_OPTIONS, :one_of, :present].freeze
+        # What `present: true` stands for: the pattern that refuses a blank value.
+        PRESENT_PATTERN = '[^ \t\n\r]'.freeze
+        private_constant :ATTRIBUTE_FIELD_OPTIONS, :ATTRIBUTE_OPTIONS, :PRESENT_PATTERN
 
         # Returns the attributes declared so far, minting the accumulating list on first use.
         #
@@ -39,7 +41,8 @@ module Hecks
         #
         # @param name [Symbol] the field's name
         # @param type [Module, ListOf, OneOf] a bare constant or a wrapper
-        # @param options [Hash] `default:`, `optional:`, `pattern:`, `admits:` or `one_of:`
+        # @param options [Hash] `default:`, `optional:`, `pattern:`, `present:` (not blank), `admits:` or
+        #   `one_of:`
         # @return [void]
         # @raise [Malformed] on a duplicate name, a missing or quoted type, a disallowed pattern
         # @raise [ArgumentError] on any other keyword
@@ -86,7 +89,13 @@ module Hecks
             raise ArgumentError, "unknown keyword#{"s" if unknown.size > 1}: #{unknown.map(&:inspect).join(", ")}"
           end
 
-          { default: nil, optional: false, pattern: nil, admits: nil, one_of: nil }.merge(options)
+          given = { default: nil, optional: false, pattern: nil, admits: nil, one_of: nil }.merge(options)
+          if given.delete(:present)
+            raise ArgumentError, "present: true and pattern: both state the pattern" if given[:pattern]
+
+            given[:pattern] = PRESENT_PATTERN
+          end
+          given
         end
 
         def typed_attribute(name, type, field_options)

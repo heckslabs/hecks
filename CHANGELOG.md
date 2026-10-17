@@ -7,6 +7,7 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+- **`attribute ..., present: true` refuses a blank String (ADR 0117, proposed).** It reads as the pattern `[^ \t\n\r]` in both parsers, so behavior and the generated IR are unchanged; the 130 hand-spelled patterns in the corpus, the guides and the two generators now say `present: true`. `present:` with `pattern:` on one attribute is refused. Patterns that mean more than blank (`^[^ \t\n\r]+$` and the like) stay as they are, and the refusal text still shows the regex.
 - **The roles that may manage payments are a setting of the host (ADR 0116, proposed).** `HECKS_PAYMENTS_MANAGER_ROLES` is a comma-separated list of exact role names; unset it means `Owner`, so a site that sets nothing behaves exactly as before. A site that wants more than its owner to manage payments (connect, save keys, disconnect, read the Payments state) sets it, for example to `Owner,Admin`. The check is exact-case membership, with no hierarchy and no wildcard; the 403 and its message are unchanged, and enabling or disabling real payments stays with the platform operator. A malformed value (an empty list or entry, a character other than letters, digits, spaces and hyphens, more than 8 entries, an entry over 32 characters) refuses the boot, naming the variable and never the value. The value is read once at boot; changing it takes a restart.
 
 ## [3.13.0] - 2026-10-17

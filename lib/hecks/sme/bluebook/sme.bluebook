@@ -30,13 +30,13 @@ Hecks.bluebook "SME" do
     attribute :accepted_actions, Tally
 
     value_object "Reference" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
     end
 
     # The domain being discovered, spelled as its bluebook will spell it. Many interviews, with
     # different experts on different days, name the same subject; the domain is not modelled here.
     value_object "Subject" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
     end
 
     # Who is being interviewed.
@@ -76,7 +76,7 @@ Hecks.bluebook "SME" do
     end
 
     value_object "Name" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
     end
 
     # How many findings of a kind were accepted.

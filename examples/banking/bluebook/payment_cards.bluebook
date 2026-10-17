@@ -22,7 +22,7 @@ Hecks.bluebook "Banking" do
     attribute :withdrawals, list_of(Withdrawal)
 
     value_object "CardSerial" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a card serial is present") { !value.to_s.empty? }
     end
 
@@ -46,7 +46,7 @@ Hecks.bluebook "Banking" do
     end
 
     value_object "Narrative" do
-      attribute :text, String, pattern: '[^ \t\n\r]'
+      attribute :text, String, present: true
 
       invariant("a withdrawal explains itself") { !text.to_s.empty? }
     end
@@ -195,7 +195,7 @@ Hecks.bluebook "Banking" do
     attribute :amount,   PaymentAmount
 
     value_object "AuthorisationCode" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
     end
     attribute :merchant, MerchantName
 
@@ -205,7 +205,7 @@ Hecks.bluebook "Banking" do
     end
 
     value_object "MerchantName" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a merchant name is present") { !value.to_s.empty? }
     end
 
@@ -213,7 +213,7 @@ Hecks.bluebook "Banking" do
     attribute :tags, list_of(Tag)
 
     value_object "Tag" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a tag is not the empty string") { !value.to_s.empty? }
     end
 

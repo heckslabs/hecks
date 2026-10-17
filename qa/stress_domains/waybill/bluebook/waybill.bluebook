@@ -15,7 +15,7 @@ Hecks.bluebook "Waybill" do
     attribute :item,   ItemLabel
 
     value_object "ConsignmentReference" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a consignment is referenced") { !value.to_s.empty? }
     end
 
@@ -27,7 +27,7 @@ Hecks.bluebook "Waybill" do
     end
 
     value_object "ItemLabel" do
-      attribute :text, String, pattern: '[^ \t\n\r]'
+      attribute :text, String, present: true
       invariant("an item is labeled") { !text.to_s.empty? }
     end
 
@@ -81,7 +81,7 @@ Hecks.bluebook "Waybill" do
     attribute :slots,     list_of(Slot)
 
     value_object "ManifestReference" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a manifest is referenced") { !value.to_s.empty? }
     end
 
@@ -91,7 +91,7 @@ Hecks.bluebook "Waybill" do
     end
 
     value_object "ItemLabel" do
-      attribute :text, String, pattern: '[^ \t\n\r]'
+      attribute :text, String, present: true
       invariant("an item is labeled") { !text.to_s.empty? }
     end
 

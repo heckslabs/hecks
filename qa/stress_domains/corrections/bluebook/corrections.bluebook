@@ -14,7 +14,7 @@ Hecks.bluebook "Corrections" do
     attribute :entries,   list_of(Entry)
 
     value_object "LedgerReference" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a ledger is referenced") { !value.to_s.empty? }
     end
 
@@ -111,7 +111,7 @@ Hecks.bluebook "Corrections" do
 
 # Redeclared, not shared: value-object tables are per-aggregate.
     value_object "LedgerReference" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a ledger is referenced") { !value.to_s.empty? }
     end
 

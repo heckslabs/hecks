@@ -16,13 +16,13 @@ Hecks.bluebook "Hecks" do
     end
 
     value_object "ChapterName" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
 
       invariant("a chapter is named") { !value.to_s.empty? }
     end
 
     value_object "AggregateName" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
 
       invariant("an aggregate is named") { !value.to_s.empty? }
     end
@@ -128,7 +128,7 @@ Hecks.bluebook "Hecks" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
 
       invariant("a run is named") { !value.to_s.empty? }
     end
@@ -383,7 +383,7 @@ Hecks.bluebook "Hecks" do
     identified_by :run
 
     value_object "RegistryKey" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
 
       invariant("a release is named") { !value.to_s.empty? }
     end
@@ -520,7 +520,7 @@ Hecks.bluebook "Hecks" do
     identified_by :run
 
     value_object "LaunchKey" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
 
       invariant("a launch is named") { !value.to_s.empty? }
     end
@@ -724,7 +724,7 @@ Hecks.bluebook "Hecks" do
     identified_by :run
 
     value_object "BuildKey" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
 
       invariant("a build is named") { !value.to_s.empty? }
     end
@@ -748,7 +748,7 @@ Hecks.bluebook "Hecks" do
     # What a build is replayed through: `native`, `build` (the domain's own feature), a `.wasm`
     # module, or a binary.
     value_object "Artifact" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
     end
 
     # A Rust target triple: `<arch>-<vendor>-<os>` with an optional `-<env>`. The toolchain
@@ -1014,7 +1014,7 @@ Hecks.bluebook "Hecks" do
     identified_by :run
 
     value_object "FuzzKey" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
 
       invariant("a sweep is named") { !value.to_s.empty? }
     end

@@ -15,7 +15,7 @@ Hecks.bluebook "OptionalValueObjectFixture" do
     attribute :draft_body, Body, optional: true
 
     value_object "PageKey" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a page is keyed") { !value.to_s.empty? }
     end
 

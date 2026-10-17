@@ -53,7 +53,7 @@ Hecks.bluebook "Hecks" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
 
       invariant("a rehearsal is named") { !value.to_s.empty? }
     end
@@ -69,7 +69,7 @@ Hecks.bluebook "Hecks" do
     end
 
     value_object "HostVersion" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
     end
 
     # Which strategy the subject's world named for the copy of its data.

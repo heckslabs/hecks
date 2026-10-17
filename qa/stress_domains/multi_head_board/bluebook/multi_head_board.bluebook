@@ -16,7 +16,7 @@ Hecks.bluebook "MultiHeadBoard" do
     attribute :cards,    list_of(Card)
 
     value_object "BoardCode" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a board is coded") { !value.to_s.empty? }
     end
 
@@ -36,7 +36,7 @@ Hecks.bluebook "MultiHeadBoard" do
     end
 
     value_object "Label" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a label is not blank") { !value.to_s.empty? }
     end
 
@@ -133,12 +133,12 @@ Hecks.bluebook "MultiHeadBoard" do
     attribute :note, PinNote
 
     value_object "PinReference" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a pin is referenced") { !value.to_s.empty? }
     end
 
     value_object "PinNote" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a pin note is not blank") { !value.to_s.empty? }
     end
 
