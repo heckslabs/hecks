@@ -1,6 +1,7 @@
 require "spec_helper"
 require "tmpdir"
 require "fileutils"
+require "yaml"
 require "hecks/tools"
 require "hecks/tools/site_routes"
 
