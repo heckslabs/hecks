@@ -14,7 +14,7 @@ Hecks.bluebook "NestedPieces" do
     attribute :boards,    list_of(Board)
 
     value_object "WorkspaceReference" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a workspace is referenced") { !value.to_s.empty? }
     end
 
@@ -47,7 +47,7 @@ Hecks.bluebook "NestedPieces" do
     end
 
     value_object "BoardLabel" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a board label is not blank") { !value.to_s.empty? }
     end
 

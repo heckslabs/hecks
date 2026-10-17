@@ -27,7 +27,7 @@ Hecks.bluebook "Banking" do
     attribute :amount,    TransferMoney
 
     value_object "TransferReference" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a transfer is referenced") { !value.to_s.empty? }
     end
     attribute :narrative, Narrative
@@ -38,7 +38,7 @@ Hecks.bluebook "Banking" do
     end
 
     value_object "Narrative" do
-      attribute :text, String, pattern: '[^ \t\n\r]'
+      attribute :text, String, present: true
 
       invariant("a transfer explains itself") { !text.to_s.empty? }
     end
@@ -156,7 +156,7 @@ Hecks.bluebook "Banking" do
     attribute :direction,   MovementDirection, admits: "Account::LedgerDirection"
 
     value_object "EndToEndReference" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
     end
 
     # The type is local; the set of values belongs to Account, which `admits` names.
@@ -170,7 +170,7 @@ Hecks.bluebook "Banking" do
     end
 
     value_object "BeneficiaryName" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a beneficiary name is present") { !value.to_s.empty? }
     end
 
@@ -256,7 +256,7 @@ Hecks.bluebook "Banking" do
     attribute :max_attempts, RetryLimit
 
     value_object "InstructionReference" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
     end
 
     value_object "ScheduledAmount" do
@@ -265,12 +265,12 @@ Hecks.bluebook "Banking" do
     end
 
     value_object "PaymentRecipient" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a payment recipient is present") { !value.to_s.empty? }
     end
 
     value_object "PaymentDueDate" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a payment due date is present") { !value.to_s.empty? }
     end
 

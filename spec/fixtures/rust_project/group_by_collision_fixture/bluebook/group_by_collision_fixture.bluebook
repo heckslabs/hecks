@@ -14,12 +14,12 @@ Hecks.bluebook "GroupByCollisionFixture" do
     attribute :bin, Bin
 
     value_object "Ref" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a part is referenced") { !value.to_s.empty? }
     end
 
     value_object "Bin" do
-      attribute :label, String, pattern: '[^ \t\n\r]'
+      attribute :label, String, present: true
       invariant("a bin is labelled") { !label.to_s.empty? }
     end
 

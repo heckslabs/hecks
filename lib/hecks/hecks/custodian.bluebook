@@ -27,7 +27,7 @@ Hecks.bluebook "Hecks" do
     identified_by :run
 
     value_object "OperationKey" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
 
       invariant("an operation is named") { !value.to_s.empty? }
     end
@@ -42,7 +42,7 @@ Hecks.bluebook "Hecks" do
     end
 
     value_object "Verb" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
     end
 
     # One `name=value` word of the verb a run dispatches.
@@ -59,7 +59,7 @@ Hecks.bluebook "Hecks" do
     end
 
     value_object "HeaderName" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
     end
 
     value_object "Scheme" do
@@ -371,7 +371,7 @@ Hecks.bluebook "Hecks" do
     end
 
     value_object "EraId" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
     end
 
     value_object "VersionText" do
@@ -546,7 +546,7 @@ policy "RecordTheEra" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
 
       invariant("a change is named") { !value.to_s.empty? }
     end
@@ -592,7 +592,7 @@ policy "RecordTheEra" do
     end
 
     value_object "HostVersion" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
     end
 
     value_object "Verdict" do

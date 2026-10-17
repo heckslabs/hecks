@@ -80,6 +80,7 @@ Hecks.bluebook "Hecksagon" do
       member keyword: "attribute",       context: "PortOperation", at: "",  named: "default",  kind: "literal",  required: "false", fills: "default"
       member keyword: "attribute",       context: "PortOperation", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
       member keyword: "attribute",       context: "PortOperation", at: "",  named: "pattern",  kind: "text",     required: "false", fills: "pattern"
+      member keyword: "attribute",       context: "PortOperation", at: "",  named: "present",  kind: "flag",     required: "false", fills: "present"
       member keyword: "attribute",       context: "PortOperation", at: "",  named: "admits",   kind: "text",     required: "false", fills: "admits"
       member keyword: "attribute",       context: "PortOperation", at: "",  named: "one_of",   kind: "list",     required: "false", fills: "one_of"
       member keyword: "emits",           context: "PortOperation", at: "1", named: "", kind: "text", required: "true", fills: "emits"

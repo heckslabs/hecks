@@ -63,15 +63,15 @@ Hecks.bluebook "Lending" do
     attribute :borrower, Borrower
 
     value_object "Isbn" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
     end
 
     value_object "Title" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
     end
 
     value_object "Borrower" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
     end
 
     lifecycle :status, default: "shelved" do

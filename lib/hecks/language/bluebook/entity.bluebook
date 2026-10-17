@@ -319,6 +319,7 @@ Hecks.bluebook "Bluebook" do
       member keyword: "attribute",       context: "Entity", at: "",  named: "default",  kind: "literal",  required: "false", fills: "default"
       member keyword: "attribute",       context: "Entity", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
       member keyword: "attribute",       context: "Entity", at: "",  named: "pattern",  kind: "text",     required: "false", fills: "pattern"
+      member keyword: "attribute",       context: "Entity", at: "",  named: "present",  kind: "flag",     required: "false", fills: "present"
       member keyword: "attribute",       context: "Entity", at: "",  named: "admits",   kind: "text",     required: "false", fills: "admits"
       member keyword: "attribute",       context: "Entity", at: "",  named: "one_of",   kind: "list",     required: "false", fills: "one_of"
       member keyword: "reference_to",    context: "Entity", at: "1", named: "",         kind: "constant", required: "true",  fills: "type"

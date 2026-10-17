@@ -113,7 +113,7 @@ told.events.first.id  # => "lic-1"
 ## attribute
 
 <!-- generated:begin word=attribute -->
-`attribute name, type, default:, optional:, pattern:, admits:, one_of:` — fills `attributes`
+`attribute name, type, default:, optional:, pattern:, present:, admits:, one_of:` — fills `attributes`
 
 | argument | kind | required | fills |
 |---|---|---|---|
@@ -122,6 +122,7 @@ told.events.first.id  # => "lic-1"
 | `default:` | literal | false | default |
 | `optional:` | flag | false | optional |
 | `pattern:` | text | false | pattern |
+| `present:` | flag | false | present |
 | `admits:` | text | false | admits |
 | `one_of:` | list | false | one_of |
 <!-- generated:end -->

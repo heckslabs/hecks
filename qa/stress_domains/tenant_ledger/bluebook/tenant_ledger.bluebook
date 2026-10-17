@@ -17,12 +17,12 @@ Hecks.bluebook "TenantLedger" do
     attribute :entries,       list_of(Entry)
 
     value_object "LedgerCode" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a ledger is coded") { !value.to_s.empty? }
     end
 
     value_object "LedgerRegion" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a ledger names its region") { !value.to_s.empty? }
     end
 
@@ -32,7 +32,7 @@ Hecks.bluebook "TenantLedger" do
     end
 
     value_object "EntrySequence" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("an entry is sequenced") { !value.to_s.empty? }
     end
 
@@ -43,7 +43,7 @@ Hecks.bluebook "TenantLedger" do
     # Pass-through correlation field: never stored, but emitted in the event payload so the
     # saga can correlate on it. Declared locally; value objects are not shared across aggregates.
     value_object "LedgerCreditReference" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a credit still names the transfer that asked for it") { !value.to_s.empty? }
     end
 
@@ -117,12 +117,12 @@ Hecks.bluebook "TenantLedger" do
     attribute :amount_cents,  TransferAmountCents
 
     value_object "TransferReference" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a transfer is referenced") { !value.to_s.empty? }
     end
 
     value_object "TransferRegion" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a transfer names its own region") { !value.to_s.empty? }
     end
 

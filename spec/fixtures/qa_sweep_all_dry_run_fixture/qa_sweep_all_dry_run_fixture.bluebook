@@ -11,7 +11,7 @@ Hecks.bluebook "QaSweepAllDryRunFixture" do
     attribute :reference, GateReference
 
     value_object "GateReference" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a gate is referenced") { !value.to_s.empty? }
     end
 

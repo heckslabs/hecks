@@ -11,7 +11,7 @@ Hecks.bluebook "GeneratedReactionWording" do
     attribute :code, DeskCode
 
     value_object "DeskCode" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a DeskCode is not blank") { !value.to_s.empty? }
     end
 
@@ -21,7 +21,7 @@ Hecks.bluebook "GeneratedReactionWording" do
     end
 
     value_object "LineLabel" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a LineLabel is not blank") { !value.to_s.empty? }
     end
 
@@ -55,7 +55,7 @@ Hecks.bluebook "GeneratedReactionWording" do
     attribute :code, ParcelCode
 
     value_object "ParcelCode" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a ParcelCode is not blank") { !value.to_s.empty? }
     end
 
@@ -64,7 +64,7 @@ Hecks.bluebook "GeneratedReactionWording" do
     end
 
     value_object "ParcelNote" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a ParcelNote is not blank") { !value.to_s.empty? }
     end
 

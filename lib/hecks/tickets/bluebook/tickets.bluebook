@@ -32,7 +32,7 @@ Hecks.bluebook "Tickets" do
     identified_by :finding
 
     value_object "FindingKey" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
 
       invariant("a finding is named") { !value.to_s.empty? }
     end
@@ -65,7 +65,7 @@ Hecks.bluebook "Tickets" do
     # The same finding refiled by the QA loop carries the same fingerprint, so a report of it while an
     # open finding holds it changes nothing.
     value_object "Fingerprint" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
     end
 
     value_object "Number" do
@@ -239,7 +239,7 @@ Hecks.bluebook "Tickets" do
     end
 
     value_object "FindingKey" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
     end
 
     lifecycle :status, default: "draft" do

@@ -17,7 +17,7 @@ Hecks.bluebook "Banking" do
     attribute :interest_cents, Money
 
     value_object "AccountNumber" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("an account number is present") { !value.to_s.empty? }
     end
 
@@ -55,7 +55,7 @@ Hecks.bluebook "Banking" do
     end
 
     value_object "Narrative" do
-      attribute :text, String, pattern: '[^ \t\n\r]'
+      attribute :text, String, present: true
 
       invariant("a movement explains itself") { !text.to_s.empty? }
     end

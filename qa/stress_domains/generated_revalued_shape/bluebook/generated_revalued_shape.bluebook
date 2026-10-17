@@ -12,12 +12,12 @@ Hecks.bluebook "GeneratedRevaluedShape" do
     reference_to Venue
 
     value_object "HangarCode" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a HangarCode is not blank") { !value.to_s.empty? }
     end
 
     value_object "VenueHandle" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a VenueHandle is not blank") { !value.to_s.empty? }
     end
 
@@ -69,7 +69,7 @@ Hecks.bluebook "GeneratedRevaluedShape" do
     attribute :code, VenueCode
 
     value_object "VenueCode" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a VenueCode is not blank") { !value.to_s.empty? }
     end
 

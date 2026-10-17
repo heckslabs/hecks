@@ -6,7 +6,7 @@ require "tmpdir"
 RSpec.describe "the reserved chapter name Hecks, checked at verify!" do
   GEM_CHAPTER_ROOT = File.expand_path("../../../lib/hecks/hecks", __dir__)
 
-  CLIENT_BLUEBOOK_TEMPLATE = <<~'RUBY'.freeze
+  CLIENT_BLUEBOOK_TEMPLATE = <<~RUBY.freeze
     Hecks.bluebook "%<name>s" do
       %<nest>saggregate "Widget" do
         description "A widget."
@@ -14,7 +14,7 @@ RSpec.describe "the reserved chapter name Hecks, checked at verify!" do
         identified_by :reference
 
         value_object "Reference" do
-          attribute :value, String, pattern: '[^ \t\n\r]'
+          attribute :value, String, present: true
           invariant("a reference is present") { !value.to_s.empty? }
         end
       end

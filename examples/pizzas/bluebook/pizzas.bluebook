@@ -14,7 +14,7 @@ Hecks.bluebook "Pizzas" do
     identified_by :name
 
     value_object "PizzaName" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
 
       invariant("a pizza is named") { !value.to_s.empty? }
     end
@@ -26,13 +26,13 @@ Hecks.bluebook "Pizzas" do
     end
 
     value_object "CustomerName" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
 
       invariant("a customer is named") { !value.to_s.empty? }
     end
 
     value_object "ToppingName" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
 
       invariant("a topping is named") { !value.to_s.empty? }
       # The pattern lets a form feed through; `.strip` is what sees past it.
@@ -46,7 +46,7 @@ Hecks.bluebook "Pizzas" do
     end
 
     value_object "Topping" do
-      attribute :name,   String, pattern: '[^ \t\n\r]'
+      attribute :name,   String, present: true
       attribute :amount, Integer
     end
 

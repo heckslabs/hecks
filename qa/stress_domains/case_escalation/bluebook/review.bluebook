@@ -14,13 +14,13 @@ Hecks.bluebook "VendorCompliance" do
     attribute :invoice, InvoiceReference
 
     value_object "Handle" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a handle is not blank") { !value.to_s.empty? }
     end
 
     # Redeclared locally: this chapter only sees the plain string from the event payload.
     value_object "InvoiceReference" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("an invoice reference is not blank") { !value.to_s.empty? }
     end
 
@@ -66,12 +66,12 @@ Hecks.bluebook "VendorCompliance" do
     attribute :body, Body
 
     value_object "NoteReference" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a note reference is not blank") { !value.to_s.empty? }
     end
 
     value_object "Body" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a note body is not blank") { !value.to_s.empty? }
     end
 

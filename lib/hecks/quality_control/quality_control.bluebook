@@ -54,13 +54,13 @@ Hecks.bluebook "QualityControl" do
     attribute :reason,     TargetReason
 
     value_object "TargetReference" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a target is referenced") { !value.to_s.empty? }
     end
 
     # Required: a name can be disputed, a path can be opened.
     value_object "TargetPath" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a target says where it is") { !value.to_s.empty? }
     end
 
@@ -87,7 +87,7 @@ Hecks.bluebook "QualityControl" do
     end
 
     value_object "TargetReason" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("shelving a target says why") { !value.to_s.empty? }
     end
 
@@ -99,7 +99,7 @@ Hecks.bluebook "QualityControl" do
 
     # One mode name, as `EligibleFor`'s argument; a query attribute, never stored.
     value_object "Capability" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a mode is named") { !value.to_s.empty? }
     end
 
@@ -361,12 +361,12 @@ Hecks.bluebook "QualityControl" do
     attribute :checks,    list_of(Check)
 
     value_object "SweepReference" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a sweep is referenced") { !value.to_s.empty? }
     end
 
     value_object "Engineer" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a sweep says who ran it") { !value.to_s.empty? }
     end
 
@@ -381,13 +381,13 @@ Hecks.bluebook "QualityControl" do
     end
 
     value_object "SweepNotes" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       # The number is in the sentence because the sentence is the refusal message.
       invariant("a sweep says what it learned, in at least 40 characters") { value.to_s.size >= 40 }
     end
 
     value_object "WaiverReason" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a waived gate says why") { !value.to_s.empty? }
     end
 
@@ -395,7 +395,7 @@ Hecks.bluebook "QualityControl" do
     # literals, so `spec/quality_control_spec.rb` pins the two equal. "nobody" is refused: unsigned
     # is anonymous.
     value_object "WaivedBy" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a gate is waived by a person, never by the loop") { value != "qa_sweep" }
       invariant("a waiver is signed") { value != "nobody" }
     end
@@ -418,13 +418,13 @@ Hecks.bluebook "QualityControl" do
     end
 
     value_object "Subject" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a check names what it put to the system") { !value.to_s.empty? }
     end
 
     # Written before the answer exists: an expectation fitted to the answer cannot be surprised.
     value_object "Expectation" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a check says what it expected") { !value.to_s.empty? }
     end
 
@@ -649,25 +649,25 @@ Hecks.bluebook "QualityControl" do
     end
 
     value_object "DatabaseName" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
 
       invariant("a database is named") { !value.to_s.empty? }
     end
 
     value_object "RoleName" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
 
       invariant("a role is named") { !value.to_s.empty? }
     end
 
     value_object "SchemaName" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
 
       invariant("a schema is named") { !value.to_s.empty? }
     end
 
     value_object "StepVerb" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
 
       invariant("a step names its verb") { !value.to_s.empty? }
     end
@@ -770,7 +770,7 @@ Hecks.bluebook "QualityControl" do
     attribute :window,        StaleAfter
 
     value_object "BugReference" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a bug is referenced") { !value.to_s.empty? }
     end
 
@@ -783,33 +783,33 @@ Hecks.bluebook "QualityControl" do
     # value object sharing a word with any aggregate resolves to that class once the other domain
     # boots.
     value_object "BugTitle" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a bug is titled") { !value.to_s.empty? }
     end
 
     # Required at `Log`, which is what makes the one absolute rule absolute.
     value_object "Demonstration" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a bug is proven by a test somebody can re-run") { !value.to_s.empty? }
     end
 
     value_object "Symptom" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a bug says what actually happened") { !value.to_s.empty? }
     end
 
     value_object "Expectation" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a bug says what should have happened") { !value.to_s.empty? }
     end
 
     value_object "BugSite" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("an investigation names where the bug lives") { !value.to_s.empty? }
     end
 
     value_object "BugCause" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("an investigation says why the code is wrong") { !value.to_s.empty? }
     end
 
@@ -821,18 +821,18 @@ Hecks.bluebook "QualityControl" do
     # What was actually run, e.g. "rspec --order random, 1335 examples, 0 failures, seed 12345":
     # a count and a seed are checkable, "tests pass" is not.
     value_object "Verification" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a verification says what was actually run") { !value.to_s.empty? }
     end
 
     value_object "BugReason" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("stopping on a bug says why") { !value.to_s.empty? }
     end
 
     # Who decides and what would unblock it, so "deferred" does not become "forgotten".
     value_object "NextStep" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("stopping on a bug says what would move it") { !value.to_s.empty? }
     end
 
@@ -842,14 +842,14 @@ Hecks.bluebook "QualityControl" do
     end
 
     value_object "WaiverReason" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a waived gate says why") { !value.to_s.empty? }
     end
 
     # Redeclared, as elsewhere in this file; the "qa_sweep" literal is pinned to AUTOMATED_ENGINEER
     # by spec.
     value_object "WaivedBy" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a gate is waived by a person, never by the loop") { value != "qa_sweep" }
       invariant("a waiver is signed") { value != "nobody" }
     end
@@ -881,7 +881,7 @@ Hecks.bluebook "QualityControl" do
     # Not an `Engineer`: that type defaults to "nobody" (an unclaimed bug is held by nobody), which
     # would let a report omit its submitter. This type has no default and refuses "nobody".
     value_object "Submitter" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
 
       invariant("a bug is reported by somebody") { value != "nobody" }
     end
@@ -1237,27 +1237,27 @@ Hecks.bluebook "QualityControl" do
     attribute :reason,      AngleReason
 
     value_object "AngleReference" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("an angle is referenced") { !value.to_s.empty? }
     end
 
     # The number is in the sentence because the sentence is the refusal; 60 characters trips a
     # stub.
     value_object "AnglePremise" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("an angle says enough to be acted on without its proposer in the room, in at least 60 characters") { value.to_s.size >= 60 }
     end
 
     # A Bug reference, ADR number or named gap that a reader can check for themselves.
     value_object "AngleCitation" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("an angle cites something concrete, not a mood") { !value.to_s.empty? }
     end
 
     # Not an `Engineer`, for the reason `Submitter` is not: that default would let authorship go
     # unrecorded.
     value_object "Proposer" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("an angle is proposed by somebody") { value != "nobody" }
     end
 
@@ -1268,13 +1268,13 @@ Hecks.bluebook "QualityControl" do
 
     # What came of it (a Target, a PR number, a domain path); set once, at `Build`.
     value_object "AngleResolution" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a built angle says what actually got built") { !value.to_s.empty? }
     end
 
     # Redeclared as `Target::Shelve` does: a discard with no reason looks like a lead nobody read.
     value_object "AngleReason" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("discarding an angle says why") { !value.to_s.empty? }
     end
 
@@ -1401,7 +1401,7 @@ Hecks.bluebook "QualityControl" do
     attribute :max_attempts, MaxAttempts
 
     value_object "TicketReference" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a ticket is referenced") { !value.to_s.empty? }
     end
 
@@ -1410,7 +1410,7 @@ Hecks.bluebook "QualityControl" do
     end
 
     value_object "TicketTitle" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a ticket is titled") { !value.to_s.empty? }
     end
 
@@ -1421,7 +1421,7 @@ Hecks.bluebook "QualityControl" do
     end
 
     value_object "TicketBody" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a ticket says something") { !value.to_s.empty? }
     end
 
@@ -1647,12 +1647,12 @@ Hecks.bluebook "QualityControl" do
     end
 
     value_object "PatchUrl" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a patch says where it lives") { !value.to_s.empty? }
     end
 
     value_object "PatchBranch" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a patch says which branch it is on") { !value.to_s.empty? }
     end
 
@@ -1662,7 +1662,7 @@ Hecks.bluebook "QualityControl" do
     end
 
     value_object "PatchTitle" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a patch is titled") { !value.to_s.empty? }
     end
 
@@ -1840,12 +1840,12 @@ Hecks.bluebook "QualityControl" do
     end
 
     value_object "ImprovementUrl" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("an improvement says where it lives") { !value.to_s.empty? }
     end
 
     value_object "ImprovementBranch" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("an improvement says which branch it is on") { !value.to_s.empty? }
     end
 
@@ -1856,7 +1856,7 @@ Hecks.bluebook "QualityControl" do
     end
 
     value_object "ImprovementTitle" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("an improvement is titled") { !value.to_s.empty? }
     end
 
@@ -1981,7 +1981,7 @@ Hecks.bluebook "QualityControl" do
     end
 
     value_object "RunSummary" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, present: true
       invariant("a run says what it ran and what came back") { !value.to_s.empty? }
     end
 
