@@ -168,32 +168,39 @@ module Hecks
       end
 
       # The booted, self-judged language registry every ordinary bluebook is
-      # judged against — built once per process and memoized, with shadow parsing off: a caller
-      # inside `while_shadow_parsing` that is first to ask would otherwise memoize a grammar
-      # parsed in that mode, or fail to load it.
+      # judged against — built once per process and memoized, with shadow parsing off and no
+      # ambient caller bound. A caller inside `while_shadow_parsing` that is first to ask would
+      # otherwise memoize a grammar parsed in that mode, or fail to load it; one inside
+      # `Hecks.as_caller` would have the language's own `Language`-role commands refused, and the
+      # grammar would be memoized without the chapters those refusals dropped.
       #
       # @return [Runtime::Registry] the booted, fixpoint-judged language
       #   registry
       def self.grammar_registry
-        @grammar_registry ||= while_not_shadow_parsing do
-          registry = load_grammar_into(Runtime::Registry.new)
-          # Assigned before the fixpoint judge below, since judging re-enters
-          # grammar_registry (via fresh_runtime/Plan.for) and a bare `||=`
-          # would still be nil mid-evaluation, recursing forever.
-          @grammar_registry = registry
-          # The language now judges itself; every bluebook from here on is
-          # judged by that assembled graph, not the raw bootstrap one. Must
-          # run after load_grammar_into's ensure clears @bootstrapping.
-          while_forcing_fixpoint do
-            LANGUAGE_CHAPTERS.each { |name| registry.add_bluebook(call(registry.bluebook(name))) }
-            load_attached_grammar_into(registry)
-          end
-          # Keyed on this registry's object identity, not a bare boolean, so
-          # a manual reset can never leave a stale "ready" from the previous
-          # cycle.
-          @grammar_ready_for = registry.object_id
-          registry
+        @grammar_registry ||= while_not_shadow_parsing { Runtime::Caller.without { build_grammar_registry } }
+      end
+
+      # The one-time build behind `grammar_registry`.
+      #
+      # @return [Runtime::Registry] the booted, fixpoint-judged language registry
+      def self.build_grammar_registry
+        registry = load_grammar_into(Runtime::Registry.new)
+        # Assigned before the fixpoint judge below, since judging re-enters
+        # grammar_registry (via fresh_runtime/Plan.for) and a bare `||=`
+        # would still be nil mid-evaluation, recursing forever.
+        @grammar_registry = registry
+        # The language now judges itself; every bluebook from here on is
+        # judged by that assembled graph, not the raw bootstrap one. Must
+        # run after load_grammar_into's ensure clears @bootstrapping.
+        while_forcing_fixpoint do
+          LANGUAGE_CHAPTERS.each { |name| registry.add_bluebook(call(registry.bluebook(name))) }
+          load_attached_grammar_into(registry)
         end
+        # Keyed on this registry's object identity, not a bare boolean, so
+        # a manual reset can never leave a stale "ready" from the previous
+        # cycle.
+        @grammar_ready_for = registry.object_id
+        registry
       end
 
       # Whether `grammar_registry`'s memoized singleton has finished its
