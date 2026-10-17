@@ -1,0 +1,65 @@
+Hecks.bluebook "Ledger" do
+  vision "An account holds a balance that only a credit or a debit changes."
+
+  aggregate "Account" do
+    description "A balance belonging to one customer."
+
+    attribute :number,  AccountNumber
+    attribute :balance, Money
+
+    identified_by :number
+
+    value_object "AccountNumber" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("an account number is present") { !value.to_s.empty? }
+    end
+
+    value_object "Money" do
+      attribute :cents,    Integer, default: 0
+      attribute :currency, String,  default: "USD"
+
+      invariant("a currency is a three-letter code") { currency.to_s.size == 3 }
+    end
+
+    value_object "PositiveMoney" do
+      attribute :cents,    Integer
+      attribute :currency, String, default: "USD"
+
+      invariant("an amount is positive") { cents.positive? }
+    end
+
+    lifecycle :status, default: "open" do
+      transition "FreezeAccount" => "frozen", from: "open"
+    end
+
+    command "Open" do
+      goal "Open an account under a number"
+
+      attribute :number, AccountNumber
+
+      sets :number
+
+      emits AccountOpened
+    end
+
+    command "Credit", from: "open" do
+      goal "Put money in"
+
+      reference_to Account
+      attribute :amount, PositiveMoney
+
+      sets :balance, increment: :amount
+
+      emits AccountCredited
+    end
+
+    command "FreezeAccount", from: "open" do
+      goal "Stop an account moving"
+
+      reference_to Account
+
+      emits AccountFrozen
+    end
+  end
+end

@@ -1,0 +1,178 @@
+# The Composer chapter: a bluebook being written in an editor, by hand or by asking an agent.
+#
+# A Draft is the editor's working copy of one chapter: the text on screen, the conversation that
+# shaped it, and whether the last check of it passed. The files on disk stay the truth; a Draft
+# only holds what is being changed and what was said about it. The check itself (parse, load,
+# project, model-check) and the agent that rewrites the text are the outside, reached through the
+# Composer's hecksagon, so nothing here knows how either is done.
+Hecks.bluebook "Composer" do
+  vision "Write a bluebook in an editor and watch the domain draw itself, with an agent that can change the draft when asked."
+
+  aggregate "Draft" do
+    description "One chapter being edited: its text, the conversation about it, and whether its last check passed."
+
+    attribute :slug,         DraftSlug
+    attribute :chapter_name, ChapterName
+    attribute :text,         SourceText
+    attribute :note,         Note, optional: true
+    attribute :turns,        list_of(Turn)
+
+    identified_by :slug
+
+    value_object "DraftSlug" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+
+      invariant("a draft is named") { !value.to_s.empty? }
+    end
+
+    # The name a chapter's `Hecks.bluebook "Name"` header declares, which is also the name the
+    # check loads it under.
+    value_object "ChapterName" do
+      attribute :value, String, pattern: '[A-Z][A-Za-z0-9]*'
+
+      invariant("a chapter is named") { !value.to_s.empty? }
+    end
+
+    # What is on screen. A draft may be empty or half-written; the check judges it, not this.
+    value_object "SourceText" do
+      attribute :value, String
+    end
+
+    # The check's last word on the draft, or the agent's one-line account of what it changed.
+    value_object "Note" do
+      attribute :value, String
+    end
+
+    value_object "TurnSequence" do
+      attribute :value, Integer
+
+      invariant("a turn sequence is positive") { value.positive? }
+    end
+
+    value_object "Speaker" do
+      attribute :value, String, one_of: ["author", "agent"]
+    end
+
+    value_object "Utterance" do
+      attribute :value, String
+
+      invariant("a turn says something") { !value.to_s.empty? }
+    end
+
+    # The sequence is supplied by the caller, who already knows how many turns are on screen, so
+    # the order of a conversation is not a fact this chapter invents on write.
+    entity "Turn" do
+      description "One thing said in the conversation about the draft, by the author or by the agent."
+
+      attribute :sequence, TurnSequence
+
+      identified_by :sequence
+
+      attribute :speaker, Speaker
+      attribute :said,    Utterance
+    end
+
+    lifecycle :status, default: "drafting" do
+      transition "Accept" => "valid",    from: %w[drafting valid invalid]
+      transition "Reject" => "invalid",  from: %w[drafting valid invalid]
+      transition "Revise" => "drafting", from: %w[drafting valid invalid]
+    end
+
+    command "Begin" do
+      role "Author"
+      goal "Open a chapter for editing, with the text it starts from"
+
+      attribute :slug,         DraftSlug
+      attribute :chapter_name, ChapterName
+      attribute :text,         SourceText
+
+      sets :slug
+      sets :chapter_name
+      sets :text
+
+      emits "DraftBegun"
+    end
+
+    command "Revise" do
+      role "Author"
+      goal "Replace the draft's text with what is now on screen"
+
+      reference_to Draft
+      attribute :text, SourceText
+
+      sets :text
+
+      emits "DraftRevised"
+    end
+
+    command "Accept" do
+      role "System"
+      goal "Record that the draft's text passed its check"
+
+      reference_to Draft
+      attribute :note, Note
+
+      sets :note
+
+      emits "DraftAccepted"
+    end
+
+    command "Reject" do
+      role "System"
+      goal "Record that the draft's text failed its check, and why"
+
+      reference_to Draft
+      attribute :note, Note
+
+      sets :note
+
+      emits "DraftRejected"
+    end
+
+    command "Ask" do
+      role "Author"
+      goal "Put a request for the agent to the draft's conversation"
+
+      reference_to Draft
+      attribute :sequence, TurnSequence
+      attribute :said,     Utterance
+
+      sets :turns, append: { sequence: :sequence, speaker: { value: "author" }, said: :said }
+
+      emits "TurnAsked"
+    end
+
+    command "Answer" do
+      role "System"
+      goal "Record the agent's reply and the text it left the draft with"
+
+      reference_to Draft
+      attribute :sequence, TurnSequence
+      attribute :said,     Utterance
+      attribute :text,     SourceText
+
+      sets :text
+      sets :turns, append: { sequence: :sequence, speaker: { value: "agent" }, said: :said }
+
+      emits "TurnAnswered"
+    end
+
+    query "Drafting" do
+      description "Every draft still being edited."
+      where(status: "drafting")
+      order_by :slug
+    end
+
+    query "Valid" do
+      description "Every draft whose last check passed."
+      where(status: "valid")
+      order_by :slug
+    end
+
+    query "Invalid" do
+      description "Every draft whose last check failed."
+      where(status: "invalid")
+      order_by :slug
+    end
+  end
+end

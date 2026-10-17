@@ -1,0 +1,18 @@
+Hecks.behaviors "Ledger" do
+  vision "An account opens in the open state and a credit raises its balance."
+
+  loads "ledger.bluebook", "ledger.hecksagon"
+
+  test "Open starts an account in the open state" do
+    tests "Open", on: "Account"
+    input  number: "A-1"
+    expect status: "open"
+  end
+
+  test "Credit puts money into an open account" do
+    tests "Credit", on: "Account"
+    setup  "Open", number: "A-1"
+    input  number: "A-1", amount: { cents: 500 }
+    expect emits: ["AccountCredited"]
+  end
+end

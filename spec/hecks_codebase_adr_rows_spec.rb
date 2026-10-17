@@ -55,6 +55,9 @@ RSpec.describe "the Codebase rows of the ADR table" do
     AdrRow.new(script: "query_ir", verbs: %w[ir_constructs ir_duplicates ir_impact]),
     AdrRow.new(script: "hecks_query_ir_mcp", verbs: %w[serve_query_ir_mcp]),
     AdrRow.new(script: "present", verbs: %w[present]),
+    AdrRow.new(script: "compose", verbs: %w[compose],
+               note: "no bin script: it serves the Composer, a live bluebook editor, over one domain " \
+                     "directory on the loopback address, as present serves the banking forms"),
     AdrRow.new(script: "release", verbs: %w[publish],
                note: "without --confirm it is the old --dry-run; --gem-only, --npm-only, --npm-local and " \
                      "--no-wait are booleans (--yes is --confirm)"),

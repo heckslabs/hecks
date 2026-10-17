@@ -2467,6 +2467,22 @@ Hecks.bluebook "Hecks" do
       emits PresentRequested
     end
 
+    command "Compose" do
+      role "Maintainer"
+      goal "Serve the Composer, a live bluebook editor over one domain directory, on a local port until stopped"
+
+      attribute :port,    Port, optional: true
+      attribute :domains, PathList, optional: true
+      attribute :run,     RunKey
+
+      sets :port
+      sets :domains
+      sets :run
+      sets :operation, to: "compose"
+
+      emits ComposeRequested
+    end
+
     # What the tree reported about itself, held against every request: nothing here runs
     # outside a hecks checkout (hecks.gemspec beside lib/).
     command "Accept" do
@@ -2568,6 +2584,11 @@ Hecks.bluebook "Hecks" do
 
   policy "ExamineWhenPresentRequested" do
     on      "CorpusRun.PresentRequested"
+    trigger CorpusRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenComposeRequested" do
+    on      "CorpusRun.ComposeRequested"
     trigger CorpusRun::SourceTree::Examine, with: { run: :run }
   end
 

@@ -1,0 +1,3 @@
+Hecks.hecksagon "Ledger" do
+  persisted_by "Memory"
+end

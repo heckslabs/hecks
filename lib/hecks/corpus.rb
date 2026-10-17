@@ -36,6 +36,7 @@ module Hecks
       deploy:    "lib/hecks/deploy/bluebook/*.bluebook",
       site:      "lib/hecks/site/bluebook/*.bluebook",
       tickets:   "lib/hecks/tickets/bluebook/*.bluebook",
+      composer:  "lib/hecks/composer/bluebook/*.bluebook",
       tenancy:   "lib/hecks/tenancy/bluebook/*.bluebook",
       sme:       "lib/hecks/sme/bluebook/*.bluebook",
       fixture:   "spec/fixtures/**/*.bluebook"

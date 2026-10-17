@@ -64,7 +64,7 @@ module Hecks
       attr_reader :domain, :binds, :subscriptions, :attachments, :translates, :driving
 
       # The driving adapters `driven_by` can name.
-      DRIVING_ADAPTERS = %w[Ruby Cli Json Mcp].freeze
+      DRIVING_ADAPTERS = %w[Ruby Cli Json Mcp Web].freeze
 
       # Every optional keyword and what it holds when the declaration omits it.
       FIELD_DEFAULTS = {
