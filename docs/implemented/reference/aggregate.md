@@ -456,7 +456,7 @@ account_ir.commands.find { |c| c.hecks_name == "CloseAccount" }.from # => ["open
 ## attribute
 
 <!-- generated:begin word=attribute -->
-`attribute name, type, default:, optional:, pattern:, present:, admits:, one_of:` — fills `attributes`
+`attribute name, type, default:, optional:, pattern:, matches:, admits:, one_of:` — fills `attributes`
 
 | argument | kind | required | fills |
 |---|---|---|---|
@@ -465,7 +465,7 @@ account_ir.commands.find { |c| c.hecks_name == "CloseAccount" }.from # => ["open
 | `default:` | literal | false | default |
 | `optional:` | flag | false | optional |
 | `pattern:` | text | false | pattern |
-| `present:` | flag | false | present |
+| `matches:` | symbol | false | matches |
 | `admits:` | text | false | admits |
 | `one_of:` | list | false | one_of |
 <!-- generated:end -->

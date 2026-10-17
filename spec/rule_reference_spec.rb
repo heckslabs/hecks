@@ -15,7 +15,7 @@ RSpec.describe "Hecks::Bluebook::DSL::RuleReference" do
         identified_by :label
 
         value_object "Label" do
-          attribute :value, String, pattern: '[^ \\t\\n\\r]'
+          attribute :value, String, matches: :present
         end
 
         entity "Visit" do
@@ -56,7 +56,7 @@ RSpec.describe "Hecks::Bluebook::DSL::RuleReference" do
         identified_by :label
 
         value_object "Label" do
-          attribute :value, String, pattern: '[^ \\t\\n\\r]'
+          attribute :value, String, matches: :present
         end
 
         entity "Key" do
@@ -86,7 +86,7 @@ RSpec.describe "Hecks::Bluebook::DSL::RuleReference" do
         reference_to Customer
 
         value_object "Label" do
-          attribute :value, String, pattern: '[^ \\t\\n\\r]'
+          attribute :value, String, matches: :present
         end
 
         command "Open" do
@@ -105,7 +105,7 @@ RSpec.describe "Hecks::Bluebook::DSL::RuleReference" do
         reference_to Account
 
         value_object "Label" do
-          attribute :value, String, pattern: '[^ \\t\\n\\r]'
+          attribute :value, String, matches: :present
         end
 
         command "Issue" do
@@ -122,7 +122,7 @@ RSpec.describe "Hecks::Bluebook::DSL::RuleReference" do
         identified_by :status
 
         value_object "Status" do
-          attribute :value, String, pattern: '[^ \\t\\n\\r]'
+          attribute :value, String, matches: :present
         end
 
         command "Register" do
@@ -145,7 +145,7 @@ RSpec.describe "Hecks::Bluebook::DSL::RuleReference" do
         reference_to Customer
 
         value_object "Label" do
-          attribute :value, String, pattern: '[^ \\t\\n\\r]'
+          attribute :value, String, matches: :present
         end
 
         command "Open" do
@@ -163,7 +163,7 @@ RSpec.describe "Hecks::Bluebook::DSL::RuleReference" do
         given("customer is active")
 
         value_object "Label" do
-          attribute :value, String, pattern: '[^ \\t\\n\\r]'
+          attribute :value, String, matches: :present
         end
 
         lifecycle :status, default: "vacant" do
@@ -175,7 +175,7 @@ RSpec.describe "Hecks::Bluebook::DSL::RuleReference" do
         identified_by :status
 
         value_object "Status" do
-          attribute :value, String, pattern: '[^ \\t\\n\\r]'
+          attribute :value, String, matches: :present
         end
 
         command "Register" do
@@ -196,7 +196,7 @@ RSpec.describe "Hecks::Bluebook::DSL::RuleReference" do
         given("x") { true }
 
         value_object "Label" do
-          attribute :value, String, pattern: '[^ \\t\\n\\r]'
+          attribute :value, String, matches: :present
         end
 
         lifecycle :status, default: "s" do
@@ -209,7 +209,7 @@ RSpec.describe "Hecks::Bluebook::DSL::RuleReference" do
         given("x") { false }
 
         value_object "Label" do
-          attribute :value, String, pattern: '[^ \\t\\n\\r]'
+          attribute :value, String, matches: :present
         end
 
         lifecycle :status, default: "s" do
@@ -222,7 +222,7 @@ RSpec.describe "Hecks::Bluebook::DSL::RuleReference" do
         given("x")
 
         value_object "Label" do
-          attribute :value, String, pattern: '[^ \\t\\n\\r]'
+          attribute :value, String, matches: :present
         end
 
         lifecycle :status, default: "s" do
@@ -239,7 +239,7 @@ RSpec.describe "Hecks::Bluebook::DSL::RuleReference" do
         attribute :balance, Money
 
         value_object "Label" do
-          attribute :value, String, pattern: '[^ \\t\\n\\r]'
+          attribute :value, String, matches: :present
         end
 
         value_object "Money" do
@@ -261,7 +261,7 @@ RSpec.describe "Hecks::Bluebook::DSL::RuleReference" do
         identified_by :label
 
         value_object "Label" do
-          attribute :value, String, pattern: '[^ \\t\\n\\r]'
+          attribute :value, String, matches: :present
           invariant("nonexistent thing")
         end
 

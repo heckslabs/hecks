@@ -19,7 +19,7 @@ module Hecks
         end
 
         def string_body(name)
-          ["attribute :value, String, pattern: '[^ \\t\\n\\r]'",
+          ["attribute :value, String, matches: :present",
            "invariant(#{"a #{name} is not blank".inspect}) { !value.to_s.empty? }"]
         end
 

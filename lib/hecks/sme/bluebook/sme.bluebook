@@ -30,37 +30,37 @@ Hecks.bluebook "SME" do
     attribute :accepted_actions, Tally
 
     value_object "Reference" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
     end
 
     # The domain being discovered, spelled as its bluebook will spell it. Many interviews, with
     # different experts on different days, name the same subject; the domain is not modelled here.
     value_object "Subject" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
     end
 
     # Who is being interviewed.
     value_object "Expert" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
     end
 
     value_object "Question" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
     end
 
     # The expert's answer in their own words.
     value_object "Answer" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
     end
 
     # A label for grouping exchanges ("lending rules"); optional on every exchange.
     value_object "Topic" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
     end
 
     value_object "Exchange" do
-      attribute :question, String, pattern: '[^\t\n\r]'
-      attribute :answer,   String, pattern: '[^\t\n\r]'
+      attribute :question, String, matches: :not_empty
+      attribute :answer,   String, matches: :not_empty
       attribute :topic,    String, optional: true
     end
 
@@ -76,7 +76,7 @@ Hecks.bluebook "SME" do
     end
 
     value_object "Name" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
     end
 
     # How many findings of a kind were accepted.
@@ -86,7 +86,7 @@ Hecks.bluebook "SME" do
     end
 
     value_object "Statement" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
     end
 
     # Whether an action brings its thing into being, as opposed to happening to one that exists.
@@ -97,12 +97,12 @@ Hecks.bluebook "SME" do
     # A list the expert gave in a breath, comma separated: the values a field may take, or the
     # fields an action needs to be told. Absent when the expert gave none.
     value_object "Listing" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
     end
 
     # Who may do an action, in the expert's words ("a maintainer", "QA engineer").
     value_object "Actor" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
     end
 
     # A thing the domain keeps track of, and the field that identifies one: an aggregate to be.

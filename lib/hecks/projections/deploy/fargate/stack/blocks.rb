@@ -14,7 +14,7 @@ module Hecks
             # `Shared.vpc_and_database_yaml`'s NAT Gateway is unconditional.
             def network
               Shared::Network.new(shared: shared, db_id: db_id, db_ref_id: db_ref_id, db_name: db_name,
-                                  infra_name: infra_name, aurora: aurora, google_oauth_present: true)
+                                  infra_name: infra_name, aurora: aurora, google_oauth_matches: :present)
             end
 
             # @return [Array<Hash{Symbol => String}>] the stack-to-bastion contract's outputs
@@ -28,7 +28,7 @@ module Hecks
             end
 
             def bastion_parameters
-              Shared.bastion_parameters(shared: shared, google_oauth_present: true)
+              Shared.bastion_parameters(shared: shared, google_oauth_matches: :present)
             end
 
             def parameters_block

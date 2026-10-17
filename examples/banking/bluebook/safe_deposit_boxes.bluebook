@@ -21,7 +21,7 @@ Hecks.bluebook "Banking" do
     attribute :keys,   list_of(KeyIssuance)
 
     value_object "BranchCode" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
       invariant("a branch is coded") { !value.to_s.empty? }
     end
 
@@ -36,7 +36,7 @@ Hecks.bluebook "Banking" do
     end
 
     value_object "VisitDate" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
       invariant("a visit names its date") { !value.to_s.empty? }
     end
 
@@ -45,7 +45,7 @@ Hecks.bluebook "Banking" do
     end
 
     value_object "KeySerial" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
       invariant("a key is serialed") { !value.to_s.empty? }
     end
 

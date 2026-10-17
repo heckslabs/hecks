@@ -451,7 +451,7 @@ Hecks.bluebook "Deploy" do
 
     # The domain's own directory on disk, where `environments/<slug>.world` is written.
     value_object "DirectoryPath" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
     end
 
     value_object "Report" do
@@ -581,14 +581,14 @@ Hecks.bluebook "Deploy" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
 
       invariant("a run is named") { !value.to_s.empty? }
     end
 
     # A domain directory, whose `bluebook/` holds the `.world` that declares `deployed_to`.
     value_object "DomainPath" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
 
       invariant("a domain is named by its path") { !value.to_s.empty? }
     end
@@ -604,7 +604,7 @@ Hecks.bluebook "Deploy" do
 
     # Where the recipe is written, for a domain that lives in a client's repository.
     value_object "Location" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
     end
 
     # An `environments/<name>.world` overlay of the domain, which must exist.
@@ -707,14 +707,14 @@ Hecks.bluebook "Deploy" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
 
       invariant("a run is named") { !value.to_s.empty? }
     end
 
     # A domain directory, whose `bluebook/` holds the `.world` that declares `deployed_to`.
     value_object "DomainPath" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
 
       invariant("a domain is named by its path") { !value.to_s.empty? }
     end
@@ -722,7 +722,7 @@ Hecks.bluebook "Deploy" do
     # A directory the cleared worlds are written to, at their paths below `bluebook/`, instead of
     # over the originals.
     value_object "Location" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
     end
 
     value_object "Report" do
@@ -813,14 +813,14 @@ Hecks.bluebook "Deploy" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
 
       invariant("a run is named") { !value.to_s.empty? }
     end
 
     # Makefile paths, comma separated; three generated fixture domains when absent.
     value_object "PathList" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
     end
 
     value_object "Report" do
@@ -909,7 +909,7 @@ Hecks.bluebook "Deploy" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
 
       invariant("a run is named") { !value.to_s.empty? }
     end
@@ -1020,13 +1020,13 @@ Hecks.bluebook "Deploy" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
 
       invariant("a run is named") { !value.to_s.empty? }
     end
 
     value_object "Location" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
 
       invariant("a project or script is named by its path") { !value.to_s.empty? }
     end
@@ -1159,13 +1159,13 @@ Hecks.bluebook "Deploy" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
 
       invariant("a run is named") { !value.to_s.empty? }
     end
 
     value_object "Location" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
 
       invariant("a project or script is named by its path") { !value.to_s.empty? }
     end
@@ -1187,7 +1187,7 @@ Hecks.bluebook "Deploy" do
 
     # A local image reference to push, as the script's LOCAL_IMAGE takes it.
     value_object "ImageName" do
-      attribute :value, String, pattern: '^[^ \t\n\r]+$'
+      attribute :value, String, matches: :no_whitespace
     end
 
     value_object "Switch" do
@@ -1352,13 +1352,13 @@ Hecks.bluebook "Deploy" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
 
       invariant("a run is named") { !value.to_s.empty? }
     end
 
     value_object "Location" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
 
       invariant("a project or script is named by its path") { !value.to_s.empty? }
     end
@@ -1538,13 +1538,13 @@ Hecks.bluebook "Deploy" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
 
       invariant("a run is named") { !value.to_s.empty? }
     end
 
     value_object "Location" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
 
       invariant("a project or script is named by its path") { !value.to_s.empty? }
     end
@@ -1560,7 +1560,7 @@ Hecks.bluebook "Deploy" do
 
     # A Secrets Manager id or ARN; the script reads the password from it, so no value travels here.
     value_object "Secret" do
-      attribute :value, String, pattern: '^[^ \t\n\r]+$'
+      attribute :value, String, matches: :no_whitespace
     end
 
     # A database's name; empty leaves it to the generated script's own default.
@@ -1826,13 +1826,13 @@ Hecks.bluebook "Deploy" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
 
       invariant("a run is named") { !value.to_s.empty? }
     end
 
     value_object "Location" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
 
       invariant("a project or script is named by its path") { !value.to_s.empty? }
     end
@@ -1846,7 +1846,7 @@ Hecks.bluebook "Deploy" do
     end
 
     value_object "Secret" do
-      attribute :value, String, pattern: '^[^ \t\n\r]+$'
+      attribute :value, String, matches: :no_whitespace
     end
 
     # A database's name; empty leaves it to the generated script's own default.
@@ -1984,13 +1984,13 @@ Hecks.bluebook "Deploy" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
 
       invariant("a run is named") { !value.to_s.empty? }
     end
 
     value_object "Location" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
 
       invariant("a project, script or file is named by its path") { !value.to_s.empty? }
     end
@@ -2134,13 +2134,13 @@ Hecks.bluebook "Deploy" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
 
       invariant("a run is named") { !value.to_s.empty? }
     end
 
     value_object "Location" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
 
       invariant("a project or script is named by its path") { !value.to_s.empty? }
     end
@@ -2152,7 +2152,7 @@ Hecks.bluebook "Deploy" do
 
     # A git branch name. A preview is never of a production branch.
     value_object "Branch" do
-      attribute :value, String, pattern: '^[^ \t\n\r]+$'
+      attribute :value, String, matches: :no_whitespace
 
       invariant("a preview is never of main or master") { value != "main" && value != "master" }
     end
@@ -2510,13 +2510,13 @@ Hecks.bluebook "Deploy" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
 
       invariant("a run is named") { !value.to_s.empty? }
     end
 
     value_object "Location" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
 
       invariant("a project or script is named by its path") { !value.to_s.empty? }
     end
@@ -2656,13 +2656,13 @@ Hecks.bluebook "Deploy" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
 
       invariant("a run is named") { !value.to_s.empty? }
     end
 
     value_object "Location" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
 
       invariant("a template is named by its path") { !value.to_s.empty? }
     end
@@ -2785,14 +2785,14 @@ Hecks.bluebook "Deploy" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
 
       invariant("a run is named") { !value.to_s.empty? }
     end
 
     # Domain directories, comma separated; every domain of the checkout when absent.
     value_object "DomainList" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
     end
 
     value_object "Report" do

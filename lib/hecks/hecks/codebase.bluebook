@@ -38,13 +38,13 @@ Hecks.bluebook "Hecks" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
 
       invariant("a run is named") { !value.to_s.empty? }
     end
 
     value_object "Operation" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
     end
 
     value_object "Switch" do
@@ -57,7 +57,7 @@ Hecks.bluebook "Hecks" do
 
     # A keyword of the language, or the keyword an argument belongs to.
     value_object "Word" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
 
       invariant("a word is named") { !value.to_s.empty? }
     end
@@ -94,7 +94,7 @@ Hecks.bluebook "Hecks" do
 
     # How a pairs argument is read, such as verbatim.
     value_object "Shape" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
     end
 
     lifecycle :status, default: "requested" do
@@ -641,13 +641,13 @@ Hecks.bluebook "Hecks" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
 
       invariant("a run is named") { !value.to_s.empty? }
     end
 
     value_object "Operation" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
     end
 
     value_object "Switch" do
@@ -796,13 +796,13 @@ Hecks.bluebook "Hecks" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
 
       invariant("a run is named") { !value.to_s.empty? }
     end
 
     value_object "Operation" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
     end
 
     value_object "Switch" do
@@ -971,13 +971,13 @@ Hecks.bluebook "Hecks" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
 
       invariant("a run is named") { !value.to_s.empty? }
     end
 
     value_object "Operation" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
     end
 
     value_object "Switch" do
@@ -990,7 +990,7 @@ Hecks.bluebook "Hecks" do
 
     # A `CiGate` row of the Vocabulary chapter, by name.
     value_object "GateName" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
     end
 
     lifecycle :status, default: "requested" do
@@ -1201,17 +1201,17 @@ Hecks.bluebook "Hecks" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
 
       invariant("a run is named") { !value.to_s.empty? }
     end
 
     value_object "Operation" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
     end
 
     value_object "Stage" do
-      attribute :value, String, pattern: '^[a-z][a-z0-9_]*$'
+      attribute :value, String, matches: :snake_name
 
       invariant("a stage is named") { !value.to_s.empty? }
     end
@@ -1355,13 +1355,13 @@ Hecks.bluebook "Hecks" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
 
       invariant("a run is named") { !value.to_s.empty? }
     end
 
     value_object "Operation" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
     end
 
     value_object "Switch" do
@@ -1391,12 +1391,12 @@ Hecks.bluebook "Hecks" do
 
     # A revision a code comparison is made against.
     value_object "Ref" do
-      attribute :value, String, pattern: '^[^ \t\n\r]+$'
+      attribute :value, String, matches: :no_whitespace
     end
 
     # A JSON file.
     value_object "FilePath" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
 
       invariant("a file is named") { !value.to_s.empty? }
     end
@@ -1676,13 +1676,13 @@ Hecks.bluebook "Hecks" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
 
       invariant("a run is named") { !value.to_s.empty? }
     end
 
     value_object "Operation" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
     end
 
     value_object "Switch" do
@@ -1891,13 +1891,13 @@ Hecks.bluebook "Hecks" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
 
       invariant("a run is named") { !value.to_s.empty? }
     end
 
     value_object "Operation" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
     end
 
     value_object "Switch" do
@@ -2064,13 +2064,13 @@ Hecks.bluebook "Hecks" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
 
       invariant("a run is named") { !value.to_s.empty? }
     end
 
     value_object "Operation" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
     end
 
     value_object "Switch" do
@@ -2090,19 +2090,19 @@ Hecks.bluebook "Hecks" do
 
     # A CI run's number.
     value_object "RunId" do
-      attribute :value, String, pattern: '^[0-9]+$'
+      attribute :value, String, matches: :digits
     end
 
     # A file, relative to the checkout or absolute.
     value_object "FilePath" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
 
       invariant("a file is named") { !value.to_s.empty? }
     end
 
     # Part of an example's description.
     value_object "ExampleText" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
 
       invariant("an example is named") { !value.to_s.empty? }
     end
@@ -2114,7 +2114,7 @@ Hecks.bluebook "Hecks" do
 
     # A regular expression naming the specs to leave out.
     value_object "ExcludePattern" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
     end
 
     # The tag filter, as the test runner spells it.
@@ -2390,13 +2390,13 @@ Hecks.bluebook "Hecks" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
 
       invariant("a run is named") { !value.to_s.empty? }
     end
 
     value_object "Operation" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
     end
 
     value_object "Switch" do
@@ -2424,7 +2424,7 @@ Hecks.bluebook "Hecks" do
 
     # The name of one field of a construct.
     value_object "FieldName" do
-      attribute :value, String, pattern: '^[a-z][a-z0-9_]*$'
+      attribute :value, String, matches: :snake_name
     end
 
     # A local port a server listens on.
@@ -2633,13 +2633,13 @@ Hecks.bluebook "Hecks" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
 
       invariant("a run is named") { !value.to_s.empty? }
     end
 
     value_object "Operation" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
     end
 
     value_object "Switch" do
@@ -2652,7 +2652,7 @@ Hecks.bluebook "Hecks" do
 
     # One word of a fact: a branch, a commit, whether a tag stands.
     value_object "Word" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
     end
 
     value_object "Version" do
@@ -2968,13 +2968,13 @@ Hecks.bluebook "Hecks" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
 
       invariant("a run is named") { !value.to_s.empty? }
     end
 
     value_object "Operation" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
     end
 
     value_object "Switch" do
@@ -2987,7 +2987,7 @@ Hecks.bluebook "Hecks" do
 
     # A branch name, or a commit.
     value_object "Word" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
     end
 
     # How long a lane has stood behind the lane it follows, or how long its row lets it.

@@ -14,7 +14,7 @@ RSpec.describe "driven_by, the hecksagon word that admits a driving adapter" do
           identified_by :name
 
           value_object "LoanName" do
-            attribute :value, String, present: true
+            attribute :value, String, matches: :present
             invariant("a loan is named") { !value.to_s.empty? }
           end
 

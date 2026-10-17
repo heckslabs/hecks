@@ -16,7 +16,7 @@ Hecks.bluebook "OptionalNestedValueObjectFixture" do
     attribute :panels, list_of(Panel)
 
     value_object "LayoutKey" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
       invariant("a layout is keyed") { !value.to_s.empty? }
     end
 

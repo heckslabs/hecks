@@ -11,18 +11,18 @@ Hecks.bluebook "Banking" do
     attribute :standing,  CustomerStanding
 
     value_object "CustomerNumber" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
       invariant("a customer reference is present") { !value.to_s.empty? }
     end
 
     value_object "CustomerStanding" do
-      attribute :value, String, default: "good", present: true
+      attribute :value, String, default: "good", matches: :present
       invariant("a standing is named") { !value.to_s.empty? }
     end
 
     value_object "PersonName" do
-      attribute :given,  String, present: true
-      attribute :family, String, present: true
+      attribute :given,  String, matches: :present
+      attribute :family, String, matches: :present
 
       invariant("a given name is present")  { !given.to_s.empty? }
       invariant("a family name is present") { !family.to_s.empty? }

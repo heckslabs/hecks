@@ -21,7 +21,7 @@ RSpec.shared_context "with a qa_tick fixture" do |database_name|
         attribute :count,     WidgetCount
 
         value_object "WidgetReference" do
-          attribute :value, String, pattern: '[^ \\t\\n\\r]'
+          attribute :value, String, matches: :present
           invariant("a widget is referenced") { !value.to_s.empty? }
         end
 

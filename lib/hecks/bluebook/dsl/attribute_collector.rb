@@ -17,10 +17,8 @@ module Hecks
         private_constant :UNSET
 
         ATTRIBUTE_FIELD_OPTIONS = %i[default optional pattern admits].freeze
-        ATTRIBUTE_OPTIONS = [*ATTRIBUTE_FIELD_OPTIONS, :one_of, :present].freeze
-        # What `present: true` stands for: the pattern that refuses a blank value.
-        PRESENT_PATTERN = '[^ \t\n\r]'.freeze
-        private_constant :ATTRIBUTE_FIELD_OPTIONS, :ATTRIBUTE_OPTIONS, :PRESENT_PATTERN
+        ATTRIBUTE_OPTIONS = [*ATTRIBUTE_FIELD_OPTIONS, :one_of, :matches].freeze
+        private_constant :ATTRIBUTE_FIELD_OPTIONS, :ATTRIBUTE_OPTIONS
 
         # Returns the attributes declared so far, minting the accumulating list on first use.
         #
@@ -41,7 +39,7 @@ module Hecks
         #
         # @param name [Symbol] the field's name
         # @param type [Module, ListOf, OneOf] a bare constant or a wrapper
-        # @param options [Hash] `default:`, `optional:`, `pattern:`, `present:` (not blank), `admits:` or
+        # @param options [Hash] `default:`, `optional:`, `pattern:`, `matches:` (a NamedPattern), `admits:` or
         #   `one_of:`
         # @return [void]
         # @raise [Malformed] on a duplicate name, a missing or quoted type, a disallowed pattern
@@ -90,12 +88,16 @@ module Hecks
           end
 
           given = { default: nil, optional: false, pattern: nil, admits: nil, one_of: nil }.merge(options)
-          if given.delete(:present)
-            raise ArgumentError, "present: true and pattern: both state the pattern" if given[:pattern]
+          expand_matches(given)
+        end
 
-            given[:pattern] = PRESENT_PATTERN
-          end
-          given
+        # `matches: :name` stands for the pattern the language gives that name.
+        def expand_matches(given)
+          matches = given.delete(:matches)
+          return given unless matches
+          raise ArgumentError, "matches: and pattern: both state the pattern" if given[:pattern]
+
+          given.merge(pattern: NamedPattern.source(matches))
         end
 
         def typed_attribute(name, type, field_options)

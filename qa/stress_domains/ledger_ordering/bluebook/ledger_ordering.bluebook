@@ -14,7 +14,7 @@ Hecks.bluebook "LedgerOrdering" do
     attribute :slips,     list_of(Slip)
 
     value_object "FolderReference" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
       invariant("a folder is referenced") { !value.to_s.empty? }
     end
 
@@ -41,7 +41,7 @@ Hecks.bluebook "LedgerOrdering" do
     end
 
     value_object "SlipReference" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
       invariant("a slip is referenced") { !value.to_s.empty? }
     end
 

@@ -15,12 +15,12 @@ Hecks.bluebook "LeaseClock" do
     attribute :expires_at, LeaseInstant, default: { value: 0 }
 
     value_object "LeaseKey" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
       invariant("a lease is keyed") { !value.to_s.empty? }
     end
 
     value_object "LeaseHolder" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
       invariant("a holder is named") { !value.to_s.empty? }
     end
 

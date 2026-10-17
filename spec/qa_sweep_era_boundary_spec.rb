@@ -45,7 +45,7 @@ RSpec.describe "qa_sweep era_boundary", :io do
         attribute :reference, WidgetReference
 
         value_object "WidgetReference" do
-          attribute :value, String, pattern: '[^ \\t\\n\\r]'
+          attribute :value, String, matches: :present
           invariant("a widget is referenced") { !value.to_s.empty? }
         end
 

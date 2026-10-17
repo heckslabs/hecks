@@ -11,7 +11,7 @@ Hecks.bluebook "QaSweepAllFoundFixture" do
     attribute :reference, BeaconReference
 
     value_object "BeaconReference" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
       invariant("a beacon is referenced") { !value.to_s.empty? }
     end
 

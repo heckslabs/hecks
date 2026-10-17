@@ -45,7 +45,7 @@ RSpec.describe "qa_sweep adapter_parity_sqlite", :io do
         attribute :count,     WidgetCount
 
         value_object "WidgetReference" do
-          attribute :value, String, pattern: '[^ \\t\\n\\r]'
+          attribute :value, String, matches: :present
           invariant("a widget is referenced") { !value.to_s.empty? }
         end
 

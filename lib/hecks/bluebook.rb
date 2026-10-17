@@ -44,6 +44,7 @@ require_relative "bluebook/project_loader"
 
 require_relative "bluebook/dsl"
 require_relative "bluebook/pattern_subset"
+require_relative "bluebook/named_pattern"
 
 require_relative "bluebook/meta_validator"
 require_relative "bluebook/meta_validator/plan"

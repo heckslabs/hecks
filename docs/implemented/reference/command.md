@@ -439,7 +439,7 @@ board[:pieces].first[:square].to_h  # => {:file=>2, :rank=>2}
 ## attribute
 
 <!-- generated:begin word=attribute -->
-`attribute name, type, default:, optional:, pattern:, present:, admits:, one_of:` — fills `attributes`
+`attribute name, type, default:, optional:, pattern:, matches:, admits:, one_of:` — fills `attributes`
 
 | argument | kind | required | fills |
 |---|---|---|---|
@@ -448,7 +448,7 @@ board[:pieces].first[:square].to_h  # => {:file=>2, :rank=>2}
 | `default:` | literal | false | default |
 | `optional:` | flag | false | optional |
 | `pattern:` | text | false | pattern |
-| `present:` | flag | false | present |
+| `matches:` | symbol | false | matches |
 | `admits:` | text | false | admits |
 | `one_of:` | list | false | one_of |
 <!-- generated:end -->

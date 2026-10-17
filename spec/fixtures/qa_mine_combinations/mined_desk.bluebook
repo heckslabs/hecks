@@ -10,7 +10,7 @@ Hecks.bluebook "MinedDesk" do
     attribute :code, DeskCode
 
     value_object "DeskCode" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
       invariant("a DeskCode is not blank") { !value.to_s.empty? }
     end
 

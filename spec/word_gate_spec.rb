@@ -12,7 +12,7 @@ RSpec.describe "Hecks::Bluebook::DSL::WordGate" do
         identified_by :label
 
         value_object "Label" do
-          attribute :value, String, pattern: '[^ \\t\\n\\r]'
+          attribute :value, String, matches: :present
         end
 
         command "Open" do
@@ -33,7 +33,7 @@ RSpec.describe "Hecks::Bluebook::DSL::WordGate" do
         median :label
 
         value_object "Label" do
-          attribute :value, String, pattern: '[^ \\t\\n\\r]'
+          attribute :value, String, matches: :present
         end
 
         command "Open" do
@@ -54,7 +54,7 @@ RSpec.describe "Hecks::Bluebook::DSL::WordGate" do
         giv3n("nope")
 
         value_object "Label" do
-          attribute :value, String, pattern: '[^ \\t\\n\\r]'
+          attribute :value, String, matches: :present
         end
 
         command "Open" do

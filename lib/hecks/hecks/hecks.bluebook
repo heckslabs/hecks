@@ -14,7 +14,7 @@ Hecks.bluebook "Hecks" do
     identified_by :version
 
     value_object "FindingKey" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
     end
 
     value_object "Version" do
@@ -94,7 +94,7 @@ Hecks.bluebook "Hecks" do
     identified_by :digest
 
     value_object "Digest" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
 
       invariant("a digest is present") { !value.to_s.empty? }
     end

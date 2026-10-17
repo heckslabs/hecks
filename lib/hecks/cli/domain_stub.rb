@@ -96,7 +96,7 @@ module Hecks
               attribute :name, ExampleName
 
               value_object "ExampleName" do
-                attribute :value, String, present: true
+                attribute :value, String, matches: :present
               end
 
               # TODO: replace Create with the first thing that happens to an Example.
