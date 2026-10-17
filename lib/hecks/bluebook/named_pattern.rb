@@ -1,13 +1,13 @@
 module Hecks
   module Bluebook
-    # The patterns a bluebook names instead of spelling: `attribute :slug, String, matches: :snake_name`
-    # says what `pattern: '^[a-z][a-z0-9_]*$'` does. A name stands for exactly its regex, so the IR,
-    # the generated Rust and the runtime check see the pattern and never the name.
+    # The patterns a bluebook names instead of spelling: `matches: :snake_name` says what
+    # `pattern: '^[a-z][a-z0-9_]*$'` does. A name stands for exactly its regex, so the IR, the
+    # generated Rust and the runtime check see the pattern and never the name.
     #
     # `rust/parser/src/build/named_pattern.rs` holds the same table; spec/named_pattern_spec.rb
     # holds the two to each other.
     module NamedPattern
-      # Name => the regex source it stands for. Each is the exact source the corpus spelled by hand.
+      # Name => the regex source it stands for, each the exact source the corpus spelled by hand.
       TABLE = {
         present:       '[^ \t\n\r]',
         not_empty:     '[^\t\n\r]',
@@ -19,7 +19,7 @@ module Hecks
 
       module_function
 
-      # @param name [Symbol, String] a name in TABLE
+      # @param name [Symbol, String] a name in `TABLE`
       # @return [String] the regex source it stands for
       # @raise [ArgumentError] when the name is not one the language gives
       def source(name)
