@@ -56,13 +56,21 @@ module EditorNode
   end
 
   # The client's transformed modules, built under node once per process: its source is the same for
-  # every scenario, so each sandbox gets a copy instead of its own transform run.
+  # every scenario, so each sandbox gets a copy instead of its own transform run. Built again if
+  # the directory has gone.
   def transformed_client
-    @transformed_client ||= begin
-      built = Dir.mktmpdir("cms_editor_client")
-      at_exit { FileUtils.rm_rf(built) }
-      transform_client(built)
-    end
+    return @transformed_client if @transformed_client && Dir.exist?(@transformed_client)
+
+    built = Dir.mktmpdir("cms_editor_client")
+    removed_by_its_owner(built)
+    @transformed_client = transform_client(built)
+  end
+
+  # Removes `directory` when the process that made it exits. A forked child of that process runs
+  # the same `at_exit` hooks when it exits normally, and must not remove what the parent is using.
+  def removed_by_its_owner(directory)
+    owner = Process.pid
+    at_exit { FileUtils.rm_rf(directory) if Process.pid == owner }
   end
 
   # Runs the transform into `built/client` and writes the package manifest beside its modules.
