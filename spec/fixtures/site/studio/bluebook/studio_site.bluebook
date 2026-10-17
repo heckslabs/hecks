@@ -39,6 +39,7 @@ Hecks.bluebook "StudioSite" do
       attribute :compress,      Boolean
       attribute :alb_rule,      String
       attribute :cdn,           Boolean
+      attribute :edge,          String
 
       member path: "/",                 label: "Home",     cache: "home", source: "global:home", seo: "home", nav_order: 1, mobile_order: 1
       member path: "/about",            label: "About",     source: "global:about", seo: "about", nav_order: 2, mobile_order: 2, aliases: "/about-us,/who-we-are"
@@ -74,9 +75,9 @@ Hecks.bluebook "StudioSite" do
       member path: "/cms/*",            kind: "proxy", origin: "cms", auth: "admin", methods: "GET,POST,PUT,PATCH,DELETE", alb_rule: "ListenerRuleCms"
       member path: "/videos/*",         kind: "proxy", origin: "assets", cache: "immutable", compress: false
       member path: "/admin*",           kind: "proxy", auth: "admin", methods: "GET,POST"
-      member path: "/login",            kind: "endpoint", origin: "domain", methods: "GET,POST", alb_rule: "ListenerRuleDomainAuth"
+      member path: "/login",            kind: "endpoint", origin: "domain", methods: "GET,POST", alb_rule: "ListenerRuleDomainAuth", edge: "HostRedirect"
       member path: "/logout",           kind: "endpoint", origin: "domain", methods: "GET,POST", alb_rule: "ListenerRuleDomainAuth"
-      member path: "/auth/*",           kind: "endpoint", origin: "domain", methods: "GET,POST", alb_rule: "ListenerRuleDomainAuth"
+      member path: "/auth/*",           kind: "endpoint", origin: "domain", methods: "GET,POST", alb_rule: "ListenerRuleDomainAuth", edge: "HostRedirect"
       member path: "/webhooks/*",       kind: "endpoint", origin: "domain", methods: "POST", compress: false, alb_rule: "ListenerRuleDomain"
       member path: "/internal/ping",    kind: "endpoint", origin: "domain", cdn: false, alb_rule: "ListenerRuleDomain"
     end
@@ -129,6 +130,19 @@ Hecks.bluebook "StudioSite" do
       member rule: "ListenerRuleDomain",     priority: 20, origin: "domain"
       member rule: "ListenerRuleDomainAuth", priority: 21, origin: "domain"
       member rule: "ListenerRuleWebsite",    priority: 30, origin: "website"
+    end
+
+    # A viewer-request function the edge runs on the routes that name it with `edge:`. A request for
+    # a watched path on an alias is sent to the canonical host, where the sign-in flow is registered.
+    value_object "EdgeFunction" do
+      attribute :name,    String
+      attribute :kind,    String
+      attribute :host,    String
+      attribute :aliases, String
+      attribute :paths,   String
+
+      member name: "HostRedirect", kind: "redirect_host", host: "app.example.test",
+             aliases: "www.example.test", paths: "/login,/auth/start"
     end
 
     command "Name" do

@@ -84,6 +84,56 @@ Resources:
           TargetGroupArn: !Ref WebsiteTargetGroup
   # END GENERATED site_cdn listener_rules
 
+  # BEGIN GENERATED site_cdn edge_functions (hecks site site_projection.project_site; edit the Route and Edge rows). Do not hand-edit.
+  HostRedirect:
+    Type: AWS::CloudFront::Function
+    Properties:
+      Name: !Sub "${AWS::StackName}-host-redirect"
+      AutoPublish: true
+      FunctionConfig:
+        Comment: Redirect the watched paths from an alias to the canonical host
+        Runtime: cloudfront-js-2.0
+      FunctionCode: |
+        function handler(event) {
+          var request = event.request;
+          var canonical = "app.example.test";
+          var aliases = ["www.example.test"];
+          var watched = ["/login","/auth/start"];
+          var header = request.headers.host;
+          var host = header && header.value ? header.value.toLowerCase().replace(/:\d+$/, "") : "";
+          var reads = request.method === "GET" || request.method === "HEAD";
+          if (!reads || watched.indexOf(request.uri) < 0) { return request; }
+          if (host === canonical || aliases.indexOf(host) < 0) { return request; }
+          var parts = [];
+          Object.keys(request.querystring).forEach(function (key) {
+            var entry = request.querystring[key];
+            var values = entry.multiValue ? entry.multiValue.map(function (item) { return item.value; }) : [entry.value];
+            values.forEach(function (value) {
+              var name = encode(key);
+              parts.push(value === "" || value === undefined ? name : name + "=" + encode(value));
+            });
+          });
+          var query = parts.length ? "?" + parts.join("&") : "";
+          return {
+            statusCode: 302,
+            statusDescription: "Found",
+            headers: {
+              location: { value: "https://" + canonical + request.uri + query },
+              "cache-control": { value: "no-store" }
+            }
+          };
+        }
+
+        // Percent-encodes what cannot stand in a query string and keeps what is already encoded, so the
+        // location header carries no space, control character, "&" or "#" whether the runtime hands over
+        // the raw text or the decoded one.
+        function encode(text) {
+          return String(text).replace(/%(?![0-9A-Fa-f]{2})|[\uD800-\uDBFF][\uDC00-\uDFFF]|[^A-Za-z0-9\-._~!$'()*,;:@\/?+%]/g, function (unit) {
+            try { return encodeURIComponent(unit); } catch (error) { return "%EF%BF%BD"; }
+          });
+        }
+  # END GENERATED site_cdn edge_functions
+
   Distribution:
     Type: AWS::CloudFront::Distribution
     Properties:
@@ -244,6 +294,9 @@ Resources:
             CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad # Managed-CachingDisabled
             OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3 # Managed-AllViewer
             ResponseHeadersPolicyId: !Ref SecurityHeaders
+            FunctionAssociations:
+              - EventType: viewer-request
+                FunctionARN: !GetAtt HostRedirect.FunctionARN
           - PathPattern: "/logout"
             TargetOriginId: ServerOrigin
             ViewerProtocolPolicy: https-only
@@ -262,6 +315,9 @@ Resources:
             CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad # Managed-CachingDisabled
             OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3 # Managed-AllViewer
             ResponseHeadersPolicyId: !Ref SecurityHeaders
+            FunctionAssociations:
+              - EventType: viewer-request
+                FunctionARN: !GetAtt HostRedirect.FunctionARN
           - PathPattern: "/webhooks/*"
             TargetOriginId: ServerOrigin
             ViewerProtocolPolicy: https-only

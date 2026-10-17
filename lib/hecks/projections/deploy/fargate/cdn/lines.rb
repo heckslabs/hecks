@@ -13,7 +13,8 @@ module Hecks
             #   (`:origin`,
             #   `:path` for an item, `:viewer_protocol`, `:methods`, `:compress`, `:cache_policy`,
             #   `:origin_request_policy`), and optionally `:response_headers_policy`, each policy as
-            #   `[id_or_intrinsic, comment_or_nil]`
+            #   `[id_or_intrinsic, comment_or_nil]`, and `:edge_function`, the logical id of a
+            #   viewer-request function
             # @param base [String] the indentation of `key`, or of the list item's dash
             # @return [Array<String>] the lines
             def behavior_lines(key, entry, base)
@@ -91,6 +92,16 @@ module Hecks
               lines << "#{pad}Compress: #{entry[:compress]}" if entry.key?(:compress)
               lines << policy_line(pad, "CachePolicyId", entry[:cache_policy])
               lines.concat(optional_policy_lines(entry, pad))
+              lines.concat(function_lines(entry, pad))
+            end
+
+            # The viewer-request function a behaviour names (`:edge_function`, the logical id of an
+            # `AWS::CloudFront::Function` in the same template), if any.
+            def function_lines(entry, pad)
+              return [] unless entry[:edge_function]
+
+              ["#{pad}FunctionAssociations:", "#{pad}  - EventType: viewer-request",
+               "#{pad}    FunctionARN: !GetAtt #{entry[:edge_function]}.FunctionARN"]
             end
 
             def optional_policy_lines(entry, pad)

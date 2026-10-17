@@ -7,6 +7,7 @@ require_relative "edge/row_reader"
 require_relative "edge/checks"
 require_relative "edge/behaviours"
 require_relative "edge/rules"
+require_relative "edge/function_code"
 
 module Hecks
   module Projections
@@ -16,17 +17,33 @@ module Hecks
       #
       # The routes are the table's own `Route` rows. What a table cannot know, the names a template
       # gives its policies, origins, target groups and listener, a project declares as `member`
-      # rows of four more value objects of the same chapter: `Edge` (the template and listener),
-      # `EdgePolicy`, `EdgeOrigin` and `EdgeRule`. `docs/site-routes.md` lists their fields. A
-      # project that declares none of the four has no edge to project.
+      # rows of five more value objects of the same chapter: `Edge` (the template and listener),
+      # `EdgePolicy`, `EdgeOrigin`, `EdgeRule` and `EdgeFunction` (a viewer-request function a route
+      # names with `edge:`). `docs/site-routes.md` lists their fields. A project that declares none
+      # of the five has no edge to project.
       class Edge
         Setting  = Struct.new(:template, :listener, :secret_header, :secret_value, :alb, keyword_init: true)
         Policy   = Struct.new(:cache_class, :origin, :cache, :origin_request, :response_headers, keyword_init: true)
         Upstream = Struct.new(:origin, :id, :target_group, keyword_init: true)
         Rule     = Struct.new(:rule, :priority, :origin, keyword_init: true)
 
+        # A function the generator writes: `kind` says which, and the rest are its settings, the
+        # lists as comma-separated text.
+        Function = Struct.new(:name, :kind, :host, :aliases, :paths, keyword_init: true) do
+          # @return [Array<String>] the alias hosts that are redirected
+          def alias_list = split(aliases)
+
+          # @return [Array<String>] the exact paths the function watches
+          def path_list = split(paths)
+
+          private
+
+          def split(text) = text.to_s.split(",").map(&:strip).reject(&:empty?)
+        end
+
         # The value objects a project declares its edge rows in, by the kind of record each holds.
-        OBJECTS = { setting: "Edge", policy: "EdgePolicy", upstream: "EdgeOrigin", rule: "EdgeRule" }.freeze
+        OBJECTS = { setting: "Edge", policy: "EdgePolicy", upstream: "EdgeOrigin", rule: "EdgeRule",
+                    function: "EdgeFunction" }.freeze
 
         # The fields each kind of row may carry, with the Ruby class each takes.
         FIELDS = {
@@ -34,14 +51,15 @@ module Hecks
           policy:   { cache_class: String, origin: String, cache: String, origin_request: String,
                     response_headers: String },
           upstream: { origin: String, id: String, target_group: String },
-          rule:     { rule: String, priority: Integer, origin: String }
+          rule:     { rule: String, priority: Integer, origin: String },
+          function: { name: String, kind: String, host: String, aliases: String, paths: String }
         }.freeze
 
         # The fields a row of each kind must carry. The template may instead be named to the tool.
         REQUIRED = { setting: [], policy: %i[cache_class cache], upstream: %i[origin id],
-                     rule: %i[rule priority origin] }.freeze
+                     rule: %i[rule priority origin], function: %i[name kind host aliases paths] }.freeze
 
-        STRUCTS = { setting: Setting, policy: Policy, upstream: Upstream, rule: Rule }.freeze
+        STRUCTS = { setting: Setting, policy: Policy, upstream: Upstream, rule: Rule, function: Function }.freeze
 
         # @return [Setting] the template and the listener
         attr_reader :setting
@@ -51,6 +69,8 @@ module Hecks
         attr_reader :upstreams
         # @return [Array<Rule>] the listener rules
         attr_reader :rules
+        # @return [Array<Function>] the edge functions the generator writes
+        attr_reader :functions
         # @return [Hash{Symbol => Object}] the default behaviour as `Cdn.behavior_lines` takes it
         attr_reader :default_behaviour
         # @return [Array<Hash{Symbol => Object}>] the other behaviours, in matching order
@@ -65,11 +85,12 @@ module Hecks
         # @param vocabulary [Hash{Symbol => Array<String>}] the Site chapter's closed sets
         # @param template [String, nil] the template the caller names, which stands in for the
         #   `Edge` row's own `template:`
-        # @return [Edge, nil] the checked edge, or nil when the chapter declares none
+        # @return [Edge, nil] the checked edge, or nil when the chapter declares none and no route
+        #   names an edge function
         # @raise [Table::Invalid] when a row is refused or the edge contradicts the routes
         def self.read(chapter, table:, vocabulary:, template: nil)
           declared = OBJECTS.transform_values { |name| Table.rows_of(chapter, name) }
-          return nil if declared.values.all?(&:empty?)
+          return nil if declared.values.all?(&:empty?) && table.rows.none?(&:edge)
 
           problems = []
           records = declared.to_h { |kind, members| [kind, build(kind, members, problems)] }
@@ -104,6 +125,7 @@ module Hecks
           @policies = records.fetch(:policy)
           @upstreams = records.fetch(:upstream)
           @rules = records.fetch(:rule)
+          @functions = records.fetch(:function)
         end
         private :assign
 
@@ -118,6 +140,10 @@ module Hecks
         # @return [Boolean] whether the project has a load balancer, and so listener rules; true
         #   unless the `Edge` row says `alb: false`
         def alb? = setting.nil? || setting.alb != false
+
+        # @param name [String] a logical id
+        # @return [Function, nil] the function row of that name
+        def function(name) = functions.find { |candidate| candidate.name == name }
 
         # @param origin [String] an origin of the Origin set
         # @return [Upstream, nil] its CloudFront origin and target group

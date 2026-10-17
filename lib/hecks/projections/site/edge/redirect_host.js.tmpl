@@ -1,0 +1,38 @@
+function handler(event) {
+  var request = event.request;
+  var canonical = __CANONICAL__;
+  var aliases = __ALIASES__;
+  var watched = __WATCHED__;
+  var header = request.headers.host;
+  var host = header && header.value ? header.value.toLowerCase().replace(/:\d+$/, "") : "";
+  var reads = request.method === "GET" || request.method === "HEAD";
+  if (!reads || watched.indexOf(request.uri) < 0) { return request; }
+  if (host === canonical || aliases.indexOf(host) < 0) { return request; }
+  var parts = [];
+  Object.keys(request.querystring).forEach(function (key) {
+    var entry = request.querystring[key];
+    var values = entry.multiValue ? entry.multiValue.map(function (item) { return item.value; }) : [entry.value];
+    values.forEach(function (value) {
+      var name = encode(key);
+      parts.push(value === "" || value === undefined ? name : name + "=" + encode(value));
+    });
+  });
+  var query = parts.length ? "?" + parts.join("&") : "";
+  return {
+    statusCode: 302,
+    statusDescription: "Found",
+    headers: {
+      location: { value: "https://" + canonical + request.uri + query },
+      "cache-control": { value: "no-store" }
+    }
+  };
+}
+
+// Percent-encodes what cannot stand in a query string and keeps what is already encoded, so the
+// location header carries no space, control character, "&" or "#" whether the runtime hands over
+// the raw text or the decoded one.
+function encode(text) {
+  return String(text).replace(/%(?![0-9A-Fa-f]{2})|[\uD800-\uDBFF][\uDC00-\uDFFF]|[^A-Za-z0-9\-._~!$'()*,;:@\/?+%]/g, function (unit) {
+    try { return encodeURIComponent(unit); } catch (error) { return "%EF%BF%BD"; }
+  });
+}

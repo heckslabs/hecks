@@ -10,7 +10,8 @@ module Hecks
         # compression give it. A route needs none of its own when the behaviour that would match its
         # path anyway (the nearest broader route's, else the default one) is the same. The rest keep
         # the order the table declares, which is the order CloudFront matches in, and a route that
-        # a broader, different one before it would shadow is refused.
+        # a broader, different one before it would shadow is refused. The edge function a route
+        # names is part of its behaviour, so a route is folded only into one that names the same.
         class Behaviours
           # The default behaviour's path: the row that holds the settings of everything else.
           DEFAULT_PATH = "/*"
@@ -58,11 +59,14 @@ module Hecks
             policy = @edge.policy(row.cache, row.origin)
             {
               path: pattern, origin: @edge.upstream(row.origin).id, methods: methods([row]),
-              viewer_protocol: protocol(row), compress: row.compress,
-              cache_policy: Checks.resolve(policy.cache),
-              origin_request_policy: reference(policy.origin_request),
-              response_headers_policy: reference(policy.response_headers)
-            }
+              viewer_protocol: protocol(row), compress: row.compress
+            }.merge(policies(policy)).merge(row.edge ? { edge_function: row.edge } : {})
+          end
+
+          def policies(policy)
+            { cache_policy:            Checks.resolve(policy.cache),
+              origin_request_policy:   reference(policy.origin_request),
+              response_headers_policy: reference(policy.response_headers) }
           end
 
           def reference(text) = text.nil? || text == "none" ? nil : Checks.resolve(text)

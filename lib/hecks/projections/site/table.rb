@@ -60,7 +60,8 @@ module Hecks
 
         # @param registry [Runtime::Registry] a registry holding the Site chapter
         # @return [Hash{Symbol => Array<String>}] each constrained field to its allowed values, and
-        #   `:http_method` to the verbs a route may answer
+        #   `:http_method` to the verbs a route may answer and `:edge_function_kind` to the kinds of
+        #   `EdgeFunction` row
         # @raise [Invalid] when the registry does not hold the Site chapter
         def self.vocabulary(registry)
           site = registry.bluebook("Site") or
@@ -69,7 +70,8 @@ module Hecks
           members = lambda do |name|
             route.value_objects.find { |object| object.hecks_name == name }.members.map { |member| member.fetch(:value) }
           end
-          RowBuilder::VOCABULARY.transform_values(&members).merge(http_method: members.call("HttpMethod"))
+          closed = RowBuilder::VOCABULARY.transform_values(&members)
+          closed.merge(http_method: members.call("HttpMethod"), edge_function_kind: members.call("EdgeFunctionKind"))
         end
 
         # @param chapter [Bluebook::Chapter] a chapter to search

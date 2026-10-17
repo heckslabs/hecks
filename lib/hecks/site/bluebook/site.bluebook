@@ -12,7 +12,9 @@
 # The same command projects the CDN: a project that adds Edge, EdgePolicy, EdgeOrigin and EdgeRule rows
 # to its chapter has the CloudFront behaviours and the listener rules written into the marked regions
 # of the template it owns (the `:site_cdn` projection). Those rows are the template's facts, so only the
-# closed sets they draw on, cache class and origin, are named here.
+# closed sets they draw on, cache class, origin and the kind of an EdgeFunction row, are named here. A
+# route's `edge:` names an EdgeFunction row, a viewer-request function the projection writes into the
+# template's `edge_functions` region and attaches to that route's behaviour.
 #
 # Each run records that it was requested before the SiteToolchain port is asked, and what came of
 # it after. No command declares a role: the chapter boots standing alone.
@@ -33,6 +35,7 @@ Hecks.bluebook "Site" do
     attribute :source, Source,  optional: true
     attribute :http_method, HttpMethod, optional: true
     attribute :preview, Preview, optional: true
+    attribute :edge, EdgeName, optional: true
 
     # `/blog/:slug.html` names a parameter; a trailing `/*` matches everything beneath a prefix. A
     # row with a `command:` or `query:` source may leave its path out, and the projection derives it
@@ -76,6 +79,18 @@ Hecks.bluebook "Site" do
     # unpublished content is visible to an admin.
     value_object "Preview" do
       attribute :value, String, one_of: ["public", "draft"]
+    end
+
+    # The logical id of an `EdgeFunction` row: the viewer-request function the route's behaviour runs.
+    value_object "EdgeName" do
+      attribute :value, String, pattern: '\A[A-Za-z][A-Za-z0-9]*\z'
+    end
+
+    # What an `EdgeFunction` row asks the projection to write: `redirect_host` answers a request for
+    # a watched path on an alias host with a redirect to the canonical host and leaves every other
+    # request alone.
+    value_object "EdgeFunctionKind" do
+      attribute :value, String, one_of: ["redirect_host"]
     end
 
     # The HTTP verbs a route answers.

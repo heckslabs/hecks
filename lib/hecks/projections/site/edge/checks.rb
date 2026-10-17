@@ -2,6 +2,7 @@
 
 require_relative "findings"
 require_relative "route_checks"
+require_relative "function_checks"
 
 module Hecks
   module Projections
@@ -47,6 +48,7 @@ module Hecks
             check_policies
             check_upstreams
             RouteChecks.new(@edge, @rows, @vocabulary, @problems).call
+            FunctionChecks.new(@edge, @rows, @vocabulary, @problems).call
           end
 
           private
