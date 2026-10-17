@@ -7,6 +7,10 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+## [3.13.0] - 2026-10-17
+
+A minor. One behavior change, for projects with a generated Payload CMS: only the Admin and Owner roles can sign in to the editor, matching the site's admin gate; a Member who could open it before no longer can. Regenerate with `hecks site site_projection.project_site <project>`, commit `cms/src/generated/auth/membership.ts` and roll the CMS (the domain host needs no change). The other entries are additive or opt-in.
+
 - **The `redirect_host` edge function no longer fails to compile on CloudFront (fix, ADR 0115).** The function's `encode` helper matched surrogate pairs with a regular expression that named U+D800..U+DFFF. Node accepts that, so the node spec passed, but CloudFront's regex engine refuses it (`pcre_compile(...) failed: disallowed Unicode code point`) and the function then threw on every request, even for paths it passes through, so a watched path answered `503 FunctionExecutionError`. The helper now walks the text one UTF-16 unit at a time and pairs surrogates in code (a lone one still becomes U+FFFD), with no surrogate in any pattern. Regenerate a project that uses `EdgeFunction` rows and redeploy to get the fix. A new spec fails on a surrogate in any rendered pattern, the node cases gain astral and lone-surrogate inputs, and an opt-in spec (`HECKS_CLOUDFRONT_TEST=1`) runs the generated code through `aws cloudfront test-function` on a throwaway function.
 - **A route row can attach an edge function, and the site generator writes the function (ADR 0115, proposed).** `edge: "Name"` on a
   `Route` row puts a viewer-request `FunctionAssociations` on that route's behaviour, and an `EdgeFunction` row (`kind: "redirect_host"`,
