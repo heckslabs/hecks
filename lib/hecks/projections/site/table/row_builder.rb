@@ -11,7 +11,7 @@ module Hecks
                          :indexable, :switch, :off, :preview, :label, :seo, :redirect_to, :aliases,
                          :nav_group, :nav_order, :mobile_order, :footer_column, :footer_order,
                          :admin_key, :admin_order, :compress, :alb_rule, :cdn,
-                         :seo_title, :edge_verbs, :mobile_heading, :explicit_cache, keyword_init: true)
+                         :seo_title, :edge_verbs, :mobile_heading, :explicit_cache, :edge, keyword_init: true)
 
         # Turns a declared member into a `Row`: checks its fields and their types, fills the
         # defaults, and checks each closed-set value against the Site chapter's vocabulary.
@@ -23,7 +23,10 @@ module Hecks
                      aliases: String, nav_group: String, nav_order: Integer, mobile_order: Integer,
                      footer_column: String, footer_order: Integer, admin_key: String,
                      admin_order: Integer, compress: :bool, alb_rule: String, cdn: :bool,
-                     seo_title: String, edge_methods: String, mobile_heading: String }.freeze
+                     seo_title: String, edge_methods: String, mobile_heading: String, edge: String }.freeze
+
+          # What an `edge:` names: the logical id of an `EdgeFunction` row.
+          EDGE_NAME = /\A[A-Za-z][A-Za-z0-9]*\z/
 
           # The value objects of the Site chapter's `Route` aggregate whose members are the closed
           # sets, by the row field each constrains.
@@ -103,6 +106,13 @@ module Hecks
               problem(label, "has #{field} #{row[field].inspect}; #{field} is one of #{@vocabulary.fetch(field).join(", ")}")
             end
             check_verbs(row, label)
+            check_edge(row, label)
+          end
+
+          def check_edge(row, label)
+            return unless row.edge.is_a?(String) && !EDGE_NAME.match?(row.edge)
+
+            problem(label, "has edge #{row.edge.inspect}; an edge is the logical id of an EdgeFunction row")
           end
 
           def check_verbs(row, label)

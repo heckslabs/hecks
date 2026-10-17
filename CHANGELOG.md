@@ -7,6 +7,13 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+- **A route row can attach an edge function, and the site generator writes the function (ADR 0115, proposed).** `edge: "Name"` on a
+  `Route` row puts a viewer-request `FunctionAssociations` on that route's behaviour, and an `EdgeFunction` row (`kind: "redirect_host"`,
+  `host`, `aliases`, `paths`) is written as an `AWS::CloudFront::Function` between the markers of a third `edge_functions` region in
+  the project's template: a `GET` or `HEAD` for a watched path on an alias host is answered with a `302` (`Cache-Control: no-store`)
+  to the same path on the canonical host, query string intact. Hosts and paths are written only when they match a strict hostname
+  or path shape. A project that declares no `EdgeFunction` row and no `edge:` generates the same text as before; one that does must
+  add the region to its template once, and `project_site` refuses a template that lacks it or keeps it without a row.
 - **A `Change` framework chapter previews a change before it is applied (ADR 0114, proposed).** `attaches "Change"` gives a domain an
   aggregate that is requested, planned, confirmed against the digest of exactly that plan, and only then applied; a plan that moved
   between confirming and applying faults instead of running. What a change does sits behind the `Script` port, answered here by an

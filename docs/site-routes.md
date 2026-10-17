@@ -53,7 +53,7 @@ place.
 | `source` | `none`, `global:<slug>`, `collection:<name>`, `command:<Chapter>.<Aggregate>.<Command>` or `query:...`. |
 | `indexable` | whether the sitemap lists it; true for a public page that is on. |
 | `switch`, `off` | the id a page is switched by, and whether it is off now. An off page answers 404 and stays out of the sitemap; it may keep its navigation slots (below). |
-| `compress`, `alb_rule`, `cdn` | for the edge, below: whether CloudFront compresses the response (true by default); the listener rule that carries the path; false for a path the CDN never sees. |
+| `compress`, `alb_rule`, `cdn`, `edge` | for the edge, below: whether CloudFront compresses the response (true by default); the listener rule that carries the path; false for a path the CDN never sees; the `EdgeFunction` that runs on the route's behaviour. |
 | `label`, `seo`, `seo_title` | the text a navigation shows, an id for the page's search metadata, and the title search engines show for it. |
 | `redirect_to`, `aliases` | the target of a redirect or rewrite, and extra paths that redirect to a page. |
 | `nav_group`, `nav_order`, `mobile_order`, `mobile_heading`, `footer_column`, `footer_order`, `admin_key`, `admin_order` | where the page sits in the desktop, mobile, footer and admin navigation, and the heading that opens a section of the mobile menu. |
@@ -357,8 +357,9 @@ chapter rather than a command.
 ## The edge: CloudFront behaviours and listener rules
 
 The same table decides how the CDN and the load balancer treat each path, so a path is not named a second time
-in the infrastructure template. A project adds `member` rows of four more value objects of its route chapter,
-for the facts only its template knows, and marks two regions in the template it owns.
+in the infrastructure template. A project adds `member` rows of more value objects of its route chapter,
+for the facts only its template knows, and marks two regions in the template it owns (a third when it uses an edge
+function, below).
 
 | value object | fields |
 |---|---|
@@ -366,6 +367,7 @@ for the facts only its template knows, and marks two regions in the template it 
 | `EdgePolicy` | `cache_class`, optionally `origin` (it then applies to that origin only), and `cache`, `origin_request`, `response_headers`. A policy is a managed one by name (`caching_disabled`, `caching_optimized`, `all_viewer`, `all_viewer_except_host`), a policy id, or an intrinsic such as `!Ref PagePolicy`. |
 | `EdgeOrigin` | an `origin` and the CloudFront origin `id` it is, and for a server behind the load balancer its `target_group`. |
 | `EdgeRule` | a listener rule's logical id (`rule`), its numeric `priority`, and the `origin` it forwards to. |
+| `EdgeFunction` | a viewer-request function the generator writes: `name` (a logical id), `kind` (`redirect_host`), `host`, `aliases` and `paths`. See below. |
 
 ```yaml
         # BEGIN GENERATED site_cdn behaviors
@@ -403,6 +405,50 @@ How a route becomes a behaviour:
   for a page under `/admin*` is `GET,POST`, so the page says `edge_methods: "GET,POST"` and, with the prefix's cache class, makes no
   behaviour of its own. Without `edge_methods` the edge allows the route's `methods`, as before. `edge_methods` must include
   every one of the route's `methods`. `routes.ts` does not carry it.
+
+### Redirecting start paths to the registered host
+
+A sign-in flow whose callback is registered on one host needs its start paths, requested on any other alias of the
+site, to be sent to that host at the edge. One `EdgeFunction` row declares the redirect and a route's `edge:` attaches it:
+
+```ruby
+value_object "EdgeFunction" do
+  attribute :name,    String
+  attribute :kind,    String
+  attribute :host,    String
+  attribute :aliases, String
+  attribute :paths,   String
+
+  member name: "HostRedirect", kind: "redirect_host", host: "app.example.test",
+         aliases: "example.test,www.example.test", paths: "/login,/auth/start"
+end
+
+# on the routes whose behaviours run it
+member path: "/login",  kind: "endpoint", origin: "domain", methods: "GET,POST", edge: "HostRedirect"
+member path: "/auth/*", kind: "endpoint", origin: "domain", methods: "GET,POST", edge: "HostRedirect"
+```
+
+The command adds `FunctionAssociations` (a `viewer-request` function) to those behaviours only, and writes the function
+itself, an `AWS::CloudFront::Function` with `AutoPublish: true` on `cloudfront-js-2.0`, between the markers of a third
+region, which the project adds to the `Resources` of its template once, by hand, when it first declares a function:
+
+```yaml
+  # BEGIN GENERATED site_cdn edge_functions
+  # END GENERATED site_cdn edge_functions
+```
+
+A request for one of the `paths` exactly, by `GET` or `HEAD`, on one of the `aliases` is answered with a `302` to
+`https://<host><path>?<query>`, `Cache-Control: no-store`, the query string carried over. Every other request (another
+method, another path, the `host` itself, an unknown host) passes through untouched. Because a route's function is part
+of its behaviour, a route that names one is never folded into a broader route that names none.
+
+The command refuses, with the other problems, a kind outside the set, a `host` or alias that is not a lowercase hostname,
+a path that is not an exact path of letters, digits and `. _ ~ - /`, a route whose `edge:` names no row, a row no route
+names, a name that is not a logical id (or is over 40 characters, since the function's name in the account adds the stack
+name), and an `edge:` on a route with `cdn: false`. A template that has no `edge_functions` region while a row exists is
+refused, naming the markers, and so is a region left behind when no row exists. The host and paths are written into the
+function only after they match those shapes; nothing is escaped, so nothing can end the string they are written in. Behaviours of the
+Fargate `cdn` setting are not extended; `check_live` does not compare functions.
 
 ### A site with no load balancer
 

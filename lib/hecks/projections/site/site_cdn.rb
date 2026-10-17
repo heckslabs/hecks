@@ -7,12 +7,14 @@ require_relative "edge"
 module Hecks
   module Projections
     module Site
-      # The edge of a site's route table as the two blocks of a CloudFormation template that depend
-      # on it: the distribution's cache behaviours and the load balancer's listener rules.
+      # The edge of a site's route table as the blocks of a CloudFormation template that depend on
+      # it: the distribution's cache behaviours, the load balancer's listener rules and the
+      # functions the behaviours attach.
       #
-      # The blocks are returned by name, `"behaviors"` and `"listener_rules"`, as text from the
-      # left margin; a project whose `Edge` row says `alb: false` has no load balancer and gets
-      # `"behaviors"` alone. `Regions` puts each between the markers of the same name in the
+      # The blocks are returned by name, `"behaviors"`, `"listener_rules"` and `"edge_functions"`,
+      # as text from the left margin; a project whose `Edge` row says `alb: false` has no load
+      # balancer and gets no `"listener_rules"`, and one with no `EdgeFunction` row gets no
+      # `"edge_functions"`. `Regions` puts each between the markers of the same name in the
       # project's template, at the markers' indentation. The text is a pure function of the table
       # and the edge rows.
       module SiteCdn
@@ -34,9 +36,21 @@ module Hecks
           edge = options[:edge] || Edge.read(bluebook, table: table, vocabulary: Table.vocabulary(registry))
           return {} unless edge
 
-          return { "behaviors" => behaviors(edge) } unless edge.alb?
+          regions(edge)
+        end
 
-          { "behaviors" => behaviors(edge), "listener_rules" => listener_rules(edge) }
+        # @param edge [Edge] a checked edge
+        # @return [Hash{String => String}] the regions the edge needs
+        def regions(edge)
+          { "behaviors" => behaviors(edge) }
+            .merge(edge.alb? ? { "listener_rules" => listener_rules(edge) } : {})
+            .merge(edge.functions.any? ? { "edge_functions" => edge_functions(edge) } : {})
+        end
+
+        # @param edge [Edge] a checked edge
+        # @return [String] one function resource per `EdgeFunction` row, ending in a newline
+        def edge_functions(edge)
+          edge.functions.map { |function| Edge::FunctionCode.resource(function) }.join("\n")
         end
 
         # @param edge [Edge] a checked edge

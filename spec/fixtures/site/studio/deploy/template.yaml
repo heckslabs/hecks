@@ -23,6 +23,9 @@ Resources:
   # BEGIN GENERATED site_cdn listener_rules
   # END GENERATED site_cdn listener_rules
 
+  # BEGIN GENERATED site_cdn edge_functions
+  # END GENERATED site_cdn edge_functions
+
   Distribution:
     Type: AWS::CloudFront::Distribution
     Properties:

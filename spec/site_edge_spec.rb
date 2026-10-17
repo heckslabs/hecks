@@ -179,7 +179,7 @@ RSpec.describe "the Site chapter's edge" do
 
     it "projects only routes.ts for a project that declares no edge" do
       dir = edited_project do |text|
-        text.sub(/\n    # The edge:.*?(?=\n    command "Name")/m, "").gsub(/, alb_rule: "\w+"/, "")
+        text.sub(/\n    # The edge:.*?(?=\n    command "Name")/m, "").gsub(/, (alb_rule|edge): "\w+"/, "")
       end
 
       expect(tool.projection(dir).keys).to eq([File.join(dir, "generated", "routes.ts")])

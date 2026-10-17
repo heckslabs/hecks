@@ -27,22 +27,19 @@ module Hecks
           regions = Projector.call(:site_cdn, bluebook: site.chapter, options: { table: site.table, edge: edge })
           relative = template || edge.setting.template
           source = template_source(root, template, relative)
-          text = rewritten(File.read(source), regions, relative, edge)
+          text = rewritten(File.read(source), regions, relative)
           { destination(source, out, template, relative) => text }
         end
 
         # @param text [String] the template
         # @param regions [Hash{String => String}] each region's name to the block that goes in it
         # @param relative [String] the template's name, for a message
-        # @param edge [Projections::Site::Edge] the checked edge
         # @return [String] the template with each region rewritten
-        # @raise [SystemExit] when a region is missing, or a listener_rules region is left behind
-        #   by an edge with no load balancer
-        def rewritten(text, regions, relative, edge)
-          if !edge.alb? && Projections::Site::Regions.region?(text, "listener_rules")
-            abort "project_site: #{relative} has a BEGIN/END GENERATED site_cdn listener_rules region, " \
-                  "and the Edge row says alb: false; remove the region"
-          end
+        # @raise [SystemExit] when a region is missing, or a listener_rules or edge_functions region
+        #   is left behind by an edge that has no load balancer or no EdgeFunction row
+        def rewritten(text, regions, relative)
+          refuse_leftover(text, regions, relative, "listener_rules", "the Edge row says alb: false")
+          refuse_leftover(text, regions, relative, "edge_functions", "the project declares no EdgeFunction rows")
           regions.reduce(text) do |current, (name, block)|
             unless Projections::Site::Regions.region?(current, name)
               abort "project_site: #{relative} has no BEGIN/END GENERATED site_cdn #{name} region"
@@ -50,6 +47,13 @@ module Hecks
 
             Projections::Site::Regions.replace(current, name, block)
           end
+        end
+
+        # Refuses a region the edge does not use, so the stale text in it is removed by hand.
+        def refuse_leftover(text, regions, relative, name, reason)
+          return if regions.key?(name) || !Projections::Site::Regions.region?(text, name)
+
+          abort "project_site: #{relative} has a BEGIN/END GENERATED site_cdn #{name} region, and #{reason}; remove the region"
         end
 
         # @return [Hash] nothing, after refusing a template named for a project with no edge
