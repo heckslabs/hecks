@@ -49,6 +49,31 @@ RSpec.describe Hecks::Adapters::Codebase::TestRunner do
     end
   end
 
+  # Installs a runner that notes the reaction depth it ran at; answers the notes.
+  def runner_noting_its_depth
+    seen = []
+    described_class.runner = lambda do |_args, _err, out|
+      seen << Thread.current[:hecks_reaction_depth].to_i
+      out.puts "1 example, 0 failures"
+      0
+    end
+    seen
+  end
+
+  # Runs an example while this thread stands `depth` reactions deep; answers the depth the runner saw.
+  def depth_seen_by_runner(depth)
+    seen = runner_noting_its_depth
+    Thread.current[:hecks_reaction_depth] = depth
+    described_class.new(tree).run(file: "hecks.gemspec", example: "x")
+    seen.first
+  ensure
+    Thread.current[:hecks_reaction_depth] = nil
+  end
+
+  it "starts the example at reaction depth zero, however deep the cascade that asked for it" do
+    expect(depth_seen_by_runner(4)).to eq(0)
+  end
+
   it "refuses with what the runner printed when an example fails" do
     runner_printing("1 example, 1 failure", 1)
 
