@@ -145,8 +145,8 @@ same row, so the two halves cannot disagree:
 
 | file | what it does |
 |---|---|
-| `endpoints/sso.ts` | the endpoint at `sso_target`: verifies the hand-off token, asks the host whether the person is still admitted, and mints an ordinary session; its `to` is held to a path under `cms_base` |
-| `auth/membership.ts` | the host's membership question, remembered for a minute per email; fails closed, and uses the host's development secret when none is set outside production |
+| `endpoints/sso.ts` | the endpoint at `sso_target`: verifies the hand-off token, asks the host whether the person still holds an admin role, and mints an ordinary session; its `to` is held to a path under `cms_base` |
+| `auth/membership.ts` | the host's membership question, asked of the members list so that only the Admin row's `roles` (Admin and Owner by default) are admitted, never a member who holds no admin role, as the site's own admin gate; remembered for a minute per email; fails closed, and uses the host's development secret when none is set outside production |
 | `auth/sessionStrategy.ts` | verifies the session cookie on every request and asks the membership check again, so removing someone locks them out at once |
 | `collections/Users.ts` | the users collection: no passwords, hidden, and not creatable over its API |
 

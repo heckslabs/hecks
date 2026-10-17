@@ -130,6 +130,45 @@ JS
 # The admin sign-in module a project gets when its chapter declares an `Admin` row. The sample is
 # spec/fixtures/site/members; its golden sits in spec/fixtures/site/members/expected
 # (`GOLDEN=rewrite` regenerates it, to be read in the diff).
+# Stands in for `@hecks/client` beside the generated CMS membership module: the token is the email, which
+# is all the stand-in host below needs to tell the callers apart.
+ADMIN_NODE_CLIENT_STUB = <<~JS.freeze
+  export const accountToken = (secret, email) => "tok:" + email;
+  export const resolveAccountCookieName = (name) => name;
+JS
+
+# A host that answers /members as the real one does: 403 to a caller holding no admin role, the list to one that does.
+# `lenient` also lets a role-less caller see the list, to show the module reads the roles itself.
+ADMIN_NODE_CMS_SCRIPT = <<~JS.freeze
+  const rows = {
+    "admin@example.org": "Admin", "owner@example.org": "Owner", "member@example.org": "Member",
+    "off@example.org": "Admin", "unlisted@example.org": undefined,
+  };
+  let lenient = false;
+  let down = false;
+  let asked = 0;
+  globalThis.fetch = async (url, init) => {
+    asked += 1;
+    if (down) throw new Error("host unreachable");
+    const email = init.headers.Cookie.split("=")[1].replace("tok:", "");
+    const role = rows[email];
+    const admin = role === "Admin" || role === "Owner";
+    if (new URL(url).pathname !== "/members" || !(admin || (lenient && role))) return { ok: false, status: 403, json: async () => ({}) };
+    return { ok: true, status: 200, json: async () => [{ email, role, disabled: email === "off@example.org" }] };
+  };
+  const { membership, adminCheck, membershipCheck } = await import("./membership.ts");
+  const verdicts = {};
+  for (const email of Object.keys(rows)) verdicts[email] = await membership.isAdmitted(email);
+  lenient = true;
+  const lenientMember = await adminCheck().isAdmitted("member@example.org");
+  const before = asked;
+  await membership.isAdmitted("admin@example.org");
+  const remembered = asked === before;
+  down = true;
+  const unreachable = await membership.isAdmitted("fresh@example.org");
+  console.log(JSON.stringify({ verdicts, lenientMember, remembered, unreachable, plain: typeof membershipCheck }));
+JS
+
 RSpec.describe "the admin sign-in module" do
   let(:tool)     { Hecks::Tools::SiteRoutes }
   let(:members)  { File.join(InMemoryDomain::ROOT, "spec/fixtures/site/members") }
@@ -300,6 +339,64 @@ RSpec.describe "the admin sign-in module" do
                                     'DEFAULT_URL = "http://127.0.0.1:4500"', 'ADMIN_ROLES = ["Admin", "Owner"]',
                                     '"/accounts/me"', '"/members"')
       expect(cms_text("endpoints/sso.ts")).to include('path: "/sso"', 'startsWith("/cms/")', '"/cms/admin"')
+    end
+
+    it "makes the CMS's membership the admin-only check, defined after the check it is built by", :aggregate_failures do
+      membership = cms_text("auth/membership.ts")
+
+      expect(membership).to include("export const membership = adminCheck();")
+      expect(membership).not_to include("export const membership = membershipCheck()")
+      expect(membership.index("export const adminCheck")).to be < membership.index("export const membership =")
+    end
+
+    it "still exports what other templates and projects may import from the membership module" do
+      expect(cms_text("auth/membership.ts")).to include(
+        "export function membershipCheck", "export interface MembershipOptions", "export interface MembershipCheck",
+        "export const ADMIN_ROLES", "export function holdsAdminRole", "export const REMEMBER_MS"
+      )
+    end
+
+    it "has the sign-in endpoint and the session strategy ask that membership", :aggregate_failures do
+      expect(cms_text("endpoints/sso.ts")).to include('import { membership } from "../auth/membership"',
+                                                      "membership.isAdmitted(claims.email)")
+      expect(cms_text("auth/sessionStrategy.ts")).to include('import { membership } from "./membership"',
+                                                             "membership.isAdmitted(user.email)")
+    end
+
+    # A stand-in `@hecks/client` under `dir`, which is all the generated membership module imports.
+    def write_client_stub(dir)
+      client = File.join(dir, "node_modules/@hecks/client")
+      FileUtils.mkdir_p(client)
+      File.write(File.join(client, "package.json"), '{"name":"@hecks/client","type":"module","main":"index.js"}')
+      File.write(File.join(client, "index.js"), ADMIN_NODE_CLIENT_STUB)
+    end
+
+    # The generated membership module, run by node beside the stand-in, as the script's JSON.
+    def run_cms_membership
+      Dir.mktmpdir("admin_cms_ts") do |dir|
+        write_client_stub(dir)
+        File.write(File.join(dir, "membership.ts"), cms_text("auth/membership.ts"))
+        File.write(File.join(dir, "check.mjs"), ADMIN_NODE_CMS_SCRIPT)
+        out, err, status = Open3.capture3({ "NODE_NO_WARNINGS" => "1" }, "node", File.join(dir, "check.mjs"))
+        raise err unless status.success?
+
+        JSON.parse(out)
+      end
+    end
+
+    it "admits Admin and Owner to the CMS and refuses a role-less member, a disabled admin and an unlisted person", :process do
+      skip "node is not installed" unless node?
+
+      expect(run_cms_membership.fetch("verdicts")).to eq(
+        "admin@example.org" => true, "owner@example.org" => true, "member@example.org" => false,
+        "off@example.org" => false, "unlisted@example.org" => false
+      )
+    end
+
+    it "reads the roles itself, remembers a verdict, and refuses when the host cannot be asked", :process do
+      skip "node is not installed" unless node?
+
+      expect(run_cms_membership).to include("lenientMember" => false, "remembered" => true, "unreachable" => false)
     end
 
     it "follows a different base path for the content system" do

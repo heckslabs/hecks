@@ -15,10 +15,12 @@ module Hecks
               // Signing in (endpoints/sso.ts) proved the person was admitted then; this asks again, so that
               // disabling or removing someone locks them out on their next request, not when their session runs out.
               //
-              // The question is the host's own account route, which answers only for a person who holds a role
-              // and is not disabled, asked with a short account token signed by the secret the host checks (the
-              // content system's AUTH_SECRET is the host's SESSION_SECRET). The answer is remembered for a minute
-              // per email so every admin request does not cost a round trip.
+              // The question is the host's members list, which the host answers (403) only to a person holding
+              // one of the admin roles, and the list's own row for the caller must hold such a role and not be
+              // disabled. It is asked with a short account token signed by the secret the host checks (the content
+              // system's AUTH_SECRET is the host's SESSION_SECRET). The answer is remembered for a minute per
+              // email so every admin request does not cost a round trip. Being admitted to the site is not enough:
+              // a member with no admin role is refused here, as the site's own admin gate refuses them.
               import { accountToken, resolveAccountCookieName } from "@hecks/client";
 
               const DEFAULT_URL = __HOST_DEFAULT__;
@@ -38,7 +40,7 @@ module Hecks
 
               export interface MembershipOptions {
                 url?: string;
-                /** The host route asked: the account route (any admitted person) by default, the members list for admin roles only. */
+                /** The host route asked: the account route (any admitted person) by default; `adminCheck` asks the members list, for admin roles only. */
                 path?: string;
                 /** Decides from the host's answer; the default is any 2xx. */
                 accept?: (res: Response, email: string) => Promise<boolean>;
@@ -83,8 +85,6 @@ module Hecks
                 };
               }
 
-              export const membership = membershipCheck();
-
               /** The roles the host's own admin gate passes. */
               export const ADMIN_ROLES = __ROLES__;
 
@@ -106,6 +106,9 @@ module Hecks
                   path: __MEMBERS_PATH__,
                   accept: async (res, email) => holdsAdminRole(await res.json().catch(() => null), email),
                 });
+
+              /** The check the sign-in endpoint and the session strategy use: admin roles only, never a plain member. */
+              export const membership = adminCheck();
             TS
           end
         end
