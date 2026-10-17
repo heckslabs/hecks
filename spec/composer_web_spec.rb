@@ -2,19 +2,16 @@ require "spec_helper"
 require "rack/mock"
 require "tmpdir"
 require "hecks/composer/web"
+require_relative "support/hecks_parse_binary"
 
 # The Composer's Rack app serves the page and the JSON routes it speaks to. Every route is
 # exercised here through Rack, with no browser and no network.
-RSpec.describe Hecks::Composer::Web do
+RSpec.describe Hecks::Composer::Web, :io do
+  include_context "with the hecks-parse binary"
+
   let(:fixture)   { File.expand_path("fixtures/composer/account", __dir__) }
   let(:workspace) { Dir.mktmpdir("composer-web").tap { |dir| FileUtils.cp_r(Dir.glob("#{fixture}/*"), dir) } }
   let(:request)   { Rack::MockRequest.new(described_class.app(workspace: workspace)) }
-
-  before do
-    Hecks::Composer::Parse.binary
-  rescue Hecks::Composer::Parse::ParserMissing => e
-    skip e.message
-  end
 
   after { FileUtils.rm_rf(workspace) }
 

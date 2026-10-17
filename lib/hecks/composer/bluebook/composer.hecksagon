@@ -4,7 +4,10 @@
 Hecks.hecksagon "Composer" do
   attaches "Governance"
   persisted_by "Memory"
+  # The editor reaches this domain through Web, and every tool that boots a corpus domain (fuzz,
+  # model_check, the Composer's own Session) through Ruby; the launcher, the forms and MCP do not.
   driven_by "Web"
+  driven_by "Ruby"
 end
 
 # The anti-corruption layer for Governance, which the chapter's roles are checked against.

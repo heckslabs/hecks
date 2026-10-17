@@ -4,11 +4,14 @@ require "tmpdir"
 require "hecks/composer/web"
 require "hecks/composer/adapters/fake_agent"
 require "hecks/composer/adapters/jev"
+require_relative "support/hecks_parse_binary"
 
 # The Composer's agent is a driven adapter behind the `composer_agent` port. These specs run the
 # whole flow against the scripted adapter: no model, no network, the workspace on disk edited the
 # way the real agent would leave it.
-RSpec.describe "the Composer's agent" do
+RSpec.describe "the Composer's agent", :io do
+  include_context "with the hecks-parse binary"
+
   let(:workspace) { Dir.mktmpdir("composer-agent").tap { |dir| FileUtils.cp_r(Dir.glob("#{fixture}/*"), dir) } }
   let(:agents)    { agents_for("fake_agent") }
 
@@ -26,12 +29,7 @@ RSpec.describe "the Composer's agent" do
 
   RUBY
 
-  before do
-    Hecks::Composer::Parse.binary
-    fake.reset!
-  rescue Hecks::Composer::Parse::ParserMissing => e
-    skip e.message
-  end
+  before { fake.reset! }
 
   after { FileUtils.rm_rf(workspace) }
 

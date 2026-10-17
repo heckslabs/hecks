@@ -2,19 +2,16 @@ require "spec_helper"
 require "rack/mock"
 require "tmpdir"
 require "hecks/composer/web"
+require_relative "support/hecks_parse_binary"
 
 # The routes behind the editor's lower panels, through the real Rack app: the Console and Records
 # panels over a booted copy of the workspace, Behaviors, the timeline, Hecks's own commands for the
 # palette and Eras, and the one background job.
-RSpec.describe "the Composer's lower panels" do
+RSpec.describe "the Composer's lower panels", :io do
+  include_context "with the hecks-parse binary"
+
   let(:workspace) { copy_fixture("account") }
   let(:request)   { Rack::MockRequest.new(Hecks::Composer::Web.app(workspace: workspace)) }
-
-  before do
-    Hecks::Composer::Parse.binary
-  rescue Hecks::Composer::Parse::ParserMissing => e
-    skip e.message
-  end
 
   after { FileUtils.rm_rf(workspace) }
 

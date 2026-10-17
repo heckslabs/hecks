@@ -1,17 +1,14 @@
 require "spec_helper"
 require "hecks/composer"
+require_relative "support/hecks_parse_binary"
 
 # The Composer's check judges a workspace as it stands on screen: the files on disk with unsaved
-# text laid over them. It needs the Rust parser's binary, so a tree that has not built it skips.
-RSpec.describe Hecks::Composer::Check do
+# text laid over them. It runs the Rust parser, so the group builds it and runs where it can.
+RSpec.describe Hecks::Composer::Check, :io do
+  include_context "with the hecks-parse binary"
+
   let(:dir)  { File.expand_path("fixtures/composer/account", __dir__) }
   let(:file) { "ledger.bluebook" }
-
-  before do
-    Hecks::Composer::Parse.binary
-  rescue Hecks::Composer::Parse::ParserMissing => e
-    skip e.message
-  end
 
   def source = File.read(File.join(dir, file))
 

@@ -2,16 +2,9 @@ require "spec_helper"
 require "hecks/composer"
 require "hecks/composer/live"
 
-# A live workspace holds one booted domain so a console can dispatch against it. It needs the
-# Rust parser's binary, so a tree that has not built it skips.
+# A live workspace holds one booted domain so a console can dispatch against it.
 RSpec.describe Hecks::Composer::Live do
   let(:dir) { File.expand_path("fixtures/composer/account", __dir__) }
-
-  before do
-    Hecks::Composer::Parse.binary
-  rescue Hecks::Composer::Parse::ParserMissing => e
-    skip e.message
-  end
 
   after { @live&.close }
 
