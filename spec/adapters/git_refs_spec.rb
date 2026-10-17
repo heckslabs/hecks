@@ -40,14 +40,14 @@ RSpec.describe Hecks::Adapters::Git do
   def failure = Hecks::Adapters::ConsoleCapture::Failure
 
   describe "#remote_head" do
-    it "answers the commit a remote branch names" do
+    it "answers the commit a remote branch names", :process do
       first = commit!("one")
       sh(@work, "git", "push", "origin", "main")
 
       expect(remote("refs/heads/main")).to eq(first)
     end
 
-    it "answers nil for a branch the remote lacks" do
+    it "answers nil for a branch the remote lacks", :process do
       commit!("one")
 
       expect(remote("refs/heads/stable")).to be_nil
@@ -64,7 +64,7 @@ RSpec.describe Hecks::Adapters::Git do
 
     def oldest(older, newer) = git.oldest_commit_time(older, newer, chdir: @work)
 
-    it "answers when the oldest commit newer has and older lacks was made", :aggregate_failures do
+    it "answers when the oldest commit newer has and older lacks was made", :aggregate_failures, :process do
       first = commit!("one")
       dated!("two", "2026-10-06T08:00:00Z")
       dated!("three", "2026-10-06T10:00:00Z")
@@ -73,7 +73,7 @@ RSpec.describe Hecks::Adapters::Git do
       expect(oldest(nil, first)).to be_a(Integer)
     end
 
-    it "answers nil when newer holds nothing older lacks" do
+    it "answers nil when newer holds nothing older lacks", :process do
       first = commit!("one")
 
       expect(oldest(first, first)).to be_nil
@@ -90,11 +90,11 @@ RSpec.describe Hecks::Adapters::Git do
       base
     end
 
-    it "dates a branch merged late by what main took in, not by the branch's oldest commit" do
+    it "dates a branch merged late by what main took in, not by the branch's oldest commit", :process do
       expect(oldest(merged_late_branch!, "HEAD")).to eq(Time.utc(2026, 10, 5, 10).to_i)
     end
 
-    it "refuses a name that is a flag" do
+    it "refuses a name that is a flag", :process do
       expect { oldest("--all", "HEAD") }.to raise_error(failure, /not a ref name/)
     end
   end
@@ -102,7 +102,7 @@ RSpec.describe Hecks::Adapters::Git do
   describe "#recent_commits" do
     def recent(newer, **options) = git.recent_commits(newer, chdir: @work, **options)
 
-    it "lists the first-parent chain above the older commit, newest first", :aggregate_failures do
+    it "lists the first-parent chain above the older commit, newest first", :aggregate_failures, :process do
       first = commit!("one")
       second = commit!("two")
       third = commit!("three")
@@ -111,7 +111,7 @@ RSpec.describe Hecks::Adapters::Git do
       expect(recent("HEAD")).to eq([third, second, first])
     end
 
-    it "stops at the limit, keeping the newest" do
+    it "stops at the limit, keeping the newest", :process do
       commit!("one")
       second = commit!("two")
       third = commit!("three")
@@ -119,19 +119,19 @@ RSpec.describe Hecks::Adapters::Git do
       expect(recent("HEAD", limit: 2)).to eq([third, second])
     end
 
-    it "names nothing when there is nothing above the older commit" do
+    it "names nothing when there is nothing above the older commit", :process do
       first = commit!("one")
 
       expect(recent("HEAD", older: first)).to eq([])
     end
 
-    it "refuses a name that is a flag" do
+    it "refuses a name that is a flag", :process do
       expect { recent("--all") }.to raise_error(failure, /not a ref name/)
     end
   end
 
   describe "#ancestor?" do
-    it "is true along history, false across it, and true for a commit and itself", :aggregate_failures do
+    it "is true along history, false across it, and true for a commit and itself", :aggregate_failures, :process do
       first = commit!("one")
       second = commit!("two")
 
@@ -140,21 +140,21 @@ RSpec.describe Hecks::Adapters::Git do
       expect(ancestor?(first, first)).to be(true)
     end
 
-    it "refuses a name that is a flag or reaches past a ref", :aggregate_failures do
+    it "refuses a name that is a flag or reaches past a ref", :aggregate_failures, :process do
       expect { ancestor?("--all", "HEAD") }.to raise_error(/not a ref name/)
       expect { ancestor?("HEAD", "a..b") }.to raise_error(/not a ref name/)
     end
   end
 
   describe "#fast_forward" do
-    it "makes a branch on the remote" do
+    it "makes a branch on the remote", :process do
       first = commit!("one")
       git.fast_forward(first, "stable", chdir: @work)
 
       expect(remote("refs/heads/stable")).to eq(first)
     end
 
-    it "moves a branch forward" do
+    it "moves a branch forward", :process do
       git.fast_forward(commit!("one"), "stable", chdir: @work)
       second = commit!("two")
       git.fast_forward(second, "stable", chdir: @work)
@@ -162,7 +162,7 @@ RSpec.describe Hecks::Adapters::Git do
       expect(remote("refs/heads/stable")).to eq(second)
     end
 
-    it "is refused, never forced, when the commit does not contain the branch's head" do
+    it "is refused, never forced, when the commit does not contain the branch's head", :process do
       first = commit!("one")
       commit!("two")
       sh(@work, "git", "push", "origin", "HEAD:refs/heads/stable")
@@ -173,14 +173,14 @@ RSpec.describe Hecks::Adapters::Git do
   end
 
   describe "#move_tag" do
-    it "creates a tag, then leaves it be when current", :aggregate_failures do
+    it "creates a tag, then leaves it be when current", :aggregate_failures, :process do
       first = commit!("one")
 
       expect(git.move_tag("edge", first, chdir: @work)).to eq(:created)
       expect(git.move_tag("edge", first, chdir: @work)).to eq(:current)
     end
 
-    it "moves a tag forward", :aggregate_failures do
+    it "moves a tag forward", :aggregate_failures, :process do
       git.move_tag("edge", commit!("one"), chdir: @work)
       second = commit!("two")
 
@@ -188,7 +188,7 @@ RSpec.describe Hecks::Adapters::Git do
       expect(remote("refs/tags/edge")).to eq(second)
     end
 
-    it "refuses to move a tag backward or sideways" do
+    it "refuses to move a tag backward or sideways", :process do
       first = commit!("one")
       git.move_tag("edge", commit!("two"), chdir: @work)
 

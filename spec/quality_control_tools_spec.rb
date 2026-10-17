@@ -45,7 +45,7 @@ RSpec.describe "the QualityControl tool queries" do
     end
   end
 
-  it "runs the novelty gate through the launcher and answers its report", :aggregate_failures do
+  it "runs the novelty gate through the launcher and answers its report", :aggregate_failures, :process do
     out, status = launch("quality_control", "target.judge_novelty", "domain=#{File.join(NOVELTY_FIXTURES_DIR, "hopper")}",
                          "arguments=--against #{File.join(NOVELTY_FIXTURES_DIR, "baseline")}")
 
@@ -53,7 +53,8 @@ RSpec.describe "the QualityControl tool queries" do
     expect(out).to include("earns its place", "Hopper::Proposal")
   end
 
-  it "answers a judgment that is not a pass, as the command does: no new pair is still an answer", :aggregate_failures do
+  it "answers a judgment that is not a pass, as the command does: no new pair is still an answer", :aggregate_failures,
+     :process do
     out, status = launch("quality_control", "target.judge_novelty", "domain=#{File.join(NOVELTY_FIXTURES_DIR, "baseline")}",
                          "arguments=--against #{File.join(NOVELTY_FIXTURES_DIR, "hopper")}")
 
@@ -61,7 +62,7 @@ RSpec.describe "the QualityControl tool queries" do
     expect(out).to include("no new pair")
   end
 
-  it "refuses with the command's own report when it ends in an error", :aggregate_failures do
+  it "refuses with the command's own report when it ends in an error", :aggregate_failures, :process do
     out, status = launch("quality_control", "target.judge_novelty", "domain=#{File.join(NOVELTY_FIXTURES_DIR, "flat.bluebook")}",
                          "arguments=--against #{File.join(NOVELTY_FIXTURES_DIR, "baseline")}")
 

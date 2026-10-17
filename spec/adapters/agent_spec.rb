@@ -69,7 +69,8 @@ RSpec.describe Hecks::Adapters::Agent do
   end
 
   describe "asking" do
-    it "hands the prompt over on standard input, in the directory it is given, and logs the output", :aggregate_failures do
+    it "hands the prompt over on standard input, in the directory it is given, and logs the output", :aggregate_failures,
+       :process do
       log = File.join(@dir, "agent.log")
       command = agent_script("puts \"\#{Dir.pwd}: \#{$stdin.read}\"")
 
@@ -79,14 +80,14 @@ RSpec.describe Hecks::Adapters::Agent do
       expect(File.read(log)).to eq(output)
     end
 
-    it "says why an agent that ended in failure did" do
+    it "says why an agent that ended in failure did", :process do
       command = agent_script('warn "out of tokens"; exit 3')
 
       expect { adapter.ask(prompt: "p", command: command, chdir: @dir) }
         .to raise_error(described_class::Failed, /agent exited 3: out of tokens/)
     end
 
-    it "says so when there is no such agent to start" do
+    it "says so when there is no such agent to start", :process do
       expect { adapter.ask(prompt: "p", command: "no-such-agent-binary", chdir: @dir) }
         .to raise_error(described_class::Failed, /agent could not start \(no-such-agent-binary\)/)
     end
@@ -129,18 +130,18 @@ RSpec.describe Hecks::Adapters::Agent do
                      "puts try { File.write(#{inside.inspect}, \"x\") }\n")
         end
 
-        it "refuses writes outside the directories it names, and allows the ones inside", :aggregate_failures do
+        it "refuses writes outside the directories it names, and allows the ones inside", :aggregate_failures, :process do
           output = confined_ask(write_attempts(File.join(@dir, "inside")))
 
           expect(output.lines.map(&:strip)).to eq(%w[denied wrote])
           expect(File.exist?(marker)).to be(false)
         end
 
-        it "refuses to read credentials" do
+        it "refuses to read credentials", :process do
           expect(confined_ask(ruby_agent(AGENT_SSH_PROBE))).to eq("denied")
         end
 
-        it "passes on only the environment variables the profile names" do
+        it "passes on only the environment variables the profile names", :process do
           with_env_vars("AGENT_SPEC_ALLOWED" => "yes", "AGENT_SPEC_SECRET" => "no") do
             command = ruby_agent('puts [ENV["AGENT_SPEC_ALLOWED"], ENV["AGENT_SPEC_SECRET"].inspect].join(" ")')
 
@@ -148,7 +149,7 @@ RSpec.describe Hecks::Adapters::Agent do
           end
         end
 
-        it "keeps the network shut unless the profile opens it", :aggregate_failures do
+        it "keeps the network shut unless the profile opens it", :aggregate_failures, :process do
           with_listening_server do |server|
             command = ruby_agent(format(AGENT_NETWORK_PROBE, port: server.addr[1]))
 
@@ -157,7 +158,7 @@ RSpec.describe Hecks::Adapters::Agent do
           end
         end
 
-        it "stops an agent that runs past its timeout" do
+        it "stops an agent that runs past its timeout", :process do
           slow = Hecks::Adapters::AgentProfile.new(timeout: 1)
 
           expect { adapter.ask(prompt: "p", command: ruby_agent("sleep 30"), chdir: @dir, profile: slow) }

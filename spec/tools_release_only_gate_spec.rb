@@ -52,19 +52,19 @@ RSpec.describe Hecks::Tools::CiGateDecision, ".touched? for the release_only gat
     end
   end
 
-  it "inherits for a version bump on a certified base" do
+  it "inherits for a version bump on a certified base", :process do
     write("lib/hecks/version.rb", %(  VERSION = "3.11.0".freeze\n))
     commit("bump")
     expect(touched?).to be false
   end
 
-  it "runs the suite when the base is not certified" do
+  it "runs the suite when the base is not certified", :process do
     write("lib/hecks/version.rb", %(  VERSION = "3.11.0".freeze\n))
     commit("bump")
     expect(touched?(green: false)).to be true
   end
 
-  it "runs the suite when the bump carries another file" do
+  it "runs the suite when the bump carries another file", :process do
     write("lib/hecks/version.rb", %(  VERSION = "3.11.0".freeze\n))
     write("lib/hecks/runtime.rb", "b\n")
     commit("bump and more")

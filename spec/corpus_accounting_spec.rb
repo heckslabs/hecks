@@ -49,14 +49,14 @@ RSpec.describe Hecks::Corpus do
   end
 
   described_class::ROUTES.select { |route| route.check == :gitignored }.each do |route|
-    it "keeps #{route.pattern.inspect} ignored, with nothing it matches committed", :aggregate_failures do
+    it "keeps #{route.pattern.inspect} ignored, with nothing it matches committed", :aggregate_failures, :process do
       expect(ignore_rules).to include(route.names)
       expect(committed.grep(route.pattern)).to be_empty
     end
   end
 
   described_class::ROUTES.select { |route| route.check == :named_in }.each do |route|
-    it "routes #{route.pattern.inspect} to #{route.destination}, which names what it receives", :aggregate_failures do
+    it "routes #{route.pattern.inspect} to #{route.destination}, which names what it receives", :aggregate_failures, :process do
       routed = routed_to(route)
       expect(routed).not_to be_empty, "matches no committed bluebook first — delete it from Corpus::ROUTES"
 

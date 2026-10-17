@@ -160,7 +160,7 @@ RSpec.describe "the model checker's client profile" do
 
     # Pins hecks model_check reading every *.hecksagon in a directory, not just the
     # alphabetically first, so a later file's projected_by is not invisible to this rule.
-    it "is reached from hecks model_check when the projected_by is in a later hecksagon file", :aggregate_failures do
+    it "is reached from hecks model_check when the projected_by is in a later hecksagon file", :aggregate_failures, :process do
       output, status = model_check_later_hecksagon
 
       expect(output).to include("client_native_read_model", "OwnerWidgets")
