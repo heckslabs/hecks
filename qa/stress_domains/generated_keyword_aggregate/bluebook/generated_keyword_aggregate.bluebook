@@ -14,7 +14,7 @@ Hecks.bluebook "GeneratedKeywordAggregate" do
     attribute :priority, CratePriority, optional: true
 
     value_object "CrateCode" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
       invariant("a CrateCode is not blank") { !value.to_s.empty? }
     end
 
@@ -23,7 +23,7 @@ Hecks.bluebook "GeneratedKeywordAggregate" do
     end
 
     value_object "CrateNote" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
       invariant("a CrateNote is not blank") { !value.to_s.empty? }
     end
 

@@ -11,12 +11,12 @@ Hecks.bluebook "GeneratedRouteAppend" do
     attribute :code, HangarCode
 
     value_object "HangarCode" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
       invariant("a HangarCode is not blank") { !value.to_s.empty? }
     end
 
     value_object "HangarTag" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
       invariant("a HangarTag is not blank") { !value.to_s.empty? }
     end
 
@@ -65,7 +65,7 @@ Hecks.bluebook "GeneratedRouteAppend" do
     attribute :lines, list_of(Line)
 
     value_object "KioskCode" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
       invariant("a KioskCode is not blank") { !value.to_s.empty? }
     end
 
@@ -83,7 +83,7 @@ Hecks.bluebook "GeneratedRouteAppend" do
     end
 
     value_object "LineLabel" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
       invariant("a LineLabel is not blank") { !value.to_s.empty? }
     end
 

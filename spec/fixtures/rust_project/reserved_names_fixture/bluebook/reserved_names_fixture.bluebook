@@ -13,7 +13,7 @@ Hecks.bluebook "ReservedNamesFixture" do
     attribute :key, MetadataKey
 
     value_object "MetadataKey" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
       invariant("a metadata record is keyed") { !value.to_s.empty? }
     end
 
@@ -35,7 +35,7 @@ Hecks.bluebook "ReservedNamesFixture" do
     attribute :key, RegistryKey
 
     value_object "RegistryKey" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
       invariant("a registry record is keyed") { !value.to_s.empty? }
     end
 
@@ -57,7 +57,7 @@ Hecks.bluebook "ReservedNamesFixture" do
     attribute :key, MergedKey
 
     value_object "MergedKey" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
       invariant("a merged record is keyed") { !value.to_s.empty? }
     end
 

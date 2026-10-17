@@ -149,7 +149,7 @@ Hecks.bluebook "Underwriting" do
     attribute :amount,    Money
 
     value_object "Reference" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
     end
 
     value_object "Money" do

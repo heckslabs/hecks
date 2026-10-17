@@ -17,12 +17,12 @@ Hecks.bluebook "Banking" do
     attribute :account_number, AccountNumber
 
     value_object "OnboardingReference" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
       invariant("an onboarding case is referenced") { !value.to_s.empty? }
     end
 
     value_object "AccountNumber" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
       invariant("an account number is present") { !value.to_s.empty? }
     end
 

@@ -10,19 +10,19 @@ Hecks.bluebook "Hecks" do
     identified_by :domain
 
     value_object "DomainPath" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
 
       invariant("a domain is named by its path") { !value.to_s.empty? }
     end
 
     value_object "ChapterName" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
 
       invariant("a chapter is named") { !value.to_s.empty? }
     end
 
     value_object "AggregateName" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
 
       invariant("an aggregate is named") { !value.to_s.empty? }
     end
@@ -128,13 +128,13 @@ Hecks.bluebook "Hecks" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
 
       invariant("a run is named") { !value.to_s.empty? }
     end
 
     value_object "DomainList" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
     end
 
     value_object "ProfileName" do
@@ -254,7 +254,7 @@ Hecks.bluebook "Hecks" do
 
     # A directory: the source repository (`from`), or the project the files land in (`root`).
     value_object "Location" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
     end
 
     value_object "Report" do
@@ -383,18 +383,18 @@ Hecks.bluebook "Hecks" do
     identified_by :run
 
     value_object "RegistryKey" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
 
       invariant("a release is named") { !value.to_s.empty? }
     end
 
     value_object "PackageName" do
-      attribute :value, String, pattern: '^[a-z][a-z0-9_]*$'
+      attribute :value, String, matches: :snake_name
     end
 
     # The registry repository: the current directory when absent.
     value_object "Location" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
     end
 
     value_object "Report" do
@@ -520,14 +520,14 @@ Hecks.bluebook "Hecks" do
     identified_by :run
 
     value_object "LaunchKey" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
 
       invariant("a launch is named") { !value.to_s.empty? }
     end
 
     # Domain directories under the project, comma separated.
     value_object "DomainList" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
     end
 
     value_object "Switch" do
@@ -546,12 +546,12 @@ Hecks.bluebook "Hecks" do
 
     # Where the new domain goes; the domain's snake-cased name under the current directory when absent.
     value_object "TargetDir" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
     end
 
     # Who is interviewed; asked for at the terminal when absent.
     value_object "ExpertName" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
     end
 
     value_object "Note" do
@@ -724,7 +724,7 @@ Hecks.bluebook "Hecks" do
     identified_by :run
 
     value_object "BuildKey" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
 
       invariant("a build is named") { !value.to_s.empty? }
     end
@@ -737,18 +737,18 @@ Hecks.bluebook "Hecks" do
 
     # A generated module: the directory name a domain was built as.
     value_object "ModuleName" do
-      attribute :value, String, pattern: '^[a-z][a-z0-9_]*$'
+      attribute :value, String, matches: :snake_name
     end
 
     # A JSON file of steps for a domain to replay.
     value_object "ScriptPath" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
     end
 
     # What a build is replayed through: `native`, `build` (the domain's own feature), a `.wasm`
     # module, or a binary.
     value_object "Artifact" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
     end
 
     # A Rust target triple: `<arch>-<vendor>-<os>` with an optional `-<env>`. The toolchain
@@ -759,7 +759,7 @@ Hecks.bluebook "Hecks" do
 
     # The directory a host build stages its files in.
     value_object "StagePath" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
     end
 
     value_object "Count" do
@@ -1014,14 +1014,14 @@ Hecks.bluebook "Hecks" do
     identified_by :run
 
     value_object "FuzzKey" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
 
       invariant("a sweep is named") { !value.to_s.empty? }
     end
 
     # A domain directory; a sweep with none covers every domain of a hecks checkout.
     value_object "DomainPath" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
 
       invariant("a domain is named by its path") { !value.to_s.empty? }
     end
@@ -1054,7 +1054,7 @@ Hecks.bluebook "Hecks" do
     end
 
     value_object "BinaryPath" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
     end
 
     value_object "Format" do
@@ -1062,7 +1062,7 @@ Hecks.bluebook "Hecks" do
     end
 
     value_object "OutputPath" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
     end
 
     value_object "Report" do

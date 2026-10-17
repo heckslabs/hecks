@@ -27,14 +27,14 @@ Hecks.bluebook "Hecks" do
     identified_by :run
 
     value_object "OperationKey" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
 
       invariant("an operation is named") { !value.to_s.empty? }
     end
 
     # What the operation acts on: a domain directory, or a behaviors file or directory.
     value_object "Subject" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
     end
 
     value_object "Script" do
@@ -42,7 +42,7 @@ Hecks.bluebook "Hecks" do
     end
 
     value_object "Verb" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
     end
 
     # One `name=value` word of the verb a run dispatches.
@@ -59,7 +59,7 @@ Hecks.bluebook "Hecks" do
     end
 
     value_object "HeaderName" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
     end
 
     value_object "Scheme" do
@@ -71,7 +71,7 @@ Hecks.bluebook "Hecks" do
     end
 
     value_object "PayloadFile" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
     end
 
     value_object "Output" do
@@ -84,11 +84,11 @@ Hecks.bluebook "Hecks" do
     end
 
     value_object "PersonName" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
     end
 
     value_object "RoleName" do
-      attribute :value, String, pattern: '^[^ \t\n\r]+$'
+      attribute :value, String, matches: :no_whitespace
     end
 
     lifecycle :status, default: "requested" do
@@ -361,7 +361,7 @@ Hecks.bluebook "Hecks" do
 
     # The file listing the eras that should be running, one per line.
     value_object "ExpectedFile" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
     end
 
     value_object "Seconds" do
@@ -371,7 +371,7 @@ Hecks.bluebook "Hecks" do
     end
 
     value_object "EraId" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
     end
 
     value_object "VersionText" do
@@ -546,14 +546,14 @@ policy "RecordTheEra" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
 
       invariant("a change is named") { !value.to_s.empty? }
     end
 
     # The domain whose journal is changed: its directory.
     value_object "DomainPath" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
     end
 
     value_object "OperationName" do
@@ -574,7 +574,7 @@ policy "RecordTheEra" do
 
     # Aggregate names, comma separated; every aggregate that keeps a journal when absent.
     value_object "AggregateList" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
     end
 
     value_object "Switch" do
@@ -588,11 +588,11 @@ policy "RecordTheEra" do
     # The rehearsal a compute or rekey edge is approved on: the snapshot it ran against, the host
     # that ran it, whether it passed, and when.
     value_object "Snapshot" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
     end
 
     value_object "HostVersion" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
     end
 
     value_object "Verdict" do

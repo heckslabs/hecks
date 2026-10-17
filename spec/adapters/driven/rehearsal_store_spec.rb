@@ -160,7 +160,7 @@ RSpec.describe Hecks::Adapters::RehearsalStore, :io do
       declare_schema('schema "shop_data"')
       facts = surveyed
 
-      expect(facts[:schema_used]).to eq(name: "shop_data", source: "world", present: true)
+      expect(facts[:schema_used]).to eq(name: "shop_data", source: "world", matches: :present)
       expect(facts.values_at(:eras_held, :copy_empty)).to eq([{ value: 1 }, { value: false }])
     end
 

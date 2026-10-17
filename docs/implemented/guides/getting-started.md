@@ -56,7 +56,7 @@ Hecks.bluebook "Pizzas" do
     attribute :customer_name, CustomerName
 
     value_object "PizzaName" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
       invariant("a pizza is named") { !value.to_s.empty? }
     end
 
@@ -66,12 +66,12 @@ Hecks.bluebook "Pizzas" do
     end
 
     value_object "CustomerName" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
       invariant("a customer is named") { !value.to_s.empty? }
     end
 
     value_object "ToppingName" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
       invariant("a topping is named") { !value.to_s.empty? }
     end
 
@@ -81,7 +81,7 @@ Hecks.bluebook "Pizzas" do
     end
 
     value_object "Topping" do
-      attribute :name,   String, present: true
+      attribute :name,   String, matches: :present
       attribute :amount, Integer
     end
 

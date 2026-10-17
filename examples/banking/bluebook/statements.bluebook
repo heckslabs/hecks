@@ -14,7 +14,7 @@ Hecks.bluebook "Banking" do
     identified_by :account, :period
 
     value_object "StatementPeriod" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
       invariant("a statement names its period") { !value.to_s.empty? }
     end
 
@@ -23,7 +23,7 @@ Hecks.bluebook "Banking" do
     end
 
     value_object "StatementDate" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
       invariant("a statement is dated") { !value.to_s.empty? }
     end
 

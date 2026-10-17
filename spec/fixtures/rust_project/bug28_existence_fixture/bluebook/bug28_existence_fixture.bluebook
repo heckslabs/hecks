@@ -21,7 +21,7 @@ Hecks.bluebook "Bug28ExistenceFixture" do
     attribute :balance, Cents
 
     value_object "VaultCode" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
       invariant("a code is not blank") { !value.to_s.empty? }
     end
 

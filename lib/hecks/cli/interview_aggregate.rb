@@ -7,7 +7,7 @@ module Hecks
     # lifecycle. `InterviewDraft` extends it, and supplies the naming and citing helpers it calls.
     module InterviewAggregate
       # The option every generated string field carries: it refuses a blank value.
-      PRESENT = "present: true".freeze
+      PRESENT = "matches: :present".freeze
 
       # What stands in for a creating command nothing in the interview named.
       STUB_NOTE = "    # TODO: no action that creates was accepted; replace Create with the real one.".freeze

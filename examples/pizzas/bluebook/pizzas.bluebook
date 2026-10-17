@@ -14,7 +14,7 @@ Hecks.bluebook "Pizzas" do
     identified_by :name
 
     value_object "PizzaName" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
 
       invariant("a pizza is named") { !value.to_s.empty? }
     end
@@ -26,13 +26,13 @@ Hecks.bluebook "Pizzas" do
     end
 
     value_object "CustomerName" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
 
       invariant("a customer is named") { !value.to_s.empty? }
     end
 
     value_object "ToppingName" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
 
       invariant("a topping is named") { !value.to_s.empty? }
       # The pattern lets a form feed through; `.strip` is what sees past it.
@@ -46,7 +46,7 @@ Hecks.bluebook "Pizzas" do
     end
 
     value_object "Topping" do
-      attribute :name,   String, present: true
+      attribute :name,   String, matches: :present
       attribute :amount, Integer
     end
 

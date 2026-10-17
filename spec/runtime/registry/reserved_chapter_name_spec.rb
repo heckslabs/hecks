@@ -14,7 +14,7 @@ RSpec.describe "the reserved chapter name Hecks, checked at verify!" do
         identified_by :reference
 
         value_object "Reference" do
-          attribute :value, String, present: true
+          attribute :value, String, matches: :present
           invariant("a reference is present") { !value.to_s.empty? }
         end
       end

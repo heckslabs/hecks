@@ -13,7 +13,7 @@ Hecks.bluebook "HasManyFixture" do
     attribute :handle, Handle
 
     value_object "Handle" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
       invariant("a handle is not blank") { !value.to_s.empty? }
     end
 
@@ -36,7 +36,7 @@ Hecks.bluebook "HasManyFixture" do
     has_many Members
 
     value_object "CircleId" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
       invariant("a circle is referenced") { !value.to_s.empty? }
     end
 

@@ -132,9 +132,6 @@ pub(crate) fn kind_matches(declared: &str, actual: &str) -> bool {
     declared == "literal" && actual != "constant"
 }
 
-/// What `present: true` stands for: the pattern that refuses a blank value.
-const PRESENT_PATTERN: &str = r"[^ \t\n\r]";
-
 /// A `word(...)` call whose word is a live `Type`-context word (`list_of`, `one_of`).
 /// It fills a `constant` slot although it does not start with an uppercase letter.
 pub(crate) fn type_context_call_word(token: &str) -> Option<&str> {
@@ -1137,14 +1134,27 @@ pub(crate) fn build_attribute(
     let (type_name, list, closed_set) = resolve_type_expression(file, line, word, &name, text)?;
     let default = named_raw(args, "default").map(ruby_value::read);
     let optional = named_flag(args, "optional");
-    // `present: true` is the pattern that refuses a blank value.
-    let pattern = if named_flag(args, "present") {
-        if named_text(args, "pattern").is_some() {
-            return Err(Diagnostic::new(file, line, "present: true and pattern: both state the pattern".to_string()));
+    // `matches: :name` is the pattern the language gives that name.
+    let pattern = match named_symbol(args, "matches") {
+        Some(given) => {
+            if named_text(args, "pattern").is_some() {
+                return Err(Diagnostic::new(file, line, "matches: and pattern: both state the pattern".to_string()));
+            }
+            match crate::build::named_pattern::source(&given) {
+                Some(source) => Some(source.to_string()),
+                None => {
+                    return Err(Diagnostic::new(
+                        file,
+                        line,
+                        format!(
+                            "matches: {given:?} is not a named pattern — the names are {}",
+                            crate::build::named_pattern::names().join(", ")
+                        ),
+                    ))
+                }
+            }
         }
-        Some(PRESENT_PATTERN.to_string())
-    } else {
-        named_text(args, "pattern")
+        None => named_text(args, "pattern"),
     };
     let admits = named_text(args, "admits");
     // Fail closed at declaration time on a pattern outside the shared subset, as Ruby does.

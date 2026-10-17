@@ -18,7 +18,7 @@ RSpec.describe Hecks::Adapters::InProcessBoot do
         identified_by :title
 
         value_object "Title" do
-          attribute :value, String, pattern: '[^ \\t\\n\\r]'
+          attribute :value, String, matches: :present
           invariant("a book is titled") { !value.to_s.empty? }
         end
 

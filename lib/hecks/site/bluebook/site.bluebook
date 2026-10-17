@@ -129,14 +129,14 @@ Hecks.bluebook "Site" do
     identified_by :run
 
     value_object "RunKey" do
-      attribute :value, String, present: true
+      attribute :value, String, matches: :present
 
       invariant("a run is named") { !value.to_s.empty? }
     end
 
     # A project directory, whose `bluebook/` holds the chapter that declares the route table.
     value_object "DomainPath" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
 
       invariant("a project is named by its path") { !value.to_s.empty? }
     end
@@ -144,7 +144,7 @@ Hecks.bluebook "Site" do
     # A directory or file anywhere on disk, relative to where the command runs: where routes.ts is
     # written when not in the project's generated/ directory, or the template to rewrite in place.
     value_object "Location" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
     end
 
     # The file extension of the generated module: `ts` (routes.ts), or `mts` (routes.mts), which
@@ -164,12 +164,12 @@ Hecks.bluebook "Site" do
 
     # Path patterns, comma separated: the behaviours a change is about to add to the live distribution.
     value_object "PathList" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
     end
 
     # Policy references and the ids they stand for live, as `!Ref Name=id`, comma separated.
     value_object "PolicyRefs" do
-      attribute :value, String, pattern: '[^\t\n\r]'
+      attribute :value, String, matches: :not_empty
     end
 
     # A running site's address, `https://example.org`: what `check_site` sends its requests to.
