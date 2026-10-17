@@ -1,0 +1,28 @@
+{
+  "audience": "Governance",
+  "scopes": [
+    {
+      "scope": "governance:role_assignment.assign",
+      "verb": "Governance::RoleAssignment.Assign",
+      "role": "Governance administrator"
+    },
+    {
+      "scope": "governance:role_assignment.revoke",
+      "verb": "Governance::RoleAssignment.Revoke",
+      "role": "Governance administrator"
+    },
+    {
+      "scope": "governance:role_transition.grant",
+      "verb": "Governance::RoleTransition.Grant",
+      "role": "Governance administrator"
+    },
+    {
+      "scope": "governance:role_transition.revoke",
+      "verb": "Governance::RoleTransition.Revoke",
+      "role": "Governance administrator"
+    }
+  ],
+  "roles": [
+    "Governance administrator"
+  ]
+}

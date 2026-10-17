@@ -1,0 +1,103 @@
+{
+  "audience": "ConsoleSettings",
+  "scopes": [
+    {
+      "scope": "console_settings:collection.declare",
+      "verb": "ConsoleSettings::Collection.Declare",
+      "role": "Console"
+    },
+    {
+      "scope": "console_settings:collection.replace_columns",
+      "verb": "ConsoleSettings::Collection.ReplaceColumns",
+      "role": "Console"
+    },
+    {
+      "scope": "console_settings:collection.replace_detail_field_columns",
+      "verb": "ConsoleSettings::Collection.ReplaceDetailFieldColumns",
+      "role": "Console"
+    },
+    {
+      "scope": "console_settings:collection.replace_detail_fields",
+      "verb": "ConsoleSettings::Collection.ReplaceDetailFields",
+      "role": "Console"
+    },
+    {
+      "scope": "console_settings:collection.replace_field_formats",
+      "verb": "ConsoleSettings::Collection.ReplaceFieldFormats",
+      "role": "Console"
+    },
+    {
+      "scope": "console_settings:collection.replace_preconditions",
+      "verb": "ConsoleSettings::Collection.ReplacePreconditions",
+      "role": "Console"
+    },
+    {
+      "scope": "console_settings:collection.set_extra",
+      "verb": "ConsoleSettings::Collection.SetExtra",
+      "role": "Console"
+    },
+    {
+      "scope": "console_settings:collection.set_identity",
+      "verb": "ConsoleSettings::Collection.SetIdentity",
+      "role": "Console"
+    },
+    {
+      "scope": "console_settings:collection.set_key",
+      "verb": "ConsoleSettings::Collection.SetKey",
+      "role": "Console"
+    },
+    {
+      "scope": "console_settings:collection.set_label",
+      "verb": "ConsoleSettings::Collection.SetLabel",
+      "role": "Console"
+    },
+    {
+      "scope": "console_settings:collection.set_list_query",
+      "verb": "ConsoleSettings::Collection.SetListQuery",
+      "role": "Console"
+    },
+    {
+      "scope": "console_settings:collection.set_nav_order",
+      "verb": "ConsoleSettings::Collection.SetNavOrder",
+      "role": "Console"
+    },
+    {
+      "scope": "console_settings:collection.set_primary_field",
+      "verb": "ConsoleSettings::Collection.SetPrimaryField",
+      "role": "Console"
+    },
+    {
+      "scope": "console_settings:overview.declare",
+      "verb": "ConsoleSettings::Overview.Declare",
+      "role": "Console"
+    },
+    {
+      "scope": "console_settings:overview.replace_stats",
+      "verb": "ConsoleSettings::Overview.ReplaceStats",
+      "role": "Console"
+    },
+    {
+      "scope": "console_settings:state_style.declare",
+      "verb": "ConsoleSettings::StateStyle.Declare",
+      "role": "Console"
+    },
+    {
+      "scope": "console_settings:state_style.set_attention",
+      "verb": "ConsoleSettings::StateStyle.SetAttention",
+      "role": "Console"
+    },
+    {
+      "scope": "console_settings:state_style.set_extra",
+      "verb": "ConsoleSettings::StateStyle.SetExtra",
+      "role": "Console"
+    },
+    {
+      "scope": "console_settings:state_style.set_tone",
+      "verb": "ConsoleSettings::StateStyle.SetTone",
+      "role": "Console"
+    }
+  ],
+  "roles": [
+    "Console"
+  ]
+}
