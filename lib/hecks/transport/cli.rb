@@ -2,7 +2,7 @@
 
 module Hecks
   # The clients adapters reach the outside world through, shared so each adapter adds only what
-  # is particular to its service (ADR 0116).
+  # is particular to its service (ADR 0118).
   module Transport
     # The transport that runs another program: an argument list in, what it said out.
     #
