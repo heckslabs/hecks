@@ -42,7 +42,7 @@ module Hecks
             held = records(aggregate.name).size
             Census::Count.new(aggregate: aggregate.name, head: held, journal: held)
           end
-          Census.new(schema: "(memory document)", source: "memory", matches: :present, eras: eras(subject).size,
+          Census.new(schema: "(memory document)", source: "memory", present: true, eras: eras(subject).size,
                      journal_entries: counts.sum(&:journal), counts: counts)
         end
 
