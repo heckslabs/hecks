@@ -197,6 +197,7 @@ async fn tenant(name: &str) -> Tenant {
         direct_live_publishable_key: String::new(),
         webhook_secret: Some(WEBHOOK_SECRET.to_string()),
         operators: vec![OPERATOR.to_string()],
+        manager_roles: roles::default_roles(),
     };
     Tenant {
         client,
@@ -410,6 +411,30 @@ async fn only_an_owner_may_connect_or_disconnect_and_only_the_operator_may_enabl
     assert_eq!((body["can_manage"].clone(), body["can_enable"].clone()), (json!(false), json!(true)));
     t.enable().await;
     assert_eq!(t.status().await, "enabled");
+}
+
+#[tokio::test]
+async fn a_site_that_lists_admin_as_a_payments_manager_lets_an_admin_manage() {
+    let mut t = tenant("hecks_pay_test_manager_roles").await;
+    t.platform.manager_roles = vec!["Owner".to_string(), "Admin".to_string()];
+
+    let (status, body) = t.call("GET", "/payments/connection", json!({}), Some(ADMIN)).await;
+    assert_eq!((status, body["can_manage"].clone()), (200, json!(true)), "{body}");
+    t.connect().await;
+    assert_eq!(t.status().await, "connected");
+    let (status, _) = t.call("POST", "/payments/connection/disconnect", json!({}), Some(ADMIN)).await;
+    assert_eq!(status, 200);
+    assert_eq!(t.status().await, "disconnected");
+
+    // Enabling stays with the operator, and the Owner still manages.
+    let (status, body) = t.call("GET", "/payments/connection", json!({}), Some(OWNER)).await;
+    assert_eq!((status, body["can_manage"].clone()), (200, json!(true)), "{body}");
+    // Someone signed out, or not listed, is refused with today's message.
+    let (status, _) = t.call("GET", "/payments/connection", json!({}), None).await;
+    assert_eq!(status, 401);
+    t.platform.manager_roles = vec!["Editor".to_string()];
+    let (status, body) = t.call("POST", "/payments/connection/direct", json!({"mode": "test"}), Some(OWNER)).await;
+    assert_eq!((status, body["error"].as_str()), (403, Some("only an Owner can manage payments")));
 }
 
 #[tokio::test]

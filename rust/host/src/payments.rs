@@ -15,6 +15,8 @@ use tokio::sync::Mutex;
 use tokio_postgres::Client;
 
 mod keystore;
+/// Which member roles may manage payments (`HECKS_PAYMENTS_MANAGER_ROLES`).
+pub mod roles;
 use keystore::{KeyStore, StoredDocument, StoredKeys};
 
 const CONNECTION_SLUG: &str = "payments";
@@ -63,11 +65,16 @@ pub struct PlatformConfig {
     pub webhook_secret: Option<String>,
     /// Lower-cased emails allowed to enable or disable real payments.
     pub operators: Vec<String>,
+    /// The exact role names that may manage payments (`HECKS_PAYMENTS_MANAGER_ROLES`,
+    /// default `Owner`), read once at boot; see `roles`.
+    pub manager_roles: Vec<String>,
 }
 
-/// Refuses the boot on AWS when checkout is enabled but `PAYMENTS_ACCOUNT_SECRET_ID`
-/// names no secret; off AWS, or with checkout off, the host boots as usual.
+/// Refuses the boot when `HECKS_PAYMENTS_MANAGER_ROLES` is invalid, and on AWS when
+/// checkout is enabled but `PAYMENTS_ACCOUNT_SECRET_ID` names no secret; off AWS, or with
+/// checkout off, the host boots as usual.
 pub fn check_boot(checkout_enabled: bool) -> Result<(), String> {
+    roles::check_boot()?;
     keystore::check_boot(checkout_enabled)
 }
 
@@ -102,6 +109,7 @@ impl PlatformConfig {
                 .map(|email| email.trim().to_lowercase())
                 .filter(|email| !email.is_empty())
                 .collect(),
+            manager_roles: roles::manager_roles(),
         }
     }
 
@@ -276,7 +284,7 @@ fn refusal_message(refusal: &Value) -> String {
 }
 
 struct Caller {
-    owner: bool,
+    manager: bool,
     operator: bool,
 }
 
@@ -288,14 +296,14 @@ async fn caller(domain_ir: &Value, cookies: &HashMap<String, String>, secret: &s
         return Err(not_logged_in());
     };
     match auth::active_role(client, domain_ir, &email).await {
-        Ok(Some(role)) => Ok(Caller { owner: role == "Owner", operator: platform.is_operator(&email) }),
+        Ok(Some(role)) => Ok(Caller { manager: roles::manages(&platform.manager_roles, &role), operator: platform.is_operator(&email) }),
         Ok(None) => Err(not_logged_in()),
         Err(e) => Err(json_error(500, &format!("members lookup failed: {e}"))),
     }
 }
 
-fn require_owner(caller: &Caller) -> Result<(), Value> {
-    if caller.owner { Ok(()) } else { Err(json_error(403, "only an Owner can manage payments")) }
+fn require_manager(caller: &Caller) -> Result<(), Value> {
+    if caller.manager { Ok(()) } else { Err(json_error(403, "only an Owner can manage payments")) }
 }
 
 fn require_operator(caller: &Caller) -> Result<(), Value> {
@@ -322,7 +330,7 @@ fn connection_json(connection: Option<&Connection>, platform: &PlatformConfig, c
         "direct_modes": platform.direct_modes(),
         "direct": connection.is_some_and(Connection::is_direct),
         "can_save_keys": platform.can_save_keys(),
-        "can_manage": caller.owner,
+        "can_manage": caller.manager,
         "can_enable": caller.operator,
     })
 }
@@ -375,9 +383,9 @@ pub async fn route(
     })
 }
 
-// GET: readable by an Owner or the operator, nobody else.
+// GET: readable by a payments manager or the operator, nobody else.
 async fn show(caller: &Caller, platform: &PlatformConfig, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig) -> Value {
-    if !caller.owner && !caller.operator {
+    if !caller.manager && !caller.operator {
         return json_error(403, "not permitted");
     }
     connection_response(caller, platform, client, wasm_path, config).await
@@ -429,7 +437,7 @@ async fn record_connection(
 // name), and the key itself is never stored or logged.
 #[allow(clippy::too_many_arguments)]
 async fn direct_route(caller: &Caller, raw_body: &str, platform: &PlatformConfig, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, invoker: &dyn LambdaInvoker) -> Value {
-    if let Err(response) = require_owner(caller) {
+    if let Err(response) = require_manager(caller) {
         return response;
     }
     let body = match parse_body(raw_body) {
@@ -462,7 +470,7 @@ async fn direct_route(caller: &Caller, raw_body: &str, platform: &PlatformConfig
 // guests have paid through this account. Disconnecting the business's own account
 // also removes its webhook and deletes the saved keys.
 async fn disconnect_route(caller: &Caller, platform: &PlatformConfig, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, invoker: &dyn LambdaInvoker) -> Value {
-    if let Err(response) = require_owner(caller) {
+    if let Err(response) = require_manager(caller) {
         return response;
     }
     let existing = match current_connection(client, wasm_path, config).await {
@@ -762,6 +770,7 @@ pub(crate) fn test_platform() -> PlatformConfig {
         direct_live_publishable_key: String::new(),
         webhook_secret: None,
         operators: Vec::new(),
+        manager_roles: roles::default_roles(),
     }
 }
 
