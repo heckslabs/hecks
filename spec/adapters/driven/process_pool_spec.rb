@@ -9,7 +9,7 @@ RSpec.describe Hecks::Adapters::ProcessPool do
 
   after { described_class.starter = nil }
 
-  it "answers what a child wrote, stdout and stderr together, and how it ended", :aggregate_failures do
+  it "answers what a child wrote, stdout and stderr together, and how it ended", :aggregate_failures, :process do
     finished = pool.run(["sh", "-c", "echo out; echo err >&2; exit 3"])
 
     expect(finished.output).to include("out").and include("err")
@@ -17,7 +17,7 @@ RSpec.describe Hecks::Adapters::ProcessPool do
     expect(finished.status.exitstatus).to eq(3)
   end
 
-  it "runs a child in the directory and with the variables it is given" do
+  it "runs a child in the directory and with the variables it is given", :process do
     Dir.mktmpdir("pool") do |dir|
       finished = pool.run(["sh", "-c", "echo $POOL_SPEC-$(basename $PWD)"], env: { "POOL_SPEC" => "x" }, chdir: dir)
 
@@ -25,14 +25,14 @@ RSpec.describe Hecks::Adapters::ProcessPool do
     end
   end
 
-  it "answers a program that is not installed as a failure with a reason, not a raise", :aggregate_failures do
+  it "answers a program that is not installed as a failure with a reason, not a raise", :aggregate_failures, :process do
     finished = pool.run(["no-such-program-anywhere"])
 
     expect(finished).not_to be_ok
     expect(finished.output).to include("no-such-program-anywhere")
   end
 
-  it "does not block on a child that writes more than a pipe holds" do
+  it "does not block on a child that writes more than a pipe holds", :process do
     finished = pool.run(["sh", "-c", "head -c 300000 /dev/zero | tr '\\0' x"])
 
     expect(finished.output.size).to eq(300_000)
@@ -70,7 +70,7 @@ RSpec.describe Hecks::Adapters::ProcessPool do
   end
 
   %w[INT TERM HUP QUIT].each do |name|
-    it "forwards a #{name} that arrives while the child is still being spawned", :aggregate_failures do
+    it "forwards a #{name} that arrives while the child is still being spawned", :aggregate_failures, :process do
       signal_before_spawn(name)
 
       finished = pool.run(["sh", "-c", "sleep 30"])
@@ -82,7 +82,7 @@ RSpec.describe Hecks::Adapters::ProcessPool do
 
   def trapped_handlers = %w[INT TERM HUP QUIT].to_h { |name| [name, trap(name, "DEFAULT")] }
 
-  it "restores the previous signal handlers afterwards" do
+  it "restores the previous signal handlers afterwards", :process do
     before = trapped_handlers
     pool.run(["true"])
     expect(trapped_handlers.values).to all(eq("DEFAULT"))

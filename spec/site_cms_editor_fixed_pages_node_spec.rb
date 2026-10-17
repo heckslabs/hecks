@@ -170,7 +170,8 @@ RSpec.describe "the generated fixed-structure page editor, run by node" do
   def names_in(html) = html.scan(/ name="([a-z_]+\.[a-z_.0-9]+)"/).flatten
 
   describe "the form of a working copy that is a value object", if: EditorNode.available? do
-    it "marks the form as saved as a whole, with the draft's status and the publish and discard buttons", :aggregate_failures do
+    it "marks the form as saved as a whole, with the draft's status and the publish and discard buttons", :aggregate_failures,
+       :process do
       html = result("storyDraft")
 
       expect(html).to include('data-draft="draft_content" data-draft-form', "data-draft-status", "A draft is saved.")
@@ -178,28 +179,28 @@ RSpec.describe "the generated fixed-structure page editor, run by node" do
                               "data-flush-draft")
     end
 
-    it "starts from the live content when no draft is saved, then says none is", :aggregate_failures do
+    it "starts from the live content when no draft is saved, then says none is", :aggregate_failures, :process do
       html = result("freshDraft")
 
       expect(html).to include("No draft is saved yet.", 'value="Chapter 1"')
       expect(html).to include('confirm-DiscardDraft" hidden data-draft-discard>Discard draft</a>')
     end
 
-    it "shows the draft, not the live content, when one is saved" do
+    it "shows the draft, not the live content, when one is saved", :process do
       html = result("storyDraft")
 
       expect(html.scan(/data-card data-index="\d+" data-kind=""/).size).to eq(2 + 2)
     end
 
     it "says on the record's page that changes are not published yet, and shows its content as read-only parts",
-       :aggregate_failures do
+       :aggregate_failures, :process do
       html = result("storyDetail")
 
       expect(html).to include("Changes not published yet", "<ol class=\"grid list-decimal gap-3 pl-6\">", "Chapter 12")
       expect(html).not_to include("&quot;blocks&quot;")
     end
 
-    it "offers the creating command the same form, with the first chapter to add", :aggregate_failures do
+    it "offers the creating command the same form, with the first chapter to add", :aggregate_failures, :process do
       html = result("newStory")
 
       expect(html).to include("data-block-list", "No chapters yet.", 'name="content.chapters.ZZI0ZZ.heading"')
@@ -209,21 +210,21 @@ RSpec.describe "the generated fixed-structure page editor, run by node" do
   describe "repeated groups that hold groups", if: EditorNode.available? do
     let(:html) { result("storyDraft") }
 
-    it "draws a list whose members hold writing, a picture or a list as cards, in order", :aggregate_failures do
+    it "draws a list whose members hold writing, a picture or a list as cards, in order", :aggregate_failures, :process do
       expect(html).to include('data-block-list data-group data-path="draft_content.chapters" data-noun="chapter" data-depth="0"')
       ids = html.scan(/ id="(blk-draft-content-chapters-\d+)" data-card data-index/).flatten
 
       expect(ids).to eq(%w[blk-draft-content-chapters-0 blk-draft-content-chapters-1])
     end
 
-    it "says the limits the holder's rules give, and carries the most as data", :aggregate_failures do
+    it "says the limits the holder's rules give, and carries the most as data", :aggregate_failures, :process do
       expect(html).to include("At least 1 and at most 60.", 'data-max="60"')
       expect(card(html, "draft-content-chapters",
                   0)).to include('data-path="draft_content.chapters.0.parts" data-noun="part" data-max="12"')
     end
 
     it "gives each card move up, move down and remove buttons that name it, and a live region for what moved",
-       :aggregate_failures do
+       :aggregate_failures, :process do
       first = card(html, "draft-content-chapters", 0)
 
       expect(first).to include('data-action="up"', 'data-action="down"', 'data-action="remove"',
@@ -232,13 +233,14 @@ RSpec.describe "the generated fixed-structure page editor, run by node" do
     end
 
     it "carries the markup of a new member as a template, with the index of a nested one left for the script",
-       :aggregate_failures do
+       :aggregate_failures, :process do
       expect(html).to match(/<template data-card-template data-kind="">.*draft_content\.chapters\.ZZI0ZZ\.heading/m)
       expect(html).to include("draft_content.chapters.ZZI0ZZ.parts.ZZI1ZZ.heading",
                               'id="blk-draft-content-chapters-ZZI0ZZ-parts-ZZI1ZZ"')
     end
 
-    it "marks what a member is required to have as its value object declares, and what is optional", :aggregate_failures do
+    it "marks what a member is required to have as its value object declares, and what is optional", :aggregate_failures,
+       :process do
       part = card(html, "draft-content-chapters-0-parts", 0)
 
       expect(part).to include('data-requires="heading body"')
@@ -247,14 +249,14 @@ RSpec.describe "the generated fixed-structure page editor, run by node" do
                   0)).to include("Verse <span class=\"ml-1 text-xs font-normal text-muted\">optional</span>")
     end
 
-    it "holds a group of its own as fields named by the member's index and the part's", :aggregate_failures do
+    it "holds a group of its own as fields named by the member's index and the part's", :aggregate_failures, :process do
       names = names_in(card(html, "draft-content-chapters", 0))
 
       expect(names).to include("draft_content.chapters.0.heading", "draft_content.chapters.0.parts.0.heading",
                                "draft_content.chapters.0.parts.0.body.blocks.0.kind", "draft_content.chapters.0.band.align.value")
     end
 
-    it "draws a closed set as a choice, with none for an optional one", :aggregate_failures do
+    it "draws a closed set as a choice, with none for an optional one", :aggregate_failures, :process do
       first = card(html, "draft-content-chapters", 0)
 
       expect(first).to match(%r{<select[^>]*name="draft_content.chapters.0.band.align.value".*?<option value="">None</option>}m)
@@ -265,13 +267,13 @@ RSpec.describe "the generated fixed-structure page editor, run by node" do
   describe "a group of plain inputs that holds one of its own", if: EditorNode.available? do
     let(:html) { result("noteDraft") }
 
-    it "stays a run of rows, the rows of its own nested, with a blank row to fill at each level", :aggregate_failures do
+    it "stays a run of rows, the rows of its own nested, with a blank row to fill at each level", :aggregate_failures, :process do
       expect(html).to include('data-repeat data-path="draft_content.rows"', 'data-repeat data-path="draft_content.rows.0.cells"')
       expect(html).to include('name="draft_content.rows.0.cells.1.text"', 'name="draft_content.rows.1.title"',
                               'name="draft_content.rows.0.cells.2.text"')
     end
 
-    it "says the limit of the run, and carries it for the script", :aggregate_failures do
+    it "says the limit of the run, and carries it for the script", :aggregate_failures, :process do
       expect(html).to include('data-noun="row" data-max="20"', 'data-noun="cell" data-max="8"', "At most 20.")
     end
   end
@@ -279,13 +281,13 @@ RSpec.describe "the generated fixed-structure page editor, run by node" do
   describe "a picture slot", if: EditorNode.available? do
     let(:html) { result("storyDraft") }
 
-    it "keeps the file and the description together with the picker's button, outside a list", :aggregate_failures do
+    it "keeps the file and the description together with the picker's button, outside a list", :aggregate_failures, :process do
       expect(html).to include('data-picture data-key="draft_content.hero.picture.media_ref"',
                               'data-alt="draft_content.hero.picture.alt"')
       expect(html).to match(%r{data-alt="draft_content.hero.picture.alt".*?data-action="pick-picture" data-media="/editor}m)
     end
 
-    it "does the same in a member of a group, at any depth", :aggregate_failures do
+    it "does the same in a member of a group, at any depth", :aggregate_failures, :process do
       first = card(html, "draft-content-chapters", 0)
 
       expect(first).to include('data-picture data-key="draft_content.chapters.0.band.media_ref"',
@@ -293,14 +295,14 @@ RSpec.describe "the generated fixed-structure page editor, run by node" do
       expect(first).to include('data-action="pick-picture"')
     end
 
-    it "draws a list of pictures as cards that say the description, with the picker in each", :aggregate_failures do
+    it "draws a list of pictures as cards that say the description, with the picker in each", :aggregate_failures, :process do
       gallery = result("galleryDraft")
 
       expect(gallery).to include('data-summary-alt="alt"', 'data-requires="media_ref alt"', "data-card-summary>Red door</span>")
       expect(gallery).to include('data-picture data-key="draft_content.photos.0.media_ref" data-alt="draft_content.photos.0.alt"')
     end
 
-    it "draws a picture of a person in a roster the same way, beside a writing box", :aggregate_failures do
+    it "draws a picture of a person in a roster the same way, beside a writing box", :aggregate_failures, :process do
       roster = result("rosterDraft")
 
       expect(roster).to include('data-picture data-key="draft_people.0.portrait.media_ref"')
@@ -311,13 +313,14 @@ RSpec.describe "the generated fixed-structure page editor, run by node" do
   describe "a writing box for a long text", if: EditorNode.available? do
     let(:html) { result("noteDraft") }
 
-    it "is a textarea with its limit and a line that says it, for a text a rule bounds above 200", :aggregate_failures do
+    it "is a textarea with its limit and a line that says it, for a text a rule bounds above 200", :aggregate_failures,
+       :process do
       expect(html).to match(/<textarea class="textarea [^"]*" rows="5" id="f-draft-content-summary"/)
       expect(html).to include('name="draft_content.summary" maxlength="600" aria-describedby="f-draft-content-summary-hint">')
       expect(html).to include('id="f-draft-content-summary-hint">Up to 600 characters.</p>')
     end
 
-    it "keeps the line breaks of what is held, and a short text a single line with its limit", :aggregate_failures do
+    it "keeps the line breaks of what is held, and a short text a single line with its limit", :aggregate_failures, :process do
       expect(html).to include("Short.\nTwo lines.</textarea>")
       expect(html).to match(/<input type="text"[^>]*name="draft_content.heading"[^>]*maxlength="120"/)
     end
@@ -326,7 +329,7 @@ RSpec.describe "the generated fixed-structure page editor, run by node" do
   describe "the form turned back into the command's arguments", if: EditorNode.available? do
     def encoding(key) = result("encoding").fetch(key)
 
-    it "sends the working copy whole: groups, their members in order, bodies and nested members", :aggregate_failures do
+    it "sends the working copy whole: groups, their members in order, bodies and nested members", :aggregate_failures, :process do
       content = encoding("whole").fetch("draft_content")
       band = { "media_ref" => "bb.png", "alt" => "Gate", "align" => { "value" => "center" } }
 
@@ -335,49 +338,49 @@ RSpec.describe "the generated fixed-structure page editor, run by node" do
       expect(content.dig("chapters", 1, "parts", 0, "body", "blocks", 0, "spans", 0, "text")).to eq("Part")
     end
 
-    it "leaves out an optional group with nothing in it, at any depth", :aggregate_failures do
+    it "leaves out an optional group with nothing in it, at any depth", :aggregate_failures, :process do
       content = encoding("blankGroupsLeftOut").fetch("draft_content")
 
       expect(content).not_to have_key("hero")
       expect(content["chapters"]).to eq([{ "heading" => "One", "parts" => [] }])
     end
 
-    it "keeps a group with something in it whole, a required part sent empty so the domain words the refusal" do
+    it "keeps a group with something in it whole, a required part sent empty so the domain words the refusal", :process do
       expect(encoding("halfFilledGroupKept").dig("draft_content", "chapters", 0,
                                                  "band")).to eq("media_ref" => "bb.png", "alt" => "")
     end
 
-    it "drops a member left entirely empty, and keeps one that has anything", :aggregate_failures do
+    it "drops a member left entirely empty, and keeps one that has anything", :aggregate_failures, :process do
       expect(encoding("blankMemberDropped").dig("draft_content", "chapters").map { |one| one["heading"] }).to eq(["Two"])
       expect(encoding("blankPartDropped").dig("draft_content", "chapters", 0, "parts").map do |one|
         one["heading"]
       end).to eq(["Kept"])
     end
 
-    it "orders members by their index, not by where their fields are in the form", :aggregate_failures do
+    it "orders members by their index, not by where their fields are in the form", :aggregate_failures, :process do
       expect(encoding("order")).to eq(%w[First Second Third])
       expect(encoding("partsOrder")).to eq(%w[A B])
     end
 
-    it "sends an empty list for a list nobody filled, so the domain refuses it in its own words" do
+    it "sends an empty list for a list nobody filled, so the domain refuses it in its own words", :process do
       expect(encoding("noChapters").dig("draft_content", "chapters")).to eq([])
     end
 
     it "sends nothing for the clearing argument of a value object, and an empty list for a list's",
-       :aggregate_failures do
+       :aggregate_failures, :process do
       expect(encoding("publishClears")).to eq({})
       expect(encoding("rosterPublishClears")).to eq("nothing" => [])
       expect(encoding("rosterDiscardClears")).to eq("nothing" => [])
     end
 
-    it "drops the member of a list whose parts are all blank, and a picture with nothing in it", :aggregate_failures do
+    it "drops the member of a list whose parts are all blank, and a picture with nothing in it", :aggregate_failures, :process do
       people = encoding("rosterList").fetch("draft_people")
 
       expect(people.map { |one| one["name"] }).to eq(["Ann"])
       expect(people[0]).not_to have_key("portrait")
     end
 
-    it "reads a line break as the one character the domain holds" do
+    it "reads a line break as the one character the domain holds", :process do
       expect(encoding("crlf")).to eq("One\nTwo")
     end
   end
@@ -385,66 +388,67 @@ RSpec.describe "the generated fixed-structure page editor, run by node" do
   describe "which part of the page a refusal is about", if: EditorNode.available? do
     def refusal(key) = result("refusals").fetch(key)
 
-    it "finds the group whose value the refusal echoes, and not one that differs in a part", :aggregate_failures do
+    it "finds the group whose value the refusal echoes, and not one that differs in a part", :aggregate_failures, :process do
       found = refusal("bandNotDescribed")
 
       expect(found.map { |one| one["name"] }).to eq(["draft_content.chapters.1.band"])
       expect(found.first).to include("message" => "A band is described.", "slots" => ["alt"])
     end
 
-    it "finds the only group of its type when nothing is echoed, and the slot it lacks", :aggregate_failures do
+    it "finds the only group of its type when nothing is echoed, and the slot it lacks", :aggregate_failures, :process do
       found = refusal("onlyOneOfItsType")
 
       expect(found.map { |one| one["name"] }).to eq(["draft_content.chapters.1.verse"])
       expect(found.first["slots"]).to eq(["body"])
     end
 
-    it "names nothing when several groups could be it and nothing says which" do
+    it "names nothing when several groups could be it and nothing says which", :process do
       expect(refusal("ambiguous")).to eq([])
     end
 
-    it "finds the member of a list by its own rule, with its path in the arguments", :aggregate_failures do
+    it "finds the member of a list by its own rule, with its path in the arguments", :aggregate_failures, :process do
       found = refusal("chapterSaysNothing")
 
       expect(found.map { |one| one["name"] }).to eq(["draft_content.chapters.1"])
       expect(found.first["path"]).to eq(["draft_content", "chapters", 1])
     end
 
-    it "finds a member of a group inside a member, at depth two" do
+    it "finds a member of a group inside a member, at depth two", :process do
       expect(refusal("partOfAChapter").map { |one| one["name"] }).to eq(["draft_content.chapters.0.parts.1"])
     end
 
-    it "finds the rule of the content as a whole, and the part of it that is short", :aggregate_failures do
+    it "finds the rule of the content as a whole, and the part of it that is short", :aggregate_failures, :process do
       found = refusal("contentRule")
 
       expect(found.map { |one| one["name"] }).to eq(["draft_content"])
       expect(found.first["slots"]).to eq(["chapters"])
     end
 
-    it "finds a picture in a hero as it finds one anywhere" do
+    it "finds a picture in a hero as it finds one anywhere", :process do
       expect(refusal("heroPicture").map { |one| [one["name"], one["slots"]] }).to eq([["draft_content.hero.picture", ["alt"]]])
     end
 
-    it "names nothing for a refusal that is not about a value of the arguments" do
+    it "names nothing for a refusal that is not about a value of the arguments", :process do
       expect(refusal("notAboutAValue")).to eq([])
     end
   end
 
   describe "what is drawn as a card and what stays a row", if: EditorNode.available? do
     it "takes a member that holds a body or a picture for a card, and a plain one, rows of its own too, for a row",
-       :aggregate_failures do
+       :aggregate_failures, :process do
       # A picture is a card when it is a member itself: the list attribute says so (`picture`).
       expect(result("heavy")).to eq("chapters" => true, "part" => true, "hero" => true, "band" => false, "key" => false,
                                     "row" => false, "cell" => false)
     end
 
-    it "stands for a picture by its description, a member by what it holds", :aggregate_failures do
+    it "stands for a picture by its description, a member by what it holds", :aggregate_failures, :process do
       expect(result("summaries")).to eq(["Red door", "aa.png", "One", "2 parts"])
     end
   end
 
   describe "saving, publishing and discarding", if: EditorNode.available? do
-    it "sends the whole working copy in one command, in order, and returns to where it came from", :aggregate_failures do
+    it "sends the whole working copy in one command, in order, and returns to where it came from", :aggregate_failures,
+       :process do
       saved = result("saved")
 
       expect(saved["status"]).to eq(303)
@@ -452,14 +456,14 @@ RSpec.describe "the generated fixed-structure page editor, run by node" do
       expect(result("afterSave")).to eq(%w[Moved Then])
     end
 
-    it "saves an autosave as a draft only, never the live content, in plain text", :aggregate_failures do
+    it "saves an autosave as a draft only, never the live content, in plain text", :aggregate_failures, :process do
       auto = result("autosaved")
 
       expect(auto).to include("status" => 200, "text" => "Saved.", "sent" => ["Leaflets::ChaptersPage.SaveDraft"])
       expect(result("liveAfterAutosave")).to eq(12)
     end
 
-    it "answers a refused autosave with the words and the groups it names", :aggregate_failures do
+    it "answers a refused autosave with the words and the groups it names", :aggregate_failures, :process do
       refused = result("autosaveRefused")
 
       expect(refused["status"]).to eq(422)
@@ -468,7 +472,7 @@ RSpec.describe "the generated fixed-structure page editor, run by node" do
                                            "message" => "A band is described." }])
     end
 
-    it "shows a refused save's group open, marked and described, beside the field it names", :aggregate_failures do
+    it "shows a refused save's group open, marked and described, beside the field it names", :aggregate_failures, :process do
       html = result("refusedPage")["html"]
 
       expect(result("refusedPage")["status"]).to eq(422)
@@ -477,21 +481,21 @@ RSpec.describe "the generated fixed-structure page editor, run by node" do
       expect(html).to include('id="f-draft-content-chapters-0-band-alt-error">A band is described.</p>')
     end
 
-    it "opens the card that holds a refused field, and keeps what was sent", :aggregate_failures do
+    it "opens the card that holds a refused field, and keeps what was sent", :aggregate_failures, :process do
       html = result("refusedPage")["html"]
 
       expect(html).to include("data-open", 'aria-expanded="true"', 'value="Kept"')
       expect(html).to include('value="bb.png"')
     end
 
-    it "publishes the working copy and clears it with no argument", :aggregate_failures do
+    it "publishes the working copy and clears it with no argument", :aggregate_failures, :process do
       published = result("published")
 
       expect(published["live"]).to eq(1)
       expect(published["sent"].map { |sent| sent["verb"] }).to eq(["Leaflets::ChaptersPage.PublishDraft"])
     end
 
-    it "discards a working copy that is a list with an empty list as the clearing argument", :aggregate_failures do
+    it "discards a working copy that is a list with an empty list as the clearing argument", :aggregate_failures, :process do
       discarded = result("discarded")
 
       expect(discarded).to include("draft" => false, "live" => 1)
@@ -508,7 +512,7 @@ RSpec.describe "the generated fixed-structure page editor, run by node" do
       end
     end
 
-    it "are modules node can parse", :aggregate_failures do
+    it "are modules node can parse", :aggregate_failures, :process do
       %w[src/browser/blocks.js src/browser/forms.js src/browser/moments.js src/browser/autosave.js
          src/ui/block_list.js].each { |name| expect(parses?(name)).to be(true), name }
     end

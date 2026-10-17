@@ -17,7 +17,7 @@ RSpec.describe Hecks::Tools do
     end
   end
 
-  it "is not loaded by `require \"hecks\"`" do
+  it "is not loaded by `require \"hecks\"`", :process do
     out = IO.popen(["ruby", "-I", File.join(root, "lib"), "-e",
                     'require "hecks"; puts $LOADED_FEATURES.grep(%r{/lib/hecks/tools}).size'], &:read)
 

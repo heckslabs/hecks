@@ -9,7 +9,7 @@ RSpec.describe Hecks::Release::Runner::Commands do
 
   let(:ruby) { RbConfig.ruby }
 
-  it "captures output and reports success", :aggregate_failures do
+  it "captures output and reports success", :aggregate_failures, :process do
     result = commands.capture(ruby, "-e", "print 'out'; warn 'err'")
 
     expect(result).to be_success
@@ -17,18 +17,18 @@ RSpec.describe Hecks::Release::Runner::Commands do
     expect(result.stderr).to eq("err\n")
   end
 
-  it "reports a non-zero exit as a failed result rather than raising" do
+  it "reports a non-zero exit as a failed result rather than raising", :process do
     expect(commands.capture(ruby, "-e", "exit 3")).not_to be_success
   end
 
-  it "reports a command that cannot start as a failed result carrying the reason", :aggregate_failures do
+  it "reports a command that cannot start as a failed result carrying the reason", :aggregate_failures, :process do
     result = commands.capture("hecks-no-such-tool-#{Process.pid}", "--version")
 
     expect(result).not_to be_success
     expect(result.stderr).not_to be_empty
   end
 
-  it "runs in the directory it is given" do
+  it "runs in the directory it is given", :process do
     Dir.mktmpdir do |dir|
       result = commands.capture(ruby, "-e", "print Dir.pwd", chdir: dir)
 
@@ -36,18 +36,18 @@ RSpec.describe Hecks::Release::Runner::Commands do
     end
   end
 
-  it "sets and unsets environment variables for the child only", :aggregate_failures do
+  it "sets and unsets environment variables for the child only", :aggregate_failures, :process do
     result = commands.capture(ruby, "-e", "print ENV['HECKS_RELEASE_SPEC'].inspect", env: { "HECKS_RELEASE_SPEC" => "1" })
 
     expect(result.stdout).to eq('"1"')
     expect(ENV.key?("HECKS_RELEASE_SPEC")).to be(false)
   end
 
-  it "run! returns true for a zero exit" do
+  it "run! returns true for a zero exit", :process do
     expect(commands.run!(ruby, "-e", "exit 0")).to be(true)
   end
 
-  it "run! raises CommandFailed for a non-zero exit and for a command that cannot start", :aggregate_failures do
+  it "run! raises CommandFailed for a non-zero exit and for a command that cannot start", :aggregate_failures, :process do
     expect { commands.run!(ruby, "-e", "exit 1") }.to raise_error(Hecks::Release::Runner::CommandFailed)
     expect { commands.run!("hecks-no-such-tool-#{Process.pid}") }.to raise_error(Hecks::Release::Runner::CommandFailed)
   end

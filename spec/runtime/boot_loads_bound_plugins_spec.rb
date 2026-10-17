@@ -110,19 +110,19 @@ RSpec.describe "Booting a domain bound to a lazily loaded persistence plugin" do
   # Runs a probe in a fresh Ruby process after the domain is loaded the way a boot does.
   def run_after_load(probe) = run_fresh("#{loaded_registry_script}\n#{probe}")
 
-  it "loads the era plugin when a hecksagon binds PostgresEra" do
+  it "loads the era plugin when a hecksagon binds PostgresEra", :process do
     write_domain(adapter: "PostgresEra", database: "postgres:///never_connected")
 
     expect(run_after_load(ERA_PLUGIN_PROBE)).to eq("before" => false, "after" => true)
   end
 
-  it "loads nothing when the domain binds only Memory" do
+  it "loads nothing when the domain binds only Memory", :process do
     write_domain(adapter: "Memory")
 
     expect(run_after_load(MEMORY_ONLY_PROBE)).to eq("after" => false)
   end
 
-  it "leaves an adapter with no Ruby implementation for verify! to refuse" do
+  it "leaves an adapter with no Ruby implementation for verify! to refuse", :process do
     write_domain(adapter: "Nonesuch")
 
     expect(run_after_load(UNIMPLEMENTED_ADAPTER_PROBE)).to eq("loaded" => true)

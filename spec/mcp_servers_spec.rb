@@ -105,7 +105,8 @@ RSpec.describe "the stdio MCP servers" do
     describe "hecks #{name}" do
       let(:script) { child_program(name) }
 
-      it "starts over pipes with --stdio, answers on stdout with protocol only, and warns on stderr", :aggregate_failures do
+      it "starts over pipes with --stdio, answers on stdout with protocol only, and warns on stderr", :aggregate_failures,
+         :process do
         result = run_over_pipes(script, [initialize_request], args: ["--stdio"])
 
         expect(result[:status]).to be_success
@@ -114,7 +115,7 @@ RSpec.describe "the stdio MCP servers" do
         expect(result[:out]).not_to include("stdio only")
       end
 
-      it "refuses a network option given as an argument, before answering anything", :aggregate_failures do
+      it "refuses a network option given as an argument, before answering anything", :aggregate_failures, :process do
         result = run_over_pipes(script, [initialize_request], args: ["--port", "8080"])
 
         expect(result[:status].exitstatus).to eq(Hecks::McpStdioGuard::EXIT_STATUS)
@@ -122,7 +123,7 @@ RSpec.describe "the stdio MCP servers" do
         expect(result[:out]).to be_empty
       end
 
-      it "refuses a network option given in the environment", :aggregate_failures do
+      it "refuses a network option given in the environment", :aggregate_failures, :process do
         result = run_over_pipes(script, [initialize_request], env: { "HECKS_MCP_PORT" => "8080" })
 
         expect(result[:status].exitstatus).to eq(Hecks::McpStdioGuard::EXIT_STATUS)
@@ -130,7 +131,8 @@ RSpec.describe "the stdio MCP servers" do
         expect(result[:out]).to be_empty
       end
 
-      it "refuses to run with a network socket as stdin, the way a socat or inetd wrapper starts it", :aggregate_failures do
+      it "refuses to run with a network socket as stdin, the way a socat or inetd wrapper starts it", :aggregate_failures,
+         :process do
         result = with_tcp_pair(initialize_request) { |served| run_over_socket(script, served) }
 
         expect(result[:status].exitstatus).to eq(Hecks::McpStdioGuard::EXIT_STATUS)
@@ -138,7 +140,8 @@ RSpec.describe "the stdio MCP servers" do
         expect(result[:out]).to be_empty
       end
 
-      it "runs with a Unix-domain socket as stdin, which is what some MCP clients spawn servers over", :aggregate_failures do
+      it "runs with a Unix-domain socket as stdin, which is what some MCP clients spawn servers over", :aggregate_failures,
+         :process do
         result = with_unix_pair(initialize_request) { |child| run_over_socket(script, child) }
 
         expect(result[:status]).to be_success
@@ -173,7 +176,7 @@ RSpec.describe "the stdio MCP servers" do
 
     after { FileUtils.rm_rf(sandbox_root) }
 
-    it "warns, and refuses a role-gated dispatch with no role", :aggregate_failures do
+    it "warns, and refuses a role-gated dispatch with no role", :aggregate_failures, :process do
       results = results_of(run)
 
       expect(results[1]["isError"]).to be true
@@ -181,7 +184,7 @@ RSpec.describe "the stdio MCP servers" do
       expect(run[:err]).to include("Identity is self-asserted", "not verified", "no role check at all")
     end
 
-    it "runs a query, and refuses a domain outside the root", :aggregate_failures do
+    it "runs a query, and refuses a domain outside the root", :aggregate_failures, :process do
       results = results_of(run)
 
       expect(results[2]["isError"]).to be false
@@ -224,7 +227,7 @@ RSpec.describe "the stdio MCP servers" do
         )
       end
 
-      it "answers catalog, describe and state for a named domain", :aggregate_failures do
+      it "answers catalog, describe and state for a named domain", :aggregate_failures, :process do
         results = results_of(run)
 
         expect([2, 3, 4].map { |id| results[id]["isError"] }).to all(be false)
@@ -232,26 +235,26 @@ RSpec.describe "the stdio MCP servers" do
         expect(payload(results[4])["count"]).to eq(0)
       end
 
-      it "lists only reader tools, and says so on stderr", :aggregate_failures do
+      it "lists only reader tools, and says so on stderr", :aggregate_failures, :process do
         expect(results_of(run)[1]["tools"].map { |tool| tool["name"] }).to match_array(Hecks::Adapters::Driving::McpScope::READER_TOOLS)
         expect(run[:err]).to include("Reader mode (HECKS_SERVER_TOOLS=readers)", "identifies no one")
         expect(run[:err]).not_to include("anyone who can write to stdin can run it")
       end
     end
 
-    it "refuses dispatch, a dry run and behaviors, naming the mode" do
+    it "refuses dispatch, a dry run and behaviors, naming the mode", :process do
       calls = [create_pizza_call(1), create_pizza_call(2, dry_run: true), behaviors_call(3)]
 
       expect_refused(server_results(calls, env: reader_env), [1, 2, 3], "reader mode (HECKS_SERVER_TOOLS=readers)")
     end
 
-    it "refuses a question whose arguments name a path outside the root, or a denied name" do
+    it "refuses a question whose arguments name a path outside the root, or a denied name", :process do
       calls = [query_call(1, args: { paths: "/etc" }), query_call(2, args: { url: "http://127.0.0.1:1" })]
 
       expect_refused(server_results(calls, env: reader_env), [1, 2], "argument", "is refused", "reader mode")
     end
 
-    it "refuses a domain it was not given before loading any of its Ruby", :aggregate_failures do
+    it "refuses a domain it was not given before loading any of its Ruby", :aggregate_failures, :process do
       other = unnamed_domain
       calls = [tool_call(1, "catalog", { domain: other }), tool_call(2, "validate", { domain: other }), state_call(3, other)]
 
@@ -259,7 +262,7 @@ RSpec.describe "the stdio MCP servers" do
       expect(File).not_to exist(marker)
     end
 
-    it "refuses a domain whose hecksagon admits other driving adapters than Mcp", :aggregate_failures do
+    it "refuses a domain whose hecksagon admits other driving adapters than Mcp", :aggregate_failures, :process do
       hecksagon = File.join(sandbox_root, domain, "pizzas.hecksagon")
       File.write(hecksagon, File.read(hecksagon).gsub(/^\s*driven_by "Mcp"\n/, ""))
 
@@ -268,7 +271,7 @@ RSpec.describe "the stdio MCP servers" do
       expect(payload(results[1])["error"]).to include("Pizzas is not driven by Mcp", "admits only Ruby, Cli, Json")
     end
 
-    it "loads that same domain on an unrestricted server, which is what the refusal above prevents" do
+    it "loads that same domain on an unrestricted server, which is what the refusal above prevents", :process do
       other = unnamed_domain
       run_over_pipes(server, [tool_call(1, "catalog", { domain: other })],
                      env: { "HECKS_STOREHOUSE_ROOT" => sandbox_root })
@@ -283,7 +286,7 @@ RSpec.describe "the stdio MCP servers" do
       "an unknown HECKS_SERVER_ name"   => { "HECKS_SERVER_TOKEN" => "x" },
       "a named domain outside the root" => { "HECKS_SERVER_TOOLS" => "readers", "HECKS_SERVER_DOMAINS" => "/tmp/elsewhere" }
     }.each do |label, settings|
-      it "refuses to start on #{label}, before answering anything", :aggregate_failures do
+      it "refuses to start on #{label}, before answering anything", :aggregate_failures, :process do
         result = run_over_pipes(server, [initialize_request],
                                 env: { "HECKS_STOREHOUSE_ROOT" => sandbox_root }.merge(settings))
 
@@ -371,19 +374,19 @@ RSpec.describe "the stdio MCP servers" do
       let(:run) { run_over_pipes(server, [list_request], env: commands_env) }
       let(:tools) { tools_in(results_of(run)[1]) }
 
-      it "lists the reader tools and dispatch", :aggregate_failures do
+      it "lists the reader tools and dispatch", :aggregate_failures, :process do
         expect(tools.keys).to match_array(Hecks::Adapters::Driving::McpScope::COMMAND_TOOLS)
         expect(tools).not_to have_key("behaviors")
       end
 
-      it "gives dispatch the allowed commands as an enum", :aggregate_failures do
+      it "gives dispatch the allowed commands as an enum", :aggregate_failures, :process do
         properties = tools["dispatch"]["inputSchema"]["properties"]
 
         expect(properties["command"]["enum"]).to eq(["order.create_pizza"])
         expect(properties["steps"]["items"]["properties"]["command"]["enum"]).to eq(["order.create_pizza"])
       end
 
-      it "describes each allowed command, and says so on stderr", :aggregate_failures do
+      it "describes each allowed command, and says so on stderr", :aggregate_failures, :process do
         expect(tools["dispatch"]["description"])
           .to include("order.create_pizza (role Chef): Put a new pizza on the menu", "Arguments: name*, pizza*",
                       "pass that role as `role`")
@@ -394,35 +397,35 @@ RSpec.describe "the stdio MCP servers" do
     context "when the server serves one domain" do
       let(:results) { server_results(optional_domain_calls, env: commands_env) }
 
-      it "makes domain optional, and says so in the schema", :aggregate_failures do
+      it "makes domain optional, and says so in the schema", :aggregate_failures, :process do
         tools = tools_in(results[1])
 
         expect(tools["dispatch"]["inputSchema"]["required"]).not_to include("domain")
         expect(tools["state"]["inputSchema"]["properties"]["domain"]["description"]).to include("Optional", domain)
       end
 
-      it "fills the domain in, and still refuses another one", :aggregate_failures do
+      it "fills the domain in, and still refuses another one", :aggregate_failures, :process do
         expect(payload(results[2])["ok"]).to be true
         expect(payload(results[3])["count"]).to eq(1)
         expect(payload(results[4])["error"]).to include("is refused")
       end
     end
 
-    it "runs one spec example after another in the same server, each answering its own summary" do
+    it "runs one spec example after another in the same server, each answering its own summary", :process do
       results = server_results(spec_example_calls, env: repository_server_env("test_suite_run.run_spec_example"))
 
       reports = (1..3).map { |id| payload(results[id]).dig("state", "report", "value").to_s }
       expect(reports).to all(include("1 example, 0 failures"))
     end
 
-    it "answers the record as it stands once the reactions have run, not as the command left it", :aggregate_failures do
+    it "answers the record as it stands once the reactions have run, not as the command left it", :aggregate_failures, :process do
       answer = payload(check_comments_results[1])
 
       expect(answer["ok"]).to be true
       expect(answer["state"]["status"]).to eq("completed")
     end
 
-    it "dispatches an allowed command by its qualified name", :aggregate_failures do
+    it "dispatches an allowed command by its qualified name", :aggregate_failures, :process do
       results = server_results([dispatch_call(1, "order.create_pizza"), dispatch_call(2, "order.create_pizza")],
                                env: commands_env)
 
@@ -430,14 +433,16 @@ RSpec.describe "the stdio MCP servers" do
       expect(payload(results[1])["ok"]).to be true
     end
 
-    it "refuses any other command, a dry run of it, and a batch holding it, before running anything", :aggregate_failures do
+    it "refuses any other command, a dry run of it, and a batch holding it, before running anything", :aggregate_failures,
+       :process do
       results = server_results(unlisted_command_calls, env: commands_env)
 
       expect_refused(results, [1, 2, 3], "is refused", "commands mode", "order.create_pizza")
       expect(payload(results[4])["count"]).to eq(0)
     end
 
-    it "keeps the domain booted between calls, so a dispatched record is there for the next call", :aggregate_failures do
+    it "keeps the domain booted between calls, so a dispatched record is there for the next call", :aggregate_failures,
+       :process do
       results = server_results([dispatch_call(1, "order.create_pizza"), state_call(2, domain)], env: commands_env)
 
       expect(payload(results[1])["ok"]).to be true
@@ -470,7 +475,7 @@ RSpec.describe "the stdio MCP servers" do
       "a path in the nested value form"          => { "file" => { "value" => "/etc/passwd" } },
       "a ref that reads as an option"            => { "ref" => "--output=/tmp/x" }
     }.each do |label, extra|
-      it "refuses #{label} on an allowed command, naming the argument", :aggregate_failures do
+      it "refuses #{label} on an allowed command, naming the argument", :aggregate_failures, :process do
         args = pizza_args("Margherita").merge(extra)
         results = server_results([dispatch_call(1, "order.create_pizza", args: args)], env: commands_env)
 
@@ -479,7 +484,7 @@ RSpec.describe "the stdio MCP servers" do
       end
     end
 
-    it "follows a symlink out of the root, so a link inside it does not hide a path outside" do
+    it "follows a symlink out of the root, so a link inside it does not hide a path outside", :process do
       File.symlink("/etc", File.join(sandbox_root, "escape"))
       args = pizza_args("Margherita").merge("file" => "escape/passwd")
       results = server_results([dispatch_call(1, "order.create_pizza", args: args)], env: commands_env)
@@ -487,7 +492,7 @@ RSpec.describe "the stdio MCP servers" do
       expect(payload(results[1])["error"]).to include("is refused", "file")
     end
 
-    it "passes a path inside the root and a plain ref on to the command" do
+    it "passes a path inside the root and a plain ref on to the command", :process do
       inside = File.join(sandbox_root, domain, "pizzas.bluebook")
       args = pizza_args("Margherita").merge("file" => inside, "ref" => "origin/main")
       results = server_results([dispatch_call(1, "order.create_pizza", args: args)], env: commands_env)
@@ -495,27 +500,27 @@ RSpec.describe "the stdio MCP servers" do
       expect(payload(results[1])["error"].to_s).not_to include("this server runs in commands mode")
     end
 
-    it "checks the arguments of every step of a batch before any step runs", :aggregate_failures do
+    it "checks the arguments of every step of a batch before any step runs", :aggregate_failures, :process do
       results = server_results(bad_batch_calls, env: commands_env)
 
       expect(payload(results[1])["error"]).to include("argument", "output")
       expect(payload(results[2])["count"]).to eq(0)
     end
 
-    it "refuses a question whose arguments reach outside the root" do
+    it "refuses a question whose arguments reach outside the root", :process do
       results = server_results([query_call(1, args: { paths: "/etc" })], env: commands_env)
 
       expect(payload(results[1])["error"]).to include("argument", "paths", "is refused")
     end
 
-    it "refuses a command name that resolves to nothing, and still refuses behaviors", :aggregate_failures do
+    it "refuses a command name that resolves to nothing, and still refuses behaviors", :aggregate_failures, :process do
       results = server_results([dispatch_call(1, "no_such_command"), behaviors_call(2)], env: commands_env)
 
       expect(payload(results[1])["error"]).to include("is refused")
       expect(payload(results[2])["error"]).to include("commands mode (HECKS_SERVER_TOOLS=commands)")
     end
 
-    it "admits nothing for an allowed name that resolves to no command" do
+    it "admits nothing for an allowed name that resolves to no command", :process do
       env = commands_env.merge("HECKS_SERVER_COMMANDS" => "no_such_command")
       results = server_results([dispatch_call(1, "order.create_pizza")], env: env)
 
@@ -531,7 +536,7 @@ RSpec.describe "the stdio MCP servers" do
       ["commands in reader mode",
        { "HECKS_SERVER_TOOLS" => "readers", "HECKS_SERVER_DOMAINS" => "pizzas", "HECKS_SERVER_COMMANDS" => "order.create_pizza" }]
     ].each do |label, settings|
-      it "refuses to start on #{label}, before answering anything", :aggregate_failures do
+      it "refuses to start on #{label}, before answering anything", :aggregate_failures, :process do
         result = run_over_pipes(server, [initialize_request],
                                 env: { "HECKS_STOREHOUSE_ROOT" => sandbox_root }.merge(settings))
 
@@ -561,7 +566,7 @@ RSpec.describe "the stdio MCP servers" do
       run_over_pipes(query_ir, [tool_call(1, "query_ir_duplicates", { domains: domains, **extra })])
     end
 
-    it "refuses a domains directory outside the project root rather than loading Ruby from it", :aggregate_failures do
+    it "refuses a domains directory outside the project root rather than loading Ruby from it", :aggregate_failures, :process do
       plant_loadable_domain
       result = query_ir_run([@outside]).fetch(:responses).first["result"]
 
@@ -570,7 +575,8 @@ RSpec.describe "the stdio MCP servers" do
       expect(File).not_to exist(File.join(@outside, "loaded"))
     end
 
-    it "warns that it asks for no identity, and accepts a domains directory inside the project root", :aggregate_failures do
+    it "warns that it asks for no identity, and accepts a domains directory inside the project root", :aggregate_failures,
+       :process do
       run = query_ir_run(["examples/no_such_domain"], include_meta: false)
 
       expect(run[:responses].first["result"]["isError"]).to be false

@@ -7,7 +7,7 @@ require "rbconfig"
 # excuses no gap in any generated module. A closed gap must take its rule
 # with it, rather than leave the rule behind to excuse the next one.
 RSpec.describe "hecks check_coverage_allowlist" do
-  it "finds every allowlist rule still excusing a real gap under rust/src/generated" do
+  it "finds every allowlist rule still excusing a real gap under rust/src/generated", :process do
     output, status = Open3.capture2e(RbConfig.ruby, File.join(InMemoryDomain::ROOT, "exe/hecks"),
                                      "build.check_coverage_allowlist", "--wait", chdir: InMemoryDomain::ROOT)
 

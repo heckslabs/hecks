@@ -316,7 +316,7 @@ RSpec.describe Hecks::Tools::SiteRoutes do
       end
     end
 
-    it "parses and answers the helpers over the sample table", :aggregate_failures do
+    it "parses and answers the helpers over the sample table", :aggregate_failures, :process do
       skip "node is not installed" unless node?
 
       out, status, err = run_node(SITE_ROUTES_HELPERS_JS)
@@ -325,7 +325,7 @@ RSpec.describe Hecks::Tools::SiteRoutes do
       expect(JSON.parse(out)).to eq(SITE_ROUTES_HELPER_ANSWERS)
     end
 
-    it "refuses a preview for a source no route has, and a collection preview with no slug", :aggregate_failures do
+    it "refuses a preview for a source no route has, and a collection preview with no slug", :aggregate_failures, :process do
       skip "node is not installed" unless node?
 
       out, status, err = run_node(SITE_ROUTES_PREVIEW_ERRORS_JS)

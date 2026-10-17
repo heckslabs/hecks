@@ -79,7 +79,7 @@ RSpec.describe Hecks::Adapters::Codebase::TestRunner do
     Open3.capture2e(RbConfig.ruby, "-e", script, File.join(dir, "one_spec.rb"))
   end
 
-  it "runs a real example of a real spec file", :aggregate_failures do
+  it "runs a real example of a real spec file", :aggregate_failures, :process do
     Dir.mktmpdir do |dir|
       out, status = run_real_example(dir)
 

@@ -117,7 +117,7 @@ RSpec.describe Hecks::Bench do
       expect(entry[:median][:by_verb].keys).to eq(verbs)
     end
 
-    it "measures the Ruby runtime on Memory and Sqlite for both domains" do
+    it "measures the Ruby runtime on Memory and Sqlite for both domains", :process do
       result = memory_and_sqlite_result
 
       expect(result[:results].map { |entry| [entry[:domain], entry[:target]] }).to contain_exactly(
@@ -125,7 +125,7 @@ RSpec.describe Hecks::Bench do
       )
     end
 
-    it "runs three cycles of commands, and a sane median, for every measured target" do
+    it "runs three cycles of commands, and a sane median, for every measured target", :process do
       memory_and_sqlite_result[:results].each do |entry|
         expect_run_commands(entry)
         expect_median_shape(entry)
@@ -140,7 +140,7 @@ RSpec.describe Hecks::Bench do
       described_class.call(tiny(targets: %w[ruby:memory ruby:postgres ruby:postgres_era]), log: log)
     end
 
-    it "skips a Postgres target with the reason instead of failing when no server answers", :aggregate_failures do
+    it "skips a Postgres target with the reason instead of failing when no server answers", :aggregate_failures, :process do
       result = result_with_postgres_unavailable(quiet)
       reason = postgres_unavailable_reason
 
@@ -149,7 +149,7 @@ RSpec.describe Hecks::Bench do
                                       { target: "ruby:postgres_era", reason: reason }])
     end
 
-    it "says which Postgres targets it skipped, in the log and in the report", :aggregate_failures do
+    it "says which Postgres targets it skipped, in the log and in the report", :aggregate_failures, :process do
       log = quiet
       result = result_with_postgres_unavailable(log)
 
@@ -174,7 +174,7 @@ RSpec.describe Hecks::Bench do
       end
     end
 
-    it "times a round trip per step against a binary that speaks the serve protocol", :aggregate_failures do
+    it "times a round trip per step against a binary that speaks the serve protocol", :aggregate_failures, :process do
       workload = Hecks::Bench::Workload.pizzas
       run = timed_run(workload)
 
@@ -182,7 +182,7 @@ RSpec.describe Hecks::Bench do
       expect(run.summary).to include(:roundtrip_floor_p50_us)
     end
 
-    it "refuses to time a workload the binary does not accept" do
+    it "refuses to time a workload the binary does not accept", :process do
       Dir.mktmpdir("bench_spec") do |dir|
         binary = fake_serve_binary(dir, '{"ok":false,"error":"no such verb"}')
 
@@ -218,7 +218,7 @@ RSpec.describe Hecks::Bench do
       end
     end
 
-    it "prints a Markdown report and writes the full JSON result", :aggregate_failures do
+    it "prints a Markdown report and writes the full JSON result", :aggregate_failures, :process do
       with_json_run do |status, out, path|
         expect(status).to eq(0)
         expect(out.string).to include("| pizzas | ruby:memory |", "CPU:", "Ruby: ruby")

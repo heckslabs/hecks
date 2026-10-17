@@ -59,14 +59,14 @@ RSpec.describe Hecks::Bluebook::MetaValidator::VerdictCache do
   def uncached_boots = Array.new(2) { boot_child(scratch, "HECKS_VERDICT_CACHE" => "off") }
 
   describe "across processes" do
-    it "writes a cache file on a cold boot that judges something", :aggregate_failures do
+    it "writes a cache file on a cold boot that judges something", :aggregate_failures, :process do
       cold = boot_child(scratch)
 
       expect(cache_files(scratch).size).to eq(1)
       expect(cold["holds"]).to be > 0
     end
 
-    it "reads it in a fresh process, judging nothing, to an identical IR", :aggregate_failures do
+    it "reads it in a fresh process, judging nothing, to an identical IR", :aggregate_failures, :process do
       cold = boot_child(scratch)
       warm = boot_child(scratch)
 
@@ -75,13 +75,13 @@ RSpec.describe Hecks::Bluebook::MetaValidator::VerdictCache do
       expect(warm["verdicts"]).to eq(cold["verdicts"])
     end
 
-    it "writes nothing when HECKS_VERDICT_CACHE=off" do
+    it "writes nothing when HECKS_VERDICT_CACHE=off", :process do
       uncached_boots
 
       expect(cache_files(scratch)).to be_empty
     end
 
-    it "judges for real when HECKS_VERDICT_CACHE=off", :aggregate_failures do
+    it "judges for real when HECKS_VERDICT_CACHE=off", :aggregate_failures, :process do
       first, second = uncached_boots
 
       expect(second["holds"]).to eq(first["holds"])

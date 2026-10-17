@@ -103,12 +103,12 @@ RSpec.describe "hecks interview, held at a terminal" do
   context "when the developer accepts a thing and an action and rejects a rule" do
     let(:result) { run_interview(agent: ai_script, keys: MIXED_KEYS) }
 
-    it "records what the developer types and puts each finding to them", :aggregate_failures do
+    it "records what the developer types and puts each finding to them", :aggregate_failures, :process do
       expect(result[:transcript]).to include("Proposed thing: Book, identified by isbn", "Accepted.", "Rejected.")
       expect(result[:files].keys).to eq(%w[bluebook/lending.bluebook bluebook/lending.world interviews/INT-1.md])
     end
 
-    it "writes the domain they accepted", :aggregate_failures do
+    it "writes the domain they accepted", :aggregate_failures, :process do
       expect(lending_bluebook(result)).to include('aggregate "Book" do', 'command "Shelve" do')
       expect(lending_bluebook(result)).not_to include("cannot be lent twice")
       expect(result[:files]["interviews/INT-1.md"]).to include("Rule 3, rejected: A book cannot be lent twice")
@@ -120,12 +120,13 @@ RSpec.describe "hecks interview, held at a terminal" do
     let(:state) { result[:state] }
 
     it "tells the developer where the answers go before the first question, and suggests ending once there is enough",
-       :aggregate_failures do
+       :aggregate_failures, :process do
       expect(result[:transcript]).to include("sent to a model through your own `claude` login")
       expect(result[:transcript]).to include("I think we have enough to start")
     end
 
-    it "sends the agent the subject, the exchanges, what was accepted and the gaps, and no files", :aggregate_failures do
+    it "sends the agent the subject, the exchanges, what was accepted and the gaps, and no files", :aggregate_failures,
+       :process do
       expect(state.keys.map(&:to_s)).to contain_exactly("task", "subject", "expert", "verbs", "exchanges", "accepted", "gaps")
       expect(state[:subject]).to eq("Lending")
       expect(state[:task]).to include("Do not assume what kind of business it is")
@@ -133,7 +134,7 @@ RSpec.describe "hecks interview, held at a terminal" do
       expect(state[:accepted][:things].first).to eq(name: "Book", identifier: "isbn")
     end
 
-    it "tells the interviewer what a thing is not yet said to have, so it asks next", :aggregate_failures do
+    it "tells the interviewer what a thing is not yet said to have, so it asks next", :aggregate_failures, :process do
       expect(state[:gaps]).to include("nothing is yet said Book has, beyond its identifier")
       expect(state[:accepted].keys.map(&:to_s)).to include("fields", "transitions")
     end
@@ -142,19 +143,19 @@ RSpec.describe "hecks interview, held at a terminal" do
   context "when the agent proposes a field and a transition" do
     let(:result) { run_interview(agent: FIELD_SCRIPT, keys: FIELD_KEYS) }
 
-    it "puts a proposed field and transition to the developer", :aggregate_failures do
+    it "puts a proposed field and transition to the developer", :aggregate_failures, :process do
       expect(result[:transcript]).to include("Proposed field: condition of Book, one of good, worn",
                                              "Proposed transition: Shelve leaves Book shelved")
     end
 
-    it "writes the field they accepted, and records the transition they rejected", :aggregate_failures do
+    it "writes the field they accepted, and records the transition they rejected", :aggregate_failures, :process do
       expect(lending_bluebook(result)).to include("attribute :condition, Condition, optional: true",
                                                   'one_of: ["good", "worn"]')
       expect(result[:files]["interviews/INT-1.md"]).to include("- Transition 4, rejected: **Shelve** on Book to shelved")
     end
   end
 
-  it "ignores a field proposal with no name, and says so" do
+  it "ignores a field proposal with no name, and says so", :process do
     nameless = FIELD.merge(args: { thing: "Book", values: "good, worn" })
     script = { questions: ["What do you keep track of?", "What happens?"], proposals: [[THING], [ACTION, nameless]] }
     result = run_interview(agent: script, keys: ["Books.", "y", "On the shelf.", "y", "done"])
@@ -162,21 +163,21 @@ RSpec.describe "hecks interview, held at a terminal" do
     expect(result[:transcript]).to include("Ignored a field proposal with no name.")
   end
 
-  it "refuses to finish with nothing accepted, says why, and carries on", :aggregate_failures do
+  it "refuses to finish with nothing accepted, says why, and carries on", :aggregate_failures, :process do
     result = run_interview(agent: NOTHING_ACCEPTED_SCRIPT, keys: NOTHING_ACCEPTED_KEYS)
 
     expect(result[:transcript]).to include("Not finished yet: a thing must be accepted before the interview ends")
     expect(result[:files].keys).to include("bluebook/lending.bluebook")
   end
 
-  it "stops and writes nothing when the developer quits", :aggregate_failures do
+  it "stops and writes nothing when the developer quits", :aggregate_failures, :process do
     result = run_interview(agent: ai_script, keys: ["Books.", "y", "quit"])
 
     expect(result[:transcript]).to include("Stopped. Nothing was written.")
     expect(result[:files]).to be_empty
   end
 
-  it "says what failed when the agent cannot answer, and uses a plain prompt for that turn", :aggregate_failures do
+  it "says what failed when the agent cannot answer, and uses a plain prompt for that turn", :aggregate_failures, :process do
     result = run_interview(agent: UNAVAILABLE_SCRIPT, keys: UNAVAILABLE_KEYS)
 
     expect(result[:transcript]).to include("The AI could not answer (claude is not on PATH)", "What is the main thing")
@@ -185,7 +186,8 @@ RSpec.describe "hecks interview, held at a terminal" do
     expect(lending_bluebook(result)).to include('aggregate "Book" do', 'command "Shelve" do')
   end
 
-  it "runs with fixed questions and typed findings under --no-ai, and says nothing about a model", :aggregate_failures do
+  it "runs with fixed questions and typed findings under --no-ai, and says nothing about a model", :aggregate_failures,
+     :process do
     result = run_interview(ai: false, keys: NO_AI_KEYS)
 
     expect(result[:transcript]).not_to include("sent to a model")
@@ -193,14 +195,15 @@ RSpec.describe "hecks interview, held at a terminal" do
     expect(lending_bluebook(result)).to include('aggregate "Book" do', 'command "Shelve" do')
   end
 
-  it "takes a typed field and a typed transition under --no-ai, leaving the optional parts blank", :aggregate_failures do
+  it "takes a typed field and a typed transition under --no-ai, leaving the optional parts blank", :aggregate_failures,
+     :process do
     result = run_interview(ai: false, keys: TYPED_FIELD_KEYS)
 
     expect(lending_bluebook(result)).to include("attribute :condition, Condition, optional: true", 'one_of: ["good", "worn"]')
     expect(result[:files]["interviews/INT-1.md"]).to include("**Shelve** on Book to shelved (exchange 1)")
   end
 
-  it "offers a later interview's findings as additions, and leaves the existing bluebook alone", :aggregate_failures do
+  it "offers a later interview's findings as additions, and leaves the existing bluebook alone", :aggregate_failures, :process do
     result = run_interview(agent: ai_script, seed: EXISTING_FILES, keys: ENOUGH_KEYS)
 
     expect(lending_bluebook(result)).to eq(EXISTING_BLUEBOOK)

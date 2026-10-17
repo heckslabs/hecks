@@ -325,7 +325,7 @@ RSpec.describe "the admin sign-in module" do
       expect(message).to include("--cms names /work/cms, but the project declares no Admin row")
     end
 
-    it "is written as TypeScript Node can read" do
+    it "is written as TypeScript Node can read", :process do
       next skip "node is not installed" unless node?
 
       texts = paths.to_h { |path| [path, cms_text(path)] }
@@ -425,7 +425,7 @@ RSpec.describe "the admin sign-in module" do
       expect(image).not_to match(/%<|__[A-Z]+__/)
     end
 
-    it "writes the driver and the field definitions as TypeScript Node can read" do
+    it "writes the driver and the field definitions as TypeScript Node can read", :process do
       next skip "node is not installed" unless node?
 
       texts = names.grep(%r{cms/src/generated}).to_h { |name| [name, root_files.fetch("/work/root/#{name}")] }
@@ -440,7 +440,7 @@ RSpec.describe "the admin sign-in module" do
       expect(kept).to eq(["deploy-aws/boot.mjs"])
     end
 
-    it "writes the script as JavaScript Node can read" do
+    it "writes the script as JavaScript Node can read", :process do
       next skip "node is not installed" unless node?
 
       boot = root_files.fetch("/work/root/cms/deploy-aws/boot.mjs")
@@ -545,39 +545,40 @@ RSpec.describe "the admin sign-in module" do
       JSON.parse(out)
     end
 
-    it "lets a visitor reach public pages and the login page, and sends admin paths to the login page", :aggregate_failures do
+    it "lets a visitor reach public pages and the login page, and sends admin paths to the login page", :aggregate_failures,
+       :process do
       result = answers(ADMIN_NODE_VISITOR_SCRIPT)
 
       expect(result).to include(ADMIN_NODE_VISITOR_VERDICTS)
       expect(result["asked"]).to eq([])
     end
 
-    it "reads a literal page as more specific than a generic one, and lets an equal tie go to admin" do
+    it "reads a literal page as more specific than a generic one, and lets an equal tie go to admin", :process do
       expect(answers(ADMIN_NODE_SPECIFICITY_SCRIPT)).to eq(ADMIN_NODE_SPECIFICITY_VERDICTS)
     end
 
-    it "lets an active admin through and turns away a member, a disabled admin and a refused cookie" do
+    it "lets an active admin through and turns away a member, a disabled admin and a refused cookie", :process do
       result = answers(ADMIN_NODE_ROLES_SCRIPT)
 
       expect(result).to eq("admin" => true, "owner" => true, "member" => false, "disabled" => false, "refused" => false)
     end
 
-    it "asks the host with the declared cookie, and the environment's address when none is configured" do
+    it "asks the host with the declared cookie, and the environment's address when none is configured", :process do
       result = answers(ADMIN_NODE_ENVIRONMENT_SCRIPT)
 
       expect(result).to eq("email" => "a@example.org",
                            "asked" => ["/accounts/me club_session=abc", "/members club_session=abc"])
     end
 
-    it "remembers a verdict for the TTL, shares a read in flight, and forgets on request" do
+    it "remembers a verdict for the TTL, shares a read in flight, and forgets on request", :process do
       expect(answers(ADMIN_NODE_TTL_SCRIPT)).to eq("remembered" => 2, "afterForget" => 4)
     end
 
-    it "never remembers a failed read" do
+    it "never remembers a failed read", :process do
       expect(answers(ADMIN_NODE_FAILED_READ_SCRIPT)).to eq("first" => nil, "second" => "a@example.org")
     end
 
-    it "hands a signed-in person to the CMS with a token, and otherwise to the login page" do
+    it "hands a signed-in person to the CMS with a token, and otherwise to the login page", :process do
       result = answers(ADMIN_NODE_SSO_SCRIPT)
 
       expect(result).to eq("signed" => ["/cms/api/sso?token=t+o+k", "/cms/api/sso?token=t+o+k&to=%2Fcms%2Fadmin%2Fposts"],
