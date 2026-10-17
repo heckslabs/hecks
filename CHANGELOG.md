@@ -7,6 +7,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+## [3.14.0] - 2026-10-17
+
 - **`attribute ..., matches: :name` names a pattern (ADR 0117, proposed).** The language gives `present` (not blank), `not_empty`, `no_whitespace`, `snake_name`, `git_sha` and `digits`; each stands for exactly the regex the corpus spelled by hand, expanded in both parsers, so behavior and the generated IR are unchanged. About 250 hand-written patterns in the corpus, the guides and the two generators now use a name. `matches:` beside `pattern:` and an unknown name are refused. Other patterns stay `pattern:`, and the refusal text still shows the regex.
 - **The roles that may manage payments are a setting of the host (ADR 0116, proposed).** `HECKS_PAYMENTS_MANAGER_ROLES` is a comma-separated list of exact role names; unset it means `Owner`, so a site that sets nothing behaves exactly as before. A site that wants more than its owner to manage payments (connect, save keys, disconnect, read the Payments state) sets it, for example to `Owner,Admin`. The check is exact-case membership, with no hierarchy and no wildcard; the 403 and its message are unchanged, and enabling or disabling real payments stays with the platform operator. A malformed value (an empty list or entry, a character other than letters, digits, spaces and hyphens, more than 8 entries, an entry over 32 characters) refuses the boot, naming the variable and never the value. The value is read once at boot; changing it takes a restart.
 
