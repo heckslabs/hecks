@@ -13,13 +13,17 @@ module DeclarationCache
 
   # @return [Array] what identifies the directory's files for the key. A directory under the system
   #   temp dir is a scratch copy with a name no other boot shares, so it is known by its files'
-  #   relative paths and contents; any other is known by its files' paths, sizes and mtimes.
+  #   relative paths and contents; any other is known by its files' paths, sizes and mtimes. The
+  #   `vendor/embryonaut_bluebooks` tree beside the directory counts too, since `attaches ...,
+  #   from: :vendor` loads from it: two copies differ when only their vendored packages do.
   def self.signature(directory)
     scratch = directory.start_with?(Dir.tmpdir)
-    Dir.glob(File.join(directory, "**", "*")).filter_map do |path|
+    vendor  = File.join(File.dirname(directory), "vendor", "embryonaut_bluebooks", "**", "*")
+    files   = Dir.glob(File.join(directory, "**", "*")) + Dir.glob(vendor)
+    files.filter_map do |path|
       next unless File.file?(path)
 
-      scratch ? [path.delete_prefix(directory), Digest::MD5.file(path).hexdigest] : file_stamp(path)
+      scratch ? [path.delete_prefix(File.dirname(directory)), Digest::MD5.file(path).hexdigest] : file_stamp(path)
     end.unshift(scratch ? :scratch : directory)
   end
 
