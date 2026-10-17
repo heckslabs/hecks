@@ -385,9 +385,11 @@ itself.
 
 ## `sets` — one op per field, and the op is a real decision
 
-Four operations, and which one you reach for is not stylistic — it is
-the difference between overwriting a field, growing a list, and doing
-arithmetic on one.
+Seven operations, and which one you reach for is not stylistic — it is
+the difference between overwriting a field, growing or shrinking a list,
+and doing arithmetic on one. This chapter shows `to:`, `append:` and
+`increment:`/`decrement:`; `multiply:`, `clamp:`, `remove:` and computed
+`to:` are described after them.
 
 **`to:`** replaces the field outright, from an argument or a literal —
 and is omittable when it would only repeat the target, which is why
@@ -431,6 +433,26 @@ the `ensures` that watches the result. `ScheduledPayment.Retry` does
 the same arithmetic on a bare Integer instead of a shared field name:
 `sets :attempts, increment: { value: 1 }` moved `attempts` from 0
 to 3 across the reflex proven in the `given` section above.
+
+The rest of the set, none of which this chapter needs:
+
+- **Computed `to:`.** A source can be arithmetic over the command's
+  arguments and the record's own fields as they stood before the
+  command: `sets :grade, to: grade + change`. `+`, `-`, `*` and `/` on
+  signed 64-bit integers, with `/` rounding toward negative infinity.
+  Reach for it when the new value is a formula, not a delta the caller
+  already knows.
+- **`multiply:`** scales a numeric field by an argument or a literal.
+- **`clamp:`** bounds a numeric field into a literal `[min, max]`:
+  `sets :grade, clamp: [0, 50]`. One `clamp:` states a range once,
+  where a `given` on every command that moves the field would repeat it.
+- **`remove:`** takes one element out of a list attribute by value, the
+  counterpart to `append:`.
+
+Each is still one op per field per command. A command that must add
+and then bound the same field does it in two steps, for example a
+policy that runs a `clamp:` command after the one that moved it. The
+[command reference](../reference/command.md#sets) has the full rules.
 
 ## `emits` — a promise made after the write, not before
 

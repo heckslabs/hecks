@@ -495,10 +495,13 @@ bundle exec hecks run examples/banking spec/corpus/banking.json
 
 Only what this repository actually does today, checked, not aspired to:
 
-- **Explicit semantics.** Every effect a command may cause is one of a
-  closed set of declared verbs (`sets`, `increment`/`decrement`,
-  `append`); every refusal is a named `given` or invariant. There is no
-  code path that mutates state outside `sets`.
+- **Explicit semantics.** Every effect a command may cause is one `sets`
+  op from a closed set: `to:` (a value, or arithmetic over the command's
+  arguments and the record's own fields, such as `to: grade + change`),
+  `increment:`/`decrement:`, `multiply:`, `clamp:` (bound a field into
+  `[min, max]`), `append:` and `remove:`; every refusal is a named
+  `given` or invariant. There is no code path that mutates state outside
+  `sets`.
 - **Static verification.** `hecks model_check` runs structural analysis
   over a domain's own IR — unreachable lifecycle states, transitions
   nothing can fire, saga states no handler chain reaches — before

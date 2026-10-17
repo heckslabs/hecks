@@ -11,9 +11,11 @@ between them is hand-written and survives regeneration.*
 
 `on`, `trigger` and `across` run against `examples/banking` and
 `examples/compliance`, which wire a real cross-domain reaction between
-them. `where` and `for_each` appear nowhere in the corpus, so they get a
-chapter of their own here — a card that is blocked whenever its holder
-draws a severe enough alert:
+them. The corpus uses `where` in roster's `OnSeatAssignedHonorFront` and
+chess's `OnWhiteMovedAdvanceTurn`/`OnBlackMovedAdvanceTurn`, and
+`for_each` in banking's `FreezeAccountsOnSuspension`, but never the two
+together, so they also get a chapter of their own here — a card that is
+blocked whenever its holder draws a severe enough alert:
 
 ```ruby bluebook
 Hecks.bluebook "PolicyReference" do
