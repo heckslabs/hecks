@@ -45,10 +45,21 @@ module Hecks
         # What the runner printed for the example, when it passed.
         def run_example(path, example)
           out = StringIO.new
-          status = Dir.chdir(@tree.root) { runner.call(["--example", example, path], out, out) }
+          status = Dir.chdir(@tree.root) { at_reaction_depth_zero { runner.call(["--example", example, path], out, out) } }
           raise ConsoleCapture::Failure, out.string.strip unless status.zero?
 
           out.string.strip
+        end
+
+        # The runner is asked for from inside a command's own reaction cascade, and the dispatcher
+        # keeps that cascade's depth on the thread. An example starts at depth zero, as a plain run
+        # does, so a spec that cascades four deep is not cut off by the cascade that launched it.
+        def at_reaction_depth_zero
+          depth = Thread.current[:hecks_reaction_depth]
+          Thread.current[:hecks_reaction_depth] = 0
+          yield
+        ensure
+          Thread.current[:hecks_reaction_depth] = depth
         end
 
         def runner
