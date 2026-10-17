@@ -73,7 +73,7 @@ RSpec.describe "the generated redirect_host function, for CloudFront's runtime" 
   end
 
   describe "against CloudFront's test-function", :cloudfront do
-    PREFIX = "tmp-hecks-edge-test-".freeze
+    EDGE_TEST_FUNCTION_PREFIX = "tmp-hecks-edge-test-".freeze
 
     def aws(*args)
       out, err, status = Open3.capture3("aws", *args)
@@ -102,7 +102,7 @@ RSpec.describe "the generated redirect_host function, for CloudFront's runtime" 
     end
 
     around do |example|
-      @name = "#{PREFIX}#{SecureRandom.hex(4)}"
+      @name = "#{EDGE_TEST_FUNCTION_PREFIX}#{SecureRandom.hex(4)}"
       created = false
       Dir.mktmpdir("cloudfront_function") do |dir|
         @dir = dir
