@@ -190,6 +190,7 @@ it, except for one law they must uphold (C8.4).
   (fixture: `lifecycle_from_guard_refused.json`)
 - **C5.2 (settled)** A fresh or loaded record without the field holds
   the declared initial state.
+  (fixture: `accepted_pizza_lifecycle.json`)
 - **C5.3 (settled)** The lifecycle field moves only by transition.
   Refused at build, in the Ruby builders and `hecks-parse`: a `sets`
   on the lifecycle field, and two transitions for one command whose
