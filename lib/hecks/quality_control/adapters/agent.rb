@@ -62,7 +62,7 @@ module Hecks
 
       # Permission rules are a feature of `claude`: any other command would run unconfined.
       def refuse_unconfinable!(words, profile)
-        return if profile.nil? || profile.sandboxed? || words == default_command(profile)
+        return if profile.nil? || words == default_command(profile)
 
         raise Failed, "permission confinement applies only to the default claude command"
       end
@@ -79,15 +79,14 @@ module Hecks
         %w[claude -p --permission-mode] + [profile.permission_mode] + profile.tool_flags
       end
 
-      # Runs `words` under the profile's sandbox with only the environment it names, in its own
-      # process group so a timeout takes the agent's children with it.
+      # Runs `words` with only the environment the profile names, in its own process group so a
+      # timeout takes the agent's children with it. The reader starts first so an agent that
+      # writes before it has read its whole prompt cannot block both sides on a full pipe.
       def run_confined(words, prompt, chdir, profile)
-        raise Failed, "no sandbox here; refusing to run an agent unconfined" unless profile.available?
-
-        Open3.popen2e(profile.environment, *profile.confine(words),
+        Open3.popen2e(profile.environment, *words,
                       chdir: chdir, unsetenv_others: true, pgroup: true) do |stdin, out, waiter|
-          feed(stdin, prompt)
           reader = Thread.new { out.read }
+          feed(stdin, prompt)
           finish(waiter, reader, profile.timeout)
         end
       end

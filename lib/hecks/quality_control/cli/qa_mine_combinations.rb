@@ -116,7 +116,7 @@ module Hecks
       # The profile `--confine` runs the agent under: it writes only the candidates directory.
       def confinement_profile
         FileUtils.mkdir_p(@out_dir)
-        Hecks::Adapters::AgentProfile.new(confinement: :permissions, tools: CONFINED_TOOLS, writable: [@out_dir],
+        Hecks::Adapters::AgentProfile.new(tools: CONFINED_TOOLS, writable: [@out_dir],
                                           timeout: CONFINED_TIMEOUT, budget: CONFINED_BUDGET)
       end
 
