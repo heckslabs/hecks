@@ -163,8 +163,8 @@ module Hecks
         def local_name(argument) = "#{argument}_text"
 
         # @param argument [String] an argument's name
-        # @return [String] the Rust field, raw-escaped when the name is a keyword
-        def rust_field(argument) = RustVocabulary::RUST_KEYWORDS.include?(argument) ? "r##{argument}" : argument
+        # @return [String] the Rust field, escaped when the name is a keyword
+        def rust_field(argument) = RustVocabulary.field_name(argument)
       end
     end
   end

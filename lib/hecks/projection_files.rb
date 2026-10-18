@@ -3,6 +3,7 @@
 require "fileutils"
 require "json"
 require "tempfile"
+require_relative "rust_format"
 require_relative "projection_files/texts"
 require_relative "projection_files/expression_tables"
 
@@ -55,7 +56,8 @@ module Hecks
     def build(name, root: ROOT)
       raise ArgumentError, "no projection named #{name.inspect}" unless NAMES.include?(name.to_sym)
 
-      public_send(name, root)
+      result = public_send(name, root)
+      Result.new(RustFormat.files(result.content), result.stale)
     end
 
     # Writes one projection, each file through a temporary file and a rename so a reader never sees

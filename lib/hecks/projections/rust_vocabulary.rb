@@ -37,7 +37,19 @@ module Hecks
                          match mod move mut pub ref return self static struct super trait true type unsafe use where
                          while abstract become box do final macro override priv typeof unsized virtual yield try].freeze
 
+      # Keywords Rust refuses as a raw identifier, so they cannot take the `r#` escape.
+      NOT_RAW = %w[crate self Self super].freeze
+
       module_function
+
+      # @param name [String] a field's name
+      # @return [String] the Rust field: raw-escaped when a keyword, with a trailing underscore
+      #   when the keyword cannot be raw
+      def field_name(name)
+        return "#{name}_" if NOT_RAW.include?(name)
+
+        RUST_KEYWORDS.include?(name) ? "r##{name}" : name
+      end
 
       def call(bluebook:, options: {}) = render(bluebook)
 

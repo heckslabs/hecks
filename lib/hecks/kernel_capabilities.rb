@@ -42,7 +42,7 @@ module Hecks
         File.join(kernel, "attribute_shapes/mod.rs")     => shapes_module,
         File.join(kernel, "expression_operators/mod.rs") => operators_module
       }
-      ProjectionFiles::Result.new(content, [])
+      ProjectionFiles::Result.new(RustFormat.files(content), [])
     end
 
     # Writes the capability modules.

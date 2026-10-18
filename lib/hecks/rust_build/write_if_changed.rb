@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "fileutils"
+require_relative "../rust_format"
 
 module Hecks
   module RustBuild
@@ -56,6 +57,7 @@ module Hecks
       # Returns whether it wrote.
       def call(path, content)
         record_touch(path)
+        content = RustFormat.call(content) if RustFormat.rust?(path)
         # `.b` on both sides: String#== is encoding-aware, so UTF-8 vs ASCII-8BIT
         # content can compare unequal even when the bytes are identical.
         return false if File.exist?(path) && File.binread(path) == content.b
@@ -64,13 +66,20 @@ module Hecks
         true
       end
 
+      # Fills `tmp` from the block, then lays it out with rustfmt when `path` is Rust source.
+      def write_formatted(tmp, path, &)
+        File.open(tmp, "w", &)
+        File.write(tmp, RustFormat.call(File.read(tmp))) if RustFormat.rust?(path)
+      end
+      private_class_method :write_formatted
+
       # Like `call`, for callers that build content by writing to an IO. Yields a sibling
       # temp file, then renames it into place only if the bytes differ. Returns whether it wrote.
       def block(path, &)
         record_touch(path)
         tmp = "#{path}.tmp-#{Process.pid}-#{rand(1_000_000)}"
         begin
-          File.open(tmp, "w", &)
+          write_formatted(tmp, path, &)
           changed = !(File.exist?(path) && FileUtils.compare_file(tmp, path))
           FileUtils.mv(tmp, path) if changed
           changed
