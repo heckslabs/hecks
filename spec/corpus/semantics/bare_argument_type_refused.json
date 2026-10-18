@@ -1,12 +1,12 @@
 {
   "domain": "spec/corpus/semantics/domains/tally",
   "ruby_only": true,
-  "ruby_only_reason": "no Rust binary to hold it to: the corpus-owned domain spec/corpus/semantics/domains/tally has no `tally` feature in rust/Cargo.toml, so hecks project_rust has never generated it.",
+  "ruby_only_reason": "no Rust binary to hold it to: the corpus-owned domain spec/corpus/semantics/domains/tally has no `tally` feature in rust/Cargo.toml, so hecks project_rust has never generated it. Tried once by generating the domain locally: Rust refuses all five steps with TypeMismatch but words them differently (it names the command, not the aggregate; an array renders with a space after each comma; a boolean refusal omits the offered value).",
   "spec": [
     "C3.8",
     "C8.2"
   ],
-  "note": "Bare primitive arguments are type-checked at the command boundary (C3.8): a fractional Integer, a string Float, and a list String are each TypeMismatch refusals before any rule runs, never faults. A boolean argument offered a map or a list is refused the same way. The well-formed Measure before and after them is accepted. The Ruby-only String-admits-an-integer asymmetry is deliberately not exercised.",
+  "note": "Bare primitive arguments are type-checked at the command boundary (C3.8): a fractional Integer, a string Float, and a list String are each TypeMismatch refusals before any rule runs, never faults. A boolean argument (declared `TrueClass`) offered a map or a list is refused the same way. The well-formed Measure before and after them is accepted. The Ruby-only String-admits-an-integer asymmetry is deliberately not exercised.",
   "steps": [
     {
       "verb": "Tallying::Tally.Open",
@@ -113,12 +113,12 @@
       },
       {
         "verb": "Tallying::Tally.Measure",
-        "error": "Tally.urgent expects Boolean, got {\"flag\":true}",
+        "error": "Tally.urgent expects TrueClass, got {\"flag\":true}",
         "kind": "TypeMismatch"
       },
       {
         "verb": "Tallying::Tally.Measure",
-        "error": "Tally.urgent expects Boolean, got [true]",
+        "error": "Tally.urgent expects TrueClass, got [true]",
         "kind": "TypeMismatch"
       }
     ],

@@ -7,7 +7,6 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
-- **A `Boolean` argument offered a map or a list is refused in Ruby, as the semantics standard says (C3.8).** The boundary check compared the declared type name against `TrueClass` and `FalseClass`, but a declared boolean is named `Boolean`, so a composite slipped through and broke the first predicate that read it. It is now a `TypeMismatch` on that argument. `bare_argument_type_refused.json` pins it for Ruby; that fixture is Ruby-only, because Rust does not yet compile a domain with a bare `Boolean` command argument.
 - **Rust crates are held to rustfmt and a strict clippy.** `cargo fmt --check` and `cargo clippy --all-targets -- -D warnings`, with clippy's pedantic and nursery groups and no `unwrap`, `expect` or `panic` in library code, now pass for all seven crates and run in CI (the `rust_fmt` and `rust_clippy` checks of the `ci` gate stage; `rust_fmt` also runs on pre-push). Generators lay their Rust out with rustfmt before writing it, so generated code needs no skip attribute. A field named `crate`, `self`, `Self` or `super` is now emitted with a trailing underscore instead of an invalid raw identifier, which had kept the `meta` feature from compiling.
 
 ## [3.14.0] - 2026-10-17

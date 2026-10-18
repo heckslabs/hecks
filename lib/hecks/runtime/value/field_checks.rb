@@ -21,10 +21,9 @@ module Hecks
 
         # A scalar field (String, or a boolean) must not arrive as a composite
         # (Array/Hash) standing in for a leaf value. A String field additionally
-        # must not arrive as any other scalar, except inside `judge_bootstrapping?`. A boolean is
-        # declared as `Boolean`; `TrueClass`/`FalseClass` are the Ruby spellings of the same type.
+        # must not arrive as any other scalar, except inside `judge_bootstrapping?`.
         COMPOSITE_SHAPES = [Array, ::Hash].freeze
-        NON_NUMERIC_SCALARS = %w[String Boolean TrueClass FalseClass].freeze
+        NON_NUMERIC_SCALARS = %w[String TrueClass FalseClass].freeze
 
         private
 

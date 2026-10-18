@@ -172,7 +172,7 @@ Hecks.bluebook "Tallying" do
       attribute :times,  Integer
       attribute :ratio,  Float
       attribute :note,   String
-      attribute :urgent, Boolean
+      attribute :urgent, TrueClass
       emits "Measured"
     end
 
