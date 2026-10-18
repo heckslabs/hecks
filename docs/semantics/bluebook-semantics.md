@@ -327,6 +327,7 @@ it, except for one law they must uphold (C8.4).
   because no example domain declares two legs on one event)
 - **C10.4 (settled)** Reaction depth is bounded (5); a reaction beyond
   the bound is recorded undelivered, never run.
+  (fixture: `events_and_reactions_order.json`)
 
 ## Corpus contract
 
