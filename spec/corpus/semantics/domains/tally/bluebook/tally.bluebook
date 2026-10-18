@@ -82,6 +82,18 @@ Hecks.bluebook "Tallying" do
       emits "CountIncreased"
     end
 
+    # THE GIVEN READS THE ARGUMENT FIRST (C2.2): `count` is both this
+    # command's argument and the tally's field; inside the given it
+    # names the argument, so the rule judges what the caller passed, not
+    # what the tally already holds.
+    command "Lower" do
+      goal "Accept only a negative count argument"
+      reference_to Tally
+      attribute :count, Count
+      given("the count argument is negative") { count.value < 0 }
+      emits "CountLowered"
+    end
+
     # THE RULE ADDS FLOATS (C3.4): a sum that is not finite is a FAULT.
     command "Weigh" do
       goal "Add weight, but only while there is some"
