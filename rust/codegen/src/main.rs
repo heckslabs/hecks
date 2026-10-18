@@ -35,6 +35,7 @@ mod skip_reason;
 mod types;
 
 use json::Json;
+use shared::{puts_blank, puts_str};
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
@@ -166,17 +167,6 @@ fn write_domain(
     println!("wrote {}", metadata_path.display());
 
     Ok(generated)
-}
-
-fn puts_str(out: &mut String, s: &str) {
-    out.push_str(s);
-    if !s.ends_with('\n') {
-        out.push('\n');
-    }
-}
-
-fn puts_blank(out: &mut String) {
-    out.push('\n');
 }
 
 /// `hecks-codegen full <out_root> <target_mod_name> <target_source_label> <target_ir.json>

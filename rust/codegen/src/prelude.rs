@@ -3,32 +3,9 @@
 
 use crate::exemplar::Exemplar;
 use crate::json::Json;
+use crate::shared::{lifecycle_extra_field, puts_blank, puts_str};
 use crate::{json_codec, types};
 use std::collections::HashMap;
-
-// Mirrors Ruby's `puts`: appends "\n" only when the string does not already end in one.
-fn puts_str(out: &mut String, s: &str) {
-    out.push_str(s);
-    if !s.ends_with('\n') {
-        out.push('\n');
-    }
-}
-
-fn puts_blank(out: &mut String) {
-    out.push('\n');
-}
-
-fn lifecycle_extra_field(node: &Json) -> Vec<(String, String)> {
-    node.get("lifecycle")
-        .map_or_else(std::vec::Vec::new, |lifecycle| {
-            let field = lifecycle.get("field").and_then(Json::as_str).unwrap_or("");
-            let ident = crate::naming::rust_ident_field(field);
-            vec![(
-                crate::naming::rust_field(field),
-                format!("crate::kernel::Json::Str(self.{ident}.clone())"),
-            )]
-        })
-}
 
 /// One aggregate's prelude text, or `None` when the aggregate has unsupported attribute
 /// types and no `.rs` file is generated for it.

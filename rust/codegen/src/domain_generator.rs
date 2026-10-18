@@ -8,31 +8,9 @@ use crate::registry::{
     AggregateEntry, CommandEntry, EntityCommandEntry, EntityIdentityEntry,
     NestedEntityCommandEntry, PortEntry, ReferenceCheck, TenantBoundaryCheck,
 };
+use crate::shared::{lifecycle_extra_field, puts_blank, puts_str};
 use crate::{commands, json_codec, mutations, ports, queries, reactions, read_models, types};
 use std::collections::HashMap;
-
-fn puts_str(out: &mut String, s: &str) {
-    out.push_str(s);
-    if !s.ends_with('\n') {
-        out.push('\n');
-    }
-}
-
-fn puts_blank(out: &mut String) {
-    out.push('\n');
-}
-
-fn lifecycle_extra_field(node: &Json) -> Vec<(String, String)> {
-    node.get("lifecycle")
-        .map_or_else(std::vec::Vec::new, |lifecycle| {
-            let field = lifecycle.get("field").and_then(Json::as_str).unwrap_or("");
-            let ident = crate::naming::rust_ident_field(field);
-            vec![(
-                crate::naming::rust_field(field),
-                format!("crate::kernel::Json::Str(self.{ident}.clone())"),
-            )]
-        })
-}
 
 pub struct GeneratedFile {
     pub name: String,

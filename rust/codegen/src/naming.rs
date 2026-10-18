@@ -252,26 +252,7 @@ fn capitalize(word: &str) -> String {
 /// Port of `Hecks::Naming.snake` —
 /// `gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2').gsub(/([a-z\d])([A-Z])/, '\1_\2').downcase`.
 pub fn snake(text: &str) -> String {
-    let chars: Vec<char> = text.chars().collect();
-    let mut first = String::new();
-    for (i, &c) in chars.iter().enumerate() {
-        let next_upper = chars.get(i + 1).is_some_and(char::is_ascii_uppercase);
-        let then_lower = chars.get(i + 2).is_some_and(char::is_ascii_lowercase);
-        first.push(c);
-        if c.is_ascii_uppercase() && next_upper && then_lower {
-            first.push('_');
-        }
-    }
-    let chars: Vec<char> = first.chars().collect();
-    let mut second = String::new();
-    for (i, &c) in chars.iter().enumerate() {
-        second.push(c);
-        let next_upper = chars.get(i + 1).is_some_and(char::is_ascii_uppercase);
-        if (c.is_ascii_lowercase() || c.is_ascii_digit()) && next_upper {
-            second.push('_');
-        }
-    }
-    second.to_lowercase()
+    crate::hecks_naming::snake(text)
 }
 
 /// `name.to_s.gsub(/([a-z0-9])([A-Z])/, '\1_\2').upcase`

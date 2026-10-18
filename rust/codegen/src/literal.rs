@@ -2,6 +2,7 @@
 //! `Literal::from_json` covers values embedded raw in ir.json, which were never rendered.
 
 use crate::json::{Json, Number};
+use crate::shared::ruby_to_i;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Literal {
@@ -105,10 +106,6 @@ fn is_float(raw: &str) -> bool {
         && !frac_part.is_empty()
         && int_part.bytes().all(|b| b.is_ascii_digit())
         && frac_part.bytes().all(|b| b.is_ascii_digit())
-}
-
-fn ruby_to_i(raw: &str) -> i64 {
-    raw.parse().unwrap_or(0)
 }
 
 fn is_quoted(raw: &str) -> bool {
