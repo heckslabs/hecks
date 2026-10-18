@@ -1579,6 +1579,7 @@ pub fn emit_entity_command(
                 true,
                 true,
                 Some(aggregates_by_name),
+                None,
             )
         },
         // Argument gates, run by `kernel::decode_entity_arguments` in `EntityStep::ORDER`.
@@ -1928,6 +1929,7 @@ pub fn emit_nested_entity_command(
                 true,
                 true,
                 Some(aggregates_by_name),
+                None,
             )
         },
         // Argument gates, as in the one-hop entity command.

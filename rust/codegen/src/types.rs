@@ -686,7 +686,7 @@ mod tests {
         let by_name = HashMap::new();
         let exemplar = Exemplar::load();
         let from_json = crate::json_codec::emit_from_json_flat(
-            &exemplar, "Entry", attributes, &by_name, None, None, false, false, None,
+            &exemplar, "Entry", attributes, &by_name, None, None, false, false, None, None,
         );
         let to_json = crate::json_codec::emit_to_json_flat(
             &exemplar,
