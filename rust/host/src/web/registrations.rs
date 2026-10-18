@@ -257,7 +257,6 @@ fn unix_now() -> i64 {
         .as_secs() as i64
 }
 
-#[allow(clippy::too_many_arguments)]
 // Serves the checkout, registration-payment and webhook routes only when the
 // domain's IR declares `provides "payments"`. Takes the IR as a parameter,
 // not `ir()`, so the gate can be tested against one that lacks the key.
@@ -288,6 +287,7 @@ pub(super) async fn payments_routes(
     .await
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) async fn checkout_route(
     method: &str,
     path: &str,
@@ -1043,6 +1043,7 @@ fn mock_secret_refused() -> Value {
 /// `STRIPE_WEBHOOK_SECRET`, a saved signing secret, or — only while neither
 /// is set — the public mock secret, refusing anything only a real processor
 /// could have sent.
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn webhook_route(
     raw_body: &str,
     signature_header: &str,

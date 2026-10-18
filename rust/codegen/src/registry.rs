@@ -228,7 +228,7 @@ fn emit_argument_gates_literal(
     } else {
         format!(
             "&|args: &{args_path}| {{ {} Ok(()) }}",
-            references.join(" ")
+            references.join("\n")
         )
     };
 
@@ -237,17 +237,18 @@ fn emit_argument_gates_literal(
          refuse_unknown_arguments: &{args_path}::refuse_unknown_arguments, \
          refuse_absent_arguments: &{args_path}::refuse_absent_arguments, \
          normalize_args: &|v: &crate::kernel::Json| {{ {} }}, refuse_role_mismatch: {role}, resolve_references: {references} }}",
-        normalize.join(" ")
+        normalize.join("\n")
     )
 }
 
-/// Joins a multi-line emitted check onto one line so it can sit inside a closure expression.
+/// Trims the lines of an emitted check so it can sit inside a closure expression. The lines stay
+/// separate: joined onto one, `}` and the `if` after it would read as a missing `else`.
 fn squeeze(text: &str) -> String {
     text.lines()
         .map(str::trim)
         .filter(|l| !l.is_empty())
         .collect::<Vec<_>>()
-        .join(" ")
+        .join("\n")
 }
 
 pub fn emit_reference_check(exemplar: &Exemplar, check: &ReferenceCheck) -> String {

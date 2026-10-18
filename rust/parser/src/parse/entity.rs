@@ -140,6 +140,7 @@ pub fn entity_at_path_mut<'a>(
 /// type-form `identified_by` resolves against it. `entity_named_givens` is one pool shared by
 /// every piece under the root aggregate; a sibling's command reads it back through
 /// `command::try_reference_named_given`.
+#[allow(clippy::too_many_arguments)] // established signature
 pub fn parse_body(
     file: &str,
     lines: &[SourceLine],

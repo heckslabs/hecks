@@ -65,12 +65,12 @@ pub fn entity_identity_mint<'a>(
 /// Every `identified_by` head is compared at once (not just the first), so a composite identity
 /// is guarded the same as a single-field one — see `check_entity_collision` in
 /// `entity_element.rb` (Ruby's `heads.all?`).
-pub fn entity_list_replace_guard<'a>(
+pub fn entity_list_replace_guard(
     aggregate: &Json,
     target_attr: &Json,
     target_field: &str,
     rhs: &str,
-    value_objects_by_name: &HashMap<String, &'a Json>,
+    value_objects_by_name: &HashMap<String, &Json>,
 ) -> (String, String) {
     let target_type = crate::attr::type_name(target_attr);
     let entity = aggregate
@@ -921,7 +921,8 @@ pub fn build_identity_expr(components: &[IdentityComponent]) -> String {
         naming::ruby_inspect_string(&placeholders),
         components
             .iter()
-            .map(|c| c.expr.as_str())
+            // A format argument is displayed already, so the `.to_string()` an id part carries is dropped.
+            .map(|c| c.expr.strip_suffix(".to_string()").unwrap_or(&c.expr))
             .collect::<Vec<_>>()
             .join(", ")
     )
@@ -1030,6 +1031,7 @@ pub fn emit_mutation_line(
     )
 }
 
+#[allow(clippy::too_many_arguments)] // established emitter signature
 fn emit_mutation_line_body(
     exemplar: &Exemplar,
     mutation: &Json,
@@ -1320,7 +1322,7 @@ fn emit_mutation_line_body(
                     let (guard, effective_rhs) = entity_list_replace_guard(
                         aggregate,
                         target_attr,
-                        &target_field,
+                        target_field,
                         &rhs,
                         value_objects_by_name,
                     );

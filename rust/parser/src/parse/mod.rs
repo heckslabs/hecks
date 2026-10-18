@@ -564,12 +564,7 @@ pub(crate) fn split_top_level_rocket(segment: &str) -> (&str, &str) {
 
 /// The field name of a pair key, a bare or quoted Symbol literal (`:status`, `:"a.b"`).
 /// Any other key is refused; pair keys are always symbols.
-fn rocket_key_name<'a>(
-    file: &str,
-    word: &str,
-    key_text: &'a str,
-    line: usize,
-) -> ParseResult<String> {
+fn rocket_key_name(file: &str, word: &str, key_text: &str, line: usize) -> ParseResult<String> {
     let Some(rest) = key_text.strip_prefix(':') else {
         return Err(Diagnostic::new(file, line, format!("'{word}'s key '{key_text}' is not a symbol — a pair's key is always :name or :\"a.dotted.path\"")));
     };
@@ -1036,6 +1031,7 @@ pub(crate) enum PendingIdentity {
 /// Parses `identified_by` in its three forms: a value object type (`PizzaName, as: :name`), one or
 /// more field symbols (`:a, :b`), or a `{ ... }`/`do ... end` block declaring an inline value
 /// object named `inline_type_name`.
+#[allow(clippy::too_many_arguments)] // established signature
 pub(crate) fn parse_identified_by(
     file: &str,
     lines: &[SourceLine],
@@ -1254,75 +1250,5 @@ pub(crate) fn resolve_type_expression(
             ),
         )),
         None => Ok((trimmed.to_string(), false, None)),
-    }
-}
-
-/// Walks lines inside an open `context` up to and including the matching `end`, gating each one.
-/// The first gate failure or not-yet-implemented construct, at any depth, aborts the walk.
-pub fn walk_body(
-    file: &str,
-    lines: &[SourceLine],
-    pos: &mut usize,
-    context: &'static str,
-) -> ParseResult<()> {
-    loop {
-        let line = *lines.get(*pos).ok_or_else(|| {
-            let last = lines.last().map(|l| l.number).unwrap_or(0);
-            Diagnostic::new(
-                file,
-                last,
-                format!("unexpected end of file — still inside {context}"),
-            )
-        })?;
-
-        let shape = lex::classify(file, &line)?;
-        *pos += 1;
-
-        match shape {
-            LineShape::End => return Ok(()),
-            LineShape::Call(call) => handle_call(file, lines, pos, context, &line, call)?,
-        }
-    }
-}
-
-fn handle_call(
-    file: &str,
-    lines: &[SourceLine],
-    pos: &mut usize,
-    context: &'static str,
-    line: &SourceLine,
-    call: Call,
-) -> ParseResult<()> {
-    let candidates = word_gate(file, &call.word, context, line.number)?;
-    let row = body_gate(file, &candidates, &call.opener, line.number, &call.word)?;
-    argument_gate(file, &call.word, context, &call.args, line.number)?;
-
-    match &call.opener {
-        Opener::DoBlock { .. } => {
-            if row.inner.is_empty() {
-                return Err(dispatch_stub(context, file, line.number, &call.word));
-            }
-            let inner_context = keywords::CONTEXTS
-                .iter()
-                .find(|c| **c == row.inner)
-                .copied()
-                .ok_or_else(|| {
-                    Diagnostic::new(
-                        file,
-                        line.number,
-                        format!(
-                            "'{}' opens an undeclared context '{}'",
-                            call.word, row.inner
-                        ),
-                    )
-                })?;
-            walk_body(file, lines, pos, inner_context)?;
-            // The nested body gated cleanly but builds nothing yet, so the failure is reported at
-            // the construct just entered rather than the outer `context`.
-            Err(dispatch_stub(inner_context, file, line.number, &call.word))
-        }
-        Opener::BraceBlock { .. } | Opener::None => {
-            Err(dispatch_stub(context, file, line.number, &call.word))
-        }
     }
 }

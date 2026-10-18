@@ -342,8 +342,7 @@ fn trailing_do(rest: &str) -> Option<(&str, Option<String>)> {
     if let Some(before) = trimmed.strip_suffix(" do") {
         return Some((before, None));
     }
-    if trimmed.ends_with('|') {
-        let without_trailing_pipe = &trimmed[..trimmed.len() - 1];
+    if let Some(without_trailing_pipe) = trimmed.strip_suffix('|') {
         if let Some(open_pipe) = without_trailing_pipe.rfind('|') {
             let params = &without_trailing_pipe[open_pipe + 1..];
             let before_pipe = trimmed[..open_pipe].trim_end();

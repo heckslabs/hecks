@@ -110,7 +110,10 @@ pub fn dispatch_by_name(
             let route = invocation.route();
             let facts_json = invocation.facts();
             let args = if invocation.explicit_with() {
-                let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::pizzas::order::CreatePizzaArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::pizzas::order::CreatePizzaArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::pizzas::order::CreatePizzaArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::pizzas::order::CreatePizzaArgs::from_json(v)?; args.name.check_invariants()?; args.pizza.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Chef"), "CreatePizza", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::pizzas::order::CreatePizzaArgs| Ok(()) })?;
+                let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::pizzas::order::CreatePizzaArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::pizzas::order::CreatePizzaArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::pizzas::order::CreatePizzaArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::pizzas::order::CreatePizzaArgs::from_json(v)?;
+args.name.check_invariants()?;
+args.pizza.check_invariants()?;
+Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Chef"), "CreatePizza", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::pizzas::order::CreatePizzaArgs| Ok(()) })?;
                 if let Some(route) = route {
                     route.require_depth(0)?;
                 }
@@ -119,7 +122,10 @@ pub fn dispatch_by_name(
                 if let Some(route) = route {
                     route.require_depth(0)?;
                 }
-                crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::pizzas::order::CreatePizzaArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::pizzas::order::CreatePizzaArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::pizzas::order::CreatePizzaArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::pizzas::order::CreatePizzaArgs::from_json(v)?; args.name.check_invariants()?; args.pizza.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Chef"), "CreatePizza", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::pizzas::order::CreatePizzaArgs| Ok(()) })?
+                crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::pizzas::order::CreatePizzaArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::pizzas::order::CreatePizzaArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::pizzas::order::CreatePizzaArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::pizzas::order::CreatePizzaArgs::from_json(v)?;
+args.name.check_invariants()?;
+args.pizza.check_invariants()?;
+Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Chef"), "CreatePizza", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::pizzas::order::CreatePizzaArgs| Ok(()) })?
             };
             let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
             let owner_deref = Vec::new();
@@ -141,7 +147,10 @@ pub fn dispatch_by_name(
             let route = invocation.route();
             let facts_json = invocation.facts();
             let args = if invocation.explicit_with() {
-                let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::pizzas::order::AddToppingArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::pizzas::order::AddToppingArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::pizzas::order::AddToppingArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::pizzas::order::AddToppingArgs::from_json(v)?; args.topping.check_invariants()?; args.amount.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Chef"), "AddTopping", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::pizzas::order::AddToppingArgs| Ok(()) })?;
+                let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::pizzas::order::AddToppingArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::pizzas::order::AddToppingArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::pizzas::order::AddToppingArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::pizzas::order::AddToppingArgs::from_json(v)?;
+args.topping.check_invariants()?;
+args.amount.check_invariants()?;
+Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Chef"), "AddTopping", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::pizzas::order::AddToppingArgs| Ok(()) })?;
                 if let Some(route) = route {
                     route.require_depth(0)?;
                 }
@@ -150,7 +159,10 @@ pub fn dispatch_by_name(
                 if let Some(route) = route {
                     route.require_depth(0)?;
                 }
-                crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::pizzas::order::AddToppingArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::pizzas::order::AddToppingArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::pizzas::order::AddToppingArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::pizzas::order::AddToppingArgs::from_json(v)?; args.topping.check_invariants()?; args.amount.check_invariants()?; Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Chef"), "AddTopping", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::pizzas::order::AddToppingArgs| Ok(()) })?
+                crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::pizzas::order::AddToppingArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::pizzas::order::AddToppingArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::pizzas::order::AddToppingArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::pizzas::order::AddToppingArgs::from_json(v)?;
+args.topping.check_invariants()?;
+args.amount.check_invariants()?;
+Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Chef"), "AddTopping", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::pizzas::order::AddToppingArgs| Ok(()) })?
             };
             let id = match route {
                 Some(route) => route.aggregate().to_string(),

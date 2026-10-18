@@ -817,7 +817,7 @@ fn primitive_shape(ty: &str, format: Option<Value>) -> Value {
 
 fn enum_shape(value_object: &Value) -> Value {
     let attributes = array(value_object, "attributes");
-    let discriminant = attributes.first().map(|a| attr_name(a)).unwrap_or("value");
+    let discriminant = attributes.first().map(attr_name).unwrap_or("value");
     let options: Vec<Value> = array(value_object, "members")
         .iter()
         .filter_map(|member| {
@@ -863,7 +863,7 @@ fn list_shape(value_object: &Value, aggregate: &Value, key_for: &KeyFor, formats
 /// cents+currency pair collapses into one "money" column, as at top level.
 fn row_columns(shape: &Value, aggregate: &Value, key_for: &KeyFor, formats: &Value) -> Value {
     let attributes = array(shape, "attributes");
-    let names: Vec<&str> = attributes.iter().map(|a| attr_name(a)).collect();
+    let names: Vec<&str> = attributes.iter().map(attr_name).collect();
     if !(names.contains(&"cents") && names.contains(&"currency")) {
         return Value::Array(
             attributes
@@ -1004,7 +1004,7 @@ fn identity_heads(aggregate: &Value) -> Vec<&str> {
 fn money_shaped(value_object: &Value) -> bool {
     let mut names: Vec<&str> = array(value_object, "attributes")
         .iter()
-        .map(|a| attr_name(a))
+        .map(attr_name)
         .collect();
     names.sort_unstable();
     names == ["cents", "currency"]

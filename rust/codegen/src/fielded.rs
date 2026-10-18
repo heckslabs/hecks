@@ -44,8 +44,7 @@ pub fn emit_fielded_flat(
                     ("tmpl_ident", ident),
                 ],
             ))
-        } else if optional && scalar.is_some() {
-            let scalar = scalar.unwrap();
+        } else if let (true, Some(scalar)) = (optional, scalar) {
             Some(
                 exemplar.render(
                     "fielded_arm_optional_scalar",

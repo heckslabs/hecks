@@ -1552,7 +1552,7 @@ mod tests {
             .await
             .unwrap();
 
-        let (client, conn) = tokio_postgres::connect(&crate::test_pg::conninfo(&name), NoTls)
+        let (client, conn) = tokio_postgres::connect(&crate::test_pg::conninfo(name), NoTls)
             .await
             .expect("connect to scratch db");
         tokio::spawn(async move {

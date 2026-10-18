@@ -113,6 +113,7 @@ pub struct PendingCommandGiven {
 /// Parses a `command "Name" do ... end` body.
 /// `owner` tells a self `reference_to` from a cross-reference. `preconditions` and the `owner_*`
 /// slices hold what the owner declared so far, so declaration order matters.
+#[allow(clippy::too_many_arguments)] // established signature
 pub fn parse_body(
     file: &str,
     lines: &[SourceLine],

@@ -186,7 +186,7 @@ fn puts_blank(out: &mut String) {
 /// Writes the target chapter's directory, each attached chapter's own directory, and the
 /// target's `merged.rs`: one `Store`/`dispatch_by_name` table spanning every chapter given.
 fn run_full(args: &[String]) -> Result<(), String> {
-    if args.len() < 4 || (args.len() - 4) % 3 != 0 {
+    if args.len() < 4 || !(args.len() - 4).is_multiple_of(3) {
         return Err(
             "usage: hecks-codegen full <out_root> <target_mod_name> <target_source_label> <target_ir.json> [<chapter_mod_name> <chapter_source_label> <chapter_ir.json>]..."
                 .to_string(),

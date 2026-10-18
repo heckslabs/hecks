@@ -312,7 +312,7 @@ mod path_operand_tests {
     struct Record(Charge);
     impl Fielded for Record {
         fn field(&self, name: &str) -> Option<Field<'_>> {
-            (name == "charged").then(|| Field::Nested(&self.0))
+            (name == "charged").then_some(Field::Nested(&self.0))
         }
     }
 

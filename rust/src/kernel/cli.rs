@@ -432,14 +432,17 @@ fn tables() -> Tables<'static> {
     }
 }
 
+/// Saga instances by (saga, correlation id), as `serve` keeps them across steps.
+type SagaMap = HashMap<(String, String), SagaInstance>;
+
 /// `--serve` mode: one JSON step per stdin line, one answer per stdout line, store kept across
 /// lines. Beyond `verb` it takes `dry_run`, `snapshot`, `restore` and `instances` steps.
 pub fn serve(input: impl std::io::BufRead, mut output: impl std::io::Write) {
     let mut store = Store::new();
-    let mut sagas: HashMap<(String, String), SagaInstance> = HashMap::new();
+    let mut sagas = SagaMap::new();
     let mut reaction_log: Vec<Json> = Vec::new();
     let mut saga_log: Vec<Json> = Vec::new();
-    let mut snapshot: Option<(Store, HashMap<(String, String), SagaInstance>)> = None;
+    let mut snapshot: Option<(Store, SagaMap)> = None;
     let ok = || Json::obj(vec![("ok", Json::Bool(true))]);
 
     for line in input.lines() {

@@ -231,6 +231,17 @@ pub struct Tables<'a> {
     pub entity_identity_head_fn: fn(&str) -> Option<&'static str>,
 }
 
+/// The shape of the generated `dispatch` an orchestration step calls into: the store, the verb,
+/// its arguments, the caller's role and actor, and the mutation log it appends to.
+type DispatchFn<S> = fn(
+    &mut S,
+    &str,
+    &Json,
+    Option<&str>,
+    Option<&str>,
+    &mut Vec<MutationRecord>,
+) -> Result<Vec<Event>, Refusal>;
+
 /// Dispatches `verb`, then recursively runs the policies and saga legs its events trigger.
 /// Only a refusal of the top-level `verb` is returned; reaction refusals are logged and swallowed.
 ///
@@ -238,14 +249,7 @@ pub struct Tables<'a> {
 #[allow(clippy::too_many_arguments)]
 pub fn orchestrate<S: AggregateScan>(
     store: &mut S,
-    dispatch_fn: fn(
-        &mut S,
-        &str,
-        &Json,
-        Option<&str>,
-        Option<&str>,
-        &mut Vec<MutationRecord>,
-    ) -> Result<Vec<Event>, Refusal>,
+    dispatch_fn: DispatchFn<S>,
     tables: Tables<'static>,
     sagas: &mut HashMap<(String, String), SagaInstance>,
     verb: &str,
@@ -649,14 +653,7 @@ fn route_dispatch_args(projected: Json, target_verb: &str, tables: &Tables, even
 #[allow(clippy::too_many_arguments)]
 fn react_policies<S: AggregateScan>(
     store: &mut S,
-    dispatch_fn: fn(
-        &mut S,
-        &str,
-        &Json,
-        Option<&str>,
-        Option<&str>,
-        &mut Vec<MutationRecord>,
-    ) -> Result<Vec<Event>, Refusal>,
+    dispatch_fn: DispatchFn<S>,
     tables: Tables<'static>,
     sagas: &mut HashMap<(String, String), SagaInstance>,
     event: &Event,
@@ -693,7 +690,7 @@ fn react_policies<S: AggregateScan>(
                 ("on", Json::str(event.name.clone())),
                 ("trigger", Json::str(policy.target_verb.to_string())),
             ];
-            fields.extend(extra.into_iter().map(|(k, v)| (k, v)));
+            fields.extend(extra);
             Json::obj(fields)
         };
 
@@ -734,7 +731,7 @@ fn react_policies<S: AggregateScan>(
             for (row_id, row) in rows {
                 let row_record = |extra: Vec<(&str, Json)>| -> Json {
                     let mut fields = vec![("for_row", Json::str(row_id.clone()))];
-                    fields.extend(extra.into_iter());
+                    fields.extend(extra);
                     let base = record(vec![]);
                     match base {
                         Json::Object(mut pairs) => {
@@ -890,14 +887,7 @@ fn begin_saga(
 #[allow(clippy::too_many_arguments)]
 fn advance_saga<S: AggregateScan>(
     store: &mut S,
-    dispatch_fn: fn(
-        &mut S,
-        &str,
-        &Json,
-        Option<&str>,
-        Option<&str>,
-        &mut Vec<MutationRecord>,
-    ) -> Result<Vec<Event>, Refusal>,
+    dispatch_fn: DispatchFn<S>,
     tables: Tables<'static>,
     sagas: &mut HashMap<(String, String), SagaInstance>,
     event: &Event,
@@ -924,7 +914,7 @@ fn advance_saga<S: AggregateScan>(
                 ("on", Json::str(event.name.clone())),
                 ("instance", Json::str(correlation.clone())),
             ];
-            fields.extend(extra.into_iter().map(|(k, v)| (k, v)));
+            fields.extend(extra);
             Json::obj(fields)
         };
 
@@ -1034,14 +1024,7 @@ fn advance_saga<S: AggregateScan>(
 #[allow(clippy::too_many_arguments)]
 fn deliver_saga_dispatch<S: AggregateScan>(
     store: &mut S,
-    dispatch_fn: fn(
-        &mut S,
-        &str,
-        &Json,
-        Option<&str>,
-        Option<&str>,
-        &mut Vec<MutationRecord>,
-    ) -> Result<Vec<Event>, Refusal>,
+    dispatch_fn: DispatchFn<S>,
     tables: Tables<'static>,
     sagas: &mut HashMap<(String, String), SagaInstance>,
     pm: &ProcessManagerDef,
@@ -1066,7 +1049,7 @@ fn deliver_saga_dispatch<S: AggregateScan>(
             ("instance", Json::str(correlation.to_string())),
             ("dispatch", Json::str(spec.command_name.to_string())),
         ];
-        fields.extend(extra.into_iter().map(|(k, v)| (k, v)));
+        fields.extend(extra);
         Json::obj(fields)
     };
 
@@ -1144,14 +1127,7 @@ fn deliver_saga_dispatch<S: AggregateScan>(
 #[allow(clippy::too_many_arguments)]
 fn deliver_derived_compensation<S: AggregateScan>(
     store: &mut S,
-    dispatch_fn: fn(
-        &mut S,
-        &str,
-        &Json,
-        Option<&str>,
-        Option<&str>,
-        &mut Vec<MutationRecord>,
-    ) -> Result<Vec<Event>, Refusal>,
+    dispatch_fn: DispatchFn<S>,
     tables: Tables<'static>,
     sagas: &mut HashMap<(String, String), SagaInstance>,
     pm: &ProcessManagerDef,
@@ -1172,7 +1148,7 @@ fn deliver_derived_compensation<S: AggregateScan>(
             ("instance", Json::str(correlation.to_string())),
             ("dispatch", Json::str(entry.command_name.to_string())),
         ];
-        fields.extend(extra.into_iter().map(|(k, v)| (k, v)));
+        fields.extend(extra);
         Json::obj(fields)
     };
 
@@ -1264,14 +1240,7 @@ fn end_saga(
 #[allow(clippy::too_many_arguments)]
 fn compensate<S: AggregateScan>(
     store: &mut S,
-    dispatch_fn: fn(
-        &mut S,
-        &str,
-        &Json,
-        Option<&str>,
-        Option<&str>,
-        &mut Vec<MutationRecord>,
-    ) -> Result<Vec<Event>, Refusal>,
+    dispatch_fn: DispatchFn<S>,
     tables: Tables<'static>,
     sagas: &mut HashMap<(String, String), SagaInstance>,
     pm: &ProcessManagerDef,
@@ -1302,7 +1271,7 @@ fn compensate<S: AggregateScan>(
             ("on", Json::str(REFUSED.to_string())),
             ("instance", Json::str(correlation.to_string())),
         ];
-        fields.extend(extra.into_iter().map(|(k, v)| (k, v)));
+        fields.extend(extra);
         Json::obj(fields)
     };
 

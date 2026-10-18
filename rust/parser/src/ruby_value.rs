@@ -306,9 +306,7 @@ fn scan_adjacent_strings(raw: &str) -> Option<(String, usize)> {
         }
 
         // Defensive: return `None` rather than panic on an empty or odd `raw`.
-        let Some(&quote) = chars.get(i).filter(|c| **c == '"' || **c == '\'') else {
-            return None;
-        };
+        let &quote = chars.get(i).filter(|c| **c == '"' || **c == '\'')?;
 
         let start = i;
         i += 1;

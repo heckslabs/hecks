@@ -154,6 +154,7 @@ pub fn apply(
 
 /// `<Domain>::<Aggregate>.<verb>`: `port` attaches a port to the named aggregate; any other
 /// verb is a generic adapter-bind, shape-matched and dropped.
+#[allow(clippy::too_many_arguments)] // established signature
 fn apply_aggregate_qualified(
     file: &str,
     lines: &[SourceLine],

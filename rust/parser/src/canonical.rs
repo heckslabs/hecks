@@ -2,6 +2,7 @@
 //! Hand-mirrored from projection.json: a rule there (collapse_whitespace, replace, scale_call) needs a matching rule here.
 
 /// Slices the raw source between two byte offsets, before any normalisation.
+#[cfg(test)]
 pub fn slice(source: &str, start: usize, end: usize) -> &str {
     &source[start..end]
 }
@@ -43,7 +44,7 @@ fn scale_call(text: &str, token: &str, seconds: &str) -> String {
             let preceded = text[..i]
                 .chars()
                 .next_back()
-                .map_or(false, |c| c.is_alphanumeric() || c == '_' || c == '.');
+                .is_some_and(|c| c.is_alphanumeric() || c == '_' || c == '.');
             if !preceded {
                 if let Some((digits, len)) = whole_number_call(&text[i + token.len()..]) {
                     out.push_str(&multiply(digits, seconds));

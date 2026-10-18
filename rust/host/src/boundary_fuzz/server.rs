@@ -288,8 +288,7 @@ fn a_malformed_body_is_refused_before_it_costs_any_rate_limit_budget() {
                 &HeaderMap::new(),
                 &Bytes::from(body.to_string()),
             )
-            .err()
-            .expect("refused");
+            .expect_err("refused");
             assert_eq!(status_of(&refusal), 400, "{body:?}");
         }
     }
@@ -358,8 +357,7 @@ fn invalid_utf8_and_oversized_bodies_are_answered() {
             &HeaderMap::new(),
             &openers,
         )
-        .err()
-        .expect("refused");
+        .expect_err("refused");
         assert_eq!(status_of(&refusal), 400);
         let nested = Bytes::from(format!("{}1{}", "[".repeat(100_000), "]".repeat(100_000)));
         assert_eq!(
@@ -372,8 +370,7 @@ fn invalid_utf8_and_oversized_bodies_are_answered() {
                     &HeaderMap::new(),
                     &nested
                 )
-                .err()
-                .expect("refused")
+                .expect_err("refused")
             ),
             400
         );

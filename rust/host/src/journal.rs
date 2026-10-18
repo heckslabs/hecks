@@ -688,7 +688,7 @@ mod lineage_tests {
         // The fenced app role — the same connection shape a real deployed
         // rust/host uses (never the table-owning role, which bypasses RLS).
         let (client, connection) =
-            tokio_postgres::connect(&crate::test_pg::conninfo_as(&db, &app_role), NoTls)
+            tokio_postgres::connect(&crate::test_pg::conninfo_as(db, app_role), NoTls)
                 .await
                 .expect("connect as the app role");
         tokio::spawn(async move {
@@ -775,7 +775,7 @@ mod lineage_tests {
         // to the app role by design — only the mint path reads them, not
         // the RLS-fenced data path the test above exists to prove.
         let (client, connection) =
-            tokio_postgres::connect(&crate::test_pg::conninfo_as(&db, &owner_role), NoTls)
+            tokio_postgres::connect(&crate::test_pg::conninfo_as(db, owner_role), NoTls)
                 .await
                 .expect("connect as owner");
         tokio::spawn(async move {

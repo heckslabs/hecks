@@ -1319,6 +1319,7 @@ pub fn entity_command_skip_reason(
 }
 
 /// Emits the dispatch function for an entity command.
+#[allow(clippy::too_many_arguments)] // established emitter signature
 pub fn emit_entity_command(
     exemplar: &Exemplar,
     command: &Json,
@@ -1623,6 +1624,7 @@ pub fn emit_entity_command(
 
 /// Emits the dispatch function for a command on an entity nested two levels deep.
 /// Takes plain `&str` ids per hop, so routed and flat-args callers can both use it.
+#[allow(clippy::too_many_arguments)] // established emitter signature
 pub fn emit_nested_entity_command(
     exemplar: &Exemplar,
     command: &Json,
