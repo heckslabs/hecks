@@ -1,6 +1,7 @@
 Hecks.bluebook "Tallying" do
   # A CORPUS-OWNED DOMAIN (docs/semantics/bluebook-semantics.md, §3 —
-  # C3.3 integers, C3.4 floats, C3.6 strings). The value model's own
+  # C3.3 integers, C3.4 floats, C3.6 strings, C3.8 bare
+  # argument types, C4.4 numeric effects). The value model's own
   # bounds are only observable at their edges — a sum past ±2^63-1, a
   # float sum past the largest finite double, a string that sorts
   # differently by codepoint than by any locale — and no example domain
@@ -148,6 +149,62 @@ Hecks.bluebook "Tallying" do
       given("the label sorts after m") { label.value > "m" }
       sets :label
       emits "Relabelled"
+    end
+
+    # BARE PRIMITIVE ARGUMENTS (C3.8): no value object wraps these, so the
+    # boundary itself holds each to its declared type. No rule or effect
+    # reads them; the command exists to be refused or accepted.
+    command "Measure" do
+      goal "Take a measurement of each primitive kind"
+      reference_to Tally
+      attribute :times,  Integer
+      attribute :ratio,  Float
+      attribute :note,   String
+      attribute :urgent, Boolean
+      emits "Measured"
+    end
+
+    # NUMERIC EFFECTS (C4.4): `limit` is optional, so it starts absent and
+    # an absent target reads as 0. Each command moves it one way.
+    command "RaiseLimit" do
+      goal "Raise the limit by an amount"
+      reference_to Tally
+      attribute :by, Count
+      sets :limit, increment: :by
+      emits "LimitRaised"
+    end
+
+    command "LowerLimit" do
+      goal "Lower the limit by an amount"
+      reference_to Tally
+      attribute :by, Count
+      sets :limit, decrement: :by
+      emits "LimitLowered"
+    end
+
+    command "ScaleLimit" do
+      goal "Scale the limit by a factor"
+      reference_to Tally
+      attribute :factor, Count
+      sets :limit, multiply: :factor
+      emits "LimitScaled"
+    end
+
+    command "ClampLimit" do
+      goal "Bring the limit into one to ten"
+      reference_to Tally
+      sets :limit, clamp: [1, 10]
+      emits "LimitClamped"
+    end
+
+    # A NON-NUMERIC OPERAND (C4.4): a Label carries a String, so adding it
+    # to the count is a TypeMismatch refusal, not a fault.
+    command "AddLabel" do
+      goal "Add a label's text to the count"
+      reference_to Tally
+      attribute :label, Label
+      sets :count, increment: :label
+      emits "LabelAdded"
     end
   end
 end
