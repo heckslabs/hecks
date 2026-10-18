@@ -1,0 +1,5 @@
+# Mechanical changes that move lines without changing them.
+# Use with: git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# Format the Rust crates with rustfmt
+6fac1baed17057ef16bdc3e744d9d40cb1eccbf9
