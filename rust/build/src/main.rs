@@ -15,6 +15,7 @@ mod pipeline;
 mod reserved_names;
 mod resolve;
 mod root;
+mod rustfmt;
 mod seams_pass;
 mod subprocess;
 mod tmp;

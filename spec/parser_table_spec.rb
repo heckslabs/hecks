@@ -6,7 +6,8 @@ RSpec.describe "the generated parser table" do
   let(:committed_path) { File.expand_path("../rust/parser/src/keywords.rs", __dir__) }
 
   def regenerated_table
-    Hecks::Projector.call(:parser_table, bluebook: Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook"))
+    text = Hecks::Projector.call(:parser_table, bluebook: Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook"))
+    Hecks::RustFormat.call(text)
   end
 
   it "is exactly what `hecks project_parser_table` would regenerate " \

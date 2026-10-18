@@ -9,6 +9,7 @@ use crate::cargo_sync;
 use crate::json::Json;
 use crate::lineage_pass;
 use crate::resolve;
+use crate::rustfmt;
 use crate::seams_pass;
 use crate::subprocess;
 use crate::tmp::TempDir;
@@ -290,6 +291,15 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     } else {
         cargo_sync::run(&out_root, &cargo_toml_path, &target_mod_name)?;
     }
+
+    // `hecks project_rust` lays its Rust out with rustfmt; the tree must match it byte for byte.
+    let mut generated_dirs = vec![
+        "meta".to_string(),
+        "active".to_string(),
+        target_mod_name.clone(),
+    ];
+    generated_dirs.extend(chapters.iter().map(|c| c.mod_name.clone()));
+    rustfmt::format_generated(&out_root, &generated_dirs)?;
 
     let rust_dir = root.join("rust");
     if opts.build_native {

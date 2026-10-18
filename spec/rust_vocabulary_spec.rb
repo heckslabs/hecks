@@ -8,10 +8,11 @@ require "spec_helper"
 RSpec.describe "the generated Rust vocabulary tables (hecks project_rust_vocabulary)" do
   let(:kernel) { File.join(InMemoryDomain::ROOT, "rust/src/kernel") }
   let(:projected) do
-    Hecks::Projector.call(
+    files = Hecks::Projector.call(
       :rust_vocabulary,
       bluebook: Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
     )
+    Hecks::RustFormat.files(files)
   end
 
   def stale_files
