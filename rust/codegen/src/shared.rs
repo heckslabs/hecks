@@ -3,6 +3,49 @@
 use crate::json::Json;
 use std::collections::HashMap;
 
+/// Mirrors Ruby's `puts`: appends "\n" only when the string does not already end in one.
+pub fn puts_str(out: &mut String, s: &str) {
+    out.push_str(s);
+    if !s.ends_with('\n') {
+        out.push('\n');
+    }
+}
+
+pub fn puts_blank(out: &mut String) {
+    out.push('\n');
+}
+
+/// The extra `(field, json)` pair a lifecycle contributes to a node's record fields.
+pub fn lifecycle_extra_field(node: &Json) -> Vec<(String, String)> {
+    node.get("lifecycle")
+        .map_or_else(std::vec::Vec::new, |lifecycle| {
+            let field = lifecycle.get("field").and_then(Json::as_str).unwrap_or("");
+            let ident = crate::naming::rust_ident_field(field);
+            vec![(
+                crate::naming::rust_field(field),
+                format!("crate::kernel::Json::Str(self.{ident}.clone())"),
+            )]
+        })
+}
+
+/// Ruby's `String#to_i`: parses a leading integer prefix, 0 when there is none.
+pub fn ruby_to_i(s: &str) -> i64 {
+    let trimmed = s.trim_start();
+    let bytes = trimmed.as_bytes();
+    let mut end = 0;
+    if end < bytes.len() && (bytes[end] == b'-' || bytes[end] == b'+') {
+        end += 1;
+    }
+    let digits_start = end;
+    while end < bytes.len() && bytes[end].is_ascii_digit() {
+        end += 1;
+    }
+    if end == digits_start {
+        return 0;
+    }
+    trimmed[..end].parse().unwrap_or(0)
+}
+
 /// Argument names claimed by an append, so an append's element-field argument never bare-name-
 /// matches an unrelated owner field. Shared by `creates_owner` and `identity_components`.
 pub fn append_claimed_names(command: &Json) -> std::collections::HashSet<String> {

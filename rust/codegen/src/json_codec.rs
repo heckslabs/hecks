@@ -877,7 +877,8 @@ pub fn emit_closed_set_codec(exemplar: &Exemplar, vo: &Json) -> String {
 
 #[allow(
     clippy::unwrap_used,
-    reason = "the value was checked just before; None would mean invalid IR"
+    clippy::panic,
+    reason = "the value was checked just before; None would mean invalid IR, which aborts generation on purpose"
 )]
 pub fn emit_closed_set_table_codec(exemplar: &Exemplar, vo: &Json) -> String {
     let name = naming::rust_ident(vo.get("name").and_then(Json::as_str).unwrap_or(""));
@@ -897,7 +898,7 @@ pub fn emit_closed_set_table_codec(exemplar: &Exemplar, vo: &Json) -> String {
                 Some("TrueClass" | "FalseClass") => {
                     format!("crate::kernel::Json::Bool(self.{ident})")
                 }
-                _ => String::new(),
+                other => panic!("no to_json expr for closed-set attribute scalar {other:?}"),
             };
             exemplar.render(
                 "to_json_field",

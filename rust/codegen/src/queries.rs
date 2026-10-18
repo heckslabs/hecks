@@ -4,6 +4,7 @@ use crate::exemplar::Exemplar;
 use crate::json::Json;
 use crate::literal::{self, Literal};
 use crate::naming;
+use crate::shared::ruby_to_i;
 use crate::skip_reason::{reskip, skip, SkipReason};
 use std::collections::HashMap;
 use std::fmt::Write as _;
@@ -638,23 +639,6 @@ pub fn emit_query_limit(limit: &Json) -> String {
 // `offset:` field does not read as a `Limit`.
 pub fn emit_query_offset(offset: &Json) -> String {
     emit_query_limit(offset).replace("query_ordering::Limit::", "query_ordering::Offset::")
-}
-
-fn ruby_to_i(s: &str) -> i64 {
-    let trimmed = s.trim_start();
-    let bytes = trimmed.as_bytes();
-    let mut end = 0;
-    if end < bytes.len() && (bytes[end] == b'-' || bytes[end] == b'+') {
-        end += 1;
-    }
-    let digits_start = end;
-    while end < bytes.len() && bytes[end].is_ascii_digit() {
-        end += 1;
-    }
-    if end == digits_start {
-        return 0;
-    }
-    trimmed[..end].parse().unwrap_or(0)
 }
 
 pub struct Condition {

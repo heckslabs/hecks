@@ -5,6 +5,7 @@ use crate::exemplar::Exemplar;
 use crate::fielded;
 use crate::json::Json;
 use crate::naming;
+use crate::shared::ruby_to_i;
 use std::collections::HashMap;
 
 #[allow(
@@ -184,24 +185,6 @@ pub fn emit_closed_set_table(exemplar: &Exemplar, vo: &Json) -> String {
         naming::screaming_snake(vo.get("name").and_then(Json::as_str).unwrap_or("")),
         member_literals.join("\n")
     )
-}
-
-/// Ruby's `String#to_i`: parses a leading integer prefix, 0 when there is none.
-fn ruby_to_i(s: &str) -> i64 {
-    let trimmed = s.trim_start();
-    let mut end = 0;
-    let bytes = trimmed.as_bytes();
-    if end < bytes.len() && (bytes[end] == b'-' || bytes[end] == b'+') {
-        end += 1;
-    }
-    let digits_start = end;
-    while end < bytes.len() && bytes[end].is_ascii_digit() {
-        end += 1;
-    }
-    if end == digits_start {
-        return 0;
-    }
-    trimmed[..end].parse().unwrap_or(0)
 }
 
 /// Ruby's `String#to_f`: parses a leading float prefix, 0.0 when there is none.
