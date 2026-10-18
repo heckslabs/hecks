@@ -33,7 +33,8 @@ it, except for one law they must uphold (C8.4).
   admissible_transition, assign_creation_attributes, apply_mutations,
   advance_lifecycle, delegate_to_entity, enforce_ensures,
   enforce_invariants, save, emit. Entity commands run
-  `EntityDispatchOrder` the same way.
+  `EntityDispatchOrder` the same way. (fixtures: `refusal_order.json`,
+  `absent_argument_refused.json`, which tag it for the order of the steps)
 - **C1.2 (settled)** Which refusal a caller sees is decided by step
   order: an unknown argument outranks a type mismatch, which outranks a
   role mismatch, which outranks not-found, which outranks an unmet
@@ -57,6 +58,8 @@ it, except for one law they must uphold (C8.4).
   arguments first, then the subject's state; an unknown head is an
   evaluation fault (C8.3), not "false". `parent`, `old` and correction
   bindings are ordinary heads injected by the step that defines them.
+  (fixture: `given_reads_argument_first.json` — the argument-first half;
+  the unknown-head fault needs a malformed domain)
 - **C2.3 (settled)** A post-state rule resolves the *settled state
   first*: inside an `ensures`, a head that is both one of the command's
   arguments and one of the subject's fields names the candidate field,
