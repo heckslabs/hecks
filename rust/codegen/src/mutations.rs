@@ -277,6 +277,50 @@ pub fn pre_state_line() -> String {
     "        let pre = record.clone();".to_string()
 }
 
+/// The value an arithmetic op (`increment`/`decrement`/`multiply`/`clamp`) reads from its target.
+///
+/// An absent optional target reads as 0 (C4.4), the integer field zeroed and every other field at
+/// its declared default. A value object whose other fields lack defaults has no sensible zero, so
+/// that case keeps the unwrap.
+fn numeric_current(
+    optional: bool,
+    target_field: &str,
+    target_attr: &Json,
+    integer_field: &str,
+    value_objects_by_name: &HashMap<String, &Json>,
+) -> String {
+    if !optional {
+        return format!("record.{target_field}.clone()");
+    }
+    let vo_type = crate::attr::type_name(target_attr);
+    let attrs = value_objects_by_name
+        .get(vo_type)
+        .and_then(|vo| vo.get("attributes"))
+        .map_or_default(Json::each);
+    let zero_fields: Option<Vec<String>> = attrs
+        .iter()
+        .map(|f| {
+            let name = crate::attr::name(f);
+            let rhs = if name == integer_field {
+                Some("0".to_string())
+            } else {
+                crate::attr::default(f).map(naming::literal_rhs)
+            };
+            rhs.map(|rhs| format!("{}: {rhs}", naming::rust_ident_field(name)))
+        })
+        .collect();
+    zero_fields.map_or_else(
+        || format!("record.{target_field}.clone().unwrap()"),
+        |fields| {
+            format!(
+                "record.{target_field}.clone().unwrap_or({} {{ {} }})",
+                naming::rust_ident(vo_type),
+                fields.join(", ")
+            )
+        },
+    )
+}
+
 // Integer arithmetic that leaves signed 64 bits is a `Refusal::Fault`, never a wrap or a panic.
 #[allow(
     clippy::panic,
@@ -1401,11 +1445,13 @@ fn emit_mutation_line_body(
             } else {
                 "-"
             };
-            let current = if optional {
-                format!("record.{target_field}.clone().unwrap()")
-            } else {
-                format!("record.{target_field}.clone()")
-            };
+            let current = numeric_current(
+                optional,
+                target_field,
+                target_attr,
+                &integer_field,
+                value_objects_by_name,
+            );
             let op = mutation.get("op").map(Json::to_s).unwrap_or_default();
             let updated = format!(
                 "{vo_type} {{ {field_ident}: {}, ..current }}",
@@ -1444,11 +1490,13 @@ fn emit_mutation_line_body(
                 &integer_field,
             )
             .expect("arithmetic amount must resolve");
-            let current = if optional {
-                format!("record.{target_field}.clone().unwrap()")
-            } else {
-                format!("record.{target_field}.clone()")
-            };
+            let current = numeric_current(
+                optional,
+                target_field,
+                target_attr,
+                &integer_field,
+                value_objects_by_name,
+            );
             let updated = format!(
                 "{vo_type} {{ {field_ident}: {}, ..current }}",
                 checked_arithmetic("multiply", &field_ident, "*", &amount_expr)
@@ -1483,11 +1531,13 @@ fn emit_mutation_line_body(
                 .get("source")
                 .and_then(crate::bridging::clamp_bounds_ints)
                 .expect("clamp bounds must resolve");
-            let current = if optional {
-                format!("record.{target_field}.clone().unwrap()")
-            } else {
-                format!("record.{target_field}.clone()")
-            };
+            let current = numeric_current(
+                optional,
+                target_field,
+                target_attr,
+                &integer_field,
+                value_objects_by_name,
+            );
             let updated = format!("{vo_type} {{ {field_ident}: current.{field_ident}.clamp({min}, {max}), ..current }}");
             exemplar.render(
                 "mutation_arithmetic",
