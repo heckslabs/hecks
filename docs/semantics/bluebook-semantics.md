@@ -70,10 +70,13 @@ it, except for one law they must uphold (C8.4).
   the pre-dispatch state; `ensures` observes the candidate state plus
   `old` (the pre-dispatch state, always); aggregate and entity
   invariants observe the candidate state with no argument scope.
+  (fixtures: `refusal_kind_given_not_met.json`,
+  `ensures_old_denotes_prestate.json`)
 - **C2.5 (settled)** Reference-typed *arguments* are dereferenced (to
   depth 4) before givens run; reference-typed *stored fields* are never
   dereferenced in rules — cross-aggregate reads go through declared
   `projects` copies (ADR 0025 S12).
+  (fixture: `reference_argument_dereferenced.json`)
 
 ## §3 Values
 
