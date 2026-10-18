@@ -12,6 +12,10 @@ module Hecks
     # Raised when the rustfmt program cannot be found.
     class Missing < StandardError; end
 
+    # Raised when rustfmt fails for a reason that is not the text: a toolchain that will not
+    # install, say. Falling back to the unformatted text would write the wrong bytes without a word.
+    class Failed < StandardError; end
+
     EDITION = "2021"
 
     # The most passes `call` makes; a text still changing after them keeps the last result.
@@ -28,11 +32,13 @@ module Hecks
     # Formats one Rust source text.
     #
     # Text rustfmt cannot parse is returned as it came, with a warning on stderr: the compiler will
-    # name the real fault, and a generator should not be the thing that hides it.
+    # name the real fault, and a generator should not be the thing that hides it. Any other failure
+    # of rustfmt raises, since the text is not the problem.
     #
     # @param text [String] Rust source
     # @return [String] the same source as rustfmt lays it out
     # @raise [Missing] when rustfmt is not installed
+    # @raise [Failed] when rustfmt fails for a reason other than the text
     def call(text)
       PASSES.times do
         formatted = pass(text)
@@ -48,9 +54,11 @@ module Hecks
     #
     # @param text [String] Rust source
     # @return [String] the source after one pass, or unchanged when rustfmt cannot parse it
+    # @raise [Failed] when rustfmt fails for a reason other than the text
     def pass(text)
       out, err, status = Open3.capture3("rustfmt", "--edition", EDITION, "--emit", "stdout", stdin_data: text)
       return out if status.success?
+      raise Failed, "rustfmt failed: #{err.lines.first&.strip}" unless err.include?("<stdin>")
 
       warn "hecks: rustfmt could not format generated Rust, leaving it as generated: #{err.lines.first&.strip}"
       text

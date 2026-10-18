@@ -26,6 +26,13 @@ RSpec.describe Hecks::RustFormat do
     expect { described_class.call("pub struct S { pub r#crate: u8 }\n") }.to output(/could not format/).to_stderr
   end
 
+  it "raises when rustfmt fails for a reason that is not the text" do
+    failure = instance_double(Process::Status, success?: false)
+    allow(Open3).to receive(:capture3).and_return(["", "info: syncing channel updates for 1.98.0\n", failure])
+
+    expect { described_class.call("fn a() {}\n") }.to raise_error(described_class::Failed, /syncing channel/)
+  end
+
   it "formats only the paths that are Rust source" do
     files = described_class.files("/a/b.rs" => "fn a(){}\n", "/a/b.json" => "{ }\n")
 

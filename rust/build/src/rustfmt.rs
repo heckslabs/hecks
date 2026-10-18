@@ -63,7 +63,7 @@ fn format_source(text: &str) -> Result<String, String> {
 }
 
 // One rustfmt run over stdin. Text rustfmt cannot parse is returned as it came, with a warning:
-// the compiler will name the real fault.
+// the compiler will name the real fault. Any other failure of rustfmt is an error.
 fn pass(text: &str) -> Result<String, String> {
     let mut child = Command::new("rustfmt")
         .args(["--edition", EDITION, "--emit", "stdout"])
@@ -86,11 +86,13 @@ fn pass(text: &str) -> Result<String, String> {
         return String::from_utf8(output.stdout)
             .map_err(|e| format!("rustfmt output was not UTF-8: {e}"));
     }
-    let first = String::from_utf8_lossy(&output.stderr)
-        .lines()
-        .next()
-        .unwrap_or_default()
-        .to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let first = stderr.lines().next().unwrap_or_default().to_string();
+    // A parse error names `<stdin>`; anything else is rustfmt itself failing, and falling back to
+    // the unformatted text would write the wrong bytes without a word.
+    if !stderr.contains("<stdin>") {
+        return Err(format!("rustfmt failed: {first}"));
+    }
     eprintln!(
         "hecks-build: rustfmt could not format generated Rust, leaving it as generated: {first}"
     );

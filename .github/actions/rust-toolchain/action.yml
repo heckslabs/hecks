@@ -1,0 +1,23 @@
+name: Rust toolchain
+description: >-
+  Installs the toolchain rust-toolchain.toml pins, with rustfmt and clippy, before anything uses it.
+  The generators lay their Rust out with rustfmt (Hecks::RustFormat), and a job that has not
+  installed the pin makes rustup install it on the first call; with parallel rspec workers that
+  first call is made several times at once and fails, and the generators then fall back to
+  unformatted Rust. Installing it here, once, in one process, leaves nothing to race. The toolchains
+  directory is cached on the pin, so a warm run only checks that it is there.
+runs:
+  using: composite
+  steps:
+    - id: pin
+      shell: bash
+      run: echo "channel=$(sed -n 's/^channel *= *"\(.*\)"/\1/p' rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
+
+    - uses: actions/cache@v4
+      with:
+        path: ~/.rustup/toolchains
+        key: rustup-${{ runner.os }}-${{ steps.pin.outputs.channel }}-${{ hashFiles('rust-toolchain.toml') }}
+
+    - name: Install the pinned toolchain
+      shell: bash
+      run: rustup toolchain install "${{ steps.pin.outputs.channel }}" --profile minimal --component rustfmt --component clippy --no-self-update
