@@ -138,6 +138,8 @@ pub struct DeliveryFailure {
 
 // Retries only a genuine invoke fault (`Err`); a clean `Ok(delivered: false)`
 // refusal is a business outcome and is never retried.
+// `DeliveryFailure` carries the whole reaction for the dead letter, so its size is intended.
+#[allow(clippy::result_large_err)]
 pub async fn deliver_with_retry<L: LambdaInvoker + ?Sized>(
     invoker: &L,
     reaction: &Value,

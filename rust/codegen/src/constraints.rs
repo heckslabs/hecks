@@ -61,9 +61,8 @@ pub fn admitted_set_members(
     admits: &str,
     aggregates_by_name: &std::collections::HashMap<String, &Json>,
 ) -> Option<Vec<String>> {
-    let mut parts = admits.splitn(2, "::");
-    let aggregate_name = parts.next()?;
-    let set_name = parts.next()?;
+    let (aggregate_name, set_name) = admits.split_once("::")?;
+
     let aggregate = aggregates_by_name.get(aggregate_name)?;
     let vos = aggregate
         .get("value_objects")

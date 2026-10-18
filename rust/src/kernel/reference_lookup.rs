@@ -221,7 +221,7 @@ mod projection_tests {
     struct StartsAt(i64);
     impl Fielded for StartsAt {
         fn field(&self, name: &str) -> Option<Field<'_>> {
-            (name == "value").then(|| Field::Value(Value::Int(self.0)))
+            (name == "value").then_some(Field::Value(Value::Int(self.0)))
         }
         fn as_scalar(&self) -> Option<Value> {
             Some(Value::Int(self.0))
@@ -249,7 +249,7 @@ mod projection_tests {
     }
     impl Fielded for Booking {
         fn field(&self, name: &str) -> Option<Field<'_>> {
-            (name == "event").then(|| Field::Nested(&self.event))
+            (name == "event").then_some(Field::Nested(&self.event))
         }
     }
 

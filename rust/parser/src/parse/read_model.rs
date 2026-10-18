@@ -41,10 +41,7 @@ pub fn parse_body(
     let mut options = ir::QueryOptions::default();
     let mut last_line = 0usize;
 
-    loop {
-        let Some(gated) = super::next_line(file, lines, pos, "ReadModel")? else {
-            break;
-        };
+    while let Some(gated) = super::next_line(file, lines, pos, "ReadModel")? {
         last_line = gated.line.number;
 
         match gated.row.word {

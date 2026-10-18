@@ -88,10 +88,9 @@ pub fn top_level_index(
         } else if depth == 0
             && index + op_bytes.len() <= bytes.len()
             && &bytes[index..index + op_bytes.len()] == op_bytes
+            && accept(index)
         {
-            if accept(index) {
-                return Some(index);
-            }
+            return Some(index);
         }
         index += 1;
     }

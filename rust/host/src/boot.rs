@@ -463,7 +463,9 @@ fn parse_database_url(url: &str) -> Result<tokio_postgres::Config, String> {
     let rest = url
         .strip_prefix("postgres://")
         .or_else(|| url.strip_prefix("postgresql://"))
-        .ok_or_else(|| format!("DATABASE_URL doesn't start with postgres:// or postgresql://"))?;
+        .ok_or_else(|| {
+            "DATABASE_URL doesn't start with postgres:// or postgresql://".to_string()
+        })?;
 
     let (authority, db_and_query) = rest
         .split_once('/')

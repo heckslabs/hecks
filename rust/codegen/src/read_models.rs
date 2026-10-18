@@ -382,8 +382,8 @@ fn aggregation_skip_reason(
 ) -> Option<SkipReason> {
     let field_key = AGGREGATION_FIELD_KEYS
         .iter()
-        .find(|key| read_model.get(**key).is_some())?;
-    let field = Json::to_s(read_model.get(*field_key).expect("checked by find above"));
+        .find(|key| read_model.get(key).is_some())?;
+    let field = Json::to_s(read_model.get(field_key).expect("checked by find above"));
     let word = field_key.strip_suffix("_field").unwrap_or(field_key);
 
     let heads = read_model
@@ -438,15 +438,14 @@ fn aggregation_skip_reason(
         ));
     }
 
-    if INTEGER_ONLY_AGGREGATION_FIELDS.contains(field_key) {
-        if queries::query_field_numeric_type(aggregate, &field, &value_objects_by_name).as_deref()
+    if INTEGER_ONLY_AGGREGATION_FIELDS.contains(field_key)
+        && queries::query_field_numeric_type(aggregate, &field, &value_objects_by_name).as_deref()
             != Some("Integer")
-        {
-            return Some(skip(
+    {
+        return Some(skip(
                 *field_key,
                 format!("{word} names {field:?} on {aggregate_name}, which is a Float field — {word} admits only an Integer field (summing/averaging Floats cannot be made to agree, byte for byte, between Ruby and Rust) — not generated yet"),
             ));
-        }
     }
 
     None
@@ -473,7 +472,7 @@ fn group_by_skip_reason(
     if read_model.get("count").is_some()
         || AGGREGATION_FIELD_KEYS
             .iter()
-            .any(|key| read_model.get(*key).is_some())
+            .any(|key| read_model.get(key).is_some())
     {
         return Some(skip(
             "group_by",

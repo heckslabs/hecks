@@ -373,6 +373,7 @@ pub fn resolve_hecksagon_dependencies(
 
 /// Parses a `Hecks.bluebook "Name" do ... end` body into an existing accumulator.
 /// Policies bubble as in `BluebookBuilder#build`: aggregate policies first, then chapter-level.
+#[allow(clippy::too_many_arguments)] // established signature
 fn parse_body_into(
     file: &str,
     lines: &[SourceLine],
@@ -389,10 +390,7 @@ fn parse_body_into(
 ) -> ParseResult<()> {
     // The given pool spans the whole chapter, not one file: a later concept file may reference
     // a named given an earlier one declared. Entries are (owner aggregate name, `Given`).
-    loop {
-        let Some(gated) = super::next_line(file, lines, pos, "Bluebook")? else {
-            break;
-        };
+    while let Some(gated) = super::next_line(file, lines, pos, "Bluebook")? {
         let line = gated.line.number;
 
         match gated.row.word {

@@ -7,6 +7,8 @@ mod diag;
 mod emit;
 mod expr;
 mod ir;
+// Generated table; not every column is consumed by this binary.
+#[allow(dead_code)]
 mod keywords;
 mod lex;
 mod parse;

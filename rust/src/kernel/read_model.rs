@@ -62,6 +62,9 @@ pub type ReadModelLimit = query_ordering::Limit;
 /// A read model's declared `offset N`, applying to `ReadModelDef::filtered_head` alone.
 pub type ReadModelOffset = query_ordering::Offset;
 
+/// A per-read-model generated function that groups the rows of the one `many`-side head.
+pub type GroupByFn = fn(Vec<(String, Json)>) -> Result<Json, Refusal>;
+
 /// One many-side head's own where/order_by/offset/limit. ADR 0055's `on:` lets a read model
 /// with several many-side heads filter/order/page each independently; a read model with exactly
 /// one many-side head and untargeted options still compiles to a single entry here, unchanged
@@ -105,7 +108,7 @@ pub struct ReadModelDef {
     /// A per-read-model generated function rather than data here, because unwrapping a
     /// single-attribute value object needs codegen-time type knowledge `run`'s generic body,
     /// holding already-serialized `Json`, doesn't have.
-    pub group_by: Option<fn(Vec<(String, Json)>) -> Result<Json, Refusal>>,
+    pub group_by: Option<GroupByFn>,
     /// `count` on the one `many`-side head — a bare marker; row-count needs no per-read-model
     /// generated function, unlike `group_by`.
     pub count: bool,
@@ -337,7 +340,7 @@ fn boolean_reduce(rows: &[(String, Json)], field: &'static str, want_all: bool) 
     let values: Vec<bool> = rows
         .iter()
         .filter_map(|(_, row)| row.get(field))
-        .map(|value| query_comparators::comparable(value))
+        .map(query_comparators::comparable)
         .filter_map(|value| value.as_bool())
         .collect();
     Json::Bool(if want_all {
@@ -913,6 +916,9 @@ mod reference_hop_tests {
     }
 }
 
+/// One head's records by id, with whether it is a `many` head.
+type HeadRows = (bool, Vec<(String, Json)>);
+
 /// The generic read-model interpreter — the single projected row, one entry per declared
 /// head's `as_name`, for exactly the subset this module admits.
 ///
@@ -955,7 +961,7 @@ pub fn run(store: &impl AggregateScan, def: &ReadModelDef, args: &Json) -> Resul
     // One entry per head already computed, in computation order (root-first): every candidate
     // record is checked against every entry seen so far, not just the immediately-preceding one.
     let mut projected: Vec<(&'static str, Vec<(String, Json)>)> = Vec::new();
-    let mut rows_by_as: std::collections::HashMap<&'static str, (bool, Vec<(String, Json)>)> =
+    let mut rows_by_as: std::collections::HashMap<&'static str, HeadRows> =
         std::collections::HashMap::new();
     let mut grouped_heads: std::collections::HashSet<&'static str> =
         std::collections::HashSet::new();
@@ -1009,46 +1015,27 @@ pub fn run(store: &impl AggregateScan, def: &ReadModelDef, args: &Json) -> Resul
             )?
         } else if many && def.count {
             Json::Num(rows.len() as f64, None)
-        } else if many && def.median_field.is_some() {
-            median(
-                &rows,
-                def.median_field.expect("checked by the branch guard"),
-            )
-        } else if many && def.sum_field.is_some() {
-            sum(&rows, def.sum_field.expect("checked by the branch guard"))
-        } else if many && def.avg_field.is_some() {
-            avg(&rows, def.avg_field.expect("checked by the branch guard"))
-        } else if many && def.min_field.is_some() {
-            extreme(
-                &rows,
-                def.min_field.expect("checked by the branch guard"),
-                false,
-            )
-        } else if many && def.max_field.is_some() {
-            extreme(
-                &rows,
-                def.max_field.expect("checked by the branch guard"),
-                true,
-            )
-        } else if many && def.percentile_field.is_some() {
+        } else if let Some(field) = def.median_field.filter(|_| many) {
+            median(&rows, field)
+        } else if let Some(field) = def.sum_field.filter(|_| many) {
+            sum(&rows, field)
+        } else if let Some(field) = def.avg_field.filter(|_| many) {
+            avg(&rows, field)
+        } else if let Some(field) = def.min_field.filter(|_| many) {
+            extreme(&rows, field, false)
+        } else if let Some(field) = def.max_field.filter(|_| many) {
+            extreme(&rows, field, true)
+        } else if let Some(field) = def.percentile_field.filter(|_| many) {
             percentile(
                 &rows,
-                def.percentile_field.expect("checked by the branch guard"),
+                field,
                 def.percentile_at
                     .expect("percentile_field implies percentile_at"),
             )
-        } else if many && def.any_field.is_some() {
-            boolean_reduce(
-                &rows,
-                def.any_field.expect("checked by the branch guard"),
-                false,
-            )
-        } else if many && def.all_field.is_some() {
-            boolean_reduce(
-                &rows,
-                def.all_field.expect("checked by the branch guard"),
-                true,
-            )
+        } else if let Some(field) = def.any_field.filter(|_| many) {
+            boolean_reduce(&rows, field, false)
+        } else if let Some(field) = def.all_field.filter(|_| many) {
+            boolean_reduce(&rows, field, true)
         } else if many {
             Json::Array(
                 rows.into_iter()

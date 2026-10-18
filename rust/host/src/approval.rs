@@ -654,7 +654,7 @@ mod tests {
             .await
             .expect("grant connect");
 
-        let grant = tokio_postgres::connect(&crate::test_pg::conninfo(&db), NoTls)
+        let grant = tokio_postgres::connect(&crate::test_pg::conninfo(db), NoTls)
             .await
             .expect("connect to scratch db as superuser");
         tokio::spawn(async move {
@@ -672,7 +672,7 @@ mod tests {
             .expect("grant schema rights");
 
         let (client, connection) =
-            tokio_postgres::connect(&crate::test_pg::conninfo_as(&db, &owner), NoTls)
+            tokio_postgres::connect(&crate::test_pg::conninfo_as(db, owner), NoTls)
                 .await
                 .expect("connect as owner");
         tokio::spawn(async move {

@@ -233,7 +233,7 @@ impl Price {
                         "Price.cents expects Integer, got nil".to_string(),
                     )
                 })?;
-                x.as_i64().ok_or_else(|| if matches!(x, crate::kernel::Json::Num(n, _) if n.is_finite() && n.fract() == 0.0 && n.abs() >= 9.223372036854775808e18) { crate::kernel::Refusal::TypeMismatch(format!("Price.cents must fit in a 64-bit integer, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch(format!("Price.cents expects Integer, got {}", x.inspect())) })?
+                x.as_i64().ok_or_else(|| if matches!(x, crate::kernel::Json::Num(n, _) if n.is_finite() && n.fract() == 0.0 && n.abs() >= 9.223372036854776e18) { crate::kernel::Refusal::TypeMismatch(format!("Price.cents must fit in a 64-bit integer, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch(format!("Price.cents expects Integer, got {}", x.inspect())) })?
             },
         })
     }
@@ -620,7 +620,7 @@ impl ToppingAmount {
                         "ToppingAmount.value expects Integer, got nil".to_string(),
                     )
                 })?;
-                x.as_i64().ok_or_else(|| if matches!(x, crate::kernel::Json::Num(n, _) if n.is_finite() && n.fract() == 0.0 && n.abs() >= 9.223372036854775808e18) { crate::kernel::Refusal::TypeMismatch(format!("ToppingAmount.value must fit in a 64-bit integer, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch(format!("ToppingAmount.value expects Integer, got {}", x.inspect())) })?
+                x.as_i64().ok_or_else(|| if matches!(x, crate::kernel::Json::Num(n, _) if n.is_finite() && n.fract() == 0.0 && n.abs() >= 9.223372036854776e18) { crate::kernel::Refusal::TypeMismatch(format!("ToppingAmount.value must fit in a 64-bit integer, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch(format!("ToppingAmount.value expects Integer, got {}", x.inspect())) })?
             },
         })
     }
@@ -725,7 +725,7 @@ impl Topping {
                         "Topping.amount expects Integer, got nil".to_string(),
                     )
                 })?;
-                x.as_i64().ok_or_else(|| if matches!(x, crate::kernel::Json::Num(n, _) if n.is_finite() && n.fract() == 0.0 && n.abs() >= 9.223372036854775808e18) { crate::kernel::Refusal::TypeMismatch(format!("Topping.amount must fit in a 64-bit integer, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch(format!("Topping.amount expects Integer, got {}", x.inspect())) })?
+                x.as_i64().ok_or_else(|| if matches!(x, crate::kernel::Json::Num(n, _) if n.is_finite() && n.fract() == 0.0 && n.abs() >= 9.223372036854776e18) { crate::kernel::Refusal::TypeMismatch(format!("Topping.amount must fit in a 64-bit integer, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch(format!("Topping.amount expects Integer, got {}", x.inspect())) })?
             },
         })
     }

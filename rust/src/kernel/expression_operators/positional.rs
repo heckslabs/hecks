@@ -107,7 +107,7 @@ mod tests {
     }
     impl Fielded for Tags {
         fn field(&self, name: &str) -> Option<Field<'_>> {
-            (name == "tags").then(|| Field::Value(Value::List(self.values.len())))
+            (name == "tags").then_some(Field::Value(Value::List(self.values.len())))
         }
         fn items(&self, name: &str) -> Option<Vec<Field<'_>>> {
             (name == "tags").then(|| {
@@ -156,7 +156,7 @@ mod tests {
     }
     impl Fielded for Itinerary {
         fn field(&self, name: &str) -> Option<Field<'_>> {
-            (name == "legs").then(|| Field::Value(Value::List(self.legs.len())))
+            (name == "legs").then_some(Field::Value(Value::List(self.legs.len())))
         }
         fn items(&self, name: &str) -> Option<Vec<Field<'_>>> {
             (name == "legs").then(|| self.legs.iter().map(|leg| Field::Nested(leg)).collect())

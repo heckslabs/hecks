@@ -834,7 +834,7 @@ pub(crate) mod tests {
             .await
             .unwrap();
 
-        let (client, conn) = tokio_postgres::connect(&crate::test_pg::conninfo(&name), NoTls)
+        let (client, conn) = tokio_postgres::connect(&crate::test_pg::conninfo(name), NoTls)
             .await
             .expect("connect to scratch db");
         tokio::spawn(async move {
@@ -1483,8 +1483,7 @@ pub(crate) mod tests {
             .unwrap();
         let read_failure = read(&client, &wasm_path())
             .await
-            .err()
-            .expect("a kernel failure is not an empty read");
+            .expect_err("a kernel failure is not an empty read");
         assert!(
             format!("{read_failure:#}").contains("invalid seed"),
             "{read_failure:#}"

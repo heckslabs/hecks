@@ -57,9 +57,12 @@ pub fn apply(
     rows
 }
 
+/// Records by id, in the order a read model's rows are held.
+type Rows = Vec<(String, Json)>;
+
 // `sort_by` is stable, so the id order from `apply` survives ties without an index tie-break.
-fn apply_declared_order(rows: Vec<(String, Json)>, order_by: &OrderBy) -> Vec<(String, Json)> {
-    let (mut null_rows, mut valued_rows): (Vec<(String, Json)>, Vec<(String, Json)>) = rows
+fn apply_declared_order(rows: Rows, order_by: &OrderBy) -> Rows {
+    let (mut null_rows, mut valued_rows): (Rows, Rows) = rows
         .into_iter()
         .partition(|(_, record)| order_key(record, order_by.field) == Json::Null);
 

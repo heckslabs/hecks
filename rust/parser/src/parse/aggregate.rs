@@ -107,6 +107,16 @@ pub struct PendingChapterGiven {
     pub file: String,
     pub line: usize,
 }
+/// An aggregate with its policies and the givens left for the chapter to resolve.
+pub type ParsedAggregate = (
+    ir::Aggregate,
+    Vec<ir::Policy>,
+    Vec<PendingChapterGiven>,
+    Vec<(usize, command::PendingCommandGiven)>,
+    Vec<entity::PendingChapterEntityGiven>,
+    Vec<entity::PendingEntityCommandGiven>,
+);
+
 /// Type-form `identified_by` resolves after the loop: its value object may be declared later.
 pub fn parse_body(
     file: &str,
@@ -116,14 +126,7 @@ pub fn parse_body(
     chapter_named_givens: &mut Vec<(String, ir::Given)>,
     // Chapter-wide entity-scoped pool, passed unchanged to every top-level entity.
     chapter_entity_named_givens: &mut Vec<(String, ir::Given)>,
-) -> ParseResult<(
-    ir::Aggregate,
-    Vec<ir::Policy>,
-    Vec<PendingChapterGiven>,
-    Vec<(usize, command::PendingCommandGiven)>,
-    Vec<entity::PendingChapterEntityGiven>,
-    Vec<entity::PendingEntityCommandGiven>,
-)> {
+) -> ParseResult<ParsedAggregate> {
     let mut aggregate = ir::Aggregate {
         name: name.to_string(),
         ..Default::default()

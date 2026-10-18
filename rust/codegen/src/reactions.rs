@@ -8,7 +8,7 @@ use crate::registry::AggregateEntry;
 
 pub fn policy_event_qualifier(on_event: &str) -> Option<String> {
     if on_event.contains('.') {
-        Some(on_event.splitn(2, '.').next().unwrap_or("").to_string())
+        Some(on_event.split('.').next().unwrap_or("").to_string())
     } else {
         None
     }
@@ -16,7 +16,11 @@ pub fn policy_event_qualifier(on_event: &str) -> Option<String> {
 
 pub fn policy_event_name(on_event: &str) -> String {
     if on_event.contains('.') {
-        on_event.splitn(2, '.').nth(1).unwrap_or("").to_string()
+        on_event
+            .split_once('.')
+            .map(|x| x.1)
+            .unwrap_or("")
+            .to_string()
     } else {
         on_event.to_string()
     }

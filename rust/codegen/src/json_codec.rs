@@ -54,7 +54,7 @@ pub fn scalar_type_error(
         "crate::kernel::Refusal::TypeMismatch(format!({}, {value_var}.inspect()))",
         naming::ruby_inspect_string(&range_template)
     );
-    format!("if matches!({value_var}, crate::kernel::Json::Num(n, _) if n.is_finite() && n.fract() == 0.0 && n.abs() >= 9.223372036854775808e18) {{ {range} }} else {{ {proper} }}")
+    format!("if matches!({value_var}, crate::kernel::Json::Num(n, _) if n.is_finite() && n.fract() == 0.0 && n.abs() >= 9.223372036854776e18) {{ {range} }} else {{ {proper} }}")
 }
 
 /// A missing non-optional field refuses as "{type}.{field} expects {expected}, got nil".
@@ -438,9 +438,9 @@ pub fn emit_from_json_flat(
                     "match v.get({}) {{ Some(crate::kernel::Json::Null) | None => Vec::new(), Some(x) => x.as_array().ok_or_else(|| {shape_error})?.iter().map({mapper}).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, }}",
                     naming::ruby_inspect_string(&key)
                 )
-            } else if optional && scalar.is_some() {
+            } else if let (true, Some(scalar)) = (optional, scalar) {
                 // An optional argument offered as null is the same absence as an omitted key.
-                format!("match v.get({}) {{ Some(crate::kernel::Json::Null) | None => None, Some(x) => Some({}) }}", naming::ruby_inspect_string(&key), scalar_from_json_value_expr(error_name, &key, scalar.unwrap(), "x"))
+                format!("match v.get({}) {{ Some(crate::kernel::Json::Null) | None => None, Some(x) => Some({}) }}", naming::ruby_inspect_string(&key), scalar_from_json_value_expr(error_name, &key, scalar, "x"))
             } else if optional {
                 format!("match v.get({}) {{ Some(crate::kernel::Json::Null) | None => None, Some(x) => Some({}) }}", naming::ruby_inspect_string(&key), composite_from_json_expr(attr, value_objects_by_name, "x"))
             } else if let Some(scalar) = scalar {
@@ -569,8 +569,8 @@ pub fn emit_to_json_flat(
                 format!("self.{ident}.as_ref().map(|v| crate::kernel::Json::Array(v.iter().map(|x| {}).collect())).unwrap_or(crate::kernel::Json::Null)", elem_to_json.as_deref().unwrap())
             } else if list {
                 format!("crate::kernel::Json::Array(self.{ident}.iter().map(|x| {}).collect())", elem_to_json.as_deref().unwrap())
-            } else if field_optional && scalar.is_some() {
-                format!("self.{ident}.as_ref().map(|v| {}).unwrap_or(crate::kernel::Json::Null)", scalar_to_json_expr(scalar.unwrap(), &naming::deref_scalar(scalar.unwrap(), "v")))
+            } else if let (true, Some(scalar)) = (field_optional, scalar) {
+                format!("self.{ident}.as_ref().map(|v| {}).unwrap_or(crate::kernel::Json::Null)", scalar_to_json_expr(scalar, &naming::deref_scalar(scalar, "v")))
             } else if field_optional {
                 format!("self.{ident}.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)")
             } else if let Some(scalar) = scalar {
@@ -702,11 +702,11 @@ pub fn emit_from_json_state(
                     "match v.get({}).and_then(crate::kernel::Json::as_array) {{ Some(items) => items.iter().map({mapper}).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), }}",
                     naming::ruby_inspect_string(&key)
                 )
-            } else if field_optional && scalar.is_some() {
+            } else if let (true, Some(scalar)) = (field_optional, scalar) {
                 format!(
                     "match v.get({}) {{ Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some({}), }}",
                     naming::ruby_inspect_string(&key),
-                    scalar_from_json_value_expr(struct_name, &key, scalar.unwrap(), "x")
+                    scalar_from_json_value_expr(struct_name, &key, scalar, "x")
                 )
             } else if field_optional {
                 format!(
@@ -1028,7 +1028,7 @@ fn emit_extract_id_shaped(
         "c0".to_string()
     } else {
         format!(
-            "vec![{}].join(\":\")",
+            "[{}].join(\":\")",
             (0..identified_by.len())
                 .map(|i| format!("c{i}"))
                 .collect::<Vec<_>>()
@@ -1129,7 +1129,7 @@ pub fn emit_self_identity(exemplar: &Exemplar, entity: &Json) -> String {
     let body = if components.len() == 1 {
         components[0].clone()
     } else {
-        format!("vec![{}].join(\":\")", components.join(", "))
+        format!("[{}].join(\":\")", components.join(", "))
     };
 
     exemplar.render(

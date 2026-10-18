@@ -23,6 +23,7 @@ mod tests;
 
 // Guest-facing subscribe/confirm/unsubscribe routes, plus the admin listing.
 // Served here (not passed to Ruby) so a signed link still resolves without one.
+#[allow(clippy::too_many_arguments)]
 pub(super) async fn newsletter_route(
     method: &str,
     path: &str,

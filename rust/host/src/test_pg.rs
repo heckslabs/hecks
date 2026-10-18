@@ -40,6 +40,8 @@ pub fn conninfo_as(dbname: &str, role: &str) -> String {
 
 /// The `LOGIN` clause of a `CREATE ROLE` the test later connects as: it carries
 /// `PGPASSWORD` as the role's password when one is set, so `conninfo_as` can log in.
+// Shared by several harnesses; not every one that includes this file calls it.
+#[allow(dead_code)]
 pub fn login_clause() -> String {
     match env("PGPASSWORD") {
         Some(p) => format!("LOGIN PASSWORD '{}'", p.replace('\'', "''")),

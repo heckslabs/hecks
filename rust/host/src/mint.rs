@@ -896,6 +896,7 @@ fn raw_declared<'a>(
 ///
 /// `declared` is the raw rule JSON for the edge being minted this boot only —
 /// earlier edges in a multi-hop drift were already minted and audited.
+#[allow(clippy::too_many_arguments)]
 async fn audit_layer_two<C: GenericClient>(
     client: &C,
     domain: &str,
@@ -1026,6 +1027,7 @@ fn strip_keys(state: &Value, keys: &std::collections::HashSet<String>) -> Value 
 /// before anything is minted, so a refusal leaves no half-born era.
 ///
 /// `ir` is the whole `ir.json` value; Layer 1 looks up each aggregate's node from it.
+#[allow(clippy::too_many_arguments)]
 pub async fn audit_before_mint<C: GenericClient>(
     client: &C,
     domain: &str,
@@ -1566,7 +1568,7 @@ mod tests {
             .batch_execute(&format!("CREATE DATABASE {name}"))
             .await
             .expect("create scratch db");
-        let (client, connection) = tokio_postgres::connect(&crate::test_pg::conninfo(&name), NoTls)
+        let (client, connection) = tokio_postgres::connect(&crate::test_pg::conninfo(name), NoTls)
             .await
             .expect("connect to scratch db");
         tokio::spawn(async move {
@@ -1836,7 +1838,7 @@ mod tests {
             .await
             .expect("grant connect");
 
-        let grant = tokio_postgres::connect(&crate::test_pg::conninfo(&db), NoTls).await;
+        let grant = tokio_postgres::connect(&crate::test_pg::conninfo(db), NoTls).await;
         let (grant_client, grant_connection) =
             grant.expect("connect to scratch db as superuser to grant schema rights");
         tokio::spawn(async move {
@@ -1852,7 +1854,7 @@ mod tests {
             .expect("make owner the db owner");
 
         let (client, connection) =
-            tokio_postgres::connect(&crate::test_pg::conninfo_as(&db, &owner), NoTls)
+            tokio_postgres::connect(&crate::test_pg::conninfo_as(db, owner), NoTls)
                 .await
                 .expect("connect as owner");
         tokio::spawn(async move {
@@ -1892,7 +1894,7 @@ mod tests {
             domain,
             "v1 source text (opaque to this crate)",
             &v1_ir,
-            &[aggregate.clone()],
+            std::slice::from_ref(&aggregate),
             None,
         )
         .await
@@ -2156,7 +2158,7 @@ mod tests {
             "Studio",
             "v1 source",
             &v1_ir,
-            &[aggregate.clone()],
+            std::slice::from_ref(&aggregate),
             None,
         )
         .await
@@ -2420,7 +2422,7 @@ mod tests {
         for field in ["first_name", "last_name", "phone", "aim"] {
             nested = backfill_expression(&nested, &["attendee", field], "\"(none)\"");
         }
-        let edges = vec![
+        let edges = [
             edge_of("e1", "e2", "Registration", &nested),
             edge_of("e2", "e3", "Event", "state"),
             edge_of("e3", "e4", "Event", "state"),
@@ -2597,7 +2599,7 @@ mod tests {
             .await
             .expect("grant connect");
 
-        let grant = tokio_postgres::connect(&crate::test_pg::conninfo(&db), NoTls).await;
+        let grant = tokio_postgres::connect(&crate::test_pg::conninfo(db), NoTls).await;
         let (grant_client, grant_connection) =
             grant.expect("connect to scratch db as superuser to grant schema rights");
         tokio::spawn(async move {
@@ -2613,7 +2615,7 @@ mod tests {
             .expect("make owner the db owner");
 
         let (client, connection) =
-            tokio_postgres::connect(&crate::test_pg::conninfo_as(&db, &owner), NoTls)
+            tokio_postgres::connect(&crate::test_pg::conninfo_as(db, owner), NoTls)
                 .await
                 .expect("connect as owner");
         tokio::spawn(async move {
@@ -2707,7 +2709,7 @@ mod tests {
             &client,
             honest_domain,
             &v2_ir,
-            &[aggregate.clone()],
+            std::slice::from_ref(&aggregate),
             2,
             &[&honest_edge],
             &honest_raw_edges,

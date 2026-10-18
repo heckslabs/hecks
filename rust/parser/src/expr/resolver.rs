@@ -12,14 +12,6 @@ pub enum BlockMode {
 }
 
 impl BlockMode {
-    pub fn rust_name(&self) -> &'static str {
-        match self {
-            BlockMode::All => "All",
-            BlockMode::Any => "Any",
-            BlockMode::None => "None",
-        }
-    }
-
     /// The lowercase spelling written into the AST JSON.
     pub fn json_name(&self) -> &'static str {
         match self {

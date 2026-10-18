@@ -106,7 +106,7 @@ impl Json {
         let Json::Number(text) = self else {
             return None;
         };
-        if text.contains(|c| matches!(c, '.' | 'e' | 'E')) {
+        if text.contains(['.', 'e', 'E']) {
             return text.parse::<f64>().ok().map(Number::Float);
         }
         match text.parse::<i64>() {
