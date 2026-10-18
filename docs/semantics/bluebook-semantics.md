@@ -272,7 +272,11 @@ it, except for one law they must uphold (C8.4).
   rather than a refusal. (fixture: `fault_is_not_a_refusal.json`)
 - **C8.4 (settled)** The one law the persistence boundary owes the
   semantics: commit is all-or-nothing — a dispatch's state change and
-  its events become durable together or not at all.
+  its events become durable together or not at all. (Not pinned by a corpus fixture: a
+  dispatch outcome shows only the committed result, so a torn commit is
+  invisible to `steps`/`expect`. It needs a fault-injecting store spec —
+  fail the write of the events, or of the state, mid-commit, and assert
+  neither is visible afterwards — run against each store.)
 
 ## §9 Environment
 
@@ -282,7 +286,9 @@ it, except for one law they must uphold (C8.4).
   for `refuse_role_mismatch`), the reaction depth, and the correction
   history (`corrects`). Identical (S, C, env) gives an identical
   outcome; nothing else (ordering of unrelated state, host hash order,
-  process identity) may influence it.
+  process identity) may influence it. (fixture: `environment_caller_role.json`
+  — the caller is the one input a step can state; the clock is stripped from
+  events, C7.3, and reaction depth is pinned by C10.4)
 - **C9.2 (settled)** A correction target is judged against the
   record's *durable* history: whether this record has ever emitted
   the corrected event, as the store remembers it — never against a
@@ -297,7 +303,8 @@ it, except for one law they must uphold (C8.4).
 - **C10.1 (settled)** Policies and sagas run after the triggering
   command commits, outside its atomic boundary; a refused or defective
   reaction never un-commits the trigger. A policy's `where` reads the
-  event payload; unmet is a silent skip.
+  event payload; unmet is a silent skip. (fixtures: `events_and_reactions_order.json`,
+  `refused_reaction_keeps_trigger.json`)
 - **C10.2 (settled)** Every event a dispatch announces is committed
   (C7.1) before any reaction to any of them runs. Reactions then run
   per event, in `emits` order: for each event, its policies — the

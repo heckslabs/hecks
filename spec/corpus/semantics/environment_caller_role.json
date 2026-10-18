@@ -1,0 +1,169 @@
+{
+  "domain": "examples/banking",
+  "spec": [
+    "C9.1"
+  ],
+  "note": "The caller is an environment input, not part of state or command: the identical Open against the identical state is refused Unauthorized when the caller states a role the command does not accept, refused identically when repeated (same S, C, env gives the same outcome), and accepted when the caller states the role the command declares. The clock and the reaction depth are the other environment inputs; the clock is stripped from events (C7.3) and depth is pinned by C10.4, so this fixture isolates the caller.",
+  "steps": [
+    {
+      "verb": "Banking::Customer.Register",
+      "args": {
+        "reference": {
+          "value": "cust-1"
+        },
+        "name": {
+          "given": "Ada",
+          "family": "Lovelace"
+        },
+        "email": {
+          "address": "ada@example.com"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "role": "Wrong Role",
+      "args": {
+        "customer": "cust-1",
+        "number": {
+          "value": "acct-1"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 50000
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "role": "Wrong Role",
+      "args": {
+        "customer": "cust-1",
+        "number": {
+          "value": "acct-1"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 50000
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "role": "Branch clerk",
+      "args": {
+        "customer": "cust-1",
+        "number": {
+          "value": "acct-1"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 50000
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "Banking::Account.Open",
+        "error": "Open refused — role: Branch clerk, and the caller stated Wrong Role",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::Account.Open",
+        "error": "Open refused — role: Branch clerk, and the caller stated Wrong Role",
+        "kind": "Unauthorized"
+      }
+    ],
+    "instances": {
+      "Banking::Customer#cust-1": {
+        "reference": {
+          "value": "cust-1"
+        },
+        "name": {
+          "given": "Ada",
+          "family": "Lovelace"
+        },
+        "email": {
+          "address": "ada@example.com"
+        },
+        "standing": {
+          "value": "good"
+        },
+        "status": "active"
+      },
+      "Banking::Account#acct-1": {
+        "customer": "cust-1",
+        "number": {
+          "value": "acct-1"
+        },
+        "balance": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 50000
+        },
+        "ledger": [
+
+        ],
+        "fees_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "interest_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "status": "open",
+        "customer_status": "active"
+      }
+    },
+    "events": [
+      {
+        "name": "CustomerRegistered",
+        "aggregate": "Banking::Customer",
+        "id": "cust-1",
+        "payload": {
+          "reference": {
+            "value": "cust-1"
+          },
+          "name": {
+            "given": "Ada",
+            "family": "Lovelace"
+          },
+          "email": {
+            "address": "ada@example.com"
+          }
+        }
+      },
+      {
+        "name": "AccountOpened",
+        "aggregate": "Banking::Account",
+        "id": "acct-1",
+        "payload": {
+          "customer": "cust-1",
+          "number": {
+            "value": "acct-1"
+          },
+          "kind": {
+            "name": "current"
+          },
+          "daily_limit": {
+            "cents": 50000
+          }
+        }
+      }
+    ]
+  }
+}
