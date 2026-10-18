@@ -3,6 +3,7 @@ require "json"
 require_relative "live"
 require_relative "toolbox"
 require_relative "behavior_run"
+require_relative "board_edit"
 require_relative "jobs"
 
 module Hecks
@@ -51,6 +52,19 @@ module Hecks
       # @param body [Hash] `buffers`
       # @return [Hash] see {BehaviorRun.call}
       def behaviors(body) = BehaviorRun.call(dir: @workspace, buffers: body.fetch("buffers", {}))
+
+      # Carries out one board action on the workspace as it is on screen.
+      #
+      # @param body [Hash] `buffers`, `op` (see {BoardEdit::OPERATIONS}) and `args`
+      # @return [Hash] the patched file as `path`, `text` and `line`, or `error` when the action
+      #   is refused
+      def board_edit(body)
+        Workspace.stage(dir: @workspace, buffers: body.fetch("buffers", {})) do |stage|
+          BoardEdit.call(stage: stage, action: body.fetch("op"), args: body.fetch("args", {}))
+        end
+      rescue BoardEdit::Refused => e
+        { error: e.message }
+      end
 
       # @param body [Hash] `path`
       # @return [Hash] `revisions`, newest first (see {Session#timeline})
