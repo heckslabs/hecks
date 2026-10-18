@@ -1,6 +1,6 @@
 name: CI checks (reusable)
 
-# The checks_fuzz/checks_static/checks_rubocop/checks_codegen_drift jobs behind the
+# The checks_fuzz/checks_static/checks_rubocop/checks_codegen_drift/checks_rust_lint jobs behind the
 # "checks" required-status-check name, callable only from this repo's ci.yml.
 #
 # What each step runs lives in the `ci` stage of lib/hecks/gate/stages.yml: a step is
@@ -255,6 +255,64 @@ jobs:
       # regenerate_corpus's own header for the ordering rule.
       - name: "rust codegen: regenerate every in-repo domain, fail on drift from the generated tree"
         run: bundle exec exe/hecks gate_run.gate stage=ci only=codegen_drift --wait
+
+  # rustfmt and clippy over the seven Rust crates, each its own workspace. The main crate's
+  # generated modules are not committed, so they are restored or regenerated first; the checks
+  # themselves live in the `ci` stage of lib/hecks/gate/stages.yml. Not attested: lint is cheap
+  # beside the corpus regeneration, and its answer depends on the toolchain pin as well as the tree.
+  checks_rust_lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-ruby
+      - uses: ./.github/actions/hecks-environment
+        with:
+          database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
+
+      - uses: ./.github/actions/generated-rust
+
+      - uses: ./.github/actions/cargo-cache
+        with:
+          name: lint-kernel
+          crate-root: rust
+
+      - uses: ./.github/actions/cargo-cache
+        with:
+          name: lint-parser
+          crate-root: rust/parser
+
+      - uses: ./.github/actions/cargo-cache
+        with:
+          name: lint-codegen
+          crate-root: rust/codegen
+
+      - uses: ./.github/actions/cargo-cache
+        with:
+          name: lint-lsp
+          crate-root: rust/lsp
+
+      - uses: ./.github/actions/cargo-cache
+        with:
+          name: lint-host
+          crate-root: rust/host
+
+      - uses: ./.github/actions/cargo-cache
+        with:
+          name: lint-web
+          crate-root: rust/web
+
+      - uses: ./.github/actions/cargo-cache
+        with:
+          name: lint-build
+          crate-root: rust/build
+
+      - name: rustfmt
+        run: bundle exec exe/hecks gate_run.gate stage=ci only=rust_fmt --wait
+
+      - name: clippy
+        run: bundle exec exe/hecks gate_run.gate stage=ci only=rust_clippy --wait
 
   # The remaining drift checks of the old checks_codegen_drift job: tables, gates and coverage,
   # short next to the corpus regeneration, so they run beside it instead of after it.
