@@ -84,6 +84,20 @@ pre_push:
       title: comment blocks, no run of comment lines past ADR 0075's cap
       run: [bundle, exec, exe/hecks, style_run.check_comments, "paths=lib,spec,examples", only=long_block, --wait]
       blocked: a comment block ran past the cap; shorten it.
+    - &check_rust_fmt
+      id: rust_fmt
+      title: rustfmt, every Rust crate laid out as `cargo fmt` would
+      run:
+        - sh
+        - -ec
+        - |
+          # The main crate's generated modules are not committed, so cargo fmt would stop at a
+          # missing file on a fresh checkout; its hand-written entry points are named instead.
+          rustfmt --check --edition 2021 rust/src/main.rs rust/src/kernel/mod.rs rust/tests/*.rs
+          for crate in parser codegen lsp host web build; do
+            cargo fmt --check --manifest-path "rust/$crate/Cargo.toml"
+          done
+      blocked: a Rust file is not laid out as rustfmt has it; run `cargo fmt` in its crate (rust/src/exemplar is exempt, it is text templates). Generated Rust is laid out by its generators, so fix the generator, not the output.
 
 # The checks a push of only unguarded lanes (`main`) runs in place of pre_push. The slow suite is
 # skipped there; the style checks are not, since an offense that lands on `main` is a red CI run,
@@ -140,6 +154,17 @@ ci:
     - *check_comment_style
     - *check_comment_blocks
     - *check_codegen_drift
+    - *check_rust_fmt
+    - id: rust_clippy
+      title: clippy, every Rust crate with its warnings as errors
+      run:
+        - sh
+        - -ec
+        - |
+          for crate in . parser codegen lsp host web build; do
+            cargo clippy --all-targets --manifest-path "rust/$crate/Cargo.toml" -- -D warnings
+          done
+      blocked: clippy found a warning in a Rust crate. The main crate needs rust/src/generated, so run `hecks regenerate_corpus --confirm` first on a fresh checkout. Fix the code, or allow a lint at the one site with a line saying why; a warning in generated Rust is fixed in its generator.
     - id: lint_deploy_recipes
       title: generated deploy recipes, a command with no checked exit status or no echo
       run: [bundle, exec, exe/hecks, deploy, makefile_check.lint, --wait]

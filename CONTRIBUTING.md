@@ -73,7 +73,7 @@ git config core.hooksPath .githooks
 
 It runs the parallel suite, `spec/fuzzing`, the query-agreement `io`
 spec, the engine-agreement check, `hecks model_check`, `hecks conformance_run.measure_doc_coverage`
-and `rubocop`, concurrently, and reports the results in a fixed order. Bypass with `git push --no-verify` only when you mean to,
+`rubocop` and `rust_fmt` (rustfmt over the Rust crates), concurrently, and reports the results in a fixed order. Bypass with `git push --no-verify` only when you mean to,
 and say why in the push (or the PR).
 
 `main` takes pushes with no gate, so a push of only `main` skips the suite but still runs the `unguarded_push` stage (rubocop, the
@@ -215,6 +215,14 @@ before you find out from CI:
 bundle exec hecks build.project_rust examples/banking
 cd rust && cargo build --release && cargo test --lib
 ```
+
+Every Rust crate (`rust/`, `rust/parser`, `rust/codegen`, `rust/lsp`, `rust/host`, `rust/web`, `rust/build`) is held to
+`cargo fmt --check` and `cargo clippy --all-targets -- -D warnings` at clippy's default levels. CI runs both in the
+`checks` job; `hecks gate_run.gate stage=ci only=rust_fmt,rust_clippy` runs them here, after `hecks regenerate_corpus
+--confirm` on a fresh checkout (the main crate needs the generated modules). Generated Rust is laid out by its
+generators (`Hecks::RustFormat`) and is clippy-clean by the same route, so fix a warning in a generated file in the
+generator, never in the output. `rust/src/exemplar` is text templates, so it is neither formatted nor linted as code.
+Allow a lint only at the one site that needs it, with a line saying why.
 
 ## Code-quality inspection
 

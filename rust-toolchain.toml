@@ -7,3 +7,5 @@
 # PATH (Homebrew) bypasses this file; check `which cargo` before assuming the pin is broken.
 [toolchain]
 channel = "1.98.0"
+# The lint gate (`hecks gate_run.gate stage=ci only=rust_fmt,rust_clippy`) needs both of these.
+components = ["clippy", "rustfmt"]

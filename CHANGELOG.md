@@ -7,6 +7,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+- **Rust crates are held to rustfmt and clippy.** `cargo fmt --check` and `cargo clippy --all-targets -- -D warnings` now pass for all seven crates and run in CI (the `rust_fmt` and `rust_clippy` checks of the `ci` gate stage; `rust_fmt` also runs on pre-push). Generators lay their Rust out with rustfmt before writing it, so generated code needs no skip attribute. A field named `crate`, `self`, `Self` or `super` is now emitted with a trailing underscore instead of an invalid raw identifier, which had kept the `meta` feature from compiling.
+
 ## [3.14.0] - 2026-10-17
 
 - **`attribute ..., matches: :name` names a pattern (ADR 0117, proposed).** The language gives `present` (not blank), `not_empty`, `no_whitespace`, `snake_name`, `git_sha` and `digits`; each stands for exactly the regex the corpus spelled by hand, expanded in both parsers, so behavior and the generated IR are unchanged. About 250 hand-written patterns in the corpus, the guides and the two generators now use a name. `matches:` beside `pattern:` and an unknown name are refused. Other patterns stay `pattern:`, and the refusal text still shows the regex.
