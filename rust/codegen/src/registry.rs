@@ -309,6 +309,18 @@ fn chapter_path(a: &AggregateEntry) -> String {
     format!("crate::generated::{}::{}", a.chapter_mod, a.module_name)
 }
 
+/// One `"verb" => { .. }` arm of the registry's dispatch match, its body lines indented.
+fn verb_arm(verb: &str, body: &[String]) -> String {
+    format!(
+        "          {} => {{\n{}\n          }}",
+        naming::ruby_inspect_string(verb),
+        body.iter()
+            .map(|l| format!("              {l}"))
+            .collect::<Vec<_>>()
+            .join("\n")
+    )
+}
+
 pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> String {
     let store_fields: Vec<String> = aggregates
         .iter()
@@ -515,14 +527,7 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 "{dispatch_call}.map(|(_, events)| stamp_payload(events, &payload))"
             ));
 
-            aggregate_arms.push(format!(
-                "          {} => {{\n{}\n          }}",
-                naming::ruby_inspect_string(&c.verb),
-                body.iter()
-                    .map(|l| format!("              {l}"))
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            ));
+            aggregate_arms.push(verb_arm(&c.verb, &body));
         }
     }
 
@@ -603,14 +608,7 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
             );
             body.push(dispatch_call);
 
-            entity_arms.push(format!(
-                "          {} => {{\n{}\n          }}",
-                naming::ruby_inspect_string(&c.verb),
-                body.iter()
-                    .map(|l| format!("              {l}"))
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            ));
+            entity_arms.push(verb_arm(&c.verb, &body));
         }
     }
 
@@ -705,14 +703,7 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
             );
             body.push(dispatch_call);
 
-            nested_entity_arms.push(format!(
-                "          {} => {{\n{}\n          }}",
-                naming::ruby_inspect_string(&c.verb),
-                body.iter()
-                    .map(|l| format!("              {l}"))
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            ));
+            nested_entity_arms.push(verb_arm(&c.verb, &body));
         }
     }
 
@@ -754,14 +745,7 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
             );
             body.push(dispatch_call);
 
-            port_arms.push(format!(
-                "          {} => {{\n{}\n          }}",
-                naming::ruby_inspect_string(&p.verb),
-                body.iter()
-                    .map(|l| format!("              {l}"))
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            ));
+            port_arms.push(verb_arm(&p.verb, &body));
         }
     }
 
