@@ -81,13 +81,7 @@ module Hecks
         #   other value is a leaf
         # @return [Hash{Symbol => Object}, Array, Object] a new structure of the same shape
         #   with Symbol keys; a leaf is returned as it came
-        def deep_symbolize(value)
-          case value
-          when Hash  then value.to_h { |k, v| [k.to_sym, deep_symbolize(v)] }
-          when Array then value.map { |item| deep_symbolize(item) }
-          else value
-          end
-        end
+        def deep_symbolize(value) = Runtime::Value.deep_symbolize(value)
 
         # Unwraps a record, a query row, or any value holding `Runtime::Value`s into plain
         # Hashes, Arrays and scalars a JSON encoder can walk.

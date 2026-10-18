@@ -101,15 +101,7 @@ module Hecks
       def spread(answer)
         return { answered: answer } unless answer.is_a?(Hash)
 
-        answer.to_h { |key, value| [key.to_sym, deep_symbolize(value)] }
-      end
-
-      def deep_symbolize(value)
-        case value
-        when Hash  then value.to_h { |k, v| [k.to_sym, deep_symbolize(v)] }
-        when Array then value.map { |element| deep_symbolize(element) }
-        else value
-        end
+        Value.deep_symbolize(answer)
       end
 
       # The record, if there is one. A missing record is not an error here: the ask still
