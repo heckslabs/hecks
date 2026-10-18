@@ -146,7 +146,10 @@ it, except for one law they must uphold (C8.4).
   Known asymmetry, recorded not hidden: a `String` argument still
   admits another scalar (an integer) in Ruby — the self-hosted
   grammar's bootstrap relies on it — while the Rust boundary refuses
-  it; no corpus input exercises the difference. The check is the
+  it; no corpus input exercises the difference. Recorded gap: the
+  Rust generator emits an undefined `Boolean` type for a bare
+  `Boolean` command argument, so Rust cannot yet build such a domain
+  and the boolean half of this clause is held for Ruby only. The check is the
   *command* boundary's: a query's declared argument types name the
   argument for callers and generators, never a runtime shape —
   comparison unwraps both sides itself — so a query argument is not
