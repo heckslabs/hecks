@@ -150,7 +150,7 @@ it, except for one law they must uphold (C8.4).
   *command* boundary's: a query's declared argument types name the
   argument for callers and generators, never a runtime shape —
   comparison unwraps both sides itself — so a query argument is not
-  type-checked here.
+  type-checked here. (fixture: `bare_argument_type_refused.json`)
 
 ## §4 Effects
 
@@ -174,7 +174,7 @@ it, except for one law they must uphold (C8.4).
   (fixture: `remove_all_matches.json`)
 - **C4.4 (settled)** `increment`/`decrement`/`multiply`/`clamp` are
   numeric; an absent target reads as 0; a non-numeric operand is
-  `TypeMismatch`.
+  `TypeMismatch`. (fixture: `numeric_effects_absent_target_and_operand.json`)
 - **C4.5 (settled)** An appended entity with no explicit identity is
   minted one past the highest integer identity the list holds (1 when
   empty) — never `size + 1`, which repeats an identity the moment a
