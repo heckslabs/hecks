@@ -223,6 +223,7 @@ it, except for one law they must uphold (C8.4).
 - **C7.1 (settled)** An accepted command emits exactly its declared
   events, in declaration order; each payload is the coerced command
   arguments. Event order across a dispatch is semantic.
+  (fixtures: `accepted_pizza_lifecycle.json`, `reaction_order_per_event.json`)
 - **C7.2 (settled)** A refused or faulted command emits nothing and
   records nothing — including events from a delegated entity command
   whose parent later refuses: the delegated leg's emission is part of
@@ -232,7 +233,8 @@ it, except for one law they must uphold (C8.4).
   clause.) (fixtures: `invariant_refused_events_dropped.json`,
   `delegated_event_dropped_on_parent_refusal.json`)
 - **C7.3 (settled)** `occurred_at` is environmental (C9.1), not part of
-  the semantic payload.
+  the semantic payload. It is an absence, so no dispatch-level fixture
+  can pin it; the corpus strips it from every events list it compares.
 
 ## §8 Outcomes
 
@@ -240,12 +242,17 @@ it, except for one law they must uphold (C8.4).
   **accepted** (candidate committed, events emitted), **refused**
   (a domain refusal: state and event history exactly as before), or
   **fault** (the domain or its input is broken in a way the language
-  refuses to interpret).
+  refuses to interpret). (fixtures: `accepted_pizza_lifecycle.json`,
+  `refused_leaves_state_unchanged.json`, `fault_is_not_a_refusal.json`)
 - **C8.2 (settled)** A refusal has a class — one of the
   `Vocabulary::DomainRefusal` names — and a message derived from the
   refusing rule's description. The class is semantic; the corpus
   compares it. Wording templates are shared, but prose is not the
   contract — the class and the refusing site are.
+  (fixtures: `refusal_kind_given_not_met.json`, `refusal_kind_invariant.json`,
+  `refusal_kind_lifecycle.json`, `refusal_kind_not_found.json`,
+  `refusal_kind_already_exists.json`, `refusal_kind_type_mismatch.json`,
+  `refusal_kind_unknown_argument.json`)
 - **C8.3 (settled)** An evaluation fault — an unknown name, nil
   ordering, a wrong-typed operand reaching an operator, a malformed
   ad-hoc ask — is the **fault** outcome: never a refusal class, never a
