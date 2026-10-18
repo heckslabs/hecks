@@ -44,6 +44,7 @@ fn less_than(lhs: &Value, rhs: &Value) -> Result<bool, Refusal> {
 }
 
 /// `pub(crate)` so `membership.rs` reuses the numeric-coerced equality for array haystacks.
+#[allow(clippy::float_cmp)] // reason: Ruby's `==` on numerics is exact IEEE equality, not a margin.
 pub(crate) fn values_equal(lhs: &Value, rhs: &Value) -> bool {
     match (scalar::numeric(lhs), scalar::numeric(rhs)) {
         (Some(l), Some(r)) => l == r,

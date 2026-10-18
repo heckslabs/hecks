@@ -67,9 +67,11 @@ fn random_uri(rng: &mut Rng) -> Uri {
         return rng.pick(FIXED).parse().unwrap();
     }
     for _ in 0..8 {
-        let path: String = (0..rng.below(4))
-            .map(|_| format!("/{}", rng.pick(PIECES_ASCII)))
-            .collect();
+        let path = (0..rng.below(4)).fold(String::new(), |mut path, _| {
+            path.push('/');
+            path.push_str(rng.pick(PIECES_ASCII));
+            path
+        });
         let query = if rng.chance(2) {
             format!("?{}={}", rng.pick(PIECES_ASCII), rng.pick(PIECES_ASCII))
         } else {

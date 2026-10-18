@@ -13,24 +13,21 @@ pub enum JsonValue {
     Bool(bool),
     Number(String),
     String(String),
-    Array(Vec<JsonValue>),
-    Object(Vec<(String, JsonValue)>),
+    Array(Vec<Self>),
+    Object(Vec<(String, Self)>),
 }
 
 impl JsonValue {
-    fn str(s: impl Into<String>) -> JsonValue {
-        JsonValue::String(s.into())
+    fn str(s: impl Into<String>) -> Self {
+        Self::String(s.into())
     }
 
-    fn opt_str(s: &Option<String>) -> JsonValue {
-        match s {
-            Some(text) => JsonValue::String(text.clone()),
-            None => JsonValue::Null,
-        }
+    fn opt_str(s: Option<&String>) -> Self {
+        s.map_or(Self::Null, |text| Self::String(text.clone()))
     }
 
-    fn strings(items: &[String]) -> JsonValue {
-        JsonValue::Array(items.iter().map(|s| JsonValue::String(s.clone())).collect())
+    fn strings(items: &[String]) -> Self {
+        Self::Array(items.iter().map(|s| Self::String(s.clone())).collect())
     }
 }
 
@@ -67,17 +64,23 @@ pub fn bluebook_json(bb: &ir::Bluebook) -> JsonValue {
             JsonValue::Number(bb.ir_version.to_string()),
         ),
         ("name".to_string(), JsonValue::str(bb.name.clone())),
-        ("version".to_string(), JsonValue::opt_str(&bb.version)),
-        ("vision".to_string(), JsonValue::opt_str(&bb.vision)),
+        (
+            "version".to_string(),
+            JsonValue::opt_str(bb.version.as_ref()),
+        ),
+        ("vision".to_string(), JsonValue::opt_str(bb.vision.as_ref())),
         (
             "classification".to_string(),
-            JsonValue::opt_str(&bb.classification),
+            JsonValue::opt_str(bb.classification.as_ref()),
         ),
         (
             "formerly_known_as".to_string(),
-            JsonValue::opt_str(&bb.formerly_known_as),
+            JsonValue::opt_str(bb.formerly_known_as.as_ref()),
         ),
-        ("namespace".to_string(), JsonValue::opt_str(&bb.namespace)),
+        (
+            "namespace".to_string(),
+            JsonValue::opt_str(bb.namespace.as_ref()),
+        ),
         (
             "aggregates".to_string(),
             JsonValue::Array(bb.aggregates.iter().map(aggregate_json).collect()),
@@ -131,7 +134,7 @@ fn aggregate_json(a: &ir::Aggregate) -> JsonValue {
         ("name".to_string(), JsonValue::str(a.name.clone())),
         (
             "description".to_string(),
-            JsonValue::opt_str(&a.description),
+            JsonValue::opt_str(a.description.as_ref()),
         ),
         (
             "identified_by".to_string(),
@@ -168,10 +171,7 @@ fn aggregate_json(a: &ir::Aggregate) -> JsonValue {
         ),
         (
             "lifecycle".to_string(),
-            a.lifecycle
-                .as_ref()
-                .map(lifecycle_json)
-                .unwrap_or(JsonValue::Null),
+            a.lifecycle.as_ref().map_or(JsonValue::Null, lifecycle_json),
         ),
         (
             "entities".to_string(),
@@ -189,8 +189,7 @@ fn aggregate_json(a: &ir::Aggregate) -> JsonValue {
             "provenance".to_string(),
             a.provenance
                 .as_ref()
-                .map(ruby_value_json)
-                .unwrap_or(JsonValue::Null),
+                .map_or(JsonValue::Null, ruby_value_json),
         ),
     ])
 }
@@ -203,17 +202,17 @@ fn attribute_json(a: &ir::Attribute) -> JsonValue {
         ("list".to_string(), JsonValue::Bool(a.list)),
         (
             "default".to_string(),
-            a.default
-                .as_ref()
-                .map(ruby_value_json)
-                .unwrap_or(JsonValue::Null),
+            a.default.as_ref().map_or(JsonValue::Null, ruby_value_json),
         ),
         ("optional".to_string(), JsonValue::Bool(a.optional)),
-        ("pattern".to_string(), JsonValue::opt_str(&a.pattern)),
-        ("admits".to_string(), JsonValue::opt_str(&a.admits)),
+        (
+            "pattern".to_string(),
+            JsonValue::opt_str(a.pattern.as_ref()),
+        ),
+        ("admits".to_string(), JsonValue::opt_str(a.admits.as_ref())),
         (
             "relationship".to_string(),
-            JsonValue::opt_str(&a.relationship),
+            JsonValue::opt_str(a.relationship.as_ref()),
         ),
     ])
 }
@@ -260,7 +259,7 @@ fn given_json(g: &ir::Given) -> JsonValue {
     JsonValue::Object(vec![
         (
             "description".to_string(),
-            JsonValue::opt_str(&g.description),
+            JsonValue::opt_str(g.description.as_ref()),
         ),
         ("canonical".to_string(), JsonValue::str(g.canonical.clone())),
         // The structured form of the same text, as `AstJson.rule_row` emits beside `canonical`.
@@ -287,9 +286,12 @@ fn projected_field_json(f: &ir::ProjectedField) -> JsonValue {
 fn command_json(c: &ir::Command) -> JsonValue {
     JsonValue::Object(vec![
         ("name".to_string(), JsonValue::str(c.name.clone())),
-        ("role".to_string(), JsonValue::opt_str(&c.role)),
-        ("goal".to_string(), JsonValue::opt_str(&c.goal)),
-        ("references".to_string(), JsonValue::opt_str(&c.references)),
+        ("role".to_string(), JsonValue::opt_str(c.role.as_ref())),
+        ("goal".to_string(), JsonValue::opt_str(c.goal.as_ref())),
+        (
+            "references".to_string(),
+            JsonValue::opt_str(c.references.as_ref()),
+        ),
         (
             "attributes".to_string(),
             JsonValue::Array(c.attributes.iter().map(attribute_json).collect()),
@@ -318,19 +320,18 @@ fn command_json(c: &ir::Command) -> JsonValue {
             JsonValue::Array(c.mutations.iter().map(mutation_json).collect()),
         ),
         ("emits".to_string(), JsonValue::strings(&c.emits)),
-        ("from".to_string(), command_from_json(&c.from)),
+        ("from".to_string(), command_from_json(c.from.as_ref())),
         (
             "provenance".to_string(),
             c.provenance
                 .as_ref()
-                .map(ruby_value_json)
-                .unwrap_or(JsonValue::Null),
+                .map_or(JsonValue::Null, ruby_value_json),
         ),
     ])
 }
 
 /// `ir::CommandFrom`: a bare JSON string for one state, an array for several, `null` for none.
-fn command_from_json(from: &Option<ir::CommandFrom>) -> JsonValue {
+fn command_from_json(from: Option<&ir::CommandFrom>) -> JsonValue {
     match from {
         None => JsonValue::Null,
         Some(ir::CommandFrom::Single(state)) => JsonValue::str(state.clone()),
@@ -395,12 +396,12 @@ fn mutation_json(m: &ir::Mutation) -> JsonValue {
             ("target".to_string(), JsonValue::str(target.clone())),
             ("op".to_string(), JsonValue::str(op.clone())),
             ("sign".to_string(), JsonValue::str(sign.clone())),
-            ("source".to_string(), mutation_source_json(source)),
+            ("source".to_string(), mutation_source_json(source.as_ref())),
         ]),
     }
 }
 
-fn mutation_source_json(source: &Option<ir::MutationSource>) -> JsonValue {
+fn mutation_source_json(source: Option<&ir::MutationSource>) -> JsonValue {
     match source {
         Some(ir::MutationSource::Argument(name)) => JsonValue::Object(vec![
             ("kind".to_string(), JsonValue::str("argument")),
@@ -440,7 +441,10 @@ fn lifecycle_json(l: &ir::Lifecycle) -> JsonValue {
                         JsonValue::Object(vec![
                             ("command".to_string(), JsonValue::str(t.command.clone())),
                             ("to_state".to_string(), JsonValue::str(t.to_state.clone())),
-                            ("from_state".to_string(), JsonValue::opt_str(&t.from_state)),
+                            (
+                                "from_state".to_string(),
+                                JsonValue::opt_str(t.from_state.as_ref()),
+                            ),
                         ])
                     })
                     .collect(),
@@ -476,7 +480,7 @@ fn query_json(q: &ir::Query) -> JsonValue {
         ("name".to_string(), JsonValue::str(q.name.clone())),
         (
             "description".to_string(),
-            JsonValue::opt_str(&q.description),
+            JsonValue::opt_str(q.description.as_ref()),
         ),
         (
             "attributes".to_string(),
@@ -486,8 +490,8 @@ fn query_json(q: &ir::Query) -> JsonValue {
             "wheres".to_string(),
             JsonValue::Array(q.wheres.iter().map(where_clause_json).collect()),
         ),
-        ("order_by".to_string(), order_by_json(&q.order_by)),
-        ("limit".to_string(), limit_json(&q.limit)),
+        ("order_by".to_string(), order_by_json(q.order_by.as_ref())),
+        ("limit".to_string(), limit_json(q.limit.as_ref())),
     ];
     pairs.extend(query_options_json(&q.options));
     // `returns` follows the options, only when declared (`Query#to_h`).
@@ -526,33 +530,27 @@ fn where_clause_json(w: &ir::WhereClause) -> JsonValue {
     JsonValue::Object(pairs)
 }
 
-fn order_by_json(order_by: &Option<ir::OrderBy>) -> JsonValue {
-    order_by
-        .as_ref()
-        .map(|o| {
-            let mut pairs = vec![
-                ("field".to_string(), JsonValue::str(o.field.clone())),
-                ("direction".to_string(), JsonValue::str(o.direction.clone())),
-            ];
-            if let Some(target) = &o.target {
-                pairs.push(("target".to_string(), JsonValue::str(target.clone())));
-            }
-            JsonValue::Object(pairs)
-        })
-        .unwrap_or(JsonValue::Null)
+fn order_by_json(order_by: Option<&ir::OrderBy>) -> JsonValue {
+    order_by.map_or(JsonValue::Null, |o| {
+        let mut pairs = vec![
+            ("field".to_string(), JsonValue::str(o.field.clone())),
+            ("direction".to_string(), JsonValue::str(o.direction.clone())),
+        ];
+        if let Some(target) = &o.target {
+            pairs.push(("target".to_string(), JsonValue::str(target.clone())));
+        }
+        JsonValue::Object(pairs)
+    })
 }
 
-fn limit_json(limit: &Option<ir::LimitSpec>) -> JsonValue {
-    limit
-        .as_ref()
-        .map(|l| {
-            let mut pairs = vec![("value".to_string(), JsonValue::str(l.value.clone()))];
-            if let Some(target) = &l.target {
-                pairs.push(("target".to_string(), JsonValue::str(target.clone())));
-            }
-            JsonValue::Object(pairs)
-        })
-        .unwrap_or(JsonValue::Null)
+fn limit_json(limit: Option<&ir::LimitSpec>) -> JsonValue {
+    limit.map_or(JsonValue::Null, |l| {
+        let mut pairs = vec![("value".to_string(), JsonValue::str(l.value.clone()))];
+        if let Some(target) = &l.target {
+            pairs.push(("target".to_string(), JsonValue::str(target.clone())));
+        }
+        JsonValue::Object(pairs)
+    })
 }
 
 /// `QuerySpecification::Common::Options#extra_options_to_h`, shared by `query_json` and
@@ -578,8 +576,7 @@ fn query_options_json(o: &ir::QueryOptions) -> Vec<(String, JsonValue)> {
             "tenant".to_string(),
             a.tenant
                 .as_ref()
-                .map(|t| JsonValue::str(t.clone()))
-                .unwrap_or(JsonValue::Null),
+                .map_or(JsonValue::Null, |t| JsonValue::str(t.clone())),
         ));
         pairs.push(("authorization".to_string(), JsonValue::Object(fields)));
     }
@@ -604,7 +601,7 @@ fn entity_json(e: &ir::Entity) -> JsonValue {
         ("name".to_string(), JsonValue::str(e.name.clone())),
         (
             "description".to_string(),
-            JsonValue::opt_str(&e.description),
+            JsonValue::opt_str(e.description.as_ref()),
         ),
         (
             "identified_by".to_string(),
@@ -639,10 +636,7 @@ fn entity_json(e: &ir::Entity) -> JsonValue {
         ),
         (
             "lifecycle".to_string(),
-            e.lifecycle
-                .as_ref()
-                .map(lifecycle_json)
-                .unwrap_or(JsonValue::Null),
+            e.lifecycle.as_ref().map_or(JsonValue::Null, lifecycle_json),
         ),
     ])
 }
@@ -654,15 +648,15 @@ fn read_model_json(r: &ir::ReadModel) -> JsonValue {
         ("name".to_string(), JsonValue::str(r.name.clone())),
         (
             "description".to_string(),
-            JsonValue::opt_str(&r.description),
+            JsonValue::opt_str(r.description.as_ref()),
         ),
         (
             "reference_name".to_string(),
-            JsonValue::opt_str(&r.reference_name),
+            JsonValue::opt_str(r.reference_name.as_ref()),
         ),
         (
             "reference_target".to_string(),
-            JsonValue::opt_str(&r.reference_target),
+            JsonValue::opt_str(r.reference_target.as_ref()),
         ),
         (
             "query_name".to_string(),
@@ -672,8 +666,8 @@ fn read_model_json(r: &ir::ReadModel) -> JsonValue {
             "wheres".to_string(),
             JsonValue::Array(r.wheres.iter().map(where_clause_json).collect()),
         ),
-        ("order_by".to_string(), order_by_json(&r.order_by)),
-        ("limit".to_string(), limit_json(&r.limit)),
+        ("order_by".to_string(), order_by_json(r.order_by.as_ref())),
+        ("limit".to_string(), limit_json(r.limit.as_ref())),
         (
             "aggregate_heads".to_string(),
             JsonValue::Array(
@@ -754,8 +748,14 @@ fn process_manager_json(pm: &ir::ProcessManager) -> JsonValue {
             "correlates_by".to_string(),
             JsonValue::str(pm.correlates_by.clone()),
         ),
-        ("starts_on".to_string(), JsonValue::opt_str(&pm.starts_on)),
-        ("ends_on".to_string(), JsonValue::opt_str(&pm.ends_on)),
+        (
+            "starts_on".to_string(),
+            JsonValue::opt_str(pm.starts_on.as_ref()),
+        ),
+        (
+            "ends_on".to_string(),
+            JsonValue::opt_str(pm.ends_on.as_ref()),
+        ),
         ("states".to_string(), JsonValue::strings(&pm.states)),
         (
             "handlers".to_string(),
@@ -811,10 +811,9 @@ fn dispatch_spec_json(d: &ir::DispatchSpec) -> JsonValue {
         ),
         (
             "compensates".to_string(),
-            match &d.compensates {
-                Some(inner) => dispatch_spec_json(inner),
-                None => JsonValue::Null,
-            },
+            d.compensates
+                .as_ref()
+                .map_or(JsonValue::Null, |inner| dispatch_spec_json(inner)),
         ),
     ])
 }
@@ -822,33 +821,41 @@ fn dispatch_spec_json(d: &ir::DispatchSpec) -> JsonValue {
 /// An ask policy carries `ask` where a trigger policy carries `trigger_command`, as
 /// `Behaviour::Policy#to_h` does; a trigger policy has no `ask` key at all.
 fn trigger_or_ask_entry(p: &ir::Policy) -> (String, JsonValue) {
-    match &p.ask {
-        Some(name) => ("ask".to_string(), JsonValue::str(name.clone())),
-        None => (
-            "trigger_command".to_string(),
-            JsonValue::opt_str(&p.trigger_command),
-        ),
-    }
+    p.ask.as_ref().map_or_else(
+        || {
+            (
+                "trigger_command".to_string(),
+                JsonValue::opt_str(p.trigger_command.as_ref()),
+            )
+        },
+        |name| ("ask".to_string(), JsonValue::str(name.clone())),
+    )
 }
 
 /// `Policy#to_h`: attribute declaration order from reaction.bluebook, then `where_ast` last.
 fn policy_json(p: &ir::Policy) -> JsonValue {
     JsonValue::Object(vec![
         ("name".to_string(), JsonValue::str(p.name.clone())),
-        ("on_event".to_string(), JsonValue::opt_str(&p.on_event)),
+        (
+            "on_event".to_string(),
+            JsonValue::opt_str(p.on_event.as_ref()),
+        ),
         trigger_or_ask_entry(p),
         (
             "target_domain".to_string(),
-            JsonValue::opt_str(&p.target_domain),
+            JsonValue::opt_str(p.target_domain.as_ref()),
         ),
         (
             "expect_undelivered".to_string(),
             JsonValue::Bool(p.expect_undelivered),
         ),
-        ("where".to_string(), JsonValue::opt_str(&p.where_clause)),
+        (
+            "where".to_string(),
+            JsonValue::opt_str(p.where_clause.as_ref()),
+        ),
         (
             "for_each".to_string(),
-            JsonValue::opt_str(&p.for_each_query),
+            JsonValue::opt_str(p.for_each_query.as_ref()),
         ),
         (
             "with_spec".to_string(),

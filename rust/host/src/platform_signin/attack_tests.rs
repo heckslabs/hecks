@@ -303,7 +303,7 @@ fn rejects_a_tampered_signature_one_bit_flipped_and_every_wrong_length() {
             wrong.len()
         );
     }
-    let mut longer = bytes.clone();
+    let mut longer = bytes;
     longer.extend_from_slice(&[0, 0]);
     assert_eq!(
         raw_token_reason(Some(&format!(
@@ -441,11 +441,11 @@ fn rejects_claims_of_the_wrong_json_type() {
         Reason::Malformed
     );
     assert_eq!(
-        refused_with(|s| set(s, "exp", json!(1800000060.0))),
+        refused_with(|s| set(s, "exp", json!(1_800_000_060.0))),
         Reason::Malformed
     );
     assert_eq!(
-        refused_with(|s| set(s, "iat", json!(1800000000.5))),
+        refused_with(|s| set(s, "iat", json!(1_800_000_000.5))),
         Reason::Malformed
     );
     assert_eq!(
@@ -911,7 +911,7 @@ fn bad_env(s: &mut Scenario) {
     set(s, "env", json!("staging"));
 }
 fn float_exp(s: &mut Scenario) {
-    set(s, "exp", json!(1800000060.5));
+    set(s, "exp", json!(1_800_000_060.5));
 }
 fn not_yet_valid(s: &mut Scenario) {
     set(s, "nbf", json!(NOW + 100));
@@ -1048,7 +1048,7 @@ fn every_single_character_mutation_of_a_good_token_is_answered_without_panicking
                 continue;
             }
             let mut mutated = good.clone();
-            mutated.replace_range(position..position + 1, &replacement.to_string());
+            mutated.replace_range(position..=position, &replacement.to_string());
             let request = SigninRequest {
                 token: Some(&mutated),
                 state: Some(STATE),

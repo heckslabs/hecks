@@ -834,7 +834,7 @@ fn a_fan_out_row_id_replaces_any_payload_field_of_the_same_name_and_is_never_lif
     let args = trigger_args(
         &rule("D::Order.Close", NO_WITH),
         &order_event(with_old),
-        Some(("order_id", "row-1".to_string())),
+        Some(("order_id", "row-1")),
         "D::Order.Close",
         &tables(),
     );
@@ -893,7 +893,7 @@ fn an_explicit_with_may_read_a_fan_out_rows_fields_but_the_payload_wins() {
 #[test]
 fn an_undeclared_with_never_offers_a_fan_out_rows_fields() {
     let record = row_record();
-    let extra = Some(("order_id", "r1".to_string()));
+    let extra = Some(("order_id", "r1"));
 
     let args = trigger_args_with_row(
         &rule("D::Order.Place", NO_WITH),
@@ -1083,7 +1083,7 @@ fn an_explicit_with_for_a_non_creating_target_names_the_receiver_from_the_projec
     let fan = trigger_args(
         &rule("D::Order.Close", REASON),
         &order_event(payload()),
-        Some(("order_id", "r1".to_string())),
+        Some(("order_id", "r1")),
         "D::Order.Close",
         &t,
     );
@@ -1136,7 +1136,7 @@ fn an_entity_command_is_routed_to_the_parent_named_by_the_event_when_the_project
     let projected = || Json::obj(vec![("line_id", Json::str("l1")), ("note", Json::str("n"))]);
 
     let got = route_dispatch_args(
-        projected(),
+        &projected(),
         "D::Order.Line.Add",
         &t,
         &order_event(payload()),
@@ -1159,7 +1159,7 @@ fn an_entity_command_is_routed_to_the_parent_named_by_the_event_when_the_project
     let other = event("E", "D::Other", "o1", payload());
     let blank = event("E", "D::Order", "", payload());
     for e in [other, blank] {
-        let flat = route_dispatch_args(projected(), "D::Order.Line.Add", &t, &e);
+        let flat = route_dispatch_args(&projected(), "D::Order.Line.Add", &t, &e);
         assert!(flat.get("to").is_none(), "{flat:?}");
     }
 }

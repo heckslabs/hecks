@@ -63,10 +63,6 @@ fn emit_include(haystack: &Resolver, needle: &Resolver) -> JsonValue {
         ]);
     };
 
-    if elements.is_empty() {
-        return obj(vec![op_tag("bool"), ("value", JsonValue::Bool(false))]);
-    }
-
     let eq = find_operator("==");
     elements
         .iter()
@@ -79,7 +75,7 @@ fn emit_include(haystack: &Resolver, needle: &Resolver) -> JsonValue {
             ])
         })
         .reduce(|left, right| obj(vec![op_tag("or"), ("left", left), ("right", right)]))
-        .expect("non-empty by the guard above")
+        .unwrap_or_else(|| obj(vec![op_tag("bool"), ("value", JsonValue::Bool(false))]))
 }
 
 pub fn emit_resolver(node: &Resolver) -> JsonValue {

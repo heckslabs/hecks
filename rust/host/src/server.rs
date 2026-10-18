@@ -35,7 +35,7 @@ pub async fn dispatch_body(
         return Ok(response);
     }
 
-    if body.get("read").and_then(|v| v.as_bool()) == Some(true) {
+    if body.get("read").and_then(serde_json::Value::as_bool) == Some(true) {
         // `{e:#}`: anyhow's alternate Display walks `source()` to the real message,
         // where a bare `tokio_postgres` error's Display is just "db error".
         let result = dispatch::read(client, wasm_path)
@@ -64,13 +64,13 @@ pub async fn dispatch_body(
     let role = body
         .get("role")
         .and_then(|v| v.as_str())
-        .map(|s| s.to_string());
+        .map(std::string::ToString::to_string);
     // Who the caller is, for Governance. Honored only where the internal protocol is: from this
     // host's own peers (`trusts_internal_dispatch`), never from a public caller.
     let actor_id = body
         .get("actor_id")
         .and_then(|v| v.as_str())
-        .map(|s| s.to_string());
+        .map(std::string::ToString::to_string);
     let caller = dispatch::Caller {
         role: role.as_deref(),
         actor_id: actor_id.as_deref(),
@@ -352,7 +352,7 @@ fn synthesize_function_url_envelope(
     body: &Bytes,
 ) -> Value {
     let mut header_map = serde_json::Map::new();
-    for (name, value) in headers.iter() {
+    for (name, value) in headers {
         if let Ok(value) = value.to_str() {
             header_map.insert(
                 name.as_str().to_ascii_lowercase(),
@@ -374,7 +374,7 @@ fn synthesize_function_url_envelope(
 /// Translates `dispatch_body`'s JSON result into a real HTTP response: `web::render`'s
 /// Function-URL envelope when `statusCode` is present, else the raw outcome as `200` JSON.
 fn value_to_response(value: Value) -> Response {
-    let Some(status_code) = value.get("statusCode").and_then(|v| v.as_u64()) else {
+    let Some(status_code) = value.get("statusCode").and_then(serde_json::Value::as_u64) else {
         return (StatusCode::OK, axum::Json(value)).into_response();
     };
     // `try_from`, not `as u16`: 65736 would wrap to 200 and turn a handler's garbage into a success.
@@ -410,7 +410,11 @@ fn value_to_response(value: Value) -> Response {
     }
 
     let raw_body = value.get("body").and_then(|v| v.as_str()).unwrap_or("");
-    let body_bytes = if value.get("isBase64Encoded").and_then(|v| v.as_bool()) == Some(true) {
+    let body_bytes = if value
+        .get("isBase64Encoded")
+        .and_then(serde_json::Value::as_bool)
+        == Some(true)
+    {
         web::base64_decode(raw_body)
     } else {
         raw_body.as_bytes().to_vec()
@@ -499,17 +503,15 @@ mod tests {
     fn admitted(from: &str, path: &str, body: &str) -> Value {
         let uri: Uri = path.parse().unwrap();
         let body = Bytes::from(body.to_string());
-        match admit(
+        admit(
             &limits_from(&[]),
             peer(from),
             &Method::POST,
             &uri,
             &HeaderMap::new(),
             &body,
-        ) {
-            Ok(envelope) => envelope,
-            Err(_) => panic!("{from} POST {path} was refused before dispatch"),
-        }
+        )
+        .unwrap_or_else(|_| panic!("{from} POST {path} was refused before dispatch"))
     }
 
     // The gap this closes: a public POST to any path the load balancer forwards carried

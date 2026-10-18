@@ -60,7 +60,7 @@ pub struct DispatchSpec {
     pub with: &'static [(&'static str, WithValue)],
     /// The command that undoes this dispatch, if any. A reference so the const table can nest it;
     /// a compensation is never itself compensable.
-    pub compensates: Option<&'static DispatchSpec>,
+    pub compensates: Option<&'static Self>,
 }
 
 /// One leg of a process manager: on `event_type` from `from_state`, move to `to_state` and
@@ -213,7 +213,7 @@ fn build_dispatch_args(
     // A saga leg's `with:` is always an explicit projection. The verb is qualified before the
     // lookup because the tables are keyed by the qualified verb.
     let qualified = qualify_saga_command_name(domain_name, spec.command_name);
-    route_dispatch_args(projected, &qualified, tables, event)
+    route_dispatch_args(&projected, &qualified, tables, event)
 }
 
 #[derive(Clone, Copy)]
@@ -246,7 +246,8 @@ type DispatchFn<S> = fn(
 /// Only a refusal of the top-level `verb` is returned; reaction refusals are logged and swallowed.
 ///
 /// `saga_correlation` stamps every event this call produces; only saga-leg dispatches pass it.
-#[allow(clippy::too_many_arguments)]
+// reason: every caller, here and in the generated code, holds default-hasher maps.
+#[allow(clippy::too_many_arguments, clippy::implicit_hasher)]
 pub fn orchestrate<S: AggregateScan>(
     store: &mut S,
     dispatch_fn: DispatchFn<S>,
@@ -403,7 +404,7 @@ fn where_holds(where_expr: Option<fn() -> Expr>, event: &Event) -> bool {
 fn trigger_args(
     policy: &PolicyRule,
     event: &Event,
-    extra: Option<(&str, String)>,
+    extra: Option<(&str, &str)>,
     target_verb: &str,
     tables: &Tables,
 ) -> Json {
@@ -437,7 +438,7 @@ fn for_each_query_args(def: &named_query::QueryDef, event: &Event, tables: &Tabl
 fn trigger_args_with_row(
     policy: &PolicyRule,
     event: &Event,
-    extra: Option<(&str, String)>,
+    extra: Option<(&str, &str)>,
     row: Option<(&str, &Json)>,
     target_verb: &str,
     tables: &Tables,
@@ -448,7 +449,7 @@ fn trigger_args_with_row(
     };
     if let Some((key, id)) = &extra {
         source.retain(|(name, _)| name != key);
-        source.push(((*key).to_string(), Json::str(id.clone())));
+        source.push(((*key).to_string(), Json::str((*id).to_string())));
     }
 
     if policy.with_spec.is_empty() {
@@ -487,14 +488,15 @@ fn trigger_args_with_row(
         .with_spec
         .iter()
         .map(|(name, binding)| {
-            let value = match binding.strip_prefix(':') {
-                Some(field) => source
-                    .iter()
-                    .find(|(held, _)| held == field)
-                    .map(|(_, held)| held.clone())
-                    .unwrap_or(Json::Null),
-                None => read_literal_wire(binding),
-            };
+            let value = binding.strip_prefix(':').map_or_else(
+                || read_literal_wire(binding),
+                |field| {
+                    source
+                        .iter()
+                        .find(|(held, _)| held == field)
+                        .map_or(Json::Null, |(_, held)| held.clone())
+                },
+            );
             ((*name).to_string(), value)
         })
         .collect();
@@ -585,7 +587,12 @@ fn resolved_id_component(v: &Json) -> Option<String> {
 // Routes a one-level entity command that `split_routed_args` cannot: the parent aggregate's
 // identity comes from the triggering event, not from the `with:` facts. Every other shape falls
 // through to `split_routed_args`'s answer.
-fn route_dispatch_args(projected: Json, target_verb: &str, tables: &Tables, event: &Event) -> Json {
+fn route_dispatch_args(
+    projected: &Json,
+    target_verb: &str,
+    tables: &Tables,
+    event: &Event,
+) -> Json {
     let routed = split_routed_args(projected.clone(), target_verb, tables);
     if matches!(&routed, Json::Object(fields) if fields.iter().any(|(k, _)| k == "to")) {
         return routed;
@@ -594,7 +601,7 @@ fn route_dispatch_args(projected: Json, target_verb: &str, tables: &Tables, even
     let Some((aggregate_name, entity_qualified)) = entity_command_paths(target_verb) else {
         return routed;
     };
-    let Json::Object(pairs) = &projected else {
+    let Json::Object(pairs) = projected else {
         return routed;
     };
 
@@ -741,7 +748,7 @@ fn react_policies<S: AggregateScan>(
                         other => other,
                     }
                 };
-                let extra = policy.for_each_key.map(|key| (key, row_id.clone()));
+                let extra = policy.for_each_key.map(|key| (key, row_id.as_str()));
                 let args = trigger_args_with_row(
                     policy,
                     event,
@@ -948,8 +955,7 @@ fn advance_saga<S: AggregateScan>(
 
         let memory = sagas
             .get(&key)
-            .map(|instance| instance.memory.clone())
-            .unwrap_or(Json::Null);
+            .map_or(Json::Null, |instance| instance.memory.clone());
         // `event.aggregate` is `{domain}::{aggregate}`, so the domain is read from it.
         let domain_name = event
             .aggregate
@@ -964,12 +970,10 @@ fn advance_saga<S: AggregateScan>(
             let compensation_args = spec.compensates.map(|r| {
                 build_dispatch_args(pm, r, event, &correlation, &memory, domain_name, &tables)
             });
-            let stamp: HashMap<String, String> = [(
+            let stamp: HashMap<String, String> = HashMap::from([(
                 correlation_head(pm.correlates_by).to_string(),
                 correlation.clone(),
-            )]
-            .into_iter()
-            .collect();
+            )]);
             let delivered = deliver_saga_dispatch(
                 store,
                 dispatch_fn,
@@ -1146,7 +1150,7 @@ fn deliver_derived_compensation<S: AggregateScan>(
         let mut fields = vec![
             ("process_manager", Json::str(pm.name.to_string())),
             ("instance", Json::str(correlation.to_string())),
-            ("dispatch", Json::str(entry.command_name.to_string())),
+            ("dispatch", Json::str(entry.command_name.clone())),
         ];
         fields.extend(extra);
         Json::obj(fields)
@@ -1168,12 +1172,10 @@ fn deliver_derived_compensation<S: AggregateScan>(
     // A compensation's `command_name` is bare on the wire, like a forward dispatch's.
     let qualified = qualify_saga_command_name(domain_name, &entry.command_name);
 
-    let stamp: HashMap<String, String> = [(
+    let stamp: HashMap<String, String> = HashMap::from([(
         correlation_head(pm.correlates_by).to_string(),
         correlation.to_string(),
-    )]
-    .into_iter()
-    .collect();
+    )]);
 
     let outcome = orchestrate(
         store,
@@ -1334,12 +1336,10 @@ fn compensate<S: AggregateScan>(
         let compensation_args = spec
             .compensates
             .map(|r| build_dispatch_args(pm, r, event, correlation, memory, domain_name, &tables));
-        let stamp: HashMap<String, String> = [(
+        let stamp: HashMap<String, String> = HashMap::from([(
             correlation_head(pm.correlates_by).to_string(),
             correlation.to_string(),
-        )]
-        .into_iter()
-        .collect();
+        )]);
         deliver_saga_dispatch(
             store,
             dispatch_fn,
@@ -1423,11 +1423,10 @@ mod tests {
             id: "thing-1".to_string(),
             payload: Json::Object(vec![]),
             occurred_at: None,
-            correlation: Some(
-                [("reference".to_string(), "xfer-1".to_string())]
-                    .into_iter()
-                    .collect(),
-            ),
+            correlation: Some(HashMap::from([(
+                "reference".to_string(),
+                "xfer-1".to_string(),
+            )])),
         };
 
         assert_eq!(
@@ -1451,11 +1450,10 @@ mod tests {
                 )]),
             )]),
             occurred_at: None,
-            correlation: Some(
-                [("reference".to_string(), "from-stamp".to_string())]
-                    .into_iter()
-                    .collect(),
-            ),
+            correlation: Some(HashMap::from([(
+                "reference".to_string(),
+                "from-stamp".to_string(),
+            )])),
         };
 
         assert_eq!(
@@ -1473,11 +1471,7 @@ mod tests {
             id: "thing-1".to_string(),
             payload: Json::Object(vec![]),
             occurred_at: None,
-            correlation: Some(
-                [("reference".to_string(), String::new())]
-                    .into_iter()
-                    .collect(),
-            ),
+            correlation: Some(HashMap::from([("reference".to_string(), String::new())])),
         };
 
         assert_eq!(correlation_of(&pm, &event, no_reference_key), None);
@@ -1492,15 +1486,10 @@ mod tests {
             id: "thing-1".to_string(),
             payload: Json::Null,
             occurred_at: None,
-            correlation: Some(
-                [("already".to_string(), "here".to_string())]
-                    .into_iter()
-                    .collect(),
-            ),
+            correlation: Some(HashMap::from([("already".to_string(), "here".to_string())])),
         }];
-        let stamp: HashMap<String, String> = [("reference".to_string(), "xfer-1".to_string())]
-            .into_iter()
-            .collect();
+        let stamp: HashMap<String, String> =
+            HashMap::from([("reference".to_string(), "xfer-1".to_string())]);
         for event in &mut events {
             event
                 .correlation
@@ -1851,7 +1840,7 @@ mod tests {
             assert_eq!(
                 s.borrow().as_ref().unwrap().get("now"),
                 Some(&Json::int(77))
-            )
+            );
         });
 
         let supplied = Json::obj(vec![("with", Json::obj(vec![("now", Json::int(5))]))]);
@@ -1868,6 +1857,7 @@ mod tests {
     // Pins domain-qualifying a same-domain entity command (`Manifest::Slot.Fill`): its leftover
     // `::` looks cross-domain, and an unqualified name would fail as an unknown command. The fake
     // dispatch panics on any verb but the qualified, dot-joined form.
+    #[allow(clippy::unnecessary_wraps)] // reason: the signature is the `DispatchFn` type.
     fn entity_command_test_dispatch(
         _store: &mut MultiLegTestStore,
         verb: &str,
@@ -2177,7 +2167,7 @@ mod tests {
             correlation: None,
         };
 
-        let routed = route_dispatch_args(projected, "Widgets::Crate.Slot.Fill", &tables, &event);
+        let routed = route_dispatch_args(&projected, "Widgets::Crate.Slot.Fill", &tables, &event);
         assert_eq!(
             routed,
             Json::obj(vec![
@@ -2209,7 +2199,7 @@ mod tests {
             correlation: None,
         };
 
-        let routed = route_dispatch_args(projected, "Widgets::Crate.Slot.Fill", &tables, &event);
+        let routed = route_dispatch_args(&projected, "Widgets::Crate.Slot.Fill", &tables, &event);
         assert_eq!(
             routed,
             Json::obj(vec![("item", Json::str("hello"))]),
@@ -2222,6 +2212,7 @@ mod tests {
 
     // Two legs on one event from different states, each reached exactly when its `from:` is
     // current.
+    #[allow(clippy::unnecessary_wraps)] // reason: the signature is the `DispatchFn` type.
     fn two_leg_test_dispatch(
         _store: &mut MultiLegTestStore,
         verb: &str,
@@ -2355,6 +2346,7 @@ mod tests {
 
     // One dispatch announces two events: a saga leg answers the first, a policy the second. The
     // whole batch is logged before any reaction, then reactions run per event in emits order.
+    #[allow(clippy::unnecessary_wraps)] // reason: the signature is the `DispatchFn` type.
     fn two_event_test_dispatch(
         _store: &mut MultiLegTestStore,
         verb: &str,

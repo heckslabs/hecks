@@ -64,13 +64,15 @@ pub fn translate(edge_aggregate_raw: &Value, state: &Value) -> anyhow::Result<Va
                 continue;
             };
             let (top, member) = split_path(name);
-            let already_present = match member {
-                None => state.contains_key(top),
-                Some(member) => state
-                    .get(top)
-                    .and_then(Value::as_object)
-                    .is_some_and(|obj| obj.contains_key(member)),
-            };
+            let already_present = member.map_or_else(
+                || state.contains_key(top),
+                |member| {
+                    state
+                        .get(top)
+                        .and_then(Value::as_object)
+                        .is_some_and(|obj| obj.contains_key(member))
+                },
+            );
             if !already_present {
                 let default = bf.get("default").cloned().unwrap_or(Value::Null);
                 insert(
@@ -126,21 +128,18 @@ fn insert(
         return Ok(());
     };
 
-    if let Some(existing) = state.get(top) {
-        if !existing.is_object() {
-            anyhow::bail!(
-                "cannot {rule}: {top} already holds {existing}, not a value this can nest under -- moving into \
-                 it would discard that value silently. Rename or drop {top} first."
-            );
-        }
-    }
-
-    state
+    let nested = state
         .entry(top.to_string())
-        .or_insert_with(|| Value::Object(Map::new()))
-        .as_object_mut()
-        .unwrap()
-        .insert(member.to_string(), value);
+        .or_insert_with(|| Value::Object(Map::new()));
+    if !nested.is_object() {
+        anyhow::bail!(
+            "cannot {rule}: {top} already holds {nested}, not a value this can nest under -- moving into \
+             it would discard that value silently. Rename or drop {top} first."
+        );
+    }
+    if let Some(object) = nested.as_object_mut() {
+        object.insert(member.to_string(), value);
+    }
     Ok(())
 }
 

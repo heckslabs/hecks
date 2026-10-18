@@ -41,11 +41,11 @@ fn answer(ir: &Value, case: &Value) -> Value {
             list.iter()
                 .find(|a| a.get("name").and_then(Value::as_str) == Some(name))
         });
-    match aggregate {
-        None => json!({ "error": format!("no aggregate {name:?} in the IR") }),
-        Some(aggregate) => {
+    aggregate.map_or_else(
+        || json!({ "error": format!("no aggregate {name:?} in the IR") }),
+        |aggregate| {
             let id = case.get("id").and_then(Value::as_str).unwrap_or("");
             json!({ "violations": reference_validate::validate(ir, aggregate, id, &case["state"]) })
-        }
-    }
+        },
+    )
 }

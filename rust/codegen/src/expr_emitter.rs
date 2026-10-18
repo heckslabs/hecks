@@ -4,6 +4,10 @@
 use crate::json::Json;
 use crate::naming::ruby_inspect_string;
 
+#[allow(
+    clippy::panic,
+    reason = "a drifted exemplar or invalid IR aborts generation on purpose"
+)]
 pub fn emit_ast(node: &Json) -> String {
     let op = node
         .get("op")
@@ -73,6 +77,10 @@ pub fn emit_ast(node: &Json) -> String {
 }
 
 // Fully qualified because the self-hosted grammar declares its own `Comparison` type.
+#[allow(
+    clippy::panic,
+    reason = "a drifted exemplar or invalid IR aborts generation on purpose"
+)]
 pub fn emit_comparison(cmp: &Json) -> String {
     let flag = |key: &str| {
         cmp.get(key)
@@ -87,24 +95,36 @@ pub fn emit_comparison(cmp: &Json) -> String {
     )
 }
 
+#[allow(
+    clippy::panic,
+    reason = "a drifted exemplar or invalid IR aborts generation on purpose"
+)]
 fn field<'a>(node: &'a Json, op: &str, key: &str) -> &'a Json {
     node.get(key)
         .unwrap_or_else(|| panic!("{op} node has no {key:?} field: {node:?}"))
 }
 
+#[allow(
+    clippy::panic,
+    reason = "a drifted exemplar or invalid IR aborts generation on purpose"
+)]
 fn path_of(node: &Json, op: &str) -> Vec<String> {
     field(node, op, "path")
         .each()
         .iter()
         .map(|segment| {
-            segment
-                .as_str()
-                .map(str::to_string)
-                .unwrap_or_else(|| panic!("{op}'s path has a non-string segment: {node:?}"))
+            segment.as_str().map_or_else(
+                || panic!("{op}'s path has a non-string segment: {node:?}"),
+                str::to_string,
+            )
         })
         .collect()
 }
 
+#[allow(
+    clippy::panic,
+    reason = "a drifted exemplar or invalid IR aborts generation on purpose"
+)]
 fn strip_side(node: &Json, op: &str) -> &'static str {
     match field(node, op, "side").as_str() {
         Some("both") => "Both",
@@ -114,6 +134,10 @@ fn strip_side(node: &Json, op: &str) -> &'static str {
     }
 }
 
+#[allow(
+    clippy::panic,
+    reason = "a drifted exemplar or invalid IR aborts generation on purpose"
+)]
 fn block_mode(node: &Json, op: &str) -> &'static str {
     match field(node, op, "mode").as_str() {
         Some("all") => "All",

@@ -128,7 +128,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
             .ok_or_else(|| {
                 let mut known: Vec<&str> = framework_members.iter().map(|(n, _)| n.as_str()).collect();
                 known.extend(other_gem_chapters.iter().map(String::as_str));
-                known.sort();
+                known.sort_unstable();
                 format!("hecks-build: attaches {fw_name:?} names no chapter the gem carries — known: {}", known.join(", "))
             })?;
         let fw_chapter_name = resolve::header_chapter_name(&fw_path)?;
@@ -274,7 +274,6 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
         domain.to_string(),
         target_ir_path.to_string_lossy().to_string(),
     ];
-    let mut chapter_ir_paths = Vec::new();
     for (idx, c) in chapters.iter().enumerate() {
         let ir_path = tmp.path().join(format!("chapter_{idx}_ir.json"));
         std::fs::write(&ir_path, &c.ir_text)
@@ -282,7 +281,6 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
         codegen_args.push(c.mod_name.clone());
         codegen_args.push(c.source_label.clone());
         codegen_args.push(ir_path.to_string_lossy().to_string());
-        chapter_ir_paths.push(ir_path);
     }
     run_codegen_full(&codegen_bin, &codegen_args)?;
 

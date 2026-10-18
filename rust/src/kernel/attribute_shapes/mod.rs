@@ -31,19 +31,14 @@ impl AttributeShape {
     /// variant names — `hecks measure_kernel_coverage`'s own existence
     /// check reads this, so the file-name spelling here is the ONE
     /// place that ever needs to change if a name is renamed.
-    pub fn module_name(&self) -> &'static str {
+    pub const fn module_name(&self) -> &'static str {
         match self {
-            AttributeShape::Scalar => "scalar",
-            AttributeShape::List => "list",
-            AttributeShape::Optional => "optional",
-            AttributeShape::Composite => "composite",
+            Self::Scalar => "scalar",
+            Self::List => "list",
+            Self::Optional => "optional",
+            Self::Composite => "composite",
         }
     }
 
-    pub const ALL: &'static [AttributeShape] = &[
-        AttributeShape::Scalar,
-        AttributeShape::List,
-        AttributeShape::Optional,
-        AttributeShape::Composite,
-    ];
+    pub const ALL: &'static [Self] = &[Self::Scalar, Self::List, Self::Optional, Self::Composite];
 }

@@ -64,8 +64,7 @@ fn project_aggregate(aggregate: &Value) -> String {
         .get("lifecycle")
         .and_then(|lifecycle| lifecycle.get("field"))
         .and_then(Value::as_str)
-        .map(json_string)
-        .unwrap_or_else(|| "null".to_string());
+        .map_or_else(|| "null".to_string(), json_string);
 
     let mut attributes: Vec<(String, String)> = aggregate
         .get("attributes")
@@ -157,7 +156,7 @@ fn join_array<I: Iterator<Item = String>>(items: I) -> String {
 
 // Leaf escaping is one unambiguous spec, so serde_json is safe here; key order is not.
 fn json_string(s: &str) -> String {
-    serde_json::to_string(s).expect("a plain &str always serializes")
+    serde_json::Value::String(s.to_string()).to_string()
 }
 
 #[cfg(test)]

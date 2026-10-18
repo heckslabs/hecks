@@ -508,7 +508,7 @@ fn database_url_is_local(config: &tokio_postgres::Config) -> bool {
     use tokio_postgres::config::Host;
     config.get_hosts().iter().any(|host| match host {
         Host::Tcp(name) => name == "localhost" || name == "127.0.0.1" || name == "::1",
-        _ => false,
+        Host::Unix(_) => false,
     })
 }
 

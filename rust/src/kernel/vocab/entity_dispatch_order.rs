@@ -25,74 +25,71 @@ pub enum EntityStep {
 
 impl EntityStep {
     /// The declared step order, first to last.
-    pub const ORDER: [EntityStep; 16] = [
-        EntityStep::DecodeArguments,
-        EntityStep::RefuseUnknownArguments,
-        EntityStep::RefuseAbsentArguments,
-        EntityStep::NormalizeArgs,
-        EntityStep::RefuseRoleMismatch,
-        EntityStep::ResolveReferences,
-        EntityStep::HydrateParent,
-        EntityStep::LocateElement,
-        EntityStep::EnforceGivens,
-        EntityStep::AdmissibleTransition,
-        EntityStep::ApplyMutations,
-        EntityStep::AdvanceLifecycle,
-        EntityStep::EnforceEnsures,
-        EntityStep::EnforceInvariants,
-        EntityStep::Save,
-        EntityStep::Emit,
+    pub const ORDER: [Self; 16] = [
+        Self::DecodeArguments,
+        Self::RefuseUnknownArguments,
+        Self::RefuseAbsentArguments,
+        Self::NormalizeArgs,
+        Self::RefuseRoleMismatch,
+        Self::ResolveReferences,
+        Self::HydrateParent,
+        Self::LocateElement,
+        Self::EnforceGivens,
+        Self::AdmissibleTransition,
+        Self::ApplyMutations,
+        Self::AdvanceLifecycle,
+        Self::EnforceEnsures,
+        Self::EnforceInvariants,
+        Self::Save,
+        Self::Emit,
     ];
 
     /// The row's declared `step`.
-    pub fn step(&self) -> &'static str {
+    pub const fn step(&self) -> &'static str {
         match self {
-            EntityStep::DecodeArguments => "decode_arguments",
-            EntityStep::RefuseUnknownArguments => "refuse_unknown_arguments",
-            EntityStep::RefuseAbsentArguments => "refuse_absent_arguments",
-            EntityStep::NormalizeArgs => "normalize_args",
-            EntityStep::RefuseRoleMismatch => "refuse_role_mismatch",
-            EntityStep::ResolveReferences => "resolve_references",
-            EntityStep::HydrateParent => "hydrate_parent",
-            EntityStep::LocateElement => "locate_element",
-            EntityStep::EnforceGivens => "enforce_givens",
-            EntityStep::AdmissibleTransition => "admissible_transition",
-            EntityStep::ApplyMutations => "apply_mutations",
-            EntityStep::AdvanceLifecycle => "advance_lifecycle",
-            EntityStep::EnforceEnsures => "enforce_ensures",
-            EntityStep::EnforceInvariants => "enforce_invariants",
-            EntityStep::Save => "save",
-            EntityStep::Emit => "emit",
+            Self::DecodeArguments => "decode_arguments",
+            Self::RefuseUnknownArguments => "refuse_unknown_arguments",
+            Self::RefuseAbsentArguments => "refuse_absent_arguments",
+            Self::NormalizeArgs => "normalize_args",
+            Self::RefuseRoleMismatch => "refuse_role_mismatch",
+            Self::ResolveReferences => "resolve_references",
+            Self::HydrateParent => "hydrate_parent",
+            Self::LocateElement => "locate_element",
+            Self::EnforceGivens => "enforce_givens",
+            Self::AdmissibleTransition => "admissible_transition",
+            Self::ApplyMutations => "apply_mutations",
+            Self::AdvanceLifecycle => "advance_lifecycle",
+            Self::EnforceEnsures => "enforce_ensures",
+            Self::EnforceInvariants => "enforce_invariants",
+            Self::Save => "save",
+            Self::Emit => "emit",
         }
     }
 
     /// The row whose `step` is `name`, if any.
-    pub fn from_name(name: &str) -> Option<EntityStep> {
-        EntityStep::ORDER
-            .iter()
-            .copied()
-            .find(|row| row.step() == name)
+    pub fn from_name(name: &str) -> Option<Self> {
+        Self::ORDER.iter().copied().find(|row| row.step() == name)
     }
 
     /// This step's index in `ORDER`.
-    pub fn position(&self) -> usize {
+    pub const fn position(&self) -> usize {
         match self {
-            EntityStep::DecodeArguments => 0,
-            EntityStep::RefuseUnknownArguments => 1,
-            EntityStep::RefuseAbsentArguments => 2,
-            EntityStep::NormalizeArgs => 3,
-            EntityStep::RefuseRoleMismatch => 4,
-            EntityStep::ResolveReferences => 5,
-            EntityStep::HydrateParent => 6,
-            EntityStep::LocateElement => 7,
-            EntityStep::EnforceGivens => 8,
-            EntityStep::AdmissibleTransition => 9,
-            EntityStep::ApplyMutations => 10,
-            EntityStep::AdvanceLifecycle => 11,
-            EntityStep::EnforceEnsures => 12,
-            EntityStep::EnforceInvariants => 13,
-            EntityStep::Save => 14,
-            EntityStep::Emit => 15,
+            Self::DecodeArguments => 0,
+            Self::RefuseUnknownArguments => 1,
+            Self::RefuseAbsentArguments => 2,
+            Self::NormalizeArgs => 3,
+            Self::RefuseRoleMismatch => 4,
+            Self::ResolveReferences => 5,
+            Self::HydrateParent => 6,
+            Self::LocateElement => 7,
+            Self::EnforceGivens => 8,
+            Self::AdmissibleTransition => 9,
+            Self::ApplyMutations => 10,
+            Self::AdvanceLifecycle => 11,
+            Self::EnforceEnsures => 12,
+            Self::EnforceInvariants => 13,
+            Self::Save => 14,
+            Self::Emit => 15,
         }
     }
 }
@@ -103,7 +100,7 @@ mod tests {
 
     #[test]
     fn every_row_is_found_by_its_own_name() {
-        for row in EntityStep::ORDER.iter() {
+        for row in &EntityStep::ORDER {
             assert_eq!(EntityStep::from_name(row.step()), Some(*row));
         }
     }

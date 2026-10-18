@@ -52,16 +52,20 @@ fn scan_leftover_placeholders(text: &str) -> Vec<String> {
 
 impl Exemplar {
     pub fn load() -> Self {
-        Self::load_from(default_dir())
+        Self::load_from(&default_dir())
     }
 
-    pub fn load_from(dir: PathBuf) -> Self {
+    #[allow(
+        clippy::panic,
+        reason = "a drifted exemplar or invalid IR aborts generation on purpose"
+    )]
+    pub fn load_from(dir: &std::path::Path) -> Self {
         let mut shapes = HashMap::new();
-        let mut paths: Vec<_> = std::fs::read_dir(&dir)
+        let mut paths: Vec<_> = std::fs::read_dir(dir)
             .unwrap_or_else(|e| panic!("Exemplar: cannot read {}: {e}", dir.display()))
-            .filter_map(|entry| entry.ok())
+            .filter_map(std::result::Result::ok)
             .map(|entry| entry.path())
-            .filter(|p| p.extension().map(|ext| ext == "rs").unwrap_or(false))
+            .filter(|p| p.extension().is_some_and(|ext| ext == "rs"))
             .collect();
         paths.sort();
         for path in paths {
@@ -72,6 +76,10 @@ impl Exemplar {
         Self { shapes }
     }
 
+    #[allow(
+        clippy::panic,
+        reason = "a drifted exemplar or invalid IR aborts generation on purpose"
+    )]
     pub fn raw(&self, shape_id: &str) -> &str {
         self.shapes
             .get(shape_id)
@@ -101,6 +109,10 @@ impl Exemplar {
 
     /// Fills nested slots (reindented to the slot's position) before the outer substitutions,
     /// so an outer marker cannot match text from a rendered slot.
+    #[allow(
+        clippy::panic,
+        reason = "a drifted exemplar or invalid IR aborts generation on purpose"
+    )]
     pub fn assemble(
         &self,
         outer_id: &str,
@@ -160,16 +172,12 @@ fn render_subs(shape_id: &str, caller: &str, text: &mut String, subs: &[(&str, S
     ordered.sort_by_key(|(marker, _)| std::cmp::Reverse(marker.len()));
 
     for (marker, value) in ordered {
-        if !text.contains(marker) {
-            panic!("Exemplar.{caller}({shape_id:?}): marker {marker:?} not found in shape text — exemplar and caller have drifted");
-        }
+        assert!(text.contains(marker), "Exemplar.{caller}({shape_id:?}): marker {marker:?} not found in shape text — exemplar and caller have drifted");
         *text = text.replace(marker, value);
     }
 
     let leftover = scan_leftover_placeholders(text);
-    if !leftover.is_empty() {
-        panic!("Exemplar.{caller}({shape_id:?}): unrendered placeholder(s) {leftover:?} — subs is missing a marker this shape actually contains");
-    }
+    assert!(leftover.is_empty(), "Exemplar.{caller}({shape_id:?}): unrendered placeholder(s) {leftover:?} — subs is missing a marker this shape actually contains");
 }
 
 // Finds the line holding only `slot` after indentation; returns `(byte_start, byte_end, indent)`.
@@ -231,11 +239,14 @@ fn dedent(lines: &[String]) -> String {
                 l.chars().skip(margin).collect::<String>()
             }
         })
-        .collect::<Vec<_>>()
-        .join("");
+        .collect::<String>();
     joined.trim_end().to_string()
 }
 
+#[allow(
+    clippy::unwrap_used,
+    reason = "the value was checked just before; None would mean invalid IR"
+)]
 fn parse_file(path: &std::path::Path, text: &str, result: &mut HashMap<String, String>) {
     // Each frame is (id, lines, begin_indent).
     let mut stack: Vec<(String, Vec<String>, String)> = Vec::new();
@@ -249,13 +260,12 @@ fn parse_file(path: &std::path::Path, text: &str, result: &mut HashMap<String, S
             stack.push((id.to_string(), Vec::new(), indent));
         } else if let Some(id) = end_marker(line) {
             let top = stack.last().map(|(top_id, _, _)| top_id.as_str());
-            if stack.is_empty() || top != Some(id) {
-                panic!(
-                    "{}: TMPL:{id} END with no matching BEGIN (stack: {:?})",
-                    path.display(),
-                    stack.iter().map(|(i, _, _)| i.clone()).collect::<Vec<_>>()
-                );
-            }
+            assert!(
+                !(stack.is_empty() || top != Some(id)),
+                "{}: TMPL:{id} END with no matching BEGIN (stack: {:?})",
+                path.display(),
+                stack.iter().map(|(i, _, _)| i.clone()).collect::<Vec<_>>()
+            );
             let (id, lines, begin_indent) = stack.pop().unwrap();
             let dedented = dedent(&lines);
             result.insert(id.clone(), dedented);
@@ -266,11 +276,10 @@ fn parse_file(path: &std::path::Path, text: &str, result: &mut HashMap<String, S
             lines.push(line.to_string());
         }
     }
-    if !stack.is_empty() {
-        panic!(
-            "{}: unclosed TMPL region(s): {:?}",
-            path.display(),
-            stack.iter().map(|(i, _, _)| i.clone()).collect::<Vec<_>>()
-        );
-    }
+    assert!(
+        stack.is_empty(),
+        "{}: unclosed TMPL region(s): {:?}",
+        path.display(),
+        stack.iter().map(|(i, _, _)| i.clone()).collect::<Vec<_>>()
+    );
 }

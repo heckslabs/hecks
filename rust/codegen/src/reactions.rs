@@ -16,11 +16,7 @@ pub fn policy_event_qualifier(on_event: &str) -> Option<String> {
 
 pub fn policy_event_name(on_event: &str) -> String {
     if on_event.contains('.') {
-        on_event
-            .split_once('.')
-            .map(|x| x.1)
-            .unwrap_or("")
-            .to_string()
+        on_event.split_once('.').map_or("", |x| x.1).to_string()
     } else {
         on_event.to_string()
     }
@@ -62,6 +58,10 @@ fn where_expr(policy: &Json) -> String {
     }
 }
 
+#[allow(
+    clippy::panic,
+    reason = "a drifted exemplar or invalid IR aborts generation on purpose"
+)]
 fn where_fns(policies: &[Json]) -> Vec<String> {
     policies
         .iter()
@@ -69,8 +69,7 @@ fn where_fns(policies: &[Json]) -> Vec<String> {
             policy
                 .get("where")
                 .map(Json::to_s)
-                .map(|w| !w.is_empty())
-                .unwrap_or(false)
+                .is_some_and(|w| !w.is_empty())
         })
         .map(|policy| {
             let ast = policy
@@ -89,7 +88,7 @@ fn local_policy_rows(domain_name: &str, policies: &[Json], aggregates: &[Json]) 
     crate::asks::resolve_asks(policies, aggregates)
         .iter()
         .filter_map(|policy| {
-            let target_domain = policy.get("target_domain").map(Json::to_s).unwrap_or_else(|| domain_name.to_string());
+            let target_domain = policy.get("target_domain").map_or_else(|| domain_name.to_string(), Json::to_s);
             if target_domain != domain_name {
                 return None;
             }
@@ -97,10 +96,7 @@ fn local_policy_rows(domain_name: &str, policies: &[Json], aggregates: &[Json]) 
             let on_event = policy.get("on_event").map(Json::to_s).unwrap_or_default();
             let event_name = policy_event_name(&on_event);
             let qualifier = policy_event_qualifier(&on_event);
-            let qualifier_expr = match qualifier {
-                Some(q) => format!("Some({})", naming::ruby_inspect_string(&q)),
-                None => "None".to_string(),
-            };
+            let qualifier_expr = qualifier.map_or_else(|| "None".to_string(), |q| format!("Some({})", naming::ruby_inspect_string(&q)));
             let target_verb = format!("{target_domain}::{}", policy.get("trigger_command").map(Json::to_s).unwrap_or_default());
             let name = policy.get("name").map(Json::to_s).unwrap_or_default();
 
@@ -123,7 +119,7 @@ fn cross_domain_policy_rows(domain_name: &str, policies: &[Json]) -> Vec<String>
     policies
         .iter()
         .filter_map(|policy| {
-            let target_domain = policy.get("target_domain").map(Json::to_s).unwrap_or_else(|| domain_name.to_string());
+            let target_domain = policy.get("target_domain").map_or_else(|| domain_name.to_string(), Json::to_s);
             if target_domain == domain_name {
                 return None;
             }
@@ -131,10 +127,7 @@ fn cross_domain_policy_rows(domain_name: &str, policies: &[Json]) -> Vec<String>
             let on_event = policy.get("on_event").map(Json::to_s).unwrap_or_default();
             let event_name = policy_event_name(&on_event);
             let qualifier = policy_event_qualifier(&on_event);
-            let qualifier_expr = match qualifier {
-                Some(q) => format!("Some({})", naming::ruby_inspect_string(&q)),
-                None => "None".to_string(),
-            };
+            let qualifier_expr = qualifier.map_or_else(|| "None".to_string(), |q| format!("Some({})", naming::ruby_inspect_string(&q)));
             let target_verb = format!("{target_domain}::{}", policy.get("trigger_command").map(Json::to_s).unwrap_or_default());
             let name = policy.get("name").map(Json::to_s).unwrap_or_default();
 
@@ -233,6 +226,10 @@ fn with_value_parsed(raw: &str) -> Literal {
 }
 
 // Renders a parsed `with:` literal as a Rust expression building the equivalent `Json`.
+#[allow(
+    clippy::panic,
+    reason = "a drifted exemplar or invalid IR aborts generation on purpose"
+)]
 fn json_literal_expr(value: &Literal) -> String {
     match value {
         Literal::Hash(pairs) => {
@@ -274,7 +271,7 @@ fn ruby_float_text(n: f64) -> String {
 // `compensates` (saga compensation) recurses one level; a compensation is not itself
 // compensable, so the recursion ends after one extra call.
 fn emit_dispatch_spec(exemplar: &Exemplar, spec: &Json, literal_fns: &mut Vec<String>) -> String {
-    let with_spec = spec.get("with_spec").map(Json::each).unwrap_or(&[]);
+    let with_spec = spec.get("with_spec").map_or_default(Json::each);
     let with_pairs: Vec<String> = with_spec
         .iter()
         .map(|pair| {
@@ -288,13 +285,15 @@ fn emit_dispatch_spec(exemplar: &Exemplar, spec: &Json, literal_fns: &mut Vec<St
             )
         })
         .collect();
-    let compensates = match spec.get("compensates") {
-        Some(nested) => format!(
-            "Some(&{})",
-            emit_dispatch_spec(exemplar, nested, literal_fns)
-        ),
-        None => "None".to_string(),
-    };
+    let compensates = spec.get("compensates").map_or_else(
+        || "None".to_string(),
+        |nested| {
+            format!(
+                "Some(&{})",
+                emit_dispatch_spec(exemplar, nested, literal_fns)
+            )
+        },
+    );
     format!(
         "crate::kernel::DispatchSpec {{ command_name: {}, with: &[{}], compensates: {} }}",
         naming::ruby_inspect_string(&spec.get("command_name").map(Json::to_s).unwrap_or_default()),
@@ -326,7 +325,7 @@ fn emit_with_value(exemplar: &Exemplar, raw: &str, literal_fns: &mut Vec<String>
 }
 
 fn emit_handler(exemplar: &Exemplar, handler: &Json, literal_fns: &mut Vec<String>) -> String {
-    let dispatches = handler.get("dispatches").map(Json::each).unwrap_or(&[]);
+    let dispatches = handler.get("dispatches").map_or_default(Json::each);
     let dispatch_strs: Vec<String> = dispatches
         .iter()
         .map(|d| emit_dispatch_spec(exemplar, d, literal_fns))
@@ -345,9 +344,9 @@ pub fn emit_process_manager_table(exemplar: &Exemplar, process_managers: &[Json]
     let pm_exprs: Vec<String> = process_managers
         .iter()
         .map(|pm| {
-            let handlers = pm.get("handlers").map(Json::each).unwrap_or(&[]);
+            let handlers = pm.get("handlers").map_or_default(Json::each);
             let handler_strs: Vec<String> = handlers.iter().map(|h| emit_handler(exemplar, h, &mut literal_fns)).collect();
-            let states = pm.get("states").map(Json::each).unwrap_or(&[]);
+            let states = pm.get("states").map_or_default(Json::each);
             let initial_state = states.first().map(Json::to_s).unwrap_or_default();
             format!(
                 "crate::kernel::ProcessManagerDef {{ name: {}, correlates_by: {}, starts_on: {}, ends_on: {}, initial_state: {}, handlers: &[{}] }}",
@@ -572,10 +571,10 @@ fn fan_out_key_expr(policy: &Json, aggregates: &[Json]) -> String {
         })
         .and_then(|command| addressing_key_for(&command, &row_aggregate));
 
-    match key {
-        Some(name) => format!("Some({})", naming::ruby_inspect_string(&name)),
-        None => "None".to_string(),
-    }
+    key.map_or_else(
+        || "None".to_string(),
+        |name| format!("Some({})", naming::ruby_inspect_string(&name)),
+    )
 }
 
 fn addressing_key_for(command: &Json, aggregate_name: &str) -> Option<String> {
@@ -633,10 +632,8 @@ mod tests {
         trigger_command: &str,
         target_domain: Option<&str>,
     ) -> Json {
-        let target_domain_json = match target_domain {
-            Some(domain) => format!("\"{domain}\""),
-            None => "null".to_string(),
-        };
+        let target_domain_json =
+            target_domain.map_or_else(|| "null".to_string(), |domain| format!("\"{domain}\""));
         Json::parse(&format!(
             "{{\"name\":\"{name}\",\"on_event\":\"{on_event}\",\"trigger_command\":\"{trigger_command}\",\
              \"target_domain\":{target_domain_json},\"for_each\":null,\"with_spec\":[]}}"

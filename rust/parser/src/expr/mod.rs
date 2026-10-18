@@ -6,7 +6,7 @@ pub mod resolver;
 
 /// A comparison operator. Order in `OPERATORS` matters: the first match wins,
 /// so `>=` and `<=` must precede `>` and `<`.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Operator {
     pub symbol: &'static str,
     pub compares_less_than: bool,
@@ -54,6 +54,8 @@ pub const OPERATORS: [Operator; 6] = [
 ];
 
 pub fn find_operator(symbol: &str) -> Operator {
+    // reason: callers pass the symbol literals `OPERATORS` declares, never input text.
+    #[allow(clippy::panic)]
     *OPERATORS
         .iter()
         .find(|op| op.symbol == symbol)

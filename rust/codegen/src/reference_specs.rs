@@ -19,8 +19,7 @@ pub fn reference_specs(domain_name: &str, attributes: &[Json]) -> Vec<ReferenceS
             let field = crate::attr::name(attr).to_string();
             let as_name = field
                 .strip_suffix("_id")
-                .map(str::to_string)
-                .unwrap_or_else(|| field.clone());
+                .map_or_else(|| field.clone(), str::to_string);
             Some(ReferenceSpec {
                 field,
                 as_name,

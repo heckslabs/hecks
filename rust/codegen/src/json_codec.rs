@@ -54,7 +54,7 @@ pub fn scalar_type_error(
         "crate::kernel::Refusal::TypeMismatch(format!({}, {value_var}.inspect()))",
         naming::ruby_inspect_string(&range_template)
     );
-    format!("if matches!({value_var}, crate::kernel::Json::Num(n, _) if n.is_finite() && n.fract() == 0.0 && n.abs() >= 9.223372036854776e18) {{ {range} }} else {{ {proper} }}")
+    format!("if matches!({value_var}, crate::kernel::Json::Num(n, _) if n.is_finite() && n.fract() == 0.0 && n.abs() >= 9.223_372_036_854_776e18) {{ {range} }} else {{ {proper} }}")
 }
 
 /// A missing non-optional field refuses as "{type}.{field} expects {expected}, got nil".
@@ -67,6 +67,10 @@ pub fn required_field_expr(struct_name: &str, key: &str, expected: &str) -> Stri
     )
 }
 
+#[allow(
+    clippy::panic,
+    reason = "a drifted exemplar or invalid IR aborts generation on purpose"
+)]
 pub fn scalar_json_accessor(scalar_type: &str) -> &'static str {
     match scalar_type {
         "String" => "as_str",
@@ -85,7 +89,7 @@ pub fn scalar_from_json_expr(
 ) -> String {
     let accessor = scalar_json_accessor(scalar_type);
     let wrap = if scalar_type == "String" {
-        ".map(|s| s.to_string())"
+        ".map(ToString::to_string)"
     } else {
         ""
     };
@@ -112,7 +116,7 @@ pub fn scalar_from_json_value_expr(
 ) -> String {
     let accessor = scalar_json_accessor(scalar_type);
     let wrap = if scalar_type == "String" {
-        ".map(|s| s.to_string())"
+        ".map(ToString::to_string)"
     } else {
         ""
     };
@@ -122,6 +126,10 @@ pub fn scalar_from_json_value_expr(
     )
 }
 
+#[allow(
+    clippy::panic,
+    reason = "a drifted exemplar or invalid IR aborts generation on purpose"
+)]
 pub fn scalar_to_json_expr(scalar_type: &str, rust_expr: &str) -> String {
     match scalar_type {
         "String" => format!("crate::kernel::Json::Str({rust_expr}.clone())"),
@@ -138,7 +146,7 @@ pub fn sole_field_of(
     value_objects_by_name: &HashMap<String, &Json>,
 ) -> Option<String> {
     let vo = value_objects_by_name.get(type_name)?;
-    let attrs = vo.get("attributes").map(Json::each).unwrap_or(&[]);
+    let attrs = vo.get("attributes").map_or_default(Json::each);
     if attrs.len() == 1 {
         Some(crate::attr::name(&attrs[0]).to_string())
     } else {
@@ -154,52 +162,59 @@ pub fn composite_from_json_expr(
     value_expr: &str,
 ) -> String {
     let nested_type = naming::rust_ident(crate::attr::type_name(attr));
-    match sole_field_of(crate::attr::type_name(attr), value_objects_by_name) {
-        Some(sole) => format!(
-            "{nested_type}::from_json(&{value_expr}.coerce_single_field({}))?",
-            naming::ruby_inspect_string(&sole)
-        ),
-        None => format!(
-            "{nested_type}::from_json({value_expr}.expect_value_object_shape({}, {})?)?",
-            naming::ruby_inspect_string(crate::attr::name(attr)),
-            naming::ruby_inspect_string(crate::attr::type_name(attr))
-        ),
-    }
+    sole_field_of(crate::attr::type_name(attr), value_objects_by_name).map_or_else(
+        || {
+            format!(
+                "{nested_type}::from_json({value_expr}.expect_value_object_shape({}, {})?)?",
+                naming::ruby_inspect_string(crate::attr::name(attr)),
+                naming::ruby_inspect_string(crate::attr::type_name(attr))
+            )
+        },
+        |sole| {
+            format!(
+                "{nested_type}::from_json(&{value_expr}.coerce_single_field({}))?",
+                naming::ruby_inspect_string(&sole)
+            )
+        },
+    )
 }
 
 /// Scalar elements (`list_of(String)`, `has_many` references) have no generated `from_json`;
 /// they read as scalars minus the trailing `?`. Single-field value objects coerce bare scalars.
+#[allow(
+    clippy::option_if_let_else,
+    reason = "a map_or_else closure would bury this long body"
+)]
 pub fn list_element_from_json_mapper(
     struct_name: &str,
     key: &str,
     attr: &Json,
     value_objects_by_name: &HashMap<String, &Json>,
 ) -> String {
-    match naming::effective_scalar_type(crate::attr::type_name(attr)) {
-        Some(scalar) => {
-            let body = scalar_from_json_value_expr(struct_name, key, scalar, "item");
-            let body = body.strip_suffix('?').unwrap_or(&body);
-            format!("|item| {body}")
-        }
-        None => {
-            let nested_type = naming::rust_ident(crate::attr::type_name(attr));
-            match sole_field_of(crate::attr::type_name(attr), value_objects_by_name) {
-                Some(sole) => format!(
+    if let Some(scalar) = naming::effective_scalar_type(crate::attr::type_name(attr)) {
+        let body = scalar_from_json_value_expr(struct_name, key, scalar, "item");
+        let body = body.strip_suffix('?').unwrap_or(&body);
+        format!("|item| {body}")
+    } else {
+        let nested_type = naming::rust_ident(crate::attr::type_name(attr));
+        sole_field_of(crate::attr::type_name(attr), value_objects_by_name).map_or_else(
+            || format!("{nested_type}::from_json"),
+            |sole| {
+                format!(
                     "|item| {nested_type}::from_json(&item.coerce_single_field({}))",
                     naming::ruby_inspect_string(&sole)
-                ),
-                None => format!("{nested_type}::from_json"),
-            }
-        }
+                )
+            },
+        )
     }
 }
 
 /// Inverse of `list_element_from_json_mapper`: scalar elements have no `.to_json()` method.
 pub fn list_element_to_json_expr(attr: &Json) -> String {
-    match naming::effective_scalar_type(crate::attr::type_name(attr)) {
-        Some(scalar) => scalar_to_json_expr(scalar, &naming::deref_scalar(scalar, "x")),
-        None => "x.to_json()".to_string(),
-    }
+    naming::effective_scalar_type(crate::attr::type_name(attr)).map_or_else(
+        || "x.to_json()".to_string(),
+        |scalar| scalar_to_json_expr(scalar, &naming::deref_scalar(scalar, "x")),
+    )
 }
 
 /// A required composite argument offered as `null` reads as an empty object, like an omitted key.
@@ -214,17 +229,21 @@ pub fn required_composite_argument_expr(
     let fetch = required_field_expr(struct_name, key, crate::attr::type_name(attr));
     let nested_type = naming::rust_ident(crate::attr::type_name(attr));
     let guarded = format!("match {fetch} {{ crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }}");
-    match sole_field_of(crate::attr::type_name(attr), value_objects_by_name) {
-        Some(sole) => format!(
-            "{nested_type}::from_json(&({guarded}).coerce_single_field({}))?",
-            naming::ruby_inspect_string(&sole)
-        ),
-        None => format!(
-            "{nested_type}::from_json(({guarded}).expect_value_object_shape({}, {})?)?",
-            naming::ruby_inspect_string(crate::attr::name(attr)),
-            naming::ruby_inspect_string(crate::attr::type_name(attr))
-        ),
-    }
+    sole_field_of(crate::attr::type_name(attr), value_objects_by_name).map_or_else(
+        || {
+            format!(
+                "{nested_type}::from_json(({guarded}).expect_value_object_shape({}, {})?)?",
+                naming::ruby_inspect_string(crate::attr::name(attr)),
+                naming::ruby_inspect_string(crate::attr::type_name(attr))
+            )
+        },
+        |sole| {
+            format!(
+                "{nested_type}::from_json(&({guarded}).coerce_single_field({}))?",
+                naming::ruby_inspect_string(&sole)
+            )
+        },
+    )
 }
 
 /// The names `ArgumentGate#refuse_unknown_arguments` accepts: declared attributes plus the
@@ -249,8 +268,7 @@ pub fn command_argument_allowlist(
 
     let identity_heads: Vec<String> = aggregate
         .get("identified_by")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
         .map(|p| p.to_s().split('.').next().unwrap_or("").to_string())
         .collect();
@@ -258,7 +276,7 @@ pub fn command_argument_allowlist(
     let correlation_keys: Vec<String> = process_managers
         .iter()
         .filter_map(|pm| pm.get("correlates_by").map(Json::to_s))
-        .filter_map(|c| c.split('.').next().map(|s| s.to_string()))
+        .filter_map(|c| c.split('.').next().map(std::string::ToString::to_string))
         .collect();
 
     let mut out: Vec<String> = vec!["id".to_string()];
@@ -299,7 +317,7 @@ fn emit_absent_argument_check(command_name: &str, attributes: &[Json]) -> String
         .map(|a| crate::attr::name(a).to_string())
         .collect();
     format!(
-        "let absent: Vec<&str> = [{}].into_iter().filter(|key| v.get(key).is_none()).collect();\nif !absent.is_empty() {{\n    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {{\n        command: {},\n        absent: &absent,\n        declared: &[{}],\n    }}.render_args()));\n}}\n",
+        "let required: &[&str] = &[{}];\nlet absent: Vec<&str> = required.iter().copied().filter(|key| v.get(key).is_none()).collect();\nif !absent.is_empty() {{\n    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {{\n        command: {},\n        absent: &absent,\n        declared: &[{}],\n    }}.render_args()));\n}}\n",
         required.iter().map(|k| naming::ruby_inspect_string(k)).collect::<Vec<_>>().join(", "),
         naming::ruby_inspect_string(command_name),
         declared.iter().map(|k| naming::ruby_inspect_string(k)).collect::<Vec<_>>().join(", "),
@@ -314,7 +332,7 @@ fn emit_unknown_argument_check(
     declared_names: &[String],
 ) -> String {
     format!(
-        "let unknown = v.unknown_keys(&[{}]);\nif !unknown.is_empty() {{\n    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();\n    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {{\n        command: {},\n        unknown: &unknown,\n        declared: &[{}],\n    }}.render_args()));\n}}\n",
+        "let unknown = v.unknown_keys(&[{}]);\nif !unknown.is_empty() {{\n    let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();\n    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {{\n        command: {},\n        unknown: &unknown,\n        declared: &[{}],\n    }}.render_args()));\n}}\n",
         known_keys.iter().map(|k| naming::ruby_inspect_string(k)).collect::<Vec<_>>().join(", "),
         naming::ruby_inspect_string(command_name),
         declared_names.iter().map(|k| naming::ruby_inspect_string(k)).collect::<Vec<_>>().join(", "),
@@ -322,6 +340,10 @@ fn emit_unknown_argument_check(
 }
 
 /// The unknown-argument check then the absent-argument check, in Ruby's DISPATCH_ORDER.
+#[allow(
+    clippy::option_if_let_else,
+    reason = "a map_or_else closure would bury this long body"
+)]
 pub fn unknown_and_absent_argument_checks(
     command_name: &str,
     attributes: &[Json],
@@ -390,6 +412,10 @@ fn argument_gate_fn(name: &str, body: &str) -> String {
 /// before the next field is built, as in Ruby's `coerce_declared_arguments`; this needs
 /// `aggregates_by_name`. Otherwise the value object is one struct literal.
 #[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::expect_used,
+    reason = "the message names an invariant an earlier check in this generator established"
+)]
 pub fn emit_from_json_flat(
     exemplar: &Exemplar,
     struct_name: &str,
@@ -501,6 +527,10 @@ fn emit_object_shape_check(struct_name: &str) -> String {
 
 /// `shorthand_fields: None` folds `ident: rhs,` lines into the struct literal; `Some(idents)`
 /// puts the `let`+check blocks in the preamble and closes the literal with shorthand init.
+#[allow(
+    clippy::option_if_let_else,
+    reason = "a map_or_else closure would bury this long body"
+)]
 fn emit_from_json_skeleton(
     exemplar: &Exemplar,
     struct_name: &str,
@@ -543,6 +573,10 @@ fn emit_from_json_skeleton(
     )
 }
 
+#[allow(
+    clippy::unwrap_used,
+    reason = "the value was checked just before; None would mean invalid IR"
+)]
 pub fn emit_to_json_flat(
     exemplar: &Exemplar,
     struct_name: &str,
@@ -560,19 +594,19 @@ pub fn emit_to_json_flat(
             let scalar = naming::effective_scalar_type(crate::attr::type_name(attr));
             let list = crate::attr::list(attr);
 
-            let record_optional_list = list && aggregate.map(|a| crate::shared::list_attr_creation_optional(a, crate::attr::name(attr), value_objects_by_name)).unwrap_or(false);
+            let record_optional_list = list && aggregate.is_some_and(|a| crate::shared::list_attr_creation_optional(a, crate::attr::name(attr), value_objects_by_name));
             let field_optional = optional || crate::attr::optional(attr);
             let list_is_optional = if aggregate.is_some() { record_optional_list } else { crate::attr::optional(attr) };
 
             let elem_to_json = if list { Some(list_element_to_json_expr(attr)) } else { None };
             let value_expr = if list && list_is_optional {
-                format!("self.{ident}.as_ref().map(|v| crate::kernel::Json::Array(v.iter().map(|x| {}).collect())).unwrap_or(crate::kernel::Json::Null)", elem_to_json.as_deref().unwrap())
+                format!("self.{ident}.as_ref().map_or(crate::kernel::Json::Null, |v| crate::kernel::Json::Array(v.iter().map(|x| {}).collect()))", elem_to_json.as_deref().unwrap())
             } else if list {
                 format!("crate::kernel::Json::Array(self.{ident}.iter().map(|x| {}).collect())", elem_to_json.as_deref().unwrap())
             } else if let (true, Some(scalar)) = (field_optional, scalar) {
-                format!("self.{ident}.as_ref().map(|v| {}).unwrap_or(crate::kernel::Json::Null)", scalar_to_json_expr(scalar, &naming::deref_scalar(scalar, "v")))
+                format!("self.{ident}.as_ref().map_or(crate::kernel::Json::Null, |v| {})", scalar_to_json_expr(scalar, &naming::deref_scalar(scalar, "v")))
             } else if field_optional {
-                format!("self.{ident}.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)")
+                format!("self.{ident}.as_ref().map_or(crate::kernel::Json::Null, |v| v.to_json())")
             } else if let Some(scalar) = scalar {
                 scalar_to_json_expr(scalar, &format!("self.{ident}"))
             } else {
@@ -631,6 +665,10 @@ pub fn emit_to_json_flat(
 
 /// Command args structs only: an absent optional argument is absent from the event payload, as in
 /// Ruby. Re-reads the dense field block so the two forms cannot disagree about a field.
+#[allow(
+    clippy::expect_used,
+    reason = "the message names an invariant an earlier check in this generator established"
+)]
 pub fn emit_to_json_flat_sparse(
     exemplar: &Exemplar,
     struct_name: &str,
@@ -685,7 +723,7 @@ pub fn emit_from_json_state(
             let scalar = naming::effective_scalar_type(crate::attr::type_name(attr));
             let list = crate::attr::list(attr);
 
-            let record_optional_list = list && aggregate.map(|a| crate::shared::list_attr_creation_optional(a, crate::attr::name(attr), value_objects_by_name)).unwrap_or(false);
+            let record_optional_list = list && aggregate.is_some_and(|a| crate::shared::list_attr_creation_optional(a, crate::attr::name(attr), value_objects_by_name));
             let list_is_optional = if aggregate.is_some() { record_optional_list } else { crate::attr::optional(attr) };
             let field_optional = optional || crate::attr::optional(attr);
 
@@ -759,7 +797,7 @@ pub fn emit_from_json_state(
 
 pub fn emit_closed_set_codec(exemplar: &Exemplar, vo: &Json) -> String {
     let name = naming::rust_ident(vo.get("name").and_then(Json::as_str).unwrap_or(""));
-    let attributes = vo.get("attributes").map(Json::each).unwrap_or(&[]);
+    let attributes = vo.get("attributes").map_or_default(Json::each);
     let sole_attribute = &attributes[0];
     let sole_attribute_name = crate::attr::name(sole_attribute);
     let sole_attribute_type = sole_attribute
@@ -767,7 +805,7 @@ pub fn emit_closed_set_codec(exemplar: &Exemplar, vo: &Json) -> String {
         .and_then(Json::as_str)
         .unwrap_or("");
     let field_name = naming::rust_field(sole_attribute_name);
-    let members = vo.get("members").map(Json::each).unwrap_or(&[]);
+    let members = vo.get("members").map_or_default(Json::each);
 
     let rows: Vec<(String, String)> = members
         .iter()
@@ -783,7 +821,6 @@ pub fn emit_closed_set_codec(exemplar: &Exemplar, vo: &Json) -> String {
         .iter()
         .map(|(variant, raw)| {
             vec![
-                ("TmplKind", name.clone()),
                 ("TmplMemberA", variant.clone()),
                 ("\"tmpl_member_a\"", naming::ruby_inspect_string(raw)),
             ]
@@ -838,10 +875,14 @@ pub fn emit_closed_set_codec(exemplar: &Exemplar, vo: &Json) -> String {
     )
 }
 
+#[allow(
+    clippy::unwrap_used,
+    reason = "the value was checked just before; None would mean invalid IR"
+)]
 pub fn emit_closed_set_table_codec(exemplar: &Exemplar, vo: &Json) -> String {
     let name = naming::rust_ident(vo.get("name").and_then(Json::as_str).unwrap_or(""));
     let const_name = naming::screaming_snake(vo.get("name").and_then(Json::as_str).unwrap_or(""));
-    let attributes = vo.get("attributes").map(Json::each).unwrap_or(&[]);
+    let attributes = vo.get("attributes").map_or_default(Json::each);
 
     let to_json_fields: Vec<String> = attributes
         .iter()
@@ -921,8 +962,7 @@ pub fn emit_closed_set_table_codec(exemplar: &Exemplar, vo: &Json) -> String {
     // The refusal quotes the first column of every row, as Ruby's `refuse_non_member!` does.
     let admitted: Vec<String> = vo
         .get("members")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
         .map(|row| {
             let first = row
@@ -965,10 +1005,7 @@ pub fn emit_closed_set_table_codec(exemplar: &Exemplar, vo: &Json) -> String {
 }
 
 pub fn extract_id_supported(aggregate: &Json) -> bool {
-    let identified_by = aggregate
-        .get("identified_by")
-        .map(Json::each)
-        .unwrap_or(&[]);
+    let identified_by = aggregate.get("identified_by").map_or_default(Json::each);
     identified_by.iter().all(|path| {
         let path = path.as_str().unwrap_or("");
         let mut parts = path.split('.');
@@ -1002,8 +1039,7 @@ fn emit_extract_id_shaped(
     let name = naming::rust_ident(aggregate.get("name").and_then(Json::as_str).unwrap_or(""));
     let identified_by: Vec<String> = aggregate
         .get("identified_by")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
         .map(Json::to_s)
         .collect();
@@ -1067,8 +1103,7 @@ pub fn emit_extract_wants(exemplar: &Exemplar, entity: &Json) -> String {
     let name = naming::rust_ident(entity.get("name").and_then(Json::as_str).unwrap_or(""));
     let identified_by: Vec<String> = entity
         .get("identified_by")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
         .map(Json::to_s)
         .collect();
@@ -1110,7 +1145,7 @@ pub fn emit_extract_wants(exemplar: &Exemplar, entity: &Json) -> String {
 
 pub fn emit_self_identity(exemplar: &Exemplar, entity: &Json) -> String {
     let name = naming::rust_ident(entity.get("name").and_then(Json::as_str).unwrap_or(""));
-    let identified_by = entity.get("identified_by").map(Json::each).unwrap_or(&[]);
+    let identified_by = entity.get("identified_by").map_or_default(Json::each);
 
     let components: Vec<String> = identified_by
         .iter()

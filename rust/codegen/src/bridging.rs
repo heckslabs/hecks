@@ -14,8 +14,7 @@ pub fn cross_aggregate_vo_imports(
 ) -> Vec<String> {
     let local_names: HashSet<String> = aggregate
         .get("value_objects")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
         .map(|vo| {
             vo.get("name")
@@ -25,19 +24,17 @@ pub fn cross_aggregate_vo_imports(
         })
         .collect();
 
-    let commands = aggregate.get("commands").map(Json::each).unwrap_or(&[]);
+    let commands = aggregate.get("commands").map_or_default(Json::each);
     let entity_commands = aggregate
         .get("entities")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
-        .flat_map(|e| e.get("commands").map(Json::each).unwrap_or(&[]).iter());
+        .flat_map(|e| e.get("commands").map_or_default(Json::each).iter());
     let port_operations = aggregate
         .get("ports")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
-        .flat_map(|p| p.get("operations").map(Json::each).unwrap_or(&[]).iter());
+        .flat_map(|p| p.get("operations").map_or_default(Json::each).iter());
 
     let mut foreign_types: Vec<String> = Vec::new();
     let mut seen: HashSet<String> = HashSet::new();
@@ -46,7 +43,7 @@ pub fn cross_aggregate_vo_imports(
         .chain(entity_commands)
         .chain(port_operations)
     {
-        for attr in c.get("attributes").map(Json::each).unwrap_or(&[]) {
+        for attr in c.get("attributes").map_or_default(Json::each) {
             let type_name = crate::attr::type_name(attr).to_string();
             if local_names.contains(&type_name) || seen.contains(&type_name) {
                 continue;
@@ -82,20 +79,14 @@ pub fn vo_field_bridgeable(source_vo: Option<&Json>, target_vo: Option<&Json>) -
     let (Some(source_vo), Some(target_vo)) = (source_vo, target_vo) else {
         return false;
     };
-    if source_vo
-        .get("closed_set")
-        .map(Json::as_bool)
-        .unwrap_or(false)
-        || target_vo
-            .get("closed_set")
-            .map(Json::as_bool)
-            .unwrap_or(false)
+    if source_vo.get("closed_set").is_some_and(Json::as_bool)
+        || target_vo.get("closed_set").is_some_and(Json::as_bool)
     {
         return closed_set_bridge_members(source_vo, target_vo).is_some();
     }
 
-    let source_attrs = source_vo.get("attributes").map(Json::each).unwrap_or(&[]);
-    let target_attrs = target_vo.get("attributes").map(Json::each).unwrap_or(&[]);
+    let source_attrs = source_vo.get("attributes").map_or_default(Json::each);
+    let target_attrs = target_vo.get("attributes").map_or_default(Json::each);
     target_attrs.iter().all(|t_attr| {
         let t_name = crate::attr::name(t_attr);
         source_attrs
@@ -107,22 +98,21 @@ pub fn vo_field_bridgeable(source_vo: Option<&Json>, target_vo: Option<&Json>) -
 
 /// Closed-set to closed-set bridge, admitted only when every source member is a target member.
 fn closed_set_bridge_members<'a>(source_vo: &'a Json, target_vo: &Json) -> Option<&'a [Json]> {
-    let closed = |vo: &Json| vo.get("closed_set").map(Json::as_bool).unwrap_or(false);
+    let closed = |vo: &Json| vo.get("closed_set").is_some_and(Json::as_bool);
     if !closed(source_vo) || !closed(target_vo) {
         return None;
     }
-    let single = |vo: &Json| vo.get("attributes").map(Json::each).unwrap_or(&[]).len() == 1;
+    let single = |vo: &Json| vo.get("attributes").map_or_default(Json::each).len() == 1;
     if !single(source_vo) || !single(target_vo) {
         return None;
     }
     let target_values: Vec<String> = target_vo
         .get("members")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
         .map(closed_set_row_value)
         .collect();
-    let source_rows = source_vo.get("members").map(Json::each).unwrap_or(&[]);
+    let source_rows = source_vo.get("members").map_or_default(Json::each);
     if source_rows
         .iter()
         .all(|row| target_values.contains(&closed_set_row_value(row)))
@@ -139,6 +129,10 @@ fn closed_set_row_value(row: &Json) -> String {
     first.get(1).map(Json::to_s).unwrap_or_default()
 }
 
+#[allow(
+    clippy::unwrap_used,
+    reason = "the value was checked just before; None would mean invalid IR"
+)]
 pub fn vo_field_rhs(
     source_expr: &str,
     source_vo: &Json,
@@ -162,8 +156,8 @@ pub fn vo_field_rhs(
             .collect();
         return format!("match &{source_expr} {{ {} }}", arms.join(", "));
     }
-    let source_attrs = source_vo.get("attributes").map(Json::each).unwrap_or(&[]);
-    let target_attrs = target_vo.get("attributes").map(Json::each).unwrap_or(&[]);
+    let source_attrs = source_vo.get("attributes").map_or_default(Json::each);
+    let target_attrs = target_vo.get("attributes").map_or_default(Json::each);
 
     let fields: Vec<String> = target_attrs
         .iter()
@@ -215,8 +209,8 @@ pub fn bridgeable_value_types(
 
     match source_vo {
         Some(vo) => {
-            let closed = vo.get("closed_set").map(Json::as_bool).unwrap_or(false);
-            let attrs = vo.get("attributes").map(Json::each).unwrap_or(&[]);
+            let closed = vo.get("closed_set").is_some_and(Json::as_bool);
+            let attrs = vo.get("attributes").map_or_default(Json::each);
             if closed || attrs.len() != 1 {
                 return false;
             }
@@ -231,6 +225,11 @@ pub fn bridgeable_value_types(
     }
 }
 
+#[allow(
+    clippy::expect_used,
+    clippy::panic,
+    reason = "a drifted exemplar or invalid IR aborts generation on purpose; the message names an invariant an earlier check in this generator established"
+)]
 pub fn value_rhs(
     source_expr: &str,
     source_type: &str,
@@ -261,15 +260,8 @@ pub fn value_rhs(
     }
 
     let source_vo = source_vo.unwrap_or_else(|| panic!("unsupported coercion {source_type} -> {target_type} — bridgeable_value_types? should have caught this"));
-    let attrs = source_vo.get("attributes").map(Json::each).unwrap_or(&[]);
-    if source_vo
-        .get("closed_set")
-        .map(Json::as_bool)
-        .unwrap_or(false)
-        || attrs.len() != 1
-    {
-        panic!("unsupported coercion {source_type} -> {target_type} — bridgeable_value_types? should have caught this");
-    }
+    let attrs = source_vo.get("attributes").map_or_default(Json::each);
+    assert!(!(source_vo.get("closed_set").is_some_and(Json::as_bool) || attrs.len() != 1), "unsupported coercion {source_type} -> {target_type} — bridgeable_value_types? should have caught this");
     format!(
         "{source_expr}.{}.clone()",
         naming::rust_ident_field(crate::attr::name(&attrs[0]))
@@ -307,10 +299,9 @@ pub fn literal_set_bridgeable(
     value_objects_by_name: &HashMap<String, &Json>,
 ) -> bool {
     match value {
-        Literal::Hash(_) => match target_type {
-            Some(target_type) => literal_hash_bridgeable(value, target_type, value_objects_by_name),
-            None => false,
-        },
+        Literal::Hash(_) => target_type.is_some_and(|target_type| {
+            literal_hash_bridgeable(value, target_type, value_objects_by_name)
+        }),
         Literal::Str(_) | Literal::Int(_) | Literal::Float(_) | Literal::Bool(_) => {
             let Some(target_type) = target_type else {
                 return true;
@@ -319,14 +310,15 @@ pub fn literal_set_bridgeable(
                 return true;
             }
             // A scalar literal into a single-field value object is that field's value.
-            match crate::json_codec::sole_field_of(target_type, value_objects_by_name) {
-                Some(sole) => literal_hash_bridgeable(
-                    &Literal::Hash(vec![(sole, value.clone())]),
-                    target_type,
-                    value_objects_by_name,
-                ),
-                None => false,
-            }
+            crate::json_codec::sole_field_of(target_type, value_objects_by_name).is_some_and(
+                |sole| {
+                    literal_hash_bridgeable(
+                        &Literal::Hash(vec![(sole, value.clone())]),
+                        target_type,
+                        value_objects_by_name,
+                    )
+                },
+            )
         }
         _ => false,
     }
@@ -366,13 +358,13 @@ pub fn literal_hash_bridgeable(
         return false;
     };
 
-    if vo.get("closed_set").map(Json::as_bool).unwrap_or(false) {
-        let members = vo.get("members").map(Json::each).unwrap_or(&[]);
+    if vo.get("closed_set").is_some_and(Json::as_bool) {
+        let members = vo.get("members").map_or_default(Json::each);
         members
             .iter()
             .any(|member| member_matches_hash(member, hash))
     } else {
-        let attrs = vo.get("attributes").map(Json::each).unwrap_or(&[]);
+        let attrs = vo.get("attributes").map_or_default(Json::each);
         attrs
             .iter()
             .all(|attr| hash.get(crate::attr::name(attr)).is_some())
@@ -388,10 +380,8 @@ fn member_matches_hash(member: &Json, hash: &Literal) -> bool {
         let (Some(field), Some(value)) = (kv.first().and_then(Json::as_str), kv.get(1)) else {
             return false;
         };
-        match hash.get(field) {
-            Some(held) => literal_to_s(held) == value.to_s(),
-            None => false,
-        }
+        hash.get(field)
+            .is_some_and(|held| literal_to_s(held) == value.to_s())
     })
 }
 
@@ -408,6 +398,10 @@ fn literal_to_s(lit: &Literal) -> String {
     }
 }
 
+#[allow(
+    clippy::panic,
+    reason = "a drifted exemplar or invalid IR aborts generation on purpose"
+)]
 pub fn literal_hash_rhs(
     hash: &Literal,
     target_type: &str,
@@ -417,8 +411,8 @@ pub fn literal_hash_rhs(
         .get(target_type)
         .unwrap_or_else(|| panic!("unsupported literal hash source {hash:?} -> {target_type} — literal_hash_bridgeable? should have caught this"));
 
-    if vo.get("closed_set").map(Json::as_bool).unwrap_or(false) {
-        let members = vo.get("members").map(Json::each).unwrap_or(&[]);
+    if vo.get("closed_set").is_some_and(Json::as_bool) {
+        let members = vo.get("members").map_or_default(Json::each);
         let row = members
             .iter()
             .find(|member| member_matches_hash(member, hash))
@@ -429,7 +423,7 @@ pub fn literal_hash_rhs(
             closed_set_variant_of_row(row)
         )
     } else {
-        let attrs = vo.get("attributes").map(Json::each).unwrap_or(&[]);
+        let attrs = vo.get("attributes").map_or_default(Json::each);
         let fields: Vec<String> = attrs
             .iter()
             .map(|attr| {
@@ -457,10 +451,10 @@ fn closed_set_variant_of_row(row: &Json) -> String {
 
 pub fn integer_field_of(vo: Option<&Json>) -> Option<String> {
     let vo = vo?;
-    if vo.get("closed_set").map(Json::as_bool).unwrap_or(false) {
+    if vo.get("closed_set").is_some_and(Json::as_bool) {
         return None;
     }
-    let attrs = vo.get("attributes").map(Json::each).unwrap_or(&[]);
+    let attrs = vo.get("attributes").map_or_default(Json::each);
     attrs
         .iter()
         .find(|a| crate::attr::type_name(a) == "Integer")
@@ -474,7 +468,7 @@ pub fn arithmetic_target_field<'a>(
     value_objects_by_name: &HashMap<String, &Json>,
 ) -> Option<(&'a Json, String)> {
     let target = mutation.get("target").map(Json::to_s).unwrap_or_default();
-    let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
+    let attrs = aggregate.get("attributes").map_or_default(Json::each);
     let target_attr = attrs.iter().find(|a| crate::attr::name(a) == target)?;
     if crate::attr::list(target_attr) {
         return None;
@@ -511,7 +505,7 @@ pub fn arithmetic_amount_expr(
     }
     if kind == "argument" {
         let name = source.get("name").map(Json::to_s).unwrap_or_default();
-        let attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
+        let attrs = command.get("attributes").map_or_default(Json::each);
         let arg_attr = attrs.iter().find(|a| crate::attr::name(a) == name)?;
         if crate::attr::type_name(arg_attr) == "Integer" {
             return Some(format!(
@@ -553,6 +547,10 @@ pub fn clamp_bounds_ints(source: &Json) -> Option<(i64, i64)> {
 }
 
 /// An aggregate attribute a creating command's arguments never mention.
+#[allow(
+    clippy::unwrap_used,
+    reason = "the value was checked just before; None would mean invalid IR"
+)]
 pub fn creation_default_rhs(
     attr: &Json,
     value_objects_by_name: &HashMap<String, &Json>,
@@ -570,10 +568,10 @@ pub fn creation_default_rhs(
     }
 
     let vo = value_objects_by_name.get(crate::attr::type_name(attr))?;
-    if vo.get("closed_set").map(Json::as_bool).unwrap_or(false) {
+    if vo.get("closed_set").is_some_and(Json::as_bool) {
         return None;
     }
-    let attrs = vo.get("attributes").map(Json::each).unwrap_or(&[]);
+    let attrs = vo.get("attributes").map_or_default(Json::each);
     // Vacuously true on an empty list, as Ruby's `all?`; only a present field without a default
     // fails.
     if !attrs.iter().all(|f| crate::attr::default(f).is_some()) {
@@ -600,8 +598,7 @@ pub fn creation_default_rhs(
 pub fn corrects_of(command: &Json) -> Option<&Json> {
     command
         .get("mutations")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
         .find(|m| m.get("op").map(Json::to_s).unwrap_or_default() == "corrects")
 }
@@ -614,8 +611,7 @@ pub fn corrects_reverses(mutation: &Json) -> bool {
         .get("source")
         .and_then(|s| s.get("value"))
         .and_then(|v| v.get("reverses"))
-        .map(Json::as_bool)
-        .unwrap_or(false)
+        .is_some_and(Json::as_bool)
 }
 
 /// Synthetic flag field name, e.g. `emitted_fee_applied` from `"FeeApplied"`; must match Ruby's.
@@ -637,8 +633,8 @@ pub fn corrects_flag_field(event_name: &str) -> String {
 /// Every event name any command on this aggregate, entities included, names in a `corrects`
 /// mutation. The flag field lives on the parent record whichever level declares it.
 pub fn correctable_event_names(aggregate: &Json) -> Vec<String> {
-    let mut names = corrects_targets_of(aggregate.get("commands").map(Json::each).unwrap_or(&[]));
-    for entity in aggregate.get("entities").map(Json::each).unwrap_or(&[]) {
+    let mut names = corrects_targets_of(aggregate.get("commands").map_or_default(Json::each));
+    for entity in aggregate.get("entities").map_or_default(Json::each) {
         for name in entity_correctable_event_names(entity) {
             if !names.contains(&name) {
                 names.push(name);
@@ -650,8 +646,8 @@ pub fn correctable_event_names(aggregate: &Json) -> Vec<String> {
 
 /// The entity-recursive half of `correctable_event_names`.
 fn entity_correctable_event_names(entity: &Json) -> Vec<String> {
-    let mut names = corrects_targets_of(entity.get("commands").map(Json::each).unwrap_or(&[]));
-    for nested in entity.get("entities").map(Json::each).unwrap_or(&[]) {
+    let mut names = corrects_targets_of(entity.get("commands").map_or_default(Json::each));
+    for nested in entity.get("entities").map_or_default(Json::each) {
         for name in entity_correctable_event_names(nested) {
             if !names.contains(&name) {
                 names.push(name);
@@ -664,7 +660,7 @@ fn entity_correctable_event_names(entity: &Json) -> Vec<String> {
 fn corrects_targets_of(commands: &[Json]) -> Vec<String> {
     let mut names: Vec<String> = Vec::new();
     for c in commands {
-        for m in c.get("mutations").map(Json::each).unwrap_or(&[]) {
+        for m in c.get("mutations").map_or_default(Json::each) {
             if m.get("op").map(Json::to_s).unwrap_or_default() == "corrects" {
                 let name = m.get("target").map(Json::to_s).unwrap_or_default();
                 if !names.contains(&name) {

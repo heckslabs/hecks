@@ -41,10 +41,10 @@ pub fn parse_body(
                 let (command_raw, to_state_raw) = super::split_top_level_rocket(pair_text);
                 let command = text_value(command_raw);
                 let to_state = text_value(to_state_raw);
-                let from_states = match super::named_raw(&gated.args, "from") {
-                    None => vec![None],
-                    Some(raw) => from_values(raw).into_iter().map(Some).collect(),
-                };
+                let from_states = super::named_raw(&gated.args, "from").map_or_else(
+                    || vec![None],
+                    |raw| from_values(raw).into_iter().map(Some).collect(),
+                );
 
                 for from_state in from_states {
                     lifecycle.transitions.push(ir::StateTransitionRow {

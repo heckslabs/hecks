@@ -62,19 +62,19 @@ pub enum ConfigProblem {
 }
 
 impl ConfigProblem {
-    fn describe(self) -> &'static str {
+    const fn describe(self) -> &'static str {
         match self {
-            ConfigProblem::Missing => "is not set",
-            ConfigProblem::NotHttps => "must be an https URL",
-            ConfigProblem::CredentialsInUrl => "must not carry credentials",
-            ConfigProblem::PathQueryOrFragment => {
+            Self::Missing => "is not set",
+            Self::NotHttps => "must be an https URL",
+            Self::CredentialsInUrl => "must not carry credentials",
+            Self::PathQueryOrFragment => {
                 "must not carry a path, query or fragment (no trailing slash)"
             }
-            ConfigProblem::BadHost => "must name a plain lowercase host and an optional port",
-            ConfigProblem::UpperCase => "must be lowercase",
-            ConfigProblem::BadShape => "has an invalid shape",
-            ConfigProblem::WrongHostForIssuer => "must be on the issuer's host",
-            ConfigProblem::NotAnEnvironment => "must be production or staging",
+            Self::BadHost => "must name a plain lowercase host and an optional port",
+            Self::UpperCase => "must be lowercase",
+            Self::BadShape => "has an invalid shape",
+            Self::WrongHostForIssuer => "must be on the issuer's host",
+            Self::NotAnEnvironment => "must be production or staging",
         }
     }
 }
@@ -135,7 +135,7 @@ impl PlatformSigninConfig {
     }
 }
 
-fn fail(variable: &'static str, problem: ConfigProblem) -> ConfigError {
+const fn fail(variable: &'static str, problem: ConfigProblem) -> ConfigError {
     ConfigError { variable, problem }
 }
 

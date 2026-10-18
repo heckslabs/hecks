@@ -18,39 +18,36 @@ pub enum QueryComparator {
 
 impl QueryComparator {
     /// Every row, in declared order.
-    pub const ALL: &'static [QueryComparator] = &[
-        QueryComparator::Eq,
-        QueryComparator::Ne,
-        QueryComparator::Gt,
-        QueryComparator::Gte,
-        QueryComparator::Lt,
-        QueryComparator::Lte,
-        QueryComparator::In,
-        QueryComparator::Contains,
-        QueryComparator::NoneInState,
+    pub const ALL: &'static [Self] = &[
+        Self::Eq,
+        Self::Ne,
+        Self::Gt,
+        Self::Gte,
+        Self::Lt,
+        Self::Lte,
+        Self::In,
+        Self::Contains,
+        Self::NoneInState,
     ];
 
     /// The row's declared `name`.
-    pub fn name(&self) -> &'static str {
+    pub const fn name(&self) -> &'static str {
         match self {
-            QueryComparator::Eq => "eq",
-            QueryComparator::Ne => "ne",
-            QueryComparator::Gt => "gt",
-            QueryComparator::Gte => "gte",
-            QueryComparator::Lt => "lt",
-            QueryComparator::Lte => "lte",
-            QueryComparator::In => "in",
-            QueryComparator::Contains => "contains",
-            QueryComparator::NoneInState => "none_in_state",
+            Self::Eq => "eq",
+            Self::Ne => "ne",
+            Self::Gt => "gt",
+            Self::Gte => "gte",
+            Self::Lt => "lt",
+            Self::Lte => "lte",
+            Self::In => "in",
+            Self::Contains => "contains",
+            Self::NoneInState => "none_in_state",
         }
     }
 
     /// The row whose `name` is `name`, if any.
-    pub fn from_name(name: &str) -> Option<QueryComparator> {
-        QueryComparator::ALL
-            .iter()
-            .copied()
-            .find(|row| row.name() == name)
+    pub fn from_name(name: &str) -> Option<Self> {
+        Self::ALL.iter().copied().find(|row| row.name() == name)
     }
 }
 
@@ -60,7 +57,7 @@ mod tests {
 
     #[test]
     fn every_row_is_found_by_its_own_name() {
-        for row in QueryComparator::ALL.iter() {
+        for row in QueryComparator::ALL {
             assert_eq!(QueryComparator::from_name(row.name()), Some(*row));
         }
     }

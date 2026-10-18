@@ -52,7 +52,7 @@ pub fn parse_body(
                     "description",
                     &gated.args,
                     1,
-                )?)
+                )?);
             }
             // Ruby refuses a second `reference_to`; that seal is out of scope for this parser.
             "reference_to" => {
@@ -90,7 +90,7 @@ pub fn parse_body(
                     "median",
                     &gated.args,
                     1,
-                )?)
+                )?);
             }
             "sum" => {
                 sum_field = Some(super::positional_symbol(
@@ -99,7 +99,7 @@ pub fn parse_body(
                     "sum",
                     &gated.args,
                     1,
-                )?)
+                )?);
             }
             "avg" => {
                 avg_field = Some(super::positional_symbol(
@@ -108,7 +108,7 @@ pub fn parse_body(
                     "avg",
                     &gated.args,
                     1,
-                )?)
+                )?);
             }
             "min" => {
                 min_field = Some(super::positional_symbol(
@@ -117,7 +117,7 @@ pub fn parse_body(
                     "min",
                     &gated.args,
                     1,
-                )?)
+                )?);
             }
             "max" => {
                 max_field = Some(super::positional_symbol(
@@ -126,7 +126,7 @@ pub fn parse_body(
                     "max",
                     &gated.args,
                     1,
-                )?)
+                )?);
             }
             "percentile" => {
                 percentile_field = Some(super::positional_symbol(
@@ -151,7 +151,7 @@ pub fn parse_body(
                     "any",
                     &gated.args,
                     1,
-                )?)
+                )?);
             }
             "all" => {
                 all_field = Some(super::positional_symbol(
@@ -160,7 +160,7 @@ pub fn parse_body(
                     "all",
                     &gated.args,
                     1,
-                )?)
+                )?);
             }
             "where" => {
                 // ADR 0055: `on:` is a recognized named argument for `where` in ReadModel
@@ -175,7 +175,7 @@ pub fn parse_body(
                     .filter(|(name, _)| name != "on")
                     .cloned()
                     .collect();
-                wheres.extend(query_derive::where_clauses(&field_pairs, target.as_deref()))
+                wheres.extend(query_derive::where_clauses(&field_pairs, target.as_deref()));
             }
             "order_by" => {
                 let field = super::positional_symbol(file, last_line, "order_by", &gated.args, 1)?;
@@ -199,7 +199,7 @@ pub fn parse_body(
                 });
             }
             word if OPTION_WORDS.contains(&word) => {
-                query_options::apply(file, last_line, word, &gated.args, &mut options)?
+                query_options::apply(file, last_line, word, &gated.args, &mut options)?;
             }
             _ => {
                 return Err(super::not_built_yet(

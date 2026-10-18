@@ -34,7 +34,7 @@ pub fn interpret_assignment(expr: &Expr, ctx: &EvalContext) -> Result<Value, Ref
 }
 
 /// Rails-style blankness: nil, false, and an empty Str or Array.
-fn blank(v: &Value) -> bool {
+const fn blank(v: &Value) -> bool {
     match v {
         Value::Nil | Value::Bool(false) => true,
         Value::Str(s) => s.is_empty(),

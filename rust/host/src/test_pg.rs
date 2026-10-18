@@ -43,8 +43,8 @@ pub fn conninfo_as(dbname: &str, role: &str) -> String {
 // Shared by several harnesses; not every one that includes this file calls it.
 #[allow(dead_code)]
 pub fn login_clause() -> String {
-    match env("PGPASSWORD") {
-        Some(p) => format!("LOGIN PASSWORD '{}'", p.replace('\'', "''")),
-        None => "LOGIN".to_string(),
-    }
+    env("PGPASSWORD").map_or_else(
+        || "LOGIN".to_string(),
+        |p| format!("LOGIN PASSWORD '{}'", p.replace('\'', "''")),
+    )
 }

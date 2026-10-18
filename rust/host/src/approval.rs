@@ -30,8 +30,7 @@ pub fn requires_approval(edge: &Value) -> bool {
                 aggregate
                     .get(key)
                     .and_then(Value::as_array)
-                    .map(|list| !list.is_empty())
-                    .unwrap_or(false)
+                    .is_some_and(|list| !list.is_empty())
             };
             non_empty("computes") || non_empty("rekeys")
         })
@@ -44,6 +43,7 @@ pub const HOST_RELEASE: &str = include_str!("../HECKS_RELEASE");
 
 /// The `(major, minor)` a version names: `major.minor`, an optional patch, an optional
 /// pre-release or build suffix, as Ruby's `ApprovalFile::HOST_LINE` reads it.
+#[allow(clippy::expect_used)] // reason: the pattern is a literal, compiled once
 fn release_line(version: &str) -> Option<(u64, u64)> {
     static SHAPE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
     let shape = SHAPE.get_or_init(|| {
@@ -87,6 +87,7 @@ pub struct Committed {
 
 /// Whether `value` is an RFC 3339 time that exists on the calendar, the shape Ruby's
 /// `ApprovalFile::TIMESTAMP` accepts: `2026-09-28T12:30:00Z`, with optional fraction and `+HH:MM`.
+#[allow(clippy::expect_used)] // reason: the pattern is a literal, compiled once
 fn is_timestamp(value: &str) -> bool {
     static SHAPE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
     let shape = SHAPE.get_or_init(|| {
@@ -299,8 +300,7 @@ fn canonical_aggregate(aggregate: &Value) -> String {
     let was = aggregate
         .get("was")
         .and_then(Value::as_str)
-        .map(json_string)
-        .unwrap_or_else(|| "null".to_string());
+        .map_or_else(|| "null".to_string(), json_string);
 
     // `renames` key order is declaration order and part of the digest (needs `preserve_order`).
     let renames = join_object(
@@ -410,8 +410,7 @@ fn canonical_aggregate(aggregate: &Value) -> String {
                 let name = json_string(b.get("name").and_then(Value::as_str).unwrap_or(""));
                 let default = b
                     .get("default")
-                    .map(raw_json)
-                    .unwrap_or_else(|| "null".to_string());
+                    .map_or_else(|| "null".to_string(), raw_json);
                 format!("{{\"name\":{name},\"default\":{default}}}")
             }),
     );
@@ -437,12 +436,13 @@ fn join_object<I: Iterator<Item = (String, String)>>(pairs: I) -> String {
 }
 
 fn json_string(s: &str) -> String {
-    serde_json::to_string(s).expect("a plain &str always serializes")
+    // `Value`'s `Display` cannot fail, where `serde_json::to_string` returns a `Result`.
+    Value::String(s.to_string()).to_string()
 }
 
 // A backfill `default` is untyped JSON; serde_json's compact form of a `Value` is safe here.
 fn raw_json(value: &Value) -> String {
-    serde_json::to_string(value).expect("a parsed Value always re-serializes")
+    value.to_string()
 }
 
 #[cfg(test)]
@@ -691,7 +691,7 @@ mod tests {
         })
     }
 
-    fn committed_for(edge: &Value, rehearsal: Value) -> Committed {
+    fn committed_for(edge: &Value, rehearsal: &Value) -> Committed {
         let ir = serde_json::json!({ "approvals": [{
             "edge": "aaaaaa-bbbbbb", "edge_digest": edge_digest(edge), "approved_by": "Ada <ada@example.com>",
             "approved_at": "2026-09-28T12:30:00Z", "rehearsal": rehearsal
@@ -724,7 +724,7 @@ mod tests {
         let edge = compute_rekey_edge("D");
         let on = |version: &str| {
             let rehearsal = serde_json::json!({ "snapshot": "s", "host_version": version, "result": "pass", "at": "2026-09-28T12:00:00Z" });
-            applicable_on(&[committed_for(&edge, rehearsal)], &edge, "3.0.4").is_some()
+            applicable_on(&[committed_for(&edge, &rehearsal)], &edge, "3.0.4").is_some()
         };
         assert!(on("3.0.0") && on("3.0.4") && on("3.0.9") && on("3.0.1-rc.1") && on("3.0"));
         assert!(
@@ -794,10 +794,10 @@ mod tests {
             serde_json::json!({ "snapshot": "s", "host_version": "3.0.0", "result": "fail", "at": "2026-09-28T12:00:00Z" }),
             serde_json::json!({ "snapshot": " ", "host_version": "3.0.0", "result": "pass", "at": "2026-09-28T12:00:00Z" }),
         ] {
-            let approval = committed_for(&edge, rehearsal);
+            let approval = committed_for(&edge, &rehearsal);
             assert!(applicable_on(&[approval], &edge, "3.0.0").is_none());
         }
-        assert!(applicable_on(&[committed_for(&edge, passed())], &edge, "3.0.0").is_some());
+        assert!(applicable_on(&[committed_for(&edge, &passed())], &edge, "3.0.0").is_some());
     }
 
     // Ruby's `ApprovalFile` refuses the same: a non-String rehearsal field, a blank approver, an
@@ -810,10 +810,10 @@ mod tests {
             serde_json::json!({ "snapshot": "s", "host_version": 3.0, "result": "pass", "at": "2026-09-28T12:00:00Z" }),
             serde_json::json!({ "snapshot": "s", "host_version": "3.0.0", "result": "pass", "at": null }),
         ] {
-            assert!(applicable_on(&[committed_for(&edge, rehearsal)], &edge, "3.0.0").is_none());
+            assert!(applicable_on(&[committed_for(&edge, &rehearsal)], &edge, "3.0.0").is_none());
         }
 
-        let mut approval = committed_for(&edge, passed());
+        let mut approval = committed_for(&edge, &passed());
         assert!(applicable_on(std::slice::from_ref(&approval), &edge, "3.0.0").is_some());
         for who in ["", "  "] {
             approval.approved_by = who.to_string();
@@ -850,7 +850,7 @@ mod tests {
     #[test]
     fn a_committed_approval_binds_to_the_edge_digest_not_the_journal_tip() {
         let edge = compute_rekey_edge("D");
-        let approval = committed_for(&edge, passed());
+        let approval = committed_for(&edge, &passed());
         let mut changed = edge.clone();
         changed["aggregates"][0]["rekeys"][0]["sql"] = serde_json::json!("state->>'other'");
 
@@ -887,7 +887,7 @@ mod tests {
         assert!(refused.is_err(), "no approval at all still refuses");
         assert_eq!(journal_approvals(&client, domain).await, 0);
 
-        let without_rehearsal = committed_for(&edge, Value::Null);
+        let without_rehearsal = committed_for(&edge, &Value::Null);
         assert!(
             check(&client, domain, &edge, 2, &[without_rehearsal])
                 .await
@@ -896,7 +896,7 @@ mod tests {
         );
         assert_eq!(journal_approvals(&client, domain).await, 0);
 
-        let approval = committed_for(&edge, passed_here());
+        let approval = committed_for(&edge, &passed_here());
         check(&client, domain, &edge, 2, std::slice::from_ref(&approval))
             .await
             .expect("a committed approval applies");
@@ -952,7 +952,7 @@ mod tests {
         let edge = compute_rekey_edge(domain);
         let stale = committed_for(
             &edge,
-            serde_json::json!({ "snapshot": "s", "host_version": "1.0.0", "result": "pass", "at": "2026-09-28T12:00:00Z" }),
+            &serde_json::json!({ "snapshot": "s", "host_version": "1.0.0", "result": "pass", "at": "2026-09-28T12:00:00Z" }),
         );
 
         let message = format!(

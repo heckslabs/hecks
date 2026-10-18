@@ -235,17 +235,17 @@ pub fn request_for(step: &Value) -> CallbackRequest {
     if let Some(state) = step["state"].as_str() {
         query.push(format!("state={}", encode(state)));
     }
-    let cookie_pairs = match step.get("cookie").filter(|c| !c.is_null()) {
-        None => vec![],
-        Some(cookie) => {
-            let part = |n: &str| cookie.get(n).and_then(Value::as_str);
-            let value = match part("state") {
-                Some(state) => format!("{}.{state}", part("nonce").unwrap_or("")),
-                None => part("nonce").unwrap_or("").to_string(),
-            };
-            vec![format!("__Host-signin={value}")]
-        }
-    };
+    let cookie_pairs =
+        step.get("cookie")
+            .filter(|c| !c.is_null())
+            .map_or_else(Vec::new, |cookie| {
+                let part = |n: &str| cookie.get(n).and_then(Value::as_str);
+                let value = part("state").map_or_else(
+                    || part("nonce").unwrap_or("").to_string(),
+                    |state| format!("{}.{state}", part("nonce").unwrap_or("")),
+                );
+                vec![format!("__Host-signin={value}")]
+            });
     CallbackRequest {
         raw_query: query.join("&"),
         cookie_pairs,
@@ -257,7 +257,7 @@ pub fn scripted_random(values: &[&str]) -> Random {
     let queue = Mutex::new(
         values
             .iter()
-            .map(|v| v.to_string())
+            .map(std::string::ToString::to_string)
             .collect::<std::collections::VecDeque<_>>(),
     );
     Box::new(move || queue.lock().unwrap().pop_front().expect("a scripted value"))

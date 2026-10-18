@@ -4,7 +4,7 @@ use super::evaluator::Evaluator;
 use super::{find_operator, Operator};
 
 /// Which of `all?`, `any?` or `none?` a block predicate uses.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BlockMode {
     All,
     Any,
@@ -13,11 +13,11 @@ pub enum BlockMode {
 
 impl BlockMode {
     /// The lowercase spelling written into the AST JSON.
-    pub fn json_name(&self) -> &'static str {
+    pub const fn json_name(self) -> &'static str {
         match self {
-            BlockMode::All => "all",
-            BlockMode::Any => "any",
-            BlockMode::None => "none",
+            Self::All => "all",
+            Self::Any => "any",
+            Self::None => "none",
         }
     }
 }
@@ -30,75 +30,75 @@ pub enum Resolver {
     StringLiteral(String),
     BoolLiteral(bool),
     NilLiteral,
-    Addition(Box<Resolver>, Box<Resolver>),
-    Subtraction(Box<Resolver>, Box<Resolver>),
-    Multiplication(Box<Resolver>, Box<Resolver>),
+    Addition(Box<Self>, Box<Self>),
+    Subtraction(Box<Self>, Box<Self>),
+    Multiplication(Box<Self>, Box<Self>),
     /// Integer operands floor toward negative infinity; a zero divisor is an evaluation fault.
-    Division(Box<Resolver>, Box<Resolver>),
+    Division(Box<Self>, Box<Self>),
     SignTest {
         operator: Operator,
-        receiver: Box<Resolver>,
+        receiver: Box<Self>,
     },
-    Empty(Box<Resolver>),
-    ToS(Box<Resolver>),
+    Empty(Box<Self>),
+    ToS(Box<Self>),
     Modulo {
-        receiver: Box<Resolver>,
-        divisor: Box<Resolver>,
+        receiver: Box<Self>,
+        divisor: Box<Self>,
     },
-    Size(Box<Resolver>),
+    Size(Box<Self>),
     Lookup(String),
     /// `["active", "suspended"]`: a literal set, the haystack of an `.include?`.
-    ArrayLiteral(Vec<Resolver>),
+    ArrayLiteral(Vec<Self>),
     /// `receiver.any? { |param| predicate }` and siblings; the body is parsed as a predicate.
     BlockPredicate {
         mode: BlockMode,
-        receiver: Box<Resolver>,
+        receiver: Box<Self>,
         param: String,
         predicate: Box<Evaluator>,
     },
     /// `receiver.match?(/pattern/flags)`: the pattern text is kept verbatim.
     MatchesRegex {
-        receiver: Box<Resolver>,
+        receiver: Box<Self>,
         pattern: String,
         flags: String,
     },
     /// `receiver.present?` (`negated: false`) or `receiver.blank?` (`negated: true`).
     Presence {
-        receiver: Box<Resolver>,
+        receiver: Box<Self>,
         negated: bool,
     },
     /// `receiver.set?` (`negated: false`) or `receiver.unset?` (`negated: true`): only `!nil?`.
     Assignment {
-        receiver: Box<Resolver>,
+        receiver: Box<Self>,
         negated: bool,
     },
     /// `receiver.split("sep")`: the separator is sliced verbatim between the quotes.
     Split {
-        receiver: Box<Resolver>,
+        receiver: Box<Self>,
         separator: String,
     },
     /// `receiver.strip` / `.lstrip` / `.rstrip`; `side` is `both`, `left` or `right`.
     Strip {
-        receiver: Box<Resolver>,
+        receiver: Box<Self>,
         side: &'static str,
     },
     /// `receiver.first`.
-    First(Box<Resolver>),
+    First(Box<Self>),
     /// `receiver.last`.
-    Last(Box<Resolver>),
+    Last(Box<Self>),
     /// `receiver.start_with?("substring")`.
     StartsWith {
-        receiver: Box<Resolver>,
+        receiver: Box<Self>,
         substring: String,
     },
     /// `receiver.end_with?("substring")`.
     EndsWith {
-        receiver: Box<Resolver>,
+        receiver: Box<Self>,
         substring: String,
     },
     /// `receiver.find { |param| predicate }.a.b`.
     Find {
-        receiver: Box<Resolver>,
+        receiver: Box<Self>,
         param: String,
         predicate: Box<Evaluator>,
         path: Vec<String>,
@@ -115,16 +115,20 @@ pub fn parse(expr: &str) -> Resolver {
     }
 
     if is_integer_literal(expr) {
-        return Resolver::IntegerLiteral(
-            expr.parse::<i64>()
-                .unwrap_or_else(|_| panic!("bad integer literal {expr:?}")),
-        );
+        // reason: `parse` has no error channel; a digits-only literal fails only on i64 overflow.
+        #[allow(clippy::panic)]
+        let value = expr
+            .parse::<i64>()
+            .unwrap_or_else(|_| panic!("bad integer literal {expr:?}"));
+        return Resolver::IntegerLiteral(value);
     }
     if is_float_literal(expr) {
-        return Resolver::FloatLiteral(
-            expr.parse::<f64>()
-                .unwrap_or_else(|_| panic!("bad float literal {expr:?}")),
-        );
+        // reason: `parse` has no error channel; `is_float_literal` vetted the text above.
+        #[allow(clippy::panic)]
+        let value = expr
+            .parse::<f64>()
+            .unwrap_or_else(|_| panic!("bad float literal {expr:?}"));
+        return Resolver::FloatLiteral(value);
     }
     if let Some(s) = quoted(expr) {
         return Resolver::StringLiteral(s.to_string());
@@ -162,8 +166,14 @@ pub fn parse(expr: &str) -> Resolver {
         return parse(&expr[1..expr.len() - 1]);
     }
 
-    if let Some((receiver, test)) = match_suffix(expr, &SIGN_TESTS.map(|(s, _)| s)) {
-        let symbol = SIGN_TESTS.iter().find(|(s, _)| *s == test).unwrap().1;
+    if let Some((receiver, symbol)) =
+        match_suffix(expr, &SIGN_TESTS.map(|(s, _)| s)).and_then(|(receiver, test)| {
+            SIGN_TESTS
+                .iter()
+                .find(|(s, _)| *s == test)
+                .map(|&(_, symbol)| (receiver, symbol))
+        })
+    {
         return Resolver::SignTest {
             operator: find_operator(symbol),
             receiver: Box::new(parse(receiver)),
@@ -351,7 +361,7 @@ fn parse_block_opener(expr: &str) -> Option<Resolver> {
 }
 
 /// Index of the `}` closing the block whose body starts at `start`, honouring quotes.
-fn matching_brace(expr: &str, start: usize) -> Option<usize> {
+const fn matching_brace(expr: &str, start: usize) -> Option<usize> {
     let bytes = expr.as_bytes();
     let mut depth = 1;
     let mut quote: Option<u8> = None;
@@ -495,7 +505,7 @@ fn render_arithmetic(node: &Resolver) -> Option<String> {
     }
 }
 
-fn binding_strength(operator: char) -> u8 {
+const fn binding_strength(operator: char) -> u8 {
     if matches!(operator, '*' | '/') {
         2
     } else {
@@ -503,7 +513,7 @@ fn binding_strength(operator: char) -> u8 {
     }
 }
 
-fn node_strength(node: &Resolver) -> u8 {
+const fn node_strength(node: &Resolver) -> u8 {
     match node {
         Resolver::Addition(..) | Resolver::Subtraction(..) => 1,
         Resolver::Multiplication(..) | Resolver::Division(..) => 2,
@@ -554,7 +564,7 @@ fn split_last_binary<'a>(expr: &'a str, operators: &[u8]) -> Option<(u8, &'a str
             b'(' | b'{' | b'[' => depth += 1,
             b')' | b'}' | b']' => depth -= 1,
             _ if depth == 0 && operators.contains(&byte) && binary_position(bytes, index) => {
-                found = Some(index)
+                found = Some(index);
             }
             _ => {}
         }
@@ -624,7 +634,7 @@ fn match_regex(expr: &str) -> Option<(&str, &str, &str)> {
     if !flags.bytes().all(|b| b.is_ascii_lowercase()) {
         return None;
     }
-    let index = body[..close + 1]
+    let index = body[..=close]
         .rmatch_indices(MARKER)
         .map(|(i, _)| i)
         .find(|i| *i > 0 && i + MARKER.len() <= close)?;

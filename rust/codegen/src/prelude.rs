@@ -19,17 +19,15 @@ fn puts_blank(out: &mut String) {
 }
 
 fn lifecycle_extra_field(node: &Json) -> Vec<(String, String)> {
-    match node.get("lifecycle") {
-        None => vec![],
-        Some(lifecycle) => {
+    node.get("lifecycle")
+        .map_or_else(std::vec::Vec::new, |lifecycle| {
             let field = lifecycle.get("field").and_then(Json::as_str).unwrap_or("");
             let ident = crate::naming::rust_ident_field(field);
             vec![(
                 crate::naming::rust_field(field),
                 format!("crate::kernel::Json::Str(self.{ident}.clone())"),
             )]
-        }
-    }
+        })
 }
 
 /// One aggregate's prelude text, or `None` when the aggregate has unsupported attribute
@@ -40,10 +38,7 @@ pub fn aggregate_prelude(
     aggregate: &Json,
     source_label: &str,
 ) -> Option<String> {
-    let value_objects = aggregate
-        .get("value_objects")
-        .map(Json::each)
-        .unwrap_or(&[]);
+    let value_objects = aggregate.get("value_objects").map_or_default(Json::each);
     let value_objects_by_name: HashMap<String, &Json> = value_objects
         .iter()
         .map(|vo| {
@@ -63,8 +58,7 @@ pub fn aggregate_prelude(
 
     let aggregates_by_name: HashMap<String, &Json> = ir
         .get("aggregates")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
         .map(|a| {
             (
@@ -97,8 +91,8 @@ pub fn aggregate_prelude(
         );
         puts_blank(&mut out);
 
-        let closed_set = vo.get("closed_set").map(Json::as_bool).unwrap_or(false);
-        let attrs = vo.get("attributes").map(Json::each).unwrap_or(&[]);
+        let closed_set = vo.get("closed_set").is_some_and(Json::as_bool);
+        let attrs = vo.get("attributes").map_or_default(Json::each);
         if closed_set && attrs.len() == 1 {
             puts_str(&mut out, &json_codec::emit_closed_set_codec(exemplar, vo));
         } else if closed_set {
@@ -140,7 +134,7 @@ pub fn aggregate_prelude(
         puts_blank(&mut out);
     }
 
-    for entity in aggregate.get("entities").map(Json::each).unwrap_or(&[]) {
+    for entity in aggregate.get("entities").map_or_default(Json::each) {
         puts_str(
             &mut out,
             &types::emit_entity(exemplar, entity, &value_objects_by_name),
@@ -149,7 +143,7 @@ pub fn aggregate_prelude(
 
         let entity_name =
             crate::naming::rust_ident(entity.get("name").and_then(Json::as_str).unwrap_or(""));
-        let entity_attrs = entity.get("attributes").map(Json::each).unwrap_or(&[]);
+        let entity_attrs = entity.get("attributes").map_or_default(Json::each);
         let extra = lifecycle_extra_field(entity);
         puts_str(
             &mut out,
@@ -201,7 +195,7 @@ pub fn aggregate_prelude(
 
     let record_name =
         crate::naming::rust_ident(aggregate.get("name").and_then(Json::as_str).unwrap_or(""));
-    let record_attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
+    let record_attrs = aggregate.get("attributes").map_or_default(Json::each);
     let extra = lifecycle_extra_field(aggregate);
     puts_str(
         &mut out,
@@ -231,7 +225,7 @@ pub fn aggregate_prelude(
     puts_blank(&mut out);
     puts_str(
         &mut out,
-        &format!("impl crate::kernel::ToJson for {record_name} {{\n    fn to_json(&self) -> crate::kernel::Json {{\n        {record_name}::to_json(self)\n    }}\n}}\n"),
+        &format!("impl crate::kernel::ToJson for {record_name} {{\n    fn to_json(&self) -> crate::kernel::Json {{\n        Self::to_json(self)\n    }}\n}}\n"),
     );
     puts_blank(&mut out);
 

@@ -5,9 +5,9 @@ use super::{top_level_index, Operator, OPERATORS};
 
 #[derive(Debug, Clone)]
 pub enum Evaluator {
-    Or(Box<Evaluator>, Box<Evaluator>),
-    And(Box<Evaluator>, Box<Evaluator>),
-    Not(Box<Evaluator>),
+    Or(Box<Self>, Box<Self>),
+    And(Box<Self>, Box<Self>),
+    Not(Box<Self>),
     Compare {
         operator: Operator,
         left: Resolver,
@@ -45,7 +45,7 @@ pub fn parse(expr: &str) -> Evaluator {
         };
     }
 
-    for op in OPERATORS.iter() {
+    for op in &OPERATORS {
         if let Some((left, right)) = split_comparison(&expr, op.symbol) {
             return Evaluator::Compare {
                 operator: *op,

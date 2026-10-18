@@ -161,9 +161,12 @@ fn nest_level(
     check: LeafCheck,
     reached: &[(&str, Json)],
 ) -> Result<Json, Refusal> {
-    let (field, rest) = fields.split_first().expect(
-        "nest called with empty fields — read_model_skip_reason should refuse a group_by with none",
-    );
+    let Some((field, rest)) = fields.split_first() else {
+        return Err(Refusal::Fault(
+            "nest called with empty fields — read_model_skip_reason should refuse a group_by with none"
+                .to_string(),
+        ));
+    };
     let mut groups: Vec<(Json, Vec<Json>)> = Vec::new();
     for row in rows {
         let (key, stripped) = match row {
@@ -171,8 +174,7 @@ fn nest_level(
                 let key = pairs
                     .iter()
                     .find(|(k, _)| k == field)
-                    .map(|(_, v)| v.clone())
-                    .unwrap_or(Json::Null);
+                    .map_or(Json::Null, |(_, v)| v.clone());
                 let stripped =
                     Json::Object(pairs.into_iter().filter(|(k, _)| k != field).collect());
                 (key, stripped)
@@ -318,19 +320,18 @@ fn extreme(rows: &[(String, Json)], field: &'static str, want_max: bool) -> Json
         .map(query_comparators::comparable)
         .filter(|value| !matches!(value, Json::Null))
         .collect();
-    if values.is_empty() {
-        return Json::Null;
-    }
     values.sort_by(|a, b| {
         query_comparators::as_f64(a)
             .partial_cmp(&query_comparators::as_f64(b))
             .unwrap_or(std::cmp::Ordering::Equal)
     });
-    if want_max {
-        values.pop().expect("checked non-empty above")
+    let mut sorted = values.into_iter();
+    let picked = if want_max {
+        sorted.next_back()
     } else {
-        values.remove(0)
-    }
+        sorted.next()
+    };
+    picked.unwrap_or(Json::Null)
 }
 
 /// Whether any (`want_all: false`) or every (`true`) row's declared boolean field is `true`
@@ -714,14 +715,14 @@ mod reference_hop_tests {
             result
                 .get("accounts")
                 .and_then(|v| v.as_array())
-                .map(|rows| rows.len()),
+                .map(<[Json]>::len),
             Some(3)
         );
         assert_eq!(
             result
                 .get("ledger_entries")
                 .and_then(|v| v.as_array())
-                .map(|rows| rows.len()),
+                .map(<[Json]>::len),
             Some(0)
         );
     }
@@ -967,14 +968,12 @@ pub fn run(store: &impl AggregateScan, def: &ReadModelDef, args: &Json) -> Resul
         std::collections::HashSet::new();
 
     for head in root_heads.into_iter().chain(other_heads) {
-        let mut rows = if reference_id.is_none() {
+        let mut rows = match reference_id.as_deref() {
             // Rootless: each head reads its own aggregate's whole table independently, with no
             // cross-referencing against `projected`. A head with no table reads as empty.
-            store.scan(head.aggregate).unwrap_or_default()
-        } else if head.is_root {
-            vec![fetch_root(store, head, reference_id.as_deref().unwrap())?]
-        } else {
-            scan_matching(store, head, &projected)?
+            None => store.scan(head.aggregate).unwrap_or_default(),
+            Some(id) if head.is_root => vec![fetch_root(store, head, id)?],
+            Some(_) => scan_matching(store, head, &projected),
         };
 
         // Applied before this head's rows go into `projected`, so any later head's own
@@ -1003,16 +1002,21 @@ pub fn run(store: &impl AggregateScan, def: &ReadModelDef, args: &Json) -> Resul
     // `id` the way a live Ruby record's `to_h` does.
     let mut out = Vec::with_capacity(def.heads.len());
     for head in def.heads {
-        let (many, rows) = rows_by_as
-            .remove(head.as_name)
-            .expect("every head in def.heads was computed in the loop above — as_name is unique per read model (ReadModelBuilder#add_aggregate_head)");
+        let (many, rows) = rows_by_as.remove(head.as_name).ok_or_else(|| {
+            Refusal::Fault(
+                "every head in def.heads was computed in the loop above — as_name is unique per read model (ReadModelBuilder#add_aggregate_head)"
+                    .to_string(),
+            )
+        })?;
         let value = if grouped_heads.contains(head.as_name) {
             // Already fully formed by the generated transform — must not be wrapped again the
             // way an ordinary head's rows are.
-            (def.group_by
-                .expect("grouped_heads is only ever populated when def.group_by is Some"))(
-                rows
-            )?
+            let group_by = def.group_by.ok_or_else(|| {
+                Refusal::Fault(
+                    "grouped_heads is only ever populated when def.group_by is Some".to_string(),
+                )
+            })?;
+            group_by(rows)?
         } else if many && def.count {
             Json::Num(rows.len() as f64, None)
         } else if let Some(field) = def.median_field.filter(|_| many) {
@@ -1029,8 +1033,9 @@ pub fn run(store: &impl AggregateScan, def: &ReadModelDef, args: &Json) -> Resul
             percentile(
                 &rows,
                 field,
-                def.percentile_at
-                    .expect("percentile_field implies percentile_at"),
+                def.percentile_at.ok_or_else(|| {
+                    Refusal::Fault("percentile_field implies percentile_at".to_string())
+                })?,
             )
         } else if let Some(field) = def.any_field.filter(|_| many) {
             boolean_reduce(&rows, field, false)
@@ -1045,8 +1050,7 @@ pub fn run(store: &impl AggregateScan, def: &ReadModelDef, args: &Json) -> Resul
         } else {
             rows.into_iter()
                 .next()
-                .map(|(id, record)| repository::row_json(id, record))
-                .unwrap_or(Json::Null)
+                .map_or(Json::Null, |(id, record)| repository::row_json(id, record))
         };
         out.push((head.as_name.to_string(), value));
     }
@@ -1087,11 +1091,11 @@ fn scan_matching(
     store: &impl AggregateScan,
     head: &ReadModelHead,
     projected: &[(&'static str, Vec<(String, Json)>)],
-) -> Result<Vec<(String, Json)>, Refusal> {
+) -> Vec<(String, Json)> {
     // The generator emits a head with no table only when it names a nested entity; that reads
     // as empty here, while the root still refuses in `fetch_root`.
     let Some(entries) = store.scan(head.aggregate) else {
-        return Ok(Vec::new());
+        return Vec::new();
     };
 
     let mut matched: Vec<(String, Json)> = entries
@@ -1099,7 +1103,7 @@ fn scan_matching(
         .filter(|(_, record)| record_matches(record, head, projected))
         .collect();
     matched.sort_by(|a, b| a.0.cmp(&b.0));
-    Ok(matched)
+    matched
 }
 
 /// Whether `record` holds one of its precomputed `reference_fields` pointing at a row already

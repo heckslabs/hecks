@@ -9,13 +9,13 @@ pub enum Json {
     Bool(bool),
     Number(i64),
     String(String),
-    Array(Vec<Json>),
+    Array(Vec<Self>),
     /// Insertion-ordered pairs.
-    Object(Vec<(String, Json)>),
+    Object(Vec<(String, Self)>),
 }
 
 impl Json {
-    pub fn parse(text: &str) -> Result<Json, String> {
+    pub fn parse(text: &str) -> Result<Self, String> {
         let mut p = Parser {
             bytes: text.as_bytes(),
             pos: 0,
@@ -29,43 +29,43 @@ impl Json {
         Ok(value)
     }
 
-    pub fn get(&self, key: &str) -> Option<&Json> {
+    pub fn get(&self, key: &str) -> Option<&Self> {
         match self {
-            Json::Object(pairs) => pairs
+            Self::Object(pairs) => pairs
                 .iter()
-                .find(|(k, v)| k == key && !matches!(v, Json::Null))
+                .find(|(k, v)| k == key && !matches!(v, Self::Null))
                 .map(|(_, v)| v),
             _ => None,
         }
     }
 
-    pub fn as_str(&self) -> Option<&str> {
+    pub const fn as_str(&self) -> Option<&str> {
         match self {
-            Json::String(s) => Some(s.as_str()),
+            Self::String(s) => Some(s.as_str()),
             _ => None,
         }
     }
 
-    pub fn as_i64(&self) -> Option<i64> {
+    pub const fn as_i64(&self) -> Option<i64> {
         match self {
-            Json::Number(n) => Some(*n),
+            Self::Number(n) => Some(*n),
             _ => None,
         }
     }
 
-    pub fn as_array(&self) -> Option<&[Json]> {
+    pub const fn as_array(&self) -> Option<&[Self]> {
         match self {
-            Json::Array(items) => Some(items.as_slice()),
+            Self::Array(items) => Some(items.as_slice()),
             _ => None,
         }
     }
 
-    pub fn string(s: impl Into<String>) -> Json {
-        Json::String(s.into())
+    pub fn string(s: impl Into<String>) -> Self {
+        Self::String(s.into())
     }
 
-    pub fn object(pairs: Vec<(&str, Json)>) -> Json {
-        Json::Object(pairs.into_iter().map(|(k, v)| (k.to_string(), v)).collect())
+    pub fn object(pairs: Vec<(&str, Self)>) -> Self {
+        Self::Object(pairs.into_iter().map(|(k, v)| (k.to_string(), v)).collect())
     }
 }
 
@@ -74,7 +74,7 @@ struct Parser<'a> {
     pos: usize,
 }
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     fn peek(&self) -> Option<u8> {
         self.bytes.get(self.pos).copied()
     }
@@ -290,9 +290,9 @@ impl<'a> Parser<'a> {
                 self.pos += 1;
             }
         }
-        if matches!(self.peek(), Some(b'e') | Some(b'E')) {
+        if matches!(self.peek(), Some(b'e' | b'E')) {
             self.pos += 1;
-            if matches!(self.peek(), Some(b'+') | Some(b'-')) {
+            if matches!(self.peek(), Some(b'+' | b'-')) {
                 self.pos += 1;
             }
             while matches!(self.peek(), Some(c) if c.is_ascii_digit()) {

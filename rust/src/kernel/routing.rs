@@ -102,6 +102,16 @@ impl RoutingEnvelope {
     }
 }
 
+/// Step-envelope keys (`verb`, `role`, ...) are not facts, so `with:` may sit beside them.
+const STEP_ENVELOPE_KEYS: [&str; 6] = [
+    "verb",
+    "role",
+    "actor_id",
+    "occurred_at",
+    "dry_run",
+    "query",
+];
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct CommandInvocation {
     route: Option<RoutingEnvelope>,
@@ -121,15 +131,14 @@ impl CommandInvocation {
     /// The facts source depends on `with:` alone, never on `to:`.
     pub fn from_json(value: &Json) -> Result<Self, Refusal> {
         let target = non_null(value.get("to"));
-        let explicit_facts = non_null(value.get("with"));
-        if explicit_facts.is_none() {
+        let Some(explicit_facts) = non_null(value.get("with")) else {
             let route = target.map(RoutingEnvelope::from_json).transpose()?;
             return Ok(Self {
                 route,
                 facts: strip_routing_keys(value),
                 explicit: false,
             });
-        }
+        };
 
         if value.get("args").is_some() {
             return Err(routing_refusal("cannot combine to/with with legacy args"));
@@ -137,31 +146,19 @@ impl CommandInvocation {
 
         // `with:` beside a loose fact is refused, as Ruby's `Routing.payload` refuses it.
         // Step-envelope keys (`verb`, `role`, ...) are not facts and are exempt.
-        const STEP_ENVELOPE_KEYS: [&str; 6] = [
-            "verb",
-            "role",
-            "actor_id",
-            "occurred_at",
-            "dry_run",
-            "query",
-        ];
-        if explicit_facts.is_some() {
-            if let Json::Object(fields) = value {
-                let extra = fields.iter().any(|(key, _)| {
-                    key != "to" && key != "with" && !STEP_ENVELOPE_KEYS.contains(&key.as_str())
-                });
-                if extra {
-                    return Err(routing_refusal(
-                        "with: takes command facts, not both with: and loose keyword arguments",
-                    ));
-                }
+        if let Json::Object(fields) = value {
+            let extra = fields.iter().any(|(key, _)| {
+                key != "to" && key != "with" && !STEP_ENVELOPE_KEYS.contains(&key.as_str())
+            });
+            if extra {
+                return Err(routing_refusal(
+                    "with: takes command facts, not both with: and loose keyword arguments",
+                ));
             }
         }
 
         let route = target.map(RoutingEnvelope::from_json).transpose()?;
-        let facts = explicit_facts
-            .cloned()
-            .expect("explicit_facts checked Some above");
+        let facts = explicit_facts.clone();
         if !matches!(facts, Json::Object(_)) {
             return Err(routing_refusal("with must be an object of command facts"));
         }
@@ -173,16 +170,16 @@ impl CommandInvocation {
         })
     }
 
-    pub fn route(&self) -> Option<&RoutingEnvelope> {
+    pub const fn route(&self) -> Option<&RoutingEnvelope> {
         self.route.as_ref()
     }
 
-    pub fn facts(&self) -> &Json {
+    pub const fn facts(&self) -> &Json {
         &self.facts
     }
 
     /// True when this call used the explicit `with:` shape, false for flat facts.
-    pub fn explicit_with(&self) -> bool {
+    pub const fn explicit_with(&self) -> bool {
         self.explicit
     }
 

@@ -6,6 +6,7 @@ use crate::literal::{self, Literal};
 use crate::naming;
 use crate::skip_reason::{reskip, skip, SkipReason};
 use std::collections::HashMap;
+use std::fmt::Write as _;
 
 const COMPARATORS_NEEDING_NUMERIC_FIDELITY: &[&str] = &["gt", "gte", "lt", "lte"];
 const COMPARATORS_EXEMPT_FROM_LITERAL_TYPING: &[&str] = &["in", "contains"];
@@ -43,7 +44,7 @@ pub fn query_field_kind(
         }
     }
 
-    let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
+    let attrs = aggregate.get("attributes").map_or_default(Json::each);
     let Some(attr) = attrs.iter().find(|a| crate::attr::name(a) == head) else {
         return FieldKind::Unknown;
     };
@@ -74,7 +75,7 @@ fn query_type_kind(
     let Some(vo) = value_objects_by_name.get(type_name) else {
         return FieldKind::Unknown;
     };
-    let attrs = vo.get("attributes").map(Json::each).unwrap_or(&[]);
+    let attrs = vo.get("attributes").map_or_default(Json::each);
     let Some(member) = attrs.iter().find(|a| crate::attr::name(a) == segments[0]) else {
         return FieldKind::Unknown;
     };
@@ -96,15 +97,16 @@ fn query_scalar_or_vo_kind(
         "String" => FieldKind::String,
         "Integer" | "Float" => FieldKind::Number,
         "TrueClass" | "FalseClass" => FieldKind::Other,
-        _ => match value_objects_by_name.get(type_name) {
-            Some(vo) => query_vo_collapse_kind(vo, value_objects_by_name),
-            None => FieldKind::Unknown,
-        },
+        _ => value_objects_by_name
+            .get(type_name)
+            .map_or(FieldKind::Unknown, |vo| {
+                query_vo_collapse_kind(vo, value_objects_by_name)
+            }),
     }
 }
 
 fn query_vo_collapse_kind(vo: &Json, value_objects_by_name: &HashMap<String, &Json>) -> FieldKind {
-    let attrs = vo.get("attributes").map(Json::each).unwrap_or(&[]);
+    let attrs = vo.get("attributes").map_or_default(Json::each);
     if attrs
         .iter()
         .any(|a| matches!(crate::attr::type_name(a), "Integer" | "Float"))
@@ -132,7 +134,7 @@ pub fn query_field_boolean(
     let head = segments.next().unwrap_or("");
     let rest: Vec<&str> = segments.collect();
 
-    let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
+    let attrs = aggregate.get("attributes").map_or_default(Json::each);
     let Some(attr) = attrs.iter().find(|a| crate::attr::name(a) == head) else {
         return false;
     };
@@ -157,7 +159,7 @@ fn query_type_boolean(
         let Some(vo) = value_objects_by_name.get(type_name) else {
             return false;
         };
-        let attrs = vo.get("attributes").map(Json::each).unwrap_or(&[]);
+        let attrs = vo.get("attributes").map_or_default(Json::each);
         if attrs.len() == 1 {
             return query_type_boolean(
                 crate::attr::type_name(&attrs[0]),
@@ -170,7 +172,7 @@ fn query_type_boolean(
         let Some(vo) = value_objects_by_name.get(type_name) else {
             return false;
         };
-        let attrs = vo.get("attributes").map(Json::each).unwrap_or(&[]);
+        let attrs = vo.get("attributes").map_or_default(Json::each);
         let Some(member) = attrs.iter().find(|a| crate::attr::name(a) == segments[0]) else {
             return false;
         };
@@ -198,7 +200,7 @@ pub fn query_field_numeric_type(
     let head = segments.next().unwrap_or("");
     let rest: Vec<&str> = segments.collect();
 
-    let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
+    let attrs = aggregate.get("attributes").map_or_default(Json::each);
     let attr = attrs.iter().find(|a| crate::attr::name(a) == head)?;
     if crate::attr::list(attr) {
         return None;
@@ -219,7 +221,7 @@ fn query_type_numeric_type(
             return None;
         }
         let vo = value_objects_by_name.get(type_name)?;
-        let attrs = vo.get("attributes").map(Json::each).unwrap_or(&[]);
+        let attrs = vo.get("attributes").map_or_default(Json::each);
         if let Some(numeric_member) = attrs
             .iter()
             .find(|a| matches!(crate::attr::type_name(a), "Integer" | "Float"))
@@ -236,7 +238,7 @@ fn query_type_numeric_type(
         None
     } else {
         let vo = value_objects_by_name.get(type_name)?;
-        let attrs = vo.get("attributes").map(Json::each).unwrap_or(&[]);
+        let attrs = vo.get("attributes").map_or_default(Json::each);
         let member = attrs.iter().find(|a| crate::attr::name(a) == segments[0])?;
         if crate::attr::list(member) {
             return None;
@@ -328,7 +330,7 @@ pub fn query_where_skip_reason(
     ))
 }
 
-fn kind_name(kind: FieldKind) -> &'static str {
+const fn kind_name(kind: FieldKind) -> &'static str {
     match kind {
         FieldKind::String => "string",
         FieldKind::Number => "number",
@@ -364,8 +366,7 @@ pub fn query_hop_plan<'a>(
     for segment in &segments[..segments.len() - 1] {
         let via = current
             .get("attributes")
-            .map(Json::each)
-            .unwrap_or(&[])
+            .map_or_default(Json::each)
             .iter()
             .find(|a| crate::attr::name(a) == *segment)?;
         let type_name = crate::attr::type_name(via);
@@ -408,8 +409,7 @@ pub fn with_field(where_clause: &Json, field: &str) -> Json {
 pub fn value_objects_of(aggregate: &Json) -> HashMap<String, &Json> {
     aggregate
         .get("value_objects")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
         .map(|vo| {
             (
@@ -440,8 +440,7 @@ pub fn query_skip_reason(
     }
     if query
         .get("index_hints")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
         .any(|_| true)
     {
@@ -458,7 +457,7 @@ pub fn query_skip_reason(
         .get("authorization")
         .and_then(|a| a.get("tenant"))
         .is_some();
-    let wheres = query.get("wheres").map(Json::each).unwrap_or(&[]);
+    let wheres = query.get("wheres").map_or_default(Json::each);
     // A query with no `where` answers every record, ordered and bounded as declared, as Ruby's
     // `QueryInterpreter` does. Ruby refuses at boot one that takes arguments yet filters, orders
     // and bounds nothing (`Registry::QueryVerification#derivable?`: it reads none of them), so no
@@ -667,7 +666,7 @@ pub struct Condition {
 
 // Assumes `query_skip_reason` already accepted the query.
 pub fn query_conditions(query: &Json) -> Vec<Condition> {
-    let wheres = query.get("wheres").map(Json::each).unwrap_or(&[]);
+    let wheres = query.get("wheres").map_or_default(Json::each);
     wheres.iter().map(condition_for).collect()
 }
 
@@ -707,7 +706,7 @@ pub fn query_conditions_and_hops(
 ) -> (Vec<Condition>, Vec<HopCondition>) {
     let mut local = Vec::new();
     let mut hops = Vec::new();
-    for w in query.get("wheres").map(Json::each).unwrap_or(&[]) {
+    for w in query.get("wheres").map_or_default(Json::each) {
         let field = w.get("field").map(Json::to_s).unwrap_or_default();
         match query_hop_plan(aggregate, &field, aggregates_by_name) {
             Some(plan) => hops.push(hop_condition(domain_name, plan, w)),
@@ -834,6 +833,10 @@ fn known_query_comparator(op: &str) -> bool {
     )
 }
 
+#[allow(
+    clippy::panic,
+    reason = "a drifted exemplar or invalid IR aborts generation on purpose"
+)]
 fn query_comparator_variant(op: &str) -> &'static str {
     match op {
         "eq" => "Eq",
@@ -888,29 +891,33 @@ fn ruby_float_inspect(n: f64) -> String {
     }
 }
 
+#[allow(
+    clippy::option_if_let_else,
+    clippy::unwrap_used,
+    reason = "a map_or_else closure would bury this long body; the value was checked just before; None would mean invalid IR"
+)]
 pub fn emit_query_condition_value(condition: &Condition) -> String {
-    match &condition.arg {
-        Some(arg) => format!(
+    if let Some(arg) = &condition.arg {
+        format!(
             "crate::kernel::QueryConditionValue::Arg({})",
             naming::ruby_inspect_string(arg)
-        ),
-        None => {
-            let lit = condition.literal.as_ref().unwrap();
-            // The skip check already proved a numeric literal targets a numeric field.
-            match lit {
-                Literal::Int(n) => format!(
-                    "crate::kernel::QueryConditionValue::NumericLiteral({})",
-                    ruby_float_inspect(*n as f64)
-                ),
-                Literal::Float(n) => format!(
-                    "crate::kernel::QueryConditionValue::NumericLiteral({})",
-                    ruby_float_inspect(*n)
-                ),
-                _ => format!(
-                    "crate::kernel::QueryConditionValue::Literal({})",
-                    literal_inspect(lit)
-                ),
-            }
+        )
+    } else {
+        let lit = condition.literal.as_ref().unwrap();
+        // The skip check already proved a numeric literal targets a numeric field.
+        match lit {
+            Literal::Int(n) => format!(
+                "crate::kernel::QueryConditionValue::NumericLiteral({})",
+                ruby_float_inspect(*n as f64)
+            ),
+            Literal::Float(n) => format!(
+                "crate::kernel::QueryConditionValue::NumericLiteral({})",
+                ruby_float_inspect(*n)
+            ),
+            _ => format!(
+                "crate::kernel::QueryConditionValue::Literal({})",
+                literal_inspect(lit)
+            ),
         }
     }
 }
@@ -945,8 +952,7 @@ pub struct QueryDef {
 
 pub fn provided_assignments(ir: &Json) -> Option<String> {
     ir.get("provides")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
         .find(|row| {
             row.get("capability").and_then(Json::as_str) == Some("authorization")
@@ -957,10 +963,10 @@ pub fn provided_assignments(ir: &Json) -> Option<String> {
 }
 
 pub fn emit_authorization_assignments(query_defs: &[QueryDef]) -> String {
-    let value = match query_defs.iter().find(|q| q.assignments) {
-        Some(q) => format!("Some({})", naming::ruby_inspect_string(&q.verb)),
-        None => "None".to_string(),
-    };
+    let value = query_defs.iter().find(|q| q.assignments).map_or_else(
+        || "None".to_string(),
+        |q| format!("Some({})", naming::ruby_inspect_string(&q.verb)),
+    );
     format!(
         "/// `provides \"authorization\", assignments:` — the query `kernel::check_role_via` reads; `None` when no chapter here declares one.\npub const AUTHORIZATION_ASSIGNMENTS: Option<&str> = {value};\n"
     )
@@ -973,15 +979,19 @@ pub struct EntityScope {
 }
 
 pub fn emit_entity_query_table(entity_defs: &[&QueryDef]) -> String {
-    let rows: String = entity_defs
-        .iter()
-        .map(|q| format!("{}\n", emit_entity_query_def(q)))
-        .collect();
+    let rows: String = entity_defs.iter().fold(String::new(), |mut rows, q| {
+        let _ = writeln!(rows, "{}", emit_entity_query_def(q));
+        rows
+    });
     format!(
         "/// Declared entity queries (`Aggregate.Entity.Query`) — `kernel::named_query::run_entity`.\npub const ENTITY_QUERIES: &[crate::kernel::named_query::EntityQueryDef] = &[\n{rows}];\n"
     )
 }
 
+#[allow(
+    clippy::expect_used,
+    reason = "the message names an invariant an earlier check in this generator established"
+)]
 fn emit_entity_query_def(query_def: &QueryDef) -> String {
     let entity = query_def
         .entity
@@ -999,9 +1009,10 @@ fn emit_entity_query_def(query_def: &QueryDef) -> String {
         .map(|key| naming::ruby_inspect_string(key))
         .collect::<Vec<_>>()
         .join(", ");
-    let wrap = |value: &Option<String>| match value {
-        Some(v) => format!("Some({v})"),
-        None => "None".to_string(),
+    let wrap = |value: &Option<String>| {
+        value
+            .as_ref()
+            .map_or_else(|| "None".to_string(), |v| format!("Some({v})"))
     };
     format!(
         "crate::kernel::named_query::EntityQueryDef {{\n    verb: {},\n    aggregate: {},\n    list_field: {},\n    parent_key: {},\n    identity_keys: &[{keys}],\n    conditions: &[\n{conditions}\n    ],\n    order_by: {},\n    offset: {},\n    limit: {},\n}},",
@@ -1052,22 +1063,22 @@ pub fn emit_query_def(query_def: &QueryDef) -> String {
         .map(|h| format!("        {}", emit_reference_hop_condition(h)))
         .collect::<Vec<_>>()
         .join("\n");
-    let order_by = match &query_def.order_by {
-        Some(o) => format!("Some({o})"),
-        None => "None".to_string(),
-    };
-    let offset = match &query_def.offset {
-        Some(o) => format!("Some({o})"),
-        None => "None".to_string(),
-    };
-    let limit = match &query_def.limit {
-        Some(l) => format!("Some({l})"),
-        None => "None".to_string(),
-    };
-    let authorization = match &query_def.authorization {
-        Some(a) => format!("Some({a})"),
-        None => "None".to_string(),
-    };
+    let order_by = query_def
+        .order_by
+        .as_ref()
+        .map_or_else(|| "None".to_string(), |o| format!("Some({o})"));
+    let offset = query_def
+        .offset
+        .as_ref()
+        .map_or_else(|| "None".to_string(), |o| format!("Some({o})"));
+    let limit = query_def
+        .limit
+        .as_ref()
+        .map_or_else(|| "None".to_string(), |l| format!("Some({l})"));
+    let authorization = query_def
+        .authorization
+        .as_ref()
+        .map_or_else(|| "None".to_string(), |a| format!("Some({a})"));
 
     format!(
         "crate::kernel::QueryDef {{\n    verb: {},\n    aggregate: {},\n    conditions: &[\n{conditions}\n    ],\n    reference_hop_conditions: &[\n{reference_hop_conditions}\n    ],\n    order_by: {order_by},\n    offset: {offset},\n    limit: {limit},\n    authorization: {authorization},\n}},",
@@ -1101,8 +1112,7 @@ pub fn query_arg_checks(
 ) -> Vec<String> {
     query
         .get("attributes")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
         .filter_map(|attr| {
             if crate::attr::list(attr)
@@ -1114,7 +1124,7 @@ pub fn query_arg_checks(
             let key = naming::rust_field(crate::attr::name(attr));
             let build =
                 crate::json_codec::composite_from_json_expr(attr, value_objects_by_name, "x");
-            let check = if vo.get("closed_set").map(Json::as_bool).unwrap_or(false) {
+            let check = if vo.get("closed_set").is_some_and(Json::as_bool) {
                 ""
             } else {
                 ".check_invariants()?"

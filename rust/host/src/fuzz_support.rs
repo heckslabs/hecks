@@ -13,7 +13,7 @@ pub(crate) struct Rng(u64);
 
 impl Rng {
     pub(crate) fn new(seed: u64) -> Self {
-        Rng(seed.wrapping_mul(0x9E37_79B9_7F4A_7C15) | 1)
+        Self(seed.wrapping_mul(0x9E37_79B9_7F4A_7C15) | 1)
     }
 
     pub(crate) fn next(&mut self) -> u64 {
@@ -70,10 +70,11 @@ pub(crate) fn guarded<T: Send + 'static>(label: &str, f: impl FnOnce() -> T + Se
             let panic = handle
                 .join()
                 .expect_err("a guarded thread that sent nothing must have panicked");
-            let message = panic
-                .downcast_ref::<String>()
-                .cloned()
-                .or_else(|| panic.downcast_ref::<&str>().map(|s| s.to_string()));
+            let message = panic.downcast_ref::<String>().cloned().or_else(|| {
+                panic
+                    .downcast_ref::<&str>()
+                    .map(std::string::ToString::to_string)
+            });
             panic!("{label}: panicked: {}", message.unwrap_or_default())
         }
     }
@@ -161,8 +162,8 @@ pub(crate) fn edge_number(rng: &mut Rng) -> Value {
         json!(1e308),
         json!(-1e308),
         json!(5e-324),
-        json!(1.7976931348623157e308),
-        json!(9007199254740993_i64),
+        json!(1.797_693_134_862_315_7e308),
+        json!(9_007_199_254_740_993_i64),
     ];
     rng.pick(&edges).clone()
 }
@@ -193,12 +194,12 @@ pub(crate) fn random_value(rng: &mut Rng, depth: usize) -> Value {
 
 /// `text` with a few random edits, on char boundaries.
 pub(crate) fn mutate_text(rng: &mut Rng, text: &str) -> String {
-    let mut chars: Vec<char> = text.chars().collect();
     const JUNK: &[char] = &[
         '{', '}', '[', ']', '"', '\\', ',', ':', '-', '+', '.', 'e', '0', '9', 'n', 't', ' ',
         '\u{0}', '\n', '%', 'é', '🍕',
     ];
-    for _ in 0..1 + rng.below(3) {
+    let mut chars: Vec<char> = text.chars().collect();
+    for _ in 0..=rng.below(3) {
         if chars.is_empty() {
             chars.push(*rng.pick(JUNK));
             continue;

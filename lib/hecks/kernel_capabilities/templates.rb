@@ -30,13 +30,13 @@ module Hecks
             /// variant names — `hecks measure_kernel_coverage`'s own existence
             /// check reads this, so the file-name spelling here is the ONE
             /// place that ever needs to change if a name is renamed.
-            pub fn module_name(&self) -> &'static str {
+            pub const fn module_name(&self) -> &'static str {
                 match self {
         %<arms>s
                 }
             }
 
-            pub const ALL: &'static [%<enum_name>s] = &[%<all>s];
+            pub const ALL: &'static [Self] = &[%<all>s];
         }
       RUST
 
@@ -78,8 +78,8 @@ module Hecks
                      directory: shapes ? "attribute_shapes" : "expression_operators",
                      mods: names.map { |name| "pub mod #{name};" }.join("\n"),
                      variants: names.map { |name| "    #{pascal(name)}," }.join("\n"),
-                     arms: names.map { |name| "            #{enum_name}::#{pascal(name)} => #{name.to_s.inspect}," }.join("\n"),
-                     all: names.map { |name| "#{enum_name}::#{pascal(name)}" }.join(", "))
+                     arms: names.map { |name| "            Self::#{pascal(name)} => #{name.to_s.inspect}," }.join("\n"),
+                     all: names.map { |name| "Self::#{pascal(name)}" }.join(", "))
       end
 
       # @param name [String, Symbol] a snake_case capability name

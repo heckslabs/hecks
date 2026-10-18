@@ -70,9 +70,10 @@ pub fn resolve_identity_type(
         ));
     }
 
-    let field = as_field
-        .map(|s| s.to_string())
-        .unwrap_or_else(|| crate::build::naming::snake(&target));
+    let field = as_field.map_or_else(
+        || crate::build::naming::snake(&target),
+        std::string::ToString::to_string,
+    );
     if attributes.iter().any(|attribute| attribute.name == field) {
         return Err(Diagnostic::new(
             file,

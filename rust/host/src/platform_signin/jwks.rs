@@ -201,7 +201,7 @@ impl<F: JwksFetcher> JwksCache<F> {
         // The state is only ever replaced whole, so a panic elsewhere cannot leave it half-written.
         self.state
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
     fn is_stale(&self, state: &CacheState, now: i64) -> bool {
@@ -445,6 +445,7 @@ mod tests {
         (JwksCache::new(fetcher), calls)
     }
 
+    #[allow(clippy::unnecessary_wraps)] // reason: a scripted fetch answer has the fetcher's Result type
     fn one_key(x: &str) -> Result<String, FetchFailed> {
         Ok(document(&[format!(
             r#"{{"kty":"OKP","crv":"Ed25519","x":"{x}"}}"#

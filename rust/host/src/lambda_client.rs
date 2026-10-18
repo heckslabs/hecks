@@ -83,9 +83,8 @@ pub async fn deliver<L: LambdaInvoker + ?Sized>(
             .body
             .get("errorMessage")
             .and_then(Value::as_str)
-            .map(str::to_string)
-            .unwrap_or_else(|| outcome.body.to_string());
-        anyhow::bail!("Lambda {function_name} ({}): {message}", target_verb);
+            .map_or_else(|| outcome.body.to_string(), str::to_string);
+        anyhow::bail!("Lambda {function_name} ({target_verb}): {message}");
     }
 
     let target_side_refusal = outcome
@@ -179,9 +178,9 @@ pub async fn deliver_with_retry<L: LambdaInvoker + ?Sized>(
             .get("payload")
             .cloned()
             .unwrap_or_else(|| serde_json::json!({})),
-        // Safe: this arm only runs after the loop above executed at least once,
-        // and every iteration's `Err` arm sets `last_error` before falling through.
-        error: last_error.unwrap(),
+        // The loop runs at least once and every `Err` arm sets `last_error`, so the fallback is
+        // unreachable; it exists only so a zero attempt budget still reports a failure.
+        error: last_error.unwrap_or_else(|| anyhow::anyhow!("no delivery attempt ran")),
         attempts: MAX_DELIVERY_ATTEMPTS,
     })
 }

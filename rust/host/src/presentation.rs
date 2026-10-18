@@ -108,7 +108,7 @@ fn bucket(instances: Option<&Value>) -> KernelRows {
                 rows.collections.push(state.clone());
             }
             _ if qualified == format!("{CONFIG_DOMAIN}::Overview") => {
-                rows.overview.push(state.clone())
+                rows.overview.push(state.clone());
             }
             _ => {}
         }
@@ -131,7 +131,7 @@ pub(crate) struct KernelRows {
 impl KernelRows {
     /// No row of any of the three kinds — the one answer that cannot
     /// tell a kernel without this chapter from one nobody has saved to.
-    fn is_empty(&self) -> bool {
+    const fn is_empty(&self) -> bool {
         self.states.is_empty() && self.collections.is_empty() && self.overview.is_empty()
     }
 
@@ -207,10 +207,9 @@ async fn relation_exists<C: GenericClient>(client: &C, relation: &str) -> anyhow
 /// `PresentationConfig.unwrap` — every scalar here is a single-attribute
 /// value object (`{"value": ...}`); anything else rides through untouched.
 fn unwrap(value: &Value) -> Value {
-    match value.get("value") {
-        Some(inner) => inner.clone(),
-        None => value.clone(),
-    }
+    value
+        .get("value")
+        .map_or_else(|| value.clone(), Clone::clone)
 }
 
 fn unwrap_str(value: Option<&Value>) -> String {
@@ -328,8 +327,7 @@ fn reshape_collection_row(row: &Value) -> Value {
 fn elements<'a>(row: &'a Value, field: &str) -> &'a [Value] {
     row.get(field)
         .and_then(|v| v.as_array())
-        .map(|a| a.as_slice())
-        .unwrap_or(&[])
+        .map_or(&[][..], std::vec::Vec::as_slice)
 }
 
 fn reshape_identity(row: &Value) -> Option<Value> {
@@ -338,9 +336,7 @@ fn reshape_identity(row: &Value) -> Option<Value> {
     identity.insert("field".to_string(), field);
     identity.insert(
         "strategy".to_string(),
-        row.get("identity_strategy")
-            .map(unwrap)
-            .unwrap_or(Value::Null),
+        row.get("identity_strategy").map_or(Value::Null, unwrap),
     );
     if let Some(source) = present(row.get("identity_source")) {
         identity.insert("source".to_string(), unwrap(source));

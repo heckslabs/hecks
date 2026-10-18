@@ -152,7 +152,7 @@ async fn verify_id_token(id_token: &str, client_id: &str) -> Result<Claims, Stri
         email: claims
             .get("email")
             .and_then(|v| v.as_str())
-            .map(|s| s.to_string()),
+            .map(std::string::ToString::to_string),
         email_verified: matches!(claims.get("email_verified"), Some(Value::Bool(true)))
             || claims.get("email_verified").and_then(|v| v.as_str()) == Some("true"),
     })
@@ -197,7 +197,10 @@ pub fn verify_account_token(secret: &str, token: &str) -> Option<String> {
     if now_secs() > exp {
         return None;
     }
-    value.get("email")?.as_str().map(|s| s.to_string())
+    value
+        .get("email")?
+        .as_str()
+        .map(std::string::ToString::to_string)
 }
 
 /// Verifies only for `purpose` (the signing key derives from it, so it
@@ -259,7 +262,7 @@ pub fn parse_session_cookie(secret: &str, cookie: &str) -> Option<Session> {
         role: value
             .get("role")
             .and_then(|v| v.as_str())
-            .map(|s| s.to_string()),
+            .map(std::string::ToString::to_string),
     })
 }
 
@@ -366,9 +369,7 @@ pub async fn resolve_identity_from_head(
                 return Ok(identity_id_from_state(&state));
             }
             Ok(None) => return Ok(None),
-            Err(e) if e.code() == Some(&tokio_postgres::error::SqlState::UNDEFINED_TABLE) => {
-                continue
-            }
+            Err(e) if e.code() == Some(&tokio_postgres::error::SqlState::UNDEFINED_TABLE) => {}
             Err(e) => return Err(e.into()),
         }
     }
@@ -491,7 +492,7 @@ pub async fn session_for_member_by_identity(
                 .get("role")
                 .and_then(|v| v.get("value"))
                 .and_then(|v| v.as_str())
-                .map(|s| s.to_string()),
+                .map(std::string::ToString::to_string),
         })
     }))
 }
@@ -509,9 +510,8 @@ pub async fn provision(
     subject: &str,
     invoker: &dyn LambdaInvoker,
 ) -> anyhow::Result<Option<Session>> {
-    let member = match member_row_by_email(client, domain_ir, email).await? {
-        Some(m) => m,
-        None => return Ok(None),
+    let Some(member) = member_row_by_email(client, domain_ir, email).await? else {
+        return Ok(None);
     };
     if is_disabled(&member) {
         return Ok(None);
@@ -547,47 +547,48 @@ pub async fn provision(
     // already_linked guard above never recognized as unlinked. Resolving
     // first makes a retry converge onto the earlier attempt's identity
     // instead of accumulating another orphan.
-    let identity_id = match resolve_identity_from_head(client, domain_ir, issuer, subject).await? {
-        Some(existing) => existing,
-        None => {
-            let identity_id = uuid::Uuid::new_v4().to_string();
+    let identity_id = if let Some(existing) =
+        resolve_identity_from_head(client, domain_ir, issuer, subject).await?
+    {
+        existing
+    } else {
+        let identity_id = uuid::Uuid::new_v4().to_string();
 
-            // `None` on every dispatch below: this is system-initiated
-            // provisioning, not a caller-submitted command, so there is no
-            // caller role to assert.
-            let register = dispatch::handle(
-                client,
-                wasm_path,
-                &identity.register,
-                json!({"identity_id": {"value": identity_id}}),
-                None,
-                config,
-                invoker,
-            )
-            .await?;
-            if !register.accepted {
-                anyhow::bail!("{} refused: {}", identity.register, register.result);
-            }
-
-            let link_external = dispatch::handle(
-                client,
-                wasm_path,
-                &identity.link,
-                json!({
-                    "identity": identity_id, "key": {"value": format!("{issuer}:{subject}")},
-                    "issuer": {"value": issuer}, "subject": {"value": subject},
-                }),
-                None,
-                config,
-                invoker,
-            )
-            .await?;
-            if !link_external.accepted {
-                anyhow::bail!("{} refused: {}", identity.link, link_external.result);
-            }
-
-            identity_id
+        // `None` on every dispatch below: this is system-initiated
+        // provisioning, not a caller-submitted command, so there is no
+        // caller role to assert.
+        let register = dispatch::handle(
+            client,
+            wasm_path,
+            &identity.register,
+            json!({"identity_id": {"value": identity_id}}),
+            None,
+            config,
+            invoker,
+        )
+        .await?;
+        if !register.accepted {
+            anyhow::bail!("{} refused: {}", identity.register, register.result);
         }
+
+        let link_external = dispatch::handle(
+            client,
+            wasm_path,
+            &identity.link,
+            json!({
+                "identity": identity_id, "key": {"value": format!("{issuer}:{subject}")},
+                "issuer": {"value": issuer}, "subject": {"value": subject},
+            }),
+            None,
+            config,
+            invoker,
+        )
+        .await?;
+        if !link_external.accepted {
+            anyhow::bail!("{} refused: {}", identity.link, link_external.result);
+        }
+
+        identity_id
     };
 
     // The grant verb this domain's declared authorization provider names
@@ -677,7 +678,7 @@ pub async fn admit_person(
 fn is_disabled(state: &Value) -> bool {
     state
         .get("disabled")
-        .and_then(|v| v.as_bool())
+        .and_then(serde_json::Value::as_bool)
         .unwrap_or(false)
 }
 
@@ -688,7 +689,7 @@ fn is_disabled(state: &Value) -> bool {
 fn is_deleted(state: &Value) -> bool {
     state
         .get("deleted")
-        .and_then(|v| v.as_bool())
+        .and_then(serde_json::Value::as_bool)
         .unwrap_or(false)
 }
 
@@ -1061,7 +1062,7 @@ pub fn holds_admin(
                     .and_then(|v| v.get("value"))
                     .and_then(|v| v.as_str())
                     .is_some_and(is_admin_role)
-                && state.get("ends_at").map(|v| v.is_null()).unwrap_or(true)
+                && state.get("ends_at").is_none_or(serde_json::Value::is_null)
         })
     })
 }
@@ -1090,11 +1091,11 @@ pub(crate) fn httpdate_now() -> String {
 
 // Howard Hinnant's days-from-civil algorithm, inverted -- avoids
 // pulling in a full date/time crate for one timestamp format.
-fn civil_from_days(z: i64) -> (i64, u32, u32) {
+const fn civil_from_days(z: i64) -> (i64, u32, u32) {
     let z = z + 719_468;
     let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
     let doe = (z - era * 146_097) as u64;
-    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146_096) / 365;
     let y = yoe as i64 + era * 400;
     let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
     let mp = (5 * doy + 2) / 153;
@@ -1103,6 +1104,7 @@ fn civil_from_days(z: i64) -> (i64, u32, u32) {
     (if m <= 2 { y + 1 } else { y }, m, d)
 }
 
+#[allow(clippy::expect_used)] // reason: HMAC accepts a key of any length, so construction cannot fail
 fn sign(secret: &str, payload: &str) -> String {
     use hmac::{Hmac, Mac};
     use sha2::Sha256;
@@ -1128,7 +1130,11 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
 }
 
 fn hex_encode(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| format!("{b:02x}")).collect()
+    use std::fmt::Write;
+    bytes.iter().fold(String::new(), |mut out, b| {
+        let _ = write!(out, "{b:02x}"); // writing to a String cannot fail
+        out
+    })
 }
 
 const B64: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
@@ -1141,7 +1147,7 @@ fn base64_encode(input: &[u8]) -> String {
             *chunk.get(1).unwrap_or(&0),
             *chunk.get(2).unwrap_or(&0),
         ];
-        let n = ((b[0] as u32) << 16) | ((b[1] as u32) << 8) | b[2] as u32;
+        let n = (u32::from(b[0]) << 16) | (u32::from(b[1]) << 8) | u32::from(b[2]);
         out.push(B64[(n >> 18) as usize & 0x3f] as char);
         out.push(B64[(n >> 12) as usize & 0x3f] as char);
         if chunk.len() > 1 {
@@ -1167,7 +1173,7 @@ fn base64_decode(input: &str) -> Vec<u8> {
         if v == 255 {
             continue;
         }
-        buf = (buf << 6) | v as u32;
+        buf = (buf << 6) | u32::from(v);
         bits += 6;
         if bits >= 8 {
             bits -= 8;
@@ -1178,13 +1184,16 @@ fn base64_decode(input: &str) -> Vec<u8> {
 }
 
 pub(crate) fn urlencode(s: &str) -> String {
+    use std::fmt::Write;
     let mut out = String::new();
     for b in s.bytes() {
         match b {
             b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-                out.push(b as char)
+                out.push(b as char);
             }
-            _ => out.push_str(&format!("%{b:02X}")),
+            _ => {
+                let _ = write!(out, "%{b:02X}"); // writing to a String cannot fail
+            }
         }
     }
     out

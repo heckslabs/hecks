@@ -39,7 +39,7 @@ enum RunError {
 
 impl From<diag::Diagnostic> for RunError {
     fn from(d: diag::Diagnostic) -> Self {
-        RunError::Parse(d)
+        Self::Parse(d)
     }
 }
 
@@ -47,7 +47,10 @@ fn run(args: &[String]) -> Result<(), RunError> {
     match args.first().map(String::as_str) {
         Some("chapter") => run_chapter(&args[1..]),
         Some("resolve") => run_resolve(&args[1..]),
-        Some("coverage") => run_coverage(&args[1..]),
+        Some("coverage") => {
+            run_coverage();
+            Ok(())
+        }
         Some(other) => Err(RunError::Usage(format!(
             "unknown subcommand '{other}' — expected 'chapter', 'resolve', or 'coverage'"
         ))),
@@ -250,11 +253,10 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("one_of", "Type"),
 ];
 
-fn run_coverage(_args: &[String]) -> Result<(), RunError> {
+fn run_coverage() {
     let pairs: Vec<String> = COVERED_PAIRS
         .iter()
         .map(|(word, context)| format!("[\"{word}\", \"{context}\"]"))
         .collect();
     println!("[{}]", pairs.join(", "));
-    Ok(())
 }

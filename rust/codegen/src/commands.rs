@@ -18,10 +18,8 @@ pub fn invariants_fn_name(aggregate: &Json) -> String {
 }
 
 pub fn emit_invariants_fn(aggregate: &Json) -> String {
-    let aggregate_vec = invariant_specs_vec(
-        aggregate.get("invariants").map(Json::each).unwrap_or(&[]),
-        8,
-    );
+    let aggregate_vec =
+        invariant_specs_vec(aggregate.get("invariants").map_or_default(Json::each), 8);
     let entities_vec = entity_invariants_vec(aggregate, 8);
     // `Expr` is imported only when an invariant literal was emitted; otherwise it is unused.
     let needs_expr = aggregate_vec.contains("Expr::") || entities_vec.contains("Expr::");
@@ -43,6 +41,10 @@ pub fn emit_invariants_fn(aggregate: &Json) -> String {
     .join("\n")
 }
 
+#[allow(
+    clippy::panic,
+    reason = "a drifted exemplar or invalid IR aborts generation on purpose"
+)]
 fn invariant_specs_vec(rules: &[Json], indent: usize) -> String {
     if rules.is_empty() {
         return "vec![]".to_string();
@@ -66,22 +68,21 @@ fn invariant_specs_vec(rules: &[Json], indent: usize) -> String {
 }
 
 fn entity_invariants_vec(owner: &Json, indent: usize) -> String {
-    let entities = owner.get("entities").map(Json::each).unwrap_or(&[]);
-    let attributes = owner.get("attributes").map(Json::each).unwrap_or(&[]);
+    let entities = owner.get("entities").map_or_default(Json::each);
+    let attributes = owner.get("attributes").map_or_default(Json::each);
     let pieces: Vec<(&Json, String)> = entities
         .iter()
         .filter_map(|entity| {
             if entity
                 .get("invariants")
-                .map(Json::each)
-                .unwrap_or(&[])
+                .map_or_default(Json::each)
                 .is_empty()
             {
                 return None;
             }
             let name = entity.get("name").map(Json::to_s).unwrap_or_default();
             let list = attributes.iter().find(|a| {
-                a.get("list").map(Json::as_bool).unwrap_or(false)
+                a.get("list").is_some_and(Json::as_bool)
                     && a.get("type").map(Json::to_s).unwrap_or_default() == name
             })?;
             Some((entity, list.get("name").map(Json::to_s).unwrap_or_default()))
@@ -98,7 +99,7 @@ fn entity_invariants_vec(owner: &Json, indent: usize) -> String {
                 "{pad}crate::kernel::EntityInvariants {{ name: {}, list_field: {}, specs: {}, nested: {} }},",
                 naming::ruby_inspect_string(&entity.get("name").map(Json::to_s).unwrap_or_default()),
                 naming::ruby_inspect_string(list_field),
-                invariant_specs_vec(entity.get("invariants").map(Json::each).unwrap_or(&[]), indent + 4),
+                invariant_specs_vec(entity.get("invariants").map_or_default(Json::each), indent + 4),
                 entity_invariants_vec(entity, indent + 4)
             )
         })
@@ -107,7 +108,7 @@ fn entity_invariants_vec(owner: &Json, indent: usize) -> String {
 }
 
 /// Extra parameters of every generated `dispatch_*`/`dispatch_entity_*`, resolved by the router.
-fn deref_params() -> [&'static str; 2] {
+const fn deref_params() -> [&'static str; 2] {
     [
         "owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>",
         "command_deref: Vec<(&'static str, crate::kernel::DerefNode)>",
@@ -136,7 +137,7 @@ fn target_type_for<'a>(
     if lifecycle_field == Some(target) {
         return Some("String");
     }
-    let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
+    let attrs = aggregate.get("attributes").map_or_default(Json::each);
     attrs
         .iter()
         .find(|a| crate::attr::name(a) == target)
@@ -148,12 +149,11 @@ fn target_list_for(target: &str, aggregate: &Json, lifecycle_field: Option<&str>
     if lifecycle_field == Some(target) {
         return false;
     }
-    let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
+    let attrs = aggregate.get("attributes").map_or_default(Json::each);
     attrs
         .iter()
         .find(|a| crate::attr::name(a) == target)
-        .map(crate::attr::list)
-        .unwrap_or(false)
+        .is_some_and(crate::attr::list)
 }
 
 pub fn command_skip_reason(
@@ -172,7 +172,7 @@ fn command_skip_reason_with(
     value_objects_by_name: &HashMap<String, &Json>,
     creating_possible: bool,
 ) -> Option<SkipReason> {
-    let mutations_list = command.get("mutations").map(Json::each).unwrap_or(&[]);
+    let mutations_list = command.get("mutations").map_or_default(Json::each);
 
     let mut unsupported_ops: Vec<String> = Vec::new();
     for m in mutations_list {
@@ -302,7 +302,7 @@ fn command_skip_reason_with(
             let target = m.get("target").map(Json::to_s).unwrap_or_default();
             let target_type = target_type_for(&target, aggregate, lifecycle_field.as_deref());
             let source_name = source.get("name").map(Json::to_s).unwrap_or_default();
-            let cmd_attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
+            let cmd_attrs = command.get("attributes").map_or_default(Json::each);
             let source_attr = cmd_attrs
                 .iter()
                 .find(|a| crate::attr::name(a) == source_name);
@@ -416,14 +416,11 @@ fn optional_source_mismatches_with(
         .and_then(|l| l.get("field"))
         .map(Json::to_s);
     let mut problems: Vec<String> = Vec::new();
-    let cmd_attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
+    let cmd_attrs = command.get("attributes").map_or_default(Json::each);
 
     if creating_possible && crate::shared::creates_owner(aggregate, command, value_objects_by_name)
     {
-        let identified_by = aggregate
-            .get("identified_by")
-            .map(Json::each)
-            .unwrap_or(&[]);
+        let identified_by = aggregate.get("identified_by").map_or_default(Json::each);
         for path in identified_by {
             let path = path.as_str().unwrap_or("");
             let head = path.split('.').next().unwrap_or("");
@@ -438,7 +435,7 @@ fn optional_source_mismatches_with(
         }
     }
 
-    let mutations_list = command.get("mutations").map(Json::each).unwrap_or(&[]);
+    let mutations_list = command.get("mutations").map_or_default(Json::each);
     for m in mutations_list {
         let op = m.get("op").map(Json::to_s).unwrap_or_default();
         let target = m.get("target").map(Json::to_s).unwrap_or_default();
@@ -469,16 +466,16 @@ fn optional_source_mismatches_with(
                     continue;
                 }
 
-                let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
+                let attrs = aggregate.get("attributes").map_or_default(Json::each);
                 let target_attr = attrs.iter().find(|a| crate::attr::name(a) == target);
-                if target_attr.map(crate::attr::list).unwrap_or(false) {
+                if target_attr.is_some_and(crate::attr::list) {
                     continue;
                 }
                 // An aggregate command's record fields are all `Option<T>`.
                 if creating_possible {
                     continue;
                 }
-                if !target_attr.map(crate::attr::optional).unwrap_or(false) {
+                if !target_attr.is_some_and(crate::attr::optional) {
                     problems.push(format!(
                         "sets :{target} sources optional argument {}",
                         crate::attr::name(source_attr)
@@ -486,7 +483,7 @@ fn optional_source_mismatches_with(
                 }
             }
             "append" => {
-                let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
+                let attrs = aggregate.get("attributes").map_or_default(Json::each);
                 let Some(target_attr) = attrs.iter().find(|a| crate::attr::name(a) == target)
                 else {
                     continue;
@@ -503,7 +500,7 @@ fn optional_source_mismatches_with(
                     Some(Json::Object(pairs)) => pairs.clone(),
                     _ => Vec::new(),
                 };
-                let element_attrs = element.get("attributes").map(Json::each).unwrap_or(&[]);
+                let element_attrs = element.get("attributes").map_or_default(Json::each);
                 for (field_name, source) in &fields {
                     let parsed = mutations::append_field_source(&source.to_s());
                     let Literal::Symbol(arg_name) = &parsed else {
@@ -521,7 +518,7 @@ fn optional_source_mismatches_with(
                     let field_attr = element_attrs
                         .iter()
                         .find(|a| crate::attr::name(a) == field_name.as_str());
-                    if !field_attr.map(crate::attr::optional).unwrap_or(false) {
+                    if !field_attr.is_some_and(crate::attr::optional) {
                         problems.push(format!(
                             "sets append {target}.{field_name} sources optional argument {}",
                             crate::attr::name(source_attr)
@@ -563,7 +560,7 @@ pub fn argument_check_lines(
 
     let vo = value_objects_by_name.get(crate::attr::type_name(attr));
     if let Some(vo) = vo {
-        if !vo.get("closed_set").map(Json::as_bool).unwrap_or(false) {
+        if !vo.get("closed_set").is_some_and(Json::as_bool) {
             let line = if crate::attr::optional(attr) {
                 if crate::attr::list(attr) {
                     format!("        if let Some(items) = &{value_expr} {{ for item in items {{ item.check_invariants()?; }} }}")
@@ -589,7 +586,7 @@ pub fn invariant_checks_for(
     aggregates_by_name: &HashMap<String, &Json>,
     value_objects_by_name: &HashMap<String, &Json>,
 ) -> Vec<String> {
-    let attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
+    let attrs = command.get("attributes").map_or_default(Json::each);
     let mut lines: Vec<String> = Vec::new();
 
     for attr in attrs {
@@ -608,6 +605,11 @@ pub fn invariant_checks_for(
 }
 
 /// One emitter for every command shape `kernel::dispatch` can run.
+#[allow(
+    clippy::option_if_let_else,
+    clippy::panic,
+    reason = "a drifted exemplar or invalid IR aborts generation on purpose; a map_or_else closure would bury this long body"
+)]
 pub fn emit_command(
     exemplar: &Exemplar,
     command: &Json,
@@ -630,14 +632,13 @@ pub fn emit_command(
         .to_string();
     let identity_reading = aggregate
         .get("identified_by")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
         .map(Json::to_s)
         .collect::<Vec<_>>()
         .join(", ");
 
-    let attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
+    let attrs = command.get("attributes").map_or_default(Json::each);
     let mut args_struct = vec![format!("pub struct {cmd}Args {{")];
     for attr in attrs {
         let mut ty = naming::rust_type(crate::attr::type_name(attr), crate::attr::list(attr));
@@ -663,7 +664,7 @@ pub fn emit_command(
     let invariant_checks =
         invariant_checks_for(exemplar, command, aggregates_by_name, value_objects_by_name);
 
-    let givens = command.get("givens").map(Json::each).unwrap_or(&[]);
+    let givens = command.get("givens").map_or_default(Json::each);
     let mut given_specs: Vec<String> = crate::bridging::corrects_given_specs(command);
     given_specs.extend(givens.iter().map(|g| {
         let description = g.get("description").and_then(Json::as_str).unwrap_or("");
@@ -671,7 +672,7 @@ pub fn emit_command(
         format!("            crate::kernel::GivenSpec {{ description: {}, expr: {}, corrects_event: None }},", naming::ruby_inspect_string(description), crate::expr_emitter::emit_ast(ast))
     }));
 
-    let ensures = command.get("ensures").map(Json::each).unwrap_or(&[]);
+    let ensures = command.get("ensures").map_or_default(Json::each);
     let ensures_specs: Vec<String> = ensures
         .iter()
         .map(|e| {
@@ -690,7 +691,7 @@ pub fn emit_command(
     let transition = mutations::lifecycle_transition_for(command, aggregate);
     let transition_arg = mutations::transition_check_arg(transition.as_ref());
 
-    let mutations_list = command.get("mutations").map(Json::each).unwrap_or(&[]);
+    let mutations_list = command.get("mutations").map_or_default(Json::each);
     // A `delegate` mutation is rendered by `delegation_of`, which overwrites `mutation_lines`;
     // `mutations::emit_mutation_line` panics on the op, so it must be excluded here.
     let mut mutation_lines: Vec<String> = mutations_list
@@ -718,8 +719,7 @@ pub fn emit_command(
     let mut emitted_names: Vec<String> = Vec::new();
     for name in command
         .get("emits")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
         .map(Json::to_s)
     {
@@ -779,8 +779,7 @@ pub fn emit_command(
     // Owned because the pseudo-attributes are freshly built.
     let mut record_agg_attrs_owned: Vec<Json> = aggregate
         .get("attributes")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .to_vec();
     record_agg_attrs_owned.extend(crate::types::projected_field_pseudo_attributes(aggregate));
     let record_agg_attrs = record_agg_attrs_owned.as_slice();
@@ -842,10 +841,10 @@ pub fn emit_command(
                 } else if crate::attr::list(attr) {
                     format!("            {field}: vec![],")
                 } else {
-                    match crate::bridging::creation_default_rhs(attr, value_objects_by_name) {
-                        Some(rhs) => format!("            {field}: Some({rhs}),"),
-                        None => format!("            {field}: None,"),
-                    }
+                    crate::bridging::creation_default_rhs(attr, value_objects_by_name).map_or_else(
+                        || format!("            {field}: None,"),
+                        |rhs| format!("            {field}: Some({rhs}),"),
+                    )
                 }
             })
             .collect();
@@ -907,7 +906,7 @@ pub fn emit_command(
         sig_parts.extend(identity_extra_params.iter().cloned());
         sig_parts.push(format!("args: {cmd}Args"));
         sig_parts.push("mutations: &mut Vec<crate::kernel::MutationRecord>".to_string());
-        sig_parts.extend(deref_params().iter().map(|s| s.to_string()));
+        sig_parts.extend(deref_params().iter().map(std::string::ToString::to_string));
         sig_parts.push(TENANT_BOUNDARY_PARAM.to_string());
         fn_signature = sig_parts.join(", ");
     } else {
@@ -917,7 +916,7 @@ pub fn emit_command(
             format!("args: {cmd}Args"),
             "mutations: &mut Vec<crate::kernel::MutationRecord>".to_string(),
         ];
-        sig_parts.extend(deref_params().iter().map(|s| s.to_string()));
+        sig_parts.extend(deref_params().iter().map(std::string::ToString::to_string));
         sig_parts.push(TENANT_BOUNDARY_PARAM.to_string());
         hydrate = "crate::kernel::Hydrate::Act { id: id.to_string() }".to_string();
         fn_signature = sig_parts.join(", ");
@@ -932,8 +931,7 @@ pub fn emit_command(
             .join(", "),
         None => command
             .get("emits")
-            .map(Json::each)
-            .unwrap_or(&[])
+            .map_or_default(Json::each)
             .iter()
             .map(|e| naming::ruby_inspect_string(&e.to_s()))
             .collect::<Vec<_>>()
@@ -987,8 +985,7 @@ pub fn emit_command(
 fn delegate_of(command: &Json) -> Option<&Json> {
     command
         .get("mutations")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
         .find(|m| m.get("op").map(Json::to_s).unwrap_or_default() == "delegate")
 }
@@ -1008,20 +1005,17 @@ fn delegate_target<'a>(
     aggregate: &'a Json,
 ) -> (Option<&'a Json>, Option<&'a Json>) {
     let target = delegation.get("target").map(Json::to_s).unwrap_or_default();
-    let (entity_name, command_name) = match target.rfind('.') {
-        Some(dot) => (&target[..dot], &target[dot + 1..]),
-        None => ("", target.as_str()),
-    };
+    let (entity_name, command_name) = target.rfind('.').map_or(("", target.as_str()), |dot| {
+        (&target[..dot], &target[dot + 1..])
+    });
     let entity = aggregate
         .get("entities")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
         .find(|e| e.get("name").map(Json::to_s).unwrap_or_default() == entity_name);
     let command = entity.and_then(|e| {
         e.get("commands")
-            .map(Json::each)
-            .unwrap_or(&[])
+            .map_or_default(Json::each)
             .iter()
             .find(|c| c.get("name").map(Json::to_s).unwrap_or_default() == command_name)
     });
@@ -1038,13 +1032,7 @@ pub fn delegate_skip_reason(
         "delegates_to {}",
         delegation.get("target").map(Json::to_s).unwrap_or_default()
     );
-    if command
-        .get("mutations")
-        .map(Json::each)
-        .unwrap_or(&[])
-        .len()
-        > 1
-    {
+    if command.get("mutations").map_or_default(Json::each).len() > 1 {
         return Some(format!("{label} alongside other sets — not generated yet"));
     }
     let (entity, target) = delegate_target(delegation, aggregate);
@@ -1071,11 +1059,10 @@ pub fn delegate_skip_reason(
         mapping
             .iter()
             .find(|(t, _)| t == name)
-            .map(|(_, s)| s.clone())
-            .unwrap_or_else(|| name.to_string())
+            .map_or_else(|| name.to_string(), |(_, s)| s.clone())
     };
-    let argument_attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
-    for attr in target.get("attributes").map(Json::each).unwrap_or(&[]) {
+    let argument_attrs = command.get("attributes").map_or_default(Json::each);
+    for attr in target.get("attributes").map_or_default(Json::each) {
         let name = crate::attr::name(attr);
         let source_name = source_name_for(name);
         let source = argument_attrs
@@ -1107,7 +1094,7 @@ pub fn delegate_skip_reason(
             ));
         }
     }
-    for path in entity.get("identified_by").map(Json::each).unwrap_or(&[]) {
+    for path in entity.get("identified_by").map_or_default(Json::each) {
         let path = path.to_s();
         let head = path.split('.').next().unwrap_or("").to_string();
         let source_name = source_name_for(&head);
@@ -1141,6 +1128,11 @@ fn indent_block(text: &str, indent: &str) -> String {
         .to_string()
 }
 
+#[allow(
+    clippy::expect_used,
+    clippy::panic,
+    reason = "a drifted exemplar or invalid IR aborts generation on purpose; the message names an invariant an earlier check in this generator established"
+)]
 fn delegation_of(
     exemplar: &Exemplar,
     command: &Json,
@@ -1158,8 +1150,7 @@ fn delegation_of(
     let aggregate_name = aggregate.get("name").map(Json::to_s).unwrap_or_default();
     let list_attr = aggregate
         .get("attributes")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
         .find(|a| crate::attr::list(a) && crate::attr::type_name(a) == entity_name)
         .unwrap_or_else(|| panic!("{entity_name}: no list attribute on {aggregate_name} holds it"));
@@ -1181,8 +1172,7 @@ fn delegation_of(
         .collect();
     let given_specs: Vec<String> = target
         .get("givens")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
         .map(|g| {
             let description = g.get("description").and_then(Json::as_str).unwrap_or("");
@@ -1192,8 +1182,7 @@ fn delegation_of(
         .collect();
     let ensures_specs: Vec<String> = target
         .get("ensures")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
         .map(|e| {
             let description = e.get("description").and_then(Json::as_str).unwrap_or("");
@@ -1211,14 +1200,13 @@ fn delegation_of(
     let transition_arg = mutations::transition_check_arg(transition.as_ref());
     let mut mutation_lines: Vec<String> = target
         .get("mutations")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
         .map(|m| {
             mutations::emit_mutation_line(exemplar, m, entity, target, value_objects_by_name, false)
         })
         .collect();
-    if mutations::reads_pre_state(target.get("mutations").map(Json::each).unwrap_or(&[])) {
+    if mutations::reads_pre_state(target.get("mutations").map_or_default(Json::each)) {
         mutation_lines.insert(0, mutations::pre_state_line());
     }
     if let Some(t) = &transition {
@@ -1235,8 +1223,7 @@ fn delegation_of(
     }
     let identity_reading = entity
         .get("identified_by")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
         .map(Json::to_s)
         .collect::<Vec<_>>()
@@ -1301,8 +1288,7 @@ fn delegation_of(
         apply: indent_block(&apply, "        "),
         emits: target
             .get("emits")
-            .map(Json::each)
-            .unwrap_or(&[])
+            .map_or_default(Json::each)
             .iter()
             .map(Json::to_s)
             .collect(),
@@ -1320,6 +1306,10 @@ pub fn entity_command_skip_reason(
 
 /// Emits the dispatch function for an entity command.
 #[allow(clippy::too_many_arguments)] // established emitter signature
+#[allow(
+    clippy::panic,
+    reason = "a drifted exemplar or invalid IR aborts generation on purpose"
+)]
 pub fn emit_entity_command(
     exemplar: &Exemplar,
     command: &Json,
@@ -1347,8 +1337,7 @@ pub fn emit_entity_command(
         .to_string();
     let parent_identity_reading = parent_aggregate
         .get("identified_by")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
         .map(Json::to_s)
         .collect::<Vec<_>>()
@@ -1360,8 +1349,7 @@ pub fn emit_entity_command(
         .to_string();
     let entity_identity_reading = entity
         .get("identified_by")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
         .map(Json::to_s)
         .collect::<Vec<_>>()
@@ -1369,8 +1357,7 @@ pub fn emit_entity_command(
 
     let parent_attrs = parent_aggregate
         .get("attributes")
-        .map(Json::each)
-        .unwrap_or(&[]);
+        .map_or_default(Json::each);
     let list_attr = parent_attrs
         .iter()
         .find(|a| crate::attr::list(a) && crate::attr::type_name(a) == entity.get("name").and_then(Json::as_str).unwrap_or(""))
@@ -1378,7 +1365,7 @@ pub fn emit_entity_command(
     let list_field = naming::rust_ident_field(crate::attr::name(list_attr));
     let args_struct_name = format!("{element_record}{cmd}EntityArgs");
 
-    let attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
+    let attrs = command.get("attributes").map_or_default(Json::each);
     let mut args_struct = vec![format!("pub struct {args_struct_name} {{")];
     for attr in attrs {
         let mut ty = naming::rust_type(crate::attr::type_name(attr), crate::attr::list(attr));
@@ -1406,7 +1393,7 @@ pub fn emit_entity_command(
 
     // `corrects_given_specs` is prepended as in `emit_command`; `apply_entity_command` evaluates
     // it against the parent record, never the entity's element.
-    let givens = command.get("givens").map(Json::each).unwrap_or(&[]);
+    let givens = command.get("givens").map_or_default(Json::each);
     let mut given_specs: Vec<String> = crate::bridging::corrects_given_specs(command);
     given_specs.extend(givens.iter().map(|g| {
         let description = g.get("description").and_then(Json::as_str).unwrap_or("");
@@ -1414,7 +1401,7 @@ pub fn emit_entity_command(
         format!("            crate::kernel::GivenSpec {{ description: {}, expr: {}, corrects_event: None }},", naming::ruby_inspect_string(description), crate::expr_emitter::emit_ast(ast))
     }));
 
-    let ensures = command.get("ensures").map(Json::each).unwrap_or(&[]);
+    let ensures = command.get("ensures").map_or_default(Json::each);
     let ensures_specs: Vec<String> = ensures
         .iter()
         .map(|e| {
@@ -1433,7 +1420,7 @@ pub fn emit_entity_command(
     let transition = mutations::lifecycle_transition_for(command, entity);
     let transition_arg = mutations::transition_check_arg(transition.as_ref());
 
-    let mutations_list = command.get("mutations").map(Json::each).unwrap_or(&[]);
+    let mutations_list = command.get("mutations").map_or_default(Json::each);
     let mut mutation_lines: Vec<String> = mutations_list
         .iter()
         .map(|m| {
@@ -1469,7 +1456,7 @@ pub fn emit_entity_command(
         .and_then(Json::as_str)
         .unwrap_or("")
         .to_string();
-    let emits = command.get("emits").map(Json::each).unwrap_or(&[]);
+    let emits = command.get("emits").map_or_default(Json::each);
     let emits_expr = emits
         .iter()
         .map(|e| naming::ruby_inspect_string(&e.to_s()))
@@ -1572,8 +1559,7 @@ pub fn emit_entity_command(
             // identity head (`extra_identity_heads:` in Ruby's `ArgumentGate`).
             let entity_identity_heads: Vec<String> = entity
                 .get("identified_by")
-                .map(Json::each)
-                .unwrap_or(&[])
+                .map_or_default(Json::each)
                 .iter()
                 .map(|p| p.to_s().split('.').next().unwrap_or("").to_string())
                 .collect();
@@ -1599,8 +1585,7 @@ pub fn emit_entity_command(
         {
             let entity_identity_heads: Vec<String> = entity
                 .get("identified_by")
-                .map(Json::each)
-                .unwrap_or(&[])
+                .map_or_default(Json::each)
                 .iter()
                 .map(|p| p.to_s().split('.').next().unwrap_or("").to_string())
                 .collect();
@@ -1625,6 +1610,10 @@ pub fn emit_entity_command(
 /// Emits the dispatch function for a command on an entity nested two levels deep.
 /// Takes plain `&str` ids per hop, so routed and flat-args callers can both use it.
 #[allow(clippy::too_many_arguments)] // established emitter signature
+#[allow(
+    clippy::panic,
+    reason = "a drifted exemplar or invalid IR aborts generation on purpose"
+)]
 pub fn emit_nested_entity_command(
     exemplar: &Exemplar,
     command: &Json,
@@ -1653,8 +1642,7 @@ pub fn emit_nested_entity_command(
         .to_string();
     let parent_identity_reading = parent_aggregate
         .get("identified_by")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
         .map(Json::to_s)
         .collect::<Vec<_>>()
@@ -1666,8 +1654,7 @@ pub fn emit_nested_entity_command(
         .to_string();
     let entity_identity_reading = entity
         .get("identified_by")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
         .map(Json::to_s)
         .collect::<Vec<_>>()
@@ -1679,8 +1666,7 @@ pub fn emit_nested_entity_command(
         .to_string();
     let nested_identity_reading = nested
         .get("identified_by")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
         .map(Json::to_s)
         .collect::<Vec<_>>()
@@ -1688,15 +1674,14 @@ pub fn emit_nested_entity_command(
 
     let parent_attrs = parent_aggregate
         .get("attributes")
-        .map(Json::each)
-        .unwrap_or(&[]);
+        .map_or_default(Json::each);
     let list_attr1 = parent_attrs
         .iter()
         .find(|a| crate::attr::list(a) && crate::attr::type_name(a) == entity.get("name").and_then(Json::as_str).unwrap_or(""))
         .unwrap_or_else(|| panic!("{entity_name}: no list attribute on {aggregate_name} holds it — unsupported_attribute_types should have caught this"));
     let list_field1 = naming::rust_ident_field(crate::attr::name(list_attr1));
 
-    let entity_attrs = entity.get("attributes").map(Json::each).unwrap_or(&[]);
+    let entity_attrs = entity.get("attributes").map_or_default(Json::each);
     let list_attr2 = entity_attrs
         .iter()
         .find(|a| crate::attr::list(a) && crate::attr::type_name(a) == nested.get("name").and_then(Json::as_str).unwrap_or(""))
@@ -1705,7 +1690,7 @@ pub fn emit_nested_entity_command(
 
     let args_struct_name = format!("{nested_record}{cmd}NestedEntityArgs");
 
-    let attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
+    let attrs = command.get("attributes").map_or_default(Json::each);
     let mut args_struct = vec![format!("pub struct {args_struct_name} {{")];
     for attr in attrs {
         let mut ty = naming::rust_type(crate::attr::type_name(attr), crate::attr::list(attr));
@@ -1731,7 +1716,7 @@ pub fn emit_nested_entity_command(
     let invariant_checks =
         invariant_checks_for(exemplar, command, aggregates_by_name, value_objects_by_name);
 
-    let givens = command.get("givens").map(Json::each).unwrap_or(&[]);
+    let givens = command.get("givens").map_or_default(Json::each);
     let given_specs: Vec<String> = givens
         .iter()
         .map(|g| {
@@ -1741,7 +1726,7 @@ pub fn emit_nested_entity_command(
         })
         .collect();
 
-    let ensures = command.get("ensures").map(Json::each).unwrap_or(&[]);
+    let ensures = command.get("ensures").map_or_default(Json::each);
     let ensures_specs: Vec<String> = ensures
         .iter()
         .map(|e| {
@@ -1761,7 +1746,7 @@ pub fn emit_nested_entity_command(
     let transition = mutations::lifecycle_transition_for(command, nested);
     let transition_arg = mutations::transition_check_arg(transition.as_ref());
 
-    let mutations_list = command.get("mutations").map(Json::each).unwrap_or(&[]);
+    let mutations_list = command.get("mutations").map_or_default(Json::each);
     let mut mutation_lines: Vec<String> = mutations_list
         .iter()
         .map(|m| {
@@ -1800,7 +1785,7 @@ pub fn emit_nested_entity_command(
     // The hop-2 `apply_entity_command` gets the root aggregate's qualified name only to satisfy
     // the signature: its `record` is the hop-1 entity, so `corrects` admissibility is not checked
     // there. Its trailing `parent_in_args` literal is `true`, byte for byte as Ruby emits.
-    let emits = command.get("emits").map(Json::each).unwrap_or(&[]);
+    let emits = command.get("emits").map_or_default(Json::each);
     let emits_expr = emits
         .iter()
         .map(|e| naming::ruby_inspect_string(&e.to_s()))
@@ -1916,16 +1901,14 @@ pub fn emit_nested_entity_command(
             // Both hops' identity heads, as `ctx.chain.flat_map(&:identity_heads)` in Ruby.
             let mut identity_heads: Vec<String> = entity
                 .get("identified_by")
-                .map(Json::each)
-                .unwrap_or(&[])
+                .map_or_default(Json::each)
                 .iter()
                 .map(|p| p.to_s().split('.').next().unwrap_or("").to_string())
                 .collect();
             identity_heads.extend(
                 nested
                     .get("identified_by")
-                    .map(Json::each)
-                    .unwrap_or(&[])
+                    .map_or_default(Json::each)
                     .iter()
                     .map(|p| p.to_s().split('.').next().unwrap_or("").to_string()),
             );
@@ -1951,16 +1934,14 @@ pub fn emit_nested_entity_command(
         {
             let mut identity_heads: Vec<String> = entity
                 .get("identified_by")
-                .map(Json::each)
-                .unwrap_or(&[])
+                .map_or_default(Json::each)
                 .iter()
                 .map(|p| p.to_s().split('.').next().unwrap_or("").to_string())
                 .collect();
             identity_heads.extend(
                 nested
                     .get("identified_by")
-                    .map(Json::each)
-                    .unwrap_or(&[])
+                    .map_or_default(Json::each)
                     .iter()
                     .map(|p| p.to_s().split('.').next().unwrap_or("").to_string()),
             );

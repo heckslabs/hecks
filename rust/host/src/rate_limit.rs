@@ -96,23 +96,20 @@ impl SlidingWindow {
     fn record(&mut self, key: &str, now: Instant) -> Decision {
         let seq = self.next_seq;
         self.next_seq += 1;
-        let remaining = match self.entries.get_mut(key) {
-            Some(entry) => {
-                self.recency.remove(&entry.seq);
-                entry.seq = seq;
-                entry.stamps.push_back(now);
-                self.limit - entry.stamps.len()
-            }
-            None => {
-                self.entries.insert(
-                    key.to_string(),
-                    Entry {
-                        stamps: VecDeque::from([now]),
-                        seq,
-                    },
-                );
-                self.limit - 1
-            }
+        let remaining = if let Some(entry) = self.entries.get_mut(key) {
+            self.recency.remove(&entry.seq);
+            entry.seq = seq;
+            entry.stamps.push_back(now);
+            self.limit - entry.stamps.len()
+        } else {
+            self.entries.insert(
+                key.to_string(),
+                Entry {
+                    stamps: VecDeque::from([now]),
+                    seq,
+                },
+            );
+            self.limit - 1
         };
         self.recency.insert(seq, key.to_string());
         Decision {
@@ -272,22 +269,20 @@ impl Config {
     pub fn from_lookup(get: impl Fn(&str) -> Option<String>) -> (Self, Vec<String>) {
         let mut warnings = Vec::new();
         let mut number = |name: &str, default: u64| -> u64 {
-            match get(name)
+            get(name)
                 .map(|v| v.trim().to_string())
                 .filter(|v| !v.is_empty())
-            {
-                None => default,
-                Some(raw) => raw
-                    .parse::<u64>()
-                    .ok()
-                    .filter(|n| *n >= 1)
-                    .unwrap_or_else(|| {
-                        warnings.push(format!(
-                            "{name}={raw:?} is not a positive whole number; using {default}"
-                        ));
-                        default
-                    }),
-            }
+                .map_or(default, |raw| {
+                    raw.parse::<u64>()
+                        .ok()
+                        .filter(|n| *n >= 1)
+                        .unwrap_or_else(|| {
+                            warnings.push(format!(
+                                "{name}={raw:?} is not a positive whole number; using {default}"
+                            ));
+                            default
+                        })
+                })
         };
         let window = number("HECKS_RATE_LIMIT_WINDOW_SECONDS", DEFAULT_WINDOW_SECONDS);
         let limits = crate::extension::rate_rules()
@@ -383,13 +378,13 @@ fn parse_proxy_auth(
     match (header, secret) {
         (None, None) => None,
         (Some(header), Some(secret)) => {
-            match HeaderName::from_bytes(header.to_ascii_lowercase().as_bytes()) {
-                Ok(header) => Some(ProxyAuth { header, secret }),
-                Err(_) => {
+            HeaderName::from_bytes(header.to_ascii_lowercase().as_bytes()).map_or_else(
+                |_| {
                     warnings.push(format!("HECKS_PROXY_AUTH_HEADER {header:?} is not a valid header name; proxy authentication is off"));
                     None
-                }
-            }
+                },
+                |name| Some(ProxyAuth { header: name, secret }),
+            )
         }
         _ => {
             warnings.push("HECKS_PROXY_AUTH_HEADER and HECKS_PROXY_AUTH_SECRET must both be set; proxy authentication is off".to_string());
@@ -471,7 +466,7 @@ impl RateLimits {
             let mut windows = self
                 .windows
                 .lock()
-                .unwrap_or_else(|poisoned| poisoned.into_inner());
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             let config = &self.config;
             windows
                 .entry(rule.name)
@@ -499,14 +494,10 @@ impl RateLimits {
             .and_then(|auth| headers.get(&auth.header))
             .and_then(|v| v.to_str().ok());
         self.warn_if_proxy_untrusted(forwarded_for.as_deref(), peer, presented);
-        match self
-            .config
+        self.config
             .trust
             .client_ip(peer, forwarded_for.as_deref(), presented)
-        {
-            Some(ip) => bucket_key(ip),
-            None => UNKNOWN_CLIENT.to_string(),
-        }
+            .map_or_else(|| UNKNOWN_CLIENT.to_string(), bucket_key)
     }
 
     // A forwarded header from a private peer that nothing trusts means a proxy sits in front of
@@ -566,7 +557,7 @@ fn bucket_key(ip: IpAddr) -> String {
     }
 }
 
-fn is_private(ip: IpAddr) -> bool {
+const fn is_private(ip: IpAddr) -> bool {
     match ip {
         IpAddr::V4(v4) => v4.is_private() || v4.is_loopback() || v4.is_link_local(),
         IpAddr::V6(v6) => v6.is_loopback() || (v6.segments()[0] & 0xfe00) == 0xfc00,
@@ -659,7 +650,7 @@ mod tests {
         let start = Instant::now();
         let mut window = SlidingWindow::new(2, HOUR, 100);
         window.check("a", start);
-        window.check("a", start + Duration::from_secs(1800));
+        window.check("a", start + Duration::from_mins(30));
         assert!(!window.check("a", start + Duration::from_secs(1801)).allowed);
 
         let later = start + Duration::from_secs(3601);

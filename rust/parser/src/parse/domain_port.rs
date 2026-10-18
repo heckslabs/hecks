@@ -68,7 +68,7 @@ fn parse_operation_body(
 
     loop {
         let Some(gated) = super::next_line(file, lines, pos, "PortOperation")? else {
-            validate_operation(file, pos_line(lines, pos), &operation)?;
+            validate_operation(file, pos_line(lines, *pos), &operation)?;
             return Ok(operation);
         };
         let line = gated.line.number;
@@ -82,7 +82,7 @@ fn parse_operation_body(
             "emits" => {
                 operation
                     .emits
-                    .push(super::positional_text(file, line, "emits", &gated.args, 1)?)
+                    .push(super::positional_text(file, line, "emits", &gated.args, 1)?);
             }
             "reference_to" => {
                 let target_raw =
@@ -109,11 +109,8 @@ fn parse_operation_body(
 }
 
 /// The last consumed line, for diagnostics; 0 when none.
-fn pos_line(lines: &[SourceLine], pos: &usize) -> usize {
-    lines
-        .get(pos.saturating_sub(1))
-        .map(|l| l.number)
-        .unwrap_or(0)
+fn pos_line(lines: &[SourceLine], pos: usize) -> usize {
+    lines.get(pos.saturating_sub(1)).map_or(0, |l| l.number)
 }
 
 /// An inbound operation must emit something. The receiver comes from the routing envelope,

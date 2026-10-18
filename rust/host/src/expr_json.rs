@@ -33,24 +33,24 @@ pub enum BlockMode {
 #[allow(dead_code)]
 pub enum Expr {
     Or {
-        left: Box<Expr>,
-        right: Box<Expr>,
+        left: Box<Self>,
+        right: Box<Self>,
     },
     And {
-        left: Box<Expr>,
-        right: Box<Expr>,
+        left: Box<Self>,
+        right: Box<Self>,
     },
     Not {
-        expr: Box<Expr>,
+        expr: Box<Self>,
     },
     Compare {
         cmp: Comparison,
-        left: Box<Expr>,
-        right: Box<Expr>,
+        left: Box<Self>,
+        right: Box<Self>,
     },
     Include {
-        haystack: Box<Expr>,
-        needle: Box<Expr>,
+        haystack: Box<Self>,
+        needle: Box<Self>,
     },
     Int {
         value: i64,
@@ -66,90 +66,90 @@ pub enum Expr {
     },
     Nil,
     Add {
-        left: Box<Expr>,
-        right: Box<Expr>,
+        left: Box<Self>,
+        right: Box<Self>,
     },
     Sub {
-        left: Box<Expr>,
-        right: Box<Expr>,
+        left: Box<Self>,
+        right: Box<Self>,
     },
     Mul {
-        left: Box<Expr>,
-        right: Box<Expr>,
+        left: Box<Self>,
+        right: Box<Self>,
     },
     Div {
-        left: Box<Expr>,
-        right: Box<Expr>,
+        left: Box<Self>,
+        right: Box<Self>,
     },
     SignTest {
         cmp: Comparison,
-        receiver: Box<Expr>,
+        receiver: Box<Self>,
     },
     Empty {
-        receiver: Box<Expr>,
+        receiver: Box<Self>,
     },
     ToS {
-        receiver: Box<Expr>,
+        receiver: Box<Self>,
     },
     Modulo {
-        receiver: Box<Expr>,
-        divisor: Box<Expr>,
+        receiver: Box<Self>,
+        divisor: Box<Self>,
     },
     Size {
-        receiver: Box<Expr>,
+        receiver: Box<Self>,
     },
     Lookup {
         path: Vec<String>,
     },
     BlockPredicate {
         mode: BlockMode,
-        receiver: Box<Expr>,
+        receiver: Box<Self>,
         param: String,
-        predicate: Box<Expr>,
+        predicate: Box<Self>,
     },
     Find {
-        receiver: Box<Expr>,
+        receiver: Box<Self>,
         param: String,
-        predicate: Box<Expr>,
+        predicate: Box<Self>,
         path: Vec<String>,
     },
     Array {
-        elements: Vec<Expr>,
+        elements: Vec<Self>,
     },
     MatchesRegex {
-        receiver: Box<Expr>,
+        receiver: Box<Self>,
         pattern: String,
         flags: String,
     },
     Presence {
-        receiver: Box<Expr>,
+        receiver: Box<Self>,
         negated: bool,
     },
     Assignment {
-        receiver: Box<Expr>,
+        receiver: Box<Self>,
         negated: bool,
     },
     Split {
-        receiver: Box<Expr>,
+        receiver: Box<Self>,
         separator: String,
     },
     Strip {
-        receiver: Box<Expr>,
+        receiver: Box<Self>,
         side: StripSide,
     },
     StartsWith {
-        receiver: Box<Expr>,
+        receiver: Box<Self>,
         substring: String,
     },
     EndsWith {
-        receiver: Box<Expr>,
+        receiver: Box<Self>,
         substring: String,
     },
     First {
-        receiver: Box<Expr>,
+        receiver: Box<Self>,
     },
     Last {
-        receiver: Box<Expr>,
+        receiver: Box<Self>,
     },
 }
 
@@ -373,7 +373,7 @@ pub enum Value {
     Str(String),
     Bool(bool),
     Nil,
-    Array(Vec<Value>),
+    Array(Vec<Self>),
     Object(Json),
 }
 
@@ -381,37 +381,33 @@ impl Value {
     /// Ruby truthiness: everything but `Nil` and `false`.
     ///
     /// Invariant results are checked for truthiness, not `== true`, as `given`/`ensures` are.
-    pub(crate) fn truthy(&self) -> bool {
-        !matches!(self, Value::Nil | Value::Bool(false))
+    pub(crate) const fn truthy(&self) -> bool {
+        !matches!(self, Self::Nil | Self::Bool(false))
     }
 
-    fn from_json(json: &Json) -> Result<Value, String> {
+    fn from_json(json: &Json) -> Result<Self, String> {
         match json {
-            Json::Null => Ok(Value::Nil),
-            Json::Bool(b) => Ok(Value::Bool(*b)),
-            Json::Number(n) => {
-                if let Some(i) = n.as_i64() {
-                    Ok(Value::Int(i))
-                } else if let Some(f) = n.as_f64() {
-                    Ok(Value::Float(f))
-                } else {
-                    Err(format!("{n} is a number this interpreter cannot represent"))
-                }
-            }
-            Json::String(s) => Ok(Value::Str(s.clone())),
-            Json::Array(items) => Ok(Value::Array(
+            Json::Null => Ok(Self::Nil),
+            Json::Bool(b) => Ok(Self::Bool(*b)),
+            Json::Number(n) => n
+                .as_i64()
+                .map(Self::Int)
+                .or_else(|| n.as_f64().map(Self::Float))
+                .ok_or_else(|| format!("{n} is a number this interpreter cannot represent")),
+            Json::String(s) => Ok(Self::Str(s.clone())),
+            Json::Array(items) => Ok(Self::Array(
                 items
                     .iter()
-                    .map(Value::from_json)
+                    .map(Self::from_json)
                     .collect::<Result<Vec<_>, _>>()?,
             )),
-            Json::Object(_) => Ok(Value::Object(json.clone())),
+            Json::Object(_) => Ok(Self::Object(json.clone())),
         }
     }
 }
 
 /// The value as an `f64` when it is an `Int` or `Float`.
-fn numeric(v: &Value) -> Option<f64> {
+const fn numeric(v: &Value) -> Option<f64> {
     match v {
         Value::Int(i) => Some(*i as f64),
         Value::Float(f) => Some(*f),
@@ -429,6 +425,7 @@ fn int_equals_float(i: i64, f: f64) -> bool {
 
 /// Ruby's `==` after `Evaluator.equal?`: numbers compare across kinds, and lists and objects
 /// compare element by element with the same rule, so `[1] == [1.0]`.
+#[allow(clippy::float_cmp)] // reason: Ruby's `Float#==` is exact, and this mirrors it
 fn values_equal(l: &Value, r: &Value) -> bool {
     match (l, r) {
         (Value::Int(a), Value::Int(b)) => a == b,
@@ -470,7 +467,7 @@ fn less_than(l: &Value, r: &Value) -> Result<bool, String> {
 }
 
 /// ORs `<` and `==`, then negates if the operator says so; `SignTest` reuses it against 0.
-fn apply_comparison(op: &Comparison, l: &Value, r: &Value) -> Result<bool, String> {
+fn apply_comparison(op: Comparison, l: &Value, r: &Value) -> Result<bool, String> {
     let lt = op.less_than && less_than(l, r)?;
     let eq = op.equal && values_equal(l, r);
     Ok(if op.negated { !(lt || eq) } else { lt || eq })
@@ -492,6 +489,7 @@ fn to_s(v: &Value) -> Result<String, String> {
 
 /// Ruby's `Float#to_s`: shortest round-trip digits, fixed notation for exponents -4 through 14,
 /// `d.ddde+XX` outside that.
+#[allow(clippy::expect_used)] // reason: Rust's exponent format always has `e` and an integer exponent
 fn ruby_float(f: f64) -> String {
     if f.is_nan() {
         return "NaN".to_string();
@@ -506,8 +504,8 @@ fn ruby_float(f: f64) -> String {
     let scientific = format!("{:e}", f.abs());
     let (mantissa, exponent) = scientific
         .split_once('e')
-        .expect("`{:e}` always has an exponent");
-    let exponent: i32 = exponent.parse().expect("`{:e}` exponent is an integer");
+        .expect("exponent form always has an exponent");
+    let exponent: i32 = exponent.parse().expect("exponent is an integer");
     let digits: String = mantissa.chars().filter(|c| *c != '.').collect();
     if (-4..15).contains(&exponent) {
         if exponent >= 0 {
@@ -537,6 +535,7 @@ fn ruby_float(f: f64) -> String {
 
 /// Ruby's `String#inspect` for a UTF-8 string.
 fn ruby_inspect(s: &str) -> String {
+    use std::fmt::Write;
     let mut out = String::from("\"");
     let mut chars = s.chars().peekable();
     while let Some(c) = chars.next() {
@@ -553,7 +552,7 @@ fn ruby_inspect(s: &str) -> String {
             '\u{1b}' => out.push_str("\\e"),
             '#' if matches!(chars.peek(), Some('{' | '$' | '@')) => out.push_str("\\#"),
             c if (c as u32) < 0x20 || c as u32 == 0x7f => {
-                out.push_str(&format!("\\u{:04X}", c as u32))
+                let _ = write!(out, "\\u{:04X}", c as u32); // writing to a String cannot fail
             }
             c => out.push(c),
         }
@@ -588,7 +587,7 @@ fn describe(v: &Value) -> String {
 }
 
 /// The Ruby class name an error message gives for a value; `nil` for nil, as `class_of` does.
-fn class_of(v: &Value) -> &'static str {
+const fn class_of(v: &Value) -> &'static str {
     match v {
         Value::Nil => "nil",
         Value::Int(_) => "Integer",
@@ -726,7 +725,7 @@ fn blank(v: &Value) -> bool {
         Value::Nil | Value::Bool(false) => true,
         Value::Str(s) => s.is_empty(),
         Value::Array(items) => items.is_empty(),
-        Value::Object(json) => json.as_object().is_some_and(|fields| fields.is_empty()),
+        Value::Object(json) => json.as_object().is_some_and(serde_json::Map::is_empty),
         _ => false,
     }
 }
@@ -767,6 +766,7 @@ fn strip(text: &str, side: StripSide) -> String {
 /// the classes as Unicode and the anchors as text anchors, so both are rewritten. `m` is
 /// Ruby's dot-matches-newline; `\Z` (end, or before a final newline) becomes `\n?\z`.
 fn ruby_regex(pattern: &str, flags: &str) -> Result<regex::Regex, String> {
+    use std::fmt::Write;
     let mut source = String::new();
     let mut in_class = false;
     let mut class_start = 0;
@@ -798,7 +798,9 @@ fn ruby_regex(pattern: &str, flags: &str) -> Result<regex::Regex, String> {
             };
             match (next.is_ascii_uppercase(), in_class) {
                 (false, true) => source.push_str(positive),
-                (false, false) => source.push_str(&format!("[{positive}]")),
+                (false, false) => {
+                    let _ = write!(source, "[{positive}]"); // writing to a String cannot fail
+                }
                 (true, _) => source.push_str(negative),
             }
             continue;
@@ -839,7 +841,7 @@ fn ruby_regex(pattern: &str, flags: &str) -> Result<regex::Regex, String> {
 struct Scope<'a> {
     name: &'a str,
     value: Value,
-    outer: Option<&'a Scope<'a>>,
+    outer: Option<&'a Self>,
 }
 
 impl Scope<'_> {
@@ -881,7 +883,7 @@ fn eval(expr: &Expr, instance: &Json, scope: Option<&Scope>) -> Result<Value, St
         }
         Expr::Not { expr } => Ok(Value::Bool(!recur(expr)?.truthy())),
         Expr::Compare { cmp, left, right } => Ok(Value::Bool(apply_comparison(
-            cmp,
+            *cmp,
             &recur(left)?,
             &recur(right)?,
         )?)),
@@ -926,11 +928,11 @@ fn eval(expr: &Expr, instance: &Json, scope: Option<&Scope>) -> Result<Value, St
             if numeric(&v).is_none() {
                 return Err(format!(
                     "{} expects a number, got {}",
-                    sign_test_name(cmp),
+                    sign_test_name(*cmp),
                     describe(&v)
                 ));
             }
-            Ok(Value::Bool(apply_comparison(cmp, &v, &Value::Int(0))?))
+            Ok(Value::Bool(apply_comparison(*cmp, &v, &Value::Int(0))?))
         }
         Expr::Empty { receiver } => match recur(receiver)? {
             Value::Str(s) => Ok(Value::Bool(s.is_empty())),
@@ -1082,7 +1084,7 @@ fn bound(
 
 /// The `sign_test` a comparison's flags spell, for the error message: `positive?` is
 /// `!(< 0 || == 0)`, `negative?` is `< 0`, `zero?` is `== 0`.
-fn sign_test_name(cmp: &Comparison) -> &'static str {
+const fn sign_test_name(cmp: Comparison) -> &'static str {
     match (cmp.less_than, cmp.equal) {
         (true, true) => "positive?",
         (true, false) => "negative?",
@@ -1151,6 +1153,7 @@ fn lookup(path: &[String], instance: &Json, scope: Option<&Scope>) -> Result<Val
 mod tests {
     use super::*;
 
+    #[allow(clippy::needless_pass_by_value)] // reason: test helper called with inline literals
     fn field(name: &str, value: Json) -> Json {
         serde_json::json!({ name: value })
     }
@@ -1261,6 +1264,7 @@ mod tests {
     // differential spec `spec/rust_host_expr_json_conformance_spec.rb` re-checks them live.
     use serde_json::json;
 
+    #[allow(clippy::needless_pass_by_value)] // reason: test helper called with inline literals
     fn run(ast: Json, instance: Json) -> Result<Value, String> {
         interpret(&parse(&ast).expect("valid Expr JSON"), &instance)
     }
@@ -1277,10 +1281,12 @@ mod tests {
         json!({"op":"str","value":s})
     }
 
+    #[allow(clippy::needless_pass_by_value)] // reason: test helper called with inline literals
     fn call(op: &str, receiver: Json) -> Json {
         json!({"op":op,"receiver":receiver})
     }
 
+    #[allow(clippy::needless_pass_by_value)] // reason: test helper called with inline literals
     fn eq(left: Json, right: Json) -> Json {
         json!({"op":"compare","cmp":{"less_than":false,"equal":true,"negated":false},"left":left,"right":right})
     }
@@ -1685,10 +1691,7 @@ mod tests {
             Ok(Value::Str("B".to_string()))
         );
         assert_eq!(run(find(true, &["nope"]), legs.clone()), Ok(Value::Nil));
-        assert!(matches!(
-            run(find(true, &[]), legs.clone()),
-            Ok(Value::Object(_))
-        ));
+        assert!(matches!(run(find(true, &[]), legs), Ok(Value::Object(_))));
         assert_eq!(
             run(
                 find(true, &["to"]),
@@ -1938,8 +1941,8 @@ mod tests {
             (3.0, "3.0"),
             (0.5, "0.5"),
             (-0.0, "-0.0"),
-            (100000000000000.0, "100000000000000.0"),
-            (999999999999999.9, "999999999999999.9"),
+            (100_000_000_000_000.0, "100000000000000.0"),
+            (999_999_999_999_999.9, "999999999999999.9"),
             (1e15, "1.0e+15"),
             (1.5e15, "1.5e+15"),
             (1e20, "1.0e+20"),

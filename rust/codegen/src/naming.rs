@@ -38,12 +38,16 @@ pub fn effective_scalar_type(type_name: &str) -> Option<&'static str> {
     }
 }
 
+#[allow(
+    clippy::unwrap_used,
+    reason = "the value was checked just before; None would mean invalid IR"
+)]
 pub fn rust_type(type_name: &str, list: bool) -> String {
     let scalar = effective_scalar_type(type_name);
-    let inner = match scalar {
-        Some(s) => scalar_rust_type(s).unwrap().to_string(),
-        None => rust_ident(type_name),
-    };
+    let inner = scalar.map_or_else(
+        || rust_ident(type_name),
+        |s| scalar_rust_type(s).unwrap().to_string(),
+    );
     if list {
         format!("Vec<{inner}>")
     } else {
@@ -52,7 +56,7 @@ pub fn rust_type(type_name: &str, list: bool) -> String {
 }
 
 pub fn rust_ident(name: &str) -> String {
-    name.chars().filter(|c| c.is_ascii_alphanumeric()).collect()
+    name.chars().filter(char::is_ascii_alphanumeric).collect()
 }
 
 /// `cmd.gsub(/(?<=.)([A-Z])/, '_\1').downcase` — insert `_` before every
@@ -227,8 +231,7 @@ pub fn closed_set_variant(value: &str) -> String {
         .split(|c: char| !c.is_ascii_alphanumeric())
         .filter(|s| !s.is_empty())
         .map(capitalize)
-        .collect::<Vec<_>>()
-        .join("");
+        .collect::<String>();
     if variant != "Self" {
         return variant;
     }
@@ -241,10 +244,9 @@ pub fn closed_set_variant(value: &str) -> String {
 
 fn capitalize(word: &str) -> String {
     let mut chars = word.chars();
-    match chars.next() {
-        None => String::new(),
-        Some(first) => first.to_uppercase().collect::<String>() + &chars.as_str().to_lowercase(),
-    }
+    chars.next().map_or_else(String::new, |first| {
+        first.to_uppercase().collect::<String>() + &chars.as_str().to_lowercase()
+    })
 }
 
 /// Port of `Hecks::Naming.snake` —
@@ -253,8 +255,8 @@ pub fn snake(text: &str) -> String {
     let chars: Vec<char> = text.chars().collect();
     let mut first = String::new();
     for (i, &c) in chars.iter().enumerate() {
-        let next_upper = chars.get(i + 1).is_some_and(|n| n.is_ascii_uppercase());
-        let then_lower = chars.get(i + 2).is_some_and(|n| n.is_ascii_lowercase());
+        let next_upper = chars.get(i + 1).is_some_and(char::is_ascii_uppercase);
+        let then_lower = chars.get(i + 2).is_some_and(char::is_ascii_lowercase);
         first.push(c);
         if c.is_ascii_uppercase() && next_upper && then_lower {
             first.push('_');
@@ -264,7 +266,7 @@ pub fn snake(text: &str) -> String {
     let mut second = String::new();
     for (i, &c) in chars.iter().enumerate() {
         second.push(c);
-        let next_upper = chars.get(i + 1).is_some_and(|n| n.is_ascii_uppercase());
+        let next_upper = chars.get(i + 1).is_some_and(char::is_ascii_uppercase);
         if (c.is_ascii_lowercase() || c.is_ascii_digit()) && next_upper {
             second.push('_');
         }
@@ -312,13 +314,10 @@ pub fn scalar_to_value(type_name: &str, rust_expr: &str) -> Option<String> {
 /// single-field closed-set enums implement `Fielded`; multi-field closed-set
 /// tables do not.
 pub fn fielded_capable_nested(vo: &crate::json::Json) -> bool {
-    !vo.get("closed_set")
-        .map(crate::json::Json::as_bool)
-        .unwrap_or(false)
+    !vo.get("closed_set").is_some_and(crate::json::Json::as_bool)
         || vo
             .get("attributes")
-            .map(crate::json::Json::each)
-            .unwrap_or(&[])
+            .map_or_default(crate::json::Json::each)
             .len()
             == 1
 }
@@ -332,14 +331,13 @@ pub fn emit_closed_set_fielded_impl(vo: &crate::json::Json) -> String {
     );
     let arms = vo
         .get("members")
-        .map(crate::json::Json::each)
-        .unwrap_or(&[])
+        .map_or_default(crate::json::Json::each)
         .iter()
         .filter_map(|row| {
             let pair = row.as_array()?.first()?.as_array()?;
             let raw = pair.get(1)?.to_s();
             Some(format!(
-                "{name}::{} => {}.to_string(),",
+                "Self::{} => {}.to_string(),",
                 closed_set_variant(&raw),
                 ruby_inspect_string(&raw)
             ))
@@ -353,6 +351,10 @@ pub fn emit_closed_set_fielded_impl(vo: &crate::json::Json) -> String {
 }
 
 /// A literal mutation-source RHS; `literal` is a String/Integer/Float/Bool read from `ir.json`.
+#[allow(
+    clippy::panic,
+    reason = "a drifted exemplar or invalid IR aborts generation on purpose"
+)]
 pub fn literal_rhs(literal: &crate::json::Json) -> String {
     match literal {
         crate::json::Json::String(s) => format!("{}.to_string()", ruby_inspect_string(s)),

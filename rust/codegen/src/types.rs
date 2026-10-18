@@ -7,6 +7,10 @@ use crate::json::Json;
 use crate::naming;
 use std::collections::HashMap;
 
+#[allow(
+    clippy::panic,
+    reason = "a drifted exemplar or invalid IR aborts generation on purpose"
+)]
 pub fn emit_check_invariants(
     exemplar: &Exemplar,
     vo: &Json,
@@ -19,18 +23,18 @@ pub fn emit_check_invariants(
         .and_then(Json::as_str)
         .unwrap_or("")
         .to_string();
-    let invariants = vo.get("invariants").map(Json::each).unwrap_or(&[]);
+    let invariants = vo.get("invariants").map_or_default(Json::each);
 
     // The block is flush left to match the Ruby heredoc's dedent; re-indenting it mismatches.
     // Order: nested value objects, then `admits`/`pattern`, then invariants.
     let mut body: Vec<String> = Vec::new();
-    let attributes = vo.get("attributes").map(Json::each).unwrap_or(&[]);
+    let attributes = vo.get("attributes").map_or_default(Json::each);
 
     for attr in attributes {
         if naming::effective_scalar_type(crate::attr::type_name(attr)).is_some() {
             continue;
         }
-        let is_plain_nested = matches!(value_objects_by_name.get(crate::attr::type_name(attr)), Some(v) if !v.get("closed_set").map(Json::as_bool).unwrap_or(false));
+        let is_plain_nested = matches!(value_objects_by_name.get(crate::attr::type_name(attr)), Some(v) if !v.get("closed_set").is_some_and(Json::as_bool));
         if !is_plain_nested {
             continue;
         }
@@ -105,7 +109,7 @@ fn nested_invariant_line(field: &str, list: bool, optional: bool) -> String {
 
 pub fn emit_closed_set_table(exemplar: &Exemplar, vo: &Json) -> String {
     let name = naming::rust_ident(vo.get("name").and_then(Json::as_str).unwrap_or(""));
-    let attributes = vo.get("attributes").map(Json::each).unwrap_or(&[]);
+    let attributes = vo.get("attributes").map_or_default(Json::each);
 
     let field_subs_list: Vec<Vec<(&str, String)>> = attributes
         .iter()
@@ -131,7 +135,7 @@ pub fn emit_closed_set_table(exemplar: &Exemplar, vo: &Json) -> String {
         "\n",
     );
 
-    let members = vo.get("members").map(Json::each).unwrap_or(&[]);
+    let members = vo.get("members").map_or_default(Json::each);
     let member_literals: Vec<String> = members
         .iter()
         .map(|row| {
@@ -150,13 +154,13 @@ pub fn emit_closed_set_table(exemplar: &Exemplar, vo: &Json) -> String {
                 .iter()
                 .map(|attr| {
                     let field_name = crate::attr::name(attr).to_string();
-                    let raw_str: String = match present.get(&field_name) {
-                        Some(v) => v.to_s(),
-                        None => match crate::attr::default(attr) {
-                            Some(d) => d.to_s(),
-                            None => String::new(),
+                    let raw_str: String = present.get(&field_name).map_or_else(
+                        || {
+                            crate::attr::default(attr)
+                                .map_or_else(String::new, super::json::Json::to_s)
                         },
-                    };
+                        |v| v.to_s(),
+                    );
                     let literal = match crate::attr::type_name(attr) {
                         "Integer" => ruby_to_i(&raw_str).to_string(),
                         "Float" => format!("{}f64", ruby_to_f(&raw_str)),
@@ -238,15 +242,15 @@ pub fn emit_value_object(
     aggregates_by_name: &HashMap<String, &Json>,
 ) -> String {
     let name = naming::rust_ident(vo.get("name").and_then(Json::as_str).unwrap_or(""));
-    let closed_set = vo.get("closed_set").map(Json::as_bool).unwrap_or(false);
-    let attributes = vo.get("attributes").map(Json::each).unwrap_or(&[]);
+    let closed_set = vo.get("closed_set").is_some_and(Json::as_bool);
+    let attributes = vo.get("attributes").map_or_default(Json::each);
 
     if closed_set {
         if attributes.len() > 1 {
             return emit_closed_set_table(exemplar, vo);
         }
 
-        let members = vo.get("members").map(Json::each).unwrap_or(&[]);
+        let members = vo.get("members").map_or_default(Json::each);
         let variants: Vec<String> = members
             .iter()
             .map(|row| {
@@ -312,13 +316,12 @@ pub fn unsupported_attribute_types(
 ) -> Vec<String> {
     let entity_names: Vec<&str> = aggregate
         .get("entities")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
         .map(|e| e.get("name").and_then(Json::as_str).unwrap_or(""))
         .collect();
     let mut seen = Vec::new();
-    for attr in aggregate.get("attributes").map(Json::each).unwrap_or(&[]) {
+    for attr in aggregate.get("attributes").map_or_default(Json::each) {
         let ty = crate::attr::type_name(attr);
         let supported = naming::effective_scalar_type(ty).is_some()
             || value_objects_by_name.contains_key(ty)
@@ -336,7 +339,7 @@ pub fn emit_entity(
     value_objects_by_name: &HashMap<String, &Json>,
 ) -> String {
     let name = naming::rust_ident(entity.get("name").and_then(Json::as_str).unwrap_or(""));
-    let attributes = entity.get("attributes").map(Json::each).unwrap_or(&[]);
+    let attributes = entity.get("attributes").map_or_default(Json::each);
 
     let mut field_subs_list: Vec<Vec<(&str, String)>> = attributes
         .iter()
@@ -392,7 +395,7 @@ pub fn emit_record(
     value_objects_by_name: &HashMap<String, &Json>,
 ) -> String {
     let name = naming::rust_ident(aggregate.get("name").and_then(Json::as_str).unwrap_or(""));
-    let attributes = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
+    let attributes = aggregate.get("attributes").map_or_default(Json::each);
 
     let mut field_subs_list: Vec<Vec<(&str, String)>> = attributes
         .iter()
@@ -450,7 +453,7 @@ pub fn emit_record(
 /// field that resolves to nothing stays `String`.
 pub fn with_resolved_projection_types(ir: &Json) -> Json {
     let mut resolved = ir.clone();
-    let aggregates: Vec<Json> = ir.get("aggregates").map(Json::each).unwrap_or(&[]).to_vec();
+    let aggregates: Vec<Json> = ir.get("aggregates").map_or_default(Json::each).to_vec();
     let Some(list) = resolved.get_mut("aggregates").and_then(Json::as_array_mut) else {
         return resolved;
     };
@@ -480,8 +483,7 @@ fn projected_scalar_type(aggregates: &[Json], owner: &Json, field: &Json, depth:
         .unwrap_or("");
     let target = owner
         .get("attributes")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
         .find(|a| crate::attr::name(a) == reference)
         .and_then(|a| naming::reference_target(crate::attr::type_name(a)))
@@ -490,16 +492,16 @@ fn projected_scalar_type(aggregates: &[Json], owner: &Json, field: &Json, depth:
                 .iter()
                 .find(|a| a.get("name").and_then(Json::as_str) == Some(name))
         });
-    target
-        .map(|t| remote_scalar_type(aggregates, t, remote, depth))
-        .unwrap_or_else(|| "String".to_string())
+    target.map_or_else(
+        || "String".to_string(),
+        |t| remote_scalar_type(aggregates, t, remote, depth),
+    )
 }
 
 fn remote_scalar_type(aggregates: &[Json], target: &Json, remote: &str, depth: usize) -> String {
     let declared = target
         .get("attributes")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
         .find(|a| crate::attr::name(a) == remote);
     if let Some(attr) = declared {
@@ -507,8 +509,7 @@ fn remote_scalar_type(aggregates: &[Json], target: &Json, remote: &str, depth: u
     }
     let chained = target
         .get("projected_fields")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
         .find(|f| f.get("name").and_then(Json::as_str) == Some(remote));
     match chained {
@@ -523,11 +524,10 @@ fn remote_scalar_type(aggregates: &[Json], target: &Json, remote: &str, depth: u
 fn unwrapped_scalar_type(aggregate: &Json, type_name: &str) -> String {
     let sole = aggregate
         .get("value_objects")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
         .find(|vo| vo.get("name").and_then(Json::as_str) == Some(type_name))
-        .map(|vo| vo.get("attributes").map(Json::each).unwrap_or(&[]))
+        .map(|vo| vo.get("attributes").map_or_default(Json::each))
         .filter(|attrs| attrs.len() == 1 && !crate::attr::list(&attrs[0]))
         .map(|attrs| crate::attr::type_name(&attrs[0]).to_string());
     let resolved = sole.unwrap_or_else(|| type_name.to_string());
@@ -555,8 +555,7 @@ fn projection_reader(scalar: &str) -> &'static str {
 pub fn projected_field_pseudo_attributes(aggregate: &Json) -> Vec<Json> {
     aggregate
         .get("projected_fields")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
         .map(|field| {
             let name = field
@@ -584,8 +583,7 @@ pub fn projected_field_pseudo_attributes(aggregate: &Json) -> Vec<Json> {
 pub fn with_projected_field_pseudo_attributes(aggregate: &Json) -> Json {
     let mut attributes: Vec<Json> = aggregate
         .get("attributes")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .to_vec();
     attributes.extend(projected_field_pseudo_attributes(aggregate));
     let mut pairs: Vec<(String, Json)> = match aggregate {
@@ -605,8 +603,7 @@ pub fn emit_set_projected_field(aggregate: &Json) -> String {
     let name = naming::rust_ident(aggregate.get("name").and_then(Json::as_str).unwrap_or(""));
     let arms: Vec<String> = aggregate
         .get("projected_fields")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
         .map(|field| {
             let field_name = field.get("name").and_then(Json::as_str).unwrap_or("");
@@ -632,8 +629,7 @@ pub fn emit_projected_field_table(aggregate: &Json) -> String {
     let name = naming::screaming_snake(aggregate.get("name").and_then(Json::as_str).unwrap_or(""));
     let rows: Vec<String> = aggregate
         .get("projected_fields")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
         .map(|field| {
             let field_name = field.get("name").and_then(Json::as_str).unwrap_or("");
@@ -686,7 +682,7 @@ mod tests {
     #[test]
     fn boolean_attributes_round_trip_through_json_as_bool() {
         let vo = flag_value_object();
-        let attributes = vo.get("attributes").map(Json::each).unwrap_or(&[]);
+        let attributes = vo.get("attributes").map_or_default(Json::each);
         let by_name = HashMap::new();
         let exemplar = Exemplar::load();
         let from_json = crate::json_codec::emit_from_json_flat(
@@ -723,8 +719,7 @@ mod tests {
     fn resolved_booking() -> Json {
         with_resolved_projection_types(&event_and_booking())
             .get("aggregates")
-            .map(Json::each)
-            .unwrap_or(&[])[1]
+            .map_or_default(Json::each)[1]
             .clone()
     }
 
@@ -732,8 +727,7 @@ mod tests {
     fn a_projection_through_a_single_field_value_object_takes_its_scalar_type() {
         let field = resolved_booking()
             .get("projected_fields")
-            .map(Json::each)
-            .unwrap_or(&[])[0]
+            .map_or_default(Json::each)[0]
             .clone();
 
         assert_eq!(field.get("type").and_then(Json::as_str), Some("Integer"));

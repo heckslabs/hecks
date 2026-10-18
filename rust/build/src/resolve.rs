@@ -75,10 +75,9 @@ pub fn pascal(text: &str) -> String {
     text.split('_')
         .map(|part| {
             let mut chars = part.chars();
-            match chars.next() {
-                Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
-                None => String::new(),
-            }
+            chars.next().map_or_else(String::new, |first| {
+                first.to_uppercase().collect::<String>() + chars.as_str()
+            })
         })
         .collect()
 }
@@ -167,7 +166,7 @@ fn resolve_json(
     )?;
     let json = Json::parse(&out)
         .map_err(|e| format!("parsing 'hecks-parse resolve' output: {e}\n{out}"))?;
-    let names = json.get(key).map(Json::each).unwrap_or(&[]);
+    let names = json.get(key).map_or(&[][..], Json::each);
     Ok(names
         .iter()
         .filter_map(Json::as_str)

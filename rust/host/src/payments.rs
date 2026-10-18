@@ -81,10 +81,10 @@ pub fn check_boot(checkout_enabled: bool) -> Result<(), String> {
 /// The webhook endpoint's description: the configured text when it is not
 /// blank, else "<domain> website".
 fn webhook_description(configured: Option<&str>, domain: &str) -> String {
-    match configured.map(str::trim).filter(|text| !text.is_empty()) {
-        Some(text) => text.to_string(),
-        None => format!("{domain} website"),
-    }
+    configured
+        .map(str::trim)
+        .filter(|text| !text.is_empty())
+        .map_or_else(|| format!("{domain} website"), ToString::to_string)
 }
 
 impl PlatformConfig {
@@ -145,7 +145,7 @@ impl PlatformConfig {
     }
 
     /// Whether this deploy can save keys from the Payments page.
-    pub fn can_save_keys(&self) -> bool {
+    pub const fn can_save_keys(&self) -> bool {
         self.store.is_some()
     }
 
@@ -337,10 +337,13 @@ pub fn owns(method: &str, path: &str) -> bool {
     matches!(
         (method, path),
         ("GET", "/payments/connection")
-            | ("POST", "/payments/connection/direct")
-            | ("POST", "/payments/connection/disconnect")
-            | ("POST", "/payments/connection/enable")
-            | ("POST", "/payments/connection/disable")
+            | (
+                "POST",
+                "/payments/connection/direct"
+                    | "/payments/connection/disconnect"
+                    | "/payments/connection/enable"
+                    | "/payments/connection/disable"
+            )
     )
 }
 
@@ -424,11 +427,10 @@ fn connection_json(
     let present = |value: Option<&str>| {
         value
             .filter(|s| !s.is_empty())
-            .map(Value::from)
-            .unwrap_or(Value::Null)
+            .map_or(Value::Null, Value::from)
     };
     json!({
-        "status": connection.map(|c| c.status.as_str()).unwrap_or("not_connected"),
+        "status": connection.map_or("not_connected", |c| c.status.as_str()),
         "processor": present(connection.map(|c| c.processor.as_str())),
         "label": label,
         "account_ref": present(connection.map(|c| c.account_ref.as_str())),
@@ -480,6 +482,7 @@ async fn connection_response(
 /// The `/payments/connection` routes for a caller holding the account cookie; every
 /// answer is JSON, a bad session is 401 not a redirect, and `None` means an unowned path.
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::implicit_hasher)] // reason: the cookie map always comes from this crate's own default-hashed parser
 pub async fn route(
     method: &str,
     path: &str,

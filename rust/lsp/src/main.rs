@@ -8,6 +8,7 @@ mod rpc;
 
 use json::Json;
 use std::collections::HashMap;
+use std::fmt::Write as _;
 use std::io::{self, BufReader, Write};
 use std::path::{Path, PathBuf};
 
@@ -132,15 +133,15 @@ impl Server {
                         .and_then(|p| p.get("textDocument"))
                         .and_then(|t| t.get("uri"))
                         .and_then(Json::as_str);
-                    let result = match uri.and_then(|u| self.documents.get(u)) {
-                        Some(text) => Json::Array(
+                    let result = Json::Array(uri.and_then(|u| self.documents.get(u)).map_or_else(
+                        Vec::new,
+                        |text| {
                             outline::outline(text)
                                 .iter()
                                 .map(document_symbol_json)
-                                .collect(),
-                        ),
-                        None => Json::Array(Vec::new()),
-                    };
+                                .collect()
+                        },
+                    ));
                     let _ = rpc::write_message(out, &rpc::response(id, result));
                 }
             }
@@ -241,13 +242,13 @@ impl Server {
         let dir = path.parent()?;
         let mut siblings: Vec<PathBuf> = std::fs::read_dir(dir)
             .ok()?
-            .filter_map(|e| e.ok())
+            .filter_map(std::result::Result::ok)
             .map(|e| e.path())
             .filter(|p| {
                 *p != path
                     && matches!(
                         p.extension().and_then(|e| e.to_str()),
-                        Some("bluebook") | Some("hecksagon")
+                        Some("bluebook" | "hecksagon")
                     )
             })
             .collect();
@@ -338,8 +339,10 @@ fn document_symbol_json(symbol: &outline::Symbol) -> Json {
 }
 
 /// Maps a construct to an LSP `SymbolKind` number by how it reads in an outline.
-fn lsp_symbol_kind(kind: outline::Kind) -> i64 {
-    use outline::Kind::*;
+const fn lsp_symbol_kind(kind: outline::Kind) -> i64 {
+    use outline::Kind::{
+        Aggregate, Command, Entity, Policy, ProcessManager, Query, ReadModel, ValueObject,
+    };
     match kind {
         Aggregate => 5,      // Class
         ProcessManager => 5, // Class
@@ -387,13 +390,12 @@ fn lsp_diagnostic(diag: &diagnostics::FileDiagnostic, text: &str) -> Json {
     let line_len = text
         .lines()
         .nth(diag.line.saturating_sub(1))
-        .map(|l| l.chars().count() as i64)
-        .unwrap_or(0)
+        .map_or(0, |l| l.chars().count() as i64)
         .max(1);
 
     let mut message = diag.message.clone();
     if !diag.expected.is_empty() {
-        message.push_str(&format!(" (expected one of: {})", diag.expected.join(", ")));
+        let _ = write!(message, " (expected one of: {})", diag.expected.join(", "));
     }
 
     Json::object(vec![
@@ -438,10 +440,10 @@ fn temp_path_for(uri: &str) -> PathBuf {
 }
 
 fn fnv1a(bytes: &[u8]) -> u64 {
-    let mut hash: u64 = 0xcbf29ce484222325;
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
     for &b in bytes {
-        hash ^= b as u64;
-        hash = hash.wrapping_mul(0x100000001b3);
+        hash ^= u64::from(b);
+        hash = hash.wrapping_mul(0x0100_0000_01b3);
     }
     hash
 }

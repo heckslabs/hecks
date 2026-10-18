@@ -36,7 +36,7 @@ pub fn parse_body(
                     "on",
                     &gated.args,
                     1,
-                )?)
+                )?);
             }
             "trigger" => {
                 policy.trigger_command = Some(super::positional_command_ref(
@@ -82,7 +82,7 @@ pub fn parse_body(
                     "for_each",
                     &gated.args,
                     1,
-                )?)
+                )?);
             }
             _ => {
                 return Err(super::not_built_yet(

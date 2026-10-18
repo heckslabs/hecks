@@ -3,6 +3,7 @@
 
 use crate::json::Json;
 use crate::skip_reason::SkipReason;
+use std::fmt::Write as _;
 
 // Wire key order: `kind`, `id`, `generated`, then `routed`, `gap_class`, `construct`, `reason`.
 struct Entry {
@@ -114,7 +115,7 @@ impl Manifest {
                 "{owner_id}.{}",
                 entity.get("name").map(Json::to_s).unwrap_or_default()
             );
-            for query in entity.get("queries").map(Json::each).unwrap_or(&[]) {
+            for query in entity.get("queries").map_or_default(Json::each) {
                 self.record(
                     "query",
                     format!("{entity_id}.{}", query.get("name").map(Json::to_s).unwrap_or_default()),
@@ -130,7 +131,7 @@ impl Manifest {
             }
             self.entity_query_gaps(
                 &entity_id,
-                entity.get("entities").map(Json::each).unwrap_or(&[]),
+                entity.get("entities").map_or_default(Json::each),
             );
         }
     }
@@ -183,7 +184,9 @@ fn json_string(s: &str) -> String {
             '\t' => out.push_str("\\t"),
             '\u{8}' => out.push_str("\\b"),
             '\u{c}' => out.push_str("\\f"),
-            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
+            c if (c as u32) < 0x20 => {
+                let _ = write!(out, "\\u{:04x}", c as u32);
+            }
             c => out.push(c),
         }
     }
@@ -214,8 +217,10 @@ fn ruby_inspect_str(s: &str) -> String {
             '\n' => out.push_str("\\n"),
             '\r' => out.push_str("\\r"),
             '\t' => out.push_str("\\t"),
-            '#' if matches!(chars.peek(), Some('{') | Some('$') | Some('@')) => out.push_str("\\#"),
-            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04X}", c as u32)),
+            '#' if matches!(chars.peek(), Some('{' | '$' | '@')) => out.push_str("\\#"),
+            c if (c as u32) < 0x20 => {
+                let _ = write!(out, "\\u{:04X}", c as u32);
+            }
             c => out.push(c),
         }
     }
@@ -276,7 +281,7 @@ mod tests {
         let ids = Json::parse(r##"["reference.value", "a\"b", "#{x}"]"##).unwrap();
         assert_eq!(
             ruby_inspect(Some(&ids)),
-            r##"["reference.value", "a\"b", "\#{x}"]"##
+            r#"["reference.value", "a\"b", "\#{x}"]"#
         );
         assert_eq!(ruby_inspect(Some(&Json::Array(vec![]))), "[]");
         assert_eq!(ruby_inspect(None), "nil");

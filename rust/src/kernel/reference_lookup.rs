@@ -28,15 +28,14 @@ fn specs_for(table: ReferenceTable, target: &str) -> &'static [ReferenceSpec] {
     table
         .iter()
         .find(|(name, _)| *name == target)
-        .map(|(_, specs)| *specs)
-        .unwrap_or(&[])
+        .map_or(&[], |(_, specs)| *specs)
 }
 
 /// A fetched record plus its dereferenced nested references.
 pub struct DerefNode {
     id: String,
     base: Box<dyn Fielded>,
-    nested: Vec<(&'static str, DerefNode)>,
+    nested: Vec<(&'static str, Self)>,
 }
 
 impl Fielded for DerefNode {
@@ -150,7 +149,7 @@ pub struct WithReferences<'a> {
     pub owner_deref: &'a [(&'static str, DerefNode)],
 }
 
-impl<'a> Fielded for WithReferences<'a> {
+impl Fielded for WithReferences<'_> {
     fn field(&self, name: &str) -> Option<Field<'_>> {
         // `command_deref` must win: an aliased reference shares its name with the raw id argument.
         if let Some((_, node)) = self.command_deref.iter().find(|(n, _)| *n == name) {

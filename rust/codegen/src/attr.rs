@@ -12,11 +12,11 @@ pub fn type_name(attr: &Json) -> &str {
 }
 
 pub fn list(attr: &Json) -> bool {
-    attr.get("list").map(Json::as_bool).unwrap_or(false)
+    attr.get("list").is_some_and(Json::as_bool)
 }
 
 pub fn optional(attr: &Json) -> bool {
-    attr.get("optional").map(Json::as_bool).unwrap_or(false)
+    attr.get("optional").is_some_and(Json::as_bool)
 }
 
 pub fn default(attr: &Json) -> Option<&Json> {

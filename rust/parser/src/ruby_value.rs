@@ -10,8 +10,8 @@ pub enum Value {
     Float(f64),
     Str(String),
     Symbol(String),
-    Hash(Vec<(String, Value)>),
-    Array(Vec<Value>),
+    Hash(Vec<(String, Self)>),
+    Array(Vec<Self>),
     /// A bare word `Literal.read` tolerates; kept apart from `Str` so `render` adds no quotes.
     Bare(String),
 }

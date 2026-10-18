@@ -7,7 +7,7 @@ pub struct Symbol {
     pub kind: Kind,
     pub start_line: usize, // 1-indexed declaring line
     pub end_line: usize,   // 1-indexed line of the closing `end`
-    pub children: Vec<Symbol>,
+    pub children: Vec<Self>,
 }
 
 /// The construct keywords the outline recognizes.
@@ -35,7 +35,7 @@ const CONSTRUCTS: &[(&str, Kind)] = &[
 ];
 
 /// Whether a bare identifier can name this kind; only these are definition targets.
-pub fn is_reference_target(kind: Kind) -> bool {
+pub const fn is_reference_target(kind: Kind) -> bool {
     matches!(kind, Kind::Aggregate | Kind::Entity | Kind::ValueObject)
 }
 
@@ -75,8 +75,13 @@ pub fn outline(text: &str) -> Vec<Symbol> {
 
         if trimmed == "end" {
             depth = depth.saturating_sub(1);
-            if matches!(stack.last(), Some(frame) if frame.depth_at_push == depth) {
-                let frame = stack.pop().expect("just matched Some(frame) above");
+            if stack
+                .last()
+                .is_some_and(|frame| frame.depth_at_push == depth)
+            {
+                let Some(frame) = stack.pop() else {
+                    continue;
+                };
                 let symbol = Symbol {
                     name: frame.name,
                     kind: frame.kind,

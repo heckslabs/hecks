@@ -23,17 +23,15 @@ fn puts_blank(out: &mut String) {
 }
 
 fn lifecycle_extra_field(node: &Json) -> Vec<(String, String)> {
-    match node.get("lifecycle") {
-        None => vec![],
-        Some(lifecycle) => {
+    node.get("lifecycle")
+        .map_or_else(std::vec::Vec::new, |lifecycle| {
             let field = lifecycle.get("field").and_then(Json::as_str).unwrap_or("");
             let ident = crate::naming::rust_ident_field(field);
             vec![(
                 crate::naming::rust_field(field),
                 format!("crate::kernel::Json::Str(self.{ident}.clone())"),
             )]
-        }
-    }
+        })
 }
 
 pub struct GeneratedFile {
@@ -63,7 +61,7 @@ fn reference_checks(
     aggregates_by_name: &HashMap<String, &Json>,
     unsupported_names: &[String],
 ) -> Vec<ReferenceCheck> {
-    let attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
+    let attrs = command.get("attributes").map_or_default(Json::each);
     attrs
         .iter()
         .filter_map(|attr| {
@@ -72,7 +70,7 @@ fn reference_checks(
             if unsupported_names.iter().any(|n| n == target_name) {
                 return None;
             }
-            let identified_by = target.get("identified_by").map(Json::each).unwrap_or(&[]);
+            let identified_by = target.get("identified_by").map_or_default(Json::each);
             let heads = identified_by
                 .iter()
                 .map(|p| p.to_s().split('.').next().unwrap_or("").to_string())
@@ -109,9 +107,9 @@ fn state_reference_checks(
     unsupported_names: &[String],
     value_objects_by_name: &HashMap<String, &Json>,
 ) -> Vec<ReferenceCheck> {
-    let agg_attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
-    let cmd_mutations = command.get("mutations").map(Json::each).unwrap_or(&[]);
-    let cmd_attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
+    let agg_attrs = aggregate.get("attributes").map_or_default(Json::each);
+    let cmd_mutations = command.get("mutations").map_or_default(Json::each);
+    let cmd_attrs = command.get("attributes").map_or_default(Json::each);
 
     agg_attrs
         .iter()
@@ -157,7 +155,7 @@ fn state_reference_checks(
                 return None;
             }
 
-            let identified_by = target.get("identified_by").map(Json::each).unwrap_or(&[]);
+            let identified_by = target.get("identified_by").map_or_default(Json::each);
             let heads = identified_by
                 .iter()
                 .map(|p| p.to_s().split('.').next().unwrap_or("").to_string())
@@ -188,8 +186,7 @@ fn state_reference_checks(
 fn tenant_field_for(aggregate: &Json) -> Option<String> {
     aggregate
         .get("queries")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
         .find_map(|q| {
             q.get("authorization")
@@ -212,7 +209,7 @@ fn tenant_boundary_checks(
     let Some(own_tenant_field) = tenant_field_for(aggregate) else {
         return Vec::new();
     };
-    let cmd_attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
+    let cmd_attrs = command.get("attributes").map_or_default(Json::each);
     let Some(own_tenant_attr) = cmd_attrs
         .iter()
         .find(|a| crate::attr::name(a) == own_tenant_field)
@@ -238,7 +235,7 @@ fn tenant_boundary_checks(
                 return None;
             }
             let target_tenant_field = tenant_field_for(target)?;
-            let target_attrs = target.get("attributes").map(Json::each).unwrap_or(&[]);
+            let target_attrs = target.get("attributes").map_or_default(Json::each);
             let target_tenant_attr = target_attrs
                 .iter()
                 .find(|a| crate::attr::name(a) == target_tenant_field)?;
@@ -278,7 +275,7 @@ fn list_reference_check_item(
         return Some("item".to_string());
     }
     let vo = value_objects_by_name.get(type_name)?;
-    let vo_attrs = vo.get("attributes").map(Json::each).unwrap_or(&[]);
+    let vo_attrs = vo.get("attributes").map_or_default(Json::each);
     if vo_attrs.len() != 1 || crate::attr::type_name(&vo_attrs[0]) != "String" {
         return None;
     }
@@ -305,7 +302,7 @@ fn state_reference_check_accessor(
     if crate::attr::optional(source_attr) {
         return None;
     }
-    let vo_attrs = vo.get("attributes").map(Json::each).unwrap_or(&[]);
+    let vo_attrs = vo.get("attributes").map_or_default(Json::each);
     if vo_attrs.len() != 1 {
         return None;
     }
@@ -325,7 +322,7 @@ pub fn generate(
     let resolved_ir = types::with_resolved_projection_types(ir);
     let ir = &resolved_ir;
     let domain_name = ir.get("name").and_then(Json::as_str).unwrap_or("");
-    let all_aggregates = ir.get("aggregates").map(Json::each).unwrap_or(&[]);
+    let all_aggregates = ir.get("aggregates").map_or_default(Json::each);
     let aggregates_by_name: HashMap<String, &Json> = all_aggregates
         .iter()
         .map(|a| {
@@ -342,7 +339,7 @@ pub fn generate(
     let unsupported_names: Vec<String> = all_aggregates
         .iter()
         .filter(|a| {
-            let vos = a.get("value_objects").map(Json::each).unwrap_or(&[]);
+            let vos = a.get("value_objects").map_or_default(Json::each);
             let vo_by_name: HashMap<String, &Json> = vos
                 .iter()
                 .map(|vo| {
@@ -370,8 +367,7 @@ pub fn generate(
     let mut manifest = Manifest::default();
     let process_managers: Vec<Json> = ir
         .get("process_managers")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .to_vec();
 
     // Owner of each value object across the whole domain: a command attribute can name a value
@@ -383,7 +379,7 @@ pub fn generate(
             .and_then(Json::as_str)
             .unwrap_or("")
             .to_string();
-        for vo in a.get("value_objects").map(Json::each).unwrap_or(&[]) {
+        for vo in a.get("value_objects").map_or_default(Json::each) {
             domain_value_object_owner.insert(
                 vo.get("name")
                     .and_then(Json::as_str)
@@ -397,7 +393,7 @@ pub fn generate(
     // a cross-aggregate argument. Each aggregate's own map wins a name collision.
     let mut domain_value_objects_by_name: HashMap<String, &Json> = HashMap::new();
     for a in all_aggregates {
-        for vo in a.get("value_objects").map(Json::each).unwrap_or(&[]) {
+        for vo in a.get("value_objects").map_or_default(Json::each) {
             domain_value_objects_by_name.insert(
                 vo.get("name")
                     .and_then(Json::as_str)
@@ -411,10 +407,7 @@ pub fn generate(
     for aggregate in all_aggregates {
         let agg_name = aggregate.get("name").and_then(Json::as_str).unwrap_or("");
 
-        let value_objects = aggregate
-            .get("value_objects")
-            .map(Json::each)
-            .unwrap_or(&[]);
+        let value_objects = aggregate.get("value_objects").map_or_default(Json::each);
         let mut value_objects_by_name: HashMap<String, &Json> =
             domain_value_objects_by_name.clone();
         value_objects_by_name.extend(value_objects.iter().map(|vo| {
@@ -442,7 +435,7 @@ pub fn generate(
                 aggregate_reason.clone(),
             );
             let cascade = format!("owning aggregate not generated: {aggregate_reason}");
-            for command in aggregate.get("commands").map(Json::each).unwrap_or(&[]) {
+            for command in aggregate.get("commands").map_or_default(Json::each) {
                 manifest.skipped_as(
                     "command",
                     format!("{domain_name}::{agg_name}.{}", node_name(command)),
@@ -450,7 +443,7 @@ pub fn generate(
                     cascade.clone(),
                 );
             }
-            for entity in aggregate.get("entities").map(Json::each).unwrap_or(&[]) {
+            for entity in aggregate.get("entities").map_or_default(Json::each) {
                 let entity_verb = format!("{domain_name}::{agg_name}.{}", node_name(entity));
                 manifest.skipped_as(
                     "entity",
@@ -458,7 +451,7 @@ pub fn generate(
                     "owning_aggregate",
                     cascade.clone(),
                 );
-                for command in entity.get("commands").map(Json::each).unwrap_or(&[]) {
+                for command in entity.get("commands").map_or_default(Json::each) {
                     manifest.skipped_as(
                         "entity_command",
                         format!("{entity_verb}.{}", node_name(command)),
@@ -467,8 +460,8 @@ pub fn generate(
                     );
                 }
             }
-            for port in aggregate.get("ports").map(Json::each).unwrap_or(&[]) {
-                for operation in port.get("operations").map(Json::each).unwrap_or(&[]) {
+            for port in aggregate.get("ports").map_or_default(Json::each) {
+                for operation in port.get("operations").map_or_default(Json::each) {
                     manifest.skipped_as(
                         "port_operation",
                         format!(
@@ -519,8 +512,8 @@ pub fn generate(
                 ),
             );
             puts_blank(&mut out);
-            let closed_set = vo.get("closed_set").map(Json::as_bool).unwrap_or(false);
-            let attrs = vo.get("attributes").map(Json::each).unwrap_or(&[]);
+            let closed_set = vo.get("closed_set").is_some_and(Json::as_bool);
+            let attrs = vo.get("attributes").map_or_default(Json::each);
             if closed_set && attrs.len() == 1 {
                 puts_str(&mut out, &json_codec::emit_closed_set_codec(exemplar, vo));
             } else if closed_set {
@@ -571,7 +564,7 @@ pub fn generate(
         // identity shape, not its command routability.
         let mut registry_entities: Vec<EntityIdentityEntry> = Vec::new();
 
-        for entity in aggregate.get("entities").map(Json::each).unwrap_or(&[]) {
+        for entity in aggregate.get("entities").map_or_default(Json::each) {
             let entity_verb = format!("{domain_name}::{agg_name}.{}", node_name(entity));
             manifest.generated("entity", entity_verb.clone());
             registry_entities.push(EntityIdentityEntry {
@@ -582,8 +575,7 @@ pub fn generate(
                     .to_string(),
                 identified_by: entity
                     .get("identified_by")
-                    .map(Json::each)
-                    .unwrap_or(&[])
+                    .map_or_default(Json::each)
                     .iter()
                     .map(Json::to_s)
                     .collect(),
@@ -595,7 +587,7 @@ pub fn generate(
             puts_blank(&mut out);
             let entity_name_ident =
                 crate::naming::rust_ident(entity.get("name").and_then(Json::as_str).unwrap_or(""));
-            let entity_attrs = entity.get("attributes").map(Json::each).unwrap_or(&[]);
+            let entity_attrs = entity.get("attributes").map_or_default(Json::each);
             let extra = lifecycle_extra_field(entity);
             puts_str(
                 &mut out,
@@ -631,7 +623,7 @@ pub fn generate(
             // dispatch at depth 2 additionally needs the same check on `nested`.
             let entity_can_route = json_codec::extract_id_supported(entity);
 
-            for nested in entity.get("entities").map(Json::each).unwrap_or(&[]) {
+            for nested in entity.get("entities").map_or_default(Json::each) {
                 let nested_verb = format!("{entity_verb}.{}", node_name(nested));
                 manifest.generated("entity", nested_verb.clone());
                 puts_str(
@@ -642,7 +634,7 @@ pub fn generate(
                 let nested_name_ident = crate::naming::rust_ident(
                     nested.get("name").and_then(Json::as_str).unwrap_or(""),
                 );
-                let nested_attrs = nested.get("attributes").map(Json::each).unwrap_or(&[]);
+                let nested_attrs = nested.get("attributes").map_or_default(Json::each);
                 let nested_extra = lifecycle_extra_field(nested);
                 puts_str(
                     &mut out,
@@ -690,9 +682,8 @@ pub fn generate(
                     puts_blank(&mut out);
                 }
 
-                let nested_identified_by =
-                    nested.get("identified_by").map(Json::each).unwrap_or(&[]);
-                for command in nested.get("commands").map(Json::each).unwrap_or(&[]) {
+                let nested_identified_by = nested.get("identified_by").map_or_default(Json::each);
+                for command in nested.get("commands").map_or_default(Json::each) {
                     let nested_command_verb = format!("{nested_verb}.{}", node_name(command));
                     if let Some(reason) = commands::entity_command_skip_reason(
                         command,
@@ -755,12 +746,11 @@ pub fn generate(
                         reference_checks: reference_checks(command, &aggregates_by_name, &unsupported_names),
                         reference_specs: crate::reference_specs::reference_specs(
                             domain_name,
-                            command.get("attributes").map(Json::each).unwrap_or(&[]),
+                            command.get("attributes").map_or_default(Json::each),
                         ),
                         attributes: command
                             .get("attributes")
-                            .map(Json::each)
-                            .unwrap_or(&[])
+                            .map_or_default(Json::each)
                             .iter()
                             .map(|a| a.get("name").map(Json::to_s).unwrap_or_default())
                             .collect(),
@@ -774,8 +764,7 @@ pub fn generate(
                         entity_name: entity_name_str.to_string(),
                         entity_identity_reading: entity
                             .get("identified_by")
-                            .map(Json::each)
-                            .unwrap_or(&[])
+                            .map_or_default(Json::each)
                             .iter()
                             .map(Json::to_s)
                             .collect::<Vec<_>>()
@@ -805,7 +794,7 @@ pub fn generate(
                 puts_blank(&mut out);
             }
 
-            for command in entity.get("commands").map(Json::each).unwrap_or(&[]) {
+            for command in entity.get("commands").map_or_default(Json::each) {
                 let entity_command_verb = format!("{entity_verb}.{}", node_name(command));
                 if let Some(reason) =
                     commands::entity_command_skip_reason(command, entity, &value_objects_by_name)
@@ -846,7 +835,7 @@ pub fn generate(
                 manifest.routed("entity_command", entity_command_verb);
 
                 let entity_command_name = command.get("name").and_then(Json::as_str).unwrap_or("");
-                let identified_by = entity.get("identified_by").map(Json::each).unwrap_or(&[]);
+                let identified_by = entity.get("identified_by").map_or_default(Json::each);
                 entity_commands.push(EntityCommandEntry {
                     verb: format!(
                         "{domain_name}::{agg_name}.{entity_name_ident}.{entity_command_name}",
@@ -876,12 +865,11 @@ pub fn generate(
                     ),
                     reference_specs: crate::reference_specs::reference_specs(
                         domain_name,
-                        command.get("attributes").map(Json::each).unwrap_or(&[]),
+                        command.get("attributes").map_or_default(Json::each),
                     ),
                     attributes: command
                         .get("attributes")
-                        .map(Json::each)
-                        .unwrap_or(&[])
+                        .map_or_default(Json::each)
                         .iter()
                         .map(|a| a.get("name").map(Json::to_s).unwrap_or_default())
                         .collect(),
@@ -916,8 +904,7 @@ pub fn generate(
         puts_blank(&mut out);
         let record_attrs_owned = record_for_struct
             .get("attributes")
-            .map(Json::each)
-            .unwrap_or(&[])
+            .map_or_default(Json::each)
             .to_vec();
         let record_attrs = record_attrs_owned.as_slice();
         let extra = lifecycle_extra_field(aggregate);
@@ -947,7 +934,7 @@ pub fn generate(
             ),
         );
         puts_blank(&mut out);
-        puts_str(&mut out, &format!("impl crate::kernel::ToJson for {record_name} {{\n    fn to_json(&self) -> crate::kernel::Json {{\n        {record_name}::to_json(self)\n    }}\n}}\n"));
+        puts_str(&mut out, &format!("impl crate::kernel::ToJson for {record_name} {{\n    fn to_json(&self) -> crate::kernel::Json {{\n        Self::to_json(self)\n    }}\n}}\n"));
         puts_blank(&mut out);
         puts_str(&mut out, &types::emit_set_projected_field(aggregate));
         puts_blank(&mut out);
@@ -963,7 +950,7 @@ pub fn generate(
         puts_blank(&mut out);
 
         let mut registry_commands: Vec<CommandEntry> = Vec::new();
-        for command in aggregate.get("commands").map(Json::each).unwrap_or(&[]) {
+        for command in aggregate.get("commands").map_or_default(Json::each) {
             let command_verb = format!("{domain_name}::{agg_name}.{}", node_name(command));
             if let Some(reason) =
                 commands::command_skip_reason(command, aggregate, &value_objects_by_name)
@@ -987,7 +974,7 @@ pub fn generate(
 
             let command_name = command.get("name").and_then(Json::as_str).unwrap_or("");
             let args_struct = format!("{}Args", crate::naming::rust_ident(command_name));
-            let cmd_attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
+            let cmd_attrs = command.get("attributes").map_or_default(Json::each);
             puts_str(
                 &mut out,
                 &json_codec::emit_to_json_flat_sparse(
@@ -1093,9 +1080,9 @@ pub fn generate(
         }
 
         let mut port_operations: Vec<PortEntry> = Vec::new();
-        for port in aggregate.get("ports").map(Json::each).unwrap_or(&[]) {
+        for port in aggregate.get("ports").map_or_default(Json::each) {
             let port_name = port.get("name").and_then(Json::as_str).unwrap_or("");
-            for operation in port.get("operations").map(Json::each).unwrap_or(&[]) {
+            for operation in port.get("operations").map_or_default(Json::each) {
                 let operation_verb = format!(
                     "{domain_name}::{agg_name}.{port_name}.{}",
                     node_name(operation)
@@ -1123,7 +1110,7 @@ pub fn generate(
                 puts_blank(&mut out);
 
                 let operation_name = operation.get("name").and_then(Json::as_str).unwrap_or("");
-                let operation_attrs = operation.get("attributes").map(Json::each).unwrap_or(&[]);
+                let operation_attrs = operation.get("attributes").map_or_default(Json::each);
                 let legacy_receiver_field = operation_attrs
                     .iter()
                     .find(|attr| {
@@ -1140,8 +1127,7 @@ pub fn generate(
                         // ("reference.value"), while the attribute is named "reference".
                         aggregate
                             .get("identified_by")
-                            .map(Json::each)
-                            .unwrap_or(&[])
+                            .map_or_default(Json::each)
                             .first()
                             .map(Json::to_s)
                             .and_then(|s| s.split('.').next().map(str::to_string))
@@ -1190,12 +1176,11 @@ pub fn generate(
             domain_name: domain_name.to_string(),
             reference_specs: crate::reference_specs::reference_specs(
                 domain_name,
-                aggregate.get("attributes").map(Json::each).unwrap_or(&[]),
+                aggregate.get("attributes").map_or_default(Json::each),
             ),
             identified_by: aggregate
                 .get("identified_by")
-                .map(Json::each)
-                .unwrap_or(&[])
+                .map_or_default(Json::each)
                 .iter()
                 .map(Json::to_s)
                 .collect(),
@@ -1207,10 +1192,7 @@ pub fn generate(
     let assignments_verb = queries::provided_assignments(ir);
     for aggregate in all_aggregates {
         let agg_name = aggregate.get("name").and_then(Json::as_str).unwrap_or("");
-        let value_objects = aggregate
-            .get("value_objects")
-            .map(Json::each)
-            .unwrap_or(&[]);
+        let value_objects = aggregate.get("value_objects").map_or_default(Json::each);
         let value_objects_by_name: HashMap<String, &Json> = value_objects
             .iter()
             .map(|vo| {
@@ -1224,7 +1206,7 @@ pub fn generate(
             })
             .collect();
 
-        for query in aggregate.get("queries").map(Json::each).unwrap_or(&[]) {
+        for query in aggregate.get("queries").map_or_default(Json::each) {
             let query_name = query.get("name").and_then(Json::as_str).unwrap_or("");
             if let Some(reason) = queries::query_skip_reason(
                 query,
@@ -1277,13 +1259,13 @@ pub fn generate(
 
         // Entity queries, one level down.
         let aggregate_id = format!("{domain_name}::{agg_name}");
-        let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
-        for entity in aggregate.get("entities").map(Json::each).unwrap_or(&[]) {
+        let attrs = aggregate.get("attributes").map_or_default(Json::each);
+        for entity in aggregate.get("entities").map_or_default(Json::each) {
             let entity_name = entity.get("name").and_then(Json::as_str).unwrap_or("");
             let list_attr = attrs
                 .iter()
                 .find(|a| crate::attr::list(a) && crate::attr::type_name(a) == entity_name);
-            for query in entity.get("queries").map(Json::each).unwrap_or(&[]) {
+            for query in entity.get("queries").map_or_default(Json::each) {
                 let query_name = query.get("name").and_then(Json::as_str).unwrap_or("");
                 let query_verb = format!("{aggregate_id}.{entity_name}.{query_name}");
                 if let Some(reason) = queries::entity_query_skip_reason(
@@ -1299,8 +1281,7 @@ pub fn generate(
                 manifest.generated("query", query_verb);
                 let identity_keys = entity
                     .get("identified_by")
-                    .map(Json::each)
-                    .unwrap_or(&[])
+                    .map_or_default(Json::each)
                     .iter()
                     .map(|path| Json::to_s(path).split('.').next().unwrap_or("").to_string())
                     .collect();
@@ -1326,13 +1307,13 @@ pub fn generate(
             }
             manifest.entity_query_gaps(
                 &format!("{aggregate_id}.{entity_name}"),
-                entity.get("entities").map(Json::each).unwrap_or(&[]),
+                entity.get("entities").map_or_default(Json::each),
             );
         }
     }
 
     let mut read_model_defs: Vec<read_models::ReadModelDef> = Vec::new();
-    for read_model in ir.get("read_models").map(Json::each).unwrap_or(&[]) {
+    for read_model in ir.get("read_models").map_or_default(Json::each) {
         let read_model_id = format!("{domain_name}::{}", node_name(read_model));
         if let Some(reason) =
             read_models::read_model_skip_reason(read_model, &aggregates_by_name, &unsupported_names)
@@ -1349,7 +1330,7 @@ pub fn generate(
     }
 
     // Policies and process managers have no per-instance skip condition.
-    for policy in ir.get("policies").map(Json::each).unwrap_or(&[]) {
+    for policy in ir.get("policies").map_or_default(Json::each) {
         manifest.routed("policy", format!("{domain_name}::{}", node_name(policy)));
     }
     for pm in &process_managers {
@@ -1362,8 +1343,7 @@ pub fn generate(
     let lineage_aggregates = ir
         .get("lineage")
         .and_then(|l| l.get("capable_aggregates"))
-        .map(Json::each)
-        .unwrap_or(&[]);
+        .map_or_default(Json::each);
     for lineage_aggregate in lineage_aggregates {
         manifest.record(
             "lineage_aggregate",
@@ -1379,10 +1359,10 @@ pub fn generate(
         );
     }
 
-    let policies: Vec<Json> = ir.get("policies").map(Json::each).unwrap_or(&[]).to_vec();
+    let policies: Vec<Json> = ir.get("policies").map_or_default(Json::each).to_vec();
     // Raw aggregate JSON: a fan-out's addressing key comes from the target command's declared
     // `references`/`attributes`, which `AggregateEntry` does not carry.
-    let policy_aggregates: Vec<Json> = ir.get("aggregates").map(Json::each).unwrap_or(&[]).to_vec();
+    let policy_aggregates: Vec<Json> = ir.get("aggregates").map_or_default(Json::each).to_vec();
 
     let mut registry_rs = String::new();
     puts_str(

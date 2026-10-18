@@ -2,11 +2,12 @@
 //! Kept separate from `expr::Value`; zero Cargo dependencies (ADR 0012).
 
 use super::Refusal;
+use std::fmt::Write as _;
 
 #[derive(Debug, Clone)]
 pub enum Json {
-    Object(Vec<(String, Json)>),
-    Array(Vec<Json>),
+    Object(Vec<(String, Self)>),
+    Array(Vec<Self>),
     Str(String),
     /// The second field is the exact source text (BUG#147) — set only when the literal's
     /// magnitude means the `f64` approximation would not reproduce it, e.g. an integer past
@@ -28,14 +29,14 @@ impl PartialEq for Json {
     /// in the first place; otherwise the numeric comparison is unchanged.
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Json::Object(a), Json::Object(b)) => a == b,
-            (Json::Array(a), Json::Array(b)) => a == b,
-            (Json::Str(a), Json::Str(b)) => a == b,
-            (Json::Num(_, Some(araw)), Json::Num(_, Some(braw))) => araw == braw,
-            (Json::Num(a, _), Json::Num(b, _)) => a == b,
-            (Json::Float(a), Json::Float(b)) => a == b,
-            (Json::Bool(a), Json::Bool(b)) => a == b,
-            (Json::Null, Json::Null) => true,
+            (Self::Object(a), Self::Object(b)) => a == b,
+            (Self::Array(a), Self::Array(b)) => a == b,
+            (Self::Str(a), Self::Str(b)) => a == b,
+            (Self::Num(_, Some(araw)), Self::Num(_, Some(braw))) => araw == braw,
+            (Self::Num(a, _), Self::Num(b, _)) => a == b,
+            (Self::Float(a), Self::Float(b)) => a == b,
+            (Self::Bool(a), Self::Bool(b)) => a == b,
+            (Self::Null, Self::Null) => true,
             _ => false,
         }
     }
@@ -45,48 +46,46 @@ impl PartialEq for Json {
 impl super::Fielded for Json {
     fn field(&self, name: &str) -> Option<super::Field<'_>> {
         use super::{Field, Value};
-        let Json::Object(pairs) = self else {
+        let Self::Object(pairs) = self else {
             return None;
         };
         let (_, found) = pairs.iter().find(|(k, _)| k == name)?;
         Some(match found {
-            Json::Object(_) => Field::Nested(found),
-            Json::Array(items) => Field::Value(Value::List(items.len())),
-            Json::Str(s) => Field::Value(Value::Str(s.clone())),
-            Json::Num(n, raw) => match exact_i64(*n, raw) {
-                Some(i) => Field::Value(Value::Int(i)),
-                None => Field::Value(Value::Float(*n)),
-            },
+            Self::Object(_) => Field::Nested(found),
+            Self::Array(items) => Field::Value(Value::List(items.len())),
+            Self::Str(s) => Field::Value(Value::Str(s.clone())),
+            Self::Num(n, raw) => {
+                Field::Value(exact_i64(*n, raw.as_deref()).map_or(Value::Float(*n), Value::Int))
+            }
             // Float already carries the Integer-or-Float answer that `Num` must guess.
-            Json::Float(n) => Field::Value(Value::Float(*n)),
-            Json::Bool(b) => Field::Value(Value::Bool(*b)),
-            Json::Null => Field::Value(Value::Nil),
+            Self::Float(n) => Field::Value(Value::Float(*n)),
+            Self::Bool(b) => Field::Value(Value::Bool(*b)),
+            Self::Null => Field::Value(Value::Nil),
         })
     }
 
     fn items(&self, name: &str) -> Option<Vec<super::Field<'_>>> {
         use super::{Field, Value};
-        let Json::Object(pairs) = self else {
+        let Self::Object(pairs) = self else {
             return None;
         };
         let (_, found) = pairs.iter().find(|(k, _)| k == name)?;
-        let Json::Array(items) = found else {
+        let Self::Array(items) = found else {
             return None;
         };
         Some(
             items
                 .iter()
                 .map(|item| match item {
-                    Json::Object(_) => Field::Nested(item),
-                    Json::Array(inner) => Field::Value(Value::List(inner.len())),
-                    Json::Str(s) => Field::Value(Value::Str(s.clone())),
-                    Json::Num(n, raw) => match exact_i64(*n, raw) {
-                        Some(i) => Field::Value(Value::Int(i)),
-                        None => Field::Value(Value::Float(*n)),
-                    },
-                    Json::Float(n) => Field::Value(Value::Float(*n)),
-                    Json::Bool(b) => Field::Value(Value::Bool(*b)),
-                    Json::Null => Field::Value(Value::Nil),
+                    Self::Object(_) => Field::Nested(item),
+                    Self::Array(inner) => Field::Value(Value::List(inner.len())),
+                    Self::Str(s) => Field::Value(Value::Str(s.clone())),
+                    Self::Num(n, raw) => Field::Value(
+                        exact_i64(*n, raw.as_deref()).map_or(Value::Float(*n), Value::Int),
+                    ),
+                    Self::Float(n) => Field::Value(Value::Float(*n)),
+                    Self::Bool(b) => Field::Value(Value::Bool(*b)),
+                    Self::Null => Field::Value(Value::Nil),
                 })
                 .collect(),
         )
@@ -94,7 +93,7 @@ impl super::Fielded for Json {
 
     // A `Json` has no declaration to consult, so one key of any name is the whole shape test.
     fn as_scalar(&self) -> Option<super::Value> {
-        let Json::Object(pairs) = self else {
+        let Self::Object(pairs) = self else {
             return None;
         };
         if pairs.len() != 1 {
@@ -108,8 +107,8 @@ impl super::Fielded for Json {
 }
 
 impl Json {
-    pub fn obj(fields: Vec<(&str, Json)>) -> Json {
-        Json::Object(
+    pub fn obj(fields: Vec<(&str, Self)>) -> Self {
+        Self::Object(
             fields
                 .into_iter()
                 .map(|(k, v)| (k.to_string(), v))
@@ -117,24 +116,24 @@ impl Json {
         )
     }
 
-    pub fn str(s: impl Into<String>) -> Json {
-        Json::Str(s.into())
+    pub fn str(s: impl Into<String>) -> Self {
+        Self::Str(s.into())
     }
 
     /// The raw text is always the exact `i64`, not derived from the `f64` cast: `i as f64`
     /// itself rounds near the `i64` boundaries, which would otherwise reintroduce BUG#147's
     /// class of loss for an in-range value built straight from a Rust integer.
-    pub fn int(i: i64) -> Json {
-        Json::Num(i as f64, Some(i.to_string()))
+    pub fn int(i: i64) -> Self {
+        Self::Num(i as f64, Some(i.to_string()))
     }
 
-    pub fn float(f: f64) -> Json {
-        Json::Float(f)
+    pub const fn float(f: f64) -> Self {
+        Self::Float(f)
     }
 
-    pub fn get(&self, key: &str) -> Option<&Json> {
+    pub fn get(&self, key: &str) -> Option<&Self> {
         match self {
-            Json::Object(fields) => fields.iter().find(|(k, _)| k == key).map(|(_, v)| v),
+            Self::Object(fields) => fields.iter().find(|(k, _)| k == key).map(|(_, v)| v),
             _ => None,
         }
     }
@@ -142,11 +141,11 @@ impl Json {
     /// A tolerant dotted-path walk: a non-object reached mid-path is the answer.
     ///
     /// A `Reference<X>` argument arrives as a bare string where a wrapped value is expected.
-    pub fn dig(&self, path: &str) -> Option<&Json> {
+    pub fn dig(&self, path: &str) -> Option<&Self> {
         let mut current = self;
         for segment in path.split('.') {
             match current {
-                Json::Object(_) => current = current.get(segment)?,
+                Self::Object(_) => current = current.get(segment)?,
                 _ => return Some(current),
             }
         }
@@ -159,13 +158,13 @@ impl Json {
     /// an Object stays compact JSON.
     pub fn inspect(&self) -> String {
         match self {
-            Json::Str(s) => {
+            Self::Str(s) => {
                 let mut out = String::new();
                 write_escaped_string(s, &mut out);
                 out
             }
-            Json::Null => "nil".to_string(),
-            Json::Array(items) => {
+            Self::Null => "nil".to_string(),
+            Self::Array(items) => {
                 let mut out = String::from("[");
                 for (i, item) in items.iter().enumerate() {
                     if i > 0 {
@@ -186,17 +185,17 @@ impl Json {
     /// Arrays, Objects and fractions fall back to compact JSON; they never match a member.
     pub fn ruby_to_s(&self) -> String {
         match self {
-            Json::Str(s) => s.clone(),
-            Json::Null => String::new(),
-            Json::Bool(b) => b.to_string(),
-            Json::Num(n, _) if n.fract() == 0.0 && n.abs() < 1e15 => format!("{}", *n as i64),
+            Self::Str(s) => s.clone(),
+            Self::Null => String::new(),
+            Self::Bool(b) => b.to_string(),
+            Self::Num(n, _) if n.fract() == 0.0 && n.abs() < 1e15 => format!("{}", *n as i64),
             _ => self.to_json_string(),
         }
     }
 
     pub fn as_str(&self) -> Option<&str> {
         match self {
-            Json::Str(s) => Some(s),
+            Self::Str(s) => Some(s),
             _ => None,
         }
     }
@@ -207,28 +206,28 @@ impl Json {
     /// range and `i64::MAX` round-trips through `f64` inexactly even though it fits in `i64`.
     pub fn as_i64(&self) -> Option<i64> {
         match self {
-            Json::Num(n, raw) => exact_i64(*n, raw),
+            Self::Num(n, raw) => exact_i64(*n, raw.as_deref()),
             _ => None,
         }
     }
 
-    pub fn as_f64(&self) -> Option<f64> {
+    pub const fn as_f64(&self) -> Option<f64> {
         match self {
-            Json::Num(n, _) | Json::Float(n) => Some(*n),
+            Self::Num(n, _) | Self::Float(n) => Some(*n),
             _ => None,
         }
     }
 
-    pub fn as_bool(&self) -> Option<bool> {
+    pub const fn as_bool(&self) -> Option<bool> {
         match self {
-            Json::Bool(b) => Some(*b),
+            Self::Bool(b) => Some(*b),
             _ => None,
         }
     }
 
-    pub fn as_array(&self) -> Option<&[Json]> {
+    pub fn as_array(&self) -> Option<&[Self]> {
         match self {
-            Json::Array(items) => Some(items),
+            Self::Array(items) => Some(items),
             _ => None,
         }
     }
@@ -236,17 +235,17 @@ impl Json {
     /// Wraps a bare scalar as a one-field object under `field_name`; an object passes through.
     ///
     /// Mirrors `Value.for_attribute`'s bare-value admission for a single-attribute value object.
-    pub fn coerce_single_field(&self, field_name: &str) -> Json {
+    pub fn coerce_single_field(&self, field_name: &str) -> Self {
         match self {
-            Json::Object(_) => self.clone(),
-            other => Json::obj(vec![(field_name, other.clone())]),
+            Self::Object(_) => self.clone(),
+            other => Self::obj(vec![(field_name, other.clone())]),
         }
     }
 
     /// How a refusal quotes an offered value: compact JSON for an Array or Object, else `inspect`.
     pub fn describe(&self) -> String {
         match self {
-            Json::Array(_) | Json::Object(_) => self.to_json_string(),
+            Self::Array(_) | Self::Object(_) => self.to_json_string(),
             other => other.inspect(),
         }
     }
@@ -254,9 +253,9 @@ impl Json {
     /// Refuses `TypeMismatch` when a multi-field value object is offered as a non-object.
     ///
     /// Runs at the `from_json` call site, since only the caller knows `name`.
-    pub fn expect_value_object_shape(&self, name: &str, type_name: &str) -> Result<&Json, Refusal> {
+    pub fn expect_value_object_shape(&self, name: &str, type_name: &str) -> Result<&Self, Refusal> {
         match self {
-            Json::Object(_) => Ok(self),
+            Self::Object(_) => Ok(self),
             other => Err(Refusal::TypeMismatch(
                 super::refusal_wording::TypeMismatchValueObjectShapeArgs {
                     name,
@@ -269,7 +268,7 @@ impl Json {
     }
 
     /// A required-field lookup that refuses `TypeMismatch` when the key is missing.
-    pub fn require(&self, key: &str, struct_name: &str) -> Result<&Json, Refusal> {
+    pub fn require(&self, key: &str, struct_name: &str) -> Result<&Self, Refusal> {
         self.get(key).ok_or_else(|| {
             Refusal::TypeMismatch(format!("{struct_name}.{key}: missing from JSON args"))
         })
@@ -280,7 +279,7 @@ impl Json {
     /// Sorted because refusal wording is pinned by corpus fixtures and cannot depend on key order.
     pub fn unknown_keys(&self, known: &[&str]) -> Vec<String> {
         match self {
-            Json::Object(fields) => {
+            Self::Object(fields) => {
                 let mut unknown: Vec<String> = fields
                     .iter()
                     .filter(|(k, _)| !known.contains(&k.as_str()))
@@ -297,8 +296,8 @@ impl Json {
     ///
     /// The typed args carry declared defaults that the raw `args_json` lacks, while the raw
     /// args keep identity/reference arguments no attribute names. Non-objects return `base`.
-    pub fn overlay(base: &Json, patch: &Json) -> Json {
-        let (Json::Object(base_fields), Json::Object(patch_fields)) = (base, patch) else {
+    pub fn overlay(base: &Self, patch: &Self) -> Self {
+        let (Self::Object(base_fields), Self::Object(patch_fields)) = (base, patch) else {
             return base.clone();
         };
         let mut merged = base_fields.clone();
@@ -308,14 +307,14 @@ impl Json {
                 None => merged.push((key.clone(), value.clone())),
             }
         }
-        Json::Object(merged)
+        Self::Object(merged)
     }
 
     /// Adds each target key of `pairs` holding its source key's value, keeping existing args.
     ///
     /// A source key that is absent adds nothing. Non-objects pass through.
-    pub fn with_aliases(&self, pairs: &[(&str, &str)]) -> Json {
-        let Json::Object(fields) = self else {
+    pub fn with_aliases(&self, pairs: &[(&str, &str)]) -> Self {
+        let Self::Object(fields) = self else {
             return self.clone();
         };
         let mut merged = fields.clone();
@@ -332,7 +331,7 @@ impl Json {
                 None => merged.push((target_key.to_string(), value)),
             }
         }
-        Json::Object(merged)
+        Self::Object(merged)
     }
 
     /// Stringifies a scalar leaf as an identity component.
@@ -343,18 +342,18 @@ impl Json {
     /// carries it at its full, arbitrary-precision magnitude.
     pub fn to_id_component(&self) -> Result<String, Refusal> {
         match self {
-            Json::Str(s) if s.is_empty() => Err(Refusal::TypeMismatch(
+            Self::Str(s) if s.is_empty() => Err(Refusal::TypeMismatch(
                 "identity component must not be empty".to_string(),
             )),
-            Json::Str(s) => Ok(s.clone()),
-            Json::Num(n, raw) => match exact_i64(*n, raw) {
-                // In range: a plain integer, as Ruby prints it.
-                Some(i) => Ok(i.to_string()),
-                // Out of range or fractional: the exact source text when there is one (a
-                // Bignum past i64), else the float's own digits; `as i64` would saturate.
-                None => Ok(raw.clone().unwrap_or_else(|| n.to_string())),
-            },
-            Json::Bool(b) => Ok(b.to_string()),
+            Self::Str(s) => Ok(s.clone()),
+            // In range: a plain integer, as Ruby prints it. Out of range or fractional: the
+            // exact source text when there is one (a Bignum past i64), else the float's own
+            // digits; `as i64` would saturate.
+            Self::Num(n, raw) => Ok(exact_i64(*n, raw.as_deref()).map_or_else(
+                || raw.clone().unwrap_or_else(|| n.to_string()),
+                |i| i.to_string(),
+            )),
+            Self::Bool(b) => Ok(b.to_string()),
             other => Err(Refusal::TypeMismatch(format!(
                 "cannot use {other:?} as an identity component"
             ))),
@@ -366,12 +365,12 @@ impl Json {
     /// A present-but-blank key is an ordinary non-matching value there; non-scalars still refuse.
     pub fn to_id_component_lenient(&self) -> Result<String, Refusal> {
         match self {
-            Json::Str(s) => Ok(s.clone()),
+            Self::Str(s) => Ok(s.clone()),
             other => other.to_id_component(),
         }
     }
 
-    pub fn parse(input: &str) -> Result<Json, String> {
+    pub fn parse(input: &str) -> Result<Self, String> {
         let mut parser = Parser {
             chars: input.chars().peekable(),
             depth: 0,
@@ -389,7 +388,7 @@ impl Json {
 
     fn write(&self, out: &mut String) {
         match self {
-            Json::Object(fields) => {
+            Self::Object(fields) => {
                 out.push('{');
                 for (i, (k, v)) in fields.iter().enumerate() {
                     if i > 0 {
@@ -401,7 +400,7 @@ impl Json {
                 }
                 out.push('}');
             }
-            Json::Array(items) => {
+            Self::Array(items) => {
                 out.push('[');
                 for (i, v) in items.iter().enumerate() {
                     if i > 0 {
@@ -411,21 +410,21 @@ impl Json {
                 }
                 out.push(']');
             }
-            Json::Str(s) => write_escaped_string(s, out),
+            Self::Str(s) => write_escaped_string(s, out),
             // The exact source text wins when there is one (BUG#147): re-deriving digits from
             // `n` would re-round a value the `f64` approximation already lost precision on.
-            Json::Num(_, Some(raw)) => out.push_str(raw),
-            Json::Num(n, None) => out.push_str(&canonical_integer_digits(*n)),
+            Self::Num(_, Some(raw)) => out.push_str(raw),
+            Self::Num(n, None) => out.push_str(&canonical_integer_digits(*n)),
             // Always a decimal point (`10.0`), as Ruby's Float#to_json; `Num` must not grow one.
-            Json::Float(n) => {
+            Self::Float(n) => {
                 let rendered = n.to_string();
                 out.push_str(&rendered);
                 if !rendered.contains('.') && !rendered.contains('e') && !rendered.contains('E') {
                     out.push_str(".0");
                 }
             }
-            Json::Bool(b) => out.push_str(if *b { "true" } else { "false" }),
-            Json::Null => out.push_str("null"),
+            Self::Bool(b) => out.push_str(if *b { "true" } else { "false" }),
+            Self::Null => out.push_str("null"),
         }
     }
 }
@@ -448,9 +447,8 @@ fn integral_i64(n: f64) -> Option<i64> {
 /// wrong `i64` via `integral_i64`'s `f64` path alone. Parsing the original digits sidesteps that
 /// gap; `raw` is `None` for anything short enough that the gap never opens, so this is the same
 /// answer `integral_i64` already gave for every value the old, one-field `Num` could represent.
-fn exact_i64(n: f64, raw: &Option<String>) -> Option<i64> {
-    raw.as_deref()
-        .and_then(|r| r.parse::<i64>().ok())
+fn exact_i64(n: f64, raw: Option<&str>) -> Option<i64> {
+    raw.and_then(|r| r.parse::<i64>().ok())
         .or_else(|| integral_i64(n))
 }
 
@@ -487,7 +485,7 @@ mod integral_i64_tests {
     fn accepts_i64_boundaries() {
         assert_eq!(integral_i64(i64::MIN as f64), Some(i64::MIN));
         // Largest f64 below 2^63; `i64::MAX` itself rounds up to 2^63 in f64.
-        let largest_safe = 9223372036854774784.0_f64;
+        let largest_safe = 9_223_372_036_854_774_784.0_f64;
         assert_eq!(integral_i64(largest_safe), Some(largest_safe as i64));
     }
 
@@ -692,7 +690,9 @@ fn write_escaped_string(s: &str, out: &mut String) {
             // Ruby's `JSON.generate` writes these two short, not as `\u0008` / `\u000c`.
             '\u{8}' => out.push_str("\\b"),
             '\u{c}' => out.push_str("\\f"),
-            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
+            c if (c as u32) < 0x20 => {
+                let _ = write!(out, "\\u{:04x}", c as u32);
+            }
             c => out.push(c),
         }
     }
@@ -710,11 +710,24 @@ struct Parser<'a> {
 /// refusing. 128 is `serde_json`'s own recursion limit, so the host and this parser refuse alike.
 const MAX_DEPTH: usize = 128;
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     fn skip_ws(&mut self) {
         while matches!(self.chars.peek(), Some(c) if c.is_whitespace()) {
             self.chars.next();
         }
+    }
+
+    /// Appends the next char to `out` when it satisfies `pred`, reporting whether it did.
+    fn take_one(&mut self, out: &mut String, pred: impl Fn(char) -> bool) -> bool {
+        self.chars
+            .next_if(|c| pred(*c))
+            .map(|c| out.push(c))
+            .is_some()
+    }
+
+    /// Appends every consecutive ASCII digit to `out`.
+    fn take_digits(&mut self, out: &mut String) {
+        while self.take_one(out, |c| c.is_ascii_digit()) {}
     }
 
     fn expect(&mut self, ch: char) -> Result<(), String> {
@@ -741,7 +754,7 @@ impl<'a> Parser<'a> {
             Some('{') => self.parse_object(),
             Some('[') => self.parse_array(),
             Some('"') => self.parse_string().map(Json::Str),
-            Some('t') | Some('f') => self.parse_bool(),
+            Some('t' | 'f') => self.parse_bool(),
             Some('n') => self.parse_null(),
             Some(c) if *c == '-' || c.is_ascii_digit() => self.parse_number(),
             other => Err(format!("unexpected {other:?} in JSON")),
@@ -787,7 +800,7 @@ impl<'a> Parser<'a> {
             fields.push((key, value));
             self.skip_ws();
             match self.chars.next() {
-                Some(',') => continue,
+                Some(',') => {}
                 Some('}') => break,
                 other => return Err(format!("expected ',' or '}}' in object, got {other:?}")),
             }
@@ -807,7 +820,7 @@ impl<'a> Parser<'a> {
             items.push(self.parse_value()?);
             self.skip_ws();
             match self.chars.next() {
-                Some(',') => continue,
+                Some(',') => {}
                 Some(']') => break,
                 other => return Err(format!("expected ',' or ']' in array, got {other:?}")),
             }
@@ -866,26 +879,14 @@ impl<'a> Parser<'a> {
 
     fn parse_number(&mut self) -> Result<Json, String> {
         let mut s = String::new();
-        if self.chars.peek() == Some(&'-') {
-            s.push(self.chars.next().unwrap());
+        self.take_one(&mut s, |c| c == '-');
+        self.take_digits(&mut s);
+        if self.take_one(&mut s, |c| c == '.') {
+            self.take_digits(&mut s);
         }
-        while matches!(self.chars.peek(), Some(c) if c.is_ascii_digit()) {
-            s.push(self.chars.next().unwrap());
-        }
-        if self.chars.peek() == Some(&'.') {
-            s.push(self.chars.next().unwrap());
-            while matches!(self.chars.peek(), Some(c) if c.is_ascii_digit()) {
-                s.push(self.chars.next().unwrap());
-            }
-        }
-        if matches!(self.chars.peek(), Some('e') | Some('E')) {
-            s.push(self.chars.next().unwrap());
-            if matches!(self.chars.peek(), Some('+') | Some('-')) {
-                s.push(self.chars.next().unwrap());
-            }
-            while matches!(self.chars.peek(), Some(c) if c.is_ascii_digit()) {
-                s.push(self.chars.next().unwrap());
-            }
+        if self.take_one(&mut s, |c| c == 'e' || c == 'E') {
+            self.take_one(&mut s, |c| c == '+' || c == '-');
+            self.take_digits(&mut s);
         }
         let value: f64 = s.parse().map_err(|e| format!("bad number {s:?}: {e}"))?;
         // A plain integer literal keeps its exact source digits (BUG#147) whenever `write`'s own

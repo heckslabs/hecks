@@ -73,7 +73,7 @@ fn leaf(rng: &mut Rng) -> Value {
         3 => json!({"op": "bool", "value": rng.chance(2)}),
         4 => json!({"op": "nil"}),
         5 => {
-            json!({"op": "lookup", "path": (0..1 + rng.below(3)).map(|_| *rng.pick(&["a", "b", "items", "name", "missing", "x", ""])).collect::<Vec<_>>()})
+            json!({"op": "lookup", "path": (0..=rng.below(3)).map(|_| *rng.pick(&["a", "b", "items", "name", "missing", "x", ""])).collect::<Vec<_>>()})
         }
         6 => {
             json!({"op": "array", "elements": (0..rng.below(4)).map(|_| json!({"op": "int", "value": rng.below(5)})).collect::<Vec<_>>()})
@@ -194,7 +194,7 @@ fn integer_arithmetic_at_the_limits_refuses_instead_of_overflowing() {
         json!({"op": "modulo", "receiver": int(i64::MAX), "divisor": int(i64::MIN)}),
         json!({"op": "modulo", "receiver": int(1), "divisor": int(0)}),
         json!({"op": "modulo", "receiver": {"op": "float", "value": 1.5}, "divisor": {"op": "float", "value": 0.0}}),
-        json!({"op": "add", "left": {"op": "float", "value": 1.7976931348623157e308}, "right": {"op": "float", "value": 1.7976931348623157e308}}),
+        json!({"op": "add", "left": {"op": "float", "value": 1.797_693_134_862_315_7e308}, "right": {"op": "float", "value": 1.797_693_134_862_315_7e308}}),
     ];
     for tree in cases {
         let expr = parse(&tree).expect("well-formed");

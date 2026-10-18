@@ -69,13 +69,14 @@ fn an_unset_switch_installs_nothing() {
     let mut vars = env_map("alongside");
     vars.remove("PLATFORM_SIGNIN");
     assert!(extensions_for(&vars).is_empty());
-    assert!(extensions_for(&Default::default()).is_empty());
+    assert!(extensions_for(&std::collections::HashMap::default()).is_empty());
     assert!(PlatformSignin::from_env_map(&vars).unwrap().is_none());
 }
 
 #[test]
 fn the_default_extension_list_is_unchanged_when_the_switch_is_unset() {
-    let installed = crate::extension::default_extensions_from(&Default::default());
+    let installed =
+        crate::extension::default_extensions_from(&std::collections::HashMap::default());
     assert_eq!(installed.len(), 1);
     assert!(installed[0]
         .rate_rules()
@@ -95,7 +96,8 @@ fn a_switched_on_site_adds_exactly_one_extension() {
 async fn off_means_the_new_paths_reach_the_hosts_own_handling() {
     // With no extension installed the loop in `web::render` finds nobody; this pins what a
     // request for the new path meets instead: the hosts own routes, which know nothing of it.
-    let installed = crate::extension::default_extensions_from(&Default::default());
+    let installed =
+        crate::extension::default_extensions_from(&std::collections::HashMap::default());
     assert_eq!(installed.len(), 1);
     assert!(installed
         .iter()

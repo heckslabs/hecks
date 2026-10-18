@@ -32,7 +32,11 @@ fn document() -> Value {
 }
 
 fn hex(digest: &[u8]) -> String {
-    digest.iter().map(|b| format!("{b:02x}")).collect()
+    use std::fmt::Write;
+    digest.iter().fold(String::new(), |mut out, b| {
+        let _ = write!(out, "{b:02x}"); // writing to a String cannot fail
+        out
+    })
 }
 
 fn text<'a>(value: &'a Value, name: &str) -> &'a str {

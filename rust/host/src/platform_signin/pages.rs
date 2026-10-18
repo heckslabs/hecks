@@ -28,40 +28,40 @@ pub enum Failure {
 
 impl Failure {
     /// Every code the flow can show, in a fixed order.
-    pub const ALL: [Failure; 6] = [
-        Failure::Cookie,
-        Failure::State,
-        Failure::Params,
-        Failure::Token,
-        Failure::Unlinked,
-        Failure::Unavailable,
+    pub const ALL: [Self; 6] = [
+        Self::Cookie,
+        Self::State,
+        Self::Params,
+        Self::Token,
+        Self::Unlinked,
+        Self::Unavailable,
     ];
 
     /// Returns the stable code shown on the page and logged.
-    pub fn code(self) -> &'static str {
+    pub const fn code(self) -> &'static str {
         match self {
-            Failure::Cookie => "platform_cookie",
-            Failure::State => "platform_state",
-            Failure::Params => "platform_params",
-            Failure::Token => "platform_token",
-            Failure::Unlinked => "google_unlinked",
-            Failure::Unavailable => "platform_unavailable",
+            Self::Cookie => "platform_cookie",
+            Self::State => "platform_state",
+            Self::Params => "platform_params",
+            Self::Token => "platform_token",
+            Self::Unlinked => "google_unlinked",
+            Self::Unavailable => "platform_unavailable",
         }
     }
 
     /// Returns the HTTP status.
-    pub fn status(self) -> u16 {
+    pub const fn status(self) -> u16 {
         match self {
-            Failure::Unlinked => 403,
-            Failure::Unavailable => 500,
+            Self::Unlinked => 403,
+            Self::Unavailable => 500,
             _ => 400,
         }
     }
 
-    fn message(self) -> &'static str {
+    const fn message(self) -> &'static str {
         match self {
-            Failure::Unlinked => "This account does not have access to this site.",
-            Failure::Unavailable => "Sign-in is unavailable. Please try again later.",
+            Self::Unlinked => "This account does not have access to this site.",
+            Self::Unavailable => "Sign-in is unavailable. Please try again later.",
             _ => "This sign-in link is not valid or has expired. Please start again from the site you came from.",
         }
     }

@@ -14,12 +14,12 @@ pub fn empty(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
     let v = eval(receiver, ctx)?;
     // Every `Value` variant is named so a new one forces a decision here.
     match v {
-        Value::Str(_) => Ok(Value::Bool(
-            scalar::is_empty(&v).expect("Str always answers is_empty"),
-        )),
-        Value::List(_) => Ok(Value::Bool(
-            list::is_empty(&v).expect("List always answers is_empty"),
-        )),
+        Value::Str(_) => Ok(Value::Bool(scalar::is_empty(&v).ok_or_else(|| {
+            eval_error("router bug: Str always answers is_empty".to_string())
+        })?)),
+        Value::List(_) => Ok(Value::Bool(list::is_empty(&v).ok_or_else(|| {
+            eval_error("router bug: List always answers is_empty".to_string())
+        })?)),
         // A materialised Array answers from its own length.
         Value::Array(ref elements) => Ok(Value::Bool(elements.is_empty())),
         Value::Int(_) | Value::Float(_) | Value::Bool(_) | Value::Nil => Err(eval_error(format!(
@@ -37,12 +37,12 @@ pub fn size(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
 
     let v = eval(receiver, ctx)?;
     match v {
-        Value::Str(_) => Ok(Value::Int(
-            scalar::size(&v).expect("Str always answers size"),
-        )),
-        Value::List(_) => Ok(Value::Int(
-            list::size(&v).expect("List always answers size"),
-        )),
+        Value::Str(_) => Ok(Value::Int(scalar::size(&v).ok_or_else(|| {
+            eval_error("router bug: Str always answers size".to_string())
+        })?)),
+        Value::List(_) => Ok(Value::Int(list::size(&v).ok_or_else(|| {
+            eval_error("router bug: List always answers size".to_string())
+        })?)),
         Value::Array(ref elements) => Ok(Value::Int(elements.len() as i64)),
         Value::Int(_) | Value::Float(_) | Value::Bool(_) | Value::Nil => Err(eval_error(format!(
             "size expects a list or string, got {v:?}"

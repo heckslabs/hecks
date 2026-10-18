@@ -84,7 +84,7 @@ fn persistence(
     };
     let declared = hecksagon_default.or(world_default);
     let mut aggregates = Vec::new();
-    for aggregate in ir.get("aggregates").map(Json::each).unwrap_or(&[]) {
+    for aggregate in ir.get("aggregates").map_or(&[][..], Json::each) {
         let name = aggregate
             .get("name")
             .and_then(Json::as_str)

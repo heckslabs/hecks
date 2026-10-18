@@ -70,10 +70,9 @@ pub fn pascal(text: &str) -> String {
     text.split('_')
         .map(|part| {
             let mut chars = part.chars();
-            match chars.next() {
-                Some(first) => first.to_ascii_uppercase().to_string() + chars.as_str(),
-                None => String::new(),
-            }
+            chars.next().map_or_else(String::new, |first| {
+                first.to_ascii_uppercase().to_string() + chars.as_str()
+            })
         })
         .collect()
 }

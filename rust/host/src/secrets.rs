@@ -34,7 +34,7 @@ impl AwsSecretFetcher {
             .map_err(|e| anyhow::anyhow!("fetching secret {secret_id}: {e:?}"))?;
         response
             .secret_string()
-            .map(|s| s.to_string())
+            .map(std::string::ToString::to_string)
             .ok_or_else(|| anyhow::anyhow!("secret {secret_id} has no SecretString"))
     }
 
@@ -52,10 +52,10 @@ impl AwsSecretFetcher {
             .send()
             .await
         {
-            Ok(response) => Ok(response.secret_string().map(|s| s.to_string())),
+            Ok(response) => Ok(response.secret_string().map(std::string::ToString::to_string)),
             Err(e)
                 if e.as_service_error()
-                    .is_some_and(|service| service.is_resource_not_found_exception()) =>
+                    .is_some_and(aws_sdk_secretsmanager::operation::get_secret_value::GetSecretValueError::is_resource_not_found_exception) =>
             {
                 Ok(None)
             }
@@ -77,7 +77,7 @@ impl AwsSecretFetcher {
             Ok(_) => Ok(()),
             Err(e)
                 if e.as_service_error()
-                    .is_some_and(|service| service.is_resource_not_found_exception()) =>
+                    .is_some_and(aws_sdk_secretsmanager::operation::put_secret_value::PutSecretValueError::is_resource_not_found_exception) =>
             {
                 self.client
                     .create_secret()
@@ -102,7 +102,7 @@ pub fn extract_field(secret_json: &str, field: &str) -> Result<String, String> {
     value
         .get(field)
         .and_then(|p| p.as_str())
-        .map(|s| s.to_string())
+        .map(std::string::ToString::to_string)
         .ok_or_else(|| format!("secret's SecretString has no string {field:?} field"))
 }
 

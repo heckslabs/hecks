@@ -147,8 +147,7 @@ fn list<'a>(value: &'a Value, key: &str) -> &'a [Value] {
     value
         .get(key)
         .and_then(Value::as_array)
-        .map(Vec::as_slice)
-        .unwrap_or(&[])
+        .map_or(&[][..], Vec::as_slice)
 }
 
 fn named(value: &Value, name: &str) -> bool {

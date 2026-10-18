@@ -96,7 +96,7 @@ fn project(item: Field<'_>, path: &[&str]) -> Result<Value, Refusal> {
     let mut current = item;
     let rendered = path.join(".");
     for seg in path {
-        current = composite::step(current, seg, "find")?;
+        current = composite::step(&current, seg, "find")?;
     }
     composite::finish(current, &format!("find {{ }}.{rendered}"))
 }
@@ -165,7 +165,7 @@ mod tests {
                     taken: true,
                 },
             ],
-            tags: vec!["a".to_string(), "".to_string()],
+            tags: vec!["a".to_string(), String::new()],
             number: 99,
         }
     }

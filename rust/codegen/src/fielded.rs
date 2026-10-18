@@ -6,12 +6,15 @@ use crate::naming;
 use std::collections::HashMap;
 
 fn is_fielded_nested(attr_type: &str, value_objects_by_name: &HashMap<String, &Json>) -> bool {
-    match value_objects_by_name.get(attr_type) {
-        Some(vo) => naming::fielded_capable_nested(vo),
-        None => false,
-    }
+    value_objects_by_name
+        .get(attr_type)
+        .is_some_and(|vo| naming::fielded_capable_nested(vo))
 }
 
+#[allow(
+    clippy::unwrap_used,
+    reason = "the value was checked just before; None would mean invalid IR"
+)]
 pub fn emit_fielded_flat(
     exemplar: &Exemplar,
     struct_name: &str,
@@ -147,13 +150,17 @@ pub fn emit_fielded_flat(
     )
 }
 
+#[allow(
+    clippy::unwrap_used,
+    reason = "the value was checked just before; None would mean invalid IR"
+)]
 pub fn emit_fielded_record(
     exemplar: &Exemplar,
     aggregate: &Json,
     value_objects_by_name: &HashMap<String, &Json>,
 ) -> String {
     let name = naming::rust_ident(aggregate.get("name").and_then(Json::as_str).unwrap_or(""));
-    let attributes = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
+    let attributes = aggregate.get("attributes").map_or_default(Json::each);
     let mut arms: Vec<String> = Vec::new();
 
     for attr in attributes {
@@ -242,8 +249,7 @@ pub fn emit_fielded_record(
 
     let entity_names: Vec<String> = aggregate
         .get("entities")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
         .filter_map(|e| e.get("name").and_then(Json::as_str).map(str::to_string))
         .collect();
@@ -300,6 +306,10 @@ fn as_scalar_expr(attributes: &[Json]) -> String {
 
 // One `Fielded::items` arm per list attribute whose element is a scalar, value object or
 // entity; other lists stay length-only.
+#[allow(
+    clippy::unwrap_used,
+    reason = "the value was checked just before; None would mean invalid IR"
+)]
 fn items_arms(
     exemplar: &Exemplar,
     attributes: &[Json],

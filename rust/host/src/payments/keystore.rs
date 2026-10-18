@@ -91,9 +91,9 @@ impl StoredDocument {
     /// Replaces (or with `None` removes) the entry for `mode`.
     pub fn set(&mut self, mode: &str, keys: Option<StoredKeys>) {
         if mode == "live" {
-            self.live = keys
+            self.live = keys;
         } else {
-            self.test = keys
+            self.test = keys;
         }
     }
 
@@ -174,7 +174,7 @@ impl KeyStore {
         let cache = self
             .cache
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         cache
             .as_ref()
             .filter(|(at, _)| at.elapsed() < CACHE_TTL)
@@ -203,7 +203,7 @@ impl KeyStore {
         *self
             .cache
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner()) =
+            .unwrap_or_else(std::sync::PoisonError::into_inner) =
             Some((Instant::now(), document.clone()));
         Ok(document)
     }
@@ -225,7 +225,7 @@ impl KeyStore {
         *self
             .cache
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner()) = None;
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
     }
 }
 
@@ -258,14 +258,12 @@ pub fn refusal_at_boot(
 
 /// `refusal_at_boot` for this process's environment.
 pub fn check_boot(checkout_enabled: bool) -> Result<(), String> {
-    match refusal_at_boot(
+    refusal_at_boot(
         checkout_enabled,
         on_aws(),
         std::env::var(SECRET_ID_VARIABLE).ok().as_deref(),
-    ) {
-        Some(message) => Err(message),
-        None => Ok(()),
-    }
+    )
+    .map_or(Ok(()), Err)
 }
 
 /// The process-wide store, built once so its cache is shared by every request.
@@ -332,7 +330,11 @@ pub(crate) struct MemoryStore {
 impl RawStore for MemoryStore {
     async fn read(&self) -> anyhow::Result<Option<String>> {
         self.reads.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-        Ok(self.document.lock().unwrap().clone())
+        Ok(self
+            .document
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone())
     }
 
     async fn write(&self, document: &str) -> anyhow::Result<()> {
@@ -341,7 +343,10 @@ impl RawStore for MemoryStore {
         if self.fail_writes.load(std::sync::atomic::Ordering::SeqCst) {
             return Err(anyhow::anyhow!("writing the secret failed"));
         }
-        *self.document.lock().unwrap() = Some(document.to_string());
+        *self
+            .document
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(document.to_string());
         Ok(())
     }
 }

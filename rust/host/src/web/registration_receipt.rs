@@ -92,9 +92,7 @@ async fn site_email(
 
 /// The host's own wording, used when the site cannot be asked.
 fn built_in_body(first_name: Option<&str>, event_name: &str, amount_cents: Option<i64>) -> String {
-    let greeting = first_name
-        .map(|name| format!("Hi {name},"))
-        .unwrap_or_else(|| "Hi,".to_string());
+    let greeting = first_name.map_or_else(|| "Hi,".to_string(), |name| format!("Hi {name},"));
     let paid = amount_cents
         .map(|cents| format!(" We received your payment of {}.", dollars(cents)))
         .unwrap_or_default();

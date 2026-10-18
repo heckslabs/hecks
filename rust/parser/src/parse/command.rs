@@ -184,7 +184,7 @@ pub fn parse_body(
                     "role",
                     &gated.args,
                     1,
-                )?)
+                )?);
             }
             "goal" => {
                 command.goal = Some(super::positional_literal_text(
@@ -193,7 +193,7 @@ pub fn parse_body(
                     "goal",
                     &gated.args,
                     1,
-                )?)
+                )?);
             }
             // A synthesized inline `one_of(...)` closed set is dropped; `CommandBuilder#build`
             // ignores it.
@@ -226,7 +226,7 @@ pub fn parse_body(
                 });
             }
             "needs" => {
-                super::needs::declare(file, line, &command.name, &gated.args, &mut command.needs)?
+                super::needs::declare(file, line, &command.name, &gated.args, &mut command.needs)?;
             }
             "provenance" => {
                 let raw = super::named_raw(&gated.args, "from")
@@ -292,7 +292,7 @@ fn resolve_implicit_attributes(
     for job in jobs {
         match job {
             Job::BareSet(target) => {
-                resolve_bare_set(&mut command.attributes, &target, owner_attributes)
+                resolve_bare_set(&mut command.attributes, &target, owner_attributes);
             }
             Job::Append { target, fields } => resolve_append_fields(
                 &mut command.attributes,
@@ -594,13 +594,12 @@ fn build_delegation(
         ));
     }
 
-    let fields = match super::named_raw(args, "with") {
-        Some(raw) => parse_hash_literal_pairs(raw)
+    let fields = super::named_raw(args, "with").map_or_else(Vec::new, |raw| {
+        parse_hash_literal_pairs(raw)
             .into_iter()
             .map(|(k, v)| (k, ruby_value::render(&ruby_value::read(&v))))
-            .collect(),
-        None => Vec::new(),
-    };
+            .collect()
+    });
     Ok(ir::Mutation::Delegate { target, fields })
 }
 
@@ -626,10 +625,10 @@ fn build_correction(
         ));
     }
 
-    let as_field = match super::named_symbol(args, "as") {
-        Some(name) => ruby_value::render(&ruby_value::Value::Str(name)),
-        None => "nil".to_string(),
-    };
+    let as_field = super::named_symbol(args, "as").map_or_else(
+        || "nil".to_string(),
+        |name| ruby_value::render(&ruby_value::Value::Str(name)),
+    );
     let reverses = if super::named_flag(args, "reverses") {
         "true"
     } else {

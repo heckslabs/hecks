@@ -6,7 +6,7 @@ use serde_json::Value;
 
 /// The chapter that answers the guest newsletter signup, read from
 /// `ir.json`'s own `newsletter` key. `None` when nothing provides it.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NewsletterProvider {
     /// Chapter name, e.g. `Newsletter`.
     pub provider: String,
@@ -67,7 +67,7 @@ fn seconds_or_legacy(
 ) -> u64 {
     declared_seconds(fact, key).unwrap_or_else(|| {
         warned.call_once(|| {
-            eprintln!("{capability} capability declares no {key}; using built-in default")
+            eprintln!("{capability} capability declares no {key}; using built-in default");
         });
         legacy
     })
@@ -76,7 +76,7 @@ fn seconds_or_legacy(
 /// The checkout boundary's windows, read from `ir.json`'s own `checkout` key
 /// (ADR 0098). Always present: a window the chapter does not declare takes its
 /// labelled legacy default.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CheckoutWindows {
     /// Seconds either side of now a signed webhook's timestamp may sit.
     pub webhook_tolerance: i64,
@@ -121,9 +121,10 @@ pub fn checkout_windows_binding() -> CheckoutWindows {
 /// The confirm-link and unsubscribe-link windows of the IR this host loaded:
 /// `(confirm, unsubscribe)` seconds, legacy defaults without a `newsletter` fact.
 pub fn newsletter_windows_binding() -> (u64, u64) {
-    ir().and_then(newsletter_provider)
-        .map(|p| (p.confirm_window, p.unsubscribe_window))
-        .unwrap_or((LEGACY_CONFIRM_WINDOW_SECS, LEGACY_UNSUBSCRIBE_WINDOW_SECS))
+    ir().and_then(newsletter_provider).map_or(
+        (LEGACY_CONFIRM_WINDOW_SECS, LEGACY_UNSUBSCRIBE_WINDOW_SECS),
+        |p| (p.confirm_window, p.unsubscribe_window),
+    )
 }
 
 /// LEGACY DEFAULT: the states a new subscriber waits in, used while the
@@ -164,9 +165,12 @@ fn states_or_legacy(
 ) -> Vec<String> {
     declared_states(fact, key).unwrap_or_else(|| {
         warned.call_once(|| {
-            eprintln!("newsletter capability declares no {key}; using built-in default")
+            eprintln!("newsletter capability declares no {key}; using built-in default");
         });
-        legacy.iter().map(|s| s.to_string()).collect()
+        legacy
+            .iter()
+            .map(std::string::ToString::to_string)
+            .collect()
     })
 }
 
@@ -191,8 +195,7 @@ impl NewsletterProvider {
     pub fn initial_status(&self) -> &str {
         self.awaiting_confirmation
             .first()
-            .map(String::as_str)
-            .unwrap_or("")
+            .map_or("", String::as_str)
     }
 
     /// The prefix every subscriber's key in a `dispatch::read` `instances`
@@ -267,7 +270,7 @@ pub fn newsletter_provider(domain_ir: &Value) -> Option<NewsletterProvider> {
 
 /// The chapter that declares `provides "newsletter_issues"`, read from
 /// `ir.json`'s own `newsletter_issues` key. Omitted when nothing declares it.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NewsletterIssuesProvider {
     /// Qualified send command, e.g. `Newsletter::Issue.Send`.
     pub send_issue: String,
@@ -298,7 +301,7 @@ pub fn newsletter_issues_provider(domain_ir: &Value) -> Option<NewsletterIssuesP
 
 /// The chapter that takes payments, read from `ir.json`'s own `payments`
 /// key. `None` when nothing provides it.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PaymentsProvider {
     /// Chapter name, e.g. `Payments`.
     pub provider: String,
@@ -377,9 +380,12 @@ pub fn payments_provider(domain_ir: &Value) -> Option<PaymentsProvider> {
     let holds_seat = declared_holds_seat(fact).unwrap_or_else(|| {
         static WARNED: std::sync::Once = std::sync::Once::new();
         WARNED.call_once(|| {
-            eprintln!("payments capability declares no holds_seat; using built-in default")
+            eprintln!("payments capability declares no holds_seat; using built-in default");
         });
-        LEGACY_HOLDS_SEAT.iter().map(|s| s.to_string()).collect()
+        LEGACY_HOLDS_SEAT
+            .iter()
+            .map(std::string::ToString::to_string)
+            .collect()
     });
     Some(PaymentsProvider {
         provider: fact.get("provider")?.as_str()?.to_string(),
@@ -392,22 +398,24 @@ pub fn payments_provider(domain_ir: &Value) -> Option<PaymentsProvider> {
             .get("lapse_reason")
             .and_then(|v| v.as_str())
             .filter(|v| !v.is_empty())
-            .map(String::from)
-            .unwrap_or_else(|| {
-                static WARNED: std::sync::Once = std::sync::Once::new();
-                WARNED.call_once(|| {
-                    eprintln!(
-                        "payments capability declares no lapse_reason; using built-in default"
-                    )
-                });
-                LEGACY_LAPSE_REASON.to_string()
-            }),
+            .map_or_else(
+                || {
+                    static WARNED: std::sync::Once = std::sync::Once::new();
+                    WARNED.call_once(|| {
+                        eprintln!(
+                            "payments capability declares no lapse_reason; using built-in default"
+                        );
+                    });
+                    LEGACY_LAPSE_REASON.to_string()
+                },
+                String::from,
+            ),
     })
 }
 
 /// The chapter that answers scheduling sessions and taking registrations,
 /// read from `ir.json`'s own `registrations` key. `None` when nothing provides it.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RegistrationsProvider {
     /// Chapter name, e.g. `Studio`.
     pub provider: String,
@@ -439,8 +447,14 @@ impl RegistrationsProvider {
             request: format!("{domain}::Registration.Request"),
             event_aggregate: format!("{domain}::Event"),
             registration_aggregate: format!("{domain}::Registration"),
-            timestamp_keys: LEGACY_REGISTERED_AT.iter().map(|k| k.to_string()).collect(),
-            frees_seat: LEGACY_FREES_SEAT.iter().map(|s| s.to_string()).collect(),
+            timestamp_keys: LEGACY_REGISTERED_AT
+                .iter()
+                .map(std::string::ToString::to_string)
+                .collect(),
+            frees_seat: LEGACY_FREES_SEAT
+                .iter()
+                .map(std::string::ToString::to_string)
+                .collect(),
         }
     }
 
@@ -480,9 +494,12 @@ pub fn registrations_provider(domain_ir: &Value) -> Option<RegistrationsProvider
     let frees_seat = declared_frees_seat(fact).unwrap_or_else(|| {
         static WARNED: std::sync::Once = std::sync::Once::new();
         WARNED.call_once(|| {
-            eprintln!("registrations capability declares no frees_seat; using built-in default")
+            eprintln!("registrations capability declares no frees_seat; using built-in default");
         });
-        LEGACY_FREES_SEAT.iter().map(|s| s.to_string()).collect()
+        LEGACY_FREES_SEAT
+            .iter()
+            .map(std::string::ToString::to_string)
+            .collect()
     });
     Some(RegistrationsProvider {
         provider: fact.get("provider")?.as_str()?.to_string(),
@@ -490,18 +507,18 @@ pub fn registrations_provider(domain_ir: &Value) -> Option<RegistrationsProvider
         request: fact.get("request")?.as_str()?.to_string(),
         event_aggregate: fact.get("event_aggregate")?.as_str()?.to_string(),
         registration_aggregate: fact.get("registration_aggregate")?.as_str()?.to_string(),
-        timestamp_keys: match fact
+        timestamp_keys: fact
             .get("registered_at")
             .and_then(|v| v.as_str())
             .filter(|v| !v.is_empty())
-        {
-            Some(declared) => vec![declared.to_string()],
-            None => {
-                static WARNED: std::sync::Once = std::sync::Once::new();
-                WARNED.call_once(|| eprintln!("registrations capability declares no registered_at; using built-in default"));
-                LEGACY_REGISTERED_AT.iter().map(|k| k.to_string()).collect()
-            }
-        },
+            .map_or_else(
+                || {
+                    static WARNED: std::sync::Once = std::sync::Once::new();
+                    WARNED.call_once(|| eprintln!("registrations capability declares no registered_at; using built-in default"));
+                    LEGACY_REGISTERED_AT.iter().map(std::string::ToString::to_string).collect()
+                },
+                |declared| vec![declared.to_string()],
+            ),
         frees_seat,
     })
 }
@@ -528,7 +545,7 @@ pub enum ConnectionVerb {
 
 /// The chapter that owns the business's payment-processor connection, read
 /// from `ir.json`'s own `payment_connection` key. `None` when nothing provides it.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PaymentConnectionProvider {
     /// Chapter name, e.g. `Studio`.
     pub provider: String,
@@ -647,7 +664,7 @@ mod tests {
         assert!(newsletter_provider(&serde_json::json!({ "name": "Pizzas" })).is_none());
     }
 
-    fn newsletter_ir(marks: serde_json::Value) -> Value {
+    fn newsletter_ir(marks: &serde_json::Value) -> Value {
         let mut fact = serde_json::json!({
             "provider": "Newsletter",
             "subscribe": "Newsletter::Subscriber.Subscribe",
@@ -664,7 +681,7 @@ mod tests {
 
     #[test]
     fn newsletter_provider_reads_the_marks_from_the_fact() {
-        let ir = newsletter_ir(serde_json::json!({
+        let ir = newsletter_ir(&serde_json::json!({
             "awaiting_confirmation": ["invited"],
             "receives_issues": ["active", "vip"],
             "left": ["gone"]
@@ -684,7 +701,7 @@ mod tests {
     #[test]
     fn newsletter_provider_falls_back_to_the_legacy_defaults_without_marks() {
         let provider =
-            newsletter_provider(&newsletter_ir(serde_json::json!({}))).expect("newsletter");
+            newsletter_provider(&newsletter_ir(&serde_json::json!({}))).expect("newsletter");
         assert_eq!(provider.awaiting_confirmation, LEGACY_AWAITING_CONFIRMATION);
         assert_eq!(provider.receives_issues, LEGACY_RECEIVES_ISSUES);
         assert_eq!(provider.left, LEGACY_LEFT);
@@ -698,7 +715,7 @@ mod tests {
     #[test]
     fn newsletter_provider_reads_the_link_windows_from_the_fact() {
         let ir = newsletter_ir(
-            serde_json::json!({ "confirm_window": 3600, "unsubscribe_window": 7200 }),
+            &serde_json::json!({ "confirm_window": 3600, "unsubscribe_window": 7200 }),
         );
         let provider = newsletter_provider(&ir).expect("newsletter");
         assert_eq!(
@@ -710,7 +727,7 @@ mod tests {
     #[test]
     fn newsletter_provider_falls_back_to_the_legacy_windows_without_them() {
         let provider =
-            newsletter_provider(&newsletter_ir(serde_json::json!({}))).expect("newsletter");
+            newsletter_provider(&newsletter_ir(&serde_json::json!({}))).expect("newsletter");
         assert_eq!(provider.confirm_window, LEGACY_CONFIRM_WINDOW_SECS);
         assert_eq!(provider.unsubscribe_window, LEGACY_UNSUBSCRIBE_WINDOW_SECS);
         assert_eq!(

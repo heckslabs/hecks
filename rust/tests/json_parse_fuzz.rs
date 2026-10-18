@@ -13,11 +13,11 @@ use std::time::Duration;
 struct Rng(u64);
 
 impl Rng {
-    fn new(seed: u64) -> Self {
-        Rng(seed.wrapping_mul(0x9E37_79B9_7F4A_7C15) | 1)
+    const fn new(seed: u64) -> Self {
+        Self(seed.wrapping_mul(0x9E37_79B9_7F4A_7C15) | 1)
     }
 
-    fn next(&mut self) -> u64 {
+    const fn next(&mut self) -> u64 {
         self.0 ^= self.0 >> 12;
         self.0 ^= self.0 << 25;
         self.0 ^= self.0 >> 27;
@@ -42,6 +42,9 @@ fn seeds() -> u64 {
 
 /// Runs `f` on a thread with a 2 MiB stack (a test thread's default), failing on a panic or when
 /// it has not finished within `limit`. A stack overflow aborts the whole binary, which also fails.
+// reason: a harness helper, not a test fn, so `clippy.toml`'s test exemption does not reach it;
+// a spawn failure, a hang and a worker panic are exactly what it exists to fail loudly on.
+#[allow(clippy::expect_used, clippy::panic)]
 fn guarded<T: Send + 'static>(
     label: &str,
     limit: Duration,
@@ -66,10 +69,11 @@ fn guarded<T: Send + 'static>(
             let panic = handle
                 .join()
                 .expect_err("worker dropped its sender without answering");
-            let message = panic
-                .downcast_ref::<String>()
-                .cloned()
-                .or_else(|| panic.downcast_ref::<&str>().map(|s| s.to_string()));
+            let message = panic.downcast_ref::<String>().cloned().or_else(|| {
+                panic
+                    .downcast_ref::<&str>()
+                    .map(std::string::ToString::to_string)
+            });
             panic!("{label}: panicked: {}", message.unwrap_or_default())
         }
     }
@@ -140,12 +144,12 @@ fn random_string(rng: &mut Rng) -> String {
 
 /// One small random damage to `text`, on char boundaries so the result is still a `&str`.
 fn mutate(rng: &mut Rng, text: &str) -> String {
-    let mut chars: Vec<char> = text.chars().collect();
     const JUNK: &[char] = &[
         '{', '}', '[', ']', '"', '\\', ',', ':', '-', '+', '.', 'e', 'E', '0', '9', 'n', 't', 'f',
         'u', ' ', '\u{0}', '\n', 'é', '🍕',
     ];
-    for _ in 0..1 + rng.below(3) {
+    let mut chars: Vec<char> = text.chars().collect();
+    for _ in 0..=rng.below(3) {
         if chars.is_empty() {
             chars.push(*rng.pick(JUNK));
             continue;
@@ -170,6 +174,8 @@ fn mutate(rng: &mut Rng, text: &str) -> String {
 
 /// What an accepted document must satisfy: it writes back as JSON, and that JSON parses to an
 /// equal value (`NaN` has no equal, so a non-finite number must never have been accepted).
+// reason: a harness helper, not a test fn; the panic is how a failed property reports itself.
+#[allow(clippy::panic)]
 fn check_round_trip(label: &str, parsed: &Json) {
     let written = parsed.to_json_string();
     let again = Json::parse(&written)
@@ -252,7 +258,7 @@ fn nesting_past_the_limit_is_refused_not_a_stack_overflow() {
 fn an_unclosed_run_of_openers_is_refused_without_overflowing() {
     let text = "[".repeat(500_000);
     guarded("500k openers", SECONDS, move || {
-        assert!(Json::parse(&text).is_err())
+        assert!(Json::parse(&text).is_err());
     });
 }
 
@@ -394,6 +400,8 @@ fn string_escape_edge_cases_never_panic() {
 }
 
 #[test]
+// reason: the cases are JSON text (`{:1}`), not format strings.
+#[allow(clippy::literal_string_with_formatting_args)]
 fn structural_edge_cases_are_refused_or_round_trip() {
     let cases = [
         "{",
