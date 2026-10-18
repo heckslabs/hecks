@@ -1,7 +1,5 @@
 //! `hecks-codegen` — the IR-to-Rust-source generator, the only one (ADR 0086).
 //! Usage: `hecks-codegen <prelude|domain|full> ...`, one subcommand per function below.
-// Some ported `naming.rs` helpers are not called yet.
-#![allow(dead_code)]
 
 mod asks;
 mod attr;

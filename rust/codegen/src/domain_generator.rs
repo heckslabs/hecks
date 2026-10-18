@@ -726,12 +726,6 @@ pub fn generate(
                             domain_name,
                             command.get("attributes").map_or_default(Json::each),
                         ),
-                        attributes: command
-                            .get("attributes")
-                            .map_or_default(Json::each)
-                            .iter()
-                            .map(|a| a.get("name").map(Json::to_s).unwrap_or_default())
-                            .collect(),
                         invariant_check_lines: commands::invariant_checks_for(
                             exemplar,
                             command,
@@ -1119,7 +1113,6 @@ pub fn generate(
                         .collect();
                 port_operations.push(PortEntry {
                     verb: format!("{domain_name}::{agg_name}.{port_name}.{operation_name}"),
-                    name: operation_name.to_string(),
                     fn_name: format!(
                         "{}_{}",
                         port_name.to_lowercase(),
