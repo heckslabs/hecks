@@ -50,7 +50,7 @@ pub struct PlatformSignin {
 
 impl PlatformSignin {
     /// Wraps a handler that is already built.
-    pub fn new(handler: SigninHandler) -> Self {
+    pub const fn new(handler: SigninHandler) -> Self {
         Self { handler }
     }
 
@@ -181,6 +181,7 @@ impl HostExtension for RefusedSettings {
 
 /// The extensions that platform sign-in contributes for these settings: none when it is off, the
 /// flow when it is on, and a boot refusal when the settings are wrong.
+#[allow(clippy::implicit_hasher)] // reason: the settings map always comes from this crate's own default-hashed env reader
 pub fn extensions_for(vars: &HashMap<String, String>) -> Vec<Arc<dyn HostExtension>> {
     match PlatformSignin::from_env_map(vars) {
         Ok(None) => Vec::new(),

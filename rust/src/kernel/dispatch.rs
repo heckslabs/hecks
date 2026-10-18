@@ -36,7 +36,7 @@ pub struct EntityInvariants {
     pub name: &'static str,
     pub list_field: &'static str,
     pub specs: Vec<InvariantSpec>,
-    pub nested: Vec<EntityInvariants>,
+    pub nested: Vec<Self>,
 }
 
 pub struct InvariantSet {
@@ -128,7 +128,8 @@ pub enum Hydrate<'a, T> {
     Act { id: String },
 }
 
-#[allow(clippy::too_many_arguments)]
+// reason: the generated callers own `transition`/`payload` and pass them by value.
+#[allow(clippy::too_many_arguments, clippy::needless_pass_by_value)]
 pub fn dispatch<'a, T, R>(
     repo: &mut R,
     hydrate: Hydrate<'a, T>,
@@ -184,7 +185,7 @@ where
             | AggregateStep::RefuseRoleMismatch
             | AggregateStep::ResolveReferences => {}
             AggregateStep::Hydrate => {
-                let hydrate = hydrate.take().expect(ONCE);
+                let hydrate = ordered(hydrate.take(), ONCE)?;
                 hydrated = Some(hydrate_record(
                     repo,
                     hydrate,
@@ -195,7 +196,7 @@ where
                 )?);
             }
             AggregateStep::EnforceGivens => {
-                let (id, record) = hydrated.as_ref().expect(HYDRATED);
+                let (id, record) = ordered(hydrated.as_ref(), HYDRATED)?;
                 enforce_givens(
                     record,
                     args,
@@ -206,13 +207,13 @@ where
                 )?;
             }
             AggregateStep::AdmissibleTransition => {
-                let (_, record) = hydrated.as_ref().expect(HYDRATED);
+                let (_, record) = ordered(hydrated.as_ref(), HYDRATED)?;
                 admissible_transition(record, transition.as_ref(), command_name)?;
             }
             // Folded into `Hydrate::Create.build`: givens already saw the built record.
             AggregateStep::AssignCreationAttributes => {}
             AggregateStep::ApplyMutations => {
-                let (_, record) = hydrated.as_mut().expect(HYDRATED);
+                let (_, record) = ordered(hydrated.as_mut(), HYDRATED)?;
                 // The state as the givens saw it — `old` inside an `ensures`,
                 // `old` for `ensures`: the state before the mutation, cloned only if needed.
                 old_snapshot = if ensures.is_empty() {
@@ -220,7 +221,7 @@ where
                 } else {
                     Some(record.clone())
                 };
-                (apply_mutations.take().expect(ONCE))(record)?;
+                (ordered(apply_mutations.take(), ONCE)?)(record)?;
             }
             // Written by the generated `apply_mutations` closure as its last line.
             AggregateStep::AdvanceLifecycle => {}
@@ -228,21 +229,21 @@ where
             // `apply_entity_command` on the record in hand.
             AggregateStep::DelegateToEntity => {}
             AggregateStep::EnforceEnsures => {
-                let (_, record) = hydrated.as_ref().expect(HYDRATED);
+                let (_, record) = ordered(hydrated.as_ref(), HYDRATED)?;
                 if let Some(old) = &old_snapshot {
                     enforce_ensures(record, old, args, ensures, command_name)?;
                 }
             }
             AggregateStep::EnforceInvariants => {
-                let (_, record) = hydrated.as_ref().expect(HYDRATED);
+                let (_, record) = ordered(hydrated.as_ref(), HYDRATED)?;
                 enforce_invariants(record, aggregate_name, invariants)?;
             }
             AggregateStep::Save => {
-                let (id, record) = hydrated.as_mut().expect(HYDRATED);
+                let (id, record) = ordered(hydrated.as_mut(), HYDRATED)?;
                 // Tenant boundary first: it precedes `seed_projections` and the write.
-                tenant_boundary_check.take().expect(ONCE)?;
+                ordered(tenant_boundary_check.take(), ONCE)??;
 
-                for (field, value) in seed_projections.take().expect(ONCE) {
+                for (field, value) in ordered(seed_projections.take(), ONCE)? {
                     record.set_projected_field(field, value);
                 }
 
@@ -263,13 +264,13 @@ where
                 persist(repo, id, record, aggregate_qualified_name, mutations);
             }
             AggregateStep::Emit => {
-                let (id, _) = hydrated.as_ref().expect(HYDRATED);
+                let (id, _) = ordered(hydrated.as_ref(), HYDRATED)?;
                 events = emitted(emits, aggregate_qualified_name, id, &payload);
             }
         }
     }
 
-    let (_, record) = hydrated.expect(HYDRATED);
+    let (_, record) = ordered(hydrated, HYDRATED)?;
     Ok((record, events))
 }
 
@@ -561,8 +562,8 @@ struct ElementHalf<'a, 's, T, E, GetList, GetListMut, Matches, Apply> {
     old_snapshot: Option<E>,
 }
 
-impl<'a, 's, T, E, GetList, GetListMut, Matches, Apply>
-    ElementHalf<'a, 's, T, E, GetList, GetListMut, Matches, Apply>
+impl<T, E, GetList, GetListMut, Matches, Apply>
+    ElementHalf<'_, '_, T, E, GetList, GetListMut, Matches, Apply>
 where
     T: Fielded + Clone,
     E: Fielded + Clone,
@@ -591,7 +592,7 @@ where
             EntityStep::LocateElement => self.locate_element(record),
             EntityStep::EnforceGivens => self.enforce_givens(),
             EntityStep::AdmissibleTransition => admissible_transition(
-                self.element.as_ref().expect(LOCATED),
+                ordered(self.element.as_ref(), LOCATED)?,
                 self.transition.as_ref(),
                 self.command_name,
             ),
@@ -625,8 +626,8 @@ where
     }
 
     fn enforce_givens(&self) -> Result<(), Refusal> {
-        let parent_before = self.parent_before.as_ref().expect(LOCATED);
-        let element = self.element.as_ref().expect(LOCATED);
+        let parent_before = ordered(self.parent_before.as_ref(), LOCATED)?;
+        let element = ordered(self.element.as_ref(), LOCATED)?;
 
         // Entity-level `corrects` is asked of the parent record and root aggregate, since an
         // entity has no event stream. It runs after the element lookup, before declared givens,
@@ -676,15 +677,15 @@ where
     }
 
     fn apply_mutations(&mut self, record: &mut T) -> Result<(), Refusal> {
-        let position = self.position.expect(LOCATED);
-        let mut element = self.element.take().expect(LOCATED);
+        let position = ordered(self.position, LOCATED)?;
+        let mut element = ordered(self.element.take(), LOCATED)?;
         self.old_snapshot = if self.ensures.is_empty() {
             None
         } else {
             Some(element.clone())
         };
-        (self.apply_mutations.take().expect(ONCE))(&mut element)?;
-        (self.get_list_mut.take().expect(ONCE))(record)[position] = element;
+        (ordered(self.apply_mutations.take(), ONCE)?)(&mut element)?;
+        (ordered(self.get_list_mut.take(), ONCE)?)(record)[position] = element;
         Ok(())
     }
 
@@ -692,7 +693,7 @@ where
         let Some(old) = &self.old_snapshot else {
             return Ok(());
         };
-        let position = self.position.expect(LOCATED);
+        let position = ordered(self.position, LOCATED)?;
         let parent_after = record.clone();
         let with_parent = WithParent {
             args: self.args,
@@ -708,7 +709,8 @@ where
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+// reason: the generated callers own `payload` and pass it by value.
+#[allow(clippy::too_many_arguments, clippy::needless_pass_by_value)]
 pub fn dispatch_entity<'a, T, E, R>(
     repo: &mut R,
     parent_id: &str,
@@ -796,18 +798,18 @@ where
             | EntityStep::ApplyMutations
             | EntityStep::AdvanceLifecycle
             | EntityStep::EnforceEnsures => {
-                element.run(step, hydrated.as_mut().expect(HYDRATED))?;
+                element.run(step, ordered(hydrated.as_mut(), HYDRATED)?)?;
             }
             EntityStep::EnforceInvariants => {
                 enforce_invariants(
-                    hydrated.as_ref().expect(HYDRATED),
+                    ordered(hydrated.as_ref(), HYDRATED)?,
                     aggregate_name,
                     invariants,
                 )?;
             }
             EntityStep::Save => {
-                let record = hydrated.as_mut().expect(HYDRATED);
-                for (field, value) in seed_projections.take().expect(ONCE) {
+                let record = ordered(hydrated.as_mut(), HYDRATED)?;
+                for (field, value) in ordered(seed_projections.take(), ONCE)? {
                     record.set_projected_field(field, value);
                 }
                 persist(repo, parent_id, record, aggregate_qualified_name, mutations);
@@ -818,7 +820,13 @@ where
         }
     }
 
-    Ok((hydrated.expect(HYDRATED), events))
+    Ok((ordered(hydrated, HYDRATED)?, events))
+}
+
+/// Turns a slot the declared step order guarantees filled into a value, or a `Fault` naming the
+/// order that was broken; the const assertions below make the `Err` unreachable.
+fn ordered<V>(slot: Option<V>, because: &str) -> Result<V, Refusal> {
+    slot.ok_or_else(|| Refusal::Fault(because.to_string()))
 }
 
 const HYDRATED: &str = "the declared order hydrates before any step that reads the record (const-asserted in this file)";
@@ -863,7 +871,7 @@ impl<A> ArgumentGates<'_, A> {
             }
             ArgumentGate::RefuseRoleMismatch => (self.refuse_role_mismatch)(),
             ArgumentGate::ResolveReferences => {
-                (self.resolve_references)(args.as_ref().expect(NORMALIZED))
+                (self.resolve_references)(ordered(args.as_ref(), NORMALIZED)?)
             }
         }
     }
@@ -900,7 +908,7 @@ pub fn decode_aggregate_arguments<A>(
         };
         gates.run(gate, facts, &mut args)?;
     }
-    Ok(args.expect(NORMALIZED))
+    ordered(args, NORMALIZED)
 }
 
 /// `EntityStep::ORDER`'s argument gates over one entity command's facts — see
@@ -932,10 +940,11 @@ pub fn decode_entity_arguments<A>(
         };
         gates.run(gate, facts, &mut args)?;
     }
-    Ok(args.expect(NORMALIZED))
+    ordered(args, NORMALIZED)
 }
 
 /// A step's index in `AggregateStep::ORDER`, usable in a const context.
+#[allow(clippy::panic)] // reason: evaluated at compile time; a missing step fails the build.
 const fn aggregate_position(step: AggregateStep) -> usize {
     let mut index = 0;
     while index < AggregateStep::ORDER.len() {
@@ -948,6 +957,7 @@ const fn aggregate_position(step: AggregateStep) -> usize {
 }
 
 /// A step's index in `EntityStep::ORDER`, usable in a const context.
+#[allow(clippy::panic)] // reason: evaluated at compile time; a missing step fails the build.
 const fn entity_position(step: EntityStep) -> usize {
     let mut index = 0;
     while index < EntityStep::ORDER.len() {
@@ -963,6 +973,7 @@ const fn entity_position(step: EntityStep) -> usize {
 // vocabulary.bluebook fails the build instead of panicking at dispatch time.
 const _: () = {
     use AggregateStep as A;
+    use EntityStep as E;
     let hydrate = aggregate_position(A::Hydrate);
     assert!(hydrate < aggregate_position(A::EnforceGivens));
     assert!(hydrate < aggregate_position(A::AdmissibleTransition));
@@ -985,7 +996,6 @@ const _: () = {
     assert!(aggregate_position(A::ResolveReferences) < hydrate);
     assert!(aggregate_position(A::NormalizeArgs) < aggregate_position(A::ResolveReferences));
 
-    use EntityStep as E;
     let hydrate_parent = entity_position(E::HydrateParent);
     assert!(hydrate_parent < entity_position(E::LocateElement));
     assert!(hydrate_parent < entity_position(E::EnforceInvariants));
@@ -1129,7 +1139,7 @@ mod step_order_tests {
         let kernel: Vec<&str> = AggregateStep::ORDER
             .iter()
             .filter(|s| aggregate_step_site(**s) == StepSite::Kernel)
-            .map(|s| s.step())
+            .map(AggregateStep::step)
             .collect();
         assert_eq!(
             kernel,
@@ -1151,7 +1161,7 @@ mod step_order_tests {
         let kernel: Vec<&str> = EntityStep::ORDER
             .iter()
             .filter(|s| entity_step_site(**s) == StepSite::Kernel)
-            .map(|s| s.step())
+            .map(EntityStep::step)
             .collect();
         assert_eq!(
             kernel,
@@ -1249,7 +1259,7 @@ mod step_order_tests {
         let declared: Vec<&str> = AggregateStep::ORDER
             .iter()
             .filter(|s| aggregate_step_site(**s) == StepSite::ArgumentGate)
-            .map(|s| s.step())
+            .map(AggregateStep::step)
             .collect();
         assert_eq!(ran, declared);
 
@@ -1258,7 +1268,7 @@ mod step_order_tests {
         let declared: Vec<&str> = EntityStep::ORDER
             .iter()
             .filter(|s| entity_step_site(**s) == StepSite::ArgumentGate)
-            .map(|s| s.step())
+            .map(EntityStep::step)
             .collect();
         assert_eq!(ran, declared);
     }
@@ -1269,7 +1279,7 @@ mod step_order_tests {
         let gates: Vec<&'static str> = AggregateStep::ORDER
             .iter()
             .filter(|s| aggregate_step_site(**s) == StepSite::ArgumentGate)
-            .map(|s| s.step())
+            .map(AggregateStep::step)
             .collect();
         for (i, earlier) in gates.iter().enumerate() {
             for later in &gates[i + 1..] {

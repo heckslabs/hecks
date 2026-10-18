@@ -16,6 +16,7 @@
 //! The token, the nonce, the state and the cookie are never written to a log, and an email only as
 //! a short hash. A refusal logs its stable code.
 
+use std::fmt::Write;
 use std::sync::Arc;
 
 use serde_json::{json, Value};
@@ -38,7 +39,7 @@ pub trait TokenVerifier: Send + Sync {
 
 impl<K: KeySource + Send + Sync> TokenVerifier for Verifier<K> {
     fn verify(&self, request: &SigninRequest<'_>, now: i64) -> Result<VerifiedClaims, Refusal> {
-        Verifier::verify(self, request, now)
+        Self::verify(self, request, now)
     }
 }
 
@@ -74,8 +75,7 @@ pub fn fresh_value() -> String {
 pub fn system_clock() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|elapsed| elapsed.as_secs() as i64)
-        .unwrap_or(0)
+        .map_or(0, |elapsed| elapsed.as_secs() as i64)
 }
 
 /// What a callback request carried, already separated from any headers.
@@ -125,7 +125,7 @@ impl SigninHandler {
     }
 
     /// Returns the validated settings.
-    pub fn settings(&self) -> &SigninSettings {
+    pub const fn settings(&self) -> &SigninSettings {
         &self.settings
     }
 
@@ -235,7 +235,7 @@ impl SigninHandler {
 
 /// The page a verifier refusal earns: the browser's own cookie and state are told apart, the rest
 /// share one answer so the page teaches nothing about which later check failed.
-fn failure_for(reason: Reason) -> Failure {
+const fn failure_for(reason: Reason) -> Failure {
     match reason {
         Reason::MissingCookie => Failure::Cookie,
         Reason::StateMismatch => Failure::State,
@@ -246,6 +246,9 @@ fn failure_for(reason: Reason) -> Failure {
 /// The first four bytes of the lowercased email's SHA-256, enough to tell people apart in a log.
 fn short_hash(email: &str) -> String {
     let digest = Sha256::digest(email.to_lowercase().as_bytes());
-    let hex: String = digest.iter().take(4).map(|b| format!("{b:02x}")).collect();
+    let hex = digest.iter().take(4).fold(String::new(), |mut hex, b| {
+        let _ = write!(hex, "{b:02x}"); // writing to a String cannot fail
+        hex
+    });
     format!("h:{hex}")
 }

@@ -169,7 +169,7 @@ async fn newsletter_subscribe_route(
     let status = subscriber
         .get("status")
         .and_then(|v| v.as_str())
-        .unwrap_or(provider.initial_status());
+        .unwrap_or_else(|| provider.initial_status());
     respond(
         200,
         "application/json",
@@ -240,8 +240,12 @@ fn confirm_token_matches(secret: &str, token: &str, email: &str) -> bool {
 
 // Percent-encodes the address so a '+' in the local part survives the URL.
 fn confirm_url(site_url: &str, email: &str, token: &str) -> String {
-    let mut url = reqwest::Url::parse(&format!("{site_url}/newsletter-confirmed.html"))
-        .unwrap_or_else(|_| reqwest::Url::parse("http://invalid.invalid/").unwrap());
+    // An unparseable site URL degrades to a placeholder host rather than failing the send.
+    let Ok(mut url) = reqwest::Url::parse(&format!("{site_url}/newsletter-confirmed.html"))
+        .or_else(|_| reqwest::Url::parse("http://invalid.invalid/"))
+    else {
+        return String::new();
+    };
     url.query_pairs_mut()
         .append_pair("email", email)
         .append_pair("token", token);
@@ -287,10 +291,9 @@ pub(super) async fn send_confirmation(email: &str) {
     let site = site_url();
     let link = confirm_url(&site, email, &confirm_token(&secret, email));
     let unsubscribe = unsubscribe_url(&site, email, &unsubscribe_token(&secret, email));
-    let body = match template::branded_body(&link, &unsubscribe).await {
-        Some(html) => html,
-        None => confirmation_body(&link),
-    };
+    let body = template::branded_body(&link, &unsubscribe)
+        .await
+        .unwrap_or_else(|| confirmation_body(&link));
     let delivery = mailer
         .deliver(&Email {
             to: email,
@@ -403,7 +406,7 @@ async fn newsletter_confirm_route(
         .find(|(id, _)| id == email)
         .and_then(|(_, s)| s.get("status"))
         .and_then(|v| v.as_str())
-        .unwrap_or(provider.initial_status());
+        .unwrap_or_else(|| provider.initial_status());
     respond(
         200,
         "application/json",
@@ -495,7 +498,7 @@ async fn newsletter_unsubscribe_route(
         .find(|(id, _)| id == email)
         .and_then(|(_, s)| s.get("status"))
         .and_then(|v| v.as_str())
-        .unwrap_or(provider.initial_status());
+        .unwrap_or_else(|| provider.initial_status());
     respond(
         200,
         "application/json",

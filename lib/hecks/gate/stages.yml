@@ -164,7 +164,7 @@ ci:
           for crate in . parser codegen lsp host web build; do
             cargo clippy --all-targets --manifest-path "rust/$crate/Cargo.toml" -- -D warnings
           done
-      blocked: clippy found a warning in a Rust crate. The main crate needs rust/src/generated, so run `hecks regenerate_corpus --confirm` first on a fresh checkout. Fix the code, or allow a lint at the one site with a line saying why; a warning in generated Rust is fixed in its generator.
+      blocked: clippy found a warning in a Rust crate, under the strict `[lints.clippy]` table of its Cargo.toml. The main crate needs rust/src/generated, so run `hecks regenerate_corpus --confirm` first on a fresh checkout. Fix the code, or allow a lint at the one site with a line saying why; a warning in generated Rust is fixed in its generator.
     - id: lint_deploy_recipes
       title: generated deploy recipes, a command with no checked exit status or no echo
       run: [bundle, exec, exe/hecks, deploy, makefile_check.lint, --wait]

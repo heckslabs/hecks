@@ -9,6 +9,7 @@ use crate::web;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
+use std::fmt::Write;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex as StdMutex};
 
@@ -275,7 +276,7 @@ impl Tenant {
 
     // A tenant whose business can paste its keys into the Payments page: no
     // environment keys, only a key store (in memory).
-    async fn saving(name: &str) -> Tenant {
+    async fn saving(name: &str) -> Self {
         let mut t = tenant(name).await;
         t.platform.direct_test_key = String::new();
         t.platform.direct_test_publishable_key = String::new();
@@ -305,8 +306,7 @@ impl Tenant {
     fn saved_document(&self) -> Value {
         let raw = self.raw.as_ref().expect("a tenant with a key store");
         let text = raw.document.lock().unwrap().clone();
-        text.map(|text| serde_json::from_str(&text).unwrap())
-            .unwrap_or(Value::Null)
+        text.map_or(Value::Null, |text| serde_json::from_str(&text).unwrap())
     }
 
     // One request against the payments routes; `None` means no session cookie.
@@ -348,9 +348,7 @@ impl Tenant {
 
     async fn status(&self) -> String {
         let read = dispatch::read(&self.client, &self.wasm).await.unwrap();
-        connection(&read, &self.config.domain)
-            .map(|c| c.status)
-            .unwrap_or_else(|| "none".to_string())
+        connection(&read, &self.config.domain).map_or_else(|| "none".to_string(), |c| c.status)
     }
 
     // Owner records the business's own test-mode account as the connection.
@@ -501,14 +499,15 @@ fn sign(secret: &str, now: i64, payload: &str) -> String {
     use sha2::Sha256;
     let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes()).unwrap();
     mac.update(format!("{now}.{payload}").as_bytes());
-    format!(
-        "t={now},v1={}",
-        mac.finalize()
-            .into_bytes()
-            .iter()
-            .map(|b| format!("{b:02x}"))
-            .collect::<String>()
-    )
+    let digest = mac
+        .finalize()
+        .into_bytes()
+        .iter()
+        .fold(String::new(), |mut hex, b| {
+            let _ = write!(hex, "{b:02x}"); // writing to a String cannot fail
+            hex
+        });
+    format!("t={now},v1={digest}")
 }
 
 fn completed(reference: &str) -> Value {

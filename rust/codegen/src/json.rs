@@ -12,10 +12,10 @@ pub enum Json {
     /// Raw literal text as scanned, so numbers round-trip unchanged; `number` reads it as Ruby wrote it.
     Number(String),
     String(String),
-    Array(Vec<Json>),
+    Array(Vec<Self>),
     /// Insertion-ordered pairs, matching the declaration order of the Ruby Hash; byte-exact
     /// re-emission depends on key order.
-    Object(Vec<(String, Json)>),
+    Object(Vec<(String, Self)>),
 }
 
 /// A `Json::Number` as Ruby wrote it: a `.` or an exponent means a Float, anything else an
@@ -27,7 +27,7 @@ pub enum Number {
 }
 
 impl Json {
-    pub fn parse(text: &str) -> Result<Json, String> {
+    pub fn parse(text: &str) -> Result<Self, String> {
         let mut p = Parser {
             bytes: text.as_bytes(),
             pos: 0,
@@ -42,77 +42,77 @@ impl Json {
     }
 
     /// `ir[:key]`: `None` for a missing key or a `Json::Null` value.
-    pub fn get(&self, key: &str) -> Option<&Json> {
+    pub fn get(&self, key: &str) -> Option<&Self> {
         match self {
-            Json::Object(pairs) => pairs
+            Self::Object(pairs) => pairs
                 .iter()
-                .find(|(k, v)| k == key && !matches!(v, Json::Null))
+                .find(|(k, v)| k == key && !matches!(v, Self::Null))
                 .map(|(_, v)| v),
             _ => None,
         }
     }
 
     /// Like `get`, but distinguishes an absent key from one present as null.
-    pub fn get_raw(&self, key: &str) -> Option<&Json> {
+    pub fn get_raw(&self, key: &str) -> Option<&Self> {
         match self {
-            Json::Object(pairs) => pairs.iter().find(|(k, _)| k == key).map(|(_, v)| v),
+            Self::Object(pairs) => pairs.iter().find(|(k, _)| k == key).map(|(_, v)| v),
             _ => None,
         }
     }
 
-    pub fn get_mut(&mut self, key: &str) -> Option<&mut Json> {
+    pub fn get_mut(&mut self, key: &str) -> Option<&mut Self> {
         match self {
-            Json::Object(pairs) => pairs.iter_mut().find(|(k, _)| k == key).map(|(_, v)| v),
+            Self::Object(pairs) => pairs.iter_mut().find(|(k, _)| k == key).map(|(_, v)| v),
             _ => None,
         }
     }
 
-    pub fn as_str(&self) -> Option<&str> {
+    pub const fn as_str(&self) -> Option<&str> {
         match self {
-            Json::String(s) => Some(s.as_str()),
+            Self::String(s) => Some(s.as_str()),
             _ => None,
         }
     }
 
-    pub fn as_array(&self) -> Option<&[Json]> {
+    pub const fn as_array(&self) -> Option<&[Self]> {
         match self {
-            Json::Array(items) => Some(items.as_slice()),
+            Self::Array(items) => Some(items.as_slice()),
             _ => None,
         }
     }
 
-    pub fn as_array_mut(&mut self) -> Option<&mut Vec<Json>> {
+    pub const fn as_array_mut(&mut self) -> Option<&mut Vec<Self>> {
         match self {
-            Json::Array(items) => Some(items),
+            Self::Array(items) => Some(items),
             _ => None,
         }
     }
 
-    pub fn as_object(&self) -> Option<&[(String, Json)]> {
+    pub const fn as_object(&self) -> Option<&[(String, Self)]> {
         match self {
-            Json::Object(pairs) => Some(pairs.as_slice()),
+            Self::Object(pairs) => Some(pairs.as_slice()),
             _ => None,
         }
     }
 
-    pub fn as_bool(&self) -> bool {
+    pub const fn as_bool(&self) -> bool {
         // Ruby truthiness: only `false` and `nil` are falsy, so `0` and `""` are truthy.
-        !matches!(self, Json::Bool(false) | Json::Null)
+        !matches!(self, Self::Bool(false) | Self::Null)
     }
 
     /// The number as Ruby wrote it, or `None` for any other value. An integer too large for `i64`
     /// reads as a Float.
     pub fn number(&self) -> Option<Number> {
-        let Json::Number(text) = self else {
+        let Self::Number(text) = self else {
             return None;
         };
         if text.contains(['.', 'e', 'E']) {
             return text.parse::<f64>().ok().map(Number::Float);
         }
-        match text.parse::<i64>() {
-            Ok(n) => Some(Number::Int(n)),
-            Err(_) => text.parse::<f64>().ok().map(Number::Float),
-        }
+        text.parse::<i64>().map_or_else(
+            |_| text.parse::<f64>().ok().map(Number::Float),
+            |n| Some(Number::Int(n)),
+        )
     }
 
     pub fn as_f64(&self) -> Option<f64> {
@@ -132,26 +132,26 @@ impl Json {
     /// `#to_s` on a scalar; non-scalars render as the empty string rather than panicking.
     pub fn to_s(&self) -> String {
         match self {
-            Json::Null => String::new(),
-            Json::Bool(b) => b.to_string(),
-            Json::Number(text) => match self.number() {
+            Self::Null => String::new(),
+            Self::Bool(b) => b.to_string(),
+            Self::Number(text) => match self.number() {
                 Some(Number::Int(n)) => n.to_string(),
                 Some(Number::Float(n)) => format_number(n),
                 None => text.clone(),
             },
-            Json::String(s) => s.clone(),
+            Self::String(s) => s.clone(),
             _ => String::new(),
         }
     }
 
     /// Array items, or an empty slice for any other value (Ruby's `Array(ir[:key])`).
-    pub fn each(&self) -> &[Json] {
+    pub fn each(&self) -> &[Self] {
         self.as_array().unwrap_or(&[])
     }
 
     /// Sets `key` to `value`, overwriting in place or else appending last.
-    pub fn set(&mut self, key: &str, value: Json) {
-        if let Json::Object(pairs) = self {
+    pub fn set(&mut self, key: &str, value: Self) {
+        if let Self::Object(pairs) = self {
             if let Some((_, existing)) = pairs.iter_mut().find(|(k, _)| k == key) {
                 *existing = value;
                 return;
@@ -161,7 +161,7 @@ impl Json {
     }
 
     pub fn set_bool(&mut self, key: &str, value: bool) {
-        self.set(key, Json::Bool(value));
+        self.set(key, Self::Bool(value));
     }
 }
 
@@ -186,7 +186,7 @@ struct Parser<'a> {
     pos: usize,
 }
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     fn peek(&self) -> Option<u8> {
         self.bytes.get(self.pos).copied()
     }
@@ -407,9 +407,9 @@ impl<'a> Parser<'a> {
                 self.pos += 1;
             }
         }
-        if matches!(self.peek(), Some(b'e') | Some(b'E')) {
+        if matches!(self.peek(), Some(b'e' | b'E')) {
             self.pos += 1;
-            if matches!(self.peek(), Some(b'+') | Some(b'-')) {
+            if matches!(self.peek(), Some(b'+' | b'-')) {
                 self.pos += 1;
             }
             while matches!(self.peek(), Some(c) if c.is_ascii_digit()) {

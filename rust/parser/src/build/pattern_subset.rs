@@ -17,13 +17,10 @@ pub fn validate(pattern: &str) -> Option<Rejection> {
             if matches!(next, Some(c) if c.is_ascii_digit() && c != '0') {
                 return Some(refuse("backreference"));
             }
-            if matches!(next, Some('k') | Some('g')) {
+            if matches!(next, Some('k' | 'g')) {
                 return Some(refuse("named_backreference"));
             }
-            if matches!(
-                next,
-                Some('d') | Some('D') | Some('w') | Some('W') | Some('s') | Some('S')
-            ) {
+            if matches!(next, Some('d' | 'D' | 'w' | 'W' | 's' | 'S')) {
                 return Some(refuse("perl_class"));
             }
             index += if next.is_some() { 2 } else { 1 };
@@ -32,11 +29,10 @@ pub fn validate(pattern: &str) -> Option<Rejection> {
 
         if chars[index] == '(' && chars.get(index + 1) == Some(&'?') {
             let third = chars.get(index + 2).copied();
-            if matches!(third, Some('=') | Some('!')) {
+            if matches!(third, Some('=' | '!')) {
                 return Some(refuse("lookahead"));
             }
-            if third == Some('<') && matches!(chars.get(index + 3).copied(), Some('=') | Some('!'))
-            {
+            if third == Some('<') && matches!(chars.get(index + 3).copied(), Some('=' | '!')) {
                 return Some(refuse("lookbehind"));
             }
             if third == Some('>') {
@@ -58,6 +54,8 @@ pub fn validate(pattern: &str) -> Option<Rejection> {
 }
 
 fn refuse(key: &'static str) -> Rejection {
+    // reason: every caller passes a key literal that `REASONS` declares, so a miss is a code bug.
+    #[allow(clippy::expect_used)]
     let (construct, reason) = REASONS
         .iter()
         .find(|(k, _, _)| *k == key)

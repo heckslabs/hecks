@@ -53,7 +53,9 @@ fn scale_call(text: &str, token: &str, seconds: &str) -> String {
                 }
             }
         }
-        let ch = text[i..].chars().next().unwrap();
+        let Some(ch) = text[i..].chars().next() else {
+            break;
+        };
         out.push(ch);
         i += ch.len_utf8();
     }
@@ -66,7 +68,7 @@ fn whole_number_call(rest: &str) -> Option<(&str, usize)> {
     let inner = rest.strip_prefix('(')?;
     let digits_at = inner.len() - inner.trim_start_matches(char::is_whitespace).len();
     let body = &inner[digits_at..];
-    let digit_len = body.bytes().take_while(|b| b.is_ascii_digit()).count();
+    let digit_len = body.bytes().take_while(u8::is_ascii_digit).count();
     if digit_len == 0 {
         return None;
     }
@@ -78,11 +80,13 @@ fn whole_number_call(rest: &str) -> Option<(&str, usize)> {
 
 /// Decimal `digits` times the decimal `factor`, as text with no leading zeros (any length).
 fn multiply(digits: &str, factor: &str) -> String {
+    // reason: callers pass the fixed whole-number scale factors of the unit table.
+    #[allow(clippy::expect_used)]
     let factor: u32 = factor.parse().expect("scale factor is a whole number");
     let mut carry = 0u32;
     let mut out: Vec<u8> = Vec::with_capacity(digits.len() + 6);
     for d in digits.bytes().rev() {
-        let v = (d - b'0') as u32 * factor + carry;
+        let v = u32::from(d - b'0') * factor + carry;
         out.push(b'0' + (v % 10) as u8);
         carry = v / 10;
     }
@@ -94,7 +98,7 @@ fn multiply(digits: &str, factor: &str) -> String {
         out.pop();
     }
     out.reverse();
-    String::from_utf8(out).unwrap()
+    String::from_utf8_lossy(&out).into_owned()
 }
 
 /// Applies `transform` to the unquoted runs of `text` and copies quoted runs verbatim;
@@ -102,7 +106,7 @@ fn multiply(digits: &str, factor: &str) -> String {
 fn map_outside_strings(text: &str, transform: impl Fn(&str) -> String) -> String {
     let mut out = String::with_capacity(text.len());
     let mut plain = String::new();
-    let mut chars = text.chars().peekable();
+    let mut chars = text.chars();
     while let Some(ch) = chars.next() {
         if ch == '"' || ch == '\'' {
             out.push_str(&transform(&plain));
@@ -154,17 +158,19 @@ fn replace_word_boundary(text: &str, token: &str, replacement: &str) -> String {
     while i < bytes.len() {
         if text[i..].starts_with(token) {
             let after = i + token.len();
-            let boundary_ok = match text[after..].chars().next() {
-                None => true,
-                Some(c) => !(c.is_alphanumeric() || c == '_'),
-            };
+            let boundary_ok = text[after..]
+                .chars()
+                .next()
+                .is_none_or(|c| !(c.is_alphanumeric() || c == '_'));
             if boundary_ok {
                 out.push_str(replacement);
                 i = after;
                 continue;
             }
         }
-        let ch = text[i..].chars().next().unwrap();
+        let Some(ch) = text[i..].chars().next() else {
+            break;
+        };
         out.push(ch);
         i += ch.len_utf8();
     }

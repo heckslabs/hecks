@@ -172,8 +172,12 @@ pub(super) fn unsubscribe_token_matches(secret: &str, token: &str, email: &str) 
 
 // Percent-encodes the address so a '+' in the local part survives the URL.
 pub(super) fn unsubscribe_url(site_url: &str, email: &str, token: &str) -> String {
-    let mut url = reqwest::Url::parse(&format!("{site_url}/newsletter-unsubscribed.html"))
-        .unwrap_or_else(|_| reqwest::Url::parse("http://invalid.invalid/").unwrap());
+    // An unparseable site URL degrades to a placeholder host rather than failing the send.
+    let Ok(mut url) = reqwest::Url::parse(&format!("{site_url}/newsletter-unsubscribed.html"))
+        .or_else(|_| reqwest::Url::parse("http://invalid.invalid/"))
+    else {
+        return String::new();
+    };
     url.query_pairs_mut()
         .append_pair("email", email)
         .append_pair("token", token);
@@ -207,8 +211,7 @@ fn confirmed_emails(provider: &NewsletterProvider, subscribers: &[(String, Value
 fn unix_now() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64)
-        .unwrap_or(0)
+        .map_or(0, |d| d.as_secs() as i64)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -310,9 +313,10 @@ async fn send_issue(
                 unrecorded += 1;
                 eprintln!(
                     "newsletter send {slug}: delivered to {email} but could not record it: {}",
-                    other
-                        .map(|o| last_refusal(&o.result).to_string())
-                        .unwrap_or_else(|e| format!("{e:#}"))
+                    other.map_or_else(
+                        |e| format!("{e:#}"),
+                        |o| last_refusal(&o.result).to_string()
+                    )
                 );
             }
         }
@@ -507,7 +511,7 @@ mod tests {
         assert!(require_signing_secret("s3cret-value").is_ok());
     }
 
-    fn provider_with(marks: serde_json::Value) -> NewsletterProvider {
+    fn provider_with(marks: &serde_json::Value) -> NewsletterProvider {
         let mut fact = json!({
             "provider": "Newsletter", "subscribe": "N::S.Subscribe", "add_name": "N::S.AddName",
             "confirm": "N::S.Confirm", "unsubscribe": "N::S.Unsubscribe", "aggregate": "N::S"
@@ -542,7 +546,7 @@ mod tests {
 
     #[test]
     fn legacy_default_sends_to_confirmed_subscribers_in_alphabetical_order() {
-        let provider = provider_with(json!({}));
+        let provider = provider_with(&json!({}));
         assert_eq!(
             confirmed_emails(&provider, &rows()),
             vec!["amy@example.com".to_string(), "zed@example.com".to_string()]
@@ -551,7 +555,7 @@ mod tests {
 
     #[test]
     fn the_declared_receives_issues_mark_selects_the_recipients() {
-        let provider = provider_with(json!({ "receives_issues": ["vip", "confirmed"] }));
+        let provider = provider_with(&json!({ "receives_issues": ["vip", "confirmed"] }));
         assert_eq!(
             confirmed_emails(&provider, &rows()),
             vec![

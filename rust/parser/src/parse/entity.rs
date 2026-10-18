@@ -123,6 +123,8 @@ pub fn entity_at_path_mut<'a>(
     entities: &'a mut [ir::Entity],
     path: &[usize],
 ) -> &'a mut ir::Entity {
+    // reason: documented under `# Panics`; paths are built internally, never from input.
+    #[allow(clippy::expect_used)]
     let (first, rest) = path
         .split_first()
         .expect("entity_path must have at least one segment");
@@ -228,7 +230,7 @@ pub fn parse_body(
                     "description",
                     &gated.args,
                     1,
-                )?)
+                )?);
             }
             "attribute" => entity
                 .attributes

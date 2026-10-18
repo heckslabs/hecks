@@ -31,9 +31,8 @@ pub fn run(input: &str) -> String {
     // Optional `"defaults"`: each command's declared argument defaults, filled the same way.
     super::needs::install_defaults(parsed.get("defaults"));
 
-    let steps = match parsed.get("steps").and_then(Json::as_array) {
-        Some(s) => s,
-        None => return error_output("expected a top-level {\"steps\": [...]} object"),
+    let Some(steps) = parsed.get("steps").and_then(Json::as_array) else {
+        return error_output("expected a top-level {\"steps\": [...]} object");
     };
 
     // Optional `"seed"`: prior state as `"instances"` emits it, so a host need not replay history.
@@ -48,9 +47,11 @@ pub fn run(input: &str) -> String {
     let mut refusals: Vec<(String, Refusal)> = Vec::new();
     // Process-manager instances are domain-level, so not a `Store` field.
     // Optional `"sagas"` seeds in-flight saga state the way `"seed"` seeds aggregates.
-    let mut sagas: HashMap<(String, String), SagaInstance> =
-        match parsed.get("sagas").and_then(Json::as_array) {
-            Some(entries) => entries
+    let mut sagas: HashMap<(String, String), SagaInstance> = parsed
+        .get("sagas")
+        .and_then(Json::as_array)
+        .map_or_else(HashMap::new, |entries| {
+            entries
                 .iter()
                 .filter_map(|entry| {
                     let process_manager = entry.get("process_manager")?.as_str()?.to_string();
@@ -84,9 +85,8 @@ pub fn run(input: &str) -> String {
                         },
                     ))
                 })
-                .collect(),
-            None => HashMap::new(),
-        };
+                .collect()
+        });
     // One entry per step, parallel to `steps`, so a host can read `.last()` for the newest step.
     let mut mutations_per_step: Vec<Vec<MutationRecord>> = Vec::new();
     // Parallel to `mutations_per_step`: policies that named a domain not compiled into this
@@ -133,6 +133,8 @@ pub fn run(input: &str) -> String {
                 // reference twin is the same engine.
                 // `reference_interpret` delegates to the same `entity_rows`).
                 Json::Str(question) if question.contains("::") && named_query::find_entity(ENTITY_QUERIES, question).is_some() => {
+                    // reason: the match guard above only admits a `question` that resolves.
+                    #[allow(clippy::expect_used)]
                     let def = named_query::find_entity(ENTITY_QUERIES, question).expect("matched by the guard above");
                     match named_query::run_entity(&store, def, args) {
                         Ok(rows) => {
@@ -271,9 +273,8 @@ pub fn run(input: &str) -> String {
             continue;
         }
 
-        let verb = match step.get("verb").and_then(Json::as_str) {
-            Some(v) => v,
-            None => return error_output("step missing \"verb\", \"dry_run\", or \"query\""),
+        let Some(verb) = step.get("verb").and_then(Json::as_str) else {
+            return error_output("step missing \"verb\", \"dry_run\", or \"query\"");
         };
 
         // Per-step `role:` stands in for Ruby's ambient `Hecks.as_caller`; passed to the top-level
@@ -468,7 +469,7 @@ pub fn serve(input: impl std::io::BufRead, mut output: impl std::io::Write) {
                     match &snapshot {
                         Some((s, g)) => {
                             store = s.clone();
-                            sagas = g.clone();
+                            sagas.clone_from(g);
                             ok()
                         }
                         None => Json::obj(vec![
@@ -654,11 +655,7 @@ fn event_to_json(event: &Event) -> Json {
         // Key order matches Ruby's `Event#to_h`; `None` serialises as null.
         (
             "occurred_at",
-            event
-                .occurred_at
-                .clone()
-                .map(Json::Str)
-                .unwrap_or(Json::Null),
+            event.occurred_at.clone().map_or(Json::Null, Json::Str),
         ),
     ])
 }

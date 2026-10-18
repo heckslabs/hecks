@@ -27,7 +27,7 @@ pub struct InMemoryRepository<T: Clone> {
 }
 
 impl<T: Clone> InMemoryRepository<T> {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             records: BTreeMap::new(),
         }
@@ -436,10 +436,9 @@ mod check_role_actor_id_tests {
             ),
             (
                 "ends_at",
-                match ends_at {
-                    Some(ts) => Json::obj(vec![("value", Json::str(ts.to_string()))]),
-                    None => Json::Null,
-                },
+                ends_at.map_or(Json::Null, |ts| {
+                    Json::obj(vec![("value", Json::str(ts.to_string()))])
+                }),
             ),
         ])
     }
@@ -706,6 +705,8 @@ mod json_cache_tests {
     use super::{InMemoryRepository, Repository};
     use crate::kernel::Json;
 
+    // reason: `json_entries` takes `fn(&T) -> Json`, so the signature is fixed by the caller.
+    #[allow(clippy::trivially_copy_pass_by_ref)]
     fn render(n: &i64) -> Json {
         Json::obj(vec![("n", Json::int(*n))])
     }

@@ -17,7 +17,7 @@ use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 
 /// One needed fact of a command: its name and the type of the command's attribute of that name.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Need {
     pub fact: String,
     pub attribute_type: String,

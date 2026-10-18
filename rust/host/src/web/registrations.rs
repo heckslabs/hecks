@@ -119,7 +119,7 @@ fn event_capacity(event: &Value) -> Option<i64> {
     event
         .get("capacity")
         .and_then(|c| c.get("value"))
-        .and_then(|v| v.as_i64())
+        .and_then(serde_json::Value::as_i64)
 }
 
 /// A whole-number field read as a bare number or as a single-field value
@@ -129,7 +129,7 @@ fn whole_number(field: Option<&Value>) -> Option<i64> {
     let field = field?;
     field
         .as_i64()
-        .or_else(|| field.get("value").and_then(|v| v.as_i64()))
+        .or_else(|| field.get("value").and_then(serde_json::Value::as_i64))
 }
 
 /// Whether an event's registration window has shut because its start is
@@ -421,14 +421,14 @@ async fn events_route(
             &json!({"error": "missing name"}).to_string(),
         );
     };
-    let Some(price_cents) = body.get("price_cents").and_then(|v| v.as_i64()) else {
+    let Some(price_cents) = body.get("price_cents").and_then(serde_json::Value::as_i64) else {
         return respond(
             400,
             "application/json",
             &json!({"error": "missing price_cents"}).to_string(),
         );
     };
-    let Some(capacity) = body.get("capacity").and_then(|v| v.as_i64()) else {
+    let Some(capacity) = body.get("capacity").and_then(serde_json::Value::as_i64) else {
         return respond(
             400,
             "application/json",
@@ -639,8 +639,7 @@ pub(crate) async fn registration_complete_route(
         let already_settled = refusal
             .get("error")
             .and_then(|v| v.as_str())
-            .map(|s| s.contains("pending"))
-            .unwrap_or(false);
+            .is_some_and(|s| s.contains("pending"));
         if !already_settled {
             return respond(422, "application/json", &refusal.to_string());
         }
@@ -820,7 +819,7 @@ pub(crate) async fn registrations_route_at(
     let price_cents = event
         .get("price")
         .and_then(|p| p.get("cents"))
-        .and_then(|v| v.as_i64())
+        .and_then(serde_json::Value::as_i64)
         .unwrap_or(0);
     let event_name = event
         .get("name")
@@ -935,7 +934,7 @@ pub(crate) async fn registrations_route_at(
     // Registration.Request; a command refuses args it doesn't declare.
     let news_signup = body
         .get("news_signup")
-        .and_then(|v| v.as_bool())
+        .and_then(serde_json::Value::as_bool)
         .unwrap_or(false);
     let binding = crate::commerce_ir::registrations_binding(&config.domain);
     let forwards_newsletter = crate::ir::ir().is_some_and(|ir| {
@@ -1000,7 +999,10 @@ pub(crate) async fn registrations_route_at(
         _ => "/".to_string(),
     };
     let confirm_query = |outcome: &str| -> String {
-        let mut url = reqwest::Url::parse("http://placeholder.invalid/").unwrap();
+        // The base is only a carrier for the query encoder; it always parses.
+        let Ok(mut url) = reqwest::Url::parse("http://placeholder.invalid/") else {
+            return String::new();
+        };
         url.query_pairs_mut()
             .append_pair("registration_id", &reference)
             .append_pair("outcome", outcome)
@@ -1239,16 +1241,18 @@ mod tests {
     fn sign_stripe_header(secret: &str, now: i64, payload: &str) -> String {
         use hmac::{Hmac, Mac};
         use sha2::Sha256;
+        use std::fmt::Write;
         let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes()).unwrap();
         mac.update(format!("{now}.{payload}").as_bytes());
-        format!(
-            "t={now},v1={}",
-            mac.finalize()
-                .into_bytes()
-                .iter()
-                .map(|b| format!("{b:02x}"))
-                .collect::<String>()
-        )
+        let digest = mac
+            .finalize()
+            .into_bytes()
+            .iter()
+            .fold(String::new(), |mut hex, b| {
+                let _ = write!(hex, "{b:02x}"); // writing to a String cannot fail
+                hex
+            });
+        format!("t={now},v1={digest}")
     }
 
     fn now_secs() -> i64 {
@@ -1365,7 +1369,10 @@ mod tests {
     fn binding_freeing(states: &[&str]) -> crate::commerce_ir::RegistrationsProvider {
         let mut binding =
             crate::commerce_ir::RegistrationsProvider::conventional("CheckoutFixture");
-        binding.frees_seat = states.iter().map(|s| s.to_string()).collect();
+        binding.frees_seat = states
+            .iter()
+            .map(std::string::ToString::to_string)
+            .collect();
         binding
     }
 
@@ -1526,7 +1533,10 @@ mod tests {
     /// pending, succeeded and failed, so refunding and disputed need the table set here.
     fn four_state_payments() -> crate::commerce_ir::PaymentsProvider {
         let mut payments = crate::commerce_ir::fixture_payments();
-        payments.holds_seat = HOLDING.iter().map(|s| s.to_string()).collect();
+        payments.holds_seat = HOLDING
+            .iter()
+            .map(std::string::ToString::to_string)
+            .collect();
         payments
     }
 

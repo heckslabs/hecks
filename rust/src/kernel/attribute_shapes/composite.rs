@@ -5,9 +5,9 @@ use crate::kernel::Refusal;
 
 /// A scalar (or `Nil`) with segments left resolves to `Nil`, like Ruby's `walk_path`.
 /// This makes `flag.nil?` read as a value instead of a refusal.
-pub fn step<'a>(current: Field<'a>, seg: &str, head: &str) -> Result<Field<'a>, Refusal> {
+pub fn step<'a>(current: &Field<'a>, seg: &str, head: &str) -> Result<Field<'a>, Refusal> {
     match current {
-        Field::Nested(obj) => obj
+        Field::Nested(obj) => (*obj)
             .field(seg)
             .ok_or_else(|| eval_error(format!("cannot resolve {seg:?} on {head:?}"))),
         Field::Value(_) => Ok(Field::Value(Value::Nil)),
@@ -43,7 +43,7 @@ mod tests {
     }
 
     // `Field` derives neither `Debug` nor `PartialEq`; assertions compare the `finish`ed `Value`.
-    fn stepped_value(current: Field<'_>, seg: &str, head: &str) -> Value {
+    fn stepped_value(current: &Field<'_>, seg: &str, head: &str) -> Value {
         finish(step(current, seg, head).unwrap(), "test.path").unwrap()
     }
 
@@ -51,7 +51,11 @@ mod tests {
     fn a_further_segment_on_a_bool_scalar_resolves_to_nil_not_a_refusal() {
         // `.nil?` has no dedicated node, so it arrives as a trailing segment on a resolved scalar.
         assert_eq!(
-            stepped_value(Field::Value(Value::Bool(true)), "nil?", "previous_sessions"),
+            stepped_value(
+                &Field::Value(Value::Bool(true)),
+                "nil?",
+                "previous_sessions"
+            ),
             Value::Nil
         );
     }
@@ -60,7 +64,7 @@ mod tests {
     fn this_holds_for_a_false_scalar_too() {
         assert_eq!(
             stepped_value(
-                Field::Value(Value::Bool(false)),
+                &Field::Value(Value::Bool(false)),
                 "nil?",
                 "previous_sessions"
             ),
@@ -77,7 +81,7 @@ mod tests {
             Value::List(3),
         ] {
             assert_eq!(
-                stepped_value(Field::Value(value.clone()), "nil?", "head"),
+                stepped_value(&Field::Value(value.clone()), "nil?", "head"),
                 Value::Nil,
                 "expected Nil for {value:?}"
             );
@@ -88,7 +92,7 @@ mod tests {
     fn a_further_segment_on_an_already_nil_value_stays_nil() {
         // An unset optional field already reads as `Nil` before `step` runs.
         assert_eq!(
-            stepped_value(Field::Value(Value::Nil), "nil?", "superseded_by"),
+            stepped_value(&Field::Value(Value::Nil), "nil?", "superseded_by"),
             Value::Nil
         );
     }
@@ -99,7 +103,7 @@ mod tests {
             status: "active".to_string(),
         };
         assert_eq!(
-            stepped_value(Field::Nested(&customer), "status", "customer"),
+            stepped_value(&Field::Nested(&customer), "status", "customer"),
             Value::Str("active".to_string())
         );
     }
@@ -110,7 +114,7 @@ mod tests {
         let customer = Customer {
             status: "active".to_string(),
         };
-        let stepped = step(Field::Nested(&customer), "not_a_real_field", "customer");
+        let stepped = step(&Field::Nested(&customer), "not_a_real_field", "customer");
         assert!(stepped.is_err());
     }
 

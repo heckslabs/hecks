@@ -14,7 +14,7 @@ pub fn scalar_field_expr(
         return Some(value_expr.to_string());
     }
     let vo = value_objects_by_name.get(attr_type)?;
-    let attrs = vo.get("attributes").map(Json::each).unwrap_or(&[]);
+    let attrs = vo.get("attributes").map_or_default(Json::each);
     if attrs.len() != 1 {
         return None;
     }
@@ -64,17 +64,14 @@ pub fn admitted_set_members(
     let (aggregate_name, set_name) = admits.split_once("::")?;
 
     let aggregate = aggregates_by_name.get(aggregate_name)?;
-    let vos = aggregate
-        .get("value_objects")
-        .map(Json::each)
-        .unwrap_or(&[]);
+    let vos = aggregate.get("value_objects").map_or_default(Json::each);
     let vo = vos
         .iter()
         .find(|v| v.get("name").and_then(Json::as_str) == Some(set_name))?;
-    if !vo.get("closed_set").map(Json::as_bool).unwrap_or(false) {
+    if !vo.get("closed_set").is_some_and(Json::as_bool) {
         return None;
     }
-    let members = vo.get("members").map(Json::each).unwrap_or(&[]);
+    let members = vo.get("members").map_or_default(Json::each);
     Some(
         members
             .iter()

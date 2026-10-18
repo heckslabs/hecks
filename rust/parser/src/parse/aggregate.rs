@@ -192,7 +192,7 @@ pub fn parse_body(
                     "description",
                     &gated.args,
                     1,
-                )?)
+                )?);
             }
             // Origin, not identity: captured raw, like a literal Hash default.
             "provenance" => {

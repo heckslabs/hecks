@@ -3,7 +3,7 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 /// How long an address is left alone after a confirmation email went to it.
-pub(super) const WINDOW: Duration = Duration::from_secs(10 * 60);
+pub(super) const WINDOW: Duration = Duration::from_mins(10);
 
 /// The most addresses remembered; past it a new address is refused, not evicting a live one.
 pub(super) const CAPACITY: usize = 10_000;
@@ -38,7 +38,7 @@ impl ConfirmationCooldown {
         let mut last_sent = self
             .last_sent
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let window = self.window;
         last_sent.retain(|_, sent| now.saturating_duration_since(*sent) < window);
         if last_sent.contains_key(&key) || last_sent.len() >= self.capacity {

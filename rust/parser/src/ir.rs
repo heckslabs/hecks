@@ -46,7 +46,7 @@ pub struct ProjectedField {
 
 // One state or several, stored as the plain captured value rather than a `Given`-shaped rule.
 // `None` when the command has no `from:` guard.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CommandFrom {
     Single(String),
     Multiple(Vec<String>),
@@ -202,7 +202,7 @@ pub struct Entity {
     pub commands: Vec<Command>,
     pub queries: Vec<Query>,
     // A piece nested inside a piece, like an Aggregate's own `entities`.
-    pub entities: Vec<Entity>,
+    pub entities: Vec<Self>,
     // A precondition shared across this piece's commands; declaration-only, like `Aggregate`.
     pub preconditions: Vec<Given>,
     // A shape rule checked against every instance of this piece.
@@ -310,7 +310,7 @@ pub struct DispatchSpec {
     // A shape-identical `DispatchSpec` naming the command that undoes this dispatch. Field order
     // (`command_name`, `with_spec`, `compensates`) is the wire order `dispatch_spec_json` emits.
     // One level only: a compensation is not itself compensable.
-    pub compensates: Option<Box<DispatchSpec>>,
+    pub compensates: Option<Box<Self>>,
 }
 
 #[derive(Debug, Clone, Default)]

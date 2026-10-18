@@ -217,12 +217,15 @@ cd rust && cargo build --release && cargo test --lib
 ```
 
 Every Rust crate (`rust/`, `rust/parser`, `rust/codegen`, `rust/lsp`, `rust/host`, `rust/web`, `rust/build`) is held to
-`cargo fmt --check` and `cargo clippy --all-targets -- -D warnings` at clippy's default levels. CI runs both in the
+`cargo fmt --check` and `cargo clippy --all-targets -- -D warnings`. The lint set is the `[lints.clippy]` table in each
+crate's `Cargo.toml` (clippy's pedantic and nursery groups plus `unwrap_used`, `expect_used` and `panic`; the same table
+in all seven, so change them together), with `clippy.toml` letting tests unwrap. CI runs both in the
 `checks` job; `hecks gate_run.gate stage=ci only=rust_fmt,rust_clippy` runs them here, after `hecks regenerate_corpus
 --confirm` on a fresh checkout (the main crate needs the generated modules). Generated Rust is laid out by its
 generators (`Hecks::RustFormat`) and is clippy-clean by the same route, so fix a warning in a generated file in the
 generator, never in the output. `rust/src/exemplar` is text templates, so it is neither formatted nor linted as code.
-Allow a lint only at the one site that needs it, with a line saying why.
+Allow a lint only at the one site that needs it, with a line saying why. An `unwrap`, `expect` or `panic` in library
+code is either turned into an error or, for a true invariant, allowed on its function with the invariant named.
 
 ## Code-quality inspection
 

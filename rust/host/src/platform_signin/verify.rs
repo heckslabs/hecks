@@ -74,53 +74,53 @@ pub enum Reason {
 
 impl Reason {
     /// Every reason, in the order the checks run.
-    pub const ALL: [Reason; 18] = [
-        Reason::MissingCookie,
-        Reason::StateMismatch,
-        Reason::TooLarge,
-        Reason::Malformed,
-        Reason::BadAlg,
-        Reason::UnknownKid,
-        Reason::BadSignature,
-        Reason::BadIss,
-        Reason::BadAud,
-        Reason::BadEnv,
-        Reason::MissingClaim,
-        Reason::NotYetValid,
-        Reason::Expired,
-        Reason::Lifetime,
-        Reason::NonceMismatch,
-        Reason::Replay,
-        Reason::EmailUnverified,
-        Reason::SubjectMismatch,
+    pub const ALL: [Self; 18] = [
+        Self::MissingCookie,
+        Self::StateMismatch,
+        Self::TooLarge,
+        Self::Malformed,
+        Self::BadAlg,
+        Self::UnknownKid,
+        Self::BadSignature,
+        Self::BadIss,
+        Self::BadAud,
+        Self::BadEnv,
+        Self::MissingClaim,
+        Self::NotYetValid,
+        Self::Expired,
+        Self::Lifetime,
+        Self::NonceMismatch,
+        Self::Replay,
+        Self::EmailUnverified,
+        Self::SubjectMismatch,
     ];
 
     /// Returns the stable lowercase code, such as `"bad_aud"`.
-    pub fn code(self) -> &'static str {
+    pub const fn code(self) -> &'static str {
         match self {
-            Reason::MissingCookie => "missing_cookie",
-            Reason::StateMismatch => "state_mismatch",
-            Reason::TooLarge => "too_large",
-            Reason::Malformed => "malformed",
-            Reason::BadAlg => "bad_alg",
-            Reason::UnknownKid => "unknown_kid",
-            Reason::BadSignature => "bad_signature",
-            Reason::BadIss => "bad_iss",
-            Reason::BadAud => "bad_aud",
-            Reason::BadEnv => "bad_env",
-            Reason::MissingClaim => "missing_claim",
-            Reason::NotYetValid => "not_yet_valid",
-            Reason::Expired => "expired",
-            Reason::Lifetime => "lifetime",
-            Reason::NonceMismatch => "nonce_mismatch",
-            Reason::Replay => "replay",
-            Reason::EmailUnverified => "email_unverified",
-            Reason::SubjectMismatch => "subject_mismatch",
+            Self::MissingCookie => "missing_cookie",
+            Self::StateMismatch => "state_mismatch",
+            Self::TooLarge => "too_large",
+            Self::Malformed => "malformed",
+            Self::BadAlg => "bad_alg",
+            Self::UnknownKid => "unknown_kid",
+            Self::BadSignature => "bad_signature",
+            Self::BadIss => "bad_iss",
+            Self::BadAud => "bad_aud",
+            Self::BadEnv => "bad_env",
+            Self::MissingClaim => "missing_claim",
+            Self::NotYetValid => "not_yet_valid",
+            Self::Expired => "expired",
+            Self::Lifetime => "lifetime",
+            Self::NonceMismatch => "nonce_mismatch",
+            Self::Replay => "replay",
+            Self::EmailUnverified => "email_unverified",
+            Self::SubjectMismatch => "subject_mismatch",
         }
     }
 
     /// Finds the reason that has this code.
-    pub fn from_code(code: &str) -> Option<Reason> {
+    pub fn from_code(code: &str) -> Option<Self> {
         Self::ALL.into_iter().find(|reason| reason.code() == code)
     }
 }
@@ -133,7 +133,7 @@ pub struct Refusal {
 
 impl Refusal {
     /// Returns the stable reason code.
-    pub fn code(&self) -> &'static str {
+    pub const fn code(&self) -> &'static str {
         self.reason.code()
     }
 }
@@ -221,7 +221,7 @@ impl<K: KeySource> Verifier<K> {
     }
 
     /// Exposes the single-use record, so a caller can share or inspect it.
-    pub fn jti_store(&self) -> &JtiStore {
+    pub const fn jti_store(&self) -> &JtiStore {
         &self.jti_store
     }
 

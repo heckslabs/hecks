@@ -12,40 +12,40 @@ pub enum Literal {
     /// A Symbol, which JSON cannot represent; only `read` produces one (leading-colon strings).
     Symbol(String),
     Str(String),
-    Hash(Vec<(String, Literal)>),
-    Array(Vec<Literal>),
+    Hash(Vec<(String, Self)>),
+    Array(Vec<Self>),
 }
 
 impl Literal {
     /// Converts a raw `Json` value structurally, with no text parsing and no Symbol case.
-    pub fn from_json(value: &Json) -> Literal {
+    pub fn from_json(value: &Json) -> Self {
         match value {
-            Json::Null => Literal::Nil,
-            Json::Bool(b) => Literal::Bool(*b),
+            Json::Null => Self::Nil,
+            Json::Bool(b) => Self::Bool(*b),
             Json::Number(_) => match value.number() {
-                Some(Number::Int(n)) => Literal::Int(n),
-                Some(Number::Float(n)) => Literal::Float(n),
-                None => Literal::Nil,
+                Some(Number::Int(n)) => Self::Int(n),
+                Some(Number::Float(n)) => Self::Float(n),
+                None => Self::Nil,
             },
-            Json::String(s) => Literal::Str(s.clone()),
-            Json::Array(items) => Literal::Array(items.iter().map(Literal::from_json).collect()),
-            Json::Object(pairs) => Literal::Hash(
+            Json::String(s) => Self::Str(s.clone()),
+            Json::Array(items) => Self::Array(items.iter().map(Self::from_json).collect()),
+            Json::Object(pairs) => Self::Hash(
                 pairs
                     .iter()
-                    .map(|(k, v)| (k.clone(), Literal::from_json(v)))
+                    .map(|(k, v)| (k.clone(), Self::from_json(v)))
                     .collect(),
             ),
         }
     }
 
-    pub fn as_hash(&self) -> Option<&[(String, Literal)]> {
+    pub const fn as_hash(&self) -> Option<&[(String, Self)]> {
         match self {
-            Literal::Hash(pairs) => Some(pairs.as_slice()),
+            Self::Hash(pairs) => Some(pairs.as_slice()),
             _ => None,
         }
     }
 
-    pub fn get(&self, key: &str) -> Option<&Literal> {
+    pub fn get(&self, key: &str) -> Option<&Self> {
         self.as_hash()?
             .iter()
             .find(|(k, _)| k == key)
@@ -119,7 +119,7 @@ fn is_quoted(raw: &str) -> bool {
 fn unquote(raw: &str) -> String {
     let inner = &raw[1..raw.len() - 1];
     let mut out = String::with_capacity(inner.len());
-    let mut chars = inner.chars().peekable();
+    let mut chars = inner.chars();
     while let Some(c) = chars.next() {
         if c == '\\' {
             if let Some(next) = chars.next() {
@@ -138,14 +138,14 @@ fn read_hash(raw: &str) -> Literal {
         .into_iter()
         .map(|item| {
             // Splits at the first ":" only, like Ruby's `partition`; field names have none.
-            match item.find(':') {
-                Some(idx) => {
+            item.find(':').map_or_else(
+                || (item.trim().to_string(), read("")),
+                |idx| {
                     let key = item[..idx].trim().to_string();
                     let held = &item[idx + 1..];
                     (key, read(held))
-                }
-                None => (item.trim().to_string(), read("")),
-            }
+                },
+            )
         })
         .collect();
     Literal::Hash(pairs)
@@ -162,6 +162,10 @@ fn read_array(raw: &str) -> Literal {
 }
 
 /// `naming.rb#literal_rhs` for a `Literal`: String/Integer/Float/Boolean, else panics.
+#[allow(
+    clippy::panic,
+    reason = "a drifted exemplar or invalid IR aborts generation on purpose"
+)]
 pub fn literal_rhs(literal: &Literal) -> String {
     match literal {
         Literal::Str(s) => format!("{}.to_string()", crate::naming::ruby_inspect_string(s)),

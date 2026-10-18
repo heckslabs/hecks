@@ -98,7 +98,7 @@ impl PizzaName {
         }
         let unknown = v.unknown_keys(&["value"]);
         if !unknown.is_empty() {
-            let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
             return Err(crate::kernel::Refusal::UnknownArgument(
                 crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
                     command: "PizzaName",
@@ -115,7 +115,7 @@ impl PizzaName {
                         "PizzaName.value expects String, got nil".to_string(),
                     )
                 })?;
-                x.as_str().map(|s| s.to_string()).ok_or_else(|| {
+                x.as_str().map(ToString::to_string).ok_or_else(|| {
                     crate::kernel::Refusal::TypeMismatch(format!(
                         "PizzaName.value expects String, got {}",
                         x.inspect()
@@ -216,7 +216,7 @@ impl Price {
         }
         let unknown = v.unknown_keys(&["cents"]);
         if !unknown.is_empty() {
-            let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
             return Err(crate::kernel::Refusal::UnknownArgument(
                 crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
                     command: "Price",
@@ -233,7 +233,7 @@ impl Price {
                         "Price.cents expects Integer, got nil".to_string(),
                     )
                 })?;
-                x.as_i64().ok_or_else(|| if matches!(x, crate::kernel::Json::Num(n, _) if n.is_finite() && n.fract() == 0.0 && n.abs() >= 9.223372036854776e18) { crate::kernel::Refusal::TypeMismatch(format!("Price.cents must fit in a 64-bit integer, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch(format!("Price.cents expects Integer, got {}", x.inspect())) })?
+                x.as_i64().ok_or_else(|| if matches!(x, crate::kernel::Json::Num(n, _) if n.is_finite() && n.fract() == 0.0 && n.abs() >= 9.223_372_036_854_776e18) { crate::kernel::Refusal::TypeMismatch(format!("Price.cents must fit in a 64-bit integer, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch(format!("Price.cents expects Integer, got {}", x.inspect())) })?
             },
         })
     }
@@ -334,7 +334,7 @@ impl CustomerName {
         }
         let unknown = v.unknown_keys(&["value"]);
         if !unknown.is_empty() {
-            let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
             return Err(crate::kernel::Refusal::UnknownArgument(
                 crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
                     command: "CustomerName",
@@ -351,7 +351,7 @@ impl CustomerName {
                         "CustomerName.value expects String, got nil".to_string(),
                     )
                 })?;
-                x.as_str().map(|s| s.to_string()).ok_or_else(|| {
+                x.as_str().map(ToString::to_string).ok_or_else(|| {
                     crate::kernel::Refusal::TypeMismatch(format!(
                         "CustomerName.value expects String, got {}",
                         x.inspect()
@@ -486,7 +486,7 @@ impl ToppingName {
         }
         let unknown = v.unknown_keys(&["value"]);
         if !unknown.is_empty() {
-            let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
             return Err(crate::kernel::Refusal::UnknownArgument(
                 crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
                     command: "ToppingName",
@@ -503,7 +503,7 @@ impl ToppingName {
                         "ToppingName.value expects String, got nil".to_string(),
                     )
                 })?;
-                x.as_str().map(|s| s.to_string()).ok_or_else(|| {
+                x.as_str().map(ToString::to_string).ok_or_else(|| {
                     crate::kernel::Refusal::TypeMismatch(format!(
                         "ToppingName.value expects String, got {}",
                         x.inspect()
@@ -603,7 +603,7 @@ impl ToppingAmount {
         }
         let unknown = v.unknown_keys(&["value"]);
         if !unknown.is_empty() {
-            let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
             return Err(crate::kernel::Refusal::UnknownArgument(
                 crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
                     command: "ToppingAmount",
@@ -620,7 +620,7 @@ impl ToppingAmount {
                         "ToppingAmount.value expects Integer, got nil".to_string(),
                     )
                 })?;
-                x.as_i64().ok_or_else(|| if matches!(x, crate::kernel::Json::Num(n, _) if n.is_finite() && n.fract() == 0.0 && n.abs() >= 9.223372036854776e18) { crate::kernel::Refusal::TypeMismatch(format!("ToppingAmount.value must fit in a 64-bit integer, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch(format!("ToppingAmount.value expects Integer, got {}", x.inspect())) })?
+                x.as_i64().ok_or_else(|| if matches!(x, crate::kernel::Json::Num(n, _) if n.is_finite() && n.fract() == 0.0 && n.abs() >= 9.223_372_036_854_776e18) { crate::kernel::Refusal::TypeMismatch(format!("ToppingAmount.value must fit in a 64-bit integer, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch(format!("ToppingAmount.value expects Integer, got {}", x.inspect())) })?
             },
         })
     }
@@ -695,7 +695,7 @@ impl Topping {
         }
         let unknown = v.unknown_keys(&["name", "amount"]);
         if !unknown.is_empty() {
-            let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
             return Err(crate::kernel::Refusal::UnknownArgument(
                 crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
                     command: "Topping",
@@ -712,7 +712,7 @@ impl Topping {
                         "Topping.name expects String, got nil".to_string(),
                     )
                 })?;
-                x.as_str().map(|s| s.to_string()).ok_or_else(|| {
+                x.as_str().map(ToString::to_string).ok_or_else(|| {
                     crate::kernel::Refusal::TypeMismatch(format!(
                         "Topping.name expects String, got {}",
                         x.inspect()
@@ -725,7 +725,7 @@ impl Topping {
                         "Topping.amount expects Integer, got nil".to_string(),
                     )
                 })?;
-                x.as_i64().ok_or_else(|| if matches!(x, crate::kernel::Json::Num(n, _) if n.is_finite() && n.fract() == 0.0 && n.abs() >= 9.223372036854776e18) { crate::kernel::Refusal::TypeMismatch(format!("Topping.amount must fit in a 64-bit integer, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch(format!("Topping.amount expects Integer, got {}", x.inspect())) })?
+                x.as_i64().ok_or_else(|| if matches!(x, crate::kernel::Json::Num(n, _) if n.is_finite() && n.fract() == 0.0 && n.abs() >= 9.223_372_036_854_776e18) { crate::kernel::Refusal::TypeMismatch(format!("Topping.amount must fit in a 64-bit integer, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch(format!("Topping.amount expects Integer, got {}", x.inspect())) })?
             },
         })
     }
@@ -742,8 +742,8 @@ impl crate::kernel::Fielded for Size {
         use crate::kernel::{Field, Value};
         match name {
             "value" => Some(Field::Value(Value::Str(match self {
-                Size::Small => "small".to_string(),
-                Size::Large => "large".to_string(),
+                Self::Small => "small".to_string(),
+                Self::Large => "large".to_string(),
             }))),
             _ => None,
         }
@@ -759,8 +759,8 @@ impl crate::kernel::Fielded for Size {
 impl Size {
     pub fn to_json(&self) -> crate::kernel::Json {
         let member = match self {
-            Size::Small => "small",
-            Size::Large => "large",
+            Self::Small => "small",
+            Self::Large => "large",
         };
         crate::kernel::Json::obj(vec![("value", crate::kernel::Json::str(member))])
     }
@@ -770,7 +770,7 @@ impl Size {
         // does in `validate!`: before a missing field, and before membership.
         let unknown = v.unknown_keys(&["value"]);
         if !unknown.is_empty() {
-            let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
             return Err(crate::kernel::Refusal::UnknownArgument(
                 crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
                     command: "Size",
@@ -822,8 +822,8 @@ impl Size {
             ));
         }
         match candidate.ruby_to_s().as_str() {
-            "small" => Ok(Size::Small),
-            "large" => Ok(Size::Large),
+            "small" => Ok(Self::Small),
+            "large" => Ok(Self::Large),
             _ => Err(crate::kernel::Refusal::InvariantViolation(
                 crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
                     r#type: "Size",
@@ -892,7 +892,7 @@ impl Pizza {
         }
         let unknown = v.unknown_keys(&["price_cents", "size"]);
         if !unknown.is_empty() {
-            let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
             return Err(crate::kernel::Refusal::UnknownArgument(
                 crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
                     command: "Pizza",
@@ -980,15 +980,13 @@ impl Order {
                 "name".to_string(),
                 self.name
                     .as_ref()
-                    .map(|v| v.to_json())
-                    .unwrap_or(crate::kernel::Json::Null),
+                    .map_or(crate::kernel::Json::Null, |v| v.to_json()),
             ),
             (
                 "pizza".to_string(),
                 self.pizza
                     .as_ref()
-                    .map(|v| v.to_json())
-                    .unwrap_or(crate::kernel::Json::Null),
+                    .map_or(crate::kernel::Json::Null, |v| v.to_json()),
             ),
             (
                 "toppings".to_string(),
@@ -998,8 +996,7 @@ impl Order {
                 "customer_name".to_string(),
                 self.customer_name
                     .as_ref()
-                    .map(|v| v.to_json())
-                    .unwrap_or(crate::kernel::Json::Null),
+                    .map_or(crate::kernel::Json::Null, |v| v.to_json()),
             ),
             (
                 "status".to_string(),
@@ -1054,7 +1051,7 @@ impl Order {
 
 impl crate::kernel::ToJson for Order {
     fn to_json(&self) -> crate::kernel::Json {
-        Order::to_json(self)
+        Self::to_json(self)
     }
 }
 
@@ -1230,7 +1227,7 @@ impl CreatePizzaArgs {
         }
         let unknown = v.unknown_keys(&["name", "pizza", "id"]);
         if !unknown.is_empty() {
-            let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
             return Err(crate::kernel::Refusal::UnknownArgument(
                 crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
                     command: "CreatePizza",
@@ -1240,8 +1237,10 @@ impl CreatePizzaArgs {
                 .render_args(),
             ));
         }
-        let absent: Vec<&str> = ["name", "pizza"]
-            .into_iter()
+        let required: &[&str] = &["name", "pizza"];
+        let absent: Vec<&str> = required
+            .iter()
+            .copied()
             .filter(|key| v.get(key).is_none())
             .collect();
         if !absent.is_empty() {
@@ -1296,7 +1295,7 @@ impl CreatePizzaArgs {
     pub fn refuse_unknown_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
         let unknown = v.unknown_keys(&["name", "pizza", "id"]);
         if !unknown.is_empty() {
-            let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
             return Err(crate::kernel::Refusal::UnknownArgument(
                 crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
                     command: "CreatePizza",
@@ -1310,8 +1309,10 @@ impl CreatePizzaArgs {
     }
 
     pub fn refuse_absent_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
-        let absent: Vec<&str> = ["name", "pizza"]
-            .into_iter()
+        let required: &[&str] = &["name", "pizza"];
+        let absent: Vec<&str> = required
+            .iter()
+            .copied()
             .filter(|key| v.get(key).is_none())
             .collect();
         if !absent.is_empty() {
@@ -1443,7 +1444,7 @@ impl AddToppingArgs {
         }
         let unknown = v.unknown_keys(&["topping", "amount", "id", "order", "name"]);
         if !unknown.is_empty() {
-            let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
             return Err(crate::kernel::Refusal::UnknownArgument(
                 crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
                     command: "AddTopping",
@@ -1453,8 +1454,10 @@ impl AddToppingArgs {
                 .render_args(),
             ));
         }
-        let absent: Vec<&str> = ["amount", "topping"]
-            .into_iter()
+        let required: &[&str] = &["amount", "topping"];
+        let absent: Vec<&str> = required
+            .iter()
+            .copied()
             .filter(|key| v.get(key).is_none())
             .collect();
         if !absent.is_empty() {
@@ -1509,7 +1512,7 @@ impl AddToppingArgs {
     pub fn refuse_unknown_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
         let unknown = v.unknown_keys(&["topping", "amount", "id", "order", "name"]);
         if !unknown.is_empty() {
-            let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
             return Err(crate::kernel::Refusal::UnknownArgument(
                 crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
                     command: "AddTopping",
@@ -1523,8 +1526,10 @@ impl AddToppingArgs {
     }
 
     pub fn refuse_absent_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
-        let absent: Vec<&str> = ["amount", "topping"]
-            .into_iter()
+        let required: &[&str] = &["amount", "topping"];
+        let absent: Vec<&str> = required
+            .iter()
+            .copied()
             .filter(|key| v.get(key).is_none())
             .collect();
         if !absent.is_empty() {
@@ -1671,8 +1676,7 @@ impl PurchaseArgs {
                     "customer_name".to_string(),
                     self.customer_name
                         .as_ref()
-                        .map(|v| v.to_json())
-                        .unwrap_or(crate::kernel::Json::Null),
+                        .map_or(crate::kernel::Json::Null, |v| v.to_json()),
                 ),
             ]
             .into_iter()
@@ -1692,7 +1696,7 @@ impl PurchaseArgs {
         }
         let unknown = v.unknown_keys(&["amount", "customer_name", "id", "order", "name"]);
         if !unknown.is_empty() {
-            let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
             return Err(crate::kernel::Refusal::UnknownArgument(
                 crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
                     command: "Purchase",
@@ -1702,8 +1706,10 @@ impl PurchaseArgs {
                 .render_args(),
             ));
         }
-        let absent: Vec<&str> = ["amount"]
-            .into_iter()
+        let required: &[&str] = &["amount"];
+        let absent: Vec<&str> = required
+            .iter()
+            .copied()
             .filter(|key| v.get(key).is_none())
             .collect();
         if !absent.is_empty() {
@@ -1756,7 +1762,7 @@ impl PurchaseArgs {
     pub fn refuse_unknown_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
         let unknown = v.unknown_keys(&["amount", "customer_name", "id", "order", "name"]);
         if !unknown.is_empty() {
-            let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
             return Err(crate::kernel::Refusal::UnknownArgument(
                 crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
                     command: "Purchase",
@@ -1770,8 +1776,10 @@ impl PurchaseArgs {
     }
 
     pub fn refuse_absent_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
-        let absent: Vec<&str> = ["amount"]
-            .into_iter()
+        let required: &[&str] = &["amount"];
+        let absent: Vec<&str> = required
+            .iter()
+            .copied()
             .filter(|key| v.get(key).is_none())
             .collect();
         if !absent.is_empty() {

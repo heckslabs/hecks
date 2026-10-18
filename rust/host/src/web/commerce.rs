@@ -212,7 +212,7 @@ impl HostExtension for Commerce {
                 }
             },
             Err(e) => {
-                eprintln!("RESEND_SECRET_ID could not be read, so email sending stays off: {e}")
+                eprintln!("RESEND_SECRET_ID could not be read, so email sending stays off: {e}");
             }
         }
     }

@@ -64,7 +64,7 @@ pub const SUPPORTED_PERSISTENCE_ADAPTERS: &[&str] = &["Postgres", "PostgresEra"]
 
 /// The chapter this domain's role checks resolve against, read from
 /// `ir.json`'s own `authorization` key. `None` when nothing provides it.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AuthorizationProvider {
     /// Qualified grant command, e.g. `Governance::RoleAssignment.Assign`.
     pub grant: String,
@@ -83,7 +83,7 @@ pub fn authorization_provider(domain_ir: &Value) -> Option<AuthorizationProvider
 
 /// The chapter that answers "who may sign in", read from `ir.json`'s own
 /// `membership` key. `None` when nothing provides `"membership"`.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MembershipProvider {
     /// Chapter name, e.g. `Membership`.
     pub provider: String,
@@ -115,7 +115,7 @@ pub fn membership_provider(domain_ir: &Value) -> Option<MembershipProvider> {
 /// The chapter that answers "who is this authenticated pair", read from
 /// `ir.json`'s own `identity` key. `None` when nothing provides `"identity"`.
 /// Link's reference field must stay `identity` — never `identity_id`, never `to:`.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IdentityProvider {
     /// Chapter name, e.g. `Identity`.
     pub provider: String,
@@ -194,7 +194,7 @@ mod tests {
             "lineage": { "capable_aggregates": [{ "name": "Order", "storage_name": "order" }] }
         });
         let expected: std::collections::BTreeSet<String> =
-            ["Shop::Order"].into_iter().map(String::from).collect();
+            std::iter::once("Shop::Order").map(String::from).collect();
         assert_eq!(mirrored_aggregates(&ir), expected);
         assert!(mirrored_aggregates(&serde_json::json!({ "name": "Banking" })).is_empty());
     }

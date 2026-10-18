@@ -1,6 +1,7 @@
 //! Rewrites the root `generated/mod.rs` and syncs `rust/Cargo.toml` `[features]`.
 //! Ports `sync_mod_and_cargo!`, keeping its output byte-identical.
 
+use std::fmt::Write as _;
 use std::path::Path;
 
 // Both tables come from the reserved-word vocabularies via `hecks project_reserved_names`.
@@ -24,7 +25,7 @@ fn scan_generated_dirs(out_root: &Path) -> Result<(Vec<String>, Vec<String>), St
         std::fs::read_dir(out_root).map_err(|e| format!("reading {}: {e}", out_root.display()))?
     {
         let entry = entry.map_err(|e| format!("reading {}: {e}", out_root.display()))?;
-        if entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+        if entry.file_type().is_ok_and(|t| t.is_dir()) {
             all_dirs.push(entry.file_name().to_string_lossy().to_string());
         }
     }
@@ -67,9 +68,9 @@ fn write_root_mod(
     out.push_str("// it via `attaches`.\n");
     for name in all_dirs {
         if domains.iter().any(|d| d == name) {
-            out.push_str(&format!("#[cfg(feature = {name:?})]\n"));
+            let _ = writeln!(out, "#[cfg(feature = {name:?})]");
         }
-        out.push_str(&format!("pub mod {name};\n"));
+        let _ = writeln!(out, "pub mod {name};");
     }
     out.push('\n');
     out.push_str("// `active` is whichever ONE domain's own merged Store/dispatch table\n");
@@ -79,9 +80,10 @@ fn write_root_mod(
     out.push_str("// no matter which domain that resolves to.\n");
     out.push_str("//\n");
     out.push_str("// DOMAIN FEATURES ARE MUTUALLY EXCLUSIVE (R5) — Cargo has no native\n");
-    out.push_str(&format!(
-        "// concept of that, and `default = [{target_mod_name:?}]` in\n"
-    ));
+    let _ = writeln!(
+        out,
+        "// concept of that, and `default = [{target_mod_name:?}]` in"
+    );
     out.push_str("// Cargo.toml stays enabled unless a build passes\n");
     out.push_str("// `--no-default-features`, so a plain `cargo build --features banking`\n");
     out.push_str("// used to enable BOTH the default domain's feature and banking's,\n");
@@ -110,13 +112,11 @@ fn write_root_mod(
                 .map(|o| format!("feature = {o:?}"))
                 .collect::<Vec<_>>()
                 .join(", ");
-            out.push_str(&format!(
-                "#[cfg(all(feature = {name:?}, not(any({guard}))))]\n"
-            ));
+            let _ = writeln!(out, "#[cfg(all(feature = {name:?}, not(any({guard}))))]");
         } else {
-            out.push_str(&format!("#[cfg(feature = {name:?})]\n"));
+            let _ = writeln!(out, "#[cfg(feature = {name:?})]");
         }
-        out.push_str(&format!("pub use {name}::merged as active;\n"));
+        let _ = writeln!(out, "pub use {name}::merged as active;");
     }
 
     let non_default_domains: Vec<&String> = domains
@@ -134,10 +134,10 @@ fn write_root_mod(
             for j in (i + 1)..non_default_domains.len() {
                 let a = non_default_domains[i];
                 let b = non_default_domains[j];
-                out.push_str(&format!("#[cfg(all(feature = {a:?}, feature = {b:?}))]\n"));
-                out.push_str(&format!(
-                    "compile_error!(\"domain features are mutually exclusive — enable only one of: {domains_joined} (both {a} and {b} are enabled)\");\n"
-                ));
+                let _ = writeln!(out, "#[cfg(all(feature = {a:?}, feature = {b:?}))]");
+                let _ = writeln!(out,
+                    "compile_error!(\"domain features are mutually exclusive — enable only one of: {domains_joined} (both {a} and {b} are enabled)\");"
+                );
             }
         }
     }
@@ -194,8 +194,7 @@ fn sync_cargo_toml_features(
         let already_declared = features_table_slice(&cargo_toml).lines().any(|line| {
             line.trim_start()
                 .strip_prefix(name.as_str())
-                .map(|rest| rest.trim_start().starts_with('='))
-                .unwrap_or(false)
+                .is_some_and(|rest| rest.trim_start().starts_with('='))
         });
         if already_declared {
             continue;
@@ -203,7 +202,7 @@ fn sync_cargo_toml_features(
         cargo_toml = insert_after_default(&cargo_toml, &format!("{name} = []"));
     }
 
-    cargo_toml = replace_default_line(&cargo_toml, &format!("default = [{:?}]", target_mod_name));
+    cargo_toml = replace_default_line(&cargo_toml, &format!("default = [{target_mod_name:?}]"));
 
     std::fs::write(cargo_toml_path, &cargo_toml)
         .map_err(|e| format!("writing {}: {e}", cargo_toml_path.display()))?;
@@ -253,8 +252,7 @@ fn is_default_line(line_content: &str) -> bool {
     let trimmed = line_content.trim_start();
     trimmed
         .strip_prefix("default")
-        .map(|rest| rest.trim_start().starts_with('='))
-        .unwrap_or(false)
+        .is_some_and(|rest| rest.trim_start().starts_with('='))
 }
 
 /// Rewrites only the root `mod.rs`, for a generation into a directory other than `rust/src/generated`.

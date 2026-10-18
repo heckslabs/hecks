@@ -6,9 +6,10 @@ use crate::ir;
 /// with no `_id` suffix.
 pub fn reference_attribute(target: &str, as_name: Option<&str>, optional: bool) -> ir::Attribute {
     let target = crate::build::naming::demodulise(target);
-    let name = as_name
-        .map(|s| s.to_string())
-        .unwrap_or_else(|| crate::build::naming::snake(&target));
+    let name = as_name.map_or_else(
+        || crate::build::naming::snake(&target),
+        std::string::ToString::to_string,
+    );
     ir::Attribute {
         name,
         type_name: format!("Reference<{target}>"),

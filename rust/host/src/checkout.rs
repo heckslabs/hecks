@@ -76,7 +76,11 @@ pub fn verify_signature(
 }
 
 fn hex_encode(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| format!("{b:02x}")).collect()
+    use std::fmt::Write;
+    bytes.iter().fold(String::new(), |mut out, b| {
+        let _ = write!(out, "{b:02x}"); // writing to a String cannot fail
+        out
+    })
 }
 
 // A bare `==` short-circuits at the first differing byte, opening a timing
@@ -99,8 +103,12 @@ pub fn mock_checkout_session(
     cancel_url: &str,
     site_url: &str,
 ) -> String {
-    let mut url = reqwest::Url::parse(&format!("{site_url}/pay/{registration_id}.html"))
-        .unwrap_or_else(|_| reqwest::Url::parse("http://invalid.invalid/").unwrap());
+    // An unparseable site URL degrades to a placeholder host rather than failing the checkout.
+    let Ok(mut url) = reqwest::Url::parse(&format!("{site_url}/pay/{registration_id}.html"))
+        .or_else(|_| reqwest::Url::parse("http://invalid.invalid/"))
+    else {
+        return String::new();
+    };
     url.query_pairs_mut()
         .append_pair("success_url", success_url)
         .append_pair("cancel_url", cancel_url);

@@ -54,14 +54,16 @@ pub fn refuse_undeclared(
     needs: &[String],
     attributes: &[ir::Attribute],
 ) -> ParseResult<()> {
-    match needs.iter().find(|fact| !attributes.iter().any(|a| &a.name == *fact)) {
-        Some(fact) => Err(Diagnostic::new(
-            file,
-            line,
-            format!(
-                "{owner} needs :{fact} but declares no attribute :{fact} for the runtime to fill — add `attribute :{fact}, <type>`"
-            ),
-        )),
-        None => Ok(()),
-    }
+    needs
+        .iter()
+        .find(|fact| !attributes.iter().any(|a| &a.name == *fact))
+        .map_or(Ok(()), |fact| {
+            Err(Diagnostic::new(
+                file,
+                line,
+                format!(
+                    "{owner} needs :{fact} but declares no attribute :{fact} for the runtime to fill — add `attribute :{fact}, <type>`"
+                ),
+            ))
+        })
 }

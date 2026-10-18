@@ -101,7 +101,7 @@ fn parse_value(value: &str) -> Option<SigninCookie> {
     })
 }
 
-fn is_url_safe(byte: u8) -> bool {
+const fn is_url_safe(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_'
 }
 
@@ -121,7 +121,7 @@ mod tests {
     }
 
     fn pairs(items: &[&str]) -> Vec<String> {
-        items.iter().map(|s| s.to_string()).collect()
+        items.iter().map(std::string::ToString::to_string).collect()
     }
 
     #[test]

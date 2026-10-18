@@ -13,7 +13,7 @@ use tokio::sync::Mutex;
 use tokio_postgres::Client;
 
 /// What the step should do with a question, decided from the domain's IR alone.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Plan {
     /// Ask the kernel this qualified question (`Domain::Aggregate.Query`).
     Kernel(String),

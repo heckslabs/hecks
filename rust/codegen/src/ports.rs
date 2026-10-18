@@ -17,7 +17,7 @@ pub fn port_operation_skip_reason(
     _owner_name: &str,
     value_objects_by_name: &HashMap<String, &Json>,
 ) -> Option<SkipReason> {
-    let attrs = operation.get("attributes").map(Json::each).unwrap_or(&[]);
+    let attrs = operation.get("attributes").map_or_default(Json::each);
     let unresolved: Vec<&Json> = attrs
         .iter()
         .filter(|attr| {
@@ -63,7 +63,7 @@ pub fn emit_port_operation(
         naming::rust_ident(operation.get("name").and_then(Json::as_str).unwrap_or(""))
     );
     let qualified = format!("{domain_name}::{owner_name}");
-    let attrs = operation.get("attributes").map(Json::each).unwrap_or(&[]);
+    let attrs = operation.get("attributes").map_or_default(Json::each);
     // A self-reference on a port operation is a migration-era spelling of
     // its receiver, never an external fact. Keep accepting old IR while
     // excluding that field from the typed args and event payload.
@@ -109,7 +109,7 @@ pub fn emit_port_operation(
         ))
     );
 
-    let emits = operation.get("emits").map(Json::each).unwrap_or(&[]);
+    let emits = operation.get("emits").map_or_default(Json::each);
     let events: Vec<String> = emits
         .iter()
         .map(|event_name| {

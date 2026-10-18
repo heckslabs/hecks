@@ -9,10 +9,13 @@ pub fn apply(file: &str, bluebook: &mut ir::Bluebook) -> ParseResult<()> {
     let shapes = bluebook.aggregates.clone();
 
     for aggregate in &mut bluebook.aggregates {
-        let owner = shapes
+        // `shapes` is a clone of these aggregates, so the lookup always hits.
+        let Some(owner) = shapes
             .iter()
             .find(|candidate| candidate.name == aggregate.name)
-            .expect("aggregate cloned from the same chapter");
+        else {
+            continue;
+        };
 
         infer_queries(
             file,
@@ -25,11 +28,14 @@ pub fn apply(file: &str, bluebook: &mut ir::Bluebook) -> ParseResult<()> {
         )?;
 
         for entity in &mut aggregate.entities {
-            let entity_shape = owner
+            // `owner.entities` is a clone of these entities, so the lookup always hits.
+            let Some(entity_shape) = owner
                 .entities
                 .iter()
                 .find(|candidate| candidate.name == entity.name)
-                .expect("entity cloned from the same aggregate");
+            else {
+                continue;
+            };
             infer_queries(
                 file,
                 &format!("{}::{}", aggregate.name, entity.name),

@@ -15,10 +15,10 @@ enum Node {
     // `\A`/`\z`/`\Z` match only at the whole-string boundaries.
     StringStart,
     StringEnd,
-    Group(Vec<Node>),
-    Alt(Vec<Vec<Node>>),
+    Group(Vec<Self>),
+    Alt(Vec<Vec<Self>>),
     Repeat {
-        node: Box<Node>,
+        node: Box<Self>,
         min: usize,
         max: Option<usize>,
     },
@@ -166,7 +166,7 @@ fn class_matches(negate: bool, ranges: &[(char, char)], c: char) -> bool {
 }
 
 // `\t`, `\n` and `\r` become control characters; any other escape is the literal itself.
-fn escape_char(c: char) -> char {
+const fn escape_char(c: char) -> char {
     match c {
         't' => '\t',
         'n' => '\n',
@@ -194,7 +194,7 @@ struct Parser<'a> {
     pos: usize,
 }
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     fn peek(&self) -> Option<char> {
         self.chars.get(self.pos).copied()
     }
@@ -264,17 +264,16 @@ impl<'a> Parser<'a> {
             Some('{') => {
                 let save = self.pos;
                 self.bump();
-                match self.parse_bounded_repeat() {
-                    Some((min, max)) => Ok(Node::Repeat {
+                if let Some((min, max)) = self.parse_bounded_repeat() {
+                    Ok(Node::Repeat {
                         node: Box::new(atom),
                         min,
                         max,
-                    }),
-                    None => {
-                        // Not a well-formed `{n,m}`: read the brace as a literal.
-                        self.pos = save;
-                        Ok(atom)
-                    }
+                    })
+                } else {
+                    // Not a well-formed `{n,m}`: read the brace as a literal.
+                    self.pos = save;
+                    Ok(atom)
                 }
             }
             _ => Ok(atom),

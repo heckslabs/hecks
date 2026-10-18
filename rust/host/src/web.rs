@@ -52,7 +52,11 @@ pub async fn render(
         .unwrap_or("GET");
     let path = body.get("rawPath").and_then(|v| v.as_str()).unwrap_or("/");
     let raw_body = body.get("body").and_then(|v| v.as_str()).unwrap_or("");
-    let raw_body = if body.get("isBase64Encoded").and_then(|v| v.as_bool()) == Some(true) {
+    let raw_body = if body
+        .get("isBase64Encoded")
+        .and_then(serde_json::Value::as_bool)
+        == Some(true)
+    {
         String::from_utf8(base64_decode(raw_body)).unwrap_or_default()
     } else {
         raw_body.to_string()
@@ -131,6 +135,7 @@ fn extract_cookies(body: &Value) -> HashMap<String, String> {
 // Refuses on an empty/unset secret rather than defaulting to "" and
 // signing every cookie with a publicly-known key. Checked here, not
 // at boot, since a domain with no web layer never sets it at all.
+#[allow(clippy::panic)] // reason: refusing to boot beats signing cookies with a publicly-known key
 fn session_secret() -> String {
     let secret = std::env::var("SESSION_SECRET").unwrap_or_default();
     if let Err(e) = validate_session_secret(&secret) {
@@ -351,7 +356,7 @@ async fn auth_route(
     match (method, path) {
         ("GET", "/login") => Some(html(
             200,
-            &login_page(query.get("error").map(|s| s.as_str())),
+            &login_page(query.get("error").map(std::string::String::as_str)),
         )),
 
         ("POST", "/logout") => Some(redirect_with_cookie(
@@ -475,14 +480,13 @@ async fn is_admin(
     identity_id: &str,
 ) -> bool {
     let provider = crate::ir::authorization_provider(domain_ir);
-    match dispatch::read(client, wasm_path).await {
-        Ok(read) => auth::holds_admin(
+    dispatch::read(client, wasm_path).await.is_ok_and(|read| {
+        auth::holds_admin(
             read.get("instances").unwrap_or(&json!({})),
             identity_id,
             provider.as_ref(),
-        ),
-        Err(_) => false,
-    }
+        )
+    })
 }
 
 // Verifies the token AND that the person still has access, so a
@@ -1115,7 +1119,7 @@ fn same_origin(a: &str, b: &str) -> bool {
 }
 
 fn origin_of(url: &str) -> String {
-    let rest = url.split_once("://").map(|(_, r)| r).unwrap_or(url);
+    let rest = url.split_once("://").map_or(url, |(_, r)| r);
     rest.split('/').next().unwrap_or(rest).to_string()
 }
 
@@ -1159,9 +1163,9 @@ async fn admin_members_page(client: &Mutex<Client>, domain_ir: &Value) -> String
             let name = p.get("name").and_then(|v| v.as_str()).unwrap_or("");
             let email = p.get("email").and_then(|v| v.as_str()).unwrap_or("");
             let role = p.get("role").and_then(|v| v.as_str()).unwrap_or("—");
-            let access = if p.get("linked").and_then(|v| v.as_bool()) == Some(true) {
+            let access = if p.get("linked").and_then(serde_json::Value::as_bool) == Some(true) {
                 "linked"
-            } else if p.get("granted").and_then(|v| v.as_bool()) == Some(true) {
+            } else if p.get("granted").and_then(serde_json::Value::as_bool) == Some(true) {
                 "granted, not yet signed in"
             } else {
                 "no access"
@@ -1171,7 +1175,8 @@ async fn admin_members_page(client: &Mutex<Client>, domain_ir: &Value) -> String
                 esc(name), esc(email), esc(role), esc(access)
             )
         })
-        .collect();
+        .collect::<Vec<_>>()
+        .concat();
 
     format!(
         r#"<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Members</title><script src="https://cdn.tailwindcss.com"></script></head>
@@ -1294,11 +1299,11 @@ const PRIMITIVES: &[&str] = &["String", "Integer", "Float", "TrueClass", "FalseC
 fn resolve_field(domain_ir: &Value, attribute: &Value, aggregate: &Value, path: &str) -> Field {
     let is_list = attribute
         .get("list")
-        .and_then(|v| v.as_bool())
+        .and_then(serde_json::Value::as_bool)
         .unwrap_or(false);
     let optional = attribute
         .get("optional")
-        .and_then(|v| v.as_bool())
+        .and_then(serde_json::Value::as_bool)
         .unwrap_or(false);
     let ty = attribute
         .get("type")
@@ -1476,7 +1481,7 @@ fn value_object_field(
 ) -> Field {
     let closed_set = shape
         .get("closed_set")
-        .and_then(|v| v.as_bool())
+        .and_then(serde_json::Value::as_bool)
         .unwrap_or(false);
     let attrs = shape
         .get("attributes")
@@ -1619,8 +1624,7 @@ fn text_kind(html_type: &'static str, name: &str) -> FieldKind {
 fn command_fields(domain_ir: &Value, aggregate: &Value, command: &Value) -> Vec<Field> {
     let creates = command
         .get("references")
-        .map(|v| v.is_null())
-        .unwrap_or(true);
+        .is_none_or(serde_json::Value::is_null);
     let mut fields = Vec::new();
     if !creates {
         let paths = identity_paths(aggregate).join(", ");
@@ -1676,8 +1680,7 @@ fn collect_field(field: &Field, raw: &HashMap<String, String>, pairs: &mut Vec<(
         FieldKind::Boolean => {
             let checked = raw
                 .get(&field.path)
-                .map(|v| matches!(v.as_str(), "on" | "1" | "true"))
-                .unwrap_or(false);
+                .is_some_and(|v| matches!(v.as_str(), "on" | "1" | "true"));
             pairs.push((field.path.clone(), Value::Bool(checked)));
         }
         _ => {
@@ -1693,9 +1696,9 @@ fn collect_field(field: &Field, raw: &HashMap<String, String>, pairs: &mut Vec<(
 fn cast_scalar(field: &Field, text: &str) -> Value {
     match &field.kind {
         FieldKind::Number { step } if *step == "1" => {
-            text.parse::<i64>().map(Value::from).unwrap_or(Value::Null)
+            text.parse::<i64>().map_or(Value::Null, Value::from)
         }
-        FieldKind::Number { .. } => text.parse::<f64>().map(Value::from).unwrap_or(Value::Null),
+        FieldKind::Number { .. } => text.parse::<f64>().map_or(Value::Null, Value::from),
         _ => Value::String(text.to_string()),
     }
 }
@@ -1751,7 +1754,8 @@ fn home_body(domain_ir: &Value) -> String {
             let n = agg_name(a);
             format!(r#"<li><a href="/{name}/{n}.html" class="text-indigo-600 hover:underline">{n}</a></li>"#)
         })
-        .collect();
+        .collect::<Vec<_>>()
+        .concat();
     format!(
         r#"<h1 class="text-2xl font-bold mb-4">Loaded domains</h1>
         <ul class="space-y-4"><li><h2 class="font-semibold text-slate-800">{}</h2>
@@ -1794,7 +1798,7 @@ async fn aggregate_index(
         .and_then(|v| v.as_array())
         .map(|cs| {
             cs.iter()
-                .filter(|c| c.get("references").map(|r| r.is_null()).unwrap_or(true))
+                .filter(|c| c.get("references").is_none_or(serde_json::Value::is_null))
                 .collect()
         })
         .unwrap_or_default();
@@ -1803,7 +1807,7 @@ async fn aggregate_index(
         .and_then(|v| v.as_array())
         .map(|cs| {
             cs.iter()
-                .filter(|c| !c.get("references").map(|r| r.is_null()).unwrap_or(true))
+                .filter(|c| !c.get("references").is_none_or(serde_json::Value::is_null))
                 .collect()
         })
         .unwrap_or_default();
@@ -1814,7 +1818,8 @@ async fn aggregate_index(
             let cn = c.get("name").and_then(|v| v.as_str()).unwrap_or("");
             format!(r#"<a href="/{domain_name}/{agg}/{cn}.html" class="rounded-md bg-indigo-600 px-3 py-1.5 text-sm text-white hover:bg-indigo-500">{cn}</a>"#)
         })
-        .collect();
+        .collect::<Vec<_>>()
+        .concat();
 
     let rows: String = records
         .iter()
@@ -1867,13 +1872,7 @@ async fn record_show(
     let records = instances_for(&result, &prefix);
     let Some((_, state)) = records.iter().find(|(rid, _)| rid == id) else {
         let message = format!("No {agg} {id}.");
-        return if format != "html" {
-            respond(
-                404,
-                "application/json",
-                &json!({"error":"NotFound","message":message}).to_string(),
-            )
-        } else {
+        return if format == "html" {
             html(
                 404,
                 &page(
@@ -1883,6 +1882,12 @@ async fn record_show(
                         esc(&message)
                     ),
                 ),
+            )
+        } else {
+            respond(
+                404,
+                "application/json",
+                &json!({"error":"NotFound","message":message}).to_string(),
             )
         };
     };
@@ -1900,7 +1905,8 @@ async fn record_show(
         .map(|o| {
             o.iter()
                 .map(|(k, v)| format!(r#"<div class="px-4 py-2 grid grid-cols-3 gap-2"><dt class="text-sm font-medium text-slate-500">{}</dt><dd class="col-span-2 text-sm text-slate-900 font-mono">{}</dd></div>"#, esc(k), esc(&v.to_string())))
-                .collect()
+                .collect::<Vec<_>>()
+                .concat()
         })
         .unwrap_or_default();
     let actions: String = aggregate
@@ -1908,7 +1914,7 @@ async fn record_show(
         .and_then(|v| v.as_array())
         .map(|cs| {
             cs.iter()
-                .filter(|c| !c.get("references").map(|r| r.is_null()).unwrap_or(true))
+                .filter(|c| !c.get("references").is_none_or(serde_json::Value::is_null))
                 .map(|c| {
                     let cn = c.get("name").and_then(|v| v.as_str()).unwrap_or("");
                     action_link(domain_name, agg, cn, id, "rounded-md bg-indigo-600 px-3 py-1.5 text-sm text-white hover:bg-indigo-500 mr-3")
@@ -2143,7 +2149,8 @@ fn form_body(
             gs.iter()
                 .filter_map(|g| g.get("description").and_then(|d| d.as_str()))
                 .map(|d| format!("<li>{}</li>", esc(d)))
-                .collect::<String>()
+                .collect::<Vec<_>>()
+                .concat()
         })
         .unwrap_or_default();
 
@@ -2214,14 +2221,16 @@ fn render_field(field: &Field, values: &HashMap<String, String>) -> String {
             let opts: String = options
                 .iter()
                 .map(|o| format!(r#"<label class="inline-flex items-center gap-1 text-sm text-slate-700"><input type="radio" name="{}" value="{}" class="text-indigo-600 focus:ring-indigo-500">{}</label>"#, esc(&field.path), esc(o), esc(o)))
-                .collect();
+                .collect::<Vec<_>>()
+                .concat();
             format!(r#"{label}<div class="mt-1 flex gap-4">{opts}</div>"#)
         }
         FieldKind::Select(options) => {
             let opts: String = options
                 .iter()
                 .map(|o| format!(r#"<option value="{}">{}</option>"#, esc(o), esc(o)))
-                .collect();
+                .collect::<Vec<_>>()
+                .concat();
             format!(
                 r#"{label}<select name="{}" class="{input_class}">{opts}</select>"#,
                 esc(&field.path)
@@ -2349,7 +2358,10 @@ pub(crate) fn base64_decode(input: &str) -> Vec<u8> {
         .collect();
     let mut out = Vec::with_capacity(clean.len() * 3 / 4);
     for chunk in clean.chunks(4) {
-        let vals: Vec<u32> = chunk.iter().map(|&b| table[b as usize] as u32).collect();
+        let vals: Vec<u32> = chunk
+            .iter()
+            .map(|&b| u32::from(table[b as usize]))
+            .collect();
         let n = vals.len();
         let combined = vals
             .iter()
@@ -2472,7 +2484,7 @@ mod tests {
     fn status(response: &Value) -> u64 {
         response
             .get("statusCode")
-            .and_then(|v| v.as_u64())
+            .and_then(serde_json::Value::as_u64)
             .expect("a response always carries a statusCode")
     }
 
@@ -2621,7 +2633,7 @@ mod tests {
             "invariants": [], "closed_set": false, "members": []
         });
         let customer = json!({"name": "Customer", "value_objects": [email_address_vo]});
-        let domain_ir = json!({"aggregates": [customer.clone()]});
+        let domain_ir = json!({"aggregates": [customer]});
         let attribute = json!({"name": "email", "type": "EmailAddress", "list": false, "default": null, "optional": false, "pattern": null, "admits": null});
 
         let field = resolve_field(&domain_ir, &attribute, &customer, "email");
@@ -2643,7 +2655,7 @@ mod tests {
             "invariants": [], "closed_set": false, "members": []
         });
         let account = json!({"name": "Account", "value_objects": [money_vo]});
-        let domain_ir = json!({"aggregates": [account.clone()]});
+        let domain_ir = json!({"aggregates": [account]});
         let attribute = json!({"name": "balance", "type": "Money", "list": false, "default": null, "optional": false, "pattern": null, "admits": null});
 
         let field = resolve_field(&domain_ir, &attribute, &account, "balance");
@@ -2667,7 +2679,7 @@ mod tests {
     #[test]
     fn account_open_customer_id_renders_as_a_reference_carrying_its_target() {
         let account = json!({"name": "Account", "value_objects": []});
-        let domain_ir = json!({"aggregates": [account.clone()]});
+        let domain_ir = json!({"aggregates": [account]});
         let attribute = json!({"name": "customer_id", "type": "Reference<Customer>", "list": false, "default": null, "optional": false, "pattern": null, "admits": null});
 
         let field = resolve_field(&domain_ir, &attribute, &account, "customer_id");
@@ -2697,7 +2709,7 @@ mod tests {
             "name": "CardPayment",
             "value_objects": [{"name": "AuthorisationCode", "attributes": [], "invariants": [], "closed_set": false, "members": []}]
         });
-        let domain_ir = json!({"aggregates": [account, card_payment.clone()]});
+        let domain_ir = json!({"aggregates": [account, card_payment]});
         let attribute = json!({"name": "narrative", "type": "Narrative", "list": false, "default": null, "optional": false, "pattern": null, "admits": null});
 
         let field = resolve_field(&domain_ir, &attribute, &card_payment, "narrative");
@@ -2726,14 +2738,14 @@ mod tests {
         });
         let external_transfer =
             json!({"name": "ExternalTransfer", "value_objects": [movement_direction_vo]});
-        let domain_ir = json!({"aggregates": [account, external_transfer.clone()]});
+        let domain_ir = json!({"aggregates": [account, external_transfer]});
         let attribute = json!({"name": "direction", "type": "MovementDirection", "list": false, "default": null, "optional": false, "pattern": null, "admits": "Account::LedgerDirection"});
 
         let field = resolve_field(&domain_ir, &attribute, &external_transfer, "direction");
         assert_eq!(field.path, "direction.value");
         match field.kind {
             FieldKind::Radio(members) => {
-                assert_eq!(members, vec!["credit".to_string(), "debit".to_string()])
+                assert_eq!(members, vec!["credit".to_string(), "debit".to_string()]);
             }
             other => panic!("expected Radio with exactly 2 members, got {other:?}"),
         }
@@ -2744,7 +2756,7 @@ mod tests {
         // No `pattern:` at all (synthetic — every real email attribute
         // also carries one) — proves the name-based match alone is enough.
         let aggregate = json!({"name": "Whatever", "value_objects": []});
-        let domain_ir = json!({"aggregates": [aggregate.clone()]});
+        let domain_ir = json!({"aggregates": [aggregate]});
         let attribute = json!({"name": "contact_email", "type": "String", "list": false, "default": null, "optional": false, "pattern": null, "admits": null});
 
         let field = resolve_field(&domain_ir, &attribute, &aggregate, "contact_email");
@@ -2759,7 +2771,7 @@ mod tests {
         // No real corpus example of either shape exists; built minimal
         // here, same as auth.rs's own fixtures with no real counterpart.
         let aggregate = json!({"name": "Whatever", "value_objects": []});
-        let domain_ir = json!({"aggregates": [aggregate.clone()]});
+        let domain_ir = json!({"aggregates": [aggregate]});
 
         let website = json!({"name": "website", "type": "String", "list": false, "default": null, "optional": false, "pattern": null, "admits": null});
         match resolve_field(&domain_ir, &website, &aggregate, "website").kind {
@@ -2784,7 +2796,7 @@ mod tests {
             "closed_set": false, "members": []
         });
         let order = json!({"name": "Order", "value_objects": [price_vo]});
-        let domain_ir = json!({"aggregates": [order.clone()]});
+        let domain_ir = json!({"aggregates": [order]});
         let attribute = json!({"name": "price_cents", "type": "Price", "list": false, "default": null, "optional": false, "pattern": null, "admits": null});
 
         match resolve_field(&domain_ir, &attribute, &order, "price_cents").kind {
@@ -4366,6 +4378,7 @@ mod tests {
         }
     }
 
+    #[allow(clippy::unused_async)] // reason: call sites chain it straight after the async route calls
     async fn status_of(response: Value) -> u64 {
         response["statusCode"].as_u64().unwrap()
     }

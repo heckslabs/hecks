@@ -59,12 +59,12 @@ mod tests {
     use super::*;
     use crate::kernel::expr::NoFields;
 
-    fn run(expr: Expr) -> Value {
+    fn run(expr: &Expr) -> Value {
         let ctx = EvalContext {
             args: &NoFields,
             instance: &NoFields,
         };
-        eval(&expr, &ctx).expect("evaluates")
+        eval(expr, &ctx).expect("evaluates")
     }
 
     fn str(s: &str) -> Expr {
@@ -78,7 +78,7 @@ mod tests {
             separator: "::".to_string(),
         };
         assert_eq!(
-            run(phrase),
+            run(&phrase),
             Value::Array(vec![
                 Value::Str("a".to_string()),
                 Value::Str("b".to_string()),
@@ -94,7 +94,7 @@ mod tests {
             separator: "::".to_string(),
         };
         assert_eq!(
-            run(phrase),
+            run(&phrase),
             Value::Array(vec![Value::Str("abc".to_string())])
         );
     }
@@ -103,7 +103,7 @@ mod tests {
     fn strip_trims_rubys_whitespace_set_and_nothing_else() {
         use crate::kernel::expr::StripSide;
         let strip = |side, text: &str| {
-            run(Expr::Strip {
+            run(&Expr::Strip {
                 receiver: Box::new(str(text)),
                 side,
             })
@@ -152,21 +152,21 @@ mod tests {
     #[test]
     fn start_and_end_with() {
         assert_eq!(
-            run(Expr::StartsWith {
+            run(&Expr::StartsWith {
                 receiver: Box::new(str("{}")),
                 substring: "{".to_string()
             }),
             Value::Bool(true)
         );
         assert_eq!(
-            run(Expr::EndsWith {
+            run(&Expr::EndsWith {
                 receiver: Box::new(str("{}")),
                 substring: "}".to_string()
             }),
             Value::Bool(true)
         );
         assert_eq!(
-            run(Expr::StartsWith {
+            run(&Expr::StartsWith {
                 receiver: Box::new(str("[]")),
                 substring: "{".to_string()
             }),

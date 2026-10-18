@@ -26,6 +26,10 @@ fn with_trigger(policy: &Json, verb: String) -> Json {
     resolved
 }
 
+#[allow(
+    clippy::panic,
+    reason = "a drifted exemplar or invalid IR aborts generation on purpose"
+)]
 fn resolve(policy: &Json, ask: &str, aggregates: &[Json]) -> String {
     let name = policy.get("name").map(Json::to_s).unwrap_or_default();
     let on_event = policy.get("on_event").map(Json::to_s).unwrap_or_default();
@@ -59,8 +63,7 @@ fn event_aggregate<'a>(on_event: &str, aggregates: &'a [Json]) -> Option<&'a Jso
         Some((qualifier, _)) => named(qualifier.rsplit("::").next().unwrap_or(qualifier)),
         None => aggregates.iter().find(|a| {
             a.get("commands")
-                .map(Json::each)
-                .unwrap_or(&[])
+                .map_or_default(Json::each)
                 .iter()
                 .any(|c| c.get("emits").map(Json::to_s).unwrap_or_default() == on_event)
         }),
@@ -70,9 +73,9 @@ fn event_aggregate<'a>(on_event: &str, aggregates: &'a [Json]) -> Option<&'a Jso
 // Every outbound operation of the aggregate's ports whose snake-cased name is the ask.
 fn candidates<'a>(aggregate: &'a Json, ask: &str) -> Vec<(String, &'a Json)> {
     let mut found = Vec::new();
-    for port in aggregate.get("ports").map(Json::each).unwrap_or(&[]) {
+    for port in aggregate.get("ports").map_or_default(Json::each) {
         let port_name = port.get("name").map(Json::to_s).unwrap_or_default();
-        for op in port.get("operations").map(Json::each).unwrap_or(&[]) {
+        for op in port.get("operations").map_or_default(Json::each) {
             let outbound = op.get("direction").map(Json::to_s).as_deref() == Some("outbound");
             let spelled = naming::snake(&op.get("name").map(Json::to_s).unwrap_or_default());
             if outbound && spelled == ask {

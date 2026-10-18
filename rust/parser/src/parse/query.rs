@@ -39,7 +39,7 @@ pub fn parse_body(
                     "description",
                     &gated.args,
                     1,
-                )?)
+                )?);
             }
             "attribute" => query
                 .attributes
@@ -48,7 +48,7 @@ pub fn parse_body(
                 query_derive::refuse_on_target(file, line, "where", &gated.args.named)?;
                 query
                     .wheres
-                    .extend(query_derive::where_clauses(&gated.args.named, None))
+                    .extend(query_derive::where_clauses(&gated.args.named, None));
             }
             "order_by" => {
                 // The gate already refuses an undeclared `on:`; only `where` needs a check.
@@ -91,7 +91,7 @@ pub fn parse_body(
             }
             "needs" => super::needs::declare(file, line, name, &gated.args, &mut query.needs)?,
             word if OPTION_WORDS.contains(&word) => {
-                query_options::apply(file, line, word, &gated.args, &mut query.options)?
+                query_options::apply(file, line, word, &gated.args, &mut query.options)?;
             }
             _ => {
                 return Err(super::not_built_yet(

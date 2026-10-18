@@ -32,7 +32,7 @@ pub fn apply(
 ) -> ParseResult<()> {
     loop {
         let line = *lines.get(*pos).ok_or_else(|| {
-            let last = lines.last().map(|l| l.number).unwrap_or(0);
+            let last = lines.last().map_or(0, |l| l.number);
             Diagnostic::new(
                 file,
                 last,
@@ -222,7 +222,7 @@ fn skip_dropped_body(file: &str, lines: &[SourceLine], pos: &mut usize) -> Parse
     let mut depth = 1;
     while depth > 0 {
         let line = *lines.get(*pos).ok_or_else(|| {
-            let last = lines.last().map(|l| l.number).unwrap_or(0);
+            let last = lines.last().map_or(0, |l| l.number);
             Diagnostic::new(
                 file,
                 last,

@@ -4,7 +4,7 @@
 use crate::kernel::expr::Value;
 
 // Mirrors `Resolver.numeric`: `Int` and `Float` mix freely; any other `Value` is not a number.
-pub fn numeric(v: &Value) -> Option<f64> {
+pub const fn numeric(v: &Value) -> Option<f64> {
     match v {
         Value::Int(i) => Some(*i as f64),
         Value::Float(f) => Some(*f),
@@ -24,7 +24,7 @@ pub fn to_s(v: &Value) -> Option<Value> {
 }
 
 // Only `Str` has a length; `Int`/`Float`/`Bool` answer `None` so the caller refuses.
-pub fn is_empty(v: &Value) -> Option<bool> {
+pub const fn is_empty(v: &Value) -> Option<bool> {
     match v {
         Value::Str(s) => Some(s.is_empty()),
         _ => None,

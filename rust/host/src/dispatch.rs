@@ -16,7 +16,7 @@ pub struct Outcome {
 
 /// Who a command is dispatched for: the role they state and, when the host knows who they are, the
 /// actor Governance holds assignments for. Both absent is an unidentified caller.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Caller<'a> {
     pub role: Option<&'a str>,
     pub actor_id: Option<&'a str>,
@@ -27,7 +27,7 @@ pub struct Caller<'a> {
 pub const ANONYMOUS_ROLE: &str = "Anonymous";
 
 /// What the host does about the role a command declares (`HECKS_ROLE_ENFORCEMENT`).
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Enforcement {
     /// A caller with no role is unchecked, as before.
     Off,
@@ -56,7 +56,7 @@ impl Enforcement {
 
     /// The caller the kernel is asked to check: an unidentified caller becomes the anonymous role
     /// unless enforcement is off.
-    pub fn effective<'a>(self, caller: Caller<'a>) -> Caller<'a> {
+    pub fn effective(self, caller: Caller<'_>) -> Caller<'_> {
         if self != Self::Off && caller.role.is_none() && caller.actor_id.is_none() {
             return Caller {
                 role: Some(ANONYMOUS_ROLE),
@@ -102,8 +102,7 @@ fn classify(result: &serde_json::Value) -> KernelAnswer {
         return KernelAnswer::Failed(
             error
                 .as_str()
-                .map(str::to_string)
-                .unwrap_or_else(|| error.to_string()),
+                .map_or_else(|| error.to_string(), str::to_string),
         );
     }
     let refused = result
@@ -138,7 +137,10 @@ pub fn routed_invocation(
     if !facts.is_object() {
         anyhow::bail!("with must be an object of command facts");
     }
-    Ok(serde_json::json!({ "to": to, "with": facts }))
+    let mut invocation = serde_json::Map::new();
+    invocation.insert("to".to_string(), to);
+    invocation.insert("with".to_string(), facts);
+    Ok(serde_json::Value::Object(invocation))
 }
 
 // No `to` route: used only when a command creates a new aggregate, so
@@ -147,7 +149,9 @@ pub fn facts_invocation(facts: serde_json::Value) -> anyhow::Result<serde_json::
     if !facts.is_object() {
         anyhow::bail!("with must be an object of command facts");
     }
-    Ok(serde_json::json!({ "with": facts }))
+    let mut invocation = serde_json::Map::new();
+    invocation.insert("with".to_string(), facts);
+    Ok(serde_json::Value::Object(invocation))
 }
 
 // Route-aware entry point; `handle` below stays the compatibility path
@@ -443,8 +447,7 @@ async fn run(
     } else {
         snapshot
             .as_ref()
-            .map(|s| s.seed.clone())
-            .unwrap_or_else(|| serde_json::json!({}))
+            .map_or_else(|| serde_json::json!({}), |s| s.seed.clone())
     };
 
     // Read inside the same advisory-locked transaction: the lock covers
@@ -1013,7 +1016,7 @@ pub(crate) mod tests {
         let config = LineageConfig {
             domain: "Banking".to_string(),
             era: Some(1),
-            mirrored: Some(["Banking::Customer".to_string()].into_iter().collect()),
+            mirrored: Some(std::iter::once("Banking::Customer".to_string()).collect()),
         };
 
         handle_facts(

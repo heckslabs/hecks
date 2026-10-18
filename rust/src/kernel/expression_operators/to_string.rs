@@ -13,10 +13,10 @@ pub fn interpret(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
     };
 
     match eval(receiver, ctx)? {
-        v @ (Value::Str(_) | Value::Int(_) | Value::Float(_) | Value::Bool(_)) => {
-            Ok(scalar::to_s(&v).expect("scalar shape always stringifies"))
-        }
-        Value::Nil => Ok(optional::to_s(&Value::Nil).expect("Nil always stringifies to \"\"")),
+        v @ (Value::Str(_) | Value::Int(_) | Value::Float(_) | Value::Bool(_)) => scalar::to_s(&v)
+            .ok_or_else(|| eval_error("router bug: scalar shape always stringifies".to_string())),
+        Value::Nil => optional::to_s(&Value::Nil)
+            .ok_or_else(|| eval_error("router bug: Nil always stringifies to \"\"".to_string())),
         v @ (Value::List(_) | Value::Array(_)) => {
             Err(eval_error(format!("to_s expects a scalar, got {v:?}")))
         }

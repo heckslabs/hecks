@@ -27,7 +27,7 @@ pub fn run(ir: &mut Json) {
 }
 
 fn list<'a>(node: &'a Json, key: &str) -> &'a [Json] {
-    node.get(key).map(Json::each).unwrap_or(&[])
+    node.get(key).map_or_default(Json::each)
 }
 
 fn name_of(node: &Json) -> Option<&str> {
@@ -123,8 +123,7 @@ fn collect_fields_to_mark(aggregate: &Json, target_attr_name: &str) -> Vec<Strin
                 };
 
                 let source_is_optional = command_attrs.iter().any(|a| {
-                    name_of(a) == Some(arg_name)
-                        && a.get("optional").map(Json::as_bool).unwrap_or(false)
+                    name_of(a) == Some(arg_name) && a.get("optional").is_some_and(Json::as_bool)
                 });
                 if source_is_optional {
                     out.push(field_name.clone());

@@ -183,10 +183,13 @@ fn identity_minting_survives_any_rule_and_leaves_args_alone_when_it_refuses() {
                 }
                 let presentation =
                     json!({"collections": {"Client": {"identity": Value::Object(rule)}}});
-                let mut args = random_value(&mut rng, 0);
-                if rng.chance(2) {
-                    args = json!({"name": random_value(&mut rng, 2)});
-                }
+                // Drawn before the coin flip, so a seed replays the same stream.
+                let drawn = random_value(&mut rng, 0);
+                let mut args = if rng.chance(2) {
+                    json!({"name": random_value(&mut rng, 2)})
+                } else {
+                    drawn
+                };
                 let before = args.clone();
                 let existing = *rng.pick(&[0usize, 1, 41, 999_999, usize::MAX - 1]);
                 match apply_identity(&presentation, &aggregate, &mut args, existing) {
@@ -287,8 +290,8 @@ fn sorting_records_of_mixed_types_never_panics_on_an_inconsistent_order() {
                         field: "col".to_string(),
                         descending,
                     });
-                    sort_records(&mut records, &spec);
-                    sort_records(&mut records, &None);
+                    sort_records(&mut records, spec.as_ref());
+                    sort_records(&mut records, None);
                 }
             }
         });
@@ -301,7 +304,7 @@ fn query_arguments_and_sort_params_survive_hostile_input() {
         guarded(&format!("seed {seed}"), move || {
             let mut rng = Rng::new(seed ^ 0x9A);
             let aggregate = client_aggregate();
-            let domain = json!({"name": "Crm", "aggregates": [aggregate.clone()]});
+            let domain = json!({"name": "Crm", "aggregates": [aggregate]});
             for _ in 0..30 {
                 let named = if rng.chance(3) {
                     random_value(&mut rng, 0)

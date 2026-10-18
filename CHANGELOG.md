@@ -7,7 +7,7 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
-- **Rust crates are held to rustfmt and clippy.** `cargo fmt --check` and `cargo clippy --all-targets -- -D warnings` now pass for all seven crates and run in CI (the `rust_fmt` and `rust_clippy` checks of the `ci` gate stage; `rust_fmt` also runs on pre-push). Generators lay their Rust out with rustfmt before writing it, so generated code needs no skip attribute. A field named `crate`, `self`, `Self` or `super` is now emitted with a trailing underscore instead of an invalid raw identifier, which had kept the `meta` feature from compiling.
+- **Rust crates are held to rustfmt and a strict clippy.** `cargo fmt --check` and `cargo clippy --all-targets -- -D warnings`, with clippy's pedantic and nursery groups and no `unwrap`, `expect` or `panic` in library code, now pass for all seven crates and run in CI (the `rust_fmt` and `rust_clippy` checks of the `ci` gate stage; `rust_fmt` also runs on pre-push). Generators lay their Rust out with rustfmt before writing it, so generated code needs no skip attribute. A field named `crate`, `self`, `Self` or `super` is now emitted with a trailing underscore instead of an invalid raw identifier, which had kept the `meta` feature from compiling.
 
 ## [3.14.0] - 2026-10-17
 

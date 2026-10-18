@@ -89,8 +89,13 @@ struct Checker<'a> {
 }
 
 impl<'a> Checker<'a> {
-    fn refuse(&self, violations: &mut Vec<String>, message: String) {
-        violations.push(format!("{}#{}: {message}", self.aggregate_name, self.id));
+    fn refuse(&self, violations: &mut Vec<String>, message: impl Into<String>) {
+        violations.push(format!(
+            "{}#{}: {}",
+            self.aggregate_name,
+            self.id,
+            message.into()
+        ));
     }
 
     /// The aggregate's own value object of that name, else the one every aggregate of the chapter
@@ -344,7 +349,7 @@ impl<'a> Checker<'a> {
             .filter(|key| !declared.iter().any(|attr| attribute_name(attr) == *key))
             .collect();
         if !unknown.is_empty() {
-            unknown.sort();
+            unknown.sort_unstable();
             let takes = declared
                 .iter()
                 .map(attribute_name)
@@ -466,9 +471,12 @@ impl<'a> Checker<'a> {
 
             match expr_json::interpret(&expr, &known) {
                 Ok(result) if result.truthy() => {}
-                Ok(_) => self.refuse(violations, format!("{attr_name} ({type_name}) violates its own invariant — {description}")),
+                Ok(_) => self.refuse(
+                    violations,
+                    format!("{attr_name} ({type_name}) violates its own invariant — {description}"),
+                ),
                 Err(error) => {
-                    self.refuse(violations, format!("{attr_name} ({type_name})'s own invariant {description:?} could not be checked — {error}"))
+                    self.refuse(violations, format!("{attr_name} ({type_name})'s own invariant {description:?} could not be checked — {error}"));
                 }
             }
         }
@@ -661,7 +669,7 @@ fn check_lifecycle(
         allowed.push(default);
     }
 
-    let ok = held.as_str().map(|h| allowed.contains(&h)).unwrap_or(false);
+    let ok = held.as_str().is_some_and(|h| allowed.contains(&h));
     if !ok {
         violations.push(format!(
             "{aggregate_name}#{id}: {field} is {held}, a state this era's lifecycle never reaches"
@@ -919,6 +927,7 @@ mod tests {
         })
     }
 
+    #[allow(clippy::needless_pass_by_value)] // reason: test helper called with inline literals
     fn layout_violations(panels: Value) -> Vec<String> {
         validate(
             &layout_ir(),
@@ -1045,6 +1054,7 @@ mod tests {
         json!({"band": {"size": "small"}, "count": 1, "slug": "ok", "labels": ["a", "b"]})
     }
 
+    #[allow(clippy::needless_pass_by_value)] // reason: test helper called with inline literals
     fn shelf_violations(panels: Value) -> Vec<String> {
         validate(
             &constrained_ir(),
@@ -1053,6 +1063,7 @@ mod tests {
         )
     }
 
+    #[allow(clippy::needless_pass_by_value)] // reason: test helper called with inline literals
     fn assert_refused_as(violations: Vec<String>, expected: &str) {
         assert_eq!(violations, vec![format!("Shelf#s1: {expected}")]);
     }
@@ -1164,7 +1175,7 @@ mod tests {
     #[test]
     fn a_number_past_signed_64_bits_and_a_whole_float_are_not_integers() {
         let mut big = panel();
-        big["count"] = json!(9223372036854775808u64);
+        big["count"] = json!(9_223_372_036_854_775_808_u64);
         assert_refused_as(
             shelf_violations(json!([big])),
             "Panel.count must fit in a 64-bit integer, got 9223372036854775808",

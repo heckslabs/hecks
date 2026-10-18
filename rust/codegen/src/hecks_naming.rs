@@ -27,8 +27,7 @@ pub fn snake(text: &str) -> String {
             let prev = chars[i - 1];
             let next = chars.get(i + 1).copied();
             let insert = (prev.is_ascii_lowercase() || prev.is_ascii_digit())
-                || (prev.is_ascii_uppercase()
-                    && next.map(|n| n.is_ascii_lowercase()).unwrap_or(false));
+                || (prev.is_ascii_uppercase() && next.is_some_and(|n| n.is_ascii_lowercase()));
             if insert {
                 out.push('_');
             }

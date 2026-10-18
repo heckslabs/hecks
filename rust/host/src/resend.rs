@@ -26,7 +26,7 @@ pub struct Email<'a> {
 
 /// What handing an email to the provider came to. A refusal or outage for one
 /// recipient is `ok: false` with a reason (never an `Err`), so a fan-out can carry on.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Delivery {
     pub ok: bool,
     pub message_id: Option<String>,
@@ -34,8 +34,8 @@ pub struct Delivery {
 }
 
 impl Delivery {
-    fn sent(message_id: String) -> Self {
-        Delivery {
+    const fn sent(message_id: String) -> Self {
+        Self {
             ok: true,
             message_id: Some(message_id),
             reason: None,
@@ -43,7 +43,7 @@ impl Delivery {
     }
 
     fn failed(reason: impl Into<String>) -> Self {
-        Delivery {
+        Self {
             ok: false,
             message_id: None,
             reason: Some(reason.into()),
@@ -66,7 +66,7 @@ pub enum Mailer {
 impl Mailer {
     /// `Ok(None)` when nothing is configured; `Err` when a key is set without `RESEND_FROM` —
     /// marking an issue sent is irreversible, so a missing key must refuse before that happens.
-    pub fn from_env() -> Result<Option<Mailer>, String> {
+    pub fn from_env() -> Result<Option<Self>, String> {
         let var = |name: &str| std::env::var(name).unwrap_or_default();
         Self::configured(
             &var("RESEND_API_KEY"),
@@ -76,7 +76,7 @@ impl Mailer {
         .map(|mailer| mailer.map(|mailer| mailer.replying_to(&var("RESEND_REPLY_TO"))))
     }
 
-    fn configured(api_key: &str, from: &str, mock: &str) -> Result<Option<Mailer>, String> {
+    fn configured(api_key: &str, from: &str, mock: &str) -> Result<Option<Self>, String> {
         if !api_key.is_empty() {
             if from.is_empty() {
                 return Err("RESEND_API_KEY is set but RESEND_FROM is not — Resend needs a from address on a verified domain".to_string());
@@ -84,16 +84,17 @@ impl Mailer {
             return Ok(Some(Self::live(api_key, from, API_BASE)));
         }
         // Mock requires an explicit opt-in, unlike checkout's mock-by-default.
-        Ok((mock == "1").then_some(Mailer::Mock))
+        Ok((mock == "1").then_some(Self::Mock))
     }
 
     /// A mailer that posts to `base_url` (Resend's API, or a stand-in in tests).
-    pub fn live(api_key: &str, from: &str, base_url: &str) -> Mailer {
+    #[allow(clippy::expect_used)] // reason: startup config; a client with only a timeout set always builds
+    pub fn live(api_key: &str, from: &str, base_url: &str) -> Self {
         let http = reqwest::Client::builder()
             .timeout(TIMEOUT)
             .build()
             .expect("a reqwest client with a timeout always builds");
-        Mailer::Live {
+        Self::Live {
             http,
             api_key: api_key.to_string(),
             from: from.to_string(),
@@ -104,9 +105,9 @@ impl Mailer {
 
     /// Sets where replies go (`Reply-To`), when the address people reply to is not the one the mail
     /// is sent from. Blank leaves replies going to the From address. A mock mailer has no replies.
-    pub fn replying_to(self, reply_to: &str) -> Mailer {
+    pub fn replying_to(self, reply_to: &str) -> Self {
         match self {
-            Mailer::Live {
+            Self::Live {
                 http,
                 api_key,
                 from,
@@ -114,7 +115,7 @@ impl Mailer {
                 ..
             } => {
                 let reply_to = (!reply_to.trim().is_empty()).then(|| reply_to.trim().to_string());
-                Mailer::Live {
+                Self::Live {
                     http,
                     api_key,
                     from,
@@ -122,19 +123,19 @@ impl Mailer {
                     base_url,
                 }
             }
-            mock => mock,
+            mock @ Self::Mock => mock,
         }
     }
 
     #[cfg(test)]
-    pub fn is_mock(&self) -> bool {
-        matches!(self, Mailer::Mock)
+    pub const fn is_mock(&self) -> bool {
+        matches!(self, Self::Mock)
     }
 
     pub async fn deliver(&self, email: &Email<'_>) -> Delivery {
         match self {
-            Mailer::Mock => mock_deliver(email),
-            Mailer::Live {
+            Self::Mock => mock_deliver(email),
+            Self::Live {
                 http,
                 api_key,
                 from,
@@ -210,10 +211,10 @@ async fn live_deliver(
         }
         let answer: Value = response.json().await.unwrap_or(Value::Null);
         if status.is_success() {
-            return match answer.get("id").and_then(|v| v.as_str()) {
-                Some(id) => Delivery::sent(id.to_string()),
-                None => Delivery::failed("resend accepted the email but returned no id"),
-            };
+            return answer.get("id").and_then(|v| v.as_str()).map_or_else(
+                || Delivery::failed("resend accepted the email but returned no id"),
+                |id| Delivery::sent(id.to_string()),
+            );
         }
         let message = answer
             .get("message")
@@ -253,7 +254,7 @@ mod tests {
                     stream.write_all(response.as_bytes()).unwrap();
                 }
             });
-            FakeResend { base, requests }
+            Self { base, requests }
         }
 
         fn requests(&self) -> Vec<String> {

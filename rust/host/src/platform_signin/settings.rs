@@ -74,8 +74,8 @@ pub enum SettingsError {
 impl fmt::Display for SettingsError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            SettingsError::Config(error) => write!(f, "{error}"),
-            SettingsError::Setting { variable, problem } => write!(f, "{variable} {problem}"),
+            Self::Config(error) => write!(f, "{error}"),
+            Self::Setting { variable, problem } => write!(f, "{variable} {problem}"),
         }
     }
 }
@@ -84,10 +84,10 @@ impl std::error::Error for SettingsError {}
 
 impl SettingsError {
     /// Returns the name of the variable at fault.
-    pub fn variable(&self) -> &'static str {
+    pub const fn variable(&self) -> &'static str {
         match self {
-            SettingsError::Config(error) => error.variable,
-            SettingsError::Setting { variable, .. } => variable,
+            Self::Config(error) => error.variable,
+            Self::Setting { variable, .. } => variable,
         }
     }
 }
@@ -117,7 +117,7 @@ impl SigninSettings {
     }
 }
 
-fn setting(variable: &'static str, problem: &'static str) -> SettingsError {
+const fn setting(variable: &'static str, problem: &'static str) -> SettingsError {
     SettingsError::Setting { variable, problem }
 }
 

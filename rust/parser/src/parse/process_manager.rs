@@ -34,7 +34,7 @@ pub fn parse_body(
             // A dotted symbol (`:"reference.value"`), which only `positional_symbol` can spell.
             "correlates_by" => {
                 pm.correlates_by =
-                    super::positional_symbol(file, line, "correlates_by", &gated.args, 1)?
+                    super::positional_symbol(file, line, "correlates_by", &gated.args, 1)?;
             }
             // Event references keep only the bare final segment (`Naming.event_name_ref`);
             // `SagaInterpreter` matches them against a bare `event.name`.
@@ -45,7 +45,7 @@ pub fn parse_body(
                     "starts_on",
                     &gated.args,
                     1,
-                )?)
+                )?);
             }
             "ends_on" => {
                 pm.ends_on = Some(super::positional_event_name_ref(
@@ -54,7 +54,7 @@ pub fn parse_body(
                     "ends_on",
                     &gated.args,
                     1,
-                )?)
+                )?);
             }
             "transition" => {
                 for handler in parse_transition(file, lines, pos, line, &gated)? {

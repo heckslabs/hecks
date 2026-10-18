@@ -158,8 +158,7 @@ fn export(seam: &Seam, provider: &Json) -> Json {
 fn provision(chapter: &Json, capability: &str) -> Option<Vec<(String, String)>> {
     let entries: Vec<(String, String)> = chapter
         .get("provides")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or(&[][..], Json::each)
         .iter()
         .filter(|entry| entry.get("capability").and_then(Json::as_str) == Some(capability))
         .filter_map(|entry| {

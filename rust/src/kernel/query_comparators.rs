@@ -8,23 +8,23 @@ pub use super::vocab::QueryComparator;
 impl QueryComparator {
     /// The wire's `op` string, or `None` if unrecognized (callers refuse, never default to `eq`).
     pub fn parse(op: &str) -> Option<Self> {
-        QueryComparator::from_name(op)
+        Self::from_name(op)
     }
 
     /// `Comparison#holds?`; `held`/`want` arrive already reduced through `comparable`.
     pub fn matches(self, held: &Json, want: &Json) -> bool {
         match self {
-            QueryComparator::Eq => held == want,
-            QueryComparator::Ne => held != want,
-            QueryComparator::Gt => ordered(held, want) && as_f64(held) > as_f64(want),
-            QueryComparator::Gte => ordered(held, want) && as_f64(held) >= as_f64(want),
-            QueryComparator::Lt => ordered(held, want) && as_f64(held) < as_f64(want),
-            QueryComparator::Lte => ordered(held, want) && as_f64(held) <= as_f64(want),
-            QueryComparator::In => members(want).iter().any(|member| member == &to_s(held)),
-            QueryComparator::Contains => contains(held, want),
+            Self::Eq => held == want,
+            Self::Ne => held != want,
+            Self::Gt => ordered(held, want) && as_f64(held) > as_f64(want),
+            Self::Gte => ordered(held, want) && as_f64(held) >= as_f64(want),
+            Self::Lt => ordered(held, want) && as_f64(held) < as_f64(want),
+            Self::Lte => ordered(held, want) && as_f64(held) <= as_f64(want),
+            Self::In => members(want).iter().any(|member| member == &to_s(held)),
+            Self::Contains => contains(held, want),
             // Needs a repository, so `filter_entries_cross_domain` calls `none_in_state_matches`
             // first; this arm keeps the match exhaustive with the same "not excluded" default.
-            QueryComparator::NoneInState => true,
+            Self::NoneInState => true,
         }
     }
 }
@@ -62,13 +62,13 @@ pub fn none_in_state_matches(
 }
 
 /// gt/gte/lt/lte are numeric-only; anything else is silently false, never a refusal.
-fn ordered(held: &Json, want: &Json) -> bool {
+const fn ordered(held: &Json, want: &Json) -> bool {
     matches!(held, Json::Num(_, _) | Json::Float(_))
         && matches!(want, Json::Num(_, _) | Json::Float(_))
 }
 
 /// Only called after `ordered` has gated the comparison, so the NaN fallback is unreachable.
-pub(crate) fn as_f64(value: &Json) -> f64 {
+pub(crate) const fn as_f64(value: &Json) -> f64 {
     match value {
         Json::Num(n, _) | Json::Float(n) => *n,
         _ => f64::NAN,

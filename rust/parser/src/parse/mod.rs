@@ -176,11 +176,7 @@ pub(crate) fn classify_lexical_kind(token: &str) -> &'static str {
     if t.starts_with('{') && t.ends_with('}') {
         return "pairs";
     }
-    if t.chars()
-        .next()
-        .map(|c| c.is_ascii_uppercase())
-        .unwrap_or(false)
-    {
+    if t.chars().next().is_some_and(|c| c.is_ascii_uppercase()) {
         return "constant";
     }
     if type_context_call_word(t).is_some() {
@@ -672,7 +668,7 @@ pub(crate) fn next_line<'src>(
     context: &'static str,
 ) -> ParseResult<Option<GatedLine<'src>>> {
     let line = *lines.get(*pos).ok_or_else(|| {
-        let last = lines.last().map(|l| l.number).unwrap_or(0);
+        let last = lines.last().map_or(0, |l| l.number);
         Diagnostic::new(
             file,
             last,
@@ -802,7 +798,7 @@ pub(crate) fn positional_constant<'a>(
     args: &'a ArgumentGateResult,
     at: usize,
 ) -> ParseResult<&'a str> {
-    positional_raw(file, line, word, args, at).map(|s| s.trim())
+    positional_raw(file, line, word, args, at).map(str::trim)
 }
 
 /// A command reference: bare constant (`trigger Account::Debit`) or quoted (`"Account.Debit"`).
@@ -842,7 +838,7 @@ pub(crate) fn named_raw<'a>(args: &'a ArgumentGateResult, name: &str) -> Option<
 
 /// A named constant argument (`to: Payment`): raw text, trimmed; resolved downstream.
 pub(crate) fn named_constant<'a>(args: &'a ArgumentGateResult, name: &str) -> Option<&'a str> {
-    named_raw(args, name).map(|s| s.trim())
+    named_raw(args, name).map(str::trim)
 }
 
 /// A named symbol argument without its colon (`as: :name`); bare or quoted.
@@ -860,9 +856,7 @@ pub(crate) fn named_text(args: &ArgumentGateResult, name: &str) -> Option<String
 
 /// A named flag (`true`/`false`) argument — `optional: true`.
 pub(crate) fn named_flag(args: &ArgumentGateResult, name: &str) -> bool {
-    named_raw(args, name)
-        .map(|raw| raw.trim() == "true")
-        .unwrap_or(false)
+    named_raw(args, name).is_some_and(|raw| raw.trim() == "true")
 }
 
 /// Raw text of a `source`-shaped body written as `{ ... }` or `do ... end`.
@@ -1200,6 +1194,8 @@ pub(crate) fn resolve_type_expression(
     let trimmed = text.trim();
     match type_context_call_word(trimmed) {
         Some("list_of") => {
+            // reason: `type_context_call_word` already confirmed a '(' in `trimmed`.
+            #[allow(clippy::expect_used)]
             let open = trimmed
                 .find('(')
                 .expect("type_context_call_word already confirmed a '('");
@@ -1214,6 +1210,8 @@ pub(crate) fn resolve_type_expression(
             Ok((inner.to_string(), true, None))
         }
         Some("one_of") => {
+            // reason: `type_context_call_word` already confirmed a '(' in `trimmed`.
+            #[allow(clippy::expect_used)]
             let open = trimmed
                 .find('(')
                 .expect("type_context_call_word already confirmed a '('");

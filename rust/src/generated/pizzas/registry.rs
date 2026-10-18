@@ -311,7 +311,7 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Chef
             let (id, port_facts) = invocation.split_aggregate_receiver(None, None)?;
             let facts_json = &port_facts;
             let _instance = store.order.find(&id).ok_or_else(|| {
-                crate::kernel::Refusal::NotFound(format!("Order {:?} does not exist", id))
+                crate::kernel::Refusal::NotFound(format!("Order {id:?} does not exist"))
             })?;
             let args =
                 crate::generated::pizzas::order::PaymentGatewayReceiveArgs::from_json(facts_json)?;

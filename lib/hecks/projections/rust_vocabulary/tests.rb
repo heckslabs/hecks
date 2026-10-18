@@ -59,11 +59,11 @@ module Hecks
 
         # @return [Array<String>] the test that every row is found by its own name
         def name_test(enum, kind)
-          list = kind == :order ? "ORDER" : "ALL"
+          list = kind == :order ? "&#{enum}::ORDER" : "#{enum}::ALL"
           name = RustVocabulary.accessor_name(RustVocabulary.name_field(kind))
           ["    #[test]",
            "    fn every_row_is_found_by_its_own_name() {",
-           "        for row in #{enum}::#{list}.iter() {",
+           "        for row in #{list} {",
            "            assert_eq!(#{enum}::from_name(row.#{name}()), Some(*row));",
            "        }",
            "    }",

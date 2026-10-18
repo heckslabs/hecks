@@ -32,10 +32,10 @@ enum Tracked {
 }
 
 impl Tracked {
-    fn command_suffix(&self) -> &'static str {
+    const fn command_suffix(&self) -> &'static str {
         match self {
-            Tracked::Open => "RecordOpen",
-            Tracked::Click => "RecordClick",
+            Self::Open => "RecordOpen",
+            Self::Click => "RecordClick",
         }
     }
 }
@@ -133,8 +133,7 @@ pub(super) async fn resend_webhook_route(
 fn unix_now() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64)
-        .unwrap_or(0)
+        .map_or(0, |d| d.as_secs() as i64)
 }
 
 // What the event is and which sent message it is about; `None` for any event
@@ -180,7 +179,7 @@ fn parse_rfc3339_seconds(text: &str) -> Option<i64> {
     let shifted_month = (month + 9) % 12;
     let day_of_year = (153 * shifted_month + 2) / 5 + day - 1;
     let day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
-    let days = era * 146097 + day_of_era - 719468;
+    let days = era * 146_097 + day_of_era - 719_468;
     Some(days * 86400 + hour * 3600 + minute * 60 + second)
 }
 
@@ -250,14 +249,14 @@ fn base64_decode(text: &str) -> Option<Vec<u8>> {
     let mut out = Vec::with_capacity(text.len() * 3 / 4);
     let (mut bits, mut have) = (0u32, 0u32);
     for c in text.trim_end_matches('=').bytes() {
-        let value = match c {
+        let value = u32::from(match c {
             b'A'..=b'Z' => c - b'A',
             b'a'..=b'z' => c - b'a' + 26,
             b'0'..=b'9' => c - b'0' + 52,
             b'+' => 62,
             b'/' => 63,
             _ => return None,
-        } as u32;
+        });
         bits = (bits << 6) | value;
         have += 6;
         if have >= 8 {
@@ -283,7 +282,7 @@ mod tests {
             let n = chunk
                 .iter()
                 .enumerate()
-                .fold(0u32, |acc, (i, b)| acc | (*b as u32) << (16 - 8 * i));
+                .fold(0u32, |acc, (i, b)| acc | u32::from(*b) << (16 - 8 * i));
             for i in 0..=chunk.len() {
                 out.push(TABLE[(n >> (18 - 6 * i) & 63) as usize] as char);
             }

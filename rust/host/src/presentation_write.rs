@@ -50,7 +50,7 @@ pub(crate) async fn save(
 
     validate(submitted, domain_ir).map_err(SaveRefusal::Malformed)?;
 
-    let mut writer = Writer {
+    let writer = Writer {
         client,
         wasm_path,
         lineage,
@@ -89,8 +89,7 @@ fn entries(value: &Value) -> Vec<(&String, &Value)> {
 fn list(value: Option<&Value>) -> &[Value] {
     value
         .and_then(|v| v.as_array())
-        .map(|a| a.as_slice())
-        .unwrap_or(&[])
+        .map_or(&[][..], std::vec::Vec::as_slice)
 }
 
 // Every present field is re-dispatched on every save, even to an unchanged value, so the two
@@ -105,7 +104,7 @@ struct Writer<'a> {
 
 impl Writer<'_> {
     // A creating command — facts only, no identity to route to.
-    async fn declare(&mut self, verb: &str, facts: Value) -> Result<(), SaveRefusal> {
+    async fn declare(&self, verb: &str, facts: Value) -> Result<(), SaveRefusal> {
         let outcome = dispatch::handle_facts(
             self.client,
             self.wasm_path,
@@ -117,12 +116,12 @@ impl Writer<'_> {
         )
         .await
         .map_err(|e| SaveRefusal::Internal(format!("{e:#}")))?;
-        self.accepted(outcome)
+        Self::accepted(outcome)
     }
 
     // A command acting on an existing row, routed by that row's own identity: "Agg:state" for
     // StateStyle, the aggregate name for Collection, "overview" for the singleton.
-    async fn route(&mut self, verb: &str, id: &str, facts: Value) -> Result<(), SaveRefusal> {
+    async fn route(&self, verb: &str, id: &str, facts: Value) -> Result<(), SaveRefusal> {
         let outcome = dispatch::handle_routed(
             self.client,
             self.wasm_path,
@@ -135,12 +134,12 @@ impl Writer<'_> {
         )
         .await
         .map_err(|e| SaveRefusal::Internal(format!("{e:#}")))?;
-        self.accepted(outcome)
+        Self::accepted(outcome)
     }
 
     // A refusal stops the whole save where it happened: several independent dispatches, not one
     // atomic write. `validate` above is what makes this rare rather than routine.
-    fn accepted(&self, outcome: dispatch::Outcome) -> Result<(), SaveRefusal> {
+    fn accepted(outcome: dispatch::Outcome) -> Result<(), SaveRefusal> {
         if outcome.accepted {
             Ok(())
         } else {
@@ -148,11 +147,7 @@ impl Writer<'_> {
         }
     }
 
-    async fn write_states(
-        &mut self,
-        states: &Value,
-        existing: &KernelRows,
-    ) -> Result<(), SaveRefusal> {
+    async fn write_states(&self, states: &Value, existing: &KernelRows) -> Result<(), SaveRefusal> {
         let known: BTreeSet<&str> = existing.state_ids();
         for (agg, per_state) in entries(states) {
             for (state, entry) in entries(per_state) {
@@ -203,7 +198,7 @@ impl Writer<'_> {
     }
 
     async fn write_collections(
-        &mut self,
+        &self,
         collections: &Value,
         existing: &KernelRows,
     ) -> Result<(), SaveRefusal> {
@@ -281,7 +276,7 @@ impl Writer<'_> {
         Ok(())
     }
 
-    async fn write_identity(&mut self, agg: &str, identity: &Value) -> Result<(), SaveRefusal> {
+    async fn write_identity(&self, agg: &str, identity: &Value) -> Result<(), SaveRefusal> {
         let mut facts = Map::new();
         facts.insert(
             "identity_field".to_string(),
@@ -314,7 +309,7 @@ impl Writer<'_> {
 
     // The one row: `Declare`d once, then `ReplaceStats` whole on every save, even an empty list.
     async fn write_overview(
-        &mut self,
+        &self,
         overview: &Value,
         existing: &KernelRows,
     ) -> Result<(), SaveRefusal> {
@@ -635,7 +630,7 @@ fn validate_state_entry(
     }
 
     match entry.get("attention") {
-        None | Some(Value::Null) | Some(Value::Bool(_)) => Ok(()),
+        None | Some(Value::Null | Value::Bool(_)) => Ok(()),
         Some(other) => Err(format!(
             "{agg_name}.{state_name}'s attention must be true or false, not {}",
             inspect(other)
@@ -744,22 +739,20 @@ fn validate_precondition(
         return Err(format!("{agg_name} has a precondition with no field named"));
     };
     let name = ruby_to_s(field);
-    let attribute = ui_schema::find_attribute(aggregate, &name);
-    let is_reference = attribute.map(ui_schema::is_reference).unwrap_or(false);
-    if !is_reference {
+    let Some(attribute) =
+        ui_schema::find_attribute(aggregate, &name).filter(|a| ui_schema::is_reference(a))
+    else {
         return Err(format!(
             "{agg_name}.{name} isn't a reference — a precondition only makes sense against one"
         ));
-    }
+    };
 
     let Some(state) = present(rule.get("state")) else {
         return Ok(());
     };
     // A cross-domain or otherwise unresolvable target — nothing more to
     // check here, exactly as Ruby's own `return unless target` says.
-    let Some(target_name) =
-        ui_schema::reference_target(ui_schema::type_of(attribute.expect("checked above")))
-    else {
+    let Some(target_name) = ui_schema::reference_target(ui_schema::type_of(attribute)) else {
         return Ok(());
     };
     let Some(target) = find_aggregate(aggregates, &target_name) else {
@@ -1159,9 +1152,7 @@ fn validate_stat(stat: &Value, by_key: &[(String, &Value)]) -> Refusal {
     };
 
     let label = stat.get("label").cloned().unwrap_or(Value::Null);
-    let fold = present(stat.get("as"))
-        .map(ruby_to_s)
-        .unwrap_or_else(|| "count".to_string());
+    let fold = present(stat.get("as")).map_or_else(|| "count".to_string(), ruby_to_s);
     if !VALID_FOLDS.contains(&fold.as_str()) {
         return Err(format!(
             "overview stat {}'s as: {} isn't one of {}",
@@ -1273,9 +1264,7 @@ fn validate_has_related(
         ));
     }
 
-    let equals = present(spec.get("equals"))
-        .map(ruby_to_s)
-        .unwrap_or_else(|| "id".to_string());
+    let equals = present(spec.get("equals")).map_or_else(|| "id".to_string(), ruby_to_s);
     if equals == "id" || ui_schema::find_attribute(aggregate, &equals).is_some() {
         return Ok(());
     }
@@ -1365,8 +1354,8 @@ mod tests {
         json!({"states": {"Event": {"open": {}, "closed": {}}}})
     }
 
-    fn refusal(config: Value) -> String {
-        validate(&config, &domain()).expect_err("this config should have been refused")
+    fn refusal(config: &Value) -> String {
+        validate(config, &domain()).expect_err("this config should have been refused")
     }
 
     #[test]
@@ -1377,7 +1366,7 @@ mod tests {
     #[test]
     fn every_real_state_needs_an_entry_even_a_bare_one() {
         assert_eq!(
-            refusal(json!({"states": {"Event": {"open": {}}}})),
+            refusal(&json!({"states": {"Event": {"open": {}}}})),
             "no presentation entry for Event.closed — every real state needs one, even a bare one"
         );
     }
@@ -1393,7 +1382,7 @@ mod tests {
     #[test]
     fn a_state_section_naming_an_aggregate_this_domain_does_not_declare_refuses() {
         assert_eq!(
-            refusal(json!({"states": {"Ghost": {"gone": {}}}})),
+            refusal(&json!({"states": {"Ghost": {"gone": {}}}})),
             "Ghost is not a real aggregate this domain declares"
         );
     }
@@ -1403,7 +1392,7 @@ mod tests {
         let mut config = complete();
         config["states"]["Event"]["cancelled"] = json!({});
         assert_eq!(
-            refusal(config),
+            refusal(&config),
             "Event has no state \"cancelled\" — it declares open, closed"
         );
     }
@@ -1413,7 +1402,7 @@ mod tests {
         let mut config = complete();
         config["states"]["Event"]["open"] = json!({"tone": "chartreuse"});
         assert_eq!(
-            refusal(config),
+            refusal(&config),
             "Event.open's tone \"chartreuse\" isn't one of good, warn, danger, muted, accent"
         );
     }
@@ -1423,7 +1412,7 @@ mod tests {
         let mut config = complete();
         config["states"]["Event"]["open"] = json!({"attention": "yes"});
         assert_eq!(
-            refusal(config),
+            refusal(&config),
             "Event.open's attention must be true or false, not \"yes\""
         );
     }
@@ -1433,7 +1422,7 @@ mod tests {
         let mut config = complete();
         config["collections"] = json!({"Event": {"columns": [{"field": "nope"}]}});
         assert_eq!(
-            refusal(config),
+            refusal(&config),
             "Event has no attribute \"nope\" to put in its columns — it declares slug, name, price, seats, organizer"
         );
     }
@@ -1451,7 +1440,7 @@ mod tests {
         config["collections"] =
             json!({"Event": {"columns": [{"field": "slug", "sortable": "true"}]}});
         assert_eq!(
-            refusal(config),
+            refusal(&config),
             "Event's column \"slug\" has sortable \"true\", not true or false"
         );
 
@@ -1459,7 +1448,7 @@ mod tests {
         config["collections"] =
             json!({"Event": {"columns": [{"field": "slug", "sort_default": "sideways"}]}});
         assert_eq!(
-            refusal(config),
+            refusal(&config),
             "Event's column \"slug\" has sort_default \"sideways\", not asc or desc"
         );
     }
@@ -1469,7 +1458,7 @@ mod tests {
         let mut config = complete();
         config["collections"] = json!({"Event": {"nav_order": "3"}});
         assert_eq!(
-            refusal(config),
+            refusal(&config),
             "Event's nav_order must be a number, not \"3\""
         );
     }
@@ -1480,7 +1469,7 @@ mod tests {
         config["collections"] =
             json!({"Event": {"preconditions": [{"field": "slug", "state": "open"}]}});
         assert_eq!(
-            refusal(config),
+            refusal(&config),
             "Event.slug isn't a reference — a precondition only makes sense against one"
         );
     }
@@ -1491,7 +1480,7 @@ mod tests {
         config["collections"] =
             json!({"Event": {"preconditions": [{"field": "organizer", "state": "active"}]}});
         assert_eq!(
-            refusal(config),
+            refusal(&config),
             "Event.organizer points at Person, which has no state \"active\" — it declares "
         );
     }
@@ -1500,12 +1489,15 @@ mod tests {
     fn a_format_names_a_real_attribute_and_one_of_two_formats() {
         let mut config = complete();
         config["collections"] = json!({"Event": {"field_formats": {"nope": "date"}}});
-        assert_eq!(refusal(config), "Event has no attribute \"nope\" to format");
+        assert_eq!(
+            refusal(&config),
+            "Event has no attribute \"nope\" to format"
+        );
 
         let mut config = complete();
         config["collections"] = json!({"Event": {"field_formats": {"slug": "shouty"}}});
         assert_eq!(
-            refusal(config),
+            refusal(&config),
             "Event.slug's format \"shouty\" isn't one of date, percent"
         );
     }
@@ -1523,7 +1515,7 @@ mod tests {
         config["collections"] =
             json!({"Event": {"identity": {"field": "organizer", "strategy": "slug"}}});
         assert_eq!(
-            refusal(config),
+            refusal(&config),
             "Event.organizer is a reference — identity can only derive a plain field"
         );
 
@@ -1531,7 +1523,7 @@ mod tests {
         config["collections"] =
             json!({"Event": {"identity": {"field": "slug", "strategy": "guesswork"}}});
         assert_eq!(
-            refusal(config),
+            refusal(&config),
             "Event's identity strategy \"guesswork\" isn't 'slug', 'sequence', or 'port'"
         );
 
@@ -1539,7 +1531,7 @@ mod tests {
         config["collections"] =
             json!({"Event": {"identity": {"field": "slug", "strategy": "slug"}}});
         assert_eq!(
-            refusal(config),
+            refusal(&config),
             "Event's identity slug strategy needs a source field"
         );
 
@@ -1547,7 +1539,7 @@ mod tests {
         config["collections"] =
             json!({"Event": {"identity": {"field": "slug", "strategy": "sequence"}}});
         assert_eq!(
-            refusal(config),
+            refusal(&config),
             "Event's identity sequence strategy needs a prefix"
         );
 
@@ -1563,7 +1555,7 @@ mod tests {
         config["collections"] =
             json!({"Event": {"detail_fields": [{"field": "name", "display": "interpretive"}]}});
         assert_eq!(
-            refusal(config),
+            refusal(&config),
             "Event's detail field \"name\" has display \"interpretive\", not one of simple, prose, bullet, mono, rows"
         );
     }
@@ -1579,7 +1571,7 @@ mod tests {
         config["collections"] =
             json!({"Event": {"detail_fields": [{"field": "seats", "columns": ["aisle"]}]}});
         assert_eq!(
-            refusal(config),
+            refusal(&config),
             "Event's detail field \"seats\" has no row column \"aisle\" — it has row, number"
         );
 
@@ -1587,7 +1579,7 @@ mod tests {
         config["collections"] =
             json!({"Event": {"detail_fields": [{"field": "name", "columns": ["row"]}]}});
         assert_eq!(
-            refusal(config),
+            refusal(&config),
             "Event's detail field \"name\" has columns: but isn't a rows-shaped field"
         );
     }
@@ -1598,7 +1590,7 @@ mod tests {
         config["collections"] =
             json!({"Event": {"detail_fields": [{"field": "seats", "state_filter": "taken"}]}});
         assert_eq!(
-            refusal(config),
+            refusal(&config),
             "Event's detail field \"seats\" has state_filter: but isn't an entity-backed rows field"
         );
     }
@@ -1612,14 +1604,14 @@ mod tests {
         let mut config = complete();
         config["collections"] = json!({"Event": {"list_query": "Nowhere"}});
         assert_eq!(
-            refusal(config),
+            refusal(&config),
             "Event has no query \"Nowhere\" to use as its list_query"
         );
 
         let mut config = complete();
         config["collections"] = json!({"Event": {"list_query": "ByOrganizer"}});
         assert_eq!(
-            refusal(config),
+            refusal(&config),
             "Event's list_query \"ByOrganizer\" takes its own arguments (organizer) — \
              a generic table view has nowhere to get them from"
         );
@@ -1630,7 +1622,7 @@ mod tests {
         let mut config = complete();
         config["collections"] = json!({"Event": {"after_create": {"dispatch": "Ghost.Add"}}});
         assert_eq!(
-            refusal(config),
+            refusal(&config),
             "Event's after_create dispatches \"Ghost.Add\", but \"Ghost\" is not a real aggregate this domain declares"
         );
 
@@ -1639,7 +1631,7 @@ mod tests {
         let mut config = complete();
         config["collections"] = json!({"Event": {"after_create": {"dispatch": "Person.Nope"}}});
         assert_eq!(
-            refusal(config),
+            refusal(&config),
             "Event's after_create dispatches \"Person.Nope\", but Person declares no command \"Nope\""
         );
     }
@@ -1663,7 +1655,7 @@ mod tests {
         let mut config = complete();
         config["overview"] = json!({"stats": [{"label": "Open", "collection": "nowhere"}]});
         assert_eq!(
-            refusal(config),
+            refusal(&config),
             "overview stat names collection \"nowhere\", which isn't a real collection key"
         );
 
@@ -1671,7 +1663,7 @@ mod tests {
         config["overview"] =
             json!({"stats": [{"label": "Open", "collection": "events", "as": "vibes"}]});
         assert_eq!(
-            refusal(config),
+            refusal(&config),
             "overview stat \"Open\"'s as: \"vibes\" isn't one of count, money_sum"
         );
 
@@ -1679,7 +1671,7 @@ mod tests {
         config["overview"] =
             json!({"stats": [{"label": "Take", "collection": "events", "as": "money_sum"}]});
         assert_eq!(
-            refusal(config),
+            refusal(&config),
             "overview stat \"Take\" folds as money_sum but names no field"
         );
     }
@@ -1689,14 +1681,14 @@ mod tests {
         let mut config = complete();
         config["overview"] = json!({"stats": [{"label": "Live", "collection": "events", "where": {"state": "ajar"}}]});
         assert_eq!(
-            refusal(config),
+            refusal(&config),
             "overview stat \"Live\"'s where: state \"ajar\" isn't one of Event's own states (open, closed)"
         );
 
         let mut config = complete();
         config["overview"] = json!({"stats": [{"label": "Live", "collection": "events", "where": {"not": {"state": {"eq": "ajar"}}}}]});
         assert_eq!(
-            refusal(config),
+            refusal(&config),
             "overview stat \"Live\"'s where: state \"ajar\" isn't one of Event's own states (open, closed)"
         );
 
@@ -1711,7 +1703,7 @@ mod tests {
         config["overview"] = json!({"stats": [{"label": "Hosted", "collection": "events",
             "where": {"has_related": {"collection": "persons", "field": "nope"}}}]});
         assert_eq!(
-            refusal(config),
+            refusal(&config),
             "overview stat \"Hosted\"'s has_related.field \"nope\" isn't a real field on Person"
         );
 
@@ -1719,7 +1711,7 @@ mod tests {
         config["overview"] = json!({"stats": [{"label": "Hosted", "collection": "events",
             "where": {"has_related": {"collection": "persons", "field": "email", "equals": "nope"}}}]});
         assert_eq!(
-            refusal(config),
+            refusal(&config),
             "overview stat \"Hosted\"'s has_related.equals \"nope\" isn't a real field on Event"
         );
 

@@ -5,6 +5,11 @@
 //! stderr, and prints identical output for identical input. `HECKS_PARSE_FUZZ_ITERATIONS` and
 //! `HECKS_PARSE_FUZZ_SEED` widen or move the run; a failure prints the seed and keeps its input.
 
+// reason: these helpers are test scaffolding outside `#[test]` fns, which clippy.toml does not
+// cover; a failed unwrap here is the test failing.
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
+use std::fmt::Write as _;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
@@ -19,10 +24,10 @@ struct Rng(u64);
 
 impl Rng {
     fn new(seed: u64) -> Self {
-        Rng(seed.max(1))
+        Self(seed.max(1))
     }
 
-    fn next(&mut self) -> u64 {
+    const fn next(&mut self) -> u64 {
         self.0 ^= self.0 >> 12;
         self.0 ^= self.0 << 25;
         self.0 ^= self.0 >> 27;
@@ -143,7 +148,7 @@ const ODD_TEXT: &[&str] = &[
     "(",
 ];
 
-fn char_boundary_after(bytes: &[u8], mut at: usize) -> usize {
+const fn char_boundary_after(bytes: &[u8], mut at: usize) -> usize {
     while at < bytes.len() && (bytes[at] & 0b1100_0000) == 0b1000_0000 {
         at += 1;
     }
@@ -225,7 +230,10 @@ fn mutate_once(rng: &mut Rng, input: &mut Vec<u8>) {
             let text = String::from_utf8_lossy(input).into_owned();
             let tokens: Vec<&str> = text.split(' ').collect();
             if !tokens.is_empty() {
-                let mut swapped: Vec<String> = tokens.iter().map(|t| t.to_string()).collect();
+                let mut swapped: Vec<String> = tokens
+                    .iter()
+                    .map(std::string::ToString::to_string)
+                    .collect();
                 let which = rng.below(swapped.len());
                 swapped[which] = rng.pick(WORDS).to_string();
                 *input = swapped.join(" ").into_bytes();
@@ -247,7 +255,7 @@ fn mutate_once(rng: &mut Rng, input: &mut Vec<u8>) {
 
 fn mutate(rng: &mut Rng, seed: &[u8]) -> Vec<u8> {
     let mut input = seed.to_vec();
-    for _ in 0..1 + rng.below(4) {
+    for _ in 0..=rng.below(4) {
         mutate_once(rng, &mut input);
     }
     input
@@ -266,20 +274,24 @@ const TYPES: &[&str] = &[
 /// shapes the fixtures do not carry.
 fn generate_bluebook(rng: &mut Rng, chapter: &str) -> Vec<u8> {
     let mut out = format!("Hecks.bluebook \"{chapter}\" do\n");
-    for a in 0..1 + rng.below(3) {
-        out += &format!("  aggregate \"Agg{a}\" do\n");
+    for a in 0..=rng.below(3) {
+        let _ = writeln!(out, "  aggregate \"Agg{a}\" do");
         let attrs = 1 + rng.below(4);
         for n in 0..attrs {
-            out += &format!("    attribute :f{n}, {}\n", rng.pick(TYPES));
+            let _ = writeln!(out, "    attribute :f{n}, {}", rng.pick(TYPES));
         }
         for c in 0..rng.below(3) {
-            out += &format!("    command \"Do{c}\" do\n      attribute :f0, String\n");
+            let _ = write!(
+                out,
+                "    command \"Do{c}\" do\n      attribute :f0, String\n"
+            );
             if rng.below(2) == 0 {
                 out += "      sets :f0\n";
             }
             if rng.below(3) == 0 {
-                out += &format!(
-                    "      given(\"f0 is set\") {{ f0 != {} }}\n",
+                let _ = writeln!(
+                    out,
+                    "      given(\"f0 is set\") {{ f0 != {} }}",
                     rng.below(100)
                 );
             }
@@ -349,7 +361,7 @@ impl Scratch {
             std::env::temp_dir().join(format!("hecks_parse_fuzz_{label}_{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).expect("scratch dir");
-        Scratch(dir)
+        Self(dir)
     }
 
     fn write(&self, name: &str, bytes: &[u8]) -> PathBuf {
@@ -383,11 +395,11 @@ fn check(outcome: &Outcome) -> Option<String> {
         Some(101) => Some(format!("panicked: {stderr}")),
         Some(0) if outcome.output.stdout.is_empty() => Some("exit 0 with empty stdout".to_string()),
         Some(0) => None,
-        Some(1) | Some(2) if stderr.trim().is_empty() => {
+        Some(1 | 2) if stderr.trim().is_empty() => {
             Some("refused without a diagnostic on stderr".to_string())
         }
-        Some(1) | Some(2) if stderr.contains("panicked") => Some(format!("panicked: {stderr}")),
-        Some(1) | Some(2) => None,
+        Some(1 | 2) if stderr.contains("panicked") => Some(format!("panicked: {stderr}")),
+        Some(1 | 2) => None,
         Some(other) => Some(format!("unexpected exit {other}: {stderr}")),
     }
 }

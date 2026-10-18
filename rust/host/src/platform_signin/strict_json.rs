@@ -19,7 +19,7 @@ pub enum Json {
     /// Any number that is not an integer literal (a fraction or an exponent).
     Number,
     Str(String),
-    Array(Vec<Json>),
+    Array(Vec<Self>),
     Object(JsonObject),
 }
 
@@ -258,21 +258,24 @@ impl Parser<'_> {
             self.digits()?;
         }
         let integer_end = self.at;
-        let mut integral = true;
-        if self.peek() == Some(b'.') {
+        let has_fraction = if self.peek() == Some(b'.') {
             self.at += 1;
             self.digits()?;
-            integral = false;
-        }
-        if matches!(self.peek(), Some(b'e' | b'E')) {
+            true
+        } else {
+            false
+        };
+        let has_exponent = if matches!(self.peek(), Some(b'e' | b'E')) {
             self.at += 1;
             if matches!(self.peek(), Some(b'+' | b'-')) {
                 self.at += 1;
             }
             self.digits()?;
-            integral = false;
-        }
-        if !integral {
+            true
+        } else {
+            false
+        };
+        if has_fraction || has_exponent {
             return Some(Json::Number);
         }
         let text = std::str::from_utf8(&self.bytes[integer_start..integer_end]).ok()?;

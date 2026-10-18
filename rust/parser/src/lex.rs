@@ -93,7 +93,6 @@ fn ends_outside_quotes(text: &str) -> bool {
         }
         if ch == '"' {
             quoting = !quoting;
-            continue;
         }
     }
     !quoting
@@ -190,7 +189,7 @@ const FORBIDDEN_LEADING_WORDS: &[&str] = &[
 /// Only a file's top line is receiver-qualified; a nested `Hecks.x` must stay an error.
 const FILE_RECEIVER_PREFIX: &str = "Hecks.";
 
-pub fn classify<'a>(file: &str, line: &SourceLine<'a>) -> Result<LineShape, Diagnostic> {
+pub fn classify(file: &str, line: &SourceLine<'_>) -> Result<LineShape, Diagnostic> {
     let text = line
         .text
         .strip_prefix(FILE_RECEIVER_PREFIX)
@@ -228,9 +227,8 @@ pub fn classify<'a>(file: &str, line: &SourceLine<'a>) -> Result<LineShape, Diag
             file,
             line.number,
             format!(
-                "'{}' looks like a local variable assignment at byte {top_level_eq} — this \
-                 parser never interprets bare Ruby expressions or assignment",
-                text
+                "'{text}' looks like a local variable assignment at byte {top_level_eq} — this \
+                 parser never interprets bare Ruby expressions or assignment"
             ),
         ));
     }
@@ -252,9 +250,8 @@ fn leading_identifier_end(text: &str) -> usize {
             if ch.is_ascii_alphabetic() || ch == '_' {
                 end = idx + ch.len_utf8();
                 continue;
-            } else {
-                return 0;
             }
+            return 0;
         }
         if ch.is_ascii_alphanumeric() || ch == '_' {
             end = idx + ch.len_utf8();
@@ -395,10 +392,7 @@ fn find_top_level_brace(text: &str) -> Option<usize> {
 
 /// A `{` after `:`, `,` or `>` opens a hash literal; `>` covers a parenless `:k => { ... }`.
 fn is_hash_literal_brace(before: &str) -> bool {
-    matches!(
-        before.trim_end().chars().last(),
-        Some(':') | Some(',') | Some('>')
-    )
+    matches!(before.trim_end().chars().last(), Some(':' | ',' | '>'))
 }
 
 fn matching_brace_body(text: &str) -> Option<(String, &str)> {
@@ -483,7 +477,7 @@ pub fn capture_do_block_body<'a>(
 
     loop {
         let line = *lines.get(*pos).ok_or_else(|| {
-            let last = lines.last().map(|l| l.number).unwrap_or(0);
+            let last = lines.last().map_or(0, |l| l.number);
             Diagnostic::new(
                 file,
                 last,
@@ -607,7 +601,7 @@ mod tests {
             shape,
             LineShape::Call(Call {
                 word: "identified_by".to_string(),
-                args: "".to_string(),
+                args: String::new(),
                 opener: Opener::BraceBlock {
                     body: "name.value".to_string()
                 }

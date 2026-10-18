@@ -102,7 +102,7 @@ pub fn modulo(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
 }
 
 // Floored like Ruby's `Integer#%` (the result takes the divisor's sign); Rust's `%` truncates.
-fn floored_mod(r: i64, d: i64) -> i64 {
+const fn floored_mod(r: i64, d: i64) -> i64 {
     // `i64::MIN % -1` overflows in Rust's `%`; every integer model answers 0 (C3.3).
     if d == -1 {
         return 0;

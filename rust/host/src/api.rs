@@ -20,6 +20,7 @@ use tokio_postgres::Client;
 /// `web::route` runs `auth_gate` first in production — but it stays an
 /// `Option` because `/api/me` itself has a real empty-session answer.
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::implicit_hasher)] // reason: the query map always comes from this crate's own default-hashed parser
 pub async fn route(
     domain_ir: &Value,
     method: &str,
@@ -135,7 +136,7 @@ async fn collection_index(
     };
     sort_records(
         &mut records,
-        &resolve_sort(domain_ir, &config, collection, aggregate, params),
+        resolve_sort(domain_ir, &config, collection, aggregate, params).as_ref(),
     );
     ok(&Value::Array(
         records
@@ -266,13 +267,13 @@ async fn named_query_rows(
     let Some(answered) = answered else {
         return internal_error(&format!("the kernel answered no query step for {question}"));
     };
-    match answered.get("rows").filter(|rows| !rows.is_null()) {
-        Some(rows) => ok(rows),
-        // A refused query, not a missing one — the refusal lands in the
-        // kernel's own top-level `refusals` array, read the same way a
-        // refused command is.
-        None => domain_refusal(&result),
-    }
+    // No rows is a refused query, not a missing one — the refusal lands in
+    // the kernel's own top-level `refusals` array, read the same way a
+    // refused command is.
+    answered
+        .get("rows")
+        .filter(|rows| !rows.is_null())
+        .map_or_else(|| domain_refusal(&result), ok)
 }
 
 /// Same-named params, shaped per argument (bare for a reference/primitive,
@@ -289,7 +290,7 @@ fn query_args_from_params(
         let Some(raw) = raw else {
             if attribute
                 .get("optional")
-                .and_then(|v| v.as_bool())
+                .and_then(serde_json::Value::as_bool)
                 .unwrap_or(false)
             {
                 continue;
@@ -521,17 +522,19 @@ fn created_record(domain_ir: &Value, aggregate: &Value, result: &Value, id: &str
         domain_name(domain_ir),
         ui_schema::agg_name(aggregate)
     );
-    match result
+    // A missing record was accepted, but this host cannot see what it just
+    // wrote — a real inconsistency, never a 200 with an empty body.
+    result
         .get("instances")
         .and_then(|instances| instances.get(&key))
-    {
-        Some(state) => ok(&with_id(id, state)),
-        // Accepted, but this host cannot see the record it just wrote
-        // — a real inconsistency, never a 200 with an empty body.
-        None => internal_error(&format!(
-            "{key} was accepted but is not in the resulting state"
-        )),
-    }
+        .map_or_else(
+            || {
+                internal_error(&format!(
+                    "{key} was accepted but is not in the resulting state"
+                ))
+            },
+            |state| ok(&with_id(id, state)),
+        )
 }
 
 /// A refused command, in the Ruby engine's own envelope (422, refusal
@@ -594,7 +597,7 @@ fn apply_identity(
         }
         Some("sequence") => {
             let prefix = rule.get("prefix").and_then(|v| v.as_str()).unwrap_or("");
-            let pad = rule.get("pad").and_then(|v| v.as_u64()).unwrap_or(3);
+            let pad = rule.get("pad").and_then(serde_json::Value::as_u64).unwrap_or(3);
             // `pad` rides in as free-form config JSON, and a width like 10^15 would have the
             // formatter allocate that many bytes: refuse it rather than abort the process.
             if pad > MAX_IDENTITY_PAD {
@@ -836,7 +839,7 @@ fn resolve_sort(
     let field = if key == "__state__" {
         collection_schema.get("stateField")?.as_str()?.to_string()
     } else {
-        key.to_string()
+        key.clone()
     };
     // Config could still name a field the aggregate doesn't have.
     if ui_schema::find_attribute(aggregate, &field).is_none()
@@ -857,7 +860,7 @@ fn lifecycle_field(aggregate: &Value) -> Option<&str> {
 
 /// In memory, not SQL: there's no ORDER BY to push into, so this follows
 /// Postgres's own null ordering, with a stable id fallback for ties.
-fn sort_records(records: &mut [(String, Value)], spec: &Option<SortSpec>) {
+fn sort_records(records: &mut [(String, Value)], spec: Option<&SortSpec>) {
     match spec {
         None => records.sort_by(|(a, _), (b, _)| a.cmp(b)),
         Some(spec) => records.sort_by(|(a_id, a), (b_id, b)| {
@@ -910,7 +913,7 @@ fn compare_sort_keys(left: Option<&Value>, right: Option<&Value>, descending: bo
 /// hold mixed types, and `sort_by` panics on a comparison that is not a total order: comparing a
 /// number with a string as `""` made `5`, `""` and `3` each equal to a neighbour but not to each other.
 fn compare_values(left: &Value, right: &Value) -> Ordering {
-    fn rank(value: &Value) -> u8 {
+    const fn rank(value: &Value) -> u8 {
         match value {
             Value::Number(_) => 0,
             Value::String(_) => 1,
@@ -1302,7 +1305,7 @@ mod tests {
             ("b".to_string(), json!({"name": {"value": "Zed"}})),
             ("a".to_string(), json!({"name": {"value": "Ann"}})),
         ];
-        sort_records(&mut records, &None);
+        sort_records(&mut records, None);
 
         assert_eq!(
             records
@@ -1328,7 +1331,7 @@ mod tests {
 
         sort_records(
             &mut records,
-            &Some(SortSpec {
+            Some(&SortSpec {
                 field: "name".to_string(),
                 descending: false,
             }),
@@ -1339,7 +1342,7 @@ mod tests {
         // string comparison would get backwards.
         sort_records(
             &mut records,
-            &Some(SortSpec {
+            Some(&SortSpec {
                 field: "fee".to_string(),
                 descending: false,
             }),
@@ -1362,7 +1365,7 @@ mod tests {
 
         sort_records(
             &mut records,
-            &Some(SortSpec {
+            Some(&SortSpec {
                 field: "name".to_string(),
                 descending: false,
             }),
@@ -1377,7 +1380,7 @@ mod tests {
 
         sort_records(
             &mut records,
-            &Some(SortSpec {
+            Some(&SortSpec {
                 field: "name".to_string(),
                 descending: true,
             }),
@@ -1475,7 +1478,7 @@ mod tests {
 
     // ---- identity minting --------------------------------------------
 
-    fn client_with_identity(identity: Value) -> (Value, Value) {
+    fn client_with_identity(identity: &Value) -> (Value, Value) {
         let aggregate = json!({
             "name": "Client",
             "identified_by": ["reference.value"],
@@ -1497,7 +1500,7 @@ mod tests {
     #[test]
     fn a_slug_identity_is_minted_from_another_submitted_field() {
         let (aggregate, presentation) = client_with_identity(
-            json!({"field": "reference", "strategy": "slug", "source": "name"}),
+            &json!({"field": "reference", "strategy": "slug", "source": "name"}),
         );
         let mut args = json!({"name": {"value": "Acme Corp."}});
 
@@ -1509,7 +1512,7 @@ mod tests {
     #[test]
     fn a_sequence_identity_counts_the_records_already_there_and_pads_to_the_configured_width() {
         let (aggregate, presentation) = client_with_identity(
-            json!({"field": "reference", "strategy": "sequence", "prefix": "C-", "pad": 4}),
+            &json!({"field": "reference", "strategy": "sequence", "prefix": "C-", "pad": 4}),
         );
         let mut args = json!({"name": {"value": "Acme"}});
 
@@ -1521,7 +1524,7 @@ mod tests {
     #[test]
     fn an_identity_the_caller_supplied_is_left_exactly_as_it_came() {
         let (aggregate, presentation) = client_with_identity(
-            json!({"field": "reference", "strategy": "slug", "source": "name"}),
+            &json!({"field": "reference", "strategy": "slug", "source": "name"}),
         );
         let mut args = json!({"reference": {"value": "chosen-by-hand"}, "name": {"value": "Acme"}});
 
@@ -1534,7 +1537,7 @@ mod tests {
     #[test]
     fn an_identity_rule_naming_a_reference_field_mints_nothing_rather_than_guessing_a_wire_shape() {
         let (aggregate, presentation) =
-            client_with_identity(json!({"field": "owner", "strategy": "slug", "source": "name"}));
+            client_with_identity(&json!({"field": "owner", "strategy": "slug", "source": "name"}));
         let mut args = json!({"name": {"value": "Acme"}});
 
         apply_identity(&presentation, &aggregate, &mut args, 0).expect("no refusal");
@@ -1547,7 +1550,7 @@ mod tests {
     #[test]
     fn a_port_identity_strategy_refuses_in_its_own_words_rather_than_dispatching_without_one() {
         let (aggregate, presentation) =
-            client_with_identity(json!({"field": "reference", "strategy": "port"}));
+            client_with_identity(&json!({"field": "reference", "strategy": "port"}));
         let mut args = json!({"name": {"value": "Acme"}});
 
         let refusal = apply_identity(&presentation, &aggregate, &mut args, 0)

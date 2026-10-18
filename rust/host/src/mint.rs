@@ -112,13 +112,11 @@ pub fn parse_edges(ir: &Value, domain: &str) -> Vec<Edge> {
                                     has_compute_or_rekey: !agg
                                         .get("computes")
                                         .and_then(Value::as_array)
-                                        .map(Vec::is_empty)
-                                        .unwrap_or(true)
+                                        .is_none_or(Vec::is_empty)
                                         || !agg
                                             .get("rekeys")
                                             .and_then(Value::as_array)
-                                            .map(Vec::is_empty)
-                                            .unwrap_or(true),
+                                            .is_none_or(Vec::is_empty),
                                     compiled_state_expression: agg
                                         .get("compiled_state_expression")
                                         .and_then(Value::as_str)
@@ -181,12 +179,12 @@ pub enum BootDecision {
 
 impl BootDecision {
     /// The outcome's name, as the boot log reports it.
-    pub fn name(&self) -> &'static str {
+    pub const fn name(&self) -> &'static str {
         match self {
-            BootDecision::UseExisting { .. } => "use_existing",
-            BootDecision::HoldFirst => "hold_first",
-            BootDecision::Mint { .. } => "mint",
-            BootDecision::LatestUnnamed { .. } => "latest_unnamed",
+            Self::UseExisting { .. } => "use_existing",
+            Self::HoldFirst => "hold_first",
+            Self::Mint { .. } => "mint",
+            Self::LatestUnnamed { .. } => "latest_unnamed",
         }
     }
 }
@@ -201,20 +199,19 @@ pub fn decide_boot_action(held: &[crate::journal::HeldEra], my_label: &str) -> B
             ordinal: matching.ordinal,
         };
     }
-    if held.is_empty() {
+    let Some(latest) = held.last() else {
         return BootDecision::HoldFirst;
-    }
-    let latest = held.last().expect("checked non-empty above");
-    match &latest.label {
-        None => BootDecision::LatestUnnamed {
+    };
+    latest.label.as_ref().map_or(
+        BootDecision::LatestUnnamed {
             ordinal: latest.ordinal,
         },
-        Some(label) => BootDecision::Mint {
+        |label| BootDecision::Mint {
             ordinal: latest.ordinal + 1,
             from_ordinal: latest.ordinal,
             from_label: label.clone(),
         },
-    }
+    )
 }
 
 async fn provisioner<C: GenericClient>(client: &C, journal: &str) -> anyhow::Result<bool> {
@@ -224,10 +221,7 @@ async fn provisioner<C: GenericClient>(client: &C, journal: &str) -> anyhow::Res
             &[&journal],
         )
         .await?;
-    Ok(match row {
-        None => true,
-        Some(row) => row.get::<_, bool>("owned"),
-    })
+    Ok(row.is_none_or(|row| row.get::<_, bool>("owned")))
 }
 
 async fn partition_attached<C: GenericClient>(
@@ -277,7 +271,7 @@ async fn ensure_partition<C: GenericClient>(
 
 async fn install_transforms<C: GenericClient>(client: &C) -> anyhow::Result<()> {
     const FUNCTIONS: &[&str] = &[
-        r#"CREATE OR REPLACE FUNCTION hecks_tr_extract(state jsonb, path text[], OUT remaining jsonb, OUT value jsonb, OUT present boolean)
+        r"CREATE OR REPLACE FUNCTION hecks_tr_extract(state jsonb, path text[], OUT remaining jsonb, OUT value jsonb, OUT present boolean)
 LANGUAGE plpgsql IMMUTABLE AS $fn$
 DECLARE parent jsonb; leaf text;
 BEGIN
@@ -303,8 +297,8 @@ BEGIN
       remaining := jsonb_set(state, path[1:array_upper(path, 1) - 1], parent);
     END IF;
   END IF;
-END $fn$"#,
-        r#"CREATE OR REPLACE FUNCTION hecks_tr_insert(state jsonb, path text[], value jsonb, rule_label text) RETURNS jsonb
+END $fn$",
+        r"CREATE OR REPLACE FUNCTION hecks_tr_insert(state jsonb, path text[], value jsonb, rule_label text) RETURNS jsonb
 LANGUAGE plpgsql IMMUTABLE AS $fn$
 BEGIN
   IF array_length(path, 1) = 1 THEN
@@ -318,22 +312,22 @@ BEGIN
     state := state || jsonb_build_object(path[1], '{}'::jsonb);
   END IF;
   RETURN jsonb_set(state, path, value);
-END $fn$"#,
-        r#"CREATE OR REPLACE FUNCTION hecks_tr_rename(state jsonb, old_name text, new_name text) RETURNS jsonb
+END $fn$",
+        r"CREATE OR REPLACE FUNCTION hecks_tr_rename(state jsonb, old_name text, new_name text) RETURNS jsonb
 LANGUAGE sql IMMUTABLE AS $fn$
   SELECT CASE WHEN state ? old_name
     THEN (state - old_name) || jsonb_build_object(new_name, state -> old_name)
     ELSE state END
-$fn$"#,
-        r#"CREATE OR REPLACE FUNCTION hecks_tr_move(state jsonb, from_path text[], to_path text[], rule_label text) RETURNS jsonb
+$fn$",
+        r"CREATE OR REPLACE FUNCTION hecks_tr_move(state jsonb, from_path text[], to_path text[], rule_label text) RETURNS jsonb
 LANGUAGE plpgsql IMMUTABLE AS $fn$
 DECLARE extracted record;
 BEGIN
   SELECT * INTO extracted FROM hecks_tr_extract(state, from_path);
   IF NOT extracted.present THEN RETURN state; END IF;
   RETURN hecks_tr_insert(extracted.remaining, to_path, extracted.value, rule_label);
-END $fn$"#,
-        r#"CREATE OR REPLACE FUNCTION hecks_tr_convert(state jsonb, from_path text[], to_path text[], pairs jsonb, from_label text, rule_label text) RETURNS jsonb
+END $fn$",
+        r"CREATE OR REPLACE FUNCTION hecks_tr_convert(state jsonb, from_path text[], to_path text[], pairs jsonb, from_label text, rule_label text) RETURNS jsonb
 LANGUAGE plpgsql IMMUTABLE AS $fn$
 DECLARE extracted record; pair jsonb;
 BEGIN
@@ -346,14 +340,14 @@ BEGIN
   END LOOP;
   RAISE EXCEPTION 'cannot translate %: % has no mapping in its convert''s values: table. Add % => ... to cover it.',
     from_label, extracted.value, extracted.value;
-END $fn$"#,
-        r#"CREATE OR REPLACE FUNCTION hecks_tr_drop(state jsonb, path text[]) RETURNS jsonb
+END $fn$",
+        r"CREATE OR REPLACE FUNCTION hecks_tr_drop(state jsonb, path text[]) RETURNS jsonb
 LANGUAGE plpgsql IMMUTABLE AS $fn$
 DECLARE extracted record;
 BEGIN
   SELECT * INTO extracted FROM hecks_tr_extract(state, path);
   RETURN extracted.remaining;
-END $fn$"#,
+END $fn$",
     ];
     for sql in FUNCTIONS {
         client.batch_execute(sql).await?;
@@ -438,8 +432,7 @@ pub async fn ensure_base<C: GenericClient>(client: &C, domain: &str) -> anyhow::
             &[&journal],
         )
         .await?
-        .map(|row| row.get::<_, bool>(0))
-        .unwrap_or(true);
+        .is_none_or(|row| row.get::<_, bool>(0));
     if relacl_null {
         client
             .batch_execute(&format!(
@@ -455,14 +448,12 @@ pub async fn ensure_base<C: GenericClient>(client: &C, domain: &str) -> anyhow::
             &[&journal],
         )
         .await?;
-    let (rowsecurity, forcerowsecurity) = current
-        .map(|row| {
-            (
-                row.get::<_, bool>("relrowsecurity"),
-                row.get::<_, bool>("relforcerowsecurity"),
-            )
-        })
-        .unwrap_or((false, false));
+    let (rowsecurity, forcerowsecurity) = current.map_or((false, false), |row| {
+        (
+            row.get::<_, bool>("relrowsecurity"),
+            row.get::<_, bool>("relforcerowsecurity"),
+        )
+    });
     if !rowsecurity {
         client
             .batch_execute(&format!(
@@ -496,10 +487,9 @@ async fn backfill_progress<C: GenericClient>(
             &[&target],
         )
         .await?;
-    Ok(match row {
-        None => (None, false),
-        Some(row) => (row.get("cursor"), row.get("completed")),
-    })
+    Ok(row.map_or((None, false), |row| {
+        (row.get("cursor"), row.get("completed"))
+    }))
 }
 
 async fn upsert_backfill_progress<C: GenericClient>(
@@ -571,8 +561,10 @@ async fn run_backfill_chunk<C: GenericClient>(
                 .await?;
         }
         let done = (rows.len() as i64) < CHUNK_SIZE;
-        let last_cursor: String = rows.last().unwrap().get("id");
-        upsert_backfill_progress(client, target, Some(&last_cursor), done).await?;
+        if let Some(last) = rows.last() {
+            let last_cursor: String = last.get("id");
+            upsert_backfill_progress(client, target, Some(&last_cursor), done).await?;
+        }
         Ok(done)
     }
     .await;
@@ -581,12 +573,12 @@ async fn run_backfill_chunk<C: GenericClient>(
         Ok(_) => {
             client
                 .batch_execute("RELEASE SAVEPOINT hecks_backfill_chunk")
-                .await?
+                .await?;
         }
         Err(_) => {
             client
                 .batch_execute("ROLLBACK TO SAVEPOINT hecks_backfill_chunk")
-                .await?
+                .await?;
         }
     }
     result
@@ -641,7 +633,7 @@ pub async fn adopt_head_snapshots<C: GenericClient>(
     }
     .await;
     match &result {
-        Ok(_) => client.batch_execute("COMMIT").await?,
+        Ok(()) => client.batch_execute("COMMIT").await?,
         Err(_) => client.batch_execute("ROLLBACK").await?,
     }
     result
@@ -690,15 +682,15 @@ async fn create_head_snapshot<C: GenericClient>(
         }
         .await;
         match &result {
-            Ok(_) => {
+            Ok(()) => {
                 client
                     .batch_execute("RELEASE SAVEPOINT hecks_head_snapshot")
-                    .await?
+                    .await?;
             }
             Err(_) => {
                 client
                     .batch_execute("ROLLBACK TO SAVEPOINT hecks_head_snapshot")
-                    .await?
+                    .await?;
             }
         }
         result?;
@@ -787,15 +779,18 @@ fn chain_sql_with(
         .enumerate()
         .map(|(index, edge)| {
             let declared = edge.for_aggregate(&current_names[index + 1]);
-            let expression = declared.map(|d| d.compiled_state_expression.clone()).unwrap_or_else(|| "state".to_string());
+            let expression = declared.map_or_else(|| "state".to_string(), |d| d.compiled_state_expression.clone());
             let guard = format!("era <= {} AND operation = 'save'", index + 1);
-            let id_column = match declared.filter(|d| d.compiled_id_expression.is_some()) {
-                Some(d) => format!(
-                    "CASE WHEN {guard} THEN {} ELSE aggregate_id END AS aggregate_id",
-                    d.compiled_id_expression.as_deref().unwrap()
-                ),
-                None => "aggregate_id".to_string(),
-            };
+            let id_column = declared
+                .and_then(|d| d.compiled_id_expression.as_deref())
+                .map_or_else(
+                    || "aggregate_id".to_string(),
+                    |id_expression| {
+                        format!(
+                            "CASE WHEN {guard} THEN {id_expression} ELSE aggregate_id END AS aggregate_id"
+                        )
+                    },
+                );
             let from = if index == 0 { "tail".to_string() } else { format!("edge_{index}") };
             format!(
                 "edge_{} AS {fence}(SELECT ordinal, era, {id_column}, operation, CASE WHEN {guard} THEN {expression} ELSE state END AS state FROM {from})",
@@ -922,16 +917,15 @@ async fn audit_layer_two<C: GenericClient>(
         ancestor_latest(client, domain, &aggregate.name, ordinal, edges, watermarks).await?
     };
 
-    let last_edge = edges.last().expect("mint always audits at least one edge");
+    let Some(last_edge) = edges.last() else {
+        return Ok(()); // nothing to audit across zero edges
+    };
     let declared = raw_declared(raw_edges, domain, last_edge, &aggregate.name);
-    let rekeyed = declared
-        .map(|d| {
-            !d.get("rekeys")
-                .and_then(Value::as_array)
-                .map(Vec::is_empty)
-                .unwrap_or(true)
-        })
-        .unwrap_or(false);
+    let rekeyed = declared.is_some_and(|d| {
+        !d.get("rekeys")
+            .and_then(Value::as_array)
+            .is_none_or(Vec::is_empty)
+    });
 
     if rekeyed {
         if before.len() != after.len() {
@@ -1028,6 +1022,7 @@ fn strip_keys(state: &Value, keys: &std::collections::HashSet<String>) -> Value 
 ///
 /// `ir` is the whole `ir.json` value; Layer 1 looks up each aggregate's node from it.
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::implicit_hasher)] // reason: callers build the map with the default hasher; no caller needs another
 pub async fn audit_before_mint<C: GenericClient>(
     client: &C,
     domain: &str,
@@ -1161,7 +1156,7 @@ pub async fn hold_first<C: GenericClient>(
     client.batch_execute("BEGIN").await?;
     let result = hold_first_body(client, domain, held_text, ir, aggregates, role).await;
     match &result {
-        Ok(_) => client.batch_execute("COMMIT").await?,
+        Ok(()) => client.batch_execute("COMMIT").await?,
         Err(_) => {
             let _ = client.batch_execute("ROLLBACK").await;
         }
@@ -1344,7 +1339,7 @@ pub async fn mint_era<C: GenericClient>(
     )
     .await;
     match &result {
-        Ok(_) => {
+        Ok(()) => {
             let phase =
                 crate::log::phase_with("mint_commit", serde_json::json!({ "era": ordinal }));
             client.batch_execute("COMMIT").await?;
@@ -1446,7 +1441,7 @@ async fn mint_era_body<C: GenericClient>(
 
 /// A lifecycle field an aggregate's instances must carry, and its default
 /// for new instances. `key_prefix` matches the kernel's `instances()` dump key shape.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LifecycleDefault {
     pub key_prefix: String,
     pub field: String,
@@ -1549,6 +1544,7 @@ async fn fill_snapshot_lifecycle_defaults<C: GenericClient>(
 }
 
 #[cfg(test)]
+#[allow(clippy::items_after_statements)] // reason: tests declare a one-off fixture next to the statement that uses it
 mod tests {
 
     /// A throwaway database of its own — `mint.rs` also compiles into
@@ -1738,7 +1734,7 @@ mod tests {
             to: "bbb".to_string(),
             aggregates: vec![],
         };
-        let edges = vec![edge.clone()];
+        let edges = vec![edge];
 
         let found = edge_chain(&edges, &["aaa".to_string(), "bbb".to_string()])
             .expect("a real edge connects aaa to bbb");
@@ -2704,7 +2700,7 @@ mod tests {
             "aggregates": [{"name": "Widget", "renames": {"cost": "amount"}}]
         })];
         let watermarks: std::collections::HashMap<i32, Option<i64>> =
-            [(1, None)].into_iter().collect();
+            std::iter::once((1, None)).collect();
         audit_before_mint(
             &client,
             honest_domain,

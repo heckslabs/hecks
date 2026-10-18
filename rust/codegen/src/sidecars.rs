@@ -1,6 +1,7 @@
 //! Writes each chapter's `ir.json` and `metadata.rs` sidecars, from the IR as generated (marked).
 
 use crate::json::{self, Json};
+use std::fmt::Write as _;
 
 /// Renders `text` as a Rust string literal. Not Ruby's `String#inspect`, whose `\#{` and bare
 /// `\uXXXX` escapes are not valid Rust.
@@ -15,7 +16,7 @@ pub fn rust_string_literal(text: &str) -> String {
             '\r' => out.push_str("\\r"),
             '\t' => out.push_str("\\t"),
             c if (c as u32) < 0x20 || (c as u32) == 0x7f => {
-                out.push_str(&format!("\\u{{{:x}}}", c as u32));
+                let _ = write!(out, "\\u{{{:x}}}", c as u32);
             }
             c => out.push(c),
         }

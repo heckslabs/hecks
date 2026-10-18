@@ -290,10 +290,9 @@ impl LineageConfig {
     /// Whether `qualified_aggregate` is mirrored into the era-shaped head
     /// snapshots.
     pub fn mirrors(&self, qualified_aggregate: &str) -> bool {
-        match &self.mirrored {
-            None => true,
-            Some(capable) => capable.contains(qualified_aggregate),
-        }
+        self.mirrored
+            .as_ref()
+            .is_none_or(|capable| capable.contains(qualified_aggregate))
     }
 }
 

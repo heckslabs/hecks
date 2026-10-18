@@ -58,15 +58,11 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
         match row.inner {
             "Bluebook" => {
                 let declared_version = super::file::header_version(&call);
-                if bluebook.is_none() {
-                    let mut built = ir::Bluebook {
-                        name: chapter_name.to_string(),
-                        ..Default::default()
-                    };
-                    built.version = declared_version.clone();
-                    bluebook = Some(built);
-                }
-                let target = bluebook.as_mut().expect("just set above");
+                let target = bluebook.get_or_insert_with(|| ir::Bluebook {
+                    name: chapter_name.to_string(),
+                    version: declared_version.clone(),
+                    ..Default::default()
+                });
                 if let Some(version) = declared_version {
                     match target.version.as_deref() {
                         Some(existing) if existing != version => {
@@ -401,7 +397,7 @@ fn parse_body_into(
                     "vision",
                     &gated.args,
                     1,
-                )?)
+                )?);
             }
             "namespace" => {
                 bluebook.namespace = Some(super::positional_text(
@@ -410,7 +406,7 @@ fn parse_body_into(
                     "namespace",
                     &gated.args,
                     1,
-                )?)
+                )?);
             }
             "formerly_known_as" => {
                 bluebook.formerly_known_as = Some(super::positional_text(
@@ -419,7 +415,7 @@ fn parse_body_into(
                     "formerly_known_as",
                     &gated.args,
                     1,
-                )?)
+                )?);
             }
             // One `Provision` row per named argument, in source order; required keys are
             // checked by Ruby's `Validation#validate_provisions!`.

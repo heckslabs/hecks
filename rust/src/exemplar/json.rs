@@ -10,7 +10,7 @@ impl TmplKind {
     pub fn to_json(&self) -> crate::kernel::Json {
         let member = match self {
             // TMPL:closed_set_codec:TO_JSON_ARM BEGIN
-            TmplKind::TmplMemberA => "tmpl_member_a",
+            Self::TmplMemberA => "tmpl_member_a",
             // TMPL:closed_set_codec:TO_JSON_ARM END
         };
         crate::kernel::Json::obj(vec![("tmpl_field_name", crate::kernel::Json::str(member))])
@@ -21,7 +21,7 @@ impl TmplKind {
         // does in `validate!`: before a missing field, and before membership.
         let unknown = v.unknown_keys(&["tmpl_field_name"]);
         if !unknown.is_empty() {
-            let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
             return Err(crate::kernel::Refusal::UnknownArgument(
                 crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
                     command: "tmpl_closed_set_type",
@@ -72,7 +72,7 @@ impl TmplKind {
         }
         match candidate.ruby_to_s().as_str() {
             // TMPL:closed_set_codec:FROM_JSON_ARM BEGIN
-            "tmpl_member_a" => Ok(TmplKind::TmplMemberA),
+            "tmpl_member_a" => Ok(Self::TmplMemberA),
             // TMPL:closed_set_codec:FROM_JSON_ARM END
             _ => Err(crate::kernel::Refusal::InvariantViolation(
                 crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
@@ -134,7 +134,7 @@ tmpl_to_json_fields_block()
         // membership of the whole row.
         let unknown = v.unknown_keys(&TMPL_DECLARED_NAMES);
         if !unknown.is_empty() {
-            let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
             return Err(crate::kernel::Refusal::UnknownArgument(
                 crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
                     command: "tmpl_table_type",

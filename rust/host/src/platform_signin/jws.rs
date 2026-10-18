@@ -23,7 +23,7 @@ pub fn encode_base64url(bytes: &[u8]) -> String {
         let word = chunk
             .iter()
             .enumerate()
-            .fold(0u32, |acc, (i, b)| acc | (*b as u32) << (16 - 8 * i));
+            .fold(0u32, |acc, (i, b)| acc | u32::from(*b) << (16 - 8 * i));
         let characters = chunk.len() + 1;
         for i in 0..characters {
             out.push(ALPHABET[((word >> (18 - 6 * i)) & 0x3f) as usize] as char);

@@ -89,20 +89,20 @@ pub enum Refusal {
 
 impl Refusal {
     /// The refusal class name, spelled as Ruby raises it; the semantics corpus compares it.
-    pub fn kind(&self) -> &'static str {
+    pub const fn kind(&self) -> &'static str {
         match self {
-            Refusal::GivenNotMet(_) => "GivenNotMet",
-            Refusal::EnsuresNotMet(_) => "EnsuresNotMet",
-            Refusal::InvariantViolation(_) => "InvariantViolation",
-            Refusal::LifecycleRefused(_) => "LifecycleRefused",
-            Refusal::AlreadyExists(_) => "AlreadyExists",
-            Refusal::NotFound(_) => "NotFound",
-            Refusal::TypeMismatch(_) => "TypeMismatch",
-            Refusal::AbsentArgument(_) => "AbsentArgument",
-            Refusal::UnknownArgument(_) => "UnknownArgument",
-            Refusal::Unauthorized(_) => "Unauthorized",
-            Refusal::Fault(_) => "Fault",
-            Refusal::NothingToCorrect(_) => "NothingToCorrect",
+            Self::GivenNotMet(_) => "GivenNotMet",
+            Self::EnsuresNotMet(_) => "EnsuresNotMet",
+            Self::InvariantViolation(_) => "InvariantViolation",
+            Self::LifecycleRefused(_) => "LifecycleRefused",
+            Self::AlreadyExists(_) => "AlreadyExists",
+            Self::NotFound(_) => "NotFound",
+            Self::TypeMismatch(_) => "TypeMismatch",
+            Self::AbsentArgument(_) => "AbsentArgument",
+            Self::UnknownArgument(_) => "UnknownArgument",
+            Self::Unauthorized(_) => "Unauthorized",
+            Self::Fault(_) => "Fault",
+            Self::NothingToCorrect(_) => "NothingToCorrect",
         }
     }
 }
@@ -110,18 +110,18 @@ impl Refusal {
 impl std::fmt::Display for Refusal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Refusal::GivenNotMet(msg)
-            | Refusal::EnsuresNotMet(msg)
-            | Refusal::InvariantViolation(msg)
-            | Refusal::LifecycleRefused(msg)
-            | Refusal::AlreadyExists(msg)
-            | Refusal::NotFound(msg)
-            | Refusal::TypeMismatch(msg)
-            | Refusal::AbsentArgument(msg)
-            | Refusal::UnknownArgument(msg)
-            | Refusal::Unauthorized(msg)
-            | Refusal::Fault(msg)
-            | Refusal::NothingToCorrect(msg) => write!(f, "{msg}"),
+            Self::GivenNotMet(msg)
+            | Self::EnsuresNotMet(msg)
+            | Self::InvariantViolation(msg)
+            | Self::LifecycleRefused(msg)
+            | Self::AlreadyExists(msg)
+            | Self::NotFound(msg)
+            | Self::TypeMismatch(msg)
+            | Self::AbsentArgument(msg)
+            | Self::UnknownArgument(msg)
+            | Self::Unauthorized(msg)
+            | Self::Fault(msg)
+            | Self::NothingToCorrect(msg) => write!(f, "{msg}"),
         }
     }
 }

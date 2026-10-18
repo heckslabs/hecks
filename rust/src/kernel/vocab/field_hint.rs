@@ -13,49 +13,41 @@ pub enum FieldHint {
 
 impl FieldHint {
     /// Every row, in declared order.
-    pub const ALL: &'static [FieldHint] = &[
-        FieldHint::Email,
-        FieldHint::Url,
-        FieldHint::Tel,
-        FieldHint::Textarea,
-    ];
+    pub const ALL: &'static [Self] = &[Self::Email, Self::Url, Self::Tel, Self::Textarea];
 
     /// The row's declared `name`.
-    pub fn name(&self) -> &'static str {
+    pub const fn name(&self) -> &'static str {
         match self {
-            FieldHint::Email => "email",
-            FieldHint::Url => "url",
-            FieldHint::Tel => "tel",
-            FieldHint::Textarea => "textarea",
+            Self::Email => "email",
+            Self::Url => "url",
+            Self::Tel => "tel",
+            Self::Textarea => "textarea",
         }
     }
 
     /// The row's declared `pattern`.
-    pub fn pattern(&self) -> &'static str {
+    pub const fn pattern(&self) -> &'static str {
         match self {
-            FieldHint::Email => "email",
-            FieldHint::Url => "\\b(url|uri|website|link)\\b",
-            FieldHint::Tel => "phone|\\btel(ephone)?\\b",
-            FieldHint::Textarea => "\\b(text|body|note|notes|description|message|comment)\\b",
+            Self::Email => "email",
+            Self::Url => "\\b(url|uri|website|link)\\b",
+            Self::Tel => "phone|\\btel(ephone)?\\b",
+            Self::Textarea => "\\b(text|body|note|notes|description|message|comment)\\b",
         }
     }
 
     /// The row's declared `resolves_to`.
-    pub fn resolves_to(&self) -> &'static str {
+    pub const fn resolves_to(&self) -> &'static str {
         match self {
-            FieldHint::Email => "html_type",
-            FieldHint::Url => "html_type",
-            FieldHint::Tel => "html_type",
-            FieldHint::Textarea => "kind",
+            Self::Email => "html_type",
+            Self::Url => "html_type",
+            Self::Tel => "html_type",
+            Self::Textarea => "kind",
         }
     }
 
     /// The row whose `name` is `name`, if any.
-    pub fn from_name(name: &str) -> Option<FieldHint> {
-        FieldHint::ALL
-            .iter()
-            .copied()
-            .find(|row| row.name() == name)
+    pub fn from_name(name: &str) -> Option<Self> {
+        Self::ALL.iter().copied().find(|row| row.name() == name)
     }
 }
 
@@ -65,7 +57,7 @@ mod tests {
 
     #[test]
     fn every_row_is_found_by_its_own_name() {
-        for row in FieldHint::ALL.iter() {
+        for row in FieldHint::ALL {
             assert_eq!(FieldHint::from_name(row.name()), Some(*row));
         }
     }

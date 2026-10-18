@@ -7,7 +7,7 @@ use std::collections::HashMap;
 /// matches an unrelated owner field. Shared by `creates_owner` and `identity_components`.
 pub fn append_claimed_names(command: &Json) -> std::collections::HashSet<String> {
     let mut claimed = std::collections::HashSet::new();
-    for m in command.get("mutations").map(Json::each).unwrap_or(&[]) {
+    for m in command.get("mutations").map_or_default(Json::each) {
         if m.get("op").map(Json::to_s).as_deref() != Some("append") {
             continue;
         }
@@ -37,7 +37,7 @@ pub fn creates_owner(
         return false;
     }
 
-    let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
+    let attrs = aggregate.get("attributes").map_or_default(Json::each);
     let owner_fields: std::collections::HashSet<String> = attrs
         .iter()
         .map(|a| crate::attr::name(a).to_string())
@@ -51,13 +51,13 @@ pub fn creates_owner(
     let append_claimed = append_claimed_names(command);
 
     let mut known_writes: std::collections::HashSet<String> = std::collections::HashSet::new();
-    for attr in command.get("attributes").map(Json::each).unwrap_or(&[]) {
+    for attr in command.get("attributes").map_or_default(Json::each) {
         let name = crate::attr::name(attr).to_string();
         if owner_fields.contains(&name) && !append_claimed.contains(&name) {
             known_writes.insert(name);
         }
     }
-    for m in command.get("mutations").map(Json::each).unwrap_or(&[]) {
+    for m in command.get("mutations").map_or_default(Json::each) {
         if m.get("op").map(Json::to_s).as_deref() != Some("set") {
             continue;
         }
@@ -79,31 +79,30 @@ pub fn list_attr_creation_optional(
     attr_name: &str,
     value_objects_by_name: &HashMap<String, &Json>,
 ) -> bool {
-    let commands = aggregate.get("commands").map(Json::each).unwrap_or(&[]);
+    let commands = aggregate.get("commands").map_or_default(Json::each);
     commands.iter().any(|command| {
         if !creates_owner(aggregate, command, value_objects_by_name) {
             return false;
         }
-        let mutations = command.get("mutations").map(Json::each).unwrap_or(&[]);
+        let mutations = command.get("mutations").map_or_default(Json::each);
         mutations.iter().any(|m| {
             let op = m.get("op").map(Json::to_s).unwrap_or_default();
             let target = m.get("target").map(Json::to_s).unwrap_or_default();
             if op != "set" || target != attr_name {
                 return false;
             }
-            let source = match m.get("source") {
-                Some(s) => s,
-                None => return false,
+            let Some(source) = m.get("source") else {
+                return false;
             };
             if source.get("kind").map(Json::to_s).unwrap_or_default() != "argument" {
                 return false;
             }
             let source_name = source.get("name").map(Json::to_s).unwrap_or_default();
-            let attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
-            match attrs.iter().find(|a| crate::attr::name(a) == source_name) {
-                Some(source_attr) => crate::attr::optional(source_attr),
-                None => false,
-            }
+            let attrs = command.get("attributes").map_or_default(Json::each);
+            attrs
+                .iter()
+                .find(|a| crate::attr::name(a) == source_name)
+                .is_some_and(crate::attr::optional)
         })
     })
 }

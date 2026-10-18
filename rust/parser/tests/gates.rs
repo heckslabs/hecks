@@ -1,6 +1,10 @@
 //! Drives the `hecks-parse` binary as a subprocess against `tests/fixtures/*`, checking the
 //! real exit code and output, as `spec/parser_parity_spec.rb` does on the Ruby side.
 
+// reason: these helpers are test scaffolding outside `#[test]` fns, which clippy.toml does not
+// cover; a failed unwrap here is the test failing.
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::path::PathBuf;
 use std::process::{Command, Output};
 

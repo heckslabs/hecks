@@ -4,6 +4,7 @@
 use crate::exemplar::Exemplar;
 use crate::naming;
 use crate::reference_specs::{self, ReferenceSpec};
+use std::fmt::Write as _;
 
 #[derive(Clone)]
 pub struct ReferenceCheck {
@@ -146,6 +147,8 @@ pub fn emit_role_check(
 
 /// Port of the retired Ruby generator's `registry.rb#emit_tenant_boundary_check`.
 /// Hand-built: the target accessor differs for a single-attribute value object and a bare scalar.
+// reason: the emitted Rust contains literal `{:?}` format templates, which the lint mistakes for unfilled arguments.
+#[allow(clippy::literal_string_with_formatting_args)]
 pub fn emit_tenant_boundary_check(check: &TenantBoundaryCheck) -> String {
     let ref_ident = naming::rust_ident_field(&check.reference_field);
     let own_expr = format!(
@@ -165,37 +168,43 @@ pub fn emit_tenant_boundary_check(check: &TenantBoundaryCheck) -> String {
     };
 
     let mut out = String::new();
-    out.push_str(&format!(
+    let _ = write!(
+        out,
         "if let Some(record) = store.{}.find(&args.{ref_ident}) {{ ",
         check.target_mod
-    ));
-    out.push_str(&format!("if let Some(target_tenant) = {target_expr} {{ "));
-    out.push_str(&format!("let own_tenant = {own_expr}; "));
+    );
+    let _ = write!(out, "if let Some(target_tenant) = {target_expr} {{ ");
+    let _ = write!(out, "let own_tenant = {own_expr}; ");
     out.push_str("if target_tenant != own_tenant { ");
     out.push_str(
         "return Err(crate::kernel::Refusal::Unauthorized(crate::kernel::refusal_wording::UnauthorizedCrossTenantReferenceArgs { ",
     );
-    out.push_str(&format!(
+    let _ = write!(
+        out,
         "aggregate: {}, ",
         naming::ruby_inspect_string(&check.aggregate_name)
-    ));
-    out.push_str(&format!(
+    );
+    let _ = write!(
+        out,
         "field: {}, ",
         naming::ruby_inspect_string(&check.own_tenant_field)
-    ));
+    );
     out.push_str("tenant: &format!(\"{:?}\", own_tenant), ");
-    out.push_str(&format!(
+    let _ = write!(
+        out,
         "attribute: {}, ",
         naming::ruby_inspect_string(&check.reference_field)
-    ));
-    out.push_str(&format!(
+    );
+    let _ = write!(
+        out,
         "target: {}, ",
         naming::ruby_inspect_string(&check.target_name)
-    ));
-    out.push_str(&format!(
+    );
+    let _ = write!(
+        out,
         "target_field: {}, ",
         naming::ruby_inspect_string(&check.target_tenant_field)
-    ));
+    );
     out.push_str("other: &format!(\"{:?}\", target_tenant)");
     out.push_str(" }.render_args())); ");
     out.push_str("} } }");
@@ -214,10 +223,10 @@ fn emit_argument_gates_literal(
     normalize.extend(invariant_check_lines.iter().map(|l| squeeze(l)));
     normalize.push("Ok(args)".to_string());
 
-    let role = match role_line.filter(|l| !l.is_empty()) {
-        Some(line) => format!("&|| {{ {} Ok(()) }}", squeeze(&line)),
-        None => "&|| Ok(())".to_string(),
-    };
+    let role = role_line.filter(|l| !l.is_empty()).map_or_else(
+        || "&|| Ok(())".to_string(),
+        |line| format!("&|| {{ {} Ok(()) }}", squeeze(&line)),
+    );
     let references: Vec<String> = reference_lines
         .iter()
         .filter(|l| !l.is_empty())
@@ -393,10 +402,13 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                     )
                 })
                 .collect();
-            let extra_pass: String = extra_idents
-                .iter()
-                .map(|ident| format!("&{ident}, "))
-                .collect();
+            let extra_pass: String =
+                extra_idents
+                    .iter()
+                    .fold(String::new(), |mut passed, ident| {
+                        let _ = write!(passed, "&{ident}, ");
+                        passed
+                    });
 
             // A creating command's dispatch fn takes `route` so it can tell create from find.
             let dispatch_call = format!(
@@ -718,21 +730,19 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 .legacy_receiver_field
                 .as_deref()
                 .map(naming::ruby_inspect_string)
-                .map(|field| format!("Some({field})"))
-                .unwrap_or_else(|| "None".to_string());
+                .map_or_else(|| "None".to_string(), |field| format!("Some({field})"));
             let to_receiver = p
                 .to_receiver_field
                 .as_deref()
                 .map(naming::ruby_inspect_string)
-                .map(|field| format!("Some({field})"))
-                .unwrap_or_else(|| "None".to_string());
+                .map_or_else(|| "None".to_string(), |field| format!("Some({field})"));
 
             let mut body: Vec<String> = vec![
                 "let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;".to_string(),
                 format!("let (id, port_facts) = invocation.split_aggregate_receiver({legacy_receiver}, {to_receiver})?;"),
                 "let facts_json = &port_facts;".to_string(),
                 format!(
-                    "let _instance = store.{}.find(&id).ok_or_else(|| crate::kernel::Refusal::NotFound(format!(\"{} {{:?}} does not exist\", id)))?;",
+                    "let _instance = store.{}.find(&id).ok_or_else(|| crate::kernel::Refusal::NotFound(format!(\"{} {{id:?}} does not exist\")))?;",
                     a.module_name, a.name
                 ),
                 format!("let args = {mod_path}::{}::from_json(facts_json)?;", p.args_struct),

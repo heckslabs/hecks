@@ -65,12 +65,14 @@ fn engine_and_module(wasm_path: &Path) -> anyhow::Result<(Engine, Module)> {
     let cell = Arc::clone(
         cache
             .lock()
-            .unwrap()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .entry(wasm_path.to_path_buf())
             .or_default(),
     );
 
-    let mut compiled = cell.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    let mut compiled = cell
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     if let Some((engine, module)) = compiled.as_ref() {
         return Ok((engine.clone(), module.clone()));
     }

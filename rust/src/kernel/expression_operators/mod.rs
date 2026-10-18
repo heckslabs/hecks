@@ -47,35 +47,35 @@ impl OperatorCategory {
     /// variant names — `hecks measure_kernel_coverage`'s own existence
     /// check reads this, so the file-name spelling here is the ONE
     /// place that ever needs to change if a name is renamed.
-    pub fn module_name(&self) -> &'static str {
+    pub const fn module_name(&self) -> &'static str {
         match self {
-            OperatorCategory::Logical => "logical",
-            OperatorCategory::Membership => "membership",
-            OperatorCategory::Comparison => "comparison",
-            OperatorCategory::Arithmetic => "arithmetic",
-            OperatorCategory::SignTest => "sign_test",
-            OperatorCategory::Sized => "sized",
-            OperatorCategory::ToString => "to_string",
-            OperatorCategory::Enumeration => "enumeration",
-            OperatorCategory::PatternMatch => "pattern_match",
-            OperatorCategory::Presence => "presence",
-            OperatorCategory::Text => "text",
-            OperatorCategory::Positional => "positional",
+            Self::Logical => "logical",
+            Self::Membership => "membership",
+            Self::Comparison => "comparison",
+            Self::Arithmetic => "arithmetic",
+            Self::SignTest => "sign_test",
+            Self::Sized => "sized",
+            Self::ToString => "to_string",
+            Self::Enumeration => "enumeration",
+            Self::PatternMatch => "pattern_match",
+            Self::Presence => "presence",
+            Self::Text => "text",
+            Self::Positional => "positional",
         }
     }
 
-    pub const ALL: &'static [OperatorCategory] = &[
-        OperatorCategory::Logical,
-        OperatorCategory::Membership,
-        OperatorCategory::Comparison,
-        OperatorCategory::Arithmetic,
-        OperatorCategory::SignTest,
-        OperatorCategory::Sized,
-        OperatorCategory::ToString,
-        OperatorCategory::Enumeration,
-        OperatorCategory::PatternMatch,
-        OperatorCategory::Presence,
-        OperatorCategory::Text,
-        OperatorCategory::Positional,
+    pub const ALL: &'static [Self] = &[
+        Self::Logical,
+        Self::Membership,
+        Self::Comparison,
+        Self::Arithmetic,
+        Self::SignTest,
+        Self::Sized,
+        Self::ToString,
+        Self::Enumeration,
+        Self::PatternMatch,
+        Self::Presence,
+        Self::Text,
+        Self::Positional,
     ];
 }

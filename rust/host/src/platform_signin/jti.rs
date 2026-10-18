@@ -63,7 +63,7 @@ impl JtiStore {
         // forever would be a lock-out, so a poisoned lock is simply taken over.
         self.seen
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
     /// Counts the identifiers still remembered at `now`; expired ones are not counted.
@@ -176,7 +176,9 @@ mod tests {
                     })
                 })
                 .collect();
-            handles.into_iter().for_each(|h| h.join().unwrap());
+            for handle in handles {
+                handle.join().unwrap();
+            }
             assert_eq!(winners.load(Ordering::SeqCst), 1, "round {round}");
         }
     }

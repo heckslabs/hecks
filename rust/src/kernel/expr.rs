@@ -19,20 +19,20 @@ pub enum Value {
     /// above. Produced by an array literal or `.split`; never used for
     /// `.include?`'s haystack (`expr_emitter.rb`'s `emit_include` rewrites
     /// that shape at codegen time instead).
-    Array(Vec<Value>),
+    Array(Vec<Self>),
 }
 
 impl Value {
     /// Ruby's `Evaluator.truthy?`: false only for `Nil`/`Bool(false)`.
-    pub fn truthy(&self) -> bool {
-        !matches!(self, Value::Nil | Value::Bool(false))
+    pub const fn truthy(&self) -> bool {
+        !matches!(self, Self::Nil | Self::Bool(false))
     }
 
     /// The text of a `Str`, else `None`; a generated `SetProjectedField` arm narrows a
     /// projected scalar to its field's type with one of the `into_*` readers.
     pub fn into_string(self) -> Option<String> {
         match self {
-            Value::Str(s) => Some(s),
+            Self::Str(s) => Some(s),
             _ => None,
         }
     }
@@ -40,7 +40,7 @@ impl Value {
     /// The integer of an `Int`, else `None`.
     pub fn into_i64(self) -> Option<i64> {
         match self {
-            Value::Int(n) => Some(n),
+            Self::Int(n) => Some(n),
             _ => None,
         }
     }
@@ -48,7 +48,7 @@ impl Value {
     /// The float of a `Float`, else `None`.
     pub fn into_f64(self) -> Option<f64> {
         match self {
-            Value::Float(f) => Some(f),
+            Self::Float(f) => Some(f),
             _ => None,
         }
     }
@@ -56,7 +56,7 @@ impl Value {
     /// The boolean of a `Bool`, else `None`.
     pub fn into_bool(self) -> Option<bool> {
         match self {
-            Value::Bool(b) => Some(b),
+            Self::Bool(b) => Some(b),
             _ => None,
         }
     }
@@ -94,7 +94,7 @@ pub struct Bound<'a> {
     pub rest: &'a dyn Fielded,
 }
 
-impl<'a> Fielded for Bound<'a> {
+impl Fielded for Bound<'_> {
     fn field(&self, name: &str) -> Option<Field<'_>> {
         if name == self.name {
             return Some(match &self.value {
@@ -130,7 +130,7 @@ pub struct WithOld<'a> {
     pub old: &'a dyn Fielded,
 }
 
-impl<'a> Fielded for WithOld<'a> {
+impl Fielded for WithOld<'_> {
     fn field(&self, name: &str) -> Option<Field<'_>> {
         if name == "old" {
             return Some(Field::Nested(self.old));
@@ -154,7 +154,7 @@ pub struct StateFirst<'a> {
     pub settled: &'a dyn Fielded,
 }
 
-impl<'a> Fielded for StateFirst<'a> {
+impl Fielded for StateFirst<'_> {
     fn field(&self, name: &str) -> Option<Field<'_>> {
         if self.settled.field(name).is_some() {
             return None;
@@ -178,7 +178,7 @@ pub struct WithParent<'a> {
     pub parent: &'a dyn Fielded,
 }
 
-impl<'a> Fielded for WithParent<'a> {
+impl Fielded for WithParent<'_> {
     fn field(&self, name: &str) -> Option<Field<'_>> {
         if name == "parent" {
             return Some(Field::Nested(self.parent));
@@ -210,11 +210,11 @@ pub enum BlockMode {
 impl BlockMode {
     /// The operator's own spelling, for the "expects a list" wording
     /// Ruby renders from `"#{node.mode}?"`.
-    pub fn ruby_name(&self) -> &'static str {
+    pub const fn ruby_name(&self) -> &'static str {
         match self {
-            BlockMode::All => "all?",
-            BlockMode::Any => "any?",
-            BlockMode::None => "none?",
+            Self::All => "all?",
+            Self::Any => "any?",
+            Self::None => "none?",
         }
     }
 }
@@ -225,106 +225,106 @@ impl BlockMode {
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub enum Expr {
-    Or(Box<Expr>, Box<Expr>),
-    And(Box<Expr>, Box<Expr>),
-    Not(Box<Expr>),
+    Or(Box<Self>, Box<Self>),
+    And(Box<Self>, Box<Self>),
+    Not(Box<Self>),
     Compare {
         op: Comparison,
-        left: Box<Expr>,
-        right: Box<Expr>,
+        left: Box<Self>,
+        right: Box<Self>,
     },
     Include {
-        haystack: Box<Expr>,
-        needle: Box<Expr>,
+        haystack: Box<Self>,
+        needle: Box<Self>,
     },
     Int(i64),
     Float(f64),
     Str(String),
     Bool(bool),
     Nil,
-    Add(Box<Expr>, Box<Expr>),
-    Sub(Box<Expr>, Box<Expr>),
-    Mul(Box<Expr>, Box<Expr>),
+    Add(Box<Self>, Box<Self>),
+    Sub(Box<Self>, Box<Self>),
+    Mul(Box<Self>, Box<Self>),
     /// Floor division on integers; a zero divisor is an evaluation fault.
-    Div(Box<Expr>, Box<Expr>),
+    Div(Box<Self>, Box<Self>),
     SignTest {
         op: Comparison,
-        receiver: Box<Expr>,
+        receiver: Box<Self>,
     },
-    Empty(Box<Expr>),
-    ToS(Box<Expr>),
+    Empty(Box<Self>),
+    ToS(Box<Self>),
     Modulo {
-        receiver: Box<Expr>,
-        divisor: Box<Expr>,
+        receiver: Box<Self>,
+        divisor: Box<Self>,
     },
-    Size(Box<Expr>),
+    Size(Box<Self>),
     Lookup(&'static str),
     /// `receiver.any?`/`.all?`/`.none? { |param| predicate }` —
     /// evaluated once per element with `param` bound (see `Bound`).
     BlockPredicate {
         mode: BlockMode,
-        receiver: Box<Expr>,
+        receiver: Box<Self>,
         param: &'static str,
-        predicate: Box<Expr>,
+        predicate: Box<Self>,
     },
     /// `receiver.find { |param| predicate }.a.b` — first accepted
     /// element, projected through `path`, or nil when nothing matches.
     Find {
-        receiver: Box<Expr>,
+        receiver: Box<Self>,
         param: &'static str,
-        predicate: Box<Expr>,
+        predicate: Box<Self>,
         path: &'static [&'static str],
     },
     /// `[a, b, c]` — a leaf like `Int`/`Str`/`Nil` above, not an
     /// operator, so `interpret` handles it directly, not via
     /// `dispatch_operator`.
-    Array(Vec<Expr>),
+    Array(Vec<Self>),
     /// `receiver.match?(/pattern/flags)` — `pattern` is a real
     /// Ruby-Regexp source, taken as-is between the slashes.
     MatchesRegex {
-        receiver: Box<Expr>,
+        receiver: Box<Self>,
         pattern: String,
         flags: String,
     },
     /// `receiver.present?` / `.blank?` — one node for the pair,
     /// `negated` distinguishing them (`.blank?` is `.present?` negated).
     Presence {
-        receiver: Box<Expr>,
+        receiver: Box<Self>,
         negated: bool,
     },
     /// `receiver.set?` / `.unset?` — narrower than `Presence`: only
     /// `!receiver.is_nil()`. An assigned-but-empty value is `.set?`,
     /// unlike `Presence`'s Rails-standard emptiness reading.
     Assignment {
-        receiver: Box<Expr>,
+        receiver: Box<Self>,
         negated: bool,
     },
     /// `receiver.split("SEP")` — `Resolver::Split`. Produces a real
     /// `Value::Array`, not `Value::List` — see that variant's own header.
     Split {
-        receiver: Box<Expr>,
+        receiver: Box<Self>,
         separator: String,
     },
     /// `receiver.strip` / `.lstrip` / `.rstrip` — `Resolver::Strip`. Trims Ruby's own whitespace
     /// set (see `StripSide::trim`), not Unicode spaces.
     Strip {
-        receiver: Box<Expr>,
+        receiver: Box<Self>,
         side: StripSide,
     },
     /// `receiver.start_with?("prefix")` — `Resolver::StartsWith`.
     StartsWith {
-        receiver: Box<Expr>,
+        receiver: Box<Self>,
         substring: String,
     },
     /// `receiver.end_with?("suffix")` — `Resolver::EndsWith`.
     EndsWith {
-        receiver: Box<Expr>,
+        receiver: Box<Self>,
         substring: String,
     },
     /// `receiver.first` — `Resolver::First`.
-    First(Box<Expr>),
+    First(Box<Self>),
     /// `receiver.last` — `Resolver::Last`.
-    Last(Box<Expr>),
+    Last(Box<Self>),
 }
 
 /// Which ends of a string `Expr::Strip` trims: `.strip` both, `.lstrip` the start, `.rstrip` the end.
@@ -343,9 +343,9 @@ impl StripSide {
         let is_stripped =
             |c: char| matches!(c, '\0' | '\t' | '\n' | '\u{b}' | '\u{c}' | '\r' | ' ');
         match self {
-            StripSide::Both => text.trim_matches(is_stripped),
-            StripSide::Left => text.trim_start_matches(is_stripped),
-            StripSide::Right => text.trim_end_matches(is_stripped),
+            Self::Both => text.trim_matches(is_stripped),
+            Self::Left => text.trim_start_matches(is_stripped),
+            Self::Right => text.trim_end_matches(is_stripped),
         }
         .to_string()
     }
@@ -361,7 +361,7 @@ pub struct EvalContext<'a> {
 /// Leaves (literals, `Lookup`) have no `OperatorCategory`, so they're
 /// handled directly; everything else routes through `dispatch_operator`.
 pub fn interpret(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
-    use Expr::*;
+    use Expr::{Array, Bool, Float, Int, Lookup, Nil, Str};
     match expr {
         Int(v) => Ok(Value::Int(*v)),
         Float(v) => Ok(Value::Float(*v)),
@@ -383,7 +383,11 @@ pub fn interpret(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
 /// hand-written association `interpret` never calls for a leaf, hence
 /// the `unreachable!` there rather than a wrong category.
 fn category_of(expr: &Expr) -> OperatorCategory {
-    use Expr::*;
+    use Expr::{
+        Add, And, Array, Assignment, BlockPredicate, Bool, Compare, Div, Empty, EndsWith, Find,
+        First, Float, Include, Int, Last, Lookup, MatchesRegex, Modulo, Mul, Nil, Not, Or,
+        Presence, SignTest, Size, Split, StartsWith, Str, Strip, Sub, ToS,
+    };
     match expr {
         Or(..) | And(..) | Not(..) => OperatorCategory::Logical,
         Include { .. } => OperatorCategory::Membership,
@@ -412,7 +416,10 @@ fn dispatch_operator(
     expr: &Expr,
     ctx: &EvalContext,
 ) -> Result<Value, Refusal> {
-    use expression_operators::*;
+    use expression_operators::{
+        arithmetic, comparison, enumeration, logical, membership, pattern_match, positional,
+        presence, sign_test, sized, text, to_string, OperatorCategory,
+    };
     match category {
         OperatorCategory::Logical => logical::interpret(expr, ctx),
         OperatorCategory::Membership => membership::interpret(expr, ctx),
@@ -461,7 +468,7 @@ fn lookup(path: &str, ctx: &EvalContext) -> Result<Value, Refusal> {
 /// nested object, which `.set?` reads as present without needing it to be one value.
 pub(crate) fn lookup_field<'a>(path: &str, ctx: &EvalContext<'a>) -> Result<Field<'a>, Refusal> {
     let mut segments = path.split('.');
-    let head = segments.next().unwrap();
+    let head = segments.next().unwrap_or_default();
     let mut current = ctx
         .args
         .field(head)
@@ -473,7 +480,7 @@ pub(crate) fn lookup_field<'a>(path: &str, ctx: &EvalContext<'a>) -> Result<Fiel
         })?;
 
     for seg in segments {
-        current = composite::step(current, seg, head)?;
+        current = composite::step(&current, seg, head)?;
     }
 
     Ok(current)
@@ -487,10 +494,11 @@ pub(crate) fn lookup_items<'a>(
     ctx: &EvalContext<'a>,
     op: &str,
 ) -> Result<Vec<Field<'a>>, Refusal> {
-    let segments: Vec<&str> = path.split('.').collect();
-    let (head, rest) = segments.split_first().unwrap();
+    let mut segments = path.split('.');
+    let head = segments.next().unwrap_or_default();
+    let rest: Vec<&str> = segments.collect();
 
-    if rest.is_empty() {
+    let Some((last, middle)) = rest.split_last() else {
         // args first when the key is present there, state second — a
         // non-list argument refuses rather than falling through to a
         // same-named instance list.
@@ -505,9 +513,8 @@ pub(crate) fn lookup_items<'a>(
                 describe_field(side.field(head))
             ))
         });
-    }
+    };
 
-    let (last, middle) = rest.split_last().unwrap();
     let mut current = ctx
         .args
         .field(head)
@@ -518,7 +525,7 @@ pub(crate) fn lookup_items<'a>(
             ))
         })?;
     for seg in middle {
-        current = composite::step(current, seg, head)?;
+        current = composite::step(&current, seg, head)?;
     }
     match current {
         Field::Nested(obj) => obj.items(last).ok_or_else(|| {
@@ -541,7 +548,7 @@ fn describe_field(field: Option<Field<'_>>) -> String {
     }
 }
 
-pub(crate) fn eval_error(message: String) -> Refusal {
+pub(crate) const fn eval_error(message: String) -> Refusal {
     Refusal::Fault(message)
 }
 
@@ -560,10 +567,9 @@ mod lookup_tests {
         fn field(&self, name: &str) -> Option<Field<'_>> {
             match name {
                 "previous_sessions" => Some(Field::Value(Value::Bool(self.previous_sessions))),
-                "first_time" => Some(match self.first_time {
-                    Some(b) => Field::Value(Value::Bool(b)),
-                    None => Field::Value(Value::Nil),
-                }),
+                "first_time" => Some(Field::Value(
+                    self.first_time.map_or(Value::Nil, Value::Bool),
+                )),
                 _ => None,
             }
         }

@@ -69,7 +69,7 @@ fn run_prelude(args: &[String]) -> Result<(), String> {
 
     let ex = exemplar::Exemplar::load();
 
-    let aggregates = ir.get("aggregates").map(Json::each).unwrap_or(&[]);
+    let aggregates = ir.get("aggregates").map_or_default(Json::each);
     for aggregate in aggregates {
         let name = aggregate.get("name").and_then(Json::as_str).unwrap_or("");
         match prelude::aggregate_prelude(&ex, &ir, aggregate, source_label) {
@@ -125,8 +125,7 @@ fn write_domain(
     // Refuse before writing anything, so a name collision is reported before any file exists.
     let aggregate_names: Vec<&str> = ir
         .get("aggregates")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
         .map(|a| a.get("name").and_then(Json::as_str).unwrap_or(""))
         .collect();
@@ -231,8 +230,7 @@ fn run_full(args: &[String]) -> Result<(), String> {
     let mut merged_read_models = target_gen.read_model_defs;
     let mut merged_process_managers: Vec<Json> = target_ir
         .get("process_managers")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .to_vec();
 
     // Policies and process managers merge across chapters; `chapter_irs` keeps each parsed
@@ -277,8 +275,7 @@ fn run_full(args: &[String]) -> Result<(), String> {
         merged_process_managers.extend(
             chapter_ir
                 .get("process_managers")
-                .map(Json::each)
-                .unwrap_or(&[])
+                .map_or_default(Json::each)
                 .to_vec(),
         );
 
@@ -289,13 +286,11 @@ fn run_full(args: &[String]) -> Result<(), String> {
     // One entry per chapter, so its policies qualify against its own domain and aggregates.
     let policies: Vec<Json> = target_ir
         .get("policies")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .to_vec();
     let policy_aggregates: Vec<Json> = target_ir
         .get("aggregates")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .to_vec();
 
     let mut policy_sources: Vec<reactions::PolicySource> = vec![reactions::PolicySource {
@@ -306,8 +301,8 @@ fn run_full(args: &[String]) -> Result<(), String> {
     for (name, ir) in chapter_domain_names.iter().zip(chapter_irs.iter()) {
         policy_sources.push(reactions::PolicySource {
             domain_name: name,
-            policies: ir.get("policies").map(Json::each).unwrap_or(&[]),
-            aggregates: ir.get("aggregates").map(Json::each).unwrap_or(&[]),
+            policies: ir.get("policies").map_or_default(Json::each),
+            aggregates: ir.get("aggregates").map_or_default(Json::each),
         });
     }
 

@@ -26,77 +26,74 @@ pub enum AggregateStep {
 
 impl AggregateStep {
     /// The declared step order, first to last.
-    pub const ORDER: [AggregateStep; 17] = [
-        AggregateStep::DecodeArguments,
-        AggregateStep::RefuseUnknownArguments,
-        AggregateStep::RefuseAbsentArguments,
-        AggregateStep::NormalizeArgs,
-        AggregateStep::RefuseRoleMismatch,
-        AggregateStep::ResolveReferences,
-        AggregateStep::Hydrate,
-        AggregateStep::EnforceGivens,
-        AggregateStep::AdmissibleTransition,
-        AggregateStep::AssignCreationAttributes,
-        AggregateStep::ApplyMutations,
-        AggregateStep::AdvanceLifecycle,
-        AggregateStep::DelegateToEntity,
-        AggregateStep::EnforceEnsures,
-        AggregateStep::EnforceInvariants,
-        AggregateStep::Save,
-        AggregateStep::Emit,
+    pub const ORDER: [Self; 17] = [
+        Self::DecodeArguments,
+        Self::RefuseUnknownArguments,
+        Self::RefuseAbsentArguments,
+        Self::NormalizeArgs,
+        Self::RefuseRoleMismatch,
+        Self::ResolveReferences,
+        Self::Hydrate,
+        Self::EnforceGivens,
+        Self::AdmissibleTransition,
+        Self::AssignCreationAttributes,
+        Self::ApplyMutations,
+        Self::AdvanceLifecycle,
+        Self::DelegateToEntity,
+        Self::EnforceEnsures,
+        Self::EnforceInvariants,
+        Self::Save,
+        Self::Emit,
     ];
 
     /// The row's declared `step`.
-    pub fn step(&self) -> &'static str {
+    pub const fn step(&self) -> &'static str {
         match self {
-            AggregateStep::DecodeArguments => "decode_arguments",
-            AggregateStep::RefuseUnknownArguments => "refuse_unknown_arguments",
-            AggregateStep::RefuseAbsentArguments => "refuse_absent_arguments",
-            AggregateStep::NormalizeArgs => "normalize_args",
-            AggregateStep::RefuseRoleMismatch => "refuse_role_mismatch",
-            AggregateStep::ResolveReferences => "resolve_references",
-            AggregateStep::Hydrate => "hydrate",
-            AggregateStep::EnforceGivens => "enforce_givens",
-            AggregateStep::AdmissibleTransition => "admissible_transition",
-            AggregateStep::AssignCreationAttributes => "assign_creation_attributes",
-            AggregateStep::ApplyMutations => "apply_mutations",
-            AggregateStep::AdvanceLifecycle => "advance_lifecycle",
-            AggregateStep::DelegateToEntity => "delegate_to_entity",
-            AggregateStep::EnforceEnsures => "enforce_ensures",
-            AggregateStep::EnforceInvariants => "enforce_invariants",
-            AggregateStep::Save => "save",
-            AggregateStep::Emit => "emit",
+            Self::DecodeArguments => "decode_arguments",
+            Self::RefuseUnknownArguments => "refuse_unknown_arguments",
+            Self::RefuseAbsentArguments => "refuse_absent_arguments",
+            Self::NormalizeArgs => "normalize_args",
+            Self::RefuseRoleMismatch => "refuse_role_mismatch",
+            Self::ResolveReferences => "resolve_references",
+            Self::Hydrate => "hydrate",
+            Self::EnforceGivens => "enforce_givens",
+            Self::AdmissibleTransition => "admissible_transition",
+            Self::AssignCreationAttributes => "assign_creation_attributes",
+            Self::ApplyMutations => "apply_mutations",
+            Self::AdvanceLifecycle => "advance_lifecycle",
+            Self::DelegateToEntity => "delegate_to_entity",
+            Self::EnforceEnsures => "enforce_ensures",
+            Self::EnforceInvariants => "enforce_invariants",
+            Self::Save => "save",
+            Self::Emit => "emit",
         }
     }
 
     /// The row whose `step` is `name`, if any.
-    pub fn from_name(name: &str) -> Option<AggregateStep> {
-        AggregateStep::ORDER
-            .iter()
-            .copied()
-            .find(|row| row.step() == name)
+    pub fn from_name(name: &str) -> Option<Self> {
+        Self::ORDER.iter().copied().find(|row| row.step() == name)
     }
 
     /// This step's index in `ORDER`.
-    pub fn position(&self) -> usize {
+    pub const fn position(&self) -> usize {
         match self {
-            AggregateStep::DecodeArguments => 0,
-            AggregateStep::RefuseUnknownArguments => 1,
-            AggregateStep::RefuseAbsentArguments => 2,
-            AggregateStep::NormalizeArgs => 3,
-            AggregateStep::RefuseRoleMismatch => 4,
-            AggregateStep::ResolveReferences => 5,
-            AggregateStep::Hydrate => 6,
-            AggregateStep::EnforceGivens => 7,
-            AggregateStep::AdmissibleTransition => 8,
-            AggregateStep::AssignCreationAttributes => 9,
-            AggregateStep::ApplyMutations => 10,
-            AggregateStep::AdvanceLifecycle => 11,
-            AggregateStep::DelegateToEntity => 12,
-            AggregateStep::EnforceEnsures => 13,
-            AggregateStep::EnforceInvariants => 14,
-            AggregateStep::Save => 15,
-            AggregateStep::Emit => 16,
+            Self::DecodeArguments => 0,
+            Self::RefuseUnknownArguments => 1,
+            Self::RefuseAbsentArguments => 2,
+            Self::NormalizeArgs => 3,
+            Self::RefuseRoleMismatch => 4,
+            Self::ResolveReferences => 5,
+            Self::Hydrate => 6,
+            Self::EnforceGivens => 7,
+            Self::AdmissibleTransition => 8,
+            Self::AssignCreationAttributes => 9,
+            Self::ApplyMutations => 10,
+            Self::AdvanceLifecycle => 11,
+            Self::DelegateToEntity => 12,
+            Self::EnforceEnsures => 13,
+            Self::EnforceInvariants => 14,
+            Self::Save => 15,
+            Self::Emit => 16,
         }
     }
 }
@@ -107,7 +104,7 @@ mod tests {
 
     #[test]
     fn every_row_is_found_by_its_own_name() {
-        for row in AggregateStep::ORDER.iter() {
+        for row in &AggregateStep::ORDER {
             assert_eq!(AggregateStep::from_name(row.step()), Some(*row));
         }
     }

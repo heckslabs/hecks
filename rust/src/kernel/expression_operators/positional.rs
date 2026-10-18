@@ -58,32 +58,32 @@ mod tests {
     use super::*;
     use crate::kernel::expr::{Fielded, NoFields};
 
-    fn run(expr: Expr, instance: &dyn Fielded) -> Value {
+    fn run(expr: &Expr, instance: &dyn Fielded) -> Value {
         let ctx = EvalContext {
             args: &NoFields,
             instance,
         };
-        eval(&expr, &ctx).expect("evaluates")
+        eval(expr, &ctx).expect("evaluates")
     }
 
     #[test]
     fn first_and_last_over_an_array_literal() {
         let arr = Expr::Array(vec![Expr::Int(1), Expr::Int(2), Expr::Int(3)]);
         assert_eq!(
-            run(Expr::First(Box::new(arr.clone())), &NoFields),
+            run(&Expr::First(Box::new(arr.clone())), &NoFields),
             Value::Int(1)
         );
-        assert_eq!(run(Expr::Last(Box::new(arr)), &NoFields), Value::Int(3));
+        assert_eq!(run(&Expr::Last(Box::new(arr)), &NoFields), Value::Int(3));
     }
 
     #[test]
     fn first_and_last_over_an_empty_array_literal_answer_nil() {
         let arr = Expr::Array(vec![]);
         assert_eq!(
-            run(Expr::First(Box::new(arr.clone())), &NoFields),
+            run(&Expr::First(Box::new(arr.clone())), &NoFields),
             Value::Nil
         );
-        assert_eq!(run(Expr::Last(Box::new(arr)), &NoFields), Value::Nil);
+        assert_eq!(run(&Expr::Last(Box::new(arr)), &NoFields), Value::Nil);
     }
 
     #[test]
@@ -93,11 +93,11 @@ mod tests {
             separator: "::".to_string(),
         };
         assert_eq!(
-            run(Expr::Last(Box::new(phrase.clone())), &NoFields),
+            run(&Expr::Last(Box::new(phrase.clone())), &NoFields),
             Value::Str("c".to_string())
         );
         assert_eq!(
-            run(Expr::First(Box::new(phrase)), &NoFields),
+            run(&Expr::First(Box::new(phrase)), &NoFields),
             Value::Str("a".to_string())
         );
     }
@@ -125,11 +125,11 @@ mod tests {
             values: vec!["a".to_string(), "b".to_string()],
         };
         assert_eq!(
-            run(Expr::First(Box::new(Expr::Lookup("tags"))), &tags),
+            run(&Expr::First(Box::new(Expr::Lookup("tags"))), &tags),
             Value::Str("a".to_string())
         );
         assert_eq!(
-            run(Expr::Last(Box::new(Expr::Lookup("tags"))), &tags),
+            run(&Expr::Last(Box::new(Expr::Lookup("tags"))), &tags),
             Value::Str("b".to_string())
         );
     }
@@ -138,7 +138,7 @@ mod tests {
     fn first_over_an_empty_field_answers_nil() {
         let tags = Tags { values: vec![] };
         assert_eq!(
-            run(Expr::First(Box::new(Expr::Lookup("tags"))), &tags),
+            run(&Expr::First(Box::new(Expr::Lookup("tags"))), &tags),
             Value::Nil
         );
     }

@@ -41,23 +41,17 @@ pub fn run(
     .unwrap_or_else(|| "Memory".to_string());
     let capable_adapters = lineage_capable_adapter_names(root)?;
 
-    // Collected up front: Rust can't hold this borrow of `ir` alongside the
-    // `&mut` call to `ir.set` below.
-    let aggregate_names: Vec<String> = ir
+    // Collected before `ir.set` below: Rust can't hold this borrow of `ir`
+    // alongside the `&mut` call.
+    let capable_aggregates: Vec<Json> = ir
         .get("aggregates")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or(&[][..], Json::each)
         .iter()
         .filter_map(|a| a.get("name").and_then(Json::as_str).map(str::to_string))
-        .collect();
-
-    let capable_aggregates: Vec<Json> = aggregate_names
-        .into_iter()
         .filter(|name| {
             let adapter_name = binds
                 .get(name.as_str())
-                .map(String::as_str)
-                .unwrap_or(fallback_adapter.as_str());
+                .map_or(fallback_adapter.as_str(), String::as_str);
             capable_adapters.iter().any(|a| a == adapter_name)
         })
         .map(|name| {

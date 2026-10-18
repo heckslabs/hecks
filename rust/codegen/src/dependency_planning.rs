@@ -16,8 +16,7 @@ pub fn complete_state_creation(
     let owner_fields = owner_fields(aggregate);
     let payload_fields: HashSet<String> = command
         .get("attributes")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
         .map(|a| crate::attr::name(a).to_string())
         .collect();
@@ -49,20 +48,19 @@ pub fn state_independent_creation(
     let owner_fields = owner_fields(aggregate);
     let payload_fields: HashSet<String> = command
         .get("attributes")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
         .map(|a| crate::attr::name(a).to_string())
         .collect();
 
     let mut rules: Vec<(&Json, bool)> = Vec::new();
-    for rule in command.get("givens").map(Json::each).unwrap_or(&[]) {
+    for rule in command.get("givens").map_or_default(Json::each) {
         rules.push((rule, true)); // `true` == "before" (a given)
     }
-    for rule in command.get("ensures").map(Json::each).unwrap_or(&[]) {
+    for rule in command.get("ensures").map_or_default(Json::each) {
         rules.push((rule, false));
     }
-    for rule in aggregate.get("invariants").map(Json::each).unwrap_or(&[]) {
+    for rule in aggregate.get("invariants").map_or_default(Json::each) {
         rules.push((rule, false));
     }
 
@@ -75,19 +73,14 @@ pub fn state_independent_creation(
 fn owner_fields(aggregate: &Json) -> HashSet<String> {
     let mut fields: HashSet<String> = aggregate
         .get("attributes")
-        .map(Json::each)
-        .unwrap_or(&[])
+        .map_or_default(Json::each)
         .iter()
         .map(|a| crate::attr::name(a).to_string())
         .collect();
     if let Some(lifecycle) = aggregate.get("lifecycle") {
         fields.insert(lifecycle.get("field").map(Json::to_s).unwrap_or_default());
     }
-    for field in aggregate
-        .get("projected_fields")
-        .map(Json::each)
-        .unwrap_or(&[])
-    {
+    for field in aggregate.get("projected_fields").map_or_default(Json::each) {
         fields.insert(field.get("name").map(Json::to_s).unwrap_or_default());
     }
     fields
@@ -138,7 +131,7 @@ fn known_writes(
     value_objects_by_name: &HashMap<String, &Json>,
 ) -> (HashSet<String>, bool) {
     let mut known = HashSet::new();
-    for attr in aggregate.get("attributes").map(Json::each).unwrap_or(&[]) {
+    for attr in aggregate.get("attributes").map_or_default(Json::each) {
         if deterministic_initial_value(attr, value_objects_by_name) {
             known.insert(crate::attr::name(attr).to_string());
         }
@@ -153,7 +146,7 @@ fn known_writes(
     // A creating command guarded by a lifecycle `from:` state has no prior state to check.
     let mut disqualified = command.get("from").is_some() && aggregate.get("lifecycle").is_some();
 
-    for mutation in command.get("mutations").map(Json::each).unwrap_or(&[]) {
+    for mutation in command.get("mutations").map_or_default(Json::each) {
         let target = mutation.get("target").map(Json::to_s).unwrap_or_default();
         let op = mutation.get("op").map(Json::to_s).unwrap_or_default();
 
@@ -209,15 +202,14 @@ fn deterministic_initial_value(
         return true;
     }
 
-    match value_objects_by_name.get(crate::attr::type_name(attr)) {
-        Some(vo) => vo
-            .get("attributes")
-            .map(Json::each)
-            .unwrap_or(&[])
-            .iter()
-            .all(|field| crate::attr::default(field).is_some()),
-        None => false,
-    }
+    value_objects_by_name
+        .get(crate::attr::type_name(attr))
+        .is_some_and(|vo| {
+            vo.get("attributes")
+                .map_or_default(Json::each)
+                .iter()
+                .all(|field| crate::attr::default(field).is_some())
+        })
 }
 
 // `before` is true for a `given`, false for an `ensures` or invariant.
@@ -242,8 +234,7 @@ fn paths(node: &Json, bound_names: &HashSet<String>) -> Vec<String> {
                     let segments = pairs
                         .iter()
                         .find(|(k, _)| k == "path")
-                        .map(|(_, v)| v.each())
-                        .unwrap_or(&[]);
+                        .map_or_default(|(_, v)| v.each());
                     let root = segments.first().map(Json::to_s).unwrap_or_default();
                     if bound_names.contains(&root) {
                         vec![]
@@ -259,13 +250,11 @@ fn paths(node: &Json, bound_names: &HashSet<String>) -> Vec<String> {
                     let receiver = pairs
                         .iter()
                         .find(|(k, _)| k == "receiver")
-                        .map(|(_, v)| v)
-                        .unwrap_or(&Json::Null);
+                        .map_or(&Json::Null, |(_, v)| v);
                     let predicate = pairs
                         .iter()
                         .find(|(k, _)| k == "predicate")
-                        .map(|(_, v)| v)
-                        .unwrap_or(&Json::Null);
+                        .map_or(&Json::Null, |(_, v)| v);
                     let param = pairs
                         .iter()
                         .find(|(k, _)| k == "param")

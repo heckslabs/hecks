@@ -79,10 +79,9 @@ pub fn schema(domain_ir: &Value, config: &Value) -> Value {
 /// `UiSchema.collection_key` — config's own `key:` if it names one,
 /// else the pluralized snake_case of the aggregate's own name.
 pub fn collection_key(aggregate: &Value, config: &Value) -> String {
-    match dig(config, &["collections", agg_name(aggregate), "key"]).and_then(|v| v.as_str()) {
-        Some(key) => key.to_string(),
-        None => plural(&snake(agg_name(aggregate))),
-    }
+    dig(config, &["collections", agg_name(aggregate), "key"])
+        .and_then(|v| v.as_str())
+        .map_or_else(|| plural(&snake(agg_name(aggregate))), ToString::to_string)
 }
 
 /// Aggregate name -> collection key, for every aggregate in the
@@ -146,10 +145,10 @@ fn build_collection(
         .into_iter()
         .filter(|c| !creates(c))
         .collect();
-    let noun_sing = match agg_cfg.get("noun_sing").and_then(|v| v.as_str()) {
-        Some(noun) => noun.to_string(),
-        None => snake(name).replace('_', " "),
-    };
+    let noun_sing = agg_cfg
+        .get("noun_sing")
+        .and_then(|v| v.as_str())
+        .map_or_else(|| snake(name).replace('_', " "), ToString::to_string);
 
     let fields: Vec<Value> = array(aggregate, "attributes")
         .iter()
@@ -171,10 +170,9 @@ fn build_collection(
     collection.insert("listQuery".to_string(), optional(&agg_cfg, "list_query"));
     collection.insert(
         "stateField".to_string(),
-        match lifecycle(aggregate) {
-            Some(l) => l.get("field").cloned().unwrap_or(Value::Null),
-            None => Value::Null,
-        },
+        lifecycle(aggregate).map_or(Value::Null, |l| {
+            l.get("field").cloned().unwrap_or(Value::Null)
+        }),
     );
     collection.insert("statusLabels".to_string(), state_facet(&state_cfg, "label"));
     collection.insert("statusTone".to_string(), state_facet(&state_cfg, "tone"));
@@ -205,12 +203,11 @@ fn build_collection(
     );
     collection.insert(
         "create".to_string(),
-        match creating {
-            None => Value::Null,
-            Some(command) => build_create(
+        creating.map_or(Value::Null, |command| {
+            build_create(
                 command, aggregate, &agg_cfg, identity, key_for, &formats, &noun_sing,
-            ),
-        },
+            )
+        }),
     );
     Value::Object(collection)
 }
@@ -283,12 +280,11 @@ fn build_columns(
     by_name: &HashMap<&str, &Value>,
     key_for: &KeyFor,
 ) -> Value {
-    let entries = match configured.filter(|v| !v.is_null()) {
-        // A configured empty list is a real answer, not "unconfigured"
-        // — Ruby's `configured || default` only falls through on nil,
-        // and `[]` is truthy there.
-        Some(list) => list.as_array().cloned().unwrap_or_default(),
-        None => {
+    // A configured empty list is a real answer, not "unconfigured"
+    // — Ruby's `configured || default` only falls through on nil,
+    // and `[]` is truthy there.
+    let entries = configured.filter(|v| !v.is_null()).map_or_else(
+        || {
             let mut default: Vec<Value> = fields
                 .iter()
                 .filter(|f| {
@@ -300,8 +296,9 @@ fn build_columns(
                 default.push(json!("__state__"));
             }
             default
-        }
-    };
+        },
+        |list| list.as_array().cloned().unwrap_or_default(),
+    );
     Value::Array(
         entries
             .iter()
@@ -351,14 +348,14 @@ fn column_for(
     let base = find_field(fields, key_name)
         .cloned()
         .unwrap_or_else(|| json!({"key": key, "label": humanize(key_name)}));
-    let shape = match entry.get("as").filter(|v| !v.is_null()) {
-        Some(as_shape) => as_shape.clone(),
-        None => base.get("shape").cloned().unwrap_or(Value::Null),
-    };
-    let label = match entry.get("head").filter(|v| !v.is_null()) {
-        Some(head) => head.clone(),
-        None => base.get("label").cloned().unwrap_or(Value::Null),
-    };
+    let shape = entry.get("as").filter(|v| !v.is_null()).map_or_else(
+        || base.get("shape").cloned().unwrap_or(Value::Null),
+        Value::clone,
+    );
+    let label = entry.get("head").filter(|v| !v.is_null()).map_or_else(
+        || base.get("label").cloned().unwrap_or(Value::Null),
+        Value::clone,
+    );
     let overridden = merge(base, json!({"key": key, "shape": shape, "label": label}));
     merge(overridden, sort)
 }
@@ -373,10 +370,10 @@ fn sort_config(entry: &Value) -> Value {
         Some(value) if !value.is_null() => value.clone(),
         _ => json!(true),
     };
-    let sort_default = match entry.get("sort_default").filter(|v| !v.is_null()) {
-        Some(value) => value.clone(),
-        None => json!("asc"),
-    };
+    let sort_default = entry
+        .get("sort_default")
+        .filter(|v| !v.is_null())
+        .map_or_else(|| json!("asc"), Value::clone);
     json!({"sortable": sortable, "sortDefault": sort_default})
 }
 
@@ -387,13 +384,15 @@ fn build_detail_fields(
     by_name: &HashMap<&str, &Value>,
     key_for: &KeyFor,
 ) -> Value {
-    let entries = match configured.filter(|v| !v.is_null()) {
-        Some(list) => list.as_array().cloned().unwrap_or_default(),
-        None => fields
-            .iter()
-            .map(|f| f.get("key").cloned().unwrap_or(Value::Null))
-            .collect(),
-    };
+    let entries = configured.filter(|v| !v.is_null()).map_or_else(
+        || {
+            fields
+                .iter()
+                .map(|f| f.get("key").cloned().unwrap_or(Value::Null))
+                .collect()
+        },
+        |list| list.as_array().cloned().unwrap_or_default(),
+    );
     Value::Array(
         entries
             .iter()
@@ -415,14 +414,15 @@ fn detail_field_for(
         base = apply_row_state_filter(base, entry, aggregate);
     }
     let shape = base.get("shape").and_then(|v| v.as_str()).unwrap_or("");
-    let display = match entry.get("display").filter(|v| !v.is_null()) {
-        Some(display) => display.clone(),
-        None => json!(DISPLAY_BY_SHAPE
-            .iter()
-            .find(|(s, _)| *s == shape)
-            .map(|(_, d)| *d)
-            .unwrap_or("simple")),
-    };
+    let display = entry.get("display").filter(|v| !v.is_null()).map_or_else(
+        || {
+            json!(DISPLAY_BY_SHAPE
+                .iter()
+                .find(|(s, _)| *s == shape)
+                .map_or("simple", |(_, d)| *d))
+        },
+        Value::clone,
+    );
     merge(base, json!({"display": display}))
 }
 
@@ -455,10 +455,10 @@ fn apply_row_state_filter(base: Value, entry: &Value, aggregate: &Value) -> Valu
     let Some(state_filter) = entry.get("state_filter").filter(|v| !v.is_null()) else {
         return base;
     };
-    let key = match entry.get("field").and_then(|v| v.as_str()) {
-        Some(field) => field,
-        None => entry.as_str().unwrap_or(""),
-    };
+    let key = entry
+        .get("field")
+        .and_then(|v| v.as_str())
+        .map_or_else(|| entry.as_str().unwrap_or(""), |field| field);
     let Some(attribute) = find_attribute(aggregate, key) else {
         return base;
     };
@@ -519,7 +519,7 @@ fn hop_column(
         "label": head.cloned().unwrap_or_else(|| json!(humanize(hop))),
         "through": hop,
         "targetKey": base_field.get("targetKey").cloned().unwrap_or(Value::Null),
-        "hopTargetKey": key_for.get(&hop_target).map(|k| json!(k)).unwrap_or(Value::Null),
+        "hopTargetKey": key_for.get(&hop_target).map_or(Value::Null, |k| json!(k)),
     })
 }
 
@@ -594,9 +594,7 @@ fn build_always_available(
     key_for: &KeyFor,
     formats: &Value,
 ) -> Value {
-    let transitions = lifecycle(aggregate)
-        .map(|l| array(l, "transitions"))
-        .unwrap_or(&[]);
+    let transitions = lifecycle(aggregate).map_or(&[][..], |l| array(l, "transitions"));
     let available: Vec<Value> = others
         .iter()
         .filter(|command| {
@@ -672,17 +670,15 @@ fn build_nav(aggregates: &[&Value], config: &Value, key_for: &KeyFor) -> Value {
             .unwrap_or_else(|| json!({}));
         let nav_group = agg_cfg.get("nav_group").and_then(|v| v.as_str());
         let collection_key = key_for.get(name).cloned().unwrap_or_default();
-        let group_key = nav_group
-            .map(String::from)
-            .unwrap_or_else(|| collection_key.clone());
-        let nav_order = agg_cfg.get("nav_order").and_then(|v| v.as_f64());
+        let group_key = nav_group.map_or_else(|| collection_key.clone(), String::from);
+        let nav_order = agg_cfg.get("nav_order").and_then(serde_json::Value::as_f64);
 
         if !groups.contains_key(&group_key) {
             order.push(group_key.clone());
-            let label = match nav_group {
-                Some(group) => humanize_words(group),
-                None => string_or(&agg_cfg, "label", &humanize_words(name)),
-            };
+            let label = nav_group.map_or_else(
+                || string_or(&agg_cfg, "label", &humanize_words(name)),
+                humanize_words,
+            );
             groups.insert(
                 group_key.clone(),
                 Group {
@@ -694,19 +690,23 @@ fn build_nav(aggregates: &[&Value], config: &Value, key_for: &KeyFor) -> Value {
             );
         }
 
-        let group = groups
-            .get_mut(&group_key)
-            .expect("just inserted if missing");
-        group.collections.push(collection_key);
-        if let Some(nav_order) = nav_order {
-            if nav_order < group.sort.0 {
-                group.sort = (nav_order, index);
+        if let Some(group) = groups.get_mut(&group_key) {
+            group.collections.push(collection_key);
+            if let Some(nav_order) = nav_order {
+                if nav_order < group.sort.0 {
+                    group.sort = (nav_order, index);
+                }
             }
         }
     }
 
     let mut ordered: Vec<&Group> = order.iter().filter_map(|k| groups.get(k)).collect();
-    ordered.sort_by(|a, b| a.sort.partial_cmp(&b.sort).expect("nav_order is never NaN"));
+    // A NaN `nav_order` compares equal, keeping declaration order.
+    ordered.sort_by(|a, b| {
+        a.sort
+            .partial_cmp(&b.sort)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     Value::Array(
         ordered
             .into_iter()
@@ -746,7 +746,7 @@ pub fn field(attribute: &Value, aggregate: &Value, key_for: &KeyFor, formats: &V
     let base = json!({
         "key": name,
         "label": humanize(name),
-        "optional": attribute.get("optional").and_then(|v| v.as_bool()).unwrap_or(false),
+        "optional": attribute.get("optional").and_then(serde_json::Value::as_bool).unwrap_or(false),
     });
 
     // `to_h` merges the reduced identity into `id`; an aggregate whose
@@ -762,7 +762,7 @@ pub fn field(attribute: &Value, aggregate: &Value, key_for: &KeyFor, formats: &V
             json!({
                 "shape": "reference",
                 "target": target,
-                "targetKey": key_for.get(&target).map(|k| json!(k)).unwrap_or(Value::Null),
+                "targetKey": key_for.get(&target).map_or(Value::Null, |k| json!(k)),
             }),
         );
     }
@@ -817,7 +817,7 @@ fn primitive_shape(ty: &str, format: Option<Value>) -> Value {
 
 fn enum_shape(value_object: &Value) -> Value {
     let attributes = array(value_object, "attributes");
-    let discriminant = attributes.first().map(attr_name).unwrap_or("value");
+    let discriminant = attributes.first().map_or("value", attr_name);
     let options: Vec<Value> = array(value_object, "members")
         .iter()
         .filter_map(|member| {
@@ -851,12 +851,10 @@ fn scalar_vo_shape(
 }
 
 fn list_shape(value_object: &Value, aggregate: &Value, key_for: &KeyFor, formats: &Value) -> Value {
-    match sole_attribute(value_object) {
-        Some(sole) => json!({"shape": "lines", "field": attr_name(sole)}),
-        None => {
-            json!({"shape": "rows", "columns": row_columns(value_object, aggregate, key_for, formats)})
-        }
-    }
+    sole_attribute(value_object).map_or_else(
+        || json!({"shape": "rows", "columns": row_columns(value_object, aggregate, key_for, formats)}),
+        |sole| json!({"shape": "lines", "field": attr_name(sole)}),
+    )
 }
 
 /// A row lays a value object's attributes across a table's width; a
@@ -925,8 +923,7 @@ pub(crate) fn array<'a>(value: &'a Value, field: &str) -> &'a [Value] {
     value
         .get(field)
         .and_then(|v| v.as_array())
-        .map(|a| a.as_slice())
-        .unwrap_or(&[])
+        .map_or(&[][..], std::vec::Vec::as_slice)
 }
 
 pub fn commands(aggregate: &Value) -> Vec<&Value> {
@@ -938,8 +935,7 @@ pub fn commands(aggregate: &Value) -> Vec<&Value> {
 pub fn creates(command: &Value) -> bool {
     command
         .get("references")
-        .map(|r| r.is_null())
-        .unwrap_or(true)
+        .is_none_or(serde_json::Value::is_null)
 }
 
 fn lifecycle(aggregate: &Value) -> Option<&Value> {
@@ -985,7 +981,7 @@ pub(crate) fn is_reference(attribute: &Value) -> bool {
 pub(crate) fn is_list(attribute: &Value) -> bool {
     attribute
         .get("list")
-        .and_then(|v| v.as_bool())
+        .and_then(serde_json::Value::as_bool)
         .unwrap_or(false)
 }
 
@@ -1031,7 +1027,7 @@ fn dig<'a>(config: &'a Value, path: &[&str]) -> Option<&'a Value> {
     (!node.is_null()).then_some(node)
 }
 
-fn truthy(value: Option<&Value>) -> bool {
+const fn truthy(value: Option<&Value>) -> bool {
     match value {
         None | Some(Value::Null) => false,
         Some(Value::Bool(b)) => *b,
@@ -1047,8 +1043,7 @@ fn string_or(config: &Value, key: &str, fallback: &str) -> String {
     config
         .get(key)
         .and_then(|v| v.as_str())
-        .map(String::from)
-        .unwrap_or_else(|| fallback.to_string())
+        .map_or_else(|| fallback.to_string(), String::from)
 }
 
 /// Ruby's `Hash#merge` semantics: an existing key keeps its position,
@@ -1066,14 +1061,16 @@ fn merge(base: Value, extra: Value) -> Value {
     Value::Object(out)
 }
 
-static SNAKE_ACRONYM: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"([A-Z]+)([A-Z][a-z])").expect("a literal pattern must compile"));
-static SNAKE_BOUNDARY: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"([a-z\d])([A-Z])").expect("a literal pattern must compile"));
-static PLURAL_Y: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"[^aeiou]y$").expect("a literal pattern must compile"));
-static PLURAL_ES: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(s|x|z|ch|sh)$").expect("a literal pattern must compile"));
+/// Compiles a pattern written as a literal in this file.
+#[allow(clippy::expect_used)] // reason: every caller passes a literal verified by the specs
+fn literal_regex(pattern: &str) -> Regex {
+    Regex::new(pattern).expect("a literal pattern must compile")
+}
+
+static SNAKE_ACRONYM: LazyLock<Regex> = LazyLock::new(|| literal_regex(r"([A-Z]+)([A-Z][a-z])"));
+static SNAKE_BOUNDARY: LazyLock<Regex> = LazyLock::new(|| literal_regex(r"([a-z\d])([A-Z])"));
+static PLURAL_Y: LazyLock<Regex> = LazyLock::new(|| literal_regex(r"[^aeiou]y$"));
+static PLURAL_ES: LazyLock<Regex> = LazyLock::new(|| literal_regex(r"(s|x|z|ch|sh)$"));
 
 /// `Naming.snake` — the same two word-boundary substitutions, then
 /// downcase.
@@ -1110,10 +1107,9 @@ fn humanize_words(text: &str) -> String {
         .into_iter()
         .map(|word| {
             let mut chars = word.chars();
-            match chars.next() {
-                Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
-                None => String::new(),
-            }
+            chars.next().map_or_else(String::new, |first| {
+                first.to_uppercase().collect::<String>() + chars.as_str()
+            })
         })
         .collect::<Vec<String>>()
         .join(" ")
@@ -1688,7 +1684,7 @@ mod tests {
 
     // Two aggregates: `Site` declares the value objects, `Deployment` types
     // attributes by them without declaring any of its own.
-    fn shared_domain(extra_deployment_vos: Value) -> Value {
+    fn shared_domain(extra_deployment_vos: &Value) -> Value {
         let vo = |name: &str, attrs: Value| json!({"name": name, "attributes": attrs, "closed_set": false, "members": []});
         json!({
             "name": "Fleet",
@@ -1730,7 +1726,7 @@ mod tests {
 
     #[test]
     fn a_one_attribute_value_object_another_aggregate_declares_keeps_its_wrapped_field() {
-        let schema = build(&shared_domain(json!([])), &json!({}));
+        let schema = build(&shared_domain(&json!([])), &json!({}));
         assert_eq!(
             deployment_field(&schema, "site_key"),
             json!({"key": "site_key", "label": "Site Key", "optional": false, "shape": "text_value", "field": "value"})
@@ -1743,7 +1739,7 @@ mod tests {
     #[test]
     fn compound_money_and_enum_value_objects_resolve_the_same_when_another_aggregate_declares_them()
     {
-        let schema = build(&shared_domain(json!([])), &json!({}));
+        let schema = build(&shared_domain(&json!([])), &json!({}));
         assert_eq!(deployment_field(&schema, "window")["shape"], "compound");
         assert_eq!(
             deployment_field(&schema, "window")["fields"]
@@ -1770,11 +1766,11 @@ mod tests {
     fn a_name_two_aggregates_declare_resolves_to_the_owner_then_the_first_declared() {
         // The owner's own `SiteKey` (attribute `text`) shadows Site's.
         let own = json!([{"name": "SiteKey", "attributes": [{"name": "text", "type": "String"}], "closed_set": false, "members": []}]);
-        let schema = build(&shared_domain(own), &json!({}));
+        let schema = build(&shared_domain(&own), &json!({}));
         assert_eq!(deployment_field(&schema, "site_key")["field"], "text");
 
         // Two other aggregates declaring one name: the earlier one wins.
-        let mut domain = shared_domain(json!([]));
+        let mut domain = shared_domain(&json!([]));
         domain["aggregates"].as_array_mut().unwrap().push(json!({
             "name": "Probe", "identified_by": ["id"],
             "attributes": [{"name": "site_key", "type": "SiteKey", "list": false, "optional": false}],
