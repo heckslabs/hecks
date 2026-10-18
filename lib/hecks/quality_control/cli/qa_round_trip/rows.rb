@@ -47,15 +47,22 @@ module Hecks
         # @return [Boolean] true for an Array of Hashes
         def entity_list?(value) = value.is_a?(Array) && value.all?(Hash)
 
-        # Sorts a list of entities by the first identity field every one of them carries.
+        # Sorts a list of entities by the first identity field every one of them carries: numbers
+        # by value, before any other identity, which sorts as text.
         #
         # @param list [Array<Hash>] the entities
         # @param heads [Array<String>] the domain's entity identity fields
         # @return [Array<Hash>] the list, sorted when an identity field fits it
         def sorted_list(list, heads)
           head = heads.find { |name| list.all? { |entity| entity.key?(name) } }
-          head ? list.sort_by { |entity| entity[head].to_s } : list
+          head ? list.sort_by { |entity| identity_order(entity[head]) } : list
         end
+
+        # How one identity sorts: a number by its value, anything else after numbers, as text.
+        #
+        # @param identity [Object] an entity's identity value
+        # @return [Array(Integer, Object)] the sort key
+        def identity_order(identity) = identity.is_a?(Numeric) ? [0, identity] : [1, identity.to_s]
 
         # The identity fields of every entity the domain declares.
         #

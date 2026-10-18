@@ -81,6 +81,13 @@ RSpec.describe Hecks::QualityControlCli::QaRoundTrip do
     expect(comparison.report).to include("accepted_vs_refused: 1")
   end
 
+  it "sorts a list of entities by identity, numbers by value" do
+    record = { "lines" => [{ "sequence" => 10 }, { "sequence" => 2 }, { "sequence" => 1 }] }
+    ir = { aggregates: [{ entities: [{ identified_by: ["sequence.value"] }] }] }
+    sorted = described_class::Rows.sorted_entities(record, ir)
+    expect(sorted["lines"].map { |line| line["sequence"] }).to eq([1, 2, 10])
+  end
+
   it "reports which commands the battery never refused or never accepted" do
     expect(bench.coverage_report).to match(/\Acoverage/)
   end
