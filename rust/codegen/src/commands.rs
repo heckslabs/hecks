@@ -538,14 +538,6 @@ fn command_skip_reason_with(
     None
 }
 
-pub fn optional_source_mismatches(
-    command: &Json,
-    aggregate: &Json,
-    value_objects_by_name: &HashMap<String, &Json>,
-) -> Vec<String> {
-    optional_source_mismatches_with(command, aggregate, value_objects_by_name, true)
-}
-
 fn optional_source_mismatches_with(
     command: &Json,
     aggregate: &Json,

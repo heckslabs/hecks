@@ -78,7 +78,6 @@ pub struct NestedEntityCommandEntry {
     pub args_struct: String,
     pub reference_checks: Vec<ReferenceCheck>,
     pub reference_specs: Vec<ReferenceSpec>,
-    pub attributes: Vec<String>,
     pub invariant_check_lines: Vec<String>,
     pub role: Option<String>,
     pub entity_name: String,
@@ -92,7 +91,6 @@ pub struct NestedEntityCommandEntry {
 
 pub struct PortEntry {
     pub verb: String,
-    pub name: String,
     pub fn_name: String,
     pub args_struct: String,
     pub reference_checks: Vec<ReferenceCheck>,
@@ -886,7 +884,6 @@ mod tests {
             nested_entity_commands: Vec::new(),
             ports: vec![PortEntry {
                 verb: "Banking::SafeDepositBox.PaymentGateway.Receive".to_string(),
-                name: "Receive".to_string(),
                 fn_name: "paymentgateway_receive".to_string(),
                 args_struct: "PaymentGatewayReceiveArgs".to_string(),
                 reference_checks: Vec::new(),
