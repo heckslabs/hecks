@@ -1,3 +1,4 @@
+require_relative "../naming"
 require_relative "../projector"
 require_relative "../runtime/refusal_wording"
 require_relative "vocabulary"
@@ -133,13 +134,11 @@ module Hecks
       def accessor_name(field) = field == "refusal" ? "refusal_class" : field
 
       def variant_name(row, fields)
-        name = fields.map { |field| pascal(row.fetch(field)) }.join
+        name = fields.map { |field| Naming.pascal(row.fetch(field)) }.join
         raise ArgumentError, "#{name.inspect} is not a Rust variant name" unless name.match?(/\A[A-Z][A-Za-z0-9]*\z/)
 
         name
       end
-
-      def pascal(text) = text.to_s.split("_").map { |part| part[0].to_s.upcase + part[1..].to_s }.join
 
       # Only `\`, `"` and newlines need escaping in the text a vocabulary row holds.
       def rust_string(text)

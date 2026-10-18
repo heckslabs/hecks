@@ -102,6 +102,19 @@ module Hecks
         end
       end
 
+      # Converts every Hash key to a Symbol, at every depth of parsed JSON.
+      #
+      # @param value [Hash, Array, Object] a Hash or Array is walked; any other value is a leaf
+      # @return [Hash{Symbol => Object}, Array, Object] a new structure of the same shape with
+      #   Symbol keys; a leaf is returned as it came
+      def self.deep_symbolize(value)
+        case value
+        when Hash then value.to_h { |key, item| [key.to_sym, deep_symbolize(item)] }
+        when Array then value.map { |item| deep_symbolize(item) }
+        else value
+        end
+      end
+
       # `materialize`, but a single-attribute value object unwraps to its bare field.
       # Opt-in for `group_by` rows; `materialize` keeps the wrapped shape callers depend on.
       #

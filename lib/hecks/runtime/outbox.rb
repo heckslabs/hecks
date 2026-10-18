@@ -2,6 +2,7 @@ require "json"
 require "securerandom"
 require "time"
 require_relative "event"
+require_relative "value"
 require_relative "../naming"
 
 module Hecks
@@ -48,18 +49,10 @@ module Hecks
           name:        hash[:name],
           aggregate:   hash[:aggregate],
           id:          hash[:id],
-          payload:     deep_symbolize(hash[:payload] || {}),
+          payload:     Value.deep_symbolize(hash[:payload] || {}),
           occurred_at: hash[:occurred_at],
           correlation: hash[:correlation]
         ).emit!
-      end
-
-      def deep_symbolize(value)
-        case value
-        when Hash  then value.to_h { |k, v| [k.to_sym, deep_symbolize(v)] }
-        when Array then value.map { |element| deep_symbolize(element) }
-        else value
-        end
       end
     end
   end
