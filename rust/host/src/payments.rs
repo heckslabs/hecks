@@ -6,7 +6,7 @@ use crate::checkout::STRIPE_API_VERSION;
 use crate::dispatch;
 use crate::journal::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
-use crate::web::{instances_for, last_refusal, respond};
+use crate::web::{instances_for, json_error, last_refusal, respond};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::path::Path;
@@ -344,14 +344,6 @@ pub fn owns(method: &str, path: &str) -> bool {
                     | "/payments/connection/enable"
                     | "/payments/connection/disable"
             )
-    )
-}
-
-fn json_error(status: u16, message: &str) -> Value {
-    respond(
-        status,
-        "application/json",
-        &json!({"error": message}).to_string(),
     )
 }
 

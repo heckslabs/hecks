@@ -1,6 +1,7 @@
 //! Stripe checkout and webhook mechanics for the registration routes: HMAC
 //! signature verification, an embedded Checkout Session, and a mock session.
 
+use crate::crypto::{constant_time_eq, hex_encode};
 use hmac::{Hmac, Mac};
 use serde_json::Value;
 use sha2::Sha256;
@@ -73,26 +74,6 @@ pub fn verify_signature(
                 .to_string(),
         ))
     }
-}
-
-fn hex_encode(bytes: &[u8]) -> String {
-    use std::fmt::Write;
-    bytes.iter().fold(String::new(), |mut out, b| {
-        let _ = write!(out, "{b:02x}"); // writing to a String cannot fail
-        out
-    })
-}
-
-// A bare `==` short-circuits at the first differing byte, opening a timing
-// side-channel on the signature comparison, so this compares every byte.
-fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
-    if a.len() != b.len() {
-        return false;
-    }
-    a.iter()
-        .zip(b.iter())
-        .fold(0u8, |acc, (x, y)| acc | (x ^ y))
-        == 0
 }
 
 // Encodes success_url/cancel_url as query params, matching the Ruby local

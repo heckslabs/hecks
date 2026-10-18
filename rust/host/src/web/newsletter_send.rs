@@ -1,4 +1,6 @@
-use super::{active_session_email, instances_for, last_refusal, percent_decode, respond};
+use super::{
+    active_session_email, instances_for, json_error, last_refusal, percent_decode, respond,
+};
 use crate::auth;
 use crate::commerce_ir::{
     newsletter_issues_provider, newsletter_provider, NewsletterIssuesProvider, NewsletterProvider,
@@ -89,14 +91,6 @@ pub(super) async fn issue_route(
         }
         IssueAction::SendTest => send_test(raw_body, &mailer, secret).await,
     })
-}
-
-fn json_error(status: u16, message: &str) -> Value {
-    respond(
-        status,
-        "application/json",
-        &json!({ "error": message }).to_string(),
-    )
 }
 
 // Every email carries a signed unsubscribe link, so nothing may go out (or

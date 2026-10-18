@@ -1,6 +1,7 @@
 //! Google sign-in and stateless sessions: OAuth, ID-token verification
 //! against Google's real JWKS, and HMAC-signed session/account cookies.
 
+use crate::crypto::{constant_time_eq, hex_encode};
 use crate::dispatch;
 use crate::journal;
 use crate::journal::LineageConfig;
@@ -1121,20 +1122,6 @@ fn verify_sig(secret: &str, token: &str) -> Option<String> {
     } else {
         None
     }
-}
-
-/// Compares two signatures without stopping at the first differing byte, so how long a forged
-/// cookie takes to refuse does not tell the caller how many leading characters were right.
-fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
-    a.len() == b.len() && a.iter().zip(b).fold(0u8, |diff, (x, y)| diff | (x ^ y)) == 0
-}
-
-fn hex_encode(bytes: &[u8]) -> String {
-    use std::fmt::Write;
-    bytes.iter().fold(String::new(), |mut out, b| {
-        let _ = write!(out, "{b:02x}"); // writing to a String cannot fail
-        out
-    })
 }
 
 const B64: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
