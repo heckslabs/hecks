@@ -76,12 +76,21 @@ pub async fn route(
                 ("GET", [collection]) => {
                     collection_index(domain_ir, collection, query, client, wasm_path, config).await
                 }
-                ("GET", [collection, id]) => record_show(domain_ir, collection, id, client, wasm_path, config).await,
+                ("GET", [collection, id]) => {
+                    record_show(domain_ir, collection, id, client, wasm_path, config).await
+                }
                 ("POST", [collection]) => {
-                    collection_create(domain_ir, collection, raw_body, client, wasm_path, config, invoker).await
+                    collection_create(
+                        domain_ir, collection, raw_body, client, wasm_path, config, invoker,
+                    )
+                    .await
                 }
                 ("POST", [collection, id, command]) => {
-                    command_route(domain_ir, collection, id, command, raw_body, client, wasm_path, config, invoker).await
+                    command_route(
+                        domain_ir, collection, id, command, raw_body, client, wasm_path, config,
+                        invoker,
+                    )
+                    .await
                 }
                 _ => not_found(&format!("no API route for {method} {path}")),
             }
@@ -109,7 +118,10 @@ async fn collection_index(
         Err(refusal) => return refusal,
     };
 
-    let wanted = params.get("query").map(String::as_str).filter(|name| !name.is_empty());
+    let wanted = params
+        .get("query")
+        .map(String::as_str)
+        .filter(|name| !name.is_empty());
     let named = wanted.and_then(|name| find_query(aggregate, name));
     if let Some(named) = named {
         if let Some(args) = query_args_from_params(aggregate, named, params) {
@@ -121,8 +133,16 @@ async fn collection_index(
         Ok(records) => records,
         Err(refusal) => return refusal,
     };
-    sort_records(&mut records, &resolve_sort(domain_ir, &config, collection, aggregate, params));
-    ok(&Value::Array(records.into_iter().map(|(id, state)| with_id(&id, &state)).collect()))
+    sort_records(
+        &mut records,
+        &resolve_sort(domain_ir, &config, collection, aggregate, params),
+    );
+    ok(&Value::Array(
+        records
+            .into_iter()
+            .map(|(id, state)| with_id(&id, &state))
+            .collect(),
+    ))
 }
 
 /// `GET /api/:coll/:id` — one record's full state, or the Ruby
@@ -149,14 +169,22 @@ async fn record_show(
     };
     match records.into_iter().find(|(record_id, _)| record_id == id) {
         Some((record_id, state)) => ok(&with_id(&record_id, &state)),
-        None => not_found(&format!("no {} found for id {:?}", ui_schema::agg_name(aggregate), id)),
+        None => not_found(&format!(
+            "no {} found for id {:?}",
+            ui_schema::agg_name(aggregate),
+            id
+        )),
     }
 }
 
 /// A collection key is presentation, not domain (`collections.<Name>.key`
 /// can rename it), so this resolves through the same `collection_key`
 /// `/api/ui-schema` hands the client, regardless of lifecycle.
-fn resolve_collection<'a>(domain_ir: &'a Value, config: &Value, collection: &str) -> Result<&'a Value, Value> {
+fn resolve_collection<'a>(
+    domain_ir: &'a Value,
+    config: &Value,
+    collection: &str,
+) -> Result<&'a Value, Value> {
     ui_schema::aggregates(domain_ir)
         .into_iter()
         .find(|aggregate| ui_schema::collection_key(aggregate, config) == collection)
@@ -179,7 +207,9 @@ async fn read_records(
     client: &Mutex<Client>,
     wasm_path: &Path,
 ) -> Result<Vec<(String, Value)>, Value> {
-    let result = dispatch::read(client, wasm_path).await.map_err(|e| internal_error(&format!("{e:#}")))?;
+    let result = dispatch::read(client, wasm_path)
+        .await
+        .map_err(|e| internal_error(&format!("{e:#}")))?;
     let prefix = format!(
         "{}::{}#",
         domain_ir.get("name").and_then(|v| v.as_str()).unwrap_or(""),
@@ -191,7 +221,10 @@ async fn read_records(
         .map(|instances| {
             instances
                 .iter()
-                .filter_map(|(key, state)| key.strip_prefix(&prefix).map(|id| (id.to_string(), state.clone())))
+                .filter_map(|(key, state)| {
+                    key.strip_prefix(&prefix)
+                        .map(|id| (id.to_string(), state.clone()))
+                })
                 .collect()
         })
         .unwrap_or_default())
@@ -225,7 +258,11 @@ async fn named_query_rows(
         Ok(result) => result,
         Err(e) => return internal_error(&format!("{e:#}")),
     };
-    let answered = result.get("queries").and_then(|v| v.as_array()).and_then(|queries| queries.first()).cloned();
+    let answered = result
+        .get("queries")
+        .and_then(|v| v.as_array())
+        .and_then(|queries| queries.first())
+        .cloned();
     let Some(answered) = answered else {
         return internal_error(&format!("the kernel answered no query step for {question}"));
     };
@@ -240,13 +277,21 @@ async fn named_query_rows(
 
 /// Same-named params, shaped per argument (bare for a reference/primitive,
 /// wrapped for a value object). `None` the moment a required one is missing.
-fn query_args_from_params(aggregate: &Value, named: &Value, params: &HashMap<String, String>) -> Option<Value> {
+fn query_args_from_params(
+    aggregate: &Value,
+    named: &Value,
+    params: &HashMap<String, String>,
+) -> Option<Value> {
     let mut args = Map::new();
     for attribute in named.get("attributes").and_then(|v| v.as_array())? {
         let name = attribute.get("name").and_then(|v| v.as_str()).unwrap_or("");
         let raw = params.get(name).filter(|value| !value.is_empty());
         let Some(raw) = raw else {
-            if attribute.get("optional").and_then(|v| v.as_bool()).unwrap_or(false) {
+            if attribute
+                .get("optional")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false)
+            {
                 continue;
             }
             return None;
@@ -272,7 +317,10 @@ fn value_object_field(aggregate: &Value, type_name: &str) -> Option<String> {
         .and_then(|v| v.as_array())?
         .iter()
         .find(|v| v.get("name").and_then(|n| n.as_str()) == Some(type_name))?;
-    let first = value_object.get("attributes").and_then(|v| v.as_array())?.first()?;
+    let first = value_object
+        .get("attributes")
+        .and_then(|v| v.as_array())?
+        .first()?;
     first.get("name").and_then(|v| v.as_str()).map(String::from)
 }
 
@@ -305,7 +353,10 @@ async fn collection_create(
         Err(refusal) => return refusal,
     };
     let name = ui_schema::agg_name(aggregate);
-    let Some(creating) = ui_schema::commands(aggregate).into_iter().find(|c| ui_schema::creates(c)) else {
+    let Some(creating) = ui_schema::commands(aggregate)
+        .into_iter()
+        .find(|c| ui_schema::creates(c))
+    else {
         return not_found(&format!("{name} declares no creating command"));
     };
 
@@ -316,15 +367,29 @@ async fn collection_create(
     if let Err(refusal) = apply_identity(&presentation, aggregate, &mut args, records.len()) {
         return refusal;
     }
-    if let Err(refusal) = check_preconditions(domain_ir, &presentation, aggregate, &args, client, wasm_path).await {
+    if let Err(refusal) = check_preconditions(
+        domain_ir,
+        &presentation,
+        aggregate,
+        &args,
+        client,
+        wasm_path,
+    )
+    .await
+    {
         return refusal;
     }
 
-    let verb = format!("{}::{name}.{}", domain_name(domain_ir), command_name(creating));
-    let outcome = match dispatch::handle_facts(client, wasm_path, &verb, args, None, config, invoker).await {
-        Ok(outcome) => outcome,
-        Err(e) => return internal_error(&format!("{e:#}")),
-    };
+    let verb = format!(
+        "{}::{name}.{}",
+        domain_name(domain_ir),
+        command_name(creating)
+    );
+    let outcome =
+        match dispatch::handle_facts(client, wasm_path, &verb, args, None, config, invoker).await {
+            Ok(outcome) => outcome,
+            Err(e) => return internal_error(&format!("{e:#}")),
+        };
     if !outcome.accepted {
         return domain_refusal(&outcome.result);
     }
@@ -374,8 +439,23 @@ async fn command_route(
         Err(refusal) => return refusal,
     };
 
-    let verb = format!("{}::{name}.{}", domain_name(domain_ir), command_name(declared));
-    let outcome = match dispatch::handle_routed(client, wasm_path, &verb, json!(id), args, None, config, invoker).await {
+    let verb = format!(
+        "{}::{name}.{}",
+        domain_name(domain_ir),
+        command_name(declared)
+    );
+    let outcome = match dispatch::handle_routed(
+        client,
+        wasm_path,
+        &verb,
+        json!(id),
+        args,
+        None,
+        config,
+        invoker,
+    )
+    .await
+    {
         Ok(outcome) => outcome,
         Err(e) => return internal_error(&format!("{e:#}")),
     };
@@ -412,7 +492,11 @@ fn parsed_body(raw: &str) -> Result<Value, Value> {
     }
     match serde_json::from_str::<Value>(raw) {
         Ok(Value::Object(body)) => Ok(Value::Object(body)),
-        _ => Err(refusal(400, "MalformedBody", "request body is not valid JSON")),
+        _ => Err(refusal(
+            400,
+            "MalformedBody",
+            "request body is not valid JSON",
+        )),
     }
 }
 
@@ -432,12 +516,21 @@ fn created_id(result: &Value) -> Option<String> {
 /// The record as it stands after the command, read straight out of the
 /// kernel's post-dispatch `instances` rather than re-reading the journal.
 fn created_record(domain_ir: &Value, aggregate: &Value, result: &Value, id: &str) -> Value {
-    let key = format!("{}::{}#{id}", domain_name(domain_ir), ui_schema::agg_name(aggregate));
-    match result.get("instances").and_then(|instances| instances.get(&key)) {
+    let key = format!(
+        "{}::{}#{id}",
+        domain_name(domain_ir),
+        ui_schema::agg_name(aggregate)
+    );
+    match result
+        .get("instances")
+        .and_then(|instances| instances.get(&key))
+    {
         Some(state) => ok(&with_id(id, state)),
         // Accepted, but this host cannot see the record it just wrote
         // — a real inconsistency, never a 200 with an empty body.
-        None => internal_error(&format!("{key} was accepted but is not in the resulting state")),
+        None => internal_error(&format!(
+            "{key} was accepted but is not in the resulting state"
+        )),
     }
 }
 
@@ -446,12 +539,21 @@ fn created_record(domain_ir: &Value, aggregate: &Value, result: &Value, id: &str
 /// replays the whole rehydrated history, and every earlier step already
 /// succeeded once.
 fn domain_refusal(result: &Value) -> Value {
-    let last = result.get("refusals").and_then(|r| r.as_array()).and_then(|refusals| refusals.last());
-    let Some(last) = last else { return refusal(422, "Refused", "the command was refused") };
+    let last = result
+        .get("refusals")
+        .and_then(|r| r.as_array())
+        .and_then(|refusals| refusals.last());
+    let Some(last) = last else {
+        return refusal(422, "Refused", "the command was refused");
+    };
     refusal(
         422,
-        last.get("kind").and_then(|v| v.as_str()).unwrap_or("Refused"),
-        last.get("error").and_then(|v| v.as_str()).unwrap_or("the command was refused"),
+        last.get("kind")
+            .and_then(|v| v.as_str())
+            .unwrap_or("Refused"),
+        last.get("error")
+            .and_then(|v| v.as_str())
+            .unwrap_or("the command was refused"),
     )
 }
 
@@ -461,16 +563,29 @@ fn domain_refusal(result: &Value) -> Value {
 /// derives it from another submitted field, `sequence` pads the next
 /// count. Only fires when the field is genuinely missing; a caller that
 /// supplies one is left alone.
-fn apply_identity(presentation: &Value, aggregate: &Value, args: &mut Value, existing: usize) -> Result<(), Value> {
+fn apply_identity(
+    presentation: &Value,
+    aggregate: &Value,
+    args: &mut Value,
+    existing: usize,
+) -> Result<(), Value> {
     let name = ui_schema::agg_name(aggregate);
-    let Some(rule) = presentation.get("collections").and_then(|c| c.get(name)).and_then(|c| c.get("identity")) else {
+    let Some(rule) = presentation
+        .get("collections")
+        .and_then(|c| c.get(name))
+        .and_then(|c| c.get("identity"))
+    else {
         return Ok(());
     };
-    let Some(field) = rule.get("field").and_then(|v| v.as_str()) else { return Ok(()) };
+    let Some(field) = rule.get("field").and_then(|v| v.as_str()) else {
+        return Ok(());
+    };
     if args.get(field).is_some() {
         return Ok(());
     }
-    let Some(wire_key) = identity_wire_key(aggregate, field) else { return Ok(()) };
+    let Some(wire_key) = identity_wire_key(aggregate, field) else {
+        return Ok(());
+    };
 
     let minted = match rule.get("strategy").and_then(|v| v.as_str()) {
         Some("slug") => {
@@ -497,7 +612,9 @@ fn apply_identity(presentation: &Value, aggregate: &Value, args: &mut Value, exi
         }
         _ => None,
     };
-    let Some(minted) = minted.filter(|value| !value.is_empty()) else { return Ok(()) };
+    let Some(minted) = minted.filter(|value| !value.is_empty()) else {
+        return Ok(());
+    };
     if let Some(object) = args.as_object_mut() {
         object.insert(field.to_string(), json!({ wire_key: minted }));
     }
@@ -521,7 +638,11 @@ fn identity_wire_key(aggregate: &Value, field: &str) -> Option<String> {
 
 fn dig_source(args: &Value, source: &str) -> String {
     match args.get(source) {
-        Some(Value::Object(fields)) => fields.values().next().map(scalar_to_string).unwrap_or_default(),
+        Some(Value::Object(fields)) => fields
+            .values()
+            .next()
+            .map(scalar_to_string)
+            .unwrap_or_default(),
         Some(value) => scalar_to_string(value),
         None => String::new(),
     }
@@ -580,8 +701,13 @@ async fn check_preconditions(
         return Ok(());
     }
 
-    let instances = dispatch::read(client, wasm_path).await.map_err(|e| internal_error(&format!("{e:#}")))?;
-    let instances = instances.get("instances").cloned().unwrap_or_else(|| json!({}));
+    let instances = dispatch::read(client, wasm_path)
+        .await
+        .map_err(|e| internal_error(&format!("{e:#}")))?;
+    let instances = instances
+        .get("instances")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
 
     for rule in &rules {
         check_precondition(domain_ir, aggregate, rule, args, &instances)?;
@@ -589,11 +715,21 @@ async fn check_preconditions(
     Ok(())
 }
 
-fn check_precondition(domain_ir: &Value, aggregate: &Value, rule: &Value, args: &Value, instances: &Value) -> Result<(), Value> {
-    let Some(field) = rule.get("field").and_then(|v| v.as_str()) else { return Ok(()) };
+fn check_precondition(
+    domain_ir: &Value,
+    aggregate: &Value,
+    rule: &Value,
+    args: &Value,
+    instances: &Value,
+) -> Result<(), Value> {
+    let Some(field) = rule.get("field").and_then(|v| v.as_str()) else {
+        return Ok(());
+    };
     // A missing required reference is the command's own validation to
     // refuse, not this one's.
-    let Some(target_id) = args.get(field).and_then(|v| v.as_str()) else { return Ok(()) };
+    let Some(target_id) = args.get(field).and_then(|v| v.as_str()) else {
+        return Ok(());
+    };
     // Config named a field that isn't a reference at all — caught at
     // save time by the console's own validation, not at dispatch time.
     let Some(target_name) = ui_schema::find_attribute(aggregate, field)
@@ -612,8 +748,12 @@ fn check_precondition(domain_ir: &Value, aggregate: &Value, rule: &Value, args: 
         ));
     };
 
-    let Some(expected) = rule.get("state").and_then(|v| v.as_str()) else { return Ok(()) };
-    let target_aggregate = ui_schema::aggregates(domain_ir).into_iter().find(|a| ui_schema::agg_name(a) == target_name);
+    let Some(expected) = rule.get("state").and_then(|v| v.as_str()) else {
+        return Ok(());
+    };
+    let target_aggregate = ui_schema::aggregates(domain_ir)
+        .into_iter()
+        .find(|a| ui_schema::agg_name(a) == target_name);
     // Config named a state precondition against an aggregate with no
     // lifecycle — again a save-time concern, not a dispatch-time one.
     let Some(state_field) = target_aggregate
@@ -624,22 +764,42 @@ fn check_precondition(domain_ir: &Value, aggregate: &Value, rule: &Value, args: 
         return Ok(());
     };
 
-    let actual = target.get(&state_field).and_then(|v| v.as_str()).unwrap_or("");
+    let actual = target
+        .get(&state_field)
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
     if actual == expected {
         return Ok(());
     }
-    Err(precondition_failed(rule, &format!("{target_name} is at {actual}, not {expected}")))
+    Err(precondition_failed(
+        rule,
+        &format!("{target_name} is at {actual}, not {expected}"),
+    ))
 }
 
 fn precondition_failed(rule: &Value, derived: &str) -> Value {
-    refusal(422, "PreconditionFailed", rule.get("message").and_then(|v| v.as_str()).unwrap_or(derived))
+    refusal(
+        422,
+        "PreconditionFailed",
+        rule.get("message")
+            .and_then(|v| v.as_str())
+            .unwrap_or(derived),
+    )
 }
 
 // ---- sorting ---------------------------------------------------------
 
 /// Column shapes a JSONB order path resolves correctly. A fold over a
 /// list or a cross-aggregate join is excluded and stays client-side.
-const SQL_SORTABLE_SHAPES: &[&str] = &["text_value", "text", "address", "number", "money", "enum", "pill"];
+const SQL_SORTABLE_SHAPES: &[&str] = &[
+    "text_value",
+    "text",
+    "address",
+    "number",
+    "money",
+    "enum",
+    "pill",
+];
 
 struct SortSpec {
     field: String,
@@ -679,11 +839,16 @@ fn resolve_sort(
         key.to_string()
     };
     // Config could still name a field the aggregate doesn't have.
-    if ui_schema::find_attribute(aggregate, &field).is_none() && lifecycle_field(aggregate) != Some(field.as_str()) {
+    if ui_schema::find_attribute(aggregate, &field).is_none()
+        && lifecycle_field(aggregate) != Some(field.as_str())
+    {
         return None;
     }
 
-    Some(SortSpec { field, descending: params.get("direction").map(String::as_str) == Some("desc") })
+    Some(SortSpec {
+        field,
+        descending: params.get("direction").map(String::as_str) == Some("desc"),
+    })
 }
 
 fn lifecycle_field(aggregate: &Value) -> Option<&str> {
@@ -696,7 +861,11 @@ fn sort_records(records: &mut [(String, Value)], spec: &Option<SortSpec>) {
     match spec {
         None => records.sort_by(|(a, _), (b, _)| a.cmp(b)),
         Some(spec) => records.sort_by(|(a_id, a), (b_id, b)| {
-            let ordering = compare_sort_keys(sort_key(a, &spec.field), sort_key(b, &spec.field), spec.descending);
+            let ordering = compare_sort_keys(
+                sort_key(a, &spec.field),
+                sort_key(b, &spec.field),
+                spec.descending,
+            );
             ordering.then_with(|| a_id.cmp(b_id))
         }),
     }
@@ -706,7 +875,9 @@ fn sort_records(records: &mut [(String, Value)], spec: &Option<SortSpec>) {
 /// a money value object, or a single-attribute value object's member.
 fn sort_key<'a>(state: &'a Value, field: &str) -> Option<&'a Value> {
     let value = state.get(field).filter(|v| !v.is_null())?;
-    let Some(object) = value.as_object() else { return Some(value) };
+    let Some(object) = value.as_object() else {
+        return Some(value);
+    };
     if let Some(cents) = object.get("cents") {
         return Some(cents);
     }
@@ -747,7 +918,10 @@ fn compare_values(left: &Value, right: &Value) -> Ordering {
         }
     }
     match (left, right) {
-        (Value::Number(a), Value::Number(b)) => a.as_f64().unwrap_or(0.0).total_cmp(&b.as_f64().unwrap_or(0.0)),
+        (Value::Number(a), Value::Number(b)) => a
+            .as_f64()
+            .unwrap_or(0.0)
+            .total_cmp(&b.as_f64().unwrap_or(0.0)),
         (Value::String(a), Value::String(b)) => a.cmp(b),
         _ => rank(left).cmp(&rank(right)),
     }
@@ -757,7 +931,9 @@ fn compare_values(left: &Value, right: &Value) -> Ordering {
 /// `session`, or `{}` with no session, which index.html treats as
 /// "don't render the signed-in banner".
 fn me(session: Option<&Session>) -> Value {
-    let Some(session) = session else { return json!({}) };
+    let Some(session) = session else {
+        return json!({});
+    };
     json!({
         "email": session.email,
         "name": session.name,
@@ -784,10 +960,15 @@ async fn presentation_save(
         Err(refusal) => return refusal,
     };
 
-    match presentation_write::save(domain_ir, &submitted, client, wasm_path, config, invoker).await {
+    match presentation_write::save(domain_ir, &submitted, client, wasm_path, config, invoker).await
+    {
         Ok(saved) => ok(&saved),
-        Err(presentation_write::SaveRefusal::NoKernel) => not_implemented(PRESENTATION_WRITE_REFUSAL),
-        Err(presentation_write::SaveRefusal::Malformed(message)) => refusal(422, "Malformed", &message),
+        Err(presentation_write::SaveRefusal::NoKernel) => {
+            not_implemented(PRESENTATION_WRITE_REFUSAL)
+        }
+        Err(presentation_write::SaveRefusal::Malformed(message)) => {
+            refusal(422, "Malformed", &message)
+        }
         Err(presentation_write::SaveRefusal::Domain(result)) => domain_refusal(&result),
         Err(presentation_write::SaveRefusal::Internal(message)) => internal_error(&message),
     }
@@ -821,7 +1002,11 @@ fn not_implemented(message: &str) -> Value {
 }
 
 pub(crate) fn refusal(status: u16, error: &str, message: &str) -> Value {
-    respond(status, "application/json", &json!({"error": error, "message": message}).to_string())
+    respond(
+        status,
+        "application/json",
+        &json!({"error": error, "message": message}).to_string(),
+    )
 }
 
 #[cfg(test)]
@@ -885,7 +1070,11 @@ mod tests {
     // pinned against app.rb's own `json({ error:, message: })`.
     #[test]
     fn a_refusal_carries_exactly_error_and_message() {
-        let response = refusal(422, "PreconditionFailed", "the proposal hasn't been accepted yet");
+        let response = refusal(
+            422,
+            "PreconditionFailed",
+            "the proposal hasn't been accepted yet",
+        );
         assert_eq!(response["statusCode"], 422);
         assert_eq!(
             response["body"],
@@ -933,7 +1122,10 @@ mod tests {
     }
 
     fn params(pairs: &[(&str, &str)]) -> HashMap<String, String> {
-        pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect()
+        pairs
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect()
     }
 
     #[test]
@@ -950,10 +1142,14 @@ mod tests {
 
     #[test]
     fn an_unknown_collection_is_the_ruby_engines_own_not_found_message() {
-        let refusal = resolve_collection(&domain(), &json!({}), "nope").expect_err("unknown collections refuse");
+        let refusal = resolve_collection(&domain(), &json!({}), "nope")
+            .expect_err("unknown collections refuse");
 
         assert_eq!(refusal["statusCode"], 404);
-        assert_eq!(body(&refusal), json!({"error": "NotFound", "message": "no such collection: nope"}));
+        assert_eq!(
+            body(&refusal),
+            json!({"error": "NotFound", "message": "no such collection: nope"})
+        );
     }
 
     #[test]
@@ -973,7 +1169,11 @@ mod tests {
         let by_name = find_query(&aggregate, "ByName").expect("declared");
 
         assert_eq!(
-            query_args_from_params(&aggregate, by_owner, &params(&[("owner", "chris@example.com")])),
+            query_args_from_params(
+                &aggregate,
+                by_owner,
+                &params(&[("owner", "chris@example.com")])
+            ),
             Some(json!({"owner": "chris@example.com"}))
         );
         assert_eq!(
@@ -987,10 +1187,16 @@ mod tests {
         let aggregate = client_aggregate();
         let by_owner = find_query(&aggregate, "ByOwner").expect("declared");
 
-        assert_eq!(query_args_from_params(&aggregate, by_owner, &params(&[])), None);
+        assert_eq!(
+            query_args_from_params(&aggregate, by_owner, &params(&[])),
+            None
+        );
         // An empty param is the same as an absent one, matching Ruby's
         // own `raw.nil? || raw.empty?`.
-        assert_eq!(query_args_from_params(&aggregate, by_owner, &params(&[("owner", "")])), None);
+        assert_eq!(
+            query_args_from_params(&aggregate, by_owner, &params(&[("owner", "")])),
+            None
+        );
     }
 
     #[test]
@@ -998,8 +1204,14 @@ mod tests {
         let aggregate = client_aggregate();
         let since = find_query(&aggregate, "Since").expect("declared");
 
-        assert_eq!(query_args_from_params(&aggregate, since, &params(&[])), Some(json!({})));
-        assert_eq!(query_args_from_params(&aggregate, since, &params(&[("year", "2026")])), Some(json!({"year": "2026"})));
+        assert_eq!(
+            query_args_from_params(&aggregate, since, &params(&[])),
+            Some(json!({}))
+        );
+        assert_eq!(
+            query_args_from_params(&aggregate, since, &params(&[("year", "2026")])),
+            Some(json!({"year": "2026"}))
+        );
     }
 
     #[test]
@@ -1007,7 +1219,10 @@ mod tests {
         let aggregate = client_aggregate();
         let active = find_query(&aggregate, "Active").expect("declared");
 
-        assert_eq!(query_args_from_params(&aggregate, active, &params(&[])), Some(json!({})));
+        assert_eq!(
+            query_args_from_params(&aggregate, active, &params(&[])),
+            Some(json!({}))
+        );
     }
 
     #[test]
@@ -1021,27 +1236,61 @@ mod tests {
     fn a_sortable_column_of_a_pushable_shape_sorts_and_anything_else_falls_back() {
         let domain = domain();
         let aggregate = client_aggregate();
-        let spec = resolve_sort(&domain, &json!({}), "clients", &aggregate, &params(&[("sort", "name")]));
+        let spec = resolve_sort(
+            &domain,
+            &json!({}),
+            "clients",
+            &aggregate,
+            &params(&[("sort", "name")]),
+        );
         let spec = spec.expect("a text_value column is sortable");
         assert_eq!(spec.field, "name");
         assert!(!spec.descending);
 
         // A reference column is deliberately excluded — it would need a
         // cross-aggregate join no order clause wires.
-        assert!(resolve_sort(&domain, &json!({}), "clients", &aggregate, &params(&[("sort", "owner")])).is_none());
+        assert!(resolve_sort(
+            &domain,
+            &json!({}),
+            "clients",
+            &aggregate,
+            &params(&[("sort", "owner")])
+        )
+        .is_none());
         // …as is a column config explicitly opts out of.
-        let opted_out = json!({"collections": {"Client": {"columns": [{"field": "name", "sortable": false}]}}});
-        assert!(resolve_sort(&domain, &opted_out, "clients", &aggregate, &params(&[("sort", "name")])).is_none());
+        let opted_out =
+            json!({"collections": {"Client": {"columns": [{"field": "name", "sortable": false}]}}});
+        assert!(resolve_sort(
+            &domain,
+            &opted_out,
+            "clients",
+            &aggregate,
+            &params(&[("sort", "name")])
+        )
+        .is_none());
         // …and a column key that isn't in this collection at all.
-        assert!(resolve_sort(&domain, &json!({}), "clients", &aggregate, &params(&[("sort", "nope")])).is_none());
+        assert!(resolve_sort(
+            &domain,
+            &json!({}),
+            "clients",
+            &aggregate,
+            &params(&[("sort", "nope")])
+        )
+        .is_none());
     }
 
     #[test]
     fn sorting_by_the_state_column_sorts_by_whatever_the_lifecycle_field_is_really_called() {
         let domain = domain();
         let aggregate = client_aggregate();
-        let spec = resolve_sort(&domain, &json!({}), "clients", &aggregate, &params(&[("sort", "__state__"), ("direction", "desc")]))
-            .expect("the derived state pill is sortable");
+        let spec = resolve_sort(
+            &domain,
+            &json!({}),
+            "clients",
+            &aggregate,
+            &params(&[("sort", "__state__"), ("direction", "desc")]),
+        )
+        .expect("the derived state pill is sortable");
 
         assert_eq!(spec.field, "status");
         assert!(spec.descending);
@@ -1055,23 +1304,53 @@ mod tests {
         ];
         sort_records(&mut records, &None);
 
-        assert_eq!(records.iter().map(|(id, _)| id.as_str()).collect::<Vec<&str>>(), vec!["a", "b"]);
+        assert_eq!(
+            records
+                .iter()
+                .map(|(id, _)| id.as_str())
+                .collect::<Vec<&str>>(),
+            vec!["a", "b"]
+        );
     }
 
     #[test]
     fn sorting_drills_through_a_single_attribute_value_object_and_through_money_to_its_cents() {
         let mut records = vec![
-            ("c".to_string(), json!({"name": {"value": "Cara"}, "fee": {"cents": 300, "currency": "USD"}})),
-            ("a".to_string(), json!({"name": {"value": "Ann"}, "fee": {"cents": 1000, "currency": "USD"}})),
+            (
+                "c".to_string(),
+                json!({"name": {"value": "Cara"}, "fee": {"cents": 300, "currency": "USD"}}),
+            ),
+            (
+                "a".to_string(),
+                json!({"name": {"value": "Ann"}, "fee": {"cents": 1000, "currency": "USD"}}),
+            ),
         ];
 
-        sort_records(&mut records, &Some(SortSpec { field: "name".to_string(), descending: false }));
+        sort_records(
+            &mut records,
+            &Some(SortSpec {
+                field: "name".to_string(),
+                descending: false,
+            }),
+        );
         assert_eq!(records[0].0, "a");
 
         // Money sorts numerically by cents — 300 before 1000, which a
         // string comparison would get backwards.
-        sort_records(&mut records, &Some(SortSpec { field: "fee".to_string(), descending: false }));
-        assert_eq!(records.iter().map(|(id, _)| id.as_str()).collect::<Vec<&str>>(), vec!["c", "a"]);
+        sort_records(
+            &mut records,
+            &Some(SortSpec {
+                field: "fee".to_string(),
+                descending: false,
+            }),
+        );
+        assert_eq!(
+            records
+                .iter()
+                .map(|(id, _)| id.as_str())
+                .collect::<Vec<&str>>(),
+            vec!["c", "a"]
+        );
     }
 
     #[test]
@@ -1081,11 +1360,35 @@ mod tests {
             ("ann".to_string(), json!({"name": {"value": "Ann"}})),
         ];
 
-        sort_records(&mut records, &Some(SortSpec { field: "name".to_string(), descending: false }));
-        assert_eq!(records.iter().map(|(id, _)| id.as_str()).collect::<Vec<&str>>(), vec!["ann", "missing"]);
+        sort_records(
+            &mut records,
+            &Some(SortSpec {
+                field: "name".to_string(),
+                descending: false,
+            }),
+        );
+        assert_eq!(
+            records
+                .iter()
+                .map(|(id, _)| id.as_str())
+                .collect::<Vec<&str>>(),
+            vec!["ann", "missing"]
+        );
 
-        sort_records(&mut records, &Some(SortSpec { field: "name".to_string(), descending: true }));
-        assert_eq!(records.iter().map(|(id, _)| id.as_str()).collect::<Vec<&str>>(), vec!["missing", "ann"]);
+        sort_records(
+            &mut records,
+            &Some(SortSpec {
+                field: "name".to_string(),
+                descending: true,
+            }),
+        );
+        assert_eq!(
+            records
+                .iter()
+                .map(|(id, _)| id.as_str())
+                .collect::<Vec<&str>>(),
+            vec!["missing", "ann"]
+        );
     }
 
     #[test]
@@ -1093,7 +1396,10 @@ mod tests {
         // `JSON_ADAPTER.find!`'s own message, `id` inspected the way Ruby
         // inspects it.
         let refusal = not_found(&format!("no {} found for id {:?}", "Client", "acme"));
-        assert_eq!(body(&refusal), json!({"error": "NotFound", "message": "no Client found for id \"acme\""}));
+        assert_eq!(
+            body(&refusal),
+            json!({"error": "NotFound", "message": "no Client found for id \"acme\""})
+        );
     }
 
     // ---- write routes ------------------------------------------------
@@ -1102,11 +1408,17 @@ mod tests {
     fn an_empty_body_is_an_empty_argument_hash_and_anything_unparseable_refuses() {
         assert_eq!(parsed_body(""), Ok(json!({})));
         assert_eq!(parsed_body("   "), Ok(json!({})));
-        assert_eq!(parsed_body(r#"{"name":{"value":"Acme"}}"#), Ok(json!({"name": {"value": "Acme"}})));
+        assert_eq!(
+            parsed_body(r#"{"name":{"value":"Acme"}}"#),
+            Ok(json!({"name": {"value": "Acme"}}))
+        );
 
         let refusal = parsed_body("not json").expect_err("a malformed body refuses");
         assert_eq!(refusal["statusCode"], 400);
-        assert_eq!(body(&refusal), json!({"error": "MalformedBody", "message": "request body is not valid JSON"}));
+        assert_eq!(
+            body(&refusal),
+            json!({"error": "MalformedBody", "message": "request body is not valid JSON"})
+        );
         // A body that parses but isn't an object has no arguments to
         // splat — refused the same way rather than dispatched.
         assert!(parsed_body("[1,2,3]").is_err());
@@ -1122,7 +1434,10 @@ mod tests {
             ]
         });
 
-        assert_eq!(command_name(dispatchable_command(&aggregate, "advance_cycle").expect("declared")), "AdvanceCycle");
+        assert_eq!(
+            command_name(dispatchable_command(&aggregate, "advance_cycle").expect("declared")),
+            "AdvanceCycle"
+        );
         // The creating command is reachable through POST /api/:coll,
         // never here — accepting it would pass this gate and then fail
         // as something far less legible.
@@ -1181,7 +1496,9 @@ mod tests {
 
     #[test]
     fn a_slug_identity_is_minted_from_another_submitted_field() {
-        let (aggregate, presentation) = client_with_identity(json!({"field": "reference", "strategy": "slug", "source": "name"}));
+        let (aggregate, presentation) = client_with_identity(
+            json!({"field": "reference", "strategy": "slug", "source": "name"}),
+        );
         let mut args = json!({"name": {"value": "Acme Corp."}});
 
         apply_identity(&presentation, &aggregate, &mut args, 0).expect("slugging never refuses");
@@ -1191,8 +1508,9 @@ mod tests {
 
     #[test]
     fn a_sequence_identity_counts_the_records_already_there_and_pads_to_the_configured_width() {
-        let (aggregate, presentation) =
-            client_with_identity(json!({"field": "reference", "strategy": "sequence", "prefix": "C-", "pad": 4}));
+        let (aggregate, presentation) = client_with_identity(
+            json!({"field": "reference", "strategy": "sequence", "prefix": "C-", "pad": 4}),
+        );
         let mut args = json!({"name": {"value": "Acme"}});
 
         apply_identity(&presentation, &aggregate, &mut args, 41).expect("sequencing never refuses");
@@ -1202,17 +1520,21 @@ mod tests {
 
     #[test]
     fn an_identity_the_caller_supplied_is_left_exactly_as_it_came() {
-        let (aggregate, presentation) = client_with_identity(json!({"field": "reference", "strategy": "slug", "source": "name"}));
+        let (aggregate, presentation) = client_with_identity(
+            json!({"field": "reference", "strategy": "slug", "source": "name"}),
+        );
         let mut args = json!({"reference": {"value": "chosen-by-hand"}, "name": {"value": "Acme"}});
 
-        apply_identity(&presentation, &aggregate, &mut args, 0).expect("supplied identities never refuse");
+        apply_identity(&presentation, &aggregate, &mut args, 0)
+            .expect("supplied identities never refuse");
 
         assert_eq!(args["reference"], json!({"value": "chosen-by-hand"}));
     }
 
     #[test]
     fn an_identity_rule_naming_a_reference_field_mints_nothing_rather_than_guessing_a_wire_shape() {
-        let (aggregate, presentation) = client_with_identity(json!({"field": "owner", "strategy": "slug", "source": "name"}));
+        let (aggregate, presentation) =
+            client_with_identity(json!({"field": "owner", "strategy": "slug", "source": "name"}));
         let mut args = json!({"name": {"value": "Acme"}});
 
         apply_identity(&presentation, &aggregate, &mut args, 0).expect("no refusal");
@@ -1224,14 +1546,19 @@ mod tests {
     // surfacing a confusing "absent argument" from the kernel.
     #[test]
     fn a_port_identity_strategy_refuses_in_its_own_words_rather_than_dispatching_without_one() {
-        let (aggregate, presentation) = client_with_identity(json!({"field": "reference", "strategy": "port"}));
+        let (aggregate, presentation) =
+            client_with_identity(json!({"field": "reference", "strategy": "port"}));
         let mut args = json!({"name": {"value": "Acme"}});
 
-        let refusal = apply_identity(&presentation, &aggregate, &mut args, 0).expect_err("the port strategy refuses");
+        let refusal = apply_identity(&presentation, &aggregate, &mut args, 0)
+            .expect_err("the port strategy refuses");
 
         assert_eq!(refusal["statusCode"], 501);
         assert!(
-            body(&refusal)["message"].as_str().expect("a message").contains("identity_assignment"),
+            body(&refusal)["message"]
+                .as_str()
+                .expect("a message")
+                .contains("identity_assignment"),
             "{refusal}"
         );
     }
@@ -1280,7 +1607,14 @@ mod tests {
         let instances = json!({"SampleApp::Proposal#P-001": {"status": "accepted"}});
         let rule = json!({"field": "proposal_id", "state": "accepted"});
 
-        assert!(check_precondition(&precondition_domain(), &contract(), &rule, &json!({"proposal_id": "P-001"}), &instances).is_ok());
+        assert!(check_precondition(
+            &precondition_domain(),
+            &contract(),
+            &rule,
+            &json!({"proposal_id": "P-001"}),
+            &instances
+        )
+        .is_ok());
     }
 
     #[test]
@@ -1288,8 +1622,14 @@ mod tests {
         let instances = json!({"SampleApp::Proposal#P-001": {"status": "sent"}});
         let rule = json!({"field": "proposal_id", "state": "accepted"});
 
-        let refusal = check_precondition(&precondition_domain(), &contract(), &rule, &json!({"proposal_id": "P-001"}), &instances)
-            .expect_err("a proposal that isn't accepted refuses");
+        let refusal = check_precondition(
+            &precondition_domain(),
+            &contract(),
+            &rule,
+            &json!({"proposal_id": "P-001"}),
+            &instances,
+        )
+        .expect_err("a proposal that isn't accepted refuses");
 
         assert_eq!(refusal["statusCode"], 422);
         assert_eq!(
@@ -1303,20 +1643,38 @@ mod tests {
         let rule = json!({"field": "proposal_id", "state": "accepted", "message": "the proposal hasn't been accepted yet"});
         let instances = json!({"SampleApp::Proposal#P-001": {"status": "sent"}});
 
-        let refusal = check_precondition(&precondition_domain(), &contract(), &rule, &json!({"proposal_id": "P-001"}), &instances)
-            .expect_err("refuses");
+        let refusal = check_precondition(
+            &precondition_domain(),
+            &contract(),
+            &rule,
+            &json!({"proposal_id": "P-001"}),
+            &instances,
+        )
+        .expect_err("refuses");
 
-        assert_eq!(body(&refusal)["message"], "the proposal hasn't been accepted yet");
+        assert_eq!(
+            body(&refusal)["message"],
+            "the proposal hasn't been accepted yet"
+        );
     }
 
     #[test]
     fn a_precondition_refuses_a_reference_to_a_record_that_does_not_exist_at_all() {
         let rule = json!({"field": "proposal_id", "state": "accepted"});
 
-        let refusal = check_precondition(&precondition_domain(), &contract(), &rule, &json!({"proposal_id": "ghost"}), &json!({}))
-            .expect_err("refuses");
+        let refusal = check_precondition(
+            &precondition_domain(),
+            &contract(),
+            &rule,
+            &json!({"proposal_id": "ghost"}),
+            &json!({}),
+        )
+        .expect_err("refuses");
 
-        assert_eq!(body(&refusal), json!({"error": "PreconditionFailed", "message": "no proposal with that id"}));
+        assert_eq!(
+            body(&refusal),
+            json!({"error": "PreconditionFailed", "message": "no proposal with that id"})
+        );
     }
 
     #[test]
@@ -1325,14 +1683,28 @@ mod tests {
         // to refuse, in the domain's own words — not this check's.
         let rule = json!({"field": "proposal_id", "state": "accepted"});
 
-        assert!(check_precondition(&precondition_domain(), &contract(), &rule, &json!({}), &json!({})).is_ok());
+        assert!(check_precondition(
+            &precondition_domain(),
+            &contract(),
+            &rule,
+            &json!({}),
+            &json!({})
+        )
+        .is_ok());
     }
 
     #[test]
     fn a_precondition_naming_a_field_that_is_not_a_reference_simply_does_not_fire() {
         let rule = json!({"field": "number", "state": "accepted"});
 
-        assert!(check_precondition(&precondition_domain(), &contract(), &rule, &json!({"number": "C-001"}), &json!({})).is_ok());
+        assert!(check_precondition(
+            &precondition_domain(),
+            &contract(),
+            &rule,
+            &json!({"number": "C-001"}),
+            &json!({})
+        )
+        .is_ok());
     }
 
     // ---- both write routes, end to end --------------------------------
@@ -1343,9 +1715,13 @@ mod tests {
     // is the derived one ("customers").
 
     fn banking_ir() -> Value {
-        let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../dist/banking.ir.json");
-        serde_json::from_str(&std::fs::read_to_string(path).expect("hecks build_wasm writes banking.ir.json beside the wasm"))
-            .expect("valid IR")
+        let path =
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../dist/banking.ir.json");
+        serde_json::from_str(
+            &std::fs::read_to_string(path)
+                .expect("hecks build_wasm writes banking.ir.json beside the wasm"),
+        )
+        .expect("valid IR")
     }
 
     /// A fixture whose `.wasm` carries a ConsoleSettings chapter, the
@@ -1377,20 +1753,36 @@ mod tests {
             &*client.lock().await,
             "CheckoutFixture",
             1,
-            &["Event", "Registration", "StateStyle", "Collection", "Overview"],
+            &[
+                "Event",
+                "Registration",
+                "StateStyle",
+                "Collection",
+                "Overview",
+            ],
         )
         .await;
         let (wasm, ir) = console_fixture();
-        let lineage = LineageConfig { domain: "CheckoutFixture".to_string(), era: Some(1), mirrored: None };
+        let lineage = LineageConfig {
+            domain: "CheckoutFixture".to_string(),
+            era: Some(1),
+            mirrored: None,
+        };
         let invoker = crate::lambda_client::NeverInvoker;
 
         // Nothing saved yet — every section empty, the same answer the
         // Ruby engine gives a console that has never saved.
-        let before = presentation::load(&client, &wasm, &lineage).await.expect("a config");
-        assert_eq!(before, json!({"states": {}, "collections": {}, "overview": {}}));
+        let before = presentation::load(&client, &wasm, &lineage)
+            .await
+            .expect("a config");
+        assert_eq!(
+            before,
+            json!({"states": {}, "collections": {}, "overview": {}})
+        );
 
         let mut submitted = every_state_styled();
-        submitted["states"]["Event"]["open"] = json!({"tone": "good", "attention": true, "label": "Open for signups"});
+        submitted["states"]["Event"]["open"] =
+            json!({"tone": "good", "attention": true, "label": "Open for signups"});
         submitted["collections"] = json!({
             "Event": {
                 "label": "Sessions",
@@ -1405,7 +1797,15 @@ mod tests {
         submitted["overview"] = json!({"stats": [{"label": "Open", "collection": "events",
                                                   "where": {"state": "open"}}]});
 
-        let saved = presentation_save(&ir, &submitted.to_string(), &client, &wasm, &lineage, &invoker).await;
+        let saved = presentation_save(
+            &ir,
+            &submitted.to_string(),
+            &client,
+            &wasm,
+            &lineage,
+            &invoker,
+        )
+        .await;
         assert_eq!(saved["statusCode"], 200, "{saved}");
         let stored = body(&saved);
 
@@ -1415,46 +1815,89 @@ mod tests {
         assert_eq!(stored["states"]["Event"]["open"]["attention"], json!(true));
         // A field this chapter does not model individually still
         // round-trips, through `extra_json`.
-        assert_eq!(stored["states"]["Event"]["open"]["label"], "Open for signups");
+        assert_eq!(
+            stored["states"]["Event"]["open"]["label"],
+            "Open for signups"
+        );
         assert_eq!(stored["states"]["Event"]["closed"]["tone"], "muted");
-        assert_eq!(stored["states"]["Registration"]["archived"]["tone"], "muted");
+        assert_eq!(
+            stored["states"]["Registration"]["archived"]["tone"],
+            "muted"
+        );
         assert_eq!(stored["collections"]["Event"]["label"], "Sessions");
         assert_eq!(stored["collections"]["Event"]["nav_order"], json!(1));
         assert_eq!(stored["collections"]["Event"]["noun_sing"], "session");
-        assert_eq!(stored["collections"]["Event"]["columns"][1]["sortable"], json!(true));
-        assert_eq!(stored["collections"]["Event"]["columns"][1]["head"], "Title");
+        assert_eq!(
+            stored["collections"]["Event"]["columns"][1]["sortable"],
+            json!(true)
+        );
+        assert_eq!(
+            stored["collections"]["Event"]["columns"][1]["head"],
+            "Title"
+        );
         assert_eq!(stored["collections"]["Event"]["identity"]["pad"], json!(3));
-        assert_eq!(stored["collections"]["Event"]["field_formats"], json!({"capacity": "percent"}));
-        assert_eq!(stored["overview"]["stats"][0]["where"], json!({"state": "open"}));
+        assert_eq!(
+            stored["collections"]["Event"]["field_formats"],
+            json!({"capacity": "percent"})
+        );
+        assert_eq!(
+            stored["overview"]["stats"][0]["where"],
+            json!({"state": "open"})
+        );
 
         // A fresh read agrees, proving the rows are in the kernel's store.
-        assert_eq!(presentation::load(&client, &wasm, &lineage).await.expect("a config"), stored);
+        assert_eq!(
+            presentation::load(&client, &wasm, &lineage)
+                .await
+                .expect("a config"),
+            stored
+        );
 
         // Saving again is safe: an existing row is a `Set*`, never a
         // second `Declare` (which would refuse `AlreadyExists`).
-        let again = presentation_save(&ir, &submitted.to_string(), &client, &wasm, &lineage, &invoker).await;
+        let again = presentation_save(
+            &ir,
+            &submitted.to_string(),
+            &client,
+            &wasm,
+            &lineage,
+            &invoker,
+        )
+        .await;
         assert_eq!(again["statusCode"], 200, "{again}");
         assert_eq!(body(&again), stored);
     }
 
     #[tokio::test]
     async fn a_config_that_breaks_a_rule_refuses_422_malformed_and_writes_nothing() {
-        let client = crate::dispatch::tests::scratch_db("rust_host_api_presentation_malformed").await;
+        let client =
+            crate::dispatch::tests::scratch_db("rust_host_api_presentation_malformed").await;
         crate::dispatch::tests::provision_lineage(
             &*client.lock().await,
             "CheckoutFixture",
             1,
-            &["Event", "Registration", "StateStyle", "Collection", "Overview"],
+            &[
+                "Event",
+                "Registration",
+                "StateStyle",
+                "Collection",
+                "Overview",
+            ],
         )
         .await;
         let (wasm, ir) = console_fixture();
-        let lineage = LineageConfig { domain: "CheckoutFixture".to_string(), era: Some(1), mirrored: None };
+        let lineage = LineageConfig {
+            domain: "CheckoutFixture".to_string(),
+            era: Some(1),
+            mirrored: None,
+        };
         let invoker = crate::lambda_client::NeverInvoker;
 
         let mut bad = every_state_styled();
         bad["states"]["Event"]["open"] = json!({"tone": "chartreuse"});
 
-        let refused = presentation_save(&ir, &bad.to_string(), &client, &wasm, &lineage, &invoker).await;
+        let refused =
+            presentation_save(&ir, &bad.to_string(), &client, &wasm, &lineage, &invoker).await;
 
         assert_eq!(refused["statusCode"], 422, "{refused}");
         assert_eq!(body(&refused)["error"], "Malformed");
@@ -1465,17 +1908,30 @@ mod tests {
 
         // Nothing written: `validate` runs before the first dispatch.
         assert_eq!(
-            presentation::load(&client, &wasm, &lineage).await.expect("a config"),
+            presentation::load(&client, &wasm, &lineage)
+                .await
+                .expect("a config"),
             json!({"states": {}, "collections": {}, "overview": {}})
         );
     }
 
     #[tokio::test]
     async fn a_body_that_is_not_json_at_all_is_a_400_before_anything_is_validated() {
-        let client = crate::dispatch::tests::scratch_db("rust_host_api_presentation_bad_body").await;
-        crate::dispatch::tests::provision_lineage(&*client.lock().await, "CheckoutFixture", 1, &["Event"]).await;
+        let client =
+            crate::dispatch::tests::scratch_db("rust_host_api_presentation_bad_body").await;
+        crate::dispatch::tests::provision_lineage(
+            &*client.lock().await,
+            "CheckoutFixture",
+            1,
+            &["Event"],
+        )
+        .await;
         let (wasm, ir) = console_fixture();
-        let lineage = LineageConfig { domain: "CheckoutFixture".to_string(), era: Some(1), mirrored: None };
+        let lineage = LineageConfig {
+            domain: "CheckoutFixture".to_string(),
+            era: Some(1),
+            mirrored: None,
+        };
 
         let refused = presentation_save(
             &ir,
@@ -1495,11 +1951,22 @@ mod tests {
     /// asks the kernel rather than inferring it from anything else.
     #[tokio::test]
     async fn a_host_whose_kernel_has_no_console_settings_chapter_still_refuses_501() {
-        let client = crate::dispatch::tests::scratch_db("rust_host_api_presentation_no_chapter").await;
-        crate::dispatch::tests::provision_lineage(&*client.lock().await, "Banking", 1, &["Customer"]).await;
+        let client =
+            crate::dispatch::tests::scratch_db("rust_host_api_presentation_no_chapter").await;
+        crate::dispatch::tests::provision_lineage(
+            &*client.lock().await,
+            "Banking",
+            1,
+            &["Customer"],
+        )
+        .await;
         let wasm = crate::dispatch::tests::wasm_path();
         let ir = banking_ir();
-        let lineage = LineageConfig { domain: "Banking".to_string(), era: Some(1), mirrored: None };
+        let lineage = LineageConfig {
+            domain: "Banking".to_string(),
+            era: Some(1),
+            mirrored: None,
+        };
 
         let refused = presentation_save(
             &ir,
@@ -1514,7 +1981,10 @@ mod tests {
         assert_eq!(refused["statusCode"], 501, "{refused}");
         assert_eq!(body(&refused)["error"], "NotImplemented");
         assert!(
-            body(&refused)["message"].as_str().expect("a message").contains("ConsoleSettings"),
+            body(&refused)["message"]
+                .as_str()
+                .expect("a message")
+                .contains("ConsoleSettings"),
             "the refusal has to name what is missing: {refused}"
         );
     }
@@ -1522,10 +1992,20 @@ mod tests {
     #[tokio::test]
     async fn a_record_is_created_then_commanded_then_read_back_through_the_api_routes() {
         let client = crate::dispatch::tests::scratch_db("rust_host_api_write_routes").await;
-        crate::dispatch::tests::provision_lineage(&*client.lock().await, "Banking", 1, &["Customer"]).await;
+        crate::dispatch::tests::provision_lineage(
+            &*client.lock().await,
+            "Banking",
+            1,
+            &["Customer"],
+        )
+        .await;
         let wasm = crate::dispatch::tests::wasm_path();
         let ir = banking_ir();
-        let lineage = LineageConfig { domain: "Banking".to_string(), era: Some(1), mirrored: None };
+        let lineage = LineageConfig {
+            domain: "Banking".to_string(),
+            era: Some(1),
+            mirrored: None,
+        };
         let invoker = crate::lambda_client::NeverInvoker;
 
         let created = collection_create(
@@ -1545,7 +2025,8 @@ mod tests {
         assert_eq!(record["reference"]["value"], "CUST-9001");
 
         // …and it is there to read, both ways.
-        let index = collection_index(&ir, "customers", &params(&[]), &client, &wasm, &lineage).await;
+        let index =
+            collection_index(&ir, "customers", &params(&[]), &client, &wasm, &lineage).await;
         assert_eq!(body(&index).as_array().expect("an array").len(), 1);
         let shown = record_show(&ir, "customers", "CUST-9001", &client, &wasm, &lineage).await;
         assert_eq!(body(&shown)["id"], "CUST-9001");
@@ -1586,20 +2067,55 @@ mod tests {
 
         assert_eq!(again["statusCode"], 422, "{again}");
         let refused = body(&again);
-        assert!(!refused["error"].as_str().expect("a refusal class").is_empty(), "{refused}");
-        assert!(!refused["message"].as_str().expect("a message").is_empty(), "{refused}");
+        assert!(
+            !refused["error"]
+                .as_str()
+                .expect("a refusal class")
+                .is_empty(),
+            "{refused}"
+        );
+        assert!(
+            !refused["message"].as_str().expect("a message").is_empty(),
+            "{refused}"
+        );
 
         // An unknown command, and an unknown record, both refuse the
         // way Json refuses them.
-        let unknown_command =
-            command_route(&ir, "customers", "CUST-9001", "nope", "", &client, &wasm, &lineage, &invoker).await;
+        let unknown_command = command_route(
+            &ir,
+            "customers",
+            "CUST-9001",
+            "nope",
+            "",
+            &client,
+            &wasm,
+            &lineage,
+            &invoker,
+        )
+        .await;
         assert_eq!(unknown_command["statusCode"], 404);
-        assert_eq!(body(&unknown_command)["message"], "Customer declares no command named \"nope\"");
+        assert_eq!(
+            body(&unknown_command)["message"],
+            "Customer declares no command named \"nope\""
+        );
 
-        let unknown_record =
-            command_route(&ir, "customers", "ghost", "suspend", "", &client, &wasm, &lineage, &invoker).await;
+        let unknown_record = command_route(
+            &ir,
+            "customers",
+            "ghost",
+            "suspend",
+            "",
+            &client,
+            &wasm,
+            &lineage,
+            &invoker,
+        )
+        .await;
         assert_eq!(unknown_record["statusCode"], 404);
-        assert_eq!(body(&unknown_record)["message"], "no Customer found for id \"ghost\"");
+        assert_eq!(
+            body(&unknown_record)["message"],
+            "no Customer found for id \"ghost\""
+        );
     }
 
     #[test]
@@ -1608,7 +2124,10 @@ mod tests {
         assert_eq!(response["statusCode"], 501);
         assert_eq!(body(&response)["error"], "NotImplemented");
         assert!(
-            body(&response)["message"].as_str().expect("a message").contains("ConsoleSettings"),
+            body(&response)["message"]
+                .as_str()
+                .expect("a message")
+                .contains("ConsoleSettings"),
             "the refusal has to name what is missing: {response}"
         );
     }

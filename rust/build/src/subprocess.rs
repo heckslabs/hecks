@@ -5,7 +5,10 @@ use std::path::Path;
 use std::process::{Command, Stdio};
 
 pub fn run_capture(program: &str, args: &[&str]) -> Result<String, String> {
-    let output = Command::new(program).args(args).output().map_err(|e| format!("running {program} {}: {e}", args.join(" ")))?;
+    let output = Command::new(program)
+        .args(args)
+        .output()
+        .map_err(|e| format!("running {program} {}: {e}", args.join(" ")))?;
     if !output.status.success() {
         return Err(format!(
             "{program} {} failed:\n{}",
@@ -13,11 +16,19 @@ pub fn run_capture(program: &str, args: &[&str]) -> Result<String, String> {
             String::from_utf8_lossy(&output.stderr)
         ));
     }
-    String::from_utf8(output.stdout).map_err(|e| format!("{program} {}: stdout was not valid UTF-8: {e}", args.join(" ")))
+    String::from_utf8(output.stdout).map_err(|e| {
+        format!(
+            "{program} {}: stdout was not valid UTF-8: {e}",
+            args.join(" ")
+        )
+    })
 }
 
 pub fn run(program: &str, args: &[&str]) -> Result<(), String> {
-    let status = Command::new(program).args(args).status().map_err(|e| format!("running {program} {}: {e}", args.join(" ")))?;
+    let status = Command::new(program)
+        .args(args)
+        .status()
+        .map_err(|e| format!("running {program} {}: {e}", args.join(" ")))?;
     if !status.success() {
         return Err(format!("{program} {} failed", args.join(" ")));
     }
@@ -29,9 +40,19 @@ pub fn run_in(dir: &Path, program: &str, args: &[&str]) -> Result<(), String> {
         .args(args)
         .current_dir(dir)
         .status()
-        .map_err(|e| format!("running {program} {} in {}: {e}", args.join(" "), dir.display()))?;
+        .map_err(|e| {
+            format!(
+                "running {program} {} in {}: {e}",
+                args.join(" "),
+                dir.display()
+            )
+        })?;
     if !status.success() {
-        return Err(format!("{program} {} failed in {}", args.join(" "), dir.display()));
+        return Err(format!(
+            "{program} {} failed in {}",
+            args.join(" "),
+            dir.display()
+        ));
     }
     Ok(())
 }
@@ -45,7 +66,10 @@ pub fn cargo_build_quiet(dir: &Path) -> Result<(), String> {
         .status()
         .map_err(|e| format!("running cargo build in {}: {e}", dir.display()))?;
     if !status.success() {
-        return Err(format!("cargo build failed in {} — run it there directly to see why", dir.display()));
+        return Err(format!(
+            "cargo build failed in {} — run it there directly to see why",
+            dir.display()
+        ));
     }
     Ok(())
 }

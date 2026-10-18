@@ -31,7 +31,11 @@ fn project(ir: &Value) -> String {
         .map(|list| {
             list.iter()
                 .map(|aggregate| {
-                    let name = aggregate.get("name").and_then(Value::as_str).unwrap_or("").to_string();
+                    let name = aggregate
+                        .get("name")
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                        .to_string();
                     (name, project_aggregate(aggregate))
                 })
                 .collect()
@@ -47,7 +51,10 @@ fn project_aggregate(aggregate: &Value) -> String {
 
     // Ruby's `Array(aggregate["identified_by"]).map(&:to_s)`: absent or null is `[]`.
     let identity: Vec<String> = match aggregate.get("identified_by") {
-        Some(Value::Array(items)) => items.iter().filter_map(|item| item.as_str().map(str::to_string)).collect(),
+        Some(Value::Array(items)) => items
+            .iter()
+            .filter_map(|item| item.as_str().map(str::to_string))
+            .collect(),
         Some(Value::String(s)) => vec![s.clone()],
         _ => Vec::new(),
     };
@@ -66,7 +73,11 @@ fn project_aggregate(aggregate: &Value) -> String {
         .map(|list| {
             list.iter()
                 .map(|attribute| {
-                    let name = attribute.get("name").and_then(Value::as_str).unwrap_or("").to_string();
+                    let name = attribute
+                        .get("name")
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                        .to_string();
                     (name, project_attribute(aggregate, attribute, &[]))
                 })
                 .collect()
@@ -82,7 +93,10 @@ fn project_aggregate(aggregate: &Value) -> String {
 
 fn project_attribute(aggregate: &Value, attribute: &Value, seen: &[String]) -> String {
     let name = json_string(attribute.get("name").and_then(Value::as_str).unwrap_or(""));
-    let list = attribute.get("list").and_then(Value::as_bool).unwrap_or(false);
+    let list = attribute
+        .get("list")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     let type_name = attribute.get("type").and_then(Value::as_str).unwrap_or("");
     let type_json = type_signature(aggregate, type_name, seen);
     format!("{{\"name\":{name},\"list\":{list},\"type\":{type_json}}}")
@@ -107,7 +121,11 @@ fn type_signature(aggregate: &Value, type_name: &str, seen: &[String]) -> String
         .map(|list| {
             list.iter()
                 .map(|member| {
-                    let name = member.get("name").and_then(Value::as_str).unwrap_or("").to_string();
+                    let name = member
+                        .get("name")
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                        .to_string();
                     (name, project_attribute(aggregate, member, &next_seen))
                 })
                 .collect()
@@ -122,9 +140,13 @@ fn type_signature(aggregate: &Value, type_name: &str, seen: &[String]) -> String
 
 fn nested_type<'a>(aggregate: &'a Value, type_name: &str) -> Option<&'a Value> {
     let in_list = |key: &str| -> Option<&'a Value> {
-        aggregate.get(key).and_then(Value::as_array).and_then(|list| {
-            list.iter().find(|entry| entry.get("name").and_then(Value::as_str) == Some(type_name))
-        })
+        aggregate
+            .get(key)
+            .and_then(Value::as_array)
+            .and_then(|list| {
+                list.iter()
+                    .find(|entry| entry.get("name").and_then(Value::as_str) == Some(type_name))
+            })
     };
     in_list("value_objects").or_else(|| in_list("entities"))
 }
@@ -145,8 +167,13 @@ mod tests {
 
     // The real ir.json for examples/pizzas, not a fixture, so drift from Ruby fails here.
     fn pizzas_ir() -> Value {
-        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../src/generated/pizzas/ir.json");
-        let text = fs::read_to_string(path).expect("rust/src/generated/pizzas/ir.json — run hecks project_rust examples/pizzas first");
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../src/generated/pizzas/ir.json"
+        );
+        let text = fs::read_to_string(path).expect(
+            "rust/src/generated/pizzas/ir.json — run hecks project_rust examples/pizzas first",
+        );
         serde_json::from_str(&text).expect("valid JSON")
     }
 
@@ -163,9 +190,15 @@ mod tests {
         // Pins that attribute order is normalised: reordering must not look like a schema change.
         let ir = pizzas_ir();
         let mut reordered = ir.clone();
-        if let Some(aggregates) = reordered.get_mut("aggregates").and_then(Value::as_array_mut) {
+        if let Some(aggregates) = reordered
+            .get_mut("aggregates")
+            .and_then(Value::as_array_mut)
+        {
             for aggregate in aggregates.iter_mut() {
-                if let Some(attributes) = aggregate.get_mut("attributes").and_then(Value::as_array_mut) {
+                if let Some(attributes) = aggregate
+                    .get_mut("attributes")
+                    .and_then(Value::as_array_mut)
+                {
                     attributes.reverse();
                 }
             }

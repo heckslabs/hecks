@@ -16,12 +16,16 @@ fn main() -> anyhow::Result<()> {
     let mut input = String::new();
     std::io::stdin().read_to_string(&mut input)?;
     let request: Json = serde_json::from_str(&input)?;
-    let cases = request.get("cases").and_then(Json::as_array).ok_or_else(|| anyhow::anyhow!("no \"cases\" array on stdin"))?;
+    let cases = request
+        .get("cases")
+        .and_then(Json::as_array)
+        .ok_or_else(|| anyhow::anyhow!("no \"cases\" array on stdin"))?;
 
     let results: Vec<Json> = cases
         .iter()
         .map(|case| {
-            let outcome = expr_json::parse(&case["ast"]).and_then(|expr| expr_json::interpret(&expr, &case["instance"]));
+            let outcome = expr_json::parse(&case["ast"])
+                .and_then(|expr| expr_json::interpret(&expr, &case["instance"]));
             match outcome {
                 Ok(value) => json!({ "ok": to_json(&value) }),
                 Err(error) => json!({ "error": error }),

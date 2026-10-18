@@ -5,4 +5,5 @@ pub mod kernel;
 
 // Test-only: rust/codegen/src/exemplar.rs slices shapes out of this; never in a release build.
 #[cfg(test)]
+#[rustfmt::skip]
 pub mod exemplar;

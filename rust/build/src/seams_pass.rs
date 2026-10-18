@@ -16,9 +16,27 @@ struct Seam {
 
 // In `TargetIr::SEAMS` order, which is the order the keys land in `ir.json`.
 const SEAMS: &[Seam] = &[
-    Seam { capability: "authorization", export_as: "authorization", verbs: &["grant", "assignments"], aggregates: &[("assignment_aggregate", "assignments")], marks: &[] },
-    Seam { capability: "membership", export_as: "membership", verbs: &["admit", "grant", "people"], aggregates: &[("aggregate", "admit")], marks: &[] },
-    Seam { capability: "identity", export_as: "identity", verbs: &["register", "link", "resolve"], aggregates: &[], marks: &[] },
+    Seam {
+        capability: "authorization",
+        export_as: "authorization",
+        verbs: &["grant", "assignments"],
+        aggregates: &[("assignment_aggregate", "assignments")],
+        marks: &[],
+    },
+    Seam {
+        capability: "membership",
+        export_as: "membership",
+        verbs: &["admit", "grant", "people"],
+        aggregates: &[("aggregate", "admit")],
+        marks: &[],
+    },
+    Seam {
+        capability: "identity",
+        export_as: "identity",
+        verbs: &["register", "link", "resolve"],
+        aggregates: &[],
+        marks: &[],
+    },
     Seam {
         capability: "newsletter",
         export_as: "newsletter",
@@ -30,21 +48,41 @@ const SEAMS: &[Seam] = &[
         capability: "newsletter_issues",
         export_as: "newsletter_issues",
         verbs: &["send_issue", "record_delivery"],
-        aggregates: &[("issue_aggregate", "send_issue"), ("delivery_aggregate", "record_delivery")],
+        aggregates: &[
+            ("issue_aggregate", "send_issue"),
+            ("delivery_aggregate", "record_delivery"),
+        ],
         marks: &[],
     },
-    Seam { capability: "payments", export_as: "payments", verbs: &["initiate", "succeeded", "failed"], aggregates: &[("aggregate", "initiate")], marks: &["holds_seat"] },
+    Seam {
+        capability: "payments",
+        export_as: "payments",
+        verbs: &["initiate", "succeeded", "failed"],
+        aggregates: &[("aggregate", "initiate")],
+        marks: &["holds_seat"],
+    },
     Seam {
         capability: "registrations",
         export_as: "registrations",
         verbs: &["schedule", "request"],
-        aggregates: &[("event_aggregate", "schedule"), ("registration_aggregate", "request")],
+        aggregates: &[
+            ("event_aggregate", "schedule"),
+            ("registration_aggregate", "request"),
+        ],
         marks: &["frees_seat"],
     },
     Seam {
         capability: "payment_connection",
         export_as: "payment_connection",
-        verbs: &["connect", "reconnect", "disconnect", "suspend", "resume", "enable", "disable"],
+        verbs: &[
+            "connect",
+            "reconnect",
+            "disconnect",
+            "suspend",
+            "resume",
+            "enable",
+            "disable",
+        ],
         aggregates: &[("aggregate", "connect")],
         marks: &[],
     },
@@ -60,7 +98,12 @@ pub fn run(target: &mut Json, members: &[Json]) -> Result<(), String> {
     let mut membership = false;
     let mut identity = false;
     for seam in SEAMS {
-        let Some(provider) = chapters.iter().find(|chapter| provision(chapter, seam.capability).is_some()) else { continue };
+        let Some(provider) = chapters
+            .iter()
+            .find(|chapter| provision(chapter, seam.capability).is_some())
+        else {
+            continue;
+        };
         let exported = export(seam, provider);
         membership |= seam.capability == "membership";
         identity |= seam.capability == "identity";
@@ -79,7 +122,12 @@ pub fn run(target: &mut Json, members: &[Json]) -> Result<(), String> {
 fn export(seam: &Seam, provider: &Json) -> Json {
     let name = name_of(provider);
     let entries = provision(provider, seam.capability).unwrap_or_default();
-    let verb = |key: &str| entries.iter().find(|(k, _)| k == key).map(|(_, v)| format!("{name}::{v}"));
+    let verb = |key: &str| {
+        entries
+            .iter()
+            .find(|(k, _)| k == key)
+            .map(|(_, v)| format!("{name}::{v}"))
+    };
 
     let mut out = vec![("provider".to_string(), Json::String(name.clone()))];
     for key in seam.verbs {
@@ -87,10 +135,19 @@ fn export(seam: &Seam, provider: &Json) -> Json {
     }
     for (exported, key) in seam.aggregates {
         let aggregate = verb(key).map(|v| v.split('.').next().unwrap_or_default().to_string());
-        out.push((exported.to_string(), aggregate.map_or(Json::Null, Json::String)));
+        out.push((
+            exported.to_string(),
+            aggregate.map_or(Json::Null, Json::String),
+        ));
     }
     for key in seam.marks {
-        if let Some(states) = marked_states(provider, entries.iter().find(|(k, _)| k == key).map(|(_, v)| v.as_str())) {
+        if let Some(states) = marked_states(
+            provider,
+            entries
+                .iter()
+                .find(|(k, _)| k == key)
+                .map(|(_, v)| v.as_str()),
+        ) {
             out.push((key.to_string(), states));
         }
     }
@@ -105,7 +162,12 @@ fn provision(chapter: &Json, capability: &str) -> Option<Vec<(String, String)>> 
         .unwrap_or(&[])
         .iter()
         .filter(|entry| entry.get("capability").and_then(Json::as_str) == Some(capability))
-        .filter_map(|entry| Some((entry.get("key")?.as_str()?.to_string(), entry.get("verb")?.as_str()?.to_string())))
+        .filter_map(|entry| {
+            Some((
+                entry.get("key")?.as_str()?.to_string(),
+                entry.get("verb")?.as_str()?.to_string(),
+            ))
+        })
         .collect();
     (!entries.is_empty()).then_some(entries)
 }
@@ -114,10 +176,18 @@ fn provision(chapter: &Json, capability: &str) -> Option<Vec<(String, String)>> 
 // entry is not declared or the mark is.
 fn marked_states(provider: &Json, entry: Option<&str>) -> Option<Json> {
     let (aggregate_name, mark) = entry?.split_once('.')?;
-    let aggregate = provider.get("aggregates").map(Json::each)?.iter().find(|a| a.get("name").and_then(Json::as_str) == Some(aggregate_name))?;
+    let aggregate = provider
+        .get("aggregates")
+        .map(Json::each)?
+        .iter()
+        .find(|a| a.get("name").and_then(Json::as_str) == Some(aggregate_name))?;
     aggregate.get("lifecycle")?.get("marks")?.get(mark).cloned()
 }
 
 fn name_of(chapter: &Json) -> String {
-    chapter.get("name").and_then(Json::as_str).unwrap_or_default().to_string()
+    chapter
+        .get("name")
+        .and_then(Json::as_str)
+        .unwrap_or_default()
+        .to_string()
 }

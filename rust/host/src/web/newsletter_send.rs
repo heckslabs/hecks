@@ -1,7 +1,9 @@
 use super::{active_session_email, instances_for, last_refusal, percent_decode, respond};
 use crate::auth;
+use crate::commerce_ir::{
+    newsletter_issues_provider, newsletter_provider, NewsletterIssuesProvider, NewsletterProvider,
+};
 use crate::dispatch;
-use crate::commerce_ir::{newsletter_issues_provider, newsletter_provider, NewsletterIssuesProvider, NewsletterProvider};
 use crate::journal::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
 use crate::resend::{Email, Mailer};
@@ -71,26 +73,51 @@ pub(super) async fn issue_route(
         Err(response) => return Some(response),
     };
     Some(match action {
-        IssueAction::Send => send_issue(&slug, &issues, &subscribers, &mailer, secret, client, wasm_path, config, invoker).await,
+        IssueAction::Send => {
+            send_issue(
+                &slug,
+                &issues,
+                &subscribers,
+                &mailer,
+                secret,
+                client,
+                wasm_path,
+                config,
+                invoker,
+            )
+            .await
+        }
         IssueAction::SendTest => send_test(raw_body, &mailer, secret).await,
     })
 }
 
 fn json_error(status: u16, message: &str) -> Value {
-    respond(status, "application/json", &json!({ "error": message }).to_string())
+    respond(
+        status,
+        "application/json",
+        &json!({ "error": message }).to_string(),
+    )
 }
 
 // Every email carries a signed unsubscribe link, so nothing may go out (or
 // be marked sent) without a secret to sign it with.
 fn require_signing_secret(secret: &str) -> Result<(), Value> {
     if secret.is_empty() {
-        return Err(json_error(503, "unsubscribe links cannot be signed: set SESSION_SECRET"));
+        return Err(json_error(
+            503,
+            "unsubscribe links cannot be signed: set SESSION_SECRET",
+        ));
     }
     Ok(())
 }
 
 // An active account cookie whose person holds Admin or Owner.
-pub(super) async fn require_admin(domain_ir: &Value, cookies: &HashMap<String, String>, secret: &str, client: &Mutex<Client>) -> Result<(), Value> {
+pub(super) async fn require_admin(
+    domain_ir: &Value,
+    cookies: &HashMap<String, String>,
+    secret: &str,
+    client: &Mutex<Client>,
+) -> Result<(), Value> {
     let email = active_session_email(domain_ir, cookies, secret, client).await?;
     match auth::caller_is_admin(client, domain_ir, &email).await {
         Ok(true) => Ok(()),
@@ -101,12 +128,20 @@ pub(super) async fn require_admin(domain_ir: &Value, cookies: &HashMap<String, S
 
 // Refuses (before anything is marked sent) when the caller isn't an
 // Admin/Owner, mail isn't configured, or there's no signing secret.
-async fn authorize(domain_ir: &Value, cookies: &HashMap<String, String>, secret: &str, client: &Mutex<Client>) -> Result<Mailer, Value> {
+async fn authorize(
+    domain_ir: &Value,
+    cookies: &HashMap<String, String>,
+    secret: &str,
+    client: &Mutex<Client>,
+) -> Result<Mailer, Value> {
     require_admin(domain_ir, cookies, secret, client).await?;
     require_signing_secret(secret)?;
     match Mailer::from_env() {
         Ok(Some(mailer)) => Ok(mailer),
-        Ok(None) => Err(json_error(503, "email delivery is not configured: set RESEND_API_KEY and RESEND_FROM")),
+        Ok(None) => Err(json_error(
+            503,
+            "email delivery is not configured: set RESEND_API_KEY and RESEND_FROM",
+        )),
         Err(e) => Err(json_error(500, &e)),
     }
 }
@@ -116,19 +151,32 @@ pub(super) fn site_url() -> String {
 }
 
 pub(super) fn unsubscribe_token(secret: &str, email: &str) -> String {
-    auth::purpose_token(secret, UNSUBSCRIBE_PURPOSE, json!({ "email": email }), crate::commerce_ir::newsletter_windows_binding().1)
+    auth::purpose_token(
+        secret,
+        UNSUBSCRIBE_PURPOSE,
+        json!({ "email": email }),
+        crate::commerce_ir::newsletter_windows_binding().1,
+    )
 }
 
 pub(super) fn unsubscribe_token_matches(secret: &str, token: &str, email: &str) -> bool {
     auth::verify_purpose_token(secret, UNSUBSCRIBE_PURPOSE, token)
-        .and_then(|claims| claims.get("email").and_then(|v| v.as_str()).map(|signed| signed == email))
+        .and_then(|claims| {
+            claims
+                .get("email")
+                .and_then(|v| v.as_str())
+                .map(|signed| signed == email)
+        })
         .unwrap_or(false)
 }
 
 // Percent-encodes the address so a '+' in the local part survives the URL.
 pub(super) fn unsubscribe_url(site_url: &str, email: &str, token: &str) -> String {
-    let mut url = reqwest::Url::parse(&format!("{site_url}/newsletter-unsubscribed.html")).unwrap_or_else(|_| reqwest::Url::parse("http://invalid.invalid/").unwrap());
-    url.query_pairs_mut().append_pair("email", email).append_pair("token", token);
+    let mut url = reqwest::Url::parse(&format!("{site_url}/newsletter-unsubscribed.html"))
+        .unwrap_or_else(|_| reqwest::Url::parse("http://invalid.invalid/").unwrap());
+    url.query_pairs_mut()
+        .append_pair("email", email)
+        .append_pair("token", token);
     url.to_string()
 }
 
@@ -138,7 +186,11 @@ pub(super) fn personalize(body: &str, unsubscribe_url: &str) -> String {
 
 // An aggregate field that is a one-attribute value object: `{"value": ...}`.
 fn value_of<'a>(state: &'a Value, field: &str) -> &'a str {
-    state.get(field).and_then(|v| v.get("value")).and_then(|v| v.as_str()).unwrap_or("")
+    state
+        .get(field)
+        .and_then(|v| v.get("value"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
 }
 
 // Every address in a state that receives issues (the lifecycle's `receives_issues` mark), alphabetical so a send is repeatable.
@@ -153,7 +205,10 @@ fn confirmed_emails(provider: &NewsletterProvider, subscribers: &[(String, Value
 }
 
 fn unix_now() -> i64 {
-    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0)
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -172,18 +227,41 @@ async fn send_issue(
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
-    let Some((_, issue)) = instances_for(&read, &issues.issue_prefix()).into_iter().find(|(id, _)| id == slug) else {
+    let Some((_, issue)) = instances_for(&read, &issues.issue_prefix())
+        .into_iter()
+        .find(|(id, _)| id == slug)
+    else {
         return json_error(404, "no such issue");
     };
     let subject = value_of(&issue, "subject").to_string();
     let body = value_of(&issue, "body").to_string();
-    let recipients = confirmed_emails(subscribers, &instances_for(&read, &subscribers.instance_prefix()));
+    let recipients = confirmed_emails(
+        subscribers,
+        &instances_for(&read, &subscribers.instance_prefix()),
+    );
 
     // Marked sent before mailing: a second click then refuses ("only a draft
     // issue can be sent") instead of mailing everyone twice.
-    match dispatch::handle_routed(client, wasm_path, &issues.send_issue, json!(slug), json!({ "sent_at": { "value": unix_now() } }), None, config, invoker).await {
+    match dispatch::handle_routed(
+        client,
+        wasm_path,
+        &issues.send_issue,
+        json!(slug),
+        json!({ "sent_at": { "value": unix_now() } }),
+        None,
+        config,
+        invoker,
+    )
+    .await
+    {
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
-        Ok(outcome) if !outcome.accepted => return respond(422, "application/json", &last_refusal(&outcome.result).to_string()),
+        Ok(outcome) if !outcome.accepted => {
+            return respond(
+                422,
+                "application/json",
+                &last_refusal(&outcome.result).to_string(),
+            )
+        }
         Ok(_) => {}
     }
 
@@ -194,7 +272,14 @@ async fn send_issue(
     for email in &recipients {
         let unsubscribe = unsubscribe_url(&site, email, &unsubscribe_token(secret, email));
         let personalized = personalize(&body, &unsubscribe);
-        let delivery = mailer.deliver(&Email { to: email, subject: &subject, body: &personalized, unsubscribe_url: Some(&unsubscribe) }).await;
+        let delivery = mailer
+            .deliver(&Email {
+                to: email,
+                subject: &subject,
+                body: &personalized,
+                unsubscribe_url: Some(&unsubscribe),
+            })
+            .await;
         if !delivery.ok {
             failures.push(json!({ "email": email, "reason": delivery.reason }));
             continue;
@@ -207,13 +292,28 @@ async fn send_issue(
             "subscriber_email": { "value": email },
             "message_id": { "value": delivery.message_id.unwrap_or_default() },
         });
-        match dispatch::handle_facts(client, wasm_path, &issues.record_delivery, facts, None, config, invoker).await {
+        match dispatch::handle_facts(
+            client,
+            wasm_path,
+            &issues.record_delivery,
+            facts,
+            None,
+            config,
+            invoker,
+        )
+        .await
+        {
             Ok(outcome) if outcome.accepted => {}
             other => {
                 // The email went out; only its record is missing. Surface it
                 // in the response and the log rather than fail the whole send.
                 unrecorded += 1;
-                eprintln!("newsletter send {slug}: delivered to {email} but could not record it: {}", other.map(|o| last_refusal(&o.result).to_string()).unwrap_or_else(|e| format!("{e:#}")));
+                eprintln!(
+                    "newsletter send {slug}: delivered to {email} but could not record it: {}",
+                    other
+                        .map(|o| last_refusal(&o.result).to_string())
+                        .unwrap_or_else(|e| format!("{e:#}"))
+                );
             }
         }
     }
@@ -229,17 +329,29 @@ async fn send_test(raw_body: &str, mailer: &Mailer, secret: &str) -> Value {
         Err(e) => return json_error(400, &format!("invalid JSON: {e}")),
     };
     let field = |name: &str| body.get(name).and_then(|v| v.as_str());
-    let (Some(to), Some(subject), Some(text)) = (field("to"), field("subject"), field("body")) else {
+    let (Some(to), Some(subject), Some(text)) = (field("to"), field("subject"), field("body"))
+    else {
         return json_error(400, "to, subject and body are required");
     };
 
     let unsubscribe = unsubscribe_url(&site_url(), to, &unsubscribe_token(secret, to));
     let subject = format!("[TEST] {subject}");
-    let delivery = mailer.deliver(&Email { to, subject: &subject, body: &personalize(text, &unsubscribe), unsubscribe_url: Some(&unsubscribe) }).await;
+    let delivery = mailer
+        .deliver(&Email {
+            to,
+            subject: &subject,
+            body: &personalize(text, &unsubscribe),
+            unsubscribe_url: Some(&unsubscribe),
+        })
+        .await;
     if delivery.ok {
         respond(200, "application/json", &json!({ "to": to }).to_string())
     } else {
-        respond(502, "application/json", &json!({ "error": "delivery failed", "reason": delivery.reason }).to_string())
+        respond(
+            502,
+            "application/json",
+            &json!({ "error": "delivery failed", "reason": delivery.reason }).to_string(),
+        )
     }
 }
 
@@ -249,8 +361,14 @@ mod tests {
 
     #[test]
     fn send_and_send_test_are_the_only_issue_routes() {
-        assert_eq!(issue_action("POST", "/newsletter/issues/spring/send"), Some(("spring".to_string(), IssueAction::Send)));
-        assert_eq!(issue_action("POST", "/newsletter/issues/spring/send-test"), Some(("spring".to_string(), IssueAction::SendTest)));
+        assert_eq!(
+            issue_action("POST", "/newsletter/issues/spring/send"),
+            Some(("spring".to_string(), IssueAction::Send))
+        );
+        assert_eq!(
+            issue_action("POST", "/newsletter/issues/spring/send-test"),
+            Some(("spring".to_string(), IssueAction::SendTest))
+        );
         assert_eq!(issue_action("GET", "/newsletter/issues/spring/send"), None);
         assert_eq!(issue_action("POST", "/newsletter/issues/spring/edit"), None);
         assert_eq!(issue_action("POST", "/newsletter/issues//send"), None);
@@ -260,12 +378,20 @@ mod tests {
 
     #[test]
     fn the_slug_is_percent_decoded() {
-        assert_eq!(issue_action("POST", "/newsletter/issues/spring%20news/send").unwrap().0, "spring news");
+        assert_eq!(
+            issue_action("POST", "/newsletter/issues/spring%20news/send")
+                .unwrap()
+                .0,
+            "spring news"
+        );
     }
 
     #[test]
     fn the_unsubscribe_token_is_replaced_wherever_it_appears() {
-        let out = personalize("<a href=\"{{UNSUBSCRIBE_URL}}\">leave</a> {{UNSUBSCRIBE_URL}}", "https://x/u");
+        let out = personalize(
+            "<a href=\"{{UNSUBSCRIBE_URL}}\">leave</a> {{UNSUBSCRIBE_URL}}",
+            "https://x/u",
+        );
         assert_eq!(out, "<a href=\"https://x/u\">leave</a> https://x/u");
     }
 
@@ -279,42 +405,100 @@ mod tests {
 
     #[test]
     fn a_signed_unsubscribe_url_carries_a_token_that_verifies_for_its_address() {
-        let url = reqwest::Url::parse(&unsubscribe_url("https://example.com", "a+b@example.com", &unsubscribe_token("s3cret-value", "a+b@example.com"))).unwrap();
-        let query: HashMap<String, String> = url.query_pairs().map(|(k, v)| (k.to_string(), v.to_string())).collect();
+        let url = reqwest::Url::parse(&unsubscribe_url(
+            "https://example.com",
+            "a+b@example.com",
+            &unsubscribe_token("s3cret-value", "a+b@example.com"),
+        ))
+        .unwrap();
+        let query: HashMap<String, String> = url
+            .query_pairs()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect();
         assert_eq!(query["email"], "a+b@example.com");
-        assert!(unsubscribe_token_matches("s3cret-value", &query["token"], &query["email"]));
+        assert!(unsubscribe_token_matches(
+            "s3cret-value",
+            &query["token"],
+            &query["email"]
+        ));
     }
 
     #[test]
     fn an_unsubscribe_token_verifies_only_for_the_address_it_was_minted_for() {
         let token = unsubscribe_token("s3cret-value", "a@example.com");
-        assert!(unsubscribe_token_matches("s3cret-value", &token, "a@example.com"));
-        assert!(!unsubscribe_token_matches("s3cret-value", &token, "b@example.com"));
-        assert!(!unsubscribe_token_matches("another-secret", &token, "a@example.com"));
+        assert!(unsubscribe_token_matches(
+            "s3cret-value",
+            &token,
+            "a@example.com"
+        ));
+        assert!(!unsubscribe_token_matches(
+            "s3cret-value",
+            &token,
+            "b@example.com"
+        ));
+        assert!(!unsubscribe_token_matches(
+            "another-secret",
+            &token,
+            "a@example.com"
+        ));
     }
 
     #[test]
     fn an_unsubscribe_token_and_a_confirm_token_are_not_interchangeable() {
         let unsubscribe = unsubscribe_token("s3cret-value", "a@example.com");
-        let confirm = auth::purpose_token("s3cret-value", "newsletter-confirm", json!({ "email": "a@example.com" }), 60);
-        assert!(auth::verify_purpose_token("s3cret-value", "newsletter-confirm", &unsubscribe).is_none());
-        assert!(!unsubscribe_token_matches("s3cret-value", &confirm, "a@example.com"));
+        let confirm = auth::purpose_token(
+            "s3cret-value",
+            "newsletter-confirm",
+            json!({ "email": "a@example.com" }),
+            60,
+        );
+        assert!(
+            auth::verify_purpose_token("s3cret-value", "newsletter-confirm", &unsubscribe)
+                .is_none()
+        );
+        assert!(!unsubscribe_token_matches(
+            "s3cret-value",
+            &confirm,
+            "a@example.com"
+        ));
     }
 
     #[test]
     fn an_unsubscribe_token_outlives_the_confirm_window_by_two_years() {
-        let claims = auth::verify_purpose_token("s3cret-value", UNSUBSCRIBE_PURPOSE, &unsubscribe_token("s3cret-value", "a@example.com")).unwrap();
+        let claims = auth::verify_purpose_token(
+            "s3cret-value",
+            UNSUBSCRIBE_PURPOSE,
+            &unsubscribe_token("s3cret-value", "a@example.com"),
+        )
+        .unwrap();
         let remaining = claims["exp"].as_u64().unwrap() - unix_now() as u64;
         assert!(remaining > 729 * 24 * 60 * 60 && remaining <= 730 * 24 * 60 * 60);
     }
 
     #[test]
     fn an_expired_or_garbled_unsubscribe_token_is_refused() {
-        let expired = auth::purpose_token("s3cret-value", UNSUBSCRIBE_PURPOSE, json!({ "email": "a@example.com" }), 0);
+        let expired = auth::purpose_token(
+            "s3cret-value",
+            UNSUBSCRIBE_PURPOSE,
+            json!({ "email": "a@example.com" }),
+            0,
+        );
         std::thread::sleep(std::time::Duration::from_millis(1100));
-        assert!(!unsubscribe_token_matches("s3cret-value", &expired, "a@example.com"));
-        assert!(!unsubscribe_token_matches("s3cret-value", "not-a-token", "a@example.com"));
-        assert!(!unsubscribe_token_matches("s3cret-value", "", "a@example.com"));
+        assert!(!unsubscribe_token_matches(
+            "s3cret-value",
+            &expired,
+            "a@example.com"
+        ));
+        assert!(!unsubscribe_token_matches(
+            "s3cret-value",
+            "not-a-token",
+            "a@example.com"
+        ));
+        assert!(!unsubscribe_token_matches(
+            "s3cret-value",
+            "",
+            "a@example.com"
+        ));
     }
 
     #[test]
@@ -336,18 +520,33 @@ mod tests {
 
     fn rows() -> Vec<(String, Value)> {
         vec![
-            ("zed@example.com".to_string(), json!({ "status": "confirmed" })),
-            ("pending@example.com".to_string(), json!({ "status": "pending" })),
-            ("amy@example.com".to_string(), json!({ "status": "confirmed" })),
+            (
+                "zed@example.com".to_string(),
+                json!({ "status": "confirmed" }),
+            ),
+            (
+                "pending@example.com".to_string(),
+                json!({ "status": "pending" }),
+            ),
+            (
+                "amy@example.com".to_string(),
+                json!({ "status": "confirmed" }),
+            ),
             ("vip@example.com".to_string(), json!({ "status": "vip" })),
-            ("gone@example.com".to_string(), json!({ "status": "unsubscribed" })),
+            (
+                "gone@example.com".to_string(),
+                json!({ "status": "unsubscribed" }),
+            ),
         ]
     }
 
     #[test]
     fn legacy_default_sends_to_confirmed_subscribers_in_alphabetical_order() {
         let provider = provider_with(json!({}));
-        assert_eq!(confirmed_emails(&provider, &rows()), vec!["amy@example.com".to_string(), "zed@example.com".to_string()]);
+        assert_eq!(
+            confirmed_emails(&provider, &rows()),
+            vec!["amy@example.com".to_string(), "zed@example.com".to_string()]
+        );
     }
 
     #[test]
@@ -355,7 +554,11 @@ mod tests {
         let provider = provider_with(json!({ "receives_issues": ["vip", "confirmed"] }));
         assert_eq!(
             confirmed_emails(&provider, &rows()),
-            vec!["amy@example.com".to_string(), "vip@example.com".to_string(), "zed@example.com".to_string()]
+            vec![
+                "amy@example.com".to_string(),
+                "vip@example.com".to_string(),
+                "zed@example.com".to_string()
+            ]
         );
     }
 
@@ -374,14 +577,27 @@ mod tests {
 
     #[tokio::test]
     async fn a_test_send_goes_to_the_one_address_with_a_test_subject() {
-        let response = send_test(r#"{"to":"a@b.com","subject":"Spring","body":"<p>hi</p>"}"#, &Mailer::Mock, "s3cret-value").await;
+        let response = send_test(
+            r#"{"to":"a@b.com","subject":"Spring","body":"<p>hi</p>"}"#,
+            &Mailer::Mock,
+            "s3cret-value",
+        )
+        .await;
         assert_eq!(response["statusCode"], 200);
-        assert_eq!(serde_json::from_str::<Value>(response["body"].as_str().unwrap()).unwrap(), json!({ "to": "a@b.com" }));
+        assert_eq!(
+            serde_json::from_str::<Value>(response["body"].as_str().unwrap()).unwrap(),
+            json!({ "to": "a@b.com" })
+        );
     }
 
     #[tokio::test]
     async fn a_test_send_the_provider_refuses_is_a_502() {
-        let response = send_test(r#"{"to":"bounce@example.com","subject":"Spring","body":"x"}"#, &Mailer::Mock, "s3cret-value").await;
+        let response = send_test(
+            r#"{"to":"bounce@example.com","subject":"Spring","body":"x"}"#,
+            &Mailer::Mock,
+            "s3cret-value",
+        )
+        .await;
         assert_eq!(response["statusCode"], 502);
     }
 }

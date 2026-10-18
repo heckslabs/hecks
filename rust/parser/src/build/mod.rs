@@ -3,8 +3,8 @@
 
 pub mod closed_sets;
 pub mod identity;
-pub mod naming;
 pub mod named_pattern;
+pub mod naming;
 pub mod pattern_subset;
 pub mod query_derive;
 pub mod query_inference;

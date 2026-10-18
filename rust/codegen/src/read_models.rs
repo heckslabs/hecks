@@ -8,34 +8,91 @@ use crate::skip_reason::{reskip, skip, SkipReason};
 use std::collections::HashMap;
 
 const READ_MODEL_BARE_KEYS: &[&str] = &[
-    "name", "description", "reference_name", "reference_target", "query_name", "aggregate_heads", "wheres", "order_by", "offset", "limit", "freshness", "index_hints", "group_by", "null_semantics", "authorization", "count", "median_field",
-    "sum_field", "avg_field", "min_field", "max_field", "percentile_field", "percentile_at", "any_field", "all_field",
+    "name",
+    "description",
+    "reference_name",
+    "reference_target",
+    "query_name",
+    "aggregate_heads",
+    "wheres",
+    "order_by",
+    "offset",
+    "limit",
+    "freshness",
+    "index_hints",
+    "group_by",
+    "null_semantics",
+    "authorization",
+    "count",
+    "median_field",
+    "sum_field",
+    "avg_field",
+    "min_field",
+    "max_field",
+    "percentile_field",
+    "percentile_at",
+    "any_field",
+    "all_field",
 ];
 
 // Every reduction beyond `count` (which needs no field) — mirrors
 // Runtime::ReadModelInterpreter::REDUCTION_WORD/INTEGER_ONLY_REDUCTIONS/BOOLEAN_REDUCTIONS
 // (ADR 0078).
-const AGGREGATION_FIELD_KEYS: &[&str] = &["median_field", "sum_field", "avg_field", "min_field", "max_field", "percentile_field", "any_field", "all_field"];
+const AGGREGATION_FIELD_KEYS: &[&str] = &[
+    "median_field",
+    "sum_field",
+    "avg_field",
+    "min_field",
+    "max_field",
+    "percentile_field",
+    "any_field",
+    "all_field",
+];
 const INTEGER_ONLY_AGGREGATION_FIELDS: &[&str] = &["sum_field", "avg_field"];
 const BOOLEAN_AGGREGATION_FIELDS: &[&str] = &["any_field", "all_field"];
 
-pub fn read_model_skip_reason(read_model: &Json, aggregates_by_name: &HashMap<String, &Json>, unsupported_names: &[String]) -> Option<SkipReason> {
+pub fn read_model_skip_reason(
+    read_model: &Json,
+    aggregates_by_name: &HashMap<String, &Json>,
+    unsupported_names: &[String],
+) -> Option<SkipReason> {
     let keys: Vec<&str> = match read_model {
-        Json::Object(pairs) => pairs.iter().filter(|(_, v)| !matches!(v, Json::Null)).map(|(k, _)| k.as_str()).collect(),
+        Json::Object(pairs) => pairs
+            .iter()
+            .filter(|(_, v)| !matches!(v, Json::Null))
+            .map(|(k, _)| k.as_str())
+            .collect(),
         _ => Vec::new(),
     };
-    let extra: Vec<&str> = keys.into_iter().filter(|k| !READ_MODEL_BARE_KEYS.contains(k)).collect();
+    let extra: Vec<&str> = keys
+        .into_iter()
+        .filter(|k| !READ_MODEL_BARE_KEYS.contains(k))
+        .collect();
     if !extra.is_empty() {
         return Some(read_model_options_skip_reason(&extra));
     }
 
-    if read_model.get("group_by").map(Json::each).unwrap_or(&[]).iter().any(|_| true) {
+    if read_model
+        .get("group_by")
+        .map(Json::each)
+        .unwrap_or(&[])
+        .iter()
+        .any(|_| true)
+    {
         return group_by_skip_reason(read_model, aggregates_by_name, unsupported_names);
     }
 
-    let heads = read_model.get("aggregate_heads").map(Json::each).unwrap_or(&[]);
-    let reference_target = read_model.get("reference_target").map(Json::to_s).unwrap_or_default();
-    let root = heads.iter().find(|h| h.get("aggregate").map(Json::to_s).unwrap_or_default() == reference_target);
+    let heads = read_model
+        .get("aggregate_heads")
+        .map(Json::each)
+        .unwrap_or(&[]);
+    let reference_target = read_model
+        .get("reference_target")
+        .map(Json::to_s)
+        .unwrap_or_default();
+    let root = heads
+        .iter()
+        .find(|h| h.get("aggregate").map(Json::to_s).unwrap_or_default() == reference_target);
     // Rootless (no `reference_to`) is generated — `read_models.rb`'s own
     // comment on this check.
     if root.is_none() && !reference_target.is_empty() {
@@ -45,13 +102,20 @@ pub fn read_model_skip_reason(read_model: &Json, aggregates_by_name: &HashMap<St
         ));
     }
 
-    let root_name = root.and_then(|h| h.get("aggregate")).map(Json::to_s).unwrap_or_default();
-    if !aggregates_by_name.contains_key(&root_name) && nested_entity_names(aggregates_by_name).contains(&root_name) {
+    let root_name = root
+        .and_then(|h| h.get("aggregate"))
+        .map(Json::to_s)
+        .unwrap_or_default();
+    if !aggregates_by_name.contains_key(&root_name)
+        && nested_entity_names(aggregates_by_name).contains(&root_name)
+    {
         return Some(entity_head_skip_reason(&root_name, "root", "fetch by id"));
     }
 
     for head in heads {
-        if let Some(reason) = read_model_head_skip_reason(head, aggregates_by_name, unsupported_names) {
+        if let Some(reason) =
+            read_model_head_skip_reason(head, aggregates_by_name, unsupported_names)
+        {
             return Some(reason);
         }
     }
@@ -74,7 +138,13 @@ fn read_model_options_skip_reason(extra: &[&str]) -> SkipReason {
 
 /// Every many-side head this read model declares.
 fn read_model_many_heads(read_model: &Json) -> Vec<&Json> {
-    read_model.get("aggregate_heads").map(Json::each).unwrap_or(&[]).iter().filter(|h| h.get("many").map(Json::as_bool).unwrap_or(false)).collect()
+    read_model
+        .get("aggregate_heads")
+        .map(Json::each)
+        .unwrap_or(&[])
+        .iter()
+        .filter(|h| h.get("many").map(Json::as_bool).unwrap_or(false))
+        .collect()
 }
 
 /// Whether one declared option (its own `:target`, or `None` when untargeted) applies to
@@ -85,7 +155,10 @@ fn read_model_many_heads(read_model: &Json) -> Vec<&Json> {
 fn option_target_matches_head(target: Option<&str>, head: &Json, many_heads: &[&Json]) -> bool {
     let head_as = head.get("as").map(Json::to_s).unwrap_or_default();
     match target {
-        None => many_heads.len() == 1 && many_heads[0].get("as").map(Json::to_s).unwrap_or_default() == head_as,
+        None => {
+            many_heads.len() == 1
+                && many_heads[0].get("as").map(Json::to_s).unwrap_or_default() == head_as
+        }
         Some(target) => target == head.get("aggregate").map(Json::to_s).unwrap_or_default(),
     }
 }
@@ -99,7 +172,10 @@ fn json_target(option: &Json) -> Option<String> {
 /// `tenant:`) targeting it.
 fn read_model_option_targets_head(read_model: &Json, head: &Json, many_heads: &[&Json]) -> bool {
     let wheres = read_model.get("wheres").map(Json::each).unwrap_or(&[]);
-    if wheres.iter().any(|w| option_target_matches_head(json_target(w).as_deref(), head, many_heads)) {
+    if wheres
+        .iter()
+        .any(|w| option_target_matches_head(json_target(w).as_deref(), head, many_heads))
+    {
         return true;
     }
     if let Some(order_by) = read_model.get("order_by") {
@@ -117,8 +193,14 @@ fn read_model_option_targets_head(read_model: &Json, head: &Json, many_heads: &[
             return true;
         }
     }
-    if read_model.get("authorization").and_then(|a| a.get("tenant")).is_some() && many_heads.len() == 1 {
-        return many_heads[0].get("as").map(Json::to_s).unwrap_or_default() == head.get("as").map(Json::to_s).unwrap_or_default();
+    if read_model
+        .get("authorization")
+        .and_then(|a| a.get("tenant"))
+        .is_some()
+        && many_heads.len() == 1
+    {
+        return many_heads[0].get("as").map(Json::to_s).unwrap_or_default()
+            == head.get("as").map(Json::to_s).unwrap_or_default();
     }
     false
 }
@@ -127,7 +209,11 @@ fn read_model_option_targets_head(read_model: &Json, head: &Json, many_heads: &[
 /// declared order — one entry when there's a single many-side head (the pre-ADR-0055 shape),
 /// more than one only when `on:` targets several.
 fn read_model_filtered_heads<'a>(read_model: &Json, many_heads: &[&'a Json]) -> Vec<&'a Json> {
-    many_heads.iter().copied().filter(|head| read_model_option_targets_head(read_model, head, many_heads)).collect()
+    many_heads
+        .iter()
+        .copied()
+        .filter(|head| read_model_option_targets_head(read_model, head, many_heads))
+        .collect()
 }
 
 /// One targeted head's own where/order_by/offset/limit, pulled out of the read model's full
@@ -141,31 +227,77 @@ struct HeadQuery<'a> {
     authorization: Option<&'a Json>,
 }
 
-fn read_model_head_query<'a>(read_model: &'a Json, head: &Json, many_heads: &[&Json]) -> HeadQuery<'a> {
-    let wheres = read_model.get("wheres").map(Json::each).unwrap_or(&[]).iter().filter(|w| option_target_matches_head(json_target(w).as_deref(), head, many_heads)).collect();
-    let order_by = read_model.get("order_by").filter(|ob| option_target_matches_head(json_target(ob).as_deref(), head, many_heads));
-    let limit = read_model.get("limit").filter(|l| option_target_matches_head(json_target(l).as_deref(), head, many_heads));
-    let offset = read_model.get("offset").filter(|o| option_target_matches_head(json_target(o).as_deref(), head, many_heads));
-    let authorization = if many_heads.len() == 1 && many_heads[0].get("as").map(Json::to_s).unwrap_or_default() == head.get("as").map(Json::to_s).unwrap_or_default() {
+fn read_model_head_query<'a>(
+    read_model: &'a Json,
+    head: &Json,
+    many_heads: &[&Json],
+) -> HeadQuery<'a> {
+    let wheres = read_model
+        .get("wheres")
+        .map(Json::each)
+        .unwrap_or(&[])
+        .iter()
+        .filter(|w| option_target_matches_head(json_target(w).as_deref(), head, many_heads))
+        .collect();
+    let order_by = read_model
+        .get("order_by")
+        .filter(|ob| option_target_matches_head(json_target(ob).as_deref(), head, many_heads));
+    let limit = read_model
+        .get("limit")
+        .filter(|l| option_target_matches_head(json_target(l).as_deref(), head, many_heads));
+    let offset = read_model
+        .get("offset")
+        .filter(|o| option_target_matches_head(json_target(o).as_deref(), head, many_heads));
+    let authorization = if many_heads.len() == 1
+        && many_heads[0].get("as").map(Json::to_s).unwrap_or_default()
+            == head.get("as").map(Json::to_s).unwrap_or_default()
+    {
         read_model.get("authorization")
     } else {
         None
     };
-    HeadQuery { wheres, order_by, limit, offset, authorization }
+    HeadQuery {
+        wheres,
+        order_by,
+        limit,
+        offset,
+        authorization,
+    }
 }
 
 /// Checks every targeted head's own where/order_by/limit for generability against ITS
 /// aggregate (not the read model's root); `None` means clean.
-fn read_model_options_content_skip_reason(read_model: &Json, aggregates_by_name: &HashMap<String, &Json>) -> Option<SkipReason> {
+fn read_model_options_content_skip_reason(
+    read_model: &Json,
+    aggregates_by_name: &HashMap<String, &Json>,
+) -> Option<SkipReason> {
     let many_heads = read_model_many_heads(read_model);
 
     for head in read_model_filtered_heads(read_model, &many_heads) {
         let aggregate_name = head.get("aggregate").map(Json::to_s).unwrap_or_default();
         let Some(aggregate) = aggregates_by_name.get(&aggregate_name) else {
-            return Some(entity_head_skip_reason(&aggregate_name, "filtered head", "filter, order or authorize"));
+            return Some(entity_head_skip_reason(
+                &aggregate_name,
+                "filtered head",
+                "filter, order or authorize",
+            ));
         };
-        let vos = aggregate.get("value_objects").map(Json::each).unwrap_or(&[]);
-        let value_objects_by_name: HashMap<String, &Json> = vos.iter().map(|vo| (vo.get("name").and_then(Json::as_str).unwrap_or("").to_string(), vo)).collect();
+        let vos = aggregate
+            .get("value_objects")
+            .map(Json::each)
+            .unwrap_or(&[]);
+        let value_objects_by_name: HashMap<String, &Json> = vos
+            .iter()
+            .map(|vo| {
+                (
+                    vo.get("name")
+                        .and_then(Json::as_str)
+                        .unwrap_or("")
+                        .to_string(),
+                    vo,
+                )
+            })
+            .collect();
         let as_name = head.get("as").map(Json::to_s).unwrap_or_default();
         let head_label = format!("head {aggregate_name} (as {as_name})");
         let head_query = read_model_head_query(read_model, head, &many_heads);
@@ -173,7 +305,10 @@ fn read_model_options_content_skip_reason(read_model: &Json, aggregates_by_name:
         // A hop through a reference is generated when `query_hop_plan` resolves
         // it — `read_models.rb`'s own loop, check for check.
         for where_clause in head_query.wheres.iter().copied() {
-            let field = where_clause.get("field").map(Json::to_s).unwrap_or_default();
+            let field = where_clause
+                .get("field")
+                .map(Json::to_s)
+                .unwrap_or_default();
             let hop = queries::query_hop_plan(aggregate, &field, aggregates_by_name);
             if hop.is_none() && field.contains('/') {
                 return Some(skip(
@@ -187,22 +322,42 @@ fn read_model_options_content_skip_reason(read_model: &Json, aggregates_by_name:
 
             if let Some(plan) = hop {
                 let target_value_objects_by_name = queries::value_objects_of(plan.target);
-                if let Some(reason) = queries::query_where_skip_reason(&queries::with_field(where_clause, &plan.inner_field), plan.target, &target_value_objects_by_name) {
-                    return Some(reskip(&reason, format!("{head_label}'s own hop through {} to {}'s own {reason}", plan.via_field, plan.target_aggregate)));
+                if let Some(reason) = queries::query_where_skip_reason(
+                    &queries::with_field(where_clause, &plan.inner_field),
+                    plan.target,
+                    &target_value_objects_by_name,
+                ) {
+                    return Some(reskip(
+                        &reason,
+                        format!(
+                            "{head_label}'s own hop through {} to {}'s own {reason}",
+                            plan.via_field, plan.target_aggregate
+                        ),
+                    ));
                 }
                 continue;
             }
 
-            if let Some(reason) = queries::query_where_skip_reason(where_clause, aggregate, &value_objects_by_name) {
+            if let Some(reason) =
+                queries::query_where_skip_reason(where_clause, aggregate, &value_objects_by_name)
+            {
                 return Some(reskip(&reason, format!("{head_label}'s own {reason}")));
             }
         }
 
-        if let Some(reason) = queries::declared_authorization_skip_reason(head_query.authorization, aggregate, &value_objects_by_name) {
+        if let Some(reason) = queries::declared_authorization_skip_reason(
+            head_query.authorization,
+            aggregate,
+            &value_objects_by_name,
+        ) {
             return Some(reason);
         }
 
-        if let Some(reason) = queries::declared_order_by_skip_reason(head_query.order_by, aggregate, &value_objects_by_name) {
+        if let Some(reason) = queries::declared_order_by_skip_reason(
+            head_query.order_by,
+            aggregate,
+            &value_objects_by_name,
+        ) {
             return Some(reason);
         }
 
@@ -221,19 +376,47 @@ fn read_model_options_content_skip_reason(read_model: &Json, aggregates_by_name:
 // `seal_aggregation` (Ruby, build time) already guarantees exactly one
 // many-side head and mutual exclusion with `group_by` — only the one declared
 // reduction's own field needs checking here (ADR 0078).
-fn aggregation_skip_reason(read_model: &Json, aggregates_by_name: &HashMap<String, &Json>) -> Option<SkipReason> {
-    let field_key = AGGREGATION_FIELD_KEYS.iter().find(|key| read_model.get(**key).is_some())?;
+fn aggregation_skip_reason(
+    read_model: &Json,
+    aggregates_by_name: &HashMap<String, &Json>,
+) -> Option<SkipReason> {
+    let field_key = AGGREGATION_FIELD_KEYS
+        .iter()
+        .find(|key| read_model.get(**key).is_some())?;
     let field = Json::to_s(read_model.get(*field_key).expect("checked by find above"));
     let word = field_key.strip_suffix("_field").unwrap_or(field_key);
 
-    let heads = read_model.get("aggregate_heads").map(Json::each).unwrap_or(&[]);
-    let target = heads.iter().find(|h| h.get("many").map(Json::as_bool).unwrap_or(false))?;
+    let heads = read_model
+        .get("aggregate_heads")
+        .map(Json::each)
+        .unwrap_or(&[]);
+    let target = heads
+        .iter()
+        .find(|h| h.get("many").map(Json::as_bool).unwrap_or(false))?;
     let aggregate_name = target.get("aggregate").map(Json::to_s).unwrap_or_default();
     let Some(aggregate) = aggregates_by_name.get(&aggregate_name) else {
-        return Some(entity_head_skip_reason(&aggregate_name, &format!("{word} target"), "reduce"));
+        return Some(entity_head_skip_reason(
+            &aggregate_name,
+            &format!("{word} target"),
+            "reduce",
+        ));
     };
-    let vos = aggregate.get("value_objects").map(Json::each).unwrap_or(&[]);
-    let value_objects_by_name: HashMap<String, &Json> = vos.iter().map(|vo| (vo.get("name").and_then(Json::as_str).unwrap_or("").to_string(), vo)).collect();
+    let vos = aggregate
+        .get("value_objects")
+        .map(Json::each)
+        .unwrap_or(&[]);
+    let value_objects_by_name: HashMap<String, &Json> = vos
+        .iter()
+        .map(|vo| {
+            (
+                vo.get("name")
+                    .and_then(Json::as_str)
+                    .unwrap_or("")
+                    .to_string(),
+                vo,
+            )
+        })
+        .collect();
 
     let kind = queries::query_field_kind(aggregate, &field, &value_objects_by_name);
     if kind == queries::FieldKind::Unknown {
@@ -256,7 +439,9 @@ fn aggregation_skip_reason(read_model: &Json, aggregates_by_name: &HashMap<Strin
     }
 
     if INTEGER_ONLY_AGGREGATION_FIELDS.contains(field_key) {
-        if queries::query_field_numeric_type(aggregate, &field, &value_objects_by_name).as_deref() != Some("Integer") {
+        if queries::query_field_numeric_type(aggregate, &field, &value_objects_by_name).as_deref()
+            != Some("Integer")
+        {
             return Some(skip(
                 *field_key,
                 format!("{word} names {field:?} on {aggregate_name}, which is a Float field — {word} admits only an Integer field (summing/averaging Floats cannot be made to agree, byte for byte, between Ruby and Rust) — not generated yet"),
@@ -269,8 +454,15 @@ fn aggregation_skip_reason(read_model: &Json, aggregates_by_name: &HashMap<Strin
 
 // Mirrors the retired Ruby generator's `read_models.rb`'s `group_by_skip_reason`: the one
 // shape the corpus declares — a single rootless head, group_by alone.
-fn group_by_skip_reason(read_model: &Json, aggregates_by_name: &HashMap<String, &Json>, unsupported_names: &[String]) -> Option<SkipReason> {
-    let heads = read_model.get("aggregate_heads").map(Json::each).unwrap_or(&[]);
+fn group_by_skip_reason(
+    read_model: &Json,
+    aggregates_by_name: &HashMap<String, &Json>,
+    unsupported_names: &[String],
+) -> Option<SkipReason> {
+    let heads = read_model
+        .get("aggregate_heads")
+        .map(Json::each)
+        .unwrap_or(&[]);
     if heads.len() != 1 {
         return Some(skip("group_by", format!("declares group_by across {} aggregate heads — not generated yet (only a single, rootless head is)", heads.len())));
     }
@@ -278,15 +470,37 @@ fn group_by_skip_reason(read_model: &Json, aggregates_by_name: &HashMap<String, 
     if reference_target.is_some() && !matches!(reference_target, Some(Json::Null)) {
         return Some(skip("group_by", format!("declares group_by on a NON-rootless read model (reference_to {}) — not generated yet", reference_target.map(Json::to_s).unwrap_or_default())));
     }
-    if read_model.get("count").is_some() || AGGREGATION_FIELD_KEYS.iter().any(|key| read_model.get(*key).is_some()) {
-        return Some(skip("group_by", "declares group_by alongside a reduction — not generated yet"));
+    if read_model.get("count").is_some()
+        || AGGREGATION_FIELD_KEYS
+            .iter()
+            .any(|key| read_model.get(*key).is_some())
+    {
+        return Some(skip(
+            "group_by",
+            "declares group_by alongside a reduction — not generated yet",
+        ));
     }
-    let has_wheres = read_model.get("wheres").map(Json::each).unwrap_or(&[]).iter().any(|_| true);
-    if has_wheres || read_model.get("order_by").is_some() || read_model.get("limit").is_some() || read_model.get("offset").is_some() {
-        return Some(skip("group_by", "declares group_by alongside where/order_by/limit/offset — not generated yet"));
+    let has_wheres = read_model
+        .get("wheres")
+        .map(Json::each)
+        .unwrap_or(&[])
+        .iter()
+        .any(|_| true);
+    if has_wheres
+        || read_model.get("order_by").is_some()
+        || read_model.get("limit").is_some()
+        || read_model.get("offset").is_some()
+    {
+        return Some(skip(
+            "group_by",
+            "declares group_by alongside where/order_by/limit/offset — not generated yet",
+        ));
     }
     if read_model.get("authorization").is_some() {
-        return Some(skip("group_by", "declares group_by with an authorize policy — not generated yet"));
+        return Some(skip(
+            "group_by",
+            "declares group_by with an authorize policy — not generated yet",
+        ));
     }
 
     let head = &heads[0];
@@ -296,10 +510,17 @@ fn group_by_skip_reason(read_model: &Json, aggregates_by_name: &HashMap<String, 
 
     let aggregate_name = head.get("aggregate").map(Json::to_s).unwrap_or_default();
     let Some(aggregate) = aggregates_by_name.get(&aggregate_name) else {
-        return Some(entity_head_skip_reason(&aggregate_name, "group_by head", "group"));
+        return Some(entity_head_skip_reason(
+            &aggregate_name,
+            "group_by head",
+            "group",
+        ));
     };
     let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
-    let lifecycle_field = aggregate.get("lifecycle").and_then(|l| l.get("field")).map(Json::to_s);
+    let lifecycle_field = aggregate
+        .get("lifecycle")
+        .and_then(|l| l.get("field"))
+        .map(Json::to_s);
     for row in read_model.get("group_by").map(Json::each).unwrap_or(&[]) {
         let field = row.get("field").map(Json::to_s).unwrap_or_default();
         let is_attr = attrs.iter().any(|a| crate::attr::name(a) == field);
@@ -334,13 +555,20 @@ fn entity_head_skip_reason(aggregate_name: &str, role: &str, purpose: &str) -> S
     )
 }
 
-fn read_model_head_skip_reason(head: &Json, aggregates_by_name: &HashMap<String, &Json>, unsupported_names: &[String]) -> Option<SkipReason> {
+fn read_model_head_skip_reason(
+    head: &Json,
+    aggregates_by_name: &HashMap<String, &Json>,
+    unsupported_names: &[String],
+) -> Option<SkipReason> {
     let aggregate_name = head.get("aggregate").map(Json::to_s).unwrap_or_default();
     if !aggregates_by_name.contains_key(&aggregate_name) {
         if nested_entity_names(aggregates_by_name).contains(&aggregate_name) {
             return None;
         }
-        return Some(skip("include_undeclared_aggregate", format!("includes {aggregate_name}, which this domain never declares")));
+        return Some(skip(
+            "include_undeclared_aggregate",
+            format!("includes {aggregate_name}, which this domain never declares"),
+        ));
     }
     if unsupported_names.contains(&aggregate_name) {
         return Some(skip(
@@ -357,25 +585,51 @@ pub struct ReferenceField {
 }
 
 fn read_model_reference_fields(head_aggregate: &Json) -> Vec<ReferenceField> {
-    let attrs = head_aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
+    let attrs = head_aggregate
+        .get("attributes")
+        .map(Json::each)
+        .unwrap_or(&[]);
     attrs
         .iter()
         .filter_map(|attr| {
             let target = crate::naming::reference_target(crate::attr::type_name(attr))?;
-            Some(ReferenceField { target: target.to_string(), field: crate::attr::name(attr).to_string() })
+            Some(ReferenceField {
+                target: target.to_string(),
+                field: crate::attr::name(attr).to_string(),
+            })
         })
         .collect()
 }
 
 fn emit_reference_field(domain_name: &str, rf: &ReferenceField) -> String {
     let qualified_target = format!("{domain_name}::{}", rf.target);
-    format!("crate::kernel::read_model::ReferenceField {{ target_aggregate: {}, field: {} }}", crate::naming::ruby_inspect_string(&qualified_target), crate::naming::ruby_inspect_string(&rf.field))
+    format!(
+        "crate::kernel::read_model::ReferenceField {{ target_aggregate: {}, field: {} }}",
+        crate::naming::ruby_inspect_string(&qualified_target),
+        crate::naming::ruby_inspect_string(&rf.field)
+    )
 }
 
-fn emit_read_model_head(domain_name: &str, head: &Json, is_root: bool, aggregates_by_name: &HashMap<String, &Json>) -> String {
+fn emit_read_model_head(
+    domain_name: &str,
+    head: &Json,
+    is_root: bool,
+    aggregates_by_name: &HashMap<String, &Json>,
+) -> String {
     let aggregate_name = head.get("aggregate").map(Json::to_s).unwrap_or_default();
-    let reference_fields: Vec<ReferenceField> = if is_root { Vec::new() } else { aggregates_by_name.get(&aggregate_name).map(|a| read_model_reference_fields(a)).unwrap_or_default() };
-    let reference_fields_expr = reference_fields.iter().map(|rf| emit_reference_field(domain_name, rf)).collect::<Vec<_>>().join(", ");
+    let reference_fields: Vec<ReferenceField> = if is_root {
+        Vec::new()
+    } else {
+        aggregates_by_name
+            .get(&aggregate_name)
+            .map(|a| read_model_reference_fields(a))
+            .unwrap_or_default()
+    };
+    let reference_fields_expr = reference_fields
+        .iter()
+        .map(|rf| emit_reference_field(domain_name, rf))
+        .collect::<Vec<_>>()
+        .join(", ");
     let qualified_aggregate = format!("{domain_name}::{aggregate_name}");
     let as_name = head.get("as").map(Json::to_s).unwrap_or_default();
     let many = head.get("many").map(Json::as_bool).unwrap_or(false);
@@ -388,7 +642,11 @@ fn emit_read_model_head(domain_name: &str, head: &Json, is_root: bool, aggregate
 }
 
 fn emit_read_model_order_by(order_by: &Json, null_semantics: Option<&Json>) -> String {
-    let descending = order_by.get("direction").map(Json::to_s).unwrap_or_default() == "desc";
+    let descending = order_by
+        .get("direction")
+        .map(Json::to_s)
+        .unwrap_or_default()
+        == "desc";
     format!(
         "crate::kernel::read_model::ReadModelOrderBy {{ field: {}, descending: {descending}, nulls: {} }}",
         crate::naming::ruby_inspect_string(&order_by.get("field").map(Json::to_s).unwrap_or_default()),
@@ -399,15 +657,24 @@ fn emit_read_model_order_by(order_by: &Json, null_semantics: Option<&Json>) -> S
 fn emit_read_model_limit(limit: &Json) -> String {
     let raw = limit.get("value").map(Json::to_s).unwrap_or_default();
     if let Some(arg) = raw.strip_prefix(':') {
-        return format!("crate::kernel::read_model::ReadModelLimit::Arg({})", crate::naming::ruby_inspect_string(arg));
+        return format!(
+            "crate::kernel::read_model::ReadModelLimit::Arg({})",
+            crate::naming::ruby_inspect_string(arg)
+        );
     }
-    format!("crate::kernel::read_model::ReadModelLimit::Literal({})", ruby_to_i(&raw))
+    format!(
+        "crate::kernel::read_model::ReadModelLimit::Literal({})",
+        ruby_to_i(&raw)
+    )
 }
 
 // `ReadModelOffset` is a type alias for `ReadModelLimit`'s own type, so this
 // reuses `emit_read_model_limit`'s computation and swaps the type name.
 fn emit_read_model_offset(offset: &Json) -> String {
-    emit_read_model_limit(offset).replace("read_model::ReadModelLimit::", "read_model::ReadModelOffset::")
+    emit_read_model_limit(offset).replace(
+        "read_model::ReadModelLimit::",
+        "read_model::ReadModelOffset::",
+    )
 }
 
 fn ruby_to_i(s: &str) -> i64 {
@@ -461,48 +728,111 @@ pub struct ReadModelDef {
 
 /// `local_wheres, hop_wheres` compiled for one targeted head, mirroring
 /// `read_models.rb#filtered_head_def`.
-fn filtered_head_def(domain_name: &str, read_model: &Json, head: &Json, many_heads: &[&Json], aggregates_by_name: &HashMap<String, &Json>) -> FilteredHeadDef {
+fn filtered_head_def(
+    domain_name: &str,
+    read_model: &Json,
+    head: &Json,
+    many_heads: &[&Json],
+    aggregates_by_name: &HashMap<String, &Json>,
+) -> FilteredHeadDef {
     let aggregate_name = head.get("aggregate").map(Json::to_s).unwrap_or_default();
     let aggregate = aggregates_by_name[&aggregate_name];
     let head_query = read_model_head_query(read_model, head, many_heads);
     let (local_wheres, hop_wheres): (Vec<&Json>, Vec<&Json>) =
-        head_query.wheres.iter().copied().partition(|w| queries::query_hop_plan(aggregate, &w.get("field").map(Json::to_s).unwrap_or_default(), aggregates_by_name).is_none());
+        head_query.wheres.iter().copied().partition(|w| {
+            queries::query_hop_plan(
+                aggregate,
+                &w.get("field").map(Json::to_s).unwrap_or_default(),
+                aggregates_by_name,
+            )
+            .is_none()
+        });
     let synthetic = with_wheres_and_authorization(&local_wheres, head_query.authorization);
-    let conditions = if head_query.authorization.is_some() { queries::query_conditions_with_authorization(&synthetic) } else { queries::query_conditions(&synthetic) };
+    let conditions = if head_query.authorization.is_some() {
+        queries::query_conditions_with_authorization(&synthetic)
+    } else {
+        queries::query_conditions(&synthetic)
+    };
 
     FilteredHeadDef {
         as_name: head.get("as").map(Json::to_s).unwrap_or_default(),
         conditions,
-        reference_hop_conditions: queries::read_model_hop_conditions(domain_name, &hop_wheres, aggregate, aggregates_by_name),
-        order_by: head_query.order_by.map(|ob| emit_read_model_order_by(ob, read_model.get("null_semantics"))),
+        reference_hop_conditions: queries::read_model_hop_conditions(
+            domain_name,
+            &hop_wheres,
+            aggregate,
+            aggregates_by_name,
+        ),
+        order_by: head_query
+            .order_by
+            .map(|ob| emit_read_model_order_by(ob, read_model.get("null_semantics"))),
         offset: head_query.offset.map(emit_read_model_offset),
         limit: head_query.limit.map(emit_read_model_limit),
     }
 }
 
-pub fn read_model_def(domain_name: &str, read_model: &Json, aggregates_by_name: &HashMap<String, &Json>) -> ReadModelDef {
-    let reference_target = read_model.get("reference_target").map(Json::to_s).unwrap_or_default();
-    let heads_json = read_model.get("aggregate_heads").map(Json::each).unwrap_or(&[]);
+pub fn read_model_def(
+    domain_name: &str,
+    read_model: &Json,
+    aggregates_by_name: &HashMap<String, &Json>,
+) -> ReadModelDef {
+    let reference_target = read_model
+        .get("reference_target")
+        .map(Json::to_s)
+        .unwrap_or_default();
+    let heads_json = read_model
+        .get("aggregate_heads")
+        .map(Json::each)
+        .unwrap_or(&[]);
     let heads: Vec<String> = heads_json
         .iter()
         .map(|head| {
-            let is_root = head.get("aggregate").map(Json::to_s).unwrap_or_default() == reference_target;
+            let is_root =
+                head.get("aggregate").map(Json::to_s).unwrap_or_default() == reference_target;
             emit_read_model_head(domain_name, head, is_root, aggregates_by_name)
         })
         .collect();
 
     let many_heads = read_model_many_heads(read_model);
-    let filtered_heads: Vec<FilteredHeadDef> =
-        read_model_filtered_heads(read_model, &many_heads).into_iter().map(|head| filtered_head_def(domain_name, read_model, head, &many_heads, aggregates_by_name)).collect();
+    let filtered_heads: Vec<FilteredHeadDef> = read_model_filtered_heads(read_model, &many_heads)
+        .into_iter()
+        .map(|head| {
+            filtered_head_def(
+                domain_name,
+                read_model,
+                head,
+                &many_heads,
+                aggregates_by_name,
+            )
+        })
+        .collect();
     let sole_head_as: bool = many_heads.len() == 1;
 
     let read_model_name = read_model.get("name").map(Json::to_s).unwrap_or_default();
-    let group_by_fields: Vec<String> = read_model.get("group_by").map(Json::each).unwrap_or(&[]).iter().map(|row| row.get("field").map(Json::to_s).unwrap_or_default()).collect();
+    let group_by_fields: Vec<String> = read_model
+        .get("group_by")
+        .map(Json::each)
+        .unwrap_or(&[])
+        .iter()
+        .map(|row| row.get("field").map(Json::to_s).unwrap_or_default())
+        .collect();
     let (group_by_fn, group_by_fn_body) = if !group_by_fields.is_empty() {
         let fn_name = format!("group_by_{}", read_model_name.to_lowercase());
-        let aggregate_name = heads_json.first().and_then(|h| h.get("aggregate")).map(Json::to_s).unwrap_or_default();
+        let aggregate_name = heads_json
+            .first()
+            .and_then(|h| h.get("aggregate"))
+            .map(Json::to_s)
+            .unwrap_or_default();
         let aggregate = aggregates_by_name[&aggregate_name];
-        (Some(fn_name.clone()), Some(emit_group_by_transform(&fn_name, &read_model_name, aggregate, &group_by_fields)))
+        (
+            Some(fn_name.clone()),
+            Some(emit_group_by_transform(
+                &fn_name,
+                &read_model_name,
+                aggregate,
+                &group_by_fields,
+            )),
+        )
     } else {
         (None, None)
     };
@@ -512,7 +842,11 @@ pub fn read_model_def(domain_name: &str, read_model: &Json, aggregates_by_name: 
         reference_name: read_model.get("reference_name").map(Json::to_s),
         heads,
         filtered_heads,
-        authorization: if sole_head_as { queries::emit_query_authorization(&read_model_name, read_model.get("authorization")) } else { None },
+        authorization: if sole_head_as {
+            queries::emit_query_authorization(&read_model_name, read_model.get("authorization"))
+        } else {
+            None
+        },
         group_by_fn,
         group_by_fn_body,
         count: read_model.get("count").is_some(),
@@ -522,7 +856,11 @@ pub fn read_model_def(domain_name: &str, read_model: &Json, aggregates_by_name: 
         min_field: read_model.get("min_field").map(Json::to_s),
         max_field: read_model.get("max_field").map(Json::to_s),
         percentile_field: read_model.get("percentile_field").map(Json::to_s),
-        percentile_at: if read_model.get("percentile_field").is_some() { read_model.get("percentile_at").map(Json::to_s) } else { None },
+        percentile_at: if read_model.get("percentile_field").is_some() {
+            read_model.get("percentile_at").map(Json::to_s)
+        } else {
+            None
+        },
         any_field: read_model.get("any_field").map(Json::to_s),
         all_field: read_model.get("all_field").map(Json::to_s),
     }
@@ -541,8 +879,18 @@ fn with_wheres_and_authorization(wheres: &[&Json], authorization: Option<&Json>)
 }
 
 pub fn emit_read_model_def(rmd: &ReadModelDef) -> String {
-    let heads = rmd.heads.iter().map(|h| format!("        {h},")).collect::<Vec<_>>().join("\n");
-    let filtered_heads = rmd.filtered_heads.iter().map(|fh| format!("        {}", emit_filtered_head(fh))).collect::<Vec<_>>().join("\n");
+    let heads = rmd
+        .heads
+        .iter()
+        .map(|h| format!("        {h},"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let filtered_heads = rmd
+        .filtered_heads
+        .iter()
+        .map(|fh| format!("        {}", emit_filtered_head(fh)))
+        .collect::<Vec<_>>()
+        .join("\n");
     let authorization = match &rmd.authorization {
         Some(a) => format!("Some({a})"),
         None => "None".to_string(),
@@ -584,8 +932,18 @@ pub fn emit_read_model_def(rmd: &ReadModelDef) -> String {
 /// `ReferenceHopCondition`, `QueryCondition` are all single-line too; only the top-level
 /// `ReadModelDef`/`QueryDef` get pretty multi-line formatting with their arrays broken apart).
 fn emit_filtered_head(fh: &FilteredHeadDef) -> String {
-    let conditions = fh.conditions.iter().map(queries::emit_query_condition).collect::<Vec<_>>().join(" ");
-    let reference_hop_conditions = fh.reference_hop_conditions.iter().map(queries::emit_reference_hop_condition).collect::<Vec<_>>().join(" ");
+    let conditions = fh
+        .conditions
+        .iter()
+        .map(queries::emit_query_condition)
+        .collect::<Vec<_>>()
+        .join(" ");
+    let reference_hop_conditions = fh
+        .reference_hop_conditions
+        .iter()
+        .map(queries::emit_reference_hop_condition)
+        .collect::<Vec<_>>()
+        .join(" ");
     let order_by = match &fh.order_by {
         Some(o) => format!("Some({o})"),
         None => "None".to_string(),
@@ -608,30 +966,70 @@ fn emit_filtered_head(fh: &FilteredHeadDef) -> String {
 // Keeps this aggregate's declared attributes plus any `projects` field, id
 // and lifecycle field, excluding other capabilities' synthetic fields (like
 // `corrects`'s `emitted_*` flags), and unwraps value objects recursively.
-fn emit_group_by_transform(fn_name: &str, read_model_name: &str, aggregate: &Json, group_by_fields: &[String]) -> String {
-    let value_objects: Vec<&Json> = aggregate.get("value_objects").map(Json::each).unwrap_or(&[]).iter().collect();
-    let value_objects_by_name: HashMap<String, &Json> = value_objects.iter().map(|vo| (vo.get("name").map(Json::to_s).unwrap_or_default(), *vo)).collect();
-    let lifecycle_field = aggregate.get("lifecycle").and_then(|l| l.get("field")).map(Json::to_s);
-    let mut fields: Vec<Json> = aggregate.get("attributes").map(Json::each).unwrap_or(&[]).to_vec();
+fn emit_group_by_transform(
+    fn_name: &str,
+    read_model_name: &str,
+    aggregate: &Json,
+    group_by_fields: &[String],
+) -> String {
+    let value_objects: Vec<&Json> = aggregate
+        .get("value_objects")
+        .map(Json::each)
+        .unwrap_or(&[])
+        .iter()
+        .collect();
+    let value_objects_by_name: HashMap<String, &Json> = value_objects
+        .iter()
+        .map(|vo| (vo.get("name").map(Json::to_s).unwrap_or_default(), *vo))
+        .collect();
+    let lifecycle_field = aggregate
+        .get("lifecycle")
+        .and_then(|l| l.get("field"))
+        .map(Json::to_s);
+    let mut fields: Vec<Json> = aggregate
+        .get("attributes")
+        .map(Json::each)
+        .unwrap_or(&[])
+        .to_vec();
     fields.extend(crate::types::projected_field_pseudo_attributes(aggregate));
 
-    let mut kept_keys: Vec<String> = fields.iter().map(|a| crate::attr::name(a).to_string()).collect();
+    let mut kept_keys: Vec<String> = fields
+        .iter()
+        .map(|a| crate::attr::name(a).to_string())
+        .collect();
     kept_keys.push("id".to_string());
     if let Some(lf) = &lifecycle_field {
         kept_keys.push(lf.clone());
     }
-    let keep_cond = kept_keys.iter().map(|k| format!("k == {k:?}")).collect::<Vec<_>>().join(" || ");
+    let keep_cond = kept_keys
+        .iter()
+        .map(|k| format!("k == {k:?}"))
+        .collect::<Vec<_>>()
+        .join(" || ");
 
     let arms: Vec<String> = fields
         .iter()
         .map(|a| {
-            let unwrapped = unwrap_json_expr("v", crate::attr::type_name(a), crate::attr::list(a), aggregate, &value_objects_by_name);
+            let unwrapped = unwrap_json_expr(
+                "v",
+                crate::attr::type_name(a),
+                crate::attr::list(a),
+                aggregate,
+                &value_objects_by_name,
+            );
             format!("{:?} => {unwrapped},", crate::attr::name(a))
         })
         .collect();
     let arms = arms.join("\n                    ");
 
-    let fields_literal = format!("&[{}]", group_by_fields.iter().map(|f| format!("{f:?}")).collect::<Vec<_>>().join(", "));
+    let fields_literal = format!(
+        "&[{}]",
+        group_by_fields
+            .iter()
+            .map(|f| format!("{f:?}"))
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
     let leaf_check = group_by_leaf_check(read_model_name, aggregate, group_by_fields);
 
     format!(
@@ -641,10 +1039,23 @@ fn emit_group_by_transform(fn_name: &str, read_model_name: &str, aggregate: &Jso
 
 // A key path naming every identity head cannot collide, so its leaves go
 // unchecked; any other refuses a second row (ADR 0061).
-fn group_by_leaf_check(read_model_name: &str, aggregate: &Json, group_by_fields: &[String]) -> String {
+fn group_by_leaf_check(
+    read_model_name: &str,
+    aggregate: &Json,
+    group_by_fields: &[String],
+) -> String {
     let mut identity: Vec<String> = Vec::new();
-    for path in aggregate.get("identified_by").map(Json::each).unwrap_or(&[]) {
-        let head = path.to_s().split('.').next().unwrap_or_default().to_string();
+    for path in aggregate
+        .get("identified_by")
+        .map(Json::each)
+        .unwrap_or(&[])
+    {
+        let head = path
+            .to_s()
+            .split('.')
+            .next()
+            .unwrap_or_default()
+            .to_string();
         if !identity.contains(&head) {
             identity.push(head);
         }
@@ -652,28 +1063,50 @@ fn group_by_leaf_check(read_model_name: &str, aggregate: &Json, group_by_fields:
     if !identity.is_empty() && identity.iter().all(|head| group_by_fields.contains(head)) {
         return "crate::kernel::read_model::LeafCheck::IdentityCovered".to_string();
     }
-    format!("crate::kernel::read_model::LeafCheck::RefuseCollision({})", crate::naming::ruby_inspect_string(read_model_name))
+    format!(
+        "crate::kernel::read_model::LeafCheck::RefuseCollision({})",
+        crate::naming::ruby_inspect_string(read_model_name)
+    )
 }
 
 // Port of `Value.materialize_unwrapped` (Ruby).
-fn unwrap_json_expr(expr: &str, type_name: &str, list: bool, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>) -> String {
+fn unwrap_json_expr(
+    expr: &str,
+    type_name: &str,
+    list: bool,
+    aggregate: &Json,
+    value_objects_by_name: &HashMap<String, &Json>,
+) -> String {
     if list {
         let inner = unwrap_json_expr("item", type_name, false, aggregate, value_objects_by_name);
         return format!("match {expr} {{ crate::kernel::Json::Array(items) => crate::kernel::Json::Array(items.into_iter().map(|item| {inner}).collect()), other => other }}");
     }
 
     let vo = value_objects_by_name.get(type_name).copied();
-    let entity = aggregate.get("entities").map(Json::each).unwrap_or(&[]).iter().find(|e| e.get("name").map(Json::to_s).unwrap_or_default() == type_name);
+    let entity = aggregate
+        .get("entities")
+        .map(Json::each)
+        .unwrap_or(&[])
+        .iter()
+        .find(|e| e.get("name").map(Json::to_s).unwrap_or_default() == type_name);
     let fields_meta: Option<&[Json]> = if let Some(vo) = vo {
         vo.get("attributes").map(Json::each)
     } else {
         entity.and_then(|e| e.get("attributes").map(Json::each))
     };
-    let Some(fields_meta) = fields_meta else { return expr.to_string() };
+    let Some(fields_meta) = fields_meta else {
+        return expr.to_string();
+    };
 
     if vo.is_some() && fields_meta.len() == 1 {
         let field = &fields_meta[0];
-        let unwrapped = unwrap_json_expr("field_value", crate::attr::type_name(field), crate::attr::list(field), aggregate, value_objects_by_name);
+        let unwrapped = unwrap_json_expr(
+            "field_value",
+            crate::attr::type_name(field),
+            crate::attr::list(field),
+            aggregate,
+            value_objects_by_name,
+        );
         let field_name = crate::attr::name(field);
         return format!("match {expr} {{ crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == {field_name:?}).map(|(_, field_value)| {unwrapped}).unwrap_or(crate::kernel::Json::Null), other => other }}");
     }
@@ -681,7 +1114,13 @@ fn unwrap_json_expr(expr: &str, type_name: &str, list: bool, aggregate: &Json, v
     let inner_arms: Vec<String> = fields_meta
         .iter()
         .map(|f| {
-            let unwrapped = unwrap_json_expr("v", crate::attr::type_name(f), crate::attr::list(f), aggregate, value_objects_by_name);
+            let unwrapped = unwrap_json_expr(
+                "v",
+                crate::attr::type_name(f),
+                crate::attr::list(f),
+                aggregate,
+                value_objects_by_name,
+            );
             format!("{:?} => {unwrapped},", crate::attr::name(f))
         })
         .collect();
@@ -693,5 +1132,8 @@ const READ_MODEL_TABLE_ROW_PLACEHOLDER: &str = "crate::kernel::read_model::ReadM
 
 pub fn emit_read_model_table(exemplar: &Exemplar, read_model_defs: &[ReadModelDef]) -> String {
     let rows: Vec<String> = read_model_defs.iter().map(emit_read_model_def).collect();
-    exemplar.render("read_model_table", &[(READ_MODEL_TABLE_ROW_PLACEHOLDER, rows.join("\n"))])
+    exemplar.render(
+        "read_model_table",
+        &[(READ_MODEL_TABLE_ROW_PLACEHOLDER, rows.join("\n"))],
+    )
 }

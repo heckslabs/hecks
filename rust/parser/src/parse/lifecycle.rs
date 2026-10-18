@@ -117,7 +117,11 @@ fn is_lowercase_word(name: &str) -> bool {
 
 // Refuses a mark naming a state that is neither the default nor a transition target. Wording
 // matches Ruby's.
-fn refuse_unknown_mark_states(file: &str, line: usize, lifecycle: &ir::Lifecycle) -> ParseResult<()> {
+fn refuse_unknown_mark_states(
+    file: &str,
+    line: usize,
+    lifecycle: &ir::Lifecycle,
+) -> ParseResult<()> {
     let mut known: Vec<&str> = vec![lifecycle.default.as_str()];
     for row in &lifecycle.transitions {
         if !known.contains(&row.to_state.as_str()) {

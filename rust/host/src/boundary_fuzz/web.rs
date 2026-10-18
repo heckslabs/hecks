@@ -8,7 +8,25 @@ use crate::fuzz_support::*;
 #[test]
 fn percent_decoding_never_slices_through_a_multi_byte_character() {
     // `%a` followed by a 4-byte character puts the two-digit hex window mid-character.
-    for text in ["%a🍕", "%🍕", "%é", "a%é", "%a日", "%%a🍕", "%1é1", "🍕%", "🍕%a", "%a", "%", "%%", "%4", "%41", "x%e6%97%a5y", "%e6%97", "%ff%fe"] {
+    for text in [
+        "%a🍕",
+        "%🍕",
+        "%é",
+        "a%é",
+        "%a日",
+        "%%a🍕",
+        "%1é1",
+        "🍕%",
+        "🍕%a",
+        "%a",
+        "%",
+        "%%",
+        "%4",
+        "%41",
+        "x%e6%97%a5y",
+        "%e6%97",
+        "%ff%fe",
+    ] {
         for plus_as_space in [true, false] {
             let decoded = percent_decode_impl(text, plus_as_space);
             assert!(decoded.len() < text.len() * 4 + 4, "{text:?}");
@@ -39,7 +57,11 @@ fn form_and_query_strings_decode_any_text() {
                 let _ = percent_decode(&text);
                 let _ = auth::urlencode(&text);
                 // What the encoder emits, the decoder must read back exactly.
-                assert_eq!(percent_decode_impl(&auth::urlencode(&text), false), text, "seed {seed}: {text:?}");
+                assert_eq!(
+                    percent_decode_impl(&auth::urlencode(&text), false),
+                    text,
+                    "seed {seed}: {text:?}"
+                );
             }
         });
     }
@@ -48,7 +70,10 @@ fn form_and_query_strings_decode_any_text() {
 #[test]
 fn huge_query_strings_decode_in_linear_time() {
     guarded("huge query", || {
-        let pairs = (0..200_000).map(|i| format!("k{i}=%41%e6%97%a5")).collect::<Vec<_>>().join("&");
+        let pairs = (0..200_000)
+            .map(|i| format!("k{i}=%41%e6%97%a5"))
+            .collect::<Vec<_>>()
+            .join("&");
         assert_eq!(parse_query(&pairs).len(), 200_000);
         let _ = parse_form(&"%".repeat(5_000_000));
         let _ = parse_form(&"%a🍕".repeat(1_000_000));
@@ -65,7 +90,9 @@ fn cookie_extraction_reads_any_event_shape() {
                     0 => random_value(&mut rng, 0),
                     1 => json!({"cookies": random_value(&mut rng, 2)}),
                     2 => json!({"headers": {"cookie": random_value(&mut rng, 1)}}),
-                    _ => json!({"cookies": [random_text(&mut rng), random_text(&mut rng)], "headers": {"cookie": random_text(&mut rng)}}),
+                    _ => {
+                        json!({"cookies": [random_text(&mut rng), random_text(&mut rng)], "headers": {"cookie": random_text(&mut rng)}})
+                    }
                 };
                 let _ = extract_cookies(&body);
             }
@@ -105,7 +132,10 @@ fn paths_and_origins_shape_any_text() {
                 for authenticated in [true, false] {
                     if let Some(refusal) = auth_gate(&path, authenticated) {
                         let status = refusal["statusCode"].as_u64().expect("a status");
-                        assert!(status == 401 || status == 302, "seed {seed}: {path:?} gated with {status}");
+                        assert!(
+                            status == 401 || status == 302,
+                            "seed {seed}: {path:?} gated with {status}"
+                        );
                     }
                 }
             }
@@ -116,10 +146,28 @@ fn paths_and_origins_shape_any_text() {
 #[test]
 fn an_unauthenticated_request_is_never_let_past_the_gate_by_a_path_trick() {
     // Only the four sign-in paths are open; near-misses must be gated.
-    for path in ["/login/", "/LOGIN", "/login%2f", "//login", "/login/../admin", "/auth/google/", "/auth/google/callback/x", "/logout.json", "/./login", "/login?x", "/login "] {
-        assert!(auth_gate(path, false).is_some(), "{path:?} must be gated for an anonymous caller");
+    for path in [
+        "/login/",
+        "/LOGIN",
+        "/login%2f",
+        "//login",
+        "/login/../admin",
+        "/auth/google/",
+        "/auth/google/callback/x",
+        "/logout.json",
+        "/./login",
+        "/login?x",
+        "/login ",
+    ] {
+        assert!(
+            auth_gate(path, false).is_some(),
+            "{path:?} must be gated for an anonymous caller"
+        );
     }
     for path in ["/login", "/logout", "/auth/google", "/auth/google/callback"] {
-        assert!(auth_gate(path, false).is_none(), "{path:?} is the sign-in path");
+        assert!(
+            auth_gate(path, false).is_none(),
+            "{path:?} is the sign-in path"
+        );
     }
 }

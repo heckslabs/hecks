@@ -11,6 +11,8 @@ fn main() {
         return;
     }
     let mut input = String::new();
-    std::io::stdin().read_to_string(&mut input).expect("failed to read stdin");
+    std::io::stdin()
+        .read_to_string(&mut input)
+        .expect("failed to read stdin");
     println!("{}", rust::kernel::cli::run(&input));
 }

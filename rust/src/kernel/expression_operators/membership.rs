@@ -6,7 +6,9 @@ use crate::kernel::Refusal;
 
 pub fn interpret(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
     let Expr::Include { haystack, needle } = expr else {
-        return Err(Refusal::TypeMismatch(format!("membership::interpret called with a non-membership node {expr:?} — a router bug")));
+        return Err(Refusal::TypeMismatch(format!(
+            "membership::interpret called with a non-membership node {expr:?} — a router bug"
+        )));
     };
 
     match (eval(haystack, ctx)?, eval(needle, ctx)?) {

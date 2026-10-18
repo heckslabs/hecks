@@ -6,7 +6,9 @@ use crate::kernel::Refusal;
 
 pub fn interpret(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
     let Expr::SignTest { op, receiver } = expr else {
-        return Err(Refusal::TypeMismatch(format!("sign_test::interpret called with a non-sign-test node {expr:?} — a router bug")));
+        return Err(Refusal::TypeMismatch(format!(
+            "sign_test::interpret called with a non-sign-test node {expr:?} — a router bug"
+        )));
     };
 
     // Comparing against 0 through `comparison::apply` treats int and float alike.

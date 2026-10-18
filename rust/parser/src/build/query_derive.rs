@@ -65,7 +65,9 @@ mod tests {
     fn refuses_an_on_target_cleanly_instead_of_silently_dropping_or_misparsing_it() {
         let named = vec![("on".to_string(), "Character".to_string())];
         let err = refuse_on_target("f.bluebook", 3, "where", &named).unwrap_err();
-        assert!(err.message.contains("on: ...) — per-target read-model filtering (ADR 0055)"));
+        assert!(err
+            .message
+            .contains("on: ...) — per-target read-model filtering (ADR 0055)"));
         assert_eq!(err.file, "f.bluebook");
         assert_eq!(err.line, 3);
     }

@@ -164,7 +164,13 @@ pub fn parse_body(
                 owner_entities,
             );
             refuse_duplicate_targets(file, *pos, &command)?;
-            super::needs::refuse_undeclared(file, *pos, &command.name, &command.needs, &command.attributes)?;
+            super::needs::refuse_undeclared(
+                file,
+                *pos,
+                &command.name,
+                &command.needs,
+                &command.attributes,
+            )?;
             return Ok((command, pending));
         };
         let line = gated.line.number;
@@ -218,7 +224,9 @@ pub fn parse_body(
                     canonical: canonical::apply(&raw),
                 });
             }
-            "needs" => super::needs::declare(file, line, &command.name, &gated.args, &mut command.needs)?,
+            "needs" => {
+                super::needs::declare(file, line, &command.name, &gated.args, &mut command.needs)?
+            }
             "provenance" => {
                 let raw = super::named_raw(&gated.args, "from")
                     .ok_or_else(|| Diagnostic::new(file, line, "'provenance' requires a from:"))?;
@@ -544,7 +552,11 @@ fn build_mutation(
     }
     // `state(:field)` is the record's own field, neither argument nor literal; classified
     // before the Symbol/literal split.
-    let computed = if op == "set" { crate::expr::resolver::arithmetic_text(raw.trim()) } else { None };
+    let computed = if op == "set" {
+        crate::expr::resolver::arithmetic_text(raw.trim())
+    } else {
+        None
+    };
     let source = match state_ref(raw.trim()) {
         Some(name) => ir::MutationSource::State(name),
         None if computed.is_some() => ir::MutationSource::Expression(computed.unwrap_or_default()),
@@ -617,11 +629,18 @@ fn build_correction(
         Some(name) => ruby_value::render(&ruby_value::Value::Str(name)),
         None => "nil".to_string(),
     };
-    let reverses = if super::named_flag(args, "reverses") { "true" } else { "false" };
+    let reverses = if super::named_flag(args, "reverses") {
+        "true"
+    } else {
+        "false"
+    };
 
     let fields = vec![
         ("as".to_string(), as_field),
-        ("reason".to_string(), ruby_value::render(&ruby_value::Value::Str(reason))),
+        (
+            "reason".to_string(),
+            ruby_value::render(&ruby_value::Value::Str(reason)),
+        ),
         ("reverses".to_string(), reverses.to_string()),
     ];
     Ok(ir::Mutation::Correction { target, fields })

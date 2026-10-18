@@ -38,7 +38,10 @@ impl Rng {
 
 /// How many seeds each fuzz test runs.
 pub(crate) fn seeds() -> u64 {
-    std::env::var("HOST_FUZZ_SEEDS").ok().and_then(|v| v.parse().ok()).unwrap_or(200)
+    std::env::var("HOST_FUZZ_SEEDS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(200)
 }
 
 /// The most a single guarded case may take before it counts as a hang.
@@ -60,10 +63,17 @@ pub(crate) fn guarded<T: Send + 'static>(label: &str, f: impl FnOnce() -> T + Se
             handle.join().expect("guarded thread joined");
             value
         }
-        Err(mpsc::RecvTimeoutError::Timeout) => panic!("{label}: no answer within {LIMIT:?} (hang)"),
+        Err(mpsc::RecvTimeoutError::Timeout) => {
+            panic!("{label}: no answer within {LIMIT:?} (hang)")
+        }
         Err(mpsc::RecvTimeoutError::Disconnected) => {
-            let panic = handle.join().expect_err("a guarded thread that sent nothing must have panicked");
-            let message = panic.downcast_ref::<String>().cloned().or_else(|| panic.downcast_ref::<&str>().map(|s| s.to_string()));
+            let panic = handle
+                .join()
+                .expect_err("a guarded thread that sent nothing must have panicked");
+            let message = panic
+                .downcast_ref::<String>()
+                .cloned()
+                .or_else(|| panic.downcast_ref::<&str>().map(|s| s.to_string()));
             panic!("{label}: panicked: {}", message.unwrap_or_default())
         }
     }
@@ -73,9 +83,63 @@ pub(crate) fn guarded<T: Send + 'static>(label: &str, f: impl FnOnce() -> T + Se
 /// shape that slices through a char boundary), control characters, NUL, bidi marks, astral
 /// planes, combining marks, percent signs, and every JSON/URL/cookie delimiter.
 const PIECES: &[&str] = &[
-    "a", "Z", "0", "9", " ", "\"", "'", "\\", "/", "%", "%4", "%41", "%zz", "%+1", "+", "=", "&", ";", "?", "#", ".", "..", "-", "_", ":", ",", "{", "}", "[", "]",
-    "\n", "\t", "\r", "\u{0}", "\u{1f}", "\u{7f}", "é", "ü", "日本", "🍕", "\u{10FFFF}", "\u{200B}", "\u{FEFF}", "\u{202E}", "\u{FFFD}", "e\u{301}", "__", "::",
-    "<script>", "../", "%0d%0a", "id", "name", "value", "sort", "direction", "desc",
+    "a",
+    "Z",
+    "0",
+    "9",
+    " ",
+    "\"",
+    "'",
+    "\\",
+    "/",
+    "%",
+    "%4",
+    "%41",
+    "%zz",
+    "%+1",
+    "+",
+    "=",
+    "&",
+    ";",
+    "?",
+    "#",
+    ".",
+    "..",
+    "-",
+    "_",
+    ":",
+    ",",
+    "{",
+    "}",
+    "[",
+    "]",
+    "\n",
+    "\t",
+    "\r",
+    "\u{0}",
+    "\u{1f}",
+    "\u{7f}",
+    "é",
+    "ü",
+    "日本",
+    "🍕",
+    "\u{10FFFF}",
+    "\u{200B}",
+    "\u{FEFF}",
+    "\u{202E}",
+    "\u{FFFD}",
+    "e\u{301}",
+    "__",
+    "::",
+    "<script>",
+    "../",
+    "%0d%0a",
+    "id",
+    "name",
+    "value",
+    "sort",
+    "direction",
+    "desc",
 ];
 
 pub(crate) fn random_text(rng: &mut Rng) -> String {
@@ -112,7 +176,11 @@ pub(crate) fn random_value(rng: &mut Rng, depth: usize) -> Value {
         2 => edge_number(rng),
         3 | 4 => Value::String(random_text(rng)),
         5 => json!(rng.next() as i64 >> rng.below(63)),
-        6 => Value::Array((0..rng.below(4)).map(|_| random_value(rng, depth + 1)).collect()),
+        6 => Value::Array(
+            (0..rng.below(4))
+                .map(|_| random_value(rng, depth + 1))
+                .collect(),
+        ),
         _ => {
             let mut map = Map::new();
             for _ in 0..rng.below(4) {
@@ -126,7 +194,10 @@ pub(crate) fn random_value(rng: &mut Rng, depth: usize) -> Value {
 /// `text` with a few random edits, on char boundaries.
 pub(crate) fn mutate_text(rng: &mut Rng, text: &str) -> String {
     let mut chars: Vec<char> = text.chars().collect();
-    const JUNK: &[char] = &['{', '}', '[', ']', '"', '\\', ',', ':', '-', '+', '.', 'e', '0', '9', 'n', 't', ' ', '\u{0}', '\n', '%', 'é', '🍕'];
+    const JUNK: &[char] = &[
+        '{', '}', '[', ']', '"', '\\', ',', ':', '-', '+', '.', 'e', '0', '9', 'n', 't', ' ',
+        '\u{0}', '\n', '%', 'é', '🍕',
+    ];
     for _ in 0..1 + rng.below(3) {
         if chars.is_empty() {
             chars.push(*rng.pick(JUNK));

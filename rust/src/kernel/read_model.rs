@@ -1,8 +1,14 @@
 //! Interprets a compiled `report` block (`ReadModelDef`) against a domain's generated
 //! `READ_MODELS` table — the hand-written counterpart to the retired Ruby generator's `read_models.rb`.
 
-use super::refusal_wording::{InvariantViolationGroupByCollisionArgs, NotFoundReadModelReferenceMissingArgs, UnauthorizedTenantRequiredArgs};
-use super::{named_query, query_comparators, query_ordering, repository, AggregateScan, Json, QueryCondition, QueryConditionValue, Refusal};
+use super::refusal_wording::{
+    InvariantViolationGroupByCollisionArgs, NotFoundReadModelReferenceMissingArgs,
+    UnauthorizedTenantRequiredArgs,
+};
+use super::{
+    named_query, query_comparators, query_ordering, repository, AggregateScan, Json,
+    QueryCondition, QueryConditionValue, Refusal,
+};
 
 /// A `where` clause that crosses one or more references on the eligible head
 /// (`account/status`, or a longer `member/sponsor/standing` chain via `through`).
@@ -145,14 +151,27 @@ pub fn nest(rows: Vec<Json>, fields: &[&str], check: LeafCheck) -> Result<Json, 
 /// One level of `nest`. `all_fields` is the whole declared `group_by`
 /// (the refusal names it); `reached` is the key path walked so far, one
 /// `(field, key)` per level above this one.
-fn nest_level(rows: Vec<Json>, all_fields: &[&str], fields: &[&str], check: LeafCheck, reached: &[(&str, Json)]) -> Result<Json, Refusal> {
-    let (field, rest) = fields.split_first().expect("nest called with empty fields — read_model_skip_reason should refuse a group_by with none");
+fn nest_level(
+    rows: Vec<Json>,
+    all_fields: &[&str],
+    fields: &[&str],
+    check: LeafCheck,
+    reached: &[(&str, Json)],
+) -> Result<Json, Refusal> {
+    let (field, rest) = fields.split_first().expect(
+        "nest called with empty fields — read_model_skip_reason should refuse a group_by with none",
+    );
     let mut groups: Vec<(Json, Vec<Json>)> = Vec::new();
     for row in rows {
         let (key, stripped) = match row {
             Json::Object(pairs) => {
-                let key = pairs.iter().find(|(k, _)| k == field).map(|(_, v)| v.clone()).unwrap_or(Json::Null);
-                let stripped = Json::Object(pairs.into_iter().filter(|(k, _)| k != field).collect());
+                let key = pairs
+                    .iter()
+                    .find(|(k, _)| k == field)
+                    .map(|(_, v)| v.clone())
+                    .unwrap_or(Json::Null);
+                let stripped =
+                    Json::Object(pairs.into_iter().filter(|(k, _)| k != field).collect());
                 (key, stripped)
             }
             other => (Json::Null, other),
@@ -166,7 +185,11 @@ fn nest_level(rows: Vec<Json>, all_fields: &[&str], fields: &[&str], check: Leaf
     for (key, group) in groups {
         let mut path = reached.to_vec();
         path.push((field, key.clone()));
-        let value = if rest.is_empty() { leaf(group, all_fields, check, &path)? } else { nest_level(group, all_fields, rest, check, &path)? };
+        let value = if rest.is_empty() {
+            leaf(group, all_fields, check, &path)?
+        } else {
+            nest_level(group, all_fields, rest, check, &path)?
+        };
         // A non-String key must stringify the same way Ruby's `Hash#[]=` does when used as a
         // JSON object key.
         out.push((super::query_comparators::to_s(&key), value));
@@ -176,16 +199,38 @@ fn nest_level(rows: Vec<Json>, all_fields: &[&str], fields: &[&str], check: Leaf
 
 /// The one row a `group_by` key path reached, or the `group_by_collision` refusal when a
 /// checked path was reached by more than one.
-fn leaf(group: Vec<Json>, all_fields: &[&str], check: LeafCheck, path: &[(&str, Json)]) -> Result<Json, Refusal> {
+fn leaf(
+    group: Vec<Json>,
+    all_fields: &[&str],
+    check: LeafCheck,
+    path: &[(&str, Json)],
+) -> Result<Json, Refusal> {
     let read_model = match check {
         LeafCheck::RefuseCollision(read_model) if group.len() > 1 => read_model,
         _ => return Ok(group.into_iter().next().unwrap_or(Json::Null)),
     };
-    let ids: Vec<String> = group.iter().map(|row| row.get("id").map(super::query_comparators::to_s).unwrap_or_default()).collect();
+    let ids: Vec<String> = group
+        .iter()
+        .map(|row| {
+            row.get("id")
+                .map(super::query_comparators::to_s)
+                .unwrap_or_default()
+        })
+        .collect();
     let id_refs: Vec<&str> = ids.iter().map(String::as_str).collect();
-    let key = path.iter().map(|(field, value)| format!("{field} = {}", super::query_comparators::to_s(value))).collect::<Vec<_>>().join(", ");
+    let key = path
+        .iter()
+        .map(|(field, value)| format!("{field} = {}", super::query_comparators::to_s(value)))
+        .collect::<Vec<_>>()
+        .join(", ");
     Err(Refusal::InvariantViolation(
-        InvariantViolationGroupByCollisionArgs { read_model, fields: all_fields, ids: &id_refs, key: &key }.render_args(),
+        InvariantViolationGroupByCollisionArgs {
+            read_model,
+            fields: all_fields,
+            ids: &id_refs,
+            key: &key,
+        }
+        .render_args(),
     ))
 }
 
@@ -205,7 +250,11 @@ fn percentile(rows: &[(String, Json)], field: &'static str, at: f64) -> Json {
     if values.is_empty() {
         return Json::Null;
     }
-    values.sort_by(|a, b| query_comparators::as_f64(a).partial_cmp(&query_comparators::as_f64(b)).unwrap_or(std::cmp::Ordering::Equal));
+    values.sort_by(|a, b| {
+        query_comparators::as_f64(a)
+            .partial_cmp(&query_comparators::as_f64(b))
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
 
     let position = at * (values.len() - 1) as f64;
     let lower = position.floor() as usize;
@@ -269,8 +318,16 @@ fn extreme(rows: &[(String, Json)], field: &'static str, want_max: bool) -> Json
     if values.is_empty() {
         return Json::Null;
     }
-    values.sort_by(|a, b| query_comparators::as_f64(a).partial_cmp(&query_comparators::as_f64(b)).unwrap_or(std::cmp::Ordering::Equal));
-    if want_max { values.pop().expect("checked non-empty above") } else { values.remove(0) }
+    values.sort_by(|a, b| {
+        query_comparators::as_f64(a)
+            .partial_cmp(&query_comparators::as_f64(b))
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    if want_max {
+        values.pop().expect("checked non-empty above")
+    } else {
+        values.remove(0)
+    }
 }
 
 /// Whether any (`want_all: false`) or every (`true`) row's declared boolean field is `true`
@@ -283,7 +340,11 @@ fn boolean_reduce(rows: &[(String, Json)], field: &'static str, want_all: bool) 
         .map(|value| query_comparators::comparable(value))
         .filter_map(|value| value.as_bool())
         .collect();
-    Json::Bool(if want_all { values.iter().all(|v| *v) } else { values.iter().any(|v| *v) })
+    Json::Bool(if want_all {
+        values.iter().all(|v| *v)
+    } else {
+        values.iter().any(|v| *v)
+    })
 }
 
 /// The lookup a read-model ask (a bare "Domain.Name" string, no "::") dispatches through — a
@@ -291,14 +352,20 @@ fn boolean_reduce(rows: &[(String, Json)], field: &'static str, want_all: bool) 
 /// spelling or its snake_case alias (`matches_snake_alias`, below), since a real corpus caller
 /// uses the snake_case form for this read model's own query step.
 pub fn find<'a>(table: &'a [ReadModelDef], verb: &str) -> Option<&'a ReadModelDef> {
-    table.iter().find(|def| def.verb == verb || matches_snake_alias(def.verb, verb))
+    table
+        .iter()
+        .find(|def| def.verb == verb || matches_snake_alias(def.verb, verb))
 }
 
 /// True when `declared_verb` and `asked` name the same domain and `asked`'s name half equals
 /// `declared_verb`'s name half run through `to_snake`.
 fn matches_snake_alias(declared_verb: &str, asked: &str) -> bool {
-    let Some((domain, name)) = declared_verb.split_once('.') else { return false };
-    let Some((asked_domain, asked_name)) = asked.split_once('.') else { return false };
+    let Some((domain, name)) = declared_verb.split_once('.') else {
+        return false;
+    };
+    let Some((asked_domain, asked_name)) = asked.split_once('.') else {
+        return false;
+    };
 
     domain == asked_domain && to_snake(name) == asked_name
 }
@@ -314,9 +381,12 @@ fn to_snake(name: &str) -> String {
         if i > 0 {
             let prev = chars[i - 1];
             // "HTTPServer" splits before the "S" of "Server", not before the "H" of "HTTP".
-            let rule1 = prev.is_ascii_uppercase() && c.is_ascii_uppercase() && chars.get(i + 1).is_some_and(char::is_ascii_lowercase);
+            let rule1 = prev.is_ascii_uppercase()
+                && c.is_ascii_uppercase()
+                && chars.get(i + 1).is_some_and(char::is_ascii_lowercase);
             // "customerPortfolio" splits before "P".
-            let rule2 = (prev.is_ascii_lowercase() || prev.is_ascii_digit()) && c.is_ascii_uppercase();
+            let rule2 =
+                (prev.is_ascii_lowercase() || prev.is_ascii_digit()) && c.is_ascii_uppercase();
             if rule1 || rule2 {
                 out.push('_');
             }
@@ -384,7 +454,8 @@ mod nest_tests {
     fn refuses_two_rows_on_one_checked_key_path() {
         let rows = vec![part("p2", "b1"), part("p3", "b2"), part("p1", "b1")];
 
-        let err = nest(rows, &["bin"], LeafCheck::RefuseCollision("PartsByBin")).expect_err("p1 and p2 share bin b1");
+        let err = nest(rows, &["bin"], LeafCheck::RefuseCollision("PartsByBin"))
+            .expect_err("p1 and p2 share bin b1");
 
         assert_eq!(
             err,
@@ -399,16 +470,34 @@ mod nest_tests {
     fn answers_when_every_key_path_holds_one_row() {
         let rows = vec![part("p1", "b1"), part("p3", "b2")];
 
-        let nested = nest(rows, &["bin"], LeafCheck::RefuseCollision("PartsByBin")).expect("no two parts share a bin");
+        let nested = nest(rows, &["bin"], LeafCheck::RefuseCollision("PartsByBin"))
+            .expect("no two parts share a bin");
 
-        assert_eq!(nested, Json::obj(vec![("b1", Json::obj(vec![("id", Json::str("p1"))])), ("b2", Json::obj(vec![("id", Json::str("p3"))]))]));
+        assert_eq!(
+            nested,
+            Json::obj(vec![
+                ("b1", Json::obj(vec![("id", Json::str("p1"))])),
+                ("b2", Json::obj(vec![("id", Json::str("p3"))]))
+            ])
+        );
     }
 
     #[test]
     fn names_every_level_of_a_multi_field_key_path() {
-        let row = |id: &str| Json::obj(vec![("bin", Json::str("b1")), ("shelf", Json::Num(2.0, None)), ("id", Json::str(id))]);
+        let row = |id: &str| {
+            Json::obj(vec![
+                ("bin", Json::str("b1")),
+                ("shelf", Json::Num(2.0, None)),
+                ("id", Json::str(id)),
+            ])
+        };
 
-        let err = nest(vec![row("p1"), row("p2")], &["bin", "shelf"], LeafCheck::RefuseCollision("PartsByShelf")).expect_err("same bin and shelf");
+        let err = nest(
+            vec![row("p1"), row("p2")],
+            &["bin", "shelf"],
+            LeafCheck::RefuseCollision("PartsByShelf"),
+        )
+        .expect_err("same bin and shelf");
 
         assert_eq!(
             err,
@@ -438,12 +527,18 @@ mod reference_hop_tests {
     impl AggregateScan for FakeStore {
         fn scan(&self, aggregate: &str) -> Option<Vec<(String, Json)>> {
             let bare = aggregate.strip_prefix(&format!("{}::", self.domain))?;
-            self.aggregates.iter().find(|(name, _)| *name == bare).map(|(_, entries)| entries.clone())
+            self.aggregates
+                .iter()
+                .find(|(name, _)| *name == bare)
+                .map(|(_, entries)| entries.clone())
         }
     }
 
     fn account(status: &str, customer: &str) -> Json {
-        Json::obj(vec![("status", Json::str(status)), ("customer", Json::str(customer))])
+        Json::obj(vec![
+            ("status", Json::str(status)),
+            ("customer", Json::str(customer)),
+        ])
     }
 
     fn customer(status: &str) -> Json {
@@ -457,9 +552,18 @@ mod reference_hop_tests {
                 (
                     "Account",
                     vec![
-                        ("acc-suspended-open".to_string(), account("open", "cust-suspended")),
-                        ("acc-active-open".to_string(), account("open", "cust-active")),
-                        ("acc-suspended-closed".to_string(), account("closed", "cust-suspended")),
+                        (
+                            "acc-suspended-open".to_string(),
+                            account("open", "cust-suspended"),
+                        ),
+                        (
+                            "acc-active-open".to_string(),
+                            account("open", "cust-active"),
+                        ),
+                        (
+                            "acc-suspended-closed".to_string(),
+                            account("closed", "cust-suspended"),
+                        ),
                     ],
                 ),
                 (
@@ -479,10 +583,20 @@ mod reference_hop_tests {
         ReadModelDef {
             verb: "Banking.OpenForSuspendedCustomers",
             reference_name: None,
-            heads: &[ReadModelHead { aggregate: "Banking::Account", as_name: "accounts", many: true, is_root: false, reference_fields: &[] }],
+            heads: &[ReadModelHead {
+                aggregate: "Banking::Account",
+                as_name: "accounts",
+                many: true,
+                is_root: false,
+                reference_fields: &[],
+            }],
             filtered_heads: &[FilteredHead {
                 as_name: "accounts",
-                conditions: &[QueryCondition { field: "status", comparator: query_comparators::QueryComparator::Eq, value: QueryConditionValue::Literal("open") }],
+                conditions: &[QueryCondition {
+                    field: "status",
+                    comparator: query_comparators::QueryComparator::Eq,
+                    value: QueryConditionValue::Literal("open"),
+                }],
                 reference_hop_conditions: &[ReferenceHopCondition {
                     via_field: "customer",
                     target_aggregate: "Banking::Customer",
@@ -513,15 +627,30 @@ mod reference_hop_tests {
     #[test]
     fn a_hop_condition_keeps_only_rows_whose_local_and_hopped_conditions_both_hold() {
         let def = open_for_suspended_customers_def();
-        let result = run(&store(), &def, &Json::obj(vec![])).expect("a rootless read model with no authorization needs no args");
+        let result = run(&store(), &def, &Json::obj(vec![]))
+            .expect("a rootless read model with no authorization needs no args");
 
-        let accounts = result.get("accounts").expect("the one declared head").as_array().expect("a many head answers an array");
-        let ids: Vec<&str> = accounts.iter().map(|row| row.get("id").and_then(Json::as_str).expect("row_json always stamps id")).collect();
+        let accounts = result
+            .get("accounts")
+            .expect("the one declared head")
+            .as_array()
+            .expect("a many head answers an array");
+        let ids: Vec<&str> = accounts
+            .iter()
+            .map(|row| {
+                row.get("id")
+                    .and_then(Json::as_str)
+                    .expect("row_json always stamps id")
+            })
+            .collect();
 
         assert_eq!(ids, vec!["acc-suspended-open"]);
         // Named explicitly so a regression that widens either condition fails on the specific
         // wrong row it would admit, not just a count.
-        assert!(!ids.contains(&"acc-active-open"), "open but NOT suspended — the hop condition alone should have excluded this");
+        assert!(
+            !ids.contains(&"acc-active-open"),
+            "open but NOT suspended — the hop condition alone should have excluded this"
+        );
         assert!(!ids.contains(&"acc-suspended-closed"), "suspended customer but NOT open — the ordinary local condition alone should have excluded this");
     }
 
@@ -530,7 +659,11 @@ mod reference_hop_tests {
         let mut def = open_for_suspended_customers_def();
         def.filtered_heads = &[FilteredHead {
             as_name: "accounts",
-            conditions: &[QueryCondition { field: "status", comparator: query_comparators::QueryComparator::Eq, value: QueryConditionValue::Literal("open") }],
+            conditions: &[QueryCondition {
+                field: "status",
+                comparator: query_comparators::QueryComparator::Eq,
+                value: QueryConditionValue::Literal("open"),
+            }],
             reference_hop_conditions: &[ReferenceHopCondition {
                 via_field: "customer",
                 target_aggregate: "Banking::NoSuchAggregate",
@@ -555,14 +688,39 @@ mod reference_hop_tests {
         let mut def = open_for_suspended_customers_def();
         def.filtered_heads = &[];
         def.heads = &[
-            ReadModelHead { aggregate: "Banking::Account", as_name: "accounts", many: true, is_root: false, reference_fields: &[] },
-            ReadModelHead { aggregate: "Banking::LedgerEntry", as_name: "ledger_entries", many: true, is_root: false, reference_fields: &[] },
+            ReadModelHead {
+                aggregate: "Banking::Account",
+                as_name: "accounts",
+                many: true,
+                is_root: false,
+                reference_fields: &[],
+            },
+            ReadModelHead {
+                aggregate: "Banking::LedgerEntry",
+                as_name: "ledger_entries",
+                many: true,
+                is_root: false,
+                reference_fields: &[],
+            },
         ];
 
-        let result = run(&store(), &def, &Json::obj(vec![])).expect("an entity head must not refuse the read model");
+        let result = run(&store(), &def, &Json::obj(vec![]))
+            .expect("an entity head must not refuse the read model");
 
-        assert_eq!(result.get("accounts").and_then(|v| v.as_array()).map(|rows| rows.len()), Some(3));
-        assert_eq!(result.get("ledger_entries").and_then(|v| v.as_array()).map(|rows| rows.len()), Some(0));
+        assert_eq!(
+            result
+                .get("accounts")
+                .and_then(|v| v.as_array())
+                .map(|rows| rows.len()),
+            Some(3)
+        );
+        assert_eq!(
+            result
+                .get("ledger_entries")
+                .and_then(|v| v.as_array())
+                .map(|rows| rows.len()),
+            Some(0)
+        );
     }
 
     // A declared query folds its hop the same way a read model head does.
@@ -571,7 +729,11 @@ mod reference_hop_tests {
         let def = crate::kernel::named_query::QueryDef {
             verb: "Banking::Account.OpenForSuspendedCustomers",
             aggregate: "Banking::Account",
-            conditions: &[QueryCondition { field: "status", comparator: query_comparators::QueryComparator::Eq, value: QueryConditionValue::Literal("open") }],
+            conditions: &[QueryCondition {
+                field: "status",
+                comparator: query_comparators::QueryComparator::Eq,
+                value: QueryConditionValue::Literal("open"),
+            }],
             reference_hop_conditions: &[ReferenceHopCondition {
                 via_field: "customer",
                 target_aggregate: "Banking::Customer",
@@ -586,7 +748,8 @@ mod reference_hop_tests {
             authorization: None,
         };
 
-        let rows = crate::kernel::named_query::run(&store(), &def, &Json::obj(vec![]), None).expect("no authorization, no args needed");
+        let rows = crate::kernel::named_query::run(&store(), &def, &Json::obj(vec![]), None)
+            .expect("no authorization, no args needed");
         let ids: Vec<&str> = rows.iter().map(|(id, _)| id.as_str()).collect();
 
         assert_eq!(ids, vec!["acc-suspended-open"]);
@@ -596,15 +759,36 @@ mod reference_hop_tests {
     #[test]
     fn an_entity_query_flattens_every_owners_list_ordered_by_parent_then_identity() {
         fn withdrawal(sequence: f64, state: &str) -> Json {
-            Json::obj(vec![("sequence", Json::obj(vec![("value", Json::Num(sequence, None))])), ("state", Json::str(state))])
+            Json::obj(vec![
+                (
+                    "sequence",
+                    Json::obj(vec![("value", Json::Num(sequence, None))]),
+                ),
+                ("state", Json::str(state)),
+            ])
         }
         let cards = FakeStore {
             domain: "Banking",
             aggregates: vec![(
                 "ATMCard",
                 vec![
-                    ("card-2".to_string(), Json::obj(vec![("withdrawals", Json::Array(vec![withdrawal(2.0, "taken"), withdrawal(1.0, "taken")]))])),
-                    ("card-1".to_string(), Json::obj(vec![("withdrawals", Json::Array(vec![withdrawal(1.0, "disputed"), withdrawal(3.0, "taken")]))])),
+                    (
+                        "card-2".to_string(),
+                        Json::obj(vec![(
+                            "withdrawals",
+                            Json::Array(vec![withdrawal(2.0, "taken"), withdrawal(1.0, "taken")]),
+                        )]),
+                    ),
+                    (
+                        "card-1".to_string(),
+                        Json::obj(vec![(
+                            "withdrawals",
+                            Json::Array(vec![
+                                withdrawal(1.0, "disputed"),
+                                withdrawal(3.0, "taken"),
+                            ]),
+                        )]),
+                    ),
                 ],
             )],
         };
@@ -614,26 +798,42 @@ mod reference_hop_tests {
             list_field: "withdrawals",
             parent_key: "atm_card",
             identity_keys: &["sequence"],
-            conditions: &[QueryCondition { field: "state", comparator: query_comparators::QueryComparator::Eq, value: QueryConditionValue::Literal("taken") }],
+            conditions: &[QueryCondition {
+                field: "state",
+                comparator: query_comparators::QueryComparator::Eq,
+                value: QueryConditionValue::Literal("taken"),
+            }],
             order_by: None,
             offset: None,
             limit: Some(query_ordering::Limit::Literal(2)),
         };
 
-        let rows = crate::kernel::named_query::run_entity(&cards, &def, &Json::obj(vec![])).expect("no args needed");
+        let rows = crate::kernel::named_query::run_entity(&cards, &def, &Json::obj(vec![]))
+            .expect("no args needed");
         let keyed: Vec<(String, String)> = rows
             .iter()
             .map(|row| {
-                let parent = row.get("atm_card").and_then(Json::as_str).expect("parent key leads every row").to_string();
+                let parent = row
+                    .get("atm_card")
+                    .and_then(Json::as_str)
+                    .expect("parent key leads every row")
+                    .to_string();
                 let sequence = format!("{:?}", row.dig("sequence.value"));
                 (parent, sequence)
             })
             .collect();
 
-        assert_eq!(keyed.len(), 2, "limit 2 over three taken withdrawals: {keyed:?}");
+        assert_eq!(
+            keyed.len(),
+            2,
+            "limit 2 over three taken withdrawals: {keyed:?}"
+        );
         assert_eq!(keyed[0].0, "card-1");
         assert_eq!(keyed[1].0, "card-2");
-        assert!(keyed[1].1.contains('1'), "card-2's lowest sequence comes first: {keyed:?}");
+        assert!(
+            keyed[1].1.contains('1'),
+            "card-2's lowest sequence comes first: {keyed:?}"
+        );
     }
 
     // A chain: the inner clause picks sponsors, the middle step keeps members sponsored by one,
@@ -646,22 +846,40 @@ mod reference_hop_tests {
                 (
                     "Sponsor",
                     vec![
-                        ("s-good".to_string(), Json::obj(vec![("standing", Json::str("good"))])),
-                        ("s-poor".to_string(), Json::obj(vec![("standing", Json::str("poor"))])),
+                        (
+                            "s-good".to_string(),
+                            Json::obj(vec![("standing", Json::str("good"))]),
+                        ),
+                        (
+                            "s-poor".to_string(),
+                            Json::obj(vec![("standing", Json::str("poor"))]),
+                        ),
                     ],
                 ),
                 (
                     "Member",
                     vec![
-                        ("m-good".to_string(), Json::obj(vec![("sponsor", Json::str("s-good"))])),
-                        ("m-poor".to_string(), Json::obj(vec![("sponsor", Json::str("s-poor"))])),
+                        (
+                            "m-good".to_string(),
+                            Json::obj(vec![("sponsor", Json::str("s-good"))]),
+                        ),
+                        (
+                            "m-poor".to_string(),
+                            Json::obj(vec![("sponsor", Json::str("s-poor"))]),
+                        ),
                     ],
                 ),
                 (
                     "Referral",
                     vec![
-                        ("r-good".to_string(), Json::obj(vec![("member", Json::str("m-good"))])),
-                        ("r-poor".to_string(), Json::obj(vec![("member", Json::str("m-poor"))])),
+                        (
+                            "r-good".to_string(),
+                            Json::obj(vec![("member", Json::str("m-good"))]),
+                        ),
+                        (
+                            "r-poor".to_string(),
+                            Json::obj(vec![("member", Json::str("m-poor"))]),
+                        ),
                     ],
                 ),
             ],
@@ -673,7 +891,10 @@ mod reference_hop_tests {
             reference_hop_conditions: &[ReferenceHopCondition {
                 via_field: "member",
                 target_aggregate: "ReferralChain::Member",
-                through: &[HopStep { via_field: "sponsor", target_aggregate: "ReferralChain::Sponsor" }],
+                through: &[HopStep {
+                    via_field: "sponsor",
+                    target_aggregate: "ReferralChain::Sponsor",
+                }],
                 inner_field: "standing",
                 inner_comparator: query_comparators::QueryComparator::Eq,
                 inner_value: QueryConditionValue::Literal("good"),
@@ -684,7 +905,8 @@ mod reference_hop_tests {
             authorization: None,
         };
 
-        let rows = crate::kernel::named_query::run(&chain_store, &def, &Json::obj(vec![]), None).expect("no authorization, no args needed");
+        let rows = crate::kernel::named_query::run(&chain_store, &def, &Json::obj(vec![]), None)
+            .expect("no authorization, no args needed");
         let ids: Vec<&str> = rows.iter().map(|(id, _)| id.as_str()).collect();
 
         assert_eq!(ids, vec!["r-good"]);
@@ -702,7 +924,12 @@ pub fn run(store: &impl AggregateScan, def: &ReadModelDef, args: &Json) -> Resul
         Some(name) => Some(
             args.get(name)
                 .and_then(Json::as_str)
-                .ok_or_else(|| Refusal::TypeMismatch(format!("{}: missing reference argument {name:?}", def.verb)))?
+                .ok_or_else(|| {
+                    Refusal::TypeMismatch(format!(
+                        "{}: missing reference argument {name:?}",
+                        def.verb
+                    ))
+                })?
                 .to_string(),
         ),
         // Rootless: no caller-supplied id to require or resolve at all.
@@ -713,18 +940,25 @@ pub fn run(store: &impl AggregateScan, def: &ReadModelDef, args: &Json) -> Resul
     if let Some(auth) = &def.authorization {
         if args.get(auth.tenant_field).is_none() {
             return Err(Refusal::Unauthorized(
-                UnauthorizedTenantRequiredArgs { query: auth.query_name, field: auth.tenant_field }.render_args(),
+                UnauthorizedTenantRequiredArgs {
+                    query: auth.query_name,
+                    field: auth.tenant_field,
+                }
+                .render_args(),
             ));
         }
     }
 
-    let (root_heads, other_heads): (Vec<&ReadModelHead>, Vec<&ReadModelHead>) = def.heads.iter().partition(|head| head.is_root);
+    let (root_heads, other_heads): (Vec<&ReadModelHead>, Vec<&ReadModelHead>) =
+        def.heads.iter().partition(|head| head.is_root);
 
     // One entry per head already computed, in computation order (root-first): every candidate
     // record is checked against every entry seen so far, not just the immediately-preceding one.
     let mut projected: Vec<(&'static str, Vec<(String, Json)>)> = Vec::new();
-    let mut rows_by_as: std::collections::HashMap<&'static str, (bool, Vec<(String, Json)>)> = std::collections::HashMap::new();
-    let mut grouped_heads: std::collections::HashSet<&'static str> = std::collections::HashSet::new();
+    let mut rows_by_as: std::collections::HashMap<&'static str, (bool, Vec<(String, Json)>)> =
+        std::collections::HashMap::new();
+    let mut grouped_heads: std::collections::HashSet<&'static str> =
+        std::collections::HashSet::new();
 
     for head in root_heads.into_iter().chain(other_heads) {
         let mut rows = if reference_id.is_none() {
@@ -739,7 +973,11 @@ pub fn run(store: &impl AggregateScan, def: &ReadModelDef, args: &Json) -> Resul
 
         // Applied before this head's rows go into `projected`, so any later head's own
         // reference-matching sees the filtered rows, not the pre-filter scan.
-        if let Some(filtered) = def.filtered_heads.iter().find(|fh| fh.as_name == head.as_name) {
+        if let Some(filtered) = def
+            .filtered_heads
+            .iter()
+            .find(|fh| fh.as_name == head.as_name)
+        {
             rows = apply_filtered_head_options(rows, filtered, args, store)?;
         }
 
@@ -765,33 +1003,63 @@ pub fn run(store: &impl AggregateScan, def: &ReadModelDef, args: &Json) -> Resul
         let value = if grouped_heads.contains(head.as_name) {
             // Already fully formed by the generated transform — must not be wrapped again the
             // way an ordinary head's rows are.
-            (def.group_by.expect("grouped_heads is only ever populated when def.group_by is Some"))(rows)?
+            (def.group_by
+                .expect("grouped_heads is only ever populated when def.group_by is Some"))(
+                rows
+            )?
         } else if many && def.count {
             Json::Num(rows.len() as f64, None)
         } else if many && def.median_field.is_some() {
-            median(&rows, def.median_field.expect("checked by the branch guard"))
+            median(
+                &rows,
+                def.median_field.expect("checked by the branch guard"),
+            )
         } else if many && def.sum_field.is_some() {
             sum(&rows, def.sum_field.expect("checked by the branch guard"))
         } else if many && def.avg_field.is_some() {
             avg(&rows, def.avg_field.expect("checked by the branch guard"))
         } else if many && def.min_field.is_some() {
-            extreme(&rows, def.min_field.expect("checked by the branch guard"), false)
+            extreme(
+                &rows,
+                def.min_field.expect("checked by the branch guard"),
+                false,
+            )
         } else if many && def.max_field.is_some() {
-            extreme(&rows, def.max_field.expect("checked by the branch guard"), true)
+            extreme(
+                &rows,
+                def.max_field.expect("checked by the branch guard"),
+                true,
+            )
         } else if many && def.percentile_field.is_some() {
             percentile(
                 &rows,
                 def.percentile_field.expect("checked by the branch guard"),
-                def.percentile_at.expect("percentile_field implies percentile_at"),
+                def.percentile_at
+                    .expect("percentile_field implies percentile_at"),
             )
         } else if many && def.any_field.is_some() {
-            boolean_reduce(&rows, def.any_field.expect("checked by the branch guard"), false)
+            boolean_reduce(
+                &rows,
+                def.any_field.expect("checked by the branch guard"),
+                false,
+            )
         } else if many && def.all_field.is_some() {
-            boolean_reduce(&rows, def.all_field.expect("checked by the branch guard"), true)
+            boolean_reduce(
+                &rows,
+                def.all_field.expect("checked by the branch guard"),
+                true,
+            )
         } else if many {
-            Json::Array(rows.into_iter().map(|(id, record)| repository::row_json(id, record)).collect())
+            Json::Array(
+                rows.into_iter()
+                    .map(|(id, record)| repository::row_json(id, record))
+                    .collect(),
+            )
         } else {
-            rows.into_iter().next().map(|(id, record)| repository::row_json(id, record)).unwrap_or(Json::Null)
+            rows.into_iter()
+                .next()
+                .map(|(id, record)| repository::row_json(id, record))
+                .unwrap_or(Json::Null)
         };
         out.push((head.as_name.to_string(), value));
     }
@@ -801,7 +1069,11 @@ pub fn run(store: &impl AggregateScan, def: &ReadModelDef, args: &Json) -> Resul
 
 /// The root head's own single row: find the one instance by id, `NotFound` if it isn't there.
 /// Unlike every other head, the root is looked up directly rather than scanned-and-matched.
-fn fetch_root(store: &impl AggregateScan, head: &ReadModelHead, reference_id: &str) -> Result<(String, Json), Refusal> {
+fn fetch_root(
+    store: &impl AggregateScan,
+    head: &ReadModelHead,
+    reference_id: &str,
+) -> Result<(String, Json), Refusal> {
     let entries = store
         .scan(head.aggregate)
         .ok_or_else(|| Refusal::TypeMismatch(format!("unknown aggregate {:?}", head.aggregate)))?;
@@ -813,8 +1085,11 @@ fn fetch_root(store: &impl AggregateScan, head: &ReadModelHead, reference_id: &s
             // Named by its bare bluebook name; `head.aggregate` is the domain-qualified one.
             let bare = head.aggregate.rsplit("::").next().unwrap_or(head.aggregate);
             Refusal::NotFound(
-                NotFoundReadModelReferenceMissingArgs { aggregate: bare, offered: &format!("{reference_id:?}") }
-                    .render_args(),
+                NotFoundReadModelReferenceMissingArgs {
+                    aggregate: bare,
+                    offered: &format!("{reference_id:?}"),
+                }
+                .render_args(),
             )
         })
 }
@@ -832,19 +1107,29 @@ fn scan_matching(
         return Ok(Vec::new());
     };
 
-    let mut matched: Vec<(String, Json)> = entries.into_iter().filter(|(_, record)| record_matches(record, head, projected)).collect();
+    let mut matched: Vec<(String, Json)> = entries
+        .into_iter()
+        .filter(|(_, record)| record_matches(record, head, projected))
+        .collect();
     matched.sort_by(|a, b| a.0.cmp(&b.0));
     Ok(matched)
 }
 
 /// Whether `record` holds one of its precomputed `reference_fields` pointing at a row already
 /// in `projected`.
-fn record_matches(record: &Json, head: &ReadModelHead, projected: &[(&'static str, Vec<(String, Json)>)]) -> bool {
+fn record_matches(
+    record: &Json,
+    head: &ReadModelHead,
+    projected: &[(&'static str, Vec<(String, Json)>)],
+) -> bool {
     head.reference_fields.iter().any(|reference_field| {
-        let Some(held_id) = record.get(reference_field.field).and_then(Json::as_str) else { return false };
-        projected
-            .iter()
-            .any(|(aggregate, rows)| *aggregate == reference_field.target_aggregate && rows.iter().any(|(id, _)| id == held_id))
+        let Some(held_id) = record.get(reference_field.field).and_then(Json::as_str) else {
+            return false;
+        };
+        projected.iter().any(|(aggregate, rows)| {
+            *aggregate == reference_field.target_aggregate
+                && rows.iter().any(|(id, _)| id == held_id)
+        })
     })
 }
 
@@ -869,7 +1154,13 @@ fn apply_filtered_head_options(
 
     rows = apply_reference_hops(rows, filtered.reference_hop_conditions, args, store)?;
 
-    Ok(query_ordering::apply(rows, filtered.order_by.as_ref(), filtered.offset.as_ref(), filtered.limit.as_ref(), args))
+    Ok(query_ordering::apply(
+        rows,
+        filtered.order_by.as_ref(),
+        filtered.offset.as_ref(),
+        filtered.limit.as_ref(),
+        args,
+    ))
 }
 
 /// Folds a `ReferenceHopCondition` chain: one query against the chain's final target picks
@@ -888,27 +1179,50 @@ pub(super) fn apply_reference_hops(
             QueryConditionValue::Arg(name) => args.get(name).cloned().unwrap_or(Json::Null),
         };
         let scan = |aggregate: &str| {
-            store.scan(aggregate).ok_or_else(|| Refusal::TypeMismatch(format!("unknown aggregate {aggregate:?}")))
+            store
+                .scan(aggregate)
+                .ok_or_else(|| Refusal::TypeMismatch(format!("unknown aggregate {aggregate:?}")))
         };
-        let ids_of = |entries: Vec<(String, Json)>| -> Vec<Json> { entries.into_iter().map(|(id, _)| Json::Str(id)).collect() };
+        let ids_of = |entries: Vec<(String, Json)>| -> Vec<Json> {
+            entries.into_iter().map(|(id, _)| Json::Str(id)).collect()
+        };
 
         // The chain, first hop included: `(via_field, target_aggregate)` pairs, each via_field a
         // reference on the previous target.
         let chain: Vec<(&str, &str)> = std::iter::once((hop.via_field, hop.target_aggregate))
-            .chain(hop.through.iter().map(|step| (step.via_field, step.target_aggregate)))
+            .chain(
+                hop.through
+                    .iter()
+                    .map(|step| (step.via_field, step.target_aggregate)),
+            )
             .collect();
 
         // Inside out: the inner clause picks ids on the last target, and each earlier step keeps
         // the rows of its target whose next via_field points at one of them.
         let (_, last_target) = chain[chain.len() - 1];
-        let mut ids = ids_of(repository::filter_entries(scan(last_target)?, hop.inner_field, hop.inner_comparator, &inner_want));
+        let mut ids = ids_of(repository::filter_entries(
+            scan(last_target)?,
+            hop.inner_field,
+            hop.inner_comparator,
+            &inner_want,
+        ));
         for step in (1..chain.len()).rev() {
             let (via_field, _) = chain[step];
             let (_, source) = chain[step - 1];
-            ids = ids_of(repository::filter_entries(scan(source)?, via_field, query_comparators::QueryComparator::In, &Json::Array(ids)));
+            ids = ids_of(repository::filter_entries(
+                scan(source)?,
+                via_field,
+                query_comparators::QueryComparator::In,
+                &Json::Array(ids),
+            ));
         }
 
-        rows = repository::filter_entries(rows, hop.via_field, query_comparators::QueryComparator::In, &Json::Array(ids));
+        rows = repository::filter_entries(
+            rows,
+            hop.via_field,
+            query_comparators::QueryComparator::In,
+            &Json::Array(ids),
+        );
     }
     Ok(rows)
 }

@@ -6,10 +6,10 @@
 // `for_attribute` itself takes, read directly rather than
 // re-derived here.
 
-pub mod scalar;
+pub mod composite;
 pub mod list;
 pub mod optional;
-pub mod composite;
+pub mod scalar;
 
 /// One variant per real attribute shape the Ruby
 /// grammar admits, in the order Coercion::SHAPES declares them. Every match
@@ -40,5 +40,10 @@ impl AttributeShape {
         }
     }
 
-    pub const ALL: &'static [AttributeShape] = &[AttributeShape::Scalar, AttributeShape::List, AttributeShape::Optional, AttributeShape::Composite];
+    pub const ALL: &'static [AttributeShape] = &[
+        AttributeShape::Scalar,
+        AttributeShape::List,
+        AttributeShape::Optional,
+        AttributeShape::Composite,
+    ];
 }

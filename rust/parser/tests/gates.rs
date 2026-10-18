@@ -82,7 +82,11 @@ fn one_of_values_keep_a_quoted_value_a_string() {
             "missing member {expected}: {stdout}"
         );
     }
-    for typed in [r#"[["word",false]]"#, r#"[["word",true]]"#, r#"[["word",0]]"#] {
+    for typed in [
+        r#"[["word",false]]"#,
+        r#"[["word",true]]"#,
+        r#"[["word",0]]"#,
+    ] {
         assert!(
             !compact.contains(typed),
             "a quoted value became {typed}: {stdout}"
@@ -100,14 +104,28 @@ fn a_one_of_in_type_position_inside_a_value_object_installs_its_closed_set_after
         path.to_str().unwrap(),
     ]);
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(output.status.success(), "should parse cleanly: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "should parse cleanly: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     let compact: String = stdout.split_whitespace().collect();
-    let frame = compact.find(r#""name":"Frame""#).expect("Frame is in the IR");
-    let grade = compact.find(r#""name":"Grade""#).unwrap_or_else(|| panic!("Grade is in the IR: {stdout}"));
+    let frame = compact
+        .find(r#""name":"Frame""#)
+        .expect("Frame is in the IR");
+    let grade = compact
+        .find(r#""name":"Grade""#)
+        .unwrap_or_else(|| panic!("Grade is in the IR: {stdout}"));
     let leaf = compact.find(r#""name":"Leaf""#).expect("Leaf is in the IR");
-    assert!(frame < grade && grade < leaf, "Grade follows Frame and precedes Leaf: {stdout}");
-    assert!(compact.contains(r#"[["value","a"]],[["value","b"]]"#), "Grade's members are its values: {stdout}");
+    assert!(
+        frame < grade && grade < leaf,
+        "Grade follows Frame and precedes Leaf: {stdout}"
+    );
+    assert!(
+        compact.contains(r#"[["value","a"]],[["value","b"]]"#),
+        "Grade's members are its values: {stdout}"
+    );
 }
 
 #[test]
@@ -474,7 +492,11 @@ fn a_query_that_returns_twice_or_in_quotes_is_refused() {
     let dir = std::env::temp_dir().join(format!("returns-refusals-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     for (name, body, expected) in [
-        ("twice", "returns Heard\n      returns Other", "returns twice"),
+        (
+            "twice",
+            "returns Heard\n      returns Other",
+            "returns twice",
+        ),
         ("quoted", "returns \"Heard\"", "reads as text"),
     ] {
         let path = dir.join(format!("{name}.bluebook"));
@@ -519,7 +541,12 @@ fn parse_command_body(tag: &str, body: &str) -> (Option<i32>, String, String) {
         "Hecks.bluebook \"NeedsFixture\" do\n  aggregate \"Clock\" do\n    command \"Stamp\" do\n{body}    end\n  end\nend\n"
     );
     std::fs::write(&path, source).unwrap();
-    let output = run(&["chapter", "--chapter", "NeedsFixture", path.to_str().unwrap()]);
+    let output = run(&[
+        "chapter",
+        "--chapter",
+        "NeedsFixture",
+        path.to_str().unwrap(),
+    ]);
     std::fs::remove_dir_all(&dir).ok();
     (
         output.status.code(),
@@ -530,11 +557,16 @@ fn parse_command_body(tag: &str, body: &str) -> (Option<i32>, String, String) {
 
 #[test]
 fn needs_now_emits_a_needs_array_after_ensures() {
-    let (code, stdout, stderr) =
-        parse_command_body("needs_ok", "      attribute :now, Integer\n      needs :now\n");
+    let (code, stdout, stderr) = parse_command_body(
+        "needs_ok",
+        "      attribute :now, Integer\n      needs :now\n",
+    );
     assert_eq!(code, Some(0), "stderr={stderr}");
     let compact: String = stdout.split_whitespace().collect();
-    assert!(compact.contains("\"needs\":[{\"fact\":\"now\"}]"), "got: {stdout}");
+    assert!(
+        compact.contains("\"needs\":[{\"fact\":\"now\"}]"),
+        "got: {stdout}"
+    );
     assert!(
         compact.find("\"ensures\"").unwrap() < compact.find("\"needs\"").unwrap()
             && compact.find("\"needs\"").unwrap() < compact.find("\"mutations\"").unwrap(),
@@ -544,7 +576,8 @@ fn needs_now_emits_a_needs_array_after_ensures() {
 
 #[test]
 fn a_command_without_needs_emits_an_empty_needs_array() {
-    let (code, stdout, stderr) = parse_command_body("needs_none", "      attribute :now, Integer\n");
+    let (code, stdout, stderr) =
+        parse_command_body("needs_none", "      attribute :now, Integer\n");
     assert_eq!(code, Some(0), "stderr={stderr}");
     let compact: String = stdout.split_whitespace().collect();
     assert!(compact.contains("\"needs\":[]"), "got: {stdout}");
@@ -552,8 +585,10 @@ fn a_command_without_needs_emits_an_empty_needs_array() {
 
 #[test]
 fn needs_refuses_a_fact_the_runtime_cannot_supply() {
-    let (code, _, stderr) =
-        parse_command_body("needs_bad", "      attribute :user, String\n      needs :user\n");
+    let (code, _, stderr) = parse_command_body(
+        "needs_bad",
+        "      attribute :user, String\n      needs :user\n",
+    );
     assert_eq!(code, Some(1));
     assert!(stderr.contains("cannot supply"), "got: {stderr}");
 }
@@ -562,7 +597,10 @@ fn needs_refuses_a_fact_the_runtime_cannot_supply() {
 fn needs_refuses_a_need_with_no_attribute_to_fill() {
     let (code, _, stderr) = parse_command_body("needs_undeclared", "      needs :now\n");
     assert_eq!(code, Some(1));
-    assert!(stderr.contains("declares no attribute :now"), "got: {stderr}");
+    assert!(
+        stderr.contains("declares no attribute :now"),
+        "got: {stderr}"
+    );
 }
 
 #[test]
@@ -577,10 +615,17 @@ fn needs_refuses_the_same_fact_twice() {
 
 #[test]
 fn needs_today_is_a_fact_the_runtime_supplies() {
-    let (code, stdout, stderr) =
-        parse_command_body("needs_today", "      attribute :today, Integer\n      needs :today\n");
+    let (code, stdout, stderr) = parse_command_body(
+        "needs_today",
+        "      attribute :today, Integer\n      needs :today\n",
+    );
     assert_eq!(code, Some(0), "stderr: {stderr}");
-    assert!(stdout.replace(['\n', ' '], "").contains("\"needs\":[{\"fact\":\"today\"}]"), "got: {stdout}");
+    assert!(
+        stdout
+            .replace(['\n', ' '], "")
+            .contains("\"needs\":[{\"fact\":\"today\"}]"),
+        "got: {stdout}"
+    );
 }
 
 /// Parses `body` (a Query's inner lines) as a one-query chapter; returns (exit code, stdout, stderr).
@@ -592,7 +637,12 @@ fn parse_query_body(tag: &str, body: &str) -> (Option<i32>, String, String) {
         "Hecks.bluebook \"QueryNeedsFixture\" do\n  aggregate \"Clock\" do\n    query \"Since\" do\n{body}    end\n  end\nend\n"
     );
     std::fs::write(&path, source).unwrap();
-    let output = run(&["chapter", "--chapter", "QueryNeedsFixture", path.to_str().unwrap()]);
+    let output = run(&[
+        "chapter",
+        "--chapter",
+        "QueryNeedsFixture",
+        path.to_str().unwrap(),
+    ]);
     std::fs::remove_dir_all(&dir).ok();
     (
         output.status.code(),
@@ -603,11 +653,16 @@ fn parse_query_body(tag: &str, body: &str) -> (Option<i32>, String, String) {
 
 #[test]
 fn a_query_that_needs_a_fact_emits_a_needs_array_after_its_options() {
-    let (code, stdout, stderr) =
-        parse_query_body("qneeds_ok", "      attribute :now, Integer\n      needs :now\n");
+    let (code, stdout, stderr) = parse_query_body(
+        "qneeds_ok",
+        "      attribute :now, Integer\n      needs :now\n",
+    );
     assert_eq!(code, Some(0), "stderr: {stderr}");
     let compact = stdout.replace(['\n', ' '], "");
-    assert!(compact.contains("\"needs\":[{\"fact\":\"now\"}]"), "got: {stdout}");
+    assert!(
+        compact.contains("\"needs\":[{\"fact\":\"now\"}]"),
+        "got: {stdout}"
+    );
     assert!(
         compact.find("\"limit\"").unwrap() < compact.find("\"needs\"").unwrap(),
         "needs must follow the query's own fields: {stdout}"
@@ -624,8 +679,10 @@ fn a_query_that_needs_nothing_keeps_its_wire_shape() {
 
 #[test]
 fn a_query_refuses_a_fact_the_runtime_cannot_supply() {
-    let (code, _, stderr) =
-        parse_query_body("qneeds_bad", "      attribute :user, String\n      needs :user\n");
+    let (code, _, stderr) = parse_query_body(
+        "qneeds_bad",
+        "      attribute :user, String\n      needs :user\n",
+    );
     assert_eq!(code, Some(1));
     assert!(stderr.contains("cannot supply"), "got: {stderr}");
 }
@@ -634,7 +691,10 @@ fn a_query_refuses_a_fact_the_runtime_cannot_supply() {
 fn a_query_refuses_a_need_with_no_attribute_to_fill() {
     let (code, _, stderr) = parse_query_body("qneeds_undeclared", "      needs :now\n");
     assert_eq!(code, Some(1));
-    assert!(stderr.contains("declares no attribute :now"), "got: {stderr}");
+    assert!(
+        stderr.contains("declares no attribute :now"),
+        "got: {stderr}"
+    );
 }
 
 #[test]
@@ -650,24 +710,55 @@ fn a_query_refuses_the_same_fact_twice() {
 #[test]
 fn a_lifecycle_mark_is_emitted_and_an_unknown_state_is_refused() {
     let marked = fixture("lifecycle_mark.bluebook");
-    let output = run(&["chapter", "--chapter", "FixtureLifecycleMark", marked.to_str().unwrap()]);
+    let output = run(&[
+        "chapter",
+        "--chapter",
+        "FixtureLifecycleMark",
+        marked.to_str().unwrap(),
+    ]);
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(output.status.success(), "a marked lifecycle must parse: {}", String::from_utf8_lossy(&output.stderr));
-    assert!(stdout.contains("\"marks\""), "expected marks in the IR, got: {stdout}");
-    assert!(stdout.contains("\"usable\""), "expected the mark name in the IR, got: {stdout}");
+    assert!(
+        output.status.success(),
+        "a marked lifecycle must parse: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        stdout.contains("\"marks\""),
+        "expected marks in the IR, got: {stdout}"
+    );
+    assert!(
+        stdout.contains("\"usable\""),
+        "expected the mark name in the IR, got: {stdout}"
+    );
 
     let plain = fixture("lifecycle.bluebook");
-    let output = run(&["chapter", "--chapter", "FixtureLifecycle", plain.to_str().unwrap()]);
+    let output = run(&[
+        "chapter",
+        "--chapter",
+        "FixtureLifecycle",
+        plain.to_str().unwrap(),
+    ]);
     assert!(
         !String::from_utf8_lossy(&output.stdout).contains("\"marks\""),
         "an unmarked lifecycle must not write marks"
     );
 
     let unknown = fixture("lifecycle_mark_unknown_state.bluebook");
-    let output = run(&["chapter", "--chapter", "FixtureLifecycleMark", unknown.to_str().unwrap()]);
+    let output = run(&[
+        "chapter",
+        "--chapter",
+        "FixtureLifecycleMark",
+        unknown.to_str().unwrap(),
+    ]);
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(!output.status.success(), "a mark naming an unknown state must not parse");
-    assert!(stderr.contains("mark :usable names \"missing\""), "got: {stderr}");
+    assert!(
+        !output.status.success(),
+        "a mark naming an unknown state must not parse"
+    );
+    assert!(
+        stderr.contains("mark :usable names \"missing\""),
+        "got: {stderr}"
+    );
 }
 
 #[test]

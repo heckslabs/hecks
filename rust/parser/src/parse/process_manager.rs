@@ -60,11 +60,9 @@ pub fn parse_body(
                 for handler in parse_transition(file, lines, pos, line, &gated)? {
                     // Two legs on one (event, state) pair would be picked by declaration order;
                     // mirrors `ProcessManagerBuilder#refuse_ambiguous_legs!`.
-                    if let Some(earlier) = pm
-                        .handlers
-                        .iter()
-                        .find(|h| h.event_type == handler.event_type && h.from_state == handler.from_state)
-                    {
+                    if let Some(earlier) = pm.handlers.iter().find(|h| {
+                        h.event_type == handler.event_type && h.from_state == handler.from_state
+                    }) {
                         return Err(Diagnostic::new(
                             file,
                             line,
@@ -208,9 +206,9 @@ fn parse_dispatches(
                     Opener::DoBlock { .. } => {
                         parse_compensates_block(file, lines, pos)?.map(Box::new)
                     }
-                    Opener::BraceBlock { .. } => unreachable!(
-                        "body_gate never admits a BraceBlock for 'dispatch'/Handler"
-                    ),
+                    Opener::BraceBlock { .. } => {
+                        unreachable!("body_gate never admits a BraceBlock for 'dispatch'/Handler")
+                    }
                 };
                 dispatches.push(ir::DispatchSpec {
                     command_name,

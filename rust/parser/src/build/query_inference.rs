@@ -239,7 +239,10 @@ mod tests {
                 ir::Query {
                     name: "Page".to_string(),
                     options: ir::QueryOptions {
-                        offset: Some(ir::OffsetSpec { value: ":start_at".to_string(), target: None }),
+                        offset: Some(ir::OffsetSpec {
+                            value: ":start_at".to_string(),
+                            target: None,
+                        }),
                         ..Default::default()
                     },
                     ..Default::default()

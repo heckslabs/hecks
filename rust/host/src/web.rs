@@ -5,11 +5,11 @@ use crate::api;
 use crate::auth;
 use crate::auth::Session;
 use crate::dispatch;
+use crate::extension::{self, Ctx};
 use crate::field_hints::{EMAIL_HINT, TEL_HINT, TEXTAREA_HINT, URL_HINT};
 use crate::ir::ir;
 use crate::journal::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
-use crate::extension::{self, Ctx};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::path::Path;
@@ -28,7 +28,9 @@ use registrations::payments_routes;
 // payments.rs, its tests and the boot check reach these through `web::`.
 pub use registrations::checkout_enabled;
 #[cfg(test)]
-pub(crate) use registrations::{registration_complete_route, registrations_route, webhook_route, MOCK_STRIPE_WEBHOOK_SECRET};
+pub(crate) use registrations::{
+    registration_complete_route, registrations_route, webhook_route, MOCK_STRIPE_WEBHOOK_SECRET,
+};
 #[cfg(test)]
 pub(crate) use registrations::{seats_left, seats_taken};
 
@@ -44,7 +46,10 @@ pub async fn render(
 ) -> Option<Value> {
     let http_event = body.get("requestContext")?.get("http")?;
 
-    let method = http_event.get("method").and_then(|v| v.as_str()).unwrap_or("GET");
+    let method = http_event
+        .get("method")
+        .and_then(|v| v.as_str())
+        .unwrap_or("GET");
     let path = body.get("rawPath").and_then(|v| v.as_str()).unwrap_or("/");
     let raw_body = body.get("body").and_then(|v| v.as_str()).unwrap_or("");
     let raw_body = if body.get("isBase64Encoded").and_then(|v| v.as_bool()) == Some(true) {
@@ -56,7 +61,11 @@ pub async fn render(
     // Parsed before `checkout_enabled` because newsletter's email-link
     // routes need it there. Query strings are RFC 3986 — `+` is literal,
     // not a space (unlike form bodies, which still use parse_form).
-    let query = parse_query(body.get("rawQueryString").and_then(|v| v.as_str()).unwrap_or(""));
+    let query = parse_query(
+        body.get("rawQueryString")
+            .and_then(|v| v.as_str())
+            .unwrap_or(""),
+    );
 
     let cookies = extract_cookies(body);
     let ctx = Ctx {
@@ -79,10 +88,20 @@ pub async fn render(
     }
 
     let Some(domain_ir) = ir() else {
-        return Some(respond(500, "text/plain", "HECKS_IR_PATH not set or unreadable — this domain has no web layer configured"));
+        return Some(respond(
+            500,
+            "text/plain",
+            "HECKS_IR_PATH not set or unreadable — this domain has no web layer configured",
+        ));
     };
 
-    Some(route(domain_ir, method, path, &query, &raw_body, &cookies, client, wasm_path, config, invoker).await)
+    Some(
+        route(
+            domain_ir, method, path, &query, &raw_body, &cookies, client, wasm_path, config,
+            invoker,
+        )
+        .await,
+    )
 }
 
 fn extract_cookies(body: &Value) -> HashMap<String, String> {
@@ -95,7 +114,11 @@ fn extract_cookies(body: &Value) -> HashMap<String, String> {
                 map.insert(k.trim().to_string(), v.trim().to_string());
             }
         }
-    } else if let Some(header) = body.get("headers").and_then(|h| h.get("cookie")).and_then(|v| v.as_str()) {
+    } else if let Some(header) = body
+        .get("headers")
+        .and_then(|h| h.get("cookie"))
+        .and_then(|v| v.as_str())
+    {
         for pair in header.split(';') {
             if let Some((k, v)) = pair.split_once('=') {
                 map.insert(k.trim().to_string(), v.trim().to_string());
@@ -119,9 +142,11 @@ fn session_secret() -> String {
 // Kept pure and separately testable; only `session_secret` panics.
 fn validate_session_secret(secret: &str) -> Result<(), String> {
     if secret.is_empty() {
-        Err("SESSION_SECRET is required and must not be empty -- refusing to sign/verify session \
+        Err(
+            "SESSION_SECRET is required and must not be empty -- refusing to sign/verify session \
              cookies and OAuth state with a publicly-known empty-string HMAC key"
-            .to_string())
+                .to_string(),
+        )
     } else {
         Ok(())
     }
@@ -140,7 +165,11 @@ fn auth_gate(path: &str, authenticated: bool) -> Option<Value> {
     Some(if json_shaped(path) {
         // The Ruby engine's own refusal body, key for key, so a client
         // can branch on it without caring which runtime answered.
-        respond(401, "application/json", &json!({"error": "Unauthenticated", "message": "sign in first"}).to_string())
+        respond(
+            401,
+            "application/json",
+            &json!({"error": "Unauthenticated", "message": "sign in first"}).to_string(),
+        )
     } else {
         redirect("/login")
     })
@@ -173,9 +202,26 @@ async fn route(
 ) -> Value {
     let domain_name = domain_ir.get("name").and_then(|v| v.as_str()).unwrap_or("");
     let secret = session_secret();
-    let session = cookies.get("session").and_then(|c| auth::parse_session_cookie(&secret, c));
+    let session = cookies
+        .get("session")
+        .and_then(|c| auth::parse_session_cookie(&secret, c));
 
-    if let Some(response) = auth_route(domain_ir, path, method, query, raw_body, cookies, session.as_ref(), &secret, client, wasm_path, config, invoker).await {
+    if let Some(response) = auth_route(
+        domain_ir,
+        path,
+        method,
+        query,
+        raw_body,
+        cookies,
+        session.as_ref(),
+        &secret,
+        client,
+        wasm_path,
+        config,
+        invoker,
+    )
+    .await
+    {
         return response;
     }
 
@@ -187,7 +233,19 @@ async fn route(
     // 404s itself — falling through would 404 here as "no domain \"api\""
     // instead, for a request the Ruby engine answers with data.
     if path.starts_with("/api/") {
-        return api::route(domain_ir, method, path, query, raw_body, session.as_ref(), client, wasm_path, config, invoker).await;
+        return api::route(
+            domain_ir,
+            method,
+            path,
+            query,
+            raw_body,
+            session.as_ref(),
+            client,
+            wasm_path,
+            config,
+            invoker,
+        )
+        .await;
     }
 
     let segments: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
@@ -197,14 +255,22 @@ async fn route(
     }
 
     if segments[0] != domain_name {
-        return respond(404, "text/plain", &format!("no domain {:?} loaded", segments[0]));
+        return respond(
+            404,
+            "text/plain",
+            &format!("no domain {:?} loaded", segments[0]),
+        );
     }
 
     let Some((aggregate_seg, format)) = segments.get(1).map(|s| split_format(s)) else {
         return respond(404, "text/plain", "no route");
     };
     let Some(aggregate) = find_aggregate(domain_ir, &aggregate_seg) else {
-        return respond(404, "text/plain", &format!("{domain_name} has no aggregate {aggregate_seg:?}"));
+        return respond(
+            404,
+            "text/plain",
+            &format!("{domain_name} has no aggregate {aggregate_seg:?}"),
+        );
     };
 
     if segments.len() == 2 {
@@ -216,12 +282,31 @@ async fn route(
         if let Some(command) = find_command(aggregate, &verb_or_id) {
             let action = format!("/{domain_name}/{}/{}.html", agg_name(aggregate), verb_or_id);
             return command_route(
-                domain_ir, domain_name, aggregate, command, &action, &format, method, query, raw_body,
-                client, wasm_path, config, invoker,
+                domain_ir,
+                domain_name,
+                aggregate,
+                command,
+                &action,
+                &format,
+                method,
+                query,
+                raw_body,
+                client,
+                wasm_path,
+                config,
+                invoker,
             )
             .await;
         }
-        return record_show(domain_name, aggregate, &verb_or_id, &format, client, wasm_path).await;
+        return record_show(
+            domain_name,
+            aggregate,
+            &verb_or_id,
+            &format,
+            client,
+            wasm_path,
+        )
+        .await;
     }
 
     respond(404, "text/plain", &format!("no route for {path}"))
@@ -264,9 +349,15 @@ async fn auth_route(
     }
 
     match (method, path) {
-        ("GET", "/login") => Some(html(200, &login_page(query.get("error").map(|s| s.as_str())))),
+        ("GET", "/login") => Some(html(
+            200,
+            &login_page(query.get("error").map(|s| s.as_str())),
+        )),
 
-        ("POST", "/logout") => Some(redirect_with_cookie("/login", &format!("session=; Max-Age=0{}", cookie_flags()))),
+        ("POST", "/logout") => Some(redirect_with_cookie(
+            "/login",
+            &format!("session=; Max-Age=0{}", cookie_flags()),
+        )),
 
         // No password login: Google OAuth is the only sign-in path, and the
         // /accounts/* routes here are just the session-cookie family that
@@ -275,39 +366,72 @@ async fn auth_route(
             200,
             "application/json",
             r#"{"ok":true}"#,
-            &format!("{}=; Max-Age=0{}", auth::account_cookie_name(), cookie_flags()),
+            &format!(
+                "{}=; Max-Age=0{}",
+                auth::account_cookie_name(),
+                cookie_flags()
+            ),
         )),
 
-        ("GET", "/accounts/me") => Some(accounts_me_route(domain_ir, cookies, secret, client).await),
+        ("GET", "/accounts/me") => {
+            Some(accounts_me_route(domain_ir, cookies, secret, client).await)
+        }
 
         ("GET", "/members") => Some(members_route(domain_ir, cookies, secret, client).await),
 
-        ("POST", "/members") => Some(add_member_route(domain_ir, raw_body, cookies, secret, client, wasm_path, config).await),
+        ("POST", "/members") => Some(
+            add_member_route(
+                domain_ir, raw_body, cookies, secret, client, wasm_path, config,
+            )
+            .await,
+        ),
 
-        ("POST", "/signups") => Some(signup_route(raw_body, secret, client, wasm_path, config, invoker).await),
+        ("POST", "/signups") => {
+            Some(signup_route(raw_body, secret, client, wasm_path, config, invoker).await)
+        }
 
-        ("POST", "/members/disable") => Some(set_member_disabled_route(domain_ir, raw_body, cookies, secret, client, config, true).await),
+        ("POST", "/members/disable") => Some(
+            set_member_disabled_route(domain_ir, raw_body, cookies, secret, client, config, true)
+                .await,
+        ),
 
-        ("POST", "/members/enable") => Some(set_member_disabled_route(domain_ir, raw_body, cookies, secret, client, config, false).await),
+        ("POST", "/members/enable") => Some(
+            set_member_disabled_route(domain_ir, raw_body, cookies, secret, client, config, false)
+                .await,
+        ),
 
-        ("POST", "/members/role") => Some(set_member_role_route(domain_ir, raw_body, cookies, secret, client, config).await),
+        ("POST", "/members/role") => {
+            Some(set_member_role_route(domain_ir, raw_body, cookies, secret, client, config).await)
+        }
 
-        ("POST", "/members/delete") => Some(set_member_deleted_route(domain_ir, raw_body, cookies, secret, client, config).await),
+        ("POST", "/members/delete") => Some(
+            set_member_deleted_route(domain_ir, raw_body, cookies, secret, client, config).await,
+        ),
 
         // cms/src/endpoints/sso.ts verifies this with the same account_token
         // wire format; deploy-aws/platform/template.yaml shares SessionSecret
         // with the cms container as AUTH_SECRET so both sides agree on it.
-        ("GET", "/accounts/sso-token") => Some(accounts_sso_token_route(domain_ir, cookies, secret, client).await),
+        ("GET", "/accounts/sso-token") => {
+            Some(accounts_sso_token_route(domain_ir, cookies, secret, client).await)
+        }
 
         ("GET", "/auth/google") => match auth::authorization_url(&redirect_uri(), secret) {
             Ok(url) => Some(redirect(&url)),
-            Err(e) => Some(respond(500, "text/plain", &format!("Google sign-in isn't configured: {e}"))),
+            Err(e) => Some(respond(
+                500,
+                "text/plain",
+                &format!("Google sign-in isn't configured: {e}"),
+            )),
         },
 
-        ("GET", "/auth/google/callback") => Some(google_callback(domain_ir, query, client, wasm_path, config, secret, invoker).await),
+        ("GET", "/auth/google/callback") => Some(
+            google_callback(domain_ir, query, client, wasm_path, config, secret, invoker).await,
+        ),
 
         ("GET", "/admin/members") => {
-            let Some(session) = session else { return Some(redirect("/login")) };
+            let Some(session) = session else {
+                return Some(redirect("/login"));
+            };
             if !is_admin(client, wasm_path, domain_ir, &session.identity_id).await {
                 return Some(html(403, "<p>Admins only.</p>"));
             }
@@ -315,7 +439,9 @@ async fn auth_route(
         }
 
         ("POST", "/admin/members") => {
-            let Some(session) = session else { return Some(redirect("/login")) };
+            let Some(session) = session else {
+                return Some(redirect("/login"));
+            };
             if !is_admin(client, wasm_path, domain_ir, &session.identity_id).await {
                 return Some(html(403, "<p>Admins only.</p>"));
             }
@@ -323,7 +449,13 @@ async fn auth_route(
             let email = form.get("email").cloned().unwrap_or_default();
             let role = form.get("role").cloned().unwrap_or_default();
             if !auth::GRANTABLE_ROLES.contains(&role.as_str()) {
-                return Some(html(400, &format!("<p>Role must be one of {}.</p>", auth::GRANTABLE_ROLES.join(", "))));
+                return Some(html(
+                    400,
+                    &format!(
+                        "<p>Role must be one of {}.</p>",
+                        auth::GRANTABLE_ROLES.join(", ")
+                    ),
+                ));
             }
             match auth::grant_access(client, wasm_path, config, domain_ir, &email, &role).await {
                 Ok(true) => Some(redirect("/admin/members")),
@@ -336,10 +468,19 @@ async fn auth_route(
     }
 }
 
-async fn is_admin(client: &Mutex<Client>, wasm_path: &Path, domain_ir: &Value, identity_id: &str) -> bool {
+async fn is_admin(
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    domain_ir: &Value,
+    identity_id: &str,
+) -> bool {
     let provider = crate::ir::authorization_provider(domain_ir);
     match dispatch::read(client, wasm_path).await {
-        Ok(read) => auth::holds_admin(read.get("instances").unwrap_or(&json!({})), identity_id, provider.as_ref()),
+        Ok(read) => auth::holds_admin(
+            read.get("instances").unwrap_or(&json!({})),
+            identity_id,
+            provider.as_ref(),
+        ),
         Err(_) => false,
     }
 }
@@ -352,22 +493,48 @@ async fn active_session_email(
     secret: &str,
     client: &Mutex<Client>,
 ) -> Result<String, Value> {
-    let not_logged_in = || respond(401, "application/json", &json!({"error": "not logged in"}).to_string());
-    let Some(email) = cookies.get(&auth::account_cookie_name()).and_then(|token| auth::verify_account_token(secret, token)) else {
+    let not_logged_in = || {
+        respond(
+            401,
+            "application/json",
+            &json!({"error": "not logged in"}).to_string(),
+        )
+    };
+    let Some(email) = cookies
+        .get(&auth::account_cookie_name())
+        .and_then(|token| auth::verify_account_token(secret, token))
+    else {
         return Err(not_logged_in());
     };
     match auth::has_access(client, domain_ir, &email).await {
         Ok(true) => Ok(email),
         Ok(false) => Err(not_logged_in()),
-        Err(e) => Err(respond(500, "application/json", &json!({"error": format!("members lookup failed: {e}")}).to_string())),
+        Err(e) => Err(respond(
+            500,
+            "application/json",
+            &json!({"error": format!("members lookup failed: {e}")}).to_string(),
+        )),
     }
 }
 
-async fn accounts_me_route(domain_ir: &Value, cookies: &HashMap<String, String>, secret: &str, client: &Mutex<Client>) -> Value {
+async fn accounts_me_route(
+    domain_ir: &Value,
+    cookies: &HashMap<String, String>,
+    secret: &str,
+    client: &Mutex<Client>,
+) -> Value {
     match active_session_email(domain_ir, cookies, secret, client).await {
         Ok(email) => match auth::member_identity_id(client, domain_ir, &email).await {
-            Ok(identity_id) => respond(200, "application/json", &json!({"email": email, "identity_id": identity_id}).to_string()),
-            Err(e) => respond(500, "application/json", &json!({"error": format!("members lookup failed: {e}")}).to_string()),
+            Ok(identity_id) => respond(
+                200,
+                "application/json",
+                &json!({"email": email, "identity_id": identity_id}).to_string(),
+            ),
+            Err(e) => respond(
+                500,
+                "application/json",
+                &json!({"error": format!("members lookup failed: {e}")}).to_string(),
+            ),
         },
         Err(response) => response,
     }
@@ -376,13 +543,27 @@ async fn accounts_me_route(domain_ir: &Value, cookies: &HashMap<String, String>,
 // GET /members: admitted people as JSON, for an Admin or Owner holding the
 // account cookie but not the Governance session /admin/members needs. The list
 // is every person's name, email and role, so a plain member does not get it.
-async fn members_route(domain_ir: &Value, cookies: &HashMap<String, String>, secret: &str, client: &Mutex<Client>) -> Value {
-    if let Err(response) = newsletter_send::require_admin(domain_ir, cookies, secret, client).await {
+async fn members_route(
+    domain_ir: &Value,
+    cookies: &HashMap<String, String>,
+    secret: &str,
+    client: &Mutex<Client>,
+) -> Value {
+    if let Err(response) = newsletter_send::require_admin(domain_ir, cookies, secret, client).await
+    {
         return response;
     }
     match auth::all_people(client, domain_ir).await {
-        Ok(people) => respond(200, "application/json", &Value::Array(sorted_by_name(people)).to_string()),
-        Err(e) => respond(500, "application/json", &json!({"error": format!("members lookup failed: {e}")}).to_string()),
+        Ok(people) => respond(
+            200,
+            "application/json",
+            &Value::Array(sorted_by_name(people)).to_string(),
+        ),
+        Err(e) => respond(
+            500,
+            "application/json",
+            &json!({"error": format!("members lookup failed: {e}")}).to_string(),
+        ),
     }
 }
 
@@ -397,9 +578,18 @@ pub(crate) async fn add_member_route(
     wasm_path: &Path,
     config: &LineageConfig,
 ) -> Value {
-    let json_error = |status: u16, message: &str| respond(status, "application/json", &json!({"error": message}).to_string());
+    let json_error = |status: u16, message: &str| {
+        respond(
+            status,
+            "application/json",
+            &json!({"error": message}).to_string(),
+        )
+    };
 
-    let Some(caller) = cookies.get(&auth::account_cookie_name()).and_then(|token| auth::verify_account_token(secret, token)) else {
+    let Some(caller) = cookies
+        .get(&auth::account_cookie_name())
+        .and_then(|token| auth::verify_account_token(secret, token))
+    else {
         return json_error(401, "not logged in");
     };
     match auth::caller_is_admin(client, domain_ir, &caller).await {
@@ -409,18 +599,31 @@ pub(crate) async fn add_member_route(
     }
 
     let body: Value = serde_json::from_str(raw_body).unwrap_or(Value::Null);
-    let field = |key: &str| body.get(key).and_then(|v| v.as_str()).map(|s| s.trim().to_string()).unwrap_or_default();
+    let field = |key: &str| {
+        body.get(key)
+            .and_then(|v| v.as_str())
+            .map(|s| s.trim().to_string())
+            .unwrap_or_default()
+    };
     let (email, name) = (field("email"), field("name"));
-    let looks_like_email = email.split_once('@').is_some_and(|(local, domain)| !local.is_empty() && domain.contains('.') && !email.contains(char::is_whitespace));
+    let looks_like_email = email.split_once('@').is_some_and(|(local, domain)| {
+        !local.is_empty() && domain.contains('.') && !email.contains(char::is_whitespace)
+    });
     if name.is_empty() || !looks_like_email {
         return json_error(400, "a name and a valid email are required");
     }
     let role = match body.get("role") {
         None | Some(Value::Null) => "Admin".to_string(),
-        Some(value) => value.as_str().map(|s| s.trim().to_string()).unwrap_or_default(),
+        Some(value) => value
+            .as_str()
+            .map(|s| s.trim().to_string())
+            .unwrap_or_default(),
     };
     if !auth::GRANTABLE_ROLES.contains(&role.as_str()) {
-        return json_error(400, &format!("role must be one of {}", auth::GRANTABLE_ROLES.join(", ")));
+        return json_error(
+            400,
+            &format!("role must be one of {}", auth::GRANTABLE_ROLES.join(", ")),
+        );
     }
 
     match auth::admit_person(client, config, domain_ir, &email, &name).await {
@@ -445,32 +648,70 @@ const SIGNUP_PURPOSE: &str = "signup";
 
 // POST /signups: dispatches Signups::Signup.SignUp as System, gated by
 // a signup-purpose token rather than a session cookie (nobody is signed in yet).
-async fn signup_route(raw_body: &str, secret: &str, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, invoker: &dyn LambdaInvoker) -> Value {
-    let json_error = |status: u16, message: &str| respond(status, "application/json", &json!({"error": message}).to_string());
+async fn signup_route(
+    raw_body: &str,
+    secret: &str,
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    config: &LineageConfig,
+    invoker: &dyn LambdaInvoker,
+) -> Value {
+    let json_error = |status: u16, message: &str| {
+        respond(
+            status,
+            "application/json",
+            &json!({"error": message}).to_string(),
+        )
+    };
 
     let body: Value = serde_json::from_str(raw_body).unwrap_or(Value::Null);
-    let field = |key: &str| body.get(key).and_then(|v| v.as_str()).map(|s| s.trim().to_string()).unwrap_or_default();
+    let field = |key: &str| {
+        body.get(key)
+            .and_then(|v| v.as_str())
+            .map(|s| s.trim().to_string())
+            .unwrap_or_default()
+    };
 
     if auth::verify_purpose_token(secret, SIGNUP_PURPOSE, &field("token")).is_none() {
         return json_error(401, "not authorized");
     }
 
     let (email, name) = (field("email").to_lowercase(), field("name"));
-    let looks_like_email = email.split_once('@').is_some_and(|(local, domain)| !local.is_empty() && domain.contains('.') && !email.contains(char::is_whitespace));
+    let looks_like_email = email.split_once('@').is_some_and(|(local, domain)| {
+        !local.is_empty() && domain.contains('.') && !email.contains(char::is_whitespace)
+    });
     if name.is_empty() || !looks_like_email {
         return json_error(400, "a name and a valid email are required");
     }
 
     let args = json!({"email": {"value": email}, "name": {"value": name}});
-    let outcome = match dispatch::handle(client, wasm_path, "Signups::Signup.SignUp", args, Some("System"), config, invoker).await {
+    let outcome = match dispatch::handle(
+        client,
+        wasm_path,
+        "Signups::Signup.SignUp",
+        args,
+        Some("System"),
+        config,
+        invoker,
+    )
+    .await
+    {
         Ok(o) => o,
         Err(e) => return json_error(500, &format!("{e:#}")),
     };
     if !outcome.accepted {
-        return respond(422, "application/json", &last_refusal(&outcome.result).to_string());
+        return respond(
+            422,
+            "application/json",
+            &last_refusal(&outcome.result).to_string(),
+        );
     }
 
-    respond(201, "application/json", &json!({"email": email, "name": name}).to_string())
+    respond(
+        201,
+        "application/json",
+        &json!({"email": email, "name": name}).to_string(),
+    )
 }
 
 // POST /members/disable|enable: turns access off/on without deleting
@@ -484,14 +725,27 @@ async fn set_member_disabled_route(
     config: &LineageConfig,
     disable: bool,
 ) -> Value {
-    let json_error = |status: u16, message: &str| respond(status, "application/json", &json!({"error": message}).to_string());
+    let json_error = |status: u16, message: &str| {
+        respond(
+            status,
+            "application/json",
+            &json!({"error": message}).to_string(),
+        )
+    };
 
-    let Some(caller) = cookies.get(&auth::account_cookie_name()).and_then(|token| auth::verify_account_token(secret, token)) else {
+    let Some(caller) = cookies
+        .get(&auth::account_cookie_name())
+        .and_then(|token| auth::verify_account_token(secret, token))
+    else {
         return json_error(401, "not logged in");
     };
 
     let body: Value = serde_json::from_str(raw_body).unwrap_or(Value::Null);
-    let email = body.get("email").and_then(|v| v.as_str()).map(|s| s.trim().to_string()).unwrap_or_default();
+    let email = body
+        .get("email")
+        .and_then(|v| v.as_str())
+        .map(|s| s.trim().to_string())
+        .unwrap_or_default();
     if email.is_empty() {
         return json_error(400, "an email is required");
     }
@@ -499,12 +753,20 @@ async fn set_member_disabled_route(
     match auth::set_person_disabled(client, config, domain_ir, &caller, &email, disable).await {
         Ok(auth::DisableOutcome::Done) => {
             let key = if disable { "disabled" } else { "enabled" };
-            respond(200, "application/json", &json!({key: email.to_lowercase()}).to_string())
+            respond(
+                200,
+                "application/json",
+                &json!({key: email.to_lowercase()}).to_string(),
+            )
         }
         Ok(auth::DisableOutcome::CallerNotAdmin) => json_error(403, "admins only"),
-        Ok(auth::DisableOutcome::SelfDisable) => json_error(403, "you can't disable your own admin access"),
+        Ok(auth::DisableOutcome::SelfDisable) => {
+            json_error(403, "you can't disable your own admin access")
+        }
         Ok(auth::DisableOutcome::UnknownPerson) => json_error(404, "no member with that email"),
-        Ok(auth::DisableOutcome::LastAdmin) => json_error(409, "there must always be at least one admin"),
+        Ok(auth::DisableOutcome::LastAdmin) => {
+            json_error(409, "there must always be at least one admin")
+        }
         Err(e) => json_error(500, &format!("members update failed: {e}")),
     }
 }
@@ -521,20 +783,37 @@ async fn set_member_deleted_route(
     client: &Mutex<Client>,
     config: &LineageConfig,
 ) -> Value {
-    let json_error = |status: u16, message: &str| respond(status, "application/json", &json!({"error": message}).to_string());
+    let json_error = |status: u16, message: &str| {
+        respond(
+            status,
+            "application/json",
+            &json!({"error": message}).to_string(),
+        )
+    };
 
-    let Some(caller) = cookies.get(&auth::account_cookie_name()).and_then(|token| auth::verify_account_token(secret, token)) else {
+    let Some(caller) = cookies
+        .get(&auth::account_cookie_name())
+        .and_then(|token| auth::verify_account_token(secret, token))
+    else {
         return json_error(401, "not logged in");
     };
 
     let body: Value = serde_json::from_str(raw_body).unwrap_or(Value::Null);
-    let email = body.get("email").and_then(|v| v.as_str()).map(|s| s.trim().to_string()).unwrap_or_default();
+    let email = body
+        .get("email")
+        .and_then(|v| v.as_str())
+        .map(|s| s.trim().to_string())
+        .unwrap_or_default();
     if email.is_empty() {
         return json_error(400, "an email is required");
     }
 
     match auth::set_person_deleted(client, config, domain_ir, &caller, &email).await {
-        Ok(auth::DeleteOutcome::Done) => respond(200, "application/json", &json!({"deleted": email.to_lowercase()}).to_string()),
+        Ok(auth::DeleteOutcome::Done) => respond(
+            200,
+            "application/json",
+            &json!({"deleted": email.to_lowercase()}).to_string(),
+        ),
         Ok(auth::DeleteOutcome::CallerNotAdmin) => json_error(403, "admins only"),
         Ok(auth::DeleteOutcome::UnknownPerson) => json_error(404, "no member with that email"),
         Ok(auth::DeleteOutcome::NotDisabled) => json_error(409, "disable this admin first"),
@@ -552,27 +831,50 @@ async fn set_member_role_route(
     client: &Mutex<Client>,
     config: &LineageConfig,
 ) -> Value {
-    let json_error = |status: u16, message: &str| respond(status, "application/json", &json!({"error": message}).to_string());
+    let json_error = |status: u16, message: &str| {
+        respond(
+            status,
+            "application/json",
+            &json!({"error": message}).to_string(),
+        )
+    };
 
-    let Some(caller) = cookies.get(&auth::account_cookie_name()).and_then(|token| auth::verify_account_token(secret, token)) else {
+    let Some(caller) = cookies
+        .get(&auth::account_cookie_name())
+        .and_then(|token| auth::verify_account_token(secret, token))
+    else {
         return json_error(401, "not logged in");
     };
 
     let body: Value = serde_json::from_str(raw_body).unwrap_or(Value::Null);
-    let field = |key: &str| body.get(key).and_then(|v| v.as_str()).map(|s| s.trim().to_string()).unwrap_or_default();
+    let field = |key: &str| {
+        body.get(key)
+            .and_then(|v| v.as_str())
+            .map(|s| s.trim().to_string())
+            .unwrap_or_default()
+    };
     let (email, role) = (field("email"), field("role"));
     if email.is_empty() {
         return json_error(400, "an email is required");
     }
     if !auth::GRANTABLE_ROLES.contains(&role.as_str()) {
-        return json_error(400, &format!("role must be one of {}", auth::GRANTABLE_ROLES.join(", ")));
+        return json_error(
+            400,
+            &format!("role must be one of {}", auth::GRANTABLE_ROLES.join(", ")),
+        );
     }
 
     match auth::set_person_role(client, config, domain_ir, &caller, &email, &role).await {
-        Ok(auth::RoleOutcome::Done) => respond(200, "application/json", &json!({"email": email.to_lowercase(), "role": role}).to_string()),
+        Ok(auth::RoleOutcome::Done) => respond(
+            200,
+            "application/json",
+            &json!({"email": email.to_lowercase(), "role": role}).to_string(),
+        ),
         Ok(auth::RoleOutcome::CallerNotAdmin) => json_error(403, "admins only"),
         Ok(auth::RoleOutcome::UnknownPerson) => json_error(404, "no member with that email"),
-        Ok(auth::RoleOutcome::LastAdmin) => json_error(409, "there must always be at least one admin"),
+        Ok(auth::RoleOutcome::LastAdmin) => {
+            json_error(409, "there must always be at least one admin")
+        }
         Err(e) => json_error(500, &format!("members update failed: {e}")),
     }
 }
@@ -587,9 +889,18 @@ async fn registrations_list_route(
     wasm_path: &Path,
     config: &LineageConfig,
 ) -> Value {
-    let json_error = |status: u16, message: &str| respond(status, "application/json", &json!({"error": message}).to_string());
+    let json_error = |status: u16, message: &str| {
+        respond(
+            status,
+            "application/json",
+            &json!({"error": message}).to_string(),
+        )
+    };
 
-    let Some(caller) = cookies.get(&auth::account_cookie_name()).and_then(|token| auth::verify_account_token(secret, token)) else {
+    let Some(caller) = cookies
+        .get(&auth::account_cookie_name())
+        .and_then(|token| auth::verify_account_token(secret, token))
+    else {
         return json_error(401, "not logged in");
     };
     match auth::caller_is_admin(client, domain_ir, &caller).await {
@@ -602,7 +913,11 @@ async fn registrations_list_route(
         Ok(read) => read,
         Err(e) => return json_error(500, &format!("registrations lookup failed: {e:#}")),
     };
-    respond(200, "application/json", &Value::Array(registration_list_rows(&read, &config.domain)).to_string())
+    respond(
+        200,
+        "application/json",
+        &Value::Array(registration_list_rows(&read, &config.domain)).to_string(),
+    )
 }
 
 // Built field-by-field from an allowlist so intake answers (health,
@@ -613,7 +928,8 @@ fn registration_list_rows(read: &Value, domain: &str) -> Vec<Value> {
         let value = value?;
         Some(value.get("value").cloned().unwrap_or_else(|| value.clone()))
     };
-    let text = |value: Option<&Value>| plain(value).and_then(|v| v.as_str().map(|s| s.trim().to_string()));
+    let text =
+        |value: Option<&Value>| plain(value).and_then(|v| v.as_str().map(|s| s.trim().to_string()));
 
     let mut rows: Vec<(Option<String>, Value)> = instances_for(read, &binding.registration_prefix())
         .into_iter()
@@ -642,21 +958,35 @@ fn registration_list_rows(read: &Value, domain: &str) -> Vec<Value> {
 }
 
 fn sorted_by_name(mut people: Vec<Value>) -> Vec<Value> {
-    let name_of = |p: &Value| p.get("name").and_then(|v| v.as_str()).unwrap_or("").to_lowercase();
+    let name_of = |p: &Value| {
+        p.get("name")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_lowercase()
+    };
     people.sort_by_key(name_of);
     people
 }
 
 // Mints a 60s handoff token cms/src/endpoints/sso.ts exchanges for a
 // real Payload session — one-shot, so it's returned as JSON, not a cookie.
-async fn accounts_sso_token_route(domain_ir: &Value, cookies: &HashMap<String, String>, secret: &str, client: &Mutex<Client>) -> Value {
+async fn accounts_sso_token_route(
+    domain_ir: &Value,
+    cookies: &HashMap<String, String>,
+    secret: &str,
+    client: &Mutex<Client>,
+) -> Value {
     const SSO_TOKEN_TTL_SECS: u64 = 60;
     let email = match active_session_email(domain_ir, cookies, secret, client).await {
         Ok(email) => email,
         Err(response) => return response,
     };
     let sso_token = auth::account_token(secret, &email, SSO_TOKEN_TTL_SECS);
-    respond(200, "application/json", &json!({"token": sso_token}).to_string())
+    respond(
+        200,
+        "application/json",
+        &json!({"token": sso_token}).to_string(),
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -701,30 +1031,47 @@ async fn google_callback(
 
     // PostgresEra head first — Identity is not in the WASM journal.
     // Journal `instances` is only a fallback for Lambda-era rows.
-    let identity_id = match auth::resolve_identity_from_head(client, domain_ir, &claims.issuer, &claims.subject).await {
-        Ok(found) => found,
-        Err(e) => {
-            eprintln!("google_callback: identity head: {e:#}");
-            None
-        }
-    };
-    let identity_id = identity_id.or_else(|| auth::resolve_identity(&instances, &claims.issuer, &claims.subject));
-
-    let session = match identity_id {
-        Some(ref identity_id) => match auth::session_for_member_by_identity(client, domain_ir, identity_id).await {
-            Ok(s) => s,
+    let identity_id =
+        match auth::resolve_identity_from_head(client, domain_ir, &claims.issuer, &claims.subject)
+            .await
+        {
+            Ok(found) => found,
             Err(e) => {
-                eprintln!("google_callback: member by identity: {e:#}");
+                eprintln!("google_callback: identity head: {e:#}");
                 None
             }
-        },
+        };
+    let identity_id =
+        identity_id.or_else(|| auth::resolve_identity(&instances, &claims.issuer, &claims.subject));
+
+    let session = match identity_id {
+        Some(ref identity_id) => {
+            match auth::session_for_member_by_identity(client, domain_ir, identity_id).await {
+                Ok(s) => s,
+                Err(e) => {
+                    eprintln!("google_callback: member by identity: {e:#}");
+                    None
+                }
+            }
+        }
         None => None,
     };
     let session = match session {
         Some(s) => Some(s),
         None if claims.email_verified => {
             let email = claims.email.clone().unwrap_or_default();
-            match auth::provision(client, wasm_path, config, domain_ir, &email, &claims.issuer, &claims.subject, invoker).await {
+            match auth::provision(
+                client,
+                wasm_path,
+                config,
+                domain_ir,
+                &email,
+                &claims.issuer,
+                &claims.subject,
+                invoker,
+            )
+            .await
+            {
                 Ok(s) => s,
                 Err(e) => {
                     eprintln!("google_callback: provision: {e:#}");
@@ -735,7 +1082,9 @@ async fn google_callback(
         None => None,
     };
 
-    let Some(session) = session else { return redirect("/login?error=google_unlinked") };
+    let Some(session) = session else {
+        return redirect("/login?error=google_unlinked");
+    };
 
     // The site's admin authenticates on the account cookie, not this
     // host's own session cookie. Cross-origin, a cookie here would never
@@ -744,11 +1093,20 @@ async fn google_callback(
     let site = site.trim_end_matches('/');
     let token = auth::account_token(secret, &session.email, auth::SESSION_TTL_SECS);
     if same_origin(site, &redirect_uri()) {
-        let cookie = format!("{}={token}{}; Max-Age={}", auth::account_cookie_name(), cookie_flags(), auth::SESSION_TTL_SECS);
+        let cookie = format!(
+            "{}={token}{}; Max-Age={}",
+            auth::account_cookie_name(),
+            cookie_flags(),
+            auth::SESSION_TTL_SECS
+        );
         redirect_with_cookie("/admin.html", &cookie)
     } else {
         // One-redirect URL onto the Astro origin (local rust/host :4567 vs site :4321).
-        redirect(&format!("{}/api/google-handoff?token={}", site, auth::urlencode(&token)))
+        redirect(&format!(
+            "{}/api/google-handoff?token={}",
+            site,
+            auth::urlencode(&token)
+        ))
     }
 }
 
@@ -762,13 +1120,23 @@ fn origin_of(url: &str) -> String {
 }
 
 const ERROR_MESSAGES: &[(&str, &str)] = &[
-    ("google_unlinked", "That Google account isn't recognized here."),
-    ("google_failed", "Google sign-in didn't go through. Try again."),
+    (
+        "google_unlinked",
+        "That Google account isn't recognized here.",
+    ),
+    (
+        "google_failed",
+        "Google sign-in didn't go through. Try again.",
+    ),
 ];
 
 fn login_page(error: Option<&str>) -> String {
-    let message = error.and_then(|e| ERROR_MESSAGES.iter().find(|(k, _)| *k == e)).map(|(_, m)| *m);
-    let error_html = message.map(|m| format!(r#"<p class="text-red-600 text-sm mb-4">{}</p>"#, esc(m))).unwrap_or_default();
+    let message = error
+        .and_then(|e| ERROR_MESSAGES.iter().find(|(k, _)| *k == e))
+        .map(|(_, m)| *m);
+    let error_html = message
+        .map(|m| format!(r#"<p class="text-red-600 text-sm mb-4">{}</p>"#, esc(m)))
+        .unwrap_or_default();
     format!(
         r#"<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Sign in</title><script src="https://cdn.tailwindcss.com"></script></head>
         <body class="bg-slate-50 text-slate-900 min-h-screen flex items-center justify-center">
@@ -782,7 +1150,9 @@ fn login_page(error: Option<&str>) -> String {
 }
 
 async fn admin_members_page(client: &Mutex<Client>, domain_ir: &Value) -> String {
-    let people = auth::all_people(client, domain_ir).await.unwrap_or_default();
+    let people = auth::all_people(client, domain_ir)
+        .await
+        .unwrap_or_default();
     let rows: String = people
         .iter()
         .map(|p| {
@@ -818,15 +1188,27 @@ async fn admin_members_page(client: &Mutex<Client>, domain_ir: &Value) -> String
 }
 
 fn find_aggregate<'a>(domain_ir: &'a Value, name: &str) -> Option<&'a Value> {
-    domain_ir.get("aggregates")?.as_array()?.iter().find(|a| a.get("name").and_then(|v| v.as_str()) == Some(name))
+    domain_ir
+        .get("aggregates")?
+        .as_array()?
+        .iter()
+        .find(|a| a.get("name").and_then(|v| v.as_str()) == Some(name))
 }
 
 fn find_command<'a>(aggregate: &'a Value, name: &str) -> Option<&'a Value> {
-    aggregate.get("commands")?.as_array()?.iter().find(|c| c.get("name").and_then(|v| v.as_str()) == Some(name))
+    aggregate
+        .get("commands")?
+        .as_array()?
+        .iter()
+        .find(|c| c.get("name").and_then(|v| v.as_str()) == Some(name))
 }
 
 fn find_value_object<'a>(aggregate: &'a Value, name: &str) -> Option<&'a Value> {
-    aggregate.get("value_objects")?.as_array()?.iter().find(|v| v.get("name").and_then(|v| v.as_str()) == Some(name))
+    aggregate
+        .get("value_objects")?
+        .as_array()?
+        .iter()
+        .find(|v| v.get("name").and_then(|v| v.as_str()) == Some(name))
 }
 
 fn agg_name(aggregate: &Value) -> &str {
@@ -837,7 +1219,11 @@ fn identity_paths(aggregate: &Value) -> Vec<String> {
     aggregate
         .get("identified_by")
         .and_then(|v| v.as_array())
-        .map(|a| a.iter().filter_map(|p| p.as_str().map(String::from)).collect())
+        .map(|a| {
+            a.iter()
+                .filter_map(|p| p.as_str().map(String::from))
+                .collect()
+        })
         .unwrap_or_default()
 }
 
@@ -853,9 +1239,13 @@ struct Field {
 
 #[derive(Clone, Debug)]
 enum FieldKind {
-    Text { html_type: &'static str },
+    Text {
+        html_type: &'static str,
+    },
     Textarea,
-    Number { step: &'static str },
+    Number {
+        step: &'static str,
+    },
     Boolean,
     Radio(Vec<String>),
     Select(Vec<String>),
@@ -902,9 +1292,18 @@ const PRIMITIVES: &[&str] = &["String", "Integer", "Float", "TrueClass", "FalseC
 // Dispatch order: list? -> reference? -> admits -> value object ->
 // primitive. `domain_ir` is the whole chapter, needed for cross-aggregate lookups.
 fn resolve_field(domain_ir: &Value, attribute: &Value, aggregate: &Value, path: &str) -> Field {
-    let is_list = attribute.get("list").and_then(|v| v.as_bool()).unwrap_or(false);
-    let optional = attribute.get("optional").and_then(|v| v.as_bool()).unwrap_or(false);
-    let ty = attribute.get("type").and_then(|v| v.as_str()).unwrap_or("String");
+    let is_list = attribute
+        .get("list")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    let optional = attribute
+        .get("optional")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    let ty = attribute
+        .get("type")
+        .and_then(|v| v.as_str())
+        .unwrap_or("String");
 
     if is_list {
         let scalar = json!({
@@ -912,11 +1311,23 @@ fn resolve_field(domain_ir: &Value, attribute: &Value, aggregate: &Value, path: 
             "pattern": attribute.get("pattern"), "admits": attribute.get("admits"),
         });
         let item = resolve_field(domain_ir, &scalar, aggregate, path);
-        return Field { path: path.to_string(), label: humanize(path), kind: FieldKind::List(Box::new(item)), optional };
+        return Field {
+            path: path.to_string(),
+            label: humanize(path),
+            kind: FieldKind::List(Box::new(item)),
+            optional,
+        };
     }
 
     if let Some(target) = reference_target(ty) {
-        return Field { path: path.to_string(), label: humanize(path), kind: FieldKind::Reference { target: Some(target) }, optional };
+        return Field {
+            path: path.to_string(),
+            label: humanize(path),
+            kind: FieldKind::Reference {
+                target: Some(target),
+            },
+            optional,
+        };
     }
 
     if let Some(admits) = attribute.get("admits").and_then(|v| v.as_str()) {
@@ -936,25 +1347,40 @@ fn resolve_field(domain_ir: &Value, attribute: &Value, aggregate: &Value, path: 
 // `Reference<X>` -> `Some("X")`. `Reference<...>` is the IR's pinned
 // export spelling (never a nested object) — mirrors naming.rb.
 fn reference_target(ty: &str) -> Option<String> {
-    ty.strip_prefix("Reference<")?.strip_suffix('>').map(String::from)
+    ty.strip_prefix("Reference<")?
+        .strip_suffix('>')
+        .map(String::from)
 }
 
 // Checked on the owning aggregate first, then across the whole domain.
-fn value_object_shape<'a>(domain_ir: &'a Value, aggregate: &'a Value, ty: &str) -> Option<&'a Value> {
+fn value_object_shape<'a>(
+    domain_ir: &'a Value,
+    aggregate: &'a Value,
+    ty: &str,
+) -> Option<&'a Value> {
     find_value_object(aggregate, ty).or_else(|| cross_aggregate_value_object(domain_ir, ty))
 }
 
 // Walks the whole domain, not just siblings — a value object's shape
 // may be declared on a different aggregate than the one referencing it.
 fn cross_aggregate_value_object<'a>(domain_ir: &'a Value, type_name: &str) -> Option<&'a Value> {
-    domain_ir.get("aggregates")?.as_array()?.iter().find_map(|sibling| find_value_object(sibling, type_name))
+    domain_ir
+        .get("aggregates")?
+        .as_array()?
+        .iter()
+        .find_map(|sibling| find_value_object(sibling, type_name))
 }
 
 // Shared by the native one_of branch and the admits: branch below, so
 // neither carries its own drifting copy of this reading.
 fn closed_set_members(vo: &Value) -> (String, Vec<String>) {
     let attrs = vo.get("attributes").and_then(|v| v.as_array());
-    let discriminant = attrs.and_then(|a| a.first()).and_then(|a| a.get("name")).and_then(|v| v.as_str()).unwrap_or("value").to_string();
+    let discriminant = attrs
+        .and_then(|a| a.first())
+        .and_then(|a| a.get("name"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("value")
+        .to_string();
     let members = vo
         .get("members")
         .and_then(|v| v.as_array())
@@ -981,21 +1407,42 @@ fn closed_set_members(vo: &Value) -> (String, Vec<String>) {
 // to `.path` afterward without touching `label`, which is set here.
 fn select_or_radio(path: &str, optional: bool, members: Vec<String>) -> Field {
     let label = humanize(path);
-    let kind = if members.len() <= 4 { FieldKind::Radio(members) } else { FieldKind::Select(members) };
-    Field { path: path.to_string(), label, kind, optional }
+    let kind = if members.len() <= 4 {
+        FieldKind::Radio(members)
+    } else {
+        FieldKind::Select(members)
+    };
+    Field {
+        path: path.to_string(),
+        label,
+        kind,
+        optional,
+    }
 }
 
 // A closed set declared elsewhere (e.g. "Account::LedgerDirection"),
 // rendered the same way the native one_of branch renders its own.
-fn admitted_field(domain_ir: &Value, aggregate: &Value, attribute: &Value, admits: &str, ty: &str, path: &str, optional: bool) -> Field {
+fn admitted_field(
+    domain_ir: &Value,
+    aggregate: &Value,
+    attribute: &Value,
+    admits: &str,
+    ty: &str,
+    path: &str,
+    optional: bool,
+) -> Field {
     let mut parts = admits.splitn(2, "::");
     let set_aggregate_name = parts.next().unwrap_or("");
     let set_name = parts.next();
 
-    let set = set_name.and_then(|name| find_aggregate(domain_ir, set_aggregate_name).and_then(|agg| find_value_object(agg, name)));
+    let set = set_name.and_then(|name| {
+        find_aggregate(domain_ir, set_aggregate_name).and_then(|agg| find_value_object(agg, name))
+    });
     // Undeclared set: render as a plain scalar (using the real attribute
     // so its name/pattern still drive Tier B's hints) — dispatch refuses.
-    let Some(set) = set else { return primitive_field(attribute, ty, path, optional) };
+    let Some(set) = set else {
+        return primitive_field(attribute, ty, path, optional);
+    };
 
     let (_, members) = closed_set_members(set);
     let mut field = select_or_radio(path, optional, members);
@@ -1003,19 +1450,39 @@ fn admitted_field(domain_ir: &Value, aggregate: &Value, attribute: &Value, admit
     // The attribute's own value object still needs its ".value" hop
     // (same unwrap `value_object_field` does) even though the admitted
     // set lives on a different aggregate — it only changes the options.
-    let Some(own_shape) = value_object_shape(domain_ir, aggregate, ty) else { return field };
+    let Some(own_shape) = value_object_shape(domain_ir, aggregate, ty) else {
+        return field;
+    };
     let attrs = own_shape.get("attributes").and_then(|v| v.as_array());
-    let Some(attrs) = attrs.filter(|a| a.len() == 1) else { return field };
+    let Some(attrs) = attrs.filter(|a| a.len() == 1) else {
+        return field;
+    };
 
-    let inner_name = attrs[0].get("name").and_then(|v| v.as_str()).unwrap_or("value");
+    let inner_name = attrs[0]
+        .get("name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("value");
     field.path = format!("{path}.{inner_name}");
     field
 }
 
 // Order: closed_set? -> money_shaped? -> single-attribute-unwrap -> group.
-fn value_object_field(domain_ir: &Value, aggregate: &Value, shape: &Value, path: &str, optional: bool) -> Field {
-    let closed_set = shape.get("closed_set").and_then(|v| v.as_bool()).unwrap_or(false);
-    let attrs = shape.get("attributes").and_then(|v| v.as_array()).cloned().unwrap_or_default();
+fn value_object_field(
+    domain_ir: &Value,
+    aggregate: &Value,
+    shape: &Value,
+    path: &str,
+    optional: bool,
+) -> Field {
+    let closed_set = shape
+        .get("closed_set")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    let attrs = shape
+        .get("attributes")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
 
     if closed_set {
         let (discriminant, members) = closed_set_members(shape);
@@ -1033,7 +1500,10 @@ fn value_object_field(domain_ir: &Value, aggregate: &Value, shape: &Value, path:
     // `primitive_field`) keeps the inner name/pattern driving Tier B.
     if attrs.len() == 1 {
         let inner = &attrs[0];
-        let inner_name = inner.get("name").and_then(|v| v.as_str()).unwrap_or("value");
+        let inner_name = inner
+            .get("name")
+            .and_then(|v| v.as_str())
+            .unwrap_or("value");
         let inner_path = format!("{path}.{inner_name}");
         let mut field = resolve_field(domain_ir, inner, aggregate, &inner_path);
         field.label = humanize(path);
@@ -1048,12 +1518,20 @@ fn value_object_field(domain_ir: &Value, aggregate: &Value, shape: &Value, path:
             resolve_field(domain_ir, inner, aggregate, &format!("{path}.{inner_name}"))
         })
         .collect();
-    Field { path: path.to_string(), label: humanize(path), kind: FieldKind::Group(children), optional }
+    Field {
+        path: path.to_string(),
+        label: humanize(path),
+        kind: FieldKind::Group(children),
+        optional,
+    }
 }
 
 // Exactly `{cents, currency}`, sorted, and nothing else.
 fn money_shaped(attrs: &[Value]) -> bool {
-    let mut names: Vec<&str> = attrs.iter().filter_map(|a| a.get("name").and_then(|v| v.as_str())).collect();
+    let mut names: Vec<&str> = attrs
+        .iter()
+        .filter_map(|a| a.get("name").and_then(|v| v.as_str()))
+        .collect();
     names.sort_unstable();
     names == ["cents", "currency"]
 }
@@ -1061,9 +1539,24 @@ fn money_shaped(attrs: &[Value]) -> bool {
 // Cents as a whole-integer Number; currency as free Text, always
 // optional (it defaults to "USD" regardless of the outer field).
 fn money_field(path: &str, optional: bool) -> Field {
-    let cents = Field { path: format!("{path}.cents"), label: "Amount (cents)".to_string(), kind: FieldKind::Number { step: "1" }, optional };
-    let currency = Field { path: format!("{path}.currency"), label: "Currency".to_string(), kind: FieldKind::Text { html_type: "text" }, optional: true };
-    Field { path: path.to_string(), label: humanize(path), kind: FieldKind::Money(vec![cents, currency]), optional }
+    let cents = Field {
+        path: format!("{path}.cents"),
+        label: "Amount (cents)".to_string(),
+        kind: FieldKind::Number { step: "1" },
+        optional,
+    };
+    let currency = Field {
+        path: format!("{path}.currency"),
+        label: "Currency".to_string(),
+        kind: FieldKind::Text { html_type: "text" },
+        optional: true,
+    };
+    Field {
+        path: path.to_string(),
+        label: humanize(path),
+        kind: FieldKind::Money(vec![cents, currency]),
+        optional,
+    }
 }
 
 fn primitive_field(attribute: &Value, ty: &str, path: &str, optional: bool) -> Field {
@@ -1074,17 +1567,30 @@ fn primitive_field(attribute: &Value, ty: &str, path: &str, optional: bool) -> F
         "TrueClass" | "FalseClass" => FieldKind::Boolean,
         _ => return text_field(attribute, path, optional),
     };
-    Field { path: path.to_string(), label, kind, optional }
+    Field {
+        path: path.to_string(),
+        label,
+        kind,
+        optional,
+    }
 }
 
 // Tier B's hints (field_hints.rs) match on `attribute`'s own name/
 // pattern, never derived from `path` — matters after the unwrap above.
 fn text_field(attribute: &Value, path: &str, optional: bool) -> Field {
     let name = attribute.get("name").and_then(|v| v.as_str()).unwrap_or("");
-    let pattern = attribute.get("pattern").and_then(|v| v.as_str()).unwrap_or("");
+    let pattern = attribute
+        .get("pattern")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
     let html_type = text_html_type(name, pattern);
     let kind = text_kind(html_type, name);
-    Field { path: path.to_string(), label: humanize(path), kind, optional }
+    Field {
+        path: path.to_string(),
+        label: humanize(path),
+        kind,
+        optional,
+    }
 }
 
 // email, then url, then tel — first match wins. Case-insensitive
@@ -1111,7 +1617,10 @@ fn text_kind(html_type: &'static str, name: &str) -> FieldKind {
 }
 
 fn command_fields(domain_ir: &Value, aggregate: &Value, command: &Value) -> Vec<Field> {
-    let creates = command.get("references").map(|v| v.is_null()).unwrap_or(true);
+    let creates = command
+        .get("references")
+        .map(|v| v.is_null())
+        .unwrap_or(true);
     let mut fields = Vec::new();
     if !creates {
         let paths = identity_paths(aggregate).join(", ");
@@ -1165,7 +1674,10 @@ fn collect_field(field: &Field, raw: &HashMap<String, String>, pairs: &mut Vec<(
             }
         }
         FieldKind::Boolean => {
-            let checked = raw.get(&field.path).map(|v| matches!(v.as_str(), "on" | "1" | "true")).unwrap_or(false);
+            let checked = raw
+                .get(&field.path)
+                .map(|v| matches!(v.as_str(), "on" | "1" | "true"))
+                .unwrap_or(false);
             pairs.push((field.path.clone(), Value::Bool(checked)));
         }
         _ => {
@@ -1180,7 +1692,9 @@ fn collect_field(field: &Field, raw: &HashMap<String, String>, pairs: &mut Vec<(
 
 fn cast_scalar(field: &Field, text: &str) -> Value {
     match &field.kind {
-        FieldKind::Number { step } if *step == "1" => text.parse::<i64>().map(Value::from).unwrap_or(Value::Null),
+        FieldKind::Number { step } if *step == "1" => {
+            text.parse::<i64>().map(Value::from).unwrap_or(Value::Null)
+        }
         FieldKind::Number { .. } => text.parse::<f64>().map(Value::from).unwrap_or(Value::Null),
         _ => Value::String(text.to_string()),
     }
@@ -1222,8 +1736,15 @@ fn collision_error(path: &str, existing_prefix: &[&str]) -> String {
 
 fn home_body(domain_ir: &Value) -> String {
     let name = domain_ir.get("name").and_then(|v| v.as_str()).unwrap_or("");
-    let vision = domain_ir.get("vision").and_then(|v| v.as_str()).unwrap_or("");
-    let aggregates = domain_ir.get("aggregates").and_then(|v| v.as_array()).cloned().unwrap_or_default();
+    let vision = domain_ir
+        .get("vision")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    let aggregates = domain_ir
+        .get("aggregates")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
     let items: String = aggregates
         .iter()
         .map(|a| {
@@ -1236,11 +1757,19 @@ fn home_body(domain_ir: &Value) -> String {
         <ul class="space-y-4"><li><h2 class="font-semibold text-slate-800">{}</h2>
         <p class="text-sm text-slate-500">{}</p>
         <ul class="ml-4 mt-1 list-disc list-inside">{}</ul></li></ul>"#,
-        esc(name), esc(vision), items
+        esc(name),
+        esc(vision),
+        items
     )
 }
 
-async fn aggregate_index(domain_name: &str, aggregate: &Value, format: &str, client: &Mutex<Client>, wasm_path: &Path) -> Value {
+async fn aggregate_index(
+    domain_name: &str,
+    aggregate: &Value,
+    format: &str,
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+) -> Value {
     let agg = agg_name(aggregate);
     let prefix = format!("{domain_name}::{agg}#");
     let records = match dispatch::read(client, wasm_path).await {
@@ -1249,19 +1778,34 @@ async fn aggregate_index(domain_name: &str, aggregate: &Value, format: &str, cli
     };
 
     if format != "html" {
-        let list: Vec<Value> = records.iter().map(|(id, state)| with_id(id, state)).collect();
-        return respond(200, "application/json", &serde_json::to_string_pretty(&list).unwrap_or_default());
+        let list: Vec<Value> = records
+            .iter()
+            .map(|(id, state)| with_id(id, state))
+            .collect();
+        return respond(
+            200,
+            "application/json",
+            &serde_json::to_string_pretty(&list).unwrap_or_default(),
+        );
     }
 
     let creating: Vec<&Value> = aggregate
         .get("commands")
         .and_then(|v| v.as_array())
-        .map(|cs| cs.iter().filter(|c| c.get("references").map(|r| r.is_null()).unwrap_or(true)).collect())
+        .map(|cs| {
+            cs.iter()
+                .filter(|c| c.get("references").map(|r| r.is_null()).unwrap_or(true))
+                .collect()
+        })
         .unwrap_or_default();
     let acting: Vec<&Value> = aggregate
         .get("commands")
         .and_then(|v| v.as_array())
-        .map(|cs| cs.iter().filter(|c| !c.get("references").map(|r| r.is_null()).unwrap_or(true)).collect())
+        .map(|cs| {
+            cs.iter()
+                .filter(|c| !c.get("references").map(|r| r.is_null()).unwrap_or(true))
+                .collect()
+        })
         .unwrap_or_default();
 
     let new_links: String = creating
@@ -1279,7 +1823,13 @@ async fn aggregate_index(domain_name: &str, aggregate: &Value, format: &str, cli
                 .iter()
                 .map(|c| {
                     let cn = c.get("name").and_then(|v| v.as_str()).unwrap_or("");
-                    action_link(domain_name, agg, cn, id, "text-indigo-600 hover:underline mr-3")
+                    action_link(
+                        domain_name,
+                        agg,
+                        cn,
+                        id,
+                        "text-indigo-600 hover:underline mr-3",
+                    )
                 })
                 .collect();
             index_row_html(domain_name, agg, id, &actions)
@@ -1300,7 +1850,14 @@ async fn aggregate_index(domain_name: &str, aggregate: &Value, format: &str, cli
     html(200, &page(&format!("{domain_name}::{agg}"), &body))
 }
 
-async fn record_show(domain_name: &str, aggregate: &Value, id: &str, format: &str, client: &Mutex<Client>, wasm_path: &Path) -> Value {
+async fn record_show(
+    domain_name: &str,
+    aggregate: &Value,
+    id: &str,
+    format: &str,
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+) -> Value {
     let agg = agg_name(aggregate);
     let prefix = format!("{domain_name}::{agg}#");
     let result = match dispatch::read(client, wasm_path).await {
@@ -1311,14 +1868,31 @@ async fn record_show(domain_name: &str, aggregate: &Value, id: &str, format: &st
     let Some((_, state)) = records.iter().find(|(rid, _)| rid == id) else {
         let message = format!("No {agg} {id}.");
         return if format != "html" {
-            respond(404, "application/json", &json!({"error":"NotFound","message":message}).to_string())
+            respond(
+                404,
+                "application/json",
+                &json!({"error":"NotFound","message":message}).to_string(),
+            )
         } else {
-            html(404, &page("Not found", &format!(r#"<h1 class="text-2xl font-bold mb-4">Not found</h1><p class="text-slate-600">{}</p>"#, esc(&message))))
+            html(
+                404,
+                &page(
+                    "Not found",
+                    &format!(
+                        r#"<h1 class="text-2xl font-bold mb-4">Not found</h1><p class="text-slate-600">{}</p>"#,
+                        esc(&message)
+                    ),
+                ),
+            )
         };
     };
 
     if format != "html" {
-        return respond(200, "application/json", &serde_json::to_string_pretty(&with_id(id, state)).unwrap_or_default());
+        return respond(
+            200,
+            "application/json",
+            &serde_json::to_string_pretty(&with_id(id, state)).unwrap_or_default(),
+        );
     }
 
     let rows: String = state
@@ -1346,15 +1920,26 @@ async fn record_show(domain_name: &str, aggregate: &Value, id: &str, format: &st
         r#"<h1 class="text-2xl font-bold">{} <span class="font-mono text-lg text-slate-500">{}</span></h1>
         <dl class="mt-4 divide-y divide-slate-200 border border-slate-200 rounded-md bg-white">{rows}</dl>
         <div class="mt-6">{actions}<a href="/{domain_name}/{agg}.html" class="text-indigo-600 hover:underline">← {agg} list</a></div>"#,
-        esc(agg), esc(id)
+        esc(agg),
+        esc(id)
     );
     html(200, &page(&format!("{agg} {id}"), &body))
 }
 
 #[allow(clippy::too_many_arguments)]
 async fn command_route(
-    domain_ir: &Value, domain_name: &str, aggregate: &Value, command: &Value, action: &str, format: &str, method: &str,
-    query: &HashMap<String, String>, raw_body: &str, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig,
+    domain_ir: &Value,
+    domain_name: &str,
+    aggregate: &Value,
+    command: &Value,
+    action: &str,
+    format: &str,
+    method: &str,
+    query: &HashMap<String, String>,
+    raw_body: &str,
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    config: &LineageConfig,
     invoker: &dyn LambdaInvoker,
 ) -> Value {
     let fields = command_fields(domain_ir, aggregate, command);
@@ -1365,21 +1950,67 @@ async fn command_route(
             return respond(200, "application/json", &command.to_string());
         }
         let raw = parse_form(raw_body);
-        return submit(domain_name, aggregate, command, &fields, &raw, client, wasm_path, config, true, invoker).await;
+        return submit(
+            domain_name,
+            aggregate,
+            command,
+            &fields,
+            &raw,
+            client,
+            wasm_path,
+            config,
+            true,
+            invoker,
+        )
+        .await;
     }
 
     if method == "GET" {
-        return html(200, &page(&format!("{domain_name}::{}.{cname}", agg_name(aggregate)), &form_body(domain_name, aggregate, command, action, &fields, query, None)));
+        return html(
+            200,
+            &page(
+                &format!("{domain_name}::{}.{cname}", agg_name(aggregate)),
+                &form_body(
+                    domain_name,
+                    aggregate,
+                    command,
+                    action,
+                    &fields,
+                    query,
+                    None,
+                ),
+            ),
+        );
     }
 
     let raw = parse_form(raw_body);
-    submit(domain_name, aggregate, command, &fields, &raw, client, wasm_path, config, false, invoker).await
+    submit(
+        domain_name,
+        aggregate,
+        command,
+        &fields,
+        &raw,
+        client,
+        wasm_path,
+        config,
+        false,
+        invoker,
+    )
+    .await
 }
 
 #[allow(clippy::too_many_arguments)]
 async fn submit(
-    domain_name: &str, aggregate: &Value, command: &Value, fields: &[Field], raw: &HashMap<String, String>,
-    client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, json_mode: bool, invoker: &dyn LambdaInvoker,
+    domain_name: &str,
+    aggregate: &Value,
+    command: &Value,
+    fields: &[Field],
+    raw: &HashMap<String, String>,
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    config: &LineageConfig,
+    json_mode: bool,
+    invoker: &dyn LambdaInvoker,
 ) -> Value {
     let agg = agg_name(aggregate);
     let cname = command.get("name").and_then(|v| v.as_str()).unwrap_or("");
@@ -1394,10 +2025,11 @@ async fn submit(
 
     // `None`: this web UI has no concept of an authenticated caller's
     // role yet (see auth.rs's own session handling for that).
-    let outcome = match dispatch::handle(client, wasm_path, &verb, args, None, config, invoker).await {
-        Ok(o) => o,
-        Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
-    };
+    let outcome =
+        match dispatch::handle(client, wasm_path, &verb, args, None, config, invoker).await {
+            Ok(o) => o,
+            Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
+        };
 
     if outcome.accepted {
         let id = own_command_target_id(&outcome.result).unwrap_or("");
@@ -1414,13 +2046,35 @@ async fn submit(
     }
 
     let action = format!("/{domain_name}/{agg}/{cname}.html");
-    html(422, &page(&format!("{domain_name}::{agg}.{cname}"), &form_body(domain_name, aggregate, command, &action, fields, raw, Some(&refusal))))
+    html(
+        422,
+        &page(
+            &format!("{domain_name}::{agg}.{cname}"),
+            &form_body(
+                domain_name,
+                aggregate,
+                command,
+                &action,
+                fields,
+                raw,
+                Some(&refusal),
+            ),
+        ),
+    )
 }
 
 // Mirrors the 422-refusal rendering below (same json/html split) but at
 // 400 — this is a malformed submission `nest` caught, not a domain refusal.
 #[allow(clippy::too_many_arguments)]
-fn bad_request(domain_name: &str, aggregate: &Value, command: &Value, fields: &[Field], raw: &HashMap<String, String>, json_mode: bool, message: &str) -> Value {
+fn bad_request(
+    domain_name: &str,
+    aggregate: &Value,
+    command: &Value,
+    fields: &[Field],
+    raw: &HashMap<String, String>,
+    json_mode: bool,
+    message: &str,
+) -> Value {
     let refusal = json!({"error": message});
     if json_mode {
         return respond(400, "application/json", &refusal.to_string());
@@ -1428,7 +2082,21 @@ fn bad_request(domain_name: &str, aggregate: &Value, command: &Value, fields: &[
     let agg = agg_name(aggregate);
     let cname = command.get("name").and_then(|v| v.as_str()).unwrap_or("");
     let action = format!("/{domain_name}/{agg}/{cname}.html");
-    html(400, &page(&format!("{domain_name}::{agg}.{cname}"), &form_body(domain_name, aggregate, command, &action, fields, raw, Some(&refusal))))
+    html(
+        400,
+        &page(
+            &format!("{domain_name}::{agg}.{cname}"),
+            &form_body(
+                domain_name,
+                aggregate,
+                command,
+                &action,
+                fields,
+                raw,
+                Some(&refusal),
+            ),
+        ),
+    )
 }
 
 // The first mutation in the last step is always the command's own
@@ -1455,7 +2123,15 @@ pub(crate) fn last_refusal(result: &Value) -> Value {
         .unwrap_or_else(|| json!({"error": "Refused"}))
 }
 
-fn form_body(domain_name: &str, aggregate: &Value, command: &Value, action: &str, fields: &[Field], values: &HashMap<String, String>, error: Option<&Value>) -> String {
+fn form_body(
+    domain_name: &str,
+    aggregate: &Value,
+    command: &Value,
+    action: &str,
+    fields: &[Field],
+    values: &HashMap<String, String>,
+    error: Option<&Value>,
+) -> String {
     let agg = agg_name(aggregate);
     let cname = command.get("name").and_then(|v| v.as_str()).unwrap_or("");
     let role = command.get("role").and_then(|v| v.as_str());
@@ -1463,7 +2139,12 @@ fn form_body(domain_name: &str, aggregate: &Value, command: &Value, action: &str
     let givens: String = command
         .get("givens")
         .and_then(|v| v.as_array())
-        .map(|gs| gs.iter().filter_map(|g| g.get("description").and_then(|d| d.as_str())).map(|d| format!("<li>{}</li>", esc(d))).collect::<String>())
+        .map(|gs| {
+            gs.iter()
+                .filter_map(|g| g.get("description").and_then(|d| d.as_str()))
+                .map(|d| format!("<li>{}</li>", esc(d)))
+                .collect::<String>()
+        })
         .unwrap_or_default();
 
     let error_banner = error
@@ -1493,7 +2174,11 @@ fn render_field(field: &Field, values: &HashMap<String, String>) -> String {
     let label = format!(
         r#"<label class="block text-sm font-medium text-slate-700 mt-4">{}{}</label>"#,
         esc(&field.label),
-        if field.optional { "" } else { r#" <span class="text-red-500">*</span>"# }
+        if field.optional {
+            ""
+        } else {
+            r#" <span class="text-red-500">*</span>"#
+        }
     );
     let input_class = "mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm";
     let current = values.get(&field.path).cloned().unwrap_or_default();
@@ -1504,16 +2189,26 @@ fn render_field(field: &Field, values: &HashMap<String, String>) -> String {
         // inside it.
         FieldKind::Group(children) | FieldKind::Money(children) => {
             let inner: String = children.iter().map(|c| render_field(c, values)).collect();
-            format!(r#"<fieldset class="mt-4 border border-slate-200 rounded-md p-4"><legend class="text-sm font-semibold text-slate-700 px-1">{}</legend>{}</fieldset>"#, esc(&field.label), inner)
+            format!(
+                r#"<fieldset class="mt-4 border border-slate-200 rounded-md p-4"><legend class="text-sm font-semibold text-slate-700 px-1">{}</legend>{}</fieldset>"#,
+                esc(&field.label),
+                inner
+            )
         }
         FieldKind::List(_) => format!(
             r#"{label}<textarea name="{}" rows="4" placeholder="one per line" class="{input_class}">{}</textarea>"#,
-            esc(&field.path), esc(&current)
+            esc(&field.path),
+            esc(&current)
         ),
-        FieldKind::Textarea => format!(r#"{label}<textarea name="{}" class="{input_class}">{}</textarea>"#, esc(&field.path), esc(&current)),
+        FieldKind::Textarea => format!(
+            r#"{label}<textarea name="{}" class="{input_class}">{}</textarea>"#,
+            esc(&field.path),
+            esc(&current)
+        ),
         FieldKind::Boolean => format!(
             r#"<div class="mt-4 flex items-center gap-2"><input type="checkbox" name="{}" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"><label class="text-sm text-slate-700">{}</label></div>"#,
-            esc(&field.path), esc(&field.label)
+            esc(&field.path),
+            esc(&field.label)
         ),
         FieldKind::Radio(options) => {
             let opts: String = options
@@ -1523,22 +2218,31 @@ fn render_field(field: &Field, values: &HashMap<String, String>) -> String {
             format!(r#"{label}<div class="mt-1 flex gap-4">{opts}</div>"#)
         }
         FieldKind::Select(options) => {
-            let opts: String = options.iter().map(|o| format!(r#"<option value="{}">{}</option>"#, esc(o), esc(o))).collect();
-            format!(r#"{label}<select name="{}" class="{input_class}">{opts}</select>"#, esc(&field.path))
+            let opts: String = options
+                .iter()
+                .map(|o| format!(r#"<option value="{}">{}</option>"#, esc(o), esc(o)))
+                .collect();
+            format!(
+                r#"{label}<select name="{}" class="{input_class}">{opts}</select>"#,
+                esc(&field.path)
+            )
         }
         FieldKind::Number { step } => format!(
             r#"{label}<input type="number" name="{}" value="{}" step="{step}" class="{input_class}">"#,
-            esc(&field.path), esc(&current)
+            esc(&field.path),
+            esc(&current)
         ),
         FieldKind::Text { html_type } => format!(
             r#"{label}<input type="{html_type}" name="{}" value="{}" class="{input_class}">"#,
-            esc(&field.path), esc(&current)
+            esc(&field.path),
+            esc(&current)
         ),
         // No reference-picker dropdown: no candidate-fetching scaffolding
         // exists yet, so this is a plain text id input, like Ruby's own fallback.
         FieldKind::Reference { .. } => format!(
             r#"{label}<input type="text" name="{}" value="{}" class="{input_class}">"#,
-            esc(&field.path), esc(&current)
+            esc(&field.path),
+            esc(&current)
         ),
     }
 }
@@ -1583,7 +2287,10 @@ fn parse_urlencoded(text: &str, plus_as_space: bool) -> HashMap<String, String> 
         .filter(|s| !s.is_empty())
         .map(|pair| {
             let (k, v) = pair.split_once('=').unwrap_or((pair, ""));
-            (percent_decode_impl(k, plus_as_space), percent_decode_impl(v, plus_as_space))
+            (
+                percent_decode_impl(k, plus_as_space),
+                percent_decode_impl(v, plus_as_space),
+            )
         })
         .collect()
 }
@@ -1605,7 +2312,8 @@ fn percent_decode_impl(s: &str, plus_as_space: bool) -> String {
             b'%' if i + 2 < bytes.len() => {
                 // Byte-wise, not `s[i + 1..i + 3]`: that slice panics when it lands inside a
                 // multi-byte character (`%a🍕`), and `from_str_radix` would read a `+` sign as a digit.
-                if let (Some(high), Some(low)) = (hex_digit(bytes[i + 1]), hex_digit(bytes[i + 2])) {
+                if let (Some(high), Some(low)) = (hex_digit(bytes[i + 1]), hex_digit(bytes[i + 2]))
+                {
                     out.push(high << 4 | low);
                     i += 3;
                 } else {
@@ -1635,12 +2343,18 @@ pub(crate) fn base64_decode(input: &str) -> Vec<u8> {
     for (i, &c) in B64.iter().enumerate() {
         table[c as usize] = i as u8;
     }
-    let clean: Vec<u8> = input.bytes().filter(|&b| b != b'=' && !b.is_ascii_whitespace()).collect();
+    let clean: Vec<u8> = input
+        .bytes()
+        .filter(|&b| b != b'=' && !b.is_ascii_whitespace())
+        .collect();
     let mut out = Vec::with_capacity(clean.len() * 3 / 4);
     for chunk in clean.chunks(4) {
         let vals: Vec<u32> = chunk.iter().map(|&b| table[b as usize] as u32).collect();
         let n = vals.len();
-        let combined = vals.iter().enumerate().fold(0u32, |acc, (i, &v)| acc | (v << (18 - 6 * i)));
+        let combined = vals
+            .iter()
+            .enumerate()
+            .fold(0u32, |acc, (i, &v)| acc | (v << (18 - 6 * i)));
         out.push((combined >> 16) as u8);
         if n > 2 {
             out.push((combined >> 8) as u8);
@@ -1653,13 +2367,23 @@ pub(crate) fn base64_decode(input: &str) -> Vec<u8> {
 }
 
 fn esc(value: &str) -> String {
-    value.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;").replace('\'', "&#39;")
+    value
+        .replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&#39;")
 }
 
 // `id` is user-supplied and sits in a query-string value here, so
 // `esc()` alone isn't enough — percent-encode via `auth::urlencode`.
 fn action_link(domain_name: &str, agg: &str, cn: &str, id: &str, class: &str) -> String {
-    format!(r#"<a href="/{domain_name}/{agg}/{}.html?id={}" class="{class}">{}</a>"#, esc(cn), auth::urlencode(id), esc(cn))
+    format!(
+        r#"<a href="/{domain_name}/{agg}/{}.html?id={}" class="{class}">{}</a>"#,
+        esc(cn),
+        auth::urlencode(id),
+        esc(cn)
+    )
 }
 
 // `id` sits in a path segment here, not a query value, so `esc()`
@@ -1674,7 +2398,8 @@ fn index_row_html(domain_name: &str, agg: &str, id: &str, actions: &str) -> Stri
 fn page(title: &str, body: &str) -> String {
     format!(
         r#"<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{}</title><script src="https://cdn.tailwindcss.com"></script></head><body class="bg-slate-50 text-slate-900 min-h-screen"><header class="bg-white border-b border-slate-200"><div class="max-w-3xl mx-auto px-4 py-3"><a href="/" class="font-semibold text-slate-900">rust/host — served straight off the bluebook IR</a></div></header><main class="max-w-3xl mx-auto px-4 py-8">{}</main></body></html>"#,
-        esc(title), body
+        esc(title),
+        body
     )
 }
 
@@ -1698,7 +2423,11 @@ fn cookie_flags() -> &'static str {
 // A host that sets the redirect URI is judged by it, as ever; a host that has stopped setting it
 // is judged by SITE_URL, and with neither set the cookie is Secure.
 pub(crate) fn account_cookie_flags(redirect_uri: &str, site_url: &str) -> &'static str {
-    let judged_by = if redirect_uri.is_empty() { site_url } else { redirect_uri };
+    let judged_by = if redirect_uri.is_empty() {
+        site_url
+    } else {
+        redirect_uri
+    };
     if judged_by.starts_with("http://") {
         COOKIE_FLAGS_PLAIN
     } else {
@@ -1741,19 +2470,29 @@ mod tests {
     // JSON request would get a redirect instead of a 401 it can branch on.
 
     fn status(response: &Value) -> u64 {
-        response.get("statusCode").and_then(|v| v.as_u64()).expect("a response always carries a statusCode")
+        response
+            .get("statusCode")
+            .and_then(|v| v.as_u64())
+            .expect("a response always carries a statusCode")
     }
 
     #[test]
     fn an_unauthenticated_api_request_is_refused_with_the_ruby_engines_own_401_json() {
-        let refusal = auth_gate("/api/clients", false).expect("an unauthenticated /api/ request must be refused");
+        let refusal = auth_gate("/api/clients", false)
+            .expect("an unauthenticated /api/ request must be refused");
 
         assert_eq!(status(&refusal), 401);
         assert_eq!(refusal["headers"]["content-type"], "application/json");
         // Byte-for-byte the console app's own web/app.rb
         // `halt 401, json({ error: "Unauthenticated", message: "sign in first" })`.
-        assert_eq!(refusal["body"], r#"{"error":"Unauthenticated","message":"sign in first"}"#);
-        assert!(refusal["headers"].get("location").is_none(), "a JSON caller must not be redirected: {refusal}");
+        assert_eq!(
+            refusal["body"],
+            r#"{"error":"Unauthenticated","message":"sign in first"}"#
+        );
+        assert!(
+            refusal["headers"].get("location").is_none(),
+            "a JSON caller must not be redirected: {refusal}"
+        );
     }
 
     // Ruby keys off the `/api/` prefix alone and doesn't look at a
@@ -1769,9 +2508,18 @@ mod tests {
     // lives in the path), so it must be 401'd, never redirected.
     #[test]
     fn an_unauthenticated_host_route_is_401_unless_it_asks_for_html() {
-        assert_eq!(status(&auth_gate("/Pizzas/Order.json", false).expect("refused")), 401);
-        assert_eq!(status(&auth_gate("/Pizzas/Order", false).expect("refused")), 401);
-        assert_eq!(status(&auth_gate("/Pizzas/Order/p1.json", false).expect("refused")), 401);
+        assert_eq!(
+            status(&auth_gate("/Pizzas/Order.json", false).expect("refused")),
+            401
+        );
+        assert_eq!(
+            status(&auth_gate("/Pizzas/Order", false).expect("refused")),
+            401
+        );
+        assert_eq!(
+            status(&auth_gate("/Pizzas/Order/p1.json", false).expect("refused")),
+            401
+        );
 
         let page = auth_gate("/Pizzas/Order.html", false).expect("refused");
         assert_eq!(status(&page), 302);
@@ -1790,14 +2538,20 @@ mod tests {
         assert_eq!(status(&home), 302);
         assert_eq!(home["headers"]["location"], "/login");
 
-        assert_eq!(status(&auth_gate("/favicon.ico", false).expect("refused")), 302);
+        assert_eq!(
+            status(&auth_gate("/favicon.ico", false).expect("refused")),
+            302
+        );
         assert_eq!(status(&auth_gate("/Pizzas", false).expect("refused")), 302);
     }
 
     #[test]
     fn the_ungated_paths_are_still_ungated_without_a_session() {
         for path in UNGATED_PATHS {
-            assert!(auth_gate(path, false).is_none(), "{path} must reach its own handler with no session");
+            assert!(
+                auth_gate(path, false).is_none(),
+                "{path} must reach its own handler with no session"
+            );
         }
     }
 
@@ -1816,16 +2570,25 @@ mod tests {
         let link = action_link("Pizzas", "Order", "Purchase", MALICIOUS_ID, "mr-3");
 
         assert!(!link.contains("<script"), "{link}");
-        assert!(!link.contains(MALICIOUS_ID), "the raw id must not survive into the rendered link: {link}");
+        assert!(
+            !link.contains(MALICIOUS_ID),
+            "the raw id must not survive into the rendered link: {link}"
+        );
         // Percent-encoded, not HTML-escaped — esc() alone would leave a
         // raw `&` that terminates the `id=` param early.
-        assert!(link.contains("id=x%22%3E%3Cscript%3Ealert%281%29%3C%2Fscript%3E"), "{link}");
+        assert!(
+            link.contains("id=x%22%3E%3Cscript%3Ealert%281%29%3C%2Fscript%3E"),
+            "{link}"
+        );
     }
 
     #[test]
     fn action_link_renders_an_ordinary_id_unchanged() {
         let link = action_link("Pizzas", "Order", "Purchase", "p1", "mr-3");
-        assert_eq!(link, r#"<a href="/Pizzas/Order/Purchase.html?id=p1" class="mr-3">Purchase</a>"#);
+        assert_eq!(
+            link,
+            r#"<a href="/Pizzas/Order/Purchase.html?id=p1" class="mr-3">Purchase</a>"#
+        );
     }
 
     #[test]
@@ -1888,8 +2651,14 @@ mod tests {
             FieldKind::Money(children) => {
                 let paths: Vec<&str> = children.iter().map(|c| c.path.as_str()).collect();
                 assert_eq!(paths, vec!["balance.cents", "balance.currency"]);
-                assert!(!children[0].optional, "cents follows the outer attribute's own optionality");
-                assert!(children[1].optional, "currency is always optional, defaulting to USD, regardless of the outer field");
+                assert!(
+                    !children[0].optional,
+                    "cents follows the outer attribute's own optionality"
+                );
+                assert!(
+                    children[1].optional,
+                    "currency is always optional, defaulting to USD, regardless of the outer field"
+                );
             }
             other => panic!("expected Money, got {other:?}"),
         }
@@ -1912,7 +2681,8 @@ mod tests {
     // lookup and Tier B's textarea hint together, the one combination
     // that silently breaks if either regresses alone.
     #[test]
-    fn narrative_used_from_a_different_aggregate_renders_as_a_textarea_via_the_cross_aggregate_lookup() {
+    fn narrative_used_from_a_different_aggregate_renders_as_a_textarea_via_the_cross_aggregate_lookup(
+    ) {
         // Narrative is declared on Account, never CardPayment — scoped
         // here against CardPayment specifically to prove the fallback
         // walks the whole domain, not just declaring-aggregate siblings.
@@ -1954,14 +2724,17 @@ mod tests {
             "attributes": [{"name": "value", "type": "String", "list": false, "default": null, "optional": false, "pattern": null, "admits": null}],
             "invariants": [], "closed_set": false, "members": []
         });
-        let external_transfer = json!({"name": "ExternalTransfer", "value_objects": [movement_direction_vo]});
+        let external_transfer =
+            json!({"name": "ExternalTransfer", "value_objects": [movement_direction_vo]});
         let domain_ir = json!({"aggregates": [account, external_transfer.clone()]});
         let attribute = json!({"name": "direction", "type": "MovementDirection", "list": false, "default": null, "optional": false, "pattern": null, "admits": "Account::LedgerDirection"});
 
         let field = resolve_field(&domain_ir, &attribute, &external_transfer, "direction");
         assert_eq!(field.path, "direction.value");
         match field.kind {
-            FieldKind::Radio(members) => assert_eq!(members, vec!["credit".to_string(), "debit".to_string()]),
+            FieldKind::Radio(members) => {
+                assert_eq!(members, vec!["credit".to_string(), "debit".to_string()])
+            }
             other => panic!("expected Radio with exactly 2 members, got {other:?}"),
         }
     }
@@ -2034,15 +2807,24 @@ mod tests {
 
     #[test]
     fn nest_builds_an_ordinary_dotted_path_into_a_nested_object() {
-        let result = nest(vec![("price.cents".to_string(), json!(500)), ("price.currency".to_string(), json!("USD"))]).unwrap();
+        let result = nest(vec![
+            ("price.cents".to_string(), json!(500)),
+            ("price.currency".to_string(), json!("USD")),
+        ])
+        .unwrap();
         assert_eq!(result, json!({"price": {"cents": 500, "currency": "USD"}}));
     }
 
     #[test]
-    fn nest_refuses_rather_than_panics_when_a_scalar_is_inserted_before_a_deeper_path_sharing_its_prefix() {
+    fn nest_refuses_rather_than_panics_when_a_scalar_is_inserted_before_a_deeper_path_sharing_its_prefix(
+    ) {
         // `price` lands as a scalar first, then `price.cents` tries to
         // descend into it — the shape that would otherwise panic instead of refusing cleanly.
-        let err = nest(vec![("price".to_string(), json!(500)), ("price.cents".to_string(), json!(500))]).unwrap_err();
+        let err = nest(vec![
+            ("price".to_string(), json!(500)),
+            ("price.cents".to_string(), json!(500)),
+        ])
+        .unwrap_err();
         assert!(err.contains("price"), "{err}");
     }
 
@@ -2050,13 +2832,21 @@ mod tests {
     fn nest_refuses_rather_than_silently_dropping_data_when_the_deeper_path_is_inserted_first() {
         // The reverse insertion order clobbers a nested object with a
         // bare scalar instead of panicking — must refuse here too.
-        let err = nest(vec![("price.cents".to_string(), json!(500)), ("price".to_string(), json!(500))]).unwrap_err();
+        let err = nest(vec![
+            ("price.cents".to_string(), json!(500)),
+            ("price".to_string(), json!(500)),
+        ])
+        .unwrap_err();
         assert!(err.contains("price"), "{err}");
     }
 
     #[test]
     fn nest_is_unaffected_by_an_unrelated_sibling_sharing_no_prefix() {
-        let result = nest(vec![("price.cents".to_string(), json!(500)), ("name".to_string(), json!("Widget"))]).unwrap();
+        let result = nest(vec![
+            ("price.cents".to_string(), json!(500)),
+            ("name".to_string(), json!("Widget")),
+        ])
+        .unwrap();
         assert_eq!(result, json!({"price": {"cents": 500}, "name": "Widget"}));
     }
 
@@ -2066,16 +2856,30 @@ mod tests {
         assert_eq!(q.get("code").map(String::as_str), Some("abc+def/gh"));
         assert_eq!(q.get("state").map(String::as_str), Some("1.sig"));
         let form = parse_form("code=abc+def");
-        assert_eq!(form.get("code").map(String::as_str), Some("abc def"), "HTML forms still treat + as space");
+        assert_eq!(
+            form.get("code").map(String::as_str),
+            Some("abc def"),
+            "HTML forms still treat + as space"
+        );
     }
 
     #[test]
     fn extract_args_surfaces_a_collision_as_an_error_rather_than_panicking() {
-        let scalar_field = Field { path: "price".to_string(), label: "Price".to_string(), kind: FieldKind::Number { step: "1" }, optional: false };
+        let scalar_field = Field {
+            path: "price".to_string(),
+            label: "Price".to_string(),
+            kind: FieldKind::Number { step: "1" },
+            optional: false,
+        };
         let nested_field = Field {
             path: "price".to_string(),
             label: "Price".to_string(),
-            kind: FieldKind::Group(vec![Field { path: "price.cents".to_string(), label: "Cents".to_string(), kind: FieldKind::Number { step: "1" }, optional: false }]),
+            kind: FieldKind::Group(vec![Field {
+                path: "price.cents".to_string(),
+                label: "Cents".to_string(),
+                kind: FieldKind::Number { step: "1" },
+                optional: false,
+            }]),
             optional: false,
         };
         let mut raw = HashMap::new();
@@ -2083,7 +2887,10 @@ mod tests {
         raw.insert("price.cents".to_string(), "500".to_string());
 
         let result = extract_args(&[scalar_field, nested_field], &raw);
-        assert!(result.is_err(), "expected a collision error, got {result:?}");
+        assert!(
+            result.is_err(),
+            "expected a collision error, got {result:?}"
+        );
     }
 
     #[test]
@@ -2103,7 +2910,11 @@ mod tests {
                 {"aggregate": "Pizzas::LoyaltyAccount", "id": "loyalty-9", "operation": "save"}
             ]]
         });
-        assert_eq!(own_command_target_id(&result), Some("order-1"), "must redirect to the command's OWN aggregate, not the cascaded reaction's");
+        assert_eq!(
+            own_command_target_id(&result),
+            Some("order-1"),
+            "must redirect to the command's OWN aggregate, not the cascaded reaction's"
+        );
     }
 
     #[test]
@@ -2129,14 +2940,24 @@ mod tests {
     use tokio_postgres::NoTls;
 
     pub(super) async fn scratch_db(name: &str) -> Mutex<Client> {
-        let (admin, conn) = tokio_postgres::connect(&crate::test_pg::conninfo("postgres"), NoTls).await.expect("connect to postgres");
+        let (admin, conn) = tokio_postgres::connect(&crate::test_pg::conninfo("postgres"), NoTls)
+            .await
+            .expect("connect to postgres");
         tokio::spawn(async move {
             let _ = conn.await;
         });
-        admin.batch_execute(&format!("DROP DATABASE IF EXISTS {name} WITH (FORCE)")).await.unwrap();
-        admin.batch_execute(&format!("CREATE DATABASE {name}")).await.unwrap();
+        admin
+            .batch_execute(&format!("DROP DATABASE IF EXISTS {name} WITH (FORCE)"))
+            .await
+            .unwrap();
+        admin
+            .batch_execute(&format!("CREATE DATABASE {name}"))
+            .await
+            .unwrap();
 
-        let (client, conn) = tokio_postgres::connect(&crate::test_pg::conninfo(&name), NoTls).await.expect("connect to scratch db");
+        let (client, conn) = tokio_postgres::connect(&crate::test_pg::conninfo(&name), NoTls)
+            .await
+            .expect("connect to scratch db");
         tokio::spawn(async move {
             let _ = conn.await;
         });
@@ -2146,10 +2967,23 @@ mod tests {
 
     // Duplicates dispatch.rs's own provision_lineage shape rather than
     // sharing it, matching this crate's existing per-module test fixtures.
-    pub(super) async fn provision_lineage(client: &Client, domain: &str, era: i32, aggregate_storage_names: &[&str]) {
-        client.batch_execute("CREATE TABLE IF NOT EXISTS hecks_eras (domain text, ordinal int, held_text text)").await.unwrap();
+    pub(super) async fn provision_lineage(
+        client: &Client,
+        domain: &str,
+        era: i32,
+        aggregate_storage_names: &[&str],
+    ) {
         client
-            .execute("INSERT INTO hecks_eras (domain, ordinal, held_text) VALUES ($1, $2, 'test')", &[&domain, &era])
+            .batch_execute(
+                "CREATE TABLE IF NOT EXISTS hecks_eras (domain text, ordinal int, held_text text)",
+            )
+            .await
+            .unwrap();
+        client
+            .execute(
+                "INSERT INTO hecks_eras (domain, ordinal, held_text) VALUES ($1, $2, 'test')",
+                &[&domain, &era],
+            )
             .await
             .unwrap();
 
@@ -2171,7 +3005,10 @@ mod tests {
         for name in aggregate_storage_names {
             // domain-qualified (docs/decisions/0059) — matches what a real
             // `journal::append_lineage_mutation` write actually targets now.
-            let snapshot_table = crate::journal::qualified_name(domain, &format!("{}_head_snapshot_{era}", crate::journal::snake(name)));
+            let snapshot_table = crate::journal::qualified_name(
+                domain,
+                &format!("{}_head_snapshot_{era}", crate::journal::snake(name)),
+            );
             client
                 .batch_execute(&format!("CREATE TABLE IF NOT EXISTS \"{snapshot_table}\" (id text PRIMARY KEY, ordinal bigint NOT NULL, state jsonb NOT NULL)"))
                 .await
@@ -2189,19 +3026,33 @@ mod tests {
         assert_eq!(response["statusCode"], 200, "{response:?}");
         let body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
         assert_eq!(body["email"], "zed@example.com");
-        assert_eq!(body["identity_id"], "id-1", "the signed-in account's Governance identity id");
+        assert_eq!(
+            body["identity_id"], "id-1",
+            "the signed-in account's Governance identity id"
+        );
 
         let empty = HashMap::new();
-        assert_eq!(accounts_me_route(&domain_ir, &empty, secret, &client).await["statusCode"], 401);
+        assert_eq!(
+            accounts_me_route(&domain_ir, &empty, secret, &client).await["statusCode"],
+            401
+        );
 
         let mut tampered = HashMap::new();
-        tampered.insert(auth::account_cookie_name(), "garbage.notasignature".to_string());
-        assert_eq!(accounts_me_route(&domain_ir, &tampered, secret, &client).await["statusCode"], 401);
+        tampered.insert(
+            auth::account_cookie_name(),
+            "garbage.notasignature".to_string(),
+        );
+        assert_eq!(
+            accounts_me_route(&domain_ir, &tampered, secret, &client).await["statusCode"],
+            401
+        );
 
         // A validly signed token for someone with no granted role, or nobody
         // admitted at all, is no session.
         for email in ["amy@example.com", "stranger@example.com"] {
-            let response = accounts_me_route(&domain_ir, &session_cookies(secret, email), secret, &client).await;
+            let response =
+                accounts_me_route(&domain_ir, &session_cookies(secret, email), secret, &client)
+                    .await;
             assert_eq!(response["statusCode"], 401, "{email}: {response:?}");
         }
     }
@@ -2209,10 +3060,14 @@ mod tests {
     #[tokio::test]
     async fn accounts_sso_token_route_mints_a_short_lived_token_verifiable_by_the_same_secret() {
         let secret = "s3cret";
-        let (client, domain_ir) = scratch_members_db("hecks_host_web_test_accounts_sso_token").await;
+        let (client, domain_ir) =
+            scratch_members_db("hecks_host_web_test_accounts_sso_token").await;
 
         let mut cookies = HashMap::new();
-        cookies.insert(auth::account_cookie_name(), auth::account_token(secret, "zed@example.com", 60 * 60 * 24 * 14));
+        cookies.insert(
+            auth::account_cookie_name(),
+            auth::account_token(secret, "zed@example.com", 60 * 60 * 24 * 14),
+        );
         let response = accounts_sso_token_route(&domain_ir, &cookies, secret, &client).await;
         assert_eq!(response["statusCode"], 200, "{response:?}");
         let body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
@@ -2220,17 +3075,35 @@ mod tests {
 
         // The point: cms/src/endpoints/sso.ts verifies this exact wire
         // format — a real, decodable token, not just a 200 with any string.
-        assert_eq!(auth::verify_account_token(secret, sso_token).as_deref(), Some("zed@example.com"));
+        assert_eq!(
+            auth::verify_account_token(secret, sso_token).as_deref(),
+            Some("zed@example.com")
+        );
 
         // Missing or invalid session cookie -- refused, no token minted.
         let empty = HashMap::new();
-        assert_eq!(accounts_sso_token_route(&domain_ir, &empty, secret, &client).await["statusCode"], 401);
+        assert_eq!(
+            accounts_sso_token_route(&domain_ir, &empty, secret, &client).await["statusCode"],
+            401
+        );
 
         let mut tampered = HashMap::new();
-        tampered.insert(auth::account_cookie_name(), "garbage.notasignature".to_string());
-        assert_eq!(accounts_sso_token_route(&domain_ir, &tampered, secret, &client).await["statusCode"], 401);
+        tampered.insert(
+            auth::account_cookie_name(),
+            "garbage.notasignature".to_string(),
+        );
+        assert_eq!(
+            accounts_sso_token_route(&domain_ir, &tampered, secret, &client).await["statusCode"],
+            401
+        );
 
-        let no_role = accounts_sso_token_route(&domain_ir, &session_cookies(secret, "amy@example.com"), secret, &client).await;
+        let no_role = accounts_sso_token_route(
+            &domain_ir,
+            &session_cookies(secret, "amy@example.com"),
+            secret,
+            &client,
+        )
+        .await;
         assert_eq!(no_role["statusCode"], 401, "{no_role:?}");
     }
 
@@ -2281,7 +3154,10 @@ mod tests {
         let (client, domain_ir) = scratch_members_db("hecks_host_web_test_members_route").await;
 
         let mut cookies = HashMap::new();
-        cookies.insert(auth::account_cookie_name(), auth::account_token(secret, "zed@example.com", 60));
+        cookies.insert(
+            auth::account_cookie_name(),
+            auth::account_token(secret, "zed@example.com", 60),
+        );
         let response = members_route(&domain_ir, &cookies, secret, &client).await;
         assert_eq!(response["statusCode"], 200, "{response:?}");
 
@@ -2304,19 +3180,34 @@ mod tests {
         let (client, domain_ir) = scratch_members_db("hecks_host_web_test_members_route_401").await;
 
         let mut tampered = HashMap::new();
-        tampered.insert(auth::account_cookie_name(), "garbage.notasignature".to_string());
+        tampered.insert(
+            auth::account_cookie_name(),
+            "garbage.notasignature".to_string(),
+        );
         let mut wrong_secret = HashMap::new();
-        wrong_secret.insert(auth::account_cookie_name(), auth::account_token("another", "zed@example.com", 60));
+        wrong_secret.insert(
+            auth::account_cookie_name(),
+            auth::account_token("another", "zed@example.com", 60),
+        );
         let mut governance_only = HashMap::new();
         governance_only.insert("session".to_string(), "anything".to_string());
 
         for cookies in [HashMap::new(), tampered, wrong_secret, governance_only] {
             let response = members_route(&domain_ir, &cookies, secret, &client).await;
             assert_eq!(response["statusCode"], 401, "{response:?}");
-            assert!(response.get("headers").and_then(|h| h.get("location")).is_none(), "never a redirect: {response:?}");
+            assert!(
+                response
+                    .get("headers")
+                    .and_then(|h| h.get("location"))
+                    .is_none(),
+                "never a redirect: {response:?}"
+            );
             let body = response["body"].as_str().unwrap();
             for leaked in ["zed@example.com", "amy@example.com", "Zed", "Admin"] {
-                assert!(!body.contains(leaked), "{leaked:?} leaked to an unauthenticated caller: {body}");
+                assert!(
+                    !body.contains(leaked),
+                    "{leaked:?} leaked to an unauthenticated caller: {body}"
+                );
             }
         }
     }
@@ -2339,29 +3230,48 @@ mod tests {
             .await
             .unwrap();
 
-        let response = members_route(&domain_ir, &session_cookies(secret, "max@example.com"), secret, &client).await;
+        let response = members_route(
+            &domain_ir,
+            &session_cookies(secret, "max@example.com"),
+            secret,
+            &client,
+        )
+        .await;
         assert_eq!(response["statusCode"], 403, "{response:?}");
         let body = response["body"].as_str().unwrap();
         for leaked in ["zed@example.com", "amy@example.com", "Zed"] {
-            assert!(!body.contains(leaked), "{leaked:?} leaked to a plain member: {body}");
+            assert!(
+                !body.contains(leaked),
+                "{leaked:?} leaked to a plain member: {body}"
+            );
         }
     }
 
     fn session_cookies(secret: &str, email: &str) -> HashMap<String, String> {
         let mut cookies = HashMap::new();
-        cookies.insert(auth::account_cookie_name(), auth::account_token(secret, email, 60));
+        cookies.insert(
+            auth::account_cookie_name(),
+            auth::account_token(secret, email, 60),
+        );
         cookies
     }
 
     fn members_config() -> LineageConfig {
-        LineageConfig { domain: "Acme".to_string(), era: Some(1), mirrored: None }
+        LineageConfig {
+            domain: "Acme".to_string(),
+            era: Some(1),
+            mirrored: None,
+        }
     }
 
     #[tokio::test]
-    async fn signup_route_refuses_anything_but_a_valid_signup_token_with_a_json_401_and_writes_nothing() {
+    async fn signup_route_refuses_anything_but_a_valid_signup_token_with_a_json_401_and_writes_nothing(
+    ) {
         let secret = "s3cret";
         let (client, domain_ir) = scratch_members_db("hecks_host_web_test_signup_401").await;
-        let body = |token: &str| json!({"token": token, "email": "new@example.com", "name": "New Person"}).to_string();
+        let body = |token: &str| {
+            json!({"token": token, "email": "new@example.com", "name": "New Person"}).to_string()
+        };
 
         // A session token and a token minted for another purpose both verify
         // as tokens under some key, but never as a signup token.
@@ -2369,14 +3279,46 @@ mod tests {
         let other_purpose = auth::purpose_token(secret, "another_purpose", json!({}), 60);
         let wrong_secret = auth::purpose_token("another", SIGNUP_PURPOSE, json!({}), 60);
 
-        for token in ["", "garbage.notasignature", session_token.as_str(), other_purpose.as_str(), wrong_secret.as_str()] {
-            let response = signup_route(&body(token), secret, &client, Path::new("unused"), &members_config(), &crate::lambda_client::NeverInvoker).await;
+        for token in [
+            "",
+            "garbage.notasignature",
+            session_token.as_str(),
+            other_purpose.as_str(),
+            wrong_secret.as_str(),
+        ] {
+            let response = signup_route(
+                &body(token),
+                secret,
+                &client,
+                Path::new("unused"),
+                &members_config(),
+                &crate::lambda_client::NeverInvoker,
+            )
+            .await;
             assert_eq!(response["statusCode"], 401, "{response:?}");
-            assert!(response.get("headers").and_then(|h| h.get("location")).is_none(), "never a redirect: {response:?}");
+            assert!(
+                response
+                    .get("headers")
+                    .and_then(|h| h.get("location"))
+                    .is_none(),
+                "never a redirect: {response:?}"
+            );
         }
-        let unparseable = signup_route("not json", secret, &client, Path::new("unused"), &members_config(), &crate::lambda_client::NeverInvoker).await;
+        let unparseable = signup_route(
+            "not json",
+            secret,
+            &client,
+            Path::new("unused"),
+            &members_config(),
+            &crate::lambda_client::NeverInvoker,
+        )
+        .await;
         assert_eq!(unparseable["statusCode"], 401, "{unparseable:?}");
-        assert_eq!(auth::all_people(&client, &domain_ir).await.unwrap().len(), 2, "nothing was written");
+        assert_eq!(
+            auth::all_people(&client, &domain_ir).await.unwrap().len(),
+            2,
+            "nothing was written"
+        );
     }
 
     #[tokio::test]
@@ -2385,34 +3327,81 @@ mod tests {
         let (client, _) = scratch_members_db("hecks_host_web_test_signup_400").await;
         let token = auth::purpose_token(secret, SIGNUP_PURPOSE, json!({}), 60);
 
-        for (email, name) in [("", "Ada"), ("no-at-sign", "Ada"), ("a@nodot", "Ada"), ("has space@x.io", "Ada"), ("ada@x.io", ""), ("ada@x.io", "   ")] {
+        for (email, name) in [
+            ("", "Ada"),
+            ("no-at-sign", "Ada"),
+            ("a@nodot", "Ada"),
+            ("has space@x.io", "Ada"),
+            ("ada@x.io", ""),
+            ("ada@x.io", "   "),
+        ] {
             let body = json!({"token": token, "email": email, "name": name}).to_string();
-            let response = signup_route(&body, secret, &client, Path::new("unused"), &members_config(), &crate::lambda_client::NeverInvoker).await;
-            assert_eq!(response["statusCode"], 400, "{email:?} / {name:?}: {response:?}");
+            let response = signup_route(
+                &body,
+                secret,
+                &client,
+                Path::new("unused"),
+                &members_config(),
+                &crate::lambda_client::NeverInvoker,
+            )
+            .await;
+            assert_eq!(
+                response["statusCode"], 400,
+                "{email:?} / {name:?}: {response:?}"
+            );
         }
     }
 
     #[tokio::test]
-    async fn add_member_route_refuses_a_missing_or_invalid_session_with_a_json_401_and_writes_nothing() {
+    async fn add_member_route_refuses_a_missing_or_invalid_session_with_a_json_401_and_writes_nothing(
+    ) {
         let secret = "s3cret";
         let (client, domain_ir) = scratch_members_db("hecks_host_web_test_add_member_401").await;
         let body = r#"{"email": "new@example.com", "name": "New Person"}"#;
 
         let mut tampered = HashMap::new();
-        tampered.insert(auth::account_cookie_name(), "garbage.notasignature".to_string());
+        tampered.insert(
+            auth::account_cookie_name(),
+            "garbage.notasignature".to_string(),
+        );
         let mut wrong_secret = HashMap::new();
-        wrong_secret.insert(auth::account_cookie_name(), auth::account_token("another", "zed@example.com", 60));
+        wrong_secret.insert(
+            auth::account_cookie_name(),
+            auth::account_token("another", "zed@example.com", 60),
+        );
 
         for cookies in [HashMap::new(), tampered, wrong_secret] {
-            let response = add_member_route(&domain_ir, body, &cookies, secret, &client, Path::new("unused"), &members_config()).await;
+            let response = add_member_route(
+                &domain_ir,
+                body,
+                &cookies,
+                secret,
+                &client,
+                Path::new("unused"),
+                &members_config(),
+            )
+            .await;
             assert_eq!(response["statusCode"], 401, "{response:?}");
-            assert!(response.get("headers").and_then(|h| h.get("location")).is_none(), "never a redirect: {response:?}");
+            assert!(
+                response
+                    .get("headers")
+                    .and_then(|h| h.get("location"))
+                    .is_none(),
+                "never a redirect: {response:?}"
+            );
             let text = response["body"].as_str().unwrap();
             for leaked in ["zed@example.com", "amy@example.com", "Zed", "Admin"] {
-                assert!(!text.contains(leaked), "{leaked:?} leaked to an unauthenticated caller: {text}");
+                assert!(
+                    !text.contains(leaked),
+                    "{leaked:?} leaked to an unauthenticated caller: {text}"
+                );
             }
         }
-        assert_eq!(auth::all_people(&client, &domain_ir).await.unwrap().len(), 2, "nothing was written");
+        assert_eq!(
+            auth::all_people(&client, &domain_ir).await.unwrap().len(),
+            2,
+            "nothing was written"
+        );
     }
 
     #[tokio::test]
@@ -2424,10 +3413,23 @@ mod tests {
         // amy is admitted but has no role; a stranger is not admitted at all.
         for caller in ["amy@example.com", "stranger@example.com"] {
             let cookies = session_cookies(secret, caller);
-            let response = add_member_route(&domain_ir, body, &cookies, secret, &client, Path::new("unused"), &members_config()).await;
+            let response = add_member_route(
+                &domain_ir,
+                body,
+                &cookies,
+                secret,
+                &client,
+                Path::new("unused"),
+                &members_config(),
+            )
+            .await;
             assert_eq!(response["statusCode"], 403, "{caller}: {response:?}");
         }
-        assert_eq!(auth::all_people(&client, &domain_ir).await.unwrap().len(), 2, "nothing was written");
+        assert_eq!(
+            auth::all_people(&client, &domain_ir).await.unwrap().len(),
+            2,
+            "nothing was written"
+        );
     }
 
     #[tokio::test]
@@ -2450,10 +3452,23 @@ mod tests {
             r#"{"email": "two words@example.com", "name": "New Person"}"#,
             r#"{"email": 42, "name": "New Person"}"#,
         ] {
-            let response = add_member_route(&domain_ir, body, &cookies, secret, &client, Path::new("unused"), &members_config()).await;
+            let response = add_member_route(
+                &domain_ir,
+                body,
+                &cookies,
+                secret,
+                &client,
+                Path::new("unused"),
+                &members_config(),
+            )
+            .await;
             assert_eq!(response["statusCode"], 400, "{body:?}: {response:?}");
         }
-        assert_eq!(auth::all_people(&client, &domain_ir).await.unwrap().len(), 2, "nothing was written");
+        assert_eq!(
+            auth::all_people(&client, &domain_ir).await.unwrap().len(),
+            2,
+            "nothing was written"
+        );
     }
 
     #[tokio::test]
@@ -2464,10 +3479,23 @@ mod tests {
 
         for email in ["amy@example.com", "AMY@Example.com"] {
             let body = json!({"email": email, "name": "Another Amy"}).to_string();
-            let response = add_member_route(&domain_ir, &body, &cookies, secret, &client, Path::new("unused"), &members_config()).await;
+            let response = add_member_route(
+                &domain_ir,
+                &body,
+                &cookies,
+                secret,
+                &client,
+                Path::new("unused"),
+                &members_config(),
+            )
+            .await;
             assert_eq!(response["statusCode"], 409, "{email}: {response:?}");
         }
-        assert_eq!(auth::all_people(&client, &domain_ir).await.unwrap().len(), 2, "nothing was written");
+        assert_eq!(
+            auth::all_people(&client, &domain_ir).await.unwrap().len(),
+            2,
+            "nothing was written"
+        );
     }
 
     #[tokio::test]
@@ -2477,7 +3505,16 @@ mod tests {
         let cookies = session_cookies(secret, "Zed@Example.com");
 
         let body = r#"{"email": "  New@Example.com ", "name": " New Person "}"#;
-        let response = add_member_route(&domain_ir, body, &cookies, secret, &client, Path::new("unused"), &members_config()).await;
+        let response = add_member_route(
+            &domain_ir,
+            body,
+            &cookies,
+            secret,
+            &client,
+            Path::new("unused"),
+            &members_config(),
+        )
+        .await;
         assert_eq!(response["statusCode"], 201, "{response:?}");
         let created: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
         assert_eq!(
@@ -2488,31 +3525,64 @@ mod tests {
         let listing = members_route(&domain_ir, &cookies, secret, &client).await;
         let people: Vec<Value> = serde_json::from_str(listing["body"].as_str().unwrap()).unwrap();
         assert_eq!(people.len(), 3);
-        let added = people.iter().find(|p| p["email"] == "new@example.com").expect("the new person is listed");
+        let added = people
+            .iter()
+            .find(|p| p["email"] == "new@example.com")
+            .expect("the new person is listed");
         assert_eq!(*added, created);
 
         let guard = client.lock().await;
         let journalled: i64 = guard
-            .query_one("SELECT count(*) FROM hecks_journal_acme WHERE aggregate_id = 'new@example.com'", &[])
+            .query_one(
+                "SELECT count(*) FROM hecks_journal_acme WHERE aggregate_id = 'new@example.com'",
+                &[],
+            )
             .await
             .unwrap()
             .get(0);
-        assert_eq!(journalled, 2, "one journal row for Admit and one for GrantAccess");
+        assert_eq!(
+            journalled, 2,
+            "one journal row for Admit and one for GrantAccess"
+        );
     }
 
     // The scratch members database with amy also granted Admin, so two
     // active admins exist and one can act on the other.
     async fn scratch_two_admins(name: &str) -> (Mutex<Client>, Value) {
         let (client, domain_ir) = scratch_members_db(name).await;
-        let granted = auth::grant_access(&client, Path::new("unused"), &members_config(), &domain_ir, "amy@example.com", "Admin").await.unwrap();
+        let granted = auth::grant_access(
+            &client,
+            Path::new("unused"),
+            &members_config(),
+            &domain_ir,
+            "amy@example.com",
+            "Admin",
+        )
+        .await
+        .unwrap();
         assert!(granted);
         (client, domain_ir)
     }
 
-    async fn switch_access(client: &Mutex<Client>, domain_ir: &Value, caller: &str, email: &str, disable: bool) -> Value {
+    async fn switch_access(
+        client: &Mutex<Client>,
+        domain_ir: &Value,
+        caller: &str,
+        email: &str,
+        disable: bool,
+    ) -> Value {
         let secret = "s3cret";
         let body = json!({"email": email}).to_string();
-        set_member_disabled_route(domain_ir, &body, &session_cookies(secret, caller), secret, client, &members_config(), disable).await
+        set_member_disabled_route(
+            domain_ir,
+            &body,
+            &session_cookies(secret, caller),
+            secret,
+            client,
+            &members_config(),
+            disable,
+        )
+        .await
     }
 
     fn error_of(response: &Value) -> String {
@@ -2522,13 +3592,19 @@ mod tests {
 
     async fn person(client: &Mutex<Client>, domain_ir: &Value, email: &str) -> Value {
         let people = auth::all_people(client, domain_ir).await.unwrap();
-        people.into_iter().find(|p| p["email"] == email).unwrap_or_else(|| panic!("{email} is not listed"))
+        people
+            .into_iter()
+            .find(|p| p["email"] == email)
+            .unwrap_or_else(|| panic!("{email} is not listed"))
     }
 
     async fn journal_rows(client: &Mutex<Client>, id: &str) -> i64 {
         let guard = client.lock().await;
         guard
-            .query_one("SELECT count(*) FROM hecks_journal_acme WHERE aggregate_id = $1", &[&id])
+            .query_one(
+                "SELECT count(*) FROM hecks_journal_acme WHERE aggregate_id = $1",
+                &[&id],
+            )
             .await
             .unwrap()
             .get(0)
@@ -2540,20 +3616,43 @@ mod tests {
         let (client, domain_ir) = scratch_two_admins("hecks_host_web_test_disable_401").await;
 
         let mut tampered = HashMap::new();
-        tampered.insert(auth::account_cookie_name(), "garbage.notasignature".to_string());
+        tampered.insert(
+            auth::account_cookie_name(),
+            "garbage.notasignature".to_string(),
+        );
         let body = json!({"email": "amy@example.com"}).to_string();
         for disable in [true, false] {
             for cookies in [HashMap::new(), tampered.clone()] {
-                let response = set_member_disabled_route(&domain_ir, &body, &cookies, secret, &client, &members_config(), disable).await;
+                let response = set_member_disabled_route(
+                    &domain_ir,
+                    &body,
+                    &cookies,
+                    secret,
+                    &client,
+                    &members_config(),
+                    disable,
+                )
+                .await;
                 assert_eq!(response["statusCode"], 401, "{response:?}");
-                assert!(response.get("headers").and_then(|h| h.get("location")).is_none(), "never a redirect: {response:?}");
+                assert!(
+                    response
+                        .get("headers")
+                        .and_then(|h| h.get("location"))
+                        .is_none(),
+                    "never a redirect: {response:?}"
+                );
             }
             for blank in ["", "   "] {
-                let response = switch_access(&client, &domain_ir, "zed@example.com", blank, disable).await;
+                let response =
+                    switch_access(&client, &domain_ir, "zed@example.com", blank, disable).await;
                 assert_eq!(response["statusCode"], 400, "{blank:?}: {response:?}");
             }
         }
-        assert_eq!(person(&client, &domain_ir, "amy@example.com").await["disabled"], false, "nothing was written");
+        assert_eq!(
+            person(&client, &domain_ir, "amy@example.com").await["disabled"],
+            false,
+            "nothing was written"
+        );
     }
 
     #[tokio::test]
@@ -2563,12 +3662,17 @@ mod tests {
         // amy is admitted with no role; the stranger was never admitted.
         for caller in ["amy@example.com", "stranger@example.com"] {
             for disable in [true, false] {
-                let response = switch_access(&client, &domain_ir, caller, "zed@example.com", disable).await;
+                let response =
+                    switch_access(&client, &domain_ir, caller, "zed@example.com", disable).await;
                 assert_eq!(response["statusCode"], 403, "{caller}: {response:?}");
                 assert_eq!(error_of(&response), "admins only");
             }
         }
-        assert_eq!(person(&client, &domain_ir, "zed@example.com").await["granted"], true, "nothing was written");
+        assert_eq!(
+            person(&client, &domain_ir, "zed@example.com").await["granted"],
+            true,
+            "nothing was written"
+        );
     }
 
     #[tokio::test]
@@ -2579,9 +3683,15 @@ mod tests {
         for typed in ["zed@example.com", "  ZED@Example.com "] {
             let response = switch_access(&client, &domain_ir, "zed@example.com", typed, true).await;
             assert_eq!(response["statusCode"], 403, "{typed:?}: {response:?}");
-            assert_eq!(error_of(&response), "you can't disable your own admin access");
+            assert_eq!(
+                error_of(&response),
+                "you can't disable your own admin access"
+            );
         }
-        assert_eq!(person(&client, &domain_ir, "zed@example.com").await["granted"], true);
+        assert_eq!(
+            person(&client, &domain_ir, "zed@example.com").await["granted"],
+            true
+        );
         assert_eq!(journal_rows(&client, "zed@example.com").await, before);
     }
 
@@ -2589,46 +3699,100 @@ mod tests {
     async fn disable_and_enable_routes_answer_404_for_an_unknown_email() {
         let (client, domain_ir) = scratch_two_admins("hecks_host_web_test_disable_404").await;
         for disable in [true, false] {
-            let response = switch_access(&client, &domain_ir, "zed@example.com", "nobody@example.com", disable).await;
+            let response = switch_access(
+                &client,
+                &domain_ir,
+                "zed@example.com",
+                "nobody@example.com",
+                disable,
+            )
+            .await;
             assert_eq!(response["statusCode"], 404, "{response:?}");
         }
     }
 
-    async fn set_role(client: &Mutex<Client>, domain_ir: &Value, caller: &str, email: &str, role: &str) -> Value {
+    async fn set_role(
+        client: &Mutex<Client>,
+        domain_ir: &Value,
+        caller: &str,
+        email: &str,
+        role: &str,
+    ) -> Value {
         let secret = "s3cret";
         let body = json!({"email": email, "role": role}).to_string();
-        set_member_role_route(domain_ir, &body, &session_cookies(secret, caller), secret, client, &members_config()).await
+        set_member_role_route(
+            domain_ir,
+            &body,
+            &session_cookies(secret, caller),
+            secret,
+            client,
+            &members_config(),
+        )
+        .await
     }
 
     #[tokio::test]
-    async fn role_route_refuses_a_missing_session_a_blank_email_and_an_unknown_role_and_writes_nothing() {
+    async fn role_route_refuses_a_missing_session_a_blank_email_and_an_unknown_role_and_writes_nothing(
+    ) {
         let secret = "s3cret";
         let (client, domain_ir) = scratch_members_db("hecks_host_web_test_role_400").await;
         let before = journal_rows(&client, "amy@example.com").await;
 
         let mut tampered = HashMap::new();
-        tampered.insert(auth::account_cookie_name(), "garbage.notasignature".to_string());
+        tampered.insert(
+            auth::account_cookie_name(),
+            "garbage.notasignature".to_string(),
+        );
         let body = json!({"email": "amy@example.com", "role": "Owner"}).to_string();
         for cookies in [HashMap::new(), tampered] {
-            let response = set_member_role_route(&domain_ir, &body, &cookies, secret, &client, &members_config()).await;
+            let response = set_member_role_route(
+                &domain_ir,
+                &body,
+                &cookies,
+                secret,
+                &client,
+                &members_config(),
+            )
+            .await;
             assert_eq!(response["statusCode"], 401, "{response:?}");
-            assert!(response.get("headers").and_then(|h| h.get("location")).is_none(), "never a redirect: {response:?}");
+            assert!(
+                response
+                    .get("headers")
+                    .and_then(|h| h.get("location"))
+                    .is_none(),
+                "never a redirect: {response:?}"
+            );
         }
         for blank in ["", "   "] {
             let response = set_role(&client, &domain_ir, "zed@example.com", blank, "Owner").await;
             assert_eq!(response["statusCode"], 400, "{blank:?}: {response:?}");
         }
         for role in ["", "Root", "owner", "Owner Admin"] {
-            let response = set_role(&client, &domain_ir, "zed@example.com", "amy@example.com", role).await;
+            let response = set_role(
+                &client,
+                &domain_ir,
+                "zed@example.com",
+                "amy@example.com",
+                role,
+            )
+            .await;
             assert_eq!(response["statusCode"], 400, "{role:?}: {response:?}");
-            assert_eq!(error_of(&response), "role must be one of Admin, Owner, Member");
+            assert_eq!(
+                error_of(&response),
+                "role must be one of Admin, Owner, Member"
+            );
         }
-        assert_eq!(person(&client, &domain_ir, "amy@example.com").await["role"], Value::Null, "nothing was written");
+        assert_eq!(
+            person(&client, &domain_ir, "amy@example.com").await["role"],
+            Value::Null,
+            "nothing was written"
+        );
         assert_eq!(journal_rows(&client, "amy@example.com").await, before);
     }
 
     #[tokio::test]
-    async fn role_route_refuses_a_caller_who_is_not_an_active_admin_with_a_403_and_answers_404_for_an_unknown_email() {
+    async fn role_route_refuses_a_caller_who_is_not_an_active_admin_with_a_403_and_answers_404_for_an_unknown_email(
+    ) {
         let (client, domain_ir) = scratch_members_db("hecks_host_web_test_role_403").await;
 
         // amy is admitted with no role; the stranger was never admitted.
@@ -2639,43 +3803,120 @@ mod tests {
         }
 
         // A plain Member cannot promote themselves either.
-        assert!(auth::grant_access(&client, Path::new("unused"), &members_config(), &domain_ir, "amy@example.com", "Member").await.unwrap());
-        let response = set_role(&client, &domain_ir, "amy@example.com", "amy@example.com", "Owner").await;
+        assert!(auth::grant_access(
+            &client,
+            Path::new("unused"),
+            &members_config(),
+            &domain_ir,
+            "amy@example.com",
+            "Member"
+        )
+        .await
+        .unwrap());
+        let response = set_role(
+            &client,
+            &domain_ir,
+            "amy@example.com",
+            "amy@example.com",
+            "Owner",
+        )
+        .await;
         assert_eq!(response["statusCode"], 403, "{response:?}");
-        assert_eq!(person(&client, &domain_ir, "amy@example.com").await["role"], "Member", "nothing was written");
+        assert_eq!(
+            person(&client, &domain_ir, "amy@example.com").await["role"],
+            "Member",
+            "nothing was written"
+        );
 
-        let response = set_role(&client, &domain_ir, "zed@example.com", "nobody@example.com", "Owner").await;
+        let response = set_role(
+            &client,
+            &domain_ir,
+            "zed@example.com",
+            "nobody@example.com",
+            "Owner",
+        )
+        .await;
         assert_eq!(response["statusCode"], 404, "{response:?}");
     }
 
     #[tokio::test]
-    async fn role_route_lets_an_admin_grant_owner_to_an_already_admitted_person_and_repeating_it_writes_nothing() {
+    async fn role_route_lets_an_admin_grant_owner_to_an_already_admitted_person_and_repeating_it_writes_nothing(
+    ) {
         let (client, domain_ir) = scratch_members_db("hecks_host_web_test_role_grant").await;
         let status = |response: &Value| response["statusCode"].as_i64().unwrap();
 
         // amy is admitted but holds no role, so she is not an admin yet.
-        assert!(!auth::caller_is_admin(&client, &domain_ir, "amy@example.com").await.unwrap());
+        assert!(
+            !auth::caller_is_admin(&client, &domain_ir, "amy@example.com")
+                .await
+                .unwrap()
+        );
 
         // Case and surrounding spaces in the email do not matter.
-        let response = set_role(&client, &domain_ir, "Zed@Example.com", " Amy@Example.com ", "Owner").await;
+        let response = set_role(
+            &client,
+            &domain_ir,
+            "Zed@Example.com",
+            " Amy@Example.com ",
+            "Owner",
+        )
+        .await;
         assert_eq!(response["statusCode"], 200, "{response:?}");
         let body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
         assert_eq!(body, json!({"email": "amy@example.com", "role": "Owner"}));
 
         // She now passes the admin gate and the Owner check payments makes.
-        assert!(auth::caller_is_admin(&client, &domain_ir, "amy@example.com").await.unwrap());
-        assert_eq!(auth::active_role(&client, &domain_ir, "amy@example.com").await.unwrap().as_deref(), Some("Owner"));
+        assert!(
+            auth::caller_is_admin(&client, &domain_ir, "amy@example.com")
+                .await
+                .unwrap()
+        );
+        assert_eq!(
+            auth::active_role(&client, &domain_ir, "amy@example.com")
+                .await
+                .unwrap()
+                .as_deref(),
+            Some("Owner")
+        );
         let amy = person(&client, &domain_ir, "amy@example.com").await;
-        assert_eq!((amy["role"].as_str(), amy["granted"].clone()), (Some("Owner"), json!(true)));
+        assert_eq!(
+            (amy["role"].as_str(), amy["granted"].clone()),
+            (Some("Owner"), json!(true))
+        );
 
         // The new Owner can act as an admin, including granting Owner in turn.
-        let response = set_role(&client, &domain_ir, "amy@example.com", "zed@example.com", "Owner").await;
+        let response = set_role(
+            &client,
+            &domain_ir,
+            "amy@example.com",
+            "zed@example.com",
+            "Owner",
+        )
+        .await;
         assert_eq!(status(&response), 200, "{response:?}");
-        assert_eq!(auth::active_role(&client, &domain_ir, "zed@example.com").await.unwrap().as_deref(), Some("Owner"));
+        assert_eq!(
+            auth::active_role(&client, &domain_ir, "zed@example.com")
+                .await
+                .unwrap()
+                .as_deref(),
+            Some("Owner")
+        );
 
         // Asking for the role someone already holds is a 200 and writes nothing.
         let rows = journal_rows(&client, "amy@example.com").await;
-        assert_eq!(status(&set_role(&client, &domain_ir, "zed@example.com", "amy@example.com", "Owner").await), 200);
+        assert_eq!(
+            status(
+                &set_role(
+                    &client,
+                    &domain_ir,
+                    "zed@example.com",
+                    "amy@example.com",
+                    "Owner"
+                )
+                .await
+            ),
+            200
+        );
         assert_eq!(journal_rows(&client, "amy@example.com").await, rows);
     }
 
@@ -2684,19 +3925,85 @@ mod tests {
         let (client, domain_ir) = scratch_two_admins("hecks_host_web_test_role_keeps").await;
 
         // zed is linked (id-1 in the seed); amy is disabled while holding Admin.
-        assert_eq!(switch_access(&client, &domain_ir, "zed@example.com", "amy@example.com", true).await["statusCode"], 200);
-        assert_eq!(set_role(&client, &domain_ir, "zed@example.com", "amy@example.com", "Owner").await["statusCode"], 200);
-        assert_eq!(set_role(&client, &domain_ir, "zed@example.com", "zed@example.com", "Owner").await["statusCode"], 200);
+        assert_eq!(
+            switch_access(
+                &client,
+                &domain_ir,
+                "zed@example.com",
+                "amy@example.com",
+                true
+            )
+            .await["statusCode"],
+            200
+        );
+        assert_eq!(
+            set_role(
+                &client,
+                &domain_ir,
+                "zed@example.com",
+                "amy@example.com",
+                "Owner"
+            )
+            .await["statusCode"],
+            200
+        );
+        assert_eq!(
+            set_role(
+                &client,
+                &domain_ir,
+                "zed@example.com",
+                "zed@example.com",
+                "Owner"
+            )
+            .await["statusCode"],
+            200
+        );
 
         let amy = person(&client, &domain_ir, "amy@example.com").await;
-        assert_eq!((amy["role"].as_str(), amy["disabled"].clone(), amy["granted"].clone()), (Some("Owner"), json!(true), json!(false)));
+        assert_eq!(
+            (
+                amy["role"].as_str(),
+                amy["disabled"].clone(),
+                amy["granted"].clone()
+            ),
+            (Some("Owner"), json!(true), json!(false))
+        );
         let zed = person(&client, &domain_ir, "zed@example.com").await;
-        assert_eq!((zed["role"].as_str(), zed["linked"].clone(), zed["name"].as_str()), (Some("Owner"), json!(true), Some("Zed")));
-        assert!(auth::session_for_member_by_identity(&client, &domain_ir, "id-1").await.unwrap().is_some(), "zed can still sign in");
+        assert_eq!(
+            (
+                zed["role"].as_str(),
+                zed["linked"].clone(),
+                zed["name"].as_str()
+            ),
+            (Some("Owner"), json!(true), Some("Zed"))
+        );
+        assert!(
+            auth::session_for_member_by_identity(&client, &domain_ir, "id-1")
+                .await
+                .unwrap()
+                .is_some(),
+            "zed can still sign in"
+        );
 
         // Enabling amy restores her, now as an Owner.
-        assert_eq!(switch_access(&client, &domain_ir, "zed@example.com", "amy@example.com", false).await["statusCode"], 200);
-        assert_eq!(auth::active_role(&client, &domain_ir, "amy@example.com").await.unwrap().as_deref(), Some("Owner"));
+        assert_eq!(
+            switch_access(
+                &client,
+                &domain_ir,
+                "zed@example.com",
+                "amy@example.com",
+                false
+            )
+            .await["statusCode"],
+            200
+        );
+        assert_eq!(
+            auth::active_role(&client, &domain_ir, "amy@example.com")
+                .await
+                .unwrap()
+                .as_deref(),
+            Some("Owner")
+        );
     }
 
     #[tokio::test]
@@ -2704,18 +4011,75 @@ mod tests {
         let (client, domain_ir) = scratch_members_db("hecks_host_web_test_role_last_admin").await;
 
         // zed is the only active admin: demoting themselves would lock everyone out.
-        let response = set_role(&client, &domain_ir, "zed@example.com", "zed@example.com", "Member").await;
+        let response = set_role(
+            &client,
+            &domain_ir,
+            "zed@example.com",
+            "zed@example.com",
+            "Member",
+        )
+        .await;
         assert_eq!(response["statusCode"], 409, "{response:?}");
-        assert_eq!(error_of(&response), "there must always be at least one admin");
-        assert_eq!(person(&client, &domain_ir, "zed@example.com").await["role"], "Admin", "nothing was written");
+        assert_eq!(
+            error_of(&response),
+            "there must always be at least one admin"
+        );
+        assert_eq!(
+            person(&client, &domain_ir, "zed@example.com").await["role"],
+            "Admin",
+            "nothing was written"
+        );
         // Moving between admin roles never strands anyone.
-        assert_eq!(set_role(&client, &domain_ir, "zed@example.com", "zed@example.com", "Owner").await["statusCode"], 200);
+        assert_eq!(
+            set_role(
+                &client,
+                &domain_ir,
+                "zed@example.com",
+                "zed@example.com",
+                "Owner"
+            )
+            .await["statusCode"],
+            200
+        );
 
         // With a second admin, one may demote the other, and then the last one is protected again.
-        assert_eq!(set_role(&client, &domain_ir, "zed@example.com", "amy@example.com", "Admin").await["statusCode"], 200);
-        assert_eq!(set_role(&client, &domain_ir, "zed@example.com", "amy@example.com", "Member").await["statusCode"], 200);
-        assert_eq!(set_role(&client, &domain_ir, "zed@example.com", "zed@example.com", "Member").await["statusCode"], 409);
-        assert_eq!(person(&client, &domain_ir, "zed@example.com").await["role"], "Owner");
+        assert_eq!(
+            set_role(
+                &client,
+                &domain_ir,
+                "zed@example.com",
+                "amy@example.com",
+                "Admin"
+            )
+            .await["statusCode"],
+            200
+        );
+        assert_eq!(
+            set_role(
+                &client,
+                &domain_ir,
+                "zed@example.com",
+                "amy@example.com",
+                "Member"
+            )
+            .await["statusCode"],
+            200
+        );
+        assert_eq!(
+            set_role(
+                &client,
+                &domain_ir,
+                "zed@example.com",
+                "zed@example.com",
+                "Member"
+            )
+            .await["statusCode"],
+            409
+        );
+        assert_eq!(
+            person(&client, &domain_ir, "zed@example.com").await["role"],
+            "Owner"
+        );
     }
 
     #[tokio::test]
@@ -2724,9 +4088,19 @@ mod tests {
         let (client, domain_ir) = scratch_two_admins("hecks_host_web_test_disable_enable").await;
         let amy_cookies = session_cookies(secret, "amy@example.com");
         let status = |response: &Value| response["statusCode"].as_i64().unwrap();
-        assert_eq!(status(&accounts_me_route(&domain_ir, &amy_cookies, secret, &client).await), 200);
+        assert_eq!(
+            status(&accounts_me_route(&domain_ir, &amy_cookies, secret, &client).await),
+            200
+        );
 
-        let response = switch_access(&client, &domain_ir, "Zed@Example.com", " Amy@Example.com ", true).await;
+        let response = switch_access(
+            &client,
+            &domain_ir,
+            "Zed@Example.com",
+            " Amy@Example.com ",
+            true,
+        )
+        .await;
         assert_eq!(response["statusCode"], 200, "{response:?}");
         let body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
         assert_eq!(body, json!({"disabled": "amy@example.com"}));
@@ -2738,30 +4112,105 @@ mod tests {
         assert_eq!(amy["disabled"], true);
 
         // amy's cookie is still validly signed and unexpired, yet stops working now.
-        assert_eq!(status(&accounts_me_route(&domain_ir, &amy_cookies, secret, &client).await), 401);
-        assert_eq!(status(&accounts_sso_token_route(&domain_ir, &amy_cookies, secret, &client).await), 401);
-        assert_eq!(status(&members_route(&domain_ir, &amy_cookies, secret, &client).await), 401);
-        let add = add_member_route(&domain_ir, r#"{"email":"x@example.com","name":"X"}"#, &amy_cookies, secret, &client, Path::new("unused"), &members_config()).await;
+        assert_eq!(
+            status(&accounts_me_route(&domain_ir, &amy_cookies, secret, &client).await),
+            401
+        );
+        assert_eq!(
+            status(&accounts_sso_token_route(&domain_ir, &amy_cookies, secret, &client).await),
+            401
+        );
+        assert_eq!(
+            status(&members_route(&domain_ir, &amy_cookies, secret, &client).await),
+            401
+        );
+        let add = add_member_route(
+            &domain_ir,
+            r#"{"email":"x@example.com","name":"X"}"#,
+            &amy_cookies,
+            secret,
+            &client,
+            Path::new("unused"),
+            &members_config(),
+        )
+        .await;
         assert_eq!(status(&add), 403);
-        assert_eq!(status(&switch_access(&client, &domain_ir, "amy@example.com", "zed@example.com", true).await), 403);
-        assert_eq!(person(&client, &domain_ir, "zed@example.com").await["granted"], true, "a disabled caller changed nothing");
+        assert_eq!(
+            status(
+                &switch_access(
+                    &client,
+                    &domain_ir,
+                    "amy@example.com",
+                    "zed@example.com",
+                    true
+                )
+                .await
+            ),
+            403
+        );
+        assert_eq!(
+            person(&client, &domain_ir, "zed@example.com").await["granted"],
+            true,
+            "a disabled caller changed nothing"
+        );
 
         // Disabling again is a 200 and writes nothing.
         let rows = journal_rows(&client, "amy@example.com").await;
-        assert_eq!(status(&switch_access(&client, &domain_ir, "zed@example.com", "amy@example.com", true).await), 200);
+        assert_eq!(
+            status(
+                &switch_access(
+                    &client,
+                    &domain_ir,
+                    "zed@example.com",
+                    "amy@example.com",
+                    true
+                )
+                .await
+            ),
+            200
+        );
         assert_eq!(journal_rows(&client, "amy@example.com").await, rows);
 
         // Enabling restores exactly the earlier access, and is idempotent too.
-        let response = switch_access(&client, &domain_ir, "zed@example.com", "amy@example.com", false).await;
+        let response = switch_access(
+            &client,
+            &domain_ir,
+            "zed@example.com",
+            "amy@example.com",
+            false,
+        )
+        .await;
         assert_eq!(response["statusCode"], 200, "{response:?}");
         let body: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
         assert_eq!(body, json!({"enabled": "amy@example.com"}));
         let amy = person(&client, &domain_ir, "amy@example.com").await;
-        assert_eq!((amy["role"].as_str(), amy["granted"].clone(), amy["disabled"].clone()), (Some("Admin"), json!(true), json!(false)));
-        assert_eq!(status(&accounts_me_route(&domain_ir, &amy_cookies, secret, &client).await), 200);
+        assert_eq!(
+            (
+                amy["role"].as_str(),
+                amy["granted"].clone(),
+                amy["disabled"].clone()
+            ),
+            (Some("Admin"), json!(true), json!(false))
+        );
+        assert_eq!(
+            status(&accounts_me_route(&domain_ir, &amy_cookies, secret, &client).await),
+            200
+        );
 
         let rows = journal_rows(&client, "amy@example.com").await;
-        assert_eq!(status(&switch_access(&client, &domain_ir, "zed@example.com", "amy@example.com", false).await), 200);
+        assert_eq!(
+            status(
+                &switch_access(
+                    &client,
+                    &domain_ir,
+                    "zed@example.com",
+                    "amy@example.com",
+                    false
+                )
+                .await
+            ),
+            200
+        );
         assert_eq!(journal_rows(&client, "amy@example.com").await, rows);
     }
 
@@ -2770,12 +4219,49 @@ mod tests {
         let (client, domain_ir) = scratch_two_admins("hecks_host_web_test_disable_signin").await;
 
         // zed holds identity id-1 in the seed; a fresh Google sign-in resolves through it.
-        assert!(auth::session_for_member_by_identity(&client, &domain_ir, "id-1").await.unwrap().is_some());
-        let disabled = switch_access(&client, &domain_ir, "amy@example.com", "zed@example.com", true).await;
-        assert_eq!(disabled["statusCode"], 200, "{disabled:?} amy={:?}", person(&client, &domain_ir, "amy@example.com").await);
-        assert!(auth::session_for_member_by_identity(&client, &domain_ir, "id-1").await.unwrap().is_none());
-        assert_eq!(switch_access(&client, &domain_ir, "amy@example.com", "zed@example.com", false).await["statusCode"], 200);
-        assert!(auth::session_for_member_by_identity(&client, &domain_ir, "id-1").await.unwrap().is_some());
+        assert!(
+            auth::session_for_member_by_identity(&client, &domain_ir, "id-1")
+                .await
+                .unwrap()
+                .is_some()
+        );
+        let disabled = switch_access(
+            &client,
+            &domain_ir,
+            "amy@example.com",
+            "zed@example.com",
+            true,
+        )
+        .await;
+        assert_eq!(
+            disabled["statusCode"],
+            200,
+            "{disabled:?} amy={:?}",
+            person(&client, &domain_ir, "amy@example.com").await
+        );
+        assert!(
+            auth::session_for_member_by_identity(&client, &domain_ir, "id-1")
+                .await
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(
+            switch_access(
+                &client,
+                &domain_ir,
+                "amy@example.com",
+                "zed@example.com",
+                false
+            )
+            .await["statusCode"],
+            200
+        );
+        assert!(
+            auth::session_for_member_by_identity(&client, &domain_ir, "id-1")
+                .await
+                .unwrap()
+                .is_some()
+        );
     }
 
     #[tokio::test]
@@ -2784,37 +4270,97 @@ mod tests {
         let config = members_config();
 
         let (a, b) = tokio::join!(
-            auth::set_person_disabled(&client, &config, &domain_ir, "zed@example.com", "amy@example.com", true),
-            auth::set_person_disabled(&client, &config, &domain_ir, "amy@example.com", "zed@example.com", true),
+            auth::set_person_disabled(
+                &client,
+                &config,
+                &domain_ir,
+                "zed@example.com",
+                "amy@example.com",
+                true
+            ),
+            auth::set_person_disabled(
+                &client,
+                &config,
+                &domain_ir,
+                "amy@example.com",
+                "zed@example.com",
+                true
+            ),
         );
         let mut outcomes = [a.unwrap(), b.unwrap()];
         outcomes.sort_by_key(|o| format!("{o:?}"));
-        assert_eq!(outcomes, [auth::DisableOutcome::CallerNotAdmin, auth::DisableOutcome::Done]);
+        assert_eq!(
+            outcomes,
+            [
+                auth::DisableOutcome::CallerNotAdmin,
+                auth::DisableOutcome::Done
+            ]
+        );
 
-        let active = auth::all_people(&client, &domain_ir).await.unwrap().iter().filter(|p| p["role"] == "Admin" && p["granted"] == true).count();
+        let active = auth::all_people(&client, &domain_ir)
+            .await
+            .unwrap()
+            .iter()
+            .filter(|p| p["role"] == "Admin" && p["granted"] == true)
+            .count();
         assert_eq!(active, 1, "there must always be one active admin");
     }
 
     #[tokio::test]
-    async fn registrations_list_route_refuses_anyone_but_an_active_admin_before_reading_any_registration() {
+    async fn registrations_list_route_refuses_anyone_but_an_active_admin_before_reading_any_registration(
+    ) {
         let secret = "s3cret";
-        let (client, domain_ir) = scratch_two_admins("hecks_host_web_test_registrations_list_auth").await;
-        let config = LineageConfig { domain: "Studio".to_string(), era: Some(1), mirrored: None };
+        let (client, domain_ir) =
+            scratch_two_admins("hecks_host_web_test_registrations_list_auth").await;
+        let config = LineageConfig {
+            domain: "Studio".to_string(),
+            era: Some(1),
+            mirrored: None,
+        };
         // The wasm path doesn't exist: every refusal below must come before any registration read.
         let wasm_path = Path::new("does-not-exist.wasm");
 
         let mut tampered = HashMap::new();
-        tampered.insert(auth::account_cookie_name(), "garbage.notasignature".to_string());
+        tampered.insert(
+            auth::account_cookie_name(),
+            "garbage.notasignature".to_string(),
+        );
         for cookies in [HashMap::new(), tampered] {
-            let response = registrations_list_route(&domain_ir, &cookies, secret, &client, wasm_path, &config).await;
+            let response =
+                registrations_list_route(&domain_ir, &cookies, secret, &client, wasm_path, &config)
+                    .await;
             assert_eq!(response["statusCode"], 401, "{response:?}");
-            assert!(response.get("headers").and_then(|h| h.get("location")).is_none(), "never a redirect: {response:?}");
+            assert!(
+                response
+                    .get("headers")
+                    .and_then(|h| h.get("location"))
+                    .is_none(),
+                "never a redirect: {response:?}"
+            );
         }
 
         // amy is a disabled admin now; the stranger was never admitted at all.
-        assert_eq!(switch_access(&client, &domain_ir, "zed@example.com", "amy@example.com", true).await["statusCode"], 200);
+        assert_eq!(
+            switch_access(
+                &client,
+                &domain_ir,
+                "zed@example.com",
+                "amy@example.com",
+                true
+            )
+            .await["statusCode"],
+            200
+        );
         for caller in ["amy@example.com", "stranger@example.com"] {
-            let response = registrations_list_route(&domain_ir, &session_cookies(secret, caller), secret, &client, wasm_path, &config).await;
+            let response = registrations_list_route(
+                &domain_ir,
+                &session_cookies(secret, caller),
+                secret,
+                &client,
+                wasm_path,
+                &config,
+            )
+            .await;
             assert_eq!(response["statusCode"], 403, "{caller}: {response:?}");
             assert_eq!(error_of(&response), "admins only");
         }
@@ -2825,37 +4371,104 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn every_admin_gate_accepts_an_owner_as_well_as_an_admin_and_refuses_a_member_and_anonymous() {
+    async fn every_admin_gate_accepts_an_owner_as_well_as_an_admin_and_refuses_a_member_and_anonymous(
+    ) {
         let secret = "s3cret";
         let (client, domain_ir) = scratch_two_admins("hecks_host_web_test_owner_gates").await;
         let config = members_config();
         // amy becomes Owner (replacing her Admin role), bob is a plain Member.
-        assert!(auth::grant_access(&client, Path::new("unused"), &config, &domain_ir, "amy@example.com", "Owner").await.unwrap());
-        assert!(auth::admit_person(&client, &config, &domain_ir, "bob@example.com", "Bob").await.unwrap());
-        assert!(auth::grant_access(&client, Path::new("unused"), &config, &domain_ir, "bob@example.com", "Member").await.unwrap());
-        let studio = LineageConfig { domain: "Studio".to_string(), era: Some(1), mirrored: None };
+        assert!(auth::grant_access(
+            &client,
+            Path::new("unused"),
+            &config,
+            &domain_ir,
+            "amy@example.com",
+            "Owner"
+        )
+        .await
+        .unwrap());
+        assert!(
+            auth::admit_person(&client, &config, &domain_ir, "bob@example.com", "Bob")
+                .await
+                .unwrap()
+        );
+        assert!(auth::grant_access(
+            &client,
+            Path::new("unused"),
+            &config,
+            &domain_ir,
+            "bob@example.com",
+            "Member"
+        )
+        .await
+        .unwrap());
+        let studio = LineageConfig {
+            domain: "Studio".to_string(),
+            era: Some(1),
+            mirrored: None,
+        };
         // No wasm at all: clearing the admin gate then fails with a 500, never 401/403.
         let missing_wasm = Path::new("does-not-exist.wasm");
 
         // Every gate, as one closure per route: list, add, disable, enable, registrations.
-        for (caller, admits) in [("amy@example.com", true), ("zed@example.com", true), ("bob@example.com", false), ("stranger@example.com", false)] {
+        for (caller, admits) in [
+            ("amy@example.com", true),
+            ("zed@example.com", true),
+            ("bob@example.com", false),
+            ("stranger@example.com", false),
+        ] {
             let cookies = session_cookies(secret, caller);
-            let add = add_member_route(&domain_ir, &json!({"email": "not an email", "name": "N"}).to_string(), &cookies, secret, &client, Path::new("unused"), &config).await;
+            let add = add_member_route(
+                &domain_ir,
+                &json!({"email": "not an email", "name": "N"}).to_string(),
+                &cookies,
+                secret,
+                &client,
+                Path::new("unused"),
+                &config,
+            )
+            .await;
             let add = status_of(add).await;
-            let registrations = status_of(registrations_list_route(&domain_ir, &cookies, secret, &client, missing_wasm, &studio).await).await;
-            let disable = status_of(switch_access(&client, &domain_ir, caller, "bob@example.com", true).await).await;
-            let enable = status_of(switch_access(&client, &domain_ir, caller, "bob@example.com", false).await).await;
+            let registrations = status_of(
+                registrations_list_route(
+                    &domain_ir,
+                    &cookies,
+                    secret,
+                    &client,
+                    missing_wasm,
+                    &studio,
+                )
+                .await,
+            )
+            .await;
+            let disable = status_of(
+                switch_access(&client, &domain_ir, caller, "bob@example.com", true).await,
+            )
+            .await;
+            let enable = status_of(
+                switch_access(&client, &domain_ir, caller, "bob@example.com", false).await,
+            )
+            .await;
             if admits {
                 // The email is deliberately malformed: the gate passed, validation refused it.
                 assert_eq!(add, 400, "{caller} passes the add gate");
                 assert_eq!(registrations, 500, "{caller} passes the registrations gate");
-                assert_eq!((disable, enable), (200, 200), "{caller} passes disable and enable");
+                assert_eq!(
+                    (disable, enable),
+                    (200, 200),
+                    "{caller} passes disable and enable"
+                );
             } else {
-                assert_eq!((add, registrations, disable, enable), (403, 403, 403, 403), "{caller} is refused everywhere");
+                assert_eq!(
+                    (add, registrations, disable, enable),
+                    (403, 403, 403, 403),
+                    "{caller} is refused everywhere"
+                );
             }
             // Listing is an admin gate too: it carries every person's email and role, so an
             // Admin or Owner lists, a Member is refused, and a stranger has no session at all.
-            let listing = status_of(members_route(&domain_ir, &cookies, secret, &client).await).await;
+            let listing =
+                status_of(members_route(&domain_ir, &cookies, secret, &client).await).await;
             let expected = match caller {
                 "stranger@example.com" => 401,
                 _ if admits => 200,
@@ -2866,10 +4479,50 @@ mod tests {
 
         // Anonymous: 401 on every route, before any role is looked at.
         let none = HashMap::new();
-        assert_eq!(status_of(add_member_route(&domain_ir, "{}", &none, secret, &client, Path::new("unused"), &config).await).await, 401);
-        assert_eq!(status_of(members_route(&domain_ir, &none, secret, &client).await).await, 401);
-        assert_eq!(status_of(registrations_list_route(&domain_ir, &none, secret, &client, missing_wasm, &studio).await).await, 401);
-        assert_eq!(status_of(set_member_disabled_route(&domain_ir, r#"{"email":"bob@example.com"}"#, &none, secret, &client, &config, true).await).await, 401);
+        assert_eq!(
+            status_of(
+                add_member_route(
+                    &domain_ir,
+                    "{}",
+                    &none,
+                    secret,
+                    &client,
+                    Path::new("unused"),
+                    &config
+                )
+                .await
+            )
+            .await,
+            401
+        );
+        assert_eq!(
+            status_of(members_route(&domain_ir, &none, secret, &client).await).await,
+            401
+        );
+        assert_eq!(
+            status_of(
+                registrations_list_route(&domain_ir, &none, secret, &client, missing_wasm, &studio)
+                    .await
+            )
+            .await,
+            401
+        );
+        assert_eq!(
+            status_of(
+                set_member_disabled_route(
+                    &domain_ir,
+                    r#"{"email":"bob@example.com"}"#,
+                    &none,
+                    secret,
+                    &client,
+                    &config,
+                    true
+                )
+                .await
+            )
+            .await,
+            401
+        );
     }
 
     #[tokio::test]
@@ -2879,38 +4532,107 @@ mod tests {
         let config = members_config();
 
         let body = r#"{"email": "boss@example.com", "name": "Boss", "role": "Owner"}"#;
-        let response = add_member_route(&domain_ir, body, &session_cookies(secret, "zed@example.com"), secret, &client, Path::new("unused"), &config).await;
+        let response = add_member_route(
+            &domain_ir,
+            body,
+            &session_cookies(secret, "zed@example.com"),
+            secret,
+            &client,
+            Path::new("unused"),
+            &config,
+        )
+        .await;
         assert_eq!(response["statusCode"], 201, "{response:?}");
         let created: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
         assert_eq!(created["role"], "Owner");
-        assert_eq!(person(&client, &domain_ir, "boss@example.com").await["role"], "Owner");
+        assert_eq!(
+            person(&client, &domain_ir, "boss@example.com").await["role"],
+            "Owner"
+        );
 
         // The Owner isn't locked out: lists, admits, disables and enables.
         let boss = session_cookies(secret, "boss@example.com");
-        assert_eq!(status_of(members_route(&domain_ir, &boss, secret, &client).await).await, 200);
-        for (email, role) in [("second@example.com", "Owner"), ("plain@example.com", "Member")] {
+        assert_eq!(
+            status_of(members_route(&domain_ir, &boss, secret, &client).await).await,
+            200
+        );
+        for (email, role) in [
+            ("second@example.com", "Owner"),
+            ("plain@example.com", "Member"),
+        ] {
             let body = json!({"email": email, "name": "X", "role": role}).to_string();
-            let response = add_member_route(&domain_ir, &body, &boss, secret, &client, Path::new("unused"), &config).await;
+            let response = add_member_route(
+                &domain_ir,
+                &body,
+                &boss,
+                secret,
+                &client,
+                Path::new("unused"),
+                &config,
+            )
+            .await;
             assert_eq!(response["statusCode"], 201, "{response:?}");
             assert_eq!(person(&client, &domain_ir, email).await["role"], role);
         }
-        assert_eq!(switch_access(&client, &domain_ir, "boss@example.com", "zed@example.com", true).await["statusCode"], 200);
-        assert_eq!(switch_access(&client, &domain_ir, "boss@example.com", "zed@example.com", false).await["statusCode"], 200);
+        assert_eq!(
+            switch_access(
+                &client,
+                &domain_ir,
+                "boss@example.com",
+                "zed@example.com",
+                true
+            )
+            .await["statusCode"],
+            200
+        );
+        assert_eq!(
+            switch_access(
+                &client,
+                &domain_ir,
+                "boss@example.com",
+                "zed@example.com",
+                false
+            )
+            .await["statusCode"],
+            200
+        );
 
         // A person granted only Member cannot grant anything, Owner included.
-        let response = add_member_route(&domain_ir, r#"{"email": "x@example.com", "name": "X", "role": "Owner"}"#, &session_cookies(secret, "plain@example.com"), secret, &client, Path::new("unused"), &config).await;
+        let response = add_member_route(
+            &domain_ir,
+            r#"{"email": "x@example.com", "name": "X", "role": "Owner"}"#,
+            &session_cookies(secret, "plain@example.com"),
+            secret,
+            &client,
+            Path::new("unused"),
+            &config,
+        )
+        .await;
         assert_eq!(response["statusCode"], 403, "{response:?}");
     }
 
     #[tokio::test]
     async fn the_add_route_refuses_an_unknown_role_and_writes_nothing() {
         let secret = "s3cret";
-        let (client, domain_ir) = scratch_members_db("hecks_host_web_test_grant_unknown_role").await;
+        let (client, domain_ir) =
+            scratch_members_db("hecks_host_web_test_grant_unknown_role").await;
         for role in [json!("Root"), json!("admin"), json!(""), json!(7)] {
             let body = json!({"email": "new@example.com", "name": "New", "role": role}).to_string();
-            let response = add_member_route(&domain_ir, &body, &session_cookies(secret, "zed@example.com"), secret, &client, Path::new("unused"), &members_config()).await;
+            let response = add_member_route(
+                &domain_ir,
+                &body,
+                &session_cookies(secret, "zed@example.com"),
+                secret,
+                &client,
+                Path::new("unused"),
+                &members_config(),
+            )
+            .await;
             assert_eq!(response["statusCode"], 400, "{role}: {response:?}");
-            assert_eq!(error_of(&response), "role must be one of Admin, Owner, Member");
+            assert_eq!(
+                error_of(&response),
+                "role must be one of Admin, Owner, Member"
+            );
         }
         assert_eq!(journal_rows(&client, "new@example.com").await, 0);
     }
@@ -2918,12 +4640,17 @@ mod tests {
     #[test]
     fn the_admin_gate_role_set_is_exactly_admin_and_owner() {
         assert!(auth::is_admin_role("Admin") && auth::is_admin_role("Owner"));
-        assert!(!auth::is_admin_role("Member") && !auth::is_admin_role("owner") && !auth::is_admin_role(""));
+        assert!(
+            !auth::is_admin_role("Member")
+                && !auth::is_admin_role("owner")
+                && !auth::is_admin_role("")
+        );
         assert_eq!(auth::GRANTABLE_ROLES, ["Admin", "Owner", "Member"]);
     }
 
     #[test]
-    fn registration_list_rows_have_exactly_the_admin_list_shape_and_never_carry_health_or_payment_fields() {
+    fn registration_list_rows_have_exactly_the_admin_list_shape_and_never_carry_health_or_payment_fields(
+    ) {
         let read = json!({"instances": {
             "Studio::Registration#reg-old": {
                 "event_slug": "yoga-aug",
@@ -2952,8 +4679,21 @@ mod tests {
         );
 
         let body = Value::Array(rows).to_string();
-        for leaked in ["SECRET-MEDICATION", "SECRET-CONCERN", "medications", "health_concerns", "555-0100", "12345", "9900", "succeeded", "amount"] {
-            assert!(!body.contains(leaked), "{leaked:?} leaked into the registration list: {body}");
+        for leaked in [
+            "SECRET-MEDICATION",
+            "SECRET-CONCERN",
+            "medications",
+            "health_concerns",
+            "555-0100",
+            "12345",
+            "9900",
+            "succeeded",
+            "amount",
+        ] {
+            assert!(
+                !body.contains(leaked),
+                "{leaked:?} leaked into the registration list: {body}"
+            );
         }
     }
 
@@ -2964,9 +4704,18 @@ mod tests {
             "Studio::Registration#without": {"event_slug": "e", "attendee": {"name": "No Status", "email": "without@example.com"}},
         }});
         let rows = registration_list_rows(&read, "Studio");
-        let by_id = |id: &str| rows.iter().find(|row| row["registration_id"] == id).unwrap().clone();
+        let by_id = |id: &str| {
+            rows.iter()
+                .find(|row| row["registration_id"] == id)
+                .unwrap()
+                .clone()
+        };
         assert_eq!(by_id("with")["status"], "archived");
-        assert!(by_id("without").get("status").is_none(), "no status key at all when the registration carries none: {:?}", by_id("without"));
+        assert!(
+            by_id("without").get("status").is_none(),
+            "no status key at all when the registration carries none: {:?}",
+            by_id("without")
+        );
         assert_eq!(
             by_id("without"),
             json!({"registration_id": "without", "email": "without@example.com", "name": "No Status", "event_slug": "e", "news_signup": false})
@@ -2974,27 +4723,50 @@ mod tests {
     }
 
     #[test]
-    fn registration_list_rows_keep_read_order_without_timestamps_and_are_empty_with_no_registrations() {
+    fn registration_list_rows_keep_read_order_without_timestamps_and_are_empty_with_no_registrations(
+    ) {
         let read = json!({"instances": {
             "Studio::Registration#a": {"event_slug": "e", "attendee": {"name": "Flat Name", "email": "flat@example.com"}},
         }});
         let rows = registration_list_rows(&read, "Studio");
         assert_eq!(rows.len(), 1);
-        assert_eq!(rows[0]["name"], "Flat Name", "falls back to a flat name when there is no first and last name");
+        assert_eq!(
+            rows[0]["name"], "Flat Name",
+            "falls back to a flat name when there is no first and last name"
+        );
 
-        assert_eq!(registration_list_rows(&json!({"instances": {}}), "Studio"), Vec::<Value>::new());
-        assert_eq!(registration_list_rows(&json!({}), "Studio"), Vec::<Value>::new());
+        assert_eq!(
+            registration_list_rows(&json!({"instances": {}}), "Studio"),
+            Vec::<Value>::new()
+        );
+        assert_eq!(
+            registration_list_rows(&json!({}), "Studio"),
+            Vec::<Value>::new()
+        );
         let other_domain = json!({"instances": {"Elsewhere::Registration#x": {"attendee": {"email": "x@example.com"}}}});
-        assert!(registration_list_rows(&other_domain, "Studio").is_empty(), "another domain's registrations are not listed");
+        assert!(
+            registration_list_rows(&other_domain, "Studio").is_empty(),
+            "another domain's registrations are not listed"
+        );
     }
 
     #[test]
     fn sorted_by_name_orders_case_insensitively_and_puts_a_missing_name_first() {
-        let people = vec![json!({"name": "bob"}), json!({"name": "Ada"}), json!({"name": null}), json!({"name": "Cy"})];
-        let names: Vec<Value> = sorted_by_name(people).into_iter().map(|p| p["name"].clone()).collect();
-        assert_eq!(names, [json!(null), json!("Ada"), json!("bob"), json!("Cy")]);
+        let people = vec![
+            json!({"name": "bob"}),
+            json!({"name": "Ada"}),
+            json!({"name": null}),
+            json!({"name": "Cy"}),
+        ];
+        let names: Vec<Value> = sorted_by_name(people)
+            .into_iter()
+            .map(|p| p["name"].clone())
+            .collect();
+        assert_eq!(
+            names,
+            [json!(null), json!("Ada"), json!("bob"), json!("Cy")]
+        );
     }
-
 }
 
 #[cfg(test)]
@@ -3006,10 +4778,22 @@ mod cookie_flag_tests {
 
     #[test]
     fn a_host_that_sets_the_redirect_uri_is_judged_by_it_as_before() {
-        assert_eq!(account_cookie_flags("https://site.example/auth/google/callback", ""), SECURE);
-        assert_eq!(account_cookie_flags("http://localhost:4567/auth/google/callback", ""), PLAIN);
-        assert_eq!(account_cookie_flags("https://site.example/cb", "http://localhost:4321"), SECURE);
-        assert_eq!(account_cookie_flags("http://localhost:4567/cb", "https://site.example"), PLAIN);
+        assert_eq!(
+            account_cookie_flags("https://site.example/auth/google/callback", ""),
+            SECURE
+        );
+        assert_eq!(
+            account_cookie_flags("http://localhost:4567/auth/google/callback", ""),
+            PLAIN
+        );
+        assert_eq!(
+            account_cookie_flags("https://site.example/cb", "http://localhost:4321"),
+            SECURE
+        );
+        assert_eq!(
+            account_cookie_flags("http://localhost:4567/cb", "https://site.example"),
+            PLAIN
+        );
     }
 
     #[test]

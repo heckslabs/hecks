@@ -65,7 +65,8 @@ impl Exemplar {
             .collect();
         paths.sort();
         for path in paths {
-            let text = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("Exemplar: cannot read {}: {e}", path.display()));
+            let text = std::fs::read_to_string(&path)
+                .unwrap_or_else(|e| panic!("Exemplar: cannot read {}: {e}", path.display()));
             parse_file(&path, &text, &mut shapes);
         }
         Self { shapes }
@@ -85,13 +86,27 @@ impl Exemplar {
         text
     }
 
-    pub fn render_each(&self, shape_id: &str, subs_list: &[Vec<(&str, String)>], join_with: &str) -> String {
-        subs_list.iter().map(|subs| self.render(shape_id, subs)).collect::<Vec<_>>().join(join_with)
+    pub fn render_each(
+        &self,
+        shape_id: &str,
+        subs_list: &[Vec<(&str, String)>],
+        join_with: &str,
+    ) -> String {
+        subs_list
+            .iter()
+            .map(|subs| self.render(shape_id, subs))
+            .collect::<Vec<_>>()
+            .join(join_with)
     }
 
     /// Fills nested slots (reindented to the slot's position) before the outer substitutions,
     /// so an outer marker cannot match text from a rendered slot.
-    pub fn assemble(&self, outer_id: &str, outer_subs: &[(&str, String)], slots: &[(&str, String)]) -> String {
+    pub fn assemble(
+        &self,
+        outer_id: &str,
+        outer_subs: &[(&str, String)],
+        slots: &[(&str, String)],
+    ) -> String {
         let mut outer_text = self.raw(outer_id).to_string();
 
         for (field_id, content) in slots {
@@ -103,10 +118,21 @@ impl Exemplar {
             });
             let reindented: String = content
                 .lines()
-                .map(|l| if l.trim().is_empty() { l.to_string() } else { format!("{indent}{l}") })
+                .map(|l| {
+                    if l.trim().is_empty() {
+                        l.to_string()
+                    } else {
+                        format!("{indent}{l}")
+                    }
+                })
                 .collect::<Vec<_>>()
                 .join("\n");
-            outer_text = format!("{}{}{}", &outer_text[..line_start], reindented, &outer_text[line_end..]);
+            outer_text = format!(
+                "{}{}{}",
+                &outer_text[..line_start],
+                reindented,
+                &outer_text[line_end..]
+            );
         }
 
         render_subs(outer_id, "assemble", &mut outer_text, outer_subs);
@@ -114,7 +140,14 @@ impl Exemplar {
     }
 
     /// Renders `field_id` once per entry of `field_subs_list` and assembles it into `outer_id`.
-    pub fn compose(&self, outer_id: &str, outer_subs: &[(&str, String)], field_id: &str, field_subs_list: &[Vec<(&str, String)>], join_with: &str) -> String {
+    pub fn compose(
+        &self,
+        outer_id: &str,
+        outer_subs: &[(&str, String)],
+        field_id: &str,
+        field_subs_list: &[Vec<(&str, String)>],
+        join_with: &str,
+    ) -> String {
         let content = self.render_each(field_id, field_subs_list, join_with);
         self.assemble(outer_id, outer_subs, &[(field_id, content)])
     }
@@ -191,7 +224,13 @@ fn dedent(lines: &[String]) -> String {
         .unwrap_or(0);
     let joined: String = lines
         .iter()
-        .map(|l| if l.is_empty() { l.clone() } else { l.chars().skip(margin).collect::<String>() })
+        .map(|l| {
+            if l.is_empty() {
+                l.clone()
+            } else {
+                l.chars().skip(margin).collect::<String>()
+            }
+        })
         .collect::<Vec<_>>()
         .join("");
     joined.trim_end().to_string()
@@ -203,7 +242,10 @@ fn parse_file(path: &std::path::Path, text: &str, result: &mut HashMap<String, S
     for raw_line in text.split_inclusive('\n') {
         let line = raw_line;
         if let Some(id) = begin_marker(line) {
-            let indent: String = line.chars().take_while(|c| *c == ' ' || *c == '\t').collect();
+            let indent: String = line
+                .chars()
+                .take_while(|c| *c == ' ' || *c == '\t')
+                .collect();
             stack.push((id.to_string(), Vec::new(), indent));
         } else if let Some(id) = end_marker(line) {
             let top = stack.last().map(|(top_id, _, _)| top_id.as_str());
@@ -225,6 +267,10 @@ fn parse_file(path: &std::path::Path, text: &str, result: &mut HashMap<String, S
         }
     }
     if !stack.is_empty() {
-        panic!("{}: unclosed TMPL region(s): {:?}", path.display(), stack.iter().map(|(i, _, _)| i.clone()).collect::<Vec<_>>());
+        panic!(
+            "{}: unclosed TMPL region(s): {:?}",
+            path.display(),
+            stack.iter().map(|(i, _, _)| i.clone()).collect::<Vec<_>>()
+        );
     }
 }

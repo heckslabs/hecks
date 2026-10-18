@@ -59,10 +59,13 @@ pub fn apply(
 
 // `sort_by` is stable, so the id order from `apply` survives ties without an index tie-break.
 fn apply_declared_order(rows: Vec<(String, Json)>, order_by: &OrderBy) -> Vec<(String, Json)> {
-    let (mut null_rows, mut valued_rows): (Vec<(String, Json)>, Vec<(String, Json)>) =
-        rows.into_iter().partition(|(_, record)| order_key(record, order_by.field) == Json::Null);
+    let (mut null_rows, mut valued_rows): (Vec<(String, Json)>, Vec<(String, Json)>) = rows
+        .into_iter()
+        .partition(|(_, record)| order_key(record, order_by.field) == Json::Null);
 
-    valued_rows.sort_by(|(_, a), (_, b)| compare_comparable(&order_key(a, order_by.field), &order_key(b, order_by.field)));
+    valued_rows.sort_by(|(_, a), (_, b)| {
+        compare_comparable(&order_key(a, order_by.field), &order_key(b, order_by.field))
+    });
 
     if order_by.descending {
         valued_rows.reverse();
@@ -72,7 +75,9 @@ fn apply_declared_order(rows: Vec<(String, Json)>, order_by: &OrderBy) -> Vec<(S
     match order_by.nulls {
         NullsMode::First => null_rows.into_iter().chain(valued_rows).collect(),
         NullsMode::Last => valued_rows.into_iter().chain(null_rows).collect(),
-        NullsMode::Native if !order_by.descending => null_rows.into_iter().chain(valued_rows).collect(),
+        NullsMode::Native if !order_by.descending => {
+            null_rows.into_iter().chain(valued_rows).collect()
+        }
         NullsMode::Native => valued_rows.into_iter().chain(null_rows).collect(),
     }
 }

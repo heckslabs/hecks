@@ -9,7 +9,16 @@ use crate::fuzz_support::*;
 const SECRET: &str = "fuzz-secret";
 
 fn session(rng: &mut Rng) -> Session {
-    Session { identity_id: random_text(rng), email: random_text(rng), name: random_text(rng), role: if rng.chance(2) { Some(random_text(rng)) } else { None } }
+    Session {
+        identity_id: random_text(rng),
+        email: random_text(rng),
+        name: random_text(rng),
+        role: if rng.chance(2) {
+            Some(random_text(rng))
+        } else {
+            None
+        },
+    }
 }
 
 #[test]
@@ -20,9 +29,23 @@ fn a_signed_cookie_reads_back_as_the_session_it_was_made_from() {
             for _ in 0..30 {
                 let original = session(&mut rng);
                 let cookie = session_cookie(SECRET, &original);
-                let read = parse_session_cookie(SECRET, &cookie).unwrap_or_else(|| panic!("seed {seed}: own cookie for {:?} refused", original.email));
-                assert_eq!((read.identity_id, read.email, read.name, read.role), (original.identity_id, original.email, original.name, original.role), "seed {seed}");
-                assert!(parse_session_cookie("another-secret", &cookie).is_none(), "seed {seed}: a different secret verified the cookie");
+                let read = parse_session_cookie(SECRET, &cookie).unwrap_or_else(|| {
+                    panic!("seed {seed}: own cookie for {:?} refused", original.email)
+                });
+                assert_eq!(
+                    (read.identity_id, read.email, read.name, read.role),
+                    (
+                        original.identity_id,
+                        original.email,
+                        original.name,
+                        original.role
+                    ),
+                    "seed {seed}"
+                );
+                assert!(
+                    parse_session_cookie("another-secret", &cookie).is_none(),
+                    "seed {seed}: a different secret verified the cookie"
+                );
             }
         });
     }
@@ -35,7 +58,8 @@ fn no_arbitrary_or_tampered_token_ever_verifies() {
             let mut rng = Rng::new(seed ^ 0x70C);
             let genuine_cookie = session_cookie(SECRET, &session(&mut rng));
             let genuine_account = account_token(SECRET, &random_text(&mut rng), 60);
-            let genuine_purpose = purpose_token(SECRET, "reset", json!({"email": random_text(&mut rng)}), 60);
+            let genuine_purpose =
+                purpose_token(SECRET, "reset", json!({"email": random_text(&mut rng)}), 60);
             for _ in 0..40 {
                 let junk = match rng.below(4) {
                     0 => random_text(&mut rng),
@@ -43,18 +67,40 @@ fn no_arbitrary_or_tampered_token_ever_verifies() {
                     2 => ".".repeat(rng.below(4)),
                     _ => String::from_utf8_lossy(&random_bytes(&mut rng)).into_owned(),
                 };
-                assert!(parse_session_cookie(SECRET, &junk).is_none(), "seed {seed}: {junk:?} read as a session");
-                assert!(verify_account_token(SECRET, &junk).is_none(), "seed {seed}: {junk:?} read as an account token");
-                assert!(verify_purpose_token(SECRET, "reset", &junk).is_none(), "seed {seed}: {junk:?} read as a purpose token");
+                assert!(
+                    parse_session_cookie(SECRET, &junk).is_none(),
+                    "seed {seed}: {junk:?} read as a session"
+                );
+                assert!(
+                    verify_account_token(SECRET, &junk).is_none(),
+                    "seed {seed}: {junk:?} read as an account token"
+                );
+                assert!(
+                    verify_purpose_token(SECRET, "reset", &junk).is_none(),
+                    "seed {seed}: {junk:?} read as a purpose token"
+                );
 
                 for (genuine, verifies) in [
-                    (&genuine_cookie, (|t: &str| parse_session_cookie(SECRET, t).is_some()) as fn(&str) -> bool),
-                    (&genuine_account, |t: &str| verify_account_token(SECRET, t).is_some()),
-                    (&genuine_purpose, |t: &str| verify_purpose_token(SECRET, "reset", t).is_some()),
+                    (
+                        &genuine_cookie,
+                        (|t: &str| parse_session_cookie(SECRET, t).is_some()) as fn(&str) -> bool,
+                    ),
+                    (&genuine_account, |t: &str| {
+                        verify_account_token(SECRET, t).is_some()
+                    }),
+                    (&genuine_purpose, |t: &str| {
+                        verify_purpose_token(SECRET, "reset", t).is_some()
+                    }),
                 ] {
-                    assert!(verifies(genuine), "seed {seed}: the untampered token must verify");
+                    assert!(
+                        verifies(genuine),
+                        "seed {seed}: the untampered token must verify"
+                    );
                     let tampered = mutate_text(&mut rng, genuine);
-                    assert!(tampered == *genuine || !verifies(&tampered), "seed {seed}: tampered token {tampered:?} verified");
+                    assert!(
+                        tampered == *genuine || !verifies(&tampered),
+                        "seed {seed}: tampered token {tampered:?} verified"
+                    );
                 }
             }
         });
@@ -65,8 +111,18 @@ fn no_arbitrary_or_tampered_token_ever_verifies() {
 fn a_token_for_one_purpose_never_verifies_for_another_or_as_an_account_token() {
     let token = purpose_token(SECRET, "reset", json!({"email": "a@example.com"}), 60);
     assert!(verify_purpose_token(SECRET, "reset", &token).is_some());
-    for other in ["", "RESET", "reset ", "reset:", "invite", "reset:fuzz-secret"] {
-        assert!(verify_purpose_token(SECRET, other, &token).is_none(), "purpose {other:?}");
+    for other in [
+        "",
+        "RESET",
+        "reset ",
+        "reset:",
+        "invite",
+        "reset:fuzz-secret",
+    ] {
+        assert!(
+            verify_purpose_token(SECRET, other, &token).is_none(),
+            "purpose {other:?}"
+        );
     }
     assert!(verify_account_token(SECRET, &token).is_none());
     assert!(parse_session_cookie(SECRET, &token).is_none());
@@ -79,16 +135,41 @@ fn an_expired_or_unexpiring_signed_payload_is_not_a_session() {
         format!("{encoded}.{}", sign(SECRET, &encoded))
     };
     let person = json!({"identity_id": "i", "email": "e", "name": "n"});
-    for exp in [json!(0), json!(1), json!(-1), json!(1.5), json!("9999999999"), json!(null), json!(u64::MAX)] {
+    for exp in [
+        json!(0),
+        json!(1),
+        json!(-1),
+        json!(1.5),
+        json!("9999999999"),
+        json!(null),
+        json!(u64::MAX),
+    ] {
         let mut payload = person.clone();
         payload["exp"] = exp.clone();
         let verdict = parse_session_cookie(SECRET, &sign_payload(payload)).is_some();
         assert_eq!(verdict, exp == json!(u64::MAX), "exp {exp}");
     }
-    assert!(parse_session_cookie(SECRET, &sign_payload(person)).is_none(), "no exp is no session");
-    for payload in [json!([]), json!(1), json!("s"), json!(null), json!({"exp": u64::MAX}), json!({"exp": u64::MAX, "identity_id": 1, "email": "e", "name": "n"})] {
-        assert!(parse_session_cookie(SECRET, &sign_payload(payload.clone())).is_none(), "{payload}");
-        assert!(verify_account_token(SECRET, &sign_payload(payload.clone())).is_none() || payload.get("email").is_some(), "{payload}");
+    assert!(
+        parse_session_cookie(SECRET, &sign_payload(person)).is_none(),
+        "no exp is no session"
+    );
+    for payload in [
+        json!([]),
+        json!(1),
+        json!("s"),
+        json!(null),
+        json!({"exp": u64::MAX}),
+        json!({"exp": u64::MAX, "identity_id": 1, "email": "e", "name": "n"}),
+    ] {
+        assert!(
+            parse_session_cookie(SECRET, &sign_payload(payload.clone())).is_none(),
+            "{payload}"
+        );
+        assert!(
+            verify_account_token(SECRET, &sign_payload(payload.clone())).is_none()
+                || payload.get("email").is_some(),
+            "{payload}"
+        );
     }
 }
 

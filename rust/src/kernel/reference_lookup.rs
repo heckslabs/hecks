@@ -25,7 +25,11 @@ pub trait ReferenceLookup {
 }
 
 fn specs_for(table: ReferenceTable, target: &str) -> &'static [ReferenceSpec] {
-    table.iter().find(|(name, _)| *name == target).map(|(_, specs)| *specs).unwrap_or(&[])
+    table
+        .iter()
+        .find(|(name, _)| *name == target)
+        .map(|(_, specs)| *specs)
+        .unwrap_or(&[])
 }
 
 /// A fetched record plus its dereferenced nested references.
@@ -53,7 +57,13 @@ impl Fielded for DerefNode {
     }
 }
 
-fn deref_layer(lookup: &dyn ReferenceLookup, table: ReferenceTable, specs: &'static [ReferenceSpec], source: &dyn Fielded, depth: usize) -> Vec<(&'static str, DerefNode)> {
+fn deref_layer(
+    lookup: &dyn ReferenceLookup,
+    table: ReferenceTable,
+    specs: &'static [ReferenceSpec],
+    source: &dyn Fielded,
+    depth: usize,
+) -> Vec<(&'static str, DerefNode)> {
     if depth == 0 {
         return Vec::new();
     }
@@ -61,34 +71,75 @@ fn deref_layer(lookup: &dyn ReferenceLookup, table: ReferenceTable, specs: &'sta
     specs
         .iter()
         .filter_map(|spec| {
-            let Some(Field::Value(Value::Str(id))) = source.field(spec.field) else { return None };
+            let Some(Field::Value(Value::Str(id))) = source.field(spec.field) else {
+                return None;
+            };
             // Absent or dangling ids are skipped, not refused: direct ones were already checked.
             if id.is_empty() {
                 return None;
             }
 
             let base = lookup.find_fielded(spec.target, &id)?;
-            let nested = deref_layer(lookup, table, specs_for(table, spec.target), base.as_ref(), depth - 1);
+            let nested = deref_layer(
+                lookup,
+                table,
+                specs_for(table, spec.target),
+                base.as_ref(),
+                depth - 1,
+            );
             Some((spec.as_name, DerefNode { id, base, nested }))
         })
         .collect()
 }
 
 /// Dereferences an aggregate/entity's stored reference fields, spread across top-level names.
-pub fn owner_deref(lookup: &dyn ReferenceLookup, table: ReferenceTable, target: &'static str, id: &str) -> Vec<(&'static str, DerefNode)> {
-    let Some(base) = lookup.find_fielded(target, id) else { return Vec::new() };
-    deref_layer(lookup, table, specs_for(table, target), base.as_ref(), DEREFERENCE_DEPTH)
+pub fn owner_deref(
+    lookup: &dyn ReferenceLookup,
+    table: ReferenceTable,
+    target: &'static str,
+    id: &str,
+) -> Vec<(&'static str, DerefNode)> {
+    let Some(base) = lookup.find_fielded(target, id) else {
+        return Vec::new();
+    };
+    deref_layer(
+        lookup,
+        table,
+        specs_for(table, target),
+        base.as_ref(),
+        DEREFERENCE_DEPTH,
+    )
 }
 
 /// Wraps an entity command's parent aggregate as one dereferenced node.
-pub fn parent_deref(lookup: &dyn ReferenceLookup, table: ReferenceTable, target: &'static str, id: &str) -> Option<DerefNode> {
+pub fn parent_deref(
+    lookup: &dyn ReferenceLookup,
+    table: ReferenceTable,
+    target: &'static str,
+    id: &str,
+) -> Option<DerefNode> {
     let base = lookup.find_fielded(target, id)?;
-    let nested = deref_layer(lookup, table, specs_for(table, target), base.as_ref(), DEREFERENCE_DEPTH);
-    Some(DerefNode { id: id.to_string(), base, nested })
+    let nested = deref_layer(
+        lookup,
+        table,
+        specs_for(table, target),
+        base.as_ref(),
+        DEREFERENCE_DEPTH,
+    );
+    Some(DerefNode {
+        id: id.to_string(),
+        base,
+        nested,
+    })
 }
 
 /// Dereferences a command's reference-typed arguments.
-pub fn command_deref(lookup: &dyn ReferenceLookup, table: ReferenceTable, specs: &'static [ReferenceSpec], args: &dyn Fielded) -> Vec<(&'static str, DerefNode)> {
+pub fn command_deref(
+    lookup: &dyn ReferenceLookup,
+    table: ReferenceTable,
+    specs: &'static [ReferenceSpec],
+    args: &dyn Fielded,
+) -> Vec<(&'static str, DerefNode)> {
     deref_layer(lookup, table, specs, args, DEREFERENCE_DEPTH)
 }
 
@@ -128,7 +179,10 @@ pub struct ProjectedFieldSpec {
 /// Reads each projected field off the already-dereferenced references. A scalar is copied as its
 /// own type (`Int`, `Float`, `Bool`, `Str`); a single-field value object is copied as its one
 /// scalar, as Ruby's `RebuildSweep.remote_value` does.
-pub fn seeded_projections(with_references: &dyn Fielded, specs: &'static [ProjectedFieldSpec]) -> Vec<(&'static str, Option<Value>)> {
+pub fn seeded_projections(
+    with_references: &dyn Fielded,
+    specs: &'static [ProjectedFieldSpec],
+) -> Vec<(&'static str, Option<Value>)> {
     specs
         .iter()
         .map(|spec| {
@@ -147,7 +201,11 @@ pub fn seeded_projections(with_references: &dyn Fielded, specs: &'static [Projec
 
 // Only a scalar is a projected value; a list length, an array or a nil is not.
 fn projectable(value: Value) -> Option<Value> {
-    matches!(value, Value::Str(_) | Value::Int(_) | Value::Float(_) | Value::Bool(_)).then_some(value)
+    matches!(
+        value,
+        Value::Str(_) | Value::Int(_) | Value::Float(_) | Value::Bool(_)
+    )
+    .then_some(value)
 }
 
 /// Write side of `projects`: one generated match arm per projected field, narrowing the copied
@@ -196,16 +254,47 @@ mod projection_tests {
     }
 
     static SPECS: &[ProjectedFieldSpec] = &[
-        ProjectedFieldSpec { field: "starts_at", reference: "event", remote_field: "starts_at" },
-        ProjectedFieldSpec { field: "capacity", reference: "event", remote_field: "capacity" },
-        ProjectedFieldSpec { field: "ratio", reference: "event", remote_field: "ratio" },
-        ProjectedFieldSpec { field: "open", reference: "event", remote_field: "open" },
-        ProjectedFieldSpec { field: "title", reference: "event", remote_field: "title" },
-        ProjectedFieldSpec { field: "missing", reference: "event", remote_field: "nope" },
+        ProjectedFieldSpec {
+            field: "starts_at",
+            reference: "event",
+            remote_field: "starts_at",
+        },
+        ProjectedFieldSpec {
+            field: "capacity",
+            reference: "event",
+            remote_field: "capacity",
+        },
+        ProjectedFieldSpec {
+            field: "ratio",
+            reference: "event",
+            remote_field: "ratio",
+        },
+        ProjectedFieldSpec {
+            field: "open",
+            reference: "event",
+            remote_field: "open",
+        },
+        ProjectedFieldSpec {
+            field: "title",
+            reference: "event",
+            remote_field: "title",
+        },
+        ProjectedFieldSpec {
+            field: "missing",
+            reference: "event",
+            remote_field: "nope",
+        },
     ];
 
     fn seeded() -> Vec<(&'static str, Option<Value>)> {
-        seeded_projections(&Booking { event: Event { starts_at: StartsAt(100) } }, SPECS)
+        seeded_projections(
+            &Booking {
+                event: Event {
+                    starts_at: StartsAt(100),
+                },
+            },
+            SPECS,
+        )
     }
 
     #[test]
@@ -216,7 +305,12 @@ mod projection_tests {
     #[test]
     fn each_scalar_type_is_copied_as_its_own_type() {
         let values: Vec<Option<Value>> = seeded()[1..5].iter().map(|(_, v)| v.clone()).collect();
-        let expected = vec![Some(Value::Int(40)), Some(Value::Float(0.5)), Some(Value::Bool(true)), Some(Value::Str("Gala".to_string()))];
+        let expected = vec![
+            Some(Value::Int(40)),
+            Some(Value::Float(0.5)),
+            Some(Value::Bool(true)),
+            Some(Value::Str("Gala".to_string())),
+        ];
         assert_eq!(values, expected);
     }
 
@@ -227,6 +321,9 @@ mod projection_tests {
 
     #[test]
     fn a_reader_refuses_a_value_of_another_type() {
-        assert_eq!((Value::Int(7).into_i64(), Value::Int(7).into_string()), (Some(7), None));
+        assert_eq!(
+            (Value::Int(7).into_i64(), Value::Int(7).into_string()),
+            (Some(7), None)
+        );
     }
 }

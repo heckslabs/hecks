@@ -1,10 +1,12 @@
 //! Generic dispatch loops over the declared `AggregateStep`/`EntityStep` order.
 //! Argument gates run in `decode_*_arguments`, before the router resolves identity.
 
-use super::expr::{interpret, EvalContext, Expr, Field, Fielded, NoFields, StateFirst, Value, WithOld, WithParent};
+use super::expr::{
+    interpret, EvalContext, Expr, Field, Fielded, NoFields, StateFirst, Value, WithOld, WithParent,
+};
 use super::refusal_wording::{
-    AlreadyExistsCreatingDuplicateArgs, LifecycleRefusedTransitionBlockedArgs, NotFoundCreatingNoIdentityArgs, NotFoundEntityElementMissingArgs,
-    NotFoundRecordMissingArgs,
+    AlreadyExistsCreatingDuplicateArgs, LifecycleRefusedTransitionBlockedArgs,
+    NotFoundCreatingNoIdentityArgs, NotFoundEntityElementMissingArgs, NotFoundRecordMissingArgs,
 };
 use super::vocab::{AggregateStep, EntityStep};
 use super::{Event, Json, MutationRecord, Refusal, Repository, SetProjectedField, ToJson};
@@ -42,11 +44,21 @@ pub struct InvariantSet {
     pub entities: Vec<EntityInvariants>,
 }
 
-pub fn enforce_invariants(record: &dyn Fielded, aggregate_name: &str, set: &InvariantSet) -> Result<(), Refusal> {
+pub fn enforce_invariants(
+    record: &dyn Fielded,
+    aggregate_name: &str,
+    set: &InvariantSet,
+) -> Result<(), Refusal> {
     for rule in &set.aggregate {
-        let ctx = EvalContext { args: &NoFields, instance: record };
+        let ctx = EvalContext {
+            args: &NoFields,
+            instance: record,
+        };
         if !interpret(&rule.expr, &ctx)?.truthy() {
-            return Err(Refusal::InvariantViolation(format!("{aggregate_name} refused — {}", rule.description)));
+            return Err(Refusal::InvariantViolation(format!(
+                "{aggregate_name} refused — {}",
+                rule.description
+            )));
         }
     }
     for entity in &set.entities {
@@ -55,15 +67,31 @@ pub fn enforce_invariants(record: &dyn Fielded, aggregate_name: &str, set: &Inva
     Ok(())
 }
 
-fn enforce_entity_invariants(owner: &dyn Fielded, entity: &EntityInvariants) -> Result<(), Refusal> {
-    let Some(elements) = owner.items(entity.list_field) else { return Ok(()) };
+fn enforce_entity_invariants(
+    owner: &dyn Fielded,
+    entity: &EntityInvariants,
+) -> Result<(), Refusal> {
+    let Some(elements) = owner.items(entity.list_field) else {
+        return Ok(());
+    };
     for element in elements {
-        let Field::Nested(element) = element else { continue };
-        let with_parent = WithParent { args: &NoFields, parent: owner };
+        let Field::Nested(element) = element else {
+            continue;
+        };
+        let with_parent = WithParent {
+            args: &NoFields,
+            parent: owner,
+        };
         for rule in &entity.specs {
-            let ctx = EvalContext { args: &with_parent, instance: element };
+            let ctx = EvalContext {
+                args: &with_parent,
+                instance: element,
+            };
             if !interpret(&rule.expr, &ctx)?.truthy() {
-                return Err(Refusal::InvariantViolation(format!("{} refused — {}", entity.name, rule.description)));
+                return Err(Refusal::InvariantViolation(format!(
+                    "{} refused — {}",
+                    entity.name, rule.description
+                )));
             }
         }
         for nested in &entity.nested {
@@ -91,7 +119,11 @@ pub enum Hydrate<'a, T> {
     ///
     /// `state_independent` defers the `AlreadyExists` check to just before `repo.save`, for
     /// commands whose givens, ensures and mutations never read the aggregate's own state.
-    Create { id: String, build: Box<dyn FnOnce() -> T + 'a>, state_independent: bool },
+    Create {
+        id: String,
+        build: Box<dyn FnOnce() -> T + 'a>,
+        state_independent: bool,
+    },
     /// An acting command: the identity already names a record.
     Act { id: String },
 }
@@ -164,7 +196,14 @@ where
             }
             AggregateStep::EnforceGivens => {
                 let (id, record) = hydrated.as_ref().expect(HYDRATED);
-                enforce_givens(record, args, givens, command_name, aggregate_qualified_name, id)?;
+                enforce_givens(
+                    record,
+                    args,
+                    givens,
+                    command_name,
+                    aggregate_qualified_name,
+                    id,
+                )?;
             }
             AggregateStep::AdmissibleTransition => {
                 let (_, record) = hydrated.as_ref().expect(HYDRATED);
@@ -176,7 +215,11 @@ where
                 let (_, record) = hydrated.as_mut().expect(HYDRATED);
                 // The state as the givens saw it — `old` inside an `ensures`,
                 // `old` for `ensures`: the state before the mutation, cloned only if needed.
-                old_snapshot = if ensures.is_empty() { None } else { Some(record.clone()) };
+                old_snapshot = if ensures.is_empty() {
+                    None
+                } else {
+                    Some(record.clone())
+                };
                 (apply_mutations.take().expect(ONCE))(record)?;
             }
             // Written by the generated `apply_mutations` closure as its last line.
@@ -245,13 +288,21 @@ where
     R: Repository<T>,
 {
     match hydrate {
-        Hydrate::Create { id, build, state_independent } => {
+        Hydrate::Create {
+            id,
+            build,
+            state_independent,
+        } => {
             // A blank identity names nothing; refuse before any lookup rather than mint a
             // record keyed by "".
             if id.is_empty() {
                 return Err(Refusal::NotFound(
-                    NotFoundCreatingNoIdentityArgs { command: command_name, aggregate: aggregate_name, identity: identity_reading }
-                        .render_args(),
+                    NotFoundCreatingNoIdentityArgs {
+                        command: command_name,
+                        aggregate: aggregate_name,
+                        identity: identity_reading,
+                    }
+                    .render_args(),
                 ));
             }
             // State-independent creates defer this check to `Save`.
@@ -274,8 +325,12 @@ where
             // Shared with `dispatch_entity`'s parent lookup: both raise `record_missing`.
             let record = repo.find(&id).ok_or_else(|| {
                 Refusal::NotFound(
-                    NotFoundRecordMissingArgs { aggregate: aggregate_name, identity: identity_reading, offered: &format!("{id:?}") }
-                        .render_args(),
+                    NotFoundRecordMissingArgs {
+                        aggregate: aggregate_name,
+                        identity: identity_reading,
+                        offered: &format!("{id:?}"),
+                    }
+                    .render_args(),
                 )
             })?;
             Ok((id, record))
@@ -293,7 +348,10 @@ fn enforce_givens(
     id: &str,
 ) -> Result<(), Refusal> {
     for given in givens {
-        let ctx = EvalContext { args, instance: record };
+        let ctx = EvalContext {
+            args,
+            instance: record,
+        };
         if !interpret(&given.expr, &ctx)?.truthy() {
             // The `corrects` wording interpolates the record id, so it is built here.
             if let Some(event_name) = given.corrects_event {
@@ -302,7 +360,10 @@ fn enforce_givens(
                     "{command_name} refused — corrects {event_name}, but {aggregate_qualified_name} #{id} has never emitted it"
                 )));
             }
-            return Err(Refusal::GivenNotMet(format!("{command_name} refused — {}", given.description)));
+            return Err(Refusal::GivenNotMet(format!(
+                "{command_name} refused — {}",
+                given.description
+            )));
         }
     }
     Ok(())
@@ -310,8 +371,14 @@ fn enforce_givens(
 
 /// `admissible_transition` — shared by the aggregate record and an entity
 /// element, which check it identically.
-fn admissible_transition(instance: &dyn Fielded, transition: Option<&TransitionCheck>, command_name: &str) -> Result<(), Refusal> {
-    let Some(check) = transition else { return Ok(()) };
+fn admissible_transition(
+    instance: &dyn Fielded,
+    transition: Option<&TransitionCheck>,
+    command_name: &str,
+) -> Result<(), Refusal> {
+    let Some(check) = transition else {
+        return Ok(());
+    };
     match instance.field(check.field) {
         Some(Field::Value(Value::Str(current))) => {
             if !check.from_states.contains(&current.as_str()) {
@@ -348,19 +415,33 @@ fn enforce_ensures(
 ) -> Result<(), Refusal> {
     // C2.3 — the settled state first; see `StateFirst`.
     let state_first = StateFirst { args, settled };
-    let with_old = WithOld { args: &state_first, old };
+    let with_old = WithOld {
+        args: &state_first,
+        old,
+    };
     for rule in ensures {
-        let ctx = EvalContext { args: &with_old, instance: settled };
+        let ctx = EvalContext {
+            args: &with_old,
+            instance: settled,
+        };
         if !interpret(&rule.expr, &ctx)?.truthy() {
-            return Err(Refusal::EnsuresNotMet(format!("{command_name} refused — {}", rule.description)));
+            return Err(Refusal::EnsuresNotMet(format!(
+                "{command_name} refused — {}",
+                rule.description
+            )));
         }
     }
     Ok(())
 }
 
 /// The write half of `save`: the repository write and its mutation record.
-fn persist<T, R>(repo: &mut R, id: &str, record: &T, aggregate_qualified_name: &str, mutations: &mut Vec<MutationRecord>)
-where
+fn persist<T, R>(
+    repo: &mut R,
+    id: &str,
+    record: &T,
+    aggregate_qualified_name: &str,
+    mutations: &mut Vec<MutationRecord>,
+) where
     T: Clone + ToJson,
     R: Repository<T>,
 {
@@ -374,7 +455,12 @@ where
 }
 
 /// `emit` — the declared events, in declared order.
-fn emitted(emits: &[&'static str], aggregate_qualified_name: &str, id: &str, payload: &Json) -> Vec<Event> {
+fn emitted(
+    emits: &[&'static str],
+    aggregate_qualified_name: &str,
+    id: &str,
+    payload: &Json,
+) -> Vec<Event> {
     emits
         .iter()
         .map(|name| Event {
@@ -475,7 +561,8 @@ struct ElementHalf<'a, 's, T, E, GetList, GetListMut, Matches, Apply> {
     old_snapshot: Option<E>,
 }
 
-impl<'a, 's, T, E, GetList, GetListMut, Matches, Apply> ElementHalf<'a, 's, T, E, GetList, GetListMut, Matches, Apply>
+impl<'a, 's, T, E, GetList, GetListMut, Matches, Apply>
+    ElementHalf<'a, 's, T, E, GetList, GetListMut, Matches, Apply>
 where
     T: Fielded + Clone,
     E: Fielded + Clone,
@@ -497,12 +584,17 @@ where
             | EntityStep::ResolveReferences => Ok(()),
             // The parent half: `dispatch_entity`'s own arms, or the delegating aggregate's
             // `dispatch`.
-            EntityStep::HydrateParent | EntityStep::EnforceInvariants | EntityStep::Save | EntityStep::Emit => Ok(()),
+            EntityStep::HydrateParent
+            | EntityStep::EnforceInvariants
+            | EntityStep::Save
+            | EntityStep::Emit => Ok(()),
             EntityStep::LocateElement => self.locate_element(record),
             EntityStep::EnforceGivens => self.enforce_givens(),
-            EntityStep::AdmissibleTransition => {
-                admissible_transition(self.element.as_ref().expect(LOCATED), self.transition.as_ref(), self.command_name)
-            }
+            EntityStep::AdmissibleTransition => admissible_transition(
+                self.element.as_ref().expect(LOCATED),
+                self.transition.as_ref(),
+                self.command_name,
+            ),
             EntityStep::ApplyMutations => self.apply_mutations(record),
             // Written by the generated `apply_mutations` closure (the entity's own lifecycle).
             EntityStep::AdvanceLifecycle => Ok(()),
@@ -511,18 +603,21 @@ where
     }
 
     fn locate_element(&mut self, record: &T) -> Result<(), Refusal> {
-        let position = (self.get_list)(record).iter().position(|el| (self.matches)(el)).ok_or_else(|| {
-            Refusal::NotFound(
-                NotFoundEntityElementMissingArgs {
-                    entity: self.entity_name,
-                    identity: self.entity_identity_reading,
-                    wants: self.wants,
-                    aggregate: self.aggregate_name,
-                    parent_id: &format!("{:?}", self.parent_id),
-                }
-                .render_args(),
-            )
-        })?;
+        let position = (self.get_list)(record)
+            .iter()
+            .position(|el| (self.matches)(el))
+            .ok_or_else(|| {
+                Refusal::NotFound(
+                    NotFoundEntityElementMissingArgs {
+                        entity: self.entity_name,
+                        identity: self.entity_identity_reading,
+                        wants: self.wants,
+                        aggregate: self.aggregate_name,
+                        parent_id: &format!("{:?}", self.parent_id),
+                    }
+                    .render_args(),
+                )
+            })?;
         self.element = Some((self.get_list)(record)[position].clone());
         self.position = Some(position);
         self.parent_before = Some(record.clone());
@@ -537,8 +632,13 @@ where
         // entity has no event stream. It runs after the element lookup, before declared givens,
         // and proves the parent emitted the event, not that this element did.
         for given in self.givens {
-            let Some(event_name) = given.corrects_event else { continue };
-            let ctx = EvalContext { args: self.args, instance: parent_before };
+            let Some(event_name) = given.corrects_event else {
+                continue;
+            };
+            let ctx = EvalContext {
+                args: self.args,
+                instance: parent_before,
+            };
             if !interpret(&given.expr, &ctx)?.truthy() {
                 return Err(Refusal::NothingToCorrect(format!(
                     "{} refused — corrects {event_name}, but {} #{} has never emitted it",
@@ -547,16 +647,29 @@ where
             }
         }
 
-        let with_parent = WithParent { args: self.args, parent: parent_before };
-        let given_args: &dyn Fielded = if self.parent_in_args { &with_parent } else { self.args };
+        let with_parent = WithParent {
+            args: self.args,
+            parent: parent_before,
+        };
+        let given_args: &dyn Fielded = if self.parent_in_args {
+            &with_parent
+        } else {
+            self.args
+        };
         for given in self.givens {
             // Handled above; the `corrects` flag field lives on the parent, not the element.
             if given.corrects_event.is_some() {
                 continue;
             }
-            let ctx = EvalContext { args: given_args, instance: element };
+            let ctx = EvalContext {
+                args: given_args,
+                instance: element,
+            };
             if !interpret(&given.expr, &ctx)?.truthy() {
-                return Err(Refusal::GivenNotMet(format!("{} refused — {}", self.command_name, given.description)));
+                return Err(Refusal::GivenNotMet(format!(
+                    "{} refused — {}",
+                    self.command_name, given.description
+                )));
             }
         }
         Ok(())
@@ -565,18 +678,31 @@ where
     fn apply_mutations(&mut self, record: &mut T) -> Result<(), Refusal> {
         let position = self.position.expect(LOCATED);
         let mut element = self.element.take().expect(LOCATED);
-        self.old_snapshot = if self.ensures.is_empty() { None } else { Some(element.clone()) };
+        self.old_snapshot = if self.ensures.is_empty() {
+            None
+        } else {
+            Some(element.clone())
+        };
         (self.apply_mutations.take().expect(ONCE))(&mut element)?;
         (self.get_list_mut.take().expect(ONCE))(record)[position] = element;
         Ok(())
     }
 
     fn enforce_ensures(&self, record: &T) -> Result<(), Refusal> {
-        let Some(old) = &self.old_snapshot else { return Ok(()) };
+        let Some(old) = &self.old_snapshot else {
+            return Ok(());
+        };
         let position = self.position.expect(LOCATED);
         let parent_after = record.clone();
-        let with_parent = WithParent { args: self.args, parent: &parent_after };
-        let ensures_args: &dyn Fielded = if self.parent_in_args { &with_parent } else { self.args };
+        let with_parent = WithParent {
+            args: self.args,
+            parent: &parent_after,
+        };
+        let ensures_args: &dyn Fielded = if self.parent_in_args {
+            &with_parent
+        } else {
+            self.args
+        };
         let settled = &(self.get_list)(record)[position];
         enforce_ensures(settled, old, ensures_args, self.ensures, self.command_name)
     }
@@ -673,7 +799,11 @@ where
                 element.run(step, hydrated.as_mut().expect(HYDRATED))?;
             }
             EntityStep::EnforceInvariants => {
-                enforce_invariants(hydrated.as_ref().expect(HYDRATED), aggregate_name, invariants)?;
+                enforce_invariants(
+                    hydrated.as_ref().expect(HYDRATED),
+                    aggregate_name,
+                    invariants,
+                )?;
             }
             EntityStep::Save => {
                 let record = hydrated.as_mut().expect(HYDRATED);
@@ -732,7 +862,9 @@ impl<A> ArgumentGates<'_, A> {
                 Ok(())
             }
             ArgumentGate::RefuseRoleMismatch => (self.refuse_role_mismatch)(),
-            ArgumentGate::ResolveReferences => (self.resolve_references)(args.as_ref().expect(NORMALIZED)),
+            ArgumentGate::ResolveReferences => {
+                (self.resolve_references)(args.as_ref().expect(NORMALIZED))
+            }
         }
     }
 }
@@ -740,7 +872,10 @@ impl<A> ArgumentGates<'_, A> {
 /// `AggregateStep::ORDER`'s argument gates over one aggregate command's facts:
 /// the normalized `<Args>`, or the first refusal in declared order. Every
 /// other step is `dispatch`'s, entered once the router has resolved identity.
-pub fn decode_aggregate_arguments<A>(facts: &Json, gates: &ArgumentGates<'_, A>) -> Result<A, Refusal> {
+pub fn decode_aggregate_arguments<A>(
+    facts: &Json,
+    gates: &ArgumentGates<'_, A>,
+) -> Result<A, Refusal> {
     let mut args = None;
     for step in AggregateStep::ORDER {
         #[deny(clippy::wildcard_enum_match_arm)]
@@ -770,7 +905,10 @@ pub fn decode_aggregate_arguments<A>(facts: &Json, gates: &ArgumentGates<'_, A>)
 
 /// `EntityStep::ORDER`'s argument gates over one entity command's facts — see
 /// `decode_aggregate_arguments`. Every other step is `dispatch_entity`'s.
-pub fn decode_entity_arguments<A>(facts: &Json, gates: &ArgumentGates<'_, A>) -> Result<A, Refusal> {
+pub fn decode_entity_arguments<A>(
+    facts: &Json,
+    gates: &ArgumentGates<'_, A>,
+) -> Result<A, Refusal> {
     let mut args = None;
     for step in EntityStep::ORDER {
         #[deny(clippy::wildcard_enum_match_arm)]
@@ -914,12 +1052,18 @@ pub const fn aggregate_step_site(step: AggregateStep) -> StepSite {
         A::EnforceGivens => StepSite::Kernel,
         A::AdmissibleTransition => StepSite::Kernel,
         // `Hydrate::Create.build`.
-        A::AssignCreationAttributes => StepSite::FoldedInto(AggregateStepOrEntityStep::Aggregate(A::Hydrate)),
+        A::AssignCreationAttributes => {
+            StepSite::FoldedInto(AggregateStepOrEntityStep::Aggregate(A::Hydrate))
+        }
         A::ApplyMutations => StepSite::Kernel,
         // The generated `apply_mutations` closure's last line.
-        A::AdvanceLifecycle => StepSite::FoldedInto(AggregateStepOrEntityStep::Aggregate(A::ApplyMutations)),
+        A::AdvanceLifecycle => {
+            StepSite::FoldedInto(AggregateStepOrEntityStep::Aggregate(A::ApplyMutations))
+        }
         // The generated `apply_mutations` closure → `apply_entity_command`.
-        A::DelegateToEntity => StepSite::FoldedInto(AggregateStepOrEntityStep::Aggregate(A::ApplyMutations)),
+        A::DelegateToEntity => {
+            StepSite::FoldedInto(AggregateStepOrEntityStep::Aggregate(A::ApplyMutations))
+        }
         A::EnforceEnsures => StepSite::Kernel,
         A::EnforceInvariants => StepSite::Kernel,
         A::Save => StepSite::Kernel,
@@ -944,7 +1088,9 @@ pub const fn entity_step_site(step: EntityStep) -> StepSite {
         E::EnforceGivens => StepSite::Kernel,
         E::AdmissibleTransition => StepSite::Kernel,
         E::ApplyMutations => StepSite::Kernel,
-        E::AdvanceLifecycle => StepSite::FoldedInto(AggregateStepOrEntityStep::Entity(E::ApplyMutations)),
+        E::AdvanceLifecycle => {
+            StepSite::FoldedInto(AggregateStepOrEntityStep::Entity(E::ApplyMutations))
+        }
         E::EnforceEnsures => StepSite::Kernel,
         E::EnforceInvariants => StepSite::Kernel,
         E::Save => StepSite::Kernel,
@@ -980,18 +1126,33 @@ mod step_order_tests {
 
     #[test]
     fn the_kernel_performs_exactly_these_aggregate_steps() {
-        let kernel: Vec<&str> =
-            AggregateStep::ORDER.iter().filter(|s| aggregate_step_site(**s) == StepSite::Kernel).map(|s| s.step()).collect();
+        let kernel: Vec<&str> = AggregateStep::ORDER
+            .iter()
+            .filter(|s| aggregate_step_site(**s) == StepSite::Kernel)
+            .map(|s| s.step())
+            .collect();
         assert_eq!(
             kernel,
-            ["hydrate", "enforce_givens", "admissible_transition", "apply_mutations", "enforce_ensures", "enforce_invariants", "save", "emit"]
+            [
+                "hydrate",
+                "enforce_givens",
+                "admissible_transition",
+                "apply_mutations",
+                "enforce_ensures",
+                "enforce_invariants",
+                "save",
+                "emit"
+            ]
         );
     }
 
     #[test]
     fn the_kernel_performs_exactly_these_entity_steps() {
-        let kernel: Vec<&str> =
-            EntityStep::ORDER.iter().filter(|s| entity_step_site(**s) == StepSite::Kernel).map(|s| s.step()).collect();
+        let kernel: Vec<&str> = EntityStep::ORDER
+            .iter()
+            .filter(|s| entity_step_site(**s) == StepSite::Kernel)
+            .map(|s| s.step())
+            .collect();
         assert_eq!(
             kernel,
             [
@@ -1012,16 +1173,30 @@ mod step_order_tests {
     fn argument_gates_all_precede_the_first_kernel_step() {
         // The router resolves identity between the two loops, so every
         // argument gate sits ahead of the first kernel step.
-        let first_kernel = AggregateStep::ORDER.iter().position(|s| aggregate_step_site(*s) == StepSite::Kernel).unwrap();
+        let first_kernel = AggregateStep::ORDER
+            .iter()
+            .position(|s| aggregate_step_site(*s) == StepSite::Kernel)
+            .unwrap();
         for step in AggregateStep::ORDER {
             if aggregate_step_site(step) == StepSite::ArgumentGate {
-                assert!(step.position() < first_kernel, "{} is an argument gate but is declared after hydrate", step.step());
+                assert!(
+                    step.position() < first_kernel,
+                    "{} is an argument gate but is declared after hydrate",
+                    step.step()
+                );
             }
         }
-        let first_kernel = EntityStep::ORDER.iter().position(|s| entity_step_site(*s) == StepSite::Kernel).unwrap();
+        let first_kernel = EntityStep::ORDER
+            .iter()
+            .position(|s| entity_step_site(*s) == StepSite::Kernel)
+            .unwrap();
         for step in EntityStep::ORDER {
             if entity_step_site(step) == StepSite::ArgumentGate {
-                assert!(step.position() < first_kernel, "{} is an argument gate but is declared after hydrate_parent", step.step());
+                assert!(
+                    step.position() < first_kernel,
+                    "{} is an argument gate but is declared after hydrate_parent",
+                    step.step()
+                );
             }
         }
     }
@@ -1029,7 +1204,10 @@ mod step_order_tests {
     use std::cell::RefCell;
 
     /// Hooks that record which step ran, refusing at the steps named in `refuse`.
-    fn recorded<R>(refuse: &[&'static str], body: impl FnOnce(&ArgumentGates<'_, i64>) -> R) -> (R, Vec<&'static str>) {
+    fn recorded<R>(
+        refuse: &[&'static str],
+        body: impl FnOnce(&ArgumentGates<'_, i64>) -> R,
+    ) -> (R, Vec<&'static str>) {
         let ran = RefCell::new(Vec::new());
         let hit = |step: &'static str| -> Result<(), Refusal> {
             ran.borrow_mut().push(step);
@@ -1045,7 +1223,10 @@ mod step_order_tests {
         let normalize = |_: &Json| hit("normalize_args").map(|()| 7);
         let role = || hit("refuse_role_mismatch");
         let references = |args: &i64| {
-            assert_eq!(*args, 7, "resolve_references reads what normalize_args produced");
+            assert_eq!(
+                *args, 7,
+                "resolve_references reads what normalize_args produced"
+            );
             hit("resolve_references")
         };
         let gates = ArgumentGates {
@@ -1065,29 +1246,46 @@ mod step_order_tests {
         let facts = Json::Object(Vec::new());
         let (result, ran) = recorded(&[], |gates| decode_aggregate_arguments(&facts, gates));
         assert_eq!(result.unwrap(), 7);
-        let declared: Vec<&str> =
-            AggregateStep::ORDER.iter().filter(|s| aggregate_step_site(**s) == StepSite::ArgumentGate).map(|s| s.step()).collect();
+        let declared: Vec<&str> = AggregateStep::ORDER
+            .iter()
+            .filter(|s| aggregate_step_site(**s) == StepSite::ArgumentGate)
+            .map(|s| s.step())
+            .collect();
         assert_eq!(ran, declared);
 
         let (result, ran) = recorded(&[], |gates| decode_entity_arguments(&facts, gates));
         assert_eq!(result.unwrap(), 7);
-        let declared: Vec<&str> =
-            EntityStep::ORDER.iter().filter(|s| entity_step_site(**s) == StepSite::ArgumentGate).map(|s| s.step()).collect();
+        let declared: Vec<&str> = EntityStep::ORDER
+            .iter()
+            .filter(|s| entity_step_site(**s) == StepSite::ArgumentGate)
+            .map(|s| s.step())
+            .collect();
         assert_eq!(ran, declared);
     }
 
     #[test]
     fn the_earliest_declared_violated_gate_wins_and_later_hooks_never_run() {
         let facts = Json::Object(Vec::new());
-        let gates: Vec<&'static str> =
-            AggregateStep::ORDER.iter().filter(|s| aggregate_step_site(**s) == StepSite::ArgumentGate).map(|s| s.step()).collect();
+        let gates: Vec<&'static str> = AggregateStep::ORDER
+            .iter()
+            .filter(|s| aggregate_step_site(**s) == StepSite::ArgumentGate)
+            .map(|s| s.step())
+            .collect();
         for (i, earlier) in gates.iter().enumerate() {
             for later in &gates[i + 1..] {
-                let (result, ran) = recorded(&[earlier, later], |g| decode_aggregate_arguments(&facts, g));
-                assert_eq!(result.unwrap_err().to_string(), Refusal::TypeMismatch(earlier.to_string()).to_string());
+                let (result, ran) =
+                    recorded(&[earlier, later], |g| decode_aggregate_arguments(&facts, g));
+                assert_eq!(
+                    result.unwrap_err().to_string(),
+                    Refusal::TypeMismatch(earlier.to_string()).to_string()
+                );
                 assert_eq!(ran.last(), Some(earlier));
-                let (result, _) = recorded(&[earlier, later], |g| decode_entity_arguments(&facts, g));
-                assert_eq!(result.unwrap_err().to_string(), Refusal::TypeMismatch(earlier.to_string()).to_string());
+                let (result, _) =
+                    recorded(&[earlier, later], |g| decode_entity_arguments(&facts, g));
+                assert_eq!(
+                    result.unwrap_err().to_string(),
+                    Refusal::TypeMismatch(earlier.to_string()).to_string()
+                );
             }
         }
     }

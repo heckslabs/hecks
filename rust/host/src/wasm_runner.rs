@@ -62,7 +62,13 @@ type Compiled = Mutex<Option<(Engine, Module)>>;
 /// leaves the cell empty for the next caller to retry.
 fn engine_and_module(wasm_path: &Path) -> anyhow::Result<(Engine, Module)> {
     let cache = ENGINE_AND_MODULE.get_or_init(|| Mutex::new(HashMap::new()));
-    let cell = Arc::clone(cache.lock().unwrap().entry(wasm_path.to_path_buf()).or_default());
+    let cell = Arc::clone(
+        cache
+            .lock()
+            .unwrap()
+            .entry(wasm_path.to_path_buf())
+            .or_default(),
+    );
 
     let mut compiled = cell.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
     if let Some((engine, module)) = compiled.as_ref() {
@@ -84,7 +90,12 @@ static COMPILED_PATHS: Mutex<Vec<PathBuf>> = Mutex::new(Vec::new());
 /// How many times `wasm_path` has been compiled in this process.
 #[cfg(test)]
 pub(crate) fn compile_count(wasm_path: &Path) -> usize {
-    COMPILED_PATHS.lock().unwrap().iter().filter(|compiled| compiled.as_path() == wasm_path).count()
+    COMPILED_PATHS
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|compiled| compiled.as_path() == wasm_path)
+        .count()
 }
 
 /// Compiles `wasm_path` at boot, before the host starts listening, so
@@ -139,8 +150,10 @@ pub(crate) mod tests {
     /// A copy of the checkout fixture wasm at a path no other test uses, so
     /// its first call is a real cold compile whatever order tests run in.
     pub(crate) fn cold_copy_of_fixture(name: &str) -> PathBuf {
-        let source = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../dist/checkout_fixture.wasm");
-        let dir = std::env::temp_dir().join(format!("hecks_wasm_runner_{}_{name}", std::process::id()));
+        let source =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../dist/checkout_fixture.wasm");
+        let dir =
+            std::env::temp_dir().join(format!("hecks_wasm_runner_{}_{name}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let copy = dir.join("checkout_fixture.wasm");
         std::fs::copy(&source, &copy).expect("hecks build_wasm writes checkout_fixture.wasm");

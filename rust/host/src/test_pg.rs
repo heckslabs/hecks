@@ -16,18 +16,26 @@ fn host() -> String {
 }
 
 fn password_part() -> String {
-    env("PGPASSWORD").map(|p| format!(" password={p}")).unwrap_or_default()
+    env("PGPASSWORD")
+        .map(|p| format!(" password={p}"))
+        .unwrap_or_default()
 }
 
 /// Connection string for the admin role (`PGUSER`, else the OS user) on `dbname`.
 pub fn conninfo(dbname: &str) -> String {
-    let user = env("PGUSER").map(|u| format!(" user={u}")).unwrap_or_default();
+    let user = env("PGUSER")
+        .map(|u| format!(" user={u}"))
+        .unwrap_or_default();
     format!("host={} dbname={dbname}{user}{}", host(), password_part())
 }
 
 /// Connection string for a role the test created with [`login_clause`] on `dbname`.
 pub fn conninfo_as(dbname: &str, role: &str) -> String {
-    format!("host={} dbname={dbname} user={role}{}", host(), password_part())
+    format!(
+        "host={} dbname={dbname} user={role}{}",
+        host(),
+        password_part()
+    )
 }
 
 /// The `LOGIN` clause of a `CREATE ROLE` the test later connects as: it carries

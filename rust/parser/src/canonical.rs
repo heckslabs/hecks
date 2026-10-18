@@ -10,7 +10,9 @@ pub fn slice(source: &str, start: usize, end: usize) -> &str {
 /// becomes `.size`, then trim. Quoted runs pass through untouched, matching Ruby.
 pub fn apply(source: &str) -> String {
     let collapsed = map_outside_strings(source, collapse_whitespace);
-    let replaced = map_outside_strings(&collapsed, |run| replace_word_boundary(run, ".length", ".size"));
+    let replaced = map_outside_strings(&collapsed, |run| {
+        replace_word_boundary(run, ".length", ".size")
+    });
     let scaled = SCALE_CALLS.iter().fold(replaced, |text, (token, seconds)| {
         map_outside_strings(&text, |run| scale_call(run, token, seconds))
     });
@@ -187,7 +189,10 @@ mod tests {
     #[test]
     fn folds_duration_calls_into_seconds() {
         assert_eq!(apply("days(730)"), "63072000");
-        assert_eq!(apply("days( 1 ) + hours(2) + minutes(15)"), "86400 + 7200 + 900");
+        assert_eq!(
+            apply("days( 1 ) + hours(2) + minutes(15)"),
+            "86400 + 7200 + 900"
+        );
         assert_eq!(
             apply("x.days(3) workdays(3) days(n) days(1.5)"),
             "x.days(3) workdays(3) days(n) days(1.5)"
@@ -227,10 +232,17 @@ mod tests {
 
     #[test]
     fn matches_the_shared_canonical_form_cases() {
-        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../spec/fixtures/canonical_form_cases.json");
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../spec/fixtures/canonical_form_cases.json"
+        );
         let text = std::fs::read_to_string(path).expect("shared cases file");
         let strings = json_strings(&text);
-        let start = strings.iter().position(|s| s == "cases").expect("cases key") + 1;
+        let start = strings
+            .iter()
+            .position(|s| s == "cases")
+            .expect("cases key")
+            + 1;
         let rows: Vec<&[String]> = strings[start..].chunks(4).collect();
         assert!(!rows.is_empty());
         for row in rows {

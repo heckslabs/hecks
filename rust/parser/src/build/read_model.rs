@@ -73,7 +73,10 @@ mod tests {
             Some("Account"),
         )
         .unwrap();
-        assert!(heads[0].many, "no included head equals the reference target, so all stay many");
+        assert!(
+            heads[0].many,
+            "no included head equals the reference target, so all stay many"
+        );
     }
 
     #[test]

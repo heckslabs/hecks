@@ -12,7 +12,13 @@ fn is_fielded_nested(attr_type: &str, value_objects_by_name: &HashMap<String, &J
     }
 }
 
-pub fn emit_fielded_flat(exemplar: &Exemplar, struct_name: &str, attributes: &[Json], value_objects_by_name: &HashMap<String, &Json>, extra_arms: &[String]) -> String {
+pub fn emit_fielded_flat(
+    exemplar: &Exemplar,
+    struct_name: &str,
+    attributes: &[Json],
+    value_objects_by_name: &HashMap<String, &Json>,
+    extra_arms: &[String],
+) -> String {
     let mut arms: Vec<String> = Vec::new();
 
     for attr in attributes {
@@ -23,28 +29,68 @@ pub fn emit_fielded_flat(exemplar: &Exemplar, struct_name: &str, attributes: &[J
         let optional = crate::attr::optional(attr);
 
         let arm = if list && optional {
-            Some(exemplar.render("fielded_arm_list_optional", &[("\"tmpl_field\"", naming::ruby_inspect_string(&key)), ("tmpl_ident", ident)]))
+            Some(exemplar.render(
+                "fielded_arm_list_optional",
+                &[
+                    ("\"tmpl_field\"", naming::ruby_inspect_string(&key)),
+                    ("tmpl_ident", ident),
+                ],
+            ))
         } else if list {
-            Some(exemplar.render("fielded_arm_list", &[("\"tmpl_field\"", naming::ruby_inspect_string(&key)), ("tmpl_ident", ident)]))
+            Some(exemplar.render(
+                "fielded_arm_list",
+                &[
+                    ("\"tmpl_field\"", naming::ruby_inspect_string(&key)),
+                    ("tmpl_ident", ident),
+                ],
+            ))
         } else if optional && scalar.is_some() {
             let scalar = scalar.unwrap();
-            Some(exemplar.render(
-                "fielded_arm_optional_scalar",
-                &[("\"tmpl_field\"", naming::ruby_inspect_string(&key)), ("tmpl_ident", ident.clone()), ("tmpl_value_expr_placeholder(v)", naming::scalar_to_value(scalar, &naming::deref_scalar(scalar, "v")).unwrap())],
-            ))
+            Some(
+                exemplar.render(
+                    "fielded_arm_optional_scalar",
+                    &[
+                        ("\"tmpl_field\"", naming::ruby_inspect_string(&key)),
+                        ("tmpl_ident", ident.clone()),
+                        (
+                            "tmpl_value_expr_placeholder(v)",
+                            naming::scalar_to_value(scalar, &naming::deref_scalar(scalar, "v"))
+                                .unwrap(),
+                        ),
+                    ],
+                ),
+            )
         } else if optional {
             if is_fielded_nested(crate::attr::type_name(attr), value_objects_by_name) {
-                Some(exemplar.render("fielded_arm_optional_nested", &[("\"tmpl_field\"", naming::ruby_inspect_string(&key)), ("tmpl_ident", ident)]))
+                Some(exemplar.render(
+                    "fielded_arm_optional_nested",
+                    &[
+                        ("\"tmpl_field\"", naming::ruby_inspect_string(&key)),
+                        ("tmpl_ident", ident),
+                    ],
+                ))
             } else {
                 None
             }
         } else if let Some(scalar) = scalar {
             Some(exemplar.render(
                 "fielded_arm_scalar",
-                &[("\"tmpl_field\"", naming::ruby_inspect_string(&key)), ("tmpl_value_expr_placeholder(&self.tmpl_ident)", naming::scalar_to_value(scalar, &format!("self.{ident}")).unwrap())],
+                &[
+                    ("\"tmpl_field\"", naming::ruby_inspect_string(&key)),
+                    (
+                        "tmpl_value_expr_placeholder(&self.tmpl_ident)",
+                        naming::scalar_to_value(scalar, &format!("self.{ident}")).unwrap(),
+                    ),
+                ],
             ))
         } else if is_fielded_nested(crate::attr::type_name(attr), value_objects_by_name) {
-            Some(exemplar.render("fielded_arm_nested", &[("\"tmpl_field\"", naming::ruby_inspect_string(&key)), ("tmpl_ident", ident)]))
+            Some(exemplar.render(
+                "fielded_arm_nested",
+                &[
+                    ("\"tmpl_field\"", naming::ruby_inspect_string(&key)),
+                    ("tmpl_ident", ident),
+                ],
+            ))
         } else {
             None
         };
@@ -69,17 +115,44 @@ pub fn emit_fielded_flat(exemplar: &Exemplar, struct_name: &str, attributes: &[J
             "fielded_flat",
             &[
                 ("TmplFlatType", struct_name.to_string()),
-                ("\"tmpl_arms_placeholder\" => tmpl_arms_block(),", arms.join("\n")),
-                ("\"tmpl_items_placeholder\" => tmpl_items_block(),", items_arms(exemplar, attributes, value_objects_by_name, &[], |attr| crate::attr::optional(attr)).join("\n")),
+                (
+                    "\"tmpl_arms_placeholder\" => tmpl_arms_block(),",
+                    arms.join("\n")
+                ),
+                (
+                    "\"tmpl_items_placeholder\" => tmpl_items_block(),",
+                    items_arms(exemplar, attributes, value_objects_by_name, &[], |attr| {
+                        crate::attr::optional(attr)
+                    })
+                    .join("\n")
+                ),
                 ("tmpl_as_scalar_placeholder()", as_scalar_expr(attributes)),
-                ("use crate::kernel::Field;", if uses_field { "use crate::kernel::Field;".to_string() } else { String::new() }),
-                ("use crate::kernel::Value;", if uses_value { "use crate::kernel::Value;".to_string() } else { String::new() }),
+                (
+                    "use crate::kernel::Field;",
+                    if uses_field {
+                        "use crate::kernel::Field;".to_string()
+                    } else {
+                        String::new()
+                    }
+                ),
+                (
+                    "use crate::kernel::Value;",
+                    if uses_value {
+                        "use crate::kernel::Value;".to_string()
+                    } else {
+                        String::new()
+                    }
+                ),
             ],
         )
     )
 }
 
-pub fn emit_fielded_record(exemplar: &Exemplar, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>) -> String {
+pub fn emit_fielded_record(
+    exemplar: &Exemplar,
+    aggregate: &Json,
+    value_objects_by_name: &HashMap<String, &Json>,
+) -> String {
     let name = naming::rust_ident(aggregate.get("name").and_then(Json::as_str).unwrap_or(""));
     let attributes = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
     let mut arms: Vec<String> = Vec::new();
@@ -90,17 +163,50 @@ pub fn emit_fielded_record(exemplar: &Exemplar, aggregate: &Json, value_objects_
         let scalar = naming::effective_scalar_type(crate::attr::type_name(attr));
         let list = crate::attr::list(attr);
 
-        let arm = if list && crate::shared::list_attr_creation_optional(aggregate, crate::attr::name(attr), value_objects_by_name) {
-            Some(exemplar.render("fielded_arm_list_optional", &[("\"tmpl_field\"", naming::ruby_inspect_string(&key)), ("tmpl_ident", ident)]))
-        } else if list {
-            Some(exemplar.render("fielded_arm_list", &[("\"tmpl_field\"", naming::ruby_inspect_string(&key)), ("tmpl_ident", ident)]))
-        } else if let Some(scalar) = scalar {
+        let arm = if list
+            && crate::shared::list_attr_creation_optional(
+                aggregate,
+                crate::attr::name(attr),
+                value_objects_by_name,
+            ) {
             Some(exemplar.render(
-                "fielded_arm_optional_scalar",
-                &[("\"tmpl_field\"", naming::ruby_inspect_string(&key)), ("tmpl_ident", ident.clone()), ("tmpl_value_expr_placeholder(v)", naming::scalar_to_value(scalar, &naming::deref_scalar(scalar, "v")).unwrap())],
+                "fielded_arm_list_optional",
+                &[
+                    ("\"tmpl_field\"", naming::ruby_inspect_string(&key)),
+                    ("tmpl_ident", ident),
+                ],
             ))
+        } else if list {
+            Some(exemplar.render(
+                "fielded_arm_list",
+                &[
+                    ("\"tmpl_field\"", naming::ruby_inspect_string(&key)),
+                    ("tmpl_ident", ident),
+                ],
+            ))
+        } else if let Some(scalar) = scalar {
+            Some(
+                exemplar.render(
+                    "fielded_arm_optional_scalar",
+                    &[
+                        ("\"tmpl_field\"", naming::ruby_inspect_string(&key)),
+                        ("tmpl_ident", ident.clone()),
+                        (
+                            "tmpl_value_expr_placeholder(v)",
+                            naming::scalar_to_value(scalar, &naming::deref_scalar(scalar, "v"))
+                                .unwrap(),
+                        ),
+                    ],
+                ),
+            )
         } else if is_fielded_nested(crate::attr::type_name(attr), value_objects_by_name) {
-            Some(exemplar.render("fielded_arm_optional_nested", &[("\"tmpl_field\"", naming::ruby_inspect_string(&key)), ("tmpl_ident", ident)]))
+            Some(exemplar.render(
+                "fielded_arm_optional_nested",
+                &[
+                    ("\"tmpl_field\"", naming::ruby_inspect_string(&key)),
+                    ("tmpl_ident", ident),
+                ],
+            ))
         } else {
             None
         };
@@ -114,11 +220,23 @@ pub fn emit_fielded_record(exemplar: &Exemplar, aggregate: &Json, value_objects_
         let field = lifecycle.get("field").and_then(Json::as_str).unwrap_or("");
         let key = naming::rust_field(field);
         let ident = naming::rust_ident_field(field);
-        arms.push(exemplar.render("fielded_lifecycle_arm", &[("\"tmpl_field\"", naming::ruby_inspect_string(&key)), ("tmpl_ident", ident)]));
+        arms.push(exemplar.render(
+            "fielded_lifecycle_arm",
+            &[
+                ("\"tmpl_field\"", naming::ruby_inspect_string(&key)),
+                ("tmpl_ident", ident),
+            ],
+        ));
     }
     for ev in crate::bridging::correctable_event_names(aggregate) {
         let ident = crate::bridging::corrects_flag_field(&ev);
-        arms.push(exemplar.render("fielded_corrects_flag_arm", &[("\"tmpl_field\"", naming::ruby_inspect_string(&ident)), ("tmpl_ident", ident)]));
+        arms.push(exemplar.render(
+            "fielded_corrects_flag_arm",
+            &[
+                ("\"tmpl_field\"", naming::ruby_inspect_string(&ident)),
+                ("tmpl_ident", ident),
+            ],
+        ));
     }
 
     let arms: Vec<String> = arms.iter().map(|a| format!("            {a}")).collect();
@@ -130,9 +248,19 @@ pub fn emit_fielded_record(exemplar: &Exemplar, aggregate: &Json, value_objects_
         .iter()
         .filter_map(|e| e.get("name").and_then(Json::as_str).map(str::to_string))
         .collect();
-    let items = items_arms(exemplar, attributes, value_objects_by_name, &entity_names, |attr| {
-        crate::shared::list_attr_creation_optional(aggregate, crate::attr::name(attr), value_objects_by_name)
-    });
+    let items = items_arms(
+        exemplar,
+        attributes,
+        value_objects_by_name,
+        &entity_names,
+        |attr| {
+            crate::shared::list_attr_creation_optional(
+                aggregate,
+                crate::attr::name(attr),
+                value_objects_by_name,
+            )
+        },
+    );
 
     format!(
         "{}\n",
@@ -140,8 +268,14 @@ pub fn emit_fielded_record(exemplar: &Exemplar, aggregate: &Json, value_objects_
             "fielded_record",
             &[
                 ("TmplRecordType", name),
-                ("\"tmpl_arms_placeholder\" => tmpl_arms_block(),", arms.join("\n")),
-                ("\"tmpl_items_placeholder\" => tmpl_items_block(),", items.join("\n")),
+                (
+                    "\"tmpl_arms_placeholder\" => tmpl_arms_block(),",
+                    arms.join("\n")
+                ),
+                (
+                    "\"tmpl_items_placeholder\" => tmpl_items_block(),",
+                    items.join("\n")
+                ),
                 ("tmpl_as_scalar_placeholder()", as_scalar_expr(attributes)),
             ],
         )
@@ -167,7 +301,13 @@ fn as_scalar_expr(attributes: &[Json]) -> String {
 
 // One `Fielded::items` arm per list attribute whose element is a scalar, value object or
 // entity; other lists stay length-only.
-fn items_arms(exemplar: &Exemplar, attributes: &[Json], value_objects_by_name: &HashMap<String, &Json>, entity_names: &[String], optional: impl Fn(&Json) -> bool) -> Vec<String> {
+fn items_arms(
+    exemplar: &Exemplar,
+    attributes: &[Json],
+    value_objects_by_name: &HashMap<String, &Json>,
+    entity_names: &[String],
+    optional: impl Fn(&Json) -> bool,
+) -> Vec<String> {
     let mut arms = Vec::new();
     for attr in attributes {
         if !crate::attr::list(attr) {
@@ -177,14 +317,26 @@ fn items_arms(exemplar: &Exemplar, attributes: &[Json], value_objects_by_name: &
         let ident = naming::rust_ident_field(crate::attr::name(attr));
         let type_name = crate::attr::type_name(attr);
         let scalar = naming::effective_scalar_type(type_name);
-        let fielded_element = scalar.is_some() || is_fielded_nested(type_name, value_objects_by_name) || entity_names.iter().any(|e| e == type_name);
+        let fielded_element = scalar.is_some()
+            || is_fielded_nested(type_name, value_objects_by_name)
+            || entity_names.iter().any(|e| e == type_name);
         if !fielded_element {
             continue;
         }
-        let shape = format!("fielded_items_arm_list_{}{}", if optional(attr) { "optional_" } else { "" }, if scalar.is_some() { "scalar" } else { "nested" });
-        let mut subs: Vec<(&str, String)> = vec![("\"tmpl_field\"", naming::ruby_inspect_string(&key)), ("tmpl_ident", ident)];
+        let shape = format!(
+            "fielded_items_arm_list_{}{}",
+            if optional(attr) { "optional_" } else { "" },
+            if scalar.is_some() { "scalar" } else { "nested" }
+        );
+        let mut subs: Vec<(&str, String)> = vec![
+            ("\"tmpl_field\"", naming::ruby_inspect_string(&key)),
+            ("tmpl_ident", ident),
+        ];
         if let Some(scalar) = scalar {
-            subs.push(("tmpl_value_expr_placeholder(v)", naming::scalar_to_value(scalar, &naming::deref_scalar(scalar, "v")).unwrap()));
+            subs.push((
+                "tmpl_value_expr_placeholder(v)",
+                naming::scalar_to_value(scalar, &naming::deref_scalar(scalar, "v")).unwrap(),
+            ));
         }
         arms.push(format!("            {}", exemplar.render(&shape, &subs)));
     }

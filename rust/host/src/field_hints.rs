@@ -27,8 +27,10 @@ pub static EMAIL_HINT: LazyLock<Regex> =
 /// `(?i)` up front is this crate's spelling
 /// of Ruby's trailing `/i` — the WHOLE pattern is case-insensitive
 /// on both sides, never partially.
-pub static URL_HINT: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r#"(?i)\b(url|uri|website|link)\b"#).expect("declared field-hint pattern must compile"));
+pub static URL_HINT: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"(?i)\b(url|uri|website|link)\b"#)
+        .expect("declared field-hint pattern must compile")
+});
 
 /// Tel hint, resolving to `html_type` on a match —
 /// Vocabulary::FieldHint's own declared pattern, unmodified (the
@@ -37,8 +39,9 @@ pub static URL_HINT: LazyLock<Regex> =
 /// `(?i)` up front is this crate's spelling
 /// of Ruby's trailing `/i` — the WHOLE pattern is case-insensitive
 /// on both sides, never partially.
-pub static TEL_HINT: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r#"(?i)phone|\btel(ephone)?\b"#).expect("declared field-hint pattern must compile"));
+pub static TEL_HINT: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"(?i)phone|\btel(ephone)?\b"#).expect("declared field-hint pattern must compile")
+});
 
 /// Textarea hint, resolving to `kind` on a match —
 /// Vocabulary::FieldHint's own declared pattern, unmodified (the
@@ -47,6 +50,7 @@ pub static TEL_HINT: LazyLock<Regex> =
 /// `(?i)` up front is this crate's spelling
 /// of Ruby's trailing `/i` — the WHOLE pattern is case-insensitive
 /// on both sides, never partially.
-pub static TEXTAREA_HINT: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r#"(?i)\b(text|body|note|notes|description|message|comment)\b"#).expect("declared field-hint pattern must compile"));
-
+pub static TEXTAREA_HINT: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"(?i)\b(text|body|note|notes|description|message|comment)\b"#)
+        .expect("declared field-hint pattern must compile")
+});

@@ -14,26 +14,38 @@ pub mod query_ordering;
 pub mod vocab;
 // Kept at its old path so existing `refusal_wording::RefusalSite` call sites still resolve.
 pub use vocab::refusal_template as refusal_wording;
-pub mod read_model;
 pub mod query_comparators;
+pub mod read_model;
 pub mod reference_lookup;
 pub mod repository;
 pub mod routing;
 
-pub use dispatch::{aggregate_step_site, apply_entity_command, decode_aggregate_arguments, decode_entity_arguments, dispatch, dispatch_entity, enforce_invariants, entity_step_site, ArgumentGates, EnsuresSpec, EntityInvariants, GivenSpec, Hydrate, InvariantSet, InvariantSpec, StepSite, TransitionCheck};
-pub use expr::{interpret, BlockMode, Bound, Comparison, EvalContext, Expr, Field, Fielded, NoFields, StripSide, Value, WithParent};
+pub use dispatch::{
+    aggregate_step_site, apply_entity_command, decode_aggregate_arguments, decode_entity_arguments,
+    dispatch, dispatch_entity, enforce_invariants, entity_step_site, ArgumentGates, EnsuresSpec,
+    EntityInvariants, GivenSpec, Hydrate, InvariantSet, InvariantSpec, StepSite, TransitionCheck,
+};
+pub use expr::{
+    interpret, BlockMode, Bound, Comparison, EvalContext, Expr, Field, Fielded, NoFields,
+    StripSide, Value, WithParent,
+};
 pub use json::Json;
 pub use named_query::{QueryCondition, QueryConditionValue, QueryDef};
 pub use orchestrate::{
-    orchestrate, CompletedCompensation, CrossDomainPolicyRule, DispatchSpec, Handler, PendingCrossDomainReaction, PolicyRule, ProcessManagerDef,
-    SagaInstance, Tables, WithValue, MAX_REACTION_DEPTH, REFUSED,
+    orchestrate, CompletedCompensation, CrossDomainPolicyRule, DispatchSpec, Handler,
+    PendingCrossDomainReaction, PolicyRule, ProcessManagerDef, SagaInstance, Tables, WithValue,
+    MAX_REACTION_DEPTH, REFUSED,
 };
 pub use reference_lookup::{
-    command_deref, owner_deref, parent_deref, seeded_projections, DerefNode, ProjectedFieldSpec, ReferenceLookup, ReferenceSpec, ReferenceTable,
-    SetProjectedField, WithReferences, DEREFERENCE_DEPTH,
+    command_deref, owner_deref, parent_deref, seeded_projections, DerefNode, ProjectedFieldSpec,
+    ReferenceLookup, ReferenceSpec, ReferenceTable, SetProjectedField, WithReferences,
+    DEREFERENCE_DEPTH,
 };
 pub use refusal_wording::RefusalSite;
-pub use repository::{check_reference, check_role_via, filter_entries, holds_role_via, row_json, AggregateScan, InMemoryRepository, Repository};
+pub use repository::{
+    check_reference, check_role_via, filter_entries, holds_role_via, row_json, AggregateScan,
+    InMemoryRepository, Repository,
+};
 pub use routing::{CommandInvocation, RoutingEnvelope};
 
 /// A domain event raised by a successful command dispatch.

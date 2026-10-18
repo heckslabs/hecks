@@ -148,30 +148,54 @@ pub fn emit_role_check(
 /// Hand-built: the target accessor differs for a single-attribute value object and a bare scalar.
 pub fn emit_tenant_boundary_check(check: &TenantBoundaryCheck) -> String {
     let ref_ident = naming::rust_ident_field(&check.reference_field);
-    let own_expr = format!("args.{}.clone()", naming::rust_ident_field(&check.own_accessor));
+    let own_expr = format!(
+        "args.{}.clone()",
+        naming::rust_ident_field(&check.own_accessor)
+    );
     let target_expr = match check.target_accessor.split_once('.') {
         Some((head, inner)) => format!(
             "record.{}.as_ref().map(|v| v.{}.clone())",
             naming::rust_ident_field(head),
             naming::rust_ident_field(inner)
         ),
-        None => format!("record.{}.clone()", naming::rust_ident_field(&check.target_accessor)),
+        None => format!(
+            "record.{}.clone()",
+            naming::rust_ident_field(&check.target_accessor)
+        ),
     };
 
     let mut out = String::new();
-    out.push_str(&format!("if let Some(record) = store.{}.find(&args.{ref_ident}) {{ ", check.target_mod));
+    out.push_str(&format!(
+        "if let Some(record) = store.{}.find(&args.{ref_ident}) {{ ",
+        check.target_mod
+    ));
     out.push_str(&format!("if let Some(target_tenant) = {target_expr} {{ "));
     out.push_str(&format!("let own_tenant = {own_expr}; "));
     out.push_str("if target_tenant != own_tenant { ");
     out.push_str(
         "return Err(crate::kernel::Refusal::Unauthorized(crate::kernel::refusal_wording::UnauthorizedCrossTenantReferenceArgs { ",
     );
-    out.push_str(&format!("aggregate: {}, ", naming::ruby_inspect_string(&check.aggregate_name)));
-    out.push_str(&format!("field: {}, ", naming::ruby_inspect_string(&check.own_tenant_field)));
+    out.push_str(&format!(
+        "aggregate: {}, ",
+        naming::ruby_inspect_string(&check.aggregate_name)
+    ));
+    out.push_str(&format!(
+        "field: {}, ",
+        naming::ruby_inspect_string(&check.own_tenant_field)
+    ));
     out.push_str("tenant: &format!(\"{:?}\", own_tenant), ");
-    out.push_str(&format!("attribute: {}, ", naming::ruby_inspect_string(&check.reference_field)));
-    out.push_str(&format!("target: {}, ", naming::ruby_inspect_string(&check.target_name)));
-    out.push_str(&format!("target_field: {}, ", naming::ruby_inspect_string(&check.target_tenant_field)));
+    out.push_str(&format!(
+        "attribute: {}, ",
+        naming::ruby_inspect_string(&check.reference_field)
+    ));
+    out.push_str(&format!(
+        "target: {}, ",
+        naming::ruby_inspect_string(&check.target_name)
+    ));
+    out.push_str(&format!(
+        "target_field: {}, ",
+        naming::ruby_inspect_string(&check.target_tenant_field)
+    ));
     out.push_str("other: &format!(\"{:?}\", target_tenant)");
     out.push_str(" }.render_args())); ");
     out.push_str("} } }");
@@ -180,7 +204,12 @@ pub fn emit_tenant_boundary_check(check: &TenantBoundaryCheck) -> String {
 
 /// `kernel::ArgumentGates` literal for one command (`registry.rb#emit_argument_gates_literal`).
 /// The last two fields are closures because they need `store`, which exists only at the router.
-fn emit_argument_gates_literal(args_path: &str, invariant_check_lines: &[String], role_line: Option<String>, reference_lines: &[String]) -> String {
+fn emit_argument_gates_literal(
+    args_path: &str,
+    invariant_check_lines: &[String],
+    role_line: Option<String>,
+    reference_lines: &[String],
+) -> String {
     let mut normalize = vec![format!("let args = {args_path}::from_json(v)?;")];
     normalize.extend(invariant_check_lines.iter().map(|l| squeeze(l)));
     normalize.push("Ok(args)".to_string());
@@ -189,11 +218,18 @@ fn emit_argument_gates_literal(args_path: &str, invariant_check_lines: &[String]
         Some(line) => format!("&|| {{ {} Ok(()) }}", squeeze(&line)),
         None => "&|| Ok(())".to_string(),
     };
-    let references: Vec<String> = reference_lines.iter().filter(|l| !l.is_empty()).map(|l| squeeze(l)).collect();
+    let references: Vec<String> = reference_lines
+        .iter()
+        .filter(|l| !l.is_empty())
+        .map(|l| squeeze(l))
+        .collect();
     let references = if references.is_empty() {
         format!("&|_args: &{args_path}| Ok(())")
     } else {
-        format!("&|args: &{args_path}| {{ {} Ok(()) }}", references.join(" "))
+        format!(
+            "&|args: &{args_path}| {{ {} Ok(()) }}",
+            references.join(" ")
+        )
     };
 
     format!(
@@ -207,7 +243,11 @@ fn emit_argument_gates_literal(args_path: &str, invariant_check_lines: &[String]
 
 /// Joins a multi-line emitted check onto one line so it can sit inside a closure expression.
 fn squeeze(text: &str) -> String {
-    text.lines().map(str::trim).filter(|l| !l.is_empty()).collect::<Vec<_>>().join(" ")
+    text.lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 pub fn emit_reference_check(exemplar: &Exemplar, check: &ReferenceCheck) -> String {
@@ -394,8 +434,7 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                     &format!("{mod_path}::{}", c.args_struct),
                     &c.invariant_check_lines,
                     emit_role_check(exemplar, c.role.as_deref(), &c.name),
-                    &c
-                        .reference_checks
+                    &c.reference_checks
                         .iter()
                         .map(|check| emit_reference_check(exemplar, check))
                         .collect::<Vec<_>>()
@@ -414,7 +453,8 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 .map(emit_tenant_boundary_check)
                 .collect();
             let tenant_boundary_check_line = if tenant_boundary_check_bodies.is_empty() {
-                "let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());".to_string()
+                "let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());"
+                    .to_string()
             } else {
                 format!(
                     "let tenant_boundary_check: Result<(), crate::kernel::Refusal> = \
@@ -484,8 +524,7 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                     &format!("{mod_path}::{}", c.args_struct),
                     &c.invariant_check_lines,
                     emit_role_check(exemplar, c.role.as_deref(), &c.name),
-                    &c
-                        .reference_checks
+                    &c.reference_checks
                         .iter()
                         .map(|check| emit_reference_check(exemplar, check))
                         .collect::<Vec<_>>()
@@ -501,7 +540,10 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
             // A missing identity is wrapped as NotFound, as in the aggregate arm's `id_line`.
             let entity_parent_no_identity_message = format!(
                 "{} acts on a {}'s {} — pass {}:",
-                c.name, a.record, c.entity_name, a.identified_by.join(", ")
+                c.name,
+                a.record,
+                c.entity_name,
+                a.identified_by.join(", ")
             );
             let entity_element_no_identity_message = format!(
                 "{} acts on one {} — pass {}:",
@@ -519,7 +561,8 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
             );
 
             let mut body: Vec<String> = vec![
-                "let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;".to_string(),
+                "let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;"
+                    .to_string(),
                 "let route = invocation.route();".to_string(),
                 "let facts_json = invocation.facts();".to_string(),
                 "if let Some(route) = route { route.require_depth(1)?; }".to_string(),
@@ -571,8 +614,7 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                     &format!("{mod_path}::{}", c.args_struct),
                     &c.invariant_check_lines,
                     emit_role_check(exemplar, c.role.as_deref(), &c.name),
-                    &c
-                        .reference_checks
+                    &c.reference_checks
                         .iter()
                         .map(|check| emit_reference_check(exemplar, check))
                         .collect::<Vec<_>>()
@@ -587,7 +629,11 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
             // wrong-depth route first. A missing identity wraps into a per-hop NotFound message.
             let entity_parent_no_identity_message = format!(
                 "{} acts on a {}'s {}.{} — pass {}:",
-                c.name, a.record, c.entity_name, c.nested_name, a.identified_by.join(", ")
+                c.name,
+                a.record,
+                c.entity_name,
+                c.nested_name,
+                a.identified_by.join(", ")
             );
             let hop1_no_identity_message = format!(
                 "{} acts on one {} — pass {}:",
@@ -622,7 +668,8 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
             };
 
             let mut body: Vec<String> = vec![
-                "let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;".to_string(),
+                "let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;"
+                    .to_string(),
                 "let route = invocation.route();".to_string(),
                 "let facts_json = invocation.facts();".to_string(),
             ];
@@ -729,7 +776,10 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
             ("tmpl_dump_arm_placeholder();", dump_arms.join("\n")),
             ("tmpl_seed_arm_placeholder();", seed_arms.join("\n")),
             ("tmpl_query_arm_placeholder();", query_arms.join("\n")),
-            ("tmpl_scan_each_arm_placeholder();", scan_each_arms.join("\n")),
+            (
+                "tmpl_scan_each_arm_placeholder();",
+                scan_each_arms.join("\n"),
+            ),
             (
                 "\"tmpl_verb\" => { tmpl_dispatch_arm_placeholder() }",
                 dispatch_arms.join("\n"),
@@ -862,7 +912,9 @@ mod tests {
         assert!(generated.contains("let box_number = facts_json.dig(\"box_number\")"));
         // `from_json` is reached through the `normalize_args` hook; route depth leads the body and
         // identity resolves after every gate.
-        assert!(generated.contains("crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates {"));
+        assert!(generated.contains(
+            "crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates {"
+        ));
         assert!(generated.contains("decode_arguments: &crate::generated::banking::safedepositbox::RentArgs::decode_arguments"));
         assert!(generated.contains("refuse_unknown_arguments: &crate::generated::banking::safedepositbox::RentArgs::refuse_unknown_arguments"));
         assert!(generated.contains("refuse_absent_arguments: &crate::generated::banking::safedepositbox::RentArgs::refuse_absent_arguments"));
@@ -870,7 +922,9 @@ mod tests {
         assert!(generated.contains("if let Some(route) = route { route.require_depth(0)?; }"));
         assert!(generated.contains("Some(route) => route.aggregate().to_string()"));
         assert!(generated.contains("if let Some(route) = route { route.require_depth(1)?; }"));
-        assert!(generated.contains("crate::kernel::decode_entity_arguments(facts_json, &crate::kernel::ArgumentGates {"));
+        assert!(generated.contains(
+            "crate::kernel::decode_entity_arguments(facts_json, &crate::kernel::ArgumentGates {"
+        ));
         assert!(generated.contains("let element_id = route.entities()[0].clone()"));
         assert!(generated.contains("VisitAnnotateArgs::from_json(v)?"));
         assert!(!generated.contains("RentArgs::from_json(facts_json)?"));
@@ -950,7 +1004,10 @@ mod tests {
             chapter_mod: "banking".to_string(),
             domain_name: "Banking".to_string(),
             reference_specs: Vec::new(),
-            identified_by: vec!["branch_code.value".to_string(), "box_number.value".to_string()],
+            identified_by: vec![
+                "branch_code.value".to_string(),
+                "box_number.value".to_string(),
+            ],
             entities: Vec::new(),
         };
 

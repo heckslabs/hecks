@@ -6,10 +6,10 @@ mod build_artifact;
 mod cargo_sync;
 // The one JSON implementation, compiled from `hecks-codegen`'s own source: neither crate depends on
 // the other, and a packaged workspace ships both side by side. This crate reads only part of it.
+mod binding_pass;
 #[allow(dead_code)]
 #[path = "../../codegen/src/json.rs"]
 mod json;
-mod binding_pass;
 mod lineage_pass;
 mod pipeline;
 mod reserved_names;
@@ -50,7 +50,9 @@ fn run(args: &[String]) -> Result<(), String> {
         }
     }
 
-    let domain = domain.ok_or_else(|| "usage: hecks-build <domain> [--wasm] [--no-build] [--out <dir>]".to_string())?;
+    let domain = domain.ok_or_else(|| {
+        "usage: hecks-build <domain> [--wasm] [--no-build] [--out <dir>]".to_string()
+    })?;
     let root = root::find()?;
 
     // `--out` generates the module tree into that directory only: no `Cargo.toml` rewrite, no

@@ -46,7 +46,15 @@ impl Manifest {
             gap_class.is_none() || construct.as_deref().is_some_and(|c| !c.is_empty()),
             "manifest entry {kind} {id} declares gap_class {gap_class:?} with no construct"
         );
-        self.entries.push(Entry { kind, id, generated, routed, gap_class, construct: gap_class.and(construct), reason });
+        self.entries.push(Entry {
+            kind,
+            id,
+            generated,
+            routed,
+            gap_class,
+            construct: gap_class.and(construct),
+            reason,
+        });
     }
 
     /// `generated: true` with nothing else.
@@ -61,24 +69,51 @@ impl Manifest {
 
     /// `generated: false, gap_class: "per_instance", construct: reason.construct, reason:`.
     pub fn skipped(&mut self, kind: &'static str, id: String, reason: SkipReason) {
-        self.record(kind, id, false, None, Some("per_instance"), Some(reason.construct), Some(reason.text));
+        self.record(
+            kind,
+            id,
+            false,
+            None,
+            Some("per_instance"),
+            Some(reason.construct),
+            Some(reason.text),
+        );
     }
 
     /// A per-instance gap whose construct the call site names itself
     /// (`attribute_type`, `owning_aggregate`) rather than a skip function.
     pub fn skipped_as(&mut self, kind: &'static str, id: String, construct: &str, reason: String) {
-        self.record(kind, id, false, None, Some("per_instance"), Some(construct.to_string()), Some(reason));
+        self.record(
+            kind,
+            id,
+            false,
+            None,
+            Some("per_instance"),
+            Some(construct.to_string()),
+            Some(reason),
+        );
     }
 
     /// `generated: true, routed: false, gap_class: "per_instance", construct:, reason:`.
     pub fn unrouted(&mut self, kind: &'static str, id: String, construct: &str, reason: String) {
-        self.record(kind, id, true, Some(false), Some("per_instance"), Some(construct.to_string()), Some(reason));
+        self.record(
+            kind,
+            id,
+            true,
+            Some(false),
+            Some("per_instance"),
+            Some(construct.to_string()),
+            Some(reason),
+        );
     }
 
     /// Records every query declared on a nested entity, at any depth, as an `entity_query` gap.
     pub fn entity_query_gaps(&mut self, owner_id: &str, entities: &[Json]) {
         for entity in entities {
-            let entity_id = format!("{owner_id}.{}", entity.get("name").map(Json::to_s).unwrap_or_default());
+            let entity_id = format!(
+                "{owner_id}.{}",
+                entity.get("name").map(Json::to_s).unwrap_or_default()
+            );
             for query in entity.get("queries").map(Json::each).unwrap_or(&[]) {
                 self.record(
                     "query",
@@ -93,7 +128,10 @@ impl Manifest {
                     ),
                 );
             }
-            self.entity_query_gaps(&entity_id, entity.get("entities").map(Json::each).unwrap_or(&[]));
+            self.entity_query_gaps(
+                &entity_id,
+                entity.get("entities").map(Json::each).unwrap_or(&[]),
+            );
         }
     }
 
@@ -125,7 +163,10 @@ fn entry_json(entry: &Entry) -> String {
     if let Some(reason) = &entry.reason {
         fields.push(("reason", json_string(reason)));
     }
-    let lines: Vec<String> = fields.iter().map(|(k, v)| format!("    \"{k}\": {v}")).collect();
+    let lines: Vec<String> = fields
+        .iter()
+        .map(|(k, v)| format!("    \"{k}\": {v}"))
+        .collect();
     format!("  {{\n{}\n  }}", lines.join(",\n"))
 }
 
@@ -195,7 +236,12 @@ mod tests {
     fn optional_keys_follow_ruby_insertion_order_and_escape_like_json_generate() {
         let mut m = Manifest::default();
         m.generated("aggregate", "D::A".to_string());
-        m.unrouted("command", "D::A.C".to_string(), "router_identity", "q\"\\/\t\u{1}— é".to_string());
+        m.unrouted(
+            "command",
+            "D::A.C".to_string(),
+            "router_identity",
+            "q\"\\/\t\u{1}— é".to_string(),
+        );
         let expected = "[\n  {\n    \"kind\": \"aggregate\",\n    \"id\": \"D::A\",\n    \"generated\": true\n  },\n  {\n    \"kind\": \"command\",\n    \"id\": \"D::A.C\",\n    \"generated\": true,\n    \"routed\": false,\n    \"gap_class\": \"per_instance\",\n    \"construct\": \"router_identity\",\n    \"reason\": \"q\\\"\\\\/\\t\\u0001— é\"\n  }\n]";
         assert_eq!(m.to_json_text(), expected);
     }
@@ -214,13 +260,24 @@ mod tests {
     #[test]
     #[should_panic(expected = "with no gap_class")]
     fn a_gap_without_a_gap_class_is_refused() {
-        Manifest::default().record("command", "D::A.C".to_string(), false, None, None, None, None);
+        Manifest::default().record(
+            "command",
+            "D::A.C".to_string(),
+            false,
+            None,
+            None,
+            None,
+            None,
+        );
     }
 
     #[test]
     fn inspect_matches_ruby_for_identity_arrays_and_nil() {
         let ids = Json::parse(r##"["reference.value", "a\"b", "#{x}"]"##).unwrap();
-        assert_eq!(ruby_inspect(Some(&ids)), r##"["reference.value", "a\"b", "\#{x}"]"##);
+        assert_eq!(
+            ruby_inspect(Some(&ids)),
+            r##"["reference.value", "a\"b", "\#{x}"]"##
+        );
         assert_eq!(ruby_inspect(Some(&Json::Array(vec![]))), "[]");
         assert_eq!(ruby_inspect(None), "nil");
     }

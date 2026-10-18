@@ -25,12 +25,17 @@ pub fn rust_string_literal(text: &str) -> String {
 }
 
 /// `ir.json` is what `rust/host` reads at runtime, and `metadata.rs` embeds the same text.
-pub fn write(mod_dir: &std::path::Path, ir: &Json, source_label: &str) -> Result<(std::path::PathBuf, std::path::PathBuf), String> {
+pub fn write(
+    mod_dir: &std::path::Path,
+    ir: &Json,
+    source_label: &str,
+) -> Result<(std::path::PathBuf, std::path::PathBuf), String> {
     std::fs::create_dir_all(mod_dir).map_err(|e| format!("creating {}: {e}", mod_dir.display()))?;
 
     let ir_text = json::write(ir);
     let ir_json_path = mod_dir.join("ir.json");
-    std::fs::write(&ir_json_path, &ir_text).map_err(|e| format!("writing {}: {e}", ir_json_path.display()))?;
+    std::fs::write(&ir_json_path, &ir_text)
+        .map_err(|e| format!("writing {}: {e}", ir_json_path.display()))?;
 
     let metadata_path = mod_dir.join("metadata.rs");
     let mut contents = String::new();
@@ -43,7 +48,8 @@ pub fn write(mod_dir: &std::path::Path, ir: &Json, source_label: &str) -> Result
     contents.push_str("pub const IR_JSON: &str = ");
     contents.push_str(&rust_string_literal(&ir_text));
     contents.push_str(";\n");
-    std::fs::write(&metadata_path, contents).map_err(|e| format!("writing {}: {e}", metadata_path.display()))?;
+    std::fs::write(&metadata_path, contents)
+        .map_err(|e| format!("writing {}: {e}", metadata_path.display()))?;
 
     Ok((ir_json_path, metadata_path))
 }
@@ -64,7 +70,10 @@ mod tests {
     // escape exists at all).
     #[test]
     fn leaves_a_literal_hash_brace_and_hash_at_untouched() {
-        assert_eq!(rust_string_literal("cost #{threshold}"), "\"cost #{threshold}\"");
+        assert_eq!(
+            rust_string_literal("cost #{threshold}"),
+            "\"cost #{threshold}\""
+        );
         assert_eq!(rust_string_literal("ivar #@foo"), "\"ivar #@foo\"");
     }
 

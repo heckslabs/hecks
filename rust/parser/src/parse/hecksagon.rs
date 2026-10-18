@@ -115,8 +115,13 @@ pub fn apply(
                 // fact collected for `resolve`, absent from `ir.json`. Only `from: :vendor`
                 // is admitted as a source, and anything else is refused.
                 "attaches" => {
-                    let name =
-                        super::positional_text(file, gated.line.number, "attaches", &gated.args, 1)?;
+                    let name = super::positional_text(
+                        file,
+                        gated.line.number,
+                        "attaches",
+                        &gated.args,
+                        1,
+                    )?;
                     match super::named_symbol(&gated.args, "from").as_deref() {
                         None => gem_chapter_names.push(name),
                         Some("vendor") => vendored_bluebook_names.push(name),

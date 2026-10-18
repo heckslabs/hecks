@@ -15,20 +15,57 @@ pub struct Operator {
 }
 
 pub const OPERATORS: [Operator; 6] = [
-    Operator { symbol: ">=", compares_less_than: true, compares_equal: false, negated: true },
-    Operator { symbol: "<=", compares_less_than: true, compares_equal: true, negated: false },
-    Operator { symbol: "<", compares_less_than: true, compares_equal: false, negated: false },
-    Operator { symbol: ">", compares_less_than: true, compares_equal: true, negated: true },
-    Operator { symbol: "==", compares_less_than: false, compares_equal: true, negated: false },
-    Operator { symbol: "!=", compares_less_than: false, compares_equal: true, negated: true },
+    Operator {
+        symbol: ">=",
+        compares_less_than: true,
+        compares_equal: false,
+        negated: true,
+    },
+    Operator {
+        symbol: "<=",
+        compares_less_than: true,
+        compares_equal: true,
+        negated: false,
+    },
+    Operator {
+        symbol: "<",
+        compares_less_than: true,
+        compares_equal: false,
+        negated: false,
+    },
+    Operator {
+        symbol: ">",
+        compares_less_than: true,
+        compares_equal: true,
+        negated: true,
+    },
+    Operator {
+        symbol: "==",
+        compares_less_than: false,
+        compares_equal: true,
+        negated: false,
+    },
+    Operator {
+        symbol: "!=",
+        compares_less_than: false,
+        compares_equal: true,
+        negated: true,
+    },
 ];
 
 pub fn find_operator(symbol: &str) -> Operator {
-    *OPERATORS.iter().find(|op| op.symbol == symbol).unwrap_or_else(|| panic!("no such comparison operator {symbol:?}"))
+    *OPERATORS
+        .iter()
+        .find(|op| op.symbol == symbol)
+        .unwrap_or_else(|| panic!("no such comparison operator {symbol:?}"))
 }
 
 /// Index of the first top-level (outside quotes and brackets) `operator` that `accept` allows.
-pub fn top_level_index(expr: &str, operator: &str, accept: impl Fn(usize) -> bool) -> Option<usize> {
+pub fn top_level_index(
+    expr: &str,
+    operator: &str,
+    accept: impl Fn(usize) -> bool,
+) -> Option<usize> {
     let bytes = expr.as_bytes();
     let op_bytes = operator.as_bytes();
     let mut depth: i32 = 0;
@@ -48,7 +85,10 @@ pub fn top_level_index(expr: &str, operator: &str, accept: impl Fn(usize) -> boo
             depth += 1;
         } else if ch == b')' || ch == b'}' {
             depth -= 1;
-        } else if depth == 0 && index + op_bytes.len() <= bytes.len() && &bytes[index..index + op_bytes.len()] == op_bytes {
+        } else if depth == 0
+            && index + op_bytes.len() <= bytes.len()
+            && &bytes[index..index + op_bytes.len()] == op_bytes
+        {
             if accept(index) {
                 return Some(index);
             }

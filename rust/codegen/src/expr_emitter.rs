@@ -5,10 +5,19 @@ use crate::json::Json;
 use crate::naming::ruby_inspect_string;
 
 pub fn emit_ast(node: &Json) -> String {
-    let op = node.get("op").and_then(Json::as_str).unwrap_or_else(|| panic!("ast node has no string \"op\": {node:?}"));
+    let op = node
+        .get("op")
+        .and_then(Json::as_str)
+        .unwrap_or_else(|| panic!("ast node has no string \"op\": {node:?}"));
     let sub = |key: &str| emit_ast(field(node, op, key));
     let boxed = |key: &str| format!("Box::new({})", sub(key));
-    let text = |key: &str| ruby_inspect_string(field(node, op, key).as_str().unwrap_or_else(|| panic!("{op}'s {key:?} isn't a string: {node:?}")));
+    let text = |key: &str| {
+        ruby_inspect_string(
+            field(node, op, key)
+                .as_str()
+                .unwrap_or_else(|| panic!("{op}'s {key:?} isn't a string: {node:?}")),
+        )
+    };
 
     match op {
         "or" => format!("Expr::Or({}, {})", boxed("left"), boxed("right")),
@@ -65,19 +74,34 @@ pub fn emit_ast(node: &Json) -> String {
 
 // Fully qualified because the self-hosted grammar declares its own `Comparison` type.
 pub fn emit_comparison(cmp: &Json) -> String {
-    let flag = |key: &str| cmp.get(key).unwrap_or_else(|| panic!("cmp has no {key:?}: {cmp:?}")).to_s();
-    format!("crate::kernel::Comparison {{ less_than: {}, equal: {}, negated: {} }}", flag("less_than"), flag("equal"), flag("negated"))
+    let flag = |key: &str| {
+        cmp.get(key)
+            .unwrap_or_else(|| panic!("cmp has no {key:?}: {cmp:?}"))
+            .to_s()
+    };
+    format!(
+        "crate::kernel::Comparison {{ less_than: {}, equal: {}, negated: {} }}",
+        flag("less_than"),
+        flag("equal"),
+        flag("negated")
+    )
 }
 
 fn field<'a>(node: &'a Json, op: &str, key: &str) -> &'a Json {
-    node.get(key).unwrap_or_else(|| panic!("{op} node has no {key:?} field: {node:?}"))
+    node.get(key)
+        .unwrap_or_else(|| panic!("{op} node has no {key:?} field: {node:?}"))
 }
 
 fn path_of(node: &Json, op: &str) -> Vec<String> {
     field(node, op, "path")
         .each()
         .iter()
-        .map(|segment| segment.as_str().map(str::to_string).unwrap_or_else(|| panic!("{op}'s path has a non-string segment: {node:?}")))
+        .map(|segment| {
+            segment
+                .as_str()
+                .map(str::to_string)
+                .unwrap_or_else(|| panic!("{op}'s path has a non-string segment: {node:?}"))
+        })
         .collect()
 }
 

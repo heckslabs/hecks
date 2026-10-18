@@ -2,7 +2,9 @@
 //! A query outside the compiled subset has no row and is refused by the string-form step.
 
 use super::refusal_wording::UnauthorizedTenantRequiredArgs;
-use super::{query_comparators::QueryComparator, query_ordering, repository, AggregateScan, Json, Refusal};
+use super::{
+    query_comparators::QueryComparator, query_ordering, repository, AggregateScan, Json, Refusal,
+};
 
 /// One declared query, compiled.
 ///
@@ -60,7 +62,12 @@ pub enum QueryConditionValue {
 
 /// Runs a declared query: chained `filter_entries` per condition (keeping id order), then
 /// `query_ordering::apply` for `order_by`/`offset`/`limit`, as Ruby filters then orders.
-pub fn run(store: &impl AggregateScan, def: &QueryDef, args: &Json, caller_role: Option<&str>) -> Result<Vec<(String, Json)>, Refusal> {
+pub fn run(
+    store: &impl AggregateScan,
+    def: &QueryDef,
+    args: &Json,
+    caller_role: Option<&str>,
+) -> Result<Vec<(String, Json)>, Refusal> {
     run_cross_domain(store, def, args, &[], caller_role)
 }
 
@@ -77,7 +84,11 @@ pub fn run_cross_domain(
     if let Some(auth) = &def.authorization {
         if args.get(auth.tenant_field).is_none() {
             return Err(Refusal::Unauthorized(
-                UnauthorizedTenantRequiredArgs { query: auth.query_name, field: auth.tenant_field }.render_args(),
+                UnauthorizedTenantRequiredArgs {
+                    query: auth.query_name,
+                    field: auth.tenant_field,
+                }
+                .render_args(),
             ));
         }
     }
@@ -100,21 +111,35 @@ pub fn run_cross_domain(
     // cloned. ANDing per row keeps what chaining one filter per condition kept.
     let mut entries: Vec<(String, Json)> = Vec::new();
     let known = store.scan_each(def.aggregate, &mut |id, record| {
-        let kept = wants
-            .iter()
-            .all(|(c, want)| repository::entry_matches(record, c.field, c.comparator, want, cross_domain));
+        let kept = wants.iter().all(|(c, want)| {
+            repository::entry_matches(record, c.field, c.comparator, want, cross_domain)
+        });
         if kept {
             entries.push((id.to_string(), record.clone()));
         }
     });
     if !known {
-        return Err(Refusal::TypeMismatch(format!("unknown aggregate {:?}", def.aggregate)));
+        return Err(Refusal::TypeMismatch(format!(
+            "unknown aggregate {:?}",
+            def.aggregate
+        )));
     }
     entries.sort_by(|a, b| a.0.cmp(&b.0));
 
-    entries = super::read_model::apply_reference_hops(entries, def.reference_hop_conditions, args, store)?;
+    entries = super::read_model::apply_reference_hops(
+        entries,
+        def.reference_hop_conditions,
+        args,
+        store,
+    )?;
 
-    Ok(query_ordering::apply(entries, def.order_by.as_ref(), def.offset.as_ref(), def.limit.as_ref(), args))
+    Ok(query_ordering::apply(
+        entries,
+        def.order_by.as_ref(),
+        def.offset.as_ref(),
+        def.limit.as_ref(),
+        args,
+    ))
 }
 
 /// Finds a query by verb; a linear scan is enough for the small generated `QUERIES` table.
@@ -146,7 +171,11 @@ pub fn find_entity<'a>(table: &'a [EntityQueryDef], verb: &str) -> Option<&'a En
     table.iter().find(|def| def.verb == verb)
 }
 
-pub fn run_entity(store: &impl AggregateScan, def: &EntityQueryDef, args: &Json) -> Result<Vec<Json>, Refusal> {
+pub fn run_entity(
+    store: &impl AggregateScan,
+    def: &EntityQueryDef,
+    args: &Json,
+) -> Result<Vec<Json>, Refusal> {
     let records = store
         .scan(def.aggregate)
         .ok_or_else(|| Refusal::TypeMismatch(format!("unknown aggregate {:?}", def.aggregate)))?;
@@ -155,7 +184,11 @@ pub fn run_entity(store: &impl AggregateScan, def: &EntityQueryDef, args: &Json)
     let mut entries: Vec<(String, Json)> = Vec::new();
     for (parent_id, record) in records {
         if let Some(elements) = record.get(def.list_field).and_then(Json::as_array) {
-            entries.extend(elements.iter().map(|element| (parent_id.clone(), element.clone())));
+            entries.extend(
+                elements
+                    .iter()
+                    .map(|element| (parent_id.clone(), element.clone())),
+            );
         }
     }
 
@@ -169,10 +202,23 @@ pub fn run_entity(store: &impl AggregateScan, def: &EntityQueryDef, args: &Json)
     }
 
     // `query_ordering::apply` re-sorts stably by parent id, so identity order survives per parent.
-    entries.sort_by(|(parent_a, a), (parent_b, b)| parent_a.cmp(parent_b).then_with(|| identity_order(a, b, def.identity_keys)));
-    let ordered = query_ordering::apply(entries, def.order_by.as_ref(), def.offset.as_ref(), def.limit.as_ref(), args);
+    entries.sort_by(|(parent_a, a), (parent_b, b)| {
+        parent_a
+            .cmp(parent_b)
+            .then_with(|| identity_order(a, b, def.identity_keys))
+    });
+    let ordered = query_ordering::apply(
+        entries,
+        def.order_by.as_ref(),
+        def.offset.as_ref(),
+        def.limit.as_ref(),
+        args,
+    );
 
-    Ok(ordered.into_iter().map(|(parent_id, element)| row_under_parent(def.parent_key, parent_id, element)).collect())
+    Ok(ordered
+        .into_iter()
+        .map(|(parent_id, element)| row_under_parent(def.parent_key, parent_id, element))
+        .collect())
 }
 
 fn identity_order(a: &Json, b: &Json, keys: &[&str]) -> std::cmp::Ordering {
@@ -193,7 +239,9 @@ fn comparable(value: Option<&Json>) -> Option<&Json> {
 fn compare_comparable(a: Option<&Json>, b: Option<&Json>) -> std::cmp::Ordering {
     use std::cmp::Ordering;
     match (a, b) {
-        (Some(Json::Num(x, _)), Some(Json::Num(y, _))) => x.partial_cmp(y).unwrap_or(Ordering::Equal),
+        (Some(Json::Num(x, _)), Some(Json::Num(y, _))) => {
+            x.partial_cmp(y).unwrap_or(Ordering::Equal)
+        }
         (Some(Json::Str(x)), Some(Json::Str(y))) => x.cmp(y),
         (None | Some(Json::Null), None | Some(Json::Null)) => Ordering::Equal,
         (None | Some(Json::Null), _) => Ordering::Less,

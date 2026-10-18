@@ -487,7 +487,10 @@ mod tests {
     #[test]
     fn double_quoted_escapes_read_as_ruby_reads_them() {
         assert_eq!(read(r#""a\tb\nc""#), Value::Str("a\tb\nc".to_string()));
-        assert_eq!(read(r#""\e\s\a\0""#), Value::Str("\u{1b} \u{7}\0".to_string()));
+        assert_eq!(
+            read(r#""\e\s\a\0""#),
+            Value::Str("\u{1b} \u{7}\0".to_string())
+        );
         assert_eq!(
             read(r#""\x41\101é\u{1F4A5 41}""#),
             Value::Str("AA\u{e9}\u{1F4A5}A".to_string())

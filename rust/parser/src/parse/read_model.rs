@@ -96,16 +96,40 @@ pub fn parse_body(
                 )?)
             }
             "sum" => {
-                sum_field = Some(super::positional_symbol(file, last_line, "sum", &gated.args, 1)?)
+                sum_field = Some(super::positional_symbol(
+                    file,
+                    last_line,
+                    "sum",
+                    &gated.args,
+                    1,
+                )?)
             }
             "avg" => {
-                avg_field = Some(super::positional_symbol(file, last_line, "avg", &gated.args, 1)?)
+                avg_field = Some(super::positional_symbol(
+                    file,
+                    last_line,
+                    "avg",
+                    &gated.args,
+                    1,
+                )?)
             }
             "min" => {
-                min_field = Some(super::positional_symbol(file, last_line, "min", &gated.args, 1)?)
+                min_field = Some(super::positional_symbol(
+                    file,
+                    last_line,
+                    "min",
+                    &gated.args,
+                    1,
+                )?)
             }
             "max" => {
-                max_field = Some(super::positional_symbol(file, last_line, "max", &gated.args, 1)?)
+                max_field = Some(super::positional_symbol(
+                    file,
+                    last_line,
+                    "max",
+                    &gated.args,
+                    1,
+                )?)
             }
             "percentile" => {
                 percentile_field = Some(super::positional_symbol(
@@ -116,14 +140,30 @@ pub fn parse_body(
                     1,
                 )?);
                 percentile_at = Some(super::named_text(&gated.args, "at").ok_or_else(|| {
-                    Diagnostic::new(file, last_line, "'percentile' needs an at: argument".to_string())
+                    Diagnostic::new(
+                        file,
+                        last_line,
+                        "'percentile' needs an at: argument".to_string(),
+                    )
                 })?);
             }
             "any" => {
-                any_field = Some(super::positional_symbol(file, last_line, "any", &gated.args, 1)?)
+                any_field = Some(super::positional_symbol(
+                    file,
+                    last_line,
+                    "any",
+                    &gated.args,
+                    1,
+                )?)
             }
             "all" => {
-                all_field = Some(super::positional_symbol(file, last_line, "all", &gated.args, 1)?)
+                all_field = Some(super::positional_symbol(
+                    file,
+                    last_line,
+                    "all",
+                    &gated.args,
+                    1,
+                )?)
             }
             "where" => {
                 // ADR 0055: `on:` is a recognized named argument for `where` in ReadModel
@@ -147,7 +187,11 @@ pub fn parse_body(
                     None => "asc".to_string(),
                 };
                 let target = super::named_constant(&gated.args, "on").map(naming::demodulise);
-                order_by = Some(ir::OrderBy { field, direction, target });
+                order_by = Some(ir::OrderBy {
+                    field,
+                    direction,
+                    target,
+                });
             }
             "limit" => {
                 let raw = super::positional_constant(file, last_line, "limit", &gated.args, 1)?;

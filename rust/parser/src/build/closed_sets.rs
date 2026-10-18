@@ -21,7 +21,12 @@ pub fn synthesize(field_name: &str, values: &[String]) -> ir::ValueObject {
         closed_set: true,
         members: values
             .iter()
-            .map(|value| vec![("value".to_string(), crate::ruby_value::Value::Str(value.clone()))])
+            .map(|value| {
+                vec![(
+                    "value".to_string(),
+                    crate::ruby_value::Value::Str(value.clone()),
+                )]
+            })
             .collect(),
     }
 }

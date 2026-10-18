@@ -22,7 +22,12 @@ pub fn policy_event_name(on_event: &str) -> String {
     }
 }
 
-pub fn emit_policy_table(exemplar: &Exemplar, domain_name: &str, policies: &[Json], aggregates: &[Json]) -> String {
+pub fn emit_policy_table(
+    exemplar: &Exemplar,
+    domain_name: &str,
+    policies: &[Json],
+    aggregates: &[Json],
+) -> String {
     let fns = where_fns(policies);
     let rows = local_policy_rows(domain_name, policies, aggregates);
     let table = exemplar.render(
@@ -38,7 +43,12 @@ pub fn emit_policy_table(exemplar: &Exemplar, domain_name: &str, policies: &[Jso
 
 // A policy's `where { … }` becomes a generated function the kernel calls.
 fn where_fn_name(policy: &Json) -> String {
-    format!("where_{}", naming::dispatch_fn_name(&naming::rust_ident(&policy.get("name").map(Json::to_s).unwrap_or_default())))
+    format!(
+        "where_{}",
+        naming::dispatch_fn_name(&naming::rust_ident(
+            &policy.get("name").map(Json::to_s).unwrap_or_default()
+        ))
+    )
 }
 
 fn where_expr(policy: &Json) -> String {
@@ -51,10 +61,22 @@ fn where_expr(policy: &Json) -> String {
 fn where_fns(policies: &[Json]) -> Vec<String> {
     policies
         .iter()
-        .filter(|policy| policy.get("where").map(Json::to_s).map(|w| !w.is_empty()).unwrap_or(false))
+        .filter(|policy| {
+            policy
+                .get("where")
+                .map(Json::to_s)
+                .map(|w| !w.is_empty())
+                .unwrap_or(false)
+        })
         .map(|policy| {
-            let ast = policy.get("where_ast").unwrap_or_else(|| panic!("policy with a where has no where_ast: {policy:?}"));
-            format!("fn {}() -> crate::kernel::Expr {{\n    use crate::kernel::Expr;\n    {}\n}}", where_fn_name(policy), crate::expr_emitter::emit_ast(ast))
+            let ast = policy
+                .get("where_ast")
+                .unwrap_or_else(|| panic!("policy with a where has no where_ast: {policy:?}"));
+            format!(
+                "fn {}() -> crate::kernel::Expr {{\n    use crate::kernel::Expr;\n    {}\n}}",
+                where_fn_name(policy),
+                crate::expr_emitter::emit_ast(ast)
+            )
         })
         .collect()
 }
@@ -124,7 +146,11 @@ fn cross_domain_policy_rows(domain_name: &str, policies: &[Json]) -> Vec<String>
         .collect()
 }
 
-pub fn emit_cross_domain_policy_table(exemplar: &Exemplar, domain_name: &str, policies: &[Json]) -> String {
+pub fn emit_cross_domain_policy_table(
+    exemplar: &Exemplar,
+    domain_name: &str,
+    policies: &[Json],
+) -> String {
     let rows = cross_domain_policy_rows(domain_name, policies);
 
     if !rows.is_empty() {
@@ -153,8 +179,16 @@ pub struct PolicySource<'a> {
 /// Each source's `target_verb` is qualified against its own domain, never the target's;
 /// omitting a chapter's policies would leave them out of the table `kernel::orchestrate` reads.
 pub fn emit_merged_policy_table(exemplar: &Exemplar, sources: &[PolicySource]) -> String {
-    let rows: Vec<String> = sources.iter().flat_map(|source| local_policy_rows(source.domain_name, source.policies, source.aggregates)).collect();
-    let fns: Vec<String> = sources.iter().flat_map(|source| where_fns(source.policies)).collect();
+    let rows: Vec<String> = sources
+        .iter()
+        .flat_map(|source| {
+            local_policy_rows(source.domain_name, source.policies, source.aggregates)
+        })
+        .collect();
+    let fns: Vec<String> = sources
+        .iter()
+        .flat_map(|source| where_fns(source.policies))
+        .collect();
 
     let table = exemplar.render(
         "policy_table",
@@ -168,8 +202,14 @@ pub fn emit_merged_policy_table(exemplar: &Exemplar, sources: &[PolicySource]) -
 }
 
 /// The cross-domain policy table for `merged.rs`, folding in every attached chapter.
-pub fn emit_merged_cross_domain_policy_table(exemplar: &Exemplar, sources: &[PolicySource]) -> String {
-    let rows: Vec<String> = sources.iter().flat_map(|source| cross_domain_policy_rows(source.domain_name, source.policies)).collect();
+pub fn emit_merged_cross_domain_policy_table(
+    exemplar: &Exemplar,
+    sources: &[PolicySource],
+) -> String {
+    let rows: Vec<String> = sources
+        .iter()
+        .flat_map(|source| cross_domain_policy_rows(source.domain_name, source.policies))
+        .collect();
 
     if !rows.is_empty() {
         println!("cross-domain policy table: {} row(s) — delivered by rust/host's lambda_client.rs, not locally dispatched", rows.len());
@@ -192,15 +232,29 @@ fn with_value_parsed(raw: &str) -> Literal {
 fn json_literal_expr(value: &Literal) -> String {
     match value {
         Literal::Hash(pairs) => {
-            let fields: Vec<String> = pairs.iter().map(|(k, v)| format!("({}.to_string(), {})", naming::ruby_inspect_string(k), json_literal_expr(v))).collect();
+            let fields: Vec<String> = pairs
+                .iter()
+                .map(|(k, v)| {
+                    format!(
+                        "({}.to_string(), {})",
+                        naming::ruby_inspect_string(k),
+                        json_literal_expr(v)
+                    )
+                })
+                .collect();
             format!("crate::kernel::Json::Object(vec![{}])", fields.join(", "))
         }
-        Literal::Str(s) => format!("crate::kernel::Json::Str({}.to_string())", naming::ruby_inspect_string(s)),
+        Literal::Str(s) => format!(
+            "crate::kernel::Json::Str({}.to_string())",
+            naming::ruby_inspect_string(s)
+        ),
         Literal::Int(n) => format!("crate::kernel::Json::int({n})"),
         Literal::Float(n) => format!("crate::kernel::Json::Num({}f64, None)", ruby_float_text(*n)),
         Literal::Bool(b) => format!("crate::kernel::Json::Bool({b})"),
         Literal::Nil => "crate::kernel::Json::Null".to_string(),
-        other => panic!("unsupported with: literal {other:?} — json_literal_expr doesn't cover this shape"),
+        other => panic!(
+            "unsupported with: literal {other:?} — json_literal_expr doesn't cover this shape"
+        ),
     }
 }
 
@@ -223,11 +277,18 @@ fn emit_dispatch_spec(exemplar: &Exemplar, spec: &Json, literal_fns: &mut Vec<St
             let kv = pair.as_array().unwrap_or(&[]);
             let key = kv.first().map(Json::to_s).unwrap_or_default();
             let raw = kv.get(1).map(Json::to_s).unwrap_or_default();
-            format!("({}, {})", naming::ruby_inspect_string(&key), emit_with_value(exemplar, &raw, literal_fns))
+            format!(
+                "({}, {})",
+                naming::ruby_inspect_string(&key),
+                emit_with_value(exemplar, &raw, literal_fns)
+            )
         })
         .collect();
     let compensates = match spec.get("compensates") {
-        Some(nested) => format!("Some(&{})", emit_dispatch_spec(exemplar, nested, literal_fns)),
+        Some(nested) => format!(
+            "Some(&{})",
+            emit_dispatch_spec(exemplar, nested, literal_fns)
+        ),
         None => "None".to_string(),
     };
     format!(
@@ -243,17 +304,29 @@ fn emit_dispatch_spec(exemplar: &Exemplar, spec: &Json, literal_fns: &mut Vec<St
 fn emit_with_value(exemplar: &Exemplar, raw: &str, literal_fns: &mut Vec<String>) -> String {
     let parsed = with_value_parsed(raw);
     if let Literal::Symbol(name) = &parsed {
-        return format!("crate::kernel::WithValue::Ref({})", naming::ruby_inspect_string(name));
+        return format!(
+            "crate::kernel::WithValue::Ref({})",
+            naming::ruby_inspect_string(name)
+        );
     }
 
     let fn_name = format!("pm_literal_{}", literal_fns.len());
-    literal_fns.push(exemplar.render("with_value_literal_fn", &[("tmpl_literal_fn", fn_name.clone()), ("tmpl_body_placeholder()", json_literal_expr(&parsed))]));
+    literal_fns.push(exemplar.render(
+        "with_value_literal_fn",
+        &[
+            ("tmpl_literal_fn", fn_name.clone()),
+            ("tmpl_body_placeholder()", json_literal_expr(&parsed)),
+        ],
+    ));
     format!("crate::kernel::WithValue::Literal({fn_name})")
 }
 
 fn emit_handler(exemplar: &Exemplar, handler: &Json, literal_fns: &mut Vec<String>) -> String {
     let dispatches = handler.get("dispatches").map(Json::each).unwrap_or(&[]);
-    let dispatch_strs: Vec<String> = dispatches.iter().map(|d| emit_dispatch_spec(exemplar, d, literal_fns)).collect();
+    let dispatch_strs: Vec<String> = dispatches
+        .iter()
+        .map(|d| emit_dispatch_spec(exemplar, d, literal_fns))
+        .collect();
     format!(
         "crate::kernel::Handler {{ event_type: {}, from_state: {}, to_state: {}, dispatches: &[{}] }}",
         naming::ruby_inspect_string(&handler.get("event_type").map(Json::to_s).unwrap_or_default()),
@@ -303,12 +376,19 @@ pub fn emit_reference_key_table(exemplar: &Exemplar, chapters: &[(String, Vec<St
             aggregate_names.iter().map(move |name| {
                 let qualified = format!("{domain_name}::{name}");
                 let key = crate::hecks_naming::snake(name);
-                format!("        {} => Some({}),", naming::ruby_inspect_string(&qualified), naming::ruby_inspect_string(&key))
+                format!(
+                    "        {} => Some({}),",
+                    naming::ruby_inspect_string(&qualified),
+                    naming::ruby_inspect_string(&key)
+                )
             })
         })
         .collect();
 
-    exemplar.render("reference_key_table", &[("\"tmpl_qualified\" => Some(\"tmpl_key\"),", arms.join("\n"))])
+    exemplar.render(
+        "reference_key_table",
+        &[("\"tmpl_qualified\" => Some(\"tmpl_key\"),", arms.join("\n"))],
+    )
 }
 
 /// Whether each verb creates the record it addresses; `split_routed_args` in
@@ -318,14 +398,24 @@ pub fn emit_creates_table(exemplar: &Exemplar, aggregates: &[AggregateEntry]) ->
     let mut arms: Vec<String> = Vec::new();
     for a in aggregates {
         for c in &a.commands {
-            arms.push(format!("        {} => {},", naming::ruby_inspect_string(&c.verb), c.creates));
+            arms.push(format!(
+                "        {} => {},",
+                naming::ruby_inspect_string(&c.verb),
+                c.creates
+            ));
         }
         for c in &a.entity_commands {
-            arms.push(format!("        {} => false,", naming::ruby_inspect_string(&c.verb)));
+            arms.push(format!(
+                "        {} => false,",
+                naming::ruby_inspect_string(&c.verb)
+            ));
         }
     }
 
-    exemplar.render("creates_table", &[("\"tmpl_verb\" => true,", arms.join("\n"))])
+    exemplar.render(
+        "creates_table",
+        &[("\"tmpl_verb\" => true,", arms.join("\n"))],
+    )
 }
 
 /// The single-component identity head that `orchestrate.rs` routes by first.
@@ -337,18 +427,34 @@ pub fn emit_identity_head_table(exemplar: &Exemplar, aggregates: &[AggregateEntr
             if a.identified_by.len() != 1 {
                 return None;
             }
-            let head = a.identified_by[0].split('.').next().unwrap_or(&a.identified_by[0]);
+            let head = a.identified_by[0]
+                .split('.')
+                .next()
+                .unwrap_or(&a.identified_by[0]);
             let qualified = format!("{}::{}", a.domain_name, a.name);
-            Some(format!("        {} => Some({}),", naming::ruby_inspect_string(&qualified), naming::ruby_inspect_string(head)))
+            Some(format!(
+                "        {} => Some({}),",
+                naming::ruby_inspect_string(&qualified),
+                naming::ruby_inspect_string(head)
+            ))
         })
         .collect();
 
-    exemplar.render("identity_head_table", &[("\"tmpl_qualified\" => Some(\"tmpl_head\"),", arms.join("\n"))])
+    exemplar.render(
+        "identity_head_table",
+        &[(
+            "\"tmpl_qualified\" => Some(\"tmpl_head\"),",
+            arms.join("\n"),
+        )],
+    )
 }
 
 /// Like `emit_identity_head_table`, for an entity's own identity, keyed by
 /// "Domain::Aggregate.Entity". Two-level-deep entity commands deliberately never resolve here.
-pub fn emit_entity_identity_head_table(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> String {
+pub fn emit_entity_identity_head_table(
+    exemplar: &Exemplar,
+    aggregates: &[AggregateEntry],
+) -> String {
     let arms: Vec<String> = aggregates
         .iter()
         .flat_map(|a| {
@@ -356,30 +462,64 @@ pub fn emit_entity_identity_head_table(exemplar: &Exemplar, aggregates: &[Aggreg
                 if e.identified_by.len() != 1 {
                     return None;
                 }
-                let head = e.identified_by[0].split('.').next().unwrap_or(&e.identified_by[0]);
+                let head = e.identified_by[0]
+                    .split('.')
+                    .next()
+                    .unwrap_or(&e.identified_by[0]);
                 let qualified = format!("{}::{}.{}", a.domain_name, a.name, e.name);
-                Some(format!("        {} => Some({}),", naming::ruby_inspect_string(&qualified), naming::ruby_inspect_string(head)))
+                Some(format!(
+                    "        {} => Some({}),",
+                    naming::ruby_inspect_string(&qualified),
+                    naming::ruby_inspect_string(head)
+                ))
             })
         })
         .collect();
 
-    exemplar.render("entity_identity_head_table", &[("\"tmpl_qualified\" => Some(\"tmpl_head\"),", arms.join("\n"))])
+    exemplar.render(
+        "entity_identity_head_table",
+        &[(
+            "\"tmpl_qualified\" => Some(\"tmpl_head\"),",
+            arms.join("\n"),
+        )],
+    )
 }
 
 pub fn emit_command_attributes_table(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> String {
     let mut arms: Vec<String> = Vec::new();
     for a in aggregates {
         for c in &a.commands {
-            let names = c.attributes.iter().map(|n| naming::ruby_inspect_string(n)).collect::<Vec<_>>().join(", ");
-            arms.push(format!("        {} => &[{}],", naming::ruby_inspect_string(&c.verb), names));
+            let names = c
+                .attributes
+                .iter()
+                .map(|n| naming::ruby_inspect_string(n))
+                .collect::<Vec<_>>()
+                .join(", ");
+            arms.push(format!(
+                "        {} => &[{}],",
+                naming::ruby_inspect_string(&c.verb),
+                names
+            ));
         }
         for c in &a.entity_commands {
-            let names = c.attributes.iter().map(|n| naming::ruby_inspect_string(n)).collect::<Vec<_>>().join(", ");
-            arms.push(format!("        {} => &[{}],", naming::ruby_inspect_string(&c.verb), names));
+            let names = c
+                .attributes
+                .iter()
+                .map(|n| naming::ruby_inspect_string(n))
+                .collect::<Vec<_>>()
+                .join(", ");
+            arms.push(format!(
+                "        {} => &[{}],",
+                naming::ruby_inspect_string(&c.verb),
+                names
+            ));
         }
     }
 
-    exemplar.render("command_attributes_table", &[("\"tmpl_verb\" => &[\"tmpl_attr\"],", arms.join("\n"))])
+    exemplar.render(
+        "command_attributes_table",
+        &[("\"tmpl_verb\" => &[\"tmpl_attr\"],", arms.join("\n"))],
+    )
 }
 
 // Qualifies the bare "Aggregate.query" `for_each` spelling against the policy's own domain
@@ -389,7 +529,11 @@ fn fan_out_verb_expr(domain_name: &str, policy: &Json) -> String {
     if for_each.is_empty() {
         return "None".to_string();
     }
-    let qualified = if for_each.contains("::") { for_each } else { format!("{domain_name}::{for_each}") };
+    let qualified = if for_each.contains("::") {
+        for_each
+    } else {
+        format!("{domain_name}::{for_each}")
+    };
     format!("Some({})", naming::ruby_inspect_string(&qualified))
 }
 
@@ -403,7 +547,10 @@ fn fan_out_key_expr(policy: &Json, aggregates: &[Json]) -> String {
     let path = for_each.split('.').next().unwrap_or_default().to_string();
     let row_aggregate = path.rsplit("::").next().unwrap_or(&path).to_string();
 
-    let trigger = policy.get("trigger_command").map(Json::to_s).unwrap_or_default();
+    let trigger = policy
+        .get("trigger_command")
+        .map(Json::to_s)
+        .unwrap_or_default();
     let mut parts = trigger.splitn(2, '.');
     let target_aggregate = parts.next().unwrap_or_default().to_string();
     let target_command = parts.next().unwrap_or_default().to_string();
@@ -428,7 +575,12 @@ fn fan_out_key_expr(policy: &Json, aggregates: &[Json]) -> String {
 }
 
 fn addressing_key_for(command: &Json, aggregate_name: &str) -> Option<String> {
-    if command.get("references").map(Json::to_s).unwrap_or_default() == aggregate_name {
+    if command
+        .get("references")
+        .map(Json::to_s)
+        .unwrap_or_default()
+        == aggregate_name
+    {
         return Some(crate::hecks_naming::snake(aggregate_name));
     }
 
@@ -471,7 +623,12 @@ mod tests {
 
     // Mirrors the fixtures in `spec/rust_project/reactions_merge_spec.rb`; no real corpus
     // domain exercises this merged-chapter shape.
-    fn policy(name: &str, on_event: &str, trigger_command: &str, target_domain: Option<&str>) -> Json {
+    fn policy(
+        name: &str,
+        on_event: &str,
+        trigger_command: &str,
+        target_domain: Option<&str>,
+    ) -> Json {
         let target_domain_json = match target_domain {
             Some(domain) => format!("\"{domain}\""),
             None => "null".to_string(),
@@ -487,12 +644,30 @@ mod tests {
     fn merged_policy_table_carries_the_target_and_a_vendored_chapters_own_same_domain_policy() {
         let orders_policies = vec![policy("OnOrderPlaced", "OrderPlaced", "Invoice.Open", None)];
         let payments_policies = vec![
-            policy("OnPaymentConfirmedByProcessor", "PaymentConfirmedByProcessor", "Payment.Succeed", None),
-            policy("OnPaymentFailed", "PaymentFailed", "Ledger.Reverse", Some("Ledger")),
+            policy(
+                "OnPaymentConfirmedByProcessor",
+                "PaymentConfirmedByProcessor",
+                "Payment.Succeed",
+                None,
+            ),
+            policy(
+                "OnPaymentFailed",
+                "PaymentFailed",
+                "Ledger.Reverse",
+                Some("Ledger"),
+            ),
         ];
         let sources = vec![
-            PolicySource { domain_name: "Orders", policies: &orders_policies, aggregates: &[] },
-            PolicySource { domain_name: "Payments", policies: &payments_policies, aggregates: &[] },
+            PolicySource {
+                domain_name: "Orders",
+                policies: &orders_policies,
+                aggregates: &[],
+            },
+            PolicySource {
+                domain_name: "Payments",
+                policies: &payments_policies,
+                aggregates: &[],
+            },
         ];
 
         let table = emit_merged_policy_table(&Exemplar::load(), &sources);
@@ -510,12 +685,30 @@ mod tests {
     fn merged_cross_domain_policy_table_carries_only_a_vendored_chapters_own_cross_domain_policy() {
         let orders_policies = vec![policy("OnOrderPlaced", "OrderPlaced", "Invoice.Open", None)];
         let payments_policies = vec![
-            policy("OnPaymentConfirmedByProcessor", "PaymentConfirmedByProcessor", "Payment.Succeed", None),
-            policy("OnPaymentFailed", "PaymentFailed", "Ledger.Reverse", Some("Ledger")),
+            policy(
+                "OnPaymentConfirmedByProcessor",
+                "PaymentConfirmedByProcessor",
+                "Payment.Succeed",
+                None,
+            ),
+            policy(
+                "OnPaymentFailed",
+                "PaymentFailed",
+                "Ledger.Reverse",
+                Some("Ledger"),
+            ),
         ];
         let sources = vec![
-            PolicySource { domain_name: "Orders", policies: &orders_policies, aggregates: &[] },
-            PolicySource { domain_name: "Payments", policies: &payments_policies, aggregates: &[] },
+            PolicySource {
+                domain_name: "Orders",
+                policies: &orders_policies,
+                aggregates: &[],
+            },
+            PolicySource {
+                domain_name: "Payments",
+                policies: &payments_policies,
+                aggregates: &[],
+            },
         ];
 
         let table = emit_merged_cross_domain_policy_table(&Exemplar::load(), &sources);

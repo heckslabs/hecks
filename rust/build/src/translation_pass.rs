@@ -20,7 +20,9 @@ struct Aggregate {
 /// The `translations` IR list for the `.bluebook` files under `bluebook_dir/translations`, ordered
 /// by file name (an era-step id), as the registry loads them.
 pub fn edges(bluebook_dir: &Path) -> Result<Vec<Json>, String> {
-    let Ok(entries) = std::fs::read_dir(bluebook_dir.join("translations")) else { return Ok(Vec::new()) };
+    let Ok(entries) = std::fs::read_dir(bluebook_dir.join("translations")) else {
+        return Ok(Vec::new());
+    };
     let mut paths: Vec<_> = entries
         .filter_map(Result::ok)
         .map(|entry| entry.path())
@@ -29,7 +31,8 @@ pub fn edges(bluebook_dir: &Path) -> Result<Vec<Json>, String> {
     paths.sort();
     let mut edges = Vec::new();
     for path in paths {
-        let text = std::fs::read_to_string(&path).map_err(|e| format!("reading {}: {e}", path.display()))?;
+        let text = std::fs::read_to_string(&path)
+            .map_err(|e| format!("reading {}: {e}", path.display()))?;
         edges.push(edge(&text).map_err(|why| format!("{}: {why}", path.display()))?);
     }
     Ok(edges)
@@ -44,16 +47,31 @@ fn edge(text: &str) -> Result<Json, String> {
             continue;
         }
         if let Some(rest) = line.strip_prefix("Hecks.data_translation") {
-            header = Some((first_string(rest)?, keyword(rest, "from")?, keyword(rest, "to")?));
+            header = Some((
+                first_string(rest)?,
+                keyword(rest, "from")?,
+                keyword(rest, "to")?,
+            ));
         } else if let Some(rest) = line.strip_prefix("aggregate ") {
             let was = keyword(rest, "was").ok();
-            aggregates.push(Aggregate { name: first_string(rest)?, was, renames: Vec::new(), moves: Vec::new() });
+            aggregates.push(Aggregate {
+                name: first_string(rest)?,
+                was,
+                renames: Vec::new(),
+                moves: Vec::new(),
+            });
         } else if let Some(rest) = line.strip_prefix("move ") {
             let aggregate = aggregates.last_mut().ok_or("a move outside an aggregate")?;
-            aggregate.moves.push((first_word(rest)?, keyword(rest, "to")?));
+            aggregate
+                .moves
+                .push((first_word(rest)?, keyword(rest, "to")?));
         } else if let Some(rest) = line.strip_prefix("rename ") {
-            let aggregate = aggregates.last_mut().ok_or("a rename outside an aggregate")?;
-            aggregate.renames.push((first_word(rest)?, keyword(rest, "to")?));
+            let aggregate = aggregates
+                .last_mut()
+                .ok_or("a rename outside an aggregate")?;
+            aggregate
+                .renames
+                .push((first_word(rest)?, keyword(rest, "to")?));
         } else {
             return Err(format!(
                 "hecks-build cannot compile the translation rule `{line}` yet (only rename and move are ported), \
@@ -67,21 +85,36 @@ fn edge(text: &str) -> Result<Json, String> {
         ("from".into(), Json::String(from)),
         ("to".into(), Json::String(to)),
         ("retired".into(), Json::Array(Vec::new())),
-        ("aggregates".into(), Json::Array(aggregates.iter().map(aggregate_json).collect())),
+        (
+            "aggregates".into(),
+            Json::Array(aggregates.iter().map(aggregate_json).collect()),
+        ),
     ]))
 }
 
 fn aggregate_json(aggregate: &Aggregate) -> Json {
-    let renames = aggregate.renames.iter().map(|(old, new)| (old.clone(), Json::String(new.clone()))).collect();
+    let renames = aggregate
+        .renames
+        .iter()
+        .map(|(old, new)| (old.clone(), Json::String(new.clone())))
+        .collect();
     let moves = aggregate
         .moves
         .iter()
-        .map(|(from, to)| Json::Object(vec![("from".into(), Json::String(from.clone())), ("to".into(), Json::String(to.clone()))]))
+        .map(|(from, to)| {
+            Json::Object(vec![
+                ("from".into(), Json::String(from.clone())),
+                ("to".into(), Json::String(to.clone())),
+            ])
+        })
         .collect();
     let empty = || Json::Array(Vec::new());
     Json::Object(vec![
         ("name".into(), Json::String(aggregate.name.clone())),
-        ("was".into(), aggregate.was.clone().map_or(Json::Null, Json::String)),
+        (
+            "was".into(),
+            aggregate.was.clone().map_or(Json::Null, Json::String),
+        ),
         ("renames".into(), Json::Object(renames)),
         ("moves".into(), Json::Array(moves)),
         ("converts".into(), empty()),
@@ -90,7 +123,10 @@ fn aggregate_json(aggregate: &Aggregate) -> Json {
         ("computes".into(), empty()),
         ("rekeys".into(), empty()),
         ("backfills".into(), empty()),
-        ("compiled_state_expression".into(), Json::String(compile(aggregate))),
+        (
+            "compiled_state_expression".into(),
+            Json::String(compile(aggregate)),
+        ),
         ("compiled_id_expression".into(), Json::Null),
     ])
 }
@@ -99,7 +135,11 @@ fn aggregate_json(aggregate: &Aggregate) -> Json {
 fn compile(aggregate: &Aggregate) -> String {
     let mut sql = "state".to_string();
     for (old, new) in &aggregate.renames {
-        sql = format!("hecks_tr_rename({sql}, {}, {})", text_literal(old), text_literal(new));
+        sql = format!(
+            "hecks_tr_rename({sql}, {}, {})",
+            text_literal(old),
+            text_literal(new)
+        );
     }
     for (from, to) in &aggregate.moves {
         sql = format!(
@@ -123,9 +163,13 @@ fn path_literal(path: &str) -> String {
 
 /// The first `"quoted"` string of `text`.
 fn first_string(text: &str) -> Result<String, String> {
-    let open = text.find('"').ok_or_else(|| format!("no quoted name in `{text}`"))?;
+    let open = text
+        .find('"')
+        .ok_or_else(|| format!("no quoted name in `{text}`"))?;
     let rest = &text[open + 1..];
-    let close = rest.find('"').ok_or_else(|| format!("unterminated string in `{text}`"))?;
+    let close = rest
+        .find('"')
+        .ok_or_else(|| format!("unterminated string in `{text}`"))?;
     Ok(rest[..close].to_string())
 }
 
@@ -133,16 +177,24 @@ fn first_string(text: &str) -> Result<String, String> {
 fn first_word(text: &str) -> Result<String, String> {
     let word = text.split(',').next().unwrap_or_default().trim();
     let word = word.strip_prefix(':').unwrap_or(word).trim_matches('"');
-    if word.is_empty() { Err(format!("no source in `{text}`")) } else { Ok(word.to_string()) }
+    if word.is_empty() {
+        Err(format!("no source in `{text}`"))
+    } else {
+        Ok(word.to_string())
+    }
 }
 
 /// The value of `key: value` in `text`, a string or a symbol.
 fn keyword(text: &str, key: &str) -> Result<String, String> {
     let marker = format!("{key}:");
-    let at = text.find(&marker).ok_or_else(|| format!("no `{key}:` in `{text}`"))?;
+    let at = text
+        .find(&marker)
+        .ok_or_else(|| format!("no `{key}:` in `{text}`"))?;
     let value = text[at + marker.len()..].trim_start();
     if let Some(symbol) = value.strip_prefix(':') {
-        let end = symbol.find(|c: char| !(c.is_alphanumeric() || c == '_')).unwrap_or(symbol.len());
+        let end = symbol
+            .find(|c: char| !(c.is_alphanumeric() || c == '_'))
+            .unwrap_or(symbol.len());
         return Ok(symbol[..end].to_string());
     }
     first_string(value)

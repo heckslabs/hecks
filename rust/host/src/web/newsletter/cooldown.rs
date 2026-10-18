@@ -19,7 +19,11 @@ pub(super) struct ConfirmationCooldown {
 
 impl ConfirmationCooldown {
     pub(super) fn new(window: Duration, capacity: usize) -> Self {
-        Self { window, capacity, last_sent: Mutex::new(HashMap::new()) }
+        Self {
+            window,
+            capacity,
+            last_sent: Mutex::new(HashMap::new()),
+        }
     }
 
     /// Whether an email may go to `email` now (keyed by lowercased address). A `true` records the
@@ -31,7 +35,10 @@ impl ConfirmationCooldown {
     /// `try_acquire` with the clock supplied, so tests need not sleep.
     pub(super) fn try_acquire_at(&self, email: &str, now: Instant) -> bool {
         let key = email.to_lowercase();
-        let mut last_sent = self.last_sent.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let mut last_sent = self
+            .last_sent
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let window = self.window;
         last_sent.retain(|_, sent| now.saturating_duration_since(*sent) < window);
         if last_sent.contains_key(&key) || last_sent.len() >= self.capacity {

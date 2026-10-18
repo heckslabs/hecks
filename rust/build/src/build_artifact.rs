@@ -26,20 +26,38 @@ pub fn build_wasm(root: &Path, rust_dir: &Path, target_mod_name: &str) -> Result
     }
 
     println!("== cargo build --release --target wasm32-wasip1 (via rustup run stable) ==");
-    subprocess::run_in(rust_dir, "rustup", &["run", "stable", "cargo", "build", "--release", "--target", "wasm32-wasip1"])?;
+    subprocess::run_in(
+        rust_dir,
+        "rustup",
+        &[
+            "run",
+            "stable",
+            "cargo",
+            "build",
+            "--release",
+            "--target",
+            "wasm32-wasip1",
+        ],
+    )?;
 
     let dist_dir = root.join("rust/dist");
-    std::fs::create_dir_all(&dist_dir).map_err(|e| format!("creating {}: {e}", dist_dir.display()))?;
+    std::fs::create_dir_all(&dist_dir)
+        .map_err(|e| format!("creating {}: {e}", dist_dir.display()))?;
 
     let built = rust_dir.join("target/wasm32-wasip1/release/rust.wasm");
     let out = dist_dir.join(format!("{target_mod_name}.wasm"));
-    std::fs::copy(&built, &out).map_err(|e| format!("copying {} to {}: {e}", built.display(), out.display()))?;
+    std::fs::copy(&built, &out)
+        .map_err(|e| format!("copying {} to {}: {e}", built.display(), out.display()))?;
     println!("wrote {}", out.display());
 
-    let ir_json = root.join("rust/src/generated").join(target_mod_name).join("ir.json");
+    let ir_json = root
+        .join("rust/src/generated")
+        .join(target_mod_name)
+        .join("ir.json");
     if ir_json.is_file() {
         let ir_out = dist_dir.join(format!("{target_mod_name}.ir.json"));
-        std::fs::copy(&ir_json, &ir_out).map_err(|e| format!("copying {} to {}: {e}", ir_json.display(), ir_out.display()))?;
+        std::fs::copy(&ir_json, &ir_out)
+            .map_err(|e| format!("copying {} to {}: {e}", ir_json.display(), ir_out.display()))?;
         println!("wrote {}", ir_out.display());
     }
 

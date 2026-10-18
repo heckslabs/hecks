@@ -21,11 +21,19 @@ impl std::fmt::Display for SignatureError {
 // `tolerance_seconds` is the freshness window the Checkout bluebook declares
 // (`WebhookReceipt.tolerance`, read from the IR): it guards against a replayed
 // old payload even against a leaked (not yet rotated) secret.
-pub fn verify_signature(payload: &str, header: &str, secret: &str, now: i64, tolerance_seconds: i64) -> Result<(), SignatureError> {
+pub fn verify_signature(
+    payload: &str,
+    header: &str,
+    secret: &str,
+    now: i64,
+    tolerance_seconds: i64,
+) -> Result<(), SignatureError> {
     let mut timestamp: Option<i64> = None;
     let mut signatures: Vec<&str> = Vec::new();
     for part in header.split(',') {
-        let Some((key, value)) = part.split_once('=') else { continue };
+        let Some((key, value)) = part.split_once('=') else {
+            continue;
+        };
         match key {
             "t" => timestamp = value.parse().ok(),
             "v1" => signatures.push(value),
@@ -33,10 +41,14 @@ pub fn verify_signature(payload: &str, header: &str, secret: &str, now: i64, tol
         }
     }
     let Some(timestamp) = timestamp else {
-        return Err(SignatureError("Stripe-Signature header has no t= timestamp".to_string()));
+        return Err(SignatureError(
+            "Stripe-Signature header has no t= timestamp".to_string(),
+        ));
     };
     if signatures.is_empty() {
-        return Err(SignatureError("Stripe-Signature header has no v1= signature".to_string()));
+        return Err(SignatureError(
+            "Stripe-Signature header has no v1= signature".to_string(),
+        ));
     }
     if (now - timestamp).abs() > tolerance_seconds {
         return Err(SignatureError(format!(
@@ -50,10 +62,16 @@ pub fn verify_signature(payload: &str, header: &str, secret: &str, now: i64, tol
     mac.update(signed_payload.as_bytes());
     let expected_hex = hex_encode(&mac.finalize().into_bytes());
 
-    if signatures.iter().any(|sig| constant_time_eq(sig.as_bytes(), expected_hex.as_bytes())) {
+    if signatures
+        .iter()
+        .any(|sig| constant_time_eq(sig.as_bytes(), expected_hex.as_bytes()))
+    {
         Ok(())
     } else {
-        Err(SignatureError("signature does not match — wrong secret, or the payload was tampered with in transit".to_string()))
+        Err(SignatureError(
+            "signature does not match — wrong secret, or the payload was tampered with in transit"
+                .to_string(),
+        ))
     }
 }
 
@@ -67,15 +85,25 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
     if a.len() != b.len() {
         return false;
     }
-    a.iter().zip(b.iter()).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
+    a.iter()
+        .zip(b.iter())
+        .fold(0u8, |acc, (x, y)| acc | (x ^ y))
+        == 0
 }
 
 // Encodes success_url/cancel_url as query params, matching the Ruby local
 // checkout adapter's own `URI.encode_www_form` output exactly.
-pub fn mock_checkout_session(registration_id: &str, success_url: &str, cancel_url: &str, site_url: &str) -> String {
+pub fn mock_checkout_session(
+    registration_id: &str,
+    success_url: &str,
+    cancel_url: &str,
+    site_url: &str,
+) -> String {
     let mut url = reqwest::Url::parse(&format!("{site_url}/pay/{registration_id}.html"))
         .unwrap_or_else(|_| reqwest::Url::parse("http://invalid.invalid/").unwrap());
-    url.query_pairs_mut().append_pair("success_url", success_url).append_pair("cancel_url", cancel_url);
+    url.query_pairs_mut()
+        .append_pair("success_url", success_url)
+        .append_pair("cancel_url", cancel_url);
     url.to_string()
 }
 
@@ -128,8 +156,14 @@ pub async fn create_checkout_session(
         ("redirect_on_completion", "never"),
         ("expires_at", expires_at.as_str()),
         ("line_items[0][price_data][currency]", "usd"),
-        ("line_items[0][price_data][unit_amount]", unit_amount.as_str()),
-        ("line_items[0][price_data][product_data][name]", product_name),
+        (
+            "line_items[0][price_data][unit_amount]",
+            unit_amount.as_str(),
+        ),
+        (
+            "line_items[0][price_data][product_data][name]",
+            product_name,
+        ),
         ("line_items[0][quantity]", "1"),
         ("metadata[registration_id]", registration_id),
     ];
@@ -155,9 +189,14 @@ pub async fn create_checkout_session(
 
     let text = |field: &str| body.get(field).and_then(|v| v.as_str()).map(String::from);
     match (text("id"), text("client_secret")) {
-        (Some(session_id), Some(client_secret)) => Ok(EmbeddedSession { session_id, client_secret }),
+        (Some(session_id), Some(client_secret)) => Ok(EmbeddedSession {
+            session_id,
+            client_secret,
+        }),
         // The body is left out of the message: it may carry the client secret.
-        _ => anyhow::bail!("Stripe's response carried no \"id\" and \"client_secret\" for the embedded session"),
+        _ => anyhow::bail!(
+            "Stripe's response carried no \"id\" and \"client_secret\" for the embedded session"
+        ),
     }
 }
 
@@ -193,7 +232,12 @@ mod tests {
 
     #[test]
     fn mock_checkout_session_carries_the_registration_id_in_its_own_path_not_a_query_param() {
-        let url = mock_checkout_session("REG-2", "https://example.com/yoga.html", "https://example.com/yoga.html", "https://example.com");
+        let url = mock_checkout_session(
+            "REG-2",
+            "https://example.com/yoga.html",
+            "https://example.com/yoga.html",
+            "https://example.com",
+        );
         assert!(url.starts_with("https://example.com/pay/REG-2.html?"));
     }
 
@@ -211,7 +255,10 @@ mod tests {
     fn a_payload_tampered_with_after_signing_is_rejected() {
         let secret = "whsec_test";
         let now = 1_700_000_000;
-        let header = format!("t={now},v1={}", sign(secret, now, r#"{"type":"checkout.session.completed"}"#));
+        let header = format!(
+            "t={now},v1={}",
+            sign(secret, now, r#"{"type":"checkout.session.completed"}"#)
+        );
 
         // Same header, different body — exactly what an attacker
         // intercepting and rewriting the request in transit would send.
@@ -247,7 +294,10 @@ mod tests {
     fn a_hold_shorter_than_stripes_floor_is_raised_to_it() {
         assert_eq!(effective_hold_seconds(1800), STRIPE_MIN_HOLD_SECONDS);
         assert_eq!(effective_hold_seconds(3600), 3600);
-        assert_eq!(session_expires_at(1_000, 1800), 1_000 + STRIPE_MIN_HOLD_SECONDS);
+        assert_eq!(
+            session_expires_at(1_000, 1800),
+            1_000 + STRIPE_MIN_HOLD_SECONDS
+        );
     }
 
     #[test]
@@ -276,6 +326,13 @@ mod tests {
     #[test]
     fn a_header_with_no_timestamp_at_all_is_rejected() {
         let header = "v1=deadbeef".to_string();
-        assert!(verify_signature("{}", &header, "whsec_test", 1_700_000_000, TOLERANCE_SECONDS).is_err());
+        assert!(verify_signature(
+            "{}",
+            &header,
+            "whsec_test",
+            1_700_000_000,
+            TOLERANCE_SECONDS
+        )
+        .is_err());
     }
 }

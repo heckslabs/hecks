@@ -264,7 +264,10 @@ fn given_json(g: &ir::Given) -> JsonValue {
         ),
         ("canonical".to_string(), JsonValue::str(g.canonical.clone())),
         // The structured form of the same text, as `AstJson.rule_row` emits beside `canonical`.
-        ("ast".to_string(), crate::expr::ast_json::emit_predicate(&g.canonical)),
+        (
+            "ast".to_string(),
+            crate::expr::ast_json::emit_predicate(&g.canonical),
+        ),
     ])
 }
 
@@ -414,7 +417,10 @@ fn mutation_source_json(source: &Option<ir::MutationSource>) -> JsonValue {
         Some(ir::MutationSource::Expression(text)) => JsonValue::Object(vec![
             ("kind".to_string(), JsonValue::str("expression")),
             ("text".to_string(), JsonValue::str(text.clone())),
-            ("ast".to_string(), crate::expr::ast_json::emit_resolver(&crate::expr::resolver::parse(text))),
+            (
+                "ast".to_string(),
+                crate::expr::ast_json::emit_resolver(&crate::expr::resolver::parse(text)),
+            ),
         ]),
         None => JsonValue::Null,
     }
@@ -451,7 +457,9 @@ fn lifecycle_json(l: &ir::Lifecycle) -> JsonValue {
                     .map(|(name, states)| {
                         (
                             name.clone(),
-                            JsonValue::Array(states.iter().map(|s| JsonValue::str(s.clone())).collect()),
+                            JsonValue::Array(
+                                states.iter().map(|s| JsonValue::str(s.clone())).collect(),
+                            ),
                         )
                     })
                     .collect(),
@@ -493,7 +501,9 @@ fn query_json(q: &ir::Query) -> JsonValue {
             JsonValue::Array(
                 q.needs
                     .iter()
-                    .map(|fact| JsonValue::Object(vec![("fact".to_string(), JsonValue::str(fact.clone()))]))
+                    .map(|fact| {
+                        JsonValue::Object(vec![("fact".to_string(), JsonValue::str(fact.clone()))])
+                    })
                     .collect(),
             ),
         ));
@@ -717,7 +727,10 @@ fn read_model_json(r: &ir::ReadModel) -> JsonValue {
         pairs.push(("max_field".to_string(), JsonValue::str(field.clone())));
     }
     if let Some(field) = &r.percentile_field {
-        pairs.push(("percentile_field".to_string(), JsonValue::str(field.clone())));
+        pairs.push((
+            "percentile_field".to_string(),
+            JsonValue::str(field.clone()),
+        ));
         // Ruby's own `to_h` guards `percentile_at` on `percentile_field`'s presence too.
         if let Some(at) = &r.percentile_at {
             pairs.push(("percentile_at".to_string(), JsonValue::Number(at.clone())));

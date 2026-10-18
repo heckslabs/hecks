@@ -11,18 +11,29 @@ use crate::json::Json;
 ///
 /// An aggregate with no `persisted_by` bind falls back to `world_path`'s own
 /// `default_adapter` for the target chapter, then to `"Memory"`.
-pub fn run(ir: &mut Json, hecksagon_path: Option<&Path>, world_path: Option<&Path>, root: &Path) -> Result<(), String> {
+pub fn run(
+    ir: &mut Json,
+    hecksagon_path: Option<&Path>,
+    world_path: Option<&Path>,
+    root: &Path,
+) -> Result<(), String> {
     let binds = match hecksagon_path {
         Some(path) => {
-            let text = std::fs::read_to_string(path).map_err(|e| format!("reading {}: {e}", path.display()))?;
+            let text = std::fs::read_to_string(path)
+                .map_err(|e| format!("reading {}: {e}", path.display()))?;
             persistence_binds(&text)
         }
         None => HashMap::new(),
     };
-    let chapter_name = ir.get("name").and_then(Json::as_str).unwrap_or_default().to_string();
+    let chapter_name = ir
+        .get("name")
+        .and_then(Json::as_str)
+        .unwrap_or_default()
+        .to_string();
     let fallback_adapter = match world_path {
         Some(path) => {
-            let text = std::fs::read_to_string(path).map_err(|e| format!("reading {}: {e}", path.display()))?;
+            let text = std::fs::read_to_string(path)
+                .map_err(|e| format!("reading {}: {e}", path.display()))?;
             default_adapter_name(&text, &chapter_name)
         }
         None => None,
@@ -43,16 +54,28 @@ pub fn run(ir: &mut Json, hecksagon_path: Option<&Path>, world_path: Option<&Pat
     let capable_aggregates: Vec<Json> = aggregate_names
         .into_iter()
         .filter(|name| {
-            let adapter_name = binds.get(name.as_str()).map(String::as_str).unwrap_or(fallback_adapter.as_str());
+            let adapter_name = binds
+                .get(name.as_str())
+                .map(String::as_str)
+                .unwrap_or(fallback_adapter.as_str());
             capable_adapters.iter().any(|a| a == adapter_name)
         })
         .map(|name| {
             let storage_name = snake_case(&name);
-            Json::Object(vec![("name".to_string(), Json::String(name)), ("storage_name".to_string(), Json::String(storage_name))])
+            Json::Object(vec![
+                ("name".to_string(), Json::String(name)),
+                ("storage_name".to_string(), Json::String(storage_name)),
+            ])
         })
         .collect();
 
-    ir.set("lineage", Json::Object(vec![("capable_aggregates".to_string(), Json::Array(capable_aggregates))]));
+    ir.set(
+        "lineage",
+        Json::Object(vec![(
+            "capable_aggregates".to_string(),
+            Json::Array(capable_aggregates),
+        )]),
+    );
     Ok(())
 }
 
@@ -65,18 +88,31 @@ pub(crate) fn persistence_binds(text: &str) -> HashMap<String, String> {
             continue;
         }
 
-        let Some(call_pos) = line.find(".persisted_by(") else { continue };
+        let Some(call_pos) = line.find(".persisted_by(") else {
+            continue;
+        };
 
         let before = &line[..call_pos];
-        let aggregate_name: String = before.chars().rev().take_while(|c| c.is_alphanumeric() || *c == '_').collect::<String>().chars().rev().collect();
+        let aggregate_name: String = before
+            .chars()
+            .rev()
+            .take_while(|c| c.is_alphanumeric() || *c == '_')
+            .collect::<String>()
+            .chars()
+            .rev()
+            .collect();
         if aggregate_name.is_empty() {
             continue;
         }
 
         let after = &line[call_pos + ".persisted_by(".len()..];
-        let Some(open_quote) = after.find('"') else { continue };
+        let Some(open_quote) = after.find('"') else {
+            continue;
+        };
         let rest = &after[open_quote + 1..];
-        let Some(close_quote) = rest.find('"') else { continue };
+        let Some(close_quote) = rest.find('"') else {
+            continue;
+        };
         let adapter_name = &rest[..close_quote];
 
         binds.insert(aggregate_name, adapter_name.to_string());
@@ -100,13 +136,19 @@ pub(crate) fn default_adapter_name(text: &str, chapter: &str) -> Option<String> 
             continue;
         }
 
-        let Some(rest) = line.trim_start().strip_prefix("default_adapter") else { continue };
+        let Some(rest) = line.trim_start().strip_prefix("default_adapter") else {
+            continue;
+        };
         if !rest.starts_with(char::is_whitespace) {
             continue;
         }
-        let Some(open_quote) = rest.find('"') else { continue };
+        let Some(open_quote) = rest.find('"') else {
+            continue;
+        };
         let quoted = &rest[open_quote + 1..];
-        let Some(close_quote) = quoted.find('"') else { continue };
+        let Some(close_quote) = quoted.find('"') else {
+            continue;
+        };
         found = Some(quoted[..close_quote].to_string());
     }
 
@@ -121,14 +163,18 @@ fn world_opener_name(line: &str) -> Option<String> {
 
 // Where an adapter class can live: the driven adapters, and the era plugin that holds `PostgresEra`,
 // the one adapter that declares itself lineage-capable.
-const ADAPTER_DIRS: [&str; 2] = ["lib/hecks/adapters/driven", "lib/hecks/ports/persistence/plugins/era"];
+const ADAPTER_DIRS: [&str; 2] = [
+    "lib/hecks/adapters/driven",
+    "lib/hecks/ports/persistence/plugins/era",
+];
 
 // Reads each adapter's own source file rather than invoking Ruby.
 fn lineage_capable_adapter_names(root: &Path) -> Result<Vec<String>, String> {
     let mut names = Vec::new();
     for relative in ADAPTER_DIRS {
         let dir = root.join(relative);
-        let entries = std::fs::read_dir(&dir).map_err(|e| format!("reading {}: {e}", dir.display()))?;
+        let entries =
+            std::fs::read_dir(&dir).map_err(|e| format!("reading {}: {e}", dir.display()))?;
 
         for entry in entries {
             let entry = entry.map_err(|e| format!("reading {}: {e}", dir.display()))?;
@@ -137,7 +183,8 @@ fn lineage_capable_adapter_names(root: &Path) -> Result<Vec<String>, String> {
                 continue;
             }
 
-            let text = std::fs::read_to_string(&path).map_err(|e| format!("reading {}: {e}", path.display()))?;
+            let text = std::fs::read_to_string(&path)
+                .map_err(|e| format!("reading {}: {e}", path.display()))?;
             if !declares_lineage_capable_true(&text) {
                 continue;
             }
@@ -171,7 +218,10 @@ fn top_level_class_name(text: &str) -> Option<String> {
     for line in text.lines() {
         let trimmed = line.trim_start();
         if let Some(rest) = trimmed.strip_prefix("class ") {
-            let name: String = rest.chars().take_while(|c| c.is_alphanumeric() || *c == '_').collect();
+            let name: String = rest
+                .chars()
+                .take_while(|c| c.is_alphanumeric() || *c == '_')
+                .collect();
             if !name.is_empty() {
                 return Some(name);
             }
@@ -200,7 +250,8 @@ fn split_acronym_boundaries(text: &str) -> String {
                 run_end += 1;
             }
             let run_len = run_end - i;
-            let followed_by_lowercase = run_end < chars.len() && chars[run_end].is_ascii_lowercase();
+            let followed_by_lowercase =
+                run_end < chars.len() && chars[run_end].is_ascii_lowercase();
             if run_len >= 2 && followed_by_lowercase {
                 // Emit the run minus its last char, an underscore, then
                 // continue scanning from the run's own last char (which
@@ -272,15 +323,25 @@ mod tests {
     #[test]
     fn reads_the_default_adapter_of_the_target_chapters_own_world_only() {
         let text = "Hecks.world \"Alpha\" do\n  # default_adapter \"Heki\"\n  default_adapter \"PostgresEra\"\nend\n\nHecks.world(\"Beta\") do\n  default_adapter \"Memory\"\nend\n";
-        assert_eq!(default_adapter_name(text, "Alpha"), Some("PostgresEra".to_string()));
-        assert_eq!(default_adapter_name(text, "Beta"), Some("Memory".to_string()));
+        assert_eq!(
+            default_adapter_name(text, "Alpha"),
+            Some("PostgresEra".to_string())
+        );
+        assert_eq!(
+            default_adapter_name(text, "Beta"),
+            Some("Memory".to_string())
+        );
         assert_eq!(default_adapter_name(text, "Gamma"), None);
     }
 
     #[test]
     fn declares_lineage_capable_true_matches_the_endless_method_form() {
-        assert!(declares_lineage_capable_true("      def self.lineage_capable? = true\n"));
-        assert!(!declares_lineage_capable_true("      def self.lineage_capable? = false\n"));
+        assert!(declares_lineage_capable_true(
+            "      def self.lineage_capable? = true\n"
+        ));
+        assert!(!declares_lineage_capable_true(
+            "      def self.lineage_capable? = false\n"
+        ));
         assert!(!declares_lineage_capable_true("no such method here\n"));
     }
 
@@ -290,11 +351,19 @@ mod tests {
     fn finds_postgres_era_in_the_real_source_tree() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         let names = lineage_capable_adapter_names(&root).expect("scans the adapter directories");
-        assert!(names.iter().any(|name| name == "PostgresEra"), "lineage-capable adapters found: {names:?}");
+        assert!(
+            names.iter().any(|name| name == "PostgresEra"),
+            "lineage-capable adapters found: {names:?}"
+        );
     }
 
     #[test]
     fn finds_the_top_level_class_name() {
-        assert_eq!(top_level_class_name("module Hecks\n  module Adapters\n    class Postgres\n      def x; end\n"), Some("Postgres".to_string()));
+        assert_eq!(
+            top_level_class_name(
+                "module Hecks\n  module Adapters\n    class Postgres\n      def x; end\n"
+            ),
+            Some("Postgres".to_string())
+        );
     }
 }

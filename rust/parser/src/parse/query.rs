@@ -57,7 +57,11 @@ pub fn parse_body(
                     Some((_, text)) => text.trim().trim_start_matches(':').to_string(),
                     None => "asc".to_string(),
                 };
-                query.order_by = Some(ir::OrderBy { field, direction, target: None });
+                query.order_by = Some(ir::OrderBy {
+                    field,
+                    direction,
+                    target: None,
+                });
             }
             // `positional_constant` only fetches raw text; the gate already checked it is numeric.
             "limit" => {

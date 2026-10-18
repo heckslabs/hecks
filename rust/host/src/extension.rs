@@ -83,14 +83,20 @@ pub fn installed() -> &'static [Arc<dyn HostExtension>] {
 fn default_extensions() -> Vec<Arc<dyn HostExtension>> {
     let vars = crate::platform_signin::settings::PROCESS_VARIABLES
         .iter()
-        .filter_map(|name| std::env::var(name).ok().map(|value| (name.to_string(), value)))
+        .filter_map(|name| {
+            std::env::var(name)
+                .ok()
+                .map(|value| (name.to_string(), value))
+        })
         .collect();
     default_extensions_from(&vars)
 }
 
 /// The default extensions for an explicit set of settings: commerce, plus platform sign-in when
 /// it is switched on (or its boot refusal when its settings are wrong).
-pub(crate) fn default_extensions_from(vars: &HashMap<String, String>) -> Vec<Arc<dyn HostExtension>> {
+pub(crate) fn default_extensions_from(
+    vars: &HashMap<String, String>,
+) -> Vec<Arc<dyn HostExtension>> {
     let mut extensions: Vec<Arc<dyn HostExtension>> = vec![Arc::new(crate::web::Commerce)];
     extensions.extend(crate::platform_signin::extension::extensions_for(vars));
     extensions
@@ -103,10 +109,15 @@ pub fn loaded_ir() -> Option<&'static Value> {
 
 /// Every installed extension's rate rules.
 pub fn rate_rules() -> Vec<RateRule> {
-    installed().iter().flat_map(|extension| extension.rate_rules()).collect()
+    installed()
+        .iter()
+        .flat_map(|extension| extension.rate_rules())
+        .collect()
 }
 
 /// The rule that limits this request, if any.
 pub fn rate_rule_for(method: &str, path: &str) -> Option<RateRule> {
-    rate_rules().into_iter().find(|rule| rule.method == method && rule.path == path)
+    rate_rules()
+        .into_iter()
+        .find(|rule| rule.method == method && rule.path == path)
 }

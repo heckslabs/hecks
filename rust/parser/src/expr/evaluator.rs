@@ -8,8 +8,15 @@ pub enum Evaluator {
     Or(Box<Evaluator>, Box<Evaluator>),
     And(Box<Evaluator>, Box<Evaluator>),
     Not(Box<Evaluator>),
-    Compare { operator: Operator, left: Resolver, right: Resolver },
-    Include { haystack: Resolver, needle: Resolver },
+    Compare {
+        operator: Operator,
+        left: Resolver,
+        right: Resolver,
+    },
+    Include {
+        haystack: Resolver,
+        needle: Resolver,
+    },
     Resolve(Resolver),
 }
 
@@ -32,12 +39,19 @@ pub fn parse(expr: &str) -> Evaluator {
     }
 
     if let Some((haystack, needle)) = match_include(&expr) {
-        return Evaluator::Include { haystack: resolver::parse(haystack), needle: resolver::parse(needle) };
+        return Evaluator::Include {
+            haystack: resolver::parse(haystack),
+            needle: resolver::parse(needle),
+        };
     }
 
     for op in OPERATORS.iter() {
         if let Some((left, right)) = split_comparison(&expr, op.symbol) {
-            return Evaluator::Compare { operator: *op, left: resolver::parse(left), right: resolver::parse(right) };
+            return Evaluator::Compare {
+                operator: *op,
+                left: resolver::parse(left),
+                right: resolver::parse(right),
+            };
         }
     }
 
@@ -57,7 +71,11 @@ fn split_comparison<'a>(expr: &'a str, operator: &str) -> Option<(&'a str, &'a s
 fn part_of_longer(expr: &str, index: usize, operator: &str) -> bool {
     let bytes = expr.as_bytes();
     let after = bytes.get(index + operator.len()).copied();
-    let before = if index > 0 { bytes.get(index - 1).copied() } else { None };
+    let before = if index > 0 {
+        bytes.get(index - 1).copied()
+    } else {
+        None
+    };
 
     if after == Some(b'=') && !operator.ends_with('=') {
         return true;

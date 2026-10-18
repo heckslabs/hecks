@@ -14,7 +14,9 @@ pub struct Comparison {
 
 pub fn interpret(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
     let Expr::Compare { op, left, right } = expr else {
-        return Err(Refusal::TypeMismatch(format!("comparison::interpret called with a non-comparison node {expr:?} — a router bug")));
+        return Err(Refusal::TypeMismatch(format!(
+            "comparison::interpret called with a non-comparison node {expr:?} — a router bug"
+        )));
     };
 
     let l = eval(left, ctx)?;
@@ -34,7 +36,9 @@ fn less_than(lhs: &Value, rhs: &Value) -> Result<bool, Refusal> {
         (Some(l), Some(r)) => Ok(l < r),
         _ => match (lhs, rhs) {
             (Value::Str(l), Value::Str(r)) => Ok(l < r),
-            _ => Err(eval_error(format!("comparison of {lhs:?} with {rhs:?} failed"))),
+            _ => Err(eval_error(format!(
+                "comparison of {lhs:?} with {rhs:?} failed"
+            ))),
         },
     }
 }

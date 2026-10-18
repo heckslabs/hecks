@@ -42,8 +42,15 @@ fn parse_table(table: Option<&Json>) -> HashMap<String, Vec<Need>> {
                     .iter()
                     .filter_map(|n| {
                         let fact = n.get("fact")?.as_str()?.to_string();
-                        let attribute_type = n.get("type").and_then(Json::as_str).unwrap_or("").to_string();
-                        Some(Need { fact, attribute_type })
+                        let attribute_type = n
+                            .get("type")
+                            .and_then(Json::as_str)
+                            .unwrap_or("")
+                            .to_string();
+                        Some(Need {
+                            fact,
+                            attribute_type,
+                        })
                     })
                     .collect();
                 (name.clone(), needs)
@@ -94,7 +101,10 @@ pub fn now_secs(occurred_at: Option<&str>) -> i64 {
         return fixed;
     }
     occurred_at.and_then(parse_iso8601_utc).unwrap_or_else(|| {
-        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or_default()
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or_default()
     })
 }
 
@@ -103,9 +113,17 @@ fn parse_iso8601_utc(text: &str) -> Option<i64> {
     let text = text.strip_suffix('Z')?;
     let (date, time) = text.split_once('T')?;
     let mut d = date.split('-');
-    let (y, m, day): (i64, i64, i64) = (d.next()?.parse().ok()?, d.next()?.parse().ok()?, d.next()?.parse().ok()?);
+    let (y, m, day): (i64, i64, i64) = (
+        d.next()?.parse().ok()?,
+        d.next()?.parse().ok()?,
+        d.next()?.parse().ok()?,
+    );
     let mut t = time.split(':');
-    let (h, mi, s): (i64, i64, i64) = (t.next()?.parse().ok()?, t.next()?.parse().ok()?, t.next()?.split('.').next()?.parse().ok()?);
+    let (h, mi, s): (i64, i64, i64) = (
+        t.next()?.parse().ok()?,
+        t.next()?.parse().ok()?,
+        t.next()?.split('.').next()?.parse().ok()?,
+    );
     // Howard Hinnant's days-from-civil.
     let y = if m <= 2 { y - 1 } else { y };
     let era = if y >= 0 { y } else { y - 399 } / 400;
@@ -121,8 +139,16 @@ fn answer(need: &Need, occurred_at: Option<&str>) -> Option<Json> {
         // `now` is epoch seconds; `today` the day those fall in, whole days since the epoch (UTC).
         "now" | "today" => {
             let secs = now_secs(occurred_at);
-            let answer = if need.fact == "today" { secs.div_euclid(86_400) } else { secs };
-            Some(if need.attribute_type == "Integer" { Json::int(answer) } else { Json::obj(vec![("value", Json::int(answer))]) })
+            let answer = if need.fact == "today" {
+                secs.div_euclid(86_400)
+            } else {
+                secs
+            };
+            Some(if need.attribute_type == "Integer" {
+                Json::int(answer)
+            } else {
+                Json::obj(vec![("value", Json::int(answer))])
+            })
         }
         _ => None,
     }
@@ -132,14 +158,20 @@ fn answer(need: &Need, occurred_at: Option<&str>) -> Option<Json> {
 /// needed filling (no needs, or every fact supplied). Reads `with` when the call carries one,
 /// else the flat object, as `CommandInvocation` does.
 pub fn enrich(verb: &str, args: &Json, occurred_at: Option<&str>) -> Option<Json> {
-    let needs = TABLE.with(|t| t.borrow().get(verb).cloned()).unwrap_or_default();
-    let defaults = DEFAULTS.with(|t| t.borrow().get(verb).cloned()).unwrap_or_default();
+    let needs = TABLE
+        .with(|t| t.borrow().get(verb).cloned())
+        .unwrap_or_default();
+    let defaults = DEFAULTS
+        .with(|t| t.borrow().get(verb).cloned())
+        .unwrap_or_default();
     if needs.is_empty() && defaults.is_empty() {
         return None;
     }
     let explicit = matches!(args.get("with"), Some(Json::Object(_)));
     let facts = if explicit { args.get("with")? } else { args };
-    let Json::Object(held) = facts else { return None };
+    let Json::Object(held) = facts else {
+        return None;
+    };
     let mut filled = held.clone();
     let before = filled.len();
     for need in &needs {
@@ -161,8 +193,21 @@ pub fn enrich(verb: &str, args: &Json, occurred_at: Option<&str>) -> Option<Json
     if !explicit {
         return Some(Json::Object(filled));
     }
-    let Json::Object(envelope) = args else { return None };
-    Some(Json::Object(envelope.iter().map(|(k, v)| if k == "with" { (k.clone(), Json::Object(filled.clone())) } else { (k.clone(), v.clone()) }).collect()))
+    let Json::Object(envelope) = args else {
+        return None;
+    };
+    Some(Json::Object(
+        envelope
+            .iter()
+            .map(|(k, v)| {
+                if k == "with" {
+                    (k.clone(), Json::Object(filled.clone()))
+                } else {
+                    (k.clone(), v.clone())
+                }
+            })
+            .collect(),
+    ))
 }
 
 /// `args` with each fact the query `question` needs and the caller left out answered, or `None`
@@ -170,7 +215,9 @@ pub fn enrich(verb: &str, args: &Json, occurred_at: Option<&str>) -> Option<Json
 /// arguments are the flat object of its step.
 pub fn enrich_query(question: &str, args: &Json, occurred_at: Option<&str>) -> Option<Json> {
     let needs = QUERY_TABLE.with(|t| t.borrow().get(question).cloned())?;
-    let Json::Object(held) = args else { return None };
+    let Json::Object(held) = args else {
+        return None;
+    };
     let mut filled = held.clone();
     for need in &needs {
         if held.iter().any(|(k, _)| k == &need.fact) {
@@ -207,7 +254,10 @@ mod tests {
         install(Some(&table()));
         fix_clock(Some(1_700_000_000));
         let filled = enrich("D::A.Instant", &with(vec![("x", Json::int(1))]), None).unwrap();
-        assert_eq!(filled.get("with").unwrap().get("now"), Some(&Json::obj(vec![("value", Json::int(1_700_000_000))])));
+        assert_eq!(
+            filled.get("with").unwrap().get("now"),
+            Some(&Json::obj(vec![("value", Json::int(1_700_000_000))]))
+        );
         assert_eq!(filled.get("with").unwrap().get("x"), Some(&Json::int(1)));
     }
 
@@ -231,9 +281,20 @@ mod tests {
     fn an_integer_attribute_gets_a_bare_integer_and_an_instant_a_value_object() {
         install(Some(&table()));
         fix_clock(Some(9));
-        assert_eq!(enrich("D::A.Seconds", &with(vec![]), None).unwrap().get("with").unwrap().get("now"), Some(&Json::int(9)));
         assert_eq!(
-            enrich("D::A.Instant", &with(vec![]), None).unwrap().get("with").unwrap().get("now"),
+            enrich("D::A.Seconds", &with(vec![]), None)
+                .unwrap()
+                .get("with")
+                .unwrap()
+                .get("now"),
+            Some(&Json::int(9))
+        );
+        assert_eq!(
+            enrich("D::A.Instant", &with(vec![]), None)
+                .unwrap()
+                .get("with")
+                .unwrap()
+                .get("now"),
             Some(&Json::obj(vec![("value", Json::int(9))]))
         );
     }
@@ -255,7 +316,8 @@ mod tests {
     }
 
     fn defaults() -> Json {
-        Json::parse(r#"{"D::A.Start": {"runs": 30}, "D::A.Instant": {"holder": "nobody"}}"#).unwrap()
+        Json::parse(r#"{"D::A.Start": {"runs": 30}, "D::A.Instant": {"holder": "nobody"}}"#)
+            .unwrap()
     }
 
     #[test]
@@ -263,7 +325,10 @@ mod tests {
         install(None);
         install_defaults(Some(&defaults()));
         let filled = enrich("D::A.Start", &with(vec![("ref", Json::int(1))]), None).unwrap();
-        assert_eq!(filled.get("with").unwrap().get("runs"), Some(&Json::int(30)));
+        assert_eq!(
+            filled.get("with").unwrap().get("runs"),
+            Some(&Json::int(30))
+        );
         assert_eq!(filled.get("with").unwrap().get("ref"), Some(&Json::int(1)));
     }
 
@@ -271,7 +336,10 @@ mod tests {
     fn a_supplied_argument_keeps_its_value_over_the_default() {
         install(None);
         install_defaults(Some(&defaults()));
-        assert_eq!(enrich("D::A.Start", &with(vec![("runs", Json::int(7))]), None), None);
+        assert_eq!(
+            enrich("D::A.Start", &with(vec![("runs", Json::int(7))]), None),
+            None
+        );
     }
 
     #[test]
@@ -288,8 +356,14 @@ mod tests {
         install_defaults(Some(&defaults()));
         fix_clock(Some(3));
         let filled = enrich("D::A.Instant", &with(vec![]), None).unwrap();
-        assert_eq!(filled.get("with").unwrap().get("now"), Some(&Json::obj(vec![("value", Json::int(3))])));
-        assert_eq!(filled.get("with").unwrap().get("holder"), Some(&Json::str("nobody")));
+        assert_eq!(
+            filled.get("with").unwrap().get("now"),
+            Some(&Json::obj(vec![("value", Json::int(3))]))
+        );
+        assert_eq!(
+            filled.get("with").unwrap().get("holder"),
+            Some(&Json::str("nobody"))
+        );
         fix_clock(None);
     }
 
@@ -322,7 +396,14 @@ mod tests {
     fn a_query_value_the_caller_supplied_is_kept() {
         install_queries(Some(&query_table()));
         fix_clock(Some(1));
-        assert_eq!(enrich_query("D::A.Expired", &Json::obj(vec![("now", Json::int(7))]), None), None);
+        assert_eq!(
+            enrich_query(
+                "D::A.Expired",
+                &Json::obj(vec![("now", Json::int(7))]),
+                None
+            ),
+            None
+        );
         fix_clock(None);
         install_queries(None);
     }
@@ -352,10 +433,16 @@ mod tests {
         install_queries(Some(&query_table()));
         fix_clock(Some((19_000 * 86_400) + 86_399));
         let filled = enrich_query("D::A.Today", &Json::obj(vec![]), None).unwrap();
-        assert_eq!(filled.get("today"), Some(&Json::obj(vec![("value", Json::int(19_000))])));
+        assert_eq!(
+            filled.get("today"),
+            Some(&Json::obj(vec![("value", Json::int(19_000))]))
+        );
         fix_clock(Some(19_001 * 86_400));
         let next = enrich_query("D::A.Today", &Json::obj(vec![]), None).unwrap();
-        assert_eq!(next.get("today"), Some(&Json::obj(vec![("value", Json::int(19_001))])));
+        assert_eq!(
+            next.get("today"),
+            Some(&Json::obj(vec![("value", Json::int(19_001))]))
+        );
         fix_clock(None);
         install_queries(None);
     }

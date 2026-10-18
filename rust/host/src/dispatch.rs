@@ -58,7 +58,10 @@ impl Enforcement {
     /// unless enforcement is off.
     pub fn effective<'a>(self, caller: Caller<'a>) -> Caller<'a> {
         if self != Self::Off && caller.role.is_none() && caller.actor_id.is_none() {
-            return Caller { role: Some(ANONYMOUS_ROLE), actor_id: None };
+            return Caller {
+                role: Some(ANONYMOUS_ROLE),
+                actor_id: None,
+            };
         }
         caller
     }
@@ -75,9 +78,13 @@ enum Origin {
 
 /// Whether the kernel refused the command for the caller's role.
 fn refused_for_role(result: &serde_json::Value) -> bool {
-    result.get("refusals").and_then(|r| r.as_array()).is_some_and(|all| {
-        all.iter().any(|r| r.get("kind").and_then(|k| k.as_str()) == Some("Unauthorized"))
-    })
+    result
+        .get("refusals")
+        .and_then(|r| r.as_array())
+        .is_some_and(|all| {
+            all.iter()
+                .any(|r| r.get("kind").and_then(|k| k.as_str()) == Some("Unauthorized"))
+        })
 }
 
 // Distinguishes a module refusal from a kernel failure to run at all.
@@ -92,9 +99,17 @@ enum KernelAnswer {
 // refusals doesn't by itself mean the run succeeded.
 fn classify(result: &serde_json::Value) -> KernelAnswer {
     if let Some(error) = result.get("error") {
-        return KernelAnswer::Failed(error.as_str().map(str::to_string).unwrap_or_else(|| error.to_string()));
+        return KernelAnswer::Failed(
+            error
+                .as_str()
+                .map(str::to_string)
+                .unwrap_or_else(|| error.to_string()),
+        );
     }
-    let refused = result.get("refusals").and_then(|r| r.as_array()).is_some_and(|r| !r.is_empty());
+    let refused = result
+        .get("refusals")
+        .and_then(|r| r.as_array())
+        .is_some_and(|r| !r.is_empty());
     if refused {
         KernelAnswer::Refused
     } else {
@@ -107,14 +122,19 @@ fn classify(result: &serde_json::Value) -> KernelAnswer {
 fn parse_kernel_output(output: &str) -> anyhow::Result<serde_json::Value> {
     let result: serde_json::Value = serde_json::from_str(output)?;
     match classify(&result) {
-        KernelAnswer::Failed(message) => anyhow::bail!("the kernel failed before it could run the command: {message}"),
+        KernelAnswer::Failed(message) => {
+            anyhow::bail!("the kernel failed before it could run the command: {message}")
+        }
         KernelAnswer::Accepted | KernelAnswer::Refused => Ok(result),
     }
 }
 
 // Kept as one opaque object under the journal's `args` column; the kernel
 // unwraps `to`/`with` itself, so this needs no journal schema migration.
-pub fn routed_invocation(to: serde_json::Value, facts: serde_json::Value) -> anyhow::Result<serde_json::Value> {
+pub fn routed_invocation(
+    to: serde_json::Value,
+    facts: serde_json::Value,
+) -> anyhow::Result<serde_json::Value> {
     if !facts.is_object() {
         anyhow::bail!("with must be an object of command facts");
     }
@@ -143,7 +163,16 @@ pub async fn handle_routed(
     config: &LineageConfig,
     invoker: &dyn LambdaInvoker,
 ) -> anyhow::Result<Outcome> {
-    handle(client, wasm_path, verb, routed_invocation(to, facts)?, role, config, invoker).await
+    handle(
+        client,
+        wasm_path,
+        verb,
+        routed_invocation(to, facts)?,
+        role,
+        config,
+        invoker,
+    )
+    .await
 }
 
 /// `handle_routed` for a caller the host can name.
@@ -158,7 +187,16 @@ pub async fn handle_routed_as(
     config: &LineageConfig,
     invoker: &dyn LambdaInvoker,
 ) -> anyhow::Result<Outcome> {
-    handle_as(client, wasm_path, verb, routed_invocation(to, facts)?, caller, config, invoker).await
+    handle_as(
+        client,
+        wasm_path,
+        verb,
+        routed_invocation(to, facts)?,
+        caller,
+        config,
+        invoker,
+    )
+    .await
 }
 
 // Facts-only counterpart to `handle_routed`.
@@ -172,7 +210,16 @@ pub async fn handle_facts(
     config: &LineageConfig,
     invoker: &dyn LambdaInvoker,
 ) -> anyhow::Result<Outcome> {
-    handle(client, wasm_path, verb, facts_invocation(facts)?, role, config, invoker).await
+    handle(
+        client,
+        wasm_path,
+        verb,
+        facts_invocation(facts)?,
+        role,
+        config,
+        invoker,
+    )
+    .await
 }
 
 /// `handle_facts` for a caller the host can name.
@@ -186,7 +233,16 @@ pub async fn handle_facts_as(
     config: &LineageConfig,
     invoker: &dyn LambdaInvoker,
 ) -> anyhow::Result<Outcome> {
-    handle_as(client, wasm_path, verb, facts_invocation(facts)?, caller, config, invoker).await
+    handle_as(
+        client,
+        wasm_path,
+        verb,
+        facts_invocation(facts)?,
+        caller,
+        config,
+        invoker,
+    )
+    .await
 }
 
 // A Mutex, not a bare Arc<Client>: `handle` needs `Client::transaction`,
@@ -213,8 +269,26 @@ pub async fn handle(
     config: &LineageConfig,
     invoker: &dyn LambdaInvoker,
 ) -> anyhow::Result<Outcome> {
-    let origin = if role.is_none() { Origin::HostInternal } else { Origin::External };
-    dispatch_in(Enforcement::from_env(), origin, client, wasm_path, verb, args, Caller { role, actor_id: None }, config, invoker).await
+    let origin = if role.is_none() {
+        Origin::HostInternal
+    } else {
+        Origin::External
+    };
+    dispatch_in(
+        Enforcement::from_env(),
+        origin,
+        client,
+        wasm_path,
+        verb,
+        args,
+        Caller {
+            role,
+            actor_id: None,
+        },
+        config,
+        invoker,
+    )
+    .await
 }
 
 /// Dispatches for a caller, applying `HECKS_ROLE_ENFORCEMENT`: unidentified callers are refused (or,
@@ -228,7 +302,18 @@ pub async fn handle_as(
     config: &LineageConfig,
     invoker: &dyn LambdaInvoker,
 ) -> anyhow::Result<Outcome> {
-    dispatch_in(Enforcement::from_env(), Origin::External, client, wasm_path, verb, args, caller, config, invoker).await
+    dispatch_in(
+        Enforcement::from_env(),
+        Origin::External,
+        client,
+        wasm_path,
+        verb,
+        args,
+        caller,
+        config,
+        invoker,
+    )
+    .await
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -243,16 +328,45 @@ async fn dispatch_in(
     config: &LineageConfig,
     invoker: &dyn LambdaInvoker,
 ) -> anyhow::Result<Outcome> {
-    let checked = if origin == Origin::HostInternal { caller } else { mode.effective(caller) };
-    let outcome = run(client, wasm_path, verb, args.clone(), checked, config, invoker).await?;
+    let checked = if origin == Origin::HostInternal {
+        caller
+    } else {
+        mode.effective(caller)
+    };
+    let outcome = run(
+        client,
+        wasm_path,
+        verb,
+        args.clone(),
+        checked,
+        config,
+        invoker,
+    )
+    .await?;
     // Only a caller that stated no role (unidentified, or an actor Governance holds no grant for)
     // is let through; a stated role that does not match stays refused, as it is under `Off`.
-    if mode == Enforcement::Shadow && caller.role.is_none() && !outcome.accepted && refused_for_role(&outcome.result) {
-        crate::log::error("would_refuse_role", serde_json::json!({
-            "verb": verb, "role": checked.role, "actor_id": checked.actor_id,
-            "refusals": outcome.result.get("refusals"),
-        }));
-        return run(client, wasm_path, verb, args, Caller::default(), config, invoker).await;
+    if mode == Enforcement::Shadow
+        && caller.role.is_none()
+        && !outcome.accepted
+        && refused_for_role(&outcome.result)
+    {
+        crate::log::error(
+            "would_refuse_role",
+            serde_json::json!({
+                "verb": verb, "role": checked.role, "actor_id": checked.actor_id,
+                "refusals": outcome.result.get("refusals"),
+            }),
+        );
+        return run(
+            client,
+            wasm_path,
+            verb,
+            args,
+            Caller::default(),
+            config,
+            invoker,
+        )
+        .await;
     }
     Ok(outcome)
 }
@@ -327,7 +441,10 @@ async fn run(
     let seed = if needs_saga_backfill {
         serde_json::json!({})
     } else {
-        snapshot.as_ref().map(|s| s.seed.clone()).unwrap_or_else(|| serde_json::json!({}))
+        snapshot
+            .as_ref()
+            .map(|s| s.seed.clone())
+            .unwrap_or_else(|| serde_json::json!({}))
     };
 
     // Read inside the same advisory-locked transaction: the lock covers
@@ -378,7 +495,10 @@ async fn run(
 
         // The kernel's "instances" output is already the exact seed
         // shape, so nothing here re-derives or filters it.
-        let new_seed = result.get("instances").cloned().unwrap_or_else(|| serde_json::json!({}));
+        let new_seed = result
+            .get("instances")
+            .cloned()
+            .unwrap_or_else(|| serde_json::json!({}));
         journal::save_snapshot(&txn, ordinal, &new_seed).await?;
 
         // Persisted in the same transaction, so a saga checkpoint can
@@ -386,24 +506,42 @@ async fn run(
         // Reconciled against `saga_rows` (pre-run state): present now
         // is upserted, present before but absent now is deleted.
         if let Some(saga_snapshot) = result.get("saga_snapshot").and_then(|v| v.as_array()) {
-            let mut still_present: std::collections::HashSet<(String, String)> = std::collections::HashSet::new();
+            let mut still_present: std::collections::HashSet<(String, String)> =
+                std::collections::HashSet::new();
             for entry in saga_snapshot {
                 let process_manager = entry
                     .get("process_manager")
                     .and_then(|v| v.as_str())
-                    .ok_or_else(|| anyhow::anyhow!("saga_snapshot entry missing \"process_manager\": {entry}"))?;
+                    .ok_or_else(|| {
+                        anyhow::anyhow!("saga_snapshot entry missing \"process_manager\": {entry}")
+                    })?;
                 let correlation = entry
                     .get("correlation")
                     .and_then(|v| v.as_str())
-                    .ok_or_else(|| anyhow::anyhow!("saga_snapshot entry missing \"correlation\": {entry}"))?;
-                let state = entry
-                    .get("state")
-                    .and_then(|v| v.as_str())
-                    .ok_or_else(|| anyhow::anyhow!("saga_snapshot entry missing \"state\": {entry}"))?;
-                let memory = entry.get("memory").cloned().unwrap_or_else(|| serde_json::json!({}));
-                let completed_compensations = entry.get("completed_compensations").cloned().unwrap_or_else(|| serde_json::json!([]));
+                    .ok_or_else(|| {
+                        anyhow::anyhow!("saga_snapshot entry missing \"correlation\": {entry}")
+                    })?;
+                let state = entry.get("state").and_then(|v| v.as_str()).ok_or_else(|| {
+                    anyhow::anyhow!("saga_snapshot entry missing \"state\": {entry}")
+                })?;
+                let memory = entry
+                    .get("memory")
+                    .cloned()
+                    .unwrap_or_else(|| serde_json::json!({}));
+                let completed_compensations = entry
+                    .get("completed_compensations")
+                    .cloned()
+                    .unwrap_or_else(|| serde_json::json!([]));
 
-                journal::save_saga(&txn, process_manager, correlation, state, &memory, &completed_compensations).await?;
+                journal::save_saga(
+                    &txn,
+                    process_manager,
+                    correlation,
+                    state,
+                    &memory,
+                    &completed_compensations,
+                )
+                .await?;
                 still_present.insert((process_manager.to_string(), correlation.to_string()));
             }
             for row in &saga_rows {
@@ -434,7 +572,9 @@ async fn run(
             let aggregate = mutation
                 .get("aggregate")
                 .and_then(|v| v.as_str())
-                .ok_or_else(|| anyhow::anyhow!("mutation record missing \"aggregate\": {mutation}"))?;
+                .ok_or_else(|| {
+                    anyhow::anyhow!("mutation record missing \"aggregate\": {mutation}")
+                })?;
             // `era.is_some()` means the lineage subsystem exists, not that
             // this aggregate has a mirror: `mint` only provisions head
             // snapshots for the capable set, so mirroring anything else
@@ -449,7 +589,9 @@ async fn run(
             let operation = mutation
                 .get("operation")
                 .and_then(|v| v.as_str())
-                .ok_or_else(|| anyhow::anyhow!("mutation record missing \"operation\": {mutation}"))?;
+                .ok_or_else(|| {
+                    anyhow::anyhow!("mutation record missing \"operation\": {mutation}")
+                })?;
             let state = mutation
                 .get("state")
                 .ok_or_else(|| anyhow::anyhow!("mutation record missing \"state\": {mutation}"))?;
@@ -457,7 +599,12 @@ async fn run(
             journal::append_lineage_mutation(
                 &txn,
                 config,
-                &journal::Mutation { aggregate, id, operation, state },
+                &journal::Mutation {
+                    aggregate,
+                    id,
+                    operation,
+                    state,
+                },
             )
             .await?;
         }
@@ -495,7 +642,9 @@ async fn run(
         match lambda_client::deliver_with_retry(invoker, reaction).await {
             Ok(record) => {
                 if let Some(response) = result.as_object_mut() {
-                    if let Some(reactions) = response.get_mut("reactions").and_then(|r| r.as_array_mut()) {
+                    if let Some(reactions) =
+                        response.get_mut("reactions").and_then(|r| r.as_array_mut())
+                    {
                         reactions.push(serde_json::json!({
                             "policy": record.policy, "on": reaction.get("on").and_then(|v| v.as_str()).unwrap_or_default(),
                             "trigger": record.target_verb, "delivered": record.delivered, "reason": record.reason,
@@ -506,10 +655,13 @@ async fn run(
             }
             Err(failure) => {
                 let error_text = format!("{:#}", failure.error);
-                crate::log::error("cross_domain_delivery_failed", serde_json::json!({
-                    "policy": failure.policy, "target_domain": failure.target_domain,
-                    "target_verb": failure.target_verb, "attempts": failure.attempts, "error": error_text,
-                }));
+                crate::log::error(
+                    "cross_domain_delivery_failed",
+                    serde_json::json!({
+                        "policy": failure.policy, "target_domain": failure.target_domain,
+                        "target_verb": failure.target_verb, "attempts": failure.attempts, "error": error_text,
+                    }),
+                );
                 journal::record_dead_letter(
                     &*guard,
                     &failure.policy,
@@ -530,7 +682,10 @@ async fn run(
         return Err(error);
     }
     if let Some(response) = result.as_object_mut() {
-        response.insert("cross_domain_deliveries".to_string(), serde_json::Value::Array(cross_domain_deliveries));
+        response.insert(
+            "cross_domain_deliveries".to_string(),
+            serde_json::Value::Array(cross_domain_deliveries),
+        );
     }
 
     log_command(verb, role, accepted, &result);
@@ -548,11 +703,21 @@ fn log_command(verb: &str, role: Option<&str>, accepted: bool, result: &serde_js
     }
 }
 
-fn command_fields(verb: &str, role: Option<&str>, accepted: bool, result: &serde_json::Value) -> serde_json::Value {
+fn command_fields(
+    verb: &str,
+    role: Option<&str>,
+    accepted: bool,
+    result: &serde_json::Value,
+) -> serde_json::Value {
     let events: Vec<serde_json::Value> = result
         .get("events")
         .and_then(|v| v.as_array())
-        .map(|items| items.iter().filter_map(|item| item.get("name").cloned()).collect())
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|item| item.get("name").cloned())
+                .collect()
+        })
         .unwrap_or_default();
     serde_json::json!({
         "verb": verb, "role": role, "accepted": accepted, "events": events,
@@ -586,7 +751,8 @@ pub async fn read(client: &Mutex<Client>, wasm_path: &Path) -> anyhow::Result<se
         let input = serde_json::json!({ "seed": &s.seed, "steps": steps_since }).to_string();
         let owned_wasm_path = wasm_path.to_path_buf();
         let output =
-            tokio::task::spawn_blocking(move || wasm_runner::run(&owned_wasm_path, &input)).await??;
+            tokio::task::spawn_blocking(move || wasm_runner::run(&owned_wasm_path, &input))
+                .await??;
         return parse_kernel_output(&output);
     }
 
@@ -617,10 +783,15 @@ pub async fn query(
         crate::needs::fill_query_needs(domain_ir, question, &mut args, &crate::needs::ProcessClock);
     }
     let state = read(client, wasm_path).await?;
-    let seed = state.get("instances").cloned().unwrap_or_else(|| serde_json::json!({}));
-    let input = serde_json::json!({ "seed": seed, "steps": [{ "query": question, "args": args }] }).to_string();
+    let seed = state
+        .get("instances")
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!({}));
+    let input = serde_json::json!({ "seed": seed, "steps": [{ "query": question, "args": args }] })
+        .to_string();
     let owned_wasm_path = wasm_path.to_path_buf();
-    let output = tokio::task::spawn_blocking(move || wasm_runner::run(&owned_wasm_path, &input)).await??;
+    let output =
+        tokio::task::spawn_blocking(move || wasm_runner::run(&owned_wasm_path, &input)).await??;
     parse_kernel_output(&output)
 }
 
@@ -663,10 +834,9 @@ pub(crate) mod tests {
             .await
             .unwrap();
 
-        let (client, conn) =
-            tokio_postgres::connect(&crate::test_pg::conninfo(&name), NoTls)
-                .await
-                .expect("connect to scratch db");
+        let (client, conn) = tokio_postgres::connect(&crate::test_pg::conninfo(&name), NoTls)
+            .await
+            .expect("connect to scratch db");
         tokio::spawn(async move {
             let _ = conn.await;
         });
@@ -677,11 +847,18 @@ pub(crate) mod tests {
     // Not Ruby's real provisioning — just enough structure for
     // `journal::current_era` and `append_lineage_mutation` to succeed,
     // without reproducing Ruby's full DDL.
-    pub(crate) async fn provision_lineage(client: &Client, domain: &str, era: i32, aggregate_storage_names: &[&str]) {
+    pub(crate) async fn provision_lineage(
+        client: &Client,
+        domain: &str,
+        era: i32,
+        aggregate_storage_names: &[&str],
+    ) {
         // `int`, matching Ruby's real DDL: tokio_postgres requires the
         // Rust and Postgres types to match, not just be compatible.
         client
-            .batch_execute("CREATE TABLE IF NOT EXISTS hecks_eras (domain text, ordinal int, held_text text)")
+            .batch_execute(
+                "CREATE TABLE IF NOT EXISTS hecks_eras (domain text, ordinal int, held_text text)",
+            )
             .await
             .unwrap();
         client
@@ -710,7 +887,10 @@ pub(crate) mod tests {
         for name in aggregate_storage_names {
             // Domain-qualified (ADR 0059), matching what a real write
             // targets.
-            let snapshot_table = journal::qualified_name(domain, &format!("{}_head_snapshot_{era}", journal::snake(name)));
+            let snapshot_table = journal::qualified_name(
+                domain,
+                &format!("{}_head_snapshot_{era}", journal::snake(name)),
+            );
             client
                 .batch_execute(&format!(
                     "CREATE TABLE IF NOT EXISTS \"{snapshot_table}\" (id text PRIMARY KEY, ordinal bigint NOT NULL, \
@@ -748,15 +928,37 @@ pub(crate) mod tests {
 
         // Mirroring everything is the outage: no head snapshot exists to
         // upsert into.
-        let everything = LineageConfig { domain: "Banking".to_string(), era: Some(1), mirrored: None };
-        let refused = handle_facts(&client, &wasm, "Banking::Customer.Register", open.clone(), None, &everything, &invoker).await;
+        let everything = LineageConfig {
+            domain: "Banking".to_string(),
+            era: Some(1),
+            mirrored: None,
+        };
+        let refused = handle_facts(
+            &client,
+            &wasm,
+            "Banking::Customer.Register",
+            open.clone(),
+            None,
+            &everything,
+            &invoker,
+        )
+        .await;
         let message = match refused {
             Ok(_) => panic!("expected the missing-relation failure"),
             Err(e) => format!("{e:#}"),
         };
-        assert!(message.contains("banking_customer_head_snapshot_1"), "names the relation it could not write: {message}");
-        assert!(message.contains("does not exist"), "carries the database's own words: {message}");
-        assert!(message.contains("Banking::Customer"), "names the record: {message}");
+        assert!(
+            message.contains("banking_customer_head_snapshot_1"),
+            "names the relation it could not write: {message}"
+        );
+        assert!(
+            message.contains("does not exist"),
+            "carries the database's own words: {message}"
+        );
+        assert!(
+            message.contains("Banking::Customer"),
+            "names the record: {message}"
+        );
 
         // Mirroring what the IR actually declares — nothing — writes
         // cleanly, into this crate's own journal.
@@ -765,17 +967,41 @@ pub(crate) mod tests {
             era: Some(1),
             mirrored: Some(std::collections::BTreeSet::new()),
         };
-        let outcome = handle_facts(&client, &wasm, "Banking::Customer.Register", open, None, &declared, &invoker)
-            .await
-            .expect("writes");
+        let outcome = handle_facts(
+            &client,
+            &wasm,
+            "Banking::Customer.Register",
+            open,
+            None,
+            &declared,
+            &invoker,
+        )
+        .await
+        .expect("writes");
         assert!(outcome.accepted, "{}", outcome.result);
 
         let guard = client.lock().await;
-        let journalled: i64 = guard.query_one("SELECT count(*) FROM hecks_lambda_journal", &[]).await.unwrap().get(0);
-        assert_eq!(journalled, 1, "durable in this crate's own journal, which is what `read` replays");
-        let mirror: Option<String> =
-            guard.query_one("SELECT to_regclass('banking_customer_head_snapshot_1')::text", &[]).await.unwrap().get(0);
-        assert!(mirror.is_none(), "and no mirror was invented for an aggregate the IR never called capable");
+        let journalled: i64 = guard
+            .query_one("SELECT count(*) FROM hecks_lambda_journal", &[])
+            .await
+            .unwrap()
+            .get(0);
+        assert_eq!(
+            journalled, 1,
+            "durable in this crate's own journal, which is what `read` replays"
+        );
+        let mirror: Option<String> = guard
+            .query_one(
+                "SELECT to_regclass('banking_customer_head_snapshot_1')::text",
+                &[],
+            )
+            .await
+            .unwrap()
+            .get(0);
+        assert!(
+            mirror.is_none(),
+            "and no mirror was invented for an aggregate the IR never called capable"
+        );
     }
 
     // The other half: an aggregate the IR does call capable is still
@@ -803,13 +1029,20 @@ pub(crate) mod tests {
         .expect("writes");
 
         let guard = client.lock().await;
-        let mirrored: i64 =
-            guard.query_one("SELECT count(*) FROM banking_customer_head_snapshot_1", &[]).await.unwrap().get(0);
+        let mirrored: i64 = guard
+            .query_one("SELECT count(*) FROM banking_customer_head_snapshot_1", &[])
+            .await
+            .unwrap()
+            .get(0);
         assert_eq!(mirrored, 1);
     }
 
     fn test_config(domain: &str, era: i32) -> LineageConfig {
-        LineageConfig { domain: domain.to_string(), era: Some(era), mirrored: None }
+        LineageConfig {
+            domain: domain.to_string(),
+            era: Some(era),
+            mirrored: None,
+        }
     }
 
     pub(crate) fn wasm_path() -> std::path::PathBuf {
@@ -832,19 +1065,37 @@ pub(crate) mod tests {
         provision_lineage(&*client.lock().await, "Banking", 1, &["Customer"]).await;
         let config = test_config("Banking", 1);
 
-        handle(&client, &wasm_path(), "Banking::Customer.Register", register("CUST-0100"), None, &config, &lambda_client::NeverInvoker)
-            .await
-            .unwrap()
-            .accepted
-            .then_some(())
-            .expect("registering a customer should succeed");
+        handle(
+            &client,
+            &wasm_path(),
+            "Banking::Customer.Register",
+            register("CUST-0100"),
+            None,
+            &config,
+            &lambda_client::NeverInvoker,
+        )
+        .await
+        .unwrap()
+        .accepted
+        .then_some(())
+        .expect("registering a customer should succeed");
 
         // `Customer.Suspended` is `where status == "suspended"` — a
         // freshly registered customer is active, so the query has to
         // answer with a real, empty row set, not everything.
-        let before = query(&client, &wasm_path(), "Banking::Customer.Suspended", serde_json::json!({})).await.unwrap();
+        let before = query(
+            &client,
+            &wasm_path(),
+            "Banking::Customer.Suspended",
+            serde_json::json!({}),
+        )
+        .await
+        .unwrap();
         assert_eq!(before["queries"][0]["query"], "Banking::Customer.Suspended");
-        assert_eq!(before["queries"][0]["rows"].as_array().expect("rows").len(), 0);
+        assert_eq!(
+            before["queries"][0]["rows"].as_array().expect("rows").len(),
+            0
+        );
 
         handle(
             &client,
@@ -861,9 +1112,20 @@ pub(crate) mod tests {
         .then_some(())
         .expect("suspending a customer should succeed");
 
-        let after = query(&client, &wasm_path(), "Banking::Customer.Suspended", serde_json::json!({})).await.unwrap();
+        let after = query(
+            &client,
+            &wasm_path(),
+            "Banking::Customer.Suspended",
+            serde_json::json!({}),
+        )
+        .await
+        .unwrap();
         let rows = after["queries"][0]["rows"].as_array().expect("rows");
-        assert_eq!(rows.len(), 1, "the suspended customer should be the one row: {after}");
+        assert_eq!(
+            rows.len(),
+            1,
+            "the suspended customer should be the one row: {after}"
+        );
         assert_eq!(rows[0]["id"], "CUST-0100");
     }
 
@@ -893,7 +1155,10 @@ pub(crate) mod tests {
         // The lineage write itself: a row landed in the era-tagged,
         // storage-name-keyed journal shape, not just the flat log above.
         let journal_rows = guard
-            .query("SELECT era, aggregate, aggregate_id, operation FROM hecks_journal_banking", &[])
+            .query(
+                "SELECT era, aggregate, aggregate_id, operation FROM hecks_journal_banking",
+                &[],
+            )
             .await
             .unwrap();
         assert_eq!(journal_rows.len(), 1);
@@ -902,14 +1167,26 @@ pub(crate) mod tests {
         let aggregate: String = row.get(1);
         let aggregate_id: String = row.get(2);
         let operation: String = row.get(3);
-        assert_eq!((era, aggregate.as_str(), aggregate_id.as_str(), operation.as_str()), (1, "customer", "CUST-0001", "save"));
+        assert_eq!(
+            (
+                era,
+                aggregate.as_str(),
+                aggregate_id.as_str(),
+                operation.as_str()
+            ),
+            (1, "customer", "CUST-0001", "save")
+        );
 
         // domain-qualified (docs/decisions/0059) — snake("Banking") == "banking".
         let snapshot_rows = guard
             .query("SELECT id FROM banking_customer_head_snapshot_1", &[])
             .await
             .unwrap();
-        assert_eq!(snapshot_rows.len(), 1, "the head-snapshot table should carry exactly the one live record");
+        assert_eq!(
+            snapshot_rows.len(),
+            1,
+            "the head-snapshot table should carry exactly the one live record"
+        );
         let id: String = snapshot_rows[0].get(0);
         assert_eq!(id, "CUST-0001");
     }
@@ -939,11 +1216,16 @@ pub(crate) mod tests {
         assert!(outcome.accepted, "{:?}", outcome.result["refusals"]);
         let events = outcome.result["events"].as_array().unwrap();
         assert_eq!(events.len(), 1);
-        let occurred_at = events[0]["occurred_at"].as_str().expect("occurred_at should be a real string, not null or absent");
+        let occurred_at = events[0]["occurred_at"]
+            .as_str()
+            .expect("occurred_at should be a real string, not null or absent");
         // Lexical comparison is valid: this format's digit-then-letter
         // layout sorts identically to chronological order for stamps
         // less than 10,000 years apart.
-        assert!(occurred_at >= before.as_str() && occurred_at <= after.as_str(), "{occurred_at} should fall between {before} and {after}");
+        assert!(
+            occurred_at >= before.as_str() && occurred_at <= after.as_str(),
+            "{occurred_at} should fall between {before} and {after}"
+        );
     }
 
     #[tokio::test]
@@ -1007,17 +1289,31 @@ pub(crate) mod tests {
         let config = test_config("Banking", 1);
 
         for reference in ["CUST-0004", "CUST-0005", "CUST-0006"] {
-            let outcome = handle(&client, &wasm_path(), "Banking::Customer.Register", register(reference), None, &config, &lambda_client::NeverInvoker)
-                .await
-                .unwrap();
-            assert!(outcome.accepted, "registering {reference} should succeed: {:?}", outcome.result);
+            let outcome = handle(
+                &client,
+                &wasm_path(),
+                "Banking::Customer.Register",
+                register(reference),
+                None,
+                &config,
+                &lambda_client::NeverInvoker,
+            )
+            .await
+            .unwrap();
+            assert!(
+                outcome.accepted,
+                "registering {reference} should succeed: {:?}",
+                outcome.result
+            );
 
             let guard = client.lock().await;
             let snapshot = journal::load_snapshot(&*guard)
                 .await
                 .unwrap()
                 .expect("a snapshot should exist after the first accepted command");
-            let tail = journal::load_steps_after(&*guard, snapshot.ordinal).await.unwrap();
+            let tail = journal::load_steps_after(&*guard, snapshot.ordinal)
+                .await
+                .unwrap();
             assert!(tail.is_empty(), "the snapshot should already reflect every accepted command, leaving nothing to replay");
 
             // And the seed is right, not just non-empty: it should carry
@@ -1029,7 +1325,10 @@ pub(crate) mod tests {
             );
         }
 
-        let final_snapshot = journal::load_snapshot(&*client.lock().await).await.unwrap().unwrap();
+        let final_snapshot = journal::load_snapshot(&*client.lock().await)
+            .await
+            .unwrap()
+            .unwrap();
         let final_seed = final_snapshot.seed.as_object().unwrap();
         assert_eq!(final_seed.len(), 3, "the snapshot should accumulate all three registrations, not just the latest: {final_seed:?}");
     }
@@ -1037,8 +1336,17 @@ pub(crate) mod tests {
     #[test]
     fn a_top_level_error_is_a_kernel_failure_and_nothing_else_is() {
         let failed = serde_json::json!({"error": "invalid seed: Registration.status: missing from JSON args"});
-        assert_eq!(classify(&failed), KernelAnswer::Failed("invalid seed: Registration.status: missing from JSON args".to_string()));
-        assert_eq!(classify(&serde_json::json!({"error": {"code": 7}})), KernelAnswer::Failed("{\"code\":7}".to_string()), "a non-text error is still a failure");
+        assert_eq!(
+            classify(&failed),
+            KernelAnswer::Failed(
+                "invalid seed: Registration.status: missing from JSON args".to_string()
+            )
+        );
+        assert_eq!(
+            classify(&serde_json::json!({"error": {"code": 7}})),
+            KernelAnswer::Failed("{\"code\":7}".to_string()),
+            "a non-text error is still a failure"
+        );
 
         let accepted = serde_json::json!({"instances": {}, "events": [], "refusals": []});
         assert_eq!(classify(&accepted), KernelAnswer::Accepted);
@@ -1058,9 +1366,18 @@ pub(crate) mod tests {
 
     #[test]
     fn parse_kernel_output_turns_a_failure_into_an_error_and_keeps_refusals_as_results() {
-        let error = parse_kernel_output(r#"{"error":"invalid seed: Customer.status: missing from JSON args"}"#).unwrap_err();
-        assert!(format!("{error:#}").contains("invalid seed: Customer.status: missing from JSON args"), "{error:#}");
-        let refused = parse_kernel_output(r#"{"instances":{},"refusals":[{"verb":"v","error":"no","kind":"K"}]}"#).unwrap();
+        let error = parse_kernel_output(
+            r#"{"error":"invalid seed: Customer.status: missing from JSON args"}"#,
+        )
+        .unwrap_err();
+        assert!(
+            format!("{error:#}").contains("invalid seed: Customer.status: missing from JSON args"),
+            "{error:#}"
+        );
+        let refused = parse_kernel_output(
+            r#"{"instances":{},"refusals":[{"verb":"v","error":"no","kind":"K"}]}"#,
+        )
+        .unwrap();
         assert_eq!(classify(&refused), KernelAnswer::Refused);
         assert!(parse_kernel_output("not json").is_err());
     }
@@ -1075,55 +1392,163 @@ pub(crate) mod tests {
         let config = test_config("Banking", 1);
         let noinvoke = lambda_client::NeverInvoker;
 
-        let first = handle(&client, &wasm_path(), "Banking::Customer.Register", register("CUST-0001"), None, &config, &noinvoke).await.unwrap();
+        let first = handle(
+            &client,
+            &wasm_path(),
+            "Banking::Customer.Register",
+            register("CUST-0001"),
+            None,
+            &config,
+            &noinvoke,
+        )
+        .await
+        .unwrap();
         assert!(first.accepted, "{:?}", first.result);
 
-        let whole_world = journal::load_snapshot(&*client.lock().await).await.unwrap().unwrap().seed;
+        let whole_world = journal::load_snapshot(&*client.lock().await)
+            .await
+            .unwrap()
+            .unwrap()
+            .seed;
         let mut damaged = whole_world.clone();
-        let customer = damaged.as_object_mut().unwrap().values_mut().next().unwrap().as_object_mut().unwrap();
-        assert!(customer.remove("status").is_some(), "the fixture Customer carries a status");
-        client.lock().await.execute("UPDATE hecks_lambda_snapshot SET seed = $1", &[&damaged]).await.unwrap();
+        let customer = damaged
+            .as_object_mut()
+            .unwrap()
+            .values_mut()
+            .next()
+            .unwrap()
+            .as_object_mut()
+            .unwrap();
+        assert!(
+            customer.remove("status").is_some(),
+            "the fixture Customer carries a status"
+        );
+        client
+            .lock()
+            .await
+            .execute("UPDATE hecks_lambda_snapshot SET seed = $1", &[&damaged])
+            .await
+            .unwrap();
 
         let before = snapshot_and_journal(&client).await;
-        let failure = handle(&client, &wasm_path(), "Banking::Customer.Register", register("CUST-0002"), None, &config, &noinvoke).await;
-        let message = format!("{:#}", failure.err().expect("a kernel failure must be an error, not an accepted outcome"));
-        assert!(message.contains("invalid seed") && message.contains("status"), "{message}");
+        let failure = handle(
+            &client,
+            &wasm_path(),
+            "Banking::Customer.Register",
+            register("CUST-0002"),
+            None,
+            &config,
+            &noinvoke,
+        )
+        .await;
+        let message = format!(
+            "{:#}",
+            failure
+                .err()
+                .expect("a kernel failure must be an error, not an accepted outcome")
+        );
+        assert!(
+            message.contains("invalid seed") && message.contains("status"),
+            "{message}"
+        );
 
-        assert_eq!(snapshot_and_journal(&client).await, before, "the failed command left the journal and the snapshot byte-identical");
+        assert_eq!(
+            snapshot_and_journal(&client).await,
+            before,
+            "the failed command left the journal and the snapshot byte-identical"
+        );
         assert_eq!(before.2, 1, "and only the first command was ever journaled");
-        let lineage_rows: i64 = client.lock().await.query_one("SELECT count(*) FROM hecks_journal_banking", &[]).await.unwrap().get(0);
-        assert_eq!(lineage_rows, 1, "nothing was mirrored into the era journal either");
+        let lineage_rows: i64 = client
+            .lock()
+            .await
+            .query_one("SELECT count(*) FROM hecks_journal_banking", &[])
+            .await
+            .unwrap()
+            .get(0);
+        assert_eq!(
+            lineage_rows, 1,
+            "nothing was mirrored into the era journal either"
+        );
 
         // A read that must run the kernel over the damaged snapshot fails
         // the same way, instead of answering an empty world.
         client
             .lock()
             .await
-            .execute("INSERT INTO hecks_lambda_journal (verb, args) VALUES ($1, $2)", &[&"Banking::Customer.Register", &register("CUST-0009")])
+            .execute(
+                "INSERT INTO hecks_lambda_journal (verb, args) VALUES ($1, $2)",
+                &[&"Banking::Customer.Register", &register("CUST-0009")],
+            )
             .await
             .unwrap();
-        let read_failure = read(&client, &wasm_path()).await.err().expect("a kernel failure is not an empty read");
-        assert!(format!("{read_failure:#}").contains("invalid seed"), "{read_failure:#}");
-        let query_failure = query(&client, &wasm_path(), "Banking::Customer.Suspended", serde_json::json!({})).await.err();
+        let read_failure = read(&client, &wasm_path())
+            .await
+            .err()
+            .expect("a kernel failure is not an empty read");
+        assert!(
+            format!("{read_failure:#}").contains("invalid seed"),
+            "{read_failure:#}"
+        );
+        let query_failure = query(
+            &client,
+            &wasm_path(),
+            "Banking::Customer.Suspended",
+            serde_json::json!({}),
+        )
+        .await
+        .err();
         assert!(query_failure.is_some_and(|e| format!("{e:#}").contains("invalid seed")));
         client.lock().await.execute("DELETE FROM hecks_lambda_journal WHERE verb = 'Banking::Customer.Register' AND ordinal > 1", &[]).await.unwrap();
 
         // Once the snapshot is whole again the next command works, and the
         // snapshot afterwards holds the whole world, not just its own instance.
-        client.lock().await.execute("UPDATE hecks_lambda_snapshot SET seed = $1", &[&whole_world]).await.unwrap();
-        let second = handle(&client, &wasm_path(), "Banking::Customer.Register", register("CUST-0002"), None, &config, &noinvoke).await.unwrap();
+        client
+            .lock()
+            .await
+            .execute(
+                "UPDATE hecks_lambda_snapshot SET seed = $1",
+                &[&whole_world],
+            )
+            .await
+            .unwrap();
+        let second = handle(
+            &client,
+            &wasm_path(),
+            "Banking::Customer.Register",
+            register("CUST-0002"),
+            None,
+            &config,
+            &noinvoke,
+        )
+        .await
+        .unwrap();
         assert!(second.accepted, "{:?}", second.result);
-        let after = journal::load_snapshot(&*client.lock().await).await.unwrap().unwrap().seed;
+        let after = journal::load_snapshot(&*client.lock().await)
+            .await
+            .unwrap()
+            .unwrap()
+            .seed;
         let keys: Vec<&String> = after.as_object().unwrap().keys().collect();
         assert_eq!(keys.len(), 2, "the snapshot holds both customers: {keys:?}");
-        assert!(keys.iter().any(|k| k.contains("CUST-0001")) && keys.iter().any(|k| k.contains("CUST-0002")), "{keys:?}");
+        assert!(
+            keys.iter().any(|k| k.contains("CUST-0001"))
+                && keys.iter().any(|k| k.contains("CUST-0002")),
+            "{keys:?}"
+        );
     }
 
     // The snapshot's ordinal and exact seed text, and how many commands are journaled.
     async fn snapshot_and_journal(client: &Mutex<Client>) -> (i64, String, i64) {
         let guard = client.lock().await;
-        let snapshot = guard.query_one("SELECT ordinal, seed::text FROM hecks_lambda_snapshot", &[]).await.unwrap();
-        let journaled: i64 = guard.query_one("SELECT count(*) FROM hecks_lambda_journal", &[]).await.unwrap().get(0);
+        let snapshot = guard
+            .query_one("SELECT ordinal, seed::text FROM hecks_lambda_snapshot", &[])
+            .await
+            .unwrap();
+        let journaled: i64 = guard
+            .query_one("SELECT count(*) FROM hecks_lambda_journal", &[])
+            .await
+            .unwrap()
+            .get(0);
         (snapshot.get(0), snapshot.get(1), journaled)
     }
 
@@ -1141,8 +1566,24 @@ pub(crate) mod tests {
         let wasm_path = wasm_path();
 
         let (first, second) = tokio::join!(
-            handle(&client, &wasm_path, "Banking::Customer.Register", register("CUST-0002"), None, &config, &lambda_client::NeverInvoker),
-            handle(&client, &wasm_path, "Banking::Customer.Register", register("CUST-0002"), None, &config, &lambda_client::NeverInvoker),
+            handle(
+                &client,
+                &wasm_path,
+                "Banking::Customer.Register",
+                register("CUST-0002"),
+                None,
+                &config,
+                &lambda_client::NeverInvoker
+            ),
+            handle(
+                &client,
+                &wasm_path,
+                "Banking::Customer.Register",
+                register("CUST-0002"),
+                None,
+                &config,
+                &lambda_client::NeverInvoker
+            ),
         );
         let (first, second) = (first.unwrap(), second.unwrap());
 
@@ -1152,7 +1593,11 @@ pub(crate) mod tests {
             first.result, second.result
         );
         let steps = journal::load_steps(&*client.lock().await).await.unwrap();
-        assert_eq!(steps.len(), 1, "only the accepted registration should be persisted");
+        assert_eq!(
+            steps.len(),
+            1,
+            "only the accepted registration should be persisted"
+        );
     }
 
     #[tokio::test]
@@ -1202,31 +1647,57 @@ pub(crate) mod tests {
 
     impl RecordingInvoker {
         fn new() -> Self {
-            Self { calls: std::sync::Mutex::new(Vec::new()) }
+            Self {
+                calls: std::sync::Mutex::new(Vec::new()),
+            }
         }
     }
 
     #[async_trait::async_trait]
     impl LambdaInvoker for RecordingInvoker {
-        async fn invoke(&self, function_name: &str, payload: &str) -> anyhow::Result<lambda_client::InvokeOutcome> {
-            self.calls.lock().unwrap().push((function_name.to_string(), payload.to_string()));
-            Ok(lambda_client::InvokeOutcome { body: serde_json::json!({ "refusals": [] }), function_error: false })
+        async fn invoke(
+            &self,
+            function_name: &str,
+            payload: &str,
+        ) -> anyhow::Result<lambda_client::InvokeOutcome> {
+            self.calls
+                .lock()
+                .unwrap()
+                .push((function_name.to_string(), payload.to_string()));
+            Ok(lambda_client::InvokeOutcome {
+                body: serde_json::json!({ "refusals": [] }),
+                function_error: false,
+            })
         }
     }
 
     #[tokio::test]
     async fn a_cross_domain_policy_delivers_through_the_real_rehydrate_replay_path() {
         let client = scratch_db("rust_host_dispatch_test_6").await;
-        provision_lineage(&*client.lock().await, "Banking", 1, &["Customer", "Account"]).await;
+        provision_lineage(
+            &*client.lock().await,
+            "Banking",
+            1,
+            &["Customer", "Account"],
+        )
+        .await;
         let config = test_config("Banking", 1);
         let invoker = RecordingInvoker::new();
 
-        handle(&client, &wasm_path(), "Banking::Customer.Register", register("CUST-0007"), None, &config, &invoker)
-            .await
-            .unwrap()
-            .accepted
-            .then_some(())
-            .expect("registration should succeed");
+        handle(
+            &client,
+            &wasm_path(),
+            "Banking::Customer.Register",
+            register("CUST-0007"),
+            None,
+            &config,
+            &invoker,
+        )
+        .await
+        .unwrap()
+        .accepted
+        .then_some(())
+        .expect("registration should succeed");
 
         let open_args = serde_json::json!({
             "number": { "value": "acct-freeze-me" },
@@ -1234,24 +1705,50 @@ pub(crate) mod tests {
             "daily_limit": { "cents": 50000 },
             "customer": "CUST-0007",
         });
-        handle(&client, &wasm_path(), "Banking::Account.Open", open_args, None, &config, &invoker)
-            .await
-            .unwrap()
-            .accepted
-            .then_some(())
-            .expect("account open should succeed");
+        handle(
+            &client,
+            &wasm_path(),
+            "Banking::Account.Open",
+            open_args,
+            None,
+            &config,
+            &invoker,
+        )
+        .await
+        .unwrap()
+        .accepted
+        .then_some(())
+        .expect("account open should succeed");
 
         // `FreezeAccount` announces `AccountFrozen`, matched by
         // `ReviewOnFreeze` (`across "Compliance"`) — the real trigger
         // this feature exists for.
         let freeze_args = serde_json::json!({ "number": { "value": "acct-freeze-me" } });
-        let outcome = handle(&client, &wasm_path(), "Banking::Account.FreezeAccount", freeze_args, None, &config, &invoker)
-            .await
-            .unwrap();
-        assert!(outcome.accepted, "freeze should succeed: {:?}", outcome.result);
+        let outcome = handle(
+            &client,
+            &wasm_path(),
+            "Banking::Account.FreezeAccount",
+            freeze_args,
+            None,
+            &config,
+            &invoker,
+        )
+        .await
+        .unwrap();
+        assert!(
+            outcome.accepted,
+            "freeze should succeed: {:?}",
+            outcome.result
+        );
 
-        let deliveries = outcome.result["cross_domain_deliveries"].as_array().unwrap();
-        assert_eq!(deliveries.len(), 1, "exactly one cross-domain reaction should have fired: {deliveries:?}");
+        let deliveries = outcome.result["cross_domain_deliveries"]
+            .as_array()
+            .unwrap();
+        assert_eq!(
+            deliveries.len(),
+            1,
+            "exactly one cross-domain reaction should have fired: {deliveries:?}"
+        );
         assert_eq!(deliveries[0]["policy"], "ReviewOnFreeze");
         assert_eq!(deliveries[0]["target_domain"], "Compliance");
         assert_eq!(deliveries[0]["delivered"], true);
@@ -1260,7 +1757,10 @@ pub(crate) mod tests {
         // ({policy, on, trigger, delivered, reason}), alongside the
         // differently-shaped "cross_domain_deliveries" entry above.
         let reactions = outcome.result["reactions"].as_array().unwrap();
-        let merged = reactions.iter().find(|r| r["policy"] == "ReviewOnFreeze").expect("ReviewOnFreeze should appear in \"reactions\" too");
+        let merged = reactions
+            .iter()
+            .find(|r| r["policy"] == "ReviewOnFreeze")
+            .expect("ReviewOnFreeze should appear in \"reactions\" too");
         assert_eq!(merged["on"], "AccountFrozen");
         assert_eq!(merged["trigger"], "Compliance::AccountFreezeReview.Open");
         assert_eq!(merged["delivered"], true);
@@ -1281,10 +1781,22 @@ pub(crate) mod tests {
         // Never re-delivered on a later replay: `pending_cross_domain`
         // only ever reads the last step's own reactions, so rehydrating
         // history here doesn't re-invoke the sibling Lambda.
-        handle(&client, &wasm_path(), "Banking::Customer.Register", register("CUST-0008"), None, &config, &invoker)
-            .await
-            .unwrap();
-        assert_eq!(invoker.calls.lock().unwrap().len(), 1, "replaying prior history must not re-deliver its cross-domain reaction");
+        handle(
+            &client,
+            &wasm_path(),
+            "Banking::Customer.Register",
+            register("CUST-0008"),
+            None,
+            &config,
+            &invoker,
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            invoker.calls.lock().unwrap().len(),
+            1,
+            "replaying prior history must not re-deliver its cross-domain reaction"
+        );
     }
 
     // Pins the fix: this is the first test that reaches `check_role`
@@ -1348,7 +1860,11 @@ pub(crate) mod tests {
         // And the refused command was never persisted — same discipline
         // every other refusal in this file is held to.
         let steps = journal::load_steps(&*client.lock().await).await.unwrap();
-        assert_eq!(steps.len(), 1, "only the correctly-authorized registration should be persisted");
+        assert_eq!(
+            steps.len(),
+            1,
+            "only the correctly-authorized registration should be persisted"
+        );
     }
 
     #[test]
@@ -1366,16 +1882,27 @@ pub(crate) mod tests {
         assert_eq!(Enforcement::Off.effective(nobody), nobody);
         for mode in [Enforcement::Shadow, Enforcement::Enforce] {
             assert_eq!(mode.effective(nobody).role, Some(ANONYMOUS_ROLE));
-            let stated = Caller { role: Some("Teller"), actor_id: None };
+            let stated = Caller {
+                role: Some("Teller"),
+                actor_id: None,
+            };
             assert_eq!(mode.effective(stated), stated, "a stated role is kept");
-            let identified = Caller { role: None, actor_id: Some("u1") };
-            assert_eq!(mode.effective(identified), identified, "an identified caller is kept");
+            let identified = Caller {
+                role: None,
+                actor_id: Some("u1"),
+            };
+            assert_eq!(
+                mode.effective(identified),
+                identified,
+                "an identified caller is kept"
+            );
         }
     }
 
     // The unidentified caller is the case the host never refused: no role at all.
     #[tokio::test]
-    async fn an_unidentified_caller_is_refused_when_enforced_and_let_through_when_off_or_shadowed() {
+    async fn an_unidentified_caller_is_refused_when_enforced_and_let_through_when_off_or_shadowed()
+    {
         let client = scratch_db("rust_host_dispatch_test_enforce").await;
         provision_lineage(&*client.lock().await, "Banking", 1, &["Customer"]).await;
         let config = test_config("Banking", 1);
@@ -1383,26 +1910,55 @@ pub(crate) mod tests {
             let client = &client;
             let config = &config;
             async move {
-                dispatch_in(mode, Origin::External, client, &wasm_path(), "Banking::Customer.Register", register(id), Caller::default(), config, &lambda_client::NeverInvoker)
-                    .await
-                    .unwrap()
+                dispatch_in(
+                    mode,
+                    Origin::External,
+                    client,
+                    &wasm_path(),
+                    "Banking::Customer.Register",
+                    register(id),
+                    Caller::default(),
+                    config,
+                    &lambda_client::NeverInvoker,
+                )
+                .await
+                .unwrap()
             }
         };
 
         let off = go(Enforcement::Off, "CUST-0021").await;
-        assert!(off.accepted, "off keeps the old behaviour: {:?}", off.result);
+        assert!(
+            off.accepted,
+            "off keeps the old behaviour: {:?}",
+            off.result
+        );
 
         let enforced = go(Enforcement::Enforce, "CUST-0022").await;
-        assert!(!enforced.accepted, "an unidentified caller must be refused: {:?}", enforced.result);
+        assert!(
+            !enforced.accepted,
+            "an unidentified caller must be refused: {:?}",
+            enforced.result
+        );
         assert!(refused_for_role(&enforced.result), "{:?}", enforced.result);
         let error = enforced.result["refusals"][0]["error"].as_str().unwrap();
-        assert!(error.contains("Branch clerk") && error.contains(ANONYMOUS_ROLE), "{error}");
+        assert!(
+            error.contains("Branch clerk") && error.contains(ANONYMOUS_ROLE),
+            "{error}"
+        );
 
         let shadowed = go(Enforcement::Shadow, "CUST-0023").await;
-        assert!(shadowed.accepted, "shadow lets the command through: {:?}", shadowed.result);
+        assert!(
+            shadowed.accepted,
+            "shadow lets the command through: {:?}",
+            shadowed.result
+        );
 
         let steps = journal::load_steps(&*client.lock().await).await.unwrap();
-        assert_eq!(steps.len(), 2, "the enforced refusal was not persisted; off and shadow were");
+        assert_eq!(
+            steps.len(),
+            2,
+            "the enforced refusal was not persisted; off and shadow were"
+        );
     }
 
     // Shadow may only let through what Off would: a caller that stated a wrong role is refused.
@@ -1415,24 +1971,63 @@ pub(crate) mod tests {
             let client = &client;
             let config = &config;
             async move {
-                dispatch_in(mode, origin, client, &wasm_path(), "Banking::Customer.Register", register(id), caller, config, &lambda_client::NeverInvoker)
-                    .await
-                    .unwrap()
+                dispatch_in(
+                    mode,
+                    origin,
+                    client,
+                    &wasm_path(),
+                    "Banking::Customer.Register",
+                    register(id),
+                    caller,
+                    config,
+                    &lambda_client::NeverInvoker,
+                )
+                .await
+                .unwrap()
             }
         };
-        let wrong = Caller { role: Some("Auditor"), actor_id: None };
+        let wrong = Caller {
+            role: Some("Auditor"),
+            actor_id: None,
+        };
 
         let shadow_wrong = go(Enforcement::Shadow, Origin::External, wrong, "CUST-0031").await;
-        assert!(!shadow_wrong.accepted, "shadow must not accept a stated wrong role: {:?}", shadow_wrong.result);
-        assert!(refused_for_role(&shadow_wrong.result), "{:?}", shadow_wrong.result);
+        assert!(
+            !shadow_wrong.accepted,
+            "shadow must not accept a stated wrong role: {:?}",
+            shadow_wrong.result
+        );
+        assert!(
+            refused_for_role(&shadow_wrong.result),
+            "{:?}",
+            shadow_wrong.result
+        );
         let off_wrong = go(Enforcement::Off, Origin::External, wrong, "CUST-0032").await;
-        assert!(!off_wrong.accepted, "off refuses it too: {:?}", off_wrong.result);
+        assert!(
+            !off_wrong.accepted,
+            "off refuses it too: {:?}",
+            off_wrong.result
+        );
 
-        let nobody = go(Enforcement::Shadow, Origin::External, Caller::default(), "CUST-0033").await;
-        assert!(nobody.accepted, "shadow lets an unidentified caller through: {:?}", nobody.result);
+        let nobody = go(
+            Enforcement::Shadow,
+            Origin::External,
+            Caller::default(),
+            "CUST-0033",
+        )
+        .await;
+        assert!(
+            nobody.accepted,
+            "shadow lets an unidentified caller through: {:?}",
+            nobody.result
+        );
 
         let steps = journal::load_steps(&*client.lock().await).await.unwrap();
-        assert_eq!(steps.len(), 1, "only the unidentified caller's registration was persisted");
+        assert_eq!(
+            steps.len(),
+            1,
+            "only the unidentified caller's registration was persisted"
+        );
     }
 
     // A host-internal dispatch names no caller and is unchecked in every mode, while an external
@@ -1446,15 +2041,29 @@ pub(crate) mod tests {
             let client = &client;
             let config = &config;
             async move {
-                dispatch_in(mode, origin, client, &wasm_path(), "Banking::Customer.Register", register(id), Caller::default(), config, &lambda_client::NeverInvoker)
-                    .await
-                    .unwrap()
+                dispatch_in(
+                    mode,
+                    origin,
+                    client,
+                    &wasm_path(),
+                    "Banking::Customer.Register",
+                    register(id),
+                    Caller::default(),
+                    config,
+                    &lambda_client::NeverInvoker,
+                )
+                .await
+                .unwrap()
             }
         };
 
         let external = go(Enforcement::Enforce, Origin::External, "CUST-0041").await;
         assert!(!external.accepted, "{:?}", external.result);
-        for (mode, id) in [(Enforcement::Enforce, "CUST-0042"), (Enforcement::Shadow, "CUST-0043"), (Enforcement::Off, "CUST-0044")] {
+        for (mode, id) in [
+            (Enforcement::Enforce, "CUST-0042"),
+            (Enforcement::Shadow, "CUST-0043"),
+            (Enforcement::Off, "CUST-0044"),
+        ] {
             let internal = go(mode, Origin::HostInternal, id).await;
             assert!(internal.accepted, "{mode:?}: {:?}", internal.result);
         }
@@ -1466,24 +2075,66 @@ pub(crate) mod tests {
         // after `begin_saga` already wrote into `hecks_lambda_sagas`,
         // proving that write rolls back with the rest of the transaction.
         let client = scratch_db("rust_host_dispatch_test_9").await;
-        provision_lineage(&*client.lock().await, "Banking", 1, &["Customer", "Account"]).await;
+        provision_lineage(
+            &*client.lock().await,
+            "Banking",
+            1,
+            &["Customer", "Account"],
+        )
+        .await;
         let config = test_config("Banking", 1);
 
-        handle(&client, &wasm_path(), "Banking::Customer.Register", register("CUST-0012"), None, &config, &lambda_client::NeverInvoker)
-            .await.unwrap().accepted.then_some(()).expect("registration should succeed");
+        handle(
+            &client,
+            &wasm_path(),
+            "Banking::Customer.Register",
+            register("CUST-0012"),
+            None,
+            &config,
+            &lambda_client::NeverInvoker,
+        )
+        .await
+        .unwrap()
+        .accepted
+        .then_some(())
+        .expect("registration should succeed");
 
         let open_src = serde_json::json!({
             "number": { "value": "src-rollback" }, "kind": { "name": "current" },
             "daily_limit": { "cents": 50000 }, "customer": "CUST-0012",
         });
-        handle(&client, &wasm_path(), "Banking::Account.Open", open_src, None, &config, &lambda_client::NeverInvoker)
-            .await.unwrap().accepted.then_some(()).expect("source account open should succeed");
+        handle(
+            &client,
+            &wasm_path(),
+            "Banking::Account.Open",
+            open_src,
+            None,
+            &config,
+            &lambda_client::NeverInvoker,
+        )
+        .await
+        .unwrap()
+        .accepted
+        .then_some(())
+        .expect("source account open should succeed");
         let open_dst = serde_json::json!({
             "number": { "value": "dst-rollback" }, "kind": { "name": "current" },
             "daily_limit": { "cents": 50000 }, "customer": "CUST-0012",
         });
-        handle(&client, &wasm_path(), "Banking::Account.Open", open_dst, None, &config, &lambda_client::NeverInvoker)
-            .await.unwrap().accepted.then_some(()).expect("destination account open should succeed");
+        handle(
+            &client,
+            &wasm_path(),
+            "Banking::Account.Open",
+            open_dst,
+            None,
+            &config,
+            &lambda_client::NeverInvoker,
+        )
+        .await
+        .unwrap()
+        .accepted
+        .then_some(())
+        .expect("destination account open should succeed");
         handle(
             &client, &wasm_path(), "Banking::Account.Credit",
             serde_json::json!({ "number": "src-rollback", "amount": { "cents": 1000 }, "narrative": { "text": "opening balance" } }),
@@ -1498,11 +2149,29 @@ pub(crate) mod tests {
             "reference": { "value": "tr-rollback" }, "amount": { "cents": 200 },
             "narrative": { "text": "rollback test" }, "source": "src-rollback", "destination": "dst-rollback",
         });
-        let outcome = handle(&client, &wasm_path(), "Banking::Transfer.Request", transfer_args, None, &config, &lambda_client::NeverInvoker).await;
-        assert!(outcome.is_err(), "the unprovisioned Transfer lineage table should make this whole invocation fail");
+        let outcome = handle(
+            &client,
+            &wasm_path(),
+            "Banking::Transfer.Request",
+            transfer_args,
+            None,
+            &config,
+            &lambda_client::NeverInvoker,
+        )
+        .await;
+        assert!(
+            outcome.is_err(),
+            "the unprovisioned Transfer lineage table should make this whole invocation fail"
+        );
 
         let guard = client.lock().await;
-        let saga_rows = guard.query("SELECT process_manager, correlation FROM hecks_lambda_sagas", &[]).await.unwrap();
+        let saga_rows = guard
+            .query(
+                "SELECT process_manager, correlation FROM hecks_lambda_sagas",
+                &[],
+            )
+            .await
+            .unwrap();
         assert_eq!(
             saga_rows.len(), 0,
             "a saga write inside a transaction that ultimately fails must roll back with it, not commit independently: {saga_rows:?}"
@@ -1512,27 +2181,69 @@ pub(crate) mod tests {
     #[tokio::test]
     async fn a_pre_existing_snapshot_without_the_sagas_backfilled_latch_forces_one_full_replay() {
         let client = scratch_db("rust_host_dispatch_test_10").await;
-        provision_lineage(&*client.lock().await, "Banking", 1, &["Customer", "Account", "Transfer"]).await;
+        provision_lineage(
+            &*client.lock().await,
+            "Banking",
+            1,
+            &["Customer", "Account", "Transfer"],
+        )
+        .await;
         let config = test_config("Banking", 1);
         // `ReviewOnFreeze` fires on every `FreezeAccount` in this domain
         // (proven above), so `NeverInvoker` would panic here.
         let invoker = RecordingInvoker::new();
 
-        handle(&client, &wasm_path(), "Banking::Customer.Register", register("CUST-0013"), None, &config, &invoker)
-            .await.unwrap().accepted.then_some(()).expect("registration should succeed");
+        handle(
+            &client,
+            &wasm_path(),
+            "Banking::Customer.Register",
+            register("CUST-0013"),
+            None,
+            &config,
+            &invoker,
+        )
+        .await
+        .unwrap()
+        .accepted
+        .then_some(())
+        .expect("registration should succeed");
 
         let open_src = serde_json::json!({
             "number": { "value": "src-backfill" }, "kind": { "name": "current" },
             "daily_limit": { "cents": 50000 }, "customer": "CUST-0013",
         });
-        handle(&client, &wasm_path(), "Banking::Account.Open", open_src, None, &config, &invoker)
-            .await.unwrap().accepted.then_some(()).expect("source account open should succeed");
+        handle(
+            &client,
+            &wasm_path(),
+            "Banking::Account.Open",
+            open_src,
+            None,
+            &config,
+            &invoker,
+        )
+        .await
+        .unwrap()
+        .accepted
+        .then_some(())
+        .expect("source account open should succeed");
         let open_dst = serde_json::json!({
             "number": { "value": "dst-backfill" }, "kind": { "name": "current" },
             "daily_limit": { "cents": 50000 }, "customer": "CUST-0013",
         });
-        handle(&client, &wasm_path(), "Banking::Account.Open", open_dst, None, &config, &invoker)
-            .await.unwrap().accepted.then_some(()).expect("destination account open should succeed");
+        handle(
+            &client,
+            &wasm_path(),
+            "Banking::Account.Open",
+            open_dst,
+            None,
+            &config,
+            &invoker,
+        )
+        .await
+        .unwrap()
+        .accepted
+        .then_some(())
+        .expect("destination account open should succeed");
         handle(
             &client, &wasm_path(), "Banking::Account.Credit",
             serde_json::json!({ "number": "src-backfill", "amount": { "cents": 1000 }, "narrative": { "text": "opening balance" } }),
@@ -1543,18 +2254,48 @@ pub(crate) mod tests {
         // Freezing the destination first means the credit leg refuses
         // and Settlement compensates, leaving the saga stuck "reversed"
         // — exactly the mid-flight shape this test needs to recover.
-        handle(&client, &wasm_path(), "Banking::Account.FreezeAccount", serde_json::json!({ "number": { "value": "dst-backfill" } }), None, &config, &invoker)
-            .await.unwrap().accepted.then_some(()).expect("freeze should succeed");
+        handle(
+            &client,
+            &wasm_path(),
+            "Banking::Account.FreezeAccount",
+            serde_json::json!({ "number": { "value": "dst-backfill" } }),
+            None,
+            &config,
+            &invoker,
+        )
+        .await
+        .unwrap()
+        .accepted
+        .then_some(())
+        .expect("freeze should succeed");
         let transfer_args = serde_json::json!({
             "reference": { "value": "tr-backfill" }, "amount": { "cents": 200 },
             "narrative": { "text": "backfill test" }, "source": "src-backfill", "destination": "dst-backfill",
         });
-        handle(&client, &wasm_path(), "Banking::Transfer.Request", transfer_args, None, &config, &invoker)
-            .await.unwrap().accepted.then_some(()).expect("the Transfer.Request COMMAND succeeds; the saga's own credit leg is what refuses");
+        handle(
+            &client,
+            &wasm_path(),
+            "Banking::Transfer.Request",
+            transfer_args,
+            None,
+            &config,
+            &invoker,
+        )
+        .await
+        .unwrap()
+        .accepted
+        .then_some(())
+        .expect("the Transfer.Request COMMAND succeeds; the saga's own credit leg is what refuses");
 
         {
             let guard = client.lock().await;
-            let before = guard.query("SELECT process_manager, correlation, state FROM hecks_lambda_sagas", &[]).await.unwrap();
+            let before = guard
+                .query(
+                    "SELECT process_manager, correlation, state FROM hecks_lambda_sagas",
+                    &[],
+                )
+                .await
+                .unwrap();
             assert_eq!(before.len(), 1, "the reversed Settlement instance should already be tracked before the simulated reset: {before:?}");
         }
 
@@ -1563,18 +2304,45 @@ pub(crate) mod tests {
         // mid-flight.
         {
             let guard = client.lock().await;
-            guard.execute("UPDATE hecks_lambda_snapshot SET sagas_backfilled = false", &[]).await.unwrap();
-            guard.execute("DELETE FROM hecks_lambda_sagas", &[]).await.unwrap();
+            guard
+                .execute(
+                    "UPDATE hecks_lambda_snapshot SET sagas_backfilled = false",
+                    &[],
+                )
+                .await
+                .unwrap();
+            guard
+                .execute("DELETE FROM hecks_lambda_sagas", &[])
+                .await
+                .unwrap();
         }
 
         // One more command should trigger a full replay, whose saga
         // cascade re-running as a side effect repopulates
         // `hecks_lambda_sagas`.
-        handle(&client, &wasm_path(), "Banking::Customer.Register", register("CUST-0014"), None, &config, &invoker)
-            .await.unwrap().accepted.then_some(()).expect("second registration should succeed");
+        handle(
+            &client,
+            &wasm_path(),
+            "Banking::Customer.Register",
+            register("CUST-0014"),
+            None,
+            &config,
+            &invoker,
+        )
+        .await
+        .unwrap()
+        .accepted
+        .then_some(())
+        .expect("second registration should succeed");
 
         let guard = client.lock().await;
-        let saga_rows = guard.query("SELECT process_manager, correlation, state FROM hecks_lambda_sagas", &[]).await.unwrap();
+        let saga_rows = guard
+            .query(
+                "SELECT process_manager, correlation, state FROM hecks_lambda_sagas",
+                &[],
+            )
+            .await
+            .unwrap();
         assert_eq!(saga_rows.len(), 1, "the backfill replay should have recovered the in-flight Settlement instance: {saga_rows:?}");
         let process_manager: String = saga_rows[0].get(0);
         let correlation: String = saga_rows[0].get(1);
@@ -1583,7 +2351,11 @@ pub(crate) mod tests {
         assert_eq!(correlation, "tr-backfill");
         assert_eq!(state, "reversed");
 
-        let latched: bool = guard.query_one("SELECT sagas_backfilled FROM hecks_lambda_snapshot", &[]).await.unwrap().get(0);
+        let latched: bool = guard
+            .query_one("SELECT sagas_backfilled FROM hecks_lambda_snapshot", &[])
+            .await
+            .unwrap()
+            .get(0);
         assert!(latched, "after the backfill replay, the latch should be set so this doesn't repeat every invocation");
     }
 
@@ -1595,31 +2367,52 @@ pub(crate) mod tests {
 
     impl AlwaysFailingInvoker {
         fn new() -> Self {
-            Self { calls: std::sync::Mutex::new(0) }
+            Self {
+                calls: std::sync::Mutex::new(0),
+            }
         }
     }
 
     #[async_trait::async_trait]
     impl LambdaInvoker for AlwaysFailingInvoker {
-        async fn invoke(&self, _function_name: &str, _payload: &str) -> anyhow::Result<lambda_client::InvokeOutcome> {
+        async fn invoke(
+            &self,
+            _function_name: &str,
+            _payload: &str,
+        ) -> anyhow::Result<lambda_client::InvokeOutcome> {
             *self.calls.lock().unwrap() += 1;
             anyhow::bail!("ResourceNotFoundException: function not found")
         }
     }
 
     #[tokio::test]
-    async fn a_cross_domain_delivery_that_exhausts_every_retry_dead_letters_and_still_fails_the_invocation() {
+    async fn a_cross_domain_delivery_that_exhausts_every_retry_dead_letters_and_still_fails_the_invocation(
+    ) {
         let client = scratch_db("rust_host_dispatch_test_8").await;
-        provision_lineage(&*client.lock().await, "Banking", 1, &["Customer", "Account"]).await;
+        provision_lineage(
+            &*client.lock().await,
+            "Banking",
+            1,
+            &["Customer", "Account"],
+        )
+        .await;
         let config = test_config("Banking", 1);
         let invoker = AlwaysFailingInvoker::new();
 
-        handle(&client, &wasm_path(), "Banking::Customer.Register", register("CUST-0011"), None, &config, &invoker)
-            .await
-            .unwrap()
-            .accepted
-            .then_some(())
-            .expect("registration should succeed");
+        handle(
+            &client,
+            &wasm_path(),
+            "Banking::Customer.Register",
+            register("CUST-0011"),
+            None,
+            &config,
+            &invoker,
+        )
+        .await
+        .unwrap()
+        .accepted
+        .then_some(())
+        .expect("registration should succeed");
 
         let open_args = serde_json::json!({
             "number": { "value": "acct-freeze-dead-letter" },
@@ -1627,18 +2420,35 @@ pub(crate) mod tests {
             "daily_limit": { "cents": 50000 },
             "customer": "CUST-0011",
         });
-        handle(&client, &wasm_path(), "Banking::Account.Open", open_args, None, &config, &invoker)
-            .await
-            .unwrap()
-            .accepted
-            .then_some(())
-            .expect("account open should succeed");
+        handle(
+            &client,
+            &wasm_path(),
+            "Banking::Account.Open",
+            open_args,
+            None,
+            &config,
+            &invoker,
+        )
+        .await
+        .unwrap()
+        .accepted
+        .then_some(())
+        .expect("account open should succeed");
 
         // `ReviewOnFreeze` fires here — every attempt against
         // `AlwaysFailingInvoker` fails, so `deliver_with_retry` exhausts
         // `MAX_DELIVERY_ATTEMPTS` before `handle` ever sees a result.
         let freeze_args = serde_json::json!({ "number": { "value": "acct-freeze-dead-letter" } });
-        let outcome = handle(&client, &wasm_path(), "Banking::Account.FreezeAccount", freeze_args, None, &config, &invoker).await;
+        let outcome = handle(
+            &client,
+            &wasm_path(),
+            "Banking::Account.FreezeAccount",
+            freeze_args,
+            None,
+            &config,
+            &invoker,
+        )
+        .await;
 
         assert!(
             outcome.is_err(),
@@ -1660,7 +2470,11 @@ pub(crate) mod tests {
             .query("SELECT policy, target_domain, target_verb, attempts FROM hecks_cross_domain_dead_letters", &[])
             .await
             .unwrap();
-        assert_eq!(dead_letters.len(), 1, "exactly one exhausted delivery should have been dead-lettered: {dead_letters:?}");
+        assert_eq!(
+            dead_letters.len(),
+            1,
+            "exactly one exhausted delivery should have been dead-lettered: {dead_letters:?}"
+        );
         let policy: String = dead_letters[0].get(0);
         let target_domain: String = dead_letters[0].get(1);
         let target_verb: String = dead_letters[0].get(2);
@@ -1679,16 +2493,30 @@ pub(crate) mod tests {
     #[tokio::test]
     async fn a_failed_cross_domain_delivery_does_not_drop_a_sibling_reaction_from_the_same_step() {
         let client = scratch_db("rust_host_dispatch_test_11").await;
-        provision_lineage(&*client.lock().await, "Banking", 1, &["Customer", "SafeDepositBox"]).await;
+        provision_lineage(
+            &*client.lock().await,
+            "Banking",
+            1,
+            &["Customer", "SafeDepositBox"],
+        )
+        .await;
         let config = test_config("Banking", 1);
         let invoker = AlwaysFailingInvoker::new();
 
-        handle(&client, &wasm_path(), "Banking::Customer.Register", register("CUST-0022"), None, &config, &invoker)
-            .await
-            .unwrap()
-            .accepted
-            .then_some(())
-            .expect("registration should succeed");
+        handle(
+            &client,
+            &wasm_path(),
+            "Banking::Customer.Register",
+            register("CUST-0022"),
+            None,
+            &config,
+            &invoker,
+        )
+        .await
+        .unwrap()
+        .accepted
+        .then_some(())
+        .expect("registration should succeed");
 
         let rent_args = serde_json::json!({
             "branch_code": { "value": "downtown" },
@@ -1696,22 +2524,40 @@ pub(crate) mod tests {
             "size": { "value": "small" },
             "customer": "CUST-0022",
         });
-        handle(&client, &wasm_path(), "Banking::SafeDepositBox.Rent", rent_args, None, &config, &invoker)
-            .await
-            .unwrap()
-            .accepted
-            .then_some(())
-            .expect("rent should succeed");
+        handle(
+            &client,
+            &wasm_path(),
+            "Banking::SafeDepositBox.Rent",
+            rent_args,
+            None,
+            &config,
+            &invoker,
+        )
+        .await
+        .unwrap()
+        .accepted
+        .then_some(())
+        .expect("rent should succeed");
 
         // Both ReviewOnBoxSurrender (-> Compliance) and FlagKeyReturn
         // (-> Notifications) fire here; both deliveries exhaust every
         // retry against AlwaysFailingInvoker.
         let surrender_args = serde_json::json!({ "branch_code": { "value": "downtown" }, "box_number": { "value": 12 } });
-        let outcome =
-            handle(&client, &wasm_path(), "Banking::SafeDepositBox.Surrender", surrender_args, None, &config, &invoker)
-                .await;
+        let outcome = handle(
+            &client,
+            &wasm_path(),
+            "Banking::SafeDepositBox.Surrender",
+            surrender_args,
+            None,
+            &config,
+            &invoker,
+        )
+        .await;
 
-        assert!(outcome.is_err(), "still fails the invocation visibly, same contract as a single failed delivery");
+        assert!(
+            outcome.is_err(),
+            "still fails the invocation visibly, same contract as a single failed delivery"
+        );
         assert_eq!(
             *invoker.calls.lock().unwrap(),
             lambda_client::MAX_DELIVERY_ATTEMPTS * 2,
@@ -1721,7 +2567,10 @@ pub(crate) mod tests {
 
         let guard = client.lock().await;
         let dead_letters = guard
-            .query("SELECT policy FROM hecks_cross_domain_dead_letters ORDER BY policy", &[])
+            .query(
+                "SELECT policy FROM hecks_cross_domain_dead_letters ORDER BY policy",
+                &[],
+            )
             .await
             .unwrap();
         let policies: Vec<String> = dead_letters.iter().map(|row| row.get(0)).collect();

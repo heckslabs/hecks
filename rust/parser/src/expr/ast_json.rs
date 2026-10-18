@@ -20,10 +20,22 @@ fn op_tag(name: &str) -> (&'static str, JsonValue) {
 
 fn emit_bool(node: &Evaluator) -> JsonValue {
     match node {
-        Evaluator::Or(left, right) => obj(vec![op_tag("or"), ("left", emit_bool(left)), ("right", emit_bool(right))]),
-        Evaluator::And(left, right) => obj(vec![op_tag("and"), ("left", emit_bool(left)), ("right", emit_bool(right))]),
+        Evaluator::Or(left, right) => obj(vec![
+            op_tag("or"),
+            ("left", emit_bool(left)),
+            ("right", emit_bool(right)),
+        ]),
+        Evaluator::And(left, right) => obj(vec![
+            op_tag("and"),
+            ("left", emit_bool(left)),
+            ("right", emit_bool(right)),
+        ]),
         Evaluator::Not(inner) => obj(vec![op_tag("not"), ("expr", emit_bool(inner))]),
-        Evaluator::Compare { operator, left, right } => obj(vec![
+        Evaluator::Compare {
+            operator,
+            left,
+            right,
+        } => obj(vec![
             op_tag("compare"),
             ("cmp", emit_comparison(operator)),
             ("left", emit_resolver(left)),
@@ -44,7 +56,11 @@ fn emit_comparison(operator: &Operator) -> JsonValue {
 
 fn emit_include(haystack: &Resolver, needle: &Resolver) -> JsonValue {
     let Resolver::ArrayLiteral(elements) = haystack else {
-        return obj(vec![op_tag("include"), ("haystack", emit_resolver(haystack)), ("needle", emit_resolver(needle))]);
+        return obj(vec![
+            op_tag("include"),
+            ("haystack", emit_resolver(haystack)),
+            ("needle", emit_resolver(needle)),
+        ]);
     };
 
     if elements.is_empty() {
@@ -68,76 +84,156 @@ fn emit_include(haystack: &Resolver, needle: &Resolver) -> JsonValue {
 
 pub fn emit_resolver(node: &Resolver) -> JsonValue {
     match node {
-        Resolver::IntegerLiteral(v) => obj(vec![op_tag("int"), ("value", JsonValue::Number(v.to_string()))]),
-        Resolver::FloatLiteral(v) => obj(vec![op_tag("float"), ("value", JsonValue::Number(ruby_float(*v)))]),
-        Resolver::StringLiteral(v) => obj(vec![op_tag("str"), ("value", JsonValue::String(v.clone()))]),
+        Resolver::IntegerLiteral(v) => obj(vec![
+            op_tag("int"),
+            ("value", JsonValue::Number(v.to_string())),
+        ]),
+        Resolver::FloatLiteral(v) => obj(vec![
+            op_tag("float"),
+            ("value", JsonValue::Number(ruby_float(*v))),
+        ]),
+        Resolver::StringLiteral(v) => {
+            obj(vec![op_tag("str"), ("value", JsonValue::String(v.clone()))])
+        }
         Resolver::BoolLiteral(v) => obj(vec![op_tag("bool"), ("value", JsonValue::Bool(*v))]),
         Resolver::NilLiteral => obj(vec![op_tag("nil")]),
         Resolver::Lookup(path) => obj(vec![
             op_tag("lookup"),
-            ("path", JsonValue::Array(path.split('.').map(|s| JsonValue::String(s.to_string())).collect())),
+            (
+                "path",
+                JsonValue::Array(
+                    path.split('.')
+                        .map(|s| JsonValue::String(s.to_string()))
+                        .collect(),
+                ),
+            ),
         ]),
-        Resolver::Addition(left, right) => obj(vec![op_tag("add"), ("left", emit_resolver(left)), ("right", emit_resolver(right))]),
-        Resolver::Subtraction(left, right) => obj(vec![op_tag("sub"), ("left", emit_resolver(left)), ("right", emit_resolver(right))]),
-        Resolver::Multiplication(left, right) => obj(vec![op_tag("mul"), ("left", emit_resolver(left)), ("right", emit_resolver(right))]),
-        Resolver::Division(left, right) => obj(vec![op_tag("div"), ("left", emit_resolver(left)), ("right", emit_resolver(right))]),
+        Resolver::Addition(left, right) => obj(vec![
+            op_tag("add"),
+            ("left", emit_resolver(left)),
+            ("right", emit_resolver(right)),
+        ]),
+        Resolver::Subtraction(left, right) => obj(vec![
+            op_tag("sub"),
+            ("left", emit_resolver(left)),
+            ("right", emit_resolver(right)),
+        ]),
+        Resolver::Multiplication(left, right) => obj(vec![
+            op_tag("mul"),
+            ("left", emit_resolver(left)),
+            ("right", emit_resolver(right)),
+        ]),
+        Resolver::Division(left, right) => obj(vec![
+            op_tag("div"),
+            ("left", emit_resolver(left)),
+            ("right", emit_resolver(right)),
+        ]),
         Resolver::SignTest { operator, receiver } => obj(vec![
             op_tag("sign_test"),
             ("cmp", emit_comparison(operator)),
             ("receiver", emit_resolver(receiver)),
         ]),
-        Resolver::Empty(receiver) => obj(vec![op_tag("empty"), ("receiver", emit_resolver(receiver))]),
+        Resolver::Empty(receiver) => {
+            obj(vec![op_tag("empty"), ("receiver", emit_resolver(receiver))])
+        }
         Resolver::ToS(receiver) => obj(vec![op_tag("to_s"), ("receiver", emit_resolver(receiver))]),
         Resolver::Modulo { receiver, divisor } => obj(vec![
             op_tag("modulo"),
             ("receiver", emit_resolver(receiver)),
             ("divisor", emit_resolver(divisor)),
         ]),
-        Resolver::Size(receiver) => obj(vec![op_tag("size"), ("receiver", emit_resolver(receiver))]),
-        Resolver::MatchesRegex { receiver, pattern, flags } => obj(vec![
+        Resolver::Size(receiver) => {
+            obj(vec![op_tag("size"), ("receiver", emit_resolver(receiver))])
+        }
+        Resolver::MatchesRegex {
+            receiver,
+            pattern,
+            flags,
+        } => obj(vec![
             op_tag("matches_regex"),
             ("receiver", emit_resolver(receiver)),
             ("pattern", JsonValue::String(pattern.clone())),
             ("flags", JsonValue::String(flags.clone())),
         ]),
-        Resolver::Presence { receiver, negated } => {
-            obj(vec![op_tag("presence"), ("receiver", emit_resolver(receiver)), ("negated", JsonValue::Bool(*negated))])
+        Resolver::Presence { receiver, negated } => obj(vec![
+            op_tag("presence"),
+            ("receiver", emit_resolver(receiver)),
+            ("negated", JsonValue::Bool(*negated)),
+        ]),
+        Resolver::Assignment { receiver, negated } => obj(vec![
+            op_tag("assignment"),
+            ("receiver", emit_resolver(receiver)),
+            ("negated", JsonValue::Bool(*negated)),
+        ]),
+        Resolver::Split {
+            receiver,
+            separator,
+        } => obj(vec![
+            op_tag("split"),
+            ("receiver", emit_resolver(receiver)),
+            ("separator", JsonValue::String(separator.clone())),
+        ]),
+        Resolver::Strip { receiver, side } => obj(vec![
+            op_tag("strip"),
+            ("receiver", emit_resolver(receiver)),
+            ("side", JsonValue::String((*side).to_string())),
+        ]),
+        Resolver::StartsWith {
+            receiver,
+            substring,
+        } => obj(vec![
+            op_tag("starts_with"),
+            ("receiver", emit_resolver(receiver)),
+            ("substring", JsonValue::String(substring.clone())),
+        ]),
+        Resolver::EndsWith {
+            receiver,
+            substring,
+        } => obj(vec![
+            op_tag("ends_with"),
+            ("receiver", emit_resolver(receiver)),
+            ("substring", JsonValue::String(substring.clone())),
+        ]),
+        Resolver::First(receiver) => {
+            obj(vec![op_tag("first"), ("receiver", emit_resolver(receiver))])
         }
-        Resolver::Assignment { receiver, negated } => {
-            obj(vec![op_tag("assignment"), ("receiver", emit_resolver(receiver)), ("negated", JsonValue::Bool(*negated))])
+        Resolver::Last(receiver) => {
+            obj(vec![op_tag("last"), ("receiver", emit_resolver(receiver))])
         }
-        Resolver::Split { receiver, separator } => {
-            obj(vec![op_tag("split"), ("receiver", emit_resolver(receiver)), ("separator", JsonValue::String(separator.clone()))])
-        }
-        Resolver::Strip { receiver, side } => {
-            obj(vec![op_tag("strip"), ("receiver", emit_resolver(receiver)), ("side", JsonValue::String((*side).to_string()))])
-        }
-        Resolver::StartsWith { receiver, substring } => {
-            obj(vec![op_tag("starts_with"), ("receiver", emit_resolver(receiver)), ("substring", JsonValue::String(substring.clone()))])
-        }
-        Resolver::EndsWith { receiver, substring } => {
-            obj(vec![op_tag("ends_with"), ("receiver", emit_resolver(receiver)), ("substring", JsonValue::String(substring.clone()))])
-        }
-        Resolver::First(receiver) => obj(vec![op_tag("first"), ("receiver", emit_resolver(receiver))]),
-        Resolver::Last(receiver) => obj(vec![op_tag("last"), ("receiver", emit_resolver(receiver))]),
-        Resolver::BlockPredicate { mode, receiver, param, predicate } => obj(vec![
+        Resolver::BlockPredicate {
+            mode,
+            receiver,
+            param,
+            predicate,
+        } => obj(vec![
             op_tag("block_predicate"),
             ("mode", JsonValue::String(mode.json_name().to_string())),
             ("receiver", emit_resolver(receiver)),
             ("param", JsonValue::String(param.clone())),
             ("predicate", emit_bool(predicate)),
         ]),
-        Resolver::Find { receiver, param, predicate, path } => obj(vec![
+        Resolver::Find {
+            receiver,
+            param,
+            predicate,
+            path,
+        } => obj(vec![
             op_tag("find"),
             ("receiver", emit_resolver(receiver)),
             ("param", JsonValue::String(param.clone())),
             ("predicate", emit_bool(predicate)),
-            ("path", JsonValue::Array(path.iter().map(|s| JsonValue::String(s.clone())).collect())),
+            (
+                "path",
+                JsonValue::Array(path.iter().map(|s| JsonValue::String(s.clone())).collect()),
+            ),
         ]),
         // The haystack case is intercepted in `emit_include`.
         Resolver::ArrayLiteral(elements) => obj(vec![
             op_tag("array"),
-            ("elements", JsonValue::Array(elements.iter().map(emit_resolver).collect())),
+            (
+                "elements",
+                JsonValue::Array(elements.iter().map(emit_resolver).collect()),
+            ),
         ]),
     }
 }

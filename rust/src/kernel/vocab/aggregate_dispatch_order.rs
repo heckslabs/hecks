@@ -71,7 +71,10 @@ impl AggregateStep {
 
     /// The row whose `step` is `name`, if any.
     pub fn from_name(name: &str) -> Option<AggregateStep> {
-        AggregateStep::ORDER.iter().copied().find(|row| row.step() == name)
+        AggregateStep::ORDER
+            .iter()
+            .copied()
+            .find(|row| row.step() == name)
     }
 
     /// This step's index in `ORDER`.

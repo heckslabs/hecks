@@ -1072,9 +1072,10 @@ pub(crate) fn parse_identified_by(
             }
             // An identity block's own `one_of(...)` sets are not installed (its builder is not
             // the aggregate's `value_object` verb).
-            let (value_object, _) = parse_nested_body(file, lines, pos, opener, line, |f, l, p| {
-                value_object::parse_body(f, l, p, inline_type_name, owner_value_objects)
-            })?;
+            let (value_object, _) =
+                parse_nested_body(file, lines, pos, opener, line, |f, l, p| {
+                    value_object::parse_body(f, l, p, inline_type_name, owner_value_objects)
+                })?;
             if value_object.attributes.is_empty() {
                 return Err(Diagnostic::new(
                     file,
@@ -1138,7 +1139,11 @@ pub(crate) fn build_attribute(
     let pattern = match named_symbol(args, "matches") {
         Some(given) => {
             if named_text(args, "pattern").is_some() {
-                return Err(Diagnostic::new(file, line, "matches: and pattern: both state the pattern".to_string()));
+                return Err(Diagnostic::new(
+                    file,
+                    line,
+                    "matches: and pattern: both state the pattern".to_string(),
+                ));
             }
             match crate::build::named_pattern::source(&given) {
                 Some(source) => Some(source.to_string()),

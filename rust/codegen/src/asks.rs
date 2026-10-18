@@ -29,11 +29,16 @@ fn with_trigger(policy: &Json, verb: String) -> Json {
 fn resolve(policy: &Json, ask: &str, aggregates: &[Json]) -> String {
     let name = policy.get("name").map(Json::to_s).unwrap_or_default();
     let on_event = policy.get("on_event").map(Json::to_s).unwrap_or_default();
-    let aggregate = event_aggregate(&on_event, aggregates)
-        .unwrap_or_else(|| panic!("policy {name}: ask :{ask} reacts to {on_event:?}, whose aggregate is not declared"));
+    let aggregate = event_aggregate(&on_event, aggregates).unwrap_or_else(|| {
+        panic!("policy {name}: ask :{ask} reacts to {on_event:?}, whose aggregate is not declared")
+    });
     let agg_name = aggregate.get("name").map(Json::to_s).unwrap_or_default();
     let mut found = candidates(aggregate, ask);
-    if found.len() > 1 && found.iter().any(|(_, op)| op.get("chosen").is_some_and(Json::as_bool)) {
+    if found.len() > 1
+        && found
+            .iter()
+            .any(|(_, op)| op.get("chosen").is_some_and(Json::as_bool))
+    {
         found.retain(|(_, op)| op.get("chosen").is_some_and(Json::as_bool));
     }
     match found.as_slice() {
@@ -45,7 +50,11 @@ fn resolve(policy: &Json, ask: &str, aggregates: &[Json]) -> String {
 
 // The aggregate the event is qualified with, or else the one whose commands emit the bare event.
 fn event_aggregate<'a>(on_event: &str, aggregates: &'a [Json]) -> Option<&'a Json> {
-    let named = |wanted: &str| aggregates.iter().find(|a| a.get("name").map(Json::to_s).unwrap_or_default() == wanted);
+    let named = |wanted: &str| {
+        aggregates
+            .iter()
+            .find(|a| a.get("name").map(Json::to_s).unwrap_or_default() == wanted)
+    };
     match on_event.split_once('.') {
         Some((qualifier, _)) => named(qualifier.rsplit("::").next().unwrap_or(qualifier)),
         None => aggregates.iter().find(|a| {
@@ -82,7 +91,9 @@ mod tests {
     // The neutral corpus fixture `spec/corpus/asks/errand.json`: the Ruby spec holds the same
     // `targets` against the Ruby runtime's reaction log, so the two cannot drift.
     fn corpus(name: &str) -> Json {
-        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../spec/corpus/asks").join(name);
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../spec/corpus/asks")
+            .join(name);
         Json::parse(&std::fs::read_to_string(path).expect("corpus file")).expect("corpus json")
     }
 
@@ -91,12 +102,24 @@ mod tests {
         let ir = corpus("errand.ir.json");
         let expect = corpus("errand.json");
         let domain = ir.get("name").map(Json::to_s).unwrap_or_default();
-        let resolved = resolve_asks(ir.get("policies").unwrap().each(), ir.get("aggregates").unwrap().each());
+        let resolved = resolve_asks(
+            ir.get("policies").unwrap().each(),
+            ir.get("aggregates").unwrap().each(),
+        );
 
         for policy in &resolved {
             let name = policy.get("name").map(Json::to_s).unwrap_or_default();
-            let target = format!("{domain}::{}", policy.get("trigger_command").map(Json::to_s).unwrap_or_default());
-            let frozen = expect.get("targets").and_then(|t| t.get(&name)).map(Json::to_s);
+            let target = format!(
+                "{domain}::{}",
+                policy
+                    .get("trigger_command")
+                    .map(Json::to_s)
+                    .unwrap_or_default()
+            );
+            let frozen = expect
+                .get("targets")
+                .and_then(|t| t.get(&name))
+                .map(Json::to_s);
             assert_eq!(frozen, Some(target), "{name}");
         }
     }

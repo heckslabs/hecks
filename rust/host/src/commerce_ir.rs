@@ -58,9 +58,17 @@ fn declared_seconds(fact: &Value, key: &str) -> Option<u64> {
 }
 
 /// The declared seconds for `key`, else `legacy` with a single warning per process.
-fn seconds_or_legacy(fact: &Value, capability: &str, key: &str, legacy: u64, warned: &std::sync::Once) -> u64 {
+fn seconds_or_legacy(
+    fact: &Value,
+    capability: &str,
+    key: &str,
+    legacy: u64,
+    warned: &std::sync::Once,
+) -> u64 {
     declared_seconds(fact, key).unwrap_or_else(|| {
-        warned.call_once(|| eprintln!("{capability} capability declares no {key}; using built-in default"));
+        warned.call_once(|| {
+            eprintln!("{capability} capability declares no {key}; using built-in default")
+        });
         legacy
     })
 }
@@ -92,9 +100,15 @@ pub fn checkout_windows(domain_ir: &Value) -> CheckoutWindows {
     static TOLERANCE_WARNED: std::sync::Once = std::sync::Once::new();
     static HOLD_WARNED: std::sync::Once = std::sync::Once::new();
     let fact = domain_ir.get("checkout").unwrap_or(&Value::Null);
-    let seconds = |key, legacy: i64, warned| seconds_or_legacy(fact, "checkout", key, legacy as u64, warned) as i64;
+    let seconds = |key, legacy: i64, warned| {
+        seconds_or_legacy(fact, "checkout", key, legacy as u64, warned) as i64
+    };
     CheckoutWindows {
-        webhook_tolerance: seconds("webhook_tolerance", LEGACY_WEBHOOK_TOLERANCE_SECS, &TOLERANCE_WARNED),
+        webhook_tolerance: seconds(
+            "webhook_tolerance",
+            LEGACY_WEBHOOK_TOLERANCE_SECS,
+            &TOLERANCE_WARNED,
+        ),
         session_hold: seconds("session_hold", LEGACY_SESSION_HOLD_SECS, &HOLD_WARNED),
     }
 }
@@ -133,13 +147,25 @@ pub const LEGACY_LEFT: [&str; 1] = ["unsubscribed"];
 /// resolved by the exporter. `None` when the fact omits it.
 fn declared_states(fact: &Value, key: &str) -> Option<Vec<String>> {
     let states = fact.get(key)?.as_array()?;
-    Some(states.iter().filter_map(|s| s.as_str().map(String::from)).collect())
+    Some(
+        states
+            .iter()
+            .filter_map(|s| s.as_str().map(String::from))
+            .collect(),
+    )
 }
 
 /// The declared states for `key`, else `legacy` with a single warning per process.
-fn states_or_legacy(fact: &Value, key: &str, legacy: &[&str], warned: &std::sync::Once) -> Vec<String> {
+fn states_or_legacy(
+    fact: &Value,
+    key: &str,
+    legacy: &[&str],
+    warned: &std::sync::Once,
+) -> Vec<String> {
     declared_states(fact, key).unwrap_or_else(|| {
-        warned.call_once(|| eprintln!("newsletter capability declares no {key}; using built-in default"));
+        warned.call_once(|| {
+            eprintln!("newsletter capability declares no {key}; using built-in default")
+        });
         legacy.iter().map(|s| s.to_string()).collect()
     })
 }
@@ -163,7 +189,10 @@ impl NewsletterProvider {
     /// The state a subscriber is reported in when none is recorded yet: the
     /// first awaiting-confirmation state.
     pub fn initial_status(&self) -> &str {
-        self.awaiting_confirmation.first().map(String::as_str).unwrap_or("")
+        self.awaiting_confirmation
+            .first()
+            .map(String::as_str)
+            .unwrap_or("")
     }
 
     /// The prefix every subscriber's key in a `dispatch::read` `instances`
@@ -176,7 +205,8 @@ impl NewsletterProvider {
 /// Whether the domain's own `aggregate`'s `command` declares an argument
 /// named `field` — so a route only sends an argument the command declares.
 pub fn command_declares(domain_ir: &Value, aggregate: &str, command: &str, field: &str) -> bool {
-    let named = |value: &Value, name: &str| value.get("name").and_then(|n| n.as_str()) == Some(name);
+    let named =
+        |value: &Value, name: &str| value.get("name").and_then(|n| n.as_str()) == Some(name);
     let Some(aggregates) = domain_ir.get("aggregates").and_then(|a| a.as_array()) else {
         return false;
     };
@@ -199,10 +229,32 @@ pub fn newsletter_provider(domain_ir: &Value) -> Option<NewsletterProvider> {
     static UNSUBSCRIBE_WINDOW_WARNED: std::sync::Once = std::sync::Once::new();
     let fact = domain_ir.get("newsletter")?;
     Some(NewsletterProvider {
-        confirm_window: seconds_or_legacy(fact, "newsletter", "confirm_window", LEGACY_CONFIRM_WINDOW_SECS, &CONFIRM_WINDOW_WARNED),
-        unsubscribe_window: seconds_or_legacy(fact, "newsletter", "unsubscribe_window", LEGACY_UNSUBSCRIBE_WINDOW_SECS, &UNSUBSCRIBE_WINDOW_WARNED),
-        awaiting_confirmation: states_or_legacy(fact, "awaiting_confirmation", &LEGACY_AWAITING_CONFIRMATION, &AWAITING_WARNED),
-        receives_issues: states_or_legacy(fact, "receives_issues", &LEGACY_RECEIVES_ISSUES, &RECEIVES_WARNED),
+        confirm_window: seconds_or_legacy(
+            fact,
+            "newsletter",
+            "confirm_window",
+            LEGACY_CONFIRM_WINDOW_SECS,
+            &CONFIRM_WINDOW_WARNED,
+        ),
+        unsubscribe_window: seconds_or_legacy(
+            fact,
+            "newsletter",
+            "unsubscribe_window",
+            LEGACY_UNSUBSCRIBE_WINDOW_SECS,
+            &UNSUBSCRIBE_WINDOW_WARNED,
+        ),
+        awaiting_confirmation: states_or_legacy(
+            fact,
+            "awaiting_confirmation",
+            &LEGACY_AWAITING_CONFIRMATION,
+            &AWAITING_WARNED,
+        ),
+        receives_issues: states_or_legacy(
+            fact,
+            "receives_issues",
+            &LEGACY_RECEIVES_ISSUES,
+            &RECEIVES_WARNED,
+        ),
         left: states_or_legacy(fact, "left", &LEGACY_LEFT, &LEFT_WARNED),
         provider: fact.get("provider")?.as_str()?.to_string(),
         subscribe: fact.get("subscribe")?.as_str()?.to_string(),
@@ -244,7 +296,6 @@ pub fn newsletter_issues_provider(domain_ir: &Value) -> Option<NewsletterIssuesP
     })
 }
 
-
 /// The chapter that takes payments, read from `ir.json`'s own `payments`
 /// key. `None` when nothing provides it.
 #[derive(Debug, Clone, PartialEq)]
@@ -283,7 +334,8 @@ pub const LEGACY_LAPSE_REASON: &str = "checkout_expired";
 /// the chapter predates `provides "registrations", registered_at: "Registration.requested_at"`.
 /// Delete this (and the fallback in `registrations_provider`) once every shipped
 /// bluebook declares it.
-pub const LEGACY_REGISTERED_AT: [&str; 4] = ["created_at", "registered_at", "requested_at", "occurred_at"];
+pub const LEGACY_REGISTERED_AT: [&str; 4] =
+    ["created_at", "registered_at", "requested_at", "occurred_at"];
 
 /// LEGACY DEFAULT: the seat-holding payment states used while the `payments`
 /// capability fact carries no `holds_seat` list, because the Payments chapter
@@ -303,7 +355,12 @@ pub const LEGACY_FREES_SEAT: [&str; 1] = ["archived"];
 /// lifecycle mark, resolved by the exporter. `None` when the fact omits it.
 fn declared_holds_seat(fact: &Value) -> Option<Vec<String>> {
     let states = fact.get("holds_seat")?.as_array()?;
-    Some(states.iter().filter_map(|s| s.as_str().map(String::from)).collect())
+    Some(
+        states
+            .iter()
+            .filter_map(|s| s.as_str().map(String::from))
+            .collect(),
+    )
 }
 
 impl PaymentsProvider {
@@ -319,7 +376,9 @@ pub fn payments_provider(domain_ir: &Value) -> Option<PaymentsProvider> {
     let aggregate = fact.get("aggregate")?.as_str()?.to_string();
     let holds_seat = declared_holds_seat(fact).unwrap_or_else(|| {
         static WARNED: std::sync::Once = std::sync::Once::new();
-        WARNED.call_once(|| eprintln!("payments capability declares no holds_seat; using built-in default"));
+        WARNED.call_once(|| {
+            eprintln!("payments capability declares no holds_seat; using built-in default")
+        });
         LEGACY_HOLDS_SEAT.iter().map(|s| s.to_string()).collect()
     });
     Some(PaymentsProvider {
@@ -329,11 +388,20 @@ pub fn payments_provider(domain_ir: &Value) -> Option<PaymentsProvider> {
         failed: fact.get("failed")?.as_str()?.to_string(),
         aggregate,
         holds_seat,
-        lapse_reason: fact.get("lapse_reason").and_then(|v| v.as_str()).filter(|v| !v.is_empty()).map(String::from).unwrap_or_else(|| {
-            static WARNED: std::sync::Once = std::sync::Once::new();
-            WARNED.call_once(|| eprintln!("payments capability declares no lapse_reason; using built-in default"));
-            LEGACY_LAPSE_REASON.to_string()
-        }),
+        lapse_reason: fact
+            .get("lapse_reason")
+            .and_then(|v| v.as_str())
+            .filter(|v| !v.is_empty())
+            .map(String::from)
+            .unwrap_or_else(|| {
+                static WARNED: std::sync::Once = std::sync::Once::new();
+                WARNED.call_once(|| {
+                    eprintln!(
+                        "payments capability declares no lapse_reason; using built-in default"
+                    )
+                });
+                LEGACY_LAPSE_REASON.to_string()
+            }),
     })
 }
 
@@ -399,14 +467,21 @@ impl RegistrationsProvider {
 /// mark, resolved by the exporter. `None` when the fact omits it.
 fn declared_frees_seat(fact: &Value) -> Option<Vec<String>> {
     let states = fact.get("frees_seat")?.as_array()?;
-    Some(states.iter().filter_map(|s| s.as_str().map(String::from)).collect())
+    Some(
+        states
+            .iter()
+            .filter_map(|s| s.as_str().map(String::from))
+            .collect(),
+    )
 }
 
 pub fn registrations_provider(domain_ir: &Value) -> Option<RegistrationsProvider> {
     let fact = domain_ir.get("registrations")?;
     let frees_seat = declared_frees_seat(fact).unwrap_or_else(|| {
         static WARNED: std::sync::Once = std::sync::Once::new();
-        WARNED.call_once(|| eprintln!("registrations capability declares no frees_seat; using built-in default"));
+        WARNED.call_once(|| {
+            eprintln!("registrations capability declares no frees_seat; using built-in default")
+        });
         LEGACY_FREES_SEAT.iter().map(|s| s.to_string()).collect()
     });
     Some(RegistrationsProvider {
@@ -415,7 +490,11 @@ pub fn registrations_provider(domain_ir: &Value) -> Option<RegistrationsProvider
         request: fact.get("request")?.as_str()?.to_string(),
         event_aggregate: fact.get("event_aggregate")?.as_str()?.to_string(),
         registration_aggregate: fact.get("registration_aggregate")?.as_str()?.to_string(),
-        timestamp_keys: match fact.get("registered_at").and_then(|v| v.as_str()).filter(|v| !v.is_empty()) {
+        timestamp_keys: match fact
+            .get("registered_at")
+            .and_then(|v| v.as_str())
+            .filter(|v| !v.is_empty())
+        {
             Some(declared) => vec![declared.to_string()],
             None => {
                 static WARNED: std::sync::Once = std::sync::Once::new();
@@ -430,7 +509,8 @@ pub fn registrations_provider(domain_ir: &Value) -> Option<RegistrationsProvider
 /// The registrations binding of the IR this host loaded, or the
 /// conventional names for `domain` when the IR declares none.
 pub fn registrations_binding(domain: &str) -> RegistrationsProvider {
-    ir().and_then(registrations_provider).unwrap_or_else(|| RegistrationsProvider::conventional(domain))
+    ir().and_then(registrations_provider)
+        .unwrap_or_else(|| RegistrationsProvider::conventional(domain))
 }
 
 /// One command of the payment-processor connection, by the role it plays —
@@ -520,15 +600,18 @@ pub fn payment_connection_provider(domain_ir: &Value) -> Option<PaymentConnectio
 /// The payment-connection binding of the IR this host loaded, or the
 /// conventional names for `domain` when the IR declares none.
 pub fn payment_connection_binding(domain: &str) -> PaymentConnectionProvider {
-    ir().and_then(payment_connection_provider).unwrap_or_else(|| PaymentConnectionProvider::conventional(domain))
+    ir().and_then(payment_connection_provider)
+        .unwrap_or_else(|| PaymentConnectionProvider::conventional(domain))
 }
 
 /// The checkout fixture's own payments binding, read from its committed
 /// `ir.json` — what the checkout routes' tests dispatch against.
 #[cfg(test)]
 pub fn fixture_ir() -> Value {
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../src/generated/checkout_fixture/ir.json");
-    serde_json::from_str(&std::fs::read_to_string(path).expect("checkout_fixture ir.json")).expect("valid json")
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../src/generated/checkout_fixture/ir.json");
+    serde_json::from_str(&std::fs::read_to_string(path).expect("checkout_fixture ir.json"))
+        .expect("valid json")
 }
 
 /// The checkout fixture's own payments binding.
@@ -600,7 +683,8 @@ mod tests {
 
     #[test]
     fn newsletter_provider_falls_back_to_the_legacy_defaults_without_marks() {
-        let provider = newsletter_provider(&newsletter_ir(serde_json::json!({}))).expect("newsletter");
+        let provider =
+            newsletter_provider(&newsletter_ir(serde_json::json!({}))).expect("newsletter");
         assert_eq!(provider.awaiting_confirmation, LEGACY_AWAITING_CONFIRMATION);
         assert_eq!(provider.receives_issues, LEGACY_RECEIVES_ISSUES);
         assert_eq!(provider.left, LEGACY_LEFT);
@@ -613,33 +697,68 @@ mod tests {
 
     #[test]
     fn newsletter_provider_reads_the_link_windows_from_the_fact() {
-        let ir = newsletter_ir(serde_json::json!({ "confirm_window": 3600, "unsubscribe_window": 7200 }));
+        let ir = newsletter_ir(
+            serde_json::json!({ "confirm_window": 3600, "unsubscribe_window": 7200 }),
+        );
         let provider = newsletter_provider(&ir).expect("newsletter");
-        assert_eq!((provider.confirm_window, provider.unsubscribe_window), (3600, 7200));
+        assert_eq!(
+            (provider.confirm_window, provider.unsubscribe_window),
+            (3600, 7200)
+        );
     }
 
     #[test]
     fn newsletter_provider_falls_back_to_the_legacy_windows_without_them() {
-        let provider = newsletter_provider(&newsletter_ir(serde_json::json!({}))).expect("newsletter");
+        let provider =
+            newsletter_provider(&newsletter_ir(serde_json::json!({}))).expect("newsletter");
         assert_eq!(provider.confirm_window, LEGACY_CONFIRM_WINDOW_SECS);
         assert_eq!(provider.unsubscribe_window, LEGACY_UNSUBSCRIBE_WINDOW_SECS);
-        assert_eq!((LEGACY_CONFIRM_WINDOW_SECS, LEGACY_UNSUBSCRIBE_WINDOW_SECS), (1_209_600, 63_072_000));
+        assert_eq!(
+            (LEGACY_CONFIRM_WINDOW_SECS, LEGACY_UNSUBSCRIBE_WINDOW_SECS),
+            (1_209_600, 63_072_000)
+        );
     }
 
     #[test]
     fn checkout_windows_read_the_fact_and_fall_back_per_window() {
         let declared = serde_json::json!({ "checkout": { "provider": "Checkout", "webhook_tolerance": 120, "session_hold": 2400 } });
-        assert_eq!(checkout_windows(&declared), CheckoutWindows { webhook_tolerance: 120, session_hold: 2400 });
-        let partial = serde_json::json!({ "checkout": { "provider": "Checkout", "session_hold": 2400 } });
-        assert_eq!(checkout_windows(&partial), CheckoutWindows { webhook_tolerance: LEGACY_WEBHOOK_TOLERANCE_SECS, session_hold: 2400 });
+        assert_eq!(
+            checkout_windows(&declared),
+            CheckoutWindows {
+                webhook_tolerance: 120,
+                session_hold: 2400
+            }
+        );
+        let partial =
+            serde_json::json!({ "checkout": { "provider": "Checkout", "session_hold": 2400 } });
+        assert_eq!(
+            checkout_windows(&partial),
+            CheckoutWindows {
+                webhook_tolerance: LEGACY_WEBHOOK_TOLERANCE_SECS,
+                session_hold: 2400
+            }
+        );
         let none = checkout_windows(&serde_json::json!({ "name": "Pizzas" }));
-        assert_eq!(none, CheckoutWindows { webhook_tolerance: 300, session_hold: 1800 });
+        assert_eq!(
+            none,
+            CheckoutWindows {
+                webhook_tolerance: 300,
+                session_hold: 1800
+            }
+        );
     }
 
     #[test]
     fn a_zero_or_non_numeric_window_is_not_a_declaration() {
-        let ir = serde_json::json!({ "checkout": { "webhook_tolerance": 0, "session_hold": "soon" } });
-        assert_eq!(checkout_windows(&ir), CheckoutWindows { webhook_tolerance: 300, session_hold: 1800 });
+        let ir =
+            serde_json::json!({ "checkout": { "webhook_tolerance": 0, "session_hold": "soon" } });
+        assert_eq!(
+            checkout_windows(&ir),
+            CheckoutWindows {
+                webhook_tolerance: 300,
+                session_hold: 1800
+            }
+        );
     }
 
     #[test]
@@ -676,7 +795,10 @@ mod tests {
         let provider = payments_provider(&ir).expect("should find payments");
         assert_eq!(provider.provider, "Payments");
         assert_eq!(provider.initiate, "Payments::Payment.Initiate");
-        assert_eq!(provider.succeeded, "Payments::Payment.PaymentGateway.Succeeded");
+        assert_eq!(
+            provider.succeeded,
+            "Payments::Payment.PaymentGateway.Succeeded"
+        );
         assert_eq!(provider.failed, "Payments::Payment.PaymentGateway.Failed");
         assert_eq!(provider.instance_prefix(), "Payments::Payment#");
         assert!(payments_provider(&serde_json::json!({ "name": "Pizzas" })).is_none());
@@ -697,31 +819,46 @@ mod tests {
     #[test]
     fn payments_provider_reads_holds_seat_from_the_fact() {
         let ir = payments_ir(Some(serde_json::json!(["pending", "paid"])));
-        assert_eq!(declared_holds_seat(&ir["payments"]), Some(vec!["pending".to_string(), "paid".to_string()]));
-        assert_eq!(payments_provider(&ir).expect("payments").holds_seat, vec!["pending", "paid"]);
+        assert_eq!(
+            declared_holds_seat(&ir["payments"]),
+            Some(vec!["pending".to_string(), "paid".to_string()])
+        );
+        assert_eq!(
+            payments_provider(&ir).expect("payments").holds_seat,
+            vec!["pending", "paid"]
+        );
     }
 
     #[test]
     fn the_checkout_fixture_ir_carries_holds_seat_with_no_fallback() {
         let ir = fixture_ir();
-        assert_eq!(declared_holds_seat(&ir["payments"]), Some(vec!["pending".to_string(), "succeeded".to_string()]));
+        assert_eq!(
+            declared_holds_seat(&ir["payments"]),
+            Some(vec!["pending".to_string(), "succeeded".to_string()])
+        );
         assert_eq!(fixture_payments().holds_seat, vec!["pending", "succeeded"]);
     }
 
     #[test]
     fn payments_provider_falls_back_to_the_legacy_default_without_holds_seat() {
         assert_eq!(declared_holds_seat(&payments_ir(None)["payments"]), None);
-        let held = payments_provider(&payments_ir(None)).expect("payments").holds_seat;
+        let held = payments_provider(&payments_ir(None))
+            .expect("payments")
+            .holds_seat;
         assert_eq!(held, LEGACY_HOLDS_SEAT);
     }
 
     #[test]
     fn registrations_provider_reads_the_declared_capability() {
-        let provider = registrations_provider(&fixture_ir()).expect("the checkout fixture provides registrations");
+        let provider = registrations_provider(&fixture_ir())
+            .expect("the checkout fixture provides registrations");
         assert_eq!(provider.schedule, "CheckoutFixture::Event.Schedule");
         assert_eq!(provider.request, "CheckoutFixture::Registration.Request");
         assert_eq!(provider.event_prefix(), "CheckoutFixture::Event#");
-        assert_eq!(provider.registration_prefix(), "CheckoutFixture::Registration#");
+        assert_eq!(
+            provider.registration_prefix(),
+            "CheckoutFixture::Registration#"
+        );
         assert_eq!(provider.request_target(), Some(("Registration", "Request")));
     }
 
@@ -731,18 +868,29 @@ mod tests {
         let conventional = RegistrationsProvider {
             timestamp_keys: declared.timestamp_keys.clone(),
             frees_seat: declared.frees_seat.clone(),
-            ..RegistrationsProvider::conventional("CheckoutFixture") };
+            ..RegistrationsProvider::conventional("CheckoutFixture")
+        };
         assert_eq!(declared, conventional);
     }
 
     #[test]
     fn the_registration_timestamp_is_the_declared_attribute_or_the_legacy_guess() {
-        assert_eq!(registrations_provider(&fixture_ir()).expect("registrations").timestamp_keys, vec!["requested_at"]);
+        assert_eq!(
+            registrations_provider(&fixture_ir())
+                .expect("registrations")
+                .timestamp_keys,
+            vec!["requested_at"]
+        );
         let undeclared = serde_json::json!({"registrations": {
             "provider": "B", "schedule": "B::E.S", "request": "B::R.Q",
             "event_aggregate": "B::E", "registration_aggregate": "B::R"
         }});
-        assert_eq!(registrations_provider(&undeclared).expect("registrations").timestamp_keys, LEGACY_REGISTERED_AT);
+        assert_eq!(
+            registrations_provider(&undeclared)
+                .expect("registrations")
+                .timestamp_keys,
+            LEGACY_REGISTERED_AT
+        );
     }
 
     fn registrations_ir(frees_seat: Option<serde_json::Value>) -> Value {
@@ -759,21 +907,42 @@ mod tests {
     #[test]
     fn registrations_provider_reads_frees_seat_from_the_fact() {
         let ir = registrations_ir(Some(serde_json::json!(["cancelled", "archived"])));
-        assert_eq!(declared_frees_seat(&ir["registrations"]), Some(vec!["cancelled".to_string(), "archived".to_string()]));
-        assert_eq!(registrations_provider(&ir).expect("registrations").frees_seat, vec!["cancelled", "archived"]);
+        assert_eq!(
+            declared_frees_seat(&ir["registrations"]),
+            Some(vec!["cancelled".to_string(), "archived".to_string()])
+        );
+        assert_eq!(
+            registrations_provider(&ir)
+                .expect("registrations")
+                .frees_seat,
+            vec!["cancelled", "archived"]
+        );
     }
 
     #[test]
     fn the_checkout_fixture_ir_carries_frees_seat_with_no_fallback() {
         let ir = fixture_ir();
-        assert_eq!(declared_frees_seat(&ir["registrations"]), Some(vec!["archived".to_string(), "cancelled".to_string()]));
-        assert_eq!(registrations_provider(&ir).expect("registrations").frees_seat, vec!["archived", "cancelled"]);
+        assert_eq!(
+            declared_frees_seat(&ir["registrations"]),
+            Some(vec!["archived".to_string(), "cancelled".to_string()])
+        );
+        assert_eq!(
+            registrations_provider(&ir)
+                .expect("registrations")
+                .frees_seat,
+            vec!["archived", "cancelled"]
+        );
     }
 
     #[test]
     fn registrations_provider_falls_back_to_the_legacy_default_without_frees_seat() {
-        assert_eq!(declared_frees_seat(&registrations_ir(None)["registrations"]), None);
-        let freed = registrations_provider(&registrations_ir(None)).expect("registrations").frees_seat;
+        assert_eq!(
+            declared_frees_seat(&registrations_ir(None)["registrations"]),
+            None
+        );
+        let freed = registrations_provider(&registrations_ir(None))
+            .expect("registrations")
+            .frees_seat;
         assert_eq!(freed, LEGACY_FREES_SEAT);
     }
 
@@ -781,9 +950,15 @@ mod tests {
     fn the_lapse_reason_is_the_declared_word_or_the_legacy_default() {
         assert_eq!(fixture_payments().lapse_reason, "checkout_expired");
         let mut ir = payments_ir(None);
-        assert_eq!(payments_provider(&ir).expect("payments").lapse_reason, LEGACY_LAPSE_REASON);
+        assert_eq!(
+            payments_provider(&ir).expect("payments").lapse_reason,
+            LEGACY_LAPSE_REASON
+        );
         ir["payments"]["lapse_reason"] = serde_json::json!("hold_lapsed");
-        assert_eq!(payments_provider(&ir).expect("payments").lapse_reason, "hold_lapsed");
+        assert_eq!(
+            payments_provider(&ir).expect("payments").lapse_reason,
+            "hold_lapsed"
+        );
     }
 
     #[test]
@@ -803,26 +978,48 @@ mod tests {
 
     #[test]
     fn registrations_provider_is_none_without_the_key() {
-        assert_eq!(registrations_provider(&serde_json::json!({"name": "Pizzas"})), None);
+        assert_eq!(
+            registrations_provider(&serde_json::json!({"name": "Pizzas"})),
+            None
+        );
     }
 
     #[test]
     fn registrations_binding_falls_back_to_the_conventional_names_when_no_ir_is_loaded() {
-        assert_eq!(registrations_binding("Shop"), RegistrationsProvider::conventional("Shop"));
+        assert_eq!(
+            registrations_binding("Shop"),
+            RegistrationsProvider::conventional("Shop")
+        );
     }
 
     #[test]
     fn payment_connection_provider_reads_the_declared_capability() {
-        let provider = payment_connection_provider(&fixture_ir()).expect("the checkout fixture provides payment_connection");
-        assert_eq!(provider.verb(ConnectionVerb::Connect), "CheckoutFixture::PaymentConnection.Connect");
-        assert_eq!(provider.verb(ConnectionVerb::Enable), "CheckoutFixture::PaymentConnection.EnablePayments");
-        assert_eq!(provider.verb(ConnectionVerb::Disable), "CheckoutFixture::PaymentConnection.DisablePayments");
-        assert_eq!(provider.instance_prefix(), "CheckoutFixture::PaymentConnection#");
+        let provider = payment_connection_provider(&fixture_ir())
+            .expect("the checkout fixture provides payment_connection");
+        assert_eq!(
+            provider.verb(ConnectionVerb::Connect),
+            "CheckoutFixture::PaymentConnection.Connect"
+        );
+        assert_eq!(
+            provider.verb(ConnectionVerb::Enable),
+            "CheckoutFixture::PaymentConnection.EnablePayments"
+        );
+        assert_eq!(
+            provider.verb(ConnectionVerb::Disable),
+            "CheckoutFixture::PaymentConnection.DisablePayments"
+        );
+        assert_eq!(
+            provider.instance_prefix(),
+            "CheckoutFixture::PaymentConnection#"
+        );
     }
 
     #[test]
     fn the_conventional_payment_connection_names_match_what_the_fixture_declares() {
-        assert_eq!(payment_connection_provider(&fixture_ir()), Some(PaymentConnectionProvider::conventional("CheckoutFixture")));
+        assert_eq!(
+            payment_connection_provider(&fixture_ir()),
+            Some(PaymentConnectionProvider::conventional("CheckoutFixture"))
+        );
     }
 
     #[test]
@@ -835,14 +1032,23 @@ mod tests {
             "disable": "Billing::Link.TurnOff", "aggregate": "Billing::Link"
         }});
         let provider = payment_connection_provider(&ir).expect("declared");
-        assert_eq!(provider.verb(ConnectionVerb::Suspend), "Billing::Link.Pause");
-        assert_eq!(provider.verb(ConnectionVerb::Resume), "Billing::Link.Unpause");
+        assert_eq!(
+            provider.verb(ConnectionVerb::Suspend),
+            "Billing::Link.Pause"
+        );
+        assert_eq!(
+            provider.verb(ConnectionVerb::Resume),
+            "Billing::Link.Unpause"
+        );
         assert_eq!(provider.instance_prefix(), "Billing::Link#");
     }
 
     #[test]
     fn payment_connection_binding_falls_back_to_the_conventional_names_when_no_ir_is_loaded() {
-        assert_eq!(payment_connection_binding("Shop"), PaymentConnectionProvider::conventional("Shop"));
+        assert_eq!(
+            payment_connection_binding("Shop"),
+            PaymentConnectionProvider::conventional("Shop")
+        );
     }
 
     #[test]
@@ -856,10 +1062,25 @@ mod tests {
                 {"name": "Event", "commands": [{"name": "Request", "attributes": [{"name": "slug"}]}]}
             ]
         });
-        assert!(command_declares(&ir, "Registration", "Request", "news_signup"));
-        assert!(!command_declares(&ir, "Registration", "Cancel", "news_signup"));
+        assert!(command_declares(
+            &ir,
+            "Registration",
+            "Request",
+            "news_signup"
+        ));
+        assert!(!command_declares(
+            &ir,
+            "Registration",
+            "Cancel",
+            "news_signup"
+        ));
         assert!(!command_declares(&ir, "Event", "Request", "news_signup"));
         assert!(!command_declares(&ir, "Registration", "Request", "phone"));
-        assert!(!command_declares(&serde_json::json!({"name": "Pizzas"}), "Registration", "Request", "news_signup"));
+        assert!(!command_declares(
+            &serde_json::json!({"name": "Pizzas"}),
+            "Registration",
+            "Request",
+            "news_signup"
+        ));
     }
 }

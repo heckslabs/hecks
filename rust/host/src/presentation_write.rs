@@ -2,8 +2,8 @@
 // `PUT /api/presentation`: validates against the live domain IR, then dispatches real commands.
 
 use crate::dispatch;
-use crate::lambda_client::LambdaInvoker;
 use crate::journal::LineageConfig;
+use crate::lambda_client::LambdaInvoker;
 use crate::presentation::{self, KernelRows};
 use crate::ui_schema;
 use serde_json::{json, Map, Value};
@@ -50,12 +50,25 @@ pub(crate) async fn save(
 
     validate(submitted, domain_ir).map_err(SaveRefusal::Malformed)?;
 
-    let mut writer = Writer { client, wasm_path, lineage, invoker };
-    writer.write_states(section(submitted, "states"), &existing).await?;
-    writer.write_collections(section(submitted, "collections"), &existing).await?;
-    writer.write_overview(section(submitted, "overview"), &existing).await?;
+    let mut writer = Writer {
+        client,
+        wasm_path,
+        lineage,
+        invoker,
+    };
+    writer
+        .write_states(section(submitted, "states"), &existing)
+        .await?;
+    writer
+        .write_collections(section(submitted, "collections"), &existing)
+        .await?;
+    writer
+        .write_overview(section(submitted, "overview"), &existing)
+        .await?;
 
-    presentation::load(client, wasm_path, lineage).await.map_err(|e| SaveRefusal::Internal(format!("{e:#}")))
+    presentation::load(client, wasm_path, lineage)
+        .await
+        .map_err(|e| SaveRefusal::Internal(format!("{e:#}")))
 }
 
 // A missing, null, or non-object section is the empty one rather than an error: `validate` has
@@ -66,12 +79,18 @@ fn section<'a>(config: &'a Value, key: &str) -> &'a Value {
 }
 
 fn entries(value: &Value) -> Vec<(&String, &Value)> {
-    value.as_object().map(|map| map.iter().collect()).unwrap_or_default()
+    value
+        .as_object()
+        .map(|map| map.iter().collect())
+        .unwrap_or_default()
 }
 
 // A null, a missing key, or anything that isn't a list is the empty list.
 fn list(value: Option<&Value>) -> &[Value] {
-    value.and_then(|v| v.as_array()).map(|a| a.as_slice()).unwrap_or(&[])
+    value
+        .and_then(|v| v.as_array())
+        .map(|a| a.as_slice())
+        .unwrap_or(&[])
 }
 
 // Every present field is re-dispatched on every save, even to an unchanged value, so the two
@@ -87,19 +106,35 @@ struct Writer<'a> {
 impl Writer<'_> {
     // A creating command — facts only, no identity to route to.
     async fn declare(&mut self, verb: &str, facts: Value) -> Result<(), SaveRefusal> {
-        let outcome = dispatch::handle_facts(self.client, self.wasm_path, verb, facts, None, self.lineage, self.invoker)
-            .await
-            .map_err(|e| SaveRefusal::Internal(format!("{e:#}")))?;
+        let outcome = dispatch::handle_facts(
+            self.client,
+            self.wasm_path,
+            verb,
+            facts,
+            None,
+            self.lineage,
+            self.invoker,
+        )
+        .await
+        .map_err(|e| SaveRefusal::Internal(format!("{e:#}")))?;
         self.accepted(outcome)
     }
 
     // A command acting on an existing row, routed by that row's own identity: "Agg:state" for
     // StateStyle, the aggregate name for Collection, "overview" for the singleton.
     async fn route(&mut self, verb: &str, id: &str, facts: Value) -> Result<(), SaveRefusal> {
-        let outcome =
-            dispatch::handle_routed(self.client, self.wasm_path, verb, json!(id), facts, None, self.lineage, self.invoker)
-                .await
-                .map_err(|e| SaveRefusal::Internal(format!("{e:#}")))?;
+        let outcome = dispatch::handle_routed(
+            self.client,
+            self.wasm_path,
+            verb,
+            json!(id),
+            facts,
+            None,
+            self.lineage,
+            self.invoker,
+        )
+        .await
+        .map_err(|e| SaveRefusal::Internal(format!("{e:#}")))?;
         self.accepted(outcome)
     }
 
@@ -113,7 +148,11 @@ impl Writer<'_> {
         }
     }
 
-    async fn write_states(&mut self, states: &Value, existing: &KernelRows) -> Result<(), SaveRefusal> {
+    async fn write_states(
+        &mut self,
+        states: &Value,
+        existing: &KernelRows,
+    ) -> Result<(), SaveRefusal> {
         let known: BTreeSet<&str> = existing.state_ids();
         for (agg, per_state) in entries(states) {
             for (state, entry) in entries(per_state) {
@@ -127,13 +166,26 @@ impl Writer<'_> {
                 }
 
                 if let Some(tone) = present(entry.get("tone")) {
-                    self.route("ConsoleSettings::StateStyle.SetTone", &id, json!({"tone": {"value": tone}})).await?;
+                    self.route(
+                        "ConsoleSettings::StateStyle.SetTone",
+                        &id,
+                        json!({"tone": {"value": tone}}),
+                    )
+                    .await?;
                 }
                 // Key presence, not truthiness: an explicit `false` is a real answer to store.
                 if let Some(attention) = entry.get("attention") {
-                    let flag = if attention.as_bool() == Some(true) { "true" } else { "false" };
-                    self.route("ConsoleSettings::StateStyle.SetAttention", &id, json!({"attention": {"value": flag}}))
-                        .await?;
+                    let flag = if attention.as_bool() == Some(true) {
+                        "true"
+                    } else {
+                        "false"
+                    };
+                    self.route(
+                        "ConsoleSettings::StateStyle.SetAttention",
+                        &id,
+                        json!({"attention": {"value": flag}}),
+                    )
+                    .await?;
                 }
 
                 let extra = extra_fields(entry, KNOWN_STATE_KEYS);
@@ -150,11 +202,19 @@ impl Writer<'_> {
         Ok(())
     }
 
-    async fn write_collections(&mut self, collections: &Value, existing: &KernelRows) -> Result<(), SaveRefusal> {
+    async fn write_collections(
+        &mut self,
+        collections: &Value,
+        existing: &KernelRows,
+    ) -> Result<(), SaveRefusal> {
         let known: BTreeSet<&str> = existing.collection_ids();
         for (agg, entry) in entries(collections) {
             if !known.contains(agg.as_str()) {
-                self.declare("ConsoleSettings::Collection.Declare", json!({"agg": {"value": agg}})).await?;
+                self.declare(
+                    "ConsoleSettings::Collection.Declare",
+                    json!({"agg": {"value": agg}}),
+                )
+                .await?;
             }
 
             for (field, command) in [
@@ -166,7 +226,8 @@ impl Writer<'_> {
             ] {
                 if let Some(value) = present(entry.get(field)) {
                     let verb = format!("ConsoleSettings::Collection.{command}");
-                    self.route(&verb, agg, json!({ field: {"value": value} })).await?;
+                    self.route(&verb, agg, json!({ field: {"value": value} }))
+                        .await?;
                 }
             }
 
@@ -222,8 +283,14 @@ impl Writer<'_> {
 
     async fn write_identity(&mut self, agg: &str, identity: &Value) -> Result<(), SaveRefusal> {
         let mut facts = Map::new();
-        facts.insert("identity_field".to_string(), json!({"value": identity.get("field")}));
-        facts.insert("identity_strategy".to_string(), json!({"value": identity.get("strategy")}));
+        facts.insert(
+            "identity_field".to_string(),
+            json!({"value": identity.get("field")}),
+        );
+        facts.insert(
+            "identity_strategy".to_string(),
+            json!({"value": identity.get("strategy")}),
+        );
         if let Some(source) = present(identity.get("source")) {
             facts.insert("identity_source".to_string(), json!({ "value": source }));
         }
@@ -232,15 +299,31 @@ impl Writer<'_> {
         }
         let extra = extra_fields(identity, KNOWN_IDENTITY_KEYS);
         if !extra.is_empty() {
-            facts.insert("identity_extra_json".to_string(), json!({"value": Value::Object(extra).to_string()}));
+            facts.insert(
+                "identity_extra_json".to_string(),
+                json!({"value": Value::Object(extra).to_string()}),
+            );
         }
-        self.route("ConsoleSettings::Collection.SetIdentity", agg, Value::Object(facts)).await
+        self.route(
+            "ConsoleSettings::Collection.SetIdentity",
+            agg,
+            Value::Object(facts),
+        )
+        .await
     }
 
     // The one row: `Declare`d once, then `ReplaceStats` whole on every save, even an empty list.
-    async fn write_overview(&mut self, overview: &Value, existing: &KernelRows) -> Result<(), SaveRefusal> {
+    async fn write_overview(
+        &mut self,
+        overview: &Value,
+        existing: &KernelRows,
+    ) -> Result<(), SaveRefusal> {
         if existing.overview.is_empty() {
-            self.declare("ConsoleSettings::Overview.Declare", json!({"key": {"value": "overview"}})).await?;
+            self.declare(
+                "ConsoleSettings::Overview.Declare",
+                json!({"key": {"value": "overview"}}),
+            )
+            .await?;
         }
         self.route(
             "ConsoleSettings::Overview.ReplaceStats",
@@ -296,9 +379,14 @@ fn columns_for_dispatch(columns: Option<&Value>) -> Vec<Value> {
         .map(|column| {
             // A column is either a bare field name or a descriptor hash — both shapes
             // `validate_collection!` reads.
-            let Some(object) = column.as_object() else { return json!({ "field": column }) };
+            let Some(object) = column.as_object() else {
+                return json!({ "field": column });
+            };
             let mut row = Map::new();
-            row.insert("field".to_string(), object.get("field").cloned().unwrap_or(Value::Null));
+            row.insert(
+                "field".to_string(),
+                object.get("field").cloned().unwrap_or(Value::Null),
+            );
             // "true"/"false" as strings: `Column#sortable` is a String attribute, not a boolean.
             if let Some(sortable) = object.get("sortable") {
                 row.insert("sortable".to_string(), json!(ruby_to_s(sortable)));
@@ -308,7 +396,10 @@ fn columns_for_dispatch(columns: Option<&Value>) -> Vec<Value> {
             }
             let extra = extra_fields(column, KNOWN_COLUMN_KEYS);
             if !extra.is_empty() {
-                row.insert("extra_json".to_string(), json!(Value::Object(extra).to_string()));
+                row.insert(
+                    "extra_json".to_string(),
+                    json!(Value::Object(extra).to_string()),
+                );
             }
             Value::Object(row)
         })
@@ -319,9 +410,14 @@ fn detail_fields_for_dispatch(detail_fields: Option<&Value>) -> Vec<Value> {
     list(detail_fields)
         .iter()
         .map(|field| {
-            let Some(object) = field.as_object() else { return json!({ "field": field }) };
+            let Some(object) = field.as_object() else {
+                return json!({ "field": field });
+            };
             let mut row = Map::new();
-            row.insert("field".to_string(), object.get("field").cloned().unwrap_or(Value::Null));
+            row.insert(
+                "field".to_string(),
+                object.get("field").cloned().unwrap_or(Value::Null),
+            );
             if let Some(display) = present(object.get("display")) {
                 row.insert("display".to_string(), display.clone());
             }
@@ -330,7 +426,10 @@ fn detail_fields_for_dispatch(detail_fields: Option<&Value>) -> Vec<Value> {
             }
             let extra = extra_fields(field, KNOWN_DETAIL_FIELD_KEYS);
             if !extra.is_empty() {
-                row.insert("extra_json".to_string(), json!(Value::Object(extra).to_string()));
+                row.insert(
+                    "extra_json".to_string(),
+                    json!(Value::Object(extra).to_string()),
+                );
             }
             Value::Object(row)
         })
@@ -341,8 +440,12 @@ fn detail_fields_for_dispatch(detail_fields: Option<&Value>) -> Vec<Value> {
 fn detail_field_columns_for_dispatch(detail_fields: Option<&Value>) -> Vec<Value> {
     let mut rows = Vec::new();
     for field in list(detail_fields) {
-        let Some(object) = field.as_object() else { continue };
-        let Some(columns) = object.get("columns") else { continue };
+        let Some(object) = field.as_object() else {
+            continue;
+        };
+        let Some(columns) = object.get("columns") else {
+            continue;
+        };
         let name = object.get("field").cloned().unwrap_or(Value::Null);
         for column in list(Some(columns)) {
             rows.push(json!({ "field": name, "column": column }));
@@ -356,11 +459,20 @@ fn preconditions_for_dispatch(preconditions: Option<&Value>) -> Vec<Value> {
         .iter()
         .map(|rule| {
             let mut row = Map::new();
-            row.insert("field".to_string(), rule.get("field").cloned().unwrap_or(Value::Null));
-            row.insert("state".to_string(), rule.get("state").cloned().unwrap_or(Value::Null));
+            row.insert(
+                "field".to_string(),
+                rule.get("field").cloned().unwrap_or(Value::Null),
+            );
+            row.insert(
+                "state".to_string(),
+                rule.get("state").cloned().unwrap_or(Value::Null),
+            );
             let extra = extra_fields(rule, KNOWN_PRECONDITION_KEYS);
             if !extra.is_empty() {
-                row.insert("extra_json".to_string(), json!(Value::Object(extra).to_string()));
+                row.insert(
+                    "extra_json".to_string(),
+                    json!(Value::Object(extra).to_string()),
+                );
             }
             Value::Object(row)
         })
@@ -372,7 +484,11 @@ fn preconditions_for_dispatch(preconditions: Option<&Value>) -> Vec<Value> {
 fn field_formats_for_dispatch(field_formats: Option<&Value>) -> Vec<Value> {
     field_formats
         .and_then(|v| v.as_object())
-        .map(|map| map.iter().map(|(field, format)| json!({"field": field, "format": format})).collect())
+        .map(|map| {
+            map.iter()
+                .map(|(field, format)| json!({"field": field, "format": format}))
+                .collect()
+        })
         .unwrap_or_default()
 }
 
@@ -381,8 +497,14 @@ fn stats_for_dispatch(stats: Option<&Value>) -> Vec<Value> {
         .iter()
         .map(|stat| {
             let mut row = Map::new();
-            row.insert("label".to_string(), stat.get("label").cloned().unwrap_or(Value::Null));
-            row.insert("collection".to_string(), stat.get("collection").cloned().unwrap_or(Value::Null));
+            row.insert(
+                "label".to_string(),
+                stat.get("label").cloned().unwrap_or(Value::Null),
+            );
+            row.insert(
+                "collection".to_string(),
+                stat.get("collection").cloned().unwrap_or(Value::Null),
+            );
             if let Some(fold) = present(stat.get("as")) {
                 row.insert("as".to_string(), fold.clone());
             }
@@ -445,11 +567,15 @@ fn refuse_unsupported_yet(collections: &Value) -> Refusal {
 }
 
 fn find_aggregate<'a>(aggregates: &[&'a Value], name: &str) -> Option<&'a Value> {
-    aggregates.iter().copied().find(|a| ui_schema::agg_name(a) == name)
+    aggregates
+        .iter()
+        .copied()
+        .find(|a| ui_schema::agg_name(a) == name)
 }
 
 fn require_aggregate<'a>(aggregates: &[&'a Value], name: &str) -> Result<&'a Value, String> {
-    find_aggregate(aggregates, name).ok_or_else(|| format!("{name} is not a real aggregate this domain declares"))
+    find_aggregate(aggregates, name)
+        .ok_or_else(|| format!("{name} is not a real aggregate this domain declares"))
 }
 
 fn validate_states(agg_name: &str, per_state: &Value, aggregates: &[&Value]) -> Refusal {
@@ -478,10 +604,18 @@ fn missing_state_entries(states: &Value, aggregates: &[&Value]) -> Refusal {
     if missing.is_empty() {
         return Ok(());
     }
-    Err(format!("no presentation entry for {} — every real state needs one, even a bare one", missing.join(", ")))
+    Err(format!(
+        "no presentation entry for {} — every real state needs one, even a bare one",
+        missing.join(", ")
+    ))
 }
 
-fn validate_state_entry(agg_name: &str, state_name: &str, entry: &Value, known: &[String]) -> Refusal {
+fn validate_state_entry(
+    agg_name: &str,
+    state_name: &str,
+    entry: &Value,
+    known: &[String],
+) -> Refusal {
     if !known.iter().any(|s| s == state_name) {
         return Err(format!(
             "{agg_name} has no state {} — it declares {}",
@@ -502,13 +636,19 @@ fn validate_state_entry(agg_name: &str, state_name: &str, entry: &Value, known: 
 
     match entry.get("attention") {
         None | Some(Value::Null) | Some(Value::Bool(_)) => Ok(()),
-        Some(other) => {
-            Err(format!("{agg_name}.{state_name}'s attention must be true or false, not {}", inspect(other)))
-        }
+        Some(other) => Err(format!(
+            "{agg_name}.{state_name}'s attention must be true or false, not {}",
+            inspect(other)
+        )),
     }
 }
 
-fn validate_collection(agg_name: &str, entry: &Value, aggregates: &[&Value], domain_ir: &Value) -> Refusal {
+fn validate_collection(
+    agg_name: &str,
+    entry: &Value,
+    aggregates: &[&Value],
+    domain_ir: &Value,
+) -> Refusal {
     let aggregate = require_aggregate(aggregates, agg_name)?;
 
     validate_columns(agg_name, aggregate, entry.get("columns"))?;
@@ -518,7 +658,10 @@ fn validate_collection(agg_name: &str, entry: &Value, aggregates: &[&Value], dom
     // than a vocabulary.
     if let Some(nav_order) = entry.get("nav_order") {
         if !nav_order.is_number() {
-            return Err(format!("{agg_name}'s nav_order must be a number, not {}", inspect(nav_order)));
+            return Err(format!(
+                "{agg_name}'s nav_order must be a number, not {}",
+                inspect(nav_order)
+            ));
         }
     }
 
@@ -543,7 +686,10 @@ fn validate_collection(agg_name: &str, entry: &Value, aggregates: &[&Value], dom
 // "does this aggregate declare it", not a closed vocabulary.
 fn validate_columns(agg_name: &str, aggregate: &Value, columns: Option<&Value>) -> Refusal {
     for column in list(columns) {
-        let key = column.get("field").filter(|_| column.is_object()).unwrap_or(column);
+        let key = column
+            .get("field")
+            .filter(|_| column.is_object())
+            .unwrap_or(column);
         let name = ruby_to_s(key);
         if name != "__state__" && ui_schema::find_attribute(aggregate, &name).is_none() {
             return Err(format!(
@@ -553,7 +699,9 @@ fn validate_columns(agg_name: &str, aggregate: &Value, columns: Option<&Value>) 
             ));
         }
 
-        let Some(object) = column.as_object() else { continue };
+        let Some(object) = column.as_object() else {
+            continue;
+        };
         if let Some(sortable) = object.get("sortable") {
             if !sortable.is_boolean() {
                 return Err(format!(
@@ -577,12 +725,21 @@ fn validate_columns(agg_name: &str, aggregate: &Value, columns: Option<&Value>) 
 }
 
 fn attribute_names(aggregate: &Value) -> String {
-    ui_schema::array(aggregate, "attributes").iter().map(ui_schema::attr_name).collect::<Vec<_>>().join(", ")
+    ui_schema::array(aggregate, "attributes")
+        .iter()
+        .map(ui_schema::attr_name)
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 // A non-reference field is caught here first, since otherwise the state check below would
 // simply never fire.
-fn validate_precondition(agg_name: &str, aggregate: &Value, rule: &Value, aggregates: &[&Value]) -> Refusal {
+fn validate_precondition(
+    agg_name: &str,
+    aggregate: &Value,
+    rule: &Value,
+    aggregates: &[&Value],
+) -> Refusal {
     let Some(field) = present(rule.get("field")) else {
         return Err(format!("{agg_name} has a precondition with no field named"));
     };
@@ -590,16 +747,24 @@ fn validate_precondition(agg_name: &str, aggregate: &Value, rule: &Value, aggreg
     let attribute = ui_schema::find_attribute(aggregate, &name);
     let is_reference = attribute.map(ui_schema::is_reference).unwrap_or(false);
     if !is_reference {
-        return Err(format!("{agg_name}.{name} isn't a reference — a precondition only makes sense against one"));
+        return Err(format!(
+            "{agg_name}.{name} isn't a reference — a precondition only makes sense against one"
+        ));
     }
 
-    let Some(state) = present(rule.get("state")) else { return Ok(()) };
-    // A cross-domain or otherwise unresolvable target — nothing more to
-    // check here, exactly as Ruby's own `return unless target` says.
-    let Some(target_name) = ui_schema::reference_target(ui_schema::type_of(attribute.expect("checked above"))) else {
+    let Some(state) = present(rule.get("state")) else {
         return Ok(());
     };
-    let Some(target) = find_aggregate(aggregates, &target_name) else { return Ok(()) };
+    // A cross-domain or otherwise unresolvable target — nothing more to
+    // check here, exactly as Ruby's own `return unless target` says.
+    let Some(target_name) =
+        ui_schema::reference_target(ui_schema::type_of(attribute.expect("checked above")))
+    else {
+        return Ok(());
+    };
+    let Some(target) = find_aggregate(aggregates, &target_name) else {
+        return Ok(());
+    };
 
     let known = ui_schema::lifecycle_states(target);
     if known.iter().any(|s| *s == ruby_to_s(state)) {
@@ -615,10 +780,17 @@ fn validate_precondition(agg_name: &str, aggregate: &Value, rule: &Value, aggreg
 // Keyed by attribute name, not path: a nested compound field is found the same way, since
 // `ui_schema` threads the same map down through every level of recursion.
 fn validate_field_formats(agg_name: &str, aggregate: &Value, formats: Option<&Value>) -> Refusal {
-    let Some(map) = formats.and_then(|v| v.as_object()) else { return Ok(()) };
+    let Some(map) = formats.and_then(|v| v.as_object()) else {
+        return Ok(());
+    };
     for (field_name, format) in map {
-        if ui_schema::find_attribute(aggregate, field_name).is_none() && !nested_attribute(aggregate, field_name) {
-            return Err(format!("{agg_name} has no attribute {} to format", inspect(&json!(field_name))));
+        if ui_schema::find_attribute(aggregate, field_name).is_none()
+            && !nested_attribute(aggregate, field_name)
+        {
+            return Err(format!(
+                "{agg_name} has no attribute {} to format",
+                inspect(&json!(field_name))
+            ));
         }
         if !VALID_FORMATS.contains(&ruby_to_s(format).as_str()) {
             return Err(format!(
@@ -632,43 +804,68 @@ fn validate_field_formats(agg_name: &str, aggregate: &Value, formats: Option<&Va
 }
 
 fn nested_attribute(aggregate: &Value, field_name: &str) -> bool {
-    ui_schema::array(aggregate, "attributes").iter().any(|attribute| {
-        if ui_schema::is_reference(attribute) {
-            return false;
-        }
-        let Some(value_object) = ui_schema::find_value_object(aggregate, ui_schema::type_of(attribute)) else {
-            return false;
-        };
-        ui_schema::array(value_object, "attributes").iter().any(|sub| ui_schema::attr_name(sub) == field_name)
-    })
+    ui_schema::array(aggregate, "attributes")
+        .iter()
+        .any(|attribute| {
+            if ui_schema::is_reference(attribute) {
+                return false;
+            }
+            let Some(value_object) =
+                ui_schema::find_value_object(aggregate, ui_schema::type_of(attribute))
+            else {
+                return false;
+            };
+            ui_schema::array(value_object, "attributes")
+                .iter()
+                .any(|sub| ui_schema::attr_name(sub) == field_name)
+        })
 }
 
 // Never a reference: there is nothing to derive from another aggregate's identity.
 fn validate_identity(agg_name: &str, aggregate: &Value, rule: &Value) -> Refusal {
     let Some(field) = present(rule.get("field")) else {
-        return Err(format!("{agg_name} has an identity rule with no field named"));
+        return Err(format!(
+            "{agg_name} has an identity rule with no field named"
+        ));
     };
     let name = ruby_to_s(field);
     let Some(attribute) = ui_schema::find_attribute(aggregate, &name) else {
-        return Err(format!("{agg_name} has no attribute {} to auto-derive", inspect(field)));
+        return Err(format!(
+            "{agg_name} has no attribute {} to auto-derive",
+            inspect(field)
+        ));
     };
     if ui_schema::is_reference(attribute) {
-        return Err(format!("{agg_name}.{name} is a reference — identity can only derive a plain field"));
+        return Err(format!(
+            "{agg_name}.{name} is a reference — identity can only derive a plain field"
+        ));
     }
 
-    match rule.get("strategy").map(ruby_to_s).unwrap_or_default().as_str() {
+    match rule
+        .get("strategy")
+        .map(ruby_to_s)
+        .unwrap_or_default()
+        .as_str()
+    {
         "slug" => {
             let Some(source) = present(rule.get("source")) else {
-                return Err(format!("{agg_name}'s identity slug strategy needs a source field"));
+                return Err(format!(
+                    "{agg_name}'s identity slug strategy needs a source field"
+                ));
             };
             if ui_schema::find_attribute(aggregate, &ruby_to_s(source)).is_none() {
-                return Err(format!("{agg_name} has no attribute {} to slug from", inspect(source)));
+                return Err(format!(
+                    "{agg_name} has no attribute {} to slug from",
+                    inspect(source)
+                ));
             }
             Ok(())
         }
         "sequence" => {
             if present(rule.get("prefix")).is_none() {
-                return Err(format!("{agg_name}'s identity sequence strategy needs a prefix"));
+                return Err(format!(
+                    "{agg_name}'s identity sequence strategy needs a prefix"
+                ));
             }
             Ok(())
         }
@@ -683,9 +880,16 @@ fn validate_identity(agg_name: &str, aggregate: &Value, rule: &Value) -> Refusal
     }
 }
 
-fn validate_detail_fields(agg_name: &str, aggregate: &Value, entries_value: Option<&Value>) -> Refusal {
+fn validate_detail_fields(
+    agg_name: &str,
+    aggregate: &Value,
+    entries_value: Option<&Value>,
+) -> Refusal {
     for field in list(entries_value) {
-        let key = field.get("field").filter(|_| field.is_object()).unwrap_or(field);
+        let key = field
+            .get("field")
+            .filter(|_| field.is_object())
+            .unwrap_or(field);
         let name = ruby_to_s(key);
         let Some(attribute) = ui_schema::find_attribute(aggregate, &name) else {
             return Err(format!(
@@ -695,7 +899,9 @@ fn validate_detail_fields(agg_name: &str, aggregate: &Value, entries_value: Opti
             ));
         };
 
-        let Some(object) = field.as_object() else { continue };
+        let Some(object) = field.as_object() else {
+            continue;
+        };
 
         if let Some(display) = present(object.get("display")) {
             if !VALID_DISPLAYS.contains(&ruby_to_s(display).as_str()) {
@@ -746,7 +952,13 @@ fn validate_row_state_filter(
 
 // A `columns:` on a field that is neither a value object nor an entity is a config mistake
 // this catches by refusing rather than silently doing nothing.
-fn validate_row_columns(agg_name: &str, aggregate: &Value, key: &str, attribute: &Value, columns: &Value) -> Refusal {
+fn validate_row_columns(
+    agg_name: &str,
+    aggregate: &Value,
+    key: &str,
+    attribute: &Value,
+    columns: &Value,
+) -> Refusal {
     let type_name = ui_schema::type_of(attribute).to_string();
     let rows_source = ui_schema::find_value_object(aggregate, &type_name)
         .or_else(|| ui_schema::find_entity(aggregate, &type_name))
@@ -758,7 +970,10 @@ fn validate_row_columns(agg_name: &str, aggregate: &Value, key: &str, attribute:
         ));
     };
 
-    let known: Vec<&str> = ui_schema::array(rows_source, "attributes").iter().map(ui_schema::attr_name).collect();
+    let known: Vec<&str> = ui_schema::array(rows_source, "attributes")
+        .iter()
+        .map(ui_schema::attr_name)
+        .collect();
     for column in list(Some(columns)) {
         if !known.contains(&ruby_to_s(column).as_str()) {
             return Err(format!(
@@ -777,7 +992,10 @@ fn validate_row_columns(agg_name: &str, aggregate: &Value, key: &str, attribute:
 fn validate_list_query(agg_name: &str, aggregate: &Value, query_name: &Value) -> Refusal {
     let name = ruby_to_s(query_name);
     let Some(query) = find_query(aggregate, &name) else {
-        return Err(format!("{agg_name} has no query {} to use as its list_query", inspect(query_name)));
+        return Err(format!(
+            "{agg_name} has no query {} to use as its list_query",
+            inspect(query_name)
+        ));
     };
     let arguments = ui_schema::array(query, "attributes");
     if arguments.is_empty() {
@@ -791,17 +1009,25 @@ fn validate_list_query(agg_name: &str, aggregate: &Value, query_name: &Value) ->
 }
 
 fn find_query<'a>(owner: &'a Value, name: &str) -> Option<&'a Value> {
-    ui_schema::array(owner, "queries").iter().find(|q| q.get("name").and_then(|v| v.as_str()) == Some(name))
+    ui_schema::array(owner, "queries")
+        .iter()
+        .find(|q| q.get("name").and_then(|v| v.as_str()) == Some(name))
 }
 
 // Cannot check whether a `$field` exists on the source aggregate, since every one of its own
 // attributes is fair game — a real gap, and the same one Ruby has.
-fn validate_after_create(agg_name: &str, after_create: &Value, aggregates: &[&Value], domain_ir: &Value) -> Refusal {
+fn validate_after_create(
+    agg_name: &str,
+    after_create: &Value,
+    aggregates: &[&Value],
+    domain_ir: &Value,
+) -> Refusal {
     let Some(dispatch_to) = present(after_create.get("dispatch")) else {
         return Err(format!("{agg_name}'s after_create names no dispatch"));
     };
     let dotted = ruby_to_s(dispatch_to);
-    let (target_agg_name, target_command_name) = dotted.split_once('.').unwrap_or((dotted.as_str(), ""));
+    let (target_agg_name, target_command_name) =
+        dotted.split_once('.').unwrap_or((dotted.as_str(), ""));
 
     let Some(target_agg) = find_aggregate(aggregates, target_agg_name) else {
         return Err(format!(
@@ -818,7 +1044,9 @@ fn validate_after_create(agg_name: &str, after_create: &Value, aggregates: &[&Va
         ));
     };
 
-    let Some(args) = after_create.get("args").and_then(|v| v.as_object()) else { return Ok(()) };
+    let Some(args) = after_create.get("args").and_then(|v| v.as_object()) else {
+        return Ok(());
+    };
     for (key, spec) in args {
         if ui_schema::find_attribute(target_command, key).is_none() {
             return Err(format!(
@@ -833,7 +1061,9 @@ fn validate_after_create(agg_name: &str, after_create: &Value, aggregates: &[&Va
 }
 
 fn find_command<'a>(aggregate: &'a Value, name: &str) -> Option<&'a Value> {
-    ui_schema::commands(aggregate).into_iter().find(|c| c.get("name").and_then(|v| v.as_str()) == Some(name))
+    ui_schema::commands(aggregate)
+        .into_iter()
+        .find(|c| c.get("name").and_then(|v| v.as_str()) == Some(name))
 }
 
 fn validate_after_create_arg_spec(
@@ -843,7 +1073,11 @@ fn validate_after_create_arg_spec(
     aggregates: &[&Value],
     _domain_ir: &Value,
 ) -> Refusal {
-    let Some(count_query) = spec.get("count_query").filter(|_| spec.is_object()).and_then(|v| present(Some(v))) else {
+    let Some(count_query) = spec
+        .get("count_query")
+        .filter(|_| spec.is_object())
+        .and_then(|v| present(Some(v)))
+    else {
         return Ok(());
     };
     let dotted = ruby_to_s(count_query);
@@ -901,8 +1135,10 @@ fn validate_after_create_arg_spec(
 // `collection` names a collection key, the one `key:` config can override, since a stat sits
 // above any one aggregate the same way a table does.
 fn validate_overview(overview: &Value, aggregates: &[&Value], config: &Value) -> Refusal {
-    let by_key: Vec<(String, &Value)> =
-        aggregates.iter().map(|a| (ui_schema::collection_key(a, config), *a)).collect();
+    let by_key: Vec<(String, &Value)> = aggregates
+        .iter()
+        .map(|a| (ui_schema::collection_key(a, config), *a))
+        .collect();
 
     for stat in list(overview.get("stats")) {
         validate_stat(stat, &by_key)?;
@@ -916,11 +1152,16 @@ fn validate_stat(stat: &Value, by_key: &[(String, &Value)]) -> Refusal {
     };
     let key = ruby_to_s(collection);
     let Some((_, aggregate)) = by_key.iter().find(|(k, _)| *k == key) else {
-        return Err(format!("overview stat names collection {}, which isn't a real collection key", inspect(collection)));
+        return Err(format!(
+            "overview stat names collection {}, which isn't a real collection key",
+            inspect(collection)
+        ));
     };
 
     let label = stat.get("label").cloned().unwrap_or(Value::Null);
-    let fold = present(stat.get("as")).map(ruby_to_s).unwrap_or_else(|| "count".to_string());
+    let fold = present(stat.get("as"))
+        .map(ruby_to_s)
+        .unwrap_or_else(|| "count".to_string());
     if !VALID_FOLDS.contains(&fold.as_str()) {
         return Err(format!(
             "overview stat {}'s as: {} isn't one of {}",
@@ -930,16 +1171,31 @@ fn validate_stat(stat: &Value, by_key: &[(String, &Value)]) -> Refusal {
         ));
     }
     if fold == "money_sum" && present(stat.get("field")).is_none() {
-        return Err(format!("overview stat {} folds as money_sum but names no field", inspect(&label)));
+        return Err(format!(
+            "overview stat {} folds as money_sum but names no field",
+            inspect(&label)
+        ));
     }
 
-    validate_where(stat.get("where").unwrap_or(&Value::Null), aggregate, by_key, &label)
+    validate_where(
+        stat.get("where").unwrap_or(&Value::Null),
+        aggregate,
+        by_key,
+        &label,
+    )
 }
 
 // Recurses through the same shape index.html's `matchesWhere` reads at evaluation time: `not:`
 // wraps another whole clause, and `has_related`/`not_has_related` is checked below.
-fn validate_where(clause: &Value, aggregate: &Value, by_key: &[(String, &Value)], label: &Value) -> Refusal {
-    let Some(object) = clause.as_object() else { return Ok(()) };
+fn validate_where(
+    clause: &Value,
+    aggregate: &Value,
+    by_key: &[(String, &Value)],
+    label: &Value,
+) -> Refusal {
+    let Some(object) = clause.as_object() else {
+        return Ok(());
+    };
     if let Some(negated) = object.get("not") {
         return validate_where(negated, aggregate, by_key, label);
     }
@@ -958,7 +1214,11 @@ fn validate_where(clause: &Value, aggregate: &Value, by_key: &[(String, &Value)]
             Value::Object(map) => map
                 .get("eq")
                 .or_else(|| map.get("ne"))
-                .or_else(|| map.get("in").and_then(|v| v.as_array()).and_then(|a| a.first()))
+                .or_else(|| {
+                    map.get("in")
+                        .and_then(|v| v.as_array())
+                        .and_then(|a| a.first())
+                })
                 .cloned()
                 .unwrap_or(Value::Null),
             other => other.clone(),
@@ -978,9 +1238,17 @@ fn validate_where(clause: &Value, aggregate: &Value, by_key: &[(String, &Value)]
 }
 
 // Spelled `field:`, not `on:` — YAML 1.1 reads a bare `on:` as the boolean `true`.
-fn validate_has_related(spec: &Value, aggregate: &Value, by_key: &[(String, &Value)], label: &Value) -> Refusal {
+fn validate_has_related(
+    spec: &Value,
+    aggregate: &Value,
+    by_key: &[(String, &Value)],
+    label: &Value,
+) -> Refusal {
     let Some(target_key) = present(spec.get("collection")) else {
-        return Err(format!("overview stat {}'s has_related names no collection", inspect(label)));
+        return Err(format!(
+            "overview stat {}'s has_related names no collection",
+            inspect(label)
+        ));
     };
     let Some((_, target)) = by_key.iter().find(|(k, _)| *k == ruby_to_s(target_key)) else {
         return Err(format!(
@@ -991,7 +1259,10 @@ fn validate_has_related(spec: &Value, aggregate: &Value, by_key: &[(String, &Val
     };
 
     let Some(field) = present(spec.get("field")) else {
-        return Err(format!("overview stat {}'s has_related names no field:", inspect(label)));
+        return Err(format!(
+            "overview stat {}'s has_related names no field:",
+            inspect(label)
+        ));
     };
     if ui_schema::find_attribute(target, &ruby_to_s(field)).is_none() {
         return Err(format!(
@@ -1002,7 +1273,9 @@ fn validate_has_related(spec: &Value, aggregate: &Value, by_key: &[(String, &Val
         ));
     }
 
-    let equals = present(spec.get("equals")).map(ruby_to_s).unwrap_or_else(|| "id".to_string());
+    let equals = present(spec.get("equals"))
+        .map(ruby_to_s)
+        .unwrap_or_else(|| "id".to_string());
     if equals == "id" || ui_schema::find_attribute(aggregate, &equals).is_some() {
         return Ok(());
     }
@@ -1025,10 +1298,16 @@ fn inspect(value: &Value) -> String {
         // same distinction, so the number's own JSON spelling is right.
         Value::Number(number) => number.to_string(),
         Value::String(text) => format!("{text:?}"),
-        Value::Array(items) => format!("[{}]", items.iter().map(inspect).collect::<Vec<_>>().join(", ")),
+        Value::Array(items) => format!(
+            "[{}]",
+            items.iter().map(inspect).collect::<Vec<_>>().join(", ")
+        ),
         Value::Object(map) => format!(
             "{{{}}}",
-            map.iter().map(|(key, value)| format!("{key:?} => {}", inspect(value))).collect::<Vec<_>>().join(", ")
+            map.iter()
+                .map(|(key, value)| format!("{key:?} => {}", inspect(value)))
+                .collect::<Vec<_>>()
+                .join(", ")
         ),
     }
 }
@@ -1123,7 +1402,10 @@ mod tests {
     fn a_state_this_aggregate_does_not_declare_refuses_and_names_the_ones_it_does() {
         let mut config = complete();
         config["states"]["Event"]["cancelled"] = json!({});
-        assert_eq!(refusal(config), "Event has no state \"cancelled\" — it declares open, closed");
+        assert_eq!(
+            refusal(config),
+            "Event has no state \"cancelled\" — it declares open, closed"
+        );
     }
 
     #[test]
@@ -1140,7 +1422,10 @@ mod tests {
     fn attention_is_a_real_boolean_not_a_string() {
         let mut config = complete();
         config["states"]["Event"]["open"] = json!({"attention": "yes"});
-        assert_eq!(refusal(config), "Event.open's attention must be true or false, not \"yes\"");
+        assert_eq!(
+            refusal(config),
+            "Event.open's attention must be true or false, not \"yes\""
+        );
     }
 
     #[test]
@@ -1163,33 +1448,52 @@ mod tests {
     #[test]
     fn a_columns_sortable_is_a_boolean_and_its_sort_default_is_one_of_two_words() {
         let mut config = complete();
-        config["collections"] = json!({"Event": {"columns": [{"field": "slug", "sortable": "true"}]}});
-        assert_eq!(refusal(config), "Event's column \"slug\" has sortable \"true\", not true or false");
+        config["collections"] =
+            json!({"Event": {"columns": [{"field": "slug", "sortable": "true"}]}});
+        assert_eq!(
+            refusal(config),
+            "Event's column \"slug\" has sortable \"true\", not true or false"
+        );
 
         let mut config = complete();
-        config["collections"] = json!({"Event": {"columns": [{"field": "slug", "sort_default": "sideways"}]}});
-        assert_eq!(refusal(config), "Event's column \"slug\" has sort_default \"sideways\", not asc or desc");
+        config["collections"] =
+            json!({"Event": {"columns": [{"field": "slug", "sort_default": "sideways"}]}});
+        assert_eq!(
+            refusal(config),
+            "Event's column \"slug\" has sort_default \"sideways\", not asc or desc"
+        );
     }
 
     #[test]
     fn nav_order_is_a_number() {
         let mut config = complete();
         config["collections"] = json!({"Event": {"nav_order": "3"}});
-        assert_eq!(refusal(config), "Event's nav_order must be a number, not \"3\"");
+        assert_eq!(
+            refusal(config),
+            "Event's nav_order must be a number, not \"3\""
+        );
     }
 
     #[test]
     fn a_precondition_only_makes_sense_against_a_reference() {
         let mut config = complete();
-        config["collections"] = json!({"Event": {"preconditions": [{"field": "slug", "state": "open"}]}});
-        assert_eq!(refusal(config), "Event.slug isn't a reference — a precondition only makes sense against one");
+        config["collections"] =
+            json!({"Event": {"preconditions": [{"field": "slug", "state": "open"}]}});
+        assert_eq!(
+            refusal(config),
+            "Event.slug isn't a reference — a precondition only makes sense against one"
+        );
     }
 
     #[test]
     fn a_precondition_against_a_lifecycle_less_target_names_the_states_it_has() {
         let mut config = complete();
-        config["collections"] = json!({"Event": {"preconditions": [{"field": "organizer", "state": "active"}]}});
-        assert_eq!(refusal(config), "Event.organizer points at Person, which has no state \"active\" — it declares ");
+        config["collections"] =
+            json!({"Event": {"preconditions": [{"field": "organizer", "state": "active"}]}});
+        assert_eq!(
+            refusal(config),
+            "Event.organizer points at Person, which has no state \"active\" — it declares "
+        );
     }
 
     #[test]
@@ -1200,7 +1504,10 @@ mod tests {
 
         let mut config = complete();
         config["collections"] = json!({"Event": {"field_formats": {"slug": "shouty"}}});
-        assert_eq!(refusal(config), "Event.slug's format \"shouty\" isn't one of date, percent");
+        assert_eq!(
+            refusal(config),
+            "Event.slug's format \"shouty\" isn't one of date, percent"
+        );
     }
 
     #[test]
@@ -1213,20 +1520,36 @@ mod tests {
     #[test]
     fn an_identity_rule_names_a_plain_field_and_one_of_three_strategies() {
         let mut config = complete();
-        config["collections"] = json!({"Event": {"identity": {"field": "organizer", "strategy": "slug"}}});
-        assert_eq!(refusal(config), "Event.organizer is a reference — identity can only derive a plain field");
+        config["collections"] =
+            json!({"Event": {"identity": {"field": "organizer", "strategy": "slug"}}});
+        assert_eq!(
+            refusal(config),
+            "Event.organizer is a reference — identity can only derive a plain field"
+        );
 
         let mut config = complete();
-        config["collections"] = json!({"Event": {"identity": {"field": "slug", "strategy": "guesswork"}}});
-        assert_eq!(refusal(config), "Event's identity strategy \"guesswork\" isn't 'slug', 'sequence', or 'port'");
+        config["collections"] =
+            json!({"Event": {"identity": {"field": "slug", "strategy": "guesswork"}}});
+        assert_eq!(
+            refusal(config),
+            "Event's identity strategy \"guesswork\" isn't 'slug', 'sequence', or 'port'"
+        );
 
         let mut config = complete();
-        config["collections"] = json!({"Event": {"identity": {"field": "slug", "strategy": "slug"}}});
-        assert_eq!(refusal(config), "Event's identity slug strategy needs a source field");
+        config["collections"] =
+            json!({"Event": {"identity": {"field": "slug", "strategy": "slug"}}});
+        assert_eq!(
+            refusal(config),
+            "Event's identity slug strategy needs a source field"
+        );
 
         let mut config = complete();
-        config["collections"] = json!({"Event": {"identity": {"field": "slug", "strategy": "sequence"}}});
-        assert_eq!(refusal(config), "Event's identity sequence strategy needs a prefix");
+        config["collections"] =
+            json!({"Event": {"identity": {"field": "slug", "strategy": "sequence"}}});
+        assert_eq!(
+            refusal(config),
+            "Event's identity sequence strategy needs a prefix"
+        );
 
         let mut config = complete();
         config["collections"] =
@@ -1237,7 +1560,8 @@ mod tests {
     #[test]
     fn a_detail_fields_display_is_one_of_five_placements() {
         let mut config = complete();
-        config["collections"] = json!({"Event": {"detail_fields": [{"field": "name", "display": "interpretive"}]}});
+        config["collections"] =
+            json!({"Event": {"detail_fields": [{"field": "name", "display": "interpretive"}]}});
         assert_eq!(
             refusal(config),
             "Event's detail field \"name\" has display \"interpretive\", not one of simple, prose, bullet, mono, rows"
@@ -1247,22 +1571,32 @@ mod tests {
     #[test]
     fn row_columns_are_checked_against_the_rows_shape_the_field_actually_holds() {
         let mut config = complete();
-        config["collections"] = json!({"Event": {"detail_fields": [{"field": "seats", "columns": ["row"]}]}});
+        config["collections"] =
+            json!({"Event": {"detail_fields": [{"field": "seats", "columns": ["row"]}]}});
         assert!(validate(&config, &domain()).is_ok());
 
         let mut config = complete();
-        config["collections"] = json!({"Event": {"detail_fields": [{"field": "seats", "columns": ["aisle"]}]}});
-        assert_eq!(refusal(config), "Event's detail field \"seats\" has no row column \"aisle\" — it has row, number");
+        config["collections"] =
+            json!({"Event": {"detail_fields": [{"field": "seats", "columns": ["aisle"]}]}});
+        assert_eq!(
+            refusal(config),
+            "Event's detail field \"seats\" has no row column \"aisle\" — it has row, number"
+        );
 
         let mut config = complete();
-        config["collections"] = json!({"Event": {"detail_fields": [{"field": "name", "columns": ["row"]}]}});
-        assert_eq!(refusal(config), "Event's detail field \"name\" has columns: but isn't a rows-shaped field");
+        config["collections"] =
+            json!({"Event": {"detail_fields": [{"field": "name", "columns": ["row"]}]}});
+        assert_eq!(
+            refusal(config),
+            "Event's detail field \"name\" has columns: but isn't a rows-shaped field"
+        );
     }
 
     #[test]
     fn a_state_filter_needs_an_entity_backed_rows_field() {
         let mut config = complete();
-        config["collections"] = json!({"Event": {"detail_fields": [{"field": "seats", "state_filter": "taken"}]}});
+        config["collections"] =
+            json!({"Event": {"detail_fields": [{"field": "seats", "state_filter": "taken"}]}});
         assert_eq!(
             refusal(config),
             "Event's detail field \"seats\" has state_filter: but isn't an entity-backed rows field"
@@ -1277,7 +1611,10 @@ mod tests {
 
         let mut config = complete();
         config["collections"] = json!({"Event": {"list_query": "Nowhere"}});
-        assert_eq!(refusal(config), "Event has no query \"Nowhere\" to use as its list_query");
+        assert_eq!(
+            refusal(config),
+            "Event has no query \"Nowhere\" to use as its list_query"
+        );
 
         let mut config = complete();
         config["collections"] = json!({"Event": {"list_query": "ByOrganizer"}});
@@ -1310,7 +1647,8 @@ mod tests {
     #[test]
     fn a_storable_after_create_still_refuses_because_nothing_stores_it_yet() {
         let mut ir = domain();
-        ir["aggregates"][1]["commands"] = json!([{"name": "Note", "references": "Person", "attributes": []}]);
+        ir["aggregates"][1]["commands"] =
+            json!([{"name": "Note", "references": "Person", "attributes": []}]);
         let mut config = complete();
         config["collections"] = json!({"Event": {"after_create": {"dispatch": "Person.Note"}}});
         assert_eq!(
@@ -1324,38 +1662,46 @@ mod tests {
     fn an_overview_stat_names_a_real_collection_key_and_a_real_fold() {
         let mut config = complete();
         config["overview"] = json!({"stats": [{"label": "Open", "collection": "nowhere"}]});
-        assert_eq!(refusal(config), "overview stat names collection \"nowhere\", which isn't a real collection key");
+        assert_eq!(
+            refusal(config),
+            "overview stat names collection \"nowhere\", which isn't a real collection key"
+        );
 
         let mut config = complete();
-        config["overview"] = json!({"stats": [{"label": "Open", "collection": "events", "as": "vibes"}]});
-        assert_eq!(refusal(config), "overview stat \"Open\"'s as: \"vibes\" isn't one of count, money_sum");
+        config["overview"] =
+            json!({"stats": [{"label": "Open", "collection": "events", "as": "vibes"}]});
+        assert_eq!(
+            refusal(config),
+            "overview stat \"Open\"'s as: \"vibes\" isn't one of count, money_sum"
+        );
 
         let mut config = complete();
-        config["overview"] = json!({"stats": [{"label": "Take", "collection": "events", "as": "money_sum"}]});
-        assert_eq!(refusal(config), "overview stat \"Take\" folds as money_sum but names no field");
+        config["overview"] =
+            json!({"stats": [{"label": "Take", "collection": "events", "as": "money_sum"}]});
+        assert_eq!(
+            refusal(config),
+            "overview stat \"Take\" folds as money_sum but names no field"
+        );
     }
 
     #[test]
     fn a_stats_where_clause_is_walked_including_through_a_negation() {
         let mut config = complete();
-        config["overview"] =
-            json!({"stats": [{"label": "Live", "collection": "events", "where": {"state": "ajar"}}]});
+        config["overview"] = json!({"stats": [{"label": "Live", "collection": "events", "where": {"state": "ajar"}}]});
         assert_eq!(
             refusal(config),
             "overview stat \"Live\"'s where: state \"ajar\" isn't one of Event's own states (open, closed)"
         );
 
         let mut config = complete();
-        config["overview"] =
-            json!({"stats": [{"label": "Live", "collection": "events", "where": {"not": {"state": {"eq": "ajar"}}}}]});
+        config["overview"] = json!({"stats": [{"label": "Live", "collection": "events", "where": {"not": {"state": {"eq": "ajar"}}}}]});
         assert_eq!(
             refusal(config),
             "overview stat \"Live\"'s where: state \"ajar\" isn't one of Event's own states (open, closed)"
         );
 
         let mut config = complete();
-        config["overview"] =
-            json!({"stats": [{"label": "Live", "collection": "events", "where": {"state": {"in": ["open"]}}}]});
+        config["overview"] = json!({"stats": [{"label": "Live", "collection": "events", "where": {"state": {"in": ["open"]}}}]});
         assert!(validate(&config, &domain()).is_ok());
     }
 
@@ -1364,7 +1710,10 @@ mod tests {
         let mut config = complete();
         config["overview"] = json!({"stats": [{"label": "Hosted", "collection": "events",
             "where": {"has_related": {"collection": "persons", "field": "nope"}}}]});
-        assert_eq!(refusal(config), "overview stat \"Hosted\"'s has_related.field \"nope\" isn't a real field on Person");
+        assert_eq!(
+            refusal(config),
+            "overview stat \"Hosted\"'s has_related.field \"nope\" isn't a real field on Person"
+        );
 
         let mut config = complete();
         config["overview"] = json!({"stats": [{"label": "Hosted", "collection": "events",
@@ -1383,7 +1732,9 @@ mod tests {
     #[test]
     fn a_bare_column_name_and_a_descriptor_both_dispatch_as_a_row() {
         assert_eq!(
-            columns_for_dispatch(Some(&json!(["slug", {"field": "name", "sortable": true, "head": "Title"}]))),
+            columns_for_dispatch(Some(
+                &json!(["slug", {"field": "name", "sortable": true, "head": "Title"}])
+            )),
             vec![
                 json!({"field": "slug"}),
                 json!({"field": "name", "sortable": "true", "extra_json": "{\"head\":\"Title\"}"})
@@ -1418,7 +1769,11 @@ mod tests {
         let stats = stats_for_dispatch(Some(&json!([{"label": "Live", "collection": "events",
             "where": {"state": "open"}}])));
         assert_eq!(stats[0]["where_json"], json!("{\"state\":\"open\"}"));
-        assert!(stats[0].get("as").is_none(), "an absent fold is absent, not null: {}", stats[0]);
+        assert!(
+            stats[0].get("as").is_none(),
+            "an absent fold is absent, not null: {}",
+            stats[0]
+        );
     }
 
     #[test]

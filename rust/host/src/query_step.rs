@@ -46,18 +46,29 @@ pub fn plan(domain_ir: Option<&Value>, domain: &str, question: &str) -> Plan {
     let aggregate = domain_ir
         .and_then(|ir| ir.get("aggregates"))
         .and_then(|v| v.as_array())
-        .and_then(|all| all.iter().find(|a| a.get("name").and_then(|v| v.as_str()) == Some(aggregate_name)));
+        .and_then(|all| {
+            all.iter()
+                .find(|a| a.get("name").and_then(|v| v.as_str()) == Some(aggregate_name))
+        });
     // An aggregate or an entity query this IR does not show is the kernel's to refuse.
-    let Some(aggregate) = aggregate else { return Plan::Kernel(qualified) };
+    let Some(aggregate) = aggregate else {
+        return Plan::Kernel(qualified);
+    };
     if query_name.contains('.') {
         return Plan::Kernel(qualified);
     }
     let declared = aggregate
         .get("queries")
         .and_then(|v| v.as_array())
-        .and_then(|all| all.iter().find(|q| q.get("name").and_then(|v| v.as_str()) == Some(query_name)));
+        .and_then(|all| {
+            all.iter()
+                .find(|q| q.get("name").and_then(|v| v.as_str()) == Some(query_name))
+        });
     match declared {
-        None => Plan::Refuse { kind: "UnknownVerb", message: format!("{aggregate_name} has no query {query_name:?}") },
+        None => Plan::Refuse {
+            kind: "UnknownVerb",
+            message: format!("{aggregate_name} has no query {query_name:?}"),
+        },
         Some(query) if query.get("returns").is_some_and(|r| !r.is_null()) => Plan::Refuse {
             kind: "WiringError",
             message: format!(
@@ -91,10 +102,15 @@ pub async fn answer(
     client: &Mutex<Client>,
     wasm_path: &Path,
 ) -> Result<Value, String> {
-    let question = body.get("query").and_then(|v| v.as_str()).ok_or("\"query\" must name a question")?;
+    let question = body
+        .get("query")
+        .and_then(|v| v.as_str())
+        .ok_or("\"query\" must name a question")?;
     let args = body.get("args").cloned().unwrap_or_else(|| json!({}));
     match plan(domain_ir, domain, question) {
-        Plan::Kernel(qualified) => dispatch::query(client, wasm_path, &qualified, args).await.map_err(|e| format!("{e:#}")),
+        Plan::Kernel(qualified) => dispatch::query(client, wasm_path, &qualified, args)
+            .await
+            .map_err(|e| format!("{e:#}")),
         Plan::Refuse { kind, message } => Ok(refusal_result(question, &args, kind, &message)),
     }
 }
@@ -117,18 +133,32 @@ mod tests {
     #[test]
     fn a_declared_derivable_query_goes_to_the_kernel_qualified() {
         let ir = domain();
-        assert_eq!(plan(Some(&ir), "Banking", "Ledger.Open"), Plan::Kernel("Banking::Ledger.Open".into()));
-        assert_eq!(plan(Some(&ir), "Banking", "Banking::Ledger.Open"), Plan::Kernel("Banking::Ledger.Open".into()));
+        assert_eq!(
+            plan(Some(&ir), "Banking", "Ledger.Open"),
+            Plan::Kernel("Banking::Ledger.Open".into())
+        );
+        assert_eq!(
+            plan(Some(&ir), "Banking", "Banking::Ledger.Open"),
+            Plan::Kernel("Banking::Ledger.Open".into())
+        );
     }
 
     #[test]
     fn a_query_that_returns_a_value_object_is_refused_as_answered_outside_the_domain() {
         let ir = domain();
         for question in ["Ledger.Ir", "Banking::Ledger.Rows"] {
-            let Plan::Refuse { kind, message } = plan(Some(&ir), "Banking", question) else { panic!("{question} not refused") };
+            let Plan::Refuse { kind, message } = plan(Some(&ir), "Banking", question) else {
+                panic!("{question} not refused")
+            };
             assert_eq!(kind, "WiringError");
             assert!(message.contains("answered outside the domain"), "{message}");
-            assert!(message.ends_with(&format!("nothing can answer {}", question.rsplit("::").next().unwrap())), "{message}");
+            assert!(
+                message.ends_with(&format!(
+                    "nothing can answer {}",
+                    question.rsplit("::").next().unwrap()
+                )),
+                "{message}"
+            );
         }
     }
 
@@ -136,25 +166,46 @@ mod tests {
     fn an_undeclared_query_on_a_known_aggregate_is_refused_as_ruby_words_it() {
         assert_eq!(
             plan(Some(&domain()), "Banking", "Ledger.Nope"),
-            Plan::Refuse { kind: "UnknownVerb", message: "Ledger has no query \"Nope\"".into() }
+            Plan::Refuse {
+                kind: "UnknownVerb",
+                message: "Ledger has no query \"Nope\"".into()
+            }
         );
     }
 
     #[test]
     fn a_question_naming_an_attached_chapter_keeps_that_chapter() {
         let ir = domain();
-        assert_eq!(plan(Some(&ir), "Banking", "Media::MediaItem.Active"), Plan::Kernel("Media::MediaItem.Active".into()));
+        assert_eq!(
+            plan(Some(&ir), "Banking", "Media::MediaItem.Active"),
+            Plan::Kernel("Media::MediaItem.Active".into())
+        );
         // The host's own aggregate of the same name is not mistaken for the chapter's.
-        assert_eq!(plan(Some(&ir), "Banking", "Media::Ledger.Ir"), Plan::Kernel("Media::Ledger.Ir".into()));
-        assert_eq!(plan(None, "Banking", "Media::MediaItem.Listing"), Plan::Kernel("Media::MediaItem.Listing".into()));
+        assert_eq!(
+            plan(Some(&ir), "Banking", "Media::Ledger.Ir"),
+            Plan::Kernel("Media::Ledger.Ir".into())
+        );
+        assert_eq!(
+            plan(None, "Banking", "Media::MediaItem.Listing"),
+            Plan::Kernel("Media::MediaItem.Listing".into())
+        );
     }
 
     #[test]
     fn what_this_ir_does_not_show_is_left_to_the_kernel() {
         let ir = domain();
-        assert_eq!(plan(Some(&ir), "Banking", "Ghost.Open"), Plan::Kernel("Banking::Ghost.Open".into()));
-        assert_eq!(plan(Some(&ir), "Banking", "Ledger.Entry.All"), Plan::Kernel("Banking::Ledger.Entry.All".into()));
-        assert_eq!(plan(None, "Banking", "Ledger.Ir"), Plan::Kernel("Banking::Ledger.Ir".into()));
+        assert_eq!(
+            plan(Some(&ir), "Banking", "Ghost.Open"),
+            Plan::Kernel("Banking::Ghost.Open".into())
+        );
+        assert_eq!(
+            plan(Some(&ir), "Banking", "Ledger.Entry.All"),
+            Plan::Kernel("Banking::Ledger.Entry.All".into())
+        );
+        assert_eq!(
+            plan(None, "Banking", "Ledger.Ir"),
+            Plan::Kernel("Banking::Ledger.Ir".into())
+        );
     }
 
     #[test]

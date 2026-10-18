@@ -6,7 +6,9 @@ use crate::kernel::Refusal;
 
 pub fn interpret(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
     let Expr::Presence { receiver, negated } = expr else {
-        return Err(Refusal::TypeMismatch(format!("presence::interpret called with a non-presence node {expr:?} — a router bug")));
+        return Err(Refusal::TypeMismatch(format!(
+            "presence::interpret called with a non-presence node {expr:?} — a router bug"
+        )));
     };
 
     let v = eval(receiver, ctx)?;
@@ -47,8 +49,14 @@ mod tests {
     use crate::kernel::expr::NoFields;
 
     fn present(receiver: Expr, negated: bool) -> Value {
-        let expr = Expr::Presence { receiver: Box::new(receiver), negated };
-        let ctx = EvalContext { args: &NoFields, instance: &NoFields };
+        let expr = Expr::Presence {
+            receiver: Box::new(receiver),
+            negated,
+        };
+        let ctx = EvalContext {
+            args: &NoFields,
+            instance: &NoFields,
+        };
         eval(&expr, &ctx).expect("evaluates")
     }
 
@@ -61,7 +69,10 @@ mod tests {
     #[test]
     fn an_empty_string_is_blank_but_a_nonempty_one_is_present() {
         assert_eq!(present(Expr::Str(String::new()), false), Value::Bool(false));
-        assert_eq!(present(Expr::Str("x".to_string()), false), Value::Bool(true));
+        assert_eq!(
+            present(Expr::Str("x".to_string()), false),
+            Value::Bool(true)
+        );
     }
 
     #[test]
@@ -72,18 +83,30 @@ mod tests {
     #[test]
     fn blank_negates_present() {
         assert_eq!(present(Expr::Nil, true), Value::Bool(true));
-        assert_eq!(present(Expr::Str("x".to_string()), true), Value::Bool(false));
+        assert_eq!(
+            present(Expr::Str("x".to_string()), true),
+            Value::Bool(false)
+        );
     }
 
     #[test]
     fn an_empty_array_literal_is_blank() {
         assert_eq!(present(Expr::Array(vec![]), false), Value::Bool(false));
-        assert_eq!(present(Expr::Array(vec![Expr::Int(1)]), false), Value::Bool(true));
+        assert_eq!(
+            present(Expr::Array(vec![Expr::Int(1)]), false),
+            Value::Bool(true)
+        );
     }
 
     fn set(receiver: Expr, negated: bool) -> Value {
-        let expr = Expr::Assignment { receiver: Box::new(receiver), negated };
-        let ctx = EvalContext { args: &NoFields, instance: &NoFields };
+        let expr = Expr::Assignment {
+            receiver: Box::new(receiver),
+            negated,
+        };
+        let ctx = EvalContext {
+            args: &NoFields,
+            instance: &NoFields,
+        };
         eval(&expr, &ctx).expect("evaluates")
     }
 
@@ -120,15 +143,31 @@ mod tests {
     }
 
     fn set_on(draft: &Draft, negated: bool) -> Value {
-        let expr = Expr::Assignment { receiver: Box::new(Expr::Lookup("body")), negated };
-        eval(&expr, &EvalContext { args: &NoFields, instance: draft }).expect("evaluates")
+        let expr = Expr::Assignment {
+            receiver: Box::new(Expr::Lookup("body")),
+            negated,
+        };
+        eval(
+            &expr,
+            &EvalContext {
+                args: &NoFields,
+                instance: draft,
+            },
+        )
+        .expect("evaluates")
     }
 
     #[test]
     fn a_nested_object_field_is_set_and_an_absent_one_is_not() {
-        assert_eq!(set_on(&Draft { body: Some(Body) }, false), Value::Bool(true));
+        assert_eq!(
+            set_on(&Draft { body: Some(Body) }, false),
+            Value::Bool(true)
+        );
         assert_eq!(set_on(&Draft { body: None }, false), Value::Bool(false));
-        assert_eq!(set_on(&Draft { body: Some(Body) }, true), Value::Bool(false));
+        assert_eq!(
+            set_on(&Draft { body: Some(Body) }, true),
+            Value::Bool(false)
+        );
     }
 
     #[test]

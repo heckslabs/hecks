@@ -13,7 +13,10 @@ fn the_built_in_receipt_names_the_event_the_first_name_and_the_amount() {
     assert!(body.starts_with("Hi Ada,"));
     assert!(body.contains("You're registered for Yogadelics."));
     assert!(body.contains("$108.00"));
-    assert_eq!(receipt_subject("Yogadelics"), "You're registered for Yogadelics");
+    assert_eq!(
+        receipt_subject("Yogadelics"),
+        "You're registered for Yogadelics"
+    );
 }
 
 #[test]
@@ -28,12 +31,21 @@ fn the_sites_finished_email_is_read() {
     let answer = serde_json::json!({"subject": "You're registered for Yogadelics", "body": "Hi Ada,\n\nWhere: Somewhere\n"});
     assert_eq!(
         site_email_from_json(&answer),
-        Some(SiteEmail { subject: "You're registered for Yogadelics".into(), body: "Hi Ada,\n\nWhere: Somewhere\n".into() })
+        Some(SiteEmail {
+            subject: "You're registered for Yogadelics".into(),
+            body: "Hi Ada,\n\nWhere: Somewhere\n".into()
+        })
     );
 }
 
 #[test]
 fn an_incomplete_answer_from_the_site_falls_back_to_the_built_in_wording() {
-    assert_eq!(site_email_from_json(&serde_json::json!({"error": "no such session"})), None);
-    assert_eq!(site_email_from_json(&serde_json::json!({"subject": "Hi", "body": "  "})), None);
+    assert_eq!(
+        site_email_from_json(&serde_json::json!({"error": "no such session"})),
+        None
+    );
+    assert_eq!(
+        site_email_from_json(&serde_json::json!({"subject": "Hi", "body": "  "})),
+        None
+    );
 }

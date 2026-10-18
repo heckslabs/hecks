@@ -3,17 +3,31 @@
 // Every element is evaluated before aggregating, not short-circuited, so an error on any
 // element surfaces exactly as it does in Ruby.
 use crate::kernel::attribute_shapes::composite;
-use crate::kernel::expr::{eval_error, interpret as eval, lookup_items, BlockMode, Bound, EvalContext, Expr, Field, Value};
+use crate::kernel::expr::{
+    eval_error, interpret as eval, lookup_items, BlockMode, Bound, EvalContext, Expr, Field, Value,
+};
 use crate::kernel::Refusal;
 
 pub fn interpret(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
     match expr {
-        Expr::BlockPredicate { mode, receiver, param, predicate } => {
+        Expr::BlockPredicate {
+            mode,
+            receiver,
+            param,
+            predicate,
+        } => {
             let items = elements(receiver, ctx, mode.ruby_name())?;
             let mut outcomes = Vec::with_capacity(items.len());
             for item in items {
-                let bound = Bound { name: param, value: item, rest: ctx.args };
-                let inner = EvalContext { args: &bound, instance: ctx.instance };
+                let bound = Bound {
+                    name: param,
+                    value: item,
+                    rest: ctx.args,
+                };
+                let inner = EvalContext {
+                    args: &bound,
+                    instance: ctx.instance,
+                };
                 outcomes.push(eval(predicate, &inner)?.truthy());
             }
             Ok(Value::Bool(match mode {
@@ -22,12 +36,24 @@ pub fn interpret(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
                 BlockMode::None => !outcomes.iter().any(|b| *b),
             }))
         }
-        Expr::Find { receiver, param, predicate, path } => {
+        Expr::Find {
+            receiver,
+            param,
+            predicate,
+            path,
+        } => {
             let items = elements(receiver, ctx, "find")?;
             for item in items {
                 let accepted = {
-                    let bound = Bound { name: param, value: borrow(&item), rest: ctx.args };
-                    let inner = EvalContext { args: &bound, instance: ctx.instance };
+                    let bound = Bound {
+                        name: param,
+                        value: borrow(&item),
+                        rest: ctx.args,
+                    };
+                    let inner = EvalContext {
+                        args: &bound,
+                        instance: ctx.instance,
+                    };
                     eval(predicate, &inner)?.truthy()
                 };
                 if accepted {
@@ -37,12 +63,18 @@ pub fn interpret(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
             // Nothing matched, and a path walked from nothing is nil too.
             Ok(Value::Nil)
         }
-        _ => Err(Refusal::TypeMismatch(format!("enumeration::interpret called with a non-enumeration node {expr:?} — a router bug"))),
+        _ => Err(Refusal::TypeMismatch(format!(
+            "enumeration::interpret called with a non-enumeration node {expr:?} — a router bug"
+        ))),
     }
 }
 
 /// Only a `Lookup` names a list field; any other receiver is evaluated just to word the error.
-fn elements<'a>(receiver: &Expr, ctx: &EvalContext<'a>, op: &str) -> Result<Vec<Field<'a>>, Refusal> {
+fn elements<'a>(
+    receiver: &Expr,
+    ctx: &EvalContext<'a>,
+    op: &str,
+) -> Result<Vec<Field<'a>>, Refusal> {
     match receiver {
         Expr::Lookup(path) => lookup_items(path, ctx, op),
         other => {
@@ -106,7 +138,12 @@ mod tests {
         fn items(&self, name: &str) -> Option<Vec<Field<'_>>> {
             match name {
                 "seats" => Some(self.seats.iter().map(|s| Field::Nested(s)).collect()),
-                "tags" => Some(self.tags.iter().map(|t| Field::Value(Value::Str(t.clone()))).collect()),
+                "tags" => Some(
+                    self.tags
+                        .iter()
+                        .map(|t| Field::Value(Value::Str(t.clone())))
+                        .collect(),
+                ),
                 _ => None,
             }
         }
@@ -114,20 +151,44 @@ mod tests {
 
     fn roster() -> Roster {
         Roster {
-            seats: vec![Seat { number: 1, taken: true }, Seat { number: 2, taken: false }, Seat { number: 3, taken: true }],
+            seats: vec![
+                Seat {
+                    number: 1,
+                    taken: true,
+                },
+                Seat {
+                    number: 2,
+                    taken: false,
+                },
+                Seat {
+                    number: 3,
+                    taken: true,
+                },
+            ],
             tags: vec!["a".to_string(), "".to_string()],
             number: 99,
         }
     }
 
-    const EQ: Comparison = Comparison { less_than: false, equal: true, negated: false };
+    const EQ: Comparison = Comparison {
+        less_than: false,
+        equal: true,
+        negated: false,
+    };
 
     fn eq(left: Expr, right: Expr) -> Expr {
-        Expr::Compare { op: EQ, left: Box::new(left), right: Box::new(right) }
+        Expr::Compare {
+            op: EQ,
+            left: Box::new(left),
+            right: Box::new(right),
+        }
     }
 
     fn run(expr: &Expr, instance: &dyn Fielded) -> Value {
-        let ctx = EvalContext { args: &NoFields, instance };
+        let ctx = EvalContext {
+            args: &NoFields,
+            instance,
+        };
         eval(expr, &ctx).expect("evaluates")
     }
 
@@ -158,7 +219,11 @@ mod tests {
 
     #[test]
     fn an_empty_list_answers_like_ruby() {
-        let empty = Roster { seats: vec![], tags: vec![], number: 0 };
+        let empty = Roster {
+            seats: vec![],
+            tags: vec![],
+            number: 0,
+        };
         let over = |mode| Expr::BlockPredicate {
             mode,
             receiver: Box::new(Expr::Lookup("seats")),
@@ -193,13 +258,19 @@ mod tests {
             mode: BlockMode::None,
             receiver: Box::new(Expr::Lookup("seats")),
             param: "o",
-            predicate: Box::new(eq(Expr::Lookup("o.number"), Expr::Add(Box::new(Expr::Lookup("s.number")), Box::new(Expr::Int(1))))),
+            predicate: Box::new(eq(
+                Expr::Lookup("o.number"),
+                Expr::Add(Box::new(Expr::Lookup("s.number")), Box::new(Expr::Int(1))),
+            )),
         };
         let outer = Expr::BlockPredicate {
             mode: BlockMode::Any,
             receiver: Box::new(Expr::Lookup("seats")),
             param: "s",
-            predicate: Box::new(Expr::And(Box::new(eq(Expr::Lookup("s.taken"), Expr::Bool(false))), Box::new(inner))),
+            predicate: Box::new(Expr::And(
+                Box::new(eq(Expr::Lookup("s.taken"), Expr::Bool(false))),
+                Box::new(inner),
+            )),
         };
         assert_eq!(run(&outer, &roster()), Value::Bool(false));
     }
@@ -213,7 +284,14 @@ mod tests {
             path: &["number"],
         };
         assert_eq!(run(&free_number(false), &roster()), Value::Int(2));
-        let none_free = Roster { seats: vec![Seat { number: 1, taken: true }], tags: vec![], number: 0 };
+        let none_free = Roster {
+            seats: vec![Seat {
+                number: 1,
+                taken: true,
+            }],
+            tags: vec![],
+            number: 0,
+        };
         assert_eq!(run(&free_number(false), &none_free), Value::Nil);
     }
 
@@ -225,8 +303,14 @@ mod tests {
             param: "n",
             predicate: Box::new(Expr::Bool(true)),
         };
-        let ctx = EvalContext { args: &NoFields, instance: &roster() };
+        let ctx = EvalContext {
+            args: &NoFields,
+            instance: &roster(),
+        };
         let err = eval(&wrong, &ctx).unwrap_err();
-        assert!(format!("{err:?}").contains("any? expects a list"), "{err:?}");
+        assert!(
+            format!("{err:?}").contains("any? expects a list"),
+            "{err:?}"
+        );
     }
 }
