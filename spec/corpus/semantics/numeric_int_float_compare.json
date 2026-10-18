@@ -1,14 +1,14 @@
 {
-  "domain": "spec/corpus/semantics/domains/tally",
+  "domain": "spec/corpus/semantics/domains/tally_gaps",
   "ruby_only": true,
-  "ruby_only_reason": "no Rust binary to hold it to: the corpus-owned domain spec/corpus/semantics/domains/tally has no `tally` feature in rust/Cargo.toml, so hecks project_rust has never generated it (marked ruby_only when the domain was added, #472). unverified: whether the kernel compares a Float field with an Integer literal by value.",
+  "ruby_only_reason": "no Rust binary to hold it to: the corpus-owned domain spec/corpus/semantics/domains/tally_gaps has no `tally_gaps` feature in rust/Cargo.toml, on purpose: it holds the commands Rust cannot generate yet. Weigh adds through a Float value object, which hecks-codegen does not generate yet (manifest: 'sets :weight increment/decrement/multiply amount or target field isn't bridgeable').",
   "spec": [
     "C3.2"
   ],
   "note": "Numeric comparison is by value across integer and float (C3.2): after Weigh 1.0 the Float weight satisfies the given `weight.value == 1` and Certify is accepted; after a further Weigh 0.5 (weight 1.5) the same given refuses.",
   "steps": [
     {
-      "verb": "Tallying::Tally.Open",
+      "verb": "TallyGaps::Tally.Open",
       "args": {
         "tag": {
           "value": "t1"
@@ -16,7 +16,7 @@
       }
     },
     {
-      "verb": "Tallying::Tally.Weigh",
+      "verb": "TallyGaps::Tally.Weigh",
       "args": {
         "tally": "t1",
         "more": {
@@ -25,13 +25,13 @@
       }
     },
     {
-      "verb": "Tallying::Tally.Certify",
+      "verb": "TallyGaps::Tally.Certify",
       "args": {
         "tally": "t1"
       }
     },
     {
-      "verb": "Tallying::Tally.Weigh",
+      "verb": "TallyGaps::Tally.Weigh",
       "args": {
         "tally": "t1",
         "more": {
@@ -40,7 +40,7 @@
       }
     },
     {
-      "verb": "Tallying::Tally.Certify",
+      "verb": "TallyGaps::Tally.Certify",
       "args": {
         "tally": "t1"
       }
@@ -49,13 +49,13 @@
   "expect": {
     "refusals": [
       {
-        "verb": "Tallying::Tally.Certify",
+        "verb": "TallyGaps::Tally.Certify",
         "error": "Certify refused — it weighs exactly one",
         "kind": "GivenNotMet"
       }
     ],
     "instances": {
-      "Tallying::Tally#t1": {
+      "TallyGaps::Tally#t1": {
         "tag": {
           "value": "t1"
         },
@@ -77,7 +77,7 @@
     "events": [
       {
         "name": "TallyOpened",
-        "aggregate": "Tallying::Tally",
+        "aggregate": "TallyGaps::Tally",
         "id": "t1",
         "payload": {
           "tag": {
@@ -87,7 +87,7 @@
       },
       {
         "name": "Weighed",
-        "aggregate": "Tallying::Tally",
+        "aggregate": "TallyGaps::Tally",
         "id": "t1",
         "payload": {
           "tally": "t1",
@@ -98,7 +98,7 @@
       },
       {
         "name": "Certified",
-        "aggregate": "Tallying::Tally",
+        "aggregate": "TallyGaps::Tally",
         "id": "t1",
         "payload": {
           "tally": "t1"
@@ -106,7 +106,7 @@
       },
       {
         "name": "Weighed",
-        "aggregate": "Tallying::Tally",
+        "aggregate": "TallyGaps::Tally",
         "id": "t1",
         "payload": {
           "tally": "t1",

@@ -3,7 +3,7 @@ module Hecks
     # Every Rust-facing list reads `rust/Cargo.toml`'s `[features]` as its
     # one source, rather than each consumer typing it out by hand.
     GENERATED_DIR = "rust/src/generated".freeze
-    RUST_DOMAIN_KINDS = %i[example stress fixture].freeze
+    RUST_DOMAIN_KINDS = %i[example stress semantics fixture].freeze
 
     RustDomain = Struct.new(:feature, :dir, :kind)
 

@@ -95,16 +95,6 @@ Hecks.bluebook "Tallying" do
       emits "CountLowered"
     end
 
-    # THE RULE ADDS FLOATS (C3.4): a sum that is not finite is a FAULT.
-    command "Weigh" do
-      goal "Add weight, but only while there is some"
-      reference_to Tally
-      attribute :more, Weight
-      given("the total is positive") { weight.value + more.value > 0 }
-      sets :weight, increment: :more
-      emits "Weighed"
-    end
-
     # NUMERIC COMPARISON IS BY VALUE ACROSS INTEGER AND FLOAT (C3.2):
     # a Float weight of 1.0 satisfies `== 1`.
     command "Certify" do
@@ -142,14 +132,6 @@ Hecks.bluebook "Tallying" do
       attribute :label, Label
       sets :tags, append: { value: :label }
       emits "Tagged"
-    end
-
-    command "Untag" do
-      goal "Remove every tag equal to the one given"
-      reference_to Tally
-      attribute :label, Label
-      sets :tags, remove: :label
-      emits "Untagged"
     end
 
     # STRING ORDER IS CODEPOINT ORDER (C3.6): "é" sorts after "m",
@@ -207,16 +189,6 @@ Hecks.bluebook "Tallying" do
       reference_to Tally
       sets :limit, clamp: [1, 10]
       emits "LimitClamped"
-    end
-
-    # A NON-NUMERIC OPERAND (C4.4): a Label carries a String, so adding it
-    # to the count is a TypeMismatch refusal, not a fault.
-    command "AddLabel" do
-      goal "Add a label's text to the count"
-      reference_to Tally
-      attribute :label, Label
-      sets :count, increment: :label
-      emits "LabelAdded"
     end
   end
 end

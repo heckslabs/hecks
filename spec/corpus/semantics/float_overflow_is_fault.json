@@ -1,7 +1,7 @@
 {
-  "domain": "spec/corpus/semantics/domains/tally",
+  "domain": "spec/corpus/semantics/domains/tally_gaps",
   "ruby_only": true,
-  "ruby_only_reason": "no Rust binary to hold it to: the corpus-owned domain spec/corpus/semantics/domains/tally has no `tally` feature in rust/Cargo.toml, so hecks project_rust has never generated it (marked ruby_only when the domain was added, #472). The kernel does implement C3.4 (a non-finite sum is a Fault, arithmetic.rs); unverified end to end.",
+  "ruby_only_reason": "no Rust binary to hold it to: the corpus-owned domain spec/corpus/semantics/domains/tally_gaps has no `tally_gaps` feature in rust/Cargo.toml, on purpose: it holds the commands Rust cannot generate yet. Weigh adds through a Float value object, which hecks-codegen does not generate yet (manifest: 'sets :weight increment/decrement/multiply amount or target field isn't bridgeable').",
   "spec": [
     "C3.4",
     "C8.3",
@@ -10,7 +10,7 @@
   "note": "A Float is finite (C3.4). Weigh 1e308 is accepted; a second Weigh 1e308 evaluates a given whose sum is not finite — a FAULT, before any effect, leaving the weight at 1e308 (C8.1). Both runtimes' doubles would have answered Infinity; the language does not.",
   "steps": [
     {
-      "verb": "Tallying::Tally.Open",
+      "verb": "TallyGaps::Tally.Open",
       "args": {
         "tag": {
           "value": "t1"
@@ -18,7 +18,7 @@
       }
     },
     {
-      "verb": "Tallying::Tally.Weigh",
+      "verb": "TallyGaps::Tally.Weigh",
       "args": {
         "tally": "t1",
         "more": {
@@ -27,7 +27,7 @@
       }
     },
     {
-      "verb": "Tallying::Tally.Weigh",
+      "verb": "TallyGaps::Tally.Weigh",
       "args": {
         "tally": "t1",
         "more": {
@@ -39,13 +39,13 @@
   "expect": {
     "refusals": [
       {
-        "verb": "Tallying::Tally.Weigh",
+        "verb": "TallyGaps::Tally.Weigh",
         "error": "addition overflowed: 1.0e+308 + 1.0e+308 is not a finite number",
         "kind": "Fault"
       }
     ],
     "instances": {
-      "Tallying::Tally#t1": {
+      "TallyGaps::Tally#t1": {
         "tag": {
           "value": "t1"
         },
@@ -67,7 +67,7 @@
     "events": [
       {
         "name": "TallyOpened",
-        "aggregate": "Tallying::Tally",
+        "aggregate": "TallyGaps::Tally",
         "id": "t1",
         "payload": {
           "tag": {
@@ -77,7 +77,7 @@
       },
       {
         "name": "Weighed",
-        "aggregate": "Tallying::Tally",
+        "aggregate": "TallyGaps::Tally",
         "id": "t1",
         "payload": {
           "tally": "t1",
