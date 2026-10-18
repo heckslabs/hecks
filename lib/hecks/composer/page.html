@@ -24,6 +24,23 @@
   header h1 { font-size: 13px; margin: 0; letter-spacing: .04em; }
   header .grow { flex: 1; }
   header select { margin: 0; max-width: 280px; }
+  #modes button { border-radius: 0; margin: 0; } #modes button:first-child { border-radius: 4px 0 0 4px; } #modes button:last-child { border-radius: 0 4px 4px 0; border-left: 0; }
+  #modes button.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+  main[hidden], #boardView[hidden], #boardForm[hidden] { display: none; }
+  #boardView { flex: 1; display: flex; flex-direction: column; min-height: 0; background: var(--panel); }
+  #boardBar { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-bottom: 1px solid var(--edge); flex-wrap: wrap; }
+  #boardActions { display: inline-flex; gap: 6px; flex-wrap: wrap; } #boardHint { color: var(--dim); }
+  #boardForm { display: flex; gap: 8px; align-items: center; padding: 6px 12px; background: var(--bg); border-bottom: 1px solid var(--edge); flex-wrap: wrap; }
+  #boardForm input { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--edge); border-radius: 4px; padding: 4px 8px; min-width: 190px; }
+  #boardMsg { padding: 0 12px; min-height: 18px; color: var(--ok); } #boardMsg.bad { color: var(--bad); }
+  #boardScroll { flex: 1; min-height: 0; overflow: auto; }
+  #boardSvg { display: block; }
+  .lane-band { fill: var(--bg); stroke: var(--edge); } .lane-title { fill: var(--dim); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
+  .note rect { stroke: rgba(0, 0, 0, .25); stroke-width: 1; cursor: pointer; } .note text { fill: #1d1d1b; font-size: 12px; pointer-events: none; }
+  .note .kind { font-size: 9px; opacity: .65; text-transform: uppercase; }
+  .note.aggregate rect { fill: #f2d04c; } .note.command rect { fill: #6fb1ff; } .note.event rect { fill: #ff9f5a; } .note.policy rect { fill: #b98cff; }
+  .note.selected rect { stroke: var(--ink); stroke-width: 3; } .note.target rect { stroke: var(--ok); stroke-width: 3; stroke-dasharray: 5 3; }
+  .link { fill: none; stroke: var(--dim); stroke-width: 1.5; } .link.policy { stroke: #b98cff; stroke-width: 2; }
   button { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--edge); border-radius: 4px; padding: 3px 10px; cursor: pointer; }
   button:hover { border-color: var(--accent); }
   main { flex: 1; display: grid; grid-template-columns: 200px minmax(0, 1fr) 6px var(--right, 42%); grid-template-rows: minmax(0, 1fr); min-height: 0; overflow: hidden; }
@@ -103,6 +120,7 @@
 <body>
 <header>
   <h1>HECKS COMPOSER</h1>
+  <span id="modes"><button id="modeEditor" class="on">Editor</button><button id="modeBoard">Board</button></span>
   <span id="workspace" class="grow" style="color:var(--dim)"></span>
   <select id="domainPick" title="Open one of the known domains, as a copy"><option value="">Open a domain…</option></select>
   <button id="save" title="Save the open file (Ctrl/Cmd-S)">Save</button>
@@ -124,6 +142,16 @@
     <div class="pane" id="wiring"><div id="wiringView"></div></div>
   </section>
 </main>
+<section id="boardView" hidden>
+  <div id="boardBar">
+    <button id="boardAddAggregate">+ Aggregate</button>
+    <span id="boardActions"></span>
+    <span id="boardHint">Click a note to see what you can do with it.</span>
+  </div>
+  <form id="boardForm" hidden></form>
+  <div id="boardMsg"></div>
+  <div id="boardScroll"><svg id="boardSvg" xmlns="http://www.w3.org/2000/svg"></svg></div>
+</section>
 <section id="lower">
   <div id="lowerTabs">
     <div class="tab active" data-lane="agent">Agent</div>
@@ -185,7 +213,8 @@
   const dark = matchMedia("(prefers-color-scheme: dark)").matches;
   mermaid.initialize({ startOnLoad: false, theme: dark ? "dark" : "default", securityLevel: "strict" });
 
-  const state = { docs: {}, disk: {}, open: null, diagrams: {}, diagnostic: null, badLine: null, serial: 0, outline: [], lane: "agent" };
+  const state = { docs: {}, disk: {}, open: null, diagrams: {}, diagnostic: null, badLine: null, serial: 0, outline: [], lane: "agent",
+                  mode: "editor", board: null, boardStale: false, boardSelected: null, boardConnect: null, boardSelect: null };
   const editor = CodeMirror($("cm"), { mode: "ruby", lineNumbers: true, indentUnit: 2, gutters: ["CodeMirror-linenumbers", "run-gutter"], extraKeys: {
     "Ctrl-S": save, "Cmd-S": save, "Ctrl-Space": complete
   } });
@@ -305,6 +334,9 @@
     renderOutline();
     markRunGutter();
     if (["records", "timeline"].includes(state.lane)) refreshLane(state.lane);
+    state.boardStale = Boolean(result.diagnostic);
+    if (!result.diagnostic && result.board) state.board = result.board;
+    if (state.mode === "board") renderBoard();
     if (result.diagnostic) return;
     renderWiring(result.wiring);
     state.diagrams = result.diagrams;
@@ -703,10 +735,212 @@
   editor.on("change", (cm, change) => { if (change.origin !== "setValue") changed(); });
   editor.on("inputRead", (cm, change) => { if (/\w/.test(change.text.join("")) && state.diagnostic && state.diagnostic.expected.length) complete(); });
 
+  // The board: the chapter as event-storming notes, one lane per aggregate, read from the check's
+  // `board`. Every action on a note is one edit of the text (see BoardEdit), applied to the editor
+  // like typing, so the board never holds anything the text does not.
+  const NOTE = { w: 140, h: 46, pillW: 130, pillH: 26 };
+  const svgEl = (tag, attrs = {}, text) => {
+    const node = document.createElementNS("http://www.w3.org/2000/svg", tag);
+    for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+    if (text !== undefined) node.textContent = text;
+    return node;
+  };
+  const clip = (text, max = 17) => (text.length > max ? text.slice(0, max - 1) + "…" : text);
+  const past = (name) => (name.endsWith("e") ? name + "d" : name + "ed");
+
+  function setMode(mode) {
+    state.mode = mode;
+    $("main").hidden = mode === "board";
+    $("boardView").hidden = mode !== "board";
+    $("modeEditor").classList.toggle("on", mode === "editor");
+    $("modeBoard").classList.toggle("on", mode === "board");
+    if (mode === "board") renderBoard(); else editor.refresh();
+  }
+  $("modeEditor").onclick = () => setMode("editor");
+  $("modeBoard").onclick = () => setMode("board");
+
+  // Where every note goes: an aggregate's lane holds its commands left to right, each with its events beside it.
+  function layoutBoard(board) {
+    const notes = [], lanes = [], commandAt = {}, eventAt = {};
+    let y = 14;
+    for (const aggregate of board.aggregates) {
+      const stack = Math.max(1, ...aggregate.commands.map((c) => Math.max(1, c.emits.length)));
+      const height = stack * (NOTE.h + 10) + 16;
+      lanes.push({ y, height });
+      notes.push({ kind: "aggregate", key: `aggregate:${aggregate.name}`, label: aggregate.name, x: 16, y: y + 8, w: NOTE.w, h: NOTE.h, at: aggregate.at, aggregate: aggregate.name });
+      let x = 190;
+      for (const command of aggregate.commands) {
+        const note = { kind: "command", key: `command:${aggregate.name}.${command.name}`, label: command.name, x, y: y + 8, w: NOTE.w, h: NOTE.h, at: command.at, aggregate: aggregate.name, command: command.name };
+        notes.push(note); commandAt[note.key] = note;
+        command.emits.forEach((event, row) => {
+          const ev = { kind: "event", key: `event:${aggregate.name}.${event}`, label: event, x: x + NOTE.w + 34, y: y + 8 + row * (NOTE.h + 10), w: NOTE.w, h: NOTE.h, at: command.at, aggregate: aggregate.name, command: command.name, event };
+          notes.push(ev); eventAt[ev.key] = { ...ev, owner: note };
+        });
+        x += NOTE.w * 2 + 74;
+      }
+      y += height + 12;
+    }
+    return { notes, lanes, commandAt, eventAt, width: Math.max(900, ...notes.map((n) => n.x + n.w + 40)), height: y + 16 };
+  }
+
+  // The arrows: a command to each event it emits, and a policy from an event to the command it triggers.
+  function boardLinks(board, plan) {
+    const links = [], pills = [], unplaced = [];
+    for (const note of plan.notes.filter((n) => n.kind === "event")) {
+      const from = plan.commandAt[`command:${note.aggregate}.${note.command}`];
+      links.push({ d: `M${from.x + from.w},${from.y + from.h / 2} L${note.x},${note.y + note.h / 2}`, cls: "link" });
+    }
+    for (const policy of board.policies) {
+      const source = plan.eventAt[`event:${policy.on}`], target = plan.commandAt[`command:${policy.trigger}`];
+      if (!source || !target) { unplaced.push(policy.name); continue; }
+      const [sx, sy, tx, ty] = [source.x + source.w, source.y + source.h / 2, target.x, target.y + target.h / 2];
+      const forward = tx > sx + 40, reach = forward ? Math.max(60, (tx - sx) / 2) : 90, lift = forward ? 0 : -70;
+      const [c1x, c1y, c2x, c2y] = [sx + reach, sy + lift, tx - reach, ty + lift];
+      links.push({ d: `M${sx},${sy} C${c1x},${c1y} ${c2x},${c2y} ${tx},${ty}`, cls: "link policy" });
+      pills.push({ kind: "policy", key: `policy:${policy.name}`, label: policy.name, at: policy.at, w: NOTE.pillW, h: NOTE.pillH,
+                   x: (sx + 3 * c1x + 3 * c2x + tx) / 8 - NOTE.pillW / 2, y: (sy + 3 * c1y + 3 * c2y + ty) / 8 - NOTE.pillH / 2, policy });
+    }
+    return { links, pills, unplaced };
+  }
+
+  function noteNode(note) {
+    const picked = state.boardSelected === note.key;
+    const target = state.boardConnect && note.kind === "command";
+    const group = svgEl("g", { class: `note ${note.kind}${picked ? " selected" : ""}${target ? " target" : ""}`, transform: `translate(${note.x},${note.y})` });
+    const pill = note.kind === "policy";
+    group.append(svgEl("rect", { width: note.w, height: note.h, rx: pill ? 13 : 4 }), svgEl("text", { x: 8, y: pill ? 17 : 31 }, clip(note.label, pill ? 18 : 17)), svgEl("title", {}, note.label));
+    if (!pill) group.append(svgEl("text", { x: 8, y: 13, class: "kind" }, note.kind));
+    group.onclick = (event) => { event.stopPropagation(); clickNote(note); };
+    return group;
+  }
+
+  function renderBoard() {
+    const svg = $("boardSvg");
+    svg.replaceChildren();
+    const board = state.board;
+    if (!board) {
+      svg.setAttribute("width", 600); svg.setAttribute("height", 60);
+      svg.append(svgEl("text", { x: 20, y: 34, fill: "currentColor" }, "Nothing to draw until the workspace loads."));
+      state.boardIndex = {}; renderBoardActions(); return;
+    }
+    const plan = layoutBoard(board);
+    const { links, pills, unplaced } = boardLinks(board, plan);
+    const notes = [...plan.notes, ...pills];
+    state.boardIndex = Object.fromEntries(notes.map((n) => [n.key, n]));
+    if (state.boardSelect && state.boardIndex[state.boardSelect]) state.boardSelected = state.boardSelect;
+    state.boardSelect = null;
+    svg.setAttribute("width", plan.width); svg.setAttribute("height", plan.height);
+    const arrow = svgEl("marker", { id: "arrow", markerWidth: 8, markerHeight: 8, refX: 7, refY: 4, orient: "auto" });
+    arrow.append(svgEl("path", { d: "M0,0 L8,4 L0,8 z", fill: "currentColor" }));
+    svg.append(svgEl("defs"), ...plan.lanes.map((l) => svgEl("rect", { class: "lane-band", x: 4, y: l.y, width: plan.width - 8, height: l.height, rx: 6 })));
+    svg.firstChild.append(arrow);
+    svg.append(...links.map((l) => svgEl("path", { d: l.d, class: l.cls, "marker-end": "url(#arrow)" })), ...notes.map(noteNode));
+    $("boardHint").textContent = hintFor(unplaced);
+    renderBoardActions();
+  }
+
+  function hintFor(unplaced) {
+    if (state.boardStale) return "The text does not parse yet, so this is the last board that did.";
+    if (state.boardConnect) return "Click the command this event should trigger. Esc cancels.";
+    const extra = unplaced.length ? ` ${unplaced.length} policy note(s) point at something this board cannot place: ${unplaced.join(", ")}.` : "";
+    return `Click a note to see what you can do with it.${extra}`;
+  }
+
+  function clickNote(note) {
+    if (state.boardConnect && note.kind === "command") return askPolicy(state.boardConnect, note);
+    state.boardConnect = null;
+    state.boardSelected = note.key;
+    renderBoard();
+  }
+  $("boardSvg").onclick = () => { state.boardSelected = null; state.boardConnect = null; closeBoardForm(); renderBoard(); };
+  addEventListener("keydown", (e) => { if (e.key === "Escape" && state.boardConnect) { state.boardConnect = null; renderBoard(); } });
+
+  function actionButton(label, run) {
+    return Object.assign(document.createElement("button"), { textContent: label, onclick: run });
+  }
+
+  // The buttons for the selected note; a delete asks twice, so a stray click cannot take a note away.
+  function renderBoardActions() {
+    const note = state.boardIndex && state.boardIndex[state.boardSelected];
+    const box = $("boardActions");
+    box.replaceChildren();
+    if (!note) return;
+    const jump = actionButton("Jump to source", () => { if (note.at) { setMode("editor"); jumpTo(note.at.file, note.at.line); } });
+    const remove = (args, said) => twice("Delete", () => boardEdit("delete", args, null, said));
+    const kinds = {
+      aggregate: () => [actionButton("+ Command", () => askCommand(note)), jump, remove({ kind: "aggregate", name: note.label }, `Deleted ${note.label}.`)],
+      command: () => [actionButton("+ Event", () => askEvent(note)), actionButton("▶ Run", () => runFromGutter(note.aggregate, note.label)), jump, remove({ kind: "command", aggregate: note.aggregate, name: note.label }, `Deleted ${note.label}.`)],
+      event: () => [actionButton("Trigger a command →", () => { state.boardConnect = note; renderBoard(); }), jump,
+                    twice("Delete event", () => boardEdit("delete_event", { aggregate: note.aggregate, command: note.command, name: note.label }, null, `Deleted ${note.label}.`))],
+      policy: () => [jump, remove({ kind: "policy", name: note.label }, `Deleted ${note.label}.`)]
+    };
+    box.append(...kinds[note.kind]());
+  }
+
+  function twice(label, run) {
+    const button = actionButton(label, () => {
+      if (button.dataset.armed) return run();
+      button.dataset.armed = "1"; button.textContent = "Really?";
+      setTimeout(() => { delete button.dataset.armed; button.textContent = label; }, 3500);
+    });
+    return button;
+  }
+
+  function closeBoardForm() { $("boardForm").hidden = true; $("boardForm").replaceChildren(); }
+
+  // A small inline form; its first field is focused, and Enter submits.
+  function boardForm(title, fields, submit) {
+    const form = $("boardForm");
+    form.hidden = false;
+    form.replaceChildren(Object.assign(document.createElement("strong"), { textContent: title }));
+    const inputs = fields.map((f) => Object.assign(document.createElement("input"), { name: f.name, placeholder: f.placeholder, value: f.value || "" }));
+    const cancel = Object.assign(document.createElement("button"), { textContent: "Cancel", type: "button", onclick: closeBoardForm });
+    form.append(...inputs, Object.assign(document.createElement("button"), { textContent: "Add", type: "submit" }), cancel);
+    form.onsubmit = (e) => { e.preventDefault(); const values = Object.fromEntries(inputs.map((i) => [i.name, i.value.trim()])); closeBoardForm(); submit(values); };
+    inputs[0].focus();
+    return inputs;
+  }
+
+  $("boardAddAggregate").onclick = () => boardForm("New aggregate", [{ name: "name", placeholder: "Aggregate, e.g. Invoice" }],
+    (v) => boardEdit("add_aggregate", { name: v.name }, `aggregate:${v.name}`, `Added aggregate ${v.name}.`));
+
+  function askCommand(aggregate) {
+    const [name, event] = boardForm(`New command on ${aggregate.label}`, [{ name: "name", placeholder: "Command, e.g. Close" }, { name: "event", placeholder: "Event it emits, e.g. AccountClosed" }],
+      (v) => boardEdit("add_command", { aggregate: aggregate.label, name: v.name, event: v.event }, `command:${aggregate.label}.${v.name}`, `Added command ${v.name}.`));
+    name.oninput = () => { if (!event.dataset.touched) event.value = name.value ? aggregate.label + past(name.value) : ""; };
+    event.oninput = () => { event.dataset.touched = "1"; };
+  }
+
+  function askEvent(command) {
+    boardForm(`New event from ${command.label}`, [{ name: "name", placeholder: "Event, e.g. BalanceChanged" }],
+      (v) => boardEdit("add_event", { aggregate: command.aggregate, command: command.label, name: v.name }, `event:${command.aggregate}.${v.name}`, `Added event ${v.name}.`));
+  }
+
+  function askPolicy(event, command) {
+    state.boardConnect = null;
+    boardForm(`When ${event.label} happens, trigger ${command.label}`, [{ name: "name", placeholder: "Policy name", value: `${command.label}When${event.label}` }],
+      (v) => boardEdit("add_policy", { name: v.name, on: `${event.aggregate}.${event.label}`, trigger: `${command.aggregate}.${command.label}` }, `policy:${v.name}`, `Added policy ${v.name}.`));
+  }
+
+  // Asks the server for the edit, then puts the patched file into the editor as an ordinary change, so Undo works.
+  async function boardEdit(op, args, select, said) {
+    const message = $("boardMsg");
+    message.className = "";
+    const reply = await api("POST", "board/edit", { buffers: buffers(), op, args });
+    if (reply.error) { message.className = "bad"; message.textContent = reply.error; return; }
+    const doc = state.docs[reply.path];
+    doc.replaceRange(reply.text, { line: 0, ch: 0 }, { line: doc.lastLine(), ch: doc.getLine(doc.lastLine()).length });
+    state.boardSelect = select;
+    if (!select) state.boardSelected = null;
+    message.textContent = `${said} The change is in the editor, unsaved; Ctrl-Z there undoes it.`;
+    changed();
+  }
+
   // Loads the server's workspace into the editor, forgetting whatever the last one left on screen.
   async function loadWorkspace() {
     const { files } = await api("GET", "files");
-    Object.assign(state, { docs: {}, disk: {}, open: null, diagrams: {}, diagnostic: null, badLine: null, outline: [] });
+    Object.assign(state, { docs: {}, disk: {}, open: null, diagrams: {}, diagnostic: null, badLine: null, outline: [],
+                           board: null, boardStale: false, boardSelected: null, boardConnect: null });
     consoleState.commands = [];
     for (const id of ["turns", "changes", "consoleOut", "recordsView", "behaviorsView", "erasView", "jobOut", "timelineView"]) $(id).textContent = "";
     for (const { path, text } of files) { state.disk[path] = text; state.docs[path] = CodeMirror.Doc(text, "ruby"); }

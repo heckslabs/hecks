@@ -83,6 +83,14 @@ RSpec.describe Hecks::Composer::Web, :io do
     expect(delete("file", path: "../ledger.bluebook").status).to eq(400)
   end
 
+  it "carries a board action out as a patched file, and says why when it refuses", :aggregate_failures do
+    added = read(post("board/edit", op: "add_aggregate", args: { name: "Invoice" }))
+    refused = read(post("board/edit", op: "add_aggregate", args: { name: "invoice" }))
+
+    expect(added["text"]).to include('aggregate "Invoice" do')
+    expect(refused["error"]).to include("capital letter")
+  end
+
   it "answers 404 for a route it does not have" do
     expect(request.get("/composer/nothing").status).to eq(404)
   end

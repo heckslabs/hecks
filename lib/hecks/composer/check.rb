@@ -1,6 +1,7 @@
 require "hecks"
 require "hecks/bluebook/model_check"
 require "hecks/runtime/capability_graph"
+require_relative "board"
 
 module Hecks
   module Composer
@@ -17,7 +18,8 @@ module Hecks
       #   refusal), `files` (the workspace's declaration files), `outline` (see {Outline}),
       #   `chapter` (the name drawn), `diagrams` (Mermaid text by file name), `statements` (plain
       #   sentences), `findings` (`{kind:, severity:, subject:, message:}` per model-check
-      #   finding), `wiring` (see {wiring}, nil until the workspace boots) and `elapsed_ms`
+      #   finding), `wiring` (see {wiring}, nil until the workspace boots), `board` (the
+      #   event-storming notes, see {Board}, nil until it boots) and `elapsed_ms`
       def call(dir:, buffers: {}, chapter_name: nil)
         started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         result = Workspace.stage(dir: dir, buffers: buffers) { |stage| judge(stage, chapter_name) }
@@ -47,14 +49,16 @@ module Hecks
       def project(stage, base, name)
         registry = Hecks.boot(stage, install_driving: false, environment: "memory").registry
         chapter = registry.bluebook(name)
-        hecksagon = registry.hecksagon(name)
-        base.merge(
-          chapter:    name,
-          diagrams:   Projections::Diagrams.call(bluebook: chapter, options: { hecksagon: hecksagon }),
+        base.merge(chapter: name, wiring: wiring(registry, name), board: Board.call(chapter, outline: base[:outline]),
+                   **read(chapter, registry.hecksagon(name)))
+      end
+
+      # The diagrams, statements and model-check findings of a booted chapter.
+      # @api private
+      def read(chapter, hecksagon)
+        { diagrams:   Projections::Diagrams.call(bluebook: chapter, options: { hecksagon: hecksagon }),
           statements: Projections::Statements.call(bluebook: chapter),
-          findings:   Bluebook::ModelCheck.call(chapter, hecksagon: hecksagon).map(&:to_h),
-          wiring:     wiring(registry, name)
-        )
+          findings:   Bluebook::ModelCheck.call(chapter, hecksagon: hecksagon).map(&:to_h) }
       end
 
       # What the chapter is wired to: the binds its hecksagon declares, the chapters it attaches,
@@ -78,7 +82,7 @@ module Hecks
       # @api private
       def empty(files, outline)
         { diagnostic: nil, files: files, outline: outline, chapter: nil, diagrams: {}, statements: [],
-          findings: [], wiring: nil }
+          findings: [], wiring: nil, board: nil }
       end
     end
   end

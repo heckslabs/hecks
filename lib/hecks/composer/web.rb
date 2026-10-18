@@ -54,7 +54,8 @@ module Hecks
                  "POST #{PREFIX}/ask" => :ask, "POST #{PREFIX}/open" => :open_domain }.freeze
       PANEL_ROUTES = { "POST #{PREFIX}/live/commands" => :commands, "POST #{PREFIX}/live/dispatch" => :dispatch,
                        "POST #{PREFIX}/live/records" => :records, "POST #{PREFIX}/behaviors" => :behaviors,
-                       "POST #{PREFIX}/timeline" => :timeline, "GET #{PREFIX}/catalog" => :catalog,
+                       "POST #{PREFIX}/timeline" => :timeline, "POST #{PREFIX}/board/edit" => :board_edit,
+                       "GET #{PREFIX}/catalog" => :catalog,
                        "POST #{PREFIX}/help" => :help, "POST #{PREFIX}/run" => :run,
                        "GET #{PREFIX}/eras" => :eras, "POST #{PREFIX}/job" => :start_job,
                        "GET #{PREFIX}/job" => :job_state, "DELETE #{PREFIX}/job" => :cancel_job }.freeze
