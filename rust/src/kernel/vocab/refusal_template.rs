@@ -262,7 +262,10 @@ impl RefusalSite {
 
     /// The row whose `site` is `name`, if any.
     pub fn from_name(name: &str) -> Option<RefusalSite> {
-        RefusalSite::ALL.iter().copied().find(|row| row.site() == name)
+        RefusalSite::ALL
+            .iter()
+            .copied()
+            .find(|row| row.site() == name)
     }
 
     /// `RefusalWording.substitute`: replace every `{key}` marker, in the
@@ -296,7 +299,13 @@ fn list(items: &[&str], sorted: bool, inspect: bool, separator: &str, when_empty
     if items.is_empty() {
         return when_empty.to_string();
     }
-    let write = |item: &&str| if inspect { quoted(item) } else { item.to_string() };
+    let write = |item: &&str| {
+        if inspect {
+            quoted(item)
+        } else {
+            item.to_string()
+        }
+    };
     items.iter().map(write).collect::<Vec<_>>().join(separator)
 }
 
@@ -547,10 +556,8 @@ pub struct NotFoundReadModelReferenceMissingArgs<'a> {
 impl NotFoundReadModelReferenceMissingArgs<'_> {
     /// The site's wording, every argument formatted by its declared row.
     pub fn render_args(&self) -> String {
-        RefusalSite::NotFoundReadModelReferenceMissing.render(&[
-            ("aggregate", self.aggregate),
-            ("offered", self.offered),
-        ])
+        RefusalSite::NotFoundReadModelReferenceMissing
+            .render(&[("aggregate", self.aggregate), ("offered", self.offered)])
     }
 }
 
@@ -566,10 +573,8 @@ pub struct TypeMismatchReadModelObjectReferenceArgs<'a> {
 impl TypeMismatchReadModelObjectReferenceArgs<'_> {
     /// The site's wording, every argument formatted by its declared row.
     pub fn render_args(&self) -> String {
-        RefusalSite::TypeMismatchReadModelObjectReference.render(&[
-            ("query", self.query),
-            ("field", self.field),
-        ])
+        RefusalSite::TypeMismatchReadModelObjectReference
+            .render(&[("query", self.query), ("field", self.field)])
     }
 }
 
@@ -606,10 +611,8 @@ impl UnknownVerbEntityQueryMissingArgs<'_> {
     /// The site's wording, every argument formatted by its declared row.
     pub fn render_args(&self) -> String {
         let query_text = quoted(self.query);
-        RefusalSite::UnknownVerbEntityQueryMissing.render(&[
-            ("entity", self.entity),
-            ("query", query_text.as_str()),
-        ])
+        RefusalSite::UnknownVerbEntityQueryMissing
+            .render(&[("entity", self.entity), ("query", query_text.as_str())])
     }
 }
 
@@ -625,10 +628,8 @@ pub struct UnknownVerbEntityHoldsNoListArgs<'a> {
 impl UnknownVerbEntityHoldsNoListArgs<'_> {
     /// The site's wording, every argument formatted by its declared row.
     pub fn render_args(&self) -> String {
-        RefusalSite::UnknownVerbEntityHoldsNoList.render(&[
-            ("aggregate", self.aggregate),
-            ("entity", self.entity),
-        ])
+        RefusalSite::UnknownVerbEntityHoldsNoList
+            .render(&[("aggregate", self.aggregate), ("entity", self.entity)])
     }
 }
 
@@ -645,10 +646,8 @@ impl UnknownVerbEntityNoCommandArgs<'_> {
     /// The site's wording, every argument formatted by its declared row.
     pub fn render_args(&self) -> String {
         let command_text = quoted(self.command);
-        RefusalSite::UnknownVerbEntityNoCommand.render(&[
-            ("entity", self.entity),
-            ("command", command_text.as_str()),
-        ])
+        RefusalSite::UnknownVerbEntityNoCommand
+            .render(&[("entity", self.entity), ("command", command_text.as_str())])
     }
 }
 
@@ -685,10 +684,8 @@ impl UnknownVerbPortNoOperationArgs<'_> {
     /// The site's wording, every argument formatted by its declared row.
     pub fn render_args(&self) -> String {
         let operation_text = quoted(self.operation);
-        RefusalSite::UnknownVerbPortNoOperation.render(&[
-            ("port", self.port),
-            ("operation", operation_text.as_str()),
-        ])
+        RefusalSite::UnknownVerbPortNoOperation
+            .render(&[("port", self.port), ("operation", operation_text.as_str())])
     }
 }
 
@@ -705,10 +702,8 @@ impl UnknownVerbNoDomainArgs<'_> {
     /// The site's wording, every argument formatted by its declared row.
     pub fn render_args(&self) -> String {
         let domain_text = quoted(self.domain);
-        RefusalSite::UnknownVerbNoDomain.render(&[
-            ("domain", domain_text.as_str()),
-            ("verb", self.verb),
-        ])
+        RefusalSite::UnknownVerbNoDomain
+            .render(&[("domain", domain_text.as_str()), ("verb", self.verb)])
     }
 }
 
@@ -725,10 +720,8 @@ impl UnknownVerbNoReadModelArgs<'_> {
     /// The site's wording, every argument formatted by its declared row.
     pub fn render_args(&self) -> String {
         let query_text = quoted(self.query);
-        RefusalSite::UnknownVerbNoReadModel.render(&[
-            ("domain", self.domain),
-            ("query", query_text.as_str()),
-        ])
+        RefusalSite::UnknownVerbNoReadModel
+            .render(&[("domain", self.domain), ("query", query_text.as_str())])
     }
 }
 
@@ -743,9 +736,7 @@ impl UnknownVerbNotFullyQualifiedArgs<'_> {
     /// The site's wording, every argument formatted by its declared row.
     pub fn render_args(&self) -> String {
         let verb_text = quoted(self.verb);
-        RefusalSite::UnknownVerbNotFullyQualified.render(&[
-            ("verb", verb_text.as_str()),
-        ])
+        RefusalSite::UnknownVerbNotFullyQualified.render(&[("verb", verb_text.as_str())])
     }
 }
 
@@ -852,9 +843,7 @@ pub struct TypeMismatchMultiFieldScalarArgs<'a> {
 impl TypeMismatchMultiFieldScalarArgs<'_> {
     /// The site's wording, every argument formatted by its declared row.
     pub fn render_args(&self) -> String {
-        RefusalSite::TypeMismatchMultiFieldScalar.render(&[
-            ("type", self.r#type),
-        ])
+        RefusalSite::TypeMismatchMultiFieldScalar.render(&[("type", self.r#type)])
     }
 }
 
@@ -868,9 +857,7 @@ pub struct TypeMismatchCompositeIdentityArgs<'a> {
 impl TypeMismatchCompositeIdentityArgs<'_> {
     /// The site's wording, every argument formatted by its declared row.
     pub fn render_args(&self) -> String {
-        RefusalSite::TypeMismatchCompositeIdentity.render(&[
-            ("type", self.r#type),
-        ])
+        RefusalSite::TypeMismatchCompositeIdentity.render(&[("type", self.r#type)])
     }
 }
 
@@ -1024,10 +1011,8 @@ pub struct TypeMismatchArithmeticSharedFieldArgs<'a> {
 impl TypeMismatchArithmeticSharedFieldArgs<'_> {
     /// The site's wording, every argument formatted by its declared row.
     pub fn render_args(&self) -> String {
-        RefusalSite::TypeMismatchArithmeticSharedField.render(&[
-            ("op", self.op),
-            ("target", self.target),
-        ])
+        RefusalSite::TypeMismatchArithmeticSharedField
+            .render(&[("op", self.op), ("target", self.target)])
     }
 }
 
@@ -1162,10 +1147,8 @@ pub struct InvariantViolationUndeclaredSetArgs<'a> {
 impl InvariantViolationUndeclaredSetArgs<'_> {
     /// The site's wording, every argument formatted by its declared row.
     pub fn render_args(&self) -> String {
-        RefusalSite::InvariantViolationUndeclaredSet.render(&[
-            ("name", self.name),
-            ("admits", self.admits),
-        ])
+        RefusalSite::InvariantViolationUndeclaredSet
+            .render(&[("name", self.name), ("admits", self.admits)])
     }
 }
 
@@ -1208,10 +1191,8 @@ pub struct UnauthorizedTenantRequiredArgs<'a> {
 impl UnauthorizedTenantRequiredArgs<'_> {
     /// The site's wording, every argument formatted by its declared row.
     pub fn render_args(&self) -> String {
-        RefusalSite::UnauthorizedTenantRequired.render(&[
-            ("query", self.query),
-            ("field", self.field),
-        ])
+        RefusalSite::UnauthorizedTenantRequired
+            .render(&[("query", self.query), ("field", self.field)])
     }
 }
 
@@ -1283,10 +1264,8 @@ pub struct AttributeAbsentAbsentReadArgs<'a> {
 impl AttributeAbsentAbsentReadArgs<'_> {
     /// The site's wording, every argument formatted by its declared row.
     pub fn render_args(&self) -> String {
-        RefusalSite::AttributeAbsentAbsentRead.render(&[
-            ("aggregate", self.aggregate),
-            ("field", self.field),
-        ])
+        RefusalSite::AttributeAbsentAbsentRead
+            .render(&[("aggregate", self.aggregate), ("field", self.field)])
     }
 }
 
@@ -1336,8 +1315,12 @@ mod tests {
                     (_, None) => {}
                 }
             }
-            let dummies: Vec<(String, String)> = keys.iter().map(|k| (k.clone(), format!("<{k}>"))).collect();
-            let pairs: Vec<(&str, &str)> = dummies.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
+            let dummies: Vec<(String, String)> =
+                keys.iter().map(|k| (k.clone(), format!("<{k}>"))).collect();
+            let pairs: Vec<(&str, &str)> = dummies
+                .iter()
+                .map(|(k, v)| (k.as_str(), v.as_str()))
+                .collect();
             let rendered = site.render(&pairs);
             assert!(
                 !rendered.contains('{') && !rendered.contains('}'),
@@ -1349,7 +1332,12 @@ mod tests {
     #[test]
     fn render_args_matches_ruby_render_site() {
         assert_eq!(
-            NotFoundCreatingNoIdentityArgs { command: "command \"x\"", aggregate: "aggregate \"x\"", identity: "identity \"x\"" }.render_args(),
+            NotFoundCreatingNoIdentityArgs {
+                command: "command \"x\"",
+                aggregate: "aggregate \"x\"",
+                identity: "identity \"x\""
+            }
+            .render_args(),
             "command \"x\" creates a aggregate \"x\" — pass identity \"x\":"
         );
         assert_eq!(
@@ -1357,83 +1345,178 @@ mod tests {
             "command \"x\" creates a aggregate \"x\" that already exists — identity \"x\" offered \"x\""
         );
         assert_eq!(
-            AlreadyExistsEntityDuplicateArgs { entity: "entity \"x\"", aggregate: "aggregate \"x\"", identity: "identity \"x\"", offered: &[] }.render_args(),
+            AlreadyExistsEntityDuplicateArgs {
+                entity: "entity \"x\"",
+                aggregate: "aggregate \"x\"",
+                identity: "identity \"x\"",
+                offered: &[]
+            }
+            .render_args(),
             "a entity \"x\" already exists on aggregate \"x\" — identity \"x\" "
         );
         assert_eq!(
-            AlreadyExistsEntityDuplicateArgs { entity: "entity \"x\"", aggregate: "aggregate \"x\"", identity: "identity \"x\"", offered: &["only \"one\""] }.render_args(),
+            AlreadyExistsEntityDuplicateArgs {
+                entity: "entity \"x\"",
+                aggregate: "aggregate \"x\"",
+                identity: "identity \"x\"",
+                offered: &["only \"one\""]
+            }
+            .render_args(),
             "a entity \"x\" already exists on aggregate \"x\" — identity \"x\" only \"one\""
         );
         assert_eq!(
-            AlreadyExistsEntityDuplicateArgs { entity: "entity \"x\"", aggregate: "aggregate \"x\"", identity: "identity \"x\"", offered: &["zeta", "alpha", "mid"] }.render_args(),
+            AlreadyExistsEntityDuplicateArgs {
+                entity: "entity \"x\"",
+                aggregate: "aggregate \"x\"",
+                identity: "identity \"x\"",
+                offered: &["zeta", "alpha", "mid"]
+            }
+            .render_args(),
             "a entity \"x\" already exists on aggregate \"x\" — identity \"x\" zeta, alpha, mid"
         );
         assert_eq!(
-            NotFoundActingNoIdentityArgs { command: "command \"x\"", aggregate: "aggregate \"x\"", identity: "identity \"x\"" }.render_args(),
+            NotFoundActingNoIdentityArgs {
+                command: "command \"x\"",
+                aggregate: "aggregate \"x\"",
+                identity: "identity \"x\""
+            }
+            .render_args(),
             "command \"x\" acts on an existing aggregate \"x\" — pass identity \"x\":"
         );
         assert_eq!(
-            NotFoundRecordMissingArgs { aggregate: "aggregate \"x\"", identity: "identity \"x\"", offered: "offered \"x\"" }.render_args(),
+            NotFoundRecordMissingArgs {
+                aggregate: "aggregate \"x\"",
+                identity: "identity \"x\"",
+                offered: "offered \"x\""
+            }
+            .render_args(),
             "no aggregate \"x\" with identity \"x\" offered \"x\""
         );
         assert_eq!(
-            NotFoundEntityParentNoIdentityArgs { command: "command \"x\"", aggregate: "aggregate \"x\"", entity: "entity \"x\"", identity: "identity \"x\"" }.render_args(),
+            NotFoundEntityParentNoIdentityArgs {
+                command: "command \"x\"",
+                aggregate: "aggregate \"x\"",
+                entity: "entity \"x\"",
+                identity: "identity \"x\""
+            }
+            .render_args(),
             "command \"x\" acts on a aggregate \"x\"'s entity \"x\" — pass identity \"x\":"
         );
         assert_eq!(
-            UnknownVerbEntityUnknownArgs { aggregate: "aggregate \"x\"", entity: "entity \"x\"" }.render_args(),
+            UnknownVerbEntityUnknownArgs {
+                aggregate: "aggregate \"x\"",
+                entity: "entity \"x\""
+            }
+            .render_args(),
             "aggregate \"x\" has no entity \"entity \\\"x\\\"\""
         );
         assert_eq!(
-            NotFoundEntityElementNoIdentityArgs { command: "command \"x\"", entity: "entity \"x\"", identity: "identity \"x\"" }.render_args(),
+            NotFoundEntityElementNoIdentityArgs {
+                command: "command \"x\"",
+                entity: "entity \"x\"",
+                identity: "identity \"x\""
+            }
+            .render_args(),
             "command \"x\" acts on one entity \"x\" — pass identity \"x\":"
         );
         assert_eq!(
-            NotFoundEntityElementMissingArgs { entity: "entity \"x\"", identity: "identity \"x\"", wants: "wants \"x\"", aggregate: "aggregate \"x\"", parent_id: "parent_id \"x\"" }.render_args(),
+            NotFoundEntityElementMissingArgs {
+                entity: "entity \"x\"",
+                identity: "identity \"x\"",
+                wants: "wants \"x\"",
+                aggregate: "aggregate \"x\"",
+                parent_id: "parent_id \"x\""
+            }
+            .render_args(),
             "no entity \"x\" with identity \"x\" wants \"x\" on aggregate \"x\" parent_id \"x\""
         );
         assert_eq!(
-            NotFoundReferenceTargetMissingArgs { target: "target \"x\"", heads: "heads \"x\"", key: "key \"x\"" }.render_args(),
+            NotFoundReferenceTargetMissingArgs {
+                target: "target \"x\"",
+                heads: "heads \"x\"",
+                key: "key \"x\""
+            }
+            .render_args(),
             "no target \"x\" with heads \"x\" \"key \\\"x\\\"\""
         );
         assert_eq!(
-            NotFoundReadModelReferenceMissingArgs { aggregate: "aggregate \"x\"", offered: "offered \"x\"" }.render_args(),
+            NotFoundReadModelReferenceMissingArgs {
+                aggregate: "aggregate \"x\"",
+                offered: "offered \"x\""
+            }
+            .render_args(),
             "no aggregate \"x\" with reference offered \"x\""
         );
         assert_eq!(
-            TypeMismatchReadModelObjectReferenceArgs { query: "query \"x\"", field: "field \"x\"" }.render_args(),
+            TypeMismatchReadModelObjectReferenceArgs {
+                query: "query \"x\"",
+                field: "field \"x\""
+            }
+            .render_args(),
             "query \"x\" refused — a reference is an id, and field \"x\" arrived as an object"
         );
         assert_eq!(
-            UnknownVerbNoQueryArgs { aggregate: "aggregate \"x\"", query: "query \"x\"" }.render_args(),
+            UnknownVerbNoQueryArgs {
+                aggregate: "aggregate \"x\"",
+                query: "query \"x\""
+            }
+            .render_args(),
             "aggregate \"x\" has no query \"query \\\"x\\\"\""
         );
         assert_eq!(
-            UnknownVerbEntityQueryMissingArgs { entity: "entity \"x\"", query: "query \"x\"" }.render_args(),
+            UnknownVerbEntityQueryMissingArgs {
+                entity: "entity \"x\"",
+                query: "query \"x\""
+            }
+            .render_args(),
             "entity \"x\" has no query \"query \\\"x\\\"\""
         );
         assert_eq!(
-            UnknownVerbEntityHoldsNoListArgs { aggregate: "aggregate \"x\"", entity: "entity \"x\"" }.render_args(),
+            UnknownVerbEntityHoldsNoListArgs {
+                aggregate: "aggregate \"x\"",
+                entity: "entity \"x\""
+            }
+            .render_args(),
             "aggregate \"x\" holds no list of entity \"x\""
         );
         assert_eq!(
-            UnknownVerbEntityNoCommandArgs { entity: "entity \"x\"", command: "command \"x\"" }.render_args(),
+            UnknownVerbEntityNoCommandArgs {
+                entity: "entity \"x\"",
+                command: "command \"x\""
+            }
+            .render_args(),
             "entity \"x\" has no command \"command \\\"x\\\"\""
         );
         assert_eq!(
-            UnknownVerbAggregateNoCommandArgs { aggregate: "aggregate \"x\"", command: "command \"x\"" }.render_args(),
+            UnknownVerbAggregateNoCommandArgs {
+                aggregate: "aggregate \"x\"",
+                command: "command \"x\""
+            }
+            .render_args(),
             "aggregate \"x\" has no command \"command \\\"x\\\"\""
         );
         assert_eq!(
-            UnknownVerbPortNoOperationArgs { port: "port \"x\"", operation: "operation \"x\"" }.render_args(),
+            UnknownVerbPortNoOperationArgs {
+                port: "port \"x\"",
+                operation: "operation \"x\""
+            }
+            .render_args(),
             "port \"x\" has no operation \"operation \\\"x\\\"\""
         );
         assert_eq!(
-            UnknownVerbNoDomainArgs { domain: "domain \"x\"", verb: "verb \"x\"" }.render_args(),
+            UnknownVerbNoDomainArgs {
+                domain: "domain \"x\"",
+                verb: "verb \"x\""
+            }
+            .render_args(),
             "no domain \"domain \\\"x\\\"\" loaded (verb verb \"x\")"
         );
         assert_eq!(
-            UnknownVerbNoReadModelArgs { domain: "domain \"x\"", query: "query \"x\"" }.render_args(),
+            UnknownVerbNoReadModelArgs {
+                domain: "domain \"x\"",
+                query: "query \"x\""
+            }
+            .render_args(),
             "domain \"x\" has no read model \"query \\\"x\\\"\""
         );
         assert_eq!(
@@ -1441,7 +1524,11 @@ mod tests {
             "\"verb \\\"x\\\"\" is not a fully-qualified verb (Domain::Aggregate.Command)"
         );
         assert_eq!(
-            UnknownVerbNoAggregateArgs { domain: "domain \"x\"", aggregate: "aggregate \"x\"" }.render_args(),
+            UnknownVerbNoAggregateArgs {
+                domain: "domain \"x\"",
+                aggregate: "aggregate \"x\""
+            }
+            .render_args(),
             "domain \"x\" has no aggregate \"aggregate \\\"x\\\"\""
         );
         assert_eq!(
@@ -1457,7 +1544,12 @@ mod tests {
             "command \"x\" refused — field \"x\" is current \"x\", and command \"x\" moves it only from \"zeta\" or \"alpha\" or \"mid\""
         );
         assert_eq!(
-            TypeMismatchValueObjectShapeArgs { name: "name \"x\"", r#type: "type \"x\"", offered: "offered \"x\"" }.render_args(),
+            TypeMismatchValueObjectShapeArgs {
+                name: "name \"x\"",
+                r#type: "type \"x\"",
+                offered: "offered \"x\""
+            }
+            .render_args(),
             "name \"x\" is a type \"x\" — pass its fields as an object, not offered \"x\""
         );
         assert_eq!(
@@ -1465,91 +1557,201 @@ mod tests {
             "command \"x\" refused — a reference is an id, and attribute \"x\" arrived as offered \"x\"known_by \"x\""
         );
         assert_eq!(
-            TypeMismatchMultiFieldScalarArgs { r#type: "type \"x\"" }.render_args(),
+            TypeMismatchMultiFieldScalarArgs {
+                r#type: "type \"x\""
+            }
+            .render_args(),
             "type \"x\" has multiple fields and cannot stand in for a scalar"
         );
         assert_eq!(
-            TypeMismatchCompositeIdentityArgs { r#type: "type \"x\"" }.render_args(),
+            TypeMismatchCompositeIdentityArgs {
+                r#type: "type \"x\""
+            }
+            .render_args(),
             "type \"x\" is a composite identity — an identity must have exactly one field"
         );
         assert_eq!(
-            TypeMismatchNumericFieldArgs { r#type: "type \"x\"", field: "field \"x\"", expected: "expected \"x\"", offered: "offered \"x\"" }.render_args(),
+            TypeMismatchNumericFieldArgs {
+                r#type: "type \"x\"",
+                field: "field \"x\"",
+                expected: "expected \"x\"",
+                offered: "offered \"x\""
+            }
+            .render_args(),
             "type \"x\".field \"x\" expects expected \"x\", got offered \"x\""
         );
         assert_eq!(
-            TypeMismatchNonFiniteFieldArgs { r#type: "type \"x\"", field: "field \"x\"", offered: "offered \"x\"" }.render_args(),
+            TypeMismatchNonFiniteFieldArgs {
+                r#type: "type \"x\"",
+                field: "field \"x\"",
+                offered: "offered \"x\""
+            }
+            .render_args(),
             "type \"x\".field \"x\" must be a finite number, got offered \"x\""
         );
         assert_eq!(
-            TypeMismatchIntegerRangeArgs { r#type: "type \"x\"", field: "field \"x\"", offered: "offered \"x\"" }.render_args(),
+            TypeMismatchIntegerRangeArgs {
+                r#type: "type \"x\"",
+                field: "field \"x\"",
+                offered: "offered \"x\""
+            }
+            .render_args(),
             "type \"x\".field \"x\" must fit in a 64-bit integer, got offered \"x\""
         );
         assert_eq!(
-            TypeMismatchPatternMismatchArgs { r#type: "type \"x\"", field: "field \"x\"", pattern: "pattern \"x\"", offered: "offered \"x\"" }.render_args(),
+            TypeMismatchPatternMismatchArgs {
+                r#type: "type \"x\"",
+                field: "field \"x\"",
+                pattern: "pattern \"x\"",
+                offered: "offered \"x\""
+            }
+            .render_args(),
             "type \"x\".field \"x\" must match pattern \"x\", got offered \"x\""
         );
         assert_eq!(
-            TypeMismatchArithmeticAmountArgs { op: "op \"x\"", target: "target \"x\"", offered: "offered \"x\"" }.render_args(),
+            TypeMismatchArithmeticAmountArgs {
+                op: "op \"x\"",
+                target: "target \"x\"",
+                offered: "offered \"x\""
+            }
+            .render_args(),
             "op \"x\" of target \"x\" needs an Integer, got offered \"x\""
         );
         assert_eq!(
-            TypeMismatchArithmeticCurrentArgs { op: "op \"x\"", target: "target \"x\"", offered: "offered \"x\"" }.render_args(),
+            TypeMismatchArithmeticCurrentArgs {
+                op: "op \"x\"",
+                target: "target \"x\"",
+                offered: "offered \"x\""
+            }
+            .render_args(),
             "op \"x\" of target \"x\" needs an Integer target \"x\", got offered \"x\""
         );
         assert_eq!(
-            TypeMismatchArithmeticSharedFieldArgs { op: "op \"x\"", target: "target \"x\"" }.render_args(),
+            TypeMismatchArithmeticSharedFieldArgs {
+                op: "op \"x\"",
+                target: "target \"x\""
+            }
+            .render_args(),
             "op \"x\" of target \"x\" needs a value object with one shared Integer field"
         );
         assert_eq!(
-            UnknownArgumentUnknownArgsArgs { command: "command \"x\"", unknown: &[], declared: &[] }.render_args(),
+            UnknownArgumentUnknownArgsArgs {
+                command: "command \"x\"",
+                unknown: &[],
+                declared: &[]
+            }
+            .render_args(),
             "command \"x\" does not declare  — it takes none"
         );
         assert_eq!(
-            UnknownArgumentUnknownArgsArgs { command: "command \"x\"", unknown: &["only \"one\""], declared: &["only \"one\""] }.render_args(),
+            UnknownArgumentUnknownArgsArgs {
+                command: "command \"x\"",
+                unknown: &["only \"one\""],
+                declared: &["only \"one\""]
+            }
+            .render_args(),
             "command \"x\" does not declare only \"one\" — it takes only \"one\""
         );
         assert_eq!(
-            UnknownArgumentUnknownArgsArgs { command: "command \"x\"", unknown: &["zeta", "alpha", "mid"], declared: &["zeta", "alpha", "mid"] }.render_args(),
+            UnknownArgumentUnknownArgsArgs {
+                command: "command \"x\"",
+                unknown: &["zeta", "alpha", "mid"],
+                declared: &["zeta", "alpha", "mid"]
+            }
+            .render_args(),
             "command \"x\" does not declare alpha, mid, zeta — it takes zeta, alpha, mid"
         );
         assert_eq!(
-            AbsentArgumentAbsentArgsArgs { command: "command \"x\"", absent: &[], declared: &[] }.render_args(),
+            AbsentArgumentAbsentArgsArgs {
+                command: "command \"x\"",
+                absent: &[],
+                declared: &[]
+            }
+            .render_args(),
             "command \"x\" was not given  — it takes none"
         );
         assert_eq!(
-            AbsentArgumentAbsentArgsArgs { command: "command \"x\"", absent: &["only \"one\""], declared: &["only \"one\""] }.render_args(),
+            AbsentArgumentAbsentArgsArgs {
+                command: "command \"x\"",
+                absent: &["only \"one\""],
+                declared: &["only \"one\""]
+            }
+            .render_args(),
             "command \"x\" was not given only \"one\" — it takes only \"one\""
         );
         assert_eq!(
-            AbsentArgumentAbsentArgsArgs { command: "command \"x\"", absent: &["zeta", "alpha", "mid"], declared: &["zeta", "alpha", "mid"] }.render_args(),
+            AbsentArgumentAbsentArgsArgs {
+                command: "command \"x\"",
+                absent: &["zeta", "alpha", "mid"],
+                declared: &["zeta", "alpha", "mid"]
+            }
+            .render_args(),
             "command \"x\" was not given alpha, mid, zeta — it takes zeta, alpha, mid"
         );
         assert_eq!(
-            InvariantViolationClosedSetMemberArgs { r#type: "type \"x\"", admitted: &[], offered: "offered \"x\"" }.render_args(),
+            InvariantViolationClosedSetMemberArgs {
+                r#type: "type \"x\"",
+                admitted: &[],
+                offered: "offered \"x\""
+            }
+            .render_args(),
             "type \"x\" admits  — got offered \"x\""
         );
         assert_eq!(
-            InvariantViolationClosedSetMemberArgs { r#type: "type \"x\"", admitted: &["only \"one\""], offered: "offered \"x\"" }.render_args(),
+            InvariantViolationClosedSetMemberArgs {
+                r#type: "type \"x\"",
+                admitted: &["only \"one\""],
+                offered: "offered \"x\""
+            }
+            .render_args(),
             "type \"x\" admits \"only \\\"one\\\"\" — got offered \"x\""
         );
         assert_eq!(
-            InvariantViolationClosedSetMemberArgs { r#type: "type \"x\"", admitted: &["zeta", "alpha", "mid"], offered: "offered \"x\"" }.render_args(),
+            InvariantViolationClosedSetMemberArgs {
+                r#type: "type \"x\"",
+                admitted: &["zeta", "alpha", "mid"],
+                offered: "offered \"x\""
+            }
+            .render_args(),
             "type \"x\" admits \"zeta\", \"alpha\", \"mid\" — got offered \"x\""
         );
         assert_eq!(
-            InvariantViolationValueObjectInvariantArgs { name: "name \"x\"", description: "description \"x\"", offered: "offered \"x\"" }.render_args(),
+            InvariantViolationValueObjectInvariantArgs {
+                name: "name \"x\"",
+                description: "description \"x\"",
+                offered: "offered \"x\""
+            }
+            .render_args(),
             "name \"x\" invariant violated — description \"x\" (given offered \"x\")"
         );
         assert_eq!(
-            InvariantViolationAdmitsDeclaredSetArgs { name: "name \"x\"", admits: "admits \"x\"", admitted: &[], offered: "offered \"x\"" }.render_args(),
+            InvariantViolationAdmitsDeclaredSetArgs {
+                name: "name \"x\"",
+                admits: "admits \"x\"",
+                admitted: &[],
+                offered: "offered \"x\""
+            }
+            .render_args(),
             "name \"x\" admits admits \"x\" —  — got offered \"x\""
         );
         assert_eq!(
-            InvariantViolationAdmitsDeclaredSetArgs { name: "name \"x\"", admits: "admits \"x\"", admitted: &["only \"one\""], offered: "offered \"x\"" }.render_args(),
+            InvariantViolationAdmitsDeclaredSetArgs {
+                name: "name \"x\"",
+                admits: "admits \"x\"",
+                admitted: &["only \"one\""],
+                offered: "offered \"x\""
+            }
+            .render_args(),
             "name \"x\" admits admits \"x\" — \"only \\\"one\\\"\" — got offered \"x\""
         );
         assert_eq!(
-            InvariantViolationAdmitsDeclaredSetArgs { name: "name \"x\"", admits: "admits \"x\"", admitted: &["zeta", "alpha", "mid"], offered: "offered \"x\"" }.render_args(),
+            InvariantViolationAdmitsDeclaredSetArgs {
+                name: "name \"x\"",
+                admits: "admits \"x\"",
+                admitted: &["zeta", "alpha", "mid"],
+                offered: "offered \"x\""
+            }
+            .render_args(),
             "name \"x\" admits admits \"x\" — \"zeta\", \"alpha\", \"mid\" — got offered \"x\""
         );
         assert_eq!(
@@ -1573,7 +1775,12 @@ mod tests {
             "query \"x\" declares authorize with tenant: field \"x\" — pass field \"x\": to name which field \"x\" this ask is scoped to"
         );
         assert_eq!(
-            UnauthorizedRoleMismatchArgs { command: "command \"x\"", role: "role \"x\"", caller_role: "caller_role \"x\"" }.render_args(),
+            UnauthorizedRoleMismatchArgs {
+                command: "command \"x\"",
+                role: "role \"x\"",
+                caller_role: "caller_role \"x\""
+            }
+            .render_args(),
             "command \"x\" refused — role: role \"x\", and the caller stated caller_role \"x\""
         );
         assert_eq!(

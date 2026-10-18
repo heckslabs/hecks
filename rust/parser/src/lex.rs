@@ -163,12 +163,8 @@ fn strip_comment(line: &str) -> &str {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Opener {
     None,
-    DoBlock {
-        params: Option<String>,
-    },
-    BraceBlock {
-        body: String,
-    },
+    DoBlock { params: Option<String> },
+    BraceBlock { body: String },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -566,10 +562,7 @@ mod tests {
 
     #[test]
     fn does_not_strip_a_bare_lowercase_call() {
-        assert_eq!(
-            strip_aggregate_receiver("attaches \"Governance\""),
-            None
-        );
+        assert_eq!(strip_aggregate_receiver("attaches \"Governance\""), None);
         assert_eq!(strip_aggregate_receiver("subscribe \"Deposited\""), None);
     }
 

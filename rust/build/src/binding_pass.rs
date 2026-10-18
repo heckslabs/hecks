@@ -10,8 +10,16 @@ use crate::lineage_pass;
 use crate::translation_pass;
 
 /// Sets `persistence`, the first of the binding facts, in `TargetIr#call`'s order.
-pub fn run(ir: &mut Json, hecksagon_path: Option<&Path>, world_path: Option<&Path>) -> Result<(), String> {
-    let chapter_name = ir.get("name").and_then(Json::as_str).unwrap_or_default().to_string();
+pub fn run(
+    ir: &mut Json,
+    hecksagon_path: Option<&Path>,
+    world_path: Option<&Path>,
+) -> Result<(), String> {
+    let chapter_name = ir
+        .get("name")
+        .and_then(Json::as_str)
+        .unwrap_or_default()
+        .to_string();
     let persistence = persistence(ir, &chapter_name, hecksagon_path, world_path)?;
     ir.set("persistence", persistence);
     Ok(())
@@ -23,7 +31,11 @@ pub fn run(ir: &mut Json, hecksagon_path: Option<&Path>, world_path: Option<&Pat
 /// `translations` carries each `translations/*.bluebook` edge with its precompiled SQL, from
 /// `translation_pass`; an edge using a rule kind that pass does not compile is refused, never
 /// shipped without its SQL. A `translates` declaration in a bluebook is refused outright.
-pub fn finish(ir: &mut Json, bluebook_files: &[PathBuf], bluebook_dir: &Path) -> Result<(), String> {
+pub fn finish(
+    ir: &mut Json,
+    bluebook_files: &[PathBuf],
+    bluebook_dir: &Path,
+) -> Result<(), String> {
     let mut texts = Vec::new();
     for path in bluebook_files {
         let text = read(path)?;
@@ -35,7 +47,10 @@ pub fn finish(ir: &mut Json, bluebook_files: &[PathBuf], bluebook_dir: &Path) ->
         }
         texts.push(text);
     }
-    ir.set("translations", Json::Array(translation_pass::edges(bluebook_dir)?));
+    ir.set(
+        "translations",
+        Json::Array(translation_pass::edges(bluebook_dir)?),
+    );
     if !texts.is_empty() {
         ir.set("source_text", Json::String(texts.join("\n")));
     }
@@ -47,11 +62,19 @@ fn declares_translation(line: &str) -> bool {
     line.starts_with("translates") || line.starts_with("translation ")
 }
 
-fn persistence(ir: &Json, chapter: &str, hecksagon: Option<&Path>, world: Option<&Path>) -> Result<Json, String> {
+fn persistence(
+    ir: &Json,
+    chapter: &str,
+    hecksagon: Option<&Path>,
+    world: Option<&Path>,
+) -> Result<Json, String> {
     let (binds, hecksagon_default) = match hecksagon {
         Some(path) => {
             let text = read(path)?;
-            (lineage_pass::persistence_binds(&text), domain_default(&text, chapter))
+            (
+                lineage_pass::persistence_binds(&text),
+                domain_default(&text, chapter),
+            )
         }
         None => (HashMap::new(), None),
     };
@@ -62,7 +85,11 @@ fn persistence(ir: &Json, chapter: &str, hecksagon: Option<&Path>, world: Option
     let declared = hecksagon_default.or(world_default);
     let mut aggregates = Vec::new();
     for aggregate in ir.get("aggregates").map(Json::each).unwrap_or(&[]) {
-        let name = aggregate.get("name").and_then(Json::as_str).unwrap_or_default().to_string();
+        let name = aggregate
+            .get("name")
+            .and_then(Json::as_str)
+            .unwrap_or_default()
+            .to_string();
         let adapter = match (binds.get(&name), &declared, hecksagon.is_some()) {
             (Some(adapter), _, _) => adapter.clone(),
             (None, Some(adapter), _) => adapter.clone(),
@@ -73,11 +100,17 @@ fn persistence(ir: &Json, chapter: &str, hecksagon: Option<&Path>, world: Option
         };
         aggregates.push(Json::Object(vec![
             ("name".to_string(), Json::String(name.clone())),
-            ("storage_name".to_string(), Json::String(lineage_pass::snake_case(&name))),
+            (
+                "storage_name".to_string(),
+                Json::String(lineage_pass::snake_case(&name)),
+            ),
             ("adapter".to_string(), Json::String(adapter)),
         ]));
     }
-    Ok(Json::Object(vec![("aggregates".to_string(), Json::Array(aggregates))]))
+    Ok(Json::Object(vec![(
+        "aggregates".to_string(),
+        Json::Array(aggregates),
+    )]))
 }
 
 // The bare `persisted_by "X"` line of the chapter's own `Hecks.hecksagon` block: every aggregate
@@ -90,8 +123,12 @@ fn domain_default(text: &str, chapter: &str) -> Option<String> {
             in_chapter = rest.contains(&format!("\"{chapter}\""));
             continue;
         }
-        let Some(rest) = line.trim_start().strip_prefix("persisted_by ") else { continue };
-        let Some(open) = rest.find('"').filter(|_| in_chapter) else { continue };
+        let Some(rest) = line.trim_start().strip_prefix("persisted_by ") else {
+            continue;
+        };
+        let Some(open) = rest.find('"').filter(|_| in_chapter) else {
+            continue;
+        };
         let quoted = &rest[open + 1..];
         found = quoted.find('"').map(|close| quoted[..close].to_string());
     }

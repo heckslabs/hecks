@@ -63,11 +63,20 @@ impl Clock for ProcessClock {
 
 /// The command's declared needs, each with the type of the attribute of the same name.
 fn declared_needs<'a>(domain_ir: &'a Value, verb: &str) -> Vec<(&'a str, Option<&'a str>)> {
-    let Some((qualified_aggregate, command_name)) = verb.rsplit_once('.') else { return Vec::new() };
-    let aggregate = qualified_aggregate.rsplit("::").next().unwrap_or(qualified_aggregate);
+    let Some((qualified_aggregate, command_name)) = verb.rsplit_once('.') else {
+        return Vec::new();
+    };
+    let aggregate = qualified_aggregate
+        .rsplit("::")
+        .next()
+        .unwrap_or(qualified_aggregate);
     let named = |value: &Value, name: &str| value.get("name").and_then(Value::as_str) == Some(name);
     let list = |value: &'a Value, key: &str| -> Vec<&'a Value> {
-        value.get(key).and_then(Value::as_array).map(|a| a.iter().collect()).unwrap_or_default()
+        value
+            .get(key)
+            .and_then(Value::as_array)
+            .map(|a| a.iter().collect())
+            .unwrap_or_default()
     };
     let mut needs = Vec::new();
     for command in list(domain_ir, "aggregates")
@@ -77,9 +86,15 @@ fn declared_needs<'a>(domain_ir: &'a Value, verb: &str) -> Vec<(&'a str, Option<
         .filter(|c| named(c, command_name))
     {
         let attributes = list(command, "attributes");
-        for fact in list(command, "needs").into_iter().filter_map(|n| n.get("fact").and_then(Value::as_str)) {
-            let attribute_type =
-                attributes.iter().find(|a| named(a, fact)).and_then(|a| a.get("type")).and_then(Value::as_str);
+        for fact in list(command, "needs")
+            .into_iter()
+            .filter_map(|n| n.get("fact").and_then(Value::as_str))
+        {
+            let attribute_type = attributes
+                .iter()
+                .find(|a| named(a, fact))
+                .and_then(|a| a.get("type"))
+                .and_then(Value::as_str);
             needs.push((fact, attribute_type));
         }
     }
@@ -90,13 +105,31 @@ fn declared_needs<'a>(domain_ir: &'a Value, verb: &str) -> Vec<(&'a str, Option<
 /// The kernel answers a reaction's command from this (it has no IR of its own), and the same
 /// step's `occurred_at` keeps the answer the same on replay.
 pub fn table(domain_ir: &Value) -> Value {
-    let domain = domain_ir.get("name").and_then(Value::as_str).unwrap_or_default();
+    let domain = domain_ir
+        .get("name")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
     let mut verbs = serde_json::Map::new();
-    let aggregates = domain_ir.get("aggregates").and_then(Value::as_array).into_iter().flatten();
+    let aggregates = domain_ir
+        .get("aggregates")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten();
     for aggregate in aggregates {
-        let aggregate_name = aggregate.get("name").and_then(Value::as_str).unwrap_or_default();
-        for command in aggregate.get("commands").and_then(Value::as_array).into_iter().flatten() {
-            let command_name = command.get("name").and_then(Value::as_str).unwrap_or_default();
+        let aggregate_name = aggregate
+            .get("name")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        for command in aggregate
+            .get("commands")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+        {
+            let command_name = command
+                .get("name")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
             let verb = format!("{domain}::{aggregate_name}.{command_name}");
             let needs: Vec<Value> = declared_needs(domain_ir, &verb)
                 .into_iter()
@@ -111,7 +144,11 @@ pub fn table(domain_ir: &Value) -> Value {
 }
 
 fn list<'a>(value: &'a Value, key: &str) -> &'a [Value] {
-    value.get(key).and_then(Value::as_array).map(Vec::as_slice).unwrap_or(&[])
+    value
+        .get(key)
+        .and_then(Value::as_array)
+        .map(Vec::as_slice)
+        .unwrap_or(&[])
 }
 
 fn named(value: &Value, name: &str) -> bool {
@@ -125,17 +162,23 @@ fn command_for<'a>(domain_ir: &'a Value, verb: &str) -> Option<&'a Value> {
     let aggregate = segments.next()?.rsplit("::").next()?;
     let mut path: Vec<&str> = segments.collect();
     let command_name = path.pop()?;
-    let mut node = list(domain_ir, "aggregates").iter().find(|a| named(a, aggregate))?;
+    let mut node = list(domain_ir, "aggregates")
+        .iter()
+        .find(|a| named(a, aggregate))?;
     for entity in path {
         node = list(node, "entities").iter().find(|e| named(e, entity))?;
     }
-    list(node, "commands").iter().find(|c| named(c, command_name))
+    list(node, "commands")
+        .iter()
+        .find(|c| named(c, command_name))
 }
 
 /// The command's attributes that declare a default (`attribute :runs, Count, default: 30`), each
 /// with the declared value. An attribute whose default is null declares none.
 fn declared_defaults<'a>(domain_ir: &'a Value, verb: &str) -> Vec<(&'a str, &'a Value)> {
-    let Some(command) = command_for(domain_ir, verb) else { return Vec::new() };
+    let Some(command) = command_for(domain_ir, verb) else {
+        return Vec::new();
+    };
     list(command, "attributes")
         .iter()
         .filter_map(|a| {
@@ -149,28 +192,52 @@ fn declared_defaults<'a>(domain_ir: &'a Value, verb: &str) -> Vec<(&'a str, &'a 
 /// `{ verb: { attribute: value } }`, entity commands included. The kernel fills a reaction's
 /// command from this the same way the host fills the outermost one.
 pub fn defaults_table(domain_ir: &Value) -> Value {
-    let domain = domain_ir.get("name").and_then(Value::as_str).unwrap_or_default();
+    let domain = domain_ir
+        .get("name")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
     let mut verbs = serde_json::Map::new();
     for aggregate in list(domain_ir, "aggregates") {
-        let aggregate_name = aggregate.get("name").and_then(Value::as_str).unwrap_or_default();
-        collect_defaults(domain_ir, aggregate, &format!("{domain}::{aggregate_name}"), &mut verbs);
+        let aggregate_name = aggregate
+            .get("name")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        collect_defaults(
+            domain_ir,
+            aggregate,
+            &format!("{domain}::{aggregate_name}"),
+            &mut verbs,
+        );
     }
     Value::Object(verbs)
 }
 
 /// Adds the defaults of `node`'s commands, then of each entity nested in it, under `prefix`.
-fn collect_defaults(domain_ir: &Value, node: &Value, prefix: &str, verbs: &mut serde_json::Map<String, Value>) {
+fn collect_defaults(
+    domain_ir: &Value,
+    node: &Value,
+    prefix: &str,
+    verbs: &mut serde_json::Map<String, Value>,
+) {
     for command in list(node, "commands") {
-        let command_name = command.get("name").and_then(Value::as_str).unwrap_or_default();
+        let command_name = command
+            .get("name")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
         let verb = format!("{prefix}.{command_name}");
-        let defaults: serde_json::Map<String, Value> =
-            declared_defaults(domain_ir, &verb).into_iter().map(|(name, value)| (name.to_string(), value.clone())).collect();
+        let defaults: serde_json::Map<String, Value> = declared_defaults(domain_ir, &verb)
+            .into_iter()
+            .map(|(name, value)| (name.to_string(), value.clone()))
+            .collect();
         if !defaults.is_empty() {
             verbs.insert(verb, Value::Object(defaults));
         }
     }
     for entity in list(node, "entities") {
-        let entity_name = entity.get("name").and_then(Value::as_str).unwrap_or_default();
+        let entity_name = entity
+            .get("name")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
         collect_defaults(domain_ir, entity, &format!("{prefix}.{entity_name}"), verbs);
     }
 }
@@ -189,8 +256,16 @@ fn answer(fact: &str, attribute_type: Option<&str>, clock: &dyn Clock) -> Option
         // `now` is epoch seconds; `today` the day those fall in, whole days since the epoch (UTC).
         "now" | "today" => {
             let secs = clock.now_secs();
-            let answer = if fact == "today" { secs.div_euclid(86_400) } else { secs };
-            Some(if attribute_type == Some("Integer") { json!(answer) } else { json!({ "value": answer }) })
+            let answer = if fact == "today" {
+                secs.div_euclid(86_400)
+            } else {
+                secs
+            };
+            Some(if attribute_type == Some("Integer") {
+                json!(answer)
+            } else {
+                json!({ "value": answer })
+            })
         }
         _ => None,
     }
@@ -216,9 +291,17 @@ pub fn fill_needs(domain_ir: &Value, verb: &str, args: &mut Value, clock: &dyn C
 
 /// The facts the query `question` (`Domain::Aggregate.Query`) needs, each with the type of the
 /// argument of the same name. An entity's query is not looked up here.
-fn declared_query_needs<'a>(domain_ir: &'a Value, question: &str) -> Vec<(&'a str, Option<&'a str>)> {
-    let Some((qualified_aggregate, query_name)) = question.rsplit_once('.') else { return Vec::new() };
-    let aggregate = qualified_aggregate.rsplit("::").next().unwrap_or(qualified_aggregate);
+fn declared_query_needs<'a>(
+    domain_ir: &'a Value,
+    question: &str,
+) -> Vec<(&'a str, Option<&'a str>)> {
+    let Some((qualified_aggregate, query_name)) = question.rsplit_once('.') else {
+        return Vec::new();
+    };
+    let aggregate = qualified_aggregate
+        .rsplit("::")
+        .next()
+        .unwrap_or(qualified_aggregate);
     let Some(query) = list(domain_ir, "aggregates")
         .iter()
         .find(|a| named(a, aggregate))
@@ -231,8 +314,11 @@ fn declared_query_needs<'a>(domain_ir: &'a Value, question: &str) -> Vec<(&'a st
         .iter()
         .filter_map(|n| n.get("fact").and_then(Value::as_str))
         .map(|fact| {
-            let attribute_type =
-                attributes.iter().find(|a| named(a, fact)).and_then(|a| a.get("type")).and_then(Value::as_str);
+            let attribute_type = attributes
+                .iter()
+                .find(|a| named(a, fact))
+                .and_then(|a| a.get("type"))
+                .and_then(Value::as_str);
             (fact, attribute_type)
         })
         .collect()
@@ -246,7 +332,9 @@ pub fn fill_query_needs(domain_ir: &Value, question: &str, args: &mut Value, clo
     if needs.is_empty() {
         return;
     }
-    let Some(facts) = args.as_object_mut() else { return };
+    let Some(facts) = args.as_object_mut() else {
+        return;
+    };
     for (fact, attribute_type) in needs {
         if facts.contains_key(fact) {
             continue;
@@ -297,9 +385,19 @@ mod tests {
             .unwrap()
             .iter()
             .flat_map(|a| {
-                a["commands"].as_array().unwrap().iter().filter(|c| !c["needs"].as_array().unwrap().is_empty()).map(
-                    move |c| format!("{}::{}.{}", ir["name"].as_str().unwrap(), a["name"].as_str().unwrap(), c["name"].as_str().unwrap()),
-                )
+                a["commands"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .filter(|c| !c["needs"].as_array().unwrap().is_empty())
+                    .map(move |c| {
+                        format!(
+                            "{}::{}.{}",
+                            ir["name"].as_str().unwrap(),
+                            a["name"].as_str().unwrap(),
+                            c["name"].as_str().unwrap()
+                        )
+                    })
             })
             .next()
             .expect("the lease_clock domain declares a command that needs :now")
@@ -309,7 +407,12 @@ mod tests {
     fn a_needed_fact_the_caller_left_out_is_filled_from_the_clock() {
         let ir = lease_ir();
         let mut args = json!({"with": {"holder": "a"}});
-        fill_needs(&ir, &first_needing(&ir), &mut args, &FixedClock(1_700_000_000));
+        fill_needs(
+            &ir,
+            &first_needing(&ir),
+            &mut args,
+            &FixedClock(1_700_000_000),
+        );
         assert_eq!(args["with"]["now"], json!({"value": 1_700_000_000}));
         assert_eq!(args["with"]["holder"], "a");
     }
@@ -355,7 +458,10 @@ mod tests {
     #[test]
     fn the_kernel_table_lists_only_commands_that_need_something() {
         let table = table(&integer_ir());
-        assert_eq!(table, json!({"Qc::Check.Run": [{"fact": "now", "type": "Integer"}]}));
+        assert_eq!(
+            table,
+            json!({"Qc::Check.Run": [{"fact": "now", "type": "Integer"}]})
+        );
         assert_eq!(super::table(&json!({"name": "D"})), json!({}));
     }
 
@@ -383,7 +489,10 @@ mod tests {
         let mut args = json!({"with": {"ref": {"value": "a"}}});
         fill_defaults(&defaulted_ir(), "Qc::Check.Start", &mut args);
         assert_eq!(args["with"]["runs"], 30);
-        assert!(args["with"].get("note").is_none(), "a null default declares none");
+        assert!(
+            args["with"].get("note").is_none(),
+            "a null default declares none"
+        );
     }
 
     #[test]
@@ -412,7 +521,10 @@ mod tests {
 
     #[test]
     fn the_kernel_table_lists_each_command_that_declares_a_default() {
-        assert_eq!(defaults_table(&defaulted_ir()), json!({"Qc::Check.Start": {"runs": 30}}));
+        assert_eq!(
+            defaults_table(&defaulted_ir()),
+            json!({"Qc::Check.Start": {"runs": 30}})
+        );
         assert_eq!(defaults_table(&integer_ir()), json!({}));
     }
 
@@ -467,17 +579,32 @@ mod tests {
     #[test]
     fn a_needed_query_fact_the_caller_left_out_is_filled_from_the_clock() {
         let mut args = json!({});
-        fill_query_needs(&query_ir(), "Lease::Slot.Expired", &mut args, &FixedClock(1_700_000_000));
+        fill_query_needs(
+            &query_ir(),
+            "Lease::Slot.Expired",
+            &mut args,
+            &FixedClock(1_700_000_000),
+        );
         assert_eq!(args["now"], json!({"value": 1_700_000_000}));
     }
 
     #[test]
     fn a_query_value_the_caller_supplied_is_kept_even_when_null() {
         let mut args = json!({"now": null});
-        fill_query_needs(&query_ir(), "Lease::Slot.Expired", &mut args, &FixedClock(5));
+        fill_query_needs(
+            &query_ir(),
+            "Lease::Slot.Expired",
+            &mut args,
+            &FixedClock(5),
+        );
         assert!(args["now"].is_null());
         let mut named = json!({"now": {"value": 9}});
-        fill_query_needs(&query_ir(), "Lease::Slot.Expired", &mut named, &FixedClock(5));
+        fill_query_needs(
+            &query_ir(),
+            "Lease::Slot.Expired",
+            &mut named,
+            &FixedClock(5),
+        );
         assert_eq!(named["now"], json!({"value": 9}));
     }
 
@@ -485,15 +612,30 @@ mod tests {
     fn a_query_that_needs_nothing_or_names_nothing_is_untouched() {
         let mut args = json!({});
         fill_query_needs(&query_ir(), "Lease::Slot.Plain", &mut args, &FixedClock(5));
-        fill_query_needs(&query_ir(), "Lease::Slot.Missing", &mut args, &FixedClock(5));
-        fill_query_needs(&query_ir(), "Lease::Shelf.Expired", &mut args, &FixedClock(5));
+        fill_query_needs(
+            &query_ir(),
+            "Lease::Slot.Missing",
+            &mut args,
+            &FixedClock(5),
+        );
+        fill_query_needs(
+            &query_ir(),
+            "Lease::Shelf.Expired",
+            &mut args,
+            &FixedClock(5),
+        );
         assert_eq!(args, json!({}));
     }
 
     #[test]
     fn today_is_whole_days_since_the_epoch_shaped_for_its_argument() {
         let mut args = json!({});
-        fill_query_needs(&query_ir(), "Lease::Slot.IssuedToday", &mut args, &FixedClock((19_000 * 86_400) + 86_399));
+        fill_query_needs(
+            &query_ir(),
+            "Lease::Slot.IssuedToday",
+            &mut args,
+            &FixedClock((19_000 * 86_400) + 86_399),
+        );
         assert_eq!(args["today"], json!(19_000));
 
         let mut command = json!({"with": {}});

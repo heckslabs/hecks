@@ -52,9 +52,11 @@ impl FieldHint {
 
     /// The row whose `name` is `name`, if any.
     pub fn from_name(name: &str) -> Option<FieldHint> {
-        FieldHint::ALL.iter().copied().find(|row| row.name() == name)
+        FieldHint::ALL
+            .iter()
+            .copied()
+            .find(|row| row.name() == name)
     }
-
 }
 
 #[cfg(test)]

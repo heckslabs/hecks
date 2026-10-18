@@ -29,7 +29,12 @@ impl Literal {
             },
             Json::String(s) => Literal::Str(s.clone()),
             Json::Array(items) => Literal::Array(items.iter().map(Literal::from_json).collect()),
-            Json::Object(pairs) => Literal::Hash(pairs.iter().map(|(k, v)| (k.clone(), Literal::from_json(v))).collect()),
+            Json::Object(pairs) => Literal::Hash(
+                pairs
+                    .iter()
+                    .map(|(k, v)| (k.clone(), Literal::from_json(v)))
+                    .collect(),
+            ),
         }
     }
 
@@ -41,7 +46,10 @@ impl Literal {
     }
 
     pub fn get(&self, key: &str) -> Option<&Literal> {
-        self.as_hash()?.iter().find(|(k, _)| k == key).map(|(_, v)| v)
+        self.as_hash()?
+            .iter()
+            .find(|(k, _)| k == key)
+            .map(|(_, v)| v)
     }
 }
 
@@ -90,8 +98,13 @@ fn is_integer(raw: &str) -> bool {
 /// `/\A-?\d+\.\d+\z/`
 fn is_float(raw: &str) -> bool {
     let s = raw.strip_prefix('-').unwrap_or(raw);
-    let Some((int_part, frac_part)) = s.split_once('.') else { return false };
-    !int_part.is_empty() && !frac_part.is_empty() && int_part.bytes().all(|b| b.is_ascii_digit()) && frac_part.bytes().all(|b| b.is_ascii_digit())
+    let Some((int_part, frac_part)) = s.split_once('.') else {
+        return false;
+    };
+    !int_part.is_empty()
+        && !frac_part.is_empty()
+        && int_part.bytes().all(|b| b.is_ascii_digit())
+        && frac_part.bytes().all(|b| b.is_ascii_digit())
 }
 
 fn ruby_to_i(raw: &str) -> i64 {
@@ -140,7 +153,12 @@ fn read_hash(raw: &str) -> Literal {
 
 fn read_array(raw: &str) -> Literal {
     let inner = &raw[1..raw.len() - 1];
-    Literal::Array(split_items(inner).into_iter().map(|item| read(&item)).collect())
+    Literal::Array(
+        split_items(inner)
+            .into_iter()
+            .map(|item| read(&item))
+            .collect(),
+    )
 }
 
 /// `naming.rb#literal_rhs` for a `Literal`: String/Integer/Float/Boolean, else panics.
@@ -206,5 +224,9 @@ fn split_items(body: &str) -> Vec<String> {
         }
     }
     items.push(current);
-    items.into_iter().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect()
+    items
+        .into_iter()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect()
 }

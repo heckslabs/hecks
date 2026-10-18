@@ -105,7 +105,9 @@ pub struct CompletedCompensation {
 
 // Build refuses two legs on one (event, state) pair, so the first match is the only one.
 fn select_leg<'a>(pm: &'a ProcessManagerDef, event: &str, state: &str) -> Option<&'a Handler> {
-    pm.handlers.iter().find(|h| h.event_type == event && h.from_state == state)
+    pm.handlers
+        .iter()
+        .find(|h| h.event_type == event && h.from_state == state)
 }
 
 fn leg_mismatch(pm: &ProcessManagerDef, event: &str, state: &str) -> String {
@@ -124,7 +126,11 @@ fn correlation_head(correlates_by: &str) -> &str {
 }
 
 // An empty correlation counts as absent, so callers need only one check.
-fn correlation_of(pm: &ProcessManagerDef, event: &Event, reference_key_fn: fn(&str) -> Option<&'static str>) -> Option<String> {
+fn correlation_of(
+    pm: &ProcessManagerDef,
+    event: &Event,
+    reference_key_fn: fn(&str) -> Option<&'static str>,
+) -> Option<String> {
     // Tier 1: a dotted path into the event's payload.
     if let Some(v) = event.payload.dig(pm.correlates_by) {
         if let Ok(id) = v.to_id_component() {
@@ -153,7 +159,13 @@ fn correlation_of(pm: &ProcessManagerDef, event: &Event, reference_key_fn: fn(&s
     }
 }
 
-fn resolve_with(pm: &ProcessManagerDef, value: &WithValue, event: &Event, correlation: &str, memory: &Json) -> Json {
+fn resolve_with(
+    pm: &ProcessManagerDef,
+    value: &WithValue,
+    event: &Event,
+    correlation: &str,
+    memory: &Json,
+) -> Json {
     match value {
         WithValue::Literal(build) => build(),
         WithValue::Ref(name) => {
@@ -178,8 +190,26 @@ fn qualify_saga_command_name(domain_name: &str, command_name: &str) -> String {
     format!("{domain_name}::{}", command_name.replacen("::", ".", 1))
 }
 
-fn build_dispatch_args(pm: &ProcessManagerDef, spec: &DispatchSpec, event: &Event, correlation: &str, memory: &Json, domain_name: &str, tables: &Tables) -> Json {
-    let projected = Json::Object(spec.with.iter().map(|(key, value)| (key.to_string(), resolve_with(pm, value, event, correlation, memory))).collect());
+fn build_dispatch_args(
+    pm: &ProcessManagerDef,
+    spec: &DispatchSpec,
+    event: &Event,
+    correlation: &str,
+    memory: &Json,
+    domain_name: &str,
+    tables: &Tables,
+) -> Json {
+    let projected = Json::Object(
+        spec.with
+            .iter()
+            .map(|(key, value)| {
+                (
+                    key.to_string(),
+                    resolve_with(pm, value, event, correlation, memory),
+                )
+            })
+            .collect(),
+    );
     // A saga leg's `with:` is always an explicit projection. The verb is qualified before the
     // lookup because the tables are keyed by the qualified verb.
     let qualified = qualify_saga_command_name(domain_name, spec.command_name);
@@ -208,7 +238,14 @@ pub struct Tables<'a> {
 #[allow(clippy::too_many_arguments)]
 pub fn orchestrate<S: AggregateScan>(
     store: &mut S,
-    dispatch_fn: fn(&mut S, &str, &Json, Option<&str>, Option<&str>, &mut Vec<MutationRecord>) -> Result<Vec<Event>, Refusal>,
+    dispatch_fn: fn(
+        &mut S,
+        &str,
+        &Json,
+        Option<&str>,
+        Option<&str>,
+        &mut Vec<MutationRecord>,
+    ) -> Result<Vec<Event>, Refusal>,
     tables: Tables<'static>,
     sagas: &mut HashMap<(String, String), SagaInstance>,
     verb: &str,
@@ -234,7 +271,10 @@ pub fn orchestrate<S: AggregateScan>(
 
     if let Some(stamp) = saga_correlation {
         for event in &mut events {
-            event.correlation.get_or_insert_with(HashMap::new).extend(stamp.iter().map(|(k, v)| (k.clone(), v.clone())));
+            event
+                .correlation
+                .get_or_insert_with(HashMap::new)
+                .extend(stamp.iter().map(|(k, v)| (k.clone(), v.clone())));
         }
     }
 
@@ -254,9 +294,35 @@ pub fn orchestrate<S: AggregateScan>(
     for event in events {
         // Saga begin/advance/end run for every event regardless of depth; only the re-entry is
         // depth-gated, inside `react_policies` and `deliver_saga_dispatch`.
-        react_policies(store, dispatch_fn, tables, sagas, &event, occurred_at, depth, all_events, mutations, cross_domain, reaction_log, saga_log);
+        react_policies(
+            store,
+            dispatch_fn,
+            tables,
+            sagas,
+            &event,
+            occurred_at,
+            depth,
+            all_events,
+            mutations,
+            cross_domain,
+            reaction_log,
+            saga_log,
+        );
         begin_saga(tables, sagas, &event, saga_log);
-        advance_saga(store, dispatch_fn, tables, sagas, &event, occurred_at, depth, all_events, mutations, cross_domain, reaction_log, saga_log);
+        advance_saga(
+            store,
+            dispatch_fn,
+            tables,
+            sagas,
+            &event,
+            occurred_at,
+            depth,
+            all_events,
+            mutations,
+            cross_domain,
+            reaction_log,
+            saga_log,
+        );
         end_saga(tables, sagas, &event, saga_log);
     }
 
@@ -321,13 +387,22 @@ fn offer_row_fields(source: &mut Vec<(String, Json)>, row_id: &str, record: &Jso
 
 fn where_holds(where_expr: Option<fn() -> Expr>, event: &Event) -> bool {
     let Some(build) = where_expr else { return true };
-    let ctx = EvalContext { args: &event.payload, instance: &NoFields };
+    let ctx = EvalContext {
+        args: &event.payload,
+        instance: &NoFields,
+    };
     matches!(interpret(&build(), &ctx), Ok(v) if v.truthy())
 }
 
 // An empty `with_spec` forwards the whole payload. `extra` (a fan-out's row key) is merged into
 // the source before projection, not onto its result.
-fn trigger_args(policy: &PolicyRule, event: &Event, extra: Option<(&str, String)>, target_verb: &str, tables: &Tables) -> Json {
+fn trigger_args(
+    policy: &PolicyRule,
+    event: &Event,
+    extra: Option<(&str, String)>,
+    target_verb: &str,
+    tables: &Tables,
+) -> Json {
     trigger_args_with_row(policy, event, extra, None, target_verb, tables)
 }
 
@@ -342,7 +417,11 @@ fn for_each_query_args(def: &named_query::QueryDef, event: &Event, tables: &Tabl
         Json::Object(pairs) => pairs.clone(),
         _ => Vec::new(),
     };
-    let reads = |head: &str| def.conditions.iter().any(|c| matches!(c.value, named_query::QueryConditionValue::Arg(name) if name == head));
+    let reads = |head: &str| {
+        def.conditions
+            .iter()
+            .any(|c| matches!(c.value, named_query::QueryConditionValue::Arg(name) if name == head))
+    };
     if let Some(head) = (tables.identity_head_fn)(&event.aggregate) {
         if !event.id.is_empty() && reads(head) && !args.iter().any(|(name, _)| name == head) {
             args.push((head.to_string(), Json::str(event.id.clone())));
@@ -352,7 +431,12 @@ fn for_each_query_args(def: &named_query::QueryDef, event: &Event, tables: &Tabl
 }
 
 fn trigger_args_with_row(
-    policy: &PolicyRule, event: &Event, extra: Option<(&str, String)>, row: Option<(&str, &Json)>, target_verb: &str, tables: &Tables,
+    policy: &PolicyRule,
+    event: &Event,
+    extra: Option<(&str, String)>,
+    row: Option<(&str, &Json)>,
+    target_verb: &str,
+    tables: &Tables,
 ) -> Json {
     let mut source: Vec<(String, Json)> = match &event.payload {
         Json::Object(pairs) => pairs.clone(),
@@ -373,7 +457,10 @@ fn trigger_args_with_row(
                     // The lifted receiver replaces any `to` the payload carried; that fact never
                     // reaches the target.
                     source.retain(|(name, _)| name != "to");
-                    return Json::obj(vec![("to", Json::str(event.id.clone())), ("with", Json::Object(source))]);
+                    return Json::obj(vec![
+                        ("to", Json::str(event.id.clone())),
+                        ("with", Json::Object(source)),
+                    ]);
                 }
             }
         }
@@ -413,11 +500,15 @@ fn trigger_args_with_row(
     // non-creating target on the same aggregate. Projected facts, even a `to`, stay facts.
     if extra.is_none() && !(tables.command_creates_fn)(target_verb) {
         if let Json::Object(pairs) = &routed {
-            let already_routed = pairs.iter().any(|(k, _)| k == "to") && pairs.iter().any(|(k, _)| k == "with");
+            let already_routed =
+                pairs.iter().any(|(k, _)| k == "to") && pairs.iter().any(|(k, _)| k == "with");
             if !already_routed {
                 if let Some(aggregate_name) = target_verb.rsplit_once('.').map(|(agg, _)| agg) {
                     if aggregate_name == event.aggregate {
-                        return Json::obj(vec![("to", Json::str(event.id.clone())), ("with", routed)]);
+                        return Json::obj(vec![
+                            ("to", Json::str(event.id.clone())),
+                            ("with", routed),
+                        ]);
                     }
                 }
             }
@@ -430,9 +521,15 @@ fn trigger_args_with_row(
 // identity. Composite identities and targets the tables know nothing about stay flat: unknown
 // means don't route. `facts` slices the original pairs to the command's declared attributes.
 fn split_routed_args(projected: Json, target_verb: &str, tables: &Tables) -> Json {
-    let Json::Object(pairs) = projected else { return projected };
+    let Json::Object(pairs) = projected else {
+        return projected;
+    };
     let declared = (tables.command_attributes_fn)(target_verb);
-    let facts: Vec<(String, Json)> = pairs.iter().filter(|(k, _)| declared.contains(&k.as_str())).cloned().collect();
+    let facts: Vec<(String, Json)> = pairs
+        .iter()
+        .filter(|(k, _)| declared.contains(&k.as_str()))
+        .cloned()
+        .collect();
 
     if (tables.command_creates_fn)(target_verb) {
         return Json::Object(facts);
@@ -442,12 +539,17 @@ fn split_routed_args(projected: Json, target_verb: &str, tables: &Tables) -> Jso
         return Json::Object(facts);
     };
 
-    let candidates = [(tables.identity_head_fn)(aggregate_name), (tables.reference_key_fn)(aggregate_name)];
+    let candidates = [
+        (tables.identity_head_fn)(aggregate_name),
+        (tables.reference_key_fn)(aggregate_name),
+    ];
     for key in candidates.into_iter().flatten() {
         if let Some((_, raw_id)) = pairs.iter().find(|(k, _)| k == key) {
             // A value-object identity arrives as `{"value": ...}`; `resolved_id_component`
             // unwraps it.
-            let Some(id) = resolved_id_component(raw_id) else { continue };
+            let Some(id) = resolved_id_component(raw_id) else {
+                continue;
+            };
             return Json::obj(vec![("to", Json::str(id)), ("with", Json::Object(facts))]);
         }
     }
@@ -467,7 +569,13 @@ fn entity_command_paths(target_verb: &str) -> Option<(&str, String)> {
 
 // A value-object field is stored as `{"value": ...}`: try the value as-is, then its `value` once.
 fn resolved_id_component(v: &Json) -> Option<String> {
-    v.to_id_component().ok().or_else(|| v.get("value").and_then(|inner| inner.to_id_component().ok())).filter(|id| !id.is_empty())
+    v.to_id_component()
+        .ok()
+        .or_else(|| {
+            v.get("value")
+                .and_then(|inner| inner.to_id_component().ok())
+        })
+        .filter(|id| !id.is_empty())
 }
 
 // Routes a one-level entity command that `split_routed_args` cannot: the parent aggregate's
@@ -479,29 +587,61 @@ fn route_dispatch_args(projected: Json, target_verb: &str, tables: &Tables, even
         return routed;
     }
 
-    let Some((aggregate_name, entity_qualified)) = entity_command_paths(target_verb) else { return routed };
-    let Json::Object(pairs) = &projected else { return routed };
+    let Some((aggregate_name, entity_qualified)) = entity_command_paths(target_verb) else {
+        return routed;
+    };
+    let Json::Object(pairs) = &projected else {
+        return routed;
+    };
 
     // Entity identity: its identity attribute, present in the `with:` facts by that name.
-    let Some(entity_head) = (tables.entity_identity_head_fn)(&entity_qualified) else { return routed };
-    let Some(entity_id) = pairs.iter().find(|(k, _)| k == entity_head).and_then(|(_, v)| resolved_id_component(v)) else {
+    let Some(entity_head) = (tables.entity_identity_head_fn)(&entity_qualified) else {
+        return routed;
+    };
+    let Some(entity_id) = pairs
+        .iter()
+        .find(|(k, _)| k == entity_head)
+        .and_then(|(_, v)| resolved_id_component(v))
+    else {
         return routed;
     };
 
     // Aggregate identity: a projected identity/reference key, else the triggering event's own id
     // when it is the same aggregate.
-    let candidates = [(tables.identity_head_fn)(aggregate_name), (tables.reference_key_fn)(aggregate_name)];
+    let candidates = [
+        (tables.identity_head_fn)(aggregate_name),
+        (tables.reference_key_fn)(aggregate_name),
+    ];
     let aggregate_id = candidates
         .into_iter()
         .flatten()
-        .find_map(|key| pairs.iter().find(|(k, _)| k == key).and_then(|(_, v)| resolved_id_component(v)))
-        .or_else(|| (event.aggregate == aggregate_name && !event.id.is_empty()).then(|| event.id.clone()));
-    let Some(aggregate_id) = aggregate_id else { return routed };
+        .find_map(|key| {
+            pairs
+                .iter()
+                .find(|(k, _)| k == key)
+                .and_then(|(_, v)| resolved_id_component(v))
+        })
+        .or_else(|| {
+            (event.aggregate == aggregate_name && !event.id.is_empty()).then(|| event.id.clone())
+        });
+    let Some(aggregate_id) = aggregate_id else {
+        return routed;
+    };
 
     let declared = (tables.command_attributes_fn)(target_verb);
-    let facts: Vec<(String, Json)> = pairs.iter().filter(|(k, _)| declared.contains(&k.as_str())).cloned().collect();
+    let facts: Vec<(String, Json)> = pairs
+        .iter()
+        .filter(|(k, _)| declared.contains(&k.as_str()))
+        .cloned()
+        .collect();
     Json::obj(vec![
-        ("to", Json::obj(vec![("aggregate", Json::str(aggregate_id)), ("entities", Json::Array(vec![Json::str(entity_id)]))])),
+        (
+            "to",
+            Json::obj(vec![
+                ("aggregate", Json::str(aggregate_id)),
+                ("entities", Json::Array(vec![Json::str(entity_id)])),
+            ]),
+        ),
         ("with", Json::Object(facts)),
     ])
 }
@@ -509,7 +649,14 @@ fn route_dispatch_args(projected: Json, target_verb: &str, tables: &Tables, even
 #[allow(clippy::too_many_arguments)]
 fn react_policies<S: AggregateScan>(
     store: &mut S,
-    dispatch_fn: fn(&mut S, &str, &Json, Option<&str>, Option<&str>, &mut Vec<MutationRecord>) -> Result<Vec<Event>, Refusal>,
+    dispatch_fn: fn(
+        &mut S,
+        &str,
+        &Json,
+        Option<&str>,
+        Option<&str>,
+        &mut Vec<MutationRecord>,
+    ) -> Result<Vec<Event>, Refusal>,
     tables: Tables<'static>,
     sagas: &mut HashMap<(String, String), SagaInstance>,
     event: &Event,
@@ -521,7 +668,11 @@ fn react_policies<S: AggregateScan>(
     reaction_log: &mut Vec<Json>,
     saga_log: &mut Vec<Json>,
 ) {
-    let emitting = event.aggregate.rsplit("::").next().unwrap_or(event.aggregate.as_str());
+    let emitting = event
+        .aggregate
+        .rsplit("::")
+        .next()
+        .unwrap_or(event.aggregate.as_str());
 
     for policy in tables.policies {
         if policy.event_name != event.name {
@@ -549,7 +700,10 @@ fn react_policies<S: AggregateScan>(
         if depth + 1 >= MAX_REACTION_DEPTH {
             reaction_log.push(record(vec![
                 ("delivered", Json::Bool(false)),
-                ("reason", Json::str(format!("reaction depth {MAX_REACTION_DEPTH} reached"))),
+                (
+                    "reason",
+                    Json::str(format!("reaction depth {MAX_REACTION_DEPTH} reached")),
+                ),
             ]));
             continue;
         }
@@ -591,10 +745,31 @@ fn react_policies<S: AggregateScan>(
                     }
                 };
                 let extra = policy.for_each_key.map(|key| (key, row_id.clone()));
-                let args = trigger_args_with_row(policy, event, extra, Some((row_id.as_str(), &row)), policy.target_verb, &tables);
+                let args = trigger_args_with_row(
+                    policy,
+                    event,
+                    extra,
+                    Some((row_id.as_str(), &row)),
+                    policy.target_verb,
+                    &tables,
+                );
                 let outcome = orchestrate(
-                    store, dispatch_fn, tables, sagas, policy.target_verb, &args, None, None, None, occurred_at, depth + 1,
-                    all_events, mutations, cross_domain, reaction_log, saga_log,
+                    store,
+                    dispatch_fn,
+                    tables,
+                    sagas,
+                    policy.target_verb,
+                    &args,
+                    None,
+                    None,
+                    None,
+                    occurred_at,
+                    depth + 1,
+                    all_events,
+                    mutations,
+                    cross_domain,
+                    reaction_log,
+                    saga_log,
                 );
                 match outcome {
                     Ok(()) => reaction_log.push(row_record(vec![("delivered", Json::Bool(true))])),
@@ -611,8 +786,22 @@ fn react_policies<S: AggregateScan>(
         // caller role, and only saga legs stamp a correlation.
         let args = trigger_args(policy, event, None, policy.target_verb, &tables);
         let outcome = orchestrate(
-            store, dispatch_fn, tables, sagas, policy.target_verb, &args, None, None, None, occurred_at, depth + 1,
-            all_events, mutations, cross_domain, reaction_log, saga_log,
+            store,
+            dispatch_fn,
+            tables,
+            sagas,
+            policy.target_verb,
+            &args,
+            None,
+            None,
+            None,
+            occurred_at,
+            depth + 1,
+            all_events,
+            mutations,
+            cross_domain,
+            reaction_log,
+            saga_log,
         );
         match outcome {
             Ok(()) => reaction_log.push(record(vec![("delivered", Json::Bool(true))])),
@@ -650,7 +839,12 @@ fn react_policies<S: AggregateScan>(
 }
 
 // Silent when `event.name != pm.starts_on` or the instance already exists.
-fn begin_saga(tables: Tables<'static>, sagas: &mut HashMap<(String, String), SagaInstance>, event: &Event, saga_log: &mut Vec<Json>) {
+fn begin_saga(
+    tables: Tables<'static>,
+    sagas: &mut HashMap<(String, String), SagaInstance>,
+    event: &Event,
+    saga_log: &mut Vec<Json>,
+) {
     for pm in tables.process_managers {
         if event.name != pm.starts_on {
             continue;
@@ -661,7 +855,10 @@ fn begin_saga(tables: Tables<'static>, sagas: &mut HashMap<(String, String), Sag
                 ("process_manager", Json::str(pm.name.to_string())),
                 ("on", Json::str(event.name.clone())),
                 ("born", Json::Bool(false)),
-                ("reason", Json::str(format!("no {} in the payload", pm.correlates_by))),
+                (
+                    "reason",
+                    Json::str(format!("no {} in the payload", pm.correlates_by)),
+                ),
             ]));
             continue;
         };
@@ -671,7 +868,14 @@ fn begin_saga(tables: Tables<'static>, sagas: &mut HashMap<(String, String), Sag
             continue;
         }
 
-        sagas.insert(key, SagaInstance { state: pm.initial_state.to_string(), memory: event.payload.clone(), completed_compensations: Vec::new() });
+        sagas.insert(
+            key,
+            SagaInstance {
+                state: pm.initial_state.to_string(),
+                memory: event.payload.clone(),
+                completed_compensations: Vec::new(),
+            },
+        );
         saga_log.push(Json::obj(vec![
             ("process_manager", Json::str(pm.name.to_string())),
             ("on", Json::str(event.name.clone())),
@@ -686,7 +890,14 @@ fn begin_saga(tables: Tables<'static>, sagas: &mut HashMap<(String, String), Sag
 #[allow(clippy::too_many_arguments)]
 fn advance_saga<S: AggregateScan>(
     store: &mut S,
-    dispatch_fn: fn(&mut S, &str, &Json, Option<&str>, Option<&str>, &mut Vec<MutationRecord>) -> Result<Vec<Event>, Refusal>,
+    dispatch_fn: fn(
+        &mut S,
+        &str,
+        &Json,
+        Option<&str>,
+        Option<&str>,
+        &mut Vec<MutationRecord>,
+    ) -> Result<Vec<Event>, Refusal>,
     tables: Tables<'static>,
     sagas: &mut HashMap<(String, String), SagaInstance>,
     event: &Event,
@@ -702,7 +913,9 @@ fn advance_saga<S: AggregateScan>(
         if !pm.handlers.iter().any(|h| h.event_type == event.name) {
             continue;
         }
-        let Some(correlation) = correlation_of(pm, event, tables.reference_key_fn) else { continue };
+        let Some(correlation) = correlation_of(pm, event, tables.reference_key_fn) else {
+            continue;
+        };
 
         let key = (pm.name.to_string(), correlation.clone());
         let record = |extra: Vec<(&str, Json)>| -> Json {
@@ -718,7 +931,10 @@ fn advance_saga<S: AggregateScan>(
         let Some(state) = sagas.get(&key).map(|instance| instance.state.clone()) else {
             saga_log.push(record(vec![
                 ("advanced", Json::Bool(false)),
-                ("reason", Json::str(format!("no conversation remembers {correlation:?}"))),
+                (
+                    "reason",
+                    Json::str(format!("no conversation remembers {correlation:?}")),
+                ),
             ]));
             continue;
         };
@@ -740,17 +956,49 @@ fn advance_saga<S: AggregateScan>(
             ("to", Json::str(handler.to_state.to_string())),
         ]));
 
-        let memory = sagas.get(&key).map(|instance| instance.memory.clone()).unwrap_or(Json::Null);
+        let memory = sagas
+            .get(&key)
+            .map(|instance| instance.memory.clone())
+            .unwrap_or(Json::Null);
         // `event.aggregate` is `{domain}::{aggregate}`, so the domain is read from it.
-        let domain_name = event.aggregate.split("::").next().unwrap_or(&event.aggregate);
+        let domain_name = event
+            .aggregate
+            .split("::")
+            .next()
+            .unwrap_or(&event.aggregate);
         let mut refused = false;
         for spec in handler.dispatches {
-            let args = build_dispatch_args(pm, spec, event, &correlation, &memory, domain_name, &tables);
+            let args =
+                build_dispatch_args(pm, spec, event, &correlation, &memory, domain_name, &tables);
             // Resolved before the forward dispatch: the ledger entry is pushed speculatively.
-            let compensation_args = spec.compensates.map(|r| build_dispatch_args(pm, r, event, &correlation, &memory, domain_name, &tables));
-            let stamp: HashMap<String, String> = [(correlation_head(pm.correlates_by).to_string(), correlation.clone())].into_iter().collect();
+            let compensation_args = spec.compensates.map(|r| {
+                build_dispatch_args(pm, r, event, &correlation, &memory, domain_name, &tables)
+            });
+            let stamp: HashMap<String, String> = [(
+                correlation_head(pm.correlates_by).to_string(),
+                correlation.clone(),
+            )]
+            .into_iter()
+            .collect();
             let delivered = deliver_saga_dispatch(
-                store, dispatch_fn, tables, sagas, pm, spec, domain_name, &args, &correlation, occurred_at, depth, all_events, mutations, cross_domain, reaction_log, saga_log, &stamp, compensation_args,
+                store,
+                dispatch_fn,
+                tables,
+                sagas,
+                pm,
+                spec,
+                domain_name,
+                &args,
+                &correlation,
+                occurred_at,
+                depth,
+                all_events,
+                mutations,
+                cross_domain,
+                reaction_log,
+                saga_log,
+                &stamp,
+                compensation_args,
             );
             if delivered == Some(false) {
                 refused = true;
@@ -758,7 +1006,24 @@ fn advance_saga<S: AggregateScan>(
         }
 
         if refused {
-            compensate(store, dispatch_fn, tables, sagas, pm, &key, event, &correlation, &memory, occurred_at, depth, all_events, mutations, cross_domain, reaction_log, saga_log);
+            compensate(
+                store,
+                dispatch_fn,
+                tables,
+                sagas,
+                pm,
+                &key,
+                event,
+                &correlation,
+                &memory,
+                occurred_at,
+                depth,
+                all_events,
+                mutations,
+                cross_domain,
+                reaction_log,
+                saga_log,
+            );
         }
     }
 }
@@ -769,7 +1034,14 @@ fn advance_saga<S: AggregateScan>(
 #[allow(clippy::too_many_arguments)]
 fn deliver_saga_dispatch<S: AggregateScan>(
     store: &mut S,
-    dispatch_fn: fn(&mut S, &str, &Json, Option<&str>, Option<&str>, &mut Vec<MutationRecord>) -> Result<Vec<Event>, Refusal>,
+    dispatch_fn: fn(
+        &mut S,
+        &str,
+        &Json,
+        Option<&str>,
+        Option<&str>,
+        &mut Vec<MutationRecord>,
+    ) -> Result<Vec<Event>, Refusal>,
     tables: Tables<'static>,
     sagas: &mut HashMap<(String, String), SagaInstance>,
     pm: &ProcessManagerDef,
@@ -801,7 +1073,10 @@ fn deliver_saga_dispatch<S: AggregateScan>(
     if depth + 1 >= MAX_REACTION_DEPTH {
         saga_log.push(record(vec![
             ("delivered", Json::Bool(false)),
-            ("reason", Json::str(format!("reaction depth {MAX_REACTION_DEPTH} reached"))),
+            (
+                "reason",
+                Json::str(format!("reaction depth {MAX_REACTION_DEPTH} reached")),
+            ),
         ]));
         return None;
     }
@@ -813,7 +1088,10 @@ fn deliver_saga_dispatch<S: AggregateScan>(
     let mut compensation_recorded = false;
     if let (Some(compensates_spec), Some(r_args)) = (spec.compensates, compensation_args) {
         if let Some(slot) = sagas.get_mut(&key) {
-            slot.completed_compensations.push(CompletedCompensation { command_name: compensates_spec.command_name.to_string(), args: r_args });
+            slot.completed_compensations.push(CompletedCompensation {
+                command_name: compensates_spec.command_name.to_string(),
+                args: r_args,
+            });
             compensation_recorded = true;
         }
     }
@@ -821,8 +1099,22 @@ fn deliver_saga_dispatch<S: AggregateScan>(
     // System-triggered, so no caller role; `Some(stamp)` stamps every event this dispatch
     // produces.
     let outcome = orchestrate(
-        store, dispatch_fn, tables, sagas, &qualified, args, None, None, Some(stamp), occurred_at, depth + 1,
-        all_events, mutations, cross_domain, reaction_log, saga_log,
+        store,
+        dispatch_fn,
+        tables,
+        sagas,
+        &qualified,
+        args,
+        None,
+        None,
+        Some(stamp),
+        occurred_at,
+        depth + 1,
+        all_events,
+        mutations,
+        cross_domain,
+        reaction_log,
+        saga_log,
     );
     match outcome {
         Ok(()) => {
@@ -852,7 +1144,14 @@ fn deliver_saga_dispatch<S: AggregateScan>(
 #[allow(clippy::too_many_arguments)]
 fn deliver_derived_compensation<S: AggregateScan>(
     store: &mut S,
-    dispatch_fn: fn(&mut S, &str, &Json, Option<&str>, Option<&str>, &mut Vec<MutationRecord>) -> Result<Vec<Event>, Refusal>,
+    dispatch_fn: fn(
+        &mut S,
+        &str,
+        &Json,
+        Option<&str>,
+        Option<&str>,
+        &mut Vec<MutationRecord>,
+    ) -> Result<Vec<Event>, Refusal>,
     tables: Tables<'static>,
     sagas: &mut HashMap<(String, String), SagaInstance>,
     pm: &ProcessManagerDef,
@@ -880,7 +1179,10 @@ fn deliver_derived_compensation<S: AggregateScan>(
     if depth + 1 >= MAX_REACTION_DEPTH {
         saga_log.push(record(vec![
             ("delivered", Json::Bool(false)),
-            ("reason", Json::str(format!("reaction depth {MAX_REACTION_DEPTH} reached"))),
+            (
+                "reason",
+                Json::str(format!("reaction depth {MAX_REACTION_DEPTH} reached")),
+            ),
             ("compensation", Json::Bool(true)),
             ("compensation_failed", Json::Bool(true)),
         ]));
@@ -890,14 +1192,36 @@ fn deliver_derived_compensation<S: AggregateScan>(
     // A compensation's `command_name` is bare on the wire, like a forward dispatch's.
     let qualified = qualify_saga_command_name(domain_name, &entry.command_name);
 
-    let stamp: HashMap<String, String> = [(correlation_head(pm.correlates_by).to_string(), correlation.to_string())].into_iter().collect();
+    let stamp: HashMap<String, String> = [(
+        correlation_head(pm.correlates_by).to_string(),
+        correlation.to_string(),
+    )]
+    .into_iter()
+    .collect();
 
     let outcome = orchestrate(
-        store, dispatch_fn, tables, sagas, &qualified, &entry.args, None, None, Some(&stamp), occurred_at, depth + 1,
-        all_events, mutations, cross_domain, reaction_log, saga_log,
+        store,
+        dispatch_fn,
+        tables,
+        sagas,
+        &qualified,
+        &entry.args,
+        None,
+        None,
+        Some(&stamp),
+        occurred_at,
+        depth + 1,
+        all_events,
+        mutations,
+        cross_domain,
+        reaction_log,
+        saga_log,
     );
     match outcome {
-        Ok(()) => saga_log.push(record(vec![("delivered", Json::Bool(true)), ("compensation", Json::Bool(true))])),
+        Ok(()) => saga_log.push(record(vec![
+            ("delivered", Json::Bool(true)),
+            ("compensation", Json::Bool(true)),
+        ])),
         Err(refusal) => saga_log.push(record(vec![
             ("delivered", Json::Bool(false)),
             ("reason", Json::str(refusal.to_string())),
@@ -908,12 +1232,19 @@ fn deliver_derived_compensation<S: AggregateScan>(
 }
 
 // Silent when `event.name != pm.ends_on`, correlation is absent, or no instance existed.
-fn end_saga(tables: Tables<'static>, sagas: &mut HashMap<(String, String), SagaInstance>, event: &Event, saga_log: &mut Vec<Json>) {
+fn end_saga(
+    tables: Tables<'static>,
+    sagas: &mut HashMap<(String, String), SagaInstance>,
+    event: &Event,
+    saga_log: &mut Vec<Json>,
+) {
     for pm in tables.process_managers {
         if event.name != pm.ends_on {
             continue;
         }
-        let Some(correlation) = correlation_of(pm, event, tables.reference_key_fn) else { continue };
+        let Some(correlation) = correlation_of(pm, event, tables.reference_key_fn) else {
+            continue;
+        };
         let key = (pm.name.to_string(), correlation.clone());
         if sagas.remove(&key).is_none() {
             continue;
@@ -933,7 +1264,14 @@ fn end_saga(tables: Tables<'static>, sagas: &mut HashMap<(String, String), SagaI
 #[allow(clippy::too_many_arguments)]
 fn compensate<S: AggregateScan>(
     store: &mut S,
-    dispatch_fn: fn(&mut S, &str, &Json, Option<&str>, Option<&str>, &mut Vec<MutationRecord>) -> Result<Vec<Event>, Refusal>,
+    dispatch_fn: fn(
+        &mut S,
+        &str,
+        &Json,
+        Option<&str>,
+        Option<&str>,
+        &mut Vec<MutationRecord>,
+    ) -> Result<Vec<Event>, Refusal>,
     tables: Tables<'static>,
     sagas: &mut HashMap<(String, String), SagaInstance>,
     pm: &ProcessManagerDef,
@@ -949,7 +1287,9 @@ fn compensate<S: AggregateScan>(
     reaction_log: &mut Vec<Json>,
     saga_log: &mut Vec<Json>,
 ) {
-    let Some(current_state) = sagas.get(key).map(|instance| instance.state.clone()) else { return };
+    let Some(current_state) = sagas.get(key).map(|instance| instance.state.clone()) else {
+        return;
+    };
     // A process manager with no compensating leg is silent; a state no leg answers from is logged
     // as `advanced: false`.
     if !pm.handlers.iter().any(|h| h.event_type == REFUSED) {
@@ -969,7 +1309,10 @@ fn compensate<S: AggregateScan>(
     let Some(compensation) = select_leg(pm, REFUSED, &current_state) else {
         saga_log.push(record(vec![
             ("advanced", Json::Bool(false)),
-            ("reason", Json::str(leg_mismatch(pm, REFUSED, &current_state))),
+            (
+                "reason",
+                Json::str(leg_mismatch(pm, REFUSED, &current_state)),
+            ),
         ]));
         return;
     };
@@ -983,7 +1326,11 @@ fn compensate<S: AggregateScan>(
         ("to", Json::str(compensation.to_state.to_string())),
     ]));
 
-    let domain_name = event.aggregate.split("::").next().unwrap_or(&event.aggregate);
+    let domain_name = event
+        .aggregate
+        .split("::")
+        .next()
+        .unwrap_or(&event.aggregate);
 
     // Derived compensations first, newest-first. The ledger is re-fetched each iteration, not
     // snapshotted: a nested reaction may push onto it mid-drain. If one removes the instance
@@ -994,15 +1341,55 @@ fn compensate<S: AggregateScan>(
             None => None,
         };
         let Some(entry) = entry else { break };
-        deliver_derived_compensation(store, dispatch_fn, tables, sagas, pm, &entry, domain_name, correlation, occurred_at, depth, all_events, mutations, cross_domain, reaction_log, saga_log);
+        deliver_derived_compensation(
+            store,
+            dispatch_fn,
+            tables,
+            sagas,
+            pm,
+            &entry,
+            domain_name,
+            correlation,
+            occurred_at,
+            depth,
+            all_events,
+            mutations,
+            cross_domain,
+            reaction_log,
+            saga_log,
+        );
     }
 
     for spec in compensation.dispatches {
         let args = build_dispatch_args(pm, spec, event, correlation, memory, domain_name, &tables);
-        let compensation_args = spec.compensates.map(|r| build_dispatch_args(pm, r, event, correlation, memory, domain_name, &tables));
-        let stamp: HashMap<String, String> = [(correlation_head(pm.correlates_by).to_string(), correlation.to_string())].into_iter().collect();
+        let compensation_args = spec
+            .compensates
+            .map(|r| build_dispatch_args(pm, r, event, correlation, memory, domain_name, &tables));
+        let stamp: HashMap<String, String> = [(
+            correlation_head(pm.correlates_by).to_string(),
+            correlation.to_string(),
+        )]
+        .into_iter()
+        .collect();
         deliver_saga_dispatch(
-            store, dispatch_fn, tables, sagas, pm, spec, domain_name, &args, correlation, occurred_at, depth, all_events, mutations, cross_domain, reaction_log, saga_log, &stamp, compensation_args,
+            store,
+            dispatch_fn,
+            tables,
+            sagas,
+            pm,
+            spec,
+            domain_name,
+            &args,
+            correlation,
+            occurred_at,
+            depth,
+            all_events,
+            mutations,
+            cross_domain,
+            reaction_log,
+            saga_log,
+            &stamp,
+            compensation_args,
         );
     }
 }
@@ -1067,10 +1454,17 @@ mod tests {
             id: "thing-1".to_string(),
             payload: Json::Object(vec![]),
             occurred_at: None,
-            correlation: Some([("reference".to_string(), "xfer-1".to_string())].into_iter().collect()),
+            correlation: Some(
+                [("reference".to_string(), "xfer-1".to_string())]
+                    .into_iter()
+                    .collect(),
+            ),
         };
 
-        assert_eq!(correlation_of(&pm, &event, no_reference_key), Some("xfer-1".to_string()));
+        assert_eq!(
+            correlation_of(&pm, &event, no_reference_key),
+            Some("xfer-1".to_string())
+        );
     }
 
     #[test]
@@ -1080,12 +1474,25 @@ mod tests {
             name: "SomeEvent".to_string(),
             aggregate: "Domain::Thing".to_string(),
             id: "thing-1".to_string(),
-            payload: Json::Object(vec![("reference".to_string(), Json::Object(vec![("value".to_string(), Json::Str("from-payload".to_string()))]))]),
+            payload: Json::Object(vec![(
+                "reference".to_string(),
+                Json::Object(vec![(
+                    "value".to_string(),
+                    Json::Str("from-payload".to_string()),
+                )]),
+            )]),
             occurred_at: None,
-            correlation: Some([("reference".to_string(), "from-stamp".to_string())].into_iter().collect()),
+            correlation: Some(
+                [("reference".to_string(), "from-stamp".to_string())]
+                    .into_iter()
+                    .collect(),
+            ),
         };
 
-        assert_eq!(correlation_of(&pm, &event, no_reference_key), Some("from-payload".to_string()));
+        assert_eq!(
+            correlation_of(&pm, &event, no_reference_key),
+            Some("from-payload".to_string())
+        );
     }
 
     #[test]
@@ -1097,7 +1504,11 @@ mod tests {
             id: "thing-1".to_string(),
             payload: Json::Object(vec![]),
             occurred_at: None,
-            correlation: Some([("reference".to_string(), String::new())].into_iter().collect()),
+            correlation: Some(
+                [("reference".to_string(), String::new())]
+                    .into_iter()
+                    .collect(),
+            ),
         };
 
         assert_eq!(correlation_of(&pm, &event, no_reference_key), None);
@@ -1106,19 +1517,26 @@ mod tests {
     // The stamping step of `orchestrate`, exercised without a real `dispatch_fn`.
     #[test]
     fn stamping_merges_into_an_existing_correlation_map_rather_than_replacing_it() {
-        let mut events = vec![
-            Event {
-                name: "E".to_string(),
-                aggregate: "Domain::Thing".to_string(),
-                id: "thing-1".to_string(),
-                payload: Json::Null,
-                occurred_at: None,
-                correlation: Some([("already".to_string(), "here".to_string())].into_iter().collect()),
-            },
-        ];
-        let stamp: HashMap<String, String> = [("reference".to_string(), "xfer-1".to_string())].into_iter().collect();
+        let mut events = vec![Event {
+            name: "E".to_string(),
+            aggregate: "Domain::Thing".to_string(),
+            id: "thing-1".to_string(),
+            payload: Json::Null,
+            occurred_at: None,
+            correlation: Some(
+                [("already".to_string(), "here".to_string())]
+                    .into_iter()
+                    .collect(),
+            ),
+        }];
+        let stamp: HashMap<String, String> = [("reference".to_string(), "xfer-1".to_string())]
+            .into_iter()
+            .collect();
         for event in &mut events {
-            event.correlation.get_or_insert_with(HashMap::new).extend(stamp.iter().map(|(k, v)| (k.clone(), v.clone())));
+            event
+                .correlation
+                .get_or_insert_with(HashMap::new)
+                .extend(stamp.iter().map(|(k, v)| (k.clone(), v.clone())));
         }
 
         let correlation = events[0].correlation.as_ref().unwrap();
@@ -1130,8 +1548,22 @@ mod tests {
     #[test]
     fn occurred_at_stamps_every_event_the_same_host_supplied_moment() {
         let mut events = vec![
-            Event { name: "A".to_string(), aggregate: "Domain::Thing".to_string(), id: "t1".to_string(), payload: Json::Null, occurred_at: None, correlation: None },
-            Event { name: "B".to_string(), aggregate: "Domain::Thing".to_string(), id: "t2".to_string(), payload: Json::Null, occurred_at: None, correlation: None },
+            Event {
+                name: "A".to_string(),
+                aggregate: "Domain::Thing".to_string(),
+                id: "t1".to_string(),
+                payload: Json::Null,
+                occurred_at: None,
+                correlation: None,
+            },
+            Event {
+                name: "B".to_string(),
+                aggregate: "Domain::Thing".to_string(),
+                id: "t2".to_string(),
+                payload: Json::Null,
+                occurred_at: None,
+                correlation: None,
+            },
         ];
         let occurred_at = Some("2026-08-28T00:00:00Z");
 
@@ -1141,13 +1573,26 @@ mod tests {
             }
         }
 
-        assert_eq!(events[0].occurred_at, Some("2026-08-28T00:00:00Z".to_string()));
-        assert_eq!(events[1].occurred_at, Some("2026-08-28T00:00:00Z".to_string()));
+        assert_eq!(
+            events[0].occurred_at,
+            Some("2026-08-28T00:00:00Z".to_string())
+        );
+        assert_eq!(
+            events[1].occurred_at,
+            Some("2026-08-28T00:00:00Z".to_string())
+        );
     }
 
     #[test]
     fn occurred_at_leaves_events_unstamped_when_no_caller_supplied_one() {
-        let mut events = vec![Event { name: "A".to_string(), aggregate: "Domain::Thing".to_string(), id: "t1".to_string(), payload: Json::Null, occurred_at: None, correlation: None }];
+        let mut events = vec![Event {
+            name: "A".to_string(),
+            aggregate: "Domain::Thing".to_string(),
+            id: "t1".to_string(),
+            payload: Json::Null,
+            occurred_at: None,
+            correlation: None,
+        }];
         let occurred_at: Option<&str> = None;
 
         if let Some(ts) = occurred_at {
@@ -1215,32 +1660,58 @@ mod tests {
     }
 
     #[test]
-    fn multi_leg_reentrant_saga_fires_completed_compensations_newest_first_on_a_later_legs_refusal() {
+    fn multi_leg_reentrant_saga_fires_completed_compensations_newest_first_on_a_later_legs_refusal()
+    {
         // `DISPATCH_RA`/`RB` are named statics; the forward legs are inline literals because a
         // static's value cannot be moved into an array (`DispatchSpec` is not `Copy`).
-        static DISPATCH_RA: DispatchSpec = DispatchSpec { command_name: "RA", with: &[], compensates: None };
-        static DISPATCH_RB: DispatchSpec = DispatchSpec { command_name: "RB", with: &[], compensates: None };
+        static DISPATCH_RA: DispatchSpec = DispatchSpec {
+            command_name: "RA",
+            with: &[],
+            compensates: None,
+        };
+        static DISPATCH_RB: DispatchSpec = DispatchSpec {
+            command_name: "RB",
+            with: &[],
+            compensates: None,
+        };
 
         static HANDLERS: &[Handler] = &[
             Handler {
                 event_type: "Started",
                 from_state: "start",
                 to_state: "state1",
-                dispatches: &[DispatchSpec { command_name: "A", with: &[], compensates: Some(&DISPATCH_RA) }],
+                dispatches: &[DispatchSpec {
+                    command_name: "A",
+                    with: &[],
+                    compensates: Some(&DISPATCH_RA),
+                }],
             },
             Handler {
                 event_type: "AEvent",
                 from_state: "state1",
                 to_state: "state2",
-                dispatches: &[DispatchSpec { command_name: "B", with: &[], compensates: Some(&DISPATCH_RB) }],
+                dispatches: &[DispatchSpec {
+                    command_name: "B",
+                    with: &[],
+                    compensates: Some(&DISPATCH_RB),
+                }],
             },
             Handler {
                 event_type: "BEvent",
                 from_state: "state2",
                 to_state: "state3",
-                dispatches: &[DispatchSpec { command_name: "C", with: &[], compensates: None }],
+                dispatches: &[DispatchSpec {
+                    command_name: "C",
+                    with: &[],
+                    compensates: None,
+                }],
             },
-            Handler { event_type: REFUSED, from_state: "state3", to_state: "compensated", dispatches: &[] },
+            Handler {
+                event_type: REFUSED,
+                from_state: "state3",
+                to_state: "compensated",
+                dispatches: &[],
+            },
         ];
 
         static PROCESS_MANAGERS: &[ProcessManagerDef] = &[ProcessManagerDef {
@@ -1293,12 +1764,23 @@ mod tests {
             &mut reaction_log,
             &mut saga_log,
         );
-        assert!(outcome.is_ok(), "top-level Kickoff should not itself refuse: {outcome:?}");
+        assert!(
+            outcome.is_ok(),
+            "top-level Kickoff should not itself refuse: {outcome:?}"
+        );
 
         let key = ("TestMultiLeg".to_string(), "corr-1".to_string());
-        let instance = sagas.get(&key).expect("the saga instance should still exist (it never reaches ends_on)");
-        assert_eq!(instance.state, "compensated", "the saga should have unwound to the on-:refused leg's own to_state");
-        assert!(instance.completed_compensations.is_empty(), "the ledger should be fully drained after compensate runs");
+        let instance = sagas
+            .get(&key)
+            .expect("the saga instance should still exist (it never reaches ends_on)");
+        assert_eq!(
+            instance.state, "compensated",
+            "the saga should have unwound to the on-:refused leg's own to_state"
+        );
+        assert!(
+            instance.completed_compensations.is_empty(),
+            "the ledger should be fully drained after compensate runs"
+        );
 
         let dispatch_entries: Vec<(String, bool, bool)> = saga_log
             .iter()
@@ -1389,13 +1871,19 @@ mod tests {
     // gates see.
     #[test]
     fn a_needed_fact_is_answered_before_the_absent_argument_gate_and_a_supplied_one_is_kept() {
-        let table = Json::parse(r#"{"T::Slot.Lease": [{"fact": "now", "type": "Integer"}]}"#).unwrap();
+        let table =
+            Json::parse(r#"{"T::Slot.Lease": [{"fact": "now", "type": "Integer"}]}"#).unwrap();
         crate::kernel::needs::install(Some(&table));
         crate::kernel::needs::fix_clock(Some(77));
 
         let args = Json::obj(vec![("with", Json::obj(vec![("holder", Json::str("a"))]))]);
         assert!(run_strict_now("T::Slot.Lease", &args, None).is_ok());
-        SEEN.with(|s| assert_eq!(s.borrow().as_ref().unwrap().get("now"), Some(&Json::int(77))));
+        SEEN.with(|s| {
+            assert_eq!(
+                s.borrow().as_ref().unwrap().get("now"),
+                Some(&Json::int(77))
+            )
+        });
 
         let supplied = Json::obj(vec![("with", Json::obj(vec![("now", Json::int(5))]))]);
         assert!(run_strict_now("T::Slot.Lease", &supplied, None).is_ok());
@@ -1438,21 +1926,25 @@ mod tests {
             }]),
             // The qualified, dot-joined shape a generated `registry.rs` arm uses.
             "Test::Manifest.Slot.Fill" => Ok(vec![plain_event("SlotFilled")]),
-            other => panic!("unexpected verb in entity-command qualification test (BUG#9): {other}"),
+            other => {
+                panic!("unexpected verb in entity-command qualification test (BUG#9): {other}")
+            }
         }
     }
 
     #[test]
     fn a_saga_leg_dispatching_a_same_domain_entity_command_is_domain_qualified_and_dot_folded() {
-        static HANDLERS: &[Handler] = &[
-            Handler {
-                event_type: "Started",
-                from_state: "start",
-                to_state: "filling",
-                // Bare on the wire, entity-nested.
-                dispatches: &[DispatchSpec { command_name: "Manifest::Slot.Fill", with: &[], compensates: None }],
-            },
-        ];
+        static HANDLERS: &[Handler] = &[Handler {
+            event_type: "Started",
+            from_state: "start",
+            to_state: "filling",
+            // Bare on the wire, entity-nested.
+            dispatches: &[DispatchSpec {
+                command_name: "Manifest::Slot.Fill",
+                with: &[],
+                compensates: None,
+            }],
+        }];
 
         static PROCESS_MANAGERS: &[ProcessManagerDef] = &[ProcessManagerDef {
             name: "TestPacking",
@@ -1504,7 +1996,10 @@ mod tests {
             &mut reaction_log,
             &mut saga_log,
         );
-        assert!(outcome.is_ok(), "top-level Kickoff should not itself refuse: {outcome:?}");
+        assert!(
+            outcome.is_ok(),
+            "top-level Kickoff should not itself refuse: {outcome:?}"
+        );
 
         let dispatch_entries: Vec<(String, bool)> = saga_log
             .iter()
@@ -1526,11 +2021,23 @@ mod tests {
 
     #[test]
     fn qualify_saga_command_name_folds_a_same_domain_entity_command_reference() {
-        assert_eq!(qualify_saga_command_name("Waybill", "Manifest::Slot.Fill"), "Waybill::Manifest.Slot.Fill");
-        assert_eq!(qualify_saga_command_name("Waybill", "Manifest::Slot.Clear"), "Waybill::Manifest.Slot.Clear");
+        assert_eq!(
+            qualify_saga_command_name("Waybill", "Manifest::Slot.Fill"),
+            "Waybill::Manifest.Slot.Fill"
+        );
+        assert_eq!(
+            qualify_saga_command_name("Waybill", "Manifest::Slot.Clear"),
+            "Waybill::Manifest.Slot.Clear"
+        );
         // A plain aggregate command is only domain-prefixed.
-        assert_eq!(qualify_saga_command_name("Waybill", "Manifest.Open"), "Waybill::Manifest.Open");
-        assert_eq!(qualify_saga_command_name("Waybill", "Manifest.AddSlot"), "Waybill::Manifest.AddSlot");
+        assert_eq!(
+            qualify_saga_command_name("Waybill", "Manifest.Open"),
+            "Waybill::Manifest.Open"
+        );
+        assert_eq!(
+            qualify_saga_command_name("Waybill", "Manifest.AddSlot"),
+            "Waybill::Manifest.AddSlot"
+        );
     }
 
     // Fixture: non-creating `Widgets::Ledger.Grant`, identity head `email`, declared attribute
@@ -1569,38 +2076,67 @@ mod tests {
     }
 
     fn routed_to_a_receiver(id: &str) -> Json {
-        Json::obj(vec![("to", Json::str(id)), ("with", Json::obj(vec![("role", Json::str("Admin"))]))])
+        Json::obj(vec![
+            ("to", Json::str(id)),
+            ("with", Json::obj(vec![("role", Json::str("Admin"))])),
+        ])
     }
 
     #[test]
     fn split_routed_args_routes_a_value_object_identity_as_the_receiver() {
         // A value-object identity is `{"value": ...}` in an event payload and forwards as that
         // object.
-        let projected = Json::obj(vec![("email", Json::obj(vec![("value", Json::str("a@b.co"))])), ("role", Json::str("Admin"))]);
+        let projected = Json::obj(vec![
+            ("email", Json::obj(vec![("value", Json::str("a@b.co"))])),
+            ("role", Json::str("Admin")),
+        ]);
 
-        let routed = split_routed_args(projected, "Widgets::Ledger.Grant", &routed_fixture_tables());
+        let routed =
+            split_routed_args(projected, "Widgets::Ledger.Grant", &routed_fixture_tables());
 
-        assert_eq!(routed, routed_to_a_receiver("a@b.co"), "a VO identity should route as `to` — got {routed:?}");
+        assert_eq!(
+            routed,
+            routed_to_a_receiver("a@b.co"),
+            "a VO identity should route as `to` — got {routed:?}"
+        );
     }
 
     #[test]
     fn split_routed_args_still_routes_a_bare_scalar_identity() {
-        let projected = Json::obj(vec![("email", Json::str("a@b.co")), ("role", Json::str("Admin"))]);
+        let projected = Json::obj(vec![
+            ("email", Json::str("a@b.co")),
+            ("role", Json::str("Admin")),
+        ]);
 
-        let routed = split_routed_args(projected, "Widgets::Ledger.Grant", &routed_fixture_tables());
+        let routed =
+            split_routed_args(projected, "Widgets::Ledger.Grant", &routed_fixture_tables());
 
-        assert_eq!(routed, routed_to_a_receiver("a@b.co"), "a scalar identity should route as `to` — got {routed:?}");
+        assert_eq!(
+            routed,
+            routed_to_a_receiver("a@b.co"),
+            "a scalar identity should route as `to` — got {routed:?}"
+        );
     }
 
     #[test]
     fn split_routed_args_leaves_the_args_flat_when_the_identity_is_empty_or_not_a_value() {
         let flat = Json::obj(vec![("role", Json::str("Admin"))]);
-        let empty = Json::obj(vec![("email", Json::obj(vec![("value", Json::str(""))])), ("role", Json::str("Admin"))]);
-        let unrelated = Json::obj(vec![("email", Json::obj(vec![("other", Json::str("a@b.co"))])), ("role", Json::str("Admin"))]);
+        let empty = Json::obj(vec![
+            ("email", Json::obj(vec![("value", Json::str(""))])),
+            ("role", Json::str("Admin")),
+        ]);
+        let unrelated = Json::obj(vec![
+            ("email", Json::obj(vec![("other", Json::str("a@b.co"))])),
+            ("role", Json::str("Admin")),
+        ]);
 
         for projected in [empty, unrelated] {
-            let routed = split_routed_args(projected, "Widgets::Ledger.Grant", &routed_fixture_tables());
-            assert_eq!(routed, flat, "an unusable identity should leave only the declared facts — got {routed:?}");
+            let routed =
+                split_routed_args(projected, "Widgets::Ledger.Grant", &routed_fixture_tables());
+            assert_eq!(
+                routed, flat,
+                "an unusable identity should leave only the declared facts — got {routed:?}"
+            );
         }
     }
 
@@ -1612,7 +2148,10 @@ mod tests {
         );
         assert_eq!(entity_command_paths("Waybill::Manifest.AddSlot"), None);
         // A two-level entity command is deliberately not routed.
-        assert_eq!(entity_command_paths("Domain::Workspace.Board.Card.Annotate"), None);
+        assert_eq!(
+            entity_command_paths("Domain::Workspace.Board.Card.Annotate"),
+            None
+        );
     }
 
     // Fixture: one-level entity command `Widgets::Crate.Slot.Fill` whose `with:` carries the
@@ -1651,11 +2190,15 @@ mod tests {
     }
 
     #[test]
-    fn route_dispatch_args_threads_the_triggering_events_aggregate_identity_into_a_one_level_entity_commands_route() {
+    fn route_dispatch_args_threads_the_triggering_events_aggregate_identity_into_a_one_level_entity_commands_route(
+    ) {
         // `number` is VO-nested; the parent aggregate's identity comes only from the triggering
         // event.
         let tables = bug10_fixture_tables();
-        let projected = Json::obj(vec![("number", Json::obj(vec![("value", Json::int(7))])), ("item", Json::str("hello"))]);
+        let projected = Json::obj(vec![
+            ("number", Json::obj(vec![("value", Json::int(7))])),
+            ("item", Json::str("hello")),
+        ]);
         let event = Event {
             name: "SlotAdded".to_string(),
             aggregate: "Widgets::Crate".to_string(),
@@ -1679,11 +2222,15 @@ mod tests {
     }
 
     #[test]
-    fn route_dispatch_args_falls_through_unchanged_when_the_triggering_event_is_a_different_aggregate() {
+    fn route_dispatch_args_falls_through_unchanged_when_the_triggering_event_is_a_different_aggregate(
+    ) {
         // The triggering event is a different aggregate, so no receiver may be invented: falls
         // through unrouted.
         let tables = bug10_fixture_tables();
-        let projected = Json::obj(vec![("number", Json::obj(vec![("value", Json::int(7))])), ("item", Json::str("hello"))]);
+        let projected = Json::obj(vec![
+            ("number", Json::obj(vec![("value", Json::int(7))])),
+            ("item", Json::str("hello")),
+        ]);
         let event = Event {
             name: "SomethingElseHappened".to_string(),
             aggregate: "Widgets::OtherThing".to_string(),
@@ -1730,14 +2277,24 @@ mod tests {
     }
 
     #[test]
-    fn a_saga_leg_is_selected_by_event_and_current_state_so_two_legs_on_one_event_are_both_reachable() {
+    fn a_saga_leg_is_selected_by_event_and_current_state_so_two_legs_on_one_event_are_both_reachable(
+    ) {
         static HANDLERS: &[Handler] = &[
-            Handler { event_type: "Scanned", from_state: "posted", to_state: "picked_up", dispatches: &[] },
+            Handler {
+                event_type: "Scanned",
+                from_state: "posted",
+                to_state: "picked_up",
+                dispatches: &[],
+            },
             Handler {
                 event_type: "Scanned",
                 from_state: "picked_up",
                 to_state: "handed_over",
-                dispatches: &[DispatchSpec { command_name: "Deliver", with: &[], compensates: None }],
+                dispatches: &[DispatchSpec {
+                    command_name: "Deliver",
+                    with: &[],
+                    compensates: None,
+                }],
             },
         ];
         static PROCESS_MANAGERS: &[ProcessManagerDef] = &[ProcessManagerDef {
@@ -1799,8 +2356,16 @@ mod tests {
                     return None;
                 }
                 Some((
-                    entry.get("from").and_then(Json::as_str).unwrap_or("").to_string(),
-                    entry.get("to").and_then(Json::as_str).unwrap_or("").to_string(),
+                    entry
+                        .get("from")
+                        .and_then(Json::as_str)
+                        .unwrap_or("")
+                        .to_string(),
+                    entry
+                        .get("to")
+                        .and_then(Json::as_str)
+                        .unwrap_or("")
+                        .to_string(),
                 ))
             })
             .collect();
@@ -1852,7 +2417,11 @@ mod tests {
             event_type: "Legged",
             from_state: "started",
             to_state: "logged",
-            dispatches: &[DispatchSpec { command_name: "Log", with: &[], compensates: None }],
+            dispatches: &[DispatchSpec {
+                command_name: "Log",
+                with: &[],
+                compensates: None,
+            }],
         }];
         static PROCESS_MANAGERS: &[ProcessManagerDef] = &[ProcessManagerDef {
             name: "Route",
@@ -1929,8 +2498,18 @@ mod tests {
     #[test]
     fn a_leg_miss_names_every_from_state_the_event_could_have_answered_from() {
         static HANDLERS: &[Handler] = &[
-            Handler { event_type: "Scanned", from_state: "posted", to_state: "picked_up", dispatches: &[] },
-            Handler { event_type: "Scanned", from_state: "picked_up", to_state: "handed_over", dispatches: &[] },
+            Handler {
+                event_type: "Scanned",
+                from_state: "posted",
+                to_state: "picked_up",
+                dispatches: &[],
+            },
+            Handler {
+                event_type: "Scanned",
+                from_state: "picked_up",
+                to_state: "handed_over",
+                dispatches: &[],
+            },
         ];
         let pm = ProcessManagerDef {
             name: "Delivery",
@@ -1940,8 +2519,14 @@ mod tests {
             initial_state: "posted",
             handlers: HANDLERS,
         };
-        assert_eq!(select_leg(&pm, "Scanned", "picked_up").map(|h| h.to_state), Some("handed_over"));
+        assert_eq!(
+            select_leg(&pm, "Scanned", "picked_up").map(|h| h.to_state),
+            Some("handed_over")
+        );
         assert!(select_leg(&pm, "Scanned", "handed_over").is_none());
-        assert_eq!(leg_mismatch(&pm, "Scanned", "handed_over"), "in \"handed_over\", not \"posted\" or \"picked_up\"");
+        assert_eq!(
+            leg_mismatch(&pm, "Scanned", "handed_over"),
+            "in \"handed_over\", not \"posted\" or \"picked_up\""
+        );
     }
 }

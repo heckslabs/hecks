@@ -13,7 +13,9 @@ pub fn translate(edge_aggregate_raw: &Value, state: &Value) -> anyhow::Result<Va
 
     if let Some(renames) = edge_aggregate_raw.get("renames").and_then(Value::as_object) {
         for (old_name, new_name) in renames {
-            let Some(new_name) = new_name.as_str() else { continue };
+            let Some(new_name) = new_name.as_str() else {
+                continue;
+            };
             if let Some(value) = state.remove(old_name) {
                 state.insert(new_name.to_string(), value);
             }
@@ -32,7 +34,11 @@ pub fn translate(edge_aggregate_raw: &Value, state: &Value) -> anyhow::Result<Va
         for cv in converts {
             let from = cv.get("from").and_then(Value::as_str).unwrap_or_default();
             let to = cv.get("to").and_then(Value::as_str).unwrap_or_default();
-            let values = cv.get("values").and_then(Value::as_array).cloned().unwrap_or_default();
+            let values = cv
+                .get("values")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default();
             apply_convert(&mut state, from, to, &values)?;
         }
     }
@@ -49,17 +55,31 @@ pub fn translate(edge_aggregate_raw: &Value, state: &Value) -> anyhow::Result<Va
     // Runs last, after renames/moves/converts/drops, and only fills a gap nothing
     // already answered — dotted-path aware like the rules above, matching
     // `Lineage#apply_backfill`.
-    if let Some(backfills) = edge_aggregate_raw.get("backfills").and_then(Value::as_array) {
+    if let Some(backfills) = edge_aggregate_raw
+        .get("backfills")
+        .and_then(Value::as_array)
+    {
         for bf in backfills {
-            let Some(name) = bf.get("name").and_then(Value::as_str) else { continue };
+            let Some(name) = bf.get("name").and_then(Value::as_str) else {
+                continue;
+            };
             let (top, member) = split_path(name);
             let already_present = match member {
                 None => state.contains_key(top),
-                Some(member) => state.get(top).and_then(Value::as_object).is_some_and(|obj| obj.contains_key(member)),
+                Some(member) => state
+                    .get(top)
+                    .and_then(Value::as_object)
+                    .is_some_and(|obj| obj.contains_key(member)),
             };
             if !already_present {
                 let default = bf.get("default").cloned().unwrap_or(Value::Null);
-                insert(&mut state, top, member, default, &format!("backfill {name}"))?;
+                insert(
+                    &mut state,
+                    top,
+                    member,
+                    default,
+                    &format!("backfill {name}"),
+                )?;
             }
         }
     }
@@ -94,7 +114,13 @@ fn extract(state: &mut Map<String, Value>, top: &str, member: Option<&str>) -> O
 
 /// Inserts `value` at `top[.member]`. Refuses when `top` already holds a
 /// non-object value, since nesting into it would silently discard that value.
-fn insert(state: &mut Map<String, Value>, top: &str, member: Option<&str>, value: Value, rule: &str) -> anyhow::Result<()> {
+fn insert(
+    state: &mut Map<String, Value>,
+    top: &str,
+    member: Option<&str>,
+    value: Value,
+    rule: &str,
+) -> anyhow::Result<()> {
     let Some(member) = member else {
         state.insert(top.to_string(), value);
         return Ok(());
@@ -109,23 +135,43 @@ fn insert(state: &mut Map<String, Value>, top: &str, member: Option<&str>, value
         }
     }
 
-    state.entry(top.to_string()).or_insert_with(|| Value::Object(Map::new())).as_object_mut().unwrap().insert(member.to_string(), value);
+    state
+        .entry(top.to_string())
+        .or_insert_with(|| Value::Object(Map::new()))
+        .as_object_mut()
+        .unwrap()
+        .insert(member.to_string(), value);
     Ok(())
 }
 
 fn apply_move(state: &mut Map<String, Value>, from: &str, to: &str) -> anyhow::Result<()> {
     let (old_top, old_member) = split_path(from);
     let (new_top, new_member) = split_path(to);
-    let Some(value) = extract(state, old_top, old_member) else { return Ok(()) };
-    insert(state, new_top, new_member, value, &format!("move {from} to: {to}"))
+    let Some(value) = extract(state, old_top, old_member) else {
+        return Ok(());
+    };
+    insert(
+        state,
+        new_top,
+        new_member,
+        value,
+        &format!("move {from} to: {to}"),
+    )
 }
 
 /// A move whose value is looked up in `values` (`[key, value]` pairs, not a
 /// JSON object, since a raw value's type may not be a string); an unmapped value refuses.
-fn apply_convert(state: &mut Map<String, Value>, from: &str, to: &str, values: &[Value]) -> anyhow::Result<()> {
+fn apply_convert(
+    state: &mut Map<String, Value>,
+    from: &str,
+    to: &str,
+    values: &[Value],
+) -> anyhow::Result<()> {
     let (old_top, old_member) = split_path(from);
     let (new_top, new_member) = split_path(to);
-    let Some(raw) = extract(state, old_top, old_member) else { return Ok(()) };
+    let Some(raw) = extract(state, old_top, old_member) else {
+        return Ok(());
+    };
 
     let mapped = values.iter().find_map(|pair| {
         let pair = pair.as_array()?;
@@ -135,7 +181,13 @@ fn apply_convert(state: &mut Map<String, Value>, from: &str, to: &str, values: &
         anyhow::bail!("cannot translate {from}: {raw} has no mapping in its convert's values: table. Add {raw} => ... to cover it.");
     };
 
-    insert(state, new_top, new_member, mapped, &format!("convert {from} to: {to}"))
+    insert(
+        state,
+        new_top,
+        new_member,
+        mapped,
+        &format!("convert {from} to: {to}"),
+    )
 }
 
 #[cfg(test)]
@@ -201,7 +253,8 @@ mod tests {
 
     #[test]
     fn a_convert_meeting_an_unmapped_raw_value_refuses() {
-        let rules = json!({ "converts": [{ "from": "kind", "to": "kind", "values": [["a", "alpha"]] }] });
+        let rules =
+            json!({ "converts": [{ "from": "kind", "to": "kind", "values": [["a", "alpha"]] }] });
         let state = json!({ "kind": "z" });
         let err = translate(&rules, &state).unwrap_err();
         assert!(err.to_string().contains("no mapping"), "{err}");

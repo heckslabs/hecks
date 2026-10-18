@@ -175,12 +175,9 @@ pub fn parse_body(
     loop {
         // Peeked before `next_line`: the grammar row still requires a block for `given`, so a
         // bare reference must be consumed here.
-        if let Some(outcome) = try_reference_named_chapter_entity_given(
-            file,
-            lines,
-            pos,
-            chapter_entity_named_givens,
-        )? {
+        if let Some(outcome) =
+            try_reference_named_chapter_entity_given(file, lines, pos, chapter_entity_named_givens)?
+        {
             match outcome {
                 ChapterEntityGivenLookup::Resolved(given) => {
                     entity.preconditions.push(given.clone());
@@ -359,9 +356,13 @@ pub fn parse_body(
                 }
                 // Chapter-wide pool, keyed by "Aggregate.Entity" plus description.
                 let owner = format!("{aggregate_name}.{name}");
-                if !chapter_entity_named_givens.iter().any(|(candidate_owner, g)| {
-                    candidate_owner == &owner && g.description.as_deref() == Some(description.as_str())
-                }) {
+                if !chapter_entity_named_givens
+                    .iter()
+                    .any(|(candidate_owner, g)| {
+                        candidate_owner == &owner
+                            && g.description.as_deref() == Some(description.as_str())
+                    })
+                {
                     chapter_entity_named_givens.push((owner, built));
                 }
             }
@@ -517,7 +518,13 @@ pub fn parse_body(
         }
     }
 
-    lifecycle::seal_commands(file, *pos, &entity.name, entity.lifecycle.as_ref(), &entity.commands)?;
+    lifecycle::seal_commands(
+        file,
+        *pos,
+        &entity.name,
+        entity.lifecycle.as_ref(),
+        &entity.commands,
+    )?;
 
     Ok((
         entity,

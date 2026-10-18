@@ -24,7 +24,9 @@ pub fn default_roles() -> Vec<String> {
 
 /// Parses the variable's value; `None` (unset) gives the default list.
 pub fn parse(raw: Option<&str>) -> Result<Vec<String>, String> {
-    let Some(raw) = raw else { return Ok(default_roles()) };
+    let Some(raw) = raw else {
+        return Ok(default_roles());
+    };
     let refuse = |why: &str| Err(format!("{VARIABLE} is invalid: {why}"));
     let entries: Vec<&str> = raw.split(',').map(str::trim).collect();
     if entries.len() > MAX_ENTRIES {
@@ -33,13 +35,21 @@ pub fn parse(raw: Option<&str>) -> Result<Vec<String>, String> {
     for (index, entry) in entries.iter().enumerate() {
         let position = index + 1;
         if entry.is_empty() {
-            return refuse(&format!("entry {position} is empty; name at least one role and no blank entries"));
+            return refuse(&format!(
+                "entry {position} is empty; name at least one role and no blank entries"
+            ));
         }
         if entry.len() > MAX_ENTRY_LENGTH {
-            return refuse(&format!("entry {position} is longer than {MAX_ENTRY_LENGTH} characters"));
+            return refuse(&format!(
+                "entry {position} is longer than {MAX_ENTRY_LENGTH} characters"
+            ));
         }
         let starts_well = entry.starts_with(|c: char| c.is_ascii_alphanumeric());
-        if !starts_well || !entry.chars().all(|c| c.is_ascii_alphanumeric() || c == ' ' || c == '-') {
+        if !starts_well
+            || !entry
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == ' ' || c == '-')
+        {
             return refuse(&format!("entry {position} is not a role name: letters, digits, spaces and hyphens only, starting with a letter or digit"));
         }
     }
@@ -48,7 +58,10 @@ pub fn parse(raw: Option<&str>) -> Result<Vec<String>, String> {
 
 /// Reads the setting into `cell` the first time and never again, whatever the environment
 /// does afterwards. `read` stands for the environment lookup.
-pub fn read_once(cell: &OnceLock<Result<Vec<String>, String>>, read: impl FnOnce() -> Option<String>) -> &Result<Vec<String>, String> {
+pub fn read_once(
+    cell: &OnceLock<Result<Vec<String>, String>>,
+    read: impl FnOnce() -> Option<String>,
+) -> &Result<Vec<String>, String> {
     cell.get_or_init(|| parse(read().as_deref()))
 }
 
@@ -112,14 +125,33 @@ mod tests {
     #[test]
     fn no_wildcard_and_no_hierarchy() {
         assert!(parse(Some("*")).is_err());
-        assert!(!manages(&roles(Some("Admin")), "Owner"), "naming Admin does not admit Owner");
+        assert!(
+            !manages(&roles(Some("Admin")), "Owner"),
+            "naming Admin does not admit Owner"
+        );
     }
 
     #[test]
     fn an_invalid_setting_is_refused_naming_the_variable() {
         let too_many = ["Role"; MAX_ENTRIES + 1].join(",");
         let too_long = "A".repeat(MAX_ENTRY_LENGTH + 1);
-        for bad in ["", "   ", ",", "Owner,", ",Owner", "Owner,,Admin", "Own/er", "Owner\nAdmin", "Own\u{7}er", "Admin;Owner", "-Admin", "Ad_min", "Régisseur", too_many.as_str(), too_long.as_str()] {
+        for bad in [
+            "",
+            "   ",
+            ",",
+            "Owner,",
+            ",Owner",
+            "Owner,,Admin",
+            "Own/er",
+            "Owner\nAdmin",
+            "Own\u{7}er",
+            "Admin;Owner",
+            "-Admin",
+            "Ad_min",
+            "Régisseur",
+            too_many.as_str(),
+            too_long.as_str(),
+        ] {
             let message = parse(Some(bad)).expect_err(bad);
             assert!(message.starts_with(VARIABLE), "{message}");
         }

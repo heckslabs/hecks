@@ -12,8 +12,18 @@ use std::collections::HashMap;
 ///
 /// Local entities are checked first: value objects are merged domain-wide, so a same-named
 /// value object (Command's `Argument`) must not shadow Syntax's own `Argument` entity.
-pub fn append_element<'a>(aggregate: &'a Json, target_type: &str, value_objects_by_name: &HashMap<String, &'a Json>) -> Option<&'a Json> {
-    if let Some(local) = aggregate.get("entities").map(Json::each).unwrap_or(&[]).iter().find(|e| e.get("name").and_then(Json::as_str) == Some(target_type)) {
+pub fn append_element<'a>(
+    aggregate: &'a Json,
+    target_type: &str,
+    value_objects_by_name: &HashMap<String, &'a Json>,
+) -> Option<&'a Json> {
+    if let Some(local) = aggregate
+        .get("entities")
+        .map(Json::each)
+        .unwrap_or(&[])
+        .iter()
+        .find(|e| e.get("name").and_then(Json::as_str) == Some(target_type))
+    {
         return Some(local);
     }
     value_objects_by_name.get(target_type).copied()
@@ -21,7 +31,10 @@ pub fn append_element<'a>(aggregate: &'a Json, target_type: &str, value_objects_
 
 /// Returns an entity's identity attribute and its single-field value object, when it can be
 /// auto-minted at append time.
-pub fn entity_identity_mint<'a>(entity: &'a Json, value_objects_by_name: &HashMap<String, &'a Json>) -> Option<(&'a Json, &'a Json)> {
+pub fn entity_identity_mint<'a>(
+    entity: &'a Json,
+    value_objects_by_name: &HashMap<String, &'a Json>,
+) -> Option<(&'a Json, &'a Json)> {
     let identified_by = entity.get("identified_by").map(Json::each).unwrap_or(&[]);
     let id_path = identified_by.first()?.as_str()?;
     let mut parts = id_path.split('.');
@@ -33,7 +46,9 @@ pub fn entity_identity_mint<'a>(entity: &'a Json, value_objects_by_name: &HashMa
 
     let attrs = entity.get("attributes").map(Json::each).unwrap_or(&[]);
     let attr = attrs.iter().find(|a| crate::attr::name(a) == head)?;
-    let vo = value_objects_by_name.get(crate::attr::type_name(attr)).copied()?;
+    let vo = value_objects_by_name
+        .get(crate::attr::type_name(attr))
+        .copied()?;
     if vo.get("closed_set").map(Json::as_bool).unwrap_or(false) {
         return None;
     }
@@ -50,9 +65,20 @@ pub fn entity_identity_mint<'a>(entity: &'a Json, value_objects_by_name: &HashMa
 /// Every `identified_by` head is compared at once (not just the first), so a composite identity
 /// is guarded the same as a single-field one — see `check_entity_collision` in
 /// `entity_element.rb` (Ruby's `heads.all?`).
-pub fn entity_list_replace_guard<'a>(aggregate: &Json, target_attr: &Json, target_field: &str, rhs: &str, value_objects_by_name: &HashMap<String, &'a Json>) -> (String, String) {
+pub fn entity_list_replace_guard<'a>(
+    aggregate: &Json,
+    target_attr: &Json,
+    target_field: &str,
+    rhs: &str,
+    value_objects_by_name: &HashMap<String, &'a Json>,
+) -> (String, String) {
     let target_type = crate::attr::type_name(target_attr);
-    let entity = aggregate.get("entities").map(Json::each).unwrap_or(&[]).iter().find(|e| e.get("name").and_then(Json::as_str) == Some(target_type));
+    let entity = aggregate
+        .get("entities")
+        .map(Json::each)
+        .unwrap_or(&[])
+        .iter()
+        .find(|e| e.get("name").and_then(Json::as_str) == Some(target_type));
     let entity = match entity {
         Some(e) => e,
         None => return (String::new(), rhs.to_string()),
@@ -66,7 +92,12 @@ pub fn entity_list_replace_guard<'a>(aggregate: &Json, target_attr: &Json, targe
     let mut checks = Vec::new();
     let mut offered_exprs = Vec::new();
     for path in identified_by {
-        let id_head = path.to_s().split('.').next().unwrap_or_default().to_string();
+        let id_head = path
+            .to_s()
+            .split('.')
+            .next()
+            .unwrap_or_default()
+            .to_string();
         let id_attr = match attrs.iter().find(|a| crate::attr::name(a) == id_head) {
             Some(a) => a,
             None => return (String::new(), rhs.to_string()),
@@ -77,10 +108,17 @@ pub fn entity_list_replace_guard<'a>(aggregate: &Json, target_attr: &Json, targe
         // Unwrap a single-field identity so `offered` prints the bare scalar, as
         // `Rendering.describe` does; Debug-printing the value object would give
         // `EntrySequence { value: 1 }`.
-        let id_vo = value_objects_by_name.get(crate::attr::type_name(id_attr)).copied();
+        let id_vo = value_objects_by_name
+            .get(crate::attr::type_name(id_attr))
+            .copied();
         let offered_expr = match id_vo {
-            Some(vo) if !vo.get("closed_set").map(Json::as_bool).unwrap_or(false) && vo.get("attributes").map(Json::each).unwrap_or(&[]).len() == 1 => {
-                let inner = naming::rust_ident_field(crate::attr::name(&vo.get("attributes").map(Json::each).unwrap_or(&[])[0]));
+            Some(vo)
+                if !vo.get("closed_set").map(Json::as_bool).unwrap_or(false)
+                    && vo.get("attributes").map(Json::each).unwrap_or(&[]).len() == 1 =>
+            {
+                let inner = naming::rust_ident_field(crate::attr::name(
+                    &vo.get("attributes").map(Json::each).unwrap_or(&[])[0],
+                ));
                 format!("e.{id_field}.{inner}")
             }
             _ => format!("e.{id_field}"),
@@ -89,15 +127,31 @@ pub fn entity_list_replace_guard<'a>(aggregate: &Json, target_attr: &Json, targe
     }
 
     let local_var = format!("replaced_{target_field}");
-    let entity_name = entity.get("name").and_then(Json::as_str).unwrap_or_default();
-    let aggregate_name = aggregate.get("name").and_then(Json::as_str).unwrap_or_default();
-    let identity_reading = identified_by.iter().map(Json::to_s).collect::<Vec<_>>().join(", ");
+    let entity_name = entity
+        .get("name")
+        .and_then(Json::as_str)
+        .unwrap_or_default();
+    let aggregate_name = aggregate
+        .get("name")
+        .and_then(Json::as_str)
+        .unwrap_or_default();
+    let identity_reading = identified_by
+        .iter()
+        .map(Json::to_s)
+        .collect::<Vec<_>>()
+        .join(", ");
     let entity_lit = naming::ruby_inspect_string(entity_name);
     let aggregate_lit = naming::ruby_inspect_string(aggregate_name);
     let identity_lit = naming::ruby_inspect_string(&identity_reading);
     let condition = checks.join(" && ");
-    let offered_lets: Vec<String> = offered_exprs.iter().enumerate().map(|(i, expr)| format!("let offered_{i} = format!(\"{{:?}}\", {expr});")).collect();
-    let offered_refs: Vec<String> = (0..offered_exprs.len()).map(|i| format!("offered_{i}.as_str()")).collect();
+    let offered_lets: Vec<String> = offered_exprs
+        .iter()
+        .enumerate()
+        .map(|(i, expr)| format!("let offered_{i} = format!(\"{{:?}}\", {expr});"))
+        .collect();
+    let offered_refs: Vec<String> = (0..offered_exprs.len())
+        .map(|i| format!("offered_{i}.as_str()"))
+        .collect();
     let guard = format!(
         "let {local_var} = {rhs};\n        for (i, e) in {local_var}.iter().enumerate() {{ if {local_var}[..i].iter().any(|prior| {condition}) {{ {} let offered = [{}]; return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::refusal_wording::AlreadyExistsEntityDuplicateArgs {{ entity: {entity_lit}, aggregate: {aggregate_lit}, identity: {identity_lit}, offered: &offered }}.render_args())); }} }}\n        ",
         offered_lets.join(" "), offered_refs.join(", ")
@@ -140,10 +194,17 @@ fn composite_append_collision_guard(
         // Unwrap a single-field identity component so `offered` prints the bare scalar, as
         // `Rendering.describe` does; Debug-printing the value object would give
         // `LineSequence { value: 654 }`.
-        let vo = value_objects_by_name.get(crate::attr::type_name(field_attr)).copied();
+        let vo = value_objects_by_name
+            .get(crate::attr::type_name(field_attr))
+            .copied();
         let offered_expr = match vo {
-            Some(vo) if !vo.get("closed_set").map(Json::as_bool).unwrap_or(false) && vo.get("attributes").map(Json::each).unwrap_or(&[]).len() == 1 => {
-                let inner = naming::rust_ident_field(crate::attr::name(&vo.get("attributes").map(Json::each).unwrap_or(&[])[0]));
+            Some(vo)
+                if !vo.get("closed_set").map(Json::as_bool).unwrap_or(false)
+                    && vo.get("attributes").map(Json::each).unwrap_or(&[]).len() == 1 =>
+            {
+                let inner = naming::rust_ident_field(crate::attr::name(
+                    &vo.get("attributes").map(Json::each).unwrap_or(&[])[0],
+                ));
                 format!("{rhs}.{inner}")
             }
             _ => rhs,
@@ -151,9 +212,19 @@ fn composite_append_collision_guard(
         offered_exprs.push(offered_expr);
     }
 
-    let entity_name = entity.get("name").and_then(Json::as_str).unwrap_or_default();
-    let aggregate_name = aggregate.get("name").and_then(Json::as_str).unwrap_or_default();
-    let identity_reading = identified_by.iter().map(Json::to_s).collect::<Vec<_>>().join(", ");
+    let entity_name = entity
+        .get("name")
+        .and_then(Json::as_str)
+        .unwrap_or_default();
+    let aggregate_name = aggregate
+        .get("name")
+        .and_then(Json::as_str)
+        .unwrap_or_default();
+    let identity_reading = identified_by
+        .iter()
+        .map(Json::to_s)
+        .collect::<Vec<_>>()
+        .join(", ");
     let entity_lit = naming::ruby_inspect_string(entity_name);
     let aggregate_lit = naming::ruby_inspect_string(aggregate_name);
     let identity_lit = naming::ruby_inspect_string(&identity_reading);
@@ -163,7 +234,9 @@ fn composite_append_collision_guard(
         .enumerate()
         .map(|(i, expr)| format!("let offered_{i} = format!(\"{{:?}}\", {expr});"))
         .collect();
-    let offered_refs: Vec<String> = (0..offered_exprs.len()).map(|i| format!("offered_{i}.as_str()")).collect();
+    let offered_refs: Vec<String> = (0..offered_exprs.len())
+        .map(|i| format!("offered_{i}.as_str()"))
+        .collect();
 
     format!(
         "if record.{target_field}.iter().any(|e| {condition}) {{ {} let offered = [{}]; return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::refusal_wording::AlreadyExistsEntityDuplicateArgs {{ entity: {entity_lit}, aggregate: {aggregate_lit}, identity: {identity_lit}, offered: &offered }}.render_args())); }}\n        ",
@@ -179,14 +252,25 @@ pub fn append_field_source(source: &str) -> Literal {
 /// Whether any effect reads the record's own state (a `state(:field)` source, or an expression that
 /// may name a field), so the closure must bind `let pre`.
 pub fn reads_pre_state(mutations: &[Json]) -> bool {
-    mutations.iter().any(|m| match m.get("op").map(Json::to_s).unwrap_or_default().as_str() {
-        "set" => matches!(m.get("source").and_then(|s| s.get("kind")).map(Json::to_s).unwrap_or_default().as_str(), "state" | "expression"),
-        "append" => match m.get("fields") {
-            Some(Json::Object(pairs)) => pairs.iter().any(|(_, source)| source.to_s().starts_with("state(:")),
+    mutations.iter().any(
+        |m| match m.get("op").map(Json::to_s).unwrap_or_default().as_str() {
+            "set" => matches!(
+                m.get("source")
+                    .and_then(|s| s.get("kind"))
+                    .map(Json::to_s)
+                    .unwrap_or_default()
+                    .as_str(),
+                "state" | "expression"
+            ),
+            "append" => match m.get("fields") {
+                Some(Json::Object(pairs)) => pairs
+                    .iter()
+                    .any(|(_, source)| source.to_s().starts_with("state(:")),
+                _ => false,
+            },
             _ => false,
         },
-        _ => false,
-    })
+    )
 }
 
 pub fn pre_state_line() -> String {
@@ -206,17 +290,34 @@ fn checked_arithmetic(op: &str, field_ident: &str, symbol: &str, amount_expr: &s
     )
 }
 
-pub fn literal_problem(mutation: &Json, field_name: &str, lit: &Literal, field_attr: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Option<String> {
-    if crate::bridging::literal_set_bridgeable(lit, Some(crate::attr::type_name(field_attr)), value_objects_by_name) {
+pub fn literal_problem(
+    mutation: &Json,
+    field_name: &str,
+    lit: &Literal,
+    field_attr: &Json,
+    value_objects_by_name: &HashMap<String, &Json>,
+) -> Option<String> {
+    if crate::bridging::literal_set_bridgeable(
+        lit,
+        Some(crate::attr::type_name(field_attr)),
+        value_objects_by_name,
+    ) {
         return None;
     }
     let target = mutation.get("target").map(Json::to_s).unwrap_or_default();
-    Some(format!("{target}.{field_name}: literal doesn't bridge to {}", crate::attr::type_name(field_attr)))
+    Some(format!(
+        "{target}.{field_name}: literal doesn't bridge to {}",
+        crate::attr::type_name(field_attr)
+    ))
 }
 
 /// Problems with `set`/`append` fields sourced from `state(:field)`: an undeclared state field,
 /// or a type or cardinality that differs from the target's.
-pub fn state_source_problems(command: &Json, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Vec<String> {
+pub fn state_source_problems(
+    command: &Json,
+    aggregate: &Json,
+    value_objects_by_name: &HashMap<String, &Json>,
+) -> Vec<String> {
     let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
     let mutations = command.get("mutations").map(Json::each).unwrap_or(&[]);
     mutations
@@ -226,23 +327,56 @@ pub fn state_source_problems(command: &Json, aggregate: &Json, value_objects_by_
             match m.get("op").map(Json::to_s).unwrap_or_default().as_str() {
                 "set" => {
                     let source = m.get("source");
-                    if source.and_then(|s| s.get("kind")).map(Json::to_s).unwrap_or_default() != "state" {
+                    if source
+                        .and_then(|s| s.get("kind"))
+                        .map(Json::to_s)
+                        .unwrap_or_default()
+                        != "state"
+                    {
                         return Vec::new();
                     }
-                    let state_name = source.and_then(|s| s.get("name")).map(Json::to_s).unwrap_or_default();
-                    state_source_problem(&target, &state_name, aggregate, attrs.iter().find(|a| crate::attr::name(a) == target)).into_iter().collect()
+                    let state_name = source
+                        .and_then(|s| s.get("name"))
+                        .map(Json::to_s)
+                        .unwrap_or_default();
+                    state_source_problem(
+                        &target,
+                        &state_name,
+                        aggregate,
+                        attrs.iter().find(|a| crate::attr::name(a) == target),
+                    )
+                    .into_iter()
+                    .collect()
                 }
                 "append" => {
-                    let Some(target_attr) = attrs.iter().find(|a| crate::attr::name(a) == target) else { return Vec::new() };
-                    let Some(element) = append_element(aggregate, crate::attr::type_name(target_attr), value_objects_by_name) else { return Vec::new() };
+                    let Some(target_attr) = attrs.iter().find(|a| crate::attr::name(a) == target)
+                    else {
+                        return Vec::new();
+                    };
+                    let Some(element) = append_element(
+                        aggregate,
+                        crate::attr::type_name(target_attr),
+                        value_objects_by_name,
+                    ) else {
+                        return Vec::new();
+                    };
                     let element_attrs = element.get("attributes").map(Json::each).unwrap_or(&[]);
-                    let Some(Json::Object(fields)) = m.get("fields") else { return Vec::new() };
+                    let Some(Json::Object(fields)) = m.get("fields") else {
+                        return Vec::new();
+                    };
                     fields
                         .iter()
                         .filter_map(|(field_name, source)| {
                             let text = source.to_s();
                             let state_name = text.strip_prefix("state(:")?.strip_suffix(')')?;
-                            state_source_problem(&format!("{target}.{field_name}"), state_name, aggregate, element_attrs.iter().find(|a| crate::attr::name(a) == field_name))
+                            state_source_problem(
+                                &format!("{target}.{field_name}"),
+                                state_name,
+                                aggregate,
+                                element_attrs
+                                    .iter()
+                                    .find(|a| crate::attr::name(a) == field_name),
+                            )
                         })
                         .collect()
                 }
@@ -255,7 +389,11 @@ pub fn state_source_problems(command: &Json, aggregate: &Json, value_objects_by_
 /// Problems with `set` mutations sourced from arithmetic: the target must be a scalar
 /// (non-list) attribute typed by a single-field Integer or Float value object, the one shape the
 /// generated code can rebuild a computed number into.
-pub fn expression_source_problems(command: &Json, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Vec<String> {
+pub fn expression_source_problems(
+    command: &Json,
+    aggregate: &Json,
+    value_objects_by_name: &HashMap<String, &Json>,
+) -> Vec<String> {
     let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
     command
         .get("mutations")
@@ -276,13 +414,21 @@ pub fn expression_source_problems(command: &Json, aggregate: &Json, value_object
 }
 
 // The scalar type (`Integer` or `Float`) of the one field of a non-list, single-field value object.
-fn computed_field_type<'a>(attr: &Json, value_objects_by_name: &HashMap<String, &'a Json>) -> Option<(&'a Json, &'static str)> {
+fn computed_field_type<'a>(
+    attr: &Json,
+    value_objects_by_name: &HashMap<String, &'a Json>,
+) -> Option<(&'a Json, &'static str)> {
     if crate::attr::list(attr) {
         return None;
     }
-    let vo = value_objects_by_name.get(crate::attr::type_name(attr)).copied()?;
+    let vo = value_objects_by_name
+        .get(crate::attr::type_name(attr))
+        .copied()?;
     let fields = vo.get("attributes").map(Json::each).unwrap_or(&[]);
-    if vo.get("closed_set").map(Json::as_bool).unwrap_or(false) || fields.len() != 1 || crate::attr::list(&fields[0]) {
+    if vo.get("closed_set").map(Json::as_bool).unwrap_or(false)
+        || fields.len() != 1
+        || crate::attr::list(&fields[0])
+    {
         return None;
     }
     match crate::attr::type_name(&fields[0]) {
@@ -295,10 +441,19 @@ fn computed_field_type<'a>(attr: &Json, value_objects_by_name: &HashMap<String, 
 /// Right-hand side for a `set` sourced from arithmetic: evaluates the expression through the
 /// kernel over the command's arguments and then the pre-dispatch record, and rebuilds the number
 /// into the target's single-field value object. A fault returns from the mutation closure.
-pub fn expression_set_rhs(source: &Json, target_attr: &Json, value_objects_by_name: &HashMap<String, &Json>) -> String {
-    let (vo, scalar) = computed_field_type(target_attr, value_objects_by_name).expect("expression_source_problems already confirmed the target");
-    let ast = source.get("ast").expect("an expression source carries its ast");
-    let field = naming::rust_ident_field(crate::attr::name(&vo.get("attributes").map(Json::each).unwrap_or(&[])[0]));
+pub fn expression_set_rhs(
+    source: &Json,
+    target_attr: &Json,
+    value_objects_by_name: &HashMap<String, &Json>,
+) -> String {
+    let (vo, scalar) = computed_field_type(target_attr, value_objects_by_name)
+        .expect("expression_source_problems already confirmed the target");
+    let ast = source
+        .get("ast")
+        .expect("an expression source carries its ast");
+    let field = naming::rust_ident_field(crate::attr::name(
+        &vo.get("attributes").map(Json::each).unwrap_or(&[])[0],
+    ));
     let vo_type = naming::rust_ident(crate::attr::type_name(target_attr));
     let arms = if scalar == "Integer" {
         "crate::kernel::Value::Int(number) => number,".to_string()
@@ -312,20 +467,34 @@ pub fn expression_set_rhs(source: &Json, target_attr: &Json, value_objects_by_na
     )
 }
 
-fn state_source_problem(label: &str, state_name: &str, aggregate: &Json, target_attr: Option<&Json>) -> Option<String> {
+fn state_source_problem(
+    label: &str,
+    state_name: &str,
+    aggregate: &Json,
+    target_attr: Option<&Json>,
+) -> Option<String> {
     let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
     let Some(state_attr) = attrs.iter().find(|a| crate::attr::name(a) == state_name) else {
         let aggregate_name = aggregate.get("name").map(Json::to_s).unwrap_or_default();
-        return Some(format!("{label}: sources state(:{state_name}), which {aggregate_name} does not declare"));
+        return Some(format!(
+            "{label}: sources state(:{state_name}), which {aggregate_name} does not declare"
+        ));
     };
     let Some(target_attr) = target_attr else {
         return Some(format!("{label}: no such target field"));
     };
-    let same = crate::attr::type_name(state_attr) == crate::attr::type_name(target_attr) && crate::attr::list(state_attr) == crate::attr::list(target_attr);
+    let same = crate::attr::type_name(state_attr) == crate::attr::type_name(target_attr)
+        && crate::attr::list(state_attr) == crate::attr::list(target_attr);
     if same {
         return None;
     }
-    let list_of = |a: &Json| if crate::attr::list(a) { "a list of " } else { "" };
+    let list_of = |a: &Json| {
+        if crate::attr::list(a) {
+            "a list of "
+        } else {
+            ""
+        }
+    };
     Some(format!(
         "{label}: state(:{state_name}) is {}{}, the target wants {}{} — not generated yet",
         list_of(state_attr),
@@ -336,7 +505,11 @@ fn state_source_problem(label: &str, state_name: &str, aggregate: &Json, target_
 }
 
 /// Problems with each `append` mutation's fields, checked against the element they build.
-pub fn append_field_problems(command: &Json, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Vec<String> {
+pub fn append_field_problems(
+    command: &Json,
+    aggregate: &Json,
+    value_objects_by_name: &HashMap<String, &Json>,
+) -> Vec<String> {
     let mutations = command.get("mutations").map(Json::each).unwrap_or(&[]);
     mutations
         .iter()
@@ -345,10 +518,15 @@ pub fn append_field_problems(command: &Json, aggregate: &Json, value_objects_by_
             let target_name = m.get("target").map(Json::to_s).unwrap_or_default();
             let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
             let target_attr = attrs.iter().find(|a| crate::attr::name(a) == target_name);
-            let element = target_attr.and_then(|ta| append_element(aggregate, crate::attr::type_name(ta), value_objects_by_name));
+            let element = target_attr.and_then(|ta| {
+                append_element(aggregate, crate::attr::type_name(ta), value_objects_by_name)
+            });
             let Some(element) = element else {
                 let type_desc = target_attr.map(crate::attr::type_name).unwrap_or("");
-                return vec![format!("{target_name}: element type {} not resolvable", naming::ruby_inspect_string(type_desc))];
+                return vec![format!(
+                    "{target_name}: element type {} not resolvable",
+                    naming::ruby_inspect_string(type_desc)
+                )];
             };
             let target_attr = target_attr.unwrap();
 
@@ -357,34 +535,77 @@ pub fn append_field_problems(command: &Json, aggregate: &Json, value_objects_by_
             let mut problems: Vec<String> = fields
                 .iter()
                 .filter_map(|(field_name, source)| {
-                    let field_attr = element_attrs.iter().find(|a| crate::attr::name(a) == field_name.as_str());
+                    let field_attr = element_attrs
+                        .iter()
+                        .find(|a| crate::attr::name(a) == field_name.as_str());
                     let Some(field_attr) = field_attr else {
                         return Some(format!("{target_name}.{field_name}: not a declared field"));
                     };
 
                     let parsed = append_field_source(source);
                     let Literal::Symbol(arg_name) = &parsed else {
-                        return literal_problem(m, field_name, &parsed, field_attr, value_objects_by_name);
+                        return literal_problem(
+                            m,
+                            field_name,
+                            &parsed,
+                            field_attr,
+                            value_objects_by_name,
+                        );
                     };
 
                     let cmd_attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
-                    match cmd_attrs.iter().find(|a| crate::attr::name(a) == arg_name.as_str()) {
-                        None => Some(format!("{target_name}.{field_name}: sources undeclared argument {arg_name}")),
-                        Some(arg_attr) if !crate::bridging::bridgeable_value_types(crate::attr::type_name(arg_attr), crate::attr::type_name(field_attr), value_objects_by_name) => {
-                            Some(format!("{target_name}.{field_name}: {} doesn't bridge to {}", crate::attr::type_name(arg_attr), crate::attr::type_name(field_attr)))
+                    match cmd_attrs
+                        .iter()
+                        .find(|a| crate::attr::name(a) == arg_name.as_str())
+                    {
+                        None => Some(format!(
+                            "{target_name}.{field_name}: sources undeclared argument {arg_name}"
+                        )),
+                        Some(arg_attr)
+                            if !crate::bridging::bridgeable_value_types(
+                                crate::attr::type_name(arg_attr),
+                                crate::attr::type_name(field_attr),
+                                value_objects_by_name,
+                            ) =>
+                        {
+                            Some(format!(
+                                "{target_name}.{field_name}: {} doesn't bridge to {}",
+                                crate::attr::type_name(arg_attr),
+                                crate::attr::type_name(field_attr)
+                            ))
                         }
                         _ => None,
                     }
                 })
                 .collect();
 
-            let entity = aggregate.get("entities").map(Json::each).unwrap_or(&[]).iter().find(|e| e.get("name").and_then(Json::as_str) == Some(crate::attr::type_name(target_attr)));
+            let entity = aggregate
+                .get("entities")
+                .map(Json::each)
+                .unwrap_or(&[])
+                .iter()
+                .find(|e| {
+                    e.get("name").and_then(Json::as_str)
+                        == Some(crate::attr::type_name(target_attr))
+                });
             if let Some(entity) = entity {
                 let present: Vec<String> = fields.iter().map(|(k, _)| k.clone()).collect();
                 let identified_by = entity.get("identified_by").map(Json::each).unwrap_or(&[]);
-                let id_head = identified_by.first().and_then(Json::as_str).unwrap_or("").split('.').next().unwrap_or("").to_string();
-                if !present.contains(&id_head) && entity_identity_mint(entity, value_objects_by_name).is_none() {
-                    problems.push(format!("{target_name}: {}'s identity doesn't auto-mint", entity.get("name").and_then(Json::as_str).unwrap_or("")));
+                let id_head = identified_by
+                    .first()
+                    .and_then(Json::as_str)
+                    .unwrap_or("")
+                    .split('.')
+                    .next()
+                    .unwrap_or("")
+                    .to_string();
+                if !present.contains(&id_head)
+                    && entity_identity_mint(entity, value_objects_by_name).is_none()
+                {
+                    problems.push(format!(
+                        "{target_name}: {}'s identity doesn't auto-mint",
+                        entity.get("name").and_then(Json::as_str).unwrap_or("")
+                    ));
                 }
             }
             problems
@@ -394,7 +615,11 @@ pub fn append_field_problems(command: &Json, aggregate: &Json, value_objects_by_
 
 /// Problems with `remove:` mutations, which are generatable only against an entity list whose
 /// single-head identity mints, sourced from a declared argument that bridges to its type.
-pub fn remove_field_problems(command: &Json, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Vec<String> {
+pub fn remove_field_problems(
+    command: &Json,
+    aggregate: &Json,
+    value_objects_by_name: &HashMap<String, &Json>,
+) -> Vec<String> {
     let mutations = command.get("mutations").map(Json::each).unwrap_or(&[]);
     mutations
         .iter()
@@ -466,7 +691,11 @@ pub fn transition_check_arg(transition: Option<&Transition>) -> String {
         Some(t) if !t.unconstrained => format!(
             "Some(crate::kernel::TransitionCheck {{ field: {}, from_states: &[{}] }})",
             naming::ruby_inspect_string(&t.field),
-            t.from_states.iter().map(|s| naming::ruby_inspect_string(s)).collect::<Vec<_>>().join(", ")
+            t.from_states
+                .iter()
+                .map(|s| naming::ruby_inspect_string(s))
+                .collect::<Vec<_>>()
+                .join(", ")
         ),
         _ => "None".to_string(),
     }
@@ -477,7 +706,10 @@ pub fn lifecycle_transition_for(command: &Json, aggregate: &Json) -> Option<Tran
     let lifecycle = aggregate.get("lifecycle")?;
     let command_name = command.get("name").map(Json::to_s).unwrap_or_default();
     let transitions = lifecycle.get("transitions").map(Json::each).unwrap_or(&[]);
-    let rows: Vec<&Json> = transitions.iter().filter(|t| t.get("command").map(Json::to_s).unwrap_or_default() == command_name).collect();
+    let rows: Vec<&Json> = transitions
+        .iter()
+        .filter(|t| t.get("command").map(Json::to_s).unwrap_or_default() == command_name)
+        .collect();
     if rows.is_empty() {
         // `from:` without a transition guards the current state and moves nothing.
         let froms: Vec<String> = match command.get("from") {
@@ -494,11 +726,24 @@ pub fn lifecycle_transition_for(command: &Json, aggregate: &Json) -> Option<Tran
                 from_states.push(from);
             }
         }
-        let field = lifecycle.get("field").and_then(Json::as_str).unwrap_or("").to_string();
-        return Some(Transition { field, to_state: String::new(), from_states, unconstrained: false });
+        let field = lifecycle
+            .get("field")
+            .and_then(Json::as_str)
+            .unwrap_or("")
+            .to_string();
+        return Some(Transition {
+            field,
+            to_state: String::new(),
+            from_states,
+            unconstrained: false,
+        });
     }
 
-    let field = lifecycle.get("field").and_then(Json::as_str).unwrap_or("").to_string();
+    let field = lifecycle
+        .get("field")
+        .and_then(Json::as_str)
+        .unwrap_or("")
+        .to_string();
     let to_state = rows[0].get("to_state").map(Json::to_s).unwrap_or_default();
     let mut from_states: Vec<String> = Vec::new();
     let mut unconstrained = false;
@@ -513,26 +758,48 @@ pub fn lifecycle_transition_for(command: &Json, aggregate: &Json) -> Option<Tran
             }
         }
     }
-    Some(Transition { field, to_state, from_states, unconstrained })
+    Some(Transition {
+        field,
+        to_state,
+        from_states,
+        unconstrained,
+    })
 }
 
 /// Whether a `state(:field)` source reads an `Option` out of the pre-dispatch record: the field
 /// is declared optional, or the record holds every field as an `Option` (`record_optional`).
 /// Such a source already has the target's wrapping, so it must not be wrapped in `Some` again.
 fn state_source_is_option(source: Option<&Json>, aggregate: &Json, record_optional: bool) -> bool {
-    let Some(source) = source.filter(|s| s.get("kind").map(Json::to_s).unwrap_or_default() == "state") else { return false };
+    let Some(source) =
+        source.filter(|s| s.get("kind").map(Json::to_s).unwrap_or_default() == "state")
+    else {
+        return false;
+    };
     let name = source.get("name").map(Json::to_s).unwrap_or_default();
     let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
-    record_optional || attrs.iter().any(|a| crate::attr::name(a) == name && crate::attr::optional(a))
+    record_optional
+        || attrs
+            .iter()
+            .any(|a| crate::attr::name(a) == name && crate::attr::optional(a))
 }
 
 /// Right-hand side for a `set`, coercing the source into the target attribute's declared type.
 ///
 /// `target_list` routes list-to-list sets through `list_value_rhs`; `value_rhs` is scalar-only.
-pub fn mutation_set_rhs(source: &Json, target_type: &str, command: &Json, value_objects_by_name: &HashMap<String, &Json>, target_list: bool) -> String {
+pub fn mutation_set_rhs(
+    source: &Json,
+    target_type: &str,
+    command: &Json,
+    value_objects_by_name: &HashMap<String, &Json>,
+    target_list: bool,
+) -> String {
     if source.get("kind").map(Json::to_s).unwrap_or_default() == "literal" {
         let value = source.get("value").unwrap_or(&Json::Null);
-        return crate::bridging::literal_rhs_for(&Literal::from_json(value), Some(target_type), value_objects_by_name);
+        return crate::bridging::literal_rhs_for(
+            &Literal::from_json(value),
+            Some(target_type),
+            value_objects_by_name,
+        );
     }
 
     let source_name = source.get("name").map(Json::to_s).unwrap_or_default();
@@ -541,12 +808,31 @@ pub fn mutation_set_rhs(source: &Json, target_type: &str, command: &Json, value_
         return format!("pre.{}.clone()", naming::rust_ident_field(&source_name));
     }
     let cmd_attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
-    let source_attr = cmd_attrs.iter().find(|a| crate::attr::name(a) == source_name).expect("mutation source argument must be a declared command attribute");
+    let source_attr = cmd_attrs
+        .iter()
+        .find(|a| crate::attr::name(a) == source_name)
+        .expect("mutation source argument must be a declared command attribute");
     let source_expr = format!("args.{}", naming::rust_ident_field(&source_name));
-    if target_list && crate::attr::list(source_attr) && crate::bridging::list_bridge_requires_element_mapping(crate::attr::type_name(source_attr), target_type) {
-        return crate::bridging::list_value_rhs(&source_expr, crate::attr::type_name(source_attr), target_type, value_objects_by_name);
+    if target_list
+        && crate::attr::list(source_attr)
+        && crate::bridging::list_bridge_requires_element_mapping(
+            crate::attr::type_name(source_attr),
+            target_type,
+        )
+    {
+        return crate::bridging::list_value_rhs(
+            &source_expr,
+            crate::attr::type_name(source_attr),
+            target_type,
+            value_objects_by_name,
+        );
     }
-    crate::bridging::value_rhs(&source_expr, crate::attr::type_name(source_attr), target_type, value_objects_by_name)
+    crate::bridging::value_rhs(
+        &source_expr,
+        crate::attr::type_name(source_attr),
+        target_type,
+        value_objects_by_name,
+    )
 }
 
 pub struct IdentityComponent {
@@ -558,7 +844,10 @@ pub struct IdentityComponent {
 /// Builds one component per identity part: a `set` target or same-named command argument reads
 /// `args.<head>`, and anything else becomes a parameter.
 pub fn identity_components(aggregate: &Json, command: &Json) -> Vec<IdentityComponent> {
-    let identified_by = aggregate.get("identified_by").map(Json::each).unwrap_or(&[]);
+    let identified_by = aggregate
+        .get("identified_by")
+        .map(Json::each)
+        .unwrap_or(&[]);
     let cmd_mutations = command.get("mutations").map(Json::each).unwrap_or(&[]);
     let append_claimed = crate::shared::append_claimed_names(command);
     let declared_names: std::collections::HashSet<String> = command
@@ -579,19 +868,40 @@ pub fn identity_components(aggregate: &Json, command: &Json) -> Vec<IdentityComp
             let rest: Vec<&str> = parts.collect();
 
             let set_target = cmd_mutations.iter().any(|m| {
-                m.get("op").map(Json::to_s).as_deref() == Some("set") && m.get("target").map(Json::to_s).as_deref() == Some(head)
+                m.get("op").map(Json::to_s).as_deref() == Some("set")
+                    && m.get("target").map(Json::to_s).as_deref() == Some(head)
             });
 
             if set_target || declared_names.contains(head) {
                 if !rest.is_empty() {
-                    let rest_path = rest.iter().map(|seg| naming::rust_ident_field(seg)).collect::<Vec<_>>().join(".");
-                    IdentityComponent { expr: format!("args.{}.{}.to_string()", naming::rust_ident_field(head), rest_path), param: None, head: None }
+                    let rest_path = rest
+                        .iter()
+                        .map(|seg| naming::rust_ident_field(seg))
+                        .collect::<Vec<_>>()
+                        .join(".");
+                    IdentityComponent {
+                        expr: format!(
+                            "args.{}.{}.to_string()",
+                            naming::rust_ident_field(head),
+                            rest_path
+                        ),
+                        param: None,
+                        head: None,
+                    }
                 } else {
-                    IdentityComponent { expr: format!("args.{}.to_string()", naming::rust_ident_field(head)), param: None, head: None }
+                    IdentityComponent {
+                        expr: format!("args.{}.to_string()", naming::rust_ident_field(head)),
+                        param: None,
+                        head: None,
+                    }
                 }
             } else {
                 let param = naming::rust_ident_field(head);
-                IdentityComponent { expr: format!("{param}.to_string()"), param: Some(format!("{param}: &str")), head: Some(head.to_string()) }
+                IdentityComponent {
+                    expr: format!("{param}.to_string()"),
+                    param: Some(format!("{param}: &str")),
+                    head: Some(head.to_string()),
+                }
             }
         })
         .collect()
@@ -601,34 +911,75 @@ pub fn build_identity_expr(components: &[IdentityComponent]) -> String {
     if components.len() == 1 {
         return components[0].expr.clone();
     }
-    let placeholders = components.iter().map(|_| "{}").collect::<Vec<_>>().join(":");
-    format!("format!({}, {})", naming::ruby_inspect_string(&placeholders), components.iter().map(|c| c.expr.as_str()).collect::<Vec<_>>().join(", "))
+    let placeholders = components
+        .iter()
+        .map(|_| "{}")
+        .collect::<Vec<_>>()
+        .join(":");
+    format!(
+        "format!({}, {})",
+        naming::ruby_inspect_string(&placeholders),
+        components
+            .iter()
+            .map(|c| c.expr.as_str())
+            .collect::<Vec<_>>()
+            .join(", ")
+    )
 }
 
 /// The value expression for one `append` field.
-pub fn append_field_rhs(source: &str, field_attr: &Json, command: &Json, value_objects_by_name: &HashMap<String, &Json>) -> String {
+pub fn append_field_rhs(
+    source: &str,
+    field_attr: &Json,
+    command: &Json,
+    value_objects_by_name: &HashMap<String, &Json>,
+) -> String {
     let parsed = append_field_source(source);
     let Literal::Symbol(arg_name) = &parsed else {
-        return crate::bridging::literal_rhs_for(&parsed, Some(crate::attr::type_name(field_attr)), value_objects_by_name);
+        return crate::bridging::literal_rhs_for(
+            &parsed,
+            Some(crate::attr::type_name(field_attr)),
+            value_objects_by_name,
+        );
     };
 
     let cmd_attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
-    let arg_attr = cmd_attrs.iter().find(|a| crate::attr::name(a) == arg_name.as_str()).expect("append field argument must be a declared command attribute");
-    let arg_expr = format!("args.{}", naming::rust_ident_field(crate::attr::name(arg_attr)));
+    let arg_attr = cmd_attrs
+        .iter()
+        .find(|a| crate::attr::name(a) == arg_name.as_str())
+        .expect("append field argument must be a declared command attribute");
+    let arg_expr = format!(
+        "args.{}",
+        naming::rust_ident_field(crate::attr::name(arg_attr))
+    );
 
     if crate::attr::optional(arg_attr) {
-        let same_representation = crate::attr::type_name(arg_attr) == crate::attr::type_name(field_attr)
-            || match (naming::effective_scalar_type(crate::attr::type_name(arg_attr)), naming::effective_scalar_type(crate::attr::type_name(field_attr))) {
+        let same_representation = crate::attr::type_name(arg_attr)
+            == crate::attr::type_name(field_attr)
+            || match (
+                naming::effective_scalar_type(crate::attr::type_name(arg_attr)),
+                naming::effective_scalar_type(crate::attr::type_name(field_attr)),
+            ) {
                 (Some(a), Some(b)) => a == b,
                 _ => false,
             };
         if same_representation {
             return format!("{arg_expr}.clone()");
         }
-        return optional_value_rhs(&arg_expr, crate::attr::type_name(arg_attr), crate::attr::type_name(field_attr), value_objects_by_name);
+        return optional_value_rhs(
+            &arg_expr,
+            crate::attr::type_name(arg_attr),
+            crate::attr::type_name(field_attr),
+            value_objects_by_name,
+        );
     }
 
-    let rhs = crate::bridging::value_rhs(&arg_expr, crate::attr::type_name(arg_attr), crate::attr::type_name(field_attr), value_objects_by_name);
+    let rhs = crate::bridging::value_rhs(
+        &arg_expr,
+        crate::attr::type_name(arg_attr),
+        crate::attr::type_name(field_attr),
+        value_objects_by_name,
+    );
     if crate::attr::optional(field_attr) {
         format!("Some({rhs})")
     } else {
@@ -637,15 +988,46 @@ pub fn append_field_rhs(source: &str, field_attr: &Json, command: &Json, value_o
 }
 
 /// The optional-source variant of `value_rhs`.
-pub fn optional_value_rhs(source_expr: &str, source_type: &str, target_type: &str, value_objects_by_name: &HashMap<String, &Json>) -> String {
-    format!("{source_expr}.clone().map(|v| {})", crate::bridging::value_rhs("v", source_type, target_type, value_objects_by_name))
+pub fn optional_value_rhs(
+    source_expr: &str,
+    source_type: &str,
+    target_type: &str,
+    value_objects_by_name: &HashMap<String, &Json>,
+) -> String {
+    format!(
+        "{source_expr}.clone().map(|v| {})",
+        crate::bridging::value_rhs("v", source_type, target_type, value_objects_by_name)
+    )
 }
 
 /// Emits the closure line for one mutation.
-pub fn emit_mutation_line(exemplar: &Exemplar, mutation: &Json, aggregate: &Json, command: &Json, value_objects_by_name: &HashMap<String, &Json>, optional: bool) -> String {
-    let target_field = naming::rust_ident_field(&mutation.get("target").map(Json::to_s).unwrap_or_default());
-    let lifecycle_field = aggregate.get("lifecycle").and_then(|l| l.get("field")).map(Json::to_s);
-    format!("        {}", emit_mutation_line_body(exemplar, mutation, aggregate, command, value_objects_by_name, &target_field, lifecycle_field.as_deref(), optional))
+pub fn emit_mutation_line(
+    exemplar: &Exemplar,
+    mutation: &Json,
+    aggregate: &Json,
+    command: &Json,
+    value_objects_by_name: &HashMap<String, &Json>,
+    optional: bool,
+) -> String {
+    let target_field =
+        naming::rust_ident_field(&mutation.get("target").map(Json::to_s).unwrap_or_default());
+    let lifecycle_field = aggregate
+        .get("lifecycle")
+        .and_then(|l| l.get("field"))
+        .map(Json::to_s);
+    format!(
+        "        {}",
+        emit_mutation_line_body(
+            exemplar,
+            mutation,
+            aggregate,
+            command,
+            value_objects_by_name,
+            &target_field,
+            lifecycle_field.as_deref(),
+            optional
+        )
+    )
 }
 
 fn emit_mutation_line_body(
@@ -664,18 +1046,42 @@ fn emit_mutation_line_body(
     match op.as_str() {
         "append" => {
             let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
-            let target_attr = attrs.iter().find(|a| crate::attr::name(a) == target_name).expect("append target must be a declared aggregate attribute");
+            let target_attr = attrs
+                .iter()
+                .find(|a| crate::attr::name(a) == target_name)
+                .expect("append target must be a declared aggregate attribute");
             let vo_type = naming::rust_ident(crate::attr::type_name(target_attr));
-            let entity = aggregate.get("entities").map(Json::each).unwrap_or(&[]).iter().find(|e| e.get("name").and_then(Json::as_str) == Some(crate::attr::type_name(target_attr)));
-            let element = entity.or_else(|| value_objects_by_name.get(crate::attr::type_name(target_attr)).copied()).expect("append target's element type must resolve");
+            let entity = aggregate
+                .get("entities")
+                .map(Json::each)
+                .unwrap_or(&[])
+                .iter()
+                .find(|e| {
+                    e.get("name").and_then(Json::as_str)
+                        == Some(crate::attr::type_name(target_attr))
+                });
+            let element = entity
+                .or_else(|| {
+                    value_objects_by_name
+                        .get(crate::attr::type_name(target_attr))
+                        .copied()
+                })
+                .expect("append target's element type must resolve");
 
             let fields = mutation.get("fields").map(fields_pairs).unwrap_or_default();
             let element_attrs = element.get("attributes").map(Json::each).unwrap_or(&[]);
             let mut fields_assignment: Vec<String> = fields
                 .iter()
                 .map(|(field_name, source)| {
-                    let field_attr = element_attrs.iter().find(|a| crate::attr::name(a) == field_name.as_str()).expect("append field must be a declared element attribute");
-                    format!("{}: {}", naming::rust_ident_field(field_name), append_field_rhs(source, field_attr, command, value_objects_by_name))
+                    let field_attr = element_attrs
+                        .iter()
+                        .find(|a| crate::attr::name(a) == field_name.as_str())
+                        .expect("append field must be a declared element attribute");
+                    format!(
+                        "{}: {}",
+                        naming::rust_ident_field(field_name),
+                        append_field_rhs(source, field_attr, command, value_objects_by_name)
+                    )
                 })
                 .collect();
 
@@ -691,11 +1097,26 @@ fn emit_mutation_line_body(
                     // used to be skipped outright for any composite identity (its comment read
                     // "Composite identities are excluded"), so two elements sharing every identity
                     // component went through unrefused. Root cause of this bug.
-                    let heads: Vec<String> = identified_by.iter().map(|p| p.to_s().split('.').next().unwrap_or_default().to_string()).collect();
+                    let heads: Vec<String> = identified_by
+                        .iter()
+                        .map(|p| p.to_s().split('.').next().unwrap_or_default().to_string())
+                        .collect();
                     if heads.iter().all(|h| present.iter().any(|p| p == h)) {
-                        collision_guard = composite_append_collision_guard(&heads, &fields, element_attrs, command, value_objects_by_name, target_field, entity, aggregate, identified_by);
+                        collision_guard = composite_append_collision_guard(
+                            &heads,
+                            &fields,
+                            element_attrs,
+                            command,
+                            value_objects_by_name,
+                            target_field,
+                            entity,
+                            aggregate,
+                            identified_by,
+                        );
                     }
-                } else if let Some((id_attr, id_vo)) = entity_identity_mint(entity, value_objects_by_name) {
+                } else if let Some((id_attr, id_vo)) =
+                    entity_identity_mint(entity, value_objects_by_name)
+                {
                     let id_name = crate::attr::name(id_attr);
                     if !present.iter().any(|p| p == id_name) {
                         let id_vo_attrs = id_vo.get("attributes").map(Json::each).unwrap_or(&[]);
@@ -706,7 +1127,8 @@ fn emit_mutation_line_body(
                             "{} {{ {vo_field}: record.{target_field}.iter().map(|e| e.{id_field}.{vo_field}).max().unwrap_or(0) + 1 }}",
                             naming::rust_ident(crate::attr::type_name(id_attr)),
                         );
-                        fields_assignment.push(format!("{}: {mint}", naming::rust_ident_field(id_name)));
+                        fields_assignment
+                            .push(format!("{}: {mint}", naming::rust_ident_field(id_name)));
                         present.push(id_name.to_string());
                     } else {
                         // Caller-supplied single-field identity: refuse a duplicate, which would
@@ -723,15 +1145,27 @@ fn emit_mutation_line_body(
                                 append_field_rhs(source, field_attr, command, value_objects_by_name)
                             })
                             .expect("caller-supplied identity field must be in the append's own field map");
-                        let entity_name = entity.get("name").and_then(Json::as_str).unwrap_or_default();
-                        let aggregate_name = aggregate.get("name").and_then(Json::as_str).unwrap_or_default();
-                        let identity_reading = identified_by.iter().map(Json::to_s).collect::<Vec<_>>().join(", ");
+                        let entity_name = entity
+                            .get("name")
+                            .and_then(Json::as_str)
+                            .unwrap_or_default();
+                        let aggregate_name = aggregate
+                            .get("name")
+                            .and_then(Json::as_str)
+                            .unwrap_or_default();
+                        let identity_reading = identified_by
+                            .iter()
+                            .map(Json::to_s)
+                            .collect::<Vec<_>>()
+                            .join(", ");
                         let entity_lit = naming::ruby_inspect_string(entity_name);
                         let aggregate_lit = naming::ruby_inspect_string(aggregate_name);
                         let identity_lit = naming::ruby_inspect_string(&identity_reading);
                         // Unwrap to the bare scalar, as `entity_list_replace_guard` does; the mint
                         // branch above guarantees exactly one attribute.
-                        let offered_field = naming::rust_ident_field(crate::attr::name(&id_vo.get("attributes").map(Json::each).unwrap_or(&[])[0]));
+                        let offered_field = naming::rust_ident_field(crate::attr::name(
+                            &id_vo.get("attributes").map(Json::each).unwrap_or(&[])[0],
+                        ));
                         let offered_expr = format!("{id_rhs}.{offered_field}");
                         collision_guard = format!(
                             "if record.{target_field}.iter().any(|e| e.{id_field} == {id_rhs}) {{ let offered = format!(\"{{:?}}\", {offered_expr}); return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::refusal_wording::AlreadyExistsEntityDuplicateArgs {{ entity: {entity_lit}, aggregate: {aggregate_lit}, identity: {identity_lit}, offered: &[offered.as_str()] }}.render_args())); }}\n        "
@@ -739,10 +1173,20 @@ fn emit_mutation_line_body(
                     }
                 }
                 if let Some(entity_lifecycle) = entity.get("lifecycle") {
-                    let lc_field = entity_lifecycle.get("field").map(Json::to_s).unwrap_or_default();
+                    let lc_field = entity_lifecycle
+                        .get("field")
+                        .map(Json::to_s)
+                        .unwrap_or_default();
                     if !present.iter().any(|p| p == &lc_field) {
-                        let default = entity_lifecycle.get("default").map(Json::to_s).unwrap_or_default();
-                        fields_assignment.push(format!("{}: {}.to_string()", naming::rust_ident_field(&lc_field), naming::ruby_inspect_string(&default)));
+                        let default = entity_lifecycle
+                            .get("default")
+                            .map(Json::to_s)
+                            .unwrap_or_default();
+                        fields_assignment.push(format!(
+                            "{}: {}.to_string()",
+                            naming::rust_ident_field(&lc_field),
+                            naming::ruby_inspect_string(&default)
+                        ));
                         present.push(lc_field);
                     }
                 }
@@ -756,7 +1200,10 @@ fn emit_mutation_line_body(
                     if present.iter().any(|p| p == attr_name) {
                         continue;
                     }
-                    fields_assignment.push(format!("{}: Vec::new()", naming::rust_ident_field(attr_name)));
+                    fields_assignment.push(format!(
+                        "{}: Vec::new()",
+                        naming::rust_ident_field(attr_name)
+                    ));
                     present.push(attr_name.to_string());
                 }
 
@@ -769,116 +1216,326 @@ fn emit_mutation_line_body(
                     if present.iter().any(|p| p == attr_name) {
                         continue;
                     }
-                    fields_assignment.push(format!("{}: None", naming::rust_ident_field(attr_name)));
+                    fields_assignment
+                        .push(format!("{}: None", naming::rust_ident_field(attr_name)));
                     present.push(attr_name.to_string());
                 }
             }
 
-            format!("{collision_guard}{}", exemplar.render("mutation_append", &[("tmpl_field", target_field.to_string()), ("tmpl_fields_placeholder()", format!("{vo_type} {{ {} }}", fields_assignment.join(", ")))]))
+            format!(
+                "{collision_guard}{}",
+                exemplar.render(
+                    "mutation_append",
+                    &[
+                        ("tmpl_field", target_field.to_string()),
+                        (
+                            "tmpl_fields_placeholder()",
+                            format!("{vo_type} {{ {} }}", fields_assignment.join(", "))
+                        )
+                    ]
+                )
+            )
         }
         "set" => {
             if lifecycle_field.map(|f| f == target_name).unwrap_or(false) {
-                let rhs = mutation_set_rhs(mutation.get("source").unwrap_or(&Json::Null), "String", command, value_objects_by_name, false);
-                exemplar.render("mutation_set_plain", &[("tmpl_field", target_field.to_string()), ("tmpl_rhs_placeholder2()", rhs)])
+                let rhs = mutation_set_rhs(
+                    mutation.get("source").unwrap_or(&Json::Null),
+                    "String",
+                    command,
+                    value_objects_by_name,
+                    false,
+                );
+                exemplar.render(
+                    "mutation_set_plain",
+                    &[
+                        ("tmpl_field", target_field.to_string()),
+                        ("tmpl_rhs_placeholder2()", rhs),
+                    ],
+                )
             } else {
                 let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
-                let target_attr = attrs.iter().find(|a| crate::attr::name(a) == target_name).expect("set target must be a declared aggregate attribute");
+                let target_attr = attrs
+                    .iter()
+                    .find(|a| crate::attr::name(a) == target_name)
+                    .expect("set target must be a declared aggregate attribute");
                 let source = mutation.get("source");
-                let rhs = if source.and_then(|s| s.get("kind")).map(Json::to_s).as_deref() == Some("expression") {
+                let rhs = if source
+                    .and_then(|s| s.get("kind"))
+                    .map(Json::to_s)
+                    .as_deref()
+                    == Some("expression")
+                {
                     expression_set_rhs(source.unwrap(), target_attr, value_objects_by_name)
                 } else {
-                    mutation_set_rhs(mutation.get("source").unwrap_or(&Json::Null), crate::attr::type_name(target_attr), command, value_objects_by_name, crate::attr::list(target_attr))
+                    mutation_set_rhs(
+                        mutation.get("source").unwrap_or(&Json::Null),
+                        crate::attr::type_name(target_attr),
+                        command,
+                        value_objects_by_name,
+                        crate::attr::list(target_attr),
+                    )
                 };
-                let source_attr = if source.map(|s| s.get("kind").map(Json::to_s).unwrap_or_default()) == Some("argument".to_string()) {
-                    let name = source.unwrap().get("name").map(Json::to_s).unwrap_or_default();
+                let source_attr = if source
+                    .map(|s| s.get("kind").map(Json::to_s).unwrap_or_default())
+                    == Some("argument".to_string())
+                {
+                    let name = source
+                        .unwrap()
+                        .get("name")
+                        .map(Json::to_s)
+                        .unwrap_or_default();
                     let cmd_attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
                     cmd_attrs.iter().find(|a| crate::attr::name(a) == name)
                 } else {
                     None
                 };
 
-                if crate::attr::list(target_attr) && optional && crate::shared::list_attr_creation_optional(aggregate, crate::attr::name(target_attr), value_objects_by_name) {
-                    exemplar.render("mutation_set_plain", &[("tmpl_field", target_field.to_string()), ("tmpl_rhs_placeholder2()", rhs)])
-                } else if crate::attr::list(target_attr) && source_attr.map(crate::attr::optional).unwrap_or(false) {
-                    exemplar.render("mutation_set_unwrap_or_default", &[("tmpl_field", target_field.to_string()), ("tmpl_optional_rhs_placeholder()", rhs)])
+                if crate::attr::list(target_attr)
+                    && optional
+                    && crate::shared::list_attr_creation_optional(
+                        aggregate,
+                        crate::attr::name(target_attr),
+                        value_objects_by_name,
+                    )
+                {
+                    exemplar.render(
+                        "mutation_set_plain",
+                        &[
+                            ("tmpl_field", target_field.to_string()),
+                            ("tmpl_rhs_placeholder2()", rhs),
+                        ],
+                    )
+                } else if crate::attr::list(target_attr)
+                    && source_attr.map(crate::attr::optional).unwrap_or(false)
+                {
+                    exemplar.render(
+                        "mutation_set_unwrap_or_default",
+                        &[
+                            ("tmpl_field", target_field.to_string()),
+                            ("tmpl_optional_rhs_placeholder()", rhs),
+                        ],
+                    )
                 } else if crate::attr::list(target_attr) {
                     // Only whole-list replaces carry the duplicate-identity guard.
-                    let (guard, effective_rhs) = entity_list_replace_guard(aggregate, target_attr, &target_field, &rhs, value_objects_by_name);
-                    format!("{guard}{}", exemplar.render("mutation_set_plain", &[("tmpl_field", target_field.to_string()), ("tmpl_rhs_placeholder2()", effective_rhs)]))
+                    let (guard, effective_rhs) = entity_list_replace_guard(
+                        aggregate,
+                        target_attr,
+                        &target_field,
+                        &rhs,
+                        value_objects_by_name,
+                    );
+                    format!(
+                        "{guard}{}",
+                        exemplar.render(
+                            "mutation_set_plain",
+                            &[
+                                ("tmpl_field", target_field.to_string()),
+                                ("tmpl_rhs_placeholder2()", effective_rhs)
+                            ]
+                        )
+                    )
                 } else {
-                    let source_is_option = source_attr.map(crate::attr::optional).unwrap_or(false) || state_source_is_option(source, aggregate, optional);
-                    let wrap = (optional || crate::attr::optional(target_attr)) && !source_is_option;
+                    let source_is_option = source_attr.map(crate::attr::optional).unwrap_or(false)
+                        || state_source_is_option(source, aggregate, optional);
+                    let wrap =
+                        (optional || crate::attr::optional(target_attr)) && !source_is_option;
                     if wrap {
-                        exemplar.render("mutation_set_wrapped", &[("tmpl_field", target_field.to_string()), ("tmpl_rhs_placeholder2()", rhs)])
+                        exemplar.render(
+                            "mutation_set_wrapped",
+                            &[
+                                ("tmpl_field", target_field.to_string()),
+                                ("tmpl_rhs_placeholder2()", rhs),
+                            ],
+                        )
                     } else {
-                        exemplar.render("mutation_set_plain", &[("tmpl_field", target_field.to_string()), ("tmpl_rhs_placeholder2()", rhs)])
+                        exemplar.render(
+                            "mutation_set_plain",
+                            &[
+                                ("tmpl_field", target_field.to_string()),
+                                ("tmpl_rhs_placeholder2()", rhs),
+                            ],
+                        )
                     }
                 }
             }
         }
         "increment" | "decrement" => {
-            let (target_attr, integer_field) = crate::bridging::arithmetic_target_field(mutation, aggregate, value_objects_by_name).expect("arithmetic target must resolve");
+            let (target_attr, integer_field) = crate::bridging::arithmetic_target_field(
+                mutation,
+                aggregate,
+                value_objects_by_name,
+            )
+            .expect("arithmetic target must resolve");
             let vo_type = naming::rust_ident(crate::attr::type_name(target_attr));
             let field_ident = naming::rust_ident_field(&integer_field);
-            let amount_expr = crate::bridging::arithmetic_amount_expr(mutation.get("source").unwrap_or(&Json::Null), command, value_objects_by_name, &integer_field).expect("arithmetic amount must resolve");
+            let amount_expr = crate::bridging::arithmetic_amount_expr(
+                mutation.get("source").unwrap_or(&Json::Null),
+                command,
+                value_objects_by_name,
+                &integer_field,
+            )
+            .expect("arithmetic amount must resolve");
             // Use the IR's `sign`, not the op name.
-            let sign = if mutation.get("sign").map(Json::to_s).unwrap_or_default() == "1" { "+" } else { "-" };
-            let current = if optional { format!("record.{target_field}.clone().unwrap()") } else { format!("record.{target_field}.clone()") };
+            let sign = if mutation.get("sign").map(Json::to_s).unwrap_or_default() == "1" {
+                "+"
+            } else {
+                "-"
+            };
+            let current = if optional {
+                format!("record.{target_field}.clone().unwrap()")
+            } else {
+                format!("record.{target_field}.clone()")
+            };
             let op = mutation.get("op").map(Json::to_s).unwrap_or_default();
-            let updated = format!("{vo_type} {{ {field_ident}: {}, ..current }}", checked_arithmetic(&op, &field_ident, sign, &amount_expr));
+            let updated = format!(
+                "{vo_type} {{ {field_ident}: {}, ..current }}",
+                checked_arithmetic(&op, &field_ident, sign, &amount_expr)
+            );
             exemplar.render(
                 "mutation_arithmetic",
-                &[("tmpl_field", target_field.to_string()), ("tmpl_current_placeholder()", current), ("tmpl_updated_placeholder()", if optional { format!("Some({updated})") } else { updated })],
+                &[
+                    ("tmpl_field", target_field.to_string()),
+                    ("tmpl_current_placeholder()", current),
+                    (
+                        "tmpl_updated_placeholder()",
+                        if optional {
+                            format!("Some({updated})")
+                        } else {
+                            updated
+                        },
+                    ),
+                ],
             )
         }
         "multiply" => {
             // Same Integer-field subset as `increment`/`decrement`, with `*`.
-            let (target_attr, integer_field) = crate::bridging::arithmetic_target_field(mutation, aggregate, value_objects_by_name).expect("arithmetic target must resolve");
+            let (target_attr, integer_field) = crate::bridging::arithmetic_target_field(
+                mutation,
+                aggregate,
+                value_objects_by_name,
+            )
+            .expect("arithmetic target must resolve");
             let vo_type = naming::rust_ident(crate::attr::type_name(target_attr));
             let field_ident = naming::rust_ident_field(&integer_field);
-            let amount_expr = crate::bridging::arithmetic_amount_expr(mutation.get("source").unwrap_or(&Json::Null), command, value_objects_by_name, &integer_field).expect("arithmetic amount must resolve");
-            let current = if optional { format!("record.{target_field}.clone().unwrap()") } else { format!("record.{target_field}.clone()") };
-            let updated = format!("{vo_type} {{ {field_ident}: {}, ..current }}", checked_arithmetic("multiply", &field_ident, "*", &amount_expr));
+            let amount_expr = crate::bridging::arithmetic_amount_expr(
+                mutation.get("source").unwrap_or(&Json::Null),
+                command,
+                value_objects_by_name,
+                &integer_field,
+            )
+            .expect("arithmetic amount must resolve");
+            let current = if optional {
+                format!("record.{target_field}.clone().unwrap()")
+            } else {
+                format!("record.{target_field}.clone()")
+            };
+            let updated = format!(
+                "{vo_type} {{ {field_ident}: {}, ..current }}",
+                checked_arithmetic("multiply", &field_ident, "*", &amount_expr)
+            );
             exemplar.render(
                 "mutation_arithmetic",
-                &[("tmpl_field", target_field.to_string()), ("tmpl_current_placeholder()", current), ("tmpl_updated_placeholder()", if optional { format!("Some({updated})") } else { updated })],
+                &[
+                    ("tmpl_field", target_field.to_string()),
+                    ("tmpl_current_placeholder()", current),
+                    (
+                        "tmpl_updated_placeholder()",
+                        if optional {
+                            format!("Some({updated})")
+                        } else {
+                            updated
+                        },
+                    ),
+                ],
             )
         }
         "clamp" => {
             // The source is always a literal `[min, max]` pair, so there is no amount to resolve.
-            let (target_attr, integer_field) = crate::bridging::arithmetic_target_field(mutation, aggregate, value_objects_by_name).expect("clamp target must resolve");
+            let (target_attr, integer_field) = crate::bridging::arithmetic_target_field(
+                mutation,
+                aggregate,
+                value_objects_by_name,
+            )
+            .expect("clamp target must resolve");
             let vo_type = naming::rust_ident(crate::attr::type_name(target_attr));
             let field_ident = naming::rust_ident_field(&integer_field);
-            let (min, max) = mutation.get("source").and_then(crate::bridging::clamp_bounds_ints).expect("clamp bounds must resolve");
-            let current = if optional { format!("record.{target_field}.clone().unwrap()") } else { format!("record.{target_field}.clone()") };
+            let (min, max) = mutation
+                .get("source")
+                .and_then(crate::bridging::clamp_bounds_ints)
+                .expect("clamp bounds must resolve");
+            let current = if optional {
+                format!("record.{target_field}.clone().unwrap()")
+            } else {
+                format!("record.{target_field}.clone()")
+            };
             let updated = format!("{vo_type} {{ {field_ident}: current.{field_ident}.clamp({min}, {max}), ..current }}");
             exemplar.render(
                 "mutation_arithmetic",
-                &[("tmpl_field", target_field.to_string()), ("tmpl_current_placeholder()", current), ("tmpl_updated_placeholder()", if optional { format!("Some({updated})") } else { updated })],
+                &[
+                    ("tmpl_field", target_field.to_string()),
+                    ("tmpl_current_placeholder()", current),
+                    (
+                        "tmpl_updated_placeholder()",
+                        if optional {
+                            format!("Some({updated})")
+                        } else {
+                            updated
+                        },
+                    ),
+                ],
             )
         }
         "remove" => {
             // `remove_field_problems` already confirmed every lookup below resolves.
             let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
-            let target_attr = attrs.iter().find(|a| crate::attr::name(a) == target_name).expect("remove target must be a declared aggregate attribute");
+            let target_attr = attrs
+                .iter()
+                .find(|a| crate::attr::name(a) == target_name)
+                .expect("remove target must be a declared aggregate attribute");
             let entities = aggregate.get("entities").map(Json::each).unwrap_or(&[]);
-            let entity = entities.iter().find(|e| e.get("name").and_then(Json::as_str) == Some(crate::attr::type_name(target_attr))).expect("remove target must be an entity-typed list");
-            let (id_attr, _) = entity_identity_mint(entity, value_objects_by_name).expect("remove target entity's identity must mint");
+            let entity = entities
+                .iter()
+                .find(|e| {
+                    e.get("name").and_then(Json::as_str)
+                        == Some(crate::attr::type_name(target_attr))
+                })
+                .expect("remove target must be an entity-typed list");
+            let (id_attr, _) = entity_identity_mint(entity, value_objects_by_name)
+                .expect("remove target entity's identity must mint");
             let id_field = naming::rust_ident_field(crate::attr::name(id_attr));
-            let source_name = mutation.get("source").and_then(|s| s.get("name")).map(Json::to_s).unwrap_or_default();
+            let source_name = mutation
+                .get("source")
+                .and_then(|s| s.get("name"))
+                .map(Json::to_s)
+                .unwrap_or_default();
             let cmd_attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
-            let source_attr = cmd_attrs.iter().find(|a| crate::attr::name(a) == source_name).expect("remove source must be a declared argument");
+            let source_attr = cmd_attrs
+                .iter()
+                .find(|a| crate::attr::name(a) == source_name)
+                .expect("remove source must be a declared argument");
             let match_expr = crate::bridging::value_rhs(
-                &format!("args.{}", naming::rust_ident_field(crate::attr::name(source_attr))),
+                &format!(
+                    "args.{}",
+                    naming::rust_ident_field(crate::attr::name(source_attr))
+                ),
                 crate::attr::type_name(source_attr),
                 crate::attr::type_name(id_attr),
                 value_objects_by_name,
             );
-            exemplar.render("mutation_remove", &[("tmpl_field", target_field.to_string()), ("tmpl_id_field", id_field), ("tmpl_remove_match_placeholder()", match_expr)])
+            exemplar.render(
+                "mutation_remove",
+                &[
+                    ("tmpl_field", target_field.to_string()),
+                    ("tmpl_id_field", id_field),
+                    ("tmpl_remove_match_placeholder()", match_expr),
+                ],
+            )
         }
         // `corrects` targets no field; entity-level commands do not filter it out first.
         "corrects" => String::new(),
-        other => panic!("unsupported mutation op {other:?} — command_skip_reason should have caught this"),
+        other => panic!(
+            "unsupported mutation op {other:?} — command_skip_reason should have caught this"
+        ),
     }
 }
 
@@ -942,17 +1599,29 @@ mod state_source_tests {
 
     #[test]
     fn a_state_source_in_an_all_optional_record_is_already_an_option() {
-        assert!(state_source_is_option(Some(&state("body")), &aggregate(), true));
+        assert!(state_source_is_option(
+            Some(&state("body")),
+            &aggregate(),
+            true
+        ));
     }
 
     #[test]
     fn a_state_source_reads_an_option_where_it_is_declared_optional() {
-        assert!(state_source_is_option(Some(&state("draft_body")), &aggregate(), false));
+        assert!(state_source_is_option(
+            Some(&state("draft_body")),
+            &aggregate(),
+            false
+        ));
     }
 
     #[test]
     fn a_required_state_source_in_a_plain_record_is_not_an_option() {
-        assert!(!state_source_is_option(Some(&state("body")), &aggregate(), false));
+        assert!(!state_source_is_option(
+            Some(&state("body")),
+            &aggregate(),
+            false
+        ));
     }
 
     #[test]
@@ -967,46 +1636,69 @@ mod expression_source_tests {
     use super::*;
 
     fn aggregate() -> Json {
-        Json::parse(r#"{"name":"Settlement","attributes":[
+        Json::parse(
+            r#"{"name":"Settlement","attributes":[
             {"name":"paid","type":"Cents","list":false},
             {"name":"refund","type":"Cents","list":false},
-            {"name":"note","type":"Note","list":false}]}"#)
+            {"name":"note","type":"Note","list":false}]}"#,
+        )
         .unwrap()
     }
 
     fn vos() -> Vec<Json> {
         vec![
-            Json::parse(r#"{"name":"Cents","attributes":[{"name":"value","type":"Integer","list":false}]}"#).unwrap(),
-            Json::parse(r#"{"name":"Note","attributes":[{"name":"value","type":"String","list":false}]}"#).unwrap(),
+            Json::parse(
+                r#"{"name":"Cents","attributes":[{"name":"value","type":"Integer","list":false}]}"#,
+            )
+            .unwrap(),
+            Json::parse(
+                r#"{"name":"Note","attributes":[{"name":"value","type":"String","list":false}]}"#,
+            )
+            .unwrap(),
         ]
     }
 
     fn command(target: &str) -> Json {
         let source = r#"{"kind":"expression","text":"paid * 2","ast":{"op":"mul","left":{"op":"lookup","path":["paid"]},"right":{"op":"int","value":2}}}"#;
-        Json::parse(&format!(r#"{{"mutations":[{{"target":"{target}","op":"set","source":{source}}}]}}"#)).unwrap()
+        Json::parse(&format!(
+            r#"{{"mutations":[{{"target":"{target}","op":"set","source":{source}}}]}}"#
+        ))
+        .unwrap()
     }
 
     fn by_name(vos: &[Json]) -> HashMap<String, &Json> {
-        vos.iter().map(|vo| (vo.get("name").map(Json::to_s).unwrap_or_default(), vo)).collect()
+        vos.iter()
+            .map(|vo| (vo.get("name").map(Json::to_s).unwrap_or_default(), vo))
+            .collect()
     }
 
     #[test]
     fn an_expression_source_binds_the_pre_dispatch_record() {
-        assert!(reads_pre_state(command("refund").get("mutations").map(Json::each).unwrap_or(&[])));
+        assert!(reads_pre_state(
+            command("refund")
+                .get("mutations")
+                .map(Json::each)
+                .unwrap_or(&[])
+        ));
     }
 
     #[test]
     fn a_target_typed_by_an_integer_value_object_is_generated() {
         let vos = vos();
 
-        assert!(expression_source_problems(&command("refund"), &aggregate(), &by_name(&vos)).is_empty());
+        assert!(
+            expression_source_problems(&command("refund"), &aggregate(), &by_name(&vos)).is_empty()
+        );
     }
 
     #[test]
     fn a_target_typed_by_a_text_value_object_is_not_generated_yet() {
         let vos = vos();
 
-        assert_eq!(expression_source_problems(&command("note"), &aggregate(), &by_name(&vos)).len(), 1);
+        assert_eq!(
+            expression_source_problems(&command("note"), &aggregate(), &by_name(&vos)).len(),
+            1
+        );
     }
 
     #[test]
@@ -1014,10 +1706,19 @@ mod expression_source_tests {
         let vos = vos();
         let aggregate = aggregate();
         let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
-        let source = command("refund").get("mutations").map(Json::each).unwrap_or(&[])[0].get("source").cloned().unwrap();
+        let source = command("refund")
+            .get("mutations")
+            .map(Json::each)
+            .unwrap_or(&[])[0]
+            .get("source")
+            .cloned()
+            .unwrap();
 
         let rhs = expression_set_rhs(&source, &attrs[1], &by_name(&vos));
 
-        assert!(rhs.contains("crate::kernel::interpret(&Expr::Mul(") && rhs.contains("Cents { value: number }"));
+        assert!(
+            rhs.contains("crate::kernel::interpret(&Expr::Mul(")
+                && rhs.contains("Cents { value: number }")
+        );
     }
 }

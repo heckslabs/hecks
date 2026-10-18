@@ -53,7 +53,9 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
 
     let bluebook_directory = domain_path.join("bluebook");
     let bluebook_paths = resolve::bluebook_files(&bluebook_directory)?;
-    let first_bluebook = bluebook_paths.first().ok_or_else(|| format!("{} has no .bluebook files", domain_path.display()))?;
+    let first_bluebook = bluebook_paths
+        .first()
+        .ok_or_else(|| format!("{} has no .bluebook files", domain_path.display()))?;
     let hecksagon_candidate = bluebook_directory.join(format!("{target_mod_name}.hecksagon"));
     let hecksagon_path = hecksagon_candidate.is_file().then_some(hecksagon_candidate);
     let world_candidate = bluebook_directory.join(format!("{target_mod_name}.world"));
@@ -92,9 +94,19 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     // Only the target chapter gets a `lineage` key — a framework chapter or
     // `meta` never does, matching `derive_lineage` (Ruby) re-`JSON.parse`ing
     // rather than chaining a live object through both passes.
-    let mut target_ir = Json::parse(&target_ir_text).map_err(|e| format!("re-parsing target ir.json for lineage: {e}"))?;
-    lineage_pass::run(&mut target_ir, hecksagon_path.as_deref(), world_path.as_deref(), root)?;
-    binding_pass::run(&mut target_ir, hecksagon_path.as_deref(), world_path.as_deref())?;
+    let mut target_ir = Json::parse(&target_ir_text)
+        .map_err(|e| format!("re-parsing target ir.json for lineage: {e}"))?;
+    lineage_pass::run(
+        &mut target_ir,
+        hecksagon_path.as_deref(),
+        world_path.as_deref(),
+        root,
+    )?;
+    binding_pass::run(
+        &mut target_ir,
+        hecksagon_path.as_deref(),
+        world_path.as_deref(),
+    )?;
 
     // Every other chapter the gem supplies by `attaches "Name"`, resolved through the
     // same directory listing (`resolve::framework_members`) the Ruby
@@ -104,7 +116,9 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     let other_gem_chapters = resolve::other_gem_chapter_names(root)?;
     let mut chapters: Vec<Chapter> = Vec::new();
     for fw_name in &gem_chapter_names {
-        if other_gem_chapters.contains(fw_name) && !framework_members.iter().any(|(name, _)| name == fw_name) {
+        if other_gem_chapters.contains(fw_name)
+            && !framework_members.iter().any(|(name, _)| name == fw_name)
+        {
             continue;
         }
         let fw_path = framework_members
@@ -124,7 +138,11 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
                 fw_path.display()
             ));
         }
-        let fw_ir_text = parse_chapter(&parser_bin, &fw_chapter_name, std::slice::from_ref(&fw_path))?;
+        let fw_ir_text = parse_chapter(
+            &parser_bin,
+            &fw_chapter_name,
+            std::slice::from_ref(&fw_path),
+        )?;
         chapters.push(Chapter {
             mod_name: fw_name.to_lowercase(),
             source_label: format!("{domain} (attaches {fw_name:?})"),
@@ -200,7 +218,10 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     // once every chapter is loaded; `translations` and `source_text` close the binding facts.
     let mut member_irs = Vec::new();
     for c in &chapters {
-        member_irs.push(Json::parse(&c.ir_text).map_err(|e| format!("re-parsing {} ir.json for its seams: {e}", c.mod_name))?);
+        member_irs.push(
+            Json::parse(&c.ir_text)
+                .map_err(|e| format!("re-parsing {} ir.json for its seams: {e}", c.mod_name))?,
+        );
     }
     seams_pass::run(&mut target_ir, &member_irs)?;
     binding_pass::finish(&mut target_ir, &source_files, &bluebook_directory)?;
@@ -211,8 +232,12 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     let grammar_files = resolve::grammar_files(root)?;
     let meta_ir_text = parse_chapter(&parser_bin, "Bluebook", &grammar_files)?;
 
-    let out_root = opts.out_dir.clone().unwrap_or_else(|| root.join("rust/src/generated"));
-    std::fs::create_dir_all(&out_root).map_err(|e| format!("creating {}: {e}", out_root.display()))?;
+    let out_root = opts
+        .out_dir
+        .clone()
+        .unwrap_or_else(|| root.join("rust/src/generated"));
+    std::fs::create_dir_all(&out_root)
+        .map_err(|e| format!("creating {}: {e}", out_root.display()))?;
 
     // Scoped clearing — identical reasoning to both Ruby pipelines'
     // own: multiple domains coexist on disk, so only this run's own
@@ -227,11 +252,21 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     let tmp = TempDir::new("hecks-build-codegen")?;
 
     let meta_ir_path = tmp.path().join("meta_ir.json");
-    std::fs::write(&meta_ir_path, &meta_ir_text).map_err(|e| format!("writing {}: {e}", meta_ir_path.display()))?;
-    run_codegen_full(&codegen_bin, &[out_root.to_string_lossy().to_string(), "meta".to_string(), META_SOURCE_LABEL.to_string(), meta_ir_path.to_string_lossy().to_string()])?;
+    std::fs::write(&meta_ir_path, &meta_ir_text)
+        .map_err(|e| format!("writing {}: {e}", meta_ir_path.display()))?;
+    run_codegen_full(
+        &codegen_bin,
+        &[
+            out_root.to_string_lossy().to_string(),
+            "meta".to_string(),
+            META_SOURCE_LABEL.to_string(),
+            meta_ir_path.to_string_lossy().to_string(),
+        ],
+    )?;
 
     let target_ir_path = tmp.path().join("target_ir.json");
-    std::fs::write(&target_ir_path, &target_ir_text).map_err(|e| format!("writing {}: {e}", target_ir_path.display()))?;
+    std::fs::write(&target_ir_path, &target_ir_text)
+        .map_err(|e| format!("writing {}: {e}", target_ir_path.display()))?;
 
     let mut codegen_args = vec![
         out_root.to_string_lossy().to_string(),
@@ -242,7 +277,8 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     let mut chapter_ir_paths = Vec::new();
     for (idx, c) in chapters.iter().enumerate() {
         let ir_path = tmp.path().join(format!("chapter_{idx}_ir.json"));
-        std::fs::write(&ir_path, &c.ir_text).map_err(|e| format!("writing {}: {e}", ir_path.display()))?;
+        std::fs::write(&ir_path, &c.ir_text)
+            .map_err(|e| format!("writing {}: {e}", ir_path.display()))?;
         codegen_args.push(c.mod_name.clone());
         codegen_args.push(c.source_label.clone());
         codegen_args.push(ir_path.to_string_lossy().to_string());
@@ -270,9 +306,17 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
 
 // Parses via `hecks-parse chapter`. `hecks-codegen` marks the IR and writes its `ir.json` and
 // `metadata.rs` itself, so the text goes through as `hecks-parse` printed it.
-fn parse_chapter(parser_bin: &Path, chapter_name: &str, files: &[PathBuf]) -> Result<String, String> {
+fn parse_chapter(
+    parser_bin: &Path,
+    chapter_name: &str,
+    files: &[PathBuf],
+) -> Result<String, String> {
     let parser_bin_str = parser_bin.to_string_lossy().to_string();
-    let mut args: Vec<String> = vec!["chapter".to_string(), "--chapter".to_string(), chapter_name.to_string()];
+    let mut args: Vec<String> = vec![
+        "chapter".to_string(),
+        "--chapter".to_string(),
+        chapter_name.to_string(),
+    ];
     args.extend(files.iter().map(|p| p.to_string_lossy().to_string()));
     let arg_refs: Vec<&str> = args.iter().map(String::as_str).collect();
 

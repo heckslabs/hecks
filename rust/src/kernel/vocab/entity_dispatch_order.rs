@@ -68,7 +68,10 @@ impl EntityStep {
 
     /// The row whose `step` is `name`, if any.
     pub fn from_name(name: &str) -> Option<EntityStep> {
-        EntityStep::ORDER.iter().copied().find(|row| row.step() == name)
+        EntityStep::ORDER
+            .iter()
+            .copied()
+            .find(|row| row.step() == name)
     }
 
     /// This step's index in `ORDER`.

@@ -406,8 +406,13 @@ fn parse_body_into(
                 )?)
             }
             "namespace" => {
-                bluebook.namespace =
-                    Some(super::positional_text(file, line, "namespace", &gated.args, 1)?)
+                bluebook.namespace = Some(super::positional_text(
+                    file,
+                    line,
+                    "namespace",
+                    &gated.args,
+                    1,
+                )?)
             }
             "formerly_known_as" => {
                 bluebook.formerly_known_as = Some(super::positional_text(

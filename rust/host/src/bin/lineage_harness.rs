@@ -31,7 +31,9 @@ async fn main() -> anyhow::Result<()> {
     let [_, db_name, app_role, domain, era] = args.as_slice() else {
         anyhow::bail!("usage: lineage_harness <db_name> <app_role> <domain> <era>");
     };
-    let era: i32 = era.parse().map_err(|_| anyhow::anyhow!("era must be an integer, got {era:?}"))?;
+    let era: i32 = era
+        .parse()
+        .map_err(|_| anyhow::anyhow!("era must be an integer, got {era:?}"))?;
 
     let mut input = String::new();
     std::io::stdin().read_to_string(&mut input)?;
@@ -42,7 +44,11 @@ async fn main() -> anyhow::Result<()> {
         .ok_or_else(|| anyhow::anyhow!("stdin JSON missing \"operations\" array"))?;
 
     // tokio_postgres ignores libpq's `PGPASSWORD`, so pass it through when the server asks for one.
-    let password = std::env::var("PGPASSWORD").ok().filter(|p| !p.is_empty()).map(|p| format!(" password={p}")).unwrap_or_default();
+    let password = std::env::var("PGPASSWORD")
+        .ok()
+        .filter(|p| !p.is_empty())
+        .map(|p| format!(" password={p}"))
+        .unwrap_or_default();
     let conn_string = format!("host=localhost dbname={db_name} user={app_role}{password}");
     let (client, connection) = tokio_postgres::connect(&conn_string, NoTls).await?;
     tokio::spawn(async move {
@@ -51,7 +57,11 @@ async fn main() -> anyhow::Result<()> {
         }
     });
 
-    let config = journal::LineageConfig { domain: domain.clone(), era: Some(era), mirrored: None };
+    let config = journal::LineageConfig {
+        domain: domain.clone(),
+        era: Some(era),
+        mirrored: None,
+    };
     let mut results = Vec::with_capacity(operations.len());
 
     for operation in operations {
@@ -62,7 +72,11 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn run_one(client: &tokio_postgres::Client, config: &journal::LineageConfig, operation: &Value) -> Value {
+async fn run_one(
+    client: &tokio_postgres::Client,
+    config: &journal::LineageConfig,
+    operation: &Value,
+) -> Value {
     let op = operation.get("op").and_then(|v| v.as_str()).unwrap_or("");
 
     let outcome = match op {
@@ -82,20 +96,34 @@ async fn run_one(client: &tokio_postgres::Client, config: &journal::LineageConfi
     }
 }
 
-async fn read_all(client: &tokio_postgres::Client, config: &journal::LineageConfig, operation: &Value) -> anyhow::Result<Value> {
+async fn read_all(
+    client: &tokio_postgres::Client,
+    config: &journal::LineageConfig,
+    operation: &Value,
+) -> anyhow::Result<Value> {
     let storage_name = require_str(operation, "storage_name")?;
     let rows = journal::read_lineage_head_all(client, &config.domain, storage_name).await?;
-    Ok(json!({ "rows": rows.into_iter().map(|(id, state)| json!([id, state])).collect::<Vec<_>>() }))
+    Ok(
+        json!({ "rows": rows.into_iter().map(|(id, state)| json!([id, state])).collect::<Vec<_>>() }),
+    )
 }
 
-async fn read_by_id(client: &tokio_postgres::Client, config: &journal::LineageConfig, operation: &Value) -> anyhow::Result<Value> {
+async fn read_by_id(
+    client: &tokio_postgres::Client,
+    config: &journal::LineageConfig,
+    operation: &Value,
+) -> anyhow::Result<Value> {
     let storage_name = require_str(operation, "storage_name")?;
     let id = require_str(operation, "id")?;
     let state = journal::read_lineage_head_by_id(client, &config.domain, storage_name, id).await?;
     Ok(json!({ "state": state }))
 }
 
-async fn write(client: &tokio_postgres::Client, config: &journal::LineageConfig, operation: &Value) -> anyhow::Result<Value> {
+async fn write(
+    client: &tokio_postgres::Client,
+    config: &journal::LineageConfig,
+    operation: &Value,
+) -> anyhow::Result<Value> {
     let aggregate = require_str(operation, "aggregate")?;
     let id = require_str(operation, "id")?;
     let state = operation
@@ -105,7 +133,12 @@ async fn write(client: &tokio_postgres::Client, config: &journal::LineageConfig,
     journal::append_lineage_mutation(
         client,
         config,
-        &journal::Mutation { aggregate, id, operation: "save", state },
+        &journal::Mutation {
+            aggregate,
+            id,
+            operation: "save",
+            state,
+        },
     )
     .await?;
     Ok(json!({}))

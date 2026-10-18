@@ -28,7 +28,10 @@ pub enum Number {
 
 impl Json {
     pub fn parse(text: &str) -> Result<Json, String> {
-        let mut p = Parser { bytes: text.as_bytes(), pos: 0 };
+        let mut p = Parser {
+            bytes: text.as_bytes(),
+            pos: 0,
+        };
         p.skip_ws();
         let value = p.parse_value()?;
         p.skip_ws();
@@ -41,7 +44,10 @@ impl Json {
     /// `ir[:key]`: `None` for a missing key or a `Json::Null` value.
     pub fn get(&self, key: &str) -> Option<&Json> {
         match self {
-            Json::Object(pairs) => pairs.iter().find(|(k, v)| k == key && !matches!(v, Json::Null)).map(|(_, v)| v),
+            Json::Object(pairs) => pairs
+                .iter()
+                .find(|(k, v)| k == key && !matches!(v, Json::Null))
+                .map(|(_, v)| v),
             _ => None,
         }
     }
@@ -97,7 +103,9 @@ impl Json {
     /// The number as Ruby wrote it, or `None` for any other value. An integer too large for `i64`
     /// reads as a Float.
     pub fn number(&self) -> Option<Number> {
-        let Json::Number(text) = self else { return None };
+        let Json::Number(text) = self else {
+            return None;
+        };
         if text.contains(|c| matches!(c, '.' | 'e' | 'E')) {
             return text.parse::<f64>().ok().map(Number::Float);
         }
@@ -198,7 +206,12 @@ impl<'a> Parser<'a> {
             self.pos += 1;
             Ok(())
         } else {
-            Err(format!("expected {:?} at byte {}, found {:?}", b as char, self.pos, self.peek().map(|c| c as char)))
+            Err(format!(
+                "expected {:?} at byte {}, found {:?}",
+                b as char,
+                self.pos,
+                self.peek().map(|c| c as char)
+            ))
         }
     }
 
@@ -221,7 +234,11 @@ impl<'a> Parser<'a> {
                 Ok(Json::Null)
             }
             Some(c) if c == b'-' || c.is_ascii_digit() => self.parse_number(),
-            other => Err(format!("unexpected byte {:?} at {}", other.map(|c| c as char), self.pos)),
+            other => Err(format!(
+                "unexpected byte {:?} at {}",
+                other.map(|c| c as char),
+                self.pos
+            )),
         }
     }
 
@@ -259,7 +276,13 @@ impl<'a> Parser<'a> {
                     self.pos += 1;
                     break;
                 }
-                other => return Err(format!("expected ',' or '}}' at byte {}, found {:?}", self.pos, other.map(|c| c as char))),
+                other => {
+                    return Err(format!(
+                        "expected ',' or '}}' at byte {}, found {:?}",
+                        self.pos,
+                        other.map(|c| c as char)
+                    ))
+                }
             }
         }
         Ok(Json::Object(pairs))
@@ -285,7 +308,13 @@ impl<'a> Parser<'a> {
                     self.pos += 1;
                     break;
                 }
-                other => return Err(format!("expected ',' or ']' at byte {}, found {:?}", self.pos, other.map(|c| c as char))),
+                other => {
+                    return Err(format!(
+                        "expected ',' or ']' at byte {}, found {:?}",
+                        self.pos,
+                        other.map(|c| c as char)
+                    ))
+                }
             }
         }
         Ok(Json::Array(items))
@@ -338,7 +367,8 @@ impl<'a> Parser<'a> {
                         }
                         Some(b'u') => {
                             self.pos += 1;
-                            let hex = std::str::from_utf8(&self.bytes[self.pos..self.pos + 4]).map_err(|e| e.to_string())?;
+                            let hex = std::str::from_utf8(&self.bytes[self.pos..self.pos + 4])
+                                .map_err(|e| e.to_string())?;
                             let code = u32::from_str_radix(hex, 16).map_err(|e| e.to_string())?;
                             self.pos += 4;
                             if let Some(c) = char::from_u32(code) {
@@ -351,7 +381,8 @@ impl<'a> Parser<'a> {
                 Some(_) => {
                     // One UTF-8 char at a time so multi-byte text survives intact.
                     let start = self.pos;
-                    let rest = std::str::from_utf8(&self.bytes[start..]).map_err(|e| e.to_string())?;
+                    let rest =
+                        std::str::from_utf8(&self.bytes[start..]).map_err(|e| e.to_string())?;
                     let ch = rest.chars().next().ok_or("empty remainder")?;
                     out.push(ch);
                     self.pos += ch.len_utf8();
@@ -498,7 +529,10 @@ mod tests {
         assert_eq!(numbers[1], Some(Number::Int(0)));
         assert_eq!(numbers[2], Some(Number::Float(1000.0)));
         assert_eq!(numbers[3], Some(Number::Int(-7)));
-        assert!(matches!(numbers[4], Some(Number::Float(_))), "an integer past i64 reads as a Float");
+        assert!(
+            matches!(numbers[4], Some(Number::Float(_))),
+            "an integer past i64 reads as a Float"
+        );
         assert_eq!(value.each()[0].to_s(), "0.0");
         assert_eq!(value.each()[1].to_s(), "0");
     }

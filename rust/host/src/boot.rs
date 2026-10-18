@@ -1,7 +1,10 @@
 //! Lambda custom-runtime entry point (or a long-lived server under
 //! HECKS_SERVE_MODE=1): boots Postgres/wasm state, then dispatches events.
 
-use crate::{approval, auth, extension, ir, journal, lambda_client, log, mint, rate_limit, secrets, server, storage_shape};
+use crate::{
+    approval, auth, extension, ir, journal, lambda_client, log, mint, rate_limit, secrets, server,
+    storage_shape,
+};
 
 use lambda_runtime::{service_fn, Error, LambdaEvent};
 use std::path::PathBuf;
@@ -37,8 +40,10 @@ pub async fn run() -> Result<(), Error> {
     let secret_fetcher = secrets::AwsSecretFetcher::from_env().await;
     let database_url = match std::env::var("DB_SECRET_ARN") {
         Ok(secret_arn) => {
-            let db_host = std::env::var("DB_HOST").map_err(|_| "DB_HOST is required when DB_SECRET_ARN is set")?;
-            let db_name = std::env::var("DB_NAME").map_err(|_| "DB_NAME is required when DB_SECRET_ARN is set")?;
+            let db_host = std::env::var("DB_HOST")
+                .map_err(|_| "DB_HOST is required when DB_SECRET_ARN is set")?;
+            let db_name = std::env::var("DB_NAME")
+                .map_err(|_| "DB_NAME is required when DB_SECRET_ARN is set")?;
             let secret_json = secret_fetcher
                 .fetch_secret_string(&secret_arn)
                 .await
@@ -125,7 +130,8 @@ pub async fn run() -> Result<(), Error> {
     }
     // NoTlsStream and RustlsStream can't unify in one branch, so the
     // two paths are spawned separately.
-    let connect_phase = log::phase_with("db_connect", serde_json::json!({ "tls": !local_postgres }));
+    let connect_phase =
+        log::phase_with("db_connect", serde_json::json!({ "tls": !local_postgres }));
     let client = if local_postgres {
         let (client, connection) = config
             .connect(tokio_postgres::NoTls)
@@ -164,11 +170,17 @@ pub async fn run() -> Result<(), Error> {
     // existing schema is the ordinary case on every boot after the first.
     if let Some(schema) = &schema {
         client
-            .batch_execute(&format!("CREATE SCHEMA IF NOT EXISTS {}", journal::quote_ident(schema)))
+            .batch_execute(&format!(
+                "CREATE SCHEMA IF NOT EXISTS {}",
+                journal::quote_ident(schema)
+            ))
             .await
             .map_err(|e| format!("creating schema {schema:?}: {e:#}"))?;
         client
-            .batch_execute(&format!("SET search_path TO {}", journal::quote_ident(schema)))
+            .batch_execute(&format!(
+                "SET search_path TO {}",
+                journal::quote_ident(schema)
+            ))
             .await
             .map_err(|e| format!("setting search_path to {schema:?}: {e:#}"))?;
     }
@@ -187,7 +199,11 @@ pub async fn run() -> Result<(), Error> {
     let mut aggregates: Vec<mint::Aggregate> = ir::lineage_capable_aggregates(ir)
         .into_iter()
         .map(|(qualified, storage_name)| {
-            let name = qualified.rsplit("::").next().unwrap_or(&qualified).to_string();
+            let name = qualified
+                .rsplit("::")
+                .next()
+                .unwrap_or(&qualified)
+                .to_string();
             mint::Aggregate { name, storage_name }
         })
         .collect();
@@ -195,7 +211,12 @@ pub async fn run() -> Result<(), Error> {
     // aggregate can be vendored, so it may be missing from this domain's
     // lineage-capable list. Mint its head anyway for Google-auth to read.
     if let Some(membership) = ir::membership_provider(ir) {
-        let name = membership.aggregate.rsplit("::").next().unwrap_or(&membership.aggregate).to_string();
+        let name = membership
+            .aggregate
+            .rsplit("::")
+            .next()
+            .unwrap_or(&membership.aggregate)
+            .to_string();
         let storage_name = journal::snake(&name);
         if !aggregates.iter().any(|a| a.storage_name == storage_name) {
             aggregates.push(mint::Aggregate { name, storage_name });
@@ -212,7 +233,9 @@ pub async fn run() -> Result<(), Error> {
         // first `journal::held_eras` call, since `hecks_eras` doesn't
         // exist yet on a truly fresh Postgres instance.
         let phase = log::phase("ensure_base");
-        mint::ensure_base(&client, &domain).await.map_err(|e| format!("provisioning hecks_eras for {domain}: {e:#}"))?;
+        mint::ensure_base(&client, &domain)
+            .await
+            .map_err(|e| format!("provisioning hecks_eras for {domain}: {e:#}"))?;
         phase.end();
 
         // Compares this binary's own shape hash (`storage_shape`, over
@@ -222,20 +245,26 @@ pub async fn run() -> Result<(), Error> {
         // `hecks scaffold_translation` (no edge covers it) or
         // `hecks audit_translation --approve` (needs review) otherwise.
         let era_phase = log::phase("era_resolve");
-        let held = journal::held_eras(&client, &domain).await.map_err(|e| format!("checking hecks_eras for {domain}: {e:#}"))?;
+        let held = journal::held_eras(&client, &domain)
+            .await
+            .map_err(|e| format!("checking hecks_eras for {domain}: {e:#}"))?;
 
         // The decision itself is a pure, unit-tested function
         // (`mint::decide_boot_action`); everything below just carries
         // out whichever of its four outcomes came back.
         let decision = mint::decide_boot_action(&held, &my_label);
-        era_phase.end_with(serde_json::json!({ "held_eras": held.len(), "decision": decision.name() }));
+        era_phase
+            .end_with(serde_json::json!({ "held_eras": held.len(), "decision": decision.name() }));
         let ordinal: i32 = match decision {
             // Adopting an existing era still provisions what this binary
             // is about to write into, the same as minting does --
             // skipping it would let a matched-era host write into
             // head-snapshot tables that were never created.
             mint::BootDecision::UseExisting { ordinal } => {
-                let phase = log::phase_with("adopt_head_snapshots", serde_json::json!({ "era": ordinal }));
+                let phase = log::phase_with(
+                    "adopt_head_snapshots",
+                    serde_json::json!({ "era": ordinal }),
+                );
                 mint::adopt_head_snapshots(&client, &domain, &aggregates, ordinal)
                     .await
                     .map_err(|e| format!("adopting era {ordinal} of {domain}: {e:#}"))?;
@@ -243,10 +272,14 @@ pub async fn run() -> Result<(), Error> {
                 ordinal
             }
             mint::BootDecision::HoldFirst => {
-                let source_text =
-                    ir.get("source_text").and_then(serde_json::Value::as_str).ok_or("ir.json is missing source_text — regenerate with hecks project_rust")?;
+                let source_text = ir
+                    .get("source_text")
+                    .and_then(serde_json::Value::as_str)
+                    .ok_or("ir.json is missing source_text — regenerate with hecks project_rust")?;
                 let phase = log::phase_with("hold_first", serde_json::json!({ "era": 1 }));
-                mint::hold_first(&client, &domain, source_text, ir, &aggregates, None).await.map_err(|e| format!("minting era 1 of {domain}: {e:#}"))?;
+                mint::hold_first(&client, &domain, source_text, ir, &aggregates, None)
+                    .await
+                    .map_err(|e| format!("minting era 1 of {domain}: {e:#}"))?;
                 phase.end();
                 1
             }
@@ -258,8 +291,15 @@ pub async fn run() -> Result<(), Error> {
                 )
                 .into());
             }
-            mint::BootDecision::Mint { ordinal, from_ordinal, from_label } => {
-                let mut labels: Vec<String> = held.iter().map(|held_era| held_era.label.clone().unwrap_or_default()).collect();
+            mint::BootDecision::Mint {
+                ordinal,
+                from_ordinal,
+                from_label,
+            } => {
+                let mut labels: Vec<String> = held
+                    .iter()
+                    .map(|held_era| held_era.label.clone().unwrap_or_default())
+                    .collect();
                 labels.push(my_label.clone());
                 let edges = mint::parse_edges(ir, &domain);
                 let chain = mint::edge_chain(&edges, &labels).map_err(|e| {
@@ -274,36 +314,80 @@ pub async fn run() -> Result<(), Error> {
                 // rule, not just the newest -- a chain can carry more
                 // than one, matched against the raw ir.json edge
                 // (digest-relevant shape) by the same from/to pair.
-                let raw_edges = ir.get("translations").and_then(serde_json::Value::as_array).cloned().unwrap_or_default();
+                let raw_edges = ir
+                    .get("translations")
+                    .and_then(serde_json::Value::as_array)
+                    .cloned()
+                    .unwrap_or_default();
                 let committed_approvals = approval::committed(ir);
-                let approval_phase = log::phase_with("approval_check", serde_json::json!({ "edges": chain.len(), "committed": committed_approvals.len() }));
+                let approval_phase = log::phase_with(
+                    "approval_check",
+                    serde_json::json!({ "edges": chain.len(), "committed": committed_approvals.len() }),
+                );
                 for edge in &chain {
                     let Some(raw_edge) = raw_edges.iter().find(|candidate| {
-                        candidate.get("domain").and_then(serde_json::Value::as_str) == Some(domain.as_str())
-                            && candidate.get("from").and_then(serde_json::Value::as_str) == Some(edge.from.as_str())
-                            && candidate.get("to").and_then(serde_json::Value::as_str) == Some(edge.to.as_str())
+                        candidate.get("domain").and_then(serde_json::Value::as_str)
+                            == Some(domain.as_str())
+                            && candidate.get("from").and_then(serde_json::Value::as_str)
+                                == Some(edge.from.as_str())
+                            && candidate.get("to").and_then(serde_json::Value::as_str)
+                                == Some(edge.to.as_str())
                     }) else {
                         return Err(format!("cannot boot: {domain}'s edge {} -> {} vanished between parsing and approval-checking it", edge.from, edge.to).into());
                     };
-                    approval::check(&client, &domain, raw_edge, ordinal, &committed_approvals).await.map_err(|e| format!("{e:#}"))?;
+                    approval::check(&client, &domain, raw_edge, ordinal, &committed_approvals)
+                        .await
+                        .map_err(|e| format!("{e:#}"))?;
                 }
                 approval_phase.end();
 
                 // Runs before anything is minted, over the live compiled
                 // chain (plain SELECTs, never a persisted matview), so a
                 // refusal leaves no half-born era.
-                let watermarks: std::collections::HashMap<i32, Option<i64>> = held.iter().map(|held_era| (held_era.ordinal, held_era.watermark)).collect();
-                let audit_phase = log::phase_with("audit_before_mint", serde_json::json!({ "era": ordinal, "edges": chain.len() }));
-                mint::audit_before_mint(&client, &domain, ir, &aggregates, ordinal, &chain, &raw_edges, &watermarks)
-                    .await
-                    .map_err(|e| format!("{e:#}"))?;
+                let watermarks: std::collections::HashMap<i32, Option<i64>> = held
+                    .iter()
+                    .map(|held_era| (held_era.ordinal, held_era.watermark))
+                    .collect();
+                let audit_phase = log::phase_with(
+                    "audit_before_mint",
+                    serde_json::json!({ "era": ordinal, "edges": chain.len() }),
+                );
+                mint::audit_before_mint(
+                    &client,
+                    &domain,
+                    ir,
+                    &aggregates,
+                    ordinal,
+                    &chain,
+                    &raw_edges,
+                    &watermarks,
+                )
+                .await
+                .map_err(|e| format!("{e:#}"))?;
                 audit_phase.end();
 
-                let held_text = ir.get("source_text").and_then(serde_json::Value::as_str).ok_or("ir.json is missing source_text — regenerate with hecks project_rust")?;
-                let mint_phase = log::phase_with("mint_era", serde_json::json!({ "era": ordinal, "edges": chain.len() }));
-                mint::mint_era(&client, &domain, ordinal, &my_hash, &my_label, held_text, &aggregates, &chain, None, &mint::lifecycle_defaults(ir))
-                    .await
-                    .map_err(|e| format!("minting era {ordinal} of {domain}: {e:#}"))?;
+                let held_text = ir
+                    .get("source_text")
+                    .and_then(serde_json::Value::as_str)
+                    .ok_or("ir.json is missing source_text — regenerate with hecks project_rust")?;
+                let mint_phase = log::phase_with(
+                    "mint_era",
+                    serde_json::json!({ "era": ordinal, "edges": chain.len() }),
+                );
+                mint::mint_era(
+                    &client,
+                    &domain,
+                    ordinal,
+                    &my_hash,
+                    &my_label,
+                    held_text,
+                    &aggregates,
+                    &chain,
+                    None,
+                    &mint::lifecycle_defaults(ir),
+                )
+                .await
+                .map_err(|e| format!("minting era {ordinal} of {domain}: {e:#}"))?;
                 mint_phase.end();
                 ordinal
             }
@@ -317,7 +401,11 @@ pub async fn run() -> Result<(), Error> {
     // -- never "everything this kernel can mutate". A domain that binds
     // everything to plain `Postgres` mirrors nothing.
     let mirrored = ir::mirrored_aggregates(ir);
-    let lineage_config = Arc::new(journal::LineageConfig { domain, era, mirrored: Some(mirrored) });
+    let lineage_config = Arc::new(journal::LineageConfig {
+        domain,
+        era,
+        mirrored: Some(mirrored),
+    });
 
     // Mutex, not a bare Arc<Client> -- dispatch::handle needs
     // Client::transaction (&mut Client) to hold the advisory lock
@@ -338,9 +426,19 @@ pub async fn run() -> Result<(), Error> {
             "boot",
             serde_json::json!({ "mode": "serve", "domain": &lineage_config.domain, "era": &my_label, "boot_ms": boot_started.elapsed().as_millis() as u64 }),
         );
-        let version = server::version_body(&my_label, &my_hash, std::env::var("HECKS_BUILD").ok().as_deref());
+        let version = server::version_body(
+            &my_label,
+            &my_hash,
+            std::env::var("HECKS_BUILD").ok().as_deref(),
+        );
         let limits = Arc::new(rate_limit::RateLimits::from_env());
-        let state = server::ServerState { client, wasm_path, lineage_config, invoker, limits };
+        let state = server::ServerState {
+            client,
+            wasm_path,
+            lineage_config,
+            invoker,
+            limits,
+        };
         return server::serve(state, version).await;
     }
 
@@ -351,7 +449,8 @@ pub async fn run() -> Result<(), Error> {
         let invoker = Arc::clone(&invoker);
         async move {
             let (body, _context) = event.into_parts();
-            server::dispatch_body(body, &client, &wasm_path, &lineage_config, invoker.as_ref()).await
+            server::dispatch_body(body, &client, &wasm_path, &lineage_config, invoker.as_ref())
+                .await
         }
     }))
     .await
@@ -369,7 +468,10 @@ fn parse_database_url(url: &str) -> Result<tokio_postgres::Config, String> {
     let (authority, db_and_query) = rest
         .split_once('/')
         .ok_or_else(|| "DATABASE_URL has no '/' separating host from database name".to_string())?;
-    let dbname = db_and_query.split(['?', '#']).next().unwrap_or(db_and_query);
+    let dbname = db_and_query
+        .split(['?', '#'])
+        .next()
+        .unwrap_or(db_and_query);
 
     let (credentials, host_and_port) = match authority.rsplit_once('@') {
         Some((credentials, host_and_port)) => (Some(credentials), host_and_port),
@@ -414,10 +516,9 @@ mod tests {
 
     #[test]
     fn parses_a_password_with_uri_reserved_characters() {
-        let config = parse_database_url(
-            "postgres://postgres:T3st$Pa?#ss*>Word@db.example.com:5432/pizzas",
-        )
-        .expect("should parse despite ?/# in the password");
+        let config =
+            parse_database_url("postgres://postgres:T3st$Pa?#ss*>Word@db.example.com:5432/pizzas")
+                .expect("should parse despite ?/# in the password");
         assert_eq!(config.get_hosts().len(), 1);
         assert_eq!(config.get_ports(), &[5432]);
         assert_eq!(config.get_user(), Some("postgres"));

@@ -90,15 +90,25 @@ fn webhook_description(configured: Option<&str>, domain: &str) -> String {
 impl PlatformConfig {
     pub fn from_env() -> Self {
         let var = |name: &str| std::env::var(name).unwrap_or_default();
-        let site_url = std::env::var("SITE_URL").unwrap_or_else(|_| "http://localhost:4321".to_string());
-        let webhook_base_url = Some(var("PAYMENTS_WEBHOOK_BASE_URL")).filter(|url| !url.trim().is_empty()).unwrap_or_else(|| site_url.clone()).trim_end_matches('/').to_string();
+        let site_url =
+            std::env::var("SITE_URL").unwrap_or_else(|_| "http://localhost:4321".to_string());
+        let webhook_base_url = Some(var("PAYMENTS_WEBHOOK_BASE_URL"))
+            .filter(|url| !url.trim().is_empty())
+            .unwrap_or_else(|| site_url.clone())
+            .trim_end_matches('/')
+            .to_string();
         Self {
             site_url,
             webhook_base_url,
             store: keystore::default_store(),
             stored: Arc::new(StoredDocument::default()),
             api_base: STRIPE_API_BASE.to_string(),
-            webhook_description: webhook_description(std::env::var("PAYMENTS_WEBHOOK_DESCRIPTION").ok().as_deref(), &var("HECKS_DOMAIN")),
+            webhook_description: webhook_description(
+                std::env::var("PAYMENTS_WEBHOOK_DESCRIPTION")
+                    .ok()
+                    .as_deref(),
+                &var("HECKS_DOMAIN"),
+            ),
             direct_test_key: var("STRIPE_ACCOUNT_TEST_KEY"),
             direct_live_key: var("STRIPE_ACCOUNT_LIVE_KEY"),
             direct_test_publishable_key: var("STRIPE_ACCOUNT_TEST_PUBLISHABLE_KEY"),
@@ -123,10 +133,14 @@ impl PlatformConfig {
     /// Reads the key store into `stored` (from its cache when fresh); a store that
     /// cannot be read leaves only environment keys, logged without naming any key.
     pub async fn apply_store(&mut self) {
-        let Some(store) = self.store.clone() else { return };
+        let Some(store) = self.store.clone() else {
+            return;
+        };
         match store.document().await {
             Ok(document) => self.stored = document,
-            Err(e) => eprintln!("the saved payment keys could not be read, so only environment keys are used: {e}"),
+            Err(e) => eprintln!(
+                "the saved payment keys could not be read, so only environment keys are used: {e}"
+            ),
         }
     }
 
@@ -138,28 +152,42 @@ impl PlatformConfig {
     /// Whether any real Stripe credential exists (environment or saved keys). While
     /// one does, the public mock webhook secret must never verify anything.
     pub fn has_real_credentials(&self) -> bool {
-        let configured = [&self.direct_test_key, &self.direct_live_key].iter().any(|key| !key.is_empty());
-        let saved = [&self.stored.test, &self.stored.live].iter().any(|keys| keys.as_ref().is_some_and(|keys| !keys.secret_key.is_empty()));
+        let configured = [&self.direct_test_key, &self.direct_live_key]
+            .iter()
+            .any(|key| !key.is_empty());
+        let saved = [&self.stored.test, &self.stored.live].iter().any(|keys| {
+            keys.as_ref()
+                .is_some_and(|keys| !keys.secret_key.is_empty())
+        });
         configured || saved
     }
 
     /// Every webhook signing secret this deploy accepts: the environment's, then
     /// any saved with the business's keys.
     pub fn webhook_secrets(&self) -> Vec<&str> {
-        self.webhook_secret.iter().map(String::as_str).chain(self.stored.webhook_secrets()).collect()
+        self.webhook_secret
+            .iter()
+            .map(String::as_str)
+            .chain(self.stored.webhook_secrets())
+            .collect()
     }
 
     // The business's own keys for `mode`: the environment's pair when both are
     // set, else the pair saved from the Payments page, else whatever the
     // environment has (which then leaves the mode unavailable).
     fn direct_pair(&self, mode: &str) -> (&str, &str) {
-        let (key, publishable) =
-            if mode == "live" { (&self.direct_live_key, &self.direct_live_publishable_key) } else { (&self.direct_test_key, &self.direct_test_publishable_key) };
+        let (key, publishable) = if mode == "live" {
+            (&self.direct_live_key, &self.direct_live_publishable_key)
+        } else {
+            (&self.direct_test_key, &self.direct_test_publishable_key)
+        };
         if !key.is_empty() && !publishable.is_empty() {
             return (key, publishable);
         }
         match self.stored.mode(mode) {
-            Some(saved) if !saved.secret_key.is_empty() && !saved.publishable_key.is_empty() => (&saved.secret_key, &saved.publishable_key),
+            Some(saved) if !saved.secret_key.is_empty() && !saved.publishable_key.is_empty() => {
+                (&saved.secret_key, &saved.publishable_key)
+            }
             _ => (key, publishable),
         }
     }
@@ -175,7 +203,12 @@ impl PlatformConfig {
     /// The modes the business's own account can be used in: those with both
     /// its secret key and its publishable key, from the environment or saved.
     pub fn direct_modes(&self) -> Vec<&'static str> {
-        MODES.into_iter().filter(|mode| !self.direct_key(mode).is_empty() && !self.direct_publishable_key(mode).is_empty()).collect()
+        MODES
+            .into_iter()
+            .filter(|mode| {
+                !self.direct_key(mode).is_empty() && !self.direct_publishable_key(mode).is_empty()
+            })
+            .collect()
     }
 
     fn is_operator(&self, email: &str) -> bool {
@@ -203,10 +236,26 @@ impl Connection {
 /// This tenant's connection, read out of the replayed instances, or `None`
 /// until an Owner has connected an account.
 pub fn connection(read: &Value, domain: &str) -> Option<Connection> {
-    let (_, state) = instances_for(read, &crate::commerce_ir::payment_connection_binding(domain).instance_prefix()).into_iter().find(|(id, _)| id == CONNECTION_SLUG)?;
-    let text = |field: &str| state.get(field).and_then(|v| v.get("value")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+    let (_, state) = instances_for(
+        read,
+        &crate::commerce_ir::payment_connection_binding(domain).instance_prefix(),
+    )
+    .into_iter()
+    .find(|(id, _)| id == CONNECTION_SLUG)?;
+    let text = |field: &str| {
+        state
+            .get(field)
+            .and_then(|v| v.get("value"))
+            .and_then(|v| v.as_str())
+            .unwrap_or_default()
+            .to_string()
+    };
     Some(Connection {
-        status: state.get("status").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
+        status: state
+            .get("status")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default()
+            .to_string(),
         processor: text("processor"),
         account_ref: text("account_ref"),
         mode: text("mode"),
@@ -220,7 +269,10 @@ pub enum CheckoutPlan {
     Mock,
     /// Payments are enabled: charged on the business's own account with its own
     /// key; the guest pays in a form embedded in the site via the publishable key.
-    Stripe { api_key: String, publishable_key: String },
+    Stripe {
+        api_key: String,
+        publishable_key: String,
+    },
     /// Payments were enabled and cannot be taken now. Registrations answer
     /// 503; never a fallback to the mock.
     Paused,
@@ -229,7 +281,9 @@ pub enum CheckoutPlan {
 /// Decides checkout per request from the tenant's own connection, never a
 /// process-wide setting; an enabled connection this host cannot actually charge is paused too.
 pub fn checkout_plan(connection: Option<&Connection>, platform: &PlatformConfig) -> CheckoutPlan {
-    let Some(connection) = connection else { return CheckoutPlan::Mock };
+    let Some(connection) = connection else {
+        return CheckoutPlan::Mock;
+    };
     match connection.status.as_str() {
         "enabled" => {
             let (key, publishable_key) = platform.direct_pair(&connection.mode);
@@ -243,7 +297,10 @@ pub fn checkout_plan(connection: Option<&Connection>, platform: &PlatformConfig)
                 );
                 CheckoutPlan::Paused
             } else {
-                CheckoutPlan::Stripe { api_key: key.to_string(), publishable_key: publishable_key.to_string() }
+                CheckoutPlan::Stripe {
+                    api_key: key.to_string(),
+                    publishable_key: publishable_key.to_string(),
+                }
             }
         }
         "paused" => CheckoutPlan::Paused,
@@ -259,8 +316,20 @@ async fn dispatch_on_connection(
     config: &LineageConfig,
     invoker: &dyn LambdaInvoker,
 ) -> anyhow::Result<dispatch::Outcome> {
-    let verb = crate::commerce_ir::payment_connection_binding(&config.domain).verb(which).to_string();
-    dispatch::handle_routed(client, wasm_path, &verb, json!(CONNECTION_SLUG), facts, None, config, invoker).await
+    let verb = crate::commerce_ir::payment_connection_binding(&config.domain)
+        .verb(which)
+        .to_string();
+    dispatch::handle_routed(
+        client,
+        wasm_path,
+        &verb,
+        json!(CONNECTION_SLUG),
+        facts,
+        None,
+        config,
+        invoker,
+    )
+    .await
 }
 
 /// Whether `path` belongs to the payments surface.
@@ -276,11 +345,19 @@ pub fn owns(method: &str, path: &str) -> bool {
 }
 
 fn json_error(status: u16, message: &str) -> Value {
-    respond(status, "application/json", &json!({"error": message}).to_string())
+    respond(
+        status,
+        "application/json",
+        &json!({"error": message}).to_string(),
+    )
 }
 
 fn refusal_message(refusal: &Value) -> String {
-    ["message", "error"].iter().find_map(|key| refusal.get(*key).and_then(|v| v.as_str())).unwrap_or("Refused").to_string()
+    ["message", "error"]
+        .iter()
+        .find_map(|key| refusal.get(*key).and_then(|v| v.as_str()))
+        .unwrap_or("Refused")
+        .to_string()
 }
 
 struct Caller {
@@ -290,32 +367,66 @@ struct Caller {
 
 // The person behind an account cookie, only while they still
 // have access, with what they may do here. `Err` is the JSON response.
-async fn caller(domain_ir: &Value, cookies: &HashMap<String, String>, secret: &str, client: &Mutex<Client>, platform: &PlatformConfig) -> Result<Caller, Value> {
+async fn caller(
+    domain_ir: &Value,
+    cookies: &HashMap<String, String>,
+    secret: &str,
+    client: &Mutex<Client>,
+    platform: &PlatformConfig,
+) -> Result<Caller, Value> {
     let not_logged_in = || json_error(401, "not logged in");
-    let Some(email) = cookies.get(&auth::account_cookie_name()).and_then(|token| auth::verify_account_token(secret, token)) else {
+    let Some(email) = cookies
+        .get(&auth::account_cookie_name())
+        .and_then(|token| auth::verify_account_token(secret, token))
+    else {
         return Err(not_logged_in());
     };
     match auth::active_role(client, domain_ir, &email).await {
-        Ok(Some(role)) => Ok(Caller { manager: roles::manages(&platform.manager_roles, &role), operator: platform.is_operator(&email) }),
+        Ok(Some(role)) => Ok(Caller {
+            manager: roles::manages(&platform.manager_roles, &role),
+            operator: platform.is_operator(&email),
+        }),
         Ok(None) => Err(not_logged_in()),
         Err(e) => Err(json_error(500, &format!("members lookup failed: {e}"))),
     }
 }
 
 fn require_manager(caller: &Caller) -> Result<(), Value> {
-    if caller.manager { Ok(()) } else { Err(json_error(403, "only an Owner can manage payments")) }
+    if caller.manager {
+        Ok(())
+    } else {
+        Err(json_error(403, "only an Owner can manage payments"))
+    }
 }
 
 fn require_operator(caller: &Caller) -> Result<(), Value> {
-    if caller.operator { Ok(()) } else { Err(json_error(403, "only the platform operator can change whether payments are enabled")) }
+    if caller.operator {
+        Ok(())
+    } else {
+        Err(json_error(
+            403,
+            "only the platform operator can change whether payments are enabled",
+        ))
+    }
 }
 
 // What the payments page may show: public facts and which of the business's own
 // modes have keys. Built field by field, so a credential can never appear here:
 // none is ever read into this value.
-fn connection_json(connection: Option<&Connection>, platform: &PlatformConfig, caller: &Caller) -> Value {
-    let label = connection.filter(|c| c.processor == PROCESSOR).map(|_| "Stripe");
-    let present = |value: Option<&str>| value.filter(|s| !s.is_empty()).map(Value::from).unwrap_or(Value::Null);
+fn connection_json(
+    connection: Option<&Connection>,
+    platform: &PlatformConfig,
+    caller: &Caller,
+) -> Value {
+    let label = connection
+        .filter(|c| c.processor == PROCESSOR)
+        .map(|_| "Stripe");
+    let present = |value: Option<&str>| {
+        value
+            .filter(|s| !s.is_empty())
+            .map(Value::from)
+            .unwrap_or(Value::Null)
+    };
     json!({
         "status": connection.map(|c| c.status.as_str()).unwrap_or("not_connected"),
         "processor": present(connection.map(|c| c.processor.as_str())),
@@ -335,18 +446,33 @@ fn connection_json(connection: Option<&Connection>, platform: &PlatformConfig, c
     })
 }
 
-async fn current_connection(client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig) -> Result<Option<Connection>, Value> {
+async fn current_connection(
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    config: &LineageConfig,
+) -> Result<Option<Connection>, Value> {
     match dispatch::read(client, wasm_path).await {
         Ok(read) => Ok(connection(&read, &config.domain)),
-        Err(e) => Err(json_error(500, &format!("payment connection lookup failed: {e:#}"))),
+        Err(e) => Err(json_error(
+            500,
+            &format!("payment connection lookup failed: {e:#}"),
+        )),
     }
 }
 
-async fn connection_response(caller: &Caller, platform: &PlatformConfig, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig) -> Value {
+async fn connection_response(
+    caller: &Caller,
+    platform: &PlatformConfig,
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    config: &LineageConfig,
+) -> Value {
     match current_connection(client, wasm_path, config).await {
-        Ok(connection) => {
-            respond(200, "application/json", &connection_json(connection.as_ref(), platform, caller).to_string())
-        }
+        Ok(connection) => respond(
+            200,
+            "application/json",
+            &connection_json(connection.as_ref(), platform, caller).to_string(),
+        ),
         Err(response) => response,
     }
 }
@@ -376,15 +502,50 @@ pub async fn route(
     };
     Some(match path {
         "/payments/connection" => show(&caller, platform, client, wasm_path, config).await,
-        "/payments/connection/direct" => direct_route(&caller, raw_body, platform, client, wasm_path, config, invoker).await,
-        "/payments/connection/disconnect" => disconnect_route(&caller, platform, client, wasm_path, config, invoker).await,
-        "/payments/connection/enable" => switch_route(&caller, crate::commerce_ir::ConnectionVerb::Enable, platform, client, wasm_path, config, invoker).await,
-        _ => switch_route(&caller, crate::commerce_ir::ConnectionVerb::Disable, platform, client, wasm_path, config, invoker).await,
+        "/payments/connection/direct" => {
+            direct_route(
+                &caller, raw_body, platform, client, wasm_path, config, invoker,
+            )
+            .await
+        }
+        "/payments/connection/disconnect" => {
+            disconnect_route(&caller, platform, client, wasm_path, config, invoker).await
+        }
+        "/payments/connection/enable" => {
+            switch_route(
+                &caller,
+                crate::commerce_ir::ConnectionVerb::Enable,
+                platform,
+                client,
+                wasm_path,
+                config,
+                invoker,
+            )
+            .await
+        }
+        _ => {
+            switch_route(
+                &caller,
+                crate::commerce_ir::ConnectionVerb::Disable,
+                platform,
+                client,
+                wasm_path,
+                config,
+                invoker,
+            )
+            .await
+        }
     })
 }
 
 // GET: readable by a payments manager or the operator, nobody else.
-async fn show(caller: &Caller, platform: &PlatformConfig, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig) -> Value {
+async fn show(
+    caller: &Caller,
+    platform: &PlatformConfig,
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    config: &LineageConfig,
+) -> Value {
     if !caller.manager && !caller.operator {
         return json_error(403, "not permitted");
     }
@@ -392,7 +553,10 @@ async fn show(caller: &Caller, platform: &PlatformConfig, client: &Mutex<Client>
 }
 
 fn body_field(body: &Value, key: &str) -> Result<String, Value> {
-    body.get(key).and_then(|v| v.as_str()).map(String::from).ok_or_else(|| json_error(400, &format!("missing {key}")))
+    body.get(key)
+        .and_then(|v| v.as_str())
+        .map(String::from)
+        .ok_or_else(|| json_error(400, &format!("missing {key}")))
 }
 
 fn parse_body(raw_body: &str) -> Result<Value, Value> {
@@ -419,14 +583,45 @@ async fn record_connection(
         None => {
             let mut creation = facts;
             creation["slug"] = json!({"value": CONNECTION_SLUG});
-            dispatch::handle_facts(client, wasm_path, &crate::commerce_ir::payment_connection_binding(&config.domain).connect, creation, None, config, invoker).await
+            dispatch::handle_facts(
+                client,
+                wasm_path,
+                &crate::commerce_ir::payment_connection_binding(&config.domain).connect,
+                creation,
+                None,
+                config,
+                invoker,
+            )
+            .await
         }
-        Some("disconnected") => dispatch_on_connection(crate::commerce_ir::ConnectionVerb::Reconnect, facts, client, wasm_path, config, invoker).await,
-        Some("paused") => dispatch_on_connection(crate::commerce_ir::ConnectionVerb::Resume, facts, client, wasm_path, config, invoker).await,
+        Some("disconnected") => {
+            dispatch_on_connection(
+                crate::commerce_ir::ConnectionVerb::Reconnect,
+                facts,
+                client,
+                wasm_path,
+                config,
+                invoker,
+            )
+            .await
+        }
+        Some("paused") => {
+            dispatch_on_connection(
+                crate::commerce_ir::ConnectionVerb::Resume,
+                facts,
+                client,
+                wasm_path,
+                config,
+                invoker,
+            )
+            .await
+        }
         Some(_) => return json_error(409, "an account is already connected — disconnect it first"),
     };
     match outcome {
-        Ok(outcome) if outcome.accepted => connection_response(caller, platform, client, wasm_path, config).await,
+        Ok(outcome) if outcome.accepted => {
+            connection_response(caller, platform, client, wasm_path, config).await
+        }
         Ok(outcome) => json_error(422, &refusal_message(&last_refusal(&outcome.result))),
         Err(e) => json_error(500, &format!("{e:#}")),
     }
@@ -436,7 +631,15 @@ async fn record_connection(
 // in the environment; only public facts are stored (account ref, mode, display
 // name), and the key itself is never stored or logged.
 #[allow(clippy::too_many_arguments)]
-async fn direct_route(caller: &Caller, raw_body: &str, platform: &PlatformConfig, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, invoker: &dyn LambdaInvoker) -> Value {
+async fn direct_route(
+    caller: &Caller,
+    raw_body: &str,
+    platform: &PlatformConfig,
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    config: &LineageConfig,
+    invoker: &dyn LambdaInvoker,
+) -> Value {
     if let Err(response) = require_manager(caller) {
         return response;
     }
@@ -454,7 +657,10 @@ async fn direct_route(caller: &Caller, raw_body: &str, platform: &PlatformConfig
         Err(response) => return response,
     };
     if !platform.direct_modes().contains(&mode.as_str()) {
-        return json_error(422, &format!("this site's own Stripe account is not set up for {mode} mode"));
+        return json_error(
+            422,
+            &format!("this site's own Stripe account is not set up for {mode} mode"),
+        );
     }
     let display_name = own_account_display_name(platform, platform.direct_key(&mode)).await;
     let facts = json!({
@@ -469,7 +675,14 @@ async fn direct_route(caller: &Caller, raw_body: &str, platform: &PlatformConfig
 // Not enabled: a plain disconnect. Enabled: registrations pause instead, since real
 // guests have paid through this account. Disconnecting the business's own account
 // also removes its webhook and deletes the saved keys.
-async fn disconnect_route(caller: &Caller, platform: &PlatformConfig, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, invoker: &dyn LambdaInvoker) -> Value {
+async fn disconnect_route(
+    caller: &Caller,
+    platform: &PlatformConfig,
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    config: &LineageConfig,
+    invoker: &dyn LambdaInvoker,
+) -> Value {
     if let Err(response) = require_manager(caller) {
         return response;
     }
@@ -477,11 +690,16 @@ async fn disconnect_route(caller: &Caller, platform: &PlatformConfig, client: &M
         Ok(existing) => existing,
         Err(response) => return response,
     };
-    let Some(existing) = existing.filter(|c| matches!(c.status.as_str(), "connected" | "enabled")) else {
+    let Some(existing) = existing.filter(|c| matches!(c.status.as_str(), "connected" | "enabled"))
+    else {
         return json_error(409, "nothing to disconnect");
     };
 
-    let which = if existing.status == "enabled" { crate::commerce_ir::ConnectionVerb::Suspend } else { crate::commerce_ir::ConnectionVerb::Disconnect };
+    let which = if existing.status == "enabled" {
+        crate::commerce_ir::ConnectionVerb::Suspend
+    } else {
+        crate::commerce_ir::ConnectionVerb::Disconnect
+    };
     match dispatch_on_connection(which, json!({}), client, wasm_path, config, invoker).await {
         Ok(outcome) if outcome.accepted => {
             if existing.is_direct() {
@@ -496,7 +714,15 @@ async fn disconnect_route(caller: &Caller, platform: &PlatformConfig, client: &M
 }
 
 // Enable or disable real payments: operator only.
-async fn switch_route(caller: &Caller, which: crate::commerce_ir::ConnectionVerb, platform: &PlatformConfig, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, invoker: &dyn LambdaInvoker) -> Value {
+async fn switch_route(
+    caller: &Caller,
+    which: crate::commerce_ir::ConnectionVerb,
+    platform: &PlatformConfig,
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    config: &LineageConfig,
+    invoker: &dyn LambdaInvoker,
+) -> Value {
     if let Err(response) = require_operator(caller) {
         return response;
     }
@@ -506,14 +732,19 @@ async fn switch_route(caller: &Caller, which: crate::commerce_ir::ConnectionVerb
         Err(response) => return response,
     }
     match dispatch_on_connection(which, json!({}), client, wasm_path, config, invoker).await {
-        Ok(outcome) if outcome.accepted => connection_response(caller, platform, client, wasm_path, config).await,
+        Ok(outcome) if outcome.accepted => {
+            connection_response(caller, platform, client, wasm_path, config).await
+        }
         Ok(outcome) => json_error(422, &refusal_message(&last_refusal(&outcome.result))),
         Err(e) => json_error(500, &format!("{e:#}")),
     }
 }
 
 fn stripe_http() -> Result<reqwest::Client, String> {
-    reqwest::Client::builder().timeout(STRIPE_TIMEOUT).build().map_err(|e| e.to_string())
+    reqwest::Client::builder()
+        .timeout(STRIPE_TIMEOUT)
+        .build()
+        .map_err(|e| e.to_string())
 }
 
 // The name of the business's own account, read with that account's own key
@@ -521,19 +752,34 @@ fn stripe_http() -> Result<reqwest::Client, String> {
 // asked or has nothing better; the key is only ever sent as the bearer.
 async fn own_account_display_name(platform: &PlatformConfig, key: &str) -> String {
     let fetch = async {
-        let response = stripe_http()?.get(format!("{}/v1/account", platform.api_base)).bearer_auth(key).send().await.map_err(|e| e.to_string())?;
+        let response = stripe_http()?
+            .get(format!("{}/v1/account", platform.api_base))
+            .bearer_auth(key)
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
         if !response.status().is_success() {
             return Err("account lookup refused".to_string());
         }
         response.json::<Value>().await.map_err(|e| e.to_string())
     };
-    let Ok(account) = fetch.await else { return DIRECT_DISPLAY_FALLBACK.to_string() };
+    let Ok(account) = fetch.await else {
+        return DIRECT_DISPLAY_FALLBACK.to_string();
+    };
     let candidates = [
         account.get("business_profile").and_then(|p| p.get("name")),
-        account.get("settings").and_then(|s| s.get("dashboard")).and_then(|d| d.get("display_name")),
+        account
+            .get("settings")
+            .and_then(|s| s.get("dashboard"))
+            .and_then(|d| d.get("display_name")),
         account.get("email"),
     ];
-    let name = candidates.into_iter().flatten().find_map(|v| v.as_str().filter(|s| !s.is_empty())).unwrap_or(DIRECT_DISPLAY_FALLBACK).to_string();
+    let name = candidates
+        .into_iter()
+        .flatten()
+        .find_map(|v| v.as_str().filter(|s| !s.is_empty()))
+        .unwrap_or(DIRECT_DISPLAY_FALLBACK)
+        .to_string();
     name
 }
 
@@ -543,7 +789,11 @@ const STRIPE_UNREACHABLE: &str = "Could not reach Stripe. Please try again in a 
 const WEBHOOK_PERMISSION: &str = "That key can't create the webhook. In Stripe, give it Webhook Endpoints → Write as well and try again.";
 const WEBHOOK_FAILED: &str = "Stripe could not set up the payment webhook. Please try again.";
 const STORE_FAILED: &str = "The keys could not be stored, so nothing was saved. Please try again.";
-const WEBHOOK_EVENTS: [&str; 3] = ["checkout.session.completed", "checkout.session.expired", "charge.refunded"];
+const WEBHOOK_EVENTS: [&str; 3] = [
+    "checkout.session.completed",
+    "checkout.session.expired",
+    "charge.refunded",
+];
 
 // A copy of `platform` with the key store read again, for a response that must
 // show the keys just saved or removed.
@@ -580,10 +830,17 @@ fn keys_mode(secret_key: &str, publishable_key: &str) -> Result<&'static str, &'
 fn business_name(account: &Value) -> Option<String> {
     let candidates = [
         account.get("business_profile").and_then(|p| p.get("name")),
-        account.get("settings").and_then(|s| s.get("dashboard")).and_then(|d| d.get("display_name")),
+        account
+            .get("settings")
+            .and_then(|s| s.get("dashboard"))
+            .and_then(|d| d.get("display_name")),
         account.get("email"),
     ];
-    candidates.into_iter().flatten().find_map(|v| v.as_str().filter(|s| !s.is_empty())).map(String::from)
+    candidates
+        .into_iter()
+        .flatten()
+        .find_map(|v| v.as_str().filter(|s| !s.is_empty()))
+        .map(String::from)
 }
 
 // Asks Stripe whether the key works and what the business is called. A restricted
@@ -619,10 +876,21 @@ enum WebhookError {
 // Creates the webhook endpoint in the business's own Stripe account and returns
 // its id and signing secret. Stripe shows the signing secret only in this
 // answer, so it is captured here and nowhere else. Only the status is logged.
-async fn create_webhook(platform: &PlatformConfig, key: &str) -> Result<(String, String), WebhookError> {
+async fn create_webhook(
+    platform: &PlatformConfig,
+    key: &str,
+) -> Result<(String, String), WebhookError> {
     let url = format!("{}/webhooks/stripe", platform.webhook_base_url);
-    let mut params: Vec<(String, String)> = vec![("url".into(), url), ("description".into(), platform.webhook_description.clone())];
-    params.extend(WEBHOOK_EVENTS.iter().enumerate().map(|(index, event)| (format!("enabled_events[{index}]"), event.to_string())));
+    let mut params: Vec<(String, String)> = vec![
+        ("url".into(), url),
+        ("description".into(), platform.webhook_description.clone()),
+    ];
+    params.extend(
+        WEBHOOK_EVENTS
+            .iter()
+            .enumerate()
+            .map(|(index, event)| (format!("enabled_events[{index}]"), event.to_string())),
+    );
     let response = stripe_http()
         .map_err(|_| WebhookError::Other)?
         .post(format!("{}/v1/webhook_endpoints", platform.api_base))
@@ -641,7 +909,12 @@ async fn create_webhook(platform: &PlatformConfig, key: &str) -> Result<(String,
         return Err(WebhookError::Other);
     }
     let body: Value = response.json().await.map_err(|_| WebhookError::Other)?;
-    let text = |field: &str| body.get(field).and_then(|v| v.as_str()).filter(|s| !s.is_empty()).map(String::from);
+    let text = |field: &str| {
+        body.get(field)
+            .and_then(|v| v.as_str())
+            .filter(|s| !s.is_empty())
+            .map(String::from)
+    };
     match (text("id"), text("secret")) {
         (Some(id), Some(secret)) => Ok((id, secret)),
         _ => Err(WebhookError::Other),
@@ -651,8 +924,18 @@ async fn create_webhook(platform: &PlatformConfig, key: &str) -> Result<(String,
 // Removes a webhook endpoint from the business's Stripe account, best effort:
 // the answer says whether Stripe confirmed it, and nothing else is reported.
 async fn delete_webhook(platform: &PlatformConfig, key: &str, endpoint_id: &str) -> bool {
-    let Ok(http) = stripe_http() else { return false };
-    let sent = http.delete(format!("{}/v1/webhook_endpoints/{endpoint_id}", platform.api_base)).bearer_auth(key).header("Stripe-Version", STRIPE_API_VERSION).send().await;
+    let Ok(http) = stripe_http() else {
+        return false;
+    };
+    let sent = http
+        .delete(format!(
+            "{}/v1/webhook_endpoints/{endpoint_id}",
+            platform.api_base
+        ))
+        .bearer_auth(key)
+        .header("Stripe-Version", STRIPE_API_VERSION)
+        .send()
+        .await;
     matches!(sent, Ok(response) if response.status().is_success())
 }
 
@@ -660,10 +943,25 @@ async fn delete_webhook(platform: &PlatformConfig, key: &str, endpoint_id: &str)
 // secret before recording the connection; saving again in place replaces both.
 // Nothing here answers with, logs, or errors with a key.
 #[allow(clippy::too_many_arguments)]
-async fn save_keys_route(caller: &Caller, body: &Value, platform: &PlatformConfig, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, invoker: &dyn LambdaInvoker) -> Value {
-    let Some(store) = platform.store.clone() else { return json_error(422, KEYS_NOT_ENABLED) };
-    let (secret_key, publishable_key) = match (body_field(body, "secret_key"), body_field(body, "publishable_key")) {
-        (Ok(secret), Ok(publishable)) => (secret.trim().to_string(), publishable.trim().to_string()),
+async fn save_keys_route(
+    caller: &Caller,
+    body: &Value,
+    platform: &PlatformConfig,
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    config: &LineageConfig,
+    invoker: &dyn LambdaInvoker,
+) -> Value {
+    let Some(store) = platform.store.clone() else {
+        return json_error(422, KEYS_NOT_ENABLED);
+    };
+    let (secret_key, publishable_key) = match (
+        body_field(body, "secret_key"),
+        body_field(body, "publishable_key"),
+    ) {
+        (Ok(secret), Ok(publishable)) => {
+            (secret.trim().to_string(), publishable.trim().to_string())
+        }
         (Err(response), _) | (_, Err(response)) => return response,
     };
     let mode = match keys_mode(&secret_key, &publishable_key) {
@@ -691,14 +989,28 @@ async fn save_keys_route(caller: &Caller, body: &Value, platform: &PlatformConfi
     // What the last save made, to be replaced once the new webhook is safely
     // stored: a save that fails part way must never leave the business without
     // a working webhook.
-    let previous = store.refresh().await.ok().and_then(|document| document.mode(mode).cloned()).filter(|old| !old.webhook_endpoint_id.is_empty());
+    let previous = store
+        .refresh()
+        .await
+        .ok()
+        .and_then(|document| document.mode(mode).cloned())
+        .filter(|old| !old.webhook_endpoint_id.is_empty());
     let (endpoint_id, webhook_secret) = match create_webhook(platform, &secret_key).await {
         Ok(created) => created,
         Err(WebhookError::Permission) => return json_error(422, WEBHOOK_PERMISSION),
         Err(WebhookError::Other) => return json_error(422, WEBHOOK_FAILED),
     };
-    let saved = StoredKeys { secret_key: secret_key.clone(), publishable_key, webhook_secret, webhook_endpoint_id: endpoint_id.clone(), saved_at: keystore::now_timestamp() };
-    if let Err(e) = store.update(|document| document.set(mode, Some(saved))).await {
+    let saved = StoredKeys {
+        secret_key: secret_key.clone(),
+        publishable_key,
+        webhook_secret,
+        webhook_endpoint_id: endpoint_id.clone(),
+        saved_at: keystore::now_timestamp(),
+    };
+    if let Err(e) = store
+        .update(|document| document.set(mode, Some(saved)))
+        .await
+    {
         eprintln!("saving the payment keys failed: {e}");
         delete_webhook(platform, &secret_key, &endpoint_id).await;
         return json_error(500, STORE_FAILED);
@@ -721,11 +1033,16 @@ async fn save_keys_route(caller: &Caller, body: &Value, platform: &PlatformConfi
         "mode": {"value": mode},
         "display_name": {"value": display_name},
     });
-    let response = record_connection(caller, &fresh, facts, client, wasm_path, config, invoker).await;
+    let response =
+        record_connection(caller, &fresh, facts, client, wasm_path, config, invoker).await;
     if response["statusCode"].as_u64() != Some(200) {
         // The domain would not record the connection, so leave nothing behind.
         delete_webhook(platform, &secret_key, &endpoint_id).await;
-        if store.update(|document| document.set(mode, None)).await.is_err() {
+        if store
+            .update(|document| document.set(mode, None))
+            .await
+            .is_err()
+        {
             eprintln!("the saved payment keys could not be removed after a refused connection");
         }
     }
@@ -736,7 +1053,9 @@ async fn save_keys_route(caller: &Caller, body: &Value, platform: &PlatformConfi
 // that mode, best effort and logged without any secret. Environment keys and Stripe
 // are untouched when nothing was ever saved.
 async fn forget_saved_keys(platform: &PlatformConfig, mode: &str) {
-    let Some(store) = platform.store.clone() else { return };
+    let Some(store) = platform.store.clone() else {
+        return;
+    };
     let saved = match store.refresh().await {
         Ok(document) => document.mode(mode).cloned(),
         Err(e) => {
@@ -745,7 +1064,9 @@ async fn forget_saved_keys(platform: &PlatformConfig, mode: &str) {
         }
     };
     let Some(saved) = saved else { return };
-    if !saved.webhook_endpoint_id.is_empty() && !delete_webhook(platform, &saved.secret_key, &saved.webhook_endpoint_id).await {
+    if !saved.webhook_endpoint_id.is_empty()
+        && !delete_webhook(platform, &saved.secret_key, &saved.webhook_endpoint_id).await
+    {
         eprintln!("the Stripe webhook could not be removed from the business's account");
     }
     if let Err(e) = store.update(|document| document.set(mode, None)).await {
@@ -777,7 +1098,10 @@ pub(crate) fn test_platform() -> PlatformConfig {
 /// `test_platform` with a webhook signing secret set.
 #[cfg(test)]
 pub(crate) fn test_platform_with_secret(secret: &str) -> PlatformConfig {
-    PlatformConfig { webhook_secret: Some(secret.to_string()), ..test_platform() }
+    PlatformConfig {
+        webhook_secret: Some(secret.to_string()),
+        ..test_platform()
+    }
 }
 
 #[cfg(test)]

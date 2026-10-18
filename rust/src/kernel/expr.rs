@@ -228,8 +228,15 @@ pub enum Expr {
     Or(Box<Expr>, Box<Expr>),
     And(Box<Expr>, Box<Expr>),
     Not(Box<Expr>),
-    Compare { op: Comparison, left: Box<Expr>, right: Box<Expr> },
-    Include { haystack: Box<Expr>, needle: Box<Expr> },
+    Compare {
+        op: Comparison,
+        left: Box<Expr>,
+        right: Box<Expr>,
+    },
+    Include {
+        haystack: Box<Expr>,
+        needle: Box<Expr>,
+    },
     Int(i64),
     Float(f64),
     Str(String),
@@ -240,42 +247,80 @@ pub enum Expr {
     Mul(Box<Expr>, Box<Expr>),
     /// Floor division on integers; a zero divisor is an evaluation fault.
     Div(Box<Expr>, Box<Expr>),
-    SignTest { op: Comparison, receiver: Box<Expr> },
+    SignTest {
+        op: Comparison,
+        receiver: Box<Expr>,
+    },
     Empty(Box<Expr>),
     ToS(Box<Expr>),
-    Modulo { receiver: Box<Expr>, divisor: Box<Expr> },
+    Modulo {
+        receiver: Box<Expr>,
+        divisor: Box<Expr>,
+    },
     Size(Box<Expr>),
     Lookup(&'static str),
     /// `receiver.any?`/`.all?`/`.none? { |param| predicate }` —
     /// evaluated once per element with `param` bound (see `Bound`).
-    BlockPredicate { mode: BlockMode, receiver: Box<Expr>, param: &'static str, predicate: Box<Expr> },
+    BlockPredicate {
+        mode: BlockMode,
+        receiver: Box<Expr>,
+        param: &'static str,
+        predicate: Box<Expr>,
+    },
     /// `receiver.find { |param| predicate }.a.b` — first accepted
     /// element, projected through `path`, or nil when nothing matches.
-    Find { receiver: Box<Expr>, param: &'static str, predicate: Box<Expr>, path: &'static [&'static str] },
+    Find {
+        receiver: Box<Expr>,
+        param: &'static str,
+        predicate: Box<Expr>,
+        path: &'static [&'static str],
+    },
     /// `[a, b, c]` — a leaf like `Int`/`Str`/`Nil` above, not an
     /// operator, so `interpret` handles it directly, not via
     /// `dispatch_operator`.
     Array(Vec<Expr>),
     /// `receiver.match?(/pattern/flags)` — `pattern` is a real
     /// Ruby-Regexp source, taken as-is between the slashes.
-    MatchesRegex { receiver: Box<Expr>, pattern: String, flags: String },
+    MatchesRegex {
+        receiver: Box<Expr>,
+        pattern: String,
+        flags: String,
+    },
     /// `receiver.present?` / `.blank?` — one node for the pair,
     /// `negated` distinguishing them (`.blank?` is `.present?` negated).
-    Presence { receiver: Box<Expr>, negated: bool },
+    Presence {
+        receiver: Box<Expr>,
+        negated: bool,
+    },
     /// `receiver.set?` / `.unset?` — narrower than `Presence`: only
     /// `!receiver.is_nil()`. An assigned-but-empty value is `.set?`,
     /// unlike `Presence`'s Rails-standard emptiness reading.
-    Assignment { receiver: Box<Expr>, negated: bool },
+    Assignment {
+        receiver: Box<Expr>,
+        negated: bool,
+    },
     /// `receiver.split("SEP")` — `Resolver::Split`. Produces a real
     /// `Value::Array`, not `Value::List` — see that variant's own header.
-    Split { receiver: Box<Expr>, separator: String },
+    Split {
+        receiver: Box<Expr>,
+        separator: String,
+    },
     /// `receiver.strip` / `.lstrip` / `.rstrip` — `Resolver::Strip`. Trims Ruby's own whitespace
     /// set (see `StripSide::trim`), not Unicode spaces.
-    Strip { receiver: Box<Expr>, side: StripSide },
+    Strip {
+        receiver: Box<Expr>,
+        side: StripSide,
+    },
     /// `receiver.start_with?("prefix")` — `Resolver::StartsWith`.
-    StartsWith { receiver: Box<Expr>, substring: String },
+    StartsWith {
+        receiver: Box<Expr>,
+        substring: String,
+    },
     /// `receiver.end_with?("suffix")` — `Resolver::EndsWith`.
-    EndsWith { receiver: Box<Expr>, substring: String },
+    EndsWith {
+        receiver: Box<Expr>,
+        substring: String,
+    },
     /// `receiver.first` — `Resolver::First`.
     First(Box<Expr>),
     /// `receiver.last` — `Resolver::Last`.
@@ -295,7 +340,8 @@ impl StripSide {
     /// return and space, never a Unicode space. Rust's own `trim` would also drop U+00A0 and the
     /// rest, so the set is spelled out.
     pub fn trim(self, text: &str) -> String {
-        let is_stripped = |c: char| matches!(c, '\0' | '\t' | '\n' | '\u{b}' | '\u{c}' | '\r' | ' ');
+        let is_stripped =
+            |c: char| matches!(c, '\0' | '\t' | '\n' | '\u{b}' | '\u{c}' | '\r' | ' ');
         match self {
             StripSide::Both => text.trim_matches(is_stripped),
             StripSide::Left => text.trim_start_matches(is_stripped),
@@ -323,7 +369,12 @@ pub fn interpret(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
         Bool(v) => Ok(Value::Bool(*v)),
         Nil => Ok(Value::Nil),
         Lookup(path) => lookup(path, ctx),
-        Array(elements) => Ok(Value::Array(elements.iter().map(|e| interpret(e, ctx)).collect::<Result<Vec<_>, _>>()?)),
+        Array(elements) => Ok(Value::Array(
+            elements
+                .iter()
+                .map(|e| interpret(e, ctx))
+                .collect::<Result<Vec<_>, _>>()?,
+        )),
         _ => dispatch_operator(category_of(expr), expr, ctx),
     }
 }
@@ -356,22 +407,32 @@ fn category_of(expr: &Expr) -> OperatorCategory {
 /// removing a variant (hecks project_kernel_capabilities) stops this
 /// compiling until a matching arm exists. Never add one back — it would
 /// silently route a new category to the wrong operator file.
-fn dispatch_operator(category: OperatorCategory, expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
+fn dispatch_operator(
+    category: OperatorCategory,
+    expr: &Expr,
+    ctx: &EvalContext,
+) -> Result<Value, Refusal> {
     use expression_operators::*;
     match category {
         OperatorCategory::Logical => logical::interpret(expr, ctx),
         OperatorCategory::Membership => membership::interpret(expr, ctx),
         OperatorCategory::Comparison => comparison::interpret(expr, ctx),
         OperatorCategory::Arithmetic => match expr {
-            Expr::Add(..) | Expr::Sub(..) | Expr::Mul(..) | Expr::Div(..) => arithmetic::binary(expr, ctx),
+            Expr::Add(..) | Expr::Sub(..) | Expr::Mul(..) | Expr::Div(..) => {
+                arithmetic::binary(expr, ctx)
+            }
             Expr::Modulo { .. } => arithmetic::modulo(expr, ctx),
-            _ => Err(Refusal::TypeMismatch(format!("dispatch_operator(Arithmetic, ..) called with {expr:?} — a router bug"))),
+            _ => Err(Refusal::TypeMismatch(format!(
+                "dispatch_operator(Arithmetic, ..) called with {expr:?} — a router bug"
+            ))),
         },
         OperatorCategory::SignTest => sign_test::interpret(expr, ctx),
         OperatorCategory::Sized => match expr {
             Expr::Empty(..) => sized::empty(expr, ctx),
             Expr::Size(..) => sized::size(expr, ctx),
-            _ => Err(Refusal::TypeMismatch(format!("dispatch_operator(Sized, ..) called with {expr:?} — a router bug"))),
+            _ => Err(Refusal::TypeMismatch(format!(
+                "dispatch_operator(Sized, ..) called with {expr:?} — a router bug"
+            ))),
         },
         OperatorCategory::ToString => to_string::interpret(expr, ctx),
         OperatorCategory::Enumeration => enumeration::interpret(expr, ctx),
@@ -379,7 +440,9 @@ fn dispatch_operator(category: OperatorCategory, expr: &Expr, ctx: &EvalContext)
         OperatorCategory::Presence => match expr {
             Expr::Presence { .. } => presence::interpret(expr, ctx),
             Expr::Assignment { .. } => presence::interpret_assignment(expr, ctx),
-            _ => Err(Refusal::TypeMismatch(format!("dispatch_operator(Presence, ..) called with {expr:?} — a router bug"))),
+            _ => Err(Refusal::TypeMismatch(format!(
+                "dispatch_operator(Presence, ..) called with {expr:?} — a router bug"
+            ))),
         },
         OperatorCategory::Text => text::interpret(expr, ctx),
         OperatorCategory::Positional => positional::interpret(expr, ctx),
@@ -403,7 +466,11 @@ pub(crate) fn lookup_field<'a>(path: &str, ctx: &EvalContext<'a>) -> Result<Fiel
         .args
         .field(head)
         .or_else(|| ctx.instance.field(head))
-        .ok_or_else(|| eval_error(format!("cannot resolve {head:?} — no such attribute or argument")))?;
+        .ok_or_else(|| {
+            eval_error(format!(
+                "cannot resolve {head:?} — no such attribute or argument"
+            ))
+        })?;
 
     for seg in segments {
         current = composite::step(current, seg, head)?;
@@ -415,7 +482,11 @@ pub(crate) fn lookup_field<'a>(path: &str, ctx: &EvalContext<'a>) -> Result<Fiel
 /// The list-elements reading of a `Lookup` path — same head resolution
 /// as `lookup`, then `Fielded::items` on the last segment (a list is
 /// always the end of a path). `op` names the caller for error wording.
-pub(crate) fn lookup_items<'a>(path: &str, ctx: &EvalContext<'a>, op: &str) -> Result<Vec<Field<'a>>, Refusal> {
+pub(crate) fn lookup_items<'a>(
+    path: &str,
+    ctx: &EvalContext<'a>,
+    op: &str,
+) -> Result<Vec<Field<'a>>, Refusal> {
     let segments: Vec<&str> = path.split('.').collect();
     let (head, rest) = segments.split_first().unwrap();
 
@@ -423,10 +494,17 @@ pub(crate) fn lookup_items<'a>(path: &str, ctx: &EvalContext<'a>, op: &str) -> R
         // args first when the key is present there, state second — a
         // non-list argument refuses rather than falling through to a
         // same-named instance list.
-        let side: &'a dyn Fielded = if ctx.args.field(head).is_some() { ctx.args } else { ctx.instance };
-        return side
-            .items(head)
-            .ok_or_else(|| eval_error(format!("{op} expects a list, got {}", describe_field(side.field(head)))));
+        let side: &'a dyn Fielded = if ctx.args.field(head).is_some() {
+            ctx.args
+        } else {
+            ctx.instance
+        };
+        return side.items(head).ok_or_else(|| {
+            eval_error(format!(
+                "{op} expects a list, got {}",
+                describe_field(side.field(head))
+            ))
+        });
     }
 
     let (last, middle) = rest.split_last().unwrap();
@@ -434,15 +512,24 @@ pub(crate) fn lookup_items<'a>(path: &str, ctx: &EvalContext<'a>, op: &str) -> R
         .args
         .field(head)
         .or_else(|| ctx.instance.field(head))
-        .ok_or_else(|| eval_error(format!("cannot resolve {head:?} — no such attribute or argument")))?;
+        .ok_or_else(|| {
+            eval_error(format!(
+                "cannot resolve {head:?} — no such attribute or argument"
+            ))
+        })?;
     for seg in middle {
         current = composite::step(current, seg, head)?;
     }
     match current {
-        Field::Nested(obj) => obj
-            .items(last)
-            .ok_or_else(|| eval_error(format!("{op} expects a list, got {}", describe_field(obj.field(last))))),
-        Field::Value(v) => Err(eval_error(format!("{path} — cannot look up {last:?} on scalar {v:?}"))),
+        Field::Nested(obj) => obj.items(last).ok_or_else(|| {
+            eval_error(format!(
+                "{op} expects a list, got {}",
+                describe_field(obj.field(last))
+            ))
+        }),
+        Field::Value(v) => Err(eval_error(format!(
+            "{path} — cannot look up {last:?} on scalar {v:?}"
+        ))),
     }
 }
 
@@ -484,7 +571,10 @@ mod lookup_tests {
 
     fn not_nil(field: &'static str, instance: &dyn Fielded) -> Value {
         let expr = Expr::Not(Box::new(Expr::Lookup(field)));
-        let ctx = EvalContext { args: &NoFields, instance };
+        let ctx = EvalContext {
+            args: &NoFields,
+            instance,
+        };
         interpret(&expr, &ctx).expect("evaluates without refusing")
     }
 
@@ -493,8 +583,14 @@ mod lookup_tests {
         // `!previous_sessions.nil?` — the live crash, `previous_sessions:
         // true`: `.nil?` is not a dedicated node in this grammar, so this
         // is really `Lookup("previous_sessions.nil?")` negated.
-        let attendee = Attendee { previous_sessions: true, first_time: None };
-        assert_eq!(not_nil("previous_sessions.nil?", &attendee), Value::Bool(true));
+        let attendee = Attendee {
+            previous_sessions: true,
+            first_time: None,
+        };
+        assert_eq!(
+            not_nil("previous_sessions.nil?", &attendee),
+            Value::Bool(true)
+        );
     }
 
     #[test]
@@ -502,8 +598,14 @@ mod lookup_tests {
         // The other half of the live crash: `false` is exactly as
         // present as `true` — `walk_path` never inspects the value,
         // only whether the head attribute resolved at all.
-        let attendee = Attendee { previous_sessions: false, first_time: None };
-        assert_eq!(not_nil("previous_sessions.nil?", &attendee), Value::Bool(true));
+        let attendee = Attendee {
+            previous_sessions: false,
+            first_time: None,
+        };
+        assert_eq!(
+            not_nil("previous_sessions.nil?", &attendee),
+            Value::Bool(true)
+        );
     }
 
     #[test]
@@ -511,7 +613,10 @@ mod lookup_tests {
         // Matches Ruby parity: `walk_path` breaks to `nil` off any
         // scalar before inspecting `.nil?`'s segment name, so `!x.nil?`
         // reads `true` for any head attribute that resolved, set or not.
-        let attendee = Attendee { previous_sessions: true, first_time: None };
+        let attendee = Attendee {
+            previous_sessions: true,
+            first_time: None,
+        };
         assert_eq!(not_nil("first_time.nil?", &attendee), Value::Bool(true));
     }
 
@@ -519,9 +624,15 @@ mod lookup_tests {
     fn a_genuinely_missing_head_attribute_still_refuses() {
         // An undeclared head attribute is still a codegen bug, not a
         // legitimate absent value — see `lookup`'s own doc comment.
-        let attendee = Attendee { previous_sessions: true, first_time: None };
+        let attendee = Attendee {
+            previous_sessions: true,
+            first_time: None,
+        };
         let expr = Expr::Not(Box::new(Expr::Lookup("not_a_real_attribute.nil?")));
-        let ctx = EvalContext { args: &NoFields, instance: &attendee };
+        let ctx = EvalContext {
+            args: &NoFields,
+            instance: &attendee,
+        };
         assert!(interpret(&expr, &ctx).is_err());
     }
 }

@@ -10,12 +10,18 @@ pub struct SkipReason {
 }
 
 pub fn skip(construct: impl Into<String>, text: impl Into<String>) -> SkipReason {
-    SkipReason { construct: construct.into(), text: text.into() }
+    SkipReason {
+        construct: construct.into(),
+        text: text.into(),
+    }
 }
 
 /// Keeps `inner`'s construct with new wording.
 pub fn reskip(inner: &SkipReason, text: impl Into<String>) -> SkipReason {
-    SkipReason { construct: inner.construct.clone(), text: text.into() }
+    SkipReason {
+        construct: inner.construct.clone(),
+        text: text.into(),
+    }
 }
 
 impl fmt::Display for SkipReason {

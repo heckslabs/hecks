@@ -7,14 +7,14 @@
 // exhaustively by its own accessors — no wildcard arm — so a row the
 // language gains fails to compile until it is handled.
 
-pub mod refusal_template;
-pub mod query_comparator;
-pub mod field_hint;
 pub mod aggregate_dispatch_order;
 pub mod entity_dispatch_order;
+pub mod field_hint;
+pub mod query_comparator;
+pub mod refusal_template;
 
-pub use refusal_template::RefusalSite;
-pub use query_comparator::QueryComparator;
-pub use field_hint::FieldHint;
 pub use aggregate_dispatch_order::AggregateStep;
 pub use entity_dispatch_order::EntityStep;
+pub use field_hint::FieldHint;
+pub use query_comparator::QueryComparator;
+pub use refusal_template::RefusalSite;

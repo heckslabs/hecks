@@ -13,9 +13,13 @@ impl TempDir {
     pub fn new(prefix: &str) -> Result<Self, String> {
         let base = std::env::temp_dir();
         let pid = std::process::id();
-        let nanos = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0);
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
         let path = base.join(format!("{prefix}-{pid}-{nanos}"));
-        std::fs::create_dir_all(&path).map_err(|e| format!("creating temp dir {}: {e}", path.display()))?;
+        std::fs::create_dir_all(&path)
+            .map_err(|e| format!("creating temp dir {}: {e}", path.display()))?;
         Ok(Self { path })
     }
 

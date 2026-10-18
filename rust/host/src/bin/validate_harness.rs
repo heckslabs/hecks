@@ -19,8 +19,13 @@ fn main() -> anyhow::Result<()> {
     let mut input = String::new();
     std::io::stdin().read_to_string(&mut input)?;
     let request: Value = serde_json::from_str(&input)?;
-    let ir = request.get("ir").ok_or_else(|| anyhow::anyhow!("no \"ir\" on stdin"))?;
-    let cases = request.get("cases").and_then(Value::as_array).ok_or_else(|| anyhow::anyhow!("no \"cases\" array on stdin"))?;
+    let ir = request
+        .get("ir")
+        .ok_or_else(|| anyhow::anyhow!("no \"ir\" on stdin"))?;
+    let cases = request
+        .get("cases")
+        .and_then(Value::as_array)
+        .ok_or_else(|| anyhow::anyhow!("no \"cases\" array on stdin"))?;
 
     let results: Vec<Value> = cases.iter().map(|case| answer(ir, case)).collect();
     println!("{}", json!({ "results": results }));
@@ -32,7 +37,10 @@ fn answer(ir: &Value, case: &Value) -> Value {
     let aggregate = ir
         .get("aggregates")
         .and_then(Value::as_array)
-        .and_then(|list| list.iter().find(|a| a.get("name").and_then(Value::as_str) == Some(name)));
+        .and_then(|list| {
+            list.iter()
+                .find(|a| a.get("name").and_then(Value::as_str) == Some(name))
+        });
     match aggregate {
         None => json!({ "error": format!("no aggregate {name:?} in the IR") }),
         Some(aggregate) => {

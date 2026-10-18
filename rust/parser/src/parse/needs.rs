@@ -22,7 +22,10 @@ pub fn declare(
 ) -> ParseResult<()> {
     let fact = super::positional_symbol(file, line, "needs", args, 1)?;
     if !NEEDABLE_FACTS.contains(&fact.as_str()) {
-        let supplied: Vec<String> = NEEDABLE_FACTS.iter().map(|known| format!(":{known}")).collect();
+        let supplied: Vec<String> = NEEDABLE_FACTS
+            .iter()
+            .map(|known| format!(":{known}"))
+            .collect();
         return Err(Diagnostic::new(
             file,
             line,
@@ -33,7 +36,11 @@ pub fn declare(
         ));
     }
     if needs.contains(&fact) {
-        return Err(Diagnostic::new(file, line, format!("{owner} declares needs :{fact} twice")));
+        return Err(Diagnostic::new(
+            file,
+            line,
+            format!("{owner} declares needs :{fact} twice"),
+        ));
     }
     needs.push(fact);
     Ok(())

@@ -43,36 +43,74 @@ pub enum Resolver {
     Multiplication(Box<Resolver>, Box<Resolver>),
     /// Integer operands floor toward negative infinity; a zero divisor is an evaluation fault.
     Division(Box<Resolver>, Box<Resolver>),
-    SignTest { operator: Operator, receiver: Box<Resolver> },
+    SignTest {
+        operator: Operator,
+        receiver: Box<Resolver>,
+    },
     Empty(Box<Resolver>),
     ToS(Box<Resolver>),
-    Modulo { receiver: Box<Resolver>, divisor: Box<Resolver> },
+    Modulo {
+        receiver: Box<Resolver>,
+        divisor: Box<Resolver>,
+    },
     Size(Box<Resolver>),
     Lookup(String),
     /// `["active", "suspended"]`: a literal set, the haystack of an `.include?`.
     ArrayLiteral(Vec<Resolver>),
     /// `receiver.any? { |param| predicate }` and siblings; the body is parsed as a predicate.
-    BlockPredicate { mode: BlockMode, receiver: Box<Resolver>, param: String, predicate: Box<Evaluator> },
+    BlockPredicate {
+        mode: BlockMode,
+        receiver: Box<Resolver>,
+        param: String,
+        predicate: Box<Evaluator>,
+    },
     /// `receiver.match?(/pattern/flags)`: the pattern text is kept verbatim.
-    MatchesRegex { receiver: Box<Resolver>, pattern: String, flags: String },
+    MatchesRegex {
+        receiver: Box<Resolver>,
+        pattern: String,
+        flags: String,
+    },
     /// `receiver.present?` (`negated: false`) or `receiver.blank?` (`negated: true`).
-    Presence { receiver: Box<Resolver>, negated: bool },
+    Presence {
+        receiver: Box<Resolver>,
+        negated: bool,
+    },
     /// `receiver.set?` (`negated: false`) or `receiver.unset?` (`negated: true`): only `!nil?`.
-    Assignment { receiver: Box<Resolver>, negated: bool },
+    Assignment {
+        receiver: Box<Resolver>,
+        negated: bool,
+    },
     /// `receiver.split("sep")`: the separator is sliced verbatim between the quotes.
-    Split { receiver: Box<Resolver>, separator: String },
+    Split {
+        receiver: Box<Resolver>,
+        separator: String,
+    },
     /// `receiver.strip` / `.lstrip` / `.rstrip`; `side` is `both`, `left` or `right`.
-    Strip { receiver: Box<Resolver>, side: &'static str },
+    Strip {
+        receiver: Box<Resolver>,
+        side: &'static str,
+    },
     /// `receiver.first`.
     First(Box<Resolver>),
     /// `receiver.last`.
     Last(Box<Resolver>),
     /// `receiver.start_with?("substring")`.
-    StartsWith { receiver: Box<Resolver>, substring: String },
+    StartsWith {
+        receiver: Box<Resolver>,
+        substring: String,
+    },
     /// `receiver.end_with?("substring")`.
-    EndsWith { receiver: Box<Resolver>, substring: String },
+    EndsWith {
+        receiver: Box<Resolver>,
+        substring: String,
+    },
     /// `receiver.find { |param| predicate }.a.b`.
-    Find { receiver: Box<Resolver>, param: String, predicate: Box<Evaluator>, path: Vec<String> },
+    Find {
+        receiver: Box<Resolver>,
+        param: String,
+        predicate: Box<Evaluator>,
+        path: Vec<String>,
+    },
 }
 
 const SIGN_TESTS: [(&str, &str); 3] = [("positive?", ">"), ("negative?", "<"), ("zero?", "==")];
@@ -85,10 +123,16 @@ pub fn parse(expr: &str) -> Resolver {
     }
 
     if is_integer_literal(expr) {
-        return Resolver::IntegerLiteral(expr.parse::<i64>().unwrap_or_else(|_| panic!("bad integer literal {expr:?}")));
+        return Resolver::IntegerLiteral(
+            expr.parse::<i64>()
+                .unwrap_or_else(|_| panic!("bad integer literal {expr:?}")),
+        );
     }
     if is_float_literal(expr) {
-        return Resolver::FloatLiteral(expr.parse::<f64>().unwrap_or_else(|_| panic!("bad float literal {expr:?}")));
+        return Resolver::FloatLiteral(
+            expr.parse::<f64>()
+                .unwrap_or_else(|_| panic!("bad float literal {expr:?}")),
+        );
     }
     if let Some(s) = quoted(expr) {
         return Resolver::StringLiteral(s.to_string());
@@ -108,11 +152,19 @@ pub fn parse(expr: &str) -> Resolver {
 
     if let Some((operator, left, right)) = split_last_binary(expr, b"+-") {
         let (left, right) = (Box::new(parse(left)), Box::new(parse(right)));
-        return if operator == b'+' { Resolver::Addition(left, right) } else { Resolver::Subtraction(left, right) };
+        return if operator == b'+' {
+            Resolver::Addition(left, right)
+        } else {
+            Resolver::Subtraction(left, right)
+        };
     }
     if let Some((operator, left, right)) = split_last_binary(expr, b"*/") {
         let (left, right) = (Box::new(parse(left)), Box::new(parse(right)));
-        return if operator == b'*' { Resolver::Multiplication(left, right) } else { Resolver::Division(left, right) };
+        return if operator == b'*' {
+            Resolver::Multiplication(left, right)
+        } else {
+            Resolver::Division(left, right)
+        };
     }
     if grouped(expr) {
         return parse(&expr[1..expr.len() - 1]);
@@ -120,7 +172,10 @@ pub fn parse(expr: &str) -> Resolver {
 
     if let Some((receiver, test)) = match_suffix(expr, &SIGN_TESTS.map(|(s, _)| s)) {
         let symbol = SIGN_TESTS.iter().find(|(s, _)| *s == test).unwrap().1;
-        return Resolver::SignTest { operator: find_operator(symbol), receiver: Box::new(parse(receiver)) };
+        return Resolver::SignTest {
+            operator: find_operator(symbol),
+            receiver: Box::new(parse(receiver)),
+        };
     }
 
     if let Some(inner) = strip_suffix_dotted(expr, "empty?") {
@@ -131,7 +186,10 @@ pub fn parse(expr: &str) -> Resolver {
     }
 
     if let Some((receiver, divisor)) = match_call(expr, ".modulo(") {
-        return Resolver::Modulo { receiver: Box::new(parse(receiver)), divisor: Box::new(parse(divisor)) };
+        return Resolver::Modulo {
+            receiver: Box::new(parse(receiver)),
+            divisor: Box::new(parse(divisor)),
+        };
     }
 
     if let Some(inner) = strip_suffix_dotted(expr, "size") {
@@ -139,28 +197,44 @@ pub fn parse(expr: &str) -> Resolver {
     }
 
     if let Some((receiver, pattern, flags)) = match_regex(expr) {
-        return Resolver::MatchesRegex { receiver: Box::new(parse(receiver)), pattern: pattern.to_string(), flags: flags.to_string() };
+        return Resolver::MatchesRegex {
+            receiver: Box::new(parse(receiver)),
+            pattern: pattern.to_string(),
+            flags: flags.to_string(),
+        };
     }
 
     for (suffix, negated) in [("present?", false), ("blank?", true)] {
         if let Some(inner) = strip_suffix_dotted(expr, suffix) {
-            return Resolver::Presence { receiver: Box::new(parse(inner)), negated };
+            return Resolver::Presence {
+                receiver: Box::new(parse(inner)),
+                negated,
+            };
         }
     }
     for (suffix, negated) in [("set?", false), ("unset?", true)] {
         if let Some(inner) = strip_suffix_dotted(expr, suffix) {
-            return Resolver::Assignment { receiver: Box::new(parse(inner)), negated };
+            return Resolver::Assignment {
+                receiver: Box::new(parse(inner)),
+                negated,
+            };
         }
     }
 
     for (suffix, side) in [("strip", "both"), ("lstrip", "left"), ("rstrip", "right")] {
         if let Some(inner) = strip_suffix_dotted(expr, suffix) {
-            return Resolver::Strip { receiver: Box::new(parse(inner)), side };
+            return Resolver::Strip {
+                receiver: Box::new(parse(inner)),
+                side,
+            };
         }
     }
 
     if let Some((receiver, separator)) = match_string_call(expr, "split") {
-        return Resolver::Split { receiver: Box::new(parse(receiver)), separator: separator.to_string() };
+        return Resolver::Split {
+            receiver: Box::new(parse(receiver)),
+            separator: separator.to_string(),
+        };
     }
 
     if let Some(inner) = strip_suffix_dotted(expr, "first") {
@@ -171,10 +245,16 @@ pub fn parse(expr: &str) -> Resolver {
     }
 
     if let Some((receiver, substring)) = match_string_call(expr, "start_with?") {
-        return Resolver::StartsWith { receiver: Box::new(parse(receiver)), substring: substring.to_string() };
+        return Resolver::StartsWith {
+            receiver: Box::new(parse(receiver)),
+            substring: substring.to_string(),
+        };
     }
     if let Some((receiver, substring)) = match_string_call(expr, "end_with?") {
-        return Resolver::EndsWith { receiver: Box::new(parse(receiver)), substring: substring.to_string() };
+        return Resolver::EndsWith {
+            receiver: Box::new(parse(receiver)),
+            substring: substring.to_string(),
+        };
     }
 
     // Last before the `Lookup` catch-all, matching `resolver.rb`.
@@ -186,8 +266,12 @@ pub fn parse(expr: &str) -> Resolver {
 }
 
 /// Block-opener suffixes, in the order Ruby's pattern alternates them.
-const BLOCK_OPENERS: [(&str, Option<BlockMode>); 4] =
-    [("all?", Some(BlockMode::All)), ("any?", Some(BlockMode::Any)), ("none?", Some(BlockMode::None)), ("find", None)];
+const BLOCK_OPENERS: [(&str, Option<BlockMode>); 4] = [
+    ("all?", Some(BlockMode::All)),
+    ("any?", Some(BlockMode::Any)),
+    ("none?", Some(BlockMode::None)),
+    ("find", None),
+];
 
 /// Hand-matched `/\A(.+?)\.(all?|any?|none?|find)\s*\{\s*\|(\w+)\|\s*/m`: the earliest
 /// `.suffix { |param|`, then a brace-balanced body. Only `find` may trail a dotted path.
@@ -248,14 +332,28 @@ fn parse_block_opener(expr: &str) -> Option<Resolver> {
             if !(trailing.is_empty() || trailing.starts_with('.')) {
                 return None;
             }
-            let path = if trailing.is_empty() { Vec::new() } else { trailing[1..].split('.').map(str::to_string).collect() };
-            Some(Resolver::Find { receiver, param, predicate, path })
+            let path = if trailing.is_empty() {
+                Vec::new()
+            } else {
+                trailing[1..].split('.').map(str::to_string).collect()
+            };
+            Some(Resolver::Find {
+                receiver,
+                param,
+                predicate,
+                path,
+            })
         }
         Some(mode) => {
             if !trailing.is_empty() {
                 return None;
             }
-            Some(Resolver::BlockPredicate { mode, receiver, param, predicate })
+            Some(Resolver::BlockPredicate {
+                mode,
+                receiver,
+                param,
+                predicate,
+            })
         }
     }
 }
@@ -310,7 +408,9 @@ fn is_float_literal(expr: &str) -> bool {
     let Some(dot) = s.find('.') else { return false };
     let (int_part, rest) = s.split_at(dot);
     let frac_part = &rest[1..];
-    int_part.bytes().all(|b| b.is_ascii_digit()) && !frac_part.is_empty() && frac_part.bytes().all(|b| b.is_ascii_digit())
+    int_part.bytes().all(|b| b.is_ascii_digit())
+        && !frac_part.is_empty()
+        && frac_part.bytes().all(|b| b.is_ascii_digit())
 }
 
 fn quoted(expr: &str) -> Option<&str> {
@@ -368,7 +468,12 @@ fn array_elements(expr: &str) -> Option<Vec<String>> {
     }
     elements.push(current.trim().to_string());
 
-    Some(elements.into_iter().filter(|element| !element.is_empty()).collect())
+    Some(
+        elements
+            .into_iter()
+            .filter(|element| !element.is_empty())
+            .collect(),
+    )
 }
 
 /// The canonical text of an arithmetic expression over names and numbers, as the Ruby DSL prints
@@ -377,7 +482,10 @@ fn array_elements(expr: &str) -> Option<Vec<String>> {
 pub fn arithmetic_text(expr: &str) -> Option<String> {
     let node = parse(expr);
     match node {
-        Resolver::Addition(..) | Resolver::Subtraction(..) | Resolver::Multiplication(..) | Resolver::Division(..) => render_arithmetic(&node),
+        Resolver::Addition(..)
+        | Resolver::Subtraction(..)
+        | Resolver::Multiplication(..)
+        | Resolver::Division(..) => render_arithmetic(&node),
         _ => None,
     }
 }
@@ -396,7 +504,11 @@ fn render_arithmetic(node: &Resolver) -> Option<String> {
 }
 
 fn binding_strength(operator: char) -> u8 {
-    if matches!(operator, '*' | '/') { 2 } else { 1 }
+    if matches!(operator, '*' | '/') {
+        2
+    } else {
+        1
+    }
 }
 
 fn node_strength(node: &Resolver) -> u8 {
@@ -414,9 +526,19 @@ fn render_binary(left: &Resolver, operator: char, right: &Resolver) -> Option<St
     let side = |node: &Resolver, on_right: bool| -> Option<String> {
         let text = render_arithmetic(node)?;
         let held = node_strength(node);
-        Some(if held != 0 && (held < strength || (on_right && held == strength)) { format!("({text})") } else { text })
+        Some(
+            if held != 0 && (held < strength || (on_right && held == strength)) {
+                format!("({text})")
+            } else {
+                text
+            },
+        )
     };
-    Some(format!("{} {operator} {}", side(left, false)?, side(right, true)?))
+    Some(format!(
+        "{} {operator} {}",
+        side(left, false)?,
+        side(right, true)?
+    ))
 }
 
 /// The operator and the texts either side of the LAST top-level binary operator in `operators`, so
@@ -439,7 +561,9 @@ fn split_last_binary<'a>(expr: &'a str, operators: &[u8]) -> Option<(u8, &'a str
             b'"' | b'\'' => quote = Some(byte),
             b'(' | b'{' | b'[' => depth += 1,
             b')' | b'}' | b']' => depth -= 1,
-            _ if depth == 0 && operators.contains(&byte) && binary_position(bytes, index) => found = Some(index),
+            _ if depth == 0 && operators.contains(&byte) && binary_position(bytes, index) => {
+                found = Some(index)
+            }
             _ => {}
         }
     }
@@ -451,7 +575,10 @@ fn binary_position(bytes: &[u8], index: usize) -> bool {
     if bytes[index] != b'-' {
         return true;
     }
-    let before = bytes[..index].iter().rev().find(|b| !b.is_ascii_whitespace());
+    let before = bytes[..index]
+        .iter()
+        .rev()
+        .find(|b| !b.is_ascii_whitespace());
     matches!(before, Some(b) if b.is_ascii_alphanumeric() || matches!(b, b'_' | b')' | b']' | b'"' | b'\''))
 }
 
@@ -505,7 +632,10 @@ fn match_regex(expr: &str) -> Option<(&str, &str, &str)> {
     if !flags.bytes().all(|b| b.is_ascii_lowercase()) {
         return None;
     }
-    let index = body[..close + 1].rmatch_indices(MARKER).map(|(i, _)| i).find(|i| *i > 0 && i + MARKER.len() <= close)?;
+    let index = body[..close + 1]
+        .rmatch_indices(MARKER)
+        .map(|(i, _)| i)
+        .find(|i| *i > 0 && i + MARKER.len() <= close)?;
     Some((&expr[..index], &body[index + MARKER.len()..close], flags))
 }
 
@@ -536,7 +666,11 @@ mod tests {
 
     fn regex_parts(node: Resolver) -> (Resolver, String, String) {
         match node {
-            Resolver::MatchesRegex { receiver, pattern, flags } => (*receiver, pattern, flags),
+            Resolver::MatchesRegex {
+                receiver,
+                pattern,
+                flags,
+            } => (*receiver, pattern, flags),
             other => panic!("expected MatchesRegex, got {other:?}"),
         }
     }
@@ -566,41 +700,74 @@ mod tests {
 
     /// The emitted JSON with its pretty-printing whitespace removed (no test string has spaces).
     fn compact(text: &str) -> String {
-        crate::emit::write(&crate::expr::ast_json::emit_predicate(text)).split_whitespace().collect()
+        crate::emit::write(&crate::expr::ast_json::emit_predicate(text))
+            .split_whitespace()
+            .collect()
     }
 
     #[test]
     fn present_and_blank_are_one_node_told_apart_by_negated() {
-        assert!(matches!(parse("name.present?"), Resolver::Presence { negated: false, .. }));
-        assert!(matches!(parse("name.blank?"), Resolver::Presence { negated: true, .. }));
+        assert!(matches!(
+            parse("name.present?"),
+            Resolver::Presence { negated: false, .. }
+        ));
+        assert!(matches!(
+            parse("name.blank?"),
+            Resolver::Presence { negated: true, .. }
+        ));
     }
 
     #[test]
     fn set_and_unset_are_one_node_told_apart_by_negated() {
-        assert!(matches!(parse("note.set?"), Resolver::Assignment { negated: false, .. }));
-        assert!(matches!(parse("note.unset?"), Resolver::Assignment { negated: true, .. }));
+        assert!(matches!(
+            parse("note.set?"),
+            Resolver::Assignment { negated: false, .. }
+        ));
+        assert!(matches!(
+            parse("note.unset?"),
+            Resolver::Assignment { negated: true, .. }
+        ));
     }
 
     #[test]
     fn split_keeps_its_separator_verbatim_and_chains_into_first_and_last() {
-        let Resolver::First(inner) = parse("path.split(\"/\").first") else { panic!("expected First") };
-        let Resolver::Split { receiver, separator } = *inner else { panic!("expected Split") };
+        let Resolver::First(inner) = parse("path.split(\"/\").first") else {
+            panic!("expected First")
+        };
+        let Resolver::Split {
+            receiver,
+            separator,
+        } = *inner
+        else {
+            panic!("expected Split")
+        };
         assert_eq!(separator, "/");
         assert!(matches!(*receiver, Resolver::Lookup(_)));
-        assert!(matches!(parse("path.split(\"::\").last"), Resolver::Last(_)));
+        assert!(matches!(
+            parse("path.split(\"::\").last"),
+            Resolver::Last(_)
+        ));
     }
 
     #[test]
     fn start_and_end_with_take_a_quoted_argument() {
-        let Resolver::StartsWith { substring, .. } = parse("branch.value.start_with?(\"qa/\")") else { panic!() };
+        let Resolver::StartsWith { substring, .. } = parse("branch.value.start_with?(\"qa/\")")
+        else {
+            panic!()
+        };
         assert_eq!(substring, "qa/");
-        let Resolver::EndsWith { substring, .. } = parse("name.end_with?(\"x, y\")") else { panic!() };
+        let Resolver::EndsWith { substring, .. } = parse("name.end_with?(\"x, y\")") else {
+            panic!()
+        };
         assert_eq!(substring, "x, y");
     }
 
     #[test]
     fn a_call_without_a_quoted_argument_stays_a_lookup() {
-        assert!(matches!(parse("name.start_with?(prefix)"), Resolver::Lookup(_)));
+        assert!(matches!(
+            parse("name.start_with?(prefix)"),
+            Resolver::Lookup(_)
+        ));
         assert!(matches!(parse("name.split(sep)"), Resolver::Lookup(_)));
         assert!(matches!(parse("name.split(\"a\"b\")"), Resolver::Lookup(_)));
     }
@@ -609,18 +776,48 @@ mod tests {
     fn emits_ruby_key_order_for_each_new_node() {
         let a = r#"{"op":"lookup","path":["a"]}"#;
         let cases = [
-            ("a.present?", format!(r#"{{"op":"presence","receiver":{a},"negated":false}}"#)),
-            ("a.blank?", format!(r#"{{"op":"presence","receiver":{a},"negated":true}}"#)),
-            ("a.set?", format!(r#"{{"op":"assignment","receiver":{a},"negated":false}}"#)),
-            ("a.unset?", format!(r#"{{"op":"assignment","receiver":{a},"negated":true}}"#)),
-            ("a.split(\"/\")", format!(r#"{{"op":"split","receiver":{a},"separator":"/"}}"#)),
-            ("a.strip", format!(r#"{{"op":"strip","receiver":{a},"side":"both"}}"#)),
-            ("a.lstrip", format!(r#"{{"op":"strip","receiver":{a},"side":"left"}}"#)),
-            ("a.rstrip", format!(r#"{{"op":"strip","receiver":{a},"side":"right"}}"#)),
+            (
+                "a.present?",
+                format!(r#"{{"op":"presence","receiver":{a},"negated":false}}"#),
+            ),
+            (
+                "a.blank?",
+                format!(r#"{{"op":"presence","receiver":{a},"negated":true}}"#),
+            ),
+            (
+                "a.set?",
+                format!(r#"{{"op":"assignment","receiver":{a},"negated":false}}"#),
+            ),
+            (
+                "a.unset?",
+                format!(r#"{{"op":"assignment","receiver":{a},"negated":true}}"#),
+            ),
+            (
+                "a.split(\"/\")",
+                format!(r#"{{"op":"split","receiver":{a},"separator":"/"}}"#),
+            ),
+            (
+                "a.strip",
+                format!(r#"{{"op":"strip","receiver":{a},"side":"both"}}"#),
+            ),
+            (
+                "a.lstrip",
+                format!(r#"{{"op":"strip","receiver":{a},"side":"left"}}"#),
+            ),
+            (
+                "a.rstrip",
+                format!(r#"{{"op":"strip","receiver":{a},"side":"right"}}"#),
+            ),
             ("a.first", format!(r#"{{"op":"first","receiver":{a}}}"#)),
             ("a.last", format!(r#"{{"op":"last","receiver":{a}}}"#)),
-            ("a.start_with?(\"x\")", format!(r#"{{"op":"starts_with","receiver":{a},"substring":"x"}}"#)),
-            ("a.end_with?(\"y\")", format!(r#"{{"op":"ends_with","receiver":{a},"substring":"y"}}"#)),
+            (
+                "a.start_with?(\"x\")",
+                format!(r#"{{"op":"starts_with","receiver":{a},"substring":"x"}}"#),
+            ),
+            (
+                "a.end_with?(\"y\")",
+                format!(r#"{{"op":"ends_with","receiver":{a},"substring":"y"}}"#),
+            ),
         ];
         for (text, expected) in cases {
             assert_eq!(compact(text), expected, "{text}");
@@ -630,19 +827,27 @@ mod tests {
     #[test]
     fn splits_arithmetic_by_level_and_left_to_right() {
         assert!(matches!(parse("a + b * c"), Resolver::Addition(..)));
-        assert!(matches!(parse("a - b - c"), Resolver::Subtraction(left, _) if matches!(*left, Resolver::Subtraction(..))));
-        assert!(matches!(parse("a * b / c"), Resolver::Division(left, _) if matches!(*left, Resolver::Multiplication(..))));
+        assert!(
+            matches!(parse("a - b - c"), Resolver::Subtraction(left, _) if matches!(*left, Resolver::Subtraction(..)))
+        );
+        assert!(
+            matches!(parse("a * b / c"), Resolver::Division(left, _) if matches!(*left, Resolver::Multiplication(..)))
+        );
     }
 
     #[test]
     fn a_minus_is_binary_only_after_an_operand() {
-        assert!(matches!(parse("a - -5"), Resolver::Subtraction(_, right) if matches!(*right, Resolver::IntegerLiteral(-5))));
+        assert!(
+            matches!(parse("a - -5"), Resolver::Subtraction(_, right) if matches!(*right, Resolver::IntegerLiteral(-5)))
+        );
         assert!(matches!(parse("-5"), Resolver::IntegerLiteral(-5)));
     }
 
     #[test]
     fn a_parenthesised_group_reads_as_what_it_wraps() {
-        assert!(matches!(parse("(a + b) * c"), Resolver::Multiplication(left, _) if matches!(*left, Resolver::Addition(..))));
+        assert!(
+            matches!(parse("(a + b) * c"), Resolver::Multiplication(left, _) if matches!(*left, Resolver::Addition(..)))
+        );
     }
 
     #[test]

@@ -3,7 +3,11 @@
 
 /// `type.to_s.split("::").last.to_s`
 pub fn demodulise(type_name: &str) -> String {
-    type_name.rsplit("::").next().unwrap_or(type_name).to_string()
+    type_name
+        .rsplit("::")
+        .next()
+        .unwrap_or(type_name)
+        .to_string()
 }
 
 /// `snake(demodulise(type)).to_sym`
@@ -22,7 +26,9 @@ pub fn snake(text: &str) -> String {
         if c.is_ascii_uppercase() && i > 0 {
             let prev = chars[i - 1];
             let next = chars.get(i + 1).copied();
-            let insert = (prev.is_ascii_lowercase() || prev.is_ascii_digit()) || (prev.is_ascii_uppercase() && next.map(|n| n.is_ascii_lowercase()).unwrap_or(false));
+            let insert = (prev.is_ascii_lowercase() || prev.is_ascii_digit())
+                || (prev.is_ascii_uppercase()
+                    && next.map(|n| n.is_ascii_lowercase()).unwrap_or(false));
             if insert {
                 out.push('_');
             }

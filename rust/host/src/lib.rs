@@ -9,13 +9,13 @@ pub mod checkout;
 pub mod commerce_ir;
 pub mod dispatch;
 pub mod expr_json;
+#[cfg(test)]
+#[path = "boundary_fuzz/expr_json.rs"]
+pub mod expr_json_fuzz;
 pub mod extension;
 pub mod field_hints;
 #[cfg(test)]
 pub mod fuzz_support;
-#[cfg(test)]
-#[path = "boundary_fuzz/expr_json.rs"]
-pub mod expr_json_fuzz;
 pub mod ir;
 pub mod journal;
 pub mod lambda_client;

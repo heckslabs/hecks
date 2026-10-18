@@ -6,18 +6,18 @@
 // uses — grouped by the `category` field Evaluator::PROJECTION already
 // partitions comparison operators by (evaluator.rb).
 
+pub mod arithmetic;
+pub mod comparison;
+pub mod enumeration;
 pub mod logical;
 pub mod membership;
-pub mod comparison;
-pub mod arithmetic;
+pub mod pattern_match;
+pub mod positional;
+pub mod presence;
 pub mod sign_test;
 pub mod sized;
-pub mod to_string;
-pub mod enumeration;
-pub mod pattern_match;
-pub mod presence;
 pub mod text;
-pub mod positional;
+pub mod to_string;
 
 /// One variant per real expression-operator category the Ruby
 /// grammar admits, in the order Grammar.admitted_operators's own `category` field declares them. Every match
@@ -64,5 +64,18 @@ impl OperatorCategory {
         }
     }
 
-    pub const ALL: &'static [OperatorCategory] = &[OperatorCategory::Logical, OperatorCategory::Membership, OperatorCategory::Comparison, OperatorCategory::Arithmetic, OperatorCategory::SignTest, OperatorCategory::Sized, OperatorCategory::ToString, OperatorCategory::Enumeration, OperatorCategory::PatternMatch, OperatorCategory::Presence, OperatorCategory::Text, OperatorCategory::Positional];
+    pub const ALL: &'static [OperatorCategory] = &[
+        OperatorCategory::Logical,
+        OperatorCategory::Membership,
+        OperatorCategory::Comparison,
+        OperatorCategory::Arithmetic,
+        OperatorCategory::SignTest,
+        OperatorCategory::Sized,
+        OperatorCategory::ToString,
+        OperatorCategory::Enumeration,
+        OperatorCategory::PatternMatch,
+        OperatorCategory::Presence,
+        OperatorCategory::Text,
+        OperatorCategory::Positional,
+    ];
 }

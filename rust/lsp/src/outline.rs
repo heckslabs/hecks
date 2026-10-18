@@ -57,7 +57,13 @@ pub fn outline(text: &str) -> Vec<Symbol> {
         let trimmed = raw_line.trim();
 
         if let Some((name, kind)) = opens_construct(trimmed) {
-            stack.push(Frame { name, kind, start_line: line_no, depth_at_push: depth, children: Vec::new() });
+            stack.push(Frame {
+                name,
+                kind,
+                start_line: line_no,
+                depth_at_push: depth,
+                children: Vec::new(),
+            });
             depth += 1;
             continue;
         }
@@ -91,10 +97,15 @@ pub fn outline(text: &str) -> Vec<Symbol> {
 
 fn opens_construct(trimmed: &str) -> Option<(String, Kind)> {
     for (keyword, kind) in CONSTRUCTS {
-        let Some(after) = trimmed.strip_prefix(keyword).and_then(|r| r.strip_prefix(" \"")) else {
+        let Some(after) = trimmed
+            .strip_prefix(keyword)
+            .and_then(|r| r.strip_prefix(" \""))
+        else {
             continue;
         };
-        let Some(end_quote) = after.find('"') else { continue };
+        let Some(end_quote) = after.find('"') else {
+            continue;
+        };
         if after[end_quote + 1..].trim() == "do" {
             return Some((after[..end_quote].to_string(), *kind));
         }

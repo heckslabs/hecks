@@ -45,7 +45,9 @@ impl PartialEq for Json {
 impl super::Fielded for Json {
     fn field(&self, name: &str) -> Option<super::Field<'_>> {
         use super::{Field, Value};
-        let Json::Object(pairs) = self else { return None };
+        let Json::Object(pairs) = self else {
+            return None;
+        };
         let (_, found) = pairs.iter().find(|(k, _)| k == name)?;
         Some(match found {
             Json::Object(_) => Field::Nested(found),
@@ -64,9 +66,13 @@ impl super::Fielded for Json {
 
     fn items(&self, name: &str) -> Option<Vec<super::Field<'_>>> {
         use super::{Field, Value};
-        let Json::Object(pairs) = self else { return None };
+        let Json::Object(pairs) = self else {
+            return None;
+        };
         let (_, found) = pairs.iter().find(|(k, _)| k == name)?;
-        let Json::Array(items) = found else { return None };
+        let Json::Array(items) = found else {
+            return None;
+        };
         Some(
             items
                 .iter()
@@ -88,7 +94,9 @@ impl super::Fielded for Json {
 
     // A `Json` has no declaration to consult, so one key of any name is the whole shape test.
     fn as_scalar(&self) -> Option<super::Value> {
-        let Json::Object(pairs) = self else { return None };
+        let Json::Object(pairs) = self else {
+            return None;
+        };
         if pairs.len() != 1 {
             return None;
         }
@@ -101,7 +109,12 @@ impl super::Fielded for Json {
 
 impl Json {
     pub fn obj(fields: Vec<(&str, Json)>) -> Json {
-        Json::Object(fields.into_iter().map(|(k, v)| (k.to_string(), v)).collect())
+        Json::Object(
+            fields
+                .into_iter()
+                .map(|(k, v)| (k.to_string(), v))
+                .collect(),
+        )
     }
 
     pub fn str(s: impl Into<String>) -> Json {
@@ -257,8 +270,9 @@ impl Json {
 
     /// A required-field lookup that refuses `TypeMismatch` when the key is missing.
     pub fn require(&self, key: &str, struct_name: &str) -> Result<&Json, Refusal> {
-        self.get(key)
-            .ok_or_else(|| Refusal::TypeMismatch(format!("{struct_name}.{key}: missing from JSON args")))
+        self.get(key).ok_or_else(|| {
+            Refusal::TypeMismatch(format!("{struct_name}.{key}: missing from JSON args"))
+        })
     }
 
     /// The keys of a command's args that are not in `known`, sorted.
@@ -267,7 +281,11 @@ impl Json {
     pub fn unknown_keys(&self, known: &[&str]) -> Vec<String> {
         match self {
             Json::Object(fields) => {
-                let mut unknown: Vec<String> = fields.iter().filter(|(k, _)| !known.contains(&k.as_str())).map(|(k, _)| k.clone()).collect();
+                let mut unknown: Vec<String> = fields
+                    .iter()
+                    .filter(|(k, _)| !known.contains(&k.as_str()))
+                    .map(|(k, _)| k.clone())
+                    .collect();
                 unknown.sort();
                 unknown
             }
@@ -302,7 +320,13 @@ impl Json {
         };
         let mut merged = fields.clone();
         for (target_key, source_key) in pairs {
-            let Some(value) = fields.iter().find(|(k, _)| k == source_key).map(|(_, v)| v.clone()) else { continue };
+            let Some(value) = fields
+                .iter()
+                .find(|(k, _)| k == source_key)
+                .map(|(_, v)| v.clone())
+            else {
+                continue;
+            };
             match merged.iter_mut().find(|(k, _)| k == target_key) {
                 Some(entry) => entry.1 = value,
                 None => merged.push((target_key.to_string(), value)),
@@ -319,9 +343,9 @@ impl Json {
     /// carries it at its full, arbitrary-precision magnitude.
     pub fn to_id_component(&self) -> Result<String, Refusal> {
         match self {
-            Json::Str(s) if s.is_empty() => {
-                Err(Refusal::TypeMismatch("identity component must not be empty".to_string()))
-            }
+            Json::Str(s) if s.is_empty() => Err(Refusal::TypeMismatch(
+                "identity component must not be empty".to_string(),
+            )),
             Json::Str(s) => Ok(s.clone()),
             Json::Num(n, raw) => match exact_i64(*n, raw) {
                 // In range: a plain integer, as Ruby prints it.
@@ -331,7 +355,9 @@ impl Json {
                 None => Ok(raw.clone().unwrap_or_else(|| n.to_string())),
             },
             Json::Bool(b) => Ok(b.to_string()),
-            other => Err(Refusal::TypeMismatch(format!("cannot use {other:?} as an identity component"))),
+            other => Err(Refusal::TypeMismatch(format!(
+                "cannot use {other:?} as an identity component"
+            ))),
         }
     }
 
@@ -346,7 +372,10 @@ impl Json {
     }
 
     pub fn parse(input: &str) -> Result<Json, String> {
-        let mut parser = Parser { chars: input.chars().peekable(), depth: 0 };
+        let mut parser = Parser {
+            chars: input.chars().peekable(),
+            depth: 0,
+        };
         let value = parser.parse_value()?;
         parser.skip_ws();
         Ok(value)
@@ -420,7 +449,9 @@ fn integral_i64(n: f64) -> Option<i64> {
 /// gap; `raw` is `None` for anything short enough that the gap never opens, so this is the same
 /// answer `integral_i64` already gave for every value the old, one-field `Num` could represent.
 fn exact_i64(n: f64, raw: &Option<String>) -> Option<i64> {
-    raw.as_deref().and_then(|r| r.parse::<i64>().ok()).or_else(|| integral_i64(n))
+    raw.as_deref()
+        .and_then(|r| r.parse::<i64>().ok())
+        .or_else(|| integral_i64(n))
 }
 
 /// The digits `write` prints for a `Num` with no exact source text: whichever of the two
@@ -463,9 +494,17 @@ mod integral_i64_tests {
     #[test]
     fn accepts_i64_saturation_boundary() {
         // `as i64` would saturate on either of these.
-        assert_eq!(integral_i64(2f64.powi(63)), None, "2^63 must not saturate to i64::MAX");
+        assert_eq!(
+            integral_i64(2f64.powi(63)),
+            None,
+            "2^63 must not saturate to i64::MAX"
+        );
         // Near 2^63 a small nudge rounds back to the same float, so use 2^64.
-        assert_eq!(integral_i64(-(2f64.powi(64))), None, "well below i64::MIN must not saturate to i64::MIN");
+        assert_eq!(
+            integral_i64(-(2f64.powi(64))),
+            None,
+            "well below i64::MIN must not saturate to i64::MIN"
+        );
     }
 
     #[test]
@@ -478,18 +517,34 @@ mod integral_i64_tests {
     #[test]
     fn to_id_component_reflects_true_magnitude_instead_of_a_clamped_one() {
         let huge = Json::Num(1e30, None);
-        let id = huge.to_id_component().expect("numbers are always usable as an id component");
-        assert_ne!(id, i64::MAX.to_string(), "must not silently clamp to i64::MAX");
-        assert!(id.starts_with('1'), "should reflect the real magnitude, got {id:?}");
+        let id = huge
+            .to_id_component()
+            .expect("numbers are always usable as an id component");
+        assert_ne!(
+            id,
+            i64::MAX.to_string(),
+            "must not silently clamp to i64::MAX"
+        );
+        assert!(
+            id.starts_with('1'),
+            "should reflect the real magnitude, got {id:?}"
+        );
     }
 
     #[test]
     fn parse_preserves_a_huge_integers_exact_digits_past_f64_precision() {
         // BUG#147: 2^100 (2**100, the fuzzer's own INTEGER_EDGE_CASES bignum), and the
         // signed 31-digit repro from Roster::Roster.AddSeat's routing_key mutation.
-        for literal in ["-1267650600228229401496703205376", "1267650600228229401496703205376"] {
+        for literal in [
+            "-1267650600228229401496703205376",
+            "1267650600228229401496703205376",
+        ] {
             let parsed = Json::parse(literal).expect("a bare JSON integer parses");
-            assert_eq!(parsed.to_json_string(), literal, "re-emitted JSON must not lose a single digit");
+            assert_eq!(
+                parsed.to_json_string(),
+                literal,
+                "re-emitted JSON must not lose a single digit"
+            );
             assert_eq!(
                 parsed.to_id_component().unwrap(),
                 literal,
@@ -523,8 +578,14 @@ mod integral_i64_tests {
     fn a_bignum_and_an_ordinary_number_are_still_comparable_and_never_falsely_equal() {
         let huge = Json::parse("1267650600228229401496703205376").unwrap();
         let other_huge = Json::parse("1267650600228229401496703205377").unwrap();
-        assert_ne!(huge, other_huge, "different bignums must not collide via f64 rounding");
-        assert_eq!(huge, Json::parse("1267650600228229401496703205376").unwrap());
+        assert_ne!(
+            huge, other_huge,
+            "different bignums must not collide via f64 rounding"
+        );
+        assert_eq!(
+            huge,
+            Json::parse("1267650600228229401496703205376").unwrap()
+        );
         assert_ne!(huge, Json::Num(5.0, None));
     }
 
@@ -532,7 +593,10 @@ mod integral_i64_tests {
     fn to_id_component_refuses_an_empty_string() {
         // Ruby treats a blank identity part as absent; a blank id must not be accepted.
         let blank = Json::Str(String::new());
-        assert!(blank.to_id_component().is_err(), "an empty string must not be usable as an identity component");
+        assert!(
+            blank.to_id_component().is_err(),
+            "an empty string must not be usable as an identity component"
+        );
     }
 
     #[test]
@@ -545,14 +609,21 @@ mod integral_i64_tests {
     fn to_id_component_lenient_accepts_an_empty_string() {
         // A blank key is truthy in Ruby and flows on as a non-matching value.
         let blank = Json::Str(String::new());
-        assert_eq!(blank.to_id_component_lenient().unwrap(), "", "a present, blank string must be a valid (non-matching) component");
+        assert_eq!(
+            blank.to_id_component_lenient().unwrap(),
+            "",
+            "a present, blank string must be a valid (non-matching) component"
+        );
     }
 
     #[test]
     fn to_id_component_lenient_still_refuses_a_non_scalar() {
         // Only the blank-string case differs from `to_id_component`.
         let list = Json::Array(vec![]);
-        assert!(list.to_id_component_lenient().is_err(), "a non-scalar must still refuse, same as to_id_component");
+        assert!(
+            list.to_id_component_lenient().is_err(),
+            "a non-scalar must still refuse, same as to_id_component"
+        );
     }
 }
 
@@ -570,7 +641,9 @@ mod value_object_shape_tests {
     #[test]
     fn an_object_passes_through_untouched() {
         let object = Json::obj(vec![("given", Json::Str("Ada".into()))]);
-        assert!(object.expect_value_object_shape("name", "PersonName").is_ok());
+        assert!(object
+            .expect_value_object_shape("name", "PersonName")
+            .is_ok());
     }
 
     #[test]
@@ -579,7 +652,10 @@ mod value_object_shape_tests {
             refusal_text(&Json::Str("Ada".into())),
             "name is a PersonName — pass its fields as an object, not \"Ada\""
         );
-        assert_eq!(refusal_text(&Json::Num(7.0, None)), "name is a PersonName — pass its fields as an object, not 7");
+        assert_eq!(
+            refusal_text(&Json::Num(7.0, None)),
+            "name is a PersonName — pass its fields as an object, not 7"
+        );
     }
 
     #[test]
@@ -673,7 +749,10 @@ impl<'a> Parser<'a> {
     }
 
     // Counts one level of nesting for the duration of `body`; refuses past `MAX_DEPTH`.
-    fn nested(&mut self, body: impl FnOnce(&mut Self) -> Result<Json, String>) -> Result<Json, String> {
+    fn nested(
+        &mut self,
+        body: impl FnOnce(&mut Self) -> Result<Json, String>,
+    ) -> Result<Json, String> {
         if self.depth >= MAX_DEPTH {
             return Err(format!("JSON nests deeper than {MAX_DEPTH} levels"));
         }
@@ -752,8 +831,10 @@ impl<'a> Parser<'a> {
                     Some('b') => out.push('\u{8}'),
                     Some('f') => out.push('\u{c}'),
                     Some('u') => {
-                        let hex: String = (0..4).map(|_| self.chars.next().unwrap_or('0')).collect();
-                        let code = u32::from_str_radix(&hex, 16).map_err(|_| format!("bad \\u escape {hex:?}"))?;
+                        let hex: String =
+                            (0..4).map(|_| self.chars.next().unwrap_or('0')).collect();
+                        let code = u32::from_str_radix(&hex, 16)
+                            .map_err(|_| format!("bad \\u escape {hex:?}"))?;
                         out.push(char::from_u32(code).unwrap_or('\u{FFFD}'));
                     }
                     other => return Err(format!("bad escape sequence \\{other:?}")),

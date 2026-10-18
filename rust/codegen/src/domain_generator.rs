@@ -5,8 +5,8 @@ use crate::exemplar::Exemplar;
 use crate::json::Json;
 use crate::manifest::{ruby_inspect, Manifest};
 use crate::registry::{
-    AggregateEntry, CommandEntry, EntityCommandEntry, EntityIdentityEntry, NestedEntityCommandEntry, PortEntry,
-    ReferenceCheck, TenantBoundaryCheck,
+    AggregateEntry, CommandEntry, EntityCommandEntry, EntityIdentityEntry,
+    NestedEntityCommandEntry, PortEntry, ReferenceCheck, TenantBoundaryCheck,
 };
 use crate::{commands, json_codec, mutations, ports, queries, reactions, read_models, types};
 use std::collections::HashMap;
@@ -122,11 +122,21 @@ fn state_reference_checks(
             let mutation = cmd_mutations.iter().find(|m| {
                 m.get("op").map(Json::to_s).as_deref() == Some("set")
                     && m.get("target").map(Json::to_s).as_deref() == Some(attr_name)
-                    && m.get("source").and_then(|s| s.get("kind")).map(Json::to_s).as_deref() == Some("argument")
+                    && m.get("source")
+                        .and_then(|s| s.get("kind"))
+                        .map(Json::to_s)
+                        .as_deref()
+                        == Some("argument")
             })?;
 
-            let source_name = mutation.get("source").and_then(|s| s.get("name")).map(Json::to_s).unwrap_or_default();
-            let source_attr = cmd_attrs.iter().find(|a| crate::attr::name(a) == source_name)?;
+            let source_name = mutation
+                .get("source")
+                .and_then(|s| s.get("name"))
+                .map(Json::to_s)
+                .unwrap_or_default();
+            let source_attr = cmd_attrs
+                .iter()
+                .find(|a| crate::attr::name(a) == source_name)?;
             if crate::naming::reference_target(crate::attr::type_name(source_attr)).is_some() {
                 return None;
             }
@@ -181,7 +191,11 @@ fn tenant_field_for(aggregate: &Json) -> Option<String> {
         .map(Json::each)
         .unwrap_or(&[])
         .iter()
-        .find_map(|q| q.get("authorization").and_then(|a| a.get("tenant")).map(Json::to_s))
+        .find_map(|q| {
+            q.get("authorization")
+                .and_then(|a| a.get("tenant"))
+                .map(Json::to_s)
+        })
 }
 
 /// Write-side tenant boundary checks for a command's references.
@@ -199,13 +213,21 @@ fn tenant_boundary_checks(
         return Vec::new();
     };
     let cmd_attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
-    let Some(own_tenant_attr) = cmd_attrs.iter().find(|a| crate::attr::name(a) == own_tenant_field) else {
+    let Some(own_tenant_attr) = cmd_attrs
+        .iter()
+        .find(|a| crate::attr::name(a) == own_tenant_field)
+    else {
         return Vec::new();
     };
-    let Some(own_accessor) = state_reference_check_accessor(own_tenant_attr, value_objects_by_name) else {
+    let Some(own_accessor) = state_reference_check_accessor(own_tenant_attr, value_objects_by_name)
+    else {
         return Vec::new();
     };
-    let aggregate_name = aggregate.get("name").and_then(Json::as_str).unwrap_or("").to_string();
+    let aggregate_name = aggregate
+        .get("name")
+        .and_then(Json::as_str)
+        .unwrap_or("")
+        .to_string();
 
     cmd_attrs
         .iter()
@@ -220,8 +242,13 @@ fn tenant_boundary_checks(
             let target_tenant_attr = target_attrs
                 .iter()
                 .find(|a| crate::attr::name(a) == target_tenant_field)?;
-            let target_accessor = state_reference_check_accessor(target_tenant_attr, value_objects_by_name)?;
-            let target_decl_name = target.get("name").and_then(Json::as_str).unwrap_or("").to_string();
+            let target_accessor =
+                state_reference_check_accessor(target_tenant_attr, value_objects_by_name)?;
+            let target_decl_name = target
+                .get("name")
+                .and_then(Json::as_str)
+                .unwrap_or("")
+                .to_string();
 
             Some(TenantBoundaryCheck {
                 reference_field: crate::attr::name(attr).to_string(),
@@ -265,7 +292,10 @@ fn list_reference_check_item(
 ///
 /// `None` for a multi-attribute value object, or an optional one: `check_reference`'s
 /// optional template assumes `Option<String>`.
-fn state_reference_check_accessor(source_attr: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Option<String> {
+fn state_reference_check_accessor(
+    source_attr: &Json,
+    value_objects_by_name: &HashMap<String, &Json>,
+) -> Option<String> {
     let name = crate::attr::name(source_attr);
     if crate::naming::effective_scalar_type(crate::attr::type_name(source_attr)).is_some() {
         return Some(name.to_string());
@@ -280,7 +310,10 @@ fn state_reference_check_accessor(source_attr: &Json, value_objects_by_name: &Ha
         return None;
     }
 
-    Some(format!("{name}.{}", crate::naming::rust_ident_field(crate::attr::name(&vo_attrs[0]))))
+    Some(format!(
+        "{name}.{}",
+        crate::naming::rust_ident_field(crate::attr::name(&vo_attrs[0]))
+    ))
 }
 
 pub fn generate(
@@ -345,10 +378,17 @@ pub fn generate(
     // object declared by another aggregate. Last writer wins per name.
     let mut domain_value_object_owner: HashMap<String, String> = HashMap::new();
     for a in all_aggregates {
-        let owner = a.get("name").and_then(Json::as_str).unwrap_or("").to_string();
+        let owner = a
+            .get("name")
+            .and_then(Json::as_str)
+            .unwrap_or("")
+            .to_string();
         for vo in a.get("value_objects").map(Json::each).unwrap_or(&[]) {
             domain_value_object_owner.insert(
-                vo.get("name").and_then(Json::as_str).unwrap_or("").to_string(),
+                vo.get("name")
+                    .and_then(Json::as_str)
+                    .unwrap_or("")
+                    .to_string(),
                 owner.clone(),
             );
         }
@@ -358,7 +398,13 @@ pub fn generate(
     let mut domain_value_objects_by_name: HashMap<String, &Json> = HashMap::new();
     for a in all_aggregates {
         for vo in a.get("value_objects").map(Json::each).unwrap_or(&[]) {
-            domain_value_objects_by_name.insert(vo.get("name").and_then(Json::as_str).unwrap_or("").to_string(), vo);
+            domain_value_objects_by_name.insert(
+                vo.get("name")
+                    .and_then(Json::as_str)
+                    .unwrap_or("")
+                    .to_string(),
+                vo,
+            );
         }
     }
 
@@ -369,7 +415,8 @@ pub fn generate(
             .get("value_objects")
             .map(Json::each)
             .unwrap_or(&[]);
-        let mut value_objects_by_name: HashMap<String, &Json> = domain_value_objects_by_name.clone();
+        let mut value_objects_by_name: HashMap<String, &Json> =
+            domain_value_objects_by_name.clone();
         value_objects_by_name.extend(value_objects.iter().map(|vo| {
             (
                 vo.get("name")
@@ -388,23 +435,47 @@ pub fn generate(
                 "attribute type(s) {} not generated yet (a bare, non-list entity-typed attribute isn't resolved to a Rust type)",
                 unsupported.join(", ")
             );
-            manifest.skipped_as("aggregate", format!("{domain_name}::{agg_name}"), "attribute_type", aggregate_reason.clone());
+            manifest.skipped_as(
+                "aggregate",
+                format!("{domain_name}::{agg_name}"),
+                "attribute_type",
+                aggregate_reason.clone(),
+            );
             let cascade = format!("owning aggregate not generated: {aggregate_reason}");
             for command in aggregate.get("commands").map(Json::each).unwrap_or(&[]) {
-                manifest.skipped_as("command", format!("{domain_name}::{agg_name}.{}", node_name(command)), "owning_aggregate", cascade.clone());
+                manifest.skipped_as(
+                    "command",
+                    format!("{domain_name}::{agg_name}.{}", node_name(command)),
+                    "owning_aggregate",
+                    cascade.clone(),
+                );
             }
             for entity in aggregate.get("entities").map(Json::each).unwrap_or(&[]) {
                 let entity_verb = format!("{domain_name}::{agg_name}.{}", node_name(entity));
-                manifest.skipped_as("entity", entity_verb.clone(), "owning_aggregate", cascade.clone());
+                manifest.skipped_as(
+                    "entity",
+                    entity_verb.clone(),
+                    "owning_aggregate",
+                    cascade.clone(),
+                );
                 for command in entity.get("commands").map(Json::each).unwrap_or(&[]) {
-                    manifest.skipped_as("entity_command", format!("{entity_verb}.{}", node_name(command)), "owning_aggregate", cascade.clone());
+                    manifest.skipped_as(
+                        "entity_command",
+                        format!("{entity_verb}.{}", node_name(command)),
+                        "owning_aggregate",
+                        cascade.clone(),
+                    );
                 }
             }
             for port in aggregate.get("ports").map(Json::each).unwrap_or(&[]) {
                 for operation in port.get("operations").map(Json::each).unwrap_or(&[]) {
                     manifest.skipped_as(
                         "port_operation",
-                        format!("{domain_name}::{agg_name}.{}.{}", node_name(port), node_name(operation)),
+                        format!(
+                            "{domain_name}::{agg_name}.{}.{}",
+                            node_name(port),
+                            node_name(operation)
+                        ),
                         "owning_aggregate",
                         cascade.clone(),
                     );
@@ -428,7 +499,11 @@ pub fn generate(
         );
         puts_str(&mut out, "#![allow(dead_code, unused_variables)]");
         puts_str(&mut out, "use crate::kernel::Expr;");
-        for line in crate::bridging::cross_aggregate_vo_imports(aggregate, &domain_value_object_owner, mod_name) {
+        for line in crate::bridging::cross_aggregate_vo_imports(
+            aggregate,
+            &domain_value_object_owner,
+            mod_name,
+        ) {
             puts_str(&mut out, &line);
         }
         puts_blank(&mut out);
@@ -458,7 +533,15 @@ pub fn generate(
                     crate::naming::rust_ident(vo.get("name").and_then(Json::as_str).unwrap_or(""));
                 puts_str(
                     &mut out,
-                    &json_codec::emit_to_json_flat(exemplar, &name, attrs, &value_objects_by_name, false, &[], None),
+                    &json_codec::emit_to_json_flat(
+                        exemplar,
+                        &name,
+                        attrs,
+                        &value_objects_by_name,
+                        false,
+                        &[],
+                        None,
+                    ),
                 );
                 puts_blank(&mut out);
                 // `Some(&[])` refuses unknown keys: without it a mistyped nested field (`value`
@@ -492,8 +575,18 @@ pub fn generate(
             let entity_verb = format!("{domain_name}::{agg_name}.{}", node_name(entity));
             manifest.generated("entity", entity_verb.clone());
             registry_entities.push(EntityIdentityEntry {
-                name: entity.get("name").and_then(Json::as_str).unwrap_or("").to_string(),
-                identified_by: entity.get("identified_by").map(Json::each).unwrap_or(&[]).iter().map(Json::to_s).collect(),
+                name: entity
+                    .get("name")
+                    .and_then(Json::as_str)
+                    .unwrap_or("")
+                    .to_string(),
+                identified_by: entity
+                    .get("identified_by")
+                    .map(Json::each)
+                    .unwrap_or(&[])
+                    .iter()
+                    .map(Json::to_s)
+                    .collect(),
             });
             puts_str(
                 &mut out,
@@ -588,16 +681,24 @@ pub fn generate(
                 if unrouted_supported {
                     puts_str(&mut out, &json_codec::emit_extract_id(exemplar, nested));
                     puts_blank(&mut out);
-                    puts_str(&mut out, &json_codec::emit_extract_id_lenient(exemplar, nested));
+                    puts_str(
+                        &mut out,
+                        &json_codec::emit_extract_id_lenient(exemplar, nested),
+                    );
                     puts_blank(&mut out);
                     puts_str(&mut out, &json_codec::emit_extract_wants(exemplar, nested));
                     puts_blank(&mut out);
                 }
 
-                let nested_identified_by = nested.get("identified_by").map(Json::each).unwrap_or(&[]);
+                let nested_identified_by =
+                    nested.get("identified_by").map(Json::each).unwrap_or(&[]);
                 for command in nested.get("commands").map(Json::each).unwrap_or(&[]) {
                     let nested_command_verb = format!("{nested_verb}.{}", node_name(command));
-                    if let Some(reason) = commands::entity_command_skip_reason(command, nested, &value_objects_by_name) {
+                    if let Some(reason) = commands::entity_command_skip_reason(
+                        command,
+                        nested,
+                        &value_objects_by_name,
+                    ) {
                         manifest.skipped("entity_command", nested_command_verb, reason);
                         continue;
                     }
@@ -632,7 +733,8 @@ pub fn generate(
                         }),
                     );
 
-                    let nested_command_name = command.get("name").and_then(Json::as_str).unwrap_or("");
+                    let nested_command_name =
+                        command.get("name").and_then(Json::as_str).unwrap_or("");
                     let entity_name_str = entity.get("name").and_then(Json::as_str).unwrap_or("");
                     let nested_name_str = nested.get("name").and_then(Json::as_str).unwrap_or("");
                     nested_entity_commands.push(NestedEntityCommandEntry {
@@ -692,7 +794,10 @@ pub fn generate(
             if entity_can_route {
                 puts_str(&mut out, &json_codec::emit_extract_id(exemplar, entity));
                 puts_blank(&mut out);
-                puts_str(&mut out, &json_codec::emit_extract_id_lenient(exemplar, entity));
+                puts_str(
+                    &mut out,
+                    &json_codec::emit_extract_id_lenient(exemplar, entity),
+                );
                 puts_blank(&mut out);
                 puts_str(&mut out, &json_codec::emit_extract_wants(exemplar, entity));
                 puts_blank(&mut out);
@@ -702,7 +807,9 @@ pub fn generate(
 
             for command in entity.get("commands").map(Json::each).unwrap_or(&[]) {
                 let entity_command_verb = format!("{entity_verb}.{}", node_name(command));
-                if let Some(reason) = commands::entity_command_skip_reason(command, entity, &value_objects_by_name) {
+                if let Some(reason) =
+                    commands::entity_command_skip_reason(command, entity, &value_objects_by_name)
+                {
                     manifest.skipped("entity_command", entity_command_verb, reason);
                     continue;
                 }
@@ -807,7 +914,11 @@ pub fn generate(
             &types::emit_record(exemplar, &record_for_struct, &value_objects_by_name),
         );
         puts_blank(&mut out);
-        let record_attrs_owned = record_for_struct.get("attributes").map(Json::each).unwrap_or(&[]).to_vec();
+        let record_attrs_owned = record_for_struct
+            .get("attributes")
+            .map(Json::each)
+            .unwrap_or(&[])
+            .to_vec();
         let record_attrs = record_attrs_owned.as_slice();
         let extra = lifecycle_extra_field(aggregate);
         puts_str(
@@ -854,7 +965,9 @@ pub fn generate(
         let mut registry_commands: Vec<CommandEntry> = Vec::new();
         for command in aggregate.get("commands").map(Json::each).unwrap_or(&[]) {
             let command_verb = format!("{domain_name}::{agg_name}.{}", node_name(command));
-            if let Some(reason) = commands::command_skip_reason(command, aggregate, &value_objects_by_name) {
+            if let Some(reason) =
+                commands::command_skip_reason(command, aggregate, &value_objects_by_name)
+            {
                 manifest.skipped("command", command_verb, reason);
                 continue;
             }
@@ -877,7 +990,12 @@ pub fn generate(
             let cmd_attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
             puts_str(
                 &mut out,
-                &json_codec::emit_to_json_flat_sparse(exemplar, &args_struct, cmd_attrs, &value_objects_by_name),
+                &json_codec::emit_to_json_flat_sparse(
+                    exemplar,
+                    &args_struct,
+                    cmd_attrs,
+                    &value_objects_by_name,
+                ),
             );
             puts_blank(&mut out);
             let allowlist =
@@ -901,7 +1019,12 @@ pub fn generate(
             // order by `kernel::decode_aggregate_arguments`.
             puts_str(
                 &mut out,
-                &json_codec::emit_argument_gates(&args_struct, command_name, cmd_attrs, Some(&allowlist)),
+                &json_codec::emit_argument_gates(
+                    &args_struct,
+                    command_name,
+                    cmd_attrs,
+                    Some(&allowlist),
+                ),
             );
             puts_blank(&mut out);
 
@@ -936,8 +1059,15 @@ pub fn generate(
                 identity_extra_params,
                 // `state_reference_checks` only adds entries `reference_checks` did not cover.
                 reference_checks: {
-                    let mut checks = reference_checks(command, &aggregates_by_name, &unsupported_names);
-                    checks.extend(state_reference_checks(aggregate, command, &aggregates_by_name, &unsupported_names, &value_objects_by_name));
+                    let mut checks =
+                        reference_checks(command, &aggregates_by_name, &unsupported_names);
+                    checks.extend(state_reference_checks(
+                        aggregate,
+                        command,
+                        &aggregates_by_name,
+                        &unsupported_names,
+                        &value_objects_by_name,
+                    ));
                     checks
                 },
                 tenant_boundary_checks: tenant_boundary_checks(
@@ -966,8 +1096,13 @@ pub fn generate(
         for port in aggregate.get("ports").map(Json::each).unwrap_or(&[]) {
             let port_name = port.get("name").and_then(Json::as_str).unwrap_or("");
             for operation in port.get("operations").map(Json::each).unwrap_or(&[]) {
-                let operation_verb = format!("{domain_name}::{agg_name}.{port_name}.{}", node_name(operation));
-                if let Some(reason) = ports::port_operation_skip_reason(operation, agg_name, &value_objects_by_name) {
+                let operation_verb = format!(
+                    "{domain_name}::{agg_name}.{port_name}.{}",
+                    node_name(operation)
+                );
+                if let Some(reason) =
+                    ports::port_operation_skip_reason(operation, agg_name, &value_objects_by_name)
+                {
                     manifest.skipped("port_operation", operation_verb, reason);
                     continue;
                 }
@@ -999,19 +1134,20 @@ pub fn generate(
                 // A `to:`-declared operation has no Reference-typed attribute; its receiver is a
                 // plain attribute named for the aggregate's identified_by field. Kept apart from
                 // legacy_receiver_field because `split_aggregate_receiver` must not strip it.
-                let to_receiver_field = if operation.get("to").and_then(Json::as_str) == Some(agg_name) {
-                    // `identified_by` holds identity paths: a value-object identity is dotted
-                    // ("reference.value"), while the attribute is named "reference".
-                    aggregate
-                        .get("identified_by")
-                        .map(Json::each)
-                        .unwrap_or(&[])
-                        .first()
-                        .map(Json::to_s)
-                        .and_then(|s| s.split('.').next().map(str::to_string))
-                } else {
-                    None
-                };
+                let to_receiver_field =
+                    if operation.get("to").and_then(Json::as_str) == Some(agg_name) {
+                        // `identified_by` holds identity paths: a value-object identity is dotted
+                        // ("reference.value"), while the attribute is named "reference".
+                        aggregate
+                            .get("identified_by")
+                            .map(Json::each)
+                            .unwrap_or(&[])
+                            .first()
+                            .map(Json::to_s)
+                            .and_then(|s| s.split('.').next().map(str::to_string))
+                    } else {
+                        None
+                    };
                 let operation_reference_checks =
                     reference_checks(operation, &aggregates_by_name, &unsupported_names)
                         .into_iter()
@@ -1056,7 +1192,13 @@ pub fn generate(
                 domain_name,
                 aggregate.get("attributes").map(Json::each).unwrap_or(&[]),
             ),
-            identified_by: aggregate.get("identified_by").map(Json::each).unwrap_or(&[]).iter().map(Json::to_s).collect(),
+            identified_by: aggregate
+                .get("identified_by")
+                .map(Json::each)
+                .unwrap_or(&[])
+                .iter()
+                .map(Json::to_s)
+                .collect(),
             entities: registry_entities,
         });
     }
@@ -1084,24 +1226,51 @@ pub fn generate(
 
         for query in aggregate.get("queries").map(Json::each).unwrap_or(&[]) {
             let query_name = query.get("name").and_then(Json::as_str).unwrap_or("");
-            if let Some(reason) = queries::query_skip_reason(query, aggregate, &value_objects_by_name, &aggregates_by_name) {
-                manifest.skipped("query", format!("{domain_name}::{agg_name}.{query_name}"), reason);
+            if let Some(reason) = queries::query_skip_reason(
+                query,
+                aggregate,
+                &value_objects_by_name,
+                &aggregates_by_name,
+            ) {
+                manifest.skipped(
+                    "query",
+                    format!("{domain_name}::{agg_name}.{query_name}"),
+                    reason,
+                );
                 continue;
             }
             manifest.generated("query", format!("{domain_name}::{agg_name}.{query_name}"));
 
-            let (conditions, reference_hop_conditions) = queries::query_conditions_and_hops(domain_name, query, aggregate, &aggregates_by_name);
+            let (conditions, reference_hop_conditions) = queries::query_conditions_and_hops(
+                domain_name,
+                query,
+                aggregate,
+                &aggregates_by_name,
+            );
             query_defs.push(queries::QueryDef {
                 verb: format!("{domain_name}::{agg_name}.{query_name}"),
                 aggregate: format!("{domain_name}::{agg_name}"),
-                arg_checks: queries::query_arg_checks(query, &format!("crate::generated::{mod_name}::{}", crate::naming::aggregate_module(agg_name)), &value_objects_by_name),
+                arg_checks: queries::query_arg_checks(
+                    query,
+                    &format!(
+                        "crate::generated::{mod_name}::{}",
+                        crate::naming::aggregate_module(agg_name)
+                    ),
+                    &value_objects_by_name,
+                ),
                 conditions,
                 reference_hop_conditions,
-                order_by: query.get("order_by").map(|ob| queries::emit_query_order_by(ob, query.get("null_semantics"))),
+                order_by: query
+                    .get("order_by")
+                    .map(|ob| queries::emit_query_order_by(ob, query.get("null_semantics"))),
                 offset: query.get("offset").map(queries::emit_query_offset),
                 limit: query.get("limit").map(queries::emit_query_limit),
-                authorization: queries::emit_query_authorization(query_name, query.get("authorization")),
-                assignments: assignments_verb.as_deref() == Some(format!("{agg_name}.{query_name}").as_str()),
+                authorization: queries::emit_query_authorization(
+                    query_name,
+                    query.get("authorization"),
+                ),
+                assignments: assignments_verb.as_deref()
+                    == Some(format!("{agg_name}.{query_name}").as_str()),
                 entity: None,
             });
         }
@@ -1111,11 +1280,18 @@ pub fn generate(
         let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
         for entity in aggregate.get("entities").map(Json::each).unwrap_or(&[]) {
             let entity_name = entity.get("name").and_then(Json::as_str).unwrap_or("");
-            let list_attr = attrs.iter().find(|a| crate::attr::list(a) && crate::attr::type_name(a) == entity_name);
+            let list_attr = attrs
+                .iter()
+                .find(|a| crate::attr::list(a) && crate::attr::type_name(a) == entity_name);
             for query in entity.get("queries").map(Json::each).unwrap_or(&[]) {
                 let query_name = query.get("name").and_then(Json::as_str).unwrap_or("");
                 let query_verb = format!("{aggregate_id}.{entity_name}.{query_name}");
-                if let Some(reason) = queries::entity_query_skip_reason(query, entity, list_attr.is_some(), &value_objects_by_name) {
+                if let Some(reason) = queries::entity_query_skip_reason(
+                    query,
+                    entity,
+                    list_attr.is_some(),
+                    &value_objects_by_name,
+                ) {
                     manifest.skipped("query", query_verb, reason);
                     continue;
                 }
@@ -1134,7 +1310,9 @@ pub fn generate(
                     arg_checks: Vec::new(),
                     conditions: queries::query_conditions(query),
                     reference_hop_conditions: Vec::new(),
-                    order_by: query.get("order_by").map(|ob| queries::emit_query_order_by(ob, query.get("null_semantics"))),
+                    order_by: query
+                        .get("order_by")
+                        .map(|ob| queries::emit_query_order_by(ob, query.get("null_semantics"))),
                     offset: query.get("offset").map(queries::emit_query_offset),
                     limit: query.get("limit").map(queries::emit_query_limit),
                     authorization: None,
@@ -1146,14 +1324,19 @@ pub fn generate(
                     }),
                 });
             }
-            manifest.entity_query_gaps(&format!("{aggregate_id}.{entity_name}"), entity.get("entities").map(Json::each).unwrap_or(&[]));
+            manifest.entity_query_gaps(
+                &format!("{aggregate_id}.{entity_name}"),
+                entity.get("entities").map(Json::each).unwrap_or(&[]),
+            );
         }
     }
 
     let mut read_model_defs: Vec<read_models::ReadModelDef> = Vec::new();
     for read_model in ir.get("read_models").map(Json::each).unwrap_or(&[]) {
         let read_model_id = format!("{domain_name}::{}", node_name(read_model));
-        if let Some(reason) = read_models::read_model_skip_reason(read_model, &aggregates_by_name, &unsupported_names) {
+        if let Some(reason) =
+            read_models::read_model_skip_reason(read_model, &aggregates_by_name, &unsupported_names)
+        {
             manifest.skipped("read_model", read_model_id, reason);
             continue;
         }
@@ -1170,10 +1353,17 @@ pub fn generate(
         manifest.routed("policy", format!("{domain_name}::{}", node_name(policy)));
     }
     for pm in &process_managers {
-        manifest.routed("process_manager", format!("{domain_name}::{}", node_name(pm)));
+        manifest.routed(
+            "process_manager",
+            format!("{domain_name}::{}", node_name(pm)),
+        );
     }
     // Lineage-capable aggregates are always generated and routed; the journal path is generic.
-    let lineage_aggregates = ir.get("lineage").and_then(|l| l.get("capable_aggregates")).map(Json::each).unwrap_or(&[]);
+    let lineage_aggregates = ir
+        .get("lineage")
+        .and_then(|l| l.get("capable_aggregates"))
+        .map(Json::each)
+        .unwrap_or(&[]);
     for lineage_aggregate in lineage_aggregates {
         manifest.record(
             "lineage_aggregate",
@@ -1254,7 +1444,10 @@ pub fn generate(
         &queries::emit_query_table(exemplar, &query_defs),
     );
     puts_blank(&mut registry_rs);
-    puts_str(&mut registry_rs, &queries::emit_query_arg_check_table(&query_defs));
+    puts_str(
+        &mut registry_rs,
+        &queries::emit_query_arg_check_table(&query_defs),
+    );
     puts_blank(&mut registry_rs);
     for rmd in &read_model_defs {
         if let Some(body) = &rmd.group_by_fn_body {

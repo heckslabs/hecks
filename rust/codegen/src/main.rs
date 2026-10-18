@@ -92,7 +92,9 @@ fn run_prelude(args: &[String]) -> Result<(), String> {
 /// sidecars into `out_dir`.
 fn run_domain(args: &[String]) -> Result<(), String> {
     let [ir_path, source_label, mod_name, out_dir] = args else {
-        return Err("usage: hecks-codegen domain <ir.json> <source_label> <mod_name> <out_dir>".to_string());
+        return Err(
+            "usage: hecks-codegen domain <ir.json> <source_label> <mod_name> <out_dir>".to_string(),
+        );
     };
 
     let ir = read_ir(ir_path)?;
@@ -146,7 +148,8 @@ fn write_domain(
     }
 
     let registry_path = format!("{out_dir}/registry.rs");
-    std::fs::write(&registry_path, &generated.registry_rs).map_err(|e| format!("writing {registry_path}: {e}"))?;
+    std::fs::write(&registry_path, &generated.registry_rs)
+        .map_err(|e| format!("writing {registry_path}: {e}"))?;
     println!("wrote {registry_path}");
 
     let mod_path = format!("{out_dir}/mod.rs");
@@ -154,10 +157,12 @@ fn write_domain(
     println!("wrote {mod_path}");
 
     let manifest_path = format!("{out_dir}/manifest.json");
-    std::fs::write(&manifest_path, &generated.manifest_json).map_err(|e| format!("writing {manifest_path}: {e}"))?;
+    std::fs::write(&manifest_path, &generated.manifest_json)
+        .map_err(|e| format!("writing {manifest_path}: {e}"))?;
     println!("wrote {manifest_path}");
 
-    let (ir_json_path, metadata_path) = sidecars::write(std::path::Path::new(out_dir), ir, source_label)?;
+    let (ir_json_path, metadata_path) =
+        sidecars::write(std::path::Path::new(out_dir), ir, source_label)?;
     println!("wrote {}", ir_json_path.display());
     println!("wrote {}", metadata_path.display());
 
@@ -196,19 +201,39 @@ fn run_full(args: &[String]) -> Result<(), String> {
     let ex = exemplar::Exemplar::load();
 
     let target_ir = read_ir(target_ir_path)?;
-    let target_domain_name = target_ir.get("name").and_then(Json::as_str).unwrap_or("").to_string();
+    let target_domain_name = target_ir
+        .get("name")
+        .and_then(Json::as_str)
+        .unwrap_or("")
+        .to_string();
 
     let target_out_dir = format!("{out_root}/{target_mod_name}");
-    let target_gen = write_domain(&ex, &target_ir, target_source_label, target_mod_name, &target_out_dir)?;
+    let target_gen = write_domain(
+        &ex,
+        &target_ir,
+        target_source_label,
+        target_mod_name,
+        &target_out_dir,
+    )?;
 
     // Target first, then each attached chapter in command-line order.
-    let mut reference_key_pairs: Vec<(String, Vec<String>)> =
-        vec![(target_domain_name.clone(), target_gen.registry_aggregates.iter().map(|a| a.name.clone()).collect())];
+    let mut reference_key_pairs: Vec<(String, Vec<String>)> = vec![(
+        target_domain_name.clone(),
+        target_gen
+            .registry_aggregates
+            .iter()
+            .map(|a| a.name.clone())
+            .collect(),
+    )];
 
     let mut merged_aggregates = target_gen.registry_aggregates;
     let mut merged_queries = target_gen.query_defs;
     let mut merged_read_models = target_gen.read_model_defs;
-    let mut merged_process_managers: Vec<Json> = target_ir.get("process_managers").map(Json::each).unwrap_or(&[]).to_vec();
+    let mut merged_process_managers: Vec<Json> = target_ir
+        .get("process_managers")
+        .map(Json::each)
+        .unwrap_or(&[])
+        .to_vec();
 
     // Policies and process managers merge across chapters; `chapter_irs` keeps each parsed
     // chapter alive so `policy_sources` can borrow from it.
@@ -223,27 +248,61 @@ fn run_full(args: &[String]) -> Result<(), String> {
         i += 3;
 
         let chapter_ir = read_ir(chapter_ir_path)?;
-        let chapter_domain_name = chapter_ir.get("name").and_then(Json::as_str).unwrap_or("").to_string();
+        let chapter_domain_name = chapter_ir
+            .get("name")
+            .and_then(Json::as_str)
+            .unwrap_or("")
+            .to_string();
 
         let chapter_out_dir = format!("{out_root}/{chapter_mod_name}");
-        let chapter_gen = write_domain(&ex, &chapter_ir, chapter_source_label, chapter_mod_name, &chapter_out_dir)?;
+        let chapter_gen = write_domain(
+            &ex,
+            &chapter_ir,
+            chapter_source_label,
+            chapter_mod_name,
+            &chapter_out_dir,
+        )?;
 
-        reference_key_pairs.push((chapter_domain_name.clone(), chapter_gen.registry_aggregates.iter().map(|a| a.name.clone()).collect()));
+        reference_key_pairs.push((
+            chapter_domain_name.clone(),
+            chapter_gen
+                .registry_aggregates
+                .iter()
+                .map(|a| a.name.clone())
+                .collect(),
+        ));
         merged_aggregates.extend(chapter_gen.registry_aggregates);
         merged_queries.extend(chapter_gen.query_defs);
         merged_read_models.extend(chapter_gen.read_model_defs);
-        merged_process_managers.extend(chapter_ir.get("process_managers").map(Json::each).unwrap_or(&[]).to_vec());
+        merged_process_managers.extend(
+            chapter_ir
+                .get("process_managers")
+                .map(Json::each)
+                .unwrap_or(&[])
+                .to_vec(),
+        );
 
         chapter_domain_names.push(chapter_domain_name);
         chapter_irs.push(chapter_ir);
     }
 
     // One entry per chapter, so its policies qualify against its own domain and aggregates.
-    let policies: Vec<Json> = target_ir.get("policies").map(Json::each).unwrap_or(&[]).to_vec();
-    let policy_aggregates: Vec<Json> = target_ir.get("aggregates").map(Json::each).unwrap_or(&[]).to_vec();
+    let policies: Vec<Json> = target_ir
+        .get("policies")
+        .map(Json::each)
+        .unwrap_or(&[])
+        .to_vec();
+    let policy_aggregates: Vec<Json> = target_ir
+        .get("aggregates")
+        .map(Json::each)
+        .unwrap_or(&[])
+        .to_vec();
 
-    let mut policy_sources: Vec<reactions::PolicySource> =
-        vec![reactions::PolicySource { domain_name: &target_domain_name, policies: &policies, aggregates: &policy_aggregates }];
+    let mut policy_sources: Vec<reactions::PolicySource> = vec![reactions::PolicySource {
+        domain_name: &target_domain_name,
+        policies: &policies,
+        aggregates: &policy_aggregates,
+    }];
     for (name, ir) in chapter_domain_names.iter().zip(chapter_irs.iter()) {
         policy_sources.push(reactions::PolicySource {
             domain_name: name,
@@ -253,30 +312,66 @@ fn run_full(args: &[String]) -> Result<(), String> {
     }
 
     let mut merged_rs = String::new();
-    puts_str(&mut merged_rs, &crate::registry::emit_registry(&ex, &merged_aggregates));
+    puts_str(
+        &mut merged_rs,
+        &crate::registry::emit_registry(&ex, &merged_aggregates),
+    );
     puts_blank(&mut merged_rs);
-    puts_str(&mut merged_rs, &crate::registry::emit_reference_lookup(&merged_aggregates));
+    puts_str(
+        &mut merged_rs,
+        &crate::registry::emit_reference_lookup(&merged_aggregates),
+    );
     puts_blank(&mut merged_rs);
-    puts_str(&mut merged_rs, &reactions::emit_merged_policy_table(&ex, &policy_sources));
+    puts_str(
+        &mut merged_rs,
+        &reactions::emit_merged_policy_table(&ex, &policy_sources),
+    );
     puts_blank(&mut merged_rs);
-    puts_str(&mut merged_rs, &reactions::emit_merged_cross_domain_policy_table(&ex, &policy_sources));
+    puts_str(
+        &mut merged_rs,
+        &reactions::emit_merged_cross_domain_policy_table(&ex, &policy_sources),
+    );
     puts_blank(&mut merged_rs);
-    puts_str(&mut merged_rs, &reactions::emit_process_manager_table(&ex, &merged_process_managers));
+    puts_str(
+        &mut merged_rs,
+        &reactions::emit_process_manager_table(&ex, &merged_process_managers),
+    );
     puts_blank(&mut merged_rs);
-    puts_str(&mut merged_rs, &reactions::emit_reference_key_table(&ex, &reference_key_pairs));
+    puts_str(
+        &mut merged_rs,
+        &reactions::emit_reference_key_table(&ex, &reference_key_pairs),
+    );
     puts_blank(&mut merged_rs);
-    puts_str(&mut merged_rs, &reactions::emit_creates_table(&ex, &merged_aggregates));
+    puts_str(
+        &mut merged_rs,
+        &reactions::emit_creates_table(&ex, &merged_aggregates),
+    );
     puts_blank(&mut merged_rs);
-    puts_str(&mut merged_rs, &reactions::emit_identity_head_table(&ex, &merged_aggregates));
+    puts_str(
+        &mut merged_rs,
+        &reactions::emit_identity_head_table(&ex, &merged_aggregates),
+    );
     puts_blank(&mut merged_rs);
     // Section order is part of the output: `hecks regenerate_corpus --check` diffs this file byte for byte.
-    puts_str(&mut merged_rs, &reactions::emit_entity_identity_head_table(&ex, &merged_aggregates));
+    puts_str(
+        &mut merged_rs,
+        &reactions::emit_entity_identity_head_table(&ex, &merged_aggregates),
+    );
     puts_blank(&mut merged_rs);
-    puts_str(&mut merged_rs, &reactions::emit_command_attributes_table(&ex, &merged_aggregates));
+    puts_str(
+        &mut merged_rs,
+        &reactions::emit_command_attributes_table(&ex, &merged_aggregates),
+    );
     puts_blank(&mut merged_rs);
-    puts_str(&mut merged_rs, &queries::emit_query_table(&ex, &merged_queries));
+    puts_str(
+        &mut merged_rs,
+        &queries::emit_query_table(&ex, &merged_queries),
+    );
     puts_blank(&mut merged_rs);
-    puts_str(&mut merged_rs, &queries::emit_query_arg_check_table(&merged_queries));
+    puts_str(
+        &mut merged_rs,
+        &queries::emit_query_arg_check_table(&merged_queries),
+    );
     puts_blank(&mut merged_rs);
     for rmd in &merged_read_models {
         if let Some(body) = &rmd.group_by_fn_body {
@@ -284,7 +379,10 @@ fn run_full(args: &[String]) -> Result<(), String> {
             puts_blank(&mut merged_rs);
         }
     }
-    puts_str(&mut merged_rs, &read_models::emit_read_model_table(&ex, &merged_read_models));
+    puts_str(
+        &mut merged_rs,
+        &read_models::emit_read_model_table(&ex, &merged_read_models),
+    );
 
     let merged_path = format!("{target_out_dir}/merged.rs");
     std::fs::write(&merged_path, &merged_rs).map_err(|e| format!("writing {merged_path}: {e}"))?;
@@ -292,7 +390,8 @@ fn run_full(args: &[String]) -> Result<(), String> {
 
     // `write_domain` already wrote `mod.rs`; only the target directory gets a `merged` module.
     let mod_path = format!("{target_out_dir}/mod.rs");
-    let mut mod_rs = std::fs::read_to_string(&mod_path).map_err(|e| format!("reading {mod_path}: {e}"))?;
+    let mut mod_rs =
+        std::fs::read_to_string(&mod_path).map_err(|e| format!("reading {mod_path}: {e}"))?;
     if !mod_rs.ends_with('\n') {
         mod_rs.push('\n');
     }

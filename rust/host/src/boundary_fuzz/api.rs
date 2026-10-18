@@ -7,11 +7,20 @@ use super::*;
 use crate::fuzz_support::*;
 
 fn envelope_is_structured(response: &Value) {
-    let status = response["statusCode"].as_u64().expect("a refusal carries its status");
-    assert!((400..600).contains(&status), "a refusal is a 4xx/5xx, got {status}");
+    let status = response["statusCode"]
+        .as_u64()
+        .expect("a refusal carries its status");
+    assert!(
+        (400..600).contains(&status),
+        "a refusal is a 4xx/5xx, got {status}"
+    );
     assert_eq!(response["headers"]["content-type"], "application/json");
-    let body: Value = serde_json::from_str(response["body"].as_str().expect("a JSON body")).expect("the body is JSON");
-    assert!(body["error"].is_string() && body["message"].is_string(), "the refusal names itself: {body}");
+    let body: Value = serde_json::from_str(response["body"].as_str().expect("a JSON body"))
+        .expect("the body is JSON");
+    assert!(
+        body["error"].is_string() && body["message"].is_string(),
+        "the refusal names itself: {body}"
+    );
 }
 
 fn client_aggregate() -> Value {
@@ -45,12 +54,22 @@ fn parsed_body_refuses_everything_that_is_not_an_object_with_a_structured_400() 
                         mutate_text(&mut rng, &valid)
                     }
                     2 => random_value(&mut rng, 0).to_string(),
-                    _ => format!("{}{}", " \t\n".repeat(rng.below(3)), random_value(&mut rng, 1)),
+                    _ => format!(
+                        "{}{}",
+                        " \t\n".repeat(rng.below(3)),
+                        random_value(&mut rng, 1)
+                    ),
                 };
                 match parsed_body(&text) {
                     Ok(body) => {
-                        assert!(body.is_object(), "seed {seed}: {text:?} parsed to a non-object");
-                        assert!(text.trim().is_empty() || serde_json::from_str::<Value>(&text).is_ok(), "seed {seed}: {text:?} is not JSON yet was accepted");
+                        assert!(
+                            body.is_object(),
+                            "seed {seed}: {text:?} parsed to a non-object"
+                        );
+                        assert!(
+                            text.trim().is_empty() || serde_json::from_str::<Value>(&text).is_ok(),
+                            "seed {seed}: {text:?} is not JSON yet was accepted"
+                        );
                     }
                     Err(refusal) => {
                         assert_eq!(refusal["statusCode"], 400, "seed {seed}: {text:?}");
@@ -74,7 +93,19 @@ fn parsed_body_survives_depth_width_and_size() {
         ] {
             let _ = parsed_body(&text);
         }
-        for text in ["[]", "1", "\"s\"", "null", "true", "{", "{\"a\":1}{}", "{} {}", "\u{feff}{}", "{\"a\":NaN}", "{\"a\":1e999}"] {
+        for text in [
+            "[]",
+            "1",
+            "\"s\"",
+            "null",
+            "true",
+            "{",
+            "{\"a\":1}{}",
+            "{} {}",
+            "\u{feff}{}",
+            "{\"a\":NaN}",
+            "{\"a\":1e999}",
+        ] {
             if let Err(refusal) = parsed_body(text) {
                 assert_eq!(refusal["statusCode"], 400, "{text:?}");
             }
@@ -93,8 +124,15 @@ fn slugify_always_answers_a_clean_non_empty_slug() {
                 let text = random_text(&mut rng);
                 let slug = slugify(&text);
                 assert!(!slug.is_empty(), "seed {seed}: {text:?} slugged to nothing");
-                assert!(slug.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'), "seed {seed}: {text:?} -> {slug:?}");
-                assert!(!slug.starts_with('-') && !slug.ends_with('-') && !slug.contains("--"), "seed {seed}: {text:?} -> {slug:?}");
+                assert!(
+                    slug.chars()
+                        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'),
+                    "seed {seed}: {text:?} -> {slug:?}"
+                );
+                assert!(
+                    !slug.starts_with('-') && !slug.ends_with('-') && !slug.contains("--"),
+                    "seed {seed}: {text:?} -> {slug:?}"
+                );
             }
         });
     }
@@ -113,15 +151,38 @@ fn identity_minting_survives_any_rule_and_leaves_args_alone_when_it_refuses() {
                         continue;
                     }
                     let value = match key {
-                        "field" if rng.chance(2) => json!(*rng.pick(&["reference", "name", "owner", "status", "missing", ""])),
-                        "strategy" if rng.chance(2) => json!(*rng.pick(&["slug", "sequence", "port", "nope", ""])),
-                        "source" if rng.chance(2) => json!(*rng.pick(&["name", "reference", "owner", "missing", ""])),
-                        "pad" if rng.chance(2) => json!(*rng.pick(&[0u64, 1, 3, 64, 65, 1_000, 1_000_000, 1u64 << 40, 1u64 << 62, u64::MAX])),
+                        "field" if rng.chance(2) => json!(*rng.pick(&[
+                            "reference",
+                            "name",
+                            "owner",
+                            "status",
+                            "missing",
+                            ""
+                        ])),
+                        "strategy" if rng.chance(2) => {
+                            json!(*rng.pick(&["slug", "sequence", "port", "nope", ""]))
+                        }
+                        "source" if rng.chance(2) => {
+                            json!(*rng.pick(&["name", "reference", "owner", "missing", ""]))
+                        }
+                        "pad" if rng.chance(2) => json!(*rng.pick(&[
+                            0u64,
+                            1,
+                            3,
+                            64,
+                            65,
+                            1_000,
+                            1_000_000,
+                            1u64 << 40,
+                            1u64 << 62,
+                            u64::MAX
+                        ])),
                         _ => random_value(&mut rng, 2),
                     };
                     rule.insert(key.to_string(), value);
                 }
-                let presentation = json!({"collections": {"Client": {"identity": Value::Object(rule)}}});
+                let presentation =
+                    json!({"collections": {"Client": {"identity": Value::Object(rule)}}});
                 let mut args = random_value(&mut rng, 0);
                 if rng.chance(2) {
                     args = json!({"name": random_value(&mut rng, 2)});
@@ -132,7 +193,10 @@ fn identity_minting_survives_any_rule_and_leaves_args_alone_when_it_refuses() {
                     Ok(()) => {}
                     Err(refusal) => {
                         envelope_is_structured(&refusal);
-                        assert_eq!(args, before, "seed {seed}: a refused identity must not have touched the args");
+                        assert_eq!(
+                            args, before,
+                            "seed {seed}: a refused identity must not have touched the args"
+                        );
                     }
                 }
             }
@@ -146,13 +210,19 @@ fn an_absurd_sequence_pad_is_refused_rather_than_allocating_it() {
     for pad in [65u64, 1_000_000, 1 << 40, u64::MAX] {
         let presentation = json!({"collections": {"Client": {"identity": {"field": "reference", "strategy": "sequence", "prefix": "C-", "pad": pad}}}});
         let mut args = json!({"name": {"value": "Acme"}});
-        let refusal = apply_identity(&presentation, &aggregate, &mut args, 1).expect_err("a pad this wide is refused");
+        let refusal = apply_identity(&presentation, &aggregate, &mut args, 1)
+            .expect_err("a pad this wide is refused");
         envelope_is_structured(&refusal);
-        assert_eq!(args, json!({"name": {"value": "Acme"}}), "pad {pad}: nothing was minted");
+        assert_eq!(
+            args,
+            json!({"name": {"value": "Acme"}}),
+            "pad {pad}: nothing was minted"
+        );
     }
     let presentation = json!({"collections": {"Client": {"identity": {"field": "reference", "strategy": "sequence", "prefix": "C-", "pad": 64}}}});
     let mut args = json!({});
-    apply_identity(&presentation, &aggregate, &mut args, 0).expect("the widest allowed pad still mints");
+    apply_identity(&presentation, &aggregate, &mut args, 0)
+        .expect("the widest allowed pad still mints");
     assert_eq!(args["reference"]["value"].as_str().unwrap().len(), 2 + 64);
 }
 
@@ -169,9 +239,19 @@ fn preconditions_survive_any_config_and_instances_shape() {
                 } else {
                     json!({"field": *rng.pick(&["owner", "name", "status", "missing"]), "state": random_value(&mut rng, 2), "message": random_value(&mut rng, 2)})
                 };
-                let args = if rng.chance(3) { random_value(&mut rng, 0) } else { json!({"owner": random_value(&mut rng, 2)}) };
-                let instances = if rng.chance(3) { random_value(&mut rng, 0) } else { json!({format!("{}::Member#m1", domain_name(&domain)): random_value(&mut rng, 2)}) };
-                if let Err(refusal) = check_precondition(&domain, &aggregate, &rule, &args, &instances) {
+                let args = if rng.chance(3) {
+                    random_value(&mut rng, 0)
+                } else {
+                    json!({"owner": random_value(&mut rng, 2)})
+                };
+                let instances = if rng.chance(3) {
+                    random_value(&mut rng, 0)
+                } else {
+                    json!({format!("{}::Member#m1", domain_name(&domain)): random_value(&mut rng, 2)})
+                };
+                if let Err(refusal) =
+                    check_precondition(&domain, &aggregate, &rule, &args, &instances)
+                {
                     envelope_is_structured(&refusal);
                 }
             }
@@ -203,7 +283,10 @@ fn sorting_records_of_mixed_types_never_panics_on_an_inconsistent_order() {
                     })
                     .collect();
                 for descending in [false, true] {
-                    let spec = Some(SortSpec { field: "col".to_string(), descending });
+                    let spec = Some(SortSpec {
+                        field: "col".to_string(),
+                        descending,
+                    });
                     sort_records(&mut records, &spec);
                     sort_records(&mut records, &None);
                 }
@@ -235,10 +318,22 @@ fn query_arguments_and_sort_params_survive_hostile_input() {
                 params.insert("name".to_string(), random_text(&mut rng));
                 let _ = query_args_from_params(&aggregate, &named, &params);
 
-                let sort: HashMap<String, String> = [("sort", random_text(&mut rng)), ("direction", random_text(&mut rng))].into_iter().map(|(k, v)| (k.to_string(), v)).collect();
+                let sort: HashMap<String, String> = [
+                    ("sort", random_text(&mut rng)),
+                    ("direction", random_text(&mut rng)),
+                ]
+                .into_iter()
+                .map(|(k, v)| (k.to_string(), v))
+                .collect();
                 let config = random_value(&mut rng, 0);
                 let _ = resolve_sort(&domain, &config, "Client", &aggregate, &sort);
-                let _ = resolve_sort(&domain, &json!({}), "Client", &aggregate, &HashMap::from([("sort".to_string(), "__state__".to_string())]));
+                let _ = resolve_sort(
+                    &domain,
+                    &json!({}),
+                    "Client",
+                    &aggregate,
+                    &HashMap::from([("sort".to_string(), "__state__".to_string())]),
+                );
             }
         });
     }

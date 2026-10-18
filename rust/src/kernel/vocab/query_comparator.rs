@@ -47,9 +47,11 @@ impl QueryComparator {
 
     /// The row whose `name` is `name`, if any.
     pub fn from_name(name: &str) -> Option<QueryComparator> {
-        QueryComparator::ALL.iter().copied().find(|row| row.name() == name)
+        QueryComparator::ALL
+            .iter()
+            .copied()
+            .find(|row| row.name() == name)
     }
-
 }
 
 #[cfg(test)]

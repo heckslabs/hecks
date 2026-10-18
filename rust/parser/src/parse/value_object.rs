@@ -98,7 +98,8 @@ pub fn parse_body(
             // An inline type-position `one_of(...)` set is returned beside the value object (see
             // build/closed_sets.rs); `ValueObject` has no nested-value-objects field.
             "attribute" => {
-                let (attribute, one_of, closed_set) = build_value_object_attribute(file, &gated.args)?;
+                let (attribute, one_of, closed_set) =
+                    build_value_object_attribute(file, &gated.args)?;
                 synthesized.extend(closed_set);
                 if let Some(values) = one_of {
                     let vo_name = vo.name.clone();
@@ -140,7 +141,11 @@ pub fn parse_body(
 fn build_value_object_attribute(
     file: &str,
     args: &super::ArgumentGateResult,
-) -> ParseResult<(ir::Attribute, Option<Vec<ruby_value::Value>>, Option<ir::ValueObject>)> {
+) -> ParseResult<(
+    ir::Attribute,
+    Option<Vec<ruby_value::Value>>,
+    Option<ir::ValueObject>,
+)> {
     let (attribute, closed_set) = super::build_attribute(file, 0, "attribute", args)?;
     let one_of = super::named_raw(args, "one_of").map(|raw| {
         let trimmed = raw.trim();

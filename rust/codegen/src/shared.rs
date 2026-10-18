@@ -28,15 +28,25 @@ pub fn append_claimed_names(command: &Json) -> std::collections::HashSet<String>
 /// A command with `references` acts on an existing record. Otherwise it creates when it supplies,
 /// via a `:set` mutation or a same-named argument, a required non-list owner field, ignoring
 /// arguments claimed by an append (`append_claimed_names`).
-pub fn creates_owner(aggregate: &Json, command: &Json, _value_objects_by_name: &HashMap<String, &Json>) -> bool {
+pub fn creates_owner(
+    aggregate: &Json,
+    command: &Json,
+    _value_objects_by_name: &HashMap<String, &Json>,
+) -> bool {
     if command.get("references").is_some() {
         return false;
     }
 
     let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
-    let owner_fields: std::collections::HashSet<String> = attrs.iter().map(|a| crate::attr::name(a).to_string()).collect();
-    let required_fields: std::collections::HashSet<String> =
-        attrs.iter().filter(|a| !crate::attr::list(a) && !crate::attr::optional(a)).map(|a| crate::attr::name(a).to_string()).collect();
+    let owner_fields: std::collections::HashSet<String> = attrs
+        .iter()
+        .map(|a| crate::attr::name(a).to_string())
+        .collect();
+    let required_fields: std::collections::HashSet<String> = attrs
+        .iter()
+        .filter(|a| !crate::attr::list(a) && !crate::attr::optional(a))
+        .map(|a| crate::attr::name(a).to_string())
+        .collect();
 
     let append_claimed = append_claimed_names(command);
 
@@ -57,12 +67,18 @@ pub fn creates_owner(aggregate: &Json, command: &Json, _value_objects_by_name: &
         }
     }
 
-    required_fields.iter().any(|field| known_writes.contains(field))
+    required_fields
+        .iter()
+        .any(|field| known_writes.contains(field))
 }
 
 /// Whether a list-typed attribute reads `nil` rather than `[]` in Ruby; see
 /// `mutations.rb#list_attr_creation_optional?`.
-pub fn list_attr_creation_optional(aggregate: &Json, attr_name: &str, value_objects_by_name: &HashMap<String, &Json>) -> bool {
+pub fn list_attr_creation_optional(
+    aggregate: &Json,
+    attr_name: &str,
+    value_objects_by_name: &HashMap<String, &Json>,
+) -> bool {
     let commands = aggregate.get("commands").map(Json::each).unwrap_or(&[]);
     commands.iter().any(|command| {
         if !creates_owner(aggregate, command, value_objects_by_name) {

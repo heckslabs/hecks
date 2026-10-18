@@ -1,6 +1,6 @@
 use super::{instances_for, respond};
-use crate::dispatch;
 use crate::commerce_ir::newsletter_issues_provider;
+use crate::dispatch;
 use crate::extension::loaded_ir;
 use crate::journal::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
@@ -54,12 +54,28 @@ pub(super) async fn resend_webhook_route(
     if method != "POST" || path != "/webhooks/resend" {
         return None;
     }
-    let header = |name: &str| headers.and_then(|h| h.get(name)).and_then(|v| v.as_str()).unwrap_or("");
+    let header = |name: &str| {
+        headers
+            .and_then(|h| h.get(name))
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+    };
     let secret = std::env::var(SECRET_VARIABLE).unwrap_or_default();
     if secret.trim().is_empty() {
-        return Some(respond(503, "text/plain", &format!("{SECRET_VARIABLE} is not set, so Resend events cannot be verified")));
+        return Some(respond(
+            503,
+            "text/plain",
+            &format!("{SECRET_VARIABLE} is not set, so Resend events cannot be verified"),
+        ));
     }
-    if let Err(reason) = verify(raw_body, header("svix-id"), header("svix-timestamp"), header("svix-signature"), secret.trim(), unix_now()) {
+    if let Err(reason) = verify(
+        raw_body,
+        header("svix-id"),
+        header("svix-timestamp"),
+        header("svix-signature"),
+        secret.trim(),
+        unix_now(),
+    ) {
         return Some(respond(400, "text/plain", &reason));
     }
     let event: Value = match serde_json::from_str(raw_body) {
@@ -74,14 +90,21 @@ pub(super) async fn resend_webhook_route(
     };
     // `record_delivery` names `<Chapter>::Delivery.Record`; the open and click
     // commands sit on the same aggregate.
-    let Some(delivery_aggregate) = provider.record_delivery.rsplit_once('.').map(|(aggregate, _)| aggregate.to_string()) else {
+    let Some(delivery_aggregate) = provider
+        .record_delivery
+        .rsplit_once('.')
+        .map(|(aggregate, _)| aggregate.to_string())
+    else {
         return Some(respond(200, "text/plain", ""));
     };
     let read = match dispatch::read(client, wasm_path).await {
         Ok(r) => r,
         Err(e) => return Some(respond(500, "text/plain", &format!("{e:#}"))),
     };
-    let Some(delivery_id) = delivery_for(&instances_for(&read, &format!("{delivery_aggregate}#")), &message_id) else {
+    let Some(delivery_id) = delivery_for(
+        &instances_for(&read, &format!("{delivery_aggregate}#")),
+        &message_id,
+    ) else {
         // A message this site did not send as a newsletter (a receipt, a
         // confirmation): nothing to record, and a 200 stops Resend's retries.
         return Some(respond(200, "text/plain", ""));
@@ -90,14 +113,28 @@ pub(super) async fn resend_webhook_route(
     let verb = format!("{delivery_aggregate}.{}", tracked.command_suffix());
     // A refusal is a repeat (the first open or click is already recorded):
     // benign, and 200 tells Resend not to retry.
-    match dispatch::handle_routed(client, wasm_path, &verb, json!(delivery_id), occurred_at, None, config, invoker).await {
+    match dispatch::handle_routed(
+        client,
+        wasm_path,
+        &verb,
+        json!(delivery_id),
+        occurred_at,
+        None,
+        config,
+        invoker,
+    )
+    .await
+    {
         Err(e) => Some(respond(500, "text/plain", &format!("{e:#}"))),
         Ok(_) => Some(respond(200, "text/plain", "")),
     }
 }
 
 fn unix_now() -> i64 {
-    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0)
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
 }
 
 // What the event is and which sent message it is about; `None` for any event
@@ -126,9 +163,16 @@ fn parse_rfc3339_seconds(text: &str) -> Option<i64> {
     let (date, time) = text.split_once('T')?;
     let mut ymd = date.split('-').map(|p| p.parse::<i64>().ok());
     let (year, month, day) = (ymd.next()??, ymd.next()??, ymd.next()??);
-    let clock: String = time.chars().take_while(|c| c.is_ascii_digit() || *c == ':').collect();
+    let clock: String = time
+        .chars()
+        .take_while(|c| c.is_ascii_digit() || *c == ':')
+        .collect();
     let mut hms = clock.split(':').map(|p| p.parse::<i64>().ok());
-    let (hour, minute, second) = (hms.next()??, hms.next()??, hms.next().flatten().unwrap_or(0));
+    let (hour, minute, second) = (
+        hms.next()??,
+        hms.next()??,
+        hms.next().flatten().unwrap_or(0),
+    );
     // Days since 1970-01-01 (Howard Hinnant's civil-from-days, inverted).
     let year = if month <= 2 { year - 1 } else { year };
     let era = year.div_euclid(400);
@@ -144,23 +188,42 @@ fn parse_rfc3339_seconds(text: &str) -> Option<i64> {
 fn delivery_for(deliveries: &[(String, Value)], message_id: &str) -> Option<String> {
     deliveries
         .iter()
-        .find(|(_, state)| state.get("message_id").and_then(|m| m.get("value")).and_then(|v| v.as_str()) == Some(message_id))
+        .find(|(_, state)| {
+            state
+                .get("message_id")
+                .and_then(|m| m.get("value"))
+                .and_then(|v| v.as_str())
+                == Some(message_id)
+        })
         .map(|(id, _)| id.clone())
 }
 
 // Svix signs `<id>.<timestamp>.<raw body>` with the key inside the `whsec_`
 // secret, base64 (`v1,<signature>`, several space-separated while a secret is
 // being rotated). `now` is a parameter so a test can hold time fixed.
-fn verify(payload: &str, id: &str, timestamp: &str, signatures: &str, secret: &str, now: i64) -> Result<(), String> {
+fn verify(
+    payload: &str,
+    id: &str,
+    timestamp: &str,
+    signatures: &str,
+    secret: &str,
+    now: i64,
+) -> Result<(), String> {
     if id.is_empty() || timestamp.is_empty() || signatures.is_empty() {
         return Err("missing svix-id, svix-timestamp or svix-signature header".to_string());
     }
-    let sent: i64 = timestamp.parse().map_err(|_| "svix-timestamp is not a number".to_string())?;
+    let sent: i64 = timestamp
+        .parse()
+        .map_err(|_| "svix-timestamp is not a number".to_string())?;
     if (now - sent).abs() > TOLERANCE_SECONDS {
-        return Err(format!("timestamp {sent} is outside the {TOLERANCE_SECONDS}s tolerance (now: {now})"));
+        return Err(format!(
+            "timestamp {sent} is outside the {TOLERANCE_SECONDS}s tolerance (now: {now})"
+        ));
     }
-    let key = base64_decode(secret.strip_prefix("whsec_").unwrap_or(secret)).ok_or_else(|| "webhook secret is not valid base64".to_string())?;
-    let mut mac = HmacSha256::new_from_slice(&key).map_err(|e| format!("webhook secret unusable as an HMAC key: {e}"))?;
+    let key = base64_decode(secret.strip_prefix("whsec_").unwrap_or(secret))
+        .ok_or_else(|| "webhook secret is not valid base64".to_string())?;
+    let mut mac = HmacSha256::new_from_slice(&key)
+        .map_err(|e| format!("webhook secret unusable as an HMAC key: {e}"))?;
     mac.update(format!("{id}.{timestamp}.{payload}").as_bytes());
     let expected = mac.finalize().into_bytes();
     let matches = signatures
@@ -171,7 +234,10 @@ fn verify(payload: &str, id: &str, timestamp: &str, signatures: &str, secret: &s
     if matches {
         Ok(())
     } else {
-        Err("signature does not match — wrong secret, or the payload was tampered with in transit".to_string())
+        Err(
+            "signature does not match — wrong secret, or the payload was tampered with in transit"
+                .to_string(),
+        )
     }
 }
 
@@ -210,10 +276,14 @@ mod tests {
     const SECRET: &str = "whsec_c2VjcmV0LWtleQ=="; // "secret-key"
 
     fn base64_encode(bytes: &[u8]) -> String {
-        const TABLE: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        const TABLE: &[u8; 64] =
+            b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
         let mut out = String::new();
         for chunk in bytes.chunks(3) {
-            let n = chunk.iter().enumerate().fold(0u32, |acc, (i, b)| acc | (*b as u32) << (16 - 8 * i));
+            let n = chunk
+                .iter()
+                .enumerate()
+                .fold(0u32, |acc, (i, b)| acc | (*b as u32) << (16 - 8 * i));
             for i in 0..=chunk.len() {
                 out.push(TABLE[(n >> (18 - 6 * i) & 63) as usize] as char);
             }
@@ -233,7 +303,10 @@ mod tests {
         for sample in [&b""[..], b"f", b"fo", b"foo", b"foob", b"secret-key"] {
             let encoded = base64_encode(sample);
             assert_eq!(base64_decode(&encoded).unwrap(), sample);
-            assert_eq!(base64_decode(encoded.trim_end_matches('=')).unwrap(), sample);
+            assert_eq!(
+                base64_decode(encoded.trim_end_matches('=')).unwrap(),
+                sample
+            );
         }
         assert!(base64_decode("not base64!").is_none());
     }
@@ -260,7 +333,15 @@ mod tests {
     #[test]
     fn a_stale_or_unsigned_event_is_refused() {
         let signature = signed("msg_1", "1000", "{}");
-        assert!(verify("{}", "msg_1", "1000", &signature, SECRET, 1000 + TOLERANCE_SECONDS + 1).is_err());
+        assert!(verify(
+            "{}",
+            "msg_1",
+            "1000",
+            &signature,
+            SECRET,
+            1000 + TOLERANCE_SECONDS + 1
+        )
+        .is_err());
         assert!(verify("{}", "", "1000", &signature, SECRET, 1000).is_err());
         assert!(verify("{}", "msg_1", "soon", &signature, SECRET, 1000).is_err());
     }
@@ -268,27 +349,54 @@ mod tests {
     #[test]
     fn opens_and_clicks_name_their_message_and_everything_else_is_ignored() {
         let open = json!({ "type": "email.opened", "data": { "email_id": "re_1" } });
-        assert_eq!(tracked_event(&open), Some((Tracked::Open, "re_1".to_string())));
+        assert_eq!(
+            tracked_event(&open),
+            Some((Tracked::Open, "re_1".to_string()))
+        );
         let click = json!({ "type": "email.clicked", "data": { "email_id": "re_2" } });
-        assert_eq!(tracked_event(&click), Some((Tracked::Click, "re_2".to_string())));
-        assert_eq!(tracked_event(&json!({ "type": "email.delivered", "data": { "email_id": "re_3" } })), None);
-        assert_eq!(tracked_event(&json!({ "type": "email.opened", "data": {} })), None);
+        assert_eq!(
+            tracked_event(&click),
+            Some((Tracked::Click, "re_2".to_string()))
+        );
+        assert_eq!(
+            tracked_event(&json!({ "type": "email.delivered", "data": { "email_id": "re_3" } })),
+            None
+        );
+        assert_eq!(
+            tracked_event(&json!({ "type": "email.opened", "data": {} })),
+            None
+        );
     }
 
     #[test]
     fn the_delivery_is_found_by_its_stored_message_id() {
         let deliveries = vec![
-            ("issue-1:a@b.com".to_string(), json!({ "message_id": { "value": "re_1" } })),
-            ("issue-1:c@d.com".to_string(), json!({ "message_id": { "value": "re_2" } })),
+            (
+                "issue-1:a@b.com".to_string(),
+                json!({ "message_id": { "value": "re_1" } }),
+            ),
+            (
+                "issue-1:c@d.com".to_string(),
+                json!({ "message_id": { "value": "re_2" } }),
+            ),
         ];
-        assert_eq!(delivery_for(&deliveries, "re_2").as_deref(), Some("issue-1:c@d.com"));
+        assert_eq!(
+            delivery_for(&deliveries, "re_2").as_deref(),
+            Some("issue-1:c@d.com")
+        );
         assert_eq!(delivery_for(&deliveries, "re_9"), None);
     }
 
     #[test]
     fn the_event_time_is_read_as_unix_seconds() {
-        assert_eq!(parse_rfc3339_seconds("1970-01-02T00:00:01.500Z"), Some(86401));
-        assert_eq!(parse_rfc3339_seconds("2026-10-06T21:59:20+00:00"), Some(1_791_323_960));
+        assert_eq!(
+            parse_rfc3339_seconds("1970-01-02T00:00:01.500Z"),
+            Some(86401)
+        );
+        assert_eq!(
+            parse_rfc3339_seconds("2026-10-06T21:59:20+00:00"),
+            Some(1_791_323_960)
+        );
         assert_eq!(parse_rfc3339_seconds("yesterday"), None);
     }
 

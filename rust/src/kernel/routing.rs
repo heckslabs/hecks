@@ -137,13 +137,19 @@ impl CommandInvocation {
 
         // `with:` beside a loose fact is refused, as Ruby's `Routing.payload` refuses it.
         // Step-envelope keys (`verb`, `role`, ...) are not facts and are exempt.
-        const STEP_ENVELOPE_KEYS: [&str; 6] =
-            ["verb", "role", "actor_id", "occurred_at", "dry_run", "query"];
+        const STEP_ENVELOPE_KEYS: [&str; 6] = [
+            "verb",
+            "role",
+            "actor_id",
+            "occurred_at",
+            "dry_run",
+            "query",
+        ];
         if explicit_facts.is_some() {
             if let Json::Object(fields) = value {
-                let extra = fields
-                    .iter()
-                    .any(|(key, _)| key != "to" && key != "with" && !STEP_ENVELOPE_KEYS.contains(&key.as_str()));
+                let extra = fields.iter().any(|(key, _)| {
+                    key != "to" && key != "with" && !STEP_ENVELOPE_KEYS.contains(&key.as_str())
+                });
                 if extra {
                     return Err(routing_refusal(
                         "with: takes command facts, not both with: and loose keyword arguments",
@@ -160,7 +166,11 @@ impl CommandInvocation {
             return Err(routing_refusal("with must be an object of command facts"));
         }
 
-        Ok(Self { route, facts, explicit: true })
+        Ok(Self {
+            route,
+            facts,
+            explicit: true,
+        })
     }
 
     pub fn route(&self) -> Option<&RoutingEnvelope> {
@@ -358,21 +368,24 @@ mod tests {
         assert_eq!(invocation.route(), None);
         assert_eq!(
             invocation.facts(),
-            &Json::obj(vec![("name", Json::obj(vec![("value", Json::str("golf"))]))])
+            &Json::obj(vec![(
+                "name",
+                Json::obj(vec![("value", Json::str("golf"))])
+            )])
         );
     }
 
     // Same for a null `with`: read as the no-`to:` shape; the null key is dropped from the facts.
     #[test]
     fn null_with_and_no_to_key_is_read_as_legacy_shape_not_explicit_facts() {
-        let input = Json::obj(vec![
-            ("with", Json::Null),
-            ("amount", Json::int(20)),
-        ]);
+        let input = Json::obj(vec![("with", Json::Null), ("amount", Json::int(20))]);
 
         let invocation = CommandInvocation::from_json(&input).unwrap();
         assert_eq!(invocation.route(), None);
-        assert_eq!(invocation.facts(), &Json::obj(vec![("amount", Json::int(20))]));
+        assert_eq!(
+            invocation.facts(),
+            &Json::obj(vec![("amount", Json::int(20))])
+        );
     }
 
     // A non-null `to` is always parsed as a route, even when a domain fact is named `to`.
@@ -381,7 +394,9 @@ mod tests {
         let input = Json::obj(vec![("to", Json::obj(vec![("value", Json::int(282))]))]);
 
         let err = CommandInvocation::from_json(&input).unwrap_err();
-        assert!(err.to_string().contains("entity route requires a scalar aggregate identity"));
+        assert!(err
+            .to_string()
+            .contains("entity route requires a scalar aggregate identity"));
     }
 
     // A real `to:` with flat facts and no `with:` must keep the facts; only `with:` selects them.
@@ -396,7 +411,10 @@ mod tests {
         let route = invocation.route().unwrap();
         route.require_depth(0).unwrap();
         assert_eq!(route.aggregate(), "ORDER-7");
-        assert_eq!(invocation.facts(), &Json::obj(vec![("quantity", Json::int(3))]));
+        assert_eq!(
+            invocation.facts(),
+            &Json::obj(vec![("quantity", Json::int(3))])
+        );
     }
 
     // Same, with an entity route as `to:`.
@@ -427,14 +445,14 @@ mod tests {
     // Same, with `to: null` beside real facts.
     #[test]
     fn null_to_alongside_real_facts_keeps_the_flat_facts() {
-        let input = Json::obj(vec![
-            ("to", Json::Null),
-            ("quantity", Json::int(3)),
-        ]);
+        let input = Json::obj(vec![("to", Json::Null), ("quantity", Json::int(3))]);
 
         let invocation = CommandInvocation::from_json(&input).unwrap();
         assert_eq!(invocation.route(), None);
-        assert_eq!(invocation.facts(), &Json::obj(vec![("quantity", Json::int(3))]));
+        assert_eq!(
+            invocation.facts(),
+            &Json::obj(vec![("quantity", Json::int(3))])
+        );
     }
 
     // `explicit_with()` is true only when the explicit `with:` branch was taken.
@@ -461,11 +479,8 @@ mod tests {
         .unwrap();
         assert!(!legacy_with_to.explicit_with());
 
-        let legacy_no_to = CommandInvocation::from_json(&Json::obj(vec![(
-            "amount",
-            Json::int(20),
-        )]))
-        .unwrap();
+        let legacy_no_to =
+            CommandInvocation::from_json(&Json::obj(vec![("amount", Json::int(20))])).unwrap();
         assert!(!legacy_no_to.explicit_with());
 
         let legacy_null_with = CommandInvocation::from_json(&Json::obj(vec![
@@ -499,7 +514,9 @@ mod tests {
             ),
         ]))
         .unwrap();
-        let (receiver, facts) = explicit.split_aggregate_receiver(Some("order"), None).unwrap();
+        let (receiver, facts) = explicit
+            .split_aggregate_receiver(Some("order"), None)
+            .unwrap();
         assert_eq!(receiver, "ORDER-7");
         assert_eq!(facts, Json::obj(vec![("amount", Json::int(20))]));
 
@@ -508,7 +525,9 @@ mod tests {
             ("amount", Json::int(30)),
         ]))
         .unwrap();
-        let (receiver, facts) = legacy.split_aggregate_receiver(Some("order"), None).unwrap();
+        let (receiver, facts) = legacy
+            .split_aggregate_receiver(Some("order"), None)
+            .unwrap();
         assert_eq!(receiver, "ORDER-8");
         assert_eq!(facts, Json::obj(vec![("amount", Json::int(30))]));
 

@@ -22,7 +22,11 @@ const OVERVIEW: &str = "overview";
 /// The whole config, as `PresentationConfig.load` returns it. A domain
 /// with no ConsoleSettings rows, or none of its relations, reads back
 /// an empty section rather than an error.
-pub async fn load(client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig) -> anyhow::Result<Value> {
+pub async fn load(
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    config: &LineageConfig,
+) -> anyhow::Result<Value> {
     if let Some(rows) = kernel_rows(client, wasm_path).await? {
         return Ok(reshape(&rows.states, &rows.collections, &rows.overview));
     }
@@ -31,7 +35,10 @@ pub async fn load(client: &Mutex<Client>, wasm_path: &Path, config: &LineageConf
 
 /// The Ruby-written relations, split out so the kernel path above reads
 /// as the one decision it is, and so tests can drive this half directly.
-async fn load_from_relations(client: &Mutex<Client>, config: &LineageConfig) -> anyhow::Result<Value> {
+async fn load_from_relations(
+    client: &Mutex<Client>,
+    config: &LineageConfig,
+) -> anyhow::Result<Value> {
     let guard = client.lock().await;
     let states = read_head_states(&*guard, &config.domain, STATE_STYLE).await?;
     let collections = read_head_states(&*guard, &config.domain, COLLECTION).await?;
@@ -49,7 +56,10 @@ async fn load_from_relations(client: &Mutex<Client>, config: &LineageConfig) -> 
 /// Keeping the plain read a single SELECT (via `dispatch::read`'s
 /// snapshot) matters here: this runs on every first paint, alongside
 /// `/api/me` and `/api/ui-schema`.
-pub(crate) async fn kernel_rows(client: &Mutex<Client>, wasm_path: &Path) -> anyhow::Result<Option<KernelRows>> {
+pub(crate) async fn kernel_rows(
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+) -> anyhow::Result<Option<KernelRows>> {
     let state = dispatch::read(client, wasm_path).await?;
     let rows = bucket(state.get("instances"));
     if !rows.is_empty() {
@@ -57,8 +67,17 @@ pub(crate) async fn kernel_rows(client: &Mutex<Client>, wasm_path: &Path) -> any
     }
 
     // Empty either way — ask the kernel which kind of empty this is.
-    let probe = dispatch::query(client, wasm_path, &format!("{CONFIG_DOMAIN}.Styles"), json!({})).await?;
-    let answered = probe.get("queries").and_then(|q| q.as_array()).is_some_and(|q| !q.is_empty());
+    let probe = dispatch::query(
+        client,
+        wasm_path,
+        &format!("{CONFIG_DOMAIN}.Styles"),
+        json!({}),
+    )
+    .await?;
+    let answered = probe
+        .get("queries")
+        .and_then(|q| q.as_array())
+        .is_some_and(|q| !q.is_empty());
     if answered {
         Ok(Some(rows))
     } else {
@@ -69,12 +88,16 @@ pub(crate) async fn kernel_rows(client: &Mutex<Client>, wasm_path: &Path) -> any
 /// Every ConsoleSettings record in an instance map, split by aggregate.
 fn bucket(instances: Option<&Value>) -> KernelRows {
     let mut rows = KernelRows::default();
-    let Some(instances) = instances.and_then(|i| i.as_object()) else { return rows };
+    let Some(instances) = instances.and_then(|i| i.as_object()) else {
+        return rows;
+    };
     for (key, state) in instances {
         // `Domain::Aggregate#id`, split on the first `#` — a StateStyle
         // id like `Agg:state` has none itself but would be lost to a
         // split on the last one. Ids feed `presentation_write`'s declare-vs-set check.
-        let Some((qualified, id)) = key.split_once('#') else { continue };
+        let Some((qualified, id)) = key.split_once('#') else {
+            continue;
+        };
         match qualified {
             _ if qualified == format!("{CONFIG_DOMAIN}::StateStyle") => {
                 rows.state_ids.insert(id.to_string());
@@ -84,7 +107,9 @@ fn bucket(instances: Option<&Value>) -> KernelRows {
                 rows.collection_ids.insert(id.to_string());
                 rows.collections.push(state.clone());
             }
-            _ if qualified == format!("{CONFIG_DOMAIN}::Overview") => rows.overview.push(state.clone()),
+            _ if qualified == format!("{CONFIG_DOMAIN}::Overview") => {
+                rows.overview.push(state.clone())
+            }
             _ => {}
         }
     }
@@ -146,7 +171,10 @@ async fn read_head_states<C: GenericClient>(
             continue;
         }
         let rows = client
-            .query(&format!("SELECT state FROM {}", journal::quote_ident(&relation)), &[])
+            .query(
+                &format!("SELECT state FROM {}", journal::quote_ident(&relation)),
+                &[],
+            )
             .await?;
         return Ok(rows.iter().map(|row| row.get(0)).collect());
     }
@@ -170,7 +198,9 @@ fn head_view_candidates(host_domain: &str, storage_name: &str) -> Vec<String> {
 /// same as the unqualified SELECT below — never a same-named relation
 /// in some other schema.
 async fn relation_exists<C: GenericClient>(client: &C, relation: &str) -> anyhow::Result<bool> {
-    let row = client.query_one("SELECT to_regclass($1) IS NOT NULL", &[&relation]).await?;
+    let row = client
+        .query_one("SELECT to_regclass($1) IS NOT NULL", &[&relation])
+        .await?;
     Ok(row.get(0))
 }
 
@@ -184,7 +214,10 @@ fn unwrap(value: &Value) -> Value {
 }
 
 fn unwrap_str(value: Option<&Value>) -> String {
-    value.map(unwrap).and_then(|v| v.as_str().map(String::from)).unwrap_or_default()
+    value
+        .map(unwrap)
+        .and_then(|v| v.as_str().map(String::from))
+        .unwrap_or_default()
 }
 
 /// Ruby truthiness for a stored field: absent and JSON `null` are both
@@ -198,9 +231,15 @@ fn present(value: Option<&Value>) -> Option<&Value> {
 /// merged in without overwriting an explicitly-modeled key. Accepts it
 /// either wrapped (a head field) or bare (a `list_of` element).
 fn merge_extra(entry: &mut Map<String, Value>, extra_json: Option<&Value>) {
-    let Some(raw) = present(extra_json).map(unwrap) else { return };
-    let Some(text) = raw.as_str().filter(|t| !t.is_empty()) else { return };
-    let Ok(Value::Object(extra)) = serde_json::from_str::<Value>(text) else { return };
+    let Some(raw) = present(extra_json).map(unwrap) else {
+        return;
+    };
+    let Some(text) = raw.as_str().filter(|t| !t.is_empty()) else {
+        return;
+    };
+    let Ok(Value::Object(extra)) = serde_json::from_str::<Value>(text) else {
+        return;
+    };
     for (key, value) in extra {
         entry.entry(key).or_insert(value);
     }
@@ -217,7 +256,10 @@ fn reshape_states(rows: &[Value]) -> Value {
             entry.insert("tone".to_string(), unwrap(tone));
         }
         if let Some(attention) = present(row.get("attention")) {
-            entry.insert("attention".to_string(), json!(unwrap(attention).as_str() == Some("true")));
+            entry.insert(
+                "attention".to_string(),
+                json!(unwrap(attention).as_str() == Some("true")),
+            );
         }
         merge_extra(&mut entry, row.get("extra_json"));
 
@@ -258,11 +300,24 @@ fn reshape_collection_row(row: &Value) -> Value {
         entry.insert("identity".to_string(), identity);
     }
 
-    entry.insert("columns".to_string(), Value::Array(elements(row, "columns").iter().map(reshape_column).collect()));
+    entry.insert(
+        "columns".to_string(),
+        Value::Array(
+            elements(row, "columns")
+                .iter()
+                .map(reshape_column)
+                .collect(),
+        ),
+    );
     entry.insert("detail_fields".to_string(), reshape_detail_fields(row));
     entry.insert(
         "preconditions".to_string(),
-        Value::Array(elements(row, "preconditions").iter().map(reshape_precondition).collect()),
+        Value::Array(
+            elements(row, "preconditions")
+                .iter()
+                .map(reshape_precondition)
+                .collect(),
+        ),
     );
     entry.insert("field_formats".to_string(), reshape_field_formats(row));
     merge_extra(&mut entry, row.get("extra_json"));
@@ -271,14 +326,22 @@ fn reshape_collection_row(row: &Value) -> Value {
 
 /// `Array(row[:columns])` — a null/absent list is the empty one.
 fn elements<'a>(row: &'a Value, field: &str) -> &'a [Value] {
-    row.get(field).and_then(|v| v.as_array()).map(|a| a.as_slice()).unwrap_or(&[])
+    row.get(field)
+        .and_then(|v| v.as_array())
+        .map(|a| a.as_slice())
+        .unwrap_or(&[])
 }
 
 fn reshape_identity(row: &Value) -> Option<Value> {
     let field = present(row.get("identity_field")).map(unwrap)?;
     let mut identity = Map::new();
     identity.insert("field".to_string(), field);
-    identity.insert("strategy".to_string(), row.get("identity_strategy").map(unwrap).unwrap_or(Value::Null));
+    identity.insert(
+        "strategy".to_string(),
+        row.get("identity_strategy")
+            .map(unwrap)
+            .unwrap_or(Value::Null),
+    );
     if let Some(source) = present(row.get("identity_source")) {
         identity.insert("source".to_string(), unwrap(source));
     }
@@ -293,9 +356,15 @@ fn reshape_identity(row: &Value) -> Option<Value> {
 /// wire and comes back as a real boolean, as Ruby's own read does.
 fn reshape_column(column: &Value) -> Value {
     let mut entry = Map::new();
-    entry.insert("field".to_string(), column.get("field").cloned().unwrap_or(Value::Null));
+    entry.insert(
+        "field".to_string(),
+        column.get("field").cloned().unwrap_or(Value::Null),
+    );
     if let Some(sortable) = present(column.get("sortable")) {
-        entry.insert("sortable".to_string(), json!(unwrap(sortable).as_str() == Some("true")));
+        entry.insert(
+            "sortable".to_string(),
+            json!(unwrap(sortable).as_str() == Some("true")),
+        );
     }
     if let Some(sort_default) = present(column.get("sort_default")) {
         entry.insert("sort_default".to_string(), unwrap(sort_default));
@@ -339,8 +408,14 @@ fn reshape_detail_fields(row: &Value) -> Value {
 /// meaning "the target must merely exist", matching Ruby's own hash.
 fn reshape_precondition(precondition: &Value) -> Value {
     let mut entry = Map::new();
-    entry.insert("field".to_string(), precondition.get("field").cloned().unwrap_or(Value::Null));
-    entry.insert("state".to_string(), precondition.get("state").cloned().unwrap_or(Value::Null));
+    entry.insert(
+        "field".to_string(),
+        precondition.get("field").cloned().unwrap_or(Value::Null),
+    );
+    entry.insert(
+        "state".to_string(),
+        precondition.get("state").cloned().unwrap_or(Value::Null),
+    );
     merge_extra(&mut entry, precondition.get("extra_json"));
     Value::Object(entry)
 }
@@ -348,7 +423,11 @@ fn reshape_precondition(precondition: &Value) -> Value {
 fn reshape_field_formats(row: &Value) -> Value {
     let mut formats = Map::new();
     for entry in elements(row, "field_formats") {
-        let field = entry.get("field").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+        let field = entry
+            .get("field")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default()
+            .to_string();
         formats.insert(field, entry.get("format").cloned().unwrap_or(Value::Null));
     }
     Value::Object(formats)
@@ -357,7 +436,9 @@ fn reshape_field_formats(row: &Value) -> Value {
 /// `reshape_overview` — a singleton: no row reads as `{}`, never
 /// `{"stats": []}`, matching Ruby's "never configured" vs "empty".
 fn reshape_overview(rows: &[Value]) -> Value {
-    let Some(row) = rows.first() else { return Value::Object(Map::new()) };
+    let Some(row) = rows.first() else {
+        return Value::Object(Map::new());
+    };
     let stats: Vec<Value> = elements(row, "stats").iter().map(reshape_stat).collect();
     json!({ "stats": stats })
 }
@@ -366,15 +447,24 @@ fn reshape_overview(rows: &[Value]) -> Value {
 /// (`where_json`) and is parsed back out here, exactly as Ruby does.
 fn reshape_stat(stat: &Value) -> Value {
     let mut entry = Map::new();
-    entry.insert("label".to_string(), stat.get("label").cloned().unwrap_or(Value::Null));
-    entry.insert("collection".to_string(), stat.get("collection").cloned().unwrap_or(Value::Null));
+    entry.insert(
+        "label".to_string(),
+        stat.get("label").cloned().unwrap_or(Value::Null),
+    );
+    entry.insert(
+        "collection".to_string(),
+        stat.get("collection").cloned().unwrap_or(Value::Null),
+    );
     if let Some(as_fold) = present(stat.get("as")) {
         entry.insert("as".to_string(), as_fold.clone());
     }
     if let Some(field) = present(stat.get("field")) {
         entry.insert("field".to_string(), field.clone());
     }
-    if let Some(where_json) = present(stat.get("where_json")).and_then(|v| v.as_str()).filter(|t| !t.is_empty()) {
+    if let Some(where_json) = present(stat.get("where_json"))
+        .and_then(|v| v.as_str())
+        .filter(|t| !t.is_empty())
+    {
         if let Ok(parsed) = serde_json::from_str::<Value>(where_json) {
             entry.insert("where".to_string(), parsed);
         }
@@ -436,9 +526,14 @@ mod tests {
 
     #[test]
     fn attention_stored_as_the_string_false_reads_back_as_the_boolean_false() {
-        let rows = vec![json!({"agg": {"value": "Client"}, "state": {"value": "active"}, "attention": {"value": "false"}})];
+        let rows = vec![
+            json!({"agg": {"value": "Client"}, "state": {"value": "active"}, "attention": {"value": "false"}}),
+        ];
 
-        assert_eq!(reshape_states(&rows), json!({"Client": {"active": {"attention": false}}}));
+        assert_eq!(
+            reshape_states(&rows),
+            json!({"Client": {"active": {"attention": false}}})
+        );
     }
 
     #[test]
@@ -496,7 +591,10 @@ mod tests {
         // `pad` is not modelled as its own attribute — it rides through
         // the identity rule's own opaque blob and has to land inside
         // the identity entry, not beside it.
-        assert_eq!(config["Contract"]["identity"], json!({"field": "number", "strategy": "sequence", "prefix": "C-", "pad": 3}));
+        assert_eq!(
+            config["Contract"]["identity"],
+            json!({"field": "number", "strategy": "sequence", "prefix": "C-", "pad": 3})
+        );
     }
 
     #[test]
@@ -506,7 +604,10 @@ mod tests {
             "field_formats": [], "preconditions": [{"field": "invoice_id"}]
         })];
 
-        assert_eq!(reshape_collections(&rows)["Payment"]["preconditions"], json!([{"field": "invoice_id", "state": null}]));
+        assert_eq!(
+            reshape_collections(&rows)["Payment"]["preconditions"],
+            json!([{"field": "invoice_id", "state": null}])
+        );
     }
 
     #[test]
@@ -541,7 +642,10 @@ mod tests {
         })];
 
         let entry = &reshape_collections(&rows)["Invoice"];
-        assert_eq!(entry["columns"], json!([{"field": "number", "sortable": false, "sort_default": "desc", "head": "No."}]));
+        assert_eq!(
+            entry["columns"],
+            json!([{"field": "number", "sortable": false, "sort_default": "desc", "head": "No."}])
+        );
         assert_eq!(entry["field_formats"], json!({"issued_on": "date"}));
     }
 
@@ -569,16 +673,24 @@ mod tests {
     #[test]
     fn a_domain_that_has_never_saved_an_overview_reads_back_an_empty_section() {
         assert_eq!(reshape_overview(&[]), json!({}));
-        assert_eq!(reshape(&[], &[], &[]), json!({"states": {}, "collections": {}, "overview": {}}));
+        assert_eq!(
+            reshape(&[], &[], &[]),
+            json!({"states": {}, "collections": {}, "overview": {}})
+        );
     }
 
     #[test]
     fn an_explicitly_modelled_field_always_beats_the_same_key_in_the_extras_blob() {
-        let rows = vec![json!({"agg": {"value": "Client"}, "tone": {"value": "good"},
+        let rows = vec![
+            json!({"agg": {"value": "Client"}, "tone": {"value": "good"},
                                "extra_json": {"value": "{\"tone\":\"danger\",\"note\":\"n\"}"},
-                               "state": {"value": "active"}})];
+                               "state": {"value": "active"}}),
+        ];
 
-        assert_eq!(reshape_states(&rows), json!({"Client": {"active": {"tone": "good", "note": "n"}}}));
+        assert_eq!(
+            reshape_states(&rows),
+            json!({"Client": {"active": {"tone": "good", "note": "n"}}})
+        );
     }
 
     // What follows needs a real database: which relation this module
@@ -587,18 +699,26 @@ mod tests {
     // `cargo test`'s parallelism doesn't race two against one table.
 
     async fn scratch_db(name: &str) -> Mutex<Client> {
-        let (admin, conn) = tokio_postgres::connect(&crate::test_pg::conninfo("postgres"), tokio_postgres::NoTls)
-            .await
-            .expect("connect to postgres");
+        let (admin, conn) =
+            tokio_postgres::connect(&crate::test_pg::conninfo("postgres"), tokio_postgres::NoTls)
+                .await
+                .expect("connect to postgres");
         tokio::spawn(async move {
             let _ = conn.await;
         });
-        admin.batch_execute(&format!("DROP DATABASE IF EXISTS {name} WITH (FORCE)")).await.unwrap();
-        admin.batch_execute(&format!("CREATE DATABASE {name}")).await.unwrap();
-
-        let (client, conn) = tokio_postgres::connect(&crate::test_pg::conninfo(&name), tokio_postgres::NoTls)
+        admin
+            .batch_execute(&format!("DROP DATABASE IF EXISTS {name} WITH (FORCE)"))
             .await
-            .expect("connect to scratch db");
+            .unwrap();
+        admin
+            .batch_execute(&format!("CREATE DATABASE {name}"))
+            .await
+            .unwrap();
+
+        let (client, conn) =
+            tokio_postgres::connect(&crate::test_pg::conninfo(&name), tokio_postgres::NoTls)
+                .await
+                .expect("connect to scratch db");
         tokio::spawn(async move {
             let _ = conn.await;
         });
@@ -610,17 +730,26 @@ mod tests {
     /// A domain matching none of these fixtures' relations, so lookup
     /// falls through to whatever each test seeds directly.
     fn relations_only() -> LineageConfig {
-        LineageConfig { domain: "Fixtures".to_string(), era: None, mirrored: None }
+        LineageConfig {
+            domain: "Fixtures".to_string(),
+            era: None,
+            mirrored: None,
+        }
     }
 
     async fn seed_head(client: &Mutex<Client>, relation: &str, id: &str, state: Value) {
         let guard = client.lock().await;
         guard
-            .batch_execute(&format!("CREATE TABLE IF NOT EXISTS {relation} (id text primary key, state jsonb)"))
+            .batch_execute(&format!(
+                "CREATE TABLE IF NOT EXISTS {relation} (id text primary key, state jsonb)"
+            ))
             .await
             .unwrap();
         guard
-            .execute(&format!("INSERT INTO {relation} (id, state) VALUES ($1, $2)"), &[&id, &state])
+            .execute(
+                &format!("INSERT INTO {relation} (id, state) VALUES ($1, $2)"),
+                &[&id, &state],
+            )
             .await
             .unwrap();
     }
@@ -631,10 +760,15 @@ mod tests {
 
     #[tokio::test]
     async fn a_kernel_that_carries_the_chapter_but_holds_no_rows_answers_some_empty() {
-        let client = crate::dispatch::tests::scratch_db("hecks_host_presentation_chapter_no_rows").await;
-        let wasm = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../dist/checkout_fixture.wasm");
+        let client =
+            crate::dispatch::tests::scratch_db("hecks_host_presentation_chapter_no_rows").await;
+        let wasm = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../dist/checkout_fixture.wasm");
 
-        let rows = kernel_rows(&client, &wasm).await.expect("a read").expect("the chapter is compiled in");
+        let rows = kernel_rows(&client, &wasm)
+            .await
+            .expect("a read")
+            .expect("the chapter is compiled in");
 
         assert!(rows.states.is_empty());
         assert!(rows.collections.is_empty());
@@ -654,9 +788,14 @@ mod tests {
         let client = scratch_db("hecks_host_presentation_legacy_relation").await;
         seed_head(&client, "state_style_head", "Client:active", json!({"agg": {"value": "Client"}, "state": {"value": "active"}, "tone": {"value": "good"}})).await;
 
-        let config = load_from_relations(&client, &relations_only()).await.expect("a config");
+        let config = load_from_relations(&client, &relations_only())
+            .await
+            .expect("a config");
 
-        assert_eq!(config["states"], json!({"Client": {"active": {"tone": "good"}}}));
+        assert_eq!(
+            config["states"],
+            json!({"Client": {"active": {"tone": "good"}}})
+        );
         assert_eq!(config["collections"], json!({}));
         assert_eq!(config["overview"], json!({}));
     }
@@ -673,7 +812,9 @@ mod tests {
         )
         .await;
 
-        let config = load_from_relations(&client, &relations_only()).await.expect("a config");
+        let config = load_from_relations(&client, &relations_only())
+            .await
+            .expect("a config");
 
         assert_eq!(config["states"]["Client"]["active"]["tone"], "good");
     }
@@ -683,16 +824,23 @@ mod tests {
         let client = scratch_db("hecks_host_presentation_no_relations").await;
 
         assert_eq!(
-            load_from_relations(&client, &relations_only()).await.expect("a config"),
+            load_from_relations(&client, &relations_only())
+                .await
+                .expect("a config"),
             json!({"states": {}, "collections": {}, "overview": {}})
         );
     }
 
     #[test]
     fn a_malformed_extras_blob_is_ignored_rather_than_failing_the_whole_read() {
-        let rows = vec![json!({"agg": {"value": "Client"}, "state": {"value": "active"},
-                               "tone": {"value": "good"}, "extra_json": {"value": "not json at all"}})];
+        let rows = vec![
+            json!({"agg": {"value": "Client"}, "state": {"value": "active"},
+                               "tone": {"value": "good"}, "extra_json": {"value": "not json at all"}}),
+        ];
 
-        assert_eq!(reshape_states(&rows), json!({"Client": {"active": {"tone": "good"}}}));
+        assert_eq!(
+            reshape_states(&rows),
+            json!({"Client": {"active": {"tone": "good"}}})
+        );
     }
 }

@@ -88,9 +88,10 @@ impl Server {
             "exit" => return false,
             "textDocument/didOpen" => {
                 if let Some(doc) = message.get("params").and_then(|p| p.get("textDocument")) {
-                    if let (Some(uri), Some(text)) =
-                        (doc.get("uri").and_then(Json::as_str), doc.get("text").and_then(Json::as_str))
-                    {
+                    if let (Some(uri), Some(text)) = (
+                        doc.get("uri").and_then(Json::as_str),
+                        doc.get("text").and_then(Json::as_str),
+                    ) {
                         self.documents.insert(uri.to_string(), text.to_string());
                         self.check_document(uri, out);
                     }
@@ -132,9 +133,12 @@ impl Server {
                         .and_then(|t| t.get("uri"))
                         .and_then(Json::as_str);
                     let result = match uri.and_then(|u| self.documents.get(u)) {
-                        Some(text) => {
-                            Json::Array(outline::outline(text).iter().map(document_symbol_json).collect())
-                        }
+                        Some(text) => Json::Array(
+                            outline::outline(text)
+                                .iter()
+                                .map(document_symbol_json)
+                                .collect(),
+                        ),
                         None => Json::Array(Vec::new()),
                     };
                     let _ = rpc::write_message(out, &rpc::response(id, result));
@@ -200,7 +204,11 @@ impl Server {
             let _ = std::fs::create_dir_all(parent);
         }
         if let Err(e) = std::fs::write(&temp_path, &text) {
-            log(out, 1, &format!("hecks-lsp: could not stage {}: {e}", temp_path.display()));
+            log(
+                out,
+                1,
+                &format!("hecks-lsp: could not stage {}: {e}", temp_path.display()),
+            );
             return;
         }
 
@@ -237,14 +245,19 @@ impl Server {
             .map(|e| e.path())
             .filter(|p| {
                 *p != path
-                    && matches!(p.extension().and_then(|e| e.to_str()), Some("bluebook") | Some("hecksagon"))
+                    && matches!(
+                        p.extension().and_then(|e| e.to_str()),
+                        Some("bluebook") | Some("hecksagon")
+                    )
             })
             .collect();
         // Sorted so a name declared in several siblings resolves deterministically.
         siblings.sort();
 
         for sibling in siblings {
-            let Ok(sibling_text) = std::fs::read_to_string(&sibling) else { continue };
+            let Ok(sibling_text) = std::fs::read_to_string(&sibling) else {
+                continue;
+            };
             let roots = outline::outline(&sibling_text);
             if let Some(symbol) = outline::find_by_name(&roots, &identifier) {
                 return Some(location(&path_to_uri(&sibling), symbol.start_line));
@@ -280,10 +293,16 @@ fn identifier_at(line_text: &str, character: usize) -> Option<String> {
 /// A zero-width `Location` at the declaring line; the outline is line-based, so no column.
 fn location(uri: &str, line_1_indexed: usize) -> Json {
     let line0 = line_1_indexed.saturating_sub(1) as i64;
-    let point = Json::object(vec![("line", Json::Number(line0)), ("character", Json::Number(0))]);
+    let point = Json::object(vec![
+        ("line", Json::Number(line0)),
+        ("character", Json::Number(0)),
+    ]);
     Json::object(vec![
         ("uri", Json::string(uri)),
-        ("range", Json::object(vec![("start", point.clone()), ("end", point)])),
+        (
+            "range",
+            Json::object(vec![("start", point.clone()), ("end", point)]),
+        ),
     ])
 }
 
@@ -291,15 +310,30 @@ fn document_symbol_json(symbol: &outline::Symbol) -> Json {
     let start0 = symbol.start_line.saturating_sub(1) as i64;
     let end0 = symbol.end_line.max(symbol.start_line).saturating_sub(1) as i64;
     let range = Json::object(vec![
-        ("start", Json::object(vec![("line", Json::Number(start0)), ("character", Json::Number(0))])),
-        ("end", Json::object(vec![("line", Json::Number(end0)), ("character", Json::Number(0))])),
+        (
+            "start",
+            Json::object(vec![
+                ("line", Json::Number(start0)),
+                ("character", Json::Number(0)),
+            ]),
+        ),
+        (
+            "end",
+            Json::object(vec![
+                ("line", Json::Number(end0)),
+                ("character", Json::Number(0)),
+            ]),
+        ),
     ]);
     Json::object(vec![
         ("name", Json::string(symbol.name.clone())),
         ("kind", Json::Number(lsp_symbol_kind(symbol.kind))),
         ("range", range.clone()),
         ("selectionRange", range),
-        ("children", Json::Array(symbol.children.iter().map(document_symbol_json).collect())),
+        (
+            "children",
+            Json::Array(symbol.children.iter().map(document_symbol_json).collect()),
+        ),
     ])
 }
 
@@ -332,11 +366,17 @@ fn publish_diagnostics(out: &mut impl Write, uri: &str, diagnostics: Vec<Json>) 
         ("uri", Json::string(uri)),
         ("diagnostics", Json::Array(diagnostics)),
     ]);
-    let _ = rpc::write_message(out, &rpc::notification("textDocument/publishDiagnostics", params));
+    let _ = rpc::write_message(
+        out,
+        &rpc::notification("textDocument/publishDiagnostics", params),
+    );
 }
 
 fn log(out: &mut impl Write, severity: i64, message: &str) {
-    let params = Json::object(vec![("type", Json::Number(severity)), ("message", Json::string(message))]);
+    let params = Json::object(vec![
+        ("type", Json::Number(severity)),
+        ("message", Json::string(message)),
+    ]);
     let _ = rpc::write_message(out, &rpc::notification("window/logMessage", params));
 }
 
@@ -362,7 +402,10 @@ fn lsp_diagnostic(diag: &diagnostics::FileDiagnostic, text: &str) -> Json {
             Json::object(vec![
                 (
                     "start",
-                    Json::object(vec![("line", Json::Number(zero_based_line)), ("character", Json::Number(0))]),
+                    Json::object(vec![
+                        ("line", Json::Number(zero_based_line)),
+                        ("character", Json::Number(0)),
+                    ]),
                 ),
                 (
                     "end",
@@ -374,7 +417,10 @@ fn lsp_diagnostic(diag: &diagnostics::FileDiagnostic, text: &str) -> Json {
             ]),
         ),
         // 1 = Error, 2 = Warning (LSP DiagnosticSeverity).
-        ("severity", Json::Number(if diag.not_yet_implemented { 2 } else { 1 })),
+        (
+            "severity",
+            Json::Number(if diag.not_yet_implemented { 2 } else { 1 }),
+        ),
         ("source", Json::string("hecks-parse")),
         ("message", Json::string(message)),
     ])
@@ -386,7 +432,9 @@ fn lsp_diagnostic(diag: &diagnostics::FileDiagnostic, text: &str) -> Json {
 fn temp_path_for(uri: &str) -> PathBuf {
     let hash = fnv1a(uri.as_bytes());
     let basename = uri.rsplit('/').next().unwrap_or("buffer.bluebook");
-    std::env::temp_dir().join("hecks-lsp").join(format!("{hash:016x}-{basename}"))
+    std::env::temp_dir()
+        .join("hecks-lsp")
+        .join(format!("{hash:016x}-{basename}"))
 }
 
 fn fnv1a(bytes: &[u8]) -> u64 {

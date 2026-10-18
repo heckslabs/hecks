@@ -22,63 +22,106 @@ impl crate::kernel::Fielded for PizzaName {
         #[allow(unused_imports)]
         use crate::kernel::{Field, Value};
         match name {
-
             _ => None,
         }
     }
 
     fn as_scalar(&self) -> Option<crate::kernel::Value> {
-        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+        match self.field("value") {
+            Some(crate::kernel::Field::Value(v)) => Some(v),
+            _ => None,
+        }
     }
 }
-
 
 impl PizzaName {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
-        if !crate::kernel::pattern::matches_whole("[^ \\t\\n\\r]", &self.value) { return Err(crate::kernel::Refusal::TypeMismatch(crate::kernel::refusal_wording::TypeMismatchPatternMismatchArgs { r#type: "PizzaName", field: "value", pattern: "[^ \\t\\n\\r]", offered: format!("{:?}", self.value).as_str() }.render_args())); }
-{
-    let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
-    if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        let mut offered = self.to_json();
-        if let crate::kernel::Json::Object(fields) = &mut offered {
-            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        if !crate::kernel::pattern::matches_whole("[^ \\t\\n\\r]", &self.value) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                crate::kernel::refusal_wording::TypeMismatchPatternMismatchArgs {
+                    r#type: "PizzaName",
+                    field: "value",
+                    pattern: "[^ \\t\\n\\r]",
+                    offered: format!("{:?}", self.value).as_str(),
+                }
+                .render_args(),
+            ));
         }
-        let offered = offered.to_json_string();
-        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationValueObjectInvariantArgs {
-            name: "PizzaName",
-            description: "a pizza is named",
-            offered: offered.as_str(),
-        }.render_args()));
-    }
-}
+        {
+            let ctx = crate::kernel::EvalContext {
+                args: &crate::kernel::NoFields,
+                instance: self,
+            };
+            if !crate::kernel::interpret(
+                &Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(
+                    Expr::Lookup("value"),
+                )))))),
+                &ctx,
+            )?
+            .truthy()
+            {
+                let mut offered = self.to_json();
+                if let crate::kernel::Json::Object(fields) = &mut offered {
+                    fields.sort_by(|a, b| a.0.cmp(&b.0));
+                }
+                let offered = offered.to_json_string();
+                return Err(crate::kernel::Refusal::InvariantViolation(
+                    crate::kernel::refusal_wording::InvariantViolationValueObjectInvariantArgs {
+                        name: "PizzaName",
+                        description: "a pizza is named",
+                        offered: offered.as_str(),
+                    }
+                    .render_args(),
+                ));
+            }
+        }
         Ok(())
     }
 }
 
 impl PizzaName {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
-        ])
+        crate::kernel::Json::Object(vec![(
+            "value".to_string(),
+            crate::kernel::Json::Str(self.value.clone()),
+        )])
     }
 }
 
 impl PizzaName {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("PizzaName expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["value"]);
-if !unknown.is_empty() {
-    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
-    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-        command: "PizzaName",
-        unknown: &unknown,
-        declared: &["value"],
-    }.render_args()));
-}
+        if !matches!(v, crate::kernel::Json::Object(_)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(format!(
+                "PizzaName expects an object, got {}",
+                v.inspect()
+            )));
+        }
+        let unknown = v.unknown_keys(&["value"]);
+        if !unknown.is_empty() {
+            let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+            return Err(crate::kernel::Refusal::UnknownArgument(
+                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+                    command: "PizzaName",
+                    unknown: &unknown,
+                    declared: &["value"],
+                }
+                .render_args(),
+            ));
+        }
         Ok(Self {
-        value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PizzaName.value expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("PizzaName.value expects String, got {}", x.inspect())))? },
+            value: {
+                let x = v.get("value").ok_or_else(|| {
+                    crate::kernel::Refusal::TypeMismatch(
+                        "PizzaName.value expects String, got nil".to_string(),
+                    )
+                })?;
+                x.as_str().map(|s| s.to_string()).ok_or_else(|| {
+                    crate::kernel::Refusal::TypeMismatch(format!(
+                        "PizzaName.value expects String, got {}",
+                        x.inspect()
+                    ))
+                })?
+            },
         })
     }
 }
@@ -102,62 +145,96 @@ impl crate::kernel::Fielded for Price {
         #[allow(unused_imports)]
         use crate::kernel::{Field, Value};
         match name {
-
             _ => None,
         }
     }
 
     fn as_scalar(&self) -> Option<crate::kernel::Value> {
-        match self.field("cents") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+        match self.field("cents") {
+            Some(crate::kernel::Field::Value(v)) => Some(v),
+            _ => None,
+        }
     }
 }
-
 
 impl Price {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
-{
-    let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
-    if !crate::kernel::interpret(&Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: true }, left: Box::new(Expr::Lookup("cents")), right: Box::new(Expr::Int(0)) }, &ctx)?.truthy() {
-        let mut offered = self.to_json();
-        if let crate::kernel::Json::Object(fields) = &mut offered {
-            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        {
+            let ctx = crate::kernel::EvalContext {
+                args: &crate::kernel::NoFields,
+                instance: self,
+            };
+            if !crate::kernel::interpret(
+                &Expr::Compare {
+                    op: crate::kernel::Comparison {
+                        less_than: true,
+                        equal: false,
+                        negated: true,
+                    },
+                    left: Box::new(Expr::Lookup("cents")),
+                    right: Box::new(Expr::Int(0)),
+                },
+                &ctx,
+            )?
+            .truthy()
+            {
+                let mut offered = self.to_json();
+                if let crate::kernel::Json::Object(fields) = &mut offered {
+                    fields.sort_by(|a, b| a.0.cmp(&b.0));
+                }
+                let offered = offered.to_json_string();
+                return Err(crate::kernel::Refusal::InvariantViolation(
+                    crate::kernel::refusal_wording::InvariantViolationValueObjectInvariantArgs {
+                        name: "Price",
+                        description: "a price is never negative",
+                        offered: offered.as_str(),
+                    }
+                    .render_args(),
+                ));
+            }
         }
-        let offered = offered.to_json_string();
-        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationValueObjectInvariantArgs {
-            name: "Price",
-            description: "a price is never negative",
-            offered: offered.as_str(),
-        }.render_args()));
-    }
-}
         Ok(())
     }
 }
 
 impl Price {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("cents".to_string(), crate::kernel::Json::int(self.cents)),
-        ])
+        crate::kernel::Json::Object(vec![(
+            "cents".to_string(),
+            crate::kernel::Json::int(self.cents),
+        )])
     }
 }
 
 impl Price {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("Price expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["cents"]);
-if !unknown.is_empty() {
-    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
-    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-        command: "Price",
-        unknown: &unknown,
-        declared: &["cents"],
-    }.render_args()));
-}
+        if !matches!(v, crate::kernel::Json::Object(_)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(format!(
+                "Price expects an object, got {}",
+                v.inspect()
+            )));
+        }
+        let unknown = v.unknown_keys(&["cents"]);
+        if !unknown.is_empty() {
+            let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+            return Err(crate::kernel::Refusal::UnknownArgument(
+                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+                    command: "Price",
+                    unknown: &unknown,
+                    declared: &["cents"],
+                }
+                .render_args(),
+            ));
+        }
         Ok(Self {
-        cents: { let x = v.get("cents").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Price.cents expects Integer, got nil".to_string()))?; x.as_i64().ok_or_else(|| if matches!(x, crate::kernel::Json::Num(n, _) if n.is_finite() && n.fract() == 0.0 && n.abs() >= 9.223372036854775808e18) { crate::kernel::Refusal::TypeMismatch(format!("Price.cents must fit in a 64-bit integer, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch(format!("Price.cents expects Integer, got {}", x.inspect())) })? },
+            cents: {
+                let x = v.get("cents").ok_or_else(|| {
+                    crate::kernel::Refusal::TypeMismatch(
+                        "Price.cents expects Integer, got nil".to_string(),
+                    )
+                })?;
+                x.as_i64().ok_or_else(|| if matches!(x, crate::kernel::Json::Num(n, _) if n.is_finite() && n.fract() == 0.0 && n.abs() >= 9.223372036854775808e18) { crate::kernel::Refusal::TypeMismatch(format!("Price.cents must fit in a 64-bit integer, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch(format!("Price.cents expects Integer, got {}", x.inspect())) })?
+            },
         })
     }
 }
@@ -181,63 +258,106 @@ impl crate::kernel::Fielded for CustomerName {
         #[allow(unused_imports)]
         use crate::kernel::{Field, Value};
         match name {
-
             _ => None,
         }
     }
 
     fn as_scalar(&self) -> Option<crate::kernel::Value> {
-        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+        match self.field("value") {
+            Some(crate::kernel::Field::Value(v)) => Some(v),
+            _ => None,
+        }
     }
 }
-
 
 impl CustomerName {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
-        if !crate::kernel::pattern::matches_whole("[^ \\t\\n\\r]", &self.value) { return Err(crate::kernel::Refusal::TypeMismatch(crate::kernel::refusal_wording::TypeMismatchPatternMismatchArgs { r#type: "CustomerName", field: "value", pattern: "[^ \\t\\n\\r]", offered: format!("{:?}", self.value).as_str() }.render_args())); }
-{
-    let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
-    if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        let mut offered = self.to_json();
-        if let crate::kernel::Json::Object(fields) = &mut offered {
-            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        if !crate::kernel::pattern::matches_whole("[^ \\t\\n\\r]", &self.value) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                crate::kernel::refusal_wording::TypeMismatchPatternMismatchArgs {
+                    r#type: "CustomerName",
+                    field: "value",
+                    pattern: "[^ \\t\\n\\r]",
+                    offered: format!("{:?}", self.value).as_str(),
+                }
+                .render_args(),
+            ));
         }
-        let offered = offered.to_json_string();
-        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationValueObjectInvariantArgs {
-            name: "CustomerName",
-            description: "a customer is named",
-            offered: offered.as_str(),
-        }.render_args()));
-    }
-}
+        {
+            let ctx = crate::kernel::EvalContext {
+                args: &crate::kernel::NoFields,
+                instance: self,
+            };
+            if !crate::kernel::interpret(
+                &Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(
+                    Expr::Lookup("value"),
+                )))))),
+                &ctx,
+            )?
+            .truthy()
+            {
+                let mut offered = self.to_json();
+                if let crate::kernel::Json::Object(fields) = &mut offered {
+                    fields.sort_by(|a, b| a.0.cmp(&b.0));
+                }
+                let offered = offered.to_json_string();
+                return Err(crate::kernel::Refusal::InvariantViolation(
+                    crate::kernel::refusal_wording::InvariantViolationValueObjectInvariantArgs {
+                        name: "CustomerName",
+                        description: "a customer is named",
+                        offered: offered.as_str(),
+                    }
+                    .render_args(),
+                ));
+            }
+        }
         Ok(())
     }
 }
 
 impl CustomerName {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
-        ])
+        crate::kernel::Json::Object(vec![(
+            "value".to_string(),
+            crate::kernel::Json::Str(self.value.clone()),
+        )])
     }
 }
 
 impl CustomerName {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("CustomerName expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["value"]);
-if !unknown.is_empty() {
-    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
-    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-        command: "CustomerName",
-        unknown: &unknown,
-        declared: &["value"],
-    }.render_args()));
-}
+        if !matches!(v, crate::kernel::Json::Object(_)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(format!(
+                "CustomerName expects an object, got {}",
+                v.inspect()
+            )));
+        }
+        let unknown = v.unknown_keys(&["value"]);
+        if !unknown.is_empty() {
+            let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+            return Err(crate::kernel::Refusal::UnknownArgument(
+                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+                    command: "CustomerName",
+                    unknown: &unknown,
+                    declared: &["value"],
+                }
+                .render_args(),
+            ));
+        }
         Ok(Self {
-        value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CustomerName.value expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("CustomerName.value expects String, got {}", x.inspect())))? },
+            value: {
+                let x = v.get("value").ok_or_else(|| {
+                    crate::kernel::Refusal::TypeMismatch(
+                        "CustomerName.value expects String, got nil".to_string(),
+                    )
+                })?;
+                x.as_str().map(|s| s.to_string()).ok_or_else(|| {
+                    crate::kernel::Refusal::TypeMismatch(format!(
+                        "CustomerName.value expects String, got {}",
+                        x.inspect()
+                    ))
+                })?
+            },
         })
     }
 }
@@ -261,78 +381,135 @@ impl crate::kernel::Fielded for ToppingName {
         #[allow(unused_imports)]
         use crate::kernel::{Field, Value};
         match name {
-
             _ => None,
         }
     }
 
     fn as_scalar(&self) -> Option<crate::kernel::Value> {
-        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+        match self.field("value") {
+            Some(crate::kernel::Field::Value(v)) => Some(v),
+            _ => None,
+        }
     }
 }
-
 
 impl ToppingName {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
-        if !crate::kernel::pattern::matches_whole("[^ \\t\\n\\r]", &self.value) { return Err(crate::kernel::Refusal::TypeMismatch(crate::kernel::refusal_wording::TypeMismatchPatternMismatchArgs { r#type: "ToppingName", field: "value", pattern: "[^ \\t\\n\\r]", offered: format!("{:?}", self.value).as_str() }.render_args())); }
-{
-    let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
-    if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        let mut offered = self.to_json();
-        if let crate::kernel::Json::Object(fields) = &mut offered {
-            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        if !crate::kernel::pattern::matches_whole("[^ \\t\\n\\r]", &self.value) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                crate::kernel::refusal_wording::TypeMismatchPatternMismatchArgs {
+                    r#type: "ToppingName",
+                    field: "value",
+                    pattern: "[^ \\t\\n\\r]",
+                    offered: format!("{:?}", self.value).as_str(),
+                }
+                .render_args(),
+            ));
         }
-        let offered = offered.to_json_string();
-        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationValueObjectInvariantArgs {
-            name: "ToppingName",
-            description: "a topping is named",
-            offered: offered.as_str(),
-        }.render_args()));
-    }
-}
-{
-    let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
-    if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::Strip { receiver: Box::new(Expr::ToS(Box::new(Expr::Lookup("value")))), side: crate::kernel::StripSide::Both })))), &ctx)?.truthy() {
-        let mut offered = self.to_json();
-        if let crate::kernel::Json::Object(fields) = &mut offered {
-            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        {
+            let ctx = crate::kernel::EvalContext {
+                args: &crate::kernel::NoFields,
+                instance: self,
+            };
+            if !crate::kernel::interpret(
+                &Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(
+                    Expr::Lookup("value"),
+                )))))),
+                &ctx,
+            )?
+            .truthy()
+            {
+                let mut offered = self.to_json();
+                if let crate::kernel::Json::Object(fields) = &mut offered {
+                    fields.sort_by(|a, b| a.0.cmp(&b.0));
+                }
+                let offered = offered.to_json_string();
+                return Err(crate::kernel::Refusal::InvariantViolation(
+                    crate::kernel::refusal_wording::InvariantViolationValueObjectInvariantArgs {
+                        name: "ToppingName",
+                        description: "a topping is named",
+                        offered: offered.as_str(),
+                    }
+                    .render_args(),
+                ));
+            }
         }
-        let offered = offered.to_json_string();
-        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationValueObjectInvariantArgs {
-            name: "ToppingName",
-            description: "a topping name is more than whitespace",
-            offered: offered.as_str(),
-        }.render_args()));
-    }
-}
+        {
+            let ctx = crate::kernel::EvalContext {
+                args: &crate::kernel::NoFields,
+                instance: self,
+            };
+            if !crate::kernel::interpret(
+                &Expr::Not(Box::new(Expr::Empty(Box::new(Expr::Strip {
+                    receiver: Box::new(Expr::ToS(Box::new(Expr::Lookup("value")))),
+                    side: crate::kernel::StripSide::Both,
+                })))),
+                &ctx,
+            )?
+            .truthy()
+            {
+                let mut offered = self.to_json();
+                if let crate::kernel::Json::Object(fields) = &mut offered {
+                    fields.sort_by(|a, b| a.0.cmp(&b.0));
+                }
+                let offered = offered.to_json_string();
+                return Err(crate::kernel::Refusal::InvariantViolation(
+                    crate::kernel::refusal_wording::InvariantViolationValueObjectInvariantArgs {
+                        name: "ToppingName",
+                        description: "a topping name is more than whitespace",
+                        offered: offered.as_str(),
+                    }
+                    .render_args(),
+                ));
+            }
+        }
         Ok(())
     }
 }
 
 impl ToppingName {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
-        ])
+        crate::kernel::Json::Object(vec![(
+            "value".to_string(),
+            crate::kernel::Json::Str(self.value.clone()),
+        )])
     }
 }
 
 impl ToppingName {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("ToppingName expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["value"]);
-if !unknown.is_empty() {
-    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
-    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-        command: "ToppingName",
-        unknown: &unknown,
-        declared: &["value"],
-    }.render_args()));
-}
+        if !matches!(v, crate::kernel::Json::Object(_)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(format!(
+                "ToppingName expects an object, got {}",
+                v.inspect()
+            )));
+        }
+        let unknown = v.unknown_keys(&["value"]);
+        if !unknown.is_empty() {
+            let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+            return Err(crate::kernel::Refusal::UnknownArgument(
+                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+                    command: "ToppingName",
+                    unknown: &unknown,
+                    declared: &["value"],
+                }
+                .render_args(),
+            ));
+        }
         Ok(Self {
-        value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ToppingName.value expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("ToppingName.value expects String, got {}", x.inspect())))? },
+            value: {
+                let x = v.get("value").ok_or_else(|| {
+                    crate::kernel::Refusal::TypeMismatch(
+                        "ToppingName.value expects String, got nil".to_string(),
+                    )
+                })?;
+                x.as_str().map(|s| s.to_string()).ok_or_else(|| {
+                    crate::kernel::Refusal::TypeMismatch(format!(
+                        "ToppingName.value expects String, got {}",
+                        x.inspect()
+                    ))
+                })?
+            },
         })
     }
 }
@@ -356,62 +533,95 @@ impl crate::kernel::Fielded for ToppingAmount {
         #[allow(unused_imports)]
         use crate::kernel::{Field, Value};
         match name {
-
             _ => None,
         }
     }
 
     fn as_scalar(&self) -> Option<crate::kernel::Value> {
-        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+        match self.field("value") {
+            Some(crate::kernel::Field::Value(v)) => Some(v),
+            _ => None,
+        }
     }
 }
-
 
 impl ToppingAmount {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
-{
-    let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
-    if !crate::kernel::interpret(&Expr::SignTest { op: crate::kernel::Comparison { less_than: true, equal: true, negated: true }, receiver: Box::new(Expr::Lookup("value")) }, &ctx)?.truthy() {
-        let mut offered = self.to_json();
-        if let crate::kernel::Json::Object(fields) = &mut offered {
-            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        {
+            let ctx = crate::kernel::EvalContext {
+                args: &crate::kernel::NoFields,
+                instance: self,
+            };
+            if !crate::kernel::interpret(
+                &Expr::SignTest {
+                    op: crate::kernel::Comparison {
+                        less_than: true,
+                        equal: true,
+                        negated: true,
+                    },
+                    receiver: Box::new(Expr::Lookup("value")),
+                },
+                &ctx,
+            )?
+            .truthy()
+            {
+                let mut offered = self.to_json();
+                if let crate::kernel::Json::Object(fields) = &mut offered {
+                    fields.sort_by(|a, b| a.0.cmp(&b.0));
+                }
+                let offered = offered.to_json_string();
+                return Err(crate::kernel::Refusal::InvariantViolation(
+                    crate::kernel::refusal_wording::InvariantViolationValueObjectInvariantArgs {
+                        name: "ToppingAmount",
+                        description: "an amount is positive",
+                        offered: offered.as_str(),
+                    }
+                    .render_args(),
+                ));
+            }
         }
-        let offered = offered.to_json_string();
-        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationValueObjectInvariantArgs {
-            name: "ToppingAmount",
-            description: "an amount is positive",
-            offered: offered.as_str(),
-        }.render_args()));
-    }
-}
         Ok(())
     }
 }
 
 impl ToppingAmount {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("value".to_string(), crate::kernel::Json::int(self.value)),
-        ])
+        crate::kernel::Json::Object(vec![(
+            "value".to_string(),
+            crate::kernel::Json::int(self.value),
+        )])
     }
 }
 
 impl ToppingAmount {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("ToppingAmount expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["value"]);
-if !unknown.is_empty() {
-    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
-    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-        command: "ToppingAmount",
-        unknown: &unknown,
-        declared: &["value"],
-    }.render_args()));
-}
+        if !matches!(v, crate::kernel::Json::Object(_)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(format!(
+                "ToppingAmount expects an object, got {}",
+                v.inspect()
+            )));
+        }
+        let unknown = v.unknown_keys(&["value"]);
+        if !unknown.is_empty() {
+            let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+            return Err(crate::kernel::Refusal::UnknownArgument(
+                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+                    command: "ToppingAmount",
+                    unknown: &unknown,
+                    declared: &["value"],
+                }
+                .render_args(),
+            ));
+        }
         Ok(Self {
-        value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ToppingAmount.value expects Integer, got nil".to_string()))?; x.as_i64().ok_or_else(|| if matches!(x, crate::kernel::Json::Num(n, _) if n.is_finite() && n.fract() == 0.0 && n.abs() >= 9.223372036854775808e18) { crate::kernel::Refusal::TypeMismatch(format!("ToppingAmount.value must fit in a 64-bit integer, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch(format!("ToppingAmount.value expects Integer, got {}", x.inspect())) })? },
+            value: {
+                let x = v.get("value").ok_or_else(|| {
+                    crate::kernel::Refusal::TypeMismatch(
+                        "ToppingAmount.value expects Integer, got nil".to_string(),
+                    )
+                })?;
+                x.as_i64().ok_or_else(|| if matches!(x, crate::kernel::Json::Num(n, _) if n.is_finite() && n.fract() == 0.0 && n.abs() >= 9.223372036854775808e18) { crate::kernel::Refusal::TypeMismatch(format!("ToppingAmount.value must fit in a 64-bit integer, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch(format!("ToppingAmount.value expects Integer, got {}", x.inspect())) })?
+            },
         })
     }
 }
@@ -437,7 +647,6 @@ impl crate::kernel::Fielded for Topping {
         #[allow(unused_imports)]
         use crate::kernel::{Field, Value};
         match name {
-
             _ => None,
         }
     }
@@ -447,10 +656,19 @@ impl crate::kernel::Fielded for Topping {
     }
 }
 
-
 impl Topping {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
-        if !crate::kernel::pattern::matches_whole("[^ \\t\\n\\r]", &self.name) { return Err(crate::kernel::Refusal::TypeMismatch(crate::kernel::refusal_wording::TypeMismatchPatternMismatchArgs { r#type: "Topping", field: "name", pattern: "[^ \\t\\n\\r]", offered: format!("{:?}", self.name).as_str() }.render_args())); }
+        if !crate::kernel::pattern::matches_whole("[^ \\t\\n\\r]", &self.name) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                crate::kernel::refusal_wording::TypeMismatchPatternMismatchArgs {
+                    r#type: "Topping",
+                    field: "name",
+                    pattern: "[^ \\t\\n\\r]",
+                    offered: format!("{:?}", self.name).as_str(),
+                }
+                .render_args(),
+            ));
+        }
         Ok(())
     }
 }
@@ -458,29 +676,57 @@ impl Topping {
 impl Topping {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
-        ("name".to_string(), crate::kernel::Json::Str(self.name.clone())),
-        ("amount".to_string(), crate::kernel::Json::int(self.amount)),
+            (
+                "name".to_string(),
+                crate::kernel::Json::Str(self.name.clone()),
+            ),
+            ("amount".to_string(), crate::kernel::Json::int(self.amount)),
         ])
     }
 }
 
 impl Topping {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("Topping expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["name", "amount"]);
-if !unknown.is_empty() {
-    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
-    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-        command: "Topping",
-        unknown: &unknown,
-        declared: &["name", "amount"],
-    }.render_args()));
-}
+        if !matches!(v, crate::kernel::Json::Object(_)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(format!(
+                "Topping expects an object, got {}",
+                v.inspect()
+            )));
+        }
+        let unknown = v.unknown_keys(&["name", "amount"]);
+        if !unknown.is_empty() {
+            let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+            return Err(crate::kernel::Refusal::UnknownArgument(
+                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+                    command: "Topping",
+                    unknown: &unknown,
+                    declared: &["name", "amount"],
+                }
+                .render_args(),
+            ));
+        }
         Ok(Self {
-        name: { let x = v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Topping.name expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("Topping.name expects String, got {}", x.inspect())))? },
-        amount: { let x = v.get("amount").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Topping.amount expects Integer, got nil".to_string()))?; x.as_i64().ok_or_else(|| if matches!(x, crate::kernel::Json::Num(n, _) if n.is_finite() && n.fract() == 0.0 && n.abs() >= 9.223372036854775808e18) { crate::kernel::Refusal::TypeMismatch(format!("Topping.amount must fit in a 64-bit integer, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch(format!("Topping.amount expects Integer, got {}", x.inspect())) })? },
+            name: {
+                let x = v.get("name").ok_or_else(|| {
+                    crate::kernel::Refusal::TypeMismatch(
+                        "Topping.name expects String, got nil".to_string(),
+                    )
+                })?;
+                x.as_str().map(|s| s.to_string()).ok_or_else(|| {
+                    crate::kernel::Refusal::TypeMismatch(format!(
+                        "Topping.name expects String, got {}",
+                        x.inspect()
+                    ))
+                })?
+            },
+            amount: {
+                let x = v.get("amount").ok_or_else(|| {
+                    crate::kernel::Refusal::TypeMismatch(
+                        "Topping.amount expects Integer, got nil".to_string(),
+                    )
+                })?;
+                x.as_i64().ok_or_else(|| if matches!(x, crate::kernel::Json::Num(n, _) if n.is_finite() && n.fract() == 0.0 && n.abs() >= 9.223372036854775808e18) { crate::kernel::Refusal::TypeMismatch(format!("Topping.amount must fit in a 64-bit integer, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch(format!("Topping.amount expects Integer, got {}", x.inspect())) })?
+            },
         })
     }
 }
@@ -495,12 +741,18 @@ impl crate::kernel::Fielded for Size {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::{Field, Value};
         match name {
-            "value" => Some(Field::Value(Value::Str(match self { Size::Small => "small".to_string(), Size::Large => "large".to_string(), }))),
+            "value" => Some(Field::Value(Value::Str(match self {
+                Size::Small => "small".to_string(),
+                Size::Large => "large".to_string(),
+            }))),
             _ => None,
         }
     }
     fn as_scalar(&self) -> Option<crate::kernel::Value> {
-        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+        match self.field("value") {
+            Some(crate::kernel::Field::Value(v)) => Some(v),
+            _ => None,
+        }
     }
 }
 
@@ -565,7 +817,9 @@ impl Size {
         // every other composite field's own missing-key case).
         let candidate = v.dig("value").cloned().unwrap_or(crate::kernel::Json::Null);
         if matches!(candidate, crate::kernel::Json::Null) {
-            return Err(crate::kernel::Refusal::TypeMismatch("Size.value expects String, got nil".to_string()));
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "Size.value expects String, got nil".to_string(),
+            ));
         }
         match candidate.ruby_to_s().as_str() {
             "small" => Ok(Size::Small),
@@ -591,7 +845,7 @@ pub struct Pizza {
 impl crate::kernel::Fielded for Pizza {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
-        
+
         match name {
             "price_cents" => Some(Field::Nested(&self.price_cents)),
             "size" => Some(Field::Nested(&self.size)),
@@ -603,7 +857,6 @@ impl crate::kernel::Fielded for Pizza {
         #[allow(unused_imports)]
         use crate::kernel::{Field, Value};
         match name {
-
             _ => None,
         }
     }
@@ -612,7 +865,6 @@ impl crate::kernel::Fielded for Pizza {
         None
     }
 }
-
 
 impl Pizza {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
@@ -624,29 +876,51 @@ impl Pizza {
 impl Pizza {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
-        ("price_cents".to_string(), self.price_cents.to_json()),
-        ("size".to_string(), self.size.to_json()),
+            ("price_cents".to_string(), self.price_cents.to_json()),
+            ("size".to_string(), self.size.to_json()),
         ])
     }
 }
 
 impl Pizza {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("Pizza expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["price_cents", "size"]);
-if !unknown.is_empty() {
-    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
-    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-        command: "Pizza",
-        unknown: &unknown,
-        declared: &["price_cents", "size"],
-    }.render_args()));
-}
+        if !matches!(v, crate::kernel::Json::Object(_)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(format!(
+                "Pizza expects an object, got {}",
+                v.inspect()
+            )));
+        }
+        let unknown = v.unknown_keys(&["price_cents", "size"]);
+        if !unknown.is_empty() {
+            let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+            return Err(crate::kernel::Refusal::UnknownArgument(
+                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+                    command: "Pizza",
+                    unknown: &unknown,
+                    declared: &["price_cents", "size"],
+                }
+                .render_args(),
+            ));
+        }
         Ok(Self {
-        price_cents: Price::from_json(&v.get("price_cents").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Pizza.price_cents expects Price, got nil".to_string()))?.coerce_single_field("cents"))?,
-        size: Size::from_json(&v.get("size").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Pizza.size expects Size, got nil".to_string()))?.coerce_single_field("value"))?,
+            price_cents: Price::from_json(
+                &v.get("price_cents")
+                    .ok_or_else(|| {
+                        crate::kernel::Refusal::TypeMismatch(
+                            "Pizza.price_cents expects Price, got nil".to_string(),
+                        )
+                    })?
+                    .coerce_single_field("cents"),
+            )?,
+            size: Size::from_json(
+                &v.get("size")
+                    .ok_or_else(|| {
+                        crate::kernel::Refusal::TypeMismatch(
+                            "Pizza.size expects Size, got nil".to_string(),
+                        )
+                    })?
+                    .coerce_single_field("value"),
+            )?,
         })
     }
 }
@@ -664,10 +938,22 @@ impl crate::kernel::Fielded for Order {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::{Field, Value};
         match name {
-            "name" => self.name.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
-            "pizza" => self.pizza.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "name" => self
+                .name
+                .as_ref()
+                .map(|v| Field::Nested(v))
+                .or(Some(Field::Value(Value::Nil))),
+            "pizza" => self
+                .pizza
+                .as_ref()
+                .map(|v| Field::Nested(v))
+                .or(Some(Field::Value(Value::Nil))),
             "toppings" => Some(Field::Value(Value::List(self.toppings.len()))),
-            "customer_name" => self.customer_name.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "customer_name" => self
+                .customer_name
+                .as_ref()
+                .map(|v| Field::Nested(v))
+                .or(Some(Field::Value(Value::Nil))),
             "status" => Some(Field::Value(Value::Str(self.status.clone()))),
             _ => None,
         }
@@ -690,26 +976,78 @@ impl crate::kernel::Fielded for Order {
 impl Order {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
-        ("name".to_string(), self.name.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
-        ("pizza".to_string(), self.pizza.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
-        ("toppings".to_string(), crate::kernel::Json::Array(self.toppings.iter().map(|x| x.to_json()).collect())),
-        ("customer_name".to_string(), self.customer_name.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
-        ("status".to_string(), crate::kernel::Json::Str(self.status.clone())),
+            (
+                "name".to_string(),
+                self.name
+                    .as_ref()
+                    .map(|v| v.to_json())
+                    .unwrap_or(crate::kernel::Json::Null),
+            ),
+            (
+                "pizza".to_string(),
+                self.pizza
+                    .as_ref()
+                    .map(|v| v.to_json())
+                    .unwrap_or(crate::kernel::Json::Null),
+            ),
+            (
+                "toppings".to_string(),
+                crate::kernel::Json::Array(self.toppings.iter().map(|x| x.to_json()).collect()),
+            ),
+            (
+                "customer_name".to_string(),
+                self.customer_name
+                    .as_ref()
+                    .map(|v| v.to_json())
+                    .unwrap_or(crate::kernel::Json::Null),
+            ),
+            (
+                "status".to_string(),
+                crate::kernel::Json::Str(self.status.clone()),
+            ),
         ])
     }
 }
 
 impl Order {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("Order expects an object, got {}", v.inspect())));
-}
+        if !matches!(v, crate::kernel::Json::Object(_)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(format!(
+                "Order expects an object, got {}",
+                v.inspect()
+            )));
+        }
         Ok(Self {
-        name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PizzaName::from_json(&x.coerce_single_field("value"))?), },
-        pizza: match v.get("pizza") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Pizza::from_json(x.expect_value_object_shape("pizza", "Pizza")?)?), },
-        toppings: match v.get("toppings").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Topping::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
-        customer_name: match v.get("customer_name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(CustomerName::from_json(&x.coerce_single_field("value"))?), },
-        status: v.require("status", "Order")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Order.status: expected a string".to_string()))?.to_string(),
+            name: match v.get("name") {
+                Some(&crate::kernel::Json::Null) | None => None,
+                Some(x) => Some(PizzaName::from_json(&x.coerce_single_field("value"))?),
+            },
+            pizza: match v.get("pizza") {
+                Some(&crate::kernel::Json::Null) | None => None,
+                Some(x) => Some(Pizza::from_json(
+                    x.expect_value_object_shape("pizza", "Pizza")?,
+                )?),
+            },
+            toppings: match v.get("toppings").and_then(crate::kernel::Json::as_array) {
+                Some(items) => items
+                    .iter()
+                    .map(Topping::from_json)
+                    .collect::<Result<Vec<_>, crate::kernel::Refusal>>()?,
+                None => Vec::new(),
+            },
+            customer_name: match v.get("customer_name") {
+                Some(&crate::kernel::Json::Null) | None => None,
+                Some(x) => Some(CustomerName::from_json(&x.coerce_single_field("value"))?),
+            },
+            status: v
+                .require("status", "Order")?
+                .as_str()
+                .ok_or_else(|| {
+                    crate::kernel::Refusal::TypeMismatch(
+                        "Order.status: expected a string".to_string(),
+                    )
+                })?
+                .to_string(),
         })
     }
 }
@@ -723,15 +1061,12 @@ impl crate::kernel::ToJson for Order {
 impl crate::kernel::SetProjectedField for Order {
     fn set_projected_field(&mut self, name: &'static str, value: Option<crate::kernel::Value>) {
         match name {
-
             _ => {}
         }
     }
 }
 
-pub static ORDER_PROJECTED_FIELDS: &[crate::kernel::ProjectedFieldSpec] = &[
-
-];
+pub static ORDER_PROJECTED_FIELDS: &[crate::kernel::ProjectedFieldSpec] = &[];
 
 impl Order {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
@@ -742,9 +1077,14 @@ impl Order {
         let by_id_key = v.get("id").and_then(|j| j.to_id_component().ok());
         let by_reference_key = v.get("order").and_then(|j| j.to_id_component().ok());
 
-        by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
-            crate::kernel::Refusal::TypeMismatch("Order: no identity found (tried name.value, id, order)".to_string())
-        })
+        by_identity
+            .or(by_id_key)
+            .or(by_reference_key)
+            .ok_or_else(|| {
+                crate::kernel::Refusal::TypeMismatch(
+                    "Order: no identity found (tried name.value, id, order)".to_string(),
+                )
+            })
     }
 }
 
@@ -758,7 +1098,7 @@ fn order_invariants() -> crate::kernel::InvariantSet {
 impl crate::kernel::Fielded for CreatePizzaArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
-        
+
         match name {
             "name" => Some(Field::Nested(&self.name)),
             "pizza" => Some(Field::Nested(&self.pizza)),
@@ -770,7 +1110,6 @@ impl crate::kernel::Fielded for CreatePizzaArgs {
         #[allow(unused_imports)]
         use crate::kernel::{Field, Value};
         match name {
-
             _ => None,
         }
     }
@@ -780,7 +1119,6 @@ impl crate::kernel::Fielded for CreatePizzaArgs {
     }
 }
 
-
 #[derive(Debug, Clone)]
 pub struct CreatePizzaArgs {
     pub name: PizzaName,
@@ -788,63 +1126,77 @@ pub struct CreatePizzaArgs {
 }
 
 pub fn dispatch_create_pizza(
-    repo: &mut impl crate::kernel::Repository<Order>, route: Option<&crate::kernel::RoutingEnvelope>, args: CreatePizzaArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
+    repo: &mut impl crate::kernel::Repository<Order>,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    args: CreatePizzaArgs,
+    mutations: &mut Vec<crate::kernel::MutationRecord>,
+    owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<Order> {
-        args.name.check_invariants()?;
-        args.pizza.check_invariants()?;
-    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
-    let seed_projections = crate::kernel::seeded_projections(&with_references, ORDER_PROJECTED_FIELDS);
+    args.name.check_invariants()?;
+    args.pizza.check_invariants()?;
+    let with_references = crate::kernel::WithReferences {
+        command_deref: &command_deref,
+        args: &args,
+        owner_deref: &owner_deref,
+    };
+    let seed_projections =
+        crate::kernel::seeded_projections(&with_references, ORDER_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
         match route {
-        Some(__route) => {
-        __route.require_depth(0)?;
-        let __hydrate_id: String = args.name.value.to_string();
-        if __route.aggregate() != __hydrate_id.as_str() {
-            return Err(crate::kernel::Refusal::TypeMismatch(format!("CreatePizza routes to {:?}, but its identity facts name {:?}", __route.aggregate(), __hydrate_id)));
-        }
-        crate::kernel::Hydrate::Create {
-        id: __hydrate_id,
-        build: Box::new(|| Order {
-            name: Some(args.name.clone()),
-            pizza: Some(args.pizza.clone()),
-            toppings: vec![],
-            customer_name: None,
-            status: "available".to_string(),
-        }),
-        state_independent: true,
-    }
-    }
-        None => { let __hydrate_id: String = args.name.value.to_string(); crate::kernel::Hydrate::Create {
-        id: __hydrate_id,
-        build: Box::new(|| Order {
-            name: Some(args.name.clone()),
-            pizza: Some(args.pizza.clone()),
-            toppings: vec![],
-            customer_name: None,
-            status: "available".to_string(),
-        }),
-        state_independent: true,
-    } }
-    },
+            Some(__route) => {
+                __route.require_depth(0)?;
+                let __hydrate_id: String = args.name.value.to_string();
+                if __route.aggregate() != __hydrate_id.as_str() {
+                    return Err(crate::kernel::Refusal::TypeMismatch(format!(
+                        "CreatePizza routes to {:?}, but its identity facts name {:?}",
+                        __route.aggregate(),
+                        __hydrate_id
+                    )));
+                }
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| Order {
+                        name: Some(args.name.clone()),
+                        pizza: Some(args.pizza.clone()),
+                        toppings: vec![],
+                        customer_name: None,
+                        status: "available".to_string(),
+                    }),
+                    state_independent: true,
+                }
+            }
+            None => {
+                let __hydrate_id: String = args.name.value.to_string();
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| Order {
+                        name: Some(args.name.clone()),
+                        pizza: Some(args.pizza.clone()),
+                        toppings: vec![],
+                        customer_name: None,
+                        status: "available".to_string(),
+                    }),
+                    state_independent: true,
+                }
+            }
+        },
         "CreatePizza",
         "Pizzas::Order",
         "Order",
         "name.value",
         &with_references,
-        &[
-
-        ],
+        &[],
         None,
         |record| {
-        record.name = Some(args.name.clone());
-        record.pizza = Some(args.pizza.clone());
+            record.name = Some(args.name.clone());
+            record.pizza = Some(args.pizza.clone());
             Ok(())
         },
-        &[
-
-        ],
+        &[],
         &order_invariants(),
         &["PizzaCreated"],
         args.to_json(),
@@ -857,78 +1209,121 @@ pub fn dispatch_create_pizza(
 impl CreatePizzaArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(
-            vec![        ("name".to_string(), self.name.to_json()),
-        ("pizza".to_string(), self.pizza.to_json()),]
-                .into_iter()
-                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
-                .collect(),
+            vec![
+                ("name".to_string(), self.name.to_json()),
+                ("pizza".to_string(), self.pizza.to_json()),
+            ]
+            .into_iter()
+            .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+            .collect(),
         )
     }
 }
 
 impl CreatePizzaArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("CreatePizzaArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["name", "pizza", "id"]);
-if !unknown.is_empty() {
-    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
-    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-        command: "CreatePizza",
-        unknown: &unknown,
-        declared: &["name", "pizza"],
-    }.render_args()));
-}
-let absent: Vec<&str> = ["name", "pizza"].into_iter().filter(|key| v.get(key).is_none()).collect();
-if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
-        command: "CreatePizza",
-        absent: &absent,
-        declared: &["name", "pizza"],
-    }.render_args()));
-}
-        let name = PizzaName::from_json(&(match v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CreatePizza.name expects PizzaName, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
+        if !matches!(v, crate::kernel::Json::Object(_)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(format!(
+                "CreatePizzaArgs expects an object, got {}",
+                v.inspect()
+            )));
+        }
+        let unknown = v.unknown_keys(&["name", "pizza", "id"]);
+        if !unknown.is_empty() {
+            let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+            return Err(crate::kernel::Refusal::UnknownArgument(
+                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+                    command: "CreatePizza",
+                    unknown: &unknown,
+                    declared: &["name", "pizza"],
+                }
+                .render_args(),
+            ));
+        }
+        let absent: Vec<&str> = ["name", "pizza"]
+            .into_iter()
+            .filter(|key| v.get(key).is_none())
+            .collect();
+        if !absent.is_empty() {
+            return Err(crate::kernel::Refusal::AbsentArgument(
+                crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+                    command: "CreatePizza",
+                    absent: &absent,
+                    declared: &["name", "pizza"],
+                }
+                .render_args(),
+            ));
+        }
+        let name = PizzaName::from_json(
+            &(match v.get("name").ok_or_else(|| {
+                crate::kernel::Refusal::TypeMismatch(
+                    "CreatePizza.name expects PizzaName, got nil".to_string(),
+                )
+            })? {
+                crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()),
+                other => other.clone(),
+            })
+            .coerce_single_field("value"),
+        )?;
         name.check_invariants()?;
-        let pizza = Pizza::from_json((match v.get("pizza").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CreatePizza.pizza expects Pizza, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).expect_value_object_shape("pizza", "Pizza")?)?;
+        let pizza = Pizza::from_json(
+            (match v.get("pizza").ok_or_else(|| {
+                crate::kernel::Refusal::TypeMismatch(
+                    "CreatePizza.pizza expects Pizza, got nil".to_string(),
+                )
+            })? {
+                crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()),
+                other => other.clone(),
+            })
+            .expect_value_object_shape("pizza", "Pizza")?,
+        )?;
         pizza.check_invariants()?;
-        Ok(Self {
-        name,
-        pizza,
-        })
+        Ok(Self { name, pizza })
     }
 }
 
 impl CreatePizzaArgs {
     pub fn decode_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
-if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("CreatePizzaArgs expects an object, got {}", v.inspect())));
-}
+        if !matches!(v, crate::kernel::Json::Object(_)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(format!(
+                "CreatePizzaArgs expects an object, got {}",
+                v.inspect()
+            )));
+        }
         Ok(())
     }
 
     pub fn refuse_unknown_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["name", "pizza", "id"]);
-if !unknown.is_empty() {
-    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
-    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-        command: "CreatePizza",
-        unknown: &unknown,
-        declared: &["name", "pizza"],
-    }.render_args()));
-}
+        let unknown = v.unknown_keys(&["name", "pizza", "id"]);
+        if !unknown.is_empty() {
+            let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+            return Err(crate::kernel::Refusal::UnknownArgument(
+                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+                    command: "CreatePizza",
+                    unknown: &unknown,
+                    declared: &["name", "pizza"],
+                }
+                .render_args(),
+            ));
+        }
         Ok(())
     }
 
     pub fn refuse_absent_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
-let absent: Vec<&str> = ["name", "pizza"].into_iter().filter(|key| v.get(key).is_none()).collect();
-if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
-        command: "CreatePizza",
-        absent: &absent,
-        declared: &["name", "pizza"],
-    }.render_args()));
-}
+        let absent: Vec<&str> = ["name", "pizza"]
+            .into_iter()
+            .filter(|key| v.get(key).is_none())
+            .collect();
+        if !absent.is_empty() {
+            return Err(crate::kernel::Refusal::AbsentArgument(
+                crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+                    command: "CreatePizza",
+                    absent: &absent,
+                    declared: &["name", "pizza"],
+                }
+                .render_args(),
+            ));
+        }
         Ok(())
     }
 }
@@ -936,7 +1331,7 @@ if !absent.is_empty() {
 impl crate::kernel::Fielded for AddToppingArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
-        
+
         match name {
             "topping" => Some(Field::Nested(&self.topping)),
             "amount" => Some(Field::Nested(&self.amount)),
@@ -948,7 +1343,6 @@ impl crate::kernel::Fielded for AddToppingArgs {
         #[allow(unused_imports)]
         use crate::kernel::{Field, Value};
         match name {
-
             _ => None,
         }
     }
@@ -958,7 +1352,6 @@ impl crate::kernel::Fielded for AddToppingArgs {
     }
 }
 
-
 #[derive(Debug, Clone)]
 pub struct AddToppingArgs {
     pub topping: ToppingName,
@@ -966,12 +1359,23 @@ pub struct AddToppingArgs {
 }
 
 pub fn dispatch_add_topping(
-    repo: &mut impl crate::kernel::Repository<Order>, id: &str, args: AddToppingArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
+    repo: &mut impl crate::kernel::Repository<Order>,
+    id: &str,
+    args: AddToppingArgs,
+    mutations: &mut Vec<crate::kernel::MutationRecord>,
+    owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<Order> {
-        args.topping.check_invariants()?;
-        args.amount.check_invariants()?;
-    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
-    let seed_projections = crate::kernel::seeded_projections(&with_references, ORDER_PROJECTED_FIELDS);
+    args.topping.check_invariants()?;
+    args.amount.check_invariants()?;
+    let with_references = crate::kernel::WithReferences {
+        command_deref: &command_deref,
+        args: &args,
+        owner_deref: &owner_deref,
+    };
+    let seed_projections =
+        crate::kernel::seeded_projections(&with_references, ORDER_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -981,17 +1385,31 @@ pub fn dispatch_add_topping(
         "Order",
         "name.value",
         &with_references,
-        &[
-            crate::kernel::GivenSpec { description: "at most 10 toppings", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: false }, left: Box::new(Expr::Size(Box::new(Expr::Lookup("toppings")))), right: Box::new(Expr::Int(10)) }, corrects_event: None },
-        ],
-        Some(crate::kernel::TransitionCheck { field: "status", from_states: &["available"] }),
+        &[crate::kernel::GivenSpec {
+            description: "at most 10 toppings",
+            expr: Expr::Compare {
+                op: crate::kernel::Comparison {
+                    less_than: true,
+                    equal: false,
+                    negated: false,
+                },
+                left: Box::new(Expr::Size(Box::new(Expr::Lookup("toppings")))),
+                right: Box::new(Expr::Int(10)),
+            },
+            corrects_event: None,
+        }],
+        Some(crate::kernel::TransitionCheck {
+            field: "status",
+            from_states: &["available"],
+        }),
         |record| {
-        record.toppings.push(Topping { name: args.topping.value.clone(), amount: args.amount.value.clone() });
+            record.toppings.push(Topping {
+                name: args.topping.value.clone(),
+                amount: args.amount.value.clone(),
+            });
             Ok(())
         },
-        &[
-
-        ],
+        &[],
         &order_invariants(),
         &["ToppingAdded"],
         args.to_json(),
@@ -1004,78 +1422,121 @@ pub fn dispatch_add_topping(
 impl AddToppingArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(
-            vec![        ("topping".to_string(), self.topping.to_json()),
-        ("amount".to_string(), self.amount.to_json()),]
-                .into_iter()
-                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
-                .collect(),
+            vec![
+                ("topping".to_string(), self.topping.to_json()),
+                ("amount".to_string(), self.amount.to_json()),
+            ]
+            .into_iter()
+            .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+            .collect(),
         )
     }
 }
 
 impl AddToppingArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("AddToppingArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["topping", "amount", "id", "order", "name"]);
-if !unknown.is_empty() {
-    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
-    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-        command: "AddTopping",
-        unknown: &unknown,
-        declared: &["topping", "amount"],
-    }.render_args()));
-}
-let absent: Vec<&str> = ["amount", "topping"].into_iter().filter(|key| v.get(key).is_none()).collect();
-if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
-        command: "AddTopping",
-        absent: &absent,
-        declared: &["topping", "amount"],
-    }.render_args()));
-}
-        let topping = ToppingName::from_json(&(match v.get("topping").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AddTopping.topping expects ToppingName, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
+        if !matches!(v, crate::kernel::Json::Object(_)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(format!(
+                "AddToppingArgs expects an object, got {}",
+                v.inspect()
+            )));
+        }
+        let unknown = v.unknown_keys(&["topping", "amount", "id", "order", "name"]);
+        if !unknown.is_empty() {
+            let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+            return Err(crate::kernel::Refusal::UnknownArgument(
+                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+                    command: "AddTopping",
+                    unknown: &unknown,
+                    declared: &["topping", "amount"],
+                }
+                .render_args(),
+            ));
+        }
+        let absent: Vec<&str> = ["amount", "topping"]
+            .into_iter()
+            .filter(|key| v.get(key).is_none())
+            .collect();
+        if !absent.is_empty() {
+            return Err(crate::kernel::Refusal::AbsentArgument(
+                crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+                    command: "AddTopping",
+                    absent: &absent,
+                    declared: &["topping", "amount"],
+                }
+                .render_args(),
+            ));
+        }
+        let topping = ToppingName::from_json(
+            &(match v.get("topping").ok_or_else(|| {
+                crate::kernel::Refusal::TypeMismatch(
+                    "AddTopping.topping expects ToppingName, got nil".to_string(),
+                )
+            })? {
+                crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()),
+                other => other.clone(),
+            })
+            .coerce_single_field("value"),
+        )?;
         topping.check_invariants()?;
-        let amount = ToppingAmount::from_json(&(match v.get("amount").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AddTopping.amount expects ToppingAmount, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
+        let amount = ToppingAmount::from_json(
+            &(match v.get("amount").ok_or_else(|| {
+                crate::kernel::Refusal::TypeMismatch(
+                    "AddTopping.amount expects ToppingAmount, got nil".to_string(),
+                )
+            })? {
+                crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()),
+                other => other.clone(),
+            })
+            .coerce_single_field("value"),
+        )?;
         amount.check_invariants()?;
-        Ok(Self {
-        topping,
-        amount,
-        })
+        Ok(Self { topping, amount })
     }
 }
 
 impl AddToppingArgs {
     pub fn decode_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
-if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("AddToppingArgs expects an object, got {}", v.inspect())));
-}
+        if !matches!(v, crate::kernel::Json::Object(_)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(format!(
+                "AddToppingArgs expects an object, got {}",
+                v.inspect()
+            )));
+        }
         Ok(())
     }
 
     pub fn refuse_unknown_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["topping", "amount", "id", "order", "name"]);
-if !unknown.is_empty() {
-    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
-    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-        command: "AddTopping",
-        unknown: &unknown,
-        declared: &["topping", "amount"],
-    }.render_args()));
-}
+        let unknown = v.unknown_keys(&["topping", "amount", "id", "order", "name"]);
+        if !unknown.is_empty() {
+            let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+            return Err(crate::kernel::Refusal::UnknownArgument(
+                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+                    command: "AddTopping",
+                    unknown: &unknown,
+                    declared: &["topping", "amount"],
+                }
+                .render_args(),
+            ));
+        }
         Ok(())
     }
 
     pub fn refuse_absent_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
-let absent: Vec<&str> = ["amount", "topping"].into_iter().filter(|key| v.get(key).is_none()).collect();
-if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
-        command: "AddTopping",
-        absent: &absent,
-        declared: &["topping", "amount"],
-    }.render_args()));
-}
+        let absent: Vec<&str> = ["amount", "topping"]
+            .into_iter()
+            .filter(|key| v.get(key).is_none())
+            .collect();
+        if !absent.is_empty() {
+            return Err(crate::kernel::Refusal::AbsentArgument(
+                crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+                    command: "AddTopping",
+                    absent: &absent,
+                    declared: &["topping", "amount"],
+                }
+                .render_args(),
+            ));
+        }
         Ok(())
     }
 }
@@ -1086,7 +1547,11 @@ impl crate::kernel::Fielded for PurchaseArgs {
         use crate::kernel::Value;
         match name {
             "amount" => Some(Field::Nested(&self.amount)),
-            "customer_name" => self.customer_name.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "customer_name" => self
+                .customer_name
+                .as_ref()
+                .map(|v| Field::Nested(v))
+                .or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
     }
@@ -1095,7 +1560,6 @@ impl crate::kernel::Fielded for PurchaseArgs {
         #[allow(unused_imports)]
         use crate::kernel::{Field, Value};
         match name {
-
             _ => None,
         }
     }
@@ -1105,7 +1569,6 @@ impl crate::kernel::Fielded for PurchaseArgs {
     }
 }
 
-
 #[derive(Debug, Clone)]
 pub struct PurchaseArgs {
     pub amount: Price,
@@ -1113,12 +1576,25 @@ pub struct PurchaseArgs {
 }
 
 pub fn dispatch_purchase(
-    repo: &mut impl crate::kernel::Repository<Order>, id: &str, args: PurchaseArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
+    repo: &mut impl crate::kernel::Repository<Order>,
+    id: &str,
+    args: PurchaseArgs,
+    mutations: &mut Vec<crate::kernel::MutationRecord>,
+    owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<Order> {
-        args.amount.check_invariants()?;
-        if let Some(v) = &args.customer_name { v.check_invariants()?; }
-    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
-    let seed_projections = crate::kernel::seeded_projections(&with_references, ORDER_PROJECTED_FIELDS);
+    args.amount.check_invariants()?;
+    if let Some(v) = &args.customer_name {
+        v.check_invariants()?;
+    }
+    let with_references = crate::kernel::WithReferences {
+        command_deref: &command_deref,
+        args: &args,
+        owner_deref: &owner_deref,
+    };
+    let seed_projections =
+        crate::kernel::seeded_projections(&with_references, ORDER_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -1129,19 +1605,54 @@ pub fn dispatch_purchase(
         "name.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "a pizza needs at least one topping", expr: Expr::SignTest { op: crate::kernel::Comparison { less_than: true, equal: true, negated: true }, receiver: Box::new(Expr::Size(Box::new(Expr::Lookup("toppings")))) }, corrects_event: None },
-            crate::kernel::GivenSpec { description: "a payment was actually made", expr: Expr::SignTest { op: crate::kernel::Comparison { less_than: true, equal: true, negated: true }, receiver: Box::new(Expr::Lookup("amount.cents")) }, corrects_event: None },
-            crate::kernel::GivenSpec { description: "the payment covers the price", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: true }, left: Box::new(Expr::Lookup("amount.cents")), right: Box::new(Expr::Lookup("pizza.price_cents.cents")) }, corrects_event: None },
+            crate::kernel::GivenSpec {
+                description: "a pizza needs at least one topping",
+                expr: Expr::SignTest {
+                    op: crate::kernel::Comparison {
+                        less_than: true,
+                        equal: true,
+                        negated: true,
+                    },
+                    receiver: Box::new(Expr::Size(Box::new(Expr::Lookup("toppings")))),
+                },
+                corrects_event: None,
+            },
+            crate::kernel::GivenSpec {
+                description: "a payment was actually made",
+                expr: Expr::SignTest {
+                    op: crate::kernel::Comparison {
+                        less_than: true,
+                        equal: true,
+                        negated: true,
+                    },
+                    receiver: Box::new(Expr::Lookup("amount.cents")),
+                },
+                corrects_event: None,
+            },
+            crate::kernel::GivenSpec {
+                description: "the payment covers the price",
+                expr: Expr::Compare {
+                    op: crate::kernel::Comparison {
+                        less_than: true,
+                        equal: false,
+                        negated: true,
+                    },
+                    left: Box::new(Expr::Lookup("amount.cents")),
+                    right: Box::new(Expr::Lookup("pizza.price_cents.cents")),
+                },
+                corrects_event: None,
+            },
         ],
-        Some(crate::kernel::TransitionCheck { field: "status", from_states: &["available"] }),
+        Some(crate::kernel::TransitionCheck {
+            field: "status",
+            from_states: &["available"],
+        }),
         |record| {
-        record.customer_name = args.customer_name.clone();
-        record.status = "sold".to_string();
+            record.customer_name = args.customer_name.clone();
+            record.status = "sold".to_string();
             Ok(())
         },
-        &[
-
-        ],
+        &[],
         &order_invariants(),
         &["PizzaPurchased"],
         args.to_json(),
@@ -1154,78 +1665,125 @@ pub fn dispatch_purchase(
 impl PurchaseArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(
-            vec![        ("amount".to_string(), self.amount.to_json()),
-        ("customer_name".to_string(), self.customer_name.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),]
-                .into_iter()
-                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
-                .collect(),
+            vec![
+                ("amount".to_string(), self.amount.to_json()),
+                (
+                    "customer_name".to_string(),
+                    self.customer_name
+                        .as_ref()
+                        .map(|v| v.to_json())
+                        .unwrap_or(crate::kernel::Json::Null),
+                ),
+            ]
+            .into_iter()
+            .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+            .collect(),
         )
     }
 }
 
 impl PurchaseArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("PurchaseArgs expects an object, got {}", v.inspect())));
-}
-let unknown = v.unknown_keys(&["amount", "customer_name", "id", "order", "name"]);
-if !unknown.is_empty() {
-    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
-    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-        command: "Purchase",
-        unknown: &unknown,
-        declared: &["amount", "customer_name"],
-    }.render_args()));
-}
-let absent: Vec<&str> = ["amount"].into_iter().filter(|key| v.get(key).is_none()).collect();
-if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
-        command: "Purchase",
-        absent: &absent,
-        declared: &["amount", "customer_name"],
-    }.render_args()));
-}
-        let amount = Price::from_json(&(match v.get("amount").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Purchase.amount expects Price, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("cents"))?;
+        if !matches!(v, crate::kernel::Json::Object(_)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(format!(
+                "PurchaseArgs expects an object, got {}",
+                v.inspect()
+            )));
+        }
+        let unknown = v.unknown_keys(&["amount", "customer_name", "id", "order", "name"]);
+        if !unknown.is_empty() {
+            let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+            return Err(crate::kernel::Refusal::UnknownArgument(
+                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+                    command: "Purchase",
+                    unknown: &unknown,
+                    declared: &["amount", "customer_name"],
+                }
+                .render_args(),
+            ));
+        }
+        let absent: Vec<&str> = ["amount"]
+            .into_iter()
+            .filter(|key| v.get(key).is_none())
+            .collect();
+        if !absent.is_empty() {
+            return Err(crate::kernel::Refusal::AbsentArgument(
+                crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+                    command: "Purchase",
+                    absent: &absent,
+                    declared: &["amount", "customer_name"],
+                }
+                .render_args(),
+            ));
+        }
+        let amount = Price::from_json(
+            &(match v.get("amount").ok_or_else(|| {
+                crate::kernel::Refusal::TypeMismatch(
+                    "Purchase.amount expects Price, got nil".to_string(),
+                )
+            })? {
+                crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()),
+                other => other.clone(),
+            })
+            .coerce_single_field("cents"),
+        )?;
         amount.check_invariants()?;
-        let customer_name = match v.get("customer_name") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(CustomerName::from_json(&x.coerce_single_field("value"))?) };
-        if let Some(v) = &customer_name { v.check_invariants()?; }
+        let customer_name = match v.get("customer_name") {
+            Some(crate::kernel::Json::Null) | None => None,
+            Some(x) => Some(CustomerName::from_json(&x.coerce_single_field("value"))?),
+        };
+        if let Some(v) = &customer_name {
+            v.check_invariants()?;
+        }
         Ok(Self {
-        amount,
-        customer_name,
+            amount,
+            customer_name,
         })
     }
 }
 
 impl PurchaseArgs {
     pub fn decode_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
-if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("PurchaseArgs expects an object, got {}", v.inspect())));
-}
+        if !matches!(v, crate::kernel::Json::Object(_)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(format!(
+                "PurchaseArgs expects an object, got {}",
+                v.inspect()
+            )));
+        }
         Ok(())
     }
 
     pub fn refuse_unknown_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["amount", "customer_name", "id", "order", "name"]);
-if !unknown.is_empty() {
-    let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
-    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-        command: "Purchase",
-        unknown: &unknown,
-        declared: &["amount", "customer_name"],
-    }.render_args()));
-}
+        let unknown = v.unknown_keys(&["amount", "customer_name", "id", "order", "name"]);
+        if !unknown.is_empty() {
+            let unknown: Vec<&str> = unknown.iter().map(|key| key.as_str()).collect();
+            return Err(crate::kernel::Refusal::UnknownArgument(
+                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+                    command: "Purchase",
+                    unknown: &unknown,
+                    declared: &["amount", "customer_name"],
+                }
+                .render_args(),
+            ));
+        }
         Ok(())
     }
 
     pub fn refuse_absent_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
-let absent: Vec<&str> = ["amount"].into_iter().filter(|key| v.get(key).is_none()).collect();
-if !absent.is_empty() {
-    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
-        command: "Purchase",
-        absent: &absent,
-        declared: &["amount", "customer_name"],
-    }.render_args()));
-}
+        let absent: Vec<&str> = ["amount"]
+            .into_iter()
+            .filter(|key| v.get(key).is_none())
+            .collect();
+        if !absent.is_empty() {
+            return Err(crate::kernel::Refusal::AbsentArgument(
+                crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+                    command: "Purchase",
+                    absent: &absent,
+                    declared: &["amount", "customer_name"],
+                }
+                .render_args(),
+            ));
+        }
         Ok(())
     }
 }
@@ -1239,35 +1797,60 @@ pub struct PaymentGatewayReceiveArgs {
 impl PaymentGatewayReceiveArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
-        ("customer_name".to_string(), self.customer_name.to_json()),
-        ("amount".to_string(), self.amount.to_json()),
+            ("customer_name".to_string(), self.customer_name.to_json()),
+            ("amount".to_string(), self.amount.to_json()),
         ])
     }
 }
 
-
 impl PaymentGatewayReceiveArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-if !matches!(v, crate::kernel::Json::Object(_)) {
-    return Err(crate::kernel::Refusal::TypeMismatch(format!("PaymentGatewayReceiveArgs expects an object, got {}", v.inspect())));
-}
-        let customer_name = CustomerName::from_json(&v.get("customer_name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PaymentGatewayReceiveArgs.customer_name expects CustomerName, got nil".to_string()))?.coerce_single_field("value"))?;
+        if !matches!(v, crate::kernel::Json::Object(_)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(format!(
+                "PaymentGatewayReceiveArgs expects an object, got {}",
+                v.inspect()
+            )));
+        }
+        let customer_name = CustomerName::from_json(
+            &v.get("customer_name")
+                .ok_or_else(|| {
+                    crate::kernel::Refusal::TypeMismatch(
+                        "PaymentGatewayReceiveArgs.customer_name expects CustomerName, got nil"
+                            .to_string(),
+                    )
+                })?
+                .coerce_single_field("value"),
+        )?;
         customer_name.check_invariants()?;
-        let amount = Price::from_json(&v.get("amount").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PaymentGatewayReceiveArgs.amount expects Price, got nil".to_string()))?.coerce_single_field("cents"))?;
+        let amount = Price::from_json(
+            &v.get("amount")
+                .ok_or_else(|| {
+                    crate::kernel::Refusal::TypeMismatch(
+                        "PaymentGatewayReceiveArgs.amount expects Price, got nil".to_string(),
+                    )
+                })?
+                .coerce_single_field("cents"),
+        )?;
         amount.check_invariants()?;
         Ok(Self {
-        customer_name,
-        amount,
+            customer_name,
+            amount,
         })
     }
 }
 
-
-pub fn dispatch_operation_paymentgateway_receive(receiver_id: &str, args: PaymentGatewayReceiveArgs) -> Result<Vec<crate::kernel::Event>, crate::kernel::Refusal> {
-        args.customer_name.check_invariants()?;
-        args.amount.check_invariants()?;
-    Ok(vec![
-        crate::kernel::Event { name: "PizzaPaymentReceived".to_string(), aggregate: "Pizzas::Order".to_string(), id: receiver_id.to_string(), payload: crate::kernel::Json::Null, occurred_at: None, correlation: None },
-    ])
+pub fn dispatch_operation_paymentgateway_receive(
+    receiver_id: &str,
+    args: PaymentGatewayReceiveArgs,
+) -> Result<Vec<crate::kernel::Event>, crate::kernel::Refusal> {
+    args.customer_name.check_invariants()?;
+    args.amount.check_invariants()?;
+    Ok(vec![crate::kernel::Event {
+        name: "PizzaPaymentReceived".to_string(),
+        aggregate: "Pizzas::Order".to_string(),
+        id: receiver_id.to_string(),
+        payload: crate::kernel::Json::Null,
+        occurred_at: None,
+        correlation: None,
+    }])
 }
-

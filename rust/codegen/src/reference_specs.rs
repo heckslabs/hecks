@@ -17,8 +17,15 @@ pub fn reference_specs(domain_name: &str, attributes: &[Json]) -> Vec<ReferenceS
         .filter_map(|attr| {
             let target = crate::naming::reference_target(crate::attr::type_name(attr))?;
             let field = crate::attr::name(attr).to_string();
-            let as_name = field.strip_suffix("_id").map(str::to_string).unwrap_or_else(|| field.clone());
-            Some(ReferenceSpec { field, as_name, target: format!("{domain_name}::{target}") })
+            let as_name = field
+                .strip_suffix("_id")
+                .map(str::to_string)
+                .unwrap_or_else(|| field.clone());
+            Some(ReferenceSpec {
+                field,
+                as_name,
+                target: format!("{domain_name}::{target}"),
+            })
         })
         .collect()
 }
@@ -36,5 +43,12 @@ pub fn emit_reference_specs_literal(specs: &[ReferenceSpec]) -> String {
     if specs.is_empty() {
         return "&[]".to_string();
     }
-    format!("&[{}]", specs.iter().map(emit_reference_spec).collect::<Vec<_>>().join(", "))
+    format!(
+        "&[{}]",
+        specs
+            .iter()
+            .map(emit_reference_spec)
+            .collect::<Vec<_>>()
+            .join(", ")
+    )
 }

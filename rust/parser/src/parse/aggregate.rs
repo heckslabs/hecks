@@ -600,7 +600,13 @@ pub fn parse_body(
         }
     }
 
-    lifecycle::seal_commands(file, *pos, &aggregate.name, aggregate.lifecycle.as_ref(), &aggregate.commands)?;
+    lifecycle::seal_commands(
+        file,
+        *pos,
+        &aggregate.name,
+        aggregate.lifecycle.as_ref(),
+        &aggregate.commands,
+    )?;
 
     Ok((
         aggregate,

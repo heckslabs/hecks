@@ -16,7 +16,10 @@ pub enum Json {
 
 impl Json {
     pub fn parse(text: &str) -> Result<Json, String> {
-        let mut p = Parser { bytes: text.as_bytes(), pos: 0 };
+        let mut p = Parser {
+            bytes: text.as_bytes(),
+            pos: 0,
+        };
         p.skip_ws();
         let value = p.parse_value()?;
         p.skip_ws();
@@ -261,7 +264,8 @@ impl<'a> Parser<'a> {
                 }
                 Some(_) => {
                     let start = self.pos;
-                    let rest = std::str::from_utf8(&self.bytes[start..]).map_err(|e| e.to_string())?;
+                    let rest =
+                        std::str::from_utf8(&self.bytes[start..]).map_err(|e| e.to_string())?;
                     let ch = rest.chars().next().ok_or("empty remainder")?;
                     out.push(ch);
                     self.pos += ch.len_utf8();
@@ -369,7 +373,10 @@ mod tests {
     fn round_trips_a_request() {
         let text = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#;
         let value = Json::parse(text).expect("parses");
-        assert_eq!(value.get("method").and_then(Json::as_str), Some("initialize"));
+        assert_eq!(
+            value.get("method").and_then(Json::as_str),
+            Some("initialize")
+        );
         assert_eq!(value.get("id"), Some(&Json::Number(1)));
     }
 

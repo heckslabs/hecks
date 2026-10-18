@@ -29,8 +29,16 @@ pub fn phase(name: &'static str) -> Phase {
 
 /// Starts a boot phase and logs its `start` line.
 pub fn phase_with(name: &'static str, fields: Value) -> Phase {
-    emit("info", "boot_phase", phase_fields(name, "start", &fields, None));
-    Phase { name, fields, started: std::time::Instant::now() }
+    emit(
+        "info",
+        "boot_phase",
+        phase_fields(name, "start", &fields, None),
+    );
+    Phase {
+        name,
+        fields,
+        started: std::time::Instant::now(),
+    }
 }
 
 impl Phase {
@@ -46,7 +54,11 @@ impl Phase {
         if let (Value::Object(base), Value::Object(extra)) = (&mut fields, outcome) {
             base.extend(extra);
         }
-        emit("info", "boot_phase", phase_fields(self.name, "end", &fields, Some(elapsed_ms)));
+        emit(
+            "info",
+            "boot_phase",
+            phase_fields(self.name, "end", &fields, Some(elapsed_ms)),
+        );
         elapsed_ms
     }
 }
@@ -113,22 +125,61 @@ mod tests {
 
     #[test]
     fn a_phase_line_names_the_phase_and_an_end_line_carries_elapsed_ms() {
-        let start = render("info", "boot_phase", phase_fields("audit_aggregate", "start", &json!({"aggregate": "registration"}), None));
+        let start = render(
+            "info",
+            "boot_phase",
+            phase_fields(
+                "audit_aggregate",
+                "start",
+                &json!({"aggregate": "registration"}),
+                None,
+            ),
+        );
         let parsed: Value = serde_json::from_str(&start).unwrap();
         assert_eq!(parsed["msg"], "boot_phase");
-        assert_eq!((parsed["phase"].as_str(), parsed["event"].as_str()), (Some("audit_aggregate"), Some("start")));
+        assert_eq!(
+            (parsed["phase"].as_str(), parsed["event"].as_str()),
+            (Some("audit_aggregate"), Some("start"))
+        );
         assert_eq!(parsed["aggregate"], "registration");
-        assert!(parsed.get("elapsed_ms").is_none(), "a start line has no duration yet");
+        assert!(
+            parsed.get("elapsed_ms").is_none(),
+            "a start line has no duration yet"
+        );
 
-        let end = render("info", "boot_phase", phase_fields("audit_aggregate", "end", &json!({"aggregate": "registration"}), Some(42)));
+        let end = render(
+            "info",
+            "boot_phase",
+            phase_fields(
+                "audit_aggregate",
+                "end",
+                &json!({"aggregate": "registration"}),
+                Some(42),
+            ),
+        );
         let parsed: Value = serde_json::from_str(&end).unwrap();
-        assert_eq!((parsed["event"].as_str(), parsed["elapsed_ms"].as_u64()), (Some("end"), Some(42)));
+        assert_eq!(
+            (parsed["event"].as_str(), parsed["elapsed_ms"].as_u64()),
+            (Some("end"), Some(42))
+        );
     }
 
     #[test]
     fn a_phase_field_cannot_overwrite_the_phase_or_event() {
-        let fields = phase_fields("connect", "start", &json!({"phase": "other", "event": "end", "era": 7}), None);
-        assert_eq!((fields["phase"].as_str(), fields["event"].as_str(), fields["era"].as_u64()), (Some("connect"), Some("start"), Some(7)));
+        let fields = phase_fields(
+            "connect",
+            "start",
+            &json!({"phase": "other", "event": "end", "era": 7}),
+            None,
+        );
+        assert_eq!(
+            (
+                fields["phase"].as_str(),
+                fields["event"].as_str(),
+                fields["era"].as_u64()
+            ),
+            (Some("connect"), Some("start"), Some(7))
+        );
     }
 
     #[test]

@@ -6,8 +6,15 @@ use crate::kernel::Refusal;
 use regex::RegexBuilder;
 
 pub fn interpret(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
-    let Expr::MatchesRegex { receiver, pattern, flags } = expr else {
-        return Err(Refusal::TypeMismatch(format!("pattern_match::interpret called with a non-match? node {expr:?} — a router bug")));
+    let Expr::MatchesRegex {
+        receiver,
+        pattern,
+        flags,
+    } = expr
+    else {
+        return Err(Refusal::TypeMismatch(format!(
+            "pattern_match::interpret called with a non-match? node {expr:?} — a router bug"
+        )));
     };
 
     let text = coerce_text(&eval(receiver, ctx)?)?;
@@ -32,7 +39,9 @@ fn coerce_text(v: &Value) -> Result<String, Refusal> {
         Value::Int(i) => Ok(i.to_string()),
         Value::Float(f) => Ok(f.to_string()),
         Value::Nil => Ok(String::new()),
-        Value::Bool(_) | Value::List(_) | Value::Array(_) => Err(eval_error(format!("match? expects a scalar, got {v:?}"))),
+        Value::Bool(_) | Value::List(_) | Value::Array(_) => {
+            Err(eval_error(format!("match? expects a scalar, got {v:?}")))
+        }
     }
 }
 
@@ -41,21 +50,40 @@ mod tests {
     use super::*;
 
     fn matches(receiver: Expr, pattern: &str, flags: &str) -> Value {
-        let expr = Expr::MatchesRegex { receiver: Box::new(receiver), pattern: pattern.to_string(), flags: flags.to_string() };
-        let ctx = EvalContext { args: &crate::kernel::expr::NoFields, instance: &crate::kernel::expr::NoFields };
+        let expr = Expr::MatchesRegex {
+            receiver: Box::new(receiver),
+            pattern: pattern.to_string(),
+            flags: flags.to_string(),
+        };
+        let ctx = EvalContext {
+            args: &crate::kernel::expr::NoFields,
+            instance: &crate::kernel::expr::NoFields,
+        };
         eval(&expr, &ctx).expect("evaluates")
     }
 
     #[test]
     fn matches_a_simple_anchored_pattern() {
-        assert_eq!(matches(Expr::Str("12345".to_string()), r"\A\d{5}\z", ""), Value::Bool(true));
-        assert_eq!(matches(Expr::Str("1234".to_string()), r"\A\d{5}\z", ""), Value::Bool(false));
+        assert_eq!(
+            matches(Expr::Str("12345".to_string()), r"\A\d{5}\z", ""),
+            Value::Bool(true)
+        );
+        assert_eq!(
+            matches(Expr::Str("1234".to_string()), r"\A\d{5}\z", ""),
+            Value::Bool(false)
+        );
     }
 
     #[test]
     fn the_i_flag_ignores_case() {
-        assert_eq!(matches(Expr::Str("HELLO".to_string()), "hello", ""), Value::Bool(false));
-        assert_eq!(matches(Expr::Str("HELLO".to_string()), "hello", "i"), Value::Bool(true));
+        assert_eq!(
+            matches(Expr::Str("HELLO".to_string()), "hello", ""),
+            Value::Bool(false)
+        );
+        assert_eq!(
+            matches(Expr::Str("HELLO".to_string()), "hello", "i"),
+            Value::Bool(true)
+        );
     }
 
     #[test]
@@ -66,8 +94,15 @@ mod tests {
 
     #[test]
     fn an_invalid_pattern_refuses_cleanly() {
-        let expr = Expr::MatchesRegex { receiver: Box::new(Expr::Str("x".to_string())), pattern: "(".to_string(), flags: String::new() };
-        let ctx = EvalContext { args: &crate::kernel::expr::NoFields, instance: &crate::kernel::expr::NoFields };
+        let expr = Expr::MatchesRegex {
+            receiver: Box::new(Expr::Str("x".to_string())),
+            pattern: "(".to_string(),
+            flags: String::new(),
+        };
+        let ctx = EvalContext {
+            args: &crate::kernel::expr::NoFields,
+            instance: &crate::kernel::expr::NoFields,
+        };
         assert!(eval(&expr, &ctx).is_err());
     }
 }

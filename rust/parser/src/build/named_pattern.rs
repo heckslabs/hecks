@@ -14,7 +14,10 @@ const TABLE: &[(&str, &str)] = &[
 
 /// The regex source `name` stands for, or `None` when the language gives no such name.
 pub fn source(name: &str) -> Option<&'static str> {
-    TABLE.iter().find(|(given, _)| *given == name).map(|(_, source)| *source)
+    TABLE
+        .iter()
+        .find(|(given, _)| *given == name)
+        .map(|(_, source)| *source)
 }
 
 /// Every name the language gives, in table order.

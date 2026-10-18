@@ -35,17 +35,31 @@ pub struct Delivery {
 
 impl Delivery {
     fn sent(message_id: String) -> Self {
-        Delivery { ok: true, message_id: Some(message_id), reason: None }
+        Delivery {
+            ok: true,
+            message_id: Some(message_id),
+            reason: None,
+        }
     }
 
     fn failed(reason: impl Into<String>) -> Self {
-        Delivery { ok: false, message_id: None, reason: Some(reason.into()) }
+        Delivery {
+            ok: false,
+            message_id: None,
+            reason: Some(reason.into()),
+        }
     }
 }
 
 /// How email leaves the host: really, through Resend, or logged and dropped.
 pub enum Mailer {
-    Live { http: reqwest::Client, api_key: String, from: String, reply_to: Option<String>, base_url: String },
+    Live {
+        http: reqwest::Client,
+        api_key: String,
+        from: String,
+        reply_to: Option<String>,
+        base_url: String,
+    },
     Mock,
 }
 
@@ -54,8 +68,12 @@ impl Mailer {
     /// marking an issue sent is irreversible, so a missing key must refuse before that happens.
     pub fn from_env() -> Result<Option<Mailer>, String> {
         let var = |name: &str| std::env::var(name).unwrap_or_default();
-        Self::configured(&var("RESEND_API_KEY"), &var("RESEND_FROM"), &var("RESEND_MOCK"))
-            .map(|mailer| mailer.map(|mailer| mailer.replying_to(&var("RESEND_REPLY_TO"))))
+        Self::configured(
+            &var("RESEND_API_KEY"),
+            &var("RESEND_FROM"),
+            &var("RESEND_MOCK"),
+        )
+        .map(|mailer| mailer.map(|mailer| mailer.replying_to(&var("RESEND_REPLY_TO"))))
     }
 
     fn configured(api_key: &str, from: &str, mock: &str) -> Result<Option<Mailer>, String> {
@@ -71,17 +89,38 @@ impl Mailer {
 
     /// A mailer that posts to `base_url` (Resend's API, or a stand-in in tests).
     pub fn live(api_key: &str, from: &str, base_url: &str) -> Mailer {
-        let http = reqwest::Client::builder().timeout(TIMEOUT).build().expect("a reqwest client with a timeout always builds");
-        Mailer::Live { http, api_key: api_key.to_string(), from: from.to_string(), reply_to: None, base_url: base_url.to_string() }
+        let http = reqwest::Client::builder()
+            .timeout(TIMEOUT)
+            .build()
+            .expect("a reqwest client with a timeout always builds");
+        Mailer::Live {
+            http,
+            api_key: api_key.to_string(),
+            from: from.to_string(),
+            reply_to: None,
+            base_url: base_url.to_string(),
+        }
     }
 
     /// Sets where replies go (`Reply-To`), when the address people reply to is not the one the mail
     /// is sent from. Blank leaves replies going to the From address. A mock mailer has no replies.
     pub fn replying_to(self, reply_to: &str) -> Mailer {
         match self {
-            Mailer::Live { http, api_key, from, base_url, .. } => {
+            Mailer::Live {
+                http,
+                api_key,
+                from,
+                base_url,
+                ..
+            } => {
                 let reply_to = (!reply_to.trim().is_empty()).then(|| reply_to.trim().to_string());
-                Mailer::Live { http, api_key, from, reply_to, base_url }
+                Mailer::Live {
+                    http,
+                    api_key,
+                    from,
+                    reply_to,
+                    base_url,
+                }
             }
             mock => mock,
         }
@@ -95,7 +134,13 @@ impl Mailer {
     pub async fn deliver(&self, email: &Email<'_>) -> Delivery {
         match self {
             Mailer::Mock => mock_deliver(email),
-            Mailer::Live { http, api_key, from, reply_to, base_url } => live_deliver(http, api_key, from, reply_to.as_deref(), base_url, email).await,
+            Mailer::Live {
+                http,
+                api_key,
+                from,
+                reply_to,
+                base_url,
+            } => live_deliver(http, api_key, from, reply_to.as_deref(), base_url, email).await,
         }
     }
 }
@@ -104,7 +149,10 @@ fn mock_deliver(email: &Email<'_>) -> Delivery {
     if email.to == MOCK_BOUNCE_ADDRESS {
         return Delivery::failed("bounced");
     }
-    println!("[mock resend] to={} subject={:?}\n{}", email.to, email.subject, email.body);
+    println!(
+        "[mock resend] to={} subject={:?}\n{}",
+        email.to, email.subject, email.body
+    );
     Delivery::sent(format!("re_{}", uuid::Uuid::new_v4().simple()))
 }
 
@@ -113,7 +161,11 @@ fn payload(from: &str, reply_to: Option<&str>, email: &Email<'_>) -> Value {
     if let Some(reply_to) = reply_to {
         payload["reply_to"] = json!(reply_to);
     }
-    let content_key = if email.body.trim_start().starts_with('<') { "html" } else { "text" };
+    let content_key = if email.body.trim_start().starts_with('<') {
+        "html"
+    } else {
+        "text"
+    };
     payload[content_key] = json!(email.body);
     if let Some(url) = email.unsubscribe_url {
         payload["headers"] = json!({ "List-Unsubscribe": format!("<{url}>") });
@@ -131,10 +183,23 @@ fn retry_delay(response: &reqwest::Response) -> Duration {
     Duration::from_secs(secs.min(MAX_RETRY_SECS))
 }
 
-async fn live_deliver(http: &reqwest::Client, api_key: &str, from: &str, reply_to: Option<&str>, base_url: &str, email: &Email<'_>) -> Delivery {
+async fn live_deliver(
+    http: &reqwest::Client,
+    api_key: &str,
+    from: &str,
+    reply_to: Option<&str>,
+    base_url: &str,
+    email: &Email<'_>,
+) -> Delivery {
     let body = payload(from, reply_to, email);
     for attempt in 1..=MAX_ATTEMPTS {
-        let response = match http.post(format!("{base_url}/emails")).bearer_auth(api_key).json(&body).send().await {
+        let response = match http
+            .post(format!("{base_url}/emails"))
+            .bearer_auth(api_key)
+            .json(&body)
+            .send()
+            .await
+        {
             Ok(r) => r,
             Err(e) => return Delivery::failed(format!("resend unreachable: {}", e.without_url())),
         };
@@ -150,7 +215,10 @@ async fn live_deliver(http: &reqwest::Client, api_key: &str, from: &str, reply_t
                 None => Delivery::failed("resend accepted the email but returned no id"),
             };
         }
-        let message = answer.get("message").and_then(|v| v.as_str()).map(String::from);
+        let message = answer
+            .get("message")
+            .and_then(|v| v.as_str())
+            .map(String::from);
         return Delivery::failed(message.unwrap_or_else(|| format!("resend answered {status}")));
     }
     Delivery::failed("resend kept rate limiting this email")
@@ -203,7 +271,11 @@ mod tests {
             if let Some((head, body)) = text.split_once("\r\n\r\n") {
                 let length = head
                     .lines()
-                    .find_map(|l| l.to_lowercase().strip_prefix("content-length:").and_then(|v| v.trim().parse::<usize>().ok()))
+                    .find_map(|l| {
+                        l.to_lowercase()
+                            .strip_prefix("content-length:")
+                            .and_then(|v| v.trim().parse::<usize>().ok())
+                    })
                     .unwrap_or(0);
                 if body.len() >= length {
                     return text;
@@ -216,7 +288,14 @@ mod tests {
     }
 
     fn email<'a>(to: &'a str, body: &'a str) -> Email<'a> {
-        Email { to, subject: "Spring news", body, unsubscribe_url: Some("https://example.com/newsletter-unsubscribed.html?email=a%40b.com") }
+        Email {
+            to,
+            subject: "Spring news",
+            body,
+            unsubscribe_url: Some(
+                "https://example.com/newsletter-unsubscribed.html?email=a%40b.com",
+            ),
+        }
     }
 
     #[test]
@@ -231,7 +310,9 @@ mod tests {
 
     #[test]
     fn a_key_and_from_is_live_even_when_mock_is_also_set() {
-        let mailer = Mailer::configured("re_x", "News <n@mail.example.com>", "1").unwrap().unwrap();
+        let mailer = Mailer::configured("re_x", "News <n@mail.example.com>", "1")
+            .unwrap()
+            .unwrap();
         assert!(!mailer.is_mock());
     }
 
@@ -243,7 +324,9 @@ mod tests {
 
     #[test]
     fn an_html_body_goes_as_html_and_a_plain_one_as_text() {
-        assert!(payload("f", None, &email("a@b.com", "  <p>hi</p>")).get("html").is_some());
+        assert!(payload("f", None, &email("a@b.com", "  <p>hi</p>"))
+            .get("html")
+            .is_some());
         let plain = payload("f", None, &email("a@b.com", "just a link"));
         assert!(plain.get("text").is_some() && plain.get("html").is_none());
     }
@@ -251,8 +334,20 @@ mod tests {
     #[test]
     fn the_unsubscribe_url_rides_as_a_list_unsubscribe_header() {
         let with = payload("f", None, &email("a@b.com", "x"));
-        assert_eq!(with["headers"]["List-Unsubscribe"], "<https://example.com/newsletter-unsubscribed.html?email=a%40b.com>");
-        let without = payload("f", None, &Email { to: "a@b.com", subject: "s", body: "x", unsubscribe_url: None });
+        assert_eq!(
+            with["headers"]["List-Unsubscribe"],
+            "<https://example.com/newsletter-unsubscribed.html?email=a%40b.com>"
+        );
+        let without = payload(
+            "f",
+            None,
+            &Email {
+                to: "a@b.com",
+                subject: "s",
+                body: "x",
+                unsubscribe_url: None,
+            },
+        );
         assert!(without.get("headers").is_none());
     }
 
@@ -260,33 +355,47 @@ mod tests {
     fn a_reply_to_address_rides_in_the_payload_and_is_absent_without_one() {
         let with = payload("f", Some("replies@example.com"), &email("a@b.com", "x"));
         assert_eq!(with["reply_to"], "replies@example.com");
-        assert!(payload("f", None, &email("a@b.com", "x")).get("reply_to").is_none());
+        assert!(payload("f", None, &email("a@b.com", "x"))
+            .get("reply_to")
+            .is_none());
     }
 
     #[test]
     fn replying_to_trims_the_address_and_a_blank_one_sets_none() {
-        let set = Mailer::live("re_x", "n@mail.example.com", "http://x").replying_to("  me@example.com ");
+        let set =
+            Mailer::live("re_x", "n@mail.example.com", "http://x").replying_to("  me@example.com ");
         assert!(matches!(&set, Mailer::Live { reply_to: Some(r), .. } if r == "me@example.com"));
         let blank = Mailer::live("re_x", "n@mail.example.com", "http://x").replying_to("   ");
         assert!(matches!(&blank, Mailer::Live { reply_to: None, .. }));
-        assert!(Mailer::Mock.replying_to("me@example.com").is_mock(), "a mock mailer has no replies");
+        assert!(
+            Mailer::Mock.replying_to("me@example.com").is_mock(),
+            "a mock mailer has no replies"
+        );
     }
 
     #[tokio::test]
     async fn a_live_send_carries_the_reply_to_address_to_resend() {
         let fake = FakeResend::start(vec![("200 OK", "", r#"{"id":"em_9"}"#)]);
-        let mailer = Mailer::live("re_x", "News <n@mail.example.com>", &fake.base).replying_to("replies@example.com");
+        let mailer = Mailer::live("re_x", "News <n@mail.example.com>", &fake.base)
+            .replying_to("replies@example.com");
 
         mailer.deliver(&email("a@b.com", "x")).await;
 
-        assert!(fake.requests()[0].contains(r#""reply_to":"replies@example.com""#), "{}", fake.requests()[0]);
+        assert!(
+            fake.requests()[0].contains(r#""reply_to":"replies@example.com""#),
+            "{}",
+            fake.requests()[0]
+        );
     }
 
     #[test]
     fn the_mock_logs_instead_of_sending_and_bounces_the_test_address() {
         let sent = mock_deliver(&email("a@b.com", "x"));
         assert!(sent.ok && sent.message_id.unwrap().starts_with("re_"));
-        assert_eq!(mock_deliver(&email(MOCK_BOUNCE_ADDRESS, "x")), Delivery::failed("bounced"));
+        assert_eq!(
+            mock_deliver(&email(MOCK_BOUNCE_ADDRESS, "x")),
+            Delivery::failed("bounced")
+        );
     }
 
     #[tokio::test]
@@ -301,26 +410,49 @@ mod tests {
         assert_eq!(requests.len(), 1);
         let request = requests[0].to_lowercase();
         assert!(request.starts_with("post /emails "), "{request}");
-        assert!(request.contains("authorization: bearer re_secret"), "{request}");
-        assert!(requests[0].contains(r#""to":["a@b.com"]"#) && requests[0].contains(r#""from":"News <n@mail.example.com>""#), "{}", requests[0]);
+        assert!(
+            request.contains("authorization: bearer re_secret"),
+            "{request}"
+        );
+        assert!(
+            requests[0].contains(r#""to":["a@b.com"]"#)
+                && requests[0].contains(r#""from":"News <n@mail.example.com>""#),
+            "{}",
+            requests[0]
+        );
     }
 
     #[tokio::test]
     async fn a_refusal_from_resend_is_a_failed_delivery_carrying_its_message() {
-        let fake = FakeResend::start(vec![("403 Forbidden", "", r#"{"message":"The mail.example.com domain is not verified.","name":"validation_error"}"#)]);
-        let delivery = Mailer::live("re_x", "n@mail.example.com", &fake.base).deliver(&email("a@b.com", "x")).await;
+        let fake = FakeResend::start(vec![(
+            "403 Forbidden",
+            "",
+            r#"{"message":"The mail.example.com domain is not verified.","name":"validation_error"}"#,
+        )]);
+        let delivery = Mailer::live("re_x", "n@mail.example.com", &fake.base)
+            .deliver(&email("a@b.com", "x"))
+            .await;
 
         assert!(!delivery.ok);
-        assert_eq!(delivery.reason.as_deref(), Some("The mail.example.com domain is not verified."));
+        assert_eq!(
+            delivery.reason.as_deref(),
+            Some("The mail.example.com domain is not verified.")
+        );
     }
 
     #[tokio::test]
     async fn a_rate_limited_send_waits_and_is_retried() {
         let fake = FakeResend::start(vec![
-            ("429 Too Many Requests", "retry-after: 0\r\n", r#"{"message":"Too many requests"}"#),
+            (
+                "429 Too Many Requests",
+                "retry-after: 0\r\n",
+                r#"{"message":"Too many requests"}"#,
+            ),
             ("200 OK", "", r#"{"id":"em_after_retry"}"#),
         ]);
-        let delivery = Mailer::live("re_x", "n@mail.example.com", &fake.base).deliver(&email("a@b.com", "x")).await;
+        let delivery = Mailer::live("re_x", "n@mail.example.com", &fake.base)
+            .deliver(&email("a@b.com", "x"))
+            .await;
 
         assert_eq!(delivery, Delivery::sent("em_after_retry".to_string()));
         assert_eq!(fake.requests().len(), 2);
@@ -332,7 +464,9 @@ mod tests {
         let base = format!("http://{}", unused.local_addr().unwrap());
         drop(unused);
 
-        let delivery = Mailer::live("re_x", "n@mail.example.com", &base).deliver(&email("a@b.com", "x")).await;
+        let delivery = Mailer::live("re_x", "n@mail.example.com", &base)
+            .deliver(&email("a@b.com", "x"))
+            .await;
 
         assert!(!delivery.ok);
         assert!(delivery.reason.unwrap().starts_with("resend unreachable"));

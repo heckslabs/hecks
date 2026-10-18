@@ -5,9 +5,15 @@ use crate::kernel::Refusal;
 
 pub fn interpret(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
     match expr {
-        Expr::Or(l, r) => Ok(Value::Bool(eval(l, ctx)?.truthy() || eval(r, ctx)?.truthy())),
-        Expr::And(l, r) => Ok(Value::Bool(eval(l, ctx)?.truthy() && eval(r, ctx)?.truthy())),
+        Expr::Or(l, r) => Ok(Value::Bool(
+            eval(l, ctx)?.truthy() || eval(r, ctx)?.truthy(),
+        )),
+        Expr::And(l, r) => Ok(Value::Bool(
+            eval(l, ctx)?.truthy() && eval(r, ctx)?.truthy(),
+        )),
         Expr::Not(n) => Ok(Value::Bool(!eval(n, ctx)?.truthy())),
-        _ => Err(Refusal::TypeMismatch(format!("logical::interpret called with a non-logical node {expr:?} — a router bug"))),
+        _ => Err(Refusal::TypeMismatch(format!(
+            "logical::interpret called with a non-logical node {expr:?} — a router bug"
+        ))),
     }
 }

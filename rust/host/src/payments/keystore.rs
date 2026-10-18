@@ -21,8 +21,20 @@ pub struct StoredKeys {
 
 impl StoredKeys {
     fn from_json(value: &Value) -> Self {
-        let text = |field: &str| value.get(field).and_then(|v| v.as_str()).unwrap_or_default().to_string();
-        Self { secret_key: text("secret_key"), publishable_key: text("publishable_key"), webhook_secret: text("webhook_secret"), webhook_endpoint_id: text("webhook_endpoint_id"), saved_at: text("saved_at") }
+        let text = |field: &str| {
+            value
+                .get(field)
+                .and_then(|v| v.as_str())
+                .unwrap_or_default()
+                .to_string()
+        };
+        Self {
+            secret_key: text("secret_key"),
+            publishable_key: text("publishable_key"),
+            webhook_secret: text("webhook_secret"),
+            webhook_endpoint_id: text("webhook_endpoint_id"),
+            saved_at: text("saved_at"),
+        }
     }
 
     fn to_json(&self) -> Value {
@@ -45,8 +57,16 @@ pub struct StoredDocument {
 
 impl StoredDocument {
     fn from_json(value: &Value) -> Self {
-        let entry = |mode: &str| value.get(mode).filter(|v| v.is_object()).map(StoredKeys::from_json);
-        Self { test: entry("test"), live: entry("live") }
+        let entry = |mode: &str| {
+            value
+                .get(mode)
+                .filter(|v| v.is_object())
+                .map(StoredKeys::from_json)
+        };
+        Self {
+            test: entry("test"),
+            live: entry("live"),
+        }
     }
 
     fn to_json(&self) -> Value {
@@ -61,17 +81,29 @@ impl StoredDocument {
 
     /// The entry saved for `mode` ("test" or "live").
     pub fn mode(&self, mode: &str) -> Option<&StoredKeys> {
-        if mode == "live" { self.live.as_ref() } else { self.test.as_ref() }
+        if mode == "live" {
+            self.live.as_ref()
+        } else {
+            self.test.as_ref()
+        }
     }
 
     /// Replaces (or with `None` removes) the entry for `mode`.
     pub fn set(&mut self, mode: &str, keys: Option<StoredKeys>) {
-        if mode == "live" { self.live = keys } else { self.test = keys }
+        if mode == "live" {
+            self.live = keys
+        } else {
+            self.test = keys
+        }
     }
 
     /// Every webhook signing secret saved, for either mode.
     pub fn webhook_secrets(&self) -> impl Iterator<Item = &str> {
-        [self.test.as_ref(), self.live.as_ref()].into_iter().flatten().map(|k| k.webhook_secret.as_str()).filter(|s| !s.is_empty())
+        [self.test.as_ref(), self.live.as_ref()]
+            .into_iter()
+            .flatten()
+            .map(|k| k.webhook_secret.as_str())
+            .filter(|s| !s.is_empty())
     }
 }
 
@@ -94,7 +126,10 @@ pub struct AwsRawStore {
 impl AwsRawStore {
     /// A store over the secret named `secret_id`; nothing is fetched until the first use.
     pub fn new(secret_id: String) -> Self {
-        Self { secret_id, fetcher: tokio::sync::OnceCell::new() }
+        Self {
+            secret_id,
+            fetcher: tokio::sync::OnceCell::new(),
+        }
     }
 
     async fn fetcher(&self) -> &AwsSecretFetcher {
@@ -105,11 +140,17 @@ impl AwsRawStore {
 #[async_trait::async_trait]
 impl RawStore for AwsRawStore {
     async fn read(&self) -> anyhow::Result<Option<String>> {
-        self.fetcher().await.fetch_secret_string_if_present(&self.secret_id).await
+        self.fetcher()
+            .await
+            .fetch_secret_string_if_present(&self.secret_id)
+            .await
     }
 
     async fn write(&self, document: &str) -> anyhow::Result<()> {
-        self.fetcher().await.put_secret_string(&self.secret_id, document).await
+        self.fetcher()
+            .await
+            .put_secret_string(&self.secret_id, document)
+            .await
     }
 }
 
@@ -123,12 +164,21 @@ pub struct KeyStore {
 impl KeyStore {
     /// A cached view over `raw`, starting with an empty cache.
     pub fn new(raw: Arc<dyn RawStore>) -> Self {
-        Self { raw, cache: Mutex::new(None) }
+        Self {
+            raw,
+            cache: Mutex::new(None),
+        }
     }
 
     fn cached(&self) -> Option<Arc<StoredDocument>> {
-        let cache = self.cache.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-        cache.as_ref().filter(|(at, _)| at.elapsed() < CACHE_TTL).map(|(_, document)| document.clone())
+        let cache = self
+            .cache
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        cache
+            .as_ref()
+            .filter(|(at, _)| at.elapsed() < CACHE_TTL)
+            .map(|(_, document)| document.clone())
     }
 
     /// The document, from the cache when it is under a minute old.
@@ -143,11 +193,18 @@ impl KeyStore {
     pub async fn refresh(&self) -> anyhow::Result<Arc<StoredDocument>> {
         let text = self.raw.read().await?;
         let document = match text {
-            Some(text) => StoredDocument::from_json(&serde_json::from_str::<Value>(&text).map_err(|_| anyhow::anyhow!("the stored payment keys are not valid JSON"))?),
+            Some(text) => StoredDocument::from_json(
+                &serde_json::from_str::<Value>(&text)
+                    .map_err(|_| anyhow::anyhow!("the stored payment keys are not valid JSON"))?,
+            ),
             None => StoredDocument::default(),
         };
         let document = Arc::new(document);
-        *self.cache.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = Some((Instant::now(), document.clone()));
+        *self
+            .cache
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) =
+            Some((Instant::now(), document.clone()));
         Ok(document)
     }
 
@@ -165,31 +222,47 @@ impl KeyStore {
 
     /// Forgets the cached document.
     pub fn invalidate(&self) {
-        *self.cache.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = None;
+        *self
+            .cache
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = None;
     }
 }
 
 /// The secret's name from a raw `PAYMENTS_ACCOUNT_SECRET_ID` value, or `None`
 /// when it is unset or blank.
 fn configured_secret_id(configured: Option<&str>) -> Option<String> {
-    configured.map(str::trim).filter(|id| !id.is_empty()).map(String::from)
+    configured
+        .map(str::trim)
+        .filter(|id| !id.is_empty())
+        .map(String::from)
 }
 
 /// Whether this process runs as a container task or a Lambda function on AWS.
 fn on_aws() -> bool {
-    ["ECS_CONTAINER_METADATA_URI_V4", "AWS_LAMBDA_FUNCTION_NAME"].iter().any(|name| std::env::var(name).is_ok_and(|v| !v.is_empty()))
+    ["ECS_CONTAINER_METADATA_URI_V4", "AWS_LAMBDA_FUNCTION_NAME"]
+        .iter()
+        .any(|name| std::env::var(name).is_ok_and(|v| !v.is_empty()))
 }
 
 /// The message that stops the boot when checkout is enabled on AWS without a
 /// secret to keep the business's keys in; `None` when the boot may go on.
-pub fn refusal_at_boot(checkout_enabled: bool, on_aws: bool, configured: Option<&str>) -> Option<String> {
+pub fn refusal_at_boot(
+    checkout_enabled: bool,
+    on_aws: bool,
+    configured: Option<&str>,
+) -> Option<String> {
     let missing = checkout_enabled && on_aws && configured_secret_id(configured).is_none();
     missing.then(|| format!("{SECRET_ID_VARIABLE} is required on AWS when checkout is enabled: name the Secrets Manager secret that holds the business's payment keys"))
 }
 
 /// `refusal_at_boot` for this process's environment.
 pub fn check_boot(checkout_enabled: bool) -> Result<(), String> {
-    match refusal_at_boot(checkout_enabled, on_aws(), std::env::var(SECRET_ID_VARIABLE).ok().as_deref()) {
+    match refusal_at_boot(
+        checkout_enabled,
+        on_aws(),
+        std::env::var(SECRET_ID_VARIABLE).ok().as_deref(),
+    ) {
         Some(message) => Err(message),
         None => Ok(()),
     }
@@ -198,7 +271,12 @@ pub fn check_boot(checkout_enabled: bool) -> Result<(), String> {
 /// The process-wide store, built once so its cache is shared by every request.
 pub fn default_store() -> Option<Arc<KeyStore>> {
     static STORE: OnceLock<Option<Arc<KeyStore>>> = OnceLock::new();
-    STORE.get_or_init(|| configured_secret_id(std::env::var(SECRET_ID_VARIABLE).ok().as_deref()).map(|id| Arc::new(KeyStore::new(Arc::new(AwsRawStore::new(id)))))).clone()
+    STORE
+        .get_or_init(|| {
+            configured_secret_id(std::env::var(SECRET_ID_VARIABLE).ok().as_deref())
+                .map(|id| Arc::new(KeyStore::new(Arc::new(AwsRawStore::new(id)))))
+        })
+        .clone()
 }
 
 /// `YYYY-MM-DDTHH:MM:SSZ` for a Unix time in seconds (proleptic Gregorian,
@@ -208,18 +286,33 @@ pub fn utc_timestamp(seconds: u64) -> String {
     let z = days + 719_468;
     let era = z.div_euclid(146_097);
     let day_of_era = z.rem_euclid(146_097);
-    let year_of_era = (day_of_era - day_of_era / 1_460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
+    let year_of_era =
+        (day_of_era - day_of_era / 1_460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
     let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
     let month_shifted = (5 * day_of_year + 2) / 153;
     let day = day_of_year - (153 * month_shifted + 2) / 5 + 1;
-    let month = if month_shifted < 10 { month_shifted + 3 } else { month_shifted - 9 };
+    let month = if month_shifted < 10 {
+        month_shifted + 3
+    } else {
+        month_shifted - 9
+    };
     let year = year_of_era + era * 400 + i64::from(month <= 2);
-    format!("{year:04}-{month:02}-{day:02}T{:02}:{:02}:{:02}Z", rest / 3_600, rest % 3_600 / 60, rest % 60)
+    format!(
+        "{year:04}-{month:02}-{day:02}T{:02}:{:02}:{:02}Z",
+        rest / 3_600,
+        rest % 3_600 / 60,
+        rest % 60
+    )
 }
 
 /// The current time as `utc_timestamp` writes it.
 pub fn now_timestamp() -> String {
-    utc_timestamp(std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs())
+    utc_timestamp(
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs(),
+    )
 }
 
 /// An in-memory stand-in for Secrets Manager that counts its calls, for the
@@ -243,7 +336,8 @@ impl RawStore for MemoryStore {
     }
 
     async fn write(&self, document: &str) -> anyhow::Result<()> {
-        self.writes.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        self.writes
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         if self.fail_writes.load(std::sync::atomic::Ordering::SeqCst) {
             return Err(anyhow::anyhow!("writing the secret failed"));
         }
@@ -258,7 +352,13 @@ mod tests {
     use std::sync::atomic::Ordering;
 
     fn keys(secret: &str) -> StoredKeys {
-        StoredKeys { secret_key: secret.into(), publishable_key: "pk_test_x".into(), webhook_secret: "whsec_x".into(), webhook_endpoint_id: "we_1".into(), saved_at: "2026-09-26T05:00:00Z".into() }
+        StoredKeys {
+            secret_key: secret.into(),
+            publishable_key: "pk_test_x".into(),
+            webhook_secret: "whsec_x".into(),
+            webhook_endpoint_id: "we_1".into(),
+            saved_at: "2026-09-26T05:00:00Z".into(),
+        }
     }
 
     #[tokio::test]
@@ -267,12 +367,23 @@ mod tests {
         let store = KeyStore::new(raw.clone());
         assert!(store.document().await.unwrap().test.is_none());
         assert!(store.document().await.unwrap().test.is_none());
-        assert_eq!(raw.reads.load(Ordering::SeqCst), 1, "the second read was served from the cache");
+        assert_eq!(
+            raw.reads.load(Ordering::SeqCst),
+            1,
+            "the second read was served from the cache"
+        );
 
-        store.update(|doc| doc.set("test", Some(keys("rk_test_one")))).await.unwrap();
+        store
+            .update(|doc| doc.set("test", Some(keys("rk_test_one"))))
+            .await
+            .unwrap();
         let reads_after_update = raw.reads.load(Ordering::SeqCst);
         let document = store.document().await.unwrap();
-        assert_eq!(document.test.as_ref().unwrap().secret_key, "rk_test_one", "the write invalidated the cache");
+        assert_eq!(
+            document.test.as_ref().unwrap().secret_key,
+            "rk_test_one",
+            "the write invalidated the cache"
+        );
         assert_eq!(raw.reads.load(Ordering::SeqCst), reads_after_update + 1);
         assert_eq!(raw.writes.load(Ordering::SeqCst), 1);
     }
@@ -281,20 +392,38 @@ mod tests {
     async fn the_stored_json_has_exactly_the_agreed_shape() {
         let raw = Arc::new(MemoryStore::default());
         let store = KeyStore::new(raw.clone());
-        store.update(|doc| doc.set("live", Some(keys("rk_live_one")))).await.unwrap();
-        let stored: serde_json::Value = serde_json::from_str(raw.document.lock().unwrap().as_ref().unwrap()).unwrap();
+        store
+            .update(|doc| doc.set("live", Some(keys("rk_live_one"))))
+            .await
+            .unwrap();
+        let stored: serde_json::Value =
+            serde_json::from_str(raw.document.lock().unwrap().as_ref().unwrap()).unwrap();
         assert!(stored.get("test").is_none(), "an unsaved mode has no entry");
         let live = stored["live"].as_object().unwrap();
         let mut names: Vec<&str> = live.keys().map(String::as_str).collect();
         names.sort_unstable();
-        assert_eq!(names, ["publishable_key", "saved_at", "secret_key", "webhook_endpoint_id", "webhook_secret"]);
+        assert_eq!(
+            names,
+            [
+                "publishable_key",
+                "saved_at",
+                "secret_key",
+                "webhook_endpoint_id",
+                "webhook_secret"
+            ]
+        );
     }
 
     #[tokio::test]
     async fn an_unreadable_document_is_an_error_that_does_not_quote_it() {
         let raw = Arc::new(MemoryStore::default());
         *raw.document.lock().unwrap() = Some("rk_live_SECRET not json".to_string());
-        let error = KeyStore::new(raw).document().await.err().expect("an error").to_string();
+        let error = KeyStore::new(raw)
+            .document()
+            .await
+            .err()
+            .expect("an error")
+            .to_string();
         assert!(!error.contains("rk_live_SECRET"), "{error}");
     }
 
@@ -303,21 +432,39 @@ mod tests {
         assert_eq!(configured_secret_id(None), None);
         assert_eq!(configured_secret_id(Some("")), None);
         assert_eq!(configured_secret_id(Some("  ")), None);
-        assert_eq!(configured_secret_id(Some(" payments-keys ")), Some("payments-keys".to_string()));
+        assert_eq!(
+            configured_secret_id(Some(" payments-keys ")),
+            Some("payments-keys".to_string())
+        );
     }
 
     #[test]
     fn checkout_on_aws_without_a_secret_id_refuses_the_boot_and_names_the_variable() {
         let message = refusal_at_boot(true, true, None).expect("refused");
         assert!(message.contains("PAYMENTS_ACCOUNT_SECRET_ID"), "{message}");
-        assert!(refusal_at_boot(true, true, Some("  ")).is_some(), "a blank value is unset");
+        assert!(
+            refusal_at_boot(true, true, Some("  ")).is_some(),
+            "a blank value is unset"
+        );
     }
 
     #[test]
     fn every_other_combination_boots() {
-        assert_eq!(refusal_at_boot(true, true, Some("payments-keys")), None, "set: unchanged");
-        assert_eq!(refusal_at_boot(true, false, None), None, "off AWS: only environment keys");
-        assert_eq!(refusal_at_boot(false, true, None), None, "checkout off: payments are not served");
+        assert_eq!(
+            refusal_at_boot(true, true, Some("payments-keys")),
+            None,
+            "set: unchanged"
+        );
+        assert_eq!(
+            refusal_at_boot(true, false, None),
+            None,
+            "off AWS: only environment keys"
+        );
+        assert_eq!(
+            refusal_at_boot(false, true, None),
+            None,
+            "checkout off: payments are not served"
+        );
         assert_eq!(refusal_at_boot(false, false, None), None);
     }
 

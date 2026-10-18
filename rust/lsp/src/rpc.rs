@@ -19,13 +19,19 @@ pub fn read_message(stdin: &mut impl BufRead) -> io::Result<Option<Json>> {
         }
         if let Some(value) = line.strip_prefix("Content-Length:") {
             content_length = Some(value.trim().parse().map_err(|e| {
-                io::Error::new(io::ErrorKind::InvalidData, format!("bad Content-Length: {e}"))
+                io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("bad Content-Length: {e}"),
+                )
             })?);
         }
     }
 
     let len = content_length.ok_or_else(|| {
-        io::Error::new(io::ErrorKind::InvalidData, "message had no Content-Length header")
+        io::Error::new(
+            io::ErrorKind::InvalidData,
+            "message had no Content-Length header",
+        )
     })?;
     let mut buf = vec![0u8; len];
     stdin.read_exact(&mut buf)?;
@@ -44,7 +50,11 @@ pub fn write_message(stdout: &mut impl Write, value: &Json) -> io::Result<()> {
 }
 
 pub fn response(id: Json, result: Json) -> Json {
-    Json::object(vec![("jsonrpc", Json::string("2.0")), ("id", id), ("result", result)])
+    Json::object(vec![
+        ("jsonrpc", Json::string("2.0")),
+        ("id", id),
+        ("result", result),
+    ])
 }
 
 pub fn notification(method: &str, params: Json) -> Json {
@@ -61,7 +71,10 @@ pub fn error_response(id: Json, code: i64, message: &str) -> Json {
         ("id", id),
         (
             "error",
-            Json::object(vec![("code", Json::Number(code)), ("message", Json::string(message))]),
+            Json::object(vec![
+                ("code", Json::Number(code)),
+                ("message", Json::string(message)),
+            ]),
         ),
     ])
 }

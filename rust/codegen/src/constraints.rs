@@ -5,7 +5,11 @@ use crate::json::Json;
 use crate::naming;
 
 /// The scalar `admitted_scalar`/`check_patterns` actually operate on.
-pub fn scalar_field_expr(value_expr: &str, attr_type: &str, value_objects_by_name: &std::collections::HashMap<String, &Json>) -> Option<String> {
+pub fn scalar_field_expr(
+    value_expr: &str,
+    attr_type: &str,
+    value_objects_by_name: &std::collections::HashMap<String, &Json>,
+) -> Option<String> {
     if attr_type == "String" {
         return Some(value_expr.to_string());
     }
@@ -29,11 +33,19 @@ fn optional_scalar_expr(
     value_objects_by_name: &std::collections::HashMap<String, &Json>,
 ) -> Option<(String, Option<String>)> {
     if !crate::attr::optional(attr) {
-        let scalar = scalar_field_expr(value_expr, crate::attr::type_name(attr), value_objects_by_name)?;
+        let scalar = scalar_field_expr(
+            value_expr,
+            crate::attr::type_name(attr),
+            value_objects_by_name,
+        )?;
         return Some((scalar, None));
     }
 
-    let scalar = scalar_field_expr(OPTIONAL_BINDING, crate::attr::type_name(attr), value_objects_by_name)?;
+    let scalar = scalar_field_expr(
+        OPTIONAL_BINDING,
+        crate::attr::type_name(attr),
+        value_objects_by_name,
+    )?;
     Some((scalar, Some(value_expr.to_string())))
 }
 
@@ -45,13 +57,21 @@ fn wrap_if_optional(check: String, optional_source: Option<String>) -> String {
 }
 
 /// `"Aggregate::SetName"` resolved against the full domain.
-pub fn admitted_set_members(admits: &str, aggregates_by_name: &std::collections::HashMap<String, &Json>) -> Option<Vec<String>> {
+pub fn admitted_set_members(
+    admits: &str,
+    aggregates_by_name: &std::collections::HashMap<String, &Json>,
+) -> Option<Vec<String>> {
     let mut parts = admits.splitn(2, "::");
     let aggregate_name = parts.next()?;
     let set_name = parts.next()?;
     let aggregate = aggregates_by_name.get(aggregate_name)?;
-    let vos = aggregate.get("value_objects").map(Json::each).unwrap_or(&[]);
-    let vo = vos.iter().find(|v| v.get("name").and_then(Json::as_str) == Some(set_name))?;
+    let vos = aggregate
+        .get("value_objects")
+        .map(Json::each)
+        .unwrap_or(&[]);
+    let vo = vos
+        .iter()
+        .find(|v| v.get("name").and_then(Json::as_str) == Some(set_name))?;
     if !vo.get("closed_set").map(Json::as_bool).unwrap_or(false) {
         return None;
     }
@@ -61,7 +81,10 @@ pub fn admitted_set_members(admits: &str, aggregates_by_name: &std::collections:
             .iter()
             .map(|row| {
                 let pairs = row.as_array().unwrap_or(&[]);
-                let first = pairs.first().and_then(|pair| pair.as_array()).unwrap_or(&[]);
+                let first = pairs
+                    .first()
+                    .and_then(|pair| pair.as_array())
+                    .unwrap_or(&[]);
                 first.get(1).map(Json::to_s).unwrap_or_default()
             })
             .collect(),
@@ -79,30 +102,58 @@ pub fn emit_admits_check(
     let members = admitted_set_members(admits, aggregates_by_name)?;
     let (scalar, optional_source) = optional_scalar_expr(value_expr, attr, value_objects_by_name)?;
 
-    let members_array = format!("[{}]", members.iter().map(|m| naming::ruby_inspect_string(m)).collect::<Vec<_>>().join(", "));
+    let members_array = format!(
+        "[{}]",
+        members
+            .iter()
+            .map(|m| naming::ruby_inspect_string(m))
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
     let check = exemplar.render(
         "admits_check",
         &[
             ("[\"tmpl_member_a\", \"tmpl_member_b\"]", members_array),
             ("tmpl_scalar", scalar),
-            ("\"tmpl_admits_name\"", naming::ruby_inspect_string(crate::attr::name(attr))),
-            ("\"tmpl_admits_target\"", naming::ruby_inspect_string(admits)),
+            (
+                "\"tmpl_admits_name\"",
+                naming::ruby_inspect_string(crate::attr::name(attr)),
+            ),
+            (
+                "\"tmpl_admits_target\"",
+                naming::ruby_inspect_string(admits),
+            ),
         ],
     );
     Some(wrap_if_optional(check, optional_source))
 }
 
-pub fn emit_pattern_check(exemplar: &Exemplar, value_expr: &str, attr: &Json, owner_type_name: &str, value_objects_by_name: &std::collections::HashMap<String, &Json>) -> Option<String> {
+pub fn emit_pattern_check(
+    exemplar: &Exemplar,
+    value_expr: &str,
+    attr: &Json,
+    owner_type_name: &str,
+    value_objects_by_name: &std::collections::HashMap<String, &Json>,
+) -> Option<String> {
     let pattern = crate::attr::pattern(attr)?;
     let (scalar, optional_source) = optional_scalar_expr(value_expr, attr, value_objects_by_name)?;
 
     let check = exemplar.render(
         "pattern_check",
         &[
-            ("\"tmpl_pattern_text\"", naming::ruby_inspect_string(pattern)),
+            (
+                "\"tmpl_pattern_text\"",
+                naming::ruby_inspect_string(pattern),
+            ),
             ("tmpl_scalar", scalar),
-            ("\"tmpl_pattern_owner\"", naming::ruby_inspect_string(owner_type_name)),
-            ("\"tmpl_pattern_field\"", naming::ruby_inspect_string(crate::attr::name(attr))),
+            (
+                "\"tmpl_pattern_owner\"",
+                naming::ruby_inspect_string(owner_type_name),
+            ),
+            (
+                "\"tmpl_pattern_field\"",
+                naming::ruby_inspect_string(crate::attr::name(attr)),
+            ),
         ],
     );
     Some(wrap_if_optional(check, optional_source))
@@ -111,19 +162,35 @@ pub fn emit_pattern_check(exemplar: &Exemplar, value_expr: &str, attr: &Json, ow
 /// A `pattern:` on a list of Strings, checked once per member: Ruby's `check_patterns` walks
 /// `offered_items`, so every element of the list must match, and an optional list left unset has
 /// none to check. Lists of anything but plain Strings get no check.
-pub fn emit_list_pattern_check(exemplar: &Exemplar, value_expr: &str, attr: &Json, owner_type_name: &str) -> Option<String> {
+pub fn emit_list_pattern_check(
+    exemplar: &Exemplar,
+    value_expr: &str,
+    attr: &Json,
+    owner_type_name: &str,
+) -> Option<String> {
     let pattern = crate::attr::pattern(attr)?;
-    if !crate::attr::list(attr) || naming::effective_scalar_type(crate::attr::type_name(attr)) != Some("String") {
+    if !crate::attr::list(attr)
+        || naming::effective_scalar_type(crate::attr::type_name(attr)) != Some("String")
+    {
         return None;
     }
 
     let check = exemplar.render(
         "pattern_check",
         &[
-            ("\"tmpl_pattern_text\"", naming::ruby_inspect_string(pattern)),
+            (
+                "\"tmpl_pattern_text\"",
+                naming::ruby_inspect_string(pattern),
+            ),
             ("tmpl_scalar", "item".to_string()),
-            ("\"tmpl_pattern_owner\"", naming::ruby_inspect_string(owner_type_name)),
-            ("\"tmpl_pattern_field\"", naming::ruby_inspect_string(crate::attr::name(attr))),
+            (
+                "\"tmpl_pattern_owner\"",
+                naming::ruby_inspect_string(owner_type_name),
+            ),
+            (
+                "\"tmpl_pattern_field\"",
+                naming::ruby_inspect_string(crate::attr::name(attr)),
+            ),
         ],
     );
     Some(if crate::attr::optional(attr) {

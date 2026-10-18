@@ -7,9 +7,18 @@ use crate::json::Json;
 use crate::naming;
 use std::collections::HashMap;
 
-pub fn emit_check_invariants(exemplar: &Exemplar, vo: &Json, value_objects_by_name: &HashMap<String, &Json>, aggregates_by_name: &HashMap<String, &Json>) -> String {
+pub fn emit_check_invariants(
+    exemplar: &Exemplar,
+    vo: &Json,
+    value_objects_by_name: &HashMap<String, &Json>,
+    aggregates_by_name: &HashMap<String, &Json>,
+) -> String {
     let name = naming::rust_ident(vo.get("name").and_then(Json::as_str).unwrap_or(""));
-    let type_name = vo.get("name").and_then(Json::as_str).unwrap_or("").to_string();
+    let type_name = vo
+        .get("name")
+        .and_then(Json::as_str)
+        .unwrap_or("")
+        .to_string();
     let invariants = vo.get("invariants").map(Json::each).unwrap_or(&[]);
 
     // The block is flush left to match the Ruby heredoc's dedent; re-indenting it mismatches.
@@ -26,22 +35,40 @@ pub fn emit_check_invariants(exemplar: &Exemplar, vo: &Json, value_objects_by_na
             continue;
         }
         let field = naming::rust_ident_field(crate::attr::name(attr));
-        body.push(nested_invariant_line(&field, crate::attr::list(attr), crate::attr::optional(attr)));
+        body.push(nested_invariant_line(
+            &field,
+            crate::attr::list(attr),
+            crate::attr::optional(attr),
+        ));
     }
 
     for attr in attributes {
         if crate::attr::list(attr) {
             let field = format!("self.{}", naming::rust_ident_field(crate::attr::name(attr)));
-            if let Some(line) = crate::constraints::emit_list_pattern_check(exemplar, &field, attr, &name) {
+            if let Some(line) =
+                crate::constraints::emit_list_pattern_check(exemplar, &field, attr, &name)
+            {
                 body.push(format!("        {line}"));
             }
             continue;
         }
         let field = format!("self.{}", naming::rust_ident_field(crate::attr::name(attr)));
-        if let Some(line) = crate::constraints::emit_admits_check(exemplar, &field, attr, aggregates_by_name, value_objects_by_name) {
+        if let Some(line) = crate::constraints::emit_admits_check(
+            exemplar,
+            &field,
+            attr,
+            aggregates_by_name,
+            value_objects_by_name,
+        ) {
             body.push(format!("        {line}"));
         }
-        if let Some(line) = crate::constraints::emit_pattern_check(exemplar, &field, attr, &name, value_objects_by_name) {
+        if let Some(line) = crate::constraints::emit_pattern_check(
+            exemplar,
+            &field,
+            attr,
+            &name,
+            value_objects_by_name,
+        ) {
             body.push(format!("        {line}"));
         }
     }
@@ -87,10 +114,22 @@ pub fn emit_closed_set_table(exemplar: &Exemplar, vo: &Json) -> String {
             if ty == "String" {
                 ty = "&'static str".to_string();
             }
-            vec![("TmplFieldType", ty), ("tmpl_field", naming::rust_ident_field(crate::attr::name(attr)))]
+            vec![
+                ("TmplFieldType", ty),
+                (
+                    "tmpl_field",
+                    naming::rust_ident_field(crate::attr::name(attr)),
+                ),
+            ]
         })
         .collect();
-    let struct_part = exemplar.compose("plain_struct", &[("TmplType", name.clone())], "struct_field", &field_subs_list, "\n");
+    let struct_part = exemplar.compose(
+        "plain_struct",
+        &[("TmplType", name.clone())],
+        "struct_field",
+        &field_subs_list,
+        "\n",
+    );
 
     let members = vo.get("members").map(Json::each).unwrap_or(&[]);
     let member_literals: Vec<String> = members
@@ -123,14 +162,24 @@ pub fn emit_closed_set_table(exemplar: &Exemplar, vo: &Json) -> String {
                         "Float" => format!("{}f64", ruby_to_f(&raw_str)),
                         _ => naming::ruby_inspect_string(&raw_str),
                     };
-                    exemplar.render("closed_set_table_row_field", &[("tmpl_field", naming::rust_ident_field(&field_name)), ("tmpl_value_placeholder()", literal)])
+                    exemplar.render(
+                        "closed_set_table_row_field",
+                        &[
+                            ("tmpl_field", naming::rust_ident_field(&field_name)),
+                            ("tmpl_value_placeholder()", literal),
+                        ],
+                    )
                 })
                 .collect();
             format!("    {name} {{ {} }},", fields.join(", "))
         })
         .collect();
 
-    format!("{struct_part}\n\npub const {}: &[{name}] = &[\n{}\n];", naming::screaming_snake(vo.get("name").and_then(Json::as_str).unwrap_or("")), member_literals.join("\n"))
+    format!(
+        "{struct_part}\n\npub const {}: &[{name}] = &[\n{}\n];",
+        naming::screaming_snake(vo.get("name").and_then(Json::as_str).unwrap_or("")),
+        member_literals.join("\n")
+    )
 }
 
 /// Ruby's `String#to_i`: parses a leading integer prefix, 0 when there is none.
@@ -182,7 +231,12 @@ fn ruby_to_f(s: &str) -> f64 {
     trimmed[..end].parse().unwrap_or(0.0)
 }
 
-pub fn emit_value_object(exemplar: &Exemplar, vo: &Json, value_objects_by_name: &HashMap<String, &Json>, aggregates_by_name: &HashMap<String, &Json>) -> String {
+pub fn emit_value_object(
+    exemplar: &Exemplar,
+    vo: &Json,
+    value_objects_by_name: &HashMap<String, &Json>,
+    aggregates_by_name: &HashMap<String, &Json>,
+) -> String {
     let name = naming::rust_ident(vo.get("name").and_then(Json::as_str).unwrap_or(""));
     let closed_set = vo.get("closed_set").map(Json::as_bool).unwrap_or(false);
     let attributes = vo.get("attributes").map(Json::each).unwrap_or(&[]);
@@ -202,9 +256,21 @@ pub fn emit_value_object(exemplar: &Exemplar, vo: &Json, value_objects_by_name: 
                 naming::closed_set_variant(&value)
             })
             .collect();
-        let field_subs_list: Vec<Vec<(&str, String)>> = variants.iter().map(|v| vec![("TmplMemberA", v.clone())]).collect();
-        let enum_part = exemplar.compose("closed_set_enum", &[("TmplKind", name)], "closed_set_enum:VARIANT", &field_subs_list, "\n");
-        return format!("{enum_part}\n\n{}", naming::emit_closed_set_fielded_impl(vo));
+        let field_subs_list: Vec<Vec<(&str, String)>> = variants
+            .iter()
+            .map(|v| vec![("TmplMemberA", v.clone())])
+            .collect();
+        let enum_part = exemplar.compose(
+            "closed_set_enum",
+            &[("TmplKind", name)],
+            "closed_set_enum:VARIANT",
+            &field_subs_list,
+            "\n",
+        );
+        return format!(
+            "{enum_part}\n\n{}",
+            naming::emit_closed_set_fielded_impl(vo)
+        );
     }
 
     let field_subs_list: Vec<Vec<(&str, String)>> = attributes
@@ -214,24 +280,49 @@ pub fn emit_value_object(exemplar: &Exemplar, vo: &Json, value_objects_by_name: 
             if crate::attr::optional(attr) {
                 ty = format!("Option<{ty}>");
             }
-            vec![("TmplFieldType", ty), ("tmpl_field", naming::rust_ident_field(crate::attr::name(attr)))]
+            vec![
+                ("TmplFieldType", ty),
+                (
+                    "tmpl_field",
+                    naming::rust_ident_field(crate::attr::name(attr)),
+                ),
+            ]
         })
         .collect();
-    let struct_part = exemplar.compose("plain_struct", &[("TmplType", name.clone())], "struct_field", &field_subs_list, "\n");
+    let struct_part = exemplar.compose(
+        "plain_struct",
+        &[("TmplType", name.clone())],
+        "struct_field",
+        &field_subs_list,
+        "\n",
+    );
 
-    let fielded_part = fielded::emit_fielded_flat(exemplar, &name, attributes, value_objects_by_name, &[]);
-    let invariants_part = emit_check_invariants(exemplar, vo, value_objects_by_name, aggregates_by_name);
+    let fielded_part =
+        fielded::emit_fielded_flat(exemplar, &name, attributes, value_objects_by_name, &[]);
+    let invariants_part =
+        emit_check_invariants(exemplar, vo, value_objects_by_name, aggregates_by_name);
 
     format!("{struct_part}\n\n{fielded_part}\n\n{invariants_part}")
 }
 
 /// Attribute type names on `aggregate` that have no Rust mapping.
-pub fn unsupported_attribute_types(aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Vec<String> {
-    let entity_names: Vec<&str> = aggregate.get("entities").map(Json::each).unwrap_or(&[]).iter().map(|e| e.get("name").and_then(Json::as_str).unwrap_or("")).collect();
+pub fn unsupported_attribute_types(
+    aggregate: &Json,
+    value_objects_by_name: &HashMap<String, &Json>,
+) -> Vec<String> {
+    let entity_names: Vec<&str> = aggregate
+        .get("entities")
+        .map(Json::each)
+        .unwrap_or(&[])
+        .iter()
+        .map(|e| e.get("name").and_then(Json::as_str).unwrap_or(""))
+        .collect();
     let mut seen = Vec::new();
     for attr in aggregate.get("attributes").map(Json::each).unwrap_or(&[]) {
         let ty = crate::attr::type_name(attr);
-        let supported = naming::effective_scalar_type(ty).is_some() || value_objects_by_name.contains_key(ty) || (crate::attr::list(attr) && entity_names.contains(&ty));
+        let supported = naming::effective_scalar_type(ty).is_some()
+            || value_objects_by_name.contains_key(ty)
+            || (crate::attr::list(attr) && entity_names.contains(&ty));
         if !supported && !seen.iter().any(|s| s == ty) {
             seen.push(ty.to_string());
         }
@@ -239,7 +330,11 @@ pub fn unsupported_attribute_types(aggregate: &Json, value_objects_by_name: &Has
     seen
 }
 
-pub fn emit_entity(exemplar: &Exemplar, entity: &Json, value_objects_by_name: &HashMap<String, &Json>) -> String {
+pub fn emit_entity(
+    exemplar: &Exemplar,
+    entity: &Json,
+    value_objects_by_name: &HashMap<String, &Json>,
+) -> String {
     let name = naming::rust_ident(entity.get("name").and_then(Json::as_str).unwrap_or(""));
     let attributes = entity.get("attributes").map(Json::each).unwrap_or(&[]);
 
@@ -250,25 +345,52 @@ pub fn emit_entity(exemplar: &Exemplar, entity: &Json, value_objects_by_name: &H
             if crate::attr::optional(attr) {
                 ty = format!("Option<{ty}>");
             }
-            vec![("TmplFieldType", ty), ("tmpl_field", naming::rust_ident_field(crate::attr::name(attr)))]
+            vec![
+                ("TmplFieldType", ty),
+                (
+                    "tmpl_field",
+                    naming::rust_ident_field(crate::attr::name(attr)),
+                ),
+            ]
         })
         .collect();
 
     let mut lifecycle_arm: Vec<String> = Vec::new();
     if let Some(lifecycle) = entity.get("lifecycle") {
         let field = lifecycle.get("field").and_then(Json::as_str).unwrap_or("");
-        field_subs_list.push(vec![("TmplFieldType", "String".to_string()), ("tmpl_field", naming::rust_ident_field(field))]);
+        field_subs_list.push(vec![
+            ("TmplFieldType", "String".to_string()),
+            ("tmpl_field", naming::rust_ident_field(field)),
+        ]);
         let ident = naming::rust_ident_field(field);
-        lifecycle_arm.push(format!("            \"{field}\" => Some(Field::Value(Value::Str(self.{ident}.clone()))),"));
+        lifecycle_arm.push(format!(
+            "            \"{field}\" => Some(Field::Value(Value::Str(self.{ident}.clone()))),"
+        ));
     }
 
-    let struct_part = exemplar.compose("plain_struct", &[("TmplType", name.clone())], "struct_field", &field_subs_list, "\n");
-    let fielded_part = fielded::emit_fielded_flat(exemplar, &name, attributes, value_objects_by_name, &lifecycle_arm);
+    let struct_part = exemplar.compose(
+        "plain_struct",
+        &[("TmplType", name.clone())],
+        "struct_field",
+        &field_subs_list,
+        "\n",
+    );
+    let fielded_part = fielded::emit_fielded_flat(
+        exemplar,
+        &name,
+        attributes,
+        value_objects_by_name,
+        &lifecycle_arm,
+    );
 
     format!("{struct_part}\n\n{fielded_part}")
 }
 
-pub fn emit_record(exemplar: &Exemplar, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>) -> String {
+pub fn emit_record(
+    exemplar: &Exemplar,
+    aggregate: &Json,
+    value_objects_by_name: &HashMap<String, &Json>,
+) -> String {
     let name = naming::rust_ident(aggregate.get("name").and_then(Json::as_str).unwrap_or(""));
     let attributes = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
 
@@ -277,22 +399,46 @@ pub fn emit_record(exemplar: &Exemplar, aggregate: &Json, value_objects_by_name:
         .map(|attr| {
             let list = crate::attr::list(attr);
             let mut ty = naming::rust_type(crate::attr::type_name(attr), list);
-            if !list || crate::shared::list_attr_creation_optional(aggregate, crate::attr::name(attr), value_objects_by_name) {
+            if !list
+                || crate::shared::list_attr_creation_optional(
+                    aggregate,
+                    crate::attr::name(attr),
+                    value_objects_by_name,
+                )
+            {
                 ty = format!("Option<{ty}>");
             }
-            vec![("TmplFieldType", ty), ("tmpl_field", naming::rust_ident_field(crate::attr::name(attr)))]
+            vec![
+                ("TmplFieldType", ty),
+                (
+                    "tmpl_field",
+                    naming::rust_ident_field(crate::attr::name(attr)),
+                ),
+            ]
         })
         .collect();
 
     if let Some(lifecycle) = aggregate.get("lifecycle") {
         let field = lifecycle.get("field").and_then(Json::as_str).unwrap_or("");
-        field_subs_list.push(vec![("TmplFieldType", "String".to_string()), ("tmpl_field", naming::rust_ident_field(field))]);
+        field_subs_list.push(vec![
+            ("TmplFieldType", "String".to_string()),
+            ("tmpl_field", naming::rust_ident_field(field)),
+        ]);
     }
     for ev in crate::bridging::correctable_event_names(aggregate) {
-        field_subs_list.push(vec![("TmplFieldType", "bool".to_string()), ("tmpl_field", crate::bridging::corrects_flag_field(&ev))]);
+        field_subs_list.push(vec![
+            ("TmplFieldType", "bool".to_string()),
+            ("tmpl_field", crate::bridging::corrects_flag_field(&ev)),
+        ]);
     }
 
-    let struct_part = exemplar.compose("plain_struct", &[("TmplType", name)], "struct_field", &field_subs_list, "\n");
+    let struct_part = exemplar.compose(
+        "plain_struct",
+        &[("TmplType", name)],
+        "struct_field",
+        &field_subs_list,
+        "\n",
+    );
     let fielded_part = fielded::emit_fielded_record(exemplar, aggregate, value_objects_by_name);
 
     format!("{struct_part}\n\n{fielded_part}")
@@ -309,7 +455,10 @@ pub fn with_resolved_projection_types(ir: &Json) -> Json {
         return resolved;
     };
     for (aggregate, original) in list.iter_mut().zip(aggregates.iter()) {
-        let Some(fields) = aggregate.get_mut("projected_fields").and_then(Json::as_array_mut) else {
+        let Some(fields) = aggregate
+            .get_mut("projected_fields")
+            .and_then(Json::as_array_mut)
+        else {
             continue;
         };
         for field in fields.iter_mut() {
@@ -325,7 +474,10 @@ const PROJECTION_CHAIN_LIMIT: usize = 8;
 // The scalar type a projection of `field` copies, following a chain of projections.
 fn projected_scalar_type(aggregates: &[Json], owner: &Json, field: &Json, depth: usize) -> String {
     let reference = field.get("reference").and_then(Json::as_str).unwrap_or("");
-    let remote = field.get("remote_field").and_then(Json::as_str).unwrap_or("");
+    let remote = field
+        .get("remote_field")
+        .and_then(Json::as_str)
+        .unwrap_or("");
     let target = owner
         .get("attributes")
         .map(Json::each)
@@ -333,18 +485,36 @@ fn projected_scalar_type(aggregates: &[Json], owner: &Json, field: &Json, depth:
         .iter()
         .find(|a| crate::attr::name(a) == reference)
         .and_then(|a| naming::reference_target(crate::attr::type_name(a)))
-        .and_then(|name| aggregates.iter().find(|a| a.get("name").and_then(Json::as_str) == Some(name)));
-    target.map(|t| remote_scalar_type(aggregates, t, remote, depth)).unwrap_or_else(|| "String".to_string())
+        .and_then(|name| {
+            aggregates
+                .iter()
+                .find(|a| a.get("name").and_then(Json::as_str) == Some(name))
+        });
+    target
+        .map(|t| remote_scalar_type(aggregates, t, remote, depth))
+        .unwrap_or_else(|| "String".to_string())
 }
 
 fn remote_scalar_type(aggregates: &[Json], target: &Json, remote: &str, depth: usize) -> String {
-    let declared = target.get("attributes").map(Json::each).unwrap_or(&[]).iter().find(|a| crate::attr::name(a) == remote);
+    let declared = target
+        .get("attributes")
+        .map(Json::each)
+        .unwrap_or(&[])
+        .iter()
+        .find(|a| crate::attr::name(a) == remote);
     if let Some(attr) = declared {
         return unwrapped_scalar_type(target, crate::attr::type_name(attr));
     }
-    let chained = target.get("projected_fields").map(Json::each).unwrap_or(&[]).iter().find(|f| f.get("name").and_then(Json::as_str) == Some(remote));
+    let chained = target
+        .get("projected_fields")
+        .map(Json::each)
+        .unwrap_or(&[])
+        .iter()
+        .find(|f| f.get("name").and_then(Json::as_str) == Some(remote));
     match chained {
-        Some(next) if depth < PROJECTION_CHAIN_LIMIT => projected_scalar_type(aggregates, target, next, depth + 1),
+        Some(next) if depth < PROJECTION_CHAIN_LIMIT => {
+            projected_scalar_type(aggregates, target, next, depth + 1)
+        }
         _ => "String".to_string(),
     }
 }
@@ -361,8 +531,14 @@ fn unwrapped_scalar_type(aggregate: &Json, type_name: &str) -> String {
         .filter(|attrs| attrs.len() == 1 && !crate::attr::list(&attrs[0]))
         .map(|attrs| crate::attr::type_name(&attrs[0]).to_string());
     let resolved = sole.unwrap_or_else(|| type_name.to_string());
-    let resolved = if resolved == "Boolean" { "TrueClass".to_string() } else { resolved };
-    naming::effective_scalar_type(&resolved).unwrap_or("String").to_string()
+    let resolved = if resolved == "Boolean" {
+        "TrueClass".to_string()
+    } else {
+        resolved
+    };
+    naming::effective_scalar_type(&resolved)
+        .unwrap_or("String")
+        .to_string()
 }
 
 // The `Value` reader a generated setter narrows with, by scalar type.
@@ -383,8 +559,16 @@ pub fn projected_field_pseudo_attributes(aggregate: &Json) -> Vec<Json> {
         .unwrap_or(&[])
         .iter()
         .map(|field| {
-            let name = field.get("name").and_then(Json::as_str).unwrap_or("").to_string();
-            let scalar = field.get("type").and_then(Json::as_str).unwrap_or("String").to_string();
+            let name = field
+                .get("name")
+                .and_then(Json::as_str)
+                .unwrap_or("")
+                .to_string();
+            let scalar = field
+                .get("type")
+                .and_then(Json::as_str)
+                .unwrap_or("String")
+                .to_string();
             Json::Object(vec![
                 ("name".to_string(), Json::String(name)),
                 ("type".to_string(), Json::String(scalar)),
@@ -398,10 +582,18 @@ pub fn projected_field_pseudo_attributes(aggregate: &Json) -> Vec<Json> {
 /// Copy of `aggregate` whose `attributes` also list the projected-field pseudo-attributes, so
 /// `emit_record` and `emit_fielded_record` see them (`domain_generator.rb#record_for_struct`).
 pub fn with_projected_field_pseudo_attributes(aggregate: &Json) -> Json {
-    let mut attributes: Vec<Json> = aggregate.get("attributes").map(Json::each).unwrap_or(&[]).to_vec();
+    let mut attributes: Vec<Json> = aggregate
+        .get("attributes")
+        .map(Json::each)
+        .unwrap_or(&[])
+        .to_vec();
     attributes.extend(projected_field_pseudo_attributes(aggregate));
     let mut pairs: Vec<(String, Json)> = match aggregate {
-        Json::Object(pairs) => pairs.iter().filter(|(k, _)| k != "attributes").cloned().collect(),
+        Json::Object(pairs) => pairs
+            .iter()
+            .filter(|(k, _)| k != "attributes")
+            .cloned()
+            .collect(),
         _ => Vec::new(),
     };
     pairs.push(("attributes".to_string(), Json::Array(attributes)));
@@ -419,8 +611,14 @@ pub fn emit_set_projected_field(aggregate: &Json) -> String {
         .map(|field| {
             let field_name = field.get("name").and_then(Json::as_str).unwrap_or("");
             let ident = naming::rust_ident_field(field_name);
-            let reader = projection_reader(field.get("type").and_then(Json::as_str).unwrap_or("String"));
-            format!("            {} => self.{} = value.and_then(crate::kernel::Value::{}),", naming::ruby_inspect_string(field_name), ident, reader)
+            let reader =
+                projection_reader(field.get("type").and_then(Json::as_str).unwrap_or("String"));
+            format!(
+                "            {} => self.{} = value.and_then(crate::kernel::Value::{}),",
+                naming::ruby_inspect_string(field_name),
+                ident,
+                reader
+            )
         })
         .collect();
     format!(
@@ -449,7 +647,10 @@ pub fn emit_projected_field_table(aggregate: &Json) -> String {
             )
         })
         .collect();
-    format!("pub static {name}_PROJECTED_FIELDS: &[crate::kernel::ProjectedFieldSpec] = &[\n{}\n];\n", rows.join("\n"))
+    format!(
+        "pub static {name}_PROJECTED_FIELDS: &[crate::kernel::ProjectedFieldSpec] = &[\n{}\n];\n",
+        rows.join("\n")
+    )
 }
 
 #[cfg(test)]
@@ -488,8 +689,18 @@ mod tests {
         let attributes = vo.get("attributes").map(Json::each).unwrap_or(&[]);
         let by_name = HashMap::new();
         let exemplar = Exemplar::load();
-        let from_json = crate::json_codec::emit_from_json_flat(&exemplar, "Entry", attributes, &by_name, None, None, false, false, None);
-        let to_json = crate::json_codec::emit_to_json_flat(&exemplar, "Entry", attributes, &by_name, false, &[], None);
+        let from_json = crate::json_codec::emit_from_json_flat(
+            &exemplar, "Entry", attributes, &by_name, None, None, false, false, None,
+        );
+        let to_json = crate::json_codec::emit_to_json_flat(
+            &exemplar,
+            "Entry",
+            attributes,
+            &by_name,
+            false,
+            &[],
+            None,
+        );
 
         assert!(from_json.contains("x.as_bool()"));
         assert!(!from_json.contains("TrueClass::from_json"));
@@ -510,12 +721,20 @@ mod tests {
     }
 
     fn resolved_booking() -> Json {
-        with_resolved_projection_types(&event_and_booking()).get("aggregates").map(Json::each).unwrap_or(&[])[1].clone()
+        with_resolved_projection_types(&event_and_booking())
+            .get("aggregates")
+            .map(Json::each)
+            .unwrap_or(&[])[1]
+            .clone()
     }
 
     #[test]
     fn a_projection_through_a_single_field_value_object_takes_its_scalar_type() {
-        let field = resolved_booking().get("projected_fields").map(Json::each).unwrap_or(&[])[0].clone();
+        let field = resolved_booking()
+            .get("projected_fields")
+            .map(Json::each)
+            .unwrap_or(&[])[0]
+            .clone();
 
         assert_eq!(field.get("type").and_then(Json::as_str), Some("Integer"));
     }
@@ -531,7 +750,9 @@ mod tests {
     fn the_projected_setter_narrows_with_the_remote_types_reader() {
         let setter = emit_set_projected_field(&resolved_booking());
 
-        assert!(setter.contains("\"starts_at\" => self.starts_at = value.and_then(crate::kernel::Value::into_i64),"));
+        assert!(setter.contains(
+            "\"starts_at\" => self.starts_at = value.and_then(crate::kernel::Value::into_i64),"
+        ));
     }
 
     /// A value object holding a required and an optional value object, and a required and an
@@ -555,11 +776,22 @@ mod tests {
     fn a_nested_value_object_checks_its_invariants_only_when_it_is_present() {
         let note = Json::parse(r#"{"name":"Note","attributes":[{"name":"text","type":"String","list":false,"optional":false}]}"#).unwrap();
         let by_name: HashMap<String, &Json> = HashMap::from([("Note".to_string(), &note)]);
-        let generated = emit_check_invariants(&Exemplar::load(), &holder_value_object(), &by_name, &HashMap::new());
+        let generated = emit_check_invariants(
+            &Exemplar::load(),
+            &holder_value_object(),
+            &by_name,
+            &HashMap::new(),
+        );
 
         assert!(generated.contains("self.required_note.check_invariants()?;"));
-        assert!(generated.contains("if let Some(value) = &self.note { value.check_invariants()?; }"));
-        assert!(generated.contains("for item in &self.required_notes { item.check_invariants()?; }"));
-        assert!(generated.contains("if let Some(items) = &self.notes { for item in items { item.check_invariants()?; } }"));
+        assert!(
+            generated.contains("if let Some(value) = &self.note { value.check_invariants()?; }")
+        );
+        assert!(
+            generated.contains("for item in &self.required_notes { item.check_invariants()?; }")
+        );
+        assert!(generated.contains(
+            "if let Some(items) = &self.notes { for item in items { item.check_invariants()?; } }"
+        ));
     }
 }

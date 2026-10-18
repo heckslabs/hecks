@@ -17,7 +17,10 @@ pub fn ir() -> Option<&'static Value> {
 /// Aggregates bound to a lineage-capable adapter, as `(qualified_name,
 /// storage_name)` — read from `ir.json`'s own `lineage` key.
 pub fn lineage_capable_aggregates(domain_ir: &Value) -> Vec<(String, String)> {
-    let domain_name = domain_ir.get("name").and_then(|v| v.as_str()).unwrap_or_default();
+    let domain_name = domain_ir
+        .get("name")
+        .and_then(|v| v.as_str())
+        .unwrap_or_default();
     domain_ir
         .get("lineage")
         .and_then(|l| l.get("capable_aggregates"))
@@ -91,8 +94,10 @@ pub struct MembershipProvider {
 /// Aggregates whose mutations mirror into their era head: the lineage-capable
 /// ones plus the membership aggregate, which is not itself lineage-capable.
 pub fn mirrored_aggregates(domain_ir: &Value) -> std::collections::BTreeSet<String> {
-    let mut mirrored: std::collections::BTreeSet<String> =
-        lineage_capable_aggregates(domain_ir).into_iter().map(|(qualified, _)| qualified).collect();
+    let mut mirrored: std::collections::BTreeSet<String> = lineage_capable_aggregates(domain_ir)
+        .into_iter()
+        .map(|(qualified, _)| qualified)
+        .collect();
     if let Some(membership) = membership_provider(domain_ir) {
         mirrored.insert(membership.aggregate);
     }
@@ -175,8 +180,10 @@ mod tests {
             "lineage": { "capable_aggregates": [{ "name": "Order", "storage_name": "order" }] },
             "membership": { "provider": "Membership", "aggregate": "Membership::Person" }
         });
-        let expected: std::collections::BTreeSet<String> =
-            ["Shop::Order", "Membership::Person"].into_iter().map(String::from).collect();
+        let expected: std::collections::BTreeSet<String> = ["Shop::Order", "Membership::Person"]
+            .into_iter()
+            .map(String::from)
+            .collect();
         assert_eq!(mirrored_aggregates(&ir), expected);
     }
 
@@ -186,7 +193,8 @@ mod tests {
             "name": "Shop",
             "lineage": { "capable_aggregates": [{ "name": "Order", "storage_name": "order" }] }
         });
-        let expected: std::collections::BTreeSet<String> = ["Shop::Order"].into_iter().map(String::from).collect();
+        let expected: std::collections::BTreeSet<String> =
+            ["Shop::Order"].into_iter().map(String::from).collect();
         assert_eq!(mirrored_aggregates(&ir), expected);
         assert!(mirrored_aggregates(&serde_json::json!({ "name": "Banking" })).is_empty());
     }
@@ -194,7 +202,10 @@ mod tests {
     #[test]
     fn lineage_capable_aggregates_is_empty_for_a_domain_with_no_lineage_key() {
         let ir = serde_json::json!({ "name": "Banking" });
-        assert_eq!(lineage_capable_aggregates(&ir), Vec::<(String, String)>::new());
+        assert_eq!(
+            lineage_capable_aggregates(&ir),
+            Vec::<(String, String)>::new()
+        );
     }
 
     #[test]
@@ -241,8 +252,14 @@ mod tests {
             ] }
         });
         let err = refuse_unsupported_persistence_adapters(&ir).unwrap_err();
-        assert!(err.contains("Account"), "error should name the offending aggregate: {err}");
-        assert!(err.contains("Heki"), "error should name the unsupported adapter: {err}");
+        assert!(
+            err.contains("Account"),
+            "error should name the offending aggregate: {err}"
+        );
+        assert!(
+            err.contains("Heki"),
+            "error should name the unsupported adapter: {err}"
+        );
     }
 
     #[test]
@@ -275,7 +292,6 @@ mod tests {
         assert_eq!(provider.resolve, "Identity::ExternalIdentifier.ResolvedBy");
         assert!(identity_provider(&serde_json::json!({ "name": "Pizzas" })).is_none());
     }
-
 
     #[test]
     fn refuse_unsupported_persistence_adapters_passes_a_domain_with_no_persistence_key() {

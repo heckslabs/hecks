@@ -10,12 +10,24 @@ struct Bus {
 
 impl AggregateScan for Bus {
     fn scan(&self, aggregate: &str) -> Option<Vec<(String, Json)>> {
-        (aggregate == "D::Order").then(|| vec![("o1".to_string(), Json::obj(vec![])), ("o2".to_string(), Json::obj(vec![]))])
+        (aggregate == "D::Order").then(|| {
+            vec![
+                ("o1".to_string(), Json::obj(vec![])),
+                ("o2".to_string(), Json::obj(vec![])),
+            ]
+        })
     }
 }
 
 fn event(name: &str, aggregate: &str, id: &str, payload: Json) -> Event {
-    Event { name: name.to_string(), aggregate: aggregate.to_string(), id: id.to_string(), payload, occurred_at: None, correlation: None }
+    Event {
+        name: name.to_string(),
+        aggregate: aggregate.to_string(),
+        id: id.to_string(),
+        payload,
+        occurred_at: None,
+        correlation: None,
+    }
 }
 
 // `D::Xfer.<Name>` emits an event called `<Name>` correlated on `ref: x1`; a verb ending in
@@ -33,10 +45,20 @@ fn script(
         return Err(Refusal::GivenNotMet("refused".to_string()));
     }
     if let Some(name) = verb.strip_prefix("D::Xfer.") {
-        return Ok(vec![event(name, "D::Xfer", "x1", Json::obj(vec![("ref", Json::str("x1"))]))]);
+        return Ok(vec![event(
+            name,
+            "D::Xfer",
+            "x1",
+            Json::obj(vec![("ref", Json::str("x1"))]),
+        )]);
     }
     match verb {
-        "D::Order.Place" => Ok(vec![event("Placed", "D::Order", "o1", Json::obj(vec![("amount", Json::int(5))]))]),
+        "D::Order.Place" => Ok(vec![event(
+            "Placed",
+            "D::Order",
+            "o1",
+            Json::obj(vec![("amount", Json::int(5))]),
+        )]),
         "D::Order.Ping" => Ok(vec![event("Ping", "D::Order", "o1", Json::obj(vec![]))]),
         _ => Ok(vec![]),
     }
@@ -65,26 +87,64 @@ const fn policy(name: &'static str, event_name: &'static str, target: &'static s
 }
 
 const fn cross(name: &'static str, event_name: &'static str) -> CrossDomainPolicyRule {
-    CrossDomainPolicyRule { policy_name: name, event_name, event_qualifier: None, where_expr: None, target_domain: "Other", target_verb: "Other::Do" }
+    CrossDomainPolicyRule {
+        policy_name: name,
+        event_name,
+        event_qualifier: None,
+        where_expr: None,
+        target_domain: "Other",
+        target_verb: "Other::Do",
+    }
 }
 
 static POLICIES: [PolicyRule; 8] = [
     policy("NotifyOnPlaced", "Placed", "D::Order.Notify"),
-    PolicyRule { event_qualifier: Some("Other"), ..policy("QualWrong", "Qual", "D::Order.Wrong") },
-    PolicyRule { event_qualifier: Some("Order"), ..policy("QualRight", "Qual", "D::Order.Right") },
-    PolicyRule { where_expr: Some(off), ..policy("GuardedOff", "Guard", "D::Order.Off") },
-    PolicyRule { where_expr: Some(on), ..policy("GuardedOn", "Guard", "D::Order.On") },
+    PolicyRule {
+        event_qualifier: Some("Other"),
+        ..policy("QualWrong", "Qual", "D::Order.Wrong")
+    },
+    PolicyRule {
+        event_qualifier: Some("Order"),
+        ..policy("QualRight", "Qual", "D::Order.Right")
+    },
+    PolicyRule {
+        where_expr: Some(off),
+        ..policy("GuardedOff", "Guard", "D::Order.Off")
+    },
+    PolicyRule {
+        where_expr: Some(on),
+        ..policy("GuardedOn", "Guard", "D::Order.On")
+    },
     policy("Pinger", "Ping", "D::Order.Ping"),
-    PolicyRule { for_each: Some("D::Order.Open"), for_each_key: Some("order_id"), ..policy("FanPing", "Fan", "D::Order.Ping") },
-    PolicyRule { for_each: Some("D::Order.Missing"), ..policy("FanMissing", "FanMissing", "D::Order.Ping") },
+    PolicyRule {
+        for_each: Some("D::Order.Open"),
+        for_each_key: Some("order_id"),
+        ..policy("FanPing", "Fan", "D::Order.Ping")
+    },
+    PolicyRule {
+        for_each: Some("D::Order.Missing"),
+        ..policy("FanMissing", "FanMissing", "D::Order.Ping")
+    },
 ];
 
 static CROSS_POLICIES: [CrossDomainPolicyRule; 5] = [
     cross("XPlain", "XEvt"),
-    CrossDomainPolicyRule { event_qualifier: Some("Nope"), ..cross("XQualWrong", "XQual") },
-    CrossDomainPolicyRule { event_qualifier: Some("Order"), ..cross("XQualRight", "XQual") },
-    CrossDomainPolicyRule { where_expr: Some(off), ..cross("XWhereOff", "XGuard") },
-    CrossDomainPolicyRule { where_expr: Some(on), ..cross("XWhereOn", "XGuard") },
+    CrossDomainPolicyRule {
+        event_qualifier: Some("Nope"),
+        ..cross("XQualWrong", "XQual")
+    },
+    CrossDomainPolicyRule {
+        event_qualifier: Some("Order"),
+        ..cross("XQualRight", "XQual")
+    },
+    CrossDomainPolicyRule {
+        where_expr: Some(off),
+        ..cross("XWhereOff", "XGuard")
+    },
+    CrossDomainPolicyRule {
+        where_expr: Some(on),
+        ..cross("XWhereOn", "XGuard")
+    },
 ];
 
 static QUERIES: [crate::kernel::QueryDef; 1] = [crate::kernel::QueryDef {
@@ -98,9 +158,17 @@ static QUERIES: [crate::kernel::QueryDef; 1] = [crate::kernel::QueryDef {
     authorization: None,
 }];
 
-static UNDO: DispatchSpec = DispatchSpec { command_name: "Ship.Undo", with: &[("ref", WithValue::Ref("ref"))], compensates: None };
+static UNDO: DispatchSpec = DispatchSpec {
+    command_name: "Ship.Undo",
+    with: &[("ref", WithValue::Ref("ref"))],
+    compensates: None,
+};
 
-static PING_SPEC: DispatchSpec = DispatchSpec { command_name: "Order.Ping", with: &[], compensates: None };
+static PING_SPEC: DispatchSpec = DispatchSpec {
+    command_name: "Order.Ping",
+    with: &[],
+    compensates: None,
+};
 
 static PROCESS_MANAGERS: [ProcessManagerDef; 3] = [
     ProcessManagerDef {
@@ -113,7 +181,11 @@ static PROCESS_MANAGERS: [ProcessManagerDef; 3] = [
             event_type: "Funded",
             from_state: "start",
             to_state: "mid",
-            dispatches: &[DispatchSpec { command_name: "Ship.Go", with: &[("ref", WithValue::Ref("ref"))], compensates: Some(&UNDO) }],
+            dispatches: &[DispatchSpec {
+                command_name: "Ship.Go",
+                with: &[("ref", WithValue::Ref("ref"))],
+                compensates: Some(&UNDO),
+            }],
         }],
     },
     ProcessManagerDef {
@@ -128,11 +200,24 @@ static PROCESS_MANAGERS: [ProcessManagerDef; 3] = [
                 from_state: "start",
                 to_state: "mid",
                 dispatches: &[
-                    DispatchSpec { command_name: "Ship.Go", with: &[("ref", WithValue::Ref("ref"))], compensates: Some(&UNDO) },
-                    DispatchSpec { command_name: "Ship.Refuse", with: &[("ref", WithValue::Ref("ref"))], compensates: None },
+                    DispatchSpec {
+                        command_name: "Ship.Go",
+                        with: &[("ref", WithValue::Ref("ref"))],
+                        compensates: Some(&UNDO),
+                    },
+                    DispatchSpec {
+                        command_name: "Ship.Refuse",
+                        with: &[("ref", WithValue::Ref("ref"))],
+                        compensates: None,
+                    },
                 ],
             },
-            Handler { event_type: REFUSED, from_state: "mid", to_state: "undone", dispatches: &[] },
+            Handler {
+                event_type: REFUSED,
+                from_state: "mid",
+                to_state: "undone",
+                dispatches: &[],
+            },
         ],
     },
     ProcessManagerDef {
@@ -145,7 +230,11 @@ static PROCESS_MANAGERS: [ProcessManagerDef; 3] = [
             event_type: "PlainFunded",
             from_state: "start",
             to_state: "mid",
-            dispatches: &[DispatchSpec { command_name: "Ship.Refuse", with: &[("ref", WithValue::Ref("ref"))], compensates: None }],
+            dispatches: &[DispatchSpec {
+                command_name: "Ship.Refuse",
+                with: &[("ref", WithValue::Ref("ref"))],
+                compensates: None,
+            }],
         }],
     },
 ];
@@ -160,7 +249,9 @@ fn identity_head(aggregate: &str) -> Option<&'static str> {
     (aggregate == "D::Order").then_some("order_id")
 }
 fn declared(_verb: &str) -> &'static [&'static str] {
-    &["amount", "note", "tag", "order_id", "reason", "ref", "line_id", "to", "with"]
+    &[
+        "amount", "note", "tag", "order_id", "reason", "ref", "line_id", "to", "with",
+    ]
 }
 fn entity_head(qualified: &str) -> Option<&'static str> {
     (qualified == "D::Order.Line").then_some("line_id")
@@ -242,7 +333,11 @@ impl World {
     }
 
     fn verbs(&self) -> Vec<&str> {
-        self.bus.calls.iter().map(|(verb, _)| verb.as_str()).collect()
+        self.bus
+            .calls
+            .iter()
+            .map(|(verb, _)| verb.as_str())
+            .collect()
     }
 
     fn deliver_saga(&mut self, depth: usize) -> Option<bool> {
@@ -269,7 +364,10 @@ impl World {
     }
 
     fn deliver_compensation(&mut self, depth: usize) {
-        let entry = CompletedCompensation { command_name: "Order.Ping".to_string(), args: Json::obj(vec![]) };
+        let entry = CompletedCompensation {
+            command_name: "Order.Ping".to_string(),
+            args: Json::obj(vec![]),
+        };
         deliver_derived_compensation(
             &mut self.bus,
             script,
@@ -291,7 +389,14 @@ impl World {
 }
 
 fn reaction(entry: &Json) -> (String, bool) {
-    (entry.get("policy").and_then(Json::as_str).unwrap().to_string(), matches!(entry.get("delivered"), Some(Json::Bool(true))))
+    (
+        entry
+            .get("policy")
+            .and_then(Json::as_str)
+            .unwrap()
+            .to_string(),
+        matches!(entry.get("delivered"), Some(Json::Bool(true))),
+    )
 }
 
 fn reason(entry: &Json) -> Option<&str> {
@@ -310,7 +415,10 @@ fn a_policy_answers_only_the_event_it_names() {
     w.react(&event("Unrelated", "D::Order", "o1", Json::obj(vec![])), 0);
 
     assert_eq!(w.verbs(), ["D::Order.Notify"]);
-    assert_eq!(w.reaction_log.iter().map(reaction).collect::<Vec<_>>(), [("NotifyOnPlaced".to_string(), true)]);
+    assert_eq!(
+        w.reaction_log.iter().map(reaction).collect::<Vec<_>>(),
+        [("NotifyOnPlaced".to_string(), true)]
+    );
 }
 
 #[test]
@@ -319,7 +427,11 @@ fn a_policy_with_an_event_qualifier_fires_only_for_that_emitting_aggregate() {
 
     w.react(&event("Qual", "D::Order", "o1", Json::obj(vec![])), 0);
 
-    assert_eq!(w.verbs(), ["D::Order.Right"], "the qualifier `Other` skips, `Order` fires");
+    assert_eq!(
+        w.verbs(),
+        ["D::Order.Right"],
+        "the qualifier `Other` skips, `Order` fires"
+    );
 }
 
 #[test]
@@ -336,8 +448,18 @@ fn where_holds_reads_the_event_payload_and_defaults_to_true_with_no_clause() {
     fn go() -> Expr {
         Expr::Lookup("go")
     }
-    let yes = event("E", "D::Order", "o1", Json::obj(vec![("go", Json::Bool(true))]));
-    let no = event("E", "D::Order", "o1", Json::obj(vec![("go", Json::Bool(false))]));
+    let yes = event(
+        "E",
+        "D::Order",
+        "o1",
+        Json::obj(vec![("go", Json::Bool(true))]),
+    );
+    let no = event(
+        "E",
+        "D::Order",
+        "o1",
+        Json::obj(vec![("go", Json::Bool(false))]),
+    );
 
     assert!(where_holds(None, &no));
     assert!(where_holds(Some(go), &yes));
@@ -349,14 +471,28 @@ fn where_holds_reads_the_event_payload_and_defaults_to_true_with_no_clause() {
 fn a_cross_domain_policy_is_recorded_for_the_host_never_dispatched() {
     let mut w = world();
 
-    w.react(&event("XEvt", "D::Order", "o1", Json::obj(vec![("k", Json::int(1))])), 0);
+    w.react(
+        &event(
+            "XEvt",
+            "D::Order",
+            "o1",
+            Json::obj(vec![("k", Json::int(1))]),
+        ),
+        0,
+    );
 
     assert!(w.bus.calls.is_empty());
     assert!(w.reaction_log.is_empty());
     assert_eq!(w.cross_domain.len(), 1);
     let pending = &w.cross_domain[0];
-    assert_eq!((pending.policy_name.as_str(), pending.event_name.as_str()), ("XPlain", "XEvt"));
-    assert_eq!((pending.target_domain.as_str(), pending.target_verb.as_str()), ("Other", "Other::Do"));
+    assert_eq!(
+        (pending.policy_name.as_str(), pending.event_name.as_str()),
+        ("XPlain", "XEvt")
+    );
+    assert_eq!(
+        (pending.target_domain.as_str(), pending.target_verb.as_str()),
+        ("Other", "Other::Do")
+    );
     assert_eq!(pending.payload, Json::obj(vec![("k", Json::int(1))]));
 }
 
@@ -364,11 +500,23 @@ fn a_cross_domain_policy_is_recorded_for_the_host_never_dispatched() {
 fn a_cross_domain_policy_honours_its_event_qualifier_and_where_clause() {
     let mut w = world();
     w.react(&event("XQual", "D::Order", "o1", Json::obj(vec![])), 0);
-    assert_eq!(w.cross_domain.iter().map(|p| p.policy_name.as_str()).collect::<Vec<_>>(), ["XQualRight"]);
+    assert_eq!(
+        w.cross_domain
+            .iter()
+            .map(|p| p.policy_name.as_str())
+            .collect::<Vec<_>>(),
+        ["XQualRight"]
+    );
 
     let mut w = world();
     w.react(&event("XGuard", "D::Order", "o1", Json::obj(vec![])), 0);
-    assert_eq!(w.cross_domain.iter().map(|p| p.policy_name.as_str()).collect::<Vec<_>>(), ["XWhereOn"]);
+    assert_eq!(
+        w.cross_domain
+            .iter()
+            .map(|p| p.policy_name.as_str())
+            .collect::<Vec<_>>(),
+        ["XWhereOn"]
+    );
 
     let mut w = world();
     w.react(&event("Nothing", "D::Order", "o1", Json::obj(vec![])), 0);
@@ -385,7 +533,11 @@ fn a_reaction_below_the_depth_ceiling_is_delivered_and_one_at_it_is_logged_undel
         w.react(&event("Placed", "D::Order", "o1", Json::obj(vec![])), depth);
 
         assert_eq!(w.verbs().len(), usize::from(delivers), "depth {depth}");
-        assert_eq!(w.reaction_log.iter().map(reaction).collect::<Vec<_>>(), [("NotifyOnPlaced".to_string(), delivers)], "depth {depth}");
+        assert_eq!(
+            w.reaction_log.iter().map(reaction).collect::<Vec<_>>(),
+            [("NotifyOnPlaced".to_string(), delivers)],
+            "depth {depth}"
+        );
         if !delivers {
             assert_eq!(reason(&w.reaction_log[0]), Some(DEPTH_REACHED));
         }
@@ -399,7 +551,11 @@ fn a_policy_that_re_triggers_itself_stops_after_five_dispatches() {
     w.orchestrate("D::Order.Ping", 0).unwrap();
 
     assert_eq!(w.verbs(), ["D::Order.Ping"; 5]);
-    let delivered: Vec<bool> = w.reaction_log.iter().map(|entry| reaction(entry).1).collect();
+    let delivered: Vec<bool> = w
+        .reaction_log
+        .iter()
+        .map(|entry| reaction(entry).1)
+        .collect();
     // The innermost reaction is logged first: the ceiling, then the four that delivered.
     assert_eq!(delivered, [false, true, true, true, true]);
     assert_eq!(reason(&w.reaction_log[0]), Some(DEPTH_REACHED));
@@ -413,11 +569,20 @@ fn a_fan_out_dispatches_once_per_row_with_the_row_id_under_the_declared_key_one_
 
     // Each row dispatches `Ping` at depth 4, whose own `Pinger` reaction is stopped there.
     assert_eq!(w.verbs(), ["D::Order.Ping", "D::Order.Ping"]);
-    assert_eq!(w.bus.calls[0].1, Json::obj(vec![("order_id", Json::str("o1"))]));
-    assert_eq!(w.bus.calls[1].1, Json::obj(vec![("order_id", Json::str("o2"))]));
+    assert_eq!(
+        w.bus.calls[0].1,
+        Json::obj(vec![("order_id", Json::str("o1"))])
+    );
+    assert_eq!(
+        w.bus.calls[1].1,
+        Json::obj(vec![("order_id", Json::str("o2"))])
+    );
     let log: Vec<(String, bool)> = w.reaction_log.iter().map(reaction).collect();
     assert_eq!(log.iter().filter(|(name, _)| name == "Pinger").count(), 2);
-    assert!(w.reaction_log.iter().any(|entry| entry.get("for_row").and_then(Json::as_str) == Some("o2")));
+    assert!(w
+        .reaction_log
+        .iter()
+        .any(|entry| entry.get("for_row").and_then(Json::as_str) == Some("o2")));
 }
 
 #[test]
@@ -427,7 +592,10 @@ fn a_fan_out_over_a_query_nothing_declares_logs_the_missing_query() {
     w.react(&event("FanMissing", "D::Order", "o1", Json::obj(vec![])), 0);
 
     assert!(w.bus.calls.is_empty());
-    assert_eq!(reason(&w.reaction_log[0]), Some("no query D::Order.Missing"));
+    assert_eq!(
+        reason(&w.reaction_log[0]),
+        Some("no query D::Order.Missing")
+    );
 }
 
 #[test]
@@ -459,7 +627,10 @@ fn a_derived_compensation_stopped_at_the_ceiling_is_logged_failed_and_never_disp
 
     assert!(w.bus.calls.is_empty());
     assert_eq!(reason(&w.saga_log[0]), Some(DEPTH_REACHED));
-    assert_eq!(w.saga_log[0].get("compensation_failed"), Some(&Json::Bool(true)));
+    assert_eq!(
+        w.saga_log[0].get("compensation_failed"),
+        Some(&Json::Bool(true))
+    );
 }
 
 #[test]
@@ -480,7 +651,11 @@ fn dispatch_log(w: &World) -> Vec<(String, bool, bool)> {
         .iter()
         .filter_map(|entry| {
             let dispatch = entry.get("dispatch")?.as_str()?.to_string();
-            Some((dispatch, matches!(entry.get("delivered"), Some(Json::Bool(true))), matches!(entry.get("compensation"), Some(Json::Bool(true)))))
+            Some((
+                dispatch,
+                matches!(entry.get("delivered"), Some(Json::Bool(true))),
+                matches!(entry.get("compensation"), Some(Json::Bool(true))),
+            ))
         })
         .collect()
 }
@@ -496,15 +671,24 @@ fn a_saga_is_born_advances_and_ends_on_its_declared_events() {
 
     w.orchestrate("D::Xfer.Funded", 0).unwrap();
     assert_eq!(w.sagas[&key].state, "mid");
-    assert_eq!(w.verbs(), ["D::Xfer.Started", "D::Xfer.Funded", "D::Ship.Go"]);
+    assert_eq!(
+        w.verbs(),
+        ["D::Xfer.Started", "D::Xfer.Funded", "D::Ship.Go"]
+    );
     assert_eq!(w.bus.calls[2].1, Json::obj(vec![("ref", Json::str("x1"))]));
     let ledger = &w.sagas[&key].completed_compensations;
     assert_eq!(ledger.len(), 1);
-    assert_eq!((ledger[0].command_name.as_str(), &ledger[0].args), ("Ship.Undo", &Json::obj(vec![("ref", Json::str("x1"))])));
+    assert_eq!(
+        (ledger[0].command_name.as_str(), &ledger[0].args),
+        ("Ship.Undo", &Json::obj(vec![("ref", Json::str("x1"))]))
+    );
 
     w.orchestrate("D::Xfer.Ended", 0).unwrap();
     assert!(w.sagas.is_empty());
-    assert_eq!(w.saga_log.last().unwrap().get("ended"), Some(&Json::Bool(true)));
+    assert_eq!(
+        w.saga_log.last().unwrap().get("ended"),
+        Some(&Json::Bool(true))
+    );
 }
 
 #[test]
@@ -515,14 +699,31 @@ fn a_leg_that_refuses_runs_the_refused_leg_and_fires_earlier_compensations() {
     w.orchestrate("D::Xfer.RiskyStarted", 0).unwrap();
     w.orchestrate("D::Xfer.RiskyFunded", 0).unwrap();
 
-    assert_eq!(w.verbs(), ["D::Xfer.RiskyStarted", "D::Xfer.RiskyFunded", "D::Ship.Go", "D::Ship.Refuse", "D::Ship.Undo"]);
+    assert_eq!(
+        w.verbs(),
+        [
+            "D::Xfer.RiskyStarted",
+            "D::Xfer.RiskyFunded",
+            "D::Ship.Go",
+            "D::Ship.Refuse",
+            "D::Ship.Undo"
+        ]
+    );
     assert_eq!(w.sagas[&key].state, "undone");
     assert!(w.sagas[&key].completed_compensations.is_empty());
     assert_eq!(
         dispatch_log(&w),
-        [("Ship.Go".to_string(), true, false), ("Ship.Refuse".to_string(), false, false), ("Ship.Undo".to_string(), true, true)]
+        [
+            ("Ship.Go".to_string(), true, false),
+            ("Ship.Refuse".to_string(), false, false),
+            ("Ship.Undo".to_string(), true, true)
+        ]
     );
-    assert!(w.saga_log.iter().any(|e| e.get("on").and_then(Json::as_str) == Some("refused") && e.get("advanced") == Some(&Json::Bool(true))));
+    assert!(w
+        .saga_log
+        .iter()
+        .any(|e| e.get("on").and_then(Json::as_str) == Some("refused")
+            && e.get("advanced") == Some(&Json::Bool(true))));
 }
 
 #[test]
@@ -533,9 +734,22 @@ fn a_refusal_in_a_saga_with_no_refused_leg_compensates_nothing_and_logs_nothing(
     w.orchestrate("D::Xfer.PlainStarted", 0).unwrap();
     w.orchestrate("D::Xfer.PlainFunded", 0).unwrap();
 
-    assert_eq!(w.verbs(), ["D::Xfer.PlainStarted", "D::Xfer.PlainFunded", "D::Ship.Refuse"]);
+    assert_eq!(
+        w.verbs(),
+        [
+            "D::Xfer.PlainStarted",
+            "D::Xfer.PlainFunded",
+            "D::Ship.Refuse"
+        ]
+    );
     assert_eq!(w.sagas[&key].state, "mid");
-    assert!(!w.saga_log.iter().any(|e| e.get("on").and_then(Json::as_str) == Some("refused")), "{:?}", w.saga_log);
+    assert!(
+        !w.saga_log
+            .iter()
+            .any(|e| e.get("on").and_then(Json::as_str) == Some("refused")),
+        "{:?}",
+        w.saga_log
+    );
 }
 
 #[test]
@@ -546,13 +760,18 @@ fn a_leg_naming_an_unremembered_conversation_is_logged_not_advanced() {
 
     assert_eq!(w.verbs(), ["D::Xfer.Funded"]);
     assert_eq!(w.saga_log[0].get("advanced"), Some(&Json::Bool(false)));
-    assert!(reason(&w.saga_log[0]).unwrap().contains("no conversation remembers"));
+    assert!(reason(&w.saga_log[0])
+        .unwrap()
+        .contains("no conversation remembers"));
 }
 
 // ---- argument assembly ----
 
 fn rule(target: &'static str, with_spec: &'static [(&'static str, &'static str)]) -> PolicyRule {
-    PolicyRule { with_spec, ..policy("P", "E", target) }
+    PolicyRule {
+        with_spec,
+        ..policy("P", "E", target)
+    }
 }
 
 fn order_event(payload: Json) -> Event {
@@ -564,11 +783,24 @@ fn payload() -> Json {
 }
 
 #[test]
-fn an_empty_with_forwards_the_payload_and_lifts_the_event_id_to_the_receiver_of_a_non_creating_same_aggregate_target() {
-    let args = trigger_args(&rule("D::Order.Close", NO_WITH), &order_event(payload()), None, "D::Order.Close", &tables());
+fn an_empty_with_forwards_the_payload_and_lifts_the_event_id_to_the_receiver_of_a_non_creating_same_aggregate_target(
+) {
+    let args = trigger_args(
+        &rule("D::Order.Close", NO_WITH),
+        &order_event(payload()),
+        None,
+        "D::Order.Close",
+        &tables(),
+    );
 
     // The payload's own `to` is dropped; the lifted receiver replaces it.
-    assert_eq!(args, Json::obj(vec![("to", Json::str("o1")), ("with", Json::obj(vec![("amount", Json::int(5))]))]));
+    assert_eq!(
+        args,
+        Json::obj(vec![
+            ("to", Json::str("o1")),
+            ("with", Json::obj(vec![("amount", Json::int(5))]))
+        ])
+    );
 }
 
 #[test]
@@ -576,24 +808,55 @@ fn an_empty_with_forwards_the_payload_verbatim_when_nothing_is_lifted() {
     let t = tables();
     // A creating target, a different aggregate, a fan-out row's own key, and a verb with no
     // aggregate each leave the payload as it came.
-    for (verb, extra) in [("D::Order.Place", None), ("D::Ship.Close", None), ("Close", None)] {
-        let args = trigger_args(&rule(verb, NO_WITH), &order_event(payload()), extra, verb, &t);
+    for (verb, extra) in [
+        ("D::Order.Place", None),
+        ("D::Ship.Close", None),
+        ("Close", None),
+    ] {
+        let args = trigger_args(
+            &rule(verb, NO_WITH),
+            &order_event(payload()),
+            extra,
+            verb,
+            &t,
+        );
         assert_eq!(args, payload(), "{verb}");
     }
 }
 
 #[test]
 fn a_fan_out_row_id_replaces_any_payload_field_of_the_same_name_and_is_never_lifted() {
-    let with_old = Json::obj(vec![("order_id", Json::str("old")), ("amount", Json::int(5))]);
+    let with_old = Json::obj(vec![
+        ("order_id", Json::str("old")),
+        ("amount", Json::int(5)),
+    ]);
 
-    let args = trigger_args(&rule("D::Order.Close", NO_WITH), &order_event(with_old), Some(("order_id", "row-1".to_string())), "D::Order.Close", &tables());
+    let args = trigger_args(
+        &rule("D::Order.Close", NO_WITH),
+        &order_event(with_old),
+        Some(("order_id", "row-1".to_string())),
+        "D::Order.Close",
+        &tables(),
+    );
 
-    assert_eq!(args, Json::obj(vec![("amount", Json::int(5)), ("order_id", Json::str("row-1"))]));
+    assert_eq!(
+        args,
+        Json::obj(vec![
+            ("amount", Json::int(5)),
+            ("order_id", Json::str("row-1"))
+        ])
+    );
 }
 
 #[test]
 fn a_payload_that_is_not_an_object_forwards_as_an_empty_object() {
-    let args = trigger_args(&rule("D::Order.Place", NO_WITH), &order_event(Json::Null), None, "D::Order.Place", &tables());
+    let args = trigger_args(
+        &rule("D::Order.Place", NO_WITH),
+        &order_event(Json::Null),
+        None,
+        "D::Order.Place",
+        &tables(),
+    );
 
     assert_eq!(args, Json::Object(vec![]));
 }
@@ -604,12 +867,27 @@ fn row_record() -> Json {
 
 #[test]
 fn an_explicit_with_may_read_a_fan_out_rows_fields_but_the_payload_wins() {
-    const READ_ROW: &[(&str, &str)] = &[("note", ":charged"), ("amount", ":amount"), ("tag", ":id")];
+    const READ_ROW: &[(&str, &str)] =
+        &[("note", ":charged"), ("amount", ":amount"), ("tag", ":id")];
     let record = row_record();
 
-    let args = trigger_args_with_row(&rule("D::Order.Place", READ_ROW), &order_event(payload()), None, Some(("r1", &record)), "D::Order.Place", &tables());
+    let args = trigger_args_with_row(
+        &rule("D::Order.Place", READ_ROW),
+        &order_event(payload()),
+        None,
+        Some(("r1", &record)),
+        "D::Order.Place",
+        &tables(),
+    );
 
-    assert_eq!(args, Json::obj(vec![("note", Json::int(40)), ("amount", Json::int(5)), ("tag", Json::str("r1"))]));
+    assert_eq!(
+        args,
+        Json::obj(vec![
+            ("note", Json::int(40)),
+            ("amount", Json::int(5)),
+            ("tag", Json::str("r1"))
+        ])
+    );
 }
 
 #[test]
@@ -617,9 +895,23 @@ fn an_undeclared_with_never_offers_a_fan_out_rows_fields() {
     let record = row_record();
     let extra = Some(("order_id", "r1".to_string()));
 
-    let args = trigger_args_with_row(&rule("D::Order.Place", NO_WITH), &order_event(payload()), extra, Some(("r1", &record)), "D::Order.Place", &tables());
+    let args = trigger_args_with_row(
+        &rule("D::Order.Place", NO_WITH),
+        &order_event(payload()),
+        extra,
+        Some(("r1", &record)),
+        "D::Order.Place",
+        &tables(),
+    );
 
-    assert_eq!(args, Json::obj(vec![("amount", Json::int(5)), ("to", Json::str("zzz")), ("order_id", Json::str("r1"))]));
+    assert_eq!(
+        args,
+        Json::obj(vec![
+            ("amount", Json::int(5)),
+            ("to", Json::str("zzz")),
+            ("order_id", Json::str("r1"))
+        ])
+    );
 }
 
 const READS_ORDER_ID: crate::kernel::QueryDef = crate::kernel::QueryDef {
@@ -646,7 +938,11 @@ fn a_for_each_query_is_lent_the_emitting_records_id_under_its_identity_head() {
 
 #[test]
 fn a_for_each_query_keeps_a_payload_value_over_the_lent_identity() {
-    let args = for_each_query_args(&READS_ORDER_ID, &order_event(Json::obj(vec![("order_id", Json::str("mine"))])), &tables());
+    let args = for_each_query_args(
+        &READS_ORDER_ID,
+        &order_event(Json::obj(vec![("order_id", Json::str("mine"))])),
+        &tables(),
+    );
 
     assert_eq!(args, Json::obj(vec![("order_id", Json::str("mine"))]));
 }
@@ -660,18 +956,39 @@ fn a_for_each_query_that_does_not_read_the_head_is_lent_nothing() {
 
 #[test]
 fn a_for_each_query_is_lent_nothing_for_an_aggregate_without_a_single_head() {
-    let args = for_each_query_args(&READS_ORDER_ID, &event("E", "D::Other", "x1", Json::obj(vec![])), &tables());
+    let args = for_each_query_args(
+        &READS_ORDER_ID,
+        &event("E", "D::Other", "x1", Json::obj(vec![])),
+        &tables(),
+    );
 
     assert_eq!(args, Json::obj(vec![]));
 }
 
-const PROJECT: &[(&str, &str)] = &[("amount", ":amount"), ("note", "\"hi\""), ("tag", ":absent")];
+const PROJECT: &[(&str, &str)] = &[
+    ("amount", ":amount"),
+    ("note", "\"hi\""),
+    ("tag", ":absent"),
+];
 
 #[test]
 fn an_explicit_with_projects_source_fields_decodes_literals_and_nulls_what_is_absent() {
-    let args = trigger_args(&rule("D::Order.Place", PROJECT), &order_event(payload()), None, "D::Order.Place", &tables());
+    let args = trigger_args(
+        &rule("D::Order.Place", PROJECT),
+        &order_event(payload()),
+        None,
+        "D::Order.Place",
+        &tables(),
+    );
 
-    assert_eq!(args, Json::obj(vec![("amount", Json::int(5)), ("note", Json::str("hi")), ("tag", Json::Null)]));
+    assert_eq!(
+        args,
+        Json::obj(vec![
+            ("amount", Json::int(5)),
+            ("note", Json::str("hi")),
+            ("tag", Json::Null)
+        ])
+    );
 }
 
 #[test]
@@ -679,39 +996,97 @@ fn an_explicit_with_may_read_the_emitting_records_identity_unless_the_payload_ca
     const READ_ID: &[(&str, &str)] = &[("order_id", ":order_id")];
     let t = tables();
 
-    let from_event = trigger_args(&rule("D::Order.Place", READ_ID), &order_event(payload()), None, "D::Order.Place", &t);
+    let from_event = trigger_args(
+        &rule("D::Order.Place", READ_ID),
+        &order_event(payload()),
+        None,
+        "D::Order.Place",
+        &t,
+    );
     assert_eq!(from_event, Json::obj(vec![("order_id", Json::str("o1"))]));
 
     let carried = Json::obj(vec![("order_id", Json::str("p9"))]);
-    let from_payload = trigger_args(&rule("D::Order.Place", READ_ID), &order_event(carried), None, "D::Order.Place", &t);
+    let from_payload = trigger_args(
+        &rule("D::Order.Place", READ_ID),
+        &order_event(carried),
+        None,
+        "D::Order.Place",
+        &t,
+    );
     assert_eq!(from_payload, Json::obj(vec![("order_id", Json::str("p9"))]));
 
     let blank = event("E", "D::Order", "", payload());
-    let none = trigger_args(&rule("D::Order.Place", READ_ID), &blank, None, "D::Order.Place", &t);
+    let none = trigger_args(
+        &rule("D::Order.Place", READ_ID),
+        &blank,
+        None,
+        "D::Order.Place",
+        &t,
+    );
     assert_eq!(none, Json::obj(vec![("order_id", Json::Null)]));
 }
 
 #[test]
-fn an_explicit_with_for_a_non_creating_target_names_the_receiver_from_the_projection_or_the_event() {
+fn an_explicit_with_for_a_non_creating_target_names_the_receiver_from_the_projection_or_the_event()
+{
     const REASON: &[(&str, &str)] = &[("reason", "\"x\"")];
     const BOTH: &[(&str, &str)] = &[("order_id", ":order_id"), ("reason", "\"x\"")];
     let t = tables();
 
     // Nothing projected names the identity: the same-aggregate event's own id is the receiver.
-    let fallback = trigger_args(&rule("D::Order.Close", REASON), &order_event(payload()), None, "D::Order.Close", &t);
-    assert_eq!(fallback, Json::obj(vec![("to", Json::str("o1")), ("with", Json::obj(vec![("reason", Json::str("x"))]))]));
+    let fallback = trigger_args(
+        &rule("D::Order.Close", REASON),
+        &order_event(payload()),
+        None,
+        "D::Order.Close",
+        &t,
+    );
+    assert_eq!(
+        fallback,
+        Json::obj(vec![
+            ("to", Json::str("o1")),
+            ("with", Json::obj(vec![("reason", Json::str("x"))]))
+        ])
+    );
 
     // The projection names it: that wins and is not re-routed.
-    let named = trigger_args(&rule("D::Order.Close", BOTH), &order_event(payload()), None, "D::Order.Close", &t);
+    let named = trigger_args(
+        &rule("D::Order.Close", BOTH),
+        &order_event(payload()),
+        None,
+        "D::Order.Close",
+        &t,
+    );
     assert_eq!(
         named,
-        Json::obj(vec![("to", Json::str("o1")), ("with", Json::obj(vec![("order_id", Json::str("o1")), ("reason", Json::str("x"))]))])
+        Json::obj(vec![
+            ("to", Json::str("o1")),
+            (
+                "with",
+                Json::obj(vec![
+                    ("order_id", Json::str("o1")),
+                    ("reason", Json::str("x"))
+                ])
+            )
+        ])
     );
 
     // A different aggregate has no event identity to offer, and a fan-out row never falls back.
-    let other = trigger_args(&rule("D::Ship.Close", REASON), &order_event(payload()), None, "D::Ship.Close", &t);
+    let other = trigger_args(
+        &rule("D::Ship.Close", REASON),
+        &order_event(payload()),
+        None,
+        "D::Ship.Close",
+        &t,
+    );
     assert_eq!(other, Json::obj(vec![("reason", Json::str("x"))]));
-    let fan = trigger_args(&rule("D::Order.Close", REASON), &order_event(payload()), Some(("order_id", "r1".to_string())), "D::Order.Close", &t);
+    let fan = trigger_args(
+        &rule("D::Order.Close", REASON),
+        &order_event(payload()),
+        Some(("order_id", "r1".to_string())),
+        "D::Order.Close",
+        &t,
+    );
     assert_eq!(fan, Json::obj(vec![("reason", Json::str("x"))]));
 }
 
@@ -723,23 +1098,59 @@ fn a_projected_fact_named_to_or_with_alone_is_not_mistaken_for_an_already_routed
     const JUST_WITH: &[(&str, &str)] = &[("with", "\"w\"")];
     let t = tables();
 
-    let to = trigger_args(&rule("D::Order.Close", JUST_TO), &order_event(payload()), None, "D::Order.Close", &t);
-    assert_eq!(to, Json::obj(vec![("to", Json::str("o1")), ("with", Json::obj(vec![("to", Json::str("somewhere"))]))]));
+    let to = trigger_args(
+        &rule("D::Order.Close", JUST_TO),
+        &order_event(payload()),
+        None,
+        "D::Order.Close",
+        &t,
+    );
+    assert_eq!(
+        to,
+        Json::obj(vec![
+            ("to", Json::str("o1")),
+            ("with", Json::obj(vec![("to", Json::str("somewhere"))]))
+        ])
+    );
 
-    let with = trigger_args(&rule("D::Order.Close", JUST_WITH), &order_event(payload()), None, "D::Order.Close", &t);
-    assert_eq!(with, Json::obj(vec![("to", Json::str("o1")), ("with", Json::obj(vec![("with", Json::str("w"))]))]));
+    let with = trigger_args(
+        &rule("D::Order.Close", JUST_WITH),
+        &order_event(payload()),
+        None,
+        "D::Order.Close",
+        &t,
+    );
+    assert_eq!(
+        with,
+        Json::obj(vec![
+            ("to", Json::str("o1")),
+            ("with", Json::obj(vec![("with", Json::str("w"))]))
+        ])
+    );
 }
 
 #[test]
-fn an_entity_command_is_routed_to_the_parent_named_by_the_event_when_the_projection_does_not_name_it() {
+fn an_entity_command_is_routed_to_the_parent_named_by_the_event_when_the_projection_does_not_name_it(
+) {
     let t = tables();
     let projected = || Json::obj(vec![("line_id", Json::str("l1")), ("note", Json::str("n"))]);
 
-    let got = route_dispatch_args(projected(), "D::Order.Line.Add", &t, &order_event(payload()));
+    let got = route_dispatch_args(
+        projected(),
+        "D::Order.Line.Add",
+        &t,
+        &order_event(payload()),
+    );
     assert_eq!(
         got,
         Json::obj(vec![
-            ("to", Json::obj(vec![("aggregate", Json::str("o1")), ("entities", Json::Array(vec![Json::str("l1")]))])),
+            (
+                "to",
+                Json::obj(vec![
+                    ("aggregate", Json::str("o1")),
+                    ("entities", Json::Array(vec![Json::str("l1")]))
+                ])
+            ),
             ("with", projected()),
         ])
     );
@@ -756,7 +1167,12 @@ fn an_entity_command_is_routed_to_the_parent_named_by_the_event_when_the_project
 #[test]
 fn resolve_with_reads_the_correlation_then_the_payload_then_the_memory_then_null() {
     let pm = &PROCESS_MANAGERS[0];
-    let e = event("E", "D::Xfer", "x1", Json::obj(vec![("from_event", Json::str("p"))]));
+    let e = event(
+        "E",
+        "D::Xfer",
+        "x1",
+        Json::obj(vec![("from_event", Json::str("p"))]),
+    );
     let memory = Json::obj(vec![("from_memory", Json::str("m"))]);
     let resolve = |name: &'static str| resolve_with(pm, &WithValue::Ref(name), &e, "corr", &memory);
 

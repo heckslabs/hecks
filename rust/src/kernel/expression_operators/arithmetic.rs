@@ -12,7 +12,11 @@ pub fn binary(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
         Expr::Sub(l, r) => ("subtraction", "-", l, r),
         Expr::Mul(l, r) => ("multiplication", "*", l, r),
         Expr::Div(l, r) => ("division", "/", l, r),
-        _ => return Err(Refusal::TypeMismatch(format!("arithmetic::binary called with a non-binary node {expr:?} — a router bug"))),
+        _ => {
+            return Err(Refusal::TypeMismatch(format!(
+                "arithmetic::binary called with a non-binary node {expr:?} — a router bug"
+            )))
+        }
     };
     let (left, right) = (eval(l, ctx)?, eval(r, ctx)?);
     match symbol {
@@ -25,9 +29,20 @@ pub fn binary(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
 
 // Integer operands use the checked operation; anything else is a Float result that must stay
 // finite, as `add` does. Ruby promotes to Bignum; this kernel refuses instead.
-fn checked(name: &str, symbol: &str, lhs: &Value, rhs: &Value, int_op: fn(i64, i64) -> Option<i64>, float_op: fn(f64, f64) -> f64) -> Result<Value, Refusal> {
+fn checked(
+    name: &str,
+    symbol: &str,
+    lhs: &Value,
+    rhs: &Value,
+    int_op: fn(i64, i64) -> Option<i64>,
+    float_op: fn(f64, f64) -> f64,
+) -> Result<Value, Refusal> {
     if let (Value::Int(l), Value::Int(r)) = (lhs, rhs) {
-        return int_op(*l, *r).map(Value::Int).ok_or_else(|| eval_error(format!("{name} overflowed: {l} {symbol} {r} does not fit in a 64-bit integer")));
+        return int_op(*l, *r).map(Value::Int).ok_or_else(|| {
+            eval_error(format!(
+                "{name} overflowed: {l} {symbol} {r} does not fit in a 64-bit integer"
+            ))
+        });
     }
     let l = require_number(lhs, name)?;
     let r = require_number(rhs, name)?;
@@ -38,7 +53,9 @@ fn finite(name: &str, symbol: &str, l: f64, r: f64, result: f64) -> Result<Value
     if result.is_finite() {
         return Ok(Value::Float(result));
     }
-    Err(eval_error(format!("{name} overflowed: {l} {symbol} {r} is not a finite number")))
+    Err(eval_error(format!(
+        "{name} overflowed: {l} {symbol} {r} is not a finite number"
+    )))
 }
 
 // Integer division floors toward negative infinity, as Ruby's `Integer#/` does (Rust's `/`
@@ -49,7 +66,11 @@ fn divide(lhs: &Value, rhs: &Value) -> Result<Value, Refusal> {
         return Err(eval_error("divided by 0".to_string()));
     }
     if let (Value::Int(l), Value::Int(r)) = (lhs, rhs) {
-        return floored_div(*l, *r).map(Value::Int).ok_or_else(|| eval_error(format!("division overflowed: {l} / {r} does not fit in a 64-bit integer")));
+        return floored_div(*l, *r).map(Value::Int).ok_or_else(|| {
+            eval_error(format!(
+                "division overflowed: {l} / {r} does not fit in a 64-bit integer"
+            ))
+        });
     }
     let l = require_number(lhs, "division")?;
     finite("division", "/", l, r, l / r)
@@ -58,12 +79,18 @@ fn divide(lhs: &Value, rhs: &Value) -> Result<Value, Refusal> {
 // `None` only for `i64::MIN / -1`, the one quotient that does not fit.
 fn floored_div(l: i64, r: i64) -> Option<i64> {
     let quotient = l.checked_div(r)?;
-    Some(if l % r != 0 && ((l < 0) != (r < 0)) { quotient - 1 } else { quotient })
+    Some(if l % r != 0 && ((l < 0) != (r < 0)) {
+        quotient - 1
+    } else {
+        quotient
+    })
 }
 
 pub fn modulo(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
     let Expr::Modulo { receiver, divisor } = expr else {
-        return Err(Refusal::TypeMismatch(format!("arithmetic::modulo called with a non-modulo node {expr:?} — a router bug")));
+        return Err(Refusal::TypeMismatch(format!(
+            "arithmetic::modulo called with a non-modulo node {expr:?} — a router bug"
+        )));
     };
 
     let r = require_number(&eval(receiver, ctx)?, "modulo")?.trunc() as i64;
@@ -81,7 +108,11 @@ fn floored_mod(r: i64, d: i64) -> i64 {
         return 0;
     }
     let raw = r % d;
-    if raw != 0 && (raw < 0) != (d < 0) { raw + d } else { raw }
+    if raw != 0 && (raw < 0) != (d < 0) {
+        raw + d
+    } else {
+        raw
+    }
 }
 
 #[cfg(test)]
@@ -102,9 +133,20 @@ mod division_tests {
 
     #[test]
     fn a_money_percentage_rounds_down() {
-        let product = checked("multiplication", "*", &Value::Int(10801), &Value::Int(50), i64::checked_mul, |a, b| a * b).unwrap();
+        let product = checked(
+            "multiplication",
+            "*",
+            &Value::Int(10801),
+            &Value::Int(50),
+            i64::checked_mul,
+            |a, b| a * b,
+        )
+        .unwrap();
 
-        assert_eq!(divide(&product, &Value::Int(100)).unwrap(), Value::Int(5400));
+        assert_eq!(
+            divide(&product, &Value::Int(100)).unwrap(),
+            Value::Int(5400)
+        );
     }
 
     #[test]
@@ -120,8 +162,24 @@ mod division_tests {
 
     #[test]
     fn overflowing_products_and_differences_are_faults() {
-        assert!(checked("multiplication", "*", &Value::Int(i64::MAX), &Value::Int(2), i64::checked_mul, |a, b| a * b).is_err());
-        assert!(checked("subtraction", "-", &Value::Int(i64::MIN), &Value::Int(1), i64::checked_sub, |a, b| a - b).is_err());
+        assert!(checked(
+            "multiplication",
+            "*",
+            &Value::Int(i64::MAX),
+            &Value::Int(2),
+            i64::checked_mul,
+            |a, b| a * b
+        )
+        .is_err());
+        assert!(checked(
+            "subtraction",
+            "-",
+            &Value::Int(i64::MIN),
+            &Value::Int(1),
+            i64::checked_sub,
+            |a, b| a - b
+        )
+        .is_err());
     }
 }
 
@@ -173,7 +231,10 @@ mod sum_tests {
 
     #[test]
     fn mixed_int_float_promotes_to_float_like_ruby_coercion() {
-        assert_eq!(sum(&Value::Int(2), &Value::Float(3.5)).unwrap(), Value::Float(5.5));
+        assert_eq!(
+            sum(&Value::Int(2), &Value::Float(3.5)).unwrap(),
+            Value::Float(5.5)
+        );
     }
 
     // Ruby's `Integer#+` promotes to Bignum and never overflows; this kernel has no bignum, so
@@ -181,18 +242,27 @@ mod sum_tests {
     #[test]
     fn refuses_cleanly_on_overflow_instead_of_panicking_or_wrapping() {
         let result = sum(&Value::Int(i64::MAX), &Value::Int(1));
-        assert!(result.is_err(), "i64::MAX + 1 must refuse, not silently wrap to i64::MIN");
+        assert!(
+            result.is_err(),
+            "i64::MAX + 1 must refuse, not silently wrap to i64::MIN"
+        );
     }
 
     #[test]
     fn refuses_cleanly_on_negative_overflow() {
         let result = sum(&Value::Int(i64::MIN), &Value::Int(-1));
-        assert!(result.is_err(), "i64::MIN + -1 must refuse, not silently wrap to i64::MAX");
+        assert!(
+            result.is_err(),
+            "i64::MIN + -1 must refuse, not silently wrap to i64::MAX"
+        );
     }
 
     #[test]
     fn does_not_refuse_right_at_the_boundary() {
-        assert_eq!(sum(&Value::Int(i64::MAX - 1), &Value::Int(1)).unwrap(), Value::Int(i64::MAX));
+        assert_eq!(
+            sum(&Value::Int(i64::MAX - 1), &Value::Int(1)).unwrap(),
+            Value::Int(i64::MAX)
+        );
     }
 }
 
@@ -200,14 +270,20 @@ mod sum_tests {
 // instead of panicking (debug) or wrapping (release).
 fn sum(lhs: &Value, rhs: &Value) -> Result<Value, Refusal> {
     if let (Value::Int(l), Value::Int(r)) = (lhs, rhs) {
-        return l.checked_add(*r).map(Value::Int).ok_or_else(|| eval_error(format!("addition overflowed: {l} + {r} does not fit in a 64-bit integer")));
+        return l.checked_add(*r).map(Value::Int).ok_or_else(|| {
+            eval_error(format!(
+                "addition overflowed: {l} + {r} does not fit in a 64-bit integer"
+            ))
+        });
     }
     let l = require_number(lhs, "addition")?;
     let r = require_number(rhs, "addition")?;
     let sum = l + r;
     // C3.4 — a non-finite Float sum faults like an Integer overflow.
     if !sum.is_finite() {
-        return Err(eval_error(format!("addition overflowed: {l} + {r} is not a finite number")));
+        return Err(eval_error(format!(
+            "addition overflowed: {l} + {r} is not a finite number"
+        )));
     }
     Ok(Value::Float(sum))
 }
@@ -243,7 +319,14 @@ mod path_operand_tests {
     fn percent_of(path: &'static str) -> Value {
         let times = Expr::Mul(Box::new(Expr::Lookup(path)), Box::new(Expr::Int(50)));
         let expr = Expr::Div(Box::new(times), Box::new(Expr::Int(100)));
-        interpret(&expr, &EvalContext { args: &NoFields, instance: &Record(Charge(10801)) }).expect("evaluates")
+        interpret(
+            &expr,
+            &EvalContext {
+                args: &NoFields,
+                instance: &Record(Charge(10801)),
+            },
+        )
+        .expect("evaluates")
     }
 
     #[test]

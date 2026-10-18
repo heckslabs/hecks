@@ -5,7 +5,10 @@
 enum Node {
     Literal(char),
     Any,
-    Class { negate: bool, ranges: Vec<(char, char)> },
+    Class {
+        negate: bool,
+        ranges: Vec<(char, char)>,
+    },
     // `^`/`$` match at line boundaries, as in Ruby.
     LineStart,
     LineEnd,
@@ -14,7 +17,11 @@ enum Node {
     StringEnd,
     Group(Vec<Node>),
     Alt(Vec<Vec<Node>>),
-    Repeat { node: Box<Node>, min: usize, max: Option<usize> },
+    Repeat {
+        node: Box<Node>,
+        min: usize,
+        max: Option<usize>,
+    },
 }
 
 /// `true` if `text` contains a match for `pattern` read as dispatch reads it: `^` and `$` are
@@ -66,7 +73,9 @@ fn whole_string(pattern: &str) -> String {
 
 /// `true` if `text` contains a match for `pattern`; a pattern that fails to parse is `false`.
 pub fn matches(pattern: &str, text: &str) -> bool {
-    let Ok(nodes) = parse(pattern) else { return false };
+    let Ok(nodes) = parse(pattern) else {
+        return false;
+    };
     let chars: Vec<char> = text.chars().collect();
     // Only `\A` may skip to position 0; `^` can still match after a later `\n`.
     let anchored_start = matches!(nodes.first(), Some(Node::StringStart));
@@ -76,24 +85,48 @@ pub fn matches(pattern: &str, text: &str) -> bool {
     (0..=chars.len()).any(|start| match_from(&nodes, 0, &chars, start, &|_| true))
 }
 
-fn match_from(nodes: &[Node], idx: usize, text: &[char], ti: usize, cont: &dyn Fn(usize) -> bool) -> bool {
+fn match_from(
+    nodes: &[Node],
+    idx: usize,
+    text: &[char],
+    ti: usize,
+    cont: &dyn Fn(usize) -> bool,
+) -> bool {
     if idx == nodes.len() {
         return cont(ti);
     }
     match &nodes[idx] {
-        Node::Literal(c) => ti < text.len() && text[ti] == *c && match_from(nodes, idx + 1, text, ti + 1, cont),
-        // Like Ruby without `/m`, `.` does not match `\n`.
-        Node::Any => ti < text.len() && text[ti] != '\n' && match_from(nodes, idx + 1, text, ti + 1, cont),
-        Node::Class { negate, ranges } => {
-            ti < text.len() && class_matches(*negate, ranges, text[ti]) && match_from(nodes, idx + 1, text, ti + 1, cont)
+        Node::Literal(c) => {
+            ti < text.len() && text[ti] == *c && match_from(nodes, idx + 1, text, ti + 1, cont)
         }
-        Node::LineStart => (ti == 0 || text[ti - 1] == '\n') && match_from(nodes, idx + 1, text, ti, cont),
-        Node::LineEnd => (ti == text.len() || text[ti] == '\n') && match_from(nodes, idx + 1, text, ti, cont),
+        // Like Ruby without `/m`, `.` does not match `\n`.
+        Node::Any => {
+            ti < text.len() && text[ti] != '\n' && match_from(nodes, idx + 1, text, ti + 1, cont)
+        }
+        Node::Class { negate, ranges } => {
+            ti < text.len()
+                && class_matches(*negate, ranges, text[ti])
+                && match_from(nodes, idx + 1, text, ti + 1, cont)
+        }
+        Node::LineStart => {
+            (ti == 0 || text[ti - 1] == '\n') && match_from(nodes, idx + 1, text, ti, cont)
+        }
+        Node::LineEnd => {
+            (ti == text.len() || text[ti] == '\n') && match_from(nodes, idx + 1, text, ti, cont)
+        }
         Node::StringStart => ti == 0 && match_from(nodes, idx + 1, text, ti, cont),
         Node::StringEnd => ti == text.len() && match_from(nodes, idx + 1, text, ti, cont),
-        Node::Group(inner) => match_from(inner, 0, text, ti, &|ti2| match_from(nodes, idx + 1, text, ti2, cont)),
-        Node::Alt(branches) => branches.iter().any(|b| match_from(b, 0, text, ti, &|ti2| match_from(nodes, idx + 1, text, ti2, cont))),
-        Node::Repeat { node, min, max } => match_repeat(node, 0, *min, *max, nodes, idx + 1, text, ti, cont),
+        Node::Group(inner) => match_from(inner, 0, text, ti, &|ti2| {
+            match_from(nodes, idx + 1, text, ti2, cont)
+        }),
+        Node::Alt(branches) => branches.iter().any(|b| {
+            match_from(b, 0, text, ti, &|ti2| {
+                match_from(nodes, idx + 1, text, ti2, cont)
+            })
+        }),
+        Node::Repeat { node, min, max } => {
+            match_repeat(node, 0, *min, *max, nodes, idx + 1, text, ti, cont)
+        }
     }
 }
 
@@ -145,7 +178,10 @@ fn escape_char(c: char) -> char {
 // Recursive descent: `alternation > concat > repeat > atom`.
 fn parse(pattern: &str) -> Result<Vec<Node>, ()> {
     let chars: Vec<char> = pattern.chars().collect();
-    let mut p = Parser { chars: &chars, pos: 0 };
+    let mut p = Parser {
+        chars: &chars,
+        pos: 0,
+    };
     let node = p.parse_alt()?;
     if p.pos != p.chars.len() {
         return Err(());
@@ -203,21 +239,37 @@ impl<'a> Parser<'a> {
         match self.peek() {
             Some('*') => {
                 self.bump();
-                Ok(Node::Repeat { node: Box::new(atom), min: 0, max: None })
+                Ok(Node::Repeat {
+                    node: Box::new(atom),
+                    min: 0,
+                    max: None,
+                })
             }
             Some('+') => {
                 self.bump();
-                Ok(Node::Repeat { node: Box::new(atom), min: 1, max: None })
+                Ok(Node::Repeat {
+                    node: Box::new(atom),
+                    min: 1,
+                    max: None,
+                })
             }
             Some('?') => {
                 self.bump();
-                Ok(Node::Repeat { node: Box::new(atom), min: 0, max: Some(1) })
+                Ok(Node::Repeat {
+                    node: Box::new(atom),
+                    min: 0,
+                    max: Some(1),
+                })
             }
             Some('{') => {
                 let save = self.pos;
                 self.bump();
                 match self.parse_bounded_repeat() {
-                    Some((min, max)) => Ok(Node::Repeat { node: Box::new(atom), min, max }),
+                    Some((min, max)) => Ok(Node::Repeat {
+                        node: Box::new(atom),
+                        min,
+                        max,
+                    }),
                     None => {
                         // Not a well-formed `{n,m}`: read the brace as a literal.
                         self.pos = save;
@@ -264,7 +316,11 @@ impl<'a> Parser<'a> {
         if self.pos == start {
             return None;
         }
-        self.chars[start..self.pos].iter().collect::<String>().parse().ok()
+        self.chars[start..self.pos]
+            .iter()
+            .collect::<String>()
+            .parse()
+            .ok()
     }
 
     fn parse_atom(&mut self) -> Result<Node, ()> {
@@ -308,11 +364,21 @@ impl<'a> Parser<'a> {
                 }
                 Some(c) => {
                     self.bump();
-                    let lo = if c == '\\' { escape_char(self.bump().ok_or(())?) } else { c };
-                    if self.peek() == Some('-') && self.chars.get(self.pos + 1).is_some_and(|c| *c != ']') {
+                    let lo = if c == '\\' {
+                        escape_char(self.bump().ok_or(())?)
+                    } else {
+                        c
+                    };
+                    if self.peek() == Some('-')
+                        && self.chars.get(self.pos + 1).is_some_and(|c| *c != ']')
+                    {
                         self.bump();
                         let hi_raw = self.bump().ok_or(())?;
-                        let hi = if hi_raw == '\\' { escape_char(self.bump().ok_or(())?) } else { hi_raw };
+                        let hi = if hi_raw == '\\' {
+                            escape_char(self.bump().ok_or(())?)
+                        } else {
+                            hi_raw
+                        };
                         ranges.push((lo, hi));
                     } else {
                         ranges.push((lo, lo));
@@ -336,12 +402,20 @@ mod tests {
     fn matches_every_row_of_the_recorded_pattern_contract() {
         let raw = include_str!("../../../spec/corpus/fixtures/patterns.json");
         let parsed = Json::parse(raw).expect("patterns.json must parse");
-        let rows = parsed.as_array().expect("patterns.json must be a JSON array");
+        let rows = parsed
+            .as_array()
+            .expect("patterns.json must be a JSON array");
         assert!(!rows.is_empty(), "the recorded contract must not be empty");
 
         for row in rows {
-            let pattern = row.get("pattern").and_then(Json::as_str).expect("row must carry a pattern");
-            let input = row.get("input").and_then(Json::as_str).expect("row must carry an input");
+            let pattern = row
+                .get("pattern")
+                .and_then(Json::as_str)
+                .expect("row must carry a pattern");
+            let input = row
+                .get("input")
+                .and_then(Json::as_str)
+                .expect("row must carry an input");
             let expected = matches!(row.get("matches"), Some(Json::Bool(true)));
 
             assert_eq!(

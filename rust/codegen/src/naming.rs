@@ -19,7 +19,9 @@ pub fn reference_type(type_name: &str) -> bool {
 /// `X` out of `Reference<X>` — `None` for anything that isn't a reference
 /// type at all.
 pub fn reference_target(type_name: &str) -> Option<&str> {
-    type_name.strip_prefix("Reference<").and_then(|rest| rest.strip_suffix('>'))
+    type_name
+        .strip_prefix("Reference<")
+        .and_then(|rest| rest.strip_suffix('>'))
 }
 
 pub fn effective_scalar_type(type_name: &str) -> Option<&'static str> {
@@ -103,12 +105,18 @@ pub fn legal_aggregate_mod_identifier(name: &str) -> bool {
 /// Mirrors `valid_domain_mod_name?` — shape, and neither a Rust keyword nor
 /// a reserved Cargo.toml key.
 pub fn valid_domain_mod_name(name: &str) -> bool {
-    plain_lower_identifier(name) && !RUST_KEYWORDS.contains(&name) && !CARGO_RESERVED_DOMAIN_NAMES.contains(&name)
+    plain_lower_identifier(name)
+        && !RUST_KEYWORDS.contains(&name)
+        && !CARGO_RESERVED_DOMAIN_NAMES.contains(&name)
 }
 
 /// `None` when every aggregate name and the domain's module name are usable, else the
 /// refusal text the Ruby generator raises, byte for byte. Aggregates are checked first.
-pub fn reserved_name_refusal(source_label: &str, mod_name: &str, aggregate_names: &[&str]) -> Option<String> {
+pub fn reserved_name_refusal(
+    source_label: &str,
+    mod_name: &str,
+    aggregate_names: &[&str],
+) -> Option<String> {
     let refused: Vec<&str> = aggregate_names
         .iter()
         .copied()
@@ -118,7 +126,11 @@ pub fn reserved_name_refusal(source_label: &str, mod_name: &str, aggregate_names
         })
         .collect();
     if let Some(first) = refused.first() {
-        let names = refused.iter().map(|name| format!("{name:?}")).collect::<Vec<_>>().join(", ");
+        let names = refused
+            .iter()
+            .map(|name| format!("{name:?}"))
+            .collect::<Vec<_>>()
+            .join(", ");
         return Some(format!(
             "{source_label}: aggregate name(s) {names} can't be used as-is — downcased, each becomes a bare Rust \
              module identifier (`pub mod {};`) and a generated file name, and at least one is not a plain identifier \
@@ -180,7 +192,11 @@ pub fn unsafe_name_refusal(source_label: &str, ir: &Json) -> Option<String> {
     if refused.is_empty() {
         return None;
     }
-    let list = refused.iter().map(|name| ruby_inspect_string(name)).collect::<Vec<_>>().join(", ");
+    let list = refused
+        .iter()
+        .map(|name| ruby_inspect_string(name))
+        .collect::<Vec<_>>()
+        .join(", ");
     Some(format!(
         "{source_label}: declared name(s) {list} can't be used as-is — each is written into the generated Rust as \
          an identifier, and at least one is not a plain identifier (letters, digits and underscores, not starting \
@@ -194,7 +210,10 @@ pub fn rust_field(name: &str) -> String {
 
 pub fn rust_ident_field(name: &str) -> String {
     let field = rust_field(name);
-    if RUST_KEYWORDS.contains(&field.as_str()) {
+    if matches!(field.as_str(), "crate" | "self" | "Self" | "super") {
+        // Rust refuses these as raw identifiers, so they take a trailing underscore.
+        format!("{field}_")
+    } else if RUST_KEYWORDS.contains(&field.as_str()) {
         format!("r#{field}")
     } else {
         field
@@ -213,7 +232,11 @@ pub fn closed_set_variant(value: &str) -> String {
     if variant != "Self" {
         return variant;
     }
-    if value.starts_with('S') { "SelfType".to_string() } else { "SelfValue".to_string() }
+    if value.starts_with('S') {
+        "SelfType".to_string()
+    } else {
+        "SelfValue".to_string()
+    }
 }
 
 fn capitalize(word: &str) -> String {
@@ -289,18 +312,40 @@ pub fn scalar_to_value(type_name: &str, rust_expr: &str) -> Option<String> {
 /// single-field closed-set enums implement `Fielded`; multi-field closed-set
 /// tables do not.
 pub fn fielded_capable_nested(vo: &crate::json::Json) -> bool {
-    !vo.get("closed_set").map(crate::json::Json::as_bool).unwrap_or(false)
-        || vo.get("attributes").map(crate::json::Json::each).unwrap_or(&[]).len() == 1
+    !vo.get("closed_set")
+        .map(crate::json::Json::as_bool)
+        .unwrap_or(false)
+        || vo
+            .get("attributes")
+            .map(crate::json::Json::each)
+            .unwrap_or(&[])
+            .len()
+            == 1
 }
 
 /// The `Fielded` impl emitted beside a single-field closed-set enum, exposing `"value"`.
 pub fn emit_closed_set_fielded_impl(vo: &crate::json::Json) -> String {
-    let name = rust_ident(vo.get("name").and_then(crate::json::Json::as_str).unwrap_or(""));
-    let arms = vo.get("members").map(crate::json::Json::each).unwrap_or(&[]).iter().filter_map(|row| {
-        let pair = row.as_array()?.first()?.as_array()?;
-        let raw = pair.get(1)?.to_s();
-        Some(format!("{name}::{} => {}.to_string(),", closed_set_variant(&raw), ruby_inspect_string(&raw)))
-    }).collect::<Vec<_>>().join(" ");
+    let name = rust_ident(
+        vo.get("name")
+            .and_then(crate::json::Json::as_str)
+            .unwrap_or(""),
+    );
+    let arms = vo
+        .get("members")
+        .map(crate::json::Json::each)
+        .unwrap_or(&[])
+        .iter()
+        .filter_map(|row| {
+            let pair = row.as_array()?.first()?.as_array()?;
+            let raw = pair.get(1)?.to_s();
+            Some(format!(
+                "{name}::{} => {}.to_string(),",
+                closed_set_variant(&raw),
+                ruby_inspect_string(&raw)
+            ))
+        })
+        .collect::<Vec<_>>()
+        .join(" ");
 
     format!(
         "impl crate::kernel::Fielded for {name} {{\n    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {{\n        use crate::kernel::{{Field, Value}};\n        match name {{\n            \"value\" => Some(Field::Value(Value::Str(match self {{ {arms} }}))),\n            _ => None,\n        }}\n    }}\n    fn as_scalar(&self) -> Option<crate::kernel::Value> {{\n        match self.field(\"value\") {{ Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }}\n    }}\n}}"
@@ -346,11 +391,23 @@ mod tests {
     #[test]
     fn a_scalar_reached_through_a_reference_is_dereferenced_when_it_is_a_copy_type() {
         // `self.level.as_ref().map(|v| Field::Value(Value::Int(v)))` does not compile: `v` is `&i64`.
-        assert_eq!(scalar_to_value("Integer", &deref_scalar("Integer", "v")).as_deref(), Some("Value::Int(*v)"));
-        assert_eq!(scalar_to_value("Float", &deref_scalar("Float", "v")).as_deref(), Some("Value::Float(*v)"));
-        assert_eq!(scalar_to_value("TrueClass", &deref_scalar("TrueClass", "v")).as_deref(), Some("Value::Bool(*v)"));
+        assert_eq!(
+            scalar_to_value("Integer", &deref_scalar("Integer", "v")).as_deref(),
+            Some("Value::Int(*v)")
+        );
+        assert_eq!(
+            scalar_to_value("Float", &deref_scalar("Float", "v")).as_deref(),
+            Some("Value::Float(*v)")
+        );
+        assert_eq!(
+            scalar_to_value("TrueClass", &deref_scalar("TrueClass", "v")).as_deref(),
+            Some("Value::Bool(*v)")
+        );
         // A String is cloned, so the reference is left alone.
-        assert_eq!(scalar_to_value("String", &deref_scalar("String", "v")).as_deref(), Some("Value::Str(v.clone())"));
+        assert_eq!(
+            scalar_to_value("String", &deref_scalar("String", "v")).as_deref(),
+            Some("Value::Str(v.clone())")
+        );
     }
 
     #[test]
@@ -368,8 +425,12 @@ mod tests {
 
     #[test]
     fn refuses_an_aggregate_whose_module_name_is_a_rust_keyword() {
-        let refusal = reserved_name_refusal("shop", "shop", &["Pizza", "Match", "Type"]).expect("refused");
-        assert!(refusal.starts_with("shop: aggregate name(s) \"Match\", \"Type\" can't be used as-is"), "{refusal}");
+        let refusal =
+            reserved_name_refusal("shop", "shop", &["Pizza", "Match", "Type"]).expect("refused");
+        assert!(
+            refusal.starts_with("shop: aggregate name(s) \"Match\", \"Type\" can't be used as-is"),
+            "{refusal}"
+        );
         assert!(refusal.contains("`pub mod match;`"), "{refusal}");
         assert!(refusal.contains("Rust keyword"), "{refusal}");
     }
@@ -381,7 +442,12 @@ mod tests {
         )
         .unwrap();
         let refusal = unsafe_name_refusal("shop", &ir).expect("refused");
-        assert!(refusal.starts_with("shop: declared name(s) \"a: String, pub evil: u8\" can't be used as-is"), "{refusal}");
+        assert!(
+            refusal.starts_with(
+                "shop: declared name(s) \"a: String, pub evil: u8\" can't be used as-is"
+            ),
+            "{refusal}"
+        );
     }
 
     #[test]
@@ -412,12 +478,20 @@ mod tests {
     fn refuses_a_domain_module_name_that_is_a_keyword_or_a_cargo_key() {
         for name in ["crate", "type", "package", "default", "version"] {
             let refusal = reserved_name_refusal("label", name, &["Widget"]).expect("refused");
-            assert!(refusal.starts_with(&format!("label: domain module name {name:?} can't be used as-is")), "{refusal}");
+            assert!(
+                refusal.starts_with(&format!(
+                    "label: domain module name {name:?} can't be used as-is"
+                )),
+                "{refusal}"
+            );
         }
     }
 
     #[test]
     fn accepts_ordinary_names_and_cargo_keys_as_aggregate_names() {
-        assert_eq!(reserved_name_refusal("shop", "shop", &["Pizza", "Version", "Default"]), None);
+        assert_eq!(
+            reserved_name_refusal("shop", "shop", &["Pizza", "Version", "Default"]),
+            None
+        );
     }
 }
