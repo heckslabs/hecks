@@ -39,3 +39,7 @@ runs:
       with:
         ruby-version: ${{ inputs.ruby-version }}
         bundler-cache: true
+
+    # The generators format the Rust they write with rustfmt, and specs call them in any job that
+    # sets up Ruby, so the pinned toolchain is installed here, once, before any worker needs it.
+    - uses: ./.github/actions/rust-toolchain
