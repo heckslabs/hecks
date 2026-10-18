@@ -23,6 +23,7 @@
   header { display: flex; align-items: center; gap: 12px; padding: 6px 12px; border-bottom: 1px solid var(--edge); background: var(--panel); }
   header h1 { font-size: 13px; margin: 0; letter-spacing: .04em; }
   header .grow { flex: 1; }
+  header select { margin: 0; max-width: 280px; }
   button { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--edge); border-radius: 4px; padding: 3px 10px; cursor: pointer; }
   button:hover { border-color: var(--accent); }
   main { flex: 1; display: grid; grid-template-columns: 200px minmax(0, 1fr) 6px var(--right, 42%); grid-template-rows: minmax(0, 1fr); min-height: 0; overflow: hidden; }
@@ -103,6 +104,7 @@
 <header>
   <h1>HECKS COMPOSER</h1>
   <span id="workspace" class="grow" style="color:var(--dim)"></span>
+  <select id="domainPick" title="Open one of the known domains, as a copy"><option value="">Open a domain…</option></select>
   <button id="save" title="Save the open file (Ctrl/Cmd-S)">Save</button>
 </header>
 <main id="main">
@@ -701,16 +703,52 @@
   editor.on("change", (cm, change) => { if (change.origin !== "setValue") changed(); });
   editor.on("inputRead", (cm, change) => { if (/\w/.test(change.text.join("")) && state.diagnostic && state.diagnostic.expected.length) complete(); });
 
-  (async () => {
+  // Loads the server's workspace into the editor, forgetting whatever the last one left on screen.
+  async function loadWorkspace() {
     const { files } = await api("GET", "files");
+    Object.assign(state, { docs: {}, disk: {}, open: null, diagrams: {}, diagnostic: null, badLine: null, outline: [] });
+    consoleState.commands = [];
+    for (const id of ["turns", "changes", "consoleOut", "recordsView", "behaviorsView", "erasView", "jobOut", "timelineView"]) $(id).textContent = "";
     for (const { path, text } of files) { state.disk[path] = text; state.docs[path] = CodeMirror.Doc(text, "ruby"); }
     const first = Object.keys(state.docs).sort().find((p) => p.endsWith(".bluebook")) || Object.keys(state.docs).sort()[0];
-    if (first) openFile(first);
+    if (first) openFile(first); else editor.swapDoc(CodeMirror.Doc("", "ruby"));
     $("workspace").textContent = `${files.length} files`;
     renderFiles();
-    const result = await api("POST", "check", { buffers: {} });
-    applyCheck(result);
-  })();
+    renderOutline();
+    applyCheck(await api("POST", "check", { buffers: {} }));
+    if (state.lane !== "agent") refreshLane(state.lane);
+  }
+
+  // The known domains, grouped; choosing one opens a scratch copy of it, never the real files.
+  async function loadDomains() {
+    const { domains } = await api("GET", "domains");
+    const pick = $("domainPick");
+    const groups = {};
+    for (const domain of domains) {
+      groups[domain.group] ||= Object.assign(document.createElement("optgroup"), { label: domain.group });
+      groups[domain.group].append(new Option(domain.id, domain.id));
+    }
+    pick.replaceChildren(new Option("Open a domain…", ""), ...Object.values(groups));
+  }
+
+  $("domainPick").onchange = async () => {
+    const pick = $("domainPick");
+    const id = pick.value;
+    if (!id) return;
+    if (Object.keys(state.docs).some(dirty)) {
+      $("status").className = "bad"; $("status").textContent = "Save or undo your changes before opening another domain.";
+      pick.value = "";
+      return;
+    }
+    $("status").className = ""; $("status").textContent = `opening ${id}…`;
+    const reply = await api("POST", "open", { id });
+    if (reply.error) { $("status").className = "bad"; $("status").textContent = reply.error; return; }
+    await loadWorkspace();
+    $("workspace").textContent = `${id} (a copy) · ${Object.keys(state.docs).length} files`;
+  };
+
+  loadWorkspace();
+  loadDomains();
 })();
 </script>
 </body>
