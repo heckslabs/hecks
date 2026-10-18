@@ -149,6 +149,7 @@ pub fn emit_port_operation(
             false,
             true,
             Some(aggregates_by_name),
+            None,
         ),
         dispatch_fn,
     ]
