@@ -1,4 +1,5 @@
 require "spec_helper"
+require "hecks/rust_format"
 
 # The anti-drift gate for rust/src/kernel/vocab/ — the same shape
 # spec/vocabulary_table_spec.rb uses for lib/hecks/vocabulary.rb:

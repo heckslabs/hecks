@@ -1,4 +1,5 @@
 require "spec_helper"
+require "hecks/rust_format"
 
 # Fails when rust/parser/src/keywords.rs drifts from the syntax tables: regenerates the file
 # in memory and compares it with the committed one.
