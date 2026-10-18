@@ -582,14 +582,6 @@ pub(crate) async fn add_member_route(
     wasm_path: &Path,
     config: &LineageConfig,
 ) -> Value {
-    let json_error = |status: u16, message: &str| {
-        respond(
-            status,
-            "application/json",
-            &json!({"error": message}).to_string(),
-        )
-    };
-
     let Some(caller) = cookies
         .get(&auth::account_cookie_name())
         .and_then(|token| auth::verify_account_token(secret, token))
@@ -660,14 +652,6 @@ async fn signup_route(
     config: &LineageConfig,
     invoker: &dyn LambdaInvoker,
 ) -> Value {
-    let json_error = |status: u16, message: &str| {
-        respond(
-            status,
-            "application/json",
-            &json!({"error": message}).to_string(),
-        )
-    };
-
     let body: Value = serde_json::from_str(raw_body).unwrap_or(Value::Null);
     let field = |key: &str| {
         body.get(key)
@@ -729,14 +713,6 @@ async fn set_member_disabled_route(
     config: &LineageConfig,
     disable: bool,
 ) -> Value {
-    let json_error = |status: u16, message: &str| {
-        respond(
-            status,
-            "application/json",
-            &json!({"error": message}).to_string(),
-        )
-    };
-
     let Some(caller) = cookies
         .get(&auth::account_cookie_name())
         .and_then(|token| auth::verify_account_token(secret, token))
@@ -787,14 +763,6 @@ async fn set_member_deleted_route(
     client: &Mutex<Client>,
     config: &LineageConfig,
 ) -> Value {
-    let json_error = |status: u16, message: &str| {
-        respond(
-            status,
-            "application/json",
-            &json!({"error": message}).to_string(),
-        )
-    };
-
     let Some(caller) = cookies
         .get(&auth::account_cookie_name())
         .and_then(|token| auth::verify_account_token(secret, token))
@@ -835,14 +803,6 @@ async fn set_member_role_route(
     client: &Mutex<Client>,
     config: &LineageConfig,
 ) -> Value {
-    let json_error = |status: u16, message: &str| {
-        respond(
-            status,
-            "application/json",
-            &json!({"error": message}).to_string(),
-        )
-    };
-
     let Some(caller) = cookies
         .get(&auth::account_cookie_name())
         .and_then(|token| auth::verify_account_token(secret, token))
@@ -893,14 +853,6 @@ async fn registrations_list_route(
     wasm_path: &Path,
     config: &LineageConfig,
 ) -> Value {
-    let json_error = |status: u16, message: &str| {
-        respond(
-            status,
-            "application/json",
-            &json!({"error": message}).to_string(),
-        )
-    };
-
     let Some(caller) = cookies
         .get(&auth::account_cookie_name())
         .and_then(|token| auth::verify_account_token(secret, token))
@@ -2452,6 +2404,15 @@ const COOKIE_FLAGS_PLAIN: &str = "; Path=/; HttpOnly; SameSite=Lax";
 
 fn redirect_with_cookie(location: &str, cookie: &str) -> Value {
     json!({"statusCode": 302, "headers": {"location": location}, "cookies": [cookie], "body": "", "isBase64Encoded": false})
+}
+
+/// A JSON `{"error": message}` reply with `status`.
+pub(crate) fn json_error(status: u16, message: &str) -> Value {
+    respond(
+        status,
+        "application/json",
+        &json!({"error": message}).to_string(),
+    )
 }
 
 pub(crate) fn respond(status: u16, content_type: &str, body: &str) -> Value {
