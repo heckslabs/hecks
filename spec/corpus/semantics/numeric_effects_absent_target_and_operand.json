@@ -1,7 +1,5 @@
 {
   "domain": "spec/corpus/semantics/domains/tally",
-  "ruby_only": true,
-  "ruby_only_reason": "no Rust binary to hold it to: the corpus-owned domain spec/corpus/semantics/domains/tally has no `tally` feature in rust/Cargo.toml, so hecks project_rust has never generated it. Tried once by generating the domain locally: Rust panics on RaiseLimit (an unwrap of the absent optional `limit`) where C4.4 reads an absent target as 0.",
   "spec": [
     "C4.4"
   ],

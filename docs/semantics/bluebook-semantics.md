@@ -148,11 +148,9 @@ it, except for one law they must uphold (C8.4).
   grammar's bootstrap relies on it — while the Rust boundary refuses
   it; no corpus input exercises the difference. A boolean argument is
   declared `TrueClass` (or `FalseClass`); `Boolean` is not a declared
-  primitive. Recorded gap: Rust refuses these inputs with
-  `TypeMismatch` too, but words the refusal differently (it names the
-  command, not the aggregate; an array renders with a space after each
-  comma; a boolean refusal omits the offered value), so this clause is held
-  for Ruby only until the wordings agree. The check is the
+  primitive. The refusal names the aggregate, not the command
+  (`Tally.times expects Integer, got 2.5`), and renders the offered
+  value as compact JSON, in both runtimes. The check is the
   *command* boundary's: a query's declared argument types name the
   argument for callers and generators, never a runtime shape —
   comparison unwraps both sides itself — so a query argument is not

@@ -6,6 +6,10 @@
 # `--no-default-features --features <name>`.
 [features]
 default = ["reserved_names_fixture"]
+tally = []
+relay = []
+meter = []
+courier = []
 attribute_constraints_fixture = []
 optional_nested_value_object_fixture = []
 computed_sets_fixture = []
