@@ -271,6 +271,14 @@ fn tables() -> Tables<'static> {
     }
 }
 
+fn ping_leg() -> SagaLeg<'static> {
+    SagaLeg {
+        pm: &PROCESS_MANAGERS[0],
+        correlation: "x1",
+        domain_name: "D",
+    }
+}
+
 struct World {
     bus: Bus,
     sagas: HashMap<(String, String), SagaInstance>,
@@ -315,21 +323,23 @@ impl World {
         )
     }
 
+    fn cascade(&mut self) -> Cascade<'_, Bus> {
+        Cascade {
+            store: &mut self.bus,
+            dispatch_fn: script,
+            tables: tables(),
+            sagas: &mut self.sagas,
+            occurred_at: None,
+            all_events: &mut self.all_events,
+            mutations: &mut self.mutations,
+            cross_domain: &mut self.cross_domain,
+            reaction_log: &mut self.reaction_log,
+            saga_log: &mut self.saga_log,
+        }
+    }
+
     fn react(&mut self, event: &Event, depth: usize) {
-        react_policies(
-            &mut self.bus,
-            script,
-            tables(),
-            &mut self.sagas,
-            event,
-            None,
-            depth,
-            &mut self.all_events,
-            &mut self.mutations,
-            &mut self.cross_domain,
-            &mut self.reaction_log,
-            &mut self.saga_log,
-        );
+        self.cascade().react_policies(event, depth);
     }
 
     fn verbs(&self) -> Vec<&str> {
@@ -341,24 +351,11 @@ impl World {
     }
 
     fn deliver_saga(&mut self, depth: usize) -> Option<bool> {
-        deliver_saga_dispatch(
-            &mut self.bus,
-            script,
-            tables(),
-            &mut self.sagas,
-            &PROCESS_MANAGERS[0],
+        self.cascade().deliver_saga_dispatch(
+            &ping_leg(),
             &PING_SPEC,
-            "D",
             &Json::obj(vec![]),
-            "x1",
-            None,
             depth,
-            &mut self.all_events,
-            &mut self.mutations,
-            &mut self.cross_domain,
-            &mut self.reaction_log,
-            &mut self.saga_log,
-            &HashMap::new(),
             None,
         )
     }
@@ -368,23 +365,8 @@ impl World {
             command_name: "Order.Ping".to_string(),
             args: Json::obj(vec![]),
         };
-        deliver_derived_compensation(
-            &mut self.bus,
-            script,
-            tables(),
-            &mut self.sagas,
-            &PROCESS_MANAGERS[0],
-            &entry,
-            "D",
-            "x1",
-            None,
-            depth,
-            &mut self.all_events,
-            &mut self.mutations,
-            &mut self.cross_domain,
-            &mut self.reaction_log,
-            &mut self.saga_log,
-        );
+        self.cascade()
+            .deliver_derived_compensation(&ping_leg(), &entry, depth);
     }
 }
 

@@ -242,6 +242,45 @@ type DispatchFn<S> = fn(
     &mut Vec<MutationRecord>,
 ) -> Result<Vec<Event>, Refusal>;
 
+/// What one cascade threads through every reaction it triggers: the store it dispatches against
+/// and the logs it appends to. `depth` is an argument, not state, because it grows with each
+/// re-entry.
+struct Cascade<'a, S: AggregateScan> {
+    store: &'a mut S,
+    dispatch_fn: DispatchFn<S>,
+    tables: Tables<'static>,
+    sagas: &'a mut HashMap<(String, String), SagaInstance>,
+    // One host-supplied moment for the whole cascade.
+    occurred_at: Option<&'a str>,
+    all_events: &'a mut Vec<Event>,
+    mutations: &'a mut Vec<MutationRecord>,
+    cross_domain: &'a mut Vec<PendingCrossDomainReaction>,
+    reaction_log: &'a mut Vec<Json>,
+    saga_log: &'a mut Vec<Json>,
+}
+
+/// One process-manager instance's leg of a cascade: which manager, which conversation, and the
+/// domain its commands are qualified with.
+struct SagaLeg<'a> {
+    pm: &'a ProcessManagerDef,
+    correlation: &'a str,
+    domain_name: &'a str,
+}
+
+impl SagaLeg<'_> {
+    fn key(&self) -> (String, String) {
+        (self.pm.name.to_string(), self.correlation.to_string())
+    }
+
+    /// The correlation every event this leg's dispatches produce is stamped with.
+    fn stamp(&self) -> HashMap<String, String> {
+        HashMap::from([(
+            correlation_head(self.pm.correlates_by).to_string(),
+            self.correlation.to_string(),
+        )])
+    }
+}
+
 /// Dispatches `verb`, then recursively runs the policies and saga legs its events trigger.
 /// Only a refusal of the top-level `verb` is returned; reaction refusals are logged and swallowed.
 ///
@@ -268,70 +307,84 @@ pub fn orchestrate<S: AggregateScan>(
     reaction_log: &mut Vec<Json>,
     saga_log: &mut Vec<Json>,
 ) -> Result<(), Refusal> {
-    // A fact the command `needs` is answered ahead of every gate (ADR 0081), for a reaction's
-    // dispatch as for the outermost one.
-    let enriched = super::needs::enrich(verb, args, occurred_at);
-    let args = enriched.as_ref().unwrap_or(args);
-    let mut events = dispatch_fn(store, verb, args, caller_role, caller_actor_id, mutations)?;
+    Cascade {
+        store,
+        dispatch_fn,
+        tables,
+        sagas,
+        occurred_at,
+        all_events,
+        mutations,
+        cross_domain,
+        reaction_log,
+        saga_log,
+    }
+    .run(
+        verb,
+        args,
+        caller_role,
+        caller_actor_id,
+        saga_correlation,
+        depth,
+    )
+}
 
-    if let Some(stamp) = saga_correlation {
-        for event in &mut events {
-            event
-                .correlation
-                .get_or_insert_with(HashMap::new)
-                .extend(stamp.iter().map(|(k, v)| (k.clone(), v.clone())));
+impl<S: AggregateScan> Cascade<'_, S> {
+    fn run(
+        &mut self,
+        verb: &str,
+        args: &Json,
+        caller_role: Option<&str>,
+        caller_actor_id: Option<&str>,
+        saga_correlation: Option<&HashMap<String, String>>,
+        depth: usize,
+    ) -> Result<(), Refusal> {
+        // A fact the command `needs` is answered ahead of every gate (ADR 0081), for a reaction's
+        // dispatch as for the outermost one.
+        let enriched = super::needs::enrich(verb, args, self.occurred_at);
+        let args = enriched.as_ref().unwrap_or(args);
+        let mut events = (self.dispatch_fn)(
+            self.store,
+            verb,
+            args,
+            caller_role,
+            caller_actor_id,
+            self.mutations,
+        )?;
+
+        if let Some(stamp) = saga_correlation {
+            for event in &mut events {
+                event
+                    .correlation
+                    .get_or_insert_with(HashMap::new)
+                    .extend(stamp.iter().map(|(k, v)| (k.clone(), v.clone())));
+            }
         }
-    }
 
-    if let Some(ts) = occurred_at {
-        for event in &mut events {
-            event.occurred_at = Some(ts.to_string());
+        if let Some(ts) = self.occurred_at {
+            for event in &mut events {
+                event.occurred_at = Some(ts.to_string());
+            }
         }
-    }
 
-    // Log the whole batch before any reaction runs, so a later event never logs after an
-    // earlier event's reactions.
-    for event in &events {
-        all_events.push(event.clone());
-    }
+        // Log the whole batch before any reaction runs, so a later event never logs after an
+        // earlier event's reactions.
+        for event in &events {
+            self.all_events.push(event.clone());
+        }
 
-    // Then per event in `emits` order: its policies, then its sagas.
-    for event in events {
-        // Saga begin/advance/end run for every event regardless of depth; only the re-entry is
-        // depth-gated, inside `react_policies` and `deliver_saga_dispatch`.
-        react_policies(
-            store,
-            dispatch_fn,
-            tables,
-            sagas,
-            &event,
-            occurred_at,
-            depth,
-            all_events,
-            mutations,
-            cross_domain,
-            reaction_log,
-            saga_log,
-        );
-        begin_saga(tables, sagas, &event, saga_log);
-        advance_saga(
-            store,
-            dispatch_fn,
-            tables,
-            sagas,
-            &event,
-            occurred_at,
-            depth,
-            all_events,
-            mutations,
-            cross_domain,
-            reaction_log,
-            saga_log,
-        );
-        end_saga(tables, sagas, &event, saga_log);
-    }
+        // Then per event in `emits` order: its policies, then its sagas.
+        for event in events {
+            // Saga begin/advance/end run for every event regardless of depth; only the re-entry is
+            // depth-gated, inside `react_policies` and `deliver_saga_dispatch`.
+            self.react_policies(&event, depth);
+            self.begin_saga(&event);
+            self.advance_saga(&event, depth);
+            self.end_saga(&event);
+        }
 
-    Ok(())
+        Ok(())
+    }
 }
 
 // Decodes a rendered `with:` literal. Wire text keeps its quote marks, so passing it through
@@ -657,709 +710,509 @@ fn route_dispatch_args(
     ])
 }
 
-#[allow(clippy::too_many_arguments)]
-fn react_policies<S: AggregateScan>(
-    store: &mut S,
-    dispatch_fn: DispatchFn<S>,
-    tables: Tables<'static>,
-    sagas: &mut HashMap<(String, String), SagaInstance>,
-    event: &Event,
-    occurred_at: Option<&str>,
-    depth: usize,
-    all_events: &mut Vec<Event>,
-    mutations: &mut Vec<MutationRecord>,
-    cross_domain: &mut Vec<PendingCrossDomainReaction>,
-    reaction_log: &mut Vec<Json>,
-    saga_log: &mut Vec<Json>,
-) {
-    let emitting = event
-        .aggregate
-        .rsplit("::")
-        .next()
-        .unwrap_or(event.aggregate.as_str());
+impl<S: AggregateScan> Cascade<'_, S> {
+    fn react_policies(&mut self, event: &Event, depth: usize) {
+        let tables = self.tables;
+        let emitting = event
+            .aggregate
+            .rsplit("::")
+            .next()
+            .unwrap_or(event.aggregate.as_str());
 
-    for policy in tables.policies {
-        if policy.event_name != event.name {
-            continue;
-        }
-        if let Some(qualifier) = policy.event_qualifier {
-            if qualifier != emitting {
+        for policy in tables.policies {
+            if policy.event_name != event.name {
                 continue;
             }
-        }
-        if !where_holds(policy.where_expr, event) {
-            continue;
+            if let Some(qualifier) = policy.event_qualifier {
+                if qualifier != emitting {
+                    continue;
+                }
+            }
+            if !where_holds(policy.where_expr, event) {
+                continue;
+            }
+
+            let record = |extra: Vec<(&str, Json)>| -> Json {
+                let mut fields = vec![
+                    ("policy", Json::str(policy.policy_name.to_string())),
+                    ("on", Json::str(event.name.clone())),
+                    ("trigger", Json::str(policy.target_verb.to_string())),
+                ];
+                fields.extend(extra);
+                Json::obj(fields)
+            };
+
+            if depth + 1 >= MAX_REACTION_DEPTH {
+                self.reaction_log.push(record(vec![
+                    ("delivered", Json::Bool(false)),
+                    (
+                        "reason",
+                        Json::str(format!("reaction depth {MAX_REACTION_DEPTH} reached")),
+                    ),
+                ]));
+                continue;
+            }
+
+            // A fan-out dispatches once per row its query answers; the row id is merged into the
+            // source a `with:` projection reads from.
+            if let Some(for_each) = policy.for_each {
+                let Some(def) = named_query::find(tables.queries, for_each) else {
+                    self.reaction_log.push(record(vec![
+                        ("delivered", Json::Bool(false)),
+                        ("reason", Json::str(format!("no query {for_each}"))),
+                    ]));
+                    continue;
+                };
+                // The query reads the event, not the projection, with the emitting record's
+                // identity lent under its head. No caller role: the policy is system-triggered.
+                let query_args = for_each_query_args(def, event, &tables);
+                let rows = match named_query::run(self.store, def, &query_args, None) {
+                    Ok(rows) => rows,
+                    Err(refusal) => {
+                        self.reaction_log.push(record(vec![
+                            ("delivered", Json::Bool(false)),
+                            ("reason", Json::str(refusal.to_string())),
+                        ]));
+                        continue;
+                    }
+                };
+                for (row_id, row) in rows {
+                    let row_record = |extra: Vec<(&str, Json)>| -> Json {
+                        let mut fields = vec![("for_row", Json::str(row_id.clone()))];
+                        fields.extend(extra);
+                        let base = record(vec![]);
+                        match base {
+                            Json::Object(mut pairs) => {
+                                pairs.extend(fields.into_iter().map(|(k, v)| (k.to_string(), v)));
+                                Json::Object(pairs)
+                            }
+                            other => other,
+                        }
+                    };
+                    let extra = policy.for_each_key.map(|key| (key, row_id.as_str()));
+                    let args = trigger_args_with_row(
+                        policy,
+                        event,
+                        extra,
+                        Some((row_id.as_str(), &row)),
+                        policy.target_verb,
+                        &tables,
+                    );
+                    let outcome = self.run(policy.target_verb, &args, None, None, None, depth + 1);
+                    match outcome {
+                        Ok(()) => self
+                            .reaction_log
+                            .push(row_record(vec![("delivered", Json::Bool(true))])),
+                        Err(refusal) => self.reaction_log.push(row_record(vec![
+                            ("delivered", Json::Bool(false)),
+                            ("reason", Json::str(refusal.to_string())),
+                        ])),
+                    }
+                }
+                continue;
+            }
+
+            // No `with:`: the whole payload forwards verbatim. Reactions are system-triggered, so
+            // no caller role, and only saga legs stamp a correlation.
+            let args = trigger_args(policy, event, None, policy.target_verb, &tables);
+            let outcome = self.run(policy.target_verb, &args, None, None, None, depth + 1);
+            match outcome {
+                Ok(()) => self
+                    .reaction_log
+                    .push(record(vec![("delivered", Json::Bool(true))])),
+                // A refusal is recorded, not fatal to the emitting command. A panic is not
+                // caught, on purpose.
+                Err(refusal) => self.reaction_log.push(record(vec![
+                    ("delivered", Json::Bool(false)),
+                    ("reason", Json::str(refusal.to_string())),
+                ])),
+            }
         }
 
+        // Cross-domain matches are recorded for the host to deliver, never dispatched or logged
+        // here: the delivery outcome does not exist yet.
+        for policy in tables.cross_domain_policies {
+            if policy.event_name != event.name {
+                continue;
+            }
+            if let Some(qualifier) = policy.event_qualifier {
+                if qualifier != emitting {
+                    continue;
+                }
+            }
+            if !where_holds(policy.where_expr, event) {
+                continue;
+            }
+            self.cross_domain.push(PendingCrossDomainReaction {
+                policy_name: policy.policy_name.to_string(),
+                event_name: event.name.clone(),
+                target_domain: policy.target_domain.to_string(),
+                target_verb: policy.target_verb.to_string(),
+                payload: event.payload.clone(),
+            });
+        }
+    }
+}
+
+impl<S: AggregateScan> Cascade<'_, S> {
+    // Silent when `event.name != pm.starts_on` or the instance already exists.
+    fn begin_saga(&mut self, event: &Event) {
+        let tables = self.tables;
+        for pm in tables.process_managers {
+            if event.name != pm.starts_on {
+                continue;
+            }
+
+            let Some(correlation) = correlation_of(pm, event, tables.reference_key_fn) else {
+                self.saga_log.push(Json::obj(vec![
+                    ("process_manager", Json::str(pm.name.to_string())),
+                    ("on", Json::str(event.name.clone())),
+                    ("born", Json::Bool(false)),
+                    (
+                        "reason",
+                        Json::str(format!("no {} in the payload", pm.correlates_by)),
+                    ),
+                ]));
+                continue;
+            };
+
+            let key = (pm.name.to_string(), correlation.clone());
+            if self.sagas.contains_key(&key) {
+                continue;
+            }
+
+            self.sagas.insert(
+                key,
+                SagaInstance {
+                    state: pm.initial_state.to_string(),
+                    memory: event.payload.clone(),
+                    completed_compensations: Vec::new(),
+                },
+            );
+            self.saga_log.push(Json::obj(vec![
+                ("process_manager", Json::str(pm.name.to_string())),
+                ("on", Json::str(event.name.clone())),
+                ("instance", Json::str(correlation)),
+                ("born", Json::Bool(true)),
+                ("state", Json::str(pm.initial_state.to_string())),
+            ]));
+        }
+    }
+
+    // Silent when no handler answers the event or correlation resolves to nothing.
+    fn advance_saga(&mut self, event: &Event, depth: usize) {
+        let tables = self.tables;
+        for pm in tables.process_managers {
+            if !pm.handlers.iter().any(|h| h.event_type == event.name) {
+                continue;
+            }
+            let Some(correlation) = correlation_of(pm, event, tables.reference_key_fn) else {
+                continue;
+            };
+
+            let key = (pm.name.to_string(), correlation.clone());
+            let record = |extra: Vec<(&str, Json)>| -> Json {
+                let mut fields = vec![
+                    ("process_manager", Json::str(pm.name.to_string())),
+                    ("on", Json::str(event.name.clone())),
+                    ("instance", Json::str(correlation.clone())),
+                ];
+                fields.extend(extra);
+                Json::obj(fields)
+            };
+
+            let Some(state) = self.sagas.get(&key).map(|instance| instance.state.clone()) else {
+                self.saga_log.push(record(vec![
+                    ("advanced", Json::Bool(false)),
+                    (
+                        "reason",
+                        Json::str(format!("no conversation remembers {correlation:?}")),
+                    ),
+                ]));
+                continue;
+            };
+            // The leg is chosen by (event, current state); build refuses two on one pair.
+            let Some(handler) = select_leg(pm, &event.name, &state) else {
+                self.saga_log.push(record(vec![
+                    ("advanced", Json::Bool(false)),
+                    ("reason", Json::str(leg_mismatch(pm, &event.name, &state))),
+                ]));
+                continue;
+            };
+
+            if let Some(slot) = self.sagas.get_mut(&key) {
+                slot.state = handler.to_state.to_string();
+            }
+            self.saga_log.push(record(vec![
+                ("advanced", Json::Bool(true)),
+                ("from", Json::str(handler.from_state.to_string())),
+                ("to", Json::str(handler.to_state.to_string())),
+            ]));
+
+            let memory = self
+                .sagas
+                .get(&key)
+                .map_or(Json::Null, |instance| instance.memory.clone());
+            // `event.aggregate` is `{domain}::{aggregate}`, so the domain is read from it.
+            let domain_name = event
+                .aggregate
+                .split("::")
+                .next()
+                .unwrap_or(&event.aggregate);
+            let leg = SagaLeg {
+                pm,
+                correlation: &correlation,
+                domain_name,
+            };
+            let mut refused = false;
+            for spec in handler.dispatches {
+                let args = build_dispatch_args(
+                    pm,
+                    spec,
+                    event,
+                    &correlation,
+                    &memory,
+                    domain_name,
+                    &tables,
+                );
+                // Resolved before the forward dispatch: the ledger entry is pushed speculatively.
+                let compensation_args = spec.compensates.map(|r| {
+                    build_dispatch_args(pm, r, event, &correlation, &memory, domain_name, &tables)
+                });
+                let delivered =
+                    self.deliver_saga_dispatch(&leg, spec, &args, depth, compensation_args);
+                if delivered == Some(false) {
+                    refused = true;
+                }
+            }
+
+            if refused {
+                self.compensate(&leg, event, &memory, depth);
+            }
+        }
+    }
+
+    // Returns `Some(delivered)`, or `None` when the depth ceiling stopped the leg before it tried.
+    // The compensation is pushed before the forward dispatch runs: a nested refusal re-entering
+    // this saga must already see it. It is popped again if this leg's own attempt refuses.
+    fn deliver_saga_dispatch(
+        &mut self,
+        leg: &SagaLeg,
+        spec: &DispatchSpec,
+        args: &Json,
+        depth: usize,
+        compensation_args: Option<Json>,
+    ) -> Option<bool> {
+        // Ruby logs the unqualified name and qualifies only at dispatch; this mirrors that split.
         let record = |extra: Vec<(&str, Json)>| -> Json {
             let mut fields = vec![
-                ("policy", Json::str(policy.policy_name.to_string())),
-                ("on", Json::str(event.name.clone())),
-                ("trigger", Json::str(policy.target_verb.to_string())),
+                ("process_manager", Json::str(leg.pm.name.to_string())),
+                ("instance", Json::str(leg.correlation.to_string())),
+                ("dispatch", Json::str(spec.command_name.to_string())),
             ];
             fields.extend(extra);
             Json::obj(fields)
         };
 
         if depth + 1 >= MAX_REACTION_DEPTH {
-            reaction_log.push(record(vec![
+            self.saga_log.push(record(vec![
                 ("delivered", Json::Bool(false)),
                 (
                     "reason",
                     Json::str(format!("reaction depth {MAX_REACTION_DEPTH} reached")),
                 ),
             ]));
-            continue;
+            return None;
         }
 
-        // A fan-out dispatches once per row its query answers; the row id is merged into the
-        // source a `with:` projection reads from.
-        if let Some(for_each) = policy.for_each {
-            let Some(def) = named_query::find(tables.queries, for_each) else {
-                reaction_log.push(record(vec![
-                    ("delivered", Json::Bool(false)),
-                    ("reason", Json::str(format!("no query {for_each}"))),
-                ]));
-                continue;
-            };
-            // The query reads the event, not the projection, with the emitting record's identity
-            // lent under its head. No caller role: the policy is system-triggered.
-            let query_args = for_each_query_args(def, event, &tables);
-            let rows = match named_query::run(store, def, &query_args, None) {
-                Ok(rows) => rows,
-                Err(refusal) => {
-                    reaction_log.push(record(vec![
-                        ("delivered", Json::Bool(false)),
-                        ("reason", Json::str(refusal.to_string())),
-                    ]));
-                    continue;
-                }
-            };
-            for (row_id, row) in rows {
-                let row_record = |extra: Vec<(&str, Json)>| -> Json {
-                    let mut fields = vec![("for_row", Json::str(row_id.clone()))];
-                    fields.extend(extra);
-                    let base = record(vec![]);
-                    match base {
-                        Json::Object(mut pairs) => {
-                            pairs.extend(fields.into_iter().map(|(k, v)| (k.to_string(), v)));
-                            Json::Object(pairs)
-                        }
-                        other => other,
-                    }
-                };
-                let extra = policy.for_each_key.map(|key| (key, row_id.as_str()));
-                let args = trigger_args_with_row(
-                    policy,
-                    event,
-                    extra,
-                    Some((row_id.as_str(), &row)),
-                    policy.target_verb,
-                    &tables,
-                );
-                let outcome = orchestrate(
-                    store,
-                    dispatch_fn,
-                    tables,
-                    sagas,
-                    policy.target_verb,
-                    &args,
-                    None,
-                    None,
-                    None,
-                    occurred_at,
-                    depth + 1,
-                    all_events,
-                    mutations,
-                    cross_domain,
-                    reaction_log,
-                    saga_log,
-                );
-                match outcome {
-                    Ok(()) => reaction_log.push(row_record(vec![("delivered", Json::Bool(true))])),
-                    Err(refusal) => reaction_log.push(row_record(vec![
-                        ("delivered", Json::Bool(false)),
-                        ("reason", Json::str(refusal.to_string())),
-                    ])),
-                }
+        // `spec.command_name` is bare on the wire, so it is qualified before `dispatch_by_name`.
+        let qualified = qualify_saga_command_name(leg.domain_name, spec.command_name);
+
+        let key = leg.key();
+        let mut compensation_recorded = false;
+        if let (Some(compensates_spec), Some(r_args)) = (spec.compensates, compensation_args) {
+            if let Some(slot) = self.sagas.get_mut(&key) {
+                slot.completed_compensations.push(CompletedCompensation {
+                    command_name: compensates_spec.command_name.to_string(),
+                    args: r_args,
+                });
+                compensation_recorded = true;
             }
-            continue;
         }
 
-        // No `with:`: the whole payload forwards verbatim. Reactions are system-triggered, so no
-        // caller role, and only saga legs stamp a correlation.
-        let args = trigger_args(policy, event, None, policy.target_verb, &tables);
-        let outcome = orchestrate(
-            store,
-            dispatch_fn,
-            tables,
-            sagas,
-            policy.target_verb,
-            &args,
-            None,
-            None,
-            None,
-            occurred_at,
-            depth + 1,
-            all_events,
-            mutations,
-            cross_domain,
-            reaction_log,
-            saga_log,
-        );
+        // System-triggered, so no caller role; `Some(stamp)` stamps every event this dispatch
+        // produces.
+        let outcome = self.run(&qualified, args, None, None, Some(&leg.stamp()), depth + 1);
         match outcome {
-            Ok(()) => reaction_log.push(record(vec![("delivered", Json::Bool(true))])),
-            // A refusal is recorded, not fatal to the emitting command. A panic is not caught, on
-            // purpose.
-            Err(refusal) => reaction_log.push(record(vec![
-                ("delivered", Json::Bool(false)),
-                ("reason", Json::str(refusal.to_string())),
-            ])),
-        }
-    }
-
-    // Cross-domain matches are recorded for the host to deliver, never dispatched or logged here:
-    // the delivery outcome does not exist yet.
-    for policy in tables.cross_domain_policies {
-        if policy.event_name != event.name {
-            continue;
-        }
-        if let Some(qualifier) = policy.event_qualifier {
-            if qualifier != emitting {
-                continue;
+            Ok(()) => {
+                self.saga_log
+                    .push(record(vec![("delivered", Json::Bool(true))]));
+                Some(true)
+            }
+            Err(refusal) => {
+                // This leg failed, so its speculative entry was never earned. `pop` is safe: any
+                // entry pushed after it by a nested call was already drained by `compensate`.
+                if compensation_recorded {
+                    if let Some(slot) = self.sagas.get_mut(&key) {
+                        slot.completed_compensations.pop();
+                    }
+                }
+                self.saga_log.push(record(vec![
+                    ("delivered", Json::Bool(false)),
+                    ("reason", Json::str(refusal.to_string())),
+                ]));
+                Some(false)
             }
         }
-        if !where_holds(policy.where_expr, event) {
-            continue;
-        }
-        cross_domain.push(PendingCrossDomainReaction {
-            policy_name: policy.policy_name.to_string(),
-            event_name: event.name.clone(),
-            target_domain: policy.target_domain.to_string(),
-            target_verb: policy.target_verb.to_string(),
-            payload: event.payload.clone(),
-        });
     }
-}
 
-// Silent when `event.name != pm.starts_on` or the instance already exists.
-fn begin_saga(
-    tables: Tables<'static>,
-    sagas: &mut HashMap<(String, String), SagaInstance>,
-    event: &Event,
-    saga_log: &mut Vec<Json>,
-) {
-    for pm in tables.process_managers {
-        if event.name != pm.starts_on {
-            continue;
-        }
-
-        let Some(correlation) = correlation_of(pm, event, tables.reference_key_fn) else {
-            saga_log.push(Json::obj(vec![
-                ("process_manager", Json::str(pm.name.to_string())),
-                ("on", Json::str(event.name.clone())),
-                ("born", Json::Bool(false)),
-                (
-                    "reason",
-                    Json::str(format!("no {} in the payload", pm.correlates_by)),
-                ),
-            ]));
-            continue;
-        };
-
-        let key = (pm.name.to_string(), correlation.clone());
-        if sagas.contains_key(&key) {
-            continue;
-        }
-
-        sagas.insert(
-            key,
-            SagaInstance {
-                state: pm.initial_state.to_string(),
-                memory: event.payload.clone(),
-                completed_compensations: Vec::new(),
-            },
-        );
-        saga_log.push(Json::obj(vec![
-            ("process_manager", Json::str(pm.name.to_string())),
-            ("on", Json::str(event.name.clone())),
-            ("instance", Json::str(correlation)),
-            ("born", Json::Bool(true)),
-            ("state", Json::str(pm.initial_state.to_string())),
-        ]));
-    }
-}
-
-// Silent when no handler answers the event or correlation resolves to nothing.
-#[allow(clippy::too_many_arguments)]
-fn advance_saga<S: AggregateScan>(
-    store: &mut S,
-    dispatch_fn: DispatchFn<S>,
-    tables: Tables<'static>,
-    sagas: &mut HashMap<(String, String), SagaInstance>,
-    event: &Event,
-    occurred_at: Option<&str>,
-    depth: usize,
-    all_events: &mut Vec<Event>,
-    mutations: &mut Vec<MutationRecord>,
-    cross_domain: &mut Vec<PendingCrossDomainReaction>,
-    reaction_log: &mut Vec<Json>,
-    saga_log: &mut Vec<Json>,
-) {
-    for pm in tables.process_managers {
-        if !pm.handlers.iter().any(|h| h.event_type == event.name) {
-            continue;
-        }
-        let Some(correlation) = correlation_of(pm, event, tables.reference_key_fn) else {
-            continue;
-        };
-
-        let key = (pm.name.to_string(), correlation.clone());
+    // Fires one ledger entry, newest-first. Args are pre-resolved, so `build_dispatch_args` is
+    // skipped. A compensation that itself refuses is logged with `compensation_failed` and never
+    // re-triggers `compensate`.
+    fn deliver_derived_compensation(
+        &mut self,
+        leg: &SagaLeg,
+        entry: &CompletedCompensation,
+        depth: usize,
+    ) {
         let record = |extra: Vec<(&str, Json)>| -> Json {
             let mut fields = vec![
-                ("process_manager", Json::str(pm.name.to_string())),
-                ("on", Json::str(event.name.clone())),
-                ("instance", Json::str(correlation.clone())),
+                ("process_manager", Json::str(leg.pm.name.to_string())),
+                ("instance", Json::str(leg.correlation.to_string())),
+                ("dispatch", Json::str(entry.command_name.clone())),
             ];
             fields.extend(extra);
             Json::obj(fields)
         };
 
-        let Some(state) = sagas.get(&key).map(|instance| instance.state.clone()) else {
-            saga_log.push(record(vec![
+        if depth + 1 >= MAX_REACTION_DEPTH {
+            self.saga_log.push(record(vec![
+                ("delivered", Json::Bool(false)),
+                (
+                    "reason",
+                    Json::str(format!("reaction depth {MAX_REACTION_DEPTH} reached")),
+                ),
+                ("compensation", Json::Bool(true)),
+                ("compensation_failed", Json::Bool(true)),
+            ]));
+            return;
+        }
+
+        // A compensation's `command_name` is bare on the wire, like a forward dispatch's.
+        let qualified = qualify_saga_command_name(leg.domain_name, &entry.command_name);
+
+        let outcome = self.run(
+            &qualified,
+            &entry.args,
+            None,
+            None,
+            Some(&leg.stamp()),
+            depth + 1,
+        );
+        match outcome {
+            Ok(()) => self.saga_log.push(record(vec![
+                ("delivered", Json::Bool(true)),
+                ("compensation", Json::Bool(true)),
+            ])),
+            Err(refusal) => self.saga_log.push(record(vec![
+                ("delivered", Json::Bool(false)),
+                ("reason", Json::str(refusal.to_string())),
+                ("compensation", Json::Bool(true)),
+                ("compensation_failed", Json::Bool(true)),
+            ])),
+        }
+    }
+
+    // Silent when `event.name != pm.ends_on`, correlation is absent, or no instance existed.
+    fn end_saga(&mut self, event: &Event) {
+        let tables = self.tables;
+        for pm in tables.process_managers {
+            if event.name != pm.ends_on {
+                continue;
+            }
+            let Some(correlation) = correlation_of(pm, event, tables.reference_key_fn) else {
+                continue;
+            };
+            let key = (pm.name.to_string(), correlation.clone());
+            if self.sagas.remove(&key).is_none() {
+                continue;
+            }
+
+            self.saga_log.push(Json::obj(vec![
+                ("process_manager", Json::str(pm.name.to_string())),
+                ("on", Json::str(event.name.clone())),
+                ("instance", Json::str(correlation)),
+                ("ended", Json::Bool(true)),
+            ]));
+        }
+    }
+
+    // The `on :refused` leg, run once against the post-transition state. Its own dispatches never
+    // compensate on failure.
+    fn compensate(&mut self, leg: &SagaLeg, event: &Event, memory: &Json, depth: usize) {
+        let (pm, correlation, domain_name) = (leg.pm, leg.correlation, leg.domain_name);
+        let key = leg.key();
+        let Some(current_state) = self.sagas.get(&key).map(|instance| instance.state.clone())
+        else {
+            return;
+        };
+        // A process manager with no compensating leg is silent; a state no leg answers from is
+        // logged as `advanced: false`.
+        if !pm.handlers.iter().any(|h| h.event_type == REFUSED) {
+            return;
+        }
+
+        let record = |extra: Vec<(&str, Json)>| -> Json {
+            let mut fields = vec![
+                ("process_manager", Json::str(pm.name.to_string())),
+                ("on", Json::str(REFUSED.to_string())),
+                ("instance", Json::str(correlation.to_string())),
+            ];
+            fields.extend(extra);
+            Json::obj(fields)
+        };
+
+        let Some(compensation) = select_leg(pm, REFUSED, &current_state) else {
+            self.saga_log.push(record(vec![
                 ("advanced", Json::Bool(false)),
                 (
                     "reason",
-                    Json::str(format!("no conversation remembers {correlation:?}")),
+                    Json::str(leg_mismatch(pm, REFUSED, &current_state)),
                 ),
             ]));
-            continue;
-        };
-        // The leg is chosen by (event, current state); build refuses two on one pair.
-        let Some(handler) = select_leg(pm, &event.name, &state) else {
-            saga_log.push(record(vec![
-                ("advanced", Json::Bool(false)),
-                ("reason", Json::str(leg_mismatch(pm, &event.name, &state))),
-            ]));
-            continue;
+            return;
         };
 
-        if let Some(slot) = sagas.get_mut(&key) {
-            slot.state = handler.to_state.to_string();
+        if let Some(slot) = self.sagas.get_mut(&key) {
+            slot.state = compensation.to_state.to_string();
         }
-        saga_log.push(record(vec![
+        self.saga_log.push(record(vec![
             ("advanced", Json::Bool(true)),
-            ("from", Json::str(handler.from_state.to_string())),
-            ("to", Json::str(handler.to_state.to_string())),
+            ("from", Json::str(compensation.from_state.to_string())),
+            ("to", Json::str(compensation.to_state.to_string())),
         ]));
 
-        let memory = sagas
-            .get(&key)
-            .map_or(Json::Null, |instance| instance.memory.clone());
-        // `event.aggregate` is `{domain}::{aggregate}`, so the domain is read from it.
-        let domain_name = event
-            .aggregate
-            .split("::")
-            .next()
-            .unwrap_or(&event.aggregate);
-        let mut refused = false;
-        for spec in handler.dispatches {
+        // Derived compensations first, newest-first. The ledger is re-fetched each iteration, not
+        // snapshotted: a nested reaction may push onto it mid-drain. If one removes the instance
+        // mid-drain, the loop stops early.
+        loop {
+            let entry = match self.sagas.get_mut(&key) {
+                Some(instance) => instance.completed_compensations.pop(),
+                None => None,
+            };
+            let Some(entry) = entry else { break };
+            self.deliver_derived_compensation(leg, &entry, depth);
+        }
+
+        let tables = self.tables;
+        for spec in compensation.dispatches {
             let args =
-                build_dispatch_args(pm, spec, event, &correlation, &memory, domain_name, &tables);
-            // Resolved before the forward dispatch: the ledger entry is pushed speculatively.
+                build_dispatch_args(pm, spec, event, correlation, memory, domain_name, &tables);
             let compensation_args = spec.compensates.map(|r| {
-                build_dispatch_args(pm, r, event, &correlation, &memory, domain_name, &tables)
+                build_dispatch_args(pm, r, event, correlation, memory, domain_name, &tables)
             });
-            let stamp: HashMap<String, String> = HashMap::from([(
-                correlation_head(pm.correlates_by).to_string(),
-                correlation.clone(),
-            )]);
-            let delivered = deliver_saga_dispatch(
-                store,
-                dispatch_fn,
-                tables,
-                sagas,
-                pm,
-                spec,
-                domain_name,
-                &args,
-                &correlation,
-                occurred_at,
-                depth,
-                all_events,
-                mutations,
-                cross_domain,
-                reaction_log,
-                saga_log,
-                &stamp,
-                compensation_args,
-            );
-            if delivered == Some(false) {
-                refused = true;
-            }
+            self.deliver_saga_dispatch(leg, spec, &args, depth, compensation_args);
         }
-
-        if refused {
-            compensate(
-                store,
-                dispatch_fn,
-                tables,
-                sagas,
-                pm,
-                &key,
-                event,
-                &correlation,
-                &memory,
-                occurred_at,
-                depth,
-                all_events,
-                mutations,
-                cross_domain,
-                reaction_log,
-                saga_log,
-            );
-        }
-    }
-}
-
-// Returns `Some(delivered)`, or `None` when the depth ceiling stopped the leg before it tried.
-// The compensation is pushed before the forward dispatch runs: a nested refusal re-entering this
-// saga must already see it. It is popped again if this leg's own attempt refuses.
-#[allow(clippy::too_many_arguments)]
-fn deliver_saga_dispatch<S: AggregateScan>(
-    store: &mut S,
-    dispatch_fn: DispatchFn<S>,
-    tables: Tables<'static>,
-    sagas: &mut HashMap<(String, String), SagaInstance>,
-    pm: &ProcessManagerDef,
-    spec: &DispatchSpec,
-    domain_name: &str,
-    args: &Json,
-    correlation: &str,
-    occurred_at: Option<&str>,
-    depth: usize,
-    all_events: &mut Vec<Event>,
-    mutations: &mut Vec<MutationRecord>,
-    cross_domain: &mut Vec<PendingCrossDomainReaction>,
-    reaction_log: &mut Vec<Json>,
-    saga_log: &mut Vec<Json>,
-    stamp: &HashMap<String, String>,
-    compensation_args: Option<Json>,
-) -> Option<bool> {
-    // Ruby logs the unqualified name and qualifies only at dispatch; this mirrors that split.
-    let record = |extra: Vec<(&str, Json)>| -> Json {
-        let mut fields = vec![
-            ("process_manager", Json::str(pm.name.to_string())),
-            ("instance", Json::str(correlation.to_string())),
-            ("dispatch", Json::str(spec.command_name.to_string())),
-        ];
-        fields.extend(extra);
-        Json::obj(fields)
-    };
-
-    if depth + 1 >= MAX_REACTION_DEPTH {
-        saga_log.push(record(vec![
-            ("delivered", Json::Bool(false)),
-            (
-                "reason",
-                Json::str(format!("reaction depth {MAX_REACTION_DEPTH} reached")),
-            ),
-        ]));
-        return None;
-    }
-
-    // `spec.command_name` is bare on the wire, so it is qualified before `dispatch_by_name`.
-    let qualified = qualify_saga_command_name(domain_name, spec.command_name);
-
-    let key = (pm.name.to_string(), correlation.to_string());
-    let mut compensation_recorded = false;
-    if let (Some(compensates_spec), Some(r_args)) = (spec.compensates, compensation_args) {
-        if let Some(slot) = sagas.get_mut(&key) {
-            slot.completed_compensations.push(CompletedCompensation {
-                command_name: compensates_spec.command_name.to_string(),
-                args: r_args,
-            });
-            compensation_recorded = true;
-        }
-    }
-
-    // System-triggered, so no caller role; `Some(stamp)` stamps every event this dispatch
-    // produces.
-    let outcome = orchestrate(
-        store,
-        dispatch_fn,
-        tables,
-        sagas,
-        &qualified,
-        args,
-        None,
-        None,
-        Some(stamp),
-        occurred_at,
-        depth + 1,
-        all_events,
-        mutations,
-        cross_domain,
-        reaction_log,
-        saga_log,
-    );
-    match outcome {
-        Ok(()) => {
-            saga_log.push(record(vec![("delivered", Json::Bool(true))]));
-            Some(true)
-        }
-        Err(refusal) => {
-            // This leg failed, so its speculative entry was never earned. `pop` is safe: any
-            // entry pushed after it by a nested call was already drained by `compensate`.
-            if compensation_recorded {
-                if let Some(slot) = sagas.get_mut(&key) {
-                    slot.completed_compensations.pop();
-                }
-            }
-            saga_log.push(record(vec![
-                ("delivered", Json::Bool(false)),
-                ("reason", Json::str(refusal.to_string())),
-            ]));
-            Some(false)
-        }
-    }
-}
-
-// Fires one ledger entry, newest-first. Args are pre-resolved, so `build_dispatch_args` is
-// skipped. A compensation that itself refuses is logged with `compensation_failed` and never
-// re-triggers `compensate`.
-#[allow(clippy::too_many_arguments)]
-fn deliver_derived_compensation<S: AggregateScan>(
-    store: &mut S,
-    dispatch_fn: DispatchFn<S>,
-    tables: Tables<'static>,
-    sagas: &mut HashMap<(String, String), SagaInstance>,
-    pm: &ProcessManagerDef,
-    entry: &CompletedCompensation,
-    domain_name: &str,
-    correlation: &str,
-    occurred_at: Option<&str>,
-    depth: usize,
-    all_events: &mut Vec<Event>,
-    mutations: &mut Vec<MutationRecord>,
-    cross_domain: &mut Vec<PendingCrossDomainReaction>,
-    reaction_log: &mut Vec<Json>,
-    saga_log: &mut Vec<Json>,
-) {
-    let record = |extra: Vec<(&str, Json)>| -> Json {
-        let mut fields = vec![
-            ("process_manager", Json::str(pm.name.to_string())),
-            ("instance", Json::str(correlation.to_string())),
-            ("dispatch", Json::str(entry.command_name.clone())),
-        ];
-        fields.extend(extra);
-        Json::obj(fields)
-    };
-
-    if depth + 1 >= MAX_REACTION_DEPTH {
-        saga_log.push(record(vec![
-            ("delivered", Json::Bool(false)),
-            (
-                "reason",
-                Json::str(format!("reaction depth {MAX_REACTION_DEPTH} reached")),
-            ),
-            ("compensation", Json::Bool(true)),
-            ("compensation_failed", Json::Bool(true)),
-        ]));
-        return;
-    }
-
-    // A compensation's `command_name` is bare on the wire, like a forward dispatch's.
-    let qualified = qualify_saga_command_name(domain_name, &entry.command_name);
-
-    let stamp: HashMap<String, String> = HashMap::from([(
-        correlation_head(pm.correlates_by).to_string(),
-        correlation.to_string(),
-    )]);
-
-    let outcome = orchestrate(
-        store,
-        dispatch_fn,
-        tables,
-        sagas,
-        &qualified,
-        &entry.args,
-        None,
-        None,
-        Some(&stamp),
-        occurred_at,
-        depth + 1,
-        all_events,
-        mutations,
-        cross_domain,
-        reaction_log,
-        saga_log,
-    );
-    match outcome {
-        Ok(()) => saga_log.push(record(vec![
-            ("delivered", Json::Bool(true)),
-            ("compensation", Json::Bool(true)),
-        ])),
-        Err(refusal) => saga_log.push(record(vec![
-            ("delivered", Json::Bool(false)),
-            ("reason", Json::str(refusal.to_string())),
-            ("compensation", Json::Bool(true)),
-            ("compensation_failed", Json::Bool(true)),
-        ])),
-    }
-}
-
-// Silent when `event.name != pm.ends_on`, correlation is absent, or no instance existed.
-fn end_saga(
-    tables: Tables<'static>,
-    sagas: &mut HashMap<(String, String), SagaInstance>,
-    event: &Event,
-    saga_log: &mut Vec<Json>,
-) {
-    for pm in tables.process_managers {
-        if event.name != pm.ends_on {
-            continue;
-        }
-        let Some(correlation) = correlation_of(pm, event, tables.reference_key_fn) else {
-            continue;
-        };
-        let key = (pm.name.to_string(), correlation.clone());
-        if sagas.remove(&key).is_none() {
-            continue;
-        }
-
-        saga_log.push(Json::obj(vec![
-            ("process_manager", Json::str(pm.name.to_string())),
-            ("on", Json::str(event.name.clone())),
-            ("instance", Json::str(correlation)),
-            ("ended", Json::Bool(true)),
-        ]));
-    }
-}
-
-// The `on :refused` leg, run once against the post-transition state. Its own dispatches never
-// compensate on failure.
-#[allow(clippy::too_many_arguments)]
-fn compensate<S: AggregateScan>(
-    store: &mut S,
-    dispatch_fn: DispatchFn<S>,
-    tables: Tables<'static>,
-    sagas: &mut HashMap<(String, String), SagaInstance>,
-    pm: &ProcessManagerDef,
-    key: &(String, String),
-    event: &Event,
-    correlation: &str,
-    memory: &Json,
-    occurred_at: Option<&str>,
-    depth: usize,
-    all_events: &mut Vec<Event>,
-    mutations: &mut Vec<MutationRecord>,
-    cross_domain: &mut Vec<PendingCrossDomainReaction>,
-    reaction_log: &mut Vec<Json>,
-    saga_log: &mut Vec<Json>,
-) {
-    let Some(current_state) = sagas.get(key).map(|instance| instance.state.clone()) else {
-        return;
-    };
-    // A process manager with no compensating leg is silent; a state no leg answers from is logged
-    // as `advanced: false`.
-    if !pm.handlers.iter().any(|h| h.event_type == REFUSED) {
-        return;
-    }
-
-    let record = |extra: Vec<(&str, Json)>| -> Json {
-        let mut fields = vec![
-            ("process_manager", Json::str(pm.name.to_string())),
-            ("on", Json::str(REFUSED.to_string())),
-            ("instance", Json::str(correlation.to_string())),
-        ];
-        fields.extend(extra);
-        Json::obj(fields)
-    };
-
-    let Some(compensation) = select_leg(pm, REFUSED, &current_state) else {
-        saga_log.push(record(vec![
-            ("advanced", Json::Bool(false)),
-            (
-                "reason",
-                Json::str(leg_mismatch(pm, REFUSED, &current_state)),
-            ),
-        ]));
-        return;
-    };
-
-    if let Some(slot) = sagas.get_mut(key) {
-        slot.state = compensation.to_state.to_string();
-    }
-    saga_log.push(record(vec![
-        ("advanced", Json::Bool(true)),
-        ("from", Json::str(compensation.from_state.to_string())),
-        ("to", Json::str(compensation.to_state.to_string())),
-    ]));
-
-    let domain_name = event
-        .aggregate
-        .split("::")
-        .next()
-        .unwrap_or(&event.aggregate);
-
-    // Derived compensations first, newest-first. The ledger is re-fetched each iteration, not
-    // snapshotted: a nested reaction may push onto it mid-drain. If one removes the instance
-    // mid-drain, the loop stops early.
-    loop {
-        let entry = match sagas.get_mut(key) {
-            Some(instance) => instance.completed_compensations.pop(),
-            None => None,
-        };
-        let Some(entry) = entry else { break };
-        deliver_derived_compensation(
-            store,
-            dispatch_fn,
-            tables,
-            sagas,
-            pm,
-            &entry,
-            domain_name,
-            correlation,
-            occurred_at,
-            depth,
-            all_events,
-            mutations,
-            cross_domain,
-            reaction_log,
-            saga_log,
-        );
-    }
-
-    for spec in compensation.dispatches {
-        let args = build_dispatch_args(pm, spec, event, correlation, memory, domain_name, &tables);
-        let compensation_args = spec
-            .compensates
-            .map(|r| build_dispatch_args(pm, r, event, correlation, memory, domain_name, &tables));
-        let stamp: HashMap<String, String> = HashMap::from([(
-            correlation_head(pm.correlates_by).to_string(),
-            correlation.to_string(),
-        )]);
-        deliver_saga_dispatch(
-            store,
-            dispatch_fn,
-            tables,
-            sagas,
-            pm,
-            spec,
-            domain_name,
-            &args,
-            correlation,
-            occurred_at,
-            depth,
-            all_events,
-            mutations,
-            cross_domain,
-            reaction_log,
-            saga_log,
-            &stamp,
-            compensation_args,
-        );
     }
 }
 
