@@ -666,8 +666,52 @@ pub fn append_field_problems(
         .collect()
 }
 
-/// Problems with `remove:` mutations, which are generatable only against an entity list whose
-/// single-head identity mints, sourced from a declared argument that bridges to its type.
+/// Why a `remove:` on a list of value objects can't be generated, or `None` when it can.
+///
+/// The argument must be a declared command attribute of the element's own value-object type, so
+/// the generated `retain` compares whole values and nothing needs bridging.
+fn value_object_remove_problem(
+    mutation: &Json,
+    command: &Json,
+    target_attr: &Json,
+    value_objects_by_name: &HashMap<String, &Json>,
+) -> Option<String> {
+    let target_name = mutation.get("target").map(Json::to_s).unwrap_or_default();
+    let element_type = crate::attr::type_name(target_attr);
+    if !value_objects_by_name.contains_key(element_type) {
+        return Some(format!(
+            "{target_name}: remove on a list of {element_type}, which is neither an entity nor a value object, is not generated yet"
+        ));
+    }
+    let source = mutation.get("source").filter(|s| {
+        matches!(s, Json::Object(_))
+            && s.get("kind").map(Json::to_s).unwrap_or_default() == "argument"
+    });
+    let Some(source) = source else {
+        return Some(format!(
+            "{target_name}: remove sources a literal or record state, not an argument — not generated yet"
+        ));
+    };
+    let source_name = source.get("name").map(Json::to_s).unwrap_or_default();
+    let cmd_attrs = command.get("attributes").map_or_default(Json::each);
+    let Some(source_attr) = cmd_attrs
+        .iter()
+        .find(|a| crate::attr::name(a) == source_name)
+    else {
+        return Some(format!(
+            "{target_name}: remove sources undeclared argument {source_name}"
+        ));
+    };
+    if crate::attr::list(source_attr) || crate::attr::type_name(source_attr) != element_type {
+        return Some(format!(
+            "{target_name}: remove on a list of {element_type} needs a single {element_type} argument, not {source_name}"
+        ));
+    }
+    None
+}
+
+/// Problems with `remove:` mutations: an entity list whose single-head identity mints, or a
+/// value-object list, each sourced from a declared argument of a matching type.
 pub fn remove_field_problems(
     command: &Json,
     aggregate: &Json,
@@ -686,7 +730,7 @@ pub fn remove_field_problems(
 
             let entities = aggregate.get("entities").map_or_default(Json::each);
             let Some(entity) = entities.iter().find(|e| e.get("name").and_then(Json::as_str) == Some(crate::attr::type_name(target_attr))) else {
-                return Some(format!("{target_name}: remove on a value-object-typed list is not generated yet"));
+                return value_object_remove_problem(m, command, target_attr, value_objects_by_name);
             };
             let entity_name = entity.get("name").and_then(Json::as_str).unwrap_or("");
 
@@ -1563,13 +1607,26 @@ fn emit_mutation_line_body(
                 .find(|a| crate::attr::name(a) == target_name)
                 .expect("remove target must be a declared aggregate attribute");
             let entities = aggregate.get("entities").map_or_default(Json::each);
-            let entity = entities
-                .iter()
-                .find(|e| {
-                    e.get("name").and_then(Json::as_str)
-                        == Some(crate::attr::type_name(target_attr))
-                })
-                .expect("remove target must be an entity-typed list");
+            let Some(entity) = entities.iter().find(|e| {
+                e.get("name").and_then(Json::as_str) == Some(crate::attr::type_name(target_attr))
+            }) else {
+                // A value-object list: drop every element equal by value to the argument.
+                let source_name = mutation
+                    .get("source")
+                    .and_then(|s| s.get("name"))
+                    .map(Json::to_s)
+                    .unwrap_or_default();
+                return exemplar.render(
+                    "mutation_remove_value",
+                    &[
+                        ("tmpl_field", target_field.to_string()),
+                        (
+                            "tmpl_remove_value_placeholder()",
+                            format!("args.{}", naming::rust_ident_field(&source_name)),
+                        ),
+                    ],
+                );
+            };
             let (id_attr, _) = entity_identity_mint(entity, value_objects_by_name)
                 .expect("remove target entity's identity must mint");
             let id_field = naming::rust_ident_field(crate::attr::name(id_attr));
@@ -1788,5 +1845,54 @@ mod expression_source_tests {
             rhs.contains("crate::kernel::interpret(&Expr::Mul(")
                 && rhs.contains("Cents { value: number }")
         );
+    }
+}
+
+#[cfg(test)]
+mod value_object_remove_tests {
+    use super::*;
+
+    fn aggregate() -> Json {
+        Json::parse(r#"{"name":"Tally","attributes":[{"name":"tags","type":"Label","list":true}]}"#)
+            .unwrap()
+    }
+
+    fn label() -> Json {
+        Json::parse(
+            r#"{"name":"Label","attributes":[{"name":"value","type":"String","list":false}]}"#,
+        )
+        .unwrap()
+    }
+
+    fn command(argument_type: &str, source: &str) -> Json {
+        Json::parse(&format!(
+            r#"{{"name":"Untag","attributes":[{{"name":"label","type":"{argument_type}","list":false}}],
+            "mutations":[{{"target":"tags","op":"remove","source":{source}}}]}}"#
+        ))
+        .unwrap()
+    }
+
+    fn problems(command: &Json) -> Vec<String> {
+        let label = label();
+        let by_name: HashMap<String, &Json> = HashMap::from([("Label".to_string(), &label)]);
+        remove_field_problems(command, &aggregate(), &by_name)
+    }
+
+    #[test]
+    fn a_value_object_argument_of_the_element_type_is_generatable() {
+        let command = command("Label", r#"{"kind":"argument","name":"label"}"#);
+        assert!(problems(&command).is_empty());
+    }
+
+    #[test]
+    fn an_argument_of_another_type_is_refused() {
+        let command = command("Other", r#"{"kind":"argument","name":"label"}"#);
+        assert!(problems(&command)[0].contains("needs a single Label argument"));
+    }
+
+    #[test]
+    fn a_literal_source_is_refused() {
+        let command = command("Label", r#"{"kind":"literal","value":"x"}"#);
+        assert!(problems(&command)[0].contains("not an argument"));
     }
 }

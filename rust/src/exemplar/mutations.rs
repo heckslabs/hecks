@@ -78,3 +78,21 @@ fn tmpl_mutation_remove_host(record: &mut TmplRemoveHost) {
     record.tmpl_field.retain(|item| item.tmpl_id_field != tmpl_remove_match_placeholder());
     // TMPL:mutation_remove END
 }
+
+// `remove:` on a value-object list drops every element equal by value to the argument, so
+// the element type derives `PartialEq` and the retained ones are those that differ.
+#[derive(PartialEq)]
+struct TmplRemoveValueElement {
+    tmpl_value: i64,
+}
+struct TmplRemoveValueHost {
+    tmpl_field: Vec<TmplRemoveValueElement>,
+}
+fn tmpl_remove_value_placeholder() -> TmplRemoveValueElement {
+    TmplRemoveValueElement { tmpl_value: 0 }
+}
+fn tmpl_mutation_remove_value_host(record: &mut TmplRemoveValueHost) {
+    // TMPL:mutation_remove_value BEGIN
+    record.tmpl_field.retain(|item| *item != tmpl_remove_value_placeholder());
+    // TMPL:mutation_remove_value END
+}
