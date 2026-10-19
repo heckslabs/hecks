@@ -1,6 +1,7 @@
 //! Per-address sliding-window rate limits for the public write routes a stranger can abuse,
 //! enforced in `server.rs` before dispatch so a refused request costs no Postgres lock or run.
 
+use crate::crypto::constant_time_eq;
 use crate::extension::RateRule;
 use axum::http::header::{HeaderValue, CONTENT_TYPE, RETRY_AFTER};
 use axum::http::{HeaderMap, HeaderName, StatusCode};
@@ -247,10 +248,6 @@ impl ProxyTrust {
         };
         secret_matches || peer.is_some_and(|p| self.networks.iter().any(|net| net.contains(p)))
     }
-}
-
-fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
-    a.len() == b.len() && a.iter().zip(b).fold(0u8, |diff, (x, y)| diff | (x ^ y)) == 0
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

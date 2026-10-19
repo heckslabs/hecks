@@ -1,5 +1,9 @@
-use super::{active_session_email, instances_for, last_refusal, percent_decode, respond};
+use super::{
+    active_session_email, instances_for, json_error, last_refusal, percent_decode, respond,
+    site_url,
+};
 use crate::auth;
+use crate::clock::unix_now;
 use crate::commerce_ir::{
     newsletter_issues_provider, newsletter_provider, NewsletterIssuesProvider, NewsletterProvider,
 };
@@ -17,7 +21,6 @@ use tokio_postgres::Client;
 // Admin/Owner. `newsletter_issues` marks issues sent; `newsletter` holds subscribers.
 
 const UNSUBSCRIBE_TOKEN: &str = "{{UNSUBSCRIBE_URL}}";
-const DEFAULT_SITE_URL: &str = "http://localhost:4321";
 
 // The purpose keys an unsubscribe token apart from a confirm token, so neither
 // verifies as the other. The lifetime is the Newsletter bluebook's
@@ -91,14 +94,6 @@ pub(super) async fn issue_route(
     })
 }
 
-fn json_error(status: u16, message: &str) -> Value {
-    respond(
-        status,
-        "application/json",
-        &json!({ "error": message }).to_string(),
-    )
-}
-
 // Every email carries a signed unsubscribe link, so nothing may go out (or
 // be marked sent) without a secret to sign it with.
 fn require_signing_secret(secret: &str) -> Result<(), Value> {
@@ -144,10 +139,6 @@ async fn authorize(
         )),
         Err(e) => Err(json_error(500, &e)),
     }
-}
-
-pub(super) fn site_url() -> String {
-    std::env::var("SITE_URL").unwrap_or_else(|_| DEFAULT_SITE_URL.to_string())
 }
 
 pub(super) fn unsubscribe_token(secret: &str, email: &str) -> String {
@@ -206,12 +197,6 @@ fn confirmed_emails(provider: &NewsletterProvider, subscribers: &[(String, Value
         .collect();
     emails.sort();
     emails
-}
-
-fn unix_now() -> i64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0, |d| d.as_secs() as i64)
 }
 
 #[allow(clippy::too_many_arguments)]

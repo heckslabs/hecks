@@ -119,6 +119,147 @@ const fn deref_params() -> [&'static str; 2] {
 /// The router always passes `Ok(())`: no domain generated from `ir.json` declares a boundary.
 const TENANT_BOUNDARY_PARAM: &str = "tenant_boundary_check: Result<(), crate::kernel::Refusal>";
 
+/// A node's `name`, or "" when it has none.
+fn name_of(node: &Json) -> &str {
+    node.get("name").and_then(Json::as_str).unwrap_or("")
+}
+
+/// The paths a node is identified by, joined the way a dispatch fn names them.
+fn identity_reading(node: &Json) -> String {
+    node.get("identified_by")
+        .map_or_default(Json::each)
+        .iter()
+        .map(Json::to_s)
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+/// The first segment of each path a node is identified by.
+fn identity_heads(node: &Json) -> Vec<String> {
+    node.get("identified_by")
+        .map_or_default(Json::each)
+        .iter()
+        .map(|p| p.to_s().split('.').next().unwrap_or("").to_string())
+        .collect()
+}
+
+/// The Rust field of `owner` that holds `held` as a list.
+#[allow(
+    clippy::panic,
+    reason = "a drifted exemplar or invalid IR aborts generation on purpose"
+)]
+fn list_field_of(owner: &Json, held: &Json) -> String {
+    let held_name = name_of(held);
+    let list_attr = owner
+        .get("attributes")
+        .map_or_default(Json::each)
+        .iter()
+        .find(|a| crate::attr::list(a) && crate::attr::type_name(a) == held_name)
+        .unwrap_or_else(|| panic!("{held_name}: no list attribute on {} holds it — unsupported_attribute_types should have caught this", name_of(owner)));
+    naming::rust_ident_field(crate::attr::name(list_attr))
+}
+
+/// The `pub struct <struct_name> { .. }` text of a command's argument struct.
+fn args_struct_text(exemplar: &Exemplar, struct_name: &str, attrs: &[Json]) -> String {
+    let fields = attrs.iter().map(|attr| {
+        let mut ty = naming::rust_type(crate::attr::type_name(attr), crate::attr::list(attr));
+        if crate::attr::optional(attr) {
+            ty = format!("Option<{ty}>");
+        }
+        format!(
+            "    {}",
+            exemplar.render(
+                "struct_field",
+                &[
+                    ("TmplFieldType", ty),
+                    (
+                        "tmpl_field",
+                        naming::rust_ident_field(crate::attr::name(attr))
+                    ),
+                ]
+            )
+        )
+    });
+    std::iter::once(format!("pub struct {struct_name} {{"))
+        .chain(fields)
+        .chain(std::iter::once("}".to_string()))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// One `GivenSpec` line per `given` of `command`, each prefixed with `indent`.
+#[allow(
+    clippy::panic,
+    reason = "a drifted exemplar or invalid IR aborts generation on purpose"
+)]
+fn given_spec_lines(command: &Json, indent: &str) -> Vec<String> {
+    command
+        .get("givens")
+        .map_or_default(Json::each)
+        .iter()
+        .map(|g| {
+            let description = g.get("description").and_then(Json::as_str).unwrap_or("");
+            let ast = g.get("ast").unwrap_or_else(|| panic!("given row has no ast: {g:?}"));
+            format!("{indent}crate::kernel::GivenSpec {{ description: {}, expr: {}, corrects_event: None }},", naming::ruby_inspect_string(description), crate::expr_emitter::emit_ast(ast))
+        })
+        .collect()
+}
+
+/// One `EnsuresSpec` line per `ensures` of `command`, each prefixed with `indent`.
+#[allow(
+    clippy::panic,
+    reason = "a drifted exemplar or invalid IR aborts generation on purpose"
+)]
+fn ensures_spec_lines(command: &Json, indent: &str) -> Vec<String> {
+    command
+        .get("ensures")
+        .map_or_default(Json::each)
+        .iter()
+        .map(|e| {
+            let description = e.get("description").and_then(Json::as_str).unwrap_or("");
+            let ast = e
+                .get("ast")
+                .unwrap_or_else(|| panic!("ensures row has no ast: {e:?}"));
+            format!(
+                "{indent}crate::kernel::EnsuresSpec {{ description: {}, expr: {} }},",
+                naming::ruby_inspect_string(description),
+                crate::expr_emitter::emit_ast(ast)
+            )
+        })
+        .collect()
+}
+
+/// The event names `command` emits, as a comma-separated list of Rust string literals.
+fn emits_expr_of(command: &Json) -> String {
+    command
+        .get("emits")
+        .map_or_default(Json::each)
+        .iter()
+        .map(|e| naming::ruby_inspect_string(&e.to_s()))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+/// Ends a command's mutation lines: the lifecycle transition's new state, or `let _ = record;`
+/// when there is nothing to write.
+fn close_mutation_lines(
+    mut lines: Vec<String>,
+    transition: Option<&mutations::Transition>,
+    indent: &str,
+) -> Vec<String> {
+    if let Some(t) = transition.filter(|t| !t.to_state.is_empty()) {
+        lines.push(format!(
+            "{indent}record.{} = {}.to_string();",
+            naming::rust_ident_field(&t.field),
+            naming::ruby_inspect_string(&t.to_state)
+        ));
+    }
+    if lines.is_empty() {
+        lines.push(format!("{indent}let _ = record;"));
+    }
+    lines
+}
+
 fn with_references_binding() -> String {
     "let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };".to_string()
 }
@@ -397,14 +538,6 @@ fn command_skip_reason_with(
     None
 }
 
-pub fn optional_source_mismatches(
-    command: &Json,
-    aggregate: &Json,
-    value_objects_by_name: &HashMap<String, &Json>,
-) -> Vec<String> {
-    optional_source_mismatches_with(command, aggregate, value_objects_by_name, true)
-}
-
 fn optional_source_mismatches_with(
     command: &Json,
     aggregate: &Json,
@@ -618,75 +751,25 @@ pub fn emit_command(
     value_objects_by_name: &HashMap<String, &Json>,
     aggregates_by_name: &HashMap<String, &Json>,
 ) -> String {
-    let record = naming::rust_ident(aggregate.get("name").and_then(Json::as_str).unwrap_or(""));
-    let cmd = naming::rust_ident(command.get("name").and_then(Json::as_str).unwrap_or(""));
+    let record = naming::rust_ident(name_of(aggregate));
+    let cmd = naming::rust_ident(name_of(command));
     let creates = crate::shared::creates_owner(aggregate, command, value_objects_by_name);
     let identity = mutations::identity_components(aggregate, command);
     let identity_extra_params: Vec<String> =
         identity.iter().filter_map(|c| c.param.clone()).collect();
 
-    let aggregate_name = aggregate
-        .get("name")
-        .and_then(Json::as_str)
-        .unwrap_or("")
-        .to_string();
-    let identity_reading = aggregate
-        .get("identified_by")
-        .map_or_default(Json::each)
-        .iter()
-        .map(Json::to_s)
-        .collect::<Vec<_>>()
-        .join(", ");
+    let aggregate_name = name_of(aggregate).to_string();
+    let identity_reading = identity_reading(aggregate);
 
     let attrs = command.get("attributes").map_or_default(Json::each);
-    let mut args_struct = vec![format!("pub struct {cmd}Args {{")];
-    for attr in attrs {
-        let mut ty = naming::rust_type(crate::attr::type_name(attr), crate::attr::list(attr));
-        if crate::attr::optional(attr) {
-            ty = format!("Option<{ty}>");
-        }
-        args_struct.push(format!(
-            "    {}",
-            exemplar.render(
-                "struct_field",
-                &[
-                    ("TmplFieldType", ty),
-                    (
-                        "tmpl_field",
-                        naming::rust_ident_field(crate::attr::name(attr))
-                    )
-                ]
-            )
-        ));
-    }
-    args_struct.push("}".to_string());
+    let args_struct = args_struct_text(exemplar, &format!("{cmd}Args"), attrs);
 
     let invariant_checks =
         invariant_checks_for(exemplar, command, aggregates_by_name, value_objects_by_name);
 
-    let givens = command.get("givens").map_or_default(Json::each);
     let mut given_specs: Vec<String> = crate::bridging::corrects_given_specs(command);
-    given_specs.extend(givens.iter().map(|g| {
-        let description = g.get("description").and_then(Json::as_str).unwrap_or("");
-        let ast = g.get("ast").unwrap_or_else(|| panic!("given row has no ast: {g:?}"));
-        format!("            crate::kernel::GivenSpec {{ description: {}, expr: {}, corrects_event: None }},", naming::ruby_inspect_string(description), crate::expr_emitter::emit_ast(ast))
-    }));
-
-    let ensures = command.get("ensures").map_or_default(Json::each);
-    let ensures_specs: Vec<String> = ensures
-        .iter()
-        .map(|e| {
-            let description = e.get("description").and_then(Json::as_str).unwrap_or("");
-            let ast = e
-                .get("ast")
-                .unwrap_or_else(|| panic!("ensures row has no ast: {e:?}"));
-            format!(
-                "            crate::kernel::EnsuresSpec {{ description: {}, expr: {} }},",
-                naming::ruby_inspect_string(description),
-                crate::expr_emitter::emit_ast(ast)
-            )
-        })
-        .collect();
+    given_specs.extend(given_spec_lines(command, "            "));
+    let ensures_specs = ensures_spec_lines(command, "            ");
 
     let transition = mutations::lifecycle_transition_for(command, aggregate);
     let transition_arg = mutations::transition_check_arg(transition.as_ref());
@@ -736,18 +819,7 @@ pub fn emit_command(
             ));
         }
     }
-    if let Some(t) = &transition {
-        if !t.to_state.is_empty() {
-            mutation_lines.push(format!(
-                "        record.{} = {}.to_string();",
-                naming::rust_ident_field(&t.field),
-                naming::ruby_inspect_string(&t.to_state)
-            ));
-        }
-    }
-    if mutation_lines.is_empty() {
-        mutation_lines = vec!["        let _ = record;".to_string()];
-    }
+    let mut mutation_lines = close_mutation_lines(mutation_lines, transition.as_ref(), "        ");
     let delegation = delegation_of(
         exemplar,
         command,
@@ -929,13 +1001,7 @@ pub fn emit_command(
             .map(|e| naming::ruby_inspect_string(e))
             .collect::<Vec<_>>()
             .join(", "),
-        None => command
-            .get("emits")
-            .map_or_default(Json::each)
-            .iter()
-            .map(|e| naming::ruby_inspect_string(&e.to_s()))
-            .collect::<Vec<_>>()
-            .join(", "),
+        None => emits_expr_of(command),
     };
 
     let dispatch_fn = exemplar.render(
@@ -977,7 +1043,7 @@ pub fn emit_command(
             value_objects_by_name,
             &[]
         ),
-        args_struct.join("\n")
+        args_struct
     )
 }
 
@@ -1320,102 +1386,29 @@ pub fn emit_entity_command(
     aggregates_by_name: &HashMap<String, &Json>,
     process_managers: &[Json],
 ) -> String {
-    let parent_record = naming::rust_ident(
-        parent_aggregate
-            .get("name")
-            .and_then(Json::as_str)
-            .unwrap_or(""),
-    );
-    let element_record =
-        naming::rust_ident(entity.get("name").and_then(Json::as_str).unwrap_or(""));
-    let cmd = naming::rust_ident(command.get("name").and_then(Json::as_str).unwrap_or(""));
+    let parent_record = naming::rust_ident(name_of(parent_aggregate));
+    let element_record = naming::rust_ident(name_of(entity));
+    let cmd = naming::rust_ident(name_of(command));
 
-    let aggregate_name = parent_aggregate
-        .get("name")
-        .and_then(Json::as_str)
-        .unwrap_or("")
-        .to_string();
-    let parent_identity_reading = parent_aggregate
-        .get("identified_by")
-        .map_or_default(Json::each)
-        .iter()
-        .map(Json::to_s)
-        .collect::<Vec<_>>()
-        .join(", ");
-    let entity_name = entity
-        .get("name")
-        .and_then(Json::as_str)
-        .unwrap_or("")
-        .to_string();
-    let entity_identity_reading = entity
-        .get("identified_by")
-        .map_or_default(Json::each)
-        .iter()
-        .map(Json::to_s)
-        .collect::<Vec<_>>()
-        .join(", ");
+    let aggregate_name = name_of(parent_aggregate).to_string();
+    let parent_identity_reading = identity_reading(parent_aggregate);
+    let entity_name = name_of(entity).to_string();
+    let entity_identity_reading = identity_reading(entity);
 
-    let parent_attrs = parent_aggregate
-        .get("attributes")
-        .map_or_default(Json::each);
-    let list_attr = parent_attrs
-        .iter()
-        .find(|a| crate::attr::list(a) && crate::attr::type_name(a) == entity.get("name").and_then(Json::as_str).unwrap_or(""))
-        .unwrap_or_else(|| panic!("{entity_name}: no list attribute on {aggregate_name} holds it — unsupported_attribute_types should have caught this"));
-    let list_field = naming::rust_ident_field(crate::attr::name(list_attr));
+    let list_field = list_field_of(parent_aggregate, entity);
     let args_struct_name = format!("{element_record}{cmd}EntityArgs");
 
     let attrs = command.get("attributes").map_or_default(Json::each);
-    let mut args_struct = vec![format!("pub struct {args_struct_name} {{")];
-    for attr in attrs {
-        let mut ty = naming::rust_type(crate::attr::type_name(attr), crate::attr::list(attr));
-        if crate::attr::optional(attr) {
-            ty = format!("Option<{ty}>");
-        }
-        args_struct.push(format!(
-            "    {}",
-            exemplar.render(
-                "struct_field",
-                &[
-                    ("TmplFieldType", ty),
-                    (
-                        "tmpl_field",
-                        naming::rust_ident_field(crate::attr::name(attr))
-                    )
-                ]
-            )
-        ));
-    }
-    args_struct.push("}".to_string());
+    let args_struct = args_struct_text(exemplar, &args_struct_name, attrs);
 
     let invariant_checks =
         invariant_checks_for(exemplar, command, aggregates_by_name, value_objects_by_name);
 
     // `corrects_given_specs` is prepended as in `emit_command`; `apply_entity_command` evaluates
     // it against the parent record, never the entity's element.
-    let givens = command.get("givens").map_or_default(Json::each);
     let mut given_specs: Vec<String> = crate::bridging::corrects_given_specs(command);
-    given_specs.extend(givens.iter().map(|g| {
-        let description = g.get("description").and_then(Json::as_str).unwrap_or("");
-        let ast = g.get("ast").unwrap_or_else(|| panic!("given row has no ast: {g:?}"));
-        format!("            crate::kernel::GivenSpec {{ description: {}, expr: {}, corrects_event: None }},", naming::ruby_inspect_string(description), crate::expr_emitter::emit_ast(ast))
-    }));
-
-    let ensures = command.get("ensures").map_or_default(Json::each);
-    let ensures_specs: Vec<String> = ensures
-        .iter()
-        .map(|e| {
-            let description = e.get("description").and_then(Json::as_str).unwrap_or("");
-            let ast = e
-                .get("ast")
-                .unwrap_or_else(|| panic!("ensures row has no ast: {e:?}"));
-            format!(
-                "            crate::kernel::EnsuresSpec {{ description: {}, expr: {} }},",
-                naming::ruby_inspect_string(description),
-                crate::expr_emitter::emit_ast(ast)
-            )
-        })
-        .collect();
+    given_specs.extend(given_spec_lines(command, "            "));
+    let ensures_specs = ensures_spec_lines(command, "            ");
 
     let transition = mutations::lifecycle_transition_for(command, entity);
     let transition_arg = mutations::transition_check_arg(transition.as_ref());
@@ -1437,31 +1430,11 @@ pub fn emit_entity_command(
     if mutations::reads_pre_state(mutations_list) {
         mutation_lines.insert(0, mutations::pre_state_line());
     }
-    if let Some(t) = &transition {
-        if !t.to_state.is_empty() {
-            mutation_lines.push(format!(
-                "        record.{} = {}.to_string();",
-                naming::rust_ident_field(&t.field),
-                naming::ruby_inspect_string(&t.to_state)
-            ));
-        }
-    }
-    if mutation_lines.is_empty() {
-        mutation_lines = vec!["        let _ = record;".to_string()];
-    }
+    let mutation_lines = close_mutation_lines(mutation_lines, transition.as_ref(), "        ");
 
     // Bare, not entity-qualified, as in `delegate_apply`.
-    let qualified_command_name = command
-        .get("name")
-        .and_then(Json::as_str)
-        .unwrap_or("")
-        .to_string();
-    let emits = command.get("emits").map_or_default(Json::each);
-    let emits_expr = emits
-        .iter()
-        .map(|e| naming::ruby_inspect_string(&e.to_s()))
-        .collect::<Vec<_>>()
-        .join(", ");
+    let qualified_command_name = name_of(command).to_string();
+    let emits_expr = emits_expr_of(command);
 
     let entity_dispatch_fn = exemplar.render(
         "entity_dispatch_fn",
@@ -1547,7 +1520,7 @@ pub fn emit_entity_command(
             value_objects_by_name,
             &[],
         ),
-        format!("#[derive(Debug, Clone)]\n{}", args_struct.join("\n")),
+        format!("#[derive(Debug, Clone)]\n{args_struct}"),
         crate::json_codec::emit_to_json_flat_sparse(
             exemplar,
             &args_struct_name,
@@ -1557,12 +1530,7 @@ pub fn emit_entity_command(
         {
             // `unknown_argument_allowlist:` as for an aggregate command, plus the entity's
             // identity head (`extra_identity_heads:` in Ruby's `ArgumentGate`).
-            let entity_identity_heads: Vec<String> = entity
-                .get("identified_by")
-                .map_or_default(Json::each)
-                .iter()
-                .map(|p| p.to_s().split('.').next().unwrap_or("").to_string())
-                .collect();
+            let entity_identity_heads = identity_heads(entity);
             let allowlist = crate::json_codec::command_argument_allowlist(
                 parent_aggregate,
                 command,
@@ -1584,12 +1552,7 @@ pub fn emit_entity_command(
         },
         // Argument gates, run by `kernel::decode_entity_arguments` in `EntityStep::ORDER`.
         {
-            let entity_identity_heads: Vec<String> = entity
-                .get("identified_by")
-                .map_or_default(Json::each)
-                .iter()
-                .map(|p| p.to_s().split('.').next().unwrap_or("").to_string())
-                .collect();
+            let entity_identity_heads = identity_heads(entity);
             let allowlist = crate::json_codec::command_argument_allowlist(
                 parent_aggregate,
                 command,
@@ -1626,122 +1589,31 @@ pub fn emit_nested_entity_command(
     aggregates_by_name: &HashMap<String, &Json>,
     process_managers: &[Json],
 ) -> String {
-    let parent_record = naming::rust_ident(
-        parent_aggregate
-            .get("name")
-            .and_then(Json::as_str)
-            .unwrap_or(""),
-    );
-    let entity_record = naming::rust_ident(entity.get("name").and_then(Json::as_str).unwrap_or(""));
-    let nested_record = naming::rust_ident(nested.get("name").and_then(Json::as_str).unwrap_or(""));
-    let cmd = naming::rust_ident(command.get("name").and_then(Json::as_str).unwrap_or(""));
+    let parent_record = naming::rust_ident(name_of(parent_aggregate));
+    let entity_record = naming::rust_ident(name_of(entity));
+    let nested_record = naming::rust_ident(name_of(nested));
+    let cmd = naming::rust_ident(name_of(command));
 
-    let aggregate_name = parent_aggregate
-        .get("name")
-        .and_then(Json::as_str)
-        .unwrap_or("")
-        .to_string();
-    let parent_identity_reading = parent_aggregate
-        .get("identified_by")
-        .map_or_default(Json::each)
-        .iter()
-        .map(Json::to_s)
-        .collect::<Vec<_>>()
-        .join(", ");
-    let entity_name = entity
-        .get("name")
-        .and_then(Json::as_str)
-        .unwrap_or("")
-        .to_string();
-    let entity_identity_reading = entity
-        .get("identified_by")
-        .map_or_default(Json::each)
-        .iter()
-        .map(Json::to_s)
-        .collect::<Vec<_>>()
-        .join(", ");
-    let nested_name = nested
-        .get("name")
-        .and_then(Json::as_str)
-        .unwrap_or("")
-        .to_string();
-    let nested_identity_reading = nested
-        .get("identified_by")
-        .map_or_default(Json::each)
-        .iter()
-        .map(Json::to_s)
-        .collect::<Vec<_>>()
-        .join(", ");
+    let aggregate_name = name_of(parent_aggregate).to_string();
+    let parent_identity_reading = identity_reading(parent_aggregate);
+    let entity_name = name_of(entity).to_string();
+    let entity_identity_reading = identity_reading(entity);
+    let nested_name = name_of(nested).to_string();
+    let nested_identity_reading = identity_reading(nested);
 
-    let parent_attrs = parent_aggregate
-        .get("attributes")
-        .map_or_default(Json::each);
-    let list_attr1 = parent_attrs
-        .iter()
-        .find(|a| crate::attr::list(a) && crate::attr::type_name(a) == entity.get("name").and_then(Json::as_str).unwrap_or(""))
-        .unwrap_or_else(|| panic!("{entity_name}: no list attribute on {aggregate_name} holds it — unsupported_attribute_types should have caught this"));
-    let list_field1 = naming::rust_ident_field(crate::attr::name(list_attr1));
-
-    let entity_attrs = entity.get("attributes").map_or_default(Json::each);
-    let list_attr2 = entity_attrs
-        .iter()
-        .find(|a| crate::attr::list(a) && crate::attr::type_name(a) == nested.get("name").and_then(Json::as_str).unwrap_or(""))
-        .unwrap_or_else(|| panic!("{nested_name}: no list attribute on {entity_name} holds it — unsupported_attribute_types should have caught this"));
-    let list_field2 = naming::rust_ident_field(crate::attr::name(list_attr2));
+    let list_field1 = list_field_of(parent_aggregate, entity);
+    let list_field2 = list_field_of(entity, nested);
 
     let args_struct_name = format!("{nested_record}{cmd}NestedEntityArgs");
 
     let attrs = command.get("attributes").map_or_default(Json::each);
-    let mut args_struct = vec![format!("pub struct {args_struct_name} {{")];
-    for attr in attrs {
-        let mut ty = naming::rust_type(crate::attr::type_name(attr), crate::attr::list(attr));
-        if crate::attr::optional(attr) {
-            ty = format!("Option<{ty}>");
-        }
-        args_struct.push(format!(
-            "    {}",
-            exemplar.render(
-                "struct_field",
-                &[
-                    ("TmplFieldType", ty),
-                    (
-                        "tmpl_field",
-                        naming::rust_ident_field(crate::attr::name(attr))
-                    )
-                ]
-            )
-        ));
-    }
-    args_struct.push("}".to_string());
+    let args_struct = args_struct_text(exemplar, &args_struct_name, attrs);
 
     let invariant_checks =
         invariant_checks_for(exemplar, command, aggregates_by_name, value_objects_by_name);
 
-    let givens = command.get("givens").map_or_default(Json::each);
-    let given_specs: Vec<String> = givens
-        .iter()
-        .map(|g| {
-            let description = g.get("description").and_then(Json::as_str).unwrap_or("");
-            let ast = g.get("ast").unwrap_or_else(|| panic!("given row has no ast: {g:?}"));
-            format!("                    crate::kernel::GivenSpec {{ description: {}, expr: {}, corrects_event: None }},", naming::ruby_inspect_string(description), crate::expr_emitter::emit_ast(ast))
-        })
-        .collect();
-
-    let ensures = command.get("ensures").map_or_default(Json::each);
-    let ensures_specs: Vec<String> = ensures
-        .iter()
-        .map(|e| {
-            let description = e.get("description").and_then(Json::as_str).unwrap_or("");
-            let ast = e
-                .get("ast")
-                .unwrap_or_else(|| panic!("ensures row has no ast: {e:?}"));
-            format!(
-                "                    crate::kernel::EnsuresSpec {{ description: {}, expr: {} }},",
-                naming::ruby_inspect_string(description),
-                crate::expr_emitter::emit_ast(ast)
-            )
-        })
-        .collect();
+    let given_specs = given_spec_lines(command, "                    ");
+    let ensures_specs = ensures_spec_lines(command, "                    ");
 
     // The nested entity's lifecycle, as in `emit_entity_command`.
     let transition = mutations::lifecycle_transition_for(command, nested);
@@ -1764,46 +1636,19 @@ pub fn emit_nested_entity_command(
     if mutations::reads_pre_state(mutations_list) {
         mutation_lines.insert(0, mutations::pre_state_line());
     }
-    if let Some(t) = &transition {
-        if !t.to_state.is_empty() {
-            mutation_lines.push(format!(
-                "                record.{} = {}.to_string();",
-                naming::rust_ident_field(&t.field),
-                naming::ruby_inspect_string(&t.to_state)
-            ));
-        }
-    }
-    if mutation_lines.is_empty() {
-        mutation_lines = vec!["                let _ = record;".to_string()];
-    }
+    let mutation_lines =
+        close_mutation_lines(mutation_lines, transition.as_ref(), "                ");
 
     // Bare, as in `emit_entity_command`.
-    let qualified_command_name = command
-        .get("name")
-        .and_then(Json::as_str)
-        .unwrap_or("")
-        .to_string();
+    let qualified_command_name = name_of(command).to_string();
     // The hop-2 `apply_entity_command` gets the root aggregate's qualified name only to satisfy
     // the signature: its `record` is the hop-1 entity, so `corrects` admissibility is not checked
     // there. Its trailing `parent_in_args` literal is `true`, byte for byte as Ruby emits.
-    let emits = command.get("emits").map_or_default(Json::each);
-    let emits_expr = emits
-        .iter()
-        .map(|e| naming::ruby_inspect_string(&e.to_s()))
-        .collect::<Vec<_>>()
-        .join(", ");
+    let emits_expr = emits_expr_of(command);
     let fn_name = format!(
         "dispatch_entity_{}_{}_{}",
-        entity
-            .get("name")
-            .and_then(Json::as_str)
-            .unwrap_or("")
-            .to_lowercase(),
-        nested
-            .get("name")
-            .and_then(Json::as_str)
-            .unwrap_or("")
-            .to_lowercase(),
+        name_of(entity).to_lowercase(),
+        name_of(nested).to_lowercase(),
         naming::dispatch_fn_name(&cmd)
     );
 
@@ -1891,7 +1736,7 @@ pub fn emit_nested_entity_command(
             value_objects_by_name,
             &[],
         ),
-        format!("#[derive(Debug, Clone)]\n{}", args_struct.join("\n")),
+        format!("#[derive(Debug, Clone)]\n{args_struct}"),
         crate::json_codec::emit_to_json_flat_sparse(
             exemplar,
             &args_struct_name,

@@ -684,21 +684,3 @@ pub fn corrects_given_specs(command: &Json) -> Vec<String> {
         event_name
     )]
 }
-
-/// `(key, to_json-expr, deserialize_rhs)` triples for `corrects`'s per-record flag fields.
-pub fn corrects_extra_fields(aggregate: &Json) -> Vec<(String, String, String)> {
-    correctable_event_names(aggregate)
-        .iter()
-        .map(|ev| {
-            let field = corrects_flag_field(ev);
-            let aggregate_name = crate::attr::name(aggregate).to_string();
-            let deserialize_rhs = format!(
-                "match v.require({:?}, {:?})? {{ crate::kernel::Json::Bool(b) => *b, _ => return Err({}) }}",
-                field,
-                aggregate_name,
-                crate::json_codec::json_type_error(&aggregate_name, &field, "a boolean")
-            );
-            (field.clone(), format!("crate::kernel::Json::Bool(self.{field})"), deserialize_rhs)
-        })
-        .collect()
-}

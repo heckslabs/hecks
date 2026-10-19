@@ -78,7 +78,6 @@ pub struct NestedEntityCommandEntry {
     pub args_struct: String,
     pub reference_checks: Vec<ReferenceCheck>,
     pub reference_specs: Vec<ReferenceSpec>,
-    pub attributes: Vec<String>,
     pub invariant_check_lines: Vec<String>,
     pub role: Option<String>,
     pub entity_name: String,
@@ -92,7 +91,6 @@ pub struct NestedEntityCommandEntry {
 
 pub struct PortEntry {
     pub verb: String,
-    pub name: String,
     pub fn_name: String,
     pub args_struct: String,
     pub reference_checks: Vec<ReferenceCheck>,
@@ -309,6 +307,18 @@ fn chapter_path(a: &AggregateEntry) -> String {
     format!("crate::generated::{}::{}", a.chapter_mod, a.module_name)
 }
 
+/// One `"verb" => { .. }` arm of the registry's dispatch match, its body lines indented.
+fn verb_arm(verb: &str, body: &[String]) -> String {
+    format!(
+        "          {} => {{\n{}\n          }}",
+        naming::ruby_inspect_string(verb),
+        body.iter()
+            .map(|l| format!("              {l}"))
+            .collect::<Vec<_>>()
+            .join("\n")
+    )
+}
+
 pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> String {
     let store_fields: Vec<String> = aggregates
         .iter()
@@ -515,14 +525,7 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 "{dispatch_call}.map(|(_, events)| stamp_payload(events, &payload))"
             ));
 
-            aggregate_arms.push(format!(
-                "          {} => {{\n{}\n          }}",
-                naming::ruby_inspect_string(&c.verb),
-                body.iter()
-                    .map(|l| format!("              {l}"))
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            ));
+            aggregate_arms.push(verb_arm(&c.verb, &body));
         }
     }
 
@@ -603,14 +606,7 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
             );
             body.push(dispatch_call);
 
-            entity_arms.push(format!(
-                "          {} => {{\n{}\n          }}",
-                naming::ruby_inspect_string(&c.verb),
-                body.iter()
-                    .map(|l| format!("              {l}"))
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            ));
+            entity_arms.push(verb_arm(&c.verb, &body));
         }
     }
 
@@ -705,14 +701,7 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
             );
             body.push(dispatch_call);
 
-            nested_entity_arms.push(format!(
-                "          {} => {{\n{}\n          }}",
-                naming::ruby_inspect_string(&c.verb),
-                body.iter()
-                    .map(|l| format!("              {l}"))
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            ));
+            nested_entity_arms.push(verb_arm(&c.verb, &body));
         }
     }
 
@@ -754,14 +743,7 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
             );
             body.push(dispatch_call);
 
-            port_arms.push(format!(
-                "          {} => {{\n{}\n          }}",
-                naming::ruby_inspect_string(&p.verb),
-                body.iter()
-                    .map(|l| format!("              {l}"))
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            ));
+            port_arms.push(verb_arm(&p.verb, &body));
         }
     }
 
@@ -902,7 +884,6 @@ mod tests {
             nested_entity_commands: Vec::new(),
             ports: vec![PortEntry {
                 verb: "Banking::SafeDepositBox.PaymentGateway.Receive".to_string(),
-                name: "Receive".to_string(),
                 fn_name: "paymentgateway_receive".to_string(),
                 args_struct: "PaymentGatewayReceiveArgs".to_string(),
                 reference_checks: Vec::new(),

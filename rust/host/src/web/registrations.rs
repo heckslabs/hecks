@@ -1,5 +1,6 @@
 use super::{instances_for, last_refusal, respond, with_id};
 use crate::checkout;
+use crate::clock::unix_now;
 use crate::commerce_ir::{payments_provider, PaymentsProvider};
 use crate::dispatch;
 use crate::journal::LineageConfig;
@@ -248,13 +249,6 @@ async fn seats_route(
         },
     };
     respond(200, "application/json", &body.to_string())
-}
-
-fn unix_now() -> i64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs() as i64
 }
 
 // Serves the checkout, registration-payment and webhook routes only when the
@@ -1056,10 +1050,7 @@ pub(crate) async fn webhook_route(
     invoker: &dyn LambdaInvoker,
     payments: &PaymentsProvider,
 ) -> Value {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs() as i64;
+    let now = unix_now();
     // The environment's signing secret and any saved with the business's own
     // keys are all accepted; with none configured only the mock secret is.
     let configured = platform.webhook_secrets();

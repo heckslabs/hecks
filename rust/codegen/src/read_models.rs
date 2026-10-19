@@ -4,6 +4,7 @@
 use crate::exemplar::Exemplar;
 use crate::json::Json;
 use crate::queries;
+use crate::shared::ruby_to_i;
 use crate::skip_reason::{reskip, skip, SkipReason};
 use std::collections::HashMap;
 
@@ -656,23 +657,6 @@ fn emit_read_model_offset(offset: &Json) -> String {
         "read_model::ReadModelLimit::",
         "read_model::ReadModelOffset::",
     )
-}
-
-fn ruby_to_i(s: &str) -> i64 {
-    let trimmed = s.trim_start();
-    let bytes = trimmed.as_bytes();
-    let mut end = 0;
-    if end < bytes.len() && (bytes[end] == b'-' || bytes[end] == b'+') {
-        end += 1;
-    }
-    let digits_start = end;
-    while end < bytes.len() && bytes[end].is_ascii_digit() {
-        end += 1;
-    }
-    if end == digits_start {
-        return 0;
-    }
-    trimmed[..end].parse().unwrap_or(0)
 }
 
 /// One targeted many-side head's own where/order_by/offset/limit — the per-head analogue of

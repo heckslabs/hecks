@@ -115,6 +115,7 @@ impl Json {
         )
     }
 
+    #[cfg(test)]
     pub fn as_f64(&self) -> Option<f64> {
         self.number().map(|n| match n {
             Number::Int(n) => n as f64,
@@ -122,6 +123,7 @@ impl Json {
         })
     }
 
+    #[cfg(test)]
     pub fn as_i64(&self) -> Option<i64> {
         self.number().map(|n| match n {
             Number::Int(n) => n,
