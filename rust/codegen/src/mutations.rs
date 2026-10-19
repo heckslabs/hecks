@@ -286,7 +286,8 @@ fn numeric_current(
     optional: bool,
     target_field: &str,
     target_attr: &Json,
-    integer_field: &str,
+    numeric_field: &str,
+    kind: crate::bridging::NumericKind,
     value_objects_by_name: &HashMap<String, &Json>,
 ) -> String {
     if !optional {
@@ -301,8 +302,14 @@ fn numeric_current(
         .iter()
         .map(|f| {
             let name = crate::attr::name(f);
-            let rhs = if name == integer_field {
-                Some("0".to_string())
+            let rhs = if name == numeric_field {
+                Some(
+                    match kind {
+                        crate::bridging::NumericKind::Integer => "0",
+                        crate::bridging::NumericKind::Float => "0.0",
+                    }
+                    .to_string(),
+                )
             } else {
                 crate::attr::default(f).map(naming::literal_rhs)
             };
@@ -336,6 +343,31 @@ fn checked_arithmetic(op: &str, field_ident: &str, symbol: &str, amount_expr: &s
     format!(
         "{{ let amount = {amount_expr}; current.{field_ident}.{checked}(amount).ok_or_else(|| crate::kernel::Refusal::Fault(format!(\"{op} overflowed: {{}} {symbol} {{}} does not fit in a 64-bit integer\", current.{field_ident}, amount)))? }}"
     )
+}
+
+// A Float result must stay finite (C3.4); a NaN or infinity is a `Refusal::Fault`, worded as Ruby words it.
+fn float_arithmetic(op: &str, field_ident: &str, symbol: &str, amount_expr: &str) -> String {
+    format!(
+        "{{ let amount = {amount_expr}; crate::kernel::ruby_float::finite_or_fault(\"{op}\", \"{symbol}\", current.{field_ident}, amount, current.{field_ident} {symbol} amount)? }}"
+    )
+}
+
+// The new numeric field value: `checked_*` for an Integer target, `finite_or_fault` for a Float one.
+fn arithmetic_field_value(
+    kind: crate::bridging::NumericKind,
+    op: &str,
+    field_ident: &str,
+    symbol: &str,
+    amount_expr: &str,
+) -> String {
+    match kind {
+        crate::bridging::NumericKind::Integer => {
+            checked_arithmetic(op, field_ident, symbol, amount_expr)
+        }
+        crate::bridging::NumericKind::Float => {
+            float_arithmetic(op, field_ident, symbol, amount_expr)
+        }
+    }
 }
 
 pub fn literal_problem(
@@ -1424,7 +1456,7 @@ fn emit_mutation_line_body(
             }
         }
         "increment" | "decrement" => {
-            let (target_attr, integer_field) = crate::bridging::arithmetic_target_field(
+            let (target_attr, integer_field, kind) = crate::bridging::arithmetic_target_field(
                 mutation,
                 aggregate,
                 value_objects_by_name,
@@ -1437,6 +1469,7 @@ fn emit_mutation_line_body(
                 command,
                 value_objects_by_name,
                 &integer_field,
+                kind,
             )
             .expect("arithmetic amount must resolve");
             // Use the IR's `sign`, not the op name.
@@ -1450,12 +1483,13 @@ fn emit_mutation_line_body(
                 target_field,
                 target_attr,
                 &integer_field,
+                kind,
                 value_objects_by_name,
             );
             let op = mutation.get("op").map(Json::to_s).unwrap_or_default();
             let updated = format!(
                 "{vo_type} {{ {field_ident}: {}, ..current }}",
-                checked_arithmetic(&op, &field_ident, sign, &amount_expr)
+                arithmetic_field_value(kind, &op, &field_ident, sign, &amount_expr)
             );
             exemplar.render(
                 "mutation_arithmetic",
@@ -1474,8 +1508,8 @@ fn emit_mutation_line_body(
             )
         }
         "multiply" => {
-            // Same Integer-field subset as `increment`/`decrement`, with `*`.
-            let (target_attr, integer_field) = crate::bridging::arithmetic_target_field(
+            // Same numeric-field subset as `increment`/`decrement`, with `*`.
+            let (target_attr, integer_field, kind) = crate::bridging::arithmetic_target_field(
                 mutation,
                 aggregate,
                 value_objects_by_name,
@@ -1488,6 +1522,7 @@ fn emit_mutation_line_body(
                 command,
                 value_objects_by_name,
                 &integer_field,
+                kind,
             )
             .expect("arithmetic amount must resolve");
             let current = numeric_current(
@@ -1495,11 +1530,12 @@ fn emit_mutation_line_body(
                 target_field,
                 target_attr,
                 &integer_field,
+                kind,
                 value_objects_by_name,
             );
             let updated = format!(
                 "{vo_type} {{ {field_ident}: {}, ..current }}",
-                checked_arithmetic("multiply", &field_ident, "*", &amount_expr)
+                arithmetic_field_value(kind, "multiply", &field_ident, "*", &amount_expr)
             );
             exemplar.render(
                 "mutation_arithmetic",
@@ -1519,12 +1555,9 @@ fn emit_mutation_line_body(
         }
         "clamp" => {
             // The source is always a literal `[min, max]` pair, so there is no amount to resolve.
-            let (target_attr, integer_field) = crate::bridging::arithmetic_target_field(
-                mutation,
-                aggregate,
-                value_objects_by_name,
-            )
-            .expect("clamp target must resolve");
+            let (target_attr, integer_field) =
+                crate::bridging::integer_target_field(mutation, aggregate, value_objects_by_name)
+                    .expect("clamp target must resolve");
             let vo_type = naming::rust_ident(crate::attr::type_name(target_attr));
             let field_ident = naming::rust_ident_field(&integer_field);
             let (min, max) = mutation
@@ -1536,6 +1569,7 @@ fn emit_mutation_line_body(
                 target_field,
                 target_attr,
                 &integer_field,
+                crate::bridging::NumericKind::Integer,
                 value_objects_by_name,
             );
             let updated = format!("{vo_type} {{ {field_ident}: current.{field_ident}.clamp({min}, {max}), ..current }}");
@@ -1788,5 +1822,34 @@ mod expression_source_tests {
             rhs.contains("crate::kernel::interpret(&Expr::Mul(")
                 && rhs.contains("Cents { value: number }")
         );
+    }
+}
+
+#[cfg(test)]
+mod float_arithmetic_tests {
+    use super::*;
+    use crate::bridging::NumericKind;
+
+    #[test]
+    fn a_float_increment_faults_unless_the_sum_is_finite() {
+        assert_eq!(
+            float_arithmetic("increment", "value", "+", "args.more.value"),
+            "{ let amount = args.more.value; crate::kernel::ruby_float::finite_or_fault(\"increment\", \"+\", current.value, amount, current.value + amount)? }"
+        );
+    }
+
+    #[test]
+    fn a_float_multiply_uses_the_product() {
+        assert!(
+            float_arithmetic("multiply", "value", "*", "2.0").contains("current.value * amount)?")
+        );
+    }
+
+    #[test]
+    fn the_kind_picks_checked_integer_or_finite_float_arithmetic() {
+        let integer = arithmetic_field_value(NumericKind::Integer, "increment", "value", "+", "1");
+        let float = arithmetic_field_value(NumericKind::Float, "increment", "value", "+", "1.0");
+        assert!(integer.contains("checked_add") && !integer.contains("ruby_float"));
+        assert!(float.contains("finite_or_fault") && !float.contains("checked_add"));
     }
 }
