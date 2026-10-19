@@ -1,4 +1,5 @@
 use super::{instances_for, respond};
+use crate::clock::unix_now;
 use crate::commerce_ir::newsletter_issues_provider;
 use crate::dispatch;
 use crate::extension::loaded_ir;
@@ -128,12 +129,6 @@ pub(super) async fn resend_webhook_route(
         Err(e) => Some(respond(500, "text/plain", &format!("{e:#}"))),
         Ok(_) => Some(respond(200, "text/plain", "")),
     }
-}
-
-fn unix_now() -> i64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0, |d| d.as_secs() as i64)
 }
 
 // What the event is and which sent message it is about; `None` for any event
