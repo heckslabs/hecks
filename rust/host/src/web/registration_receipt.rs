@@ -62,11 +62,8 @@ async fn site_email(
         json!({ "event": event_slug }),
         300,
     );
-    let mut url = reqwest::Url::parse(&format!(
-        "{}/api/confirmation-email",
-        super::newsletter_send::site_url()
-    ))
-    .ok()?;
+    let mut url =
+        reqwest::Url::parse(&format!("{}/api/confirmation-email", super::site_url())).ok()?;
     {
         let mut query = url.query_pairs_mut();
         query.append_pair("event", event_slug);

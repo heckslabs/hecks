@@ -1,5 +1,6 @@
 use super::{
     active_session_email, instances_for, json_error, last_refusal, percent_decode, respond,
+    site_url,
 };
 use crate::auth;
 use crate::commerce_ir::{
@@ -19,7 +20,6 @@ use tokio_postgres::Client;
 // Admin/Owner. `newsletter_issues` marks issues sent; `newsletter` holds subscribers.
 
 const UNSUBSCRIBE_TOKEN: &str = "{{UNSUBSCRIBE_URL}}";
-const DEFAULT_SITE_URL: &str = "http://localhost:4321";
 
 // The purpose keys an unsubscribe token apart from a confirm token, so neither
 // verifies as the other. The lifetime is the Newsletter bluebook's
@@ -138,10 +138,6 @@ async fn authorize(
         )),
         Err(e) => Err(json_error(500, &e)),
     }
-}
-
-pub(super) fn site_url() -> String {
-    std::env::var("SITE_URL").unwrap_or_else(|_| DEFAULT_SITE_URL.to_string())
 }
 
 pub(super) fn unsubscribe_token(secret: &str, email: &str) -> String {
