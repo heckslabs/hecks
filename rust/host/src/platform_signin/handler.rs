@@ -73,9 +73,7 @@ pub fn fresh_value() -> String {
 
 /// Reads the system clock.
 pub fn system_clock() -> i64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0, |elapsed| elapsed.as_secs() as i64)
+    crate::clock::unix_now()
 }
 
 /// What a callback request carried, already separated from any headers.

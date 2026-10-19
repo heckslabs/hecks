@@ -3,6 +3,7 @@ use super::{
     site_url,
 };
 use crate::auth;
+use crate::clock::unix_now;
 use crate::commerce_ir::{
     newsletter_issues_provider, newsletter_provider, NewsletterIssuesProvider, NewsletterProvider,
 };
@@ -196,12 +197,6 @@ fn confirmed_emails(provider: &NewsletterProvider, subscribers: &[(String, Value
         .collect();
     emails.sort();
     emails
-}
-
-fn unix_now() -> i64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0, |d| d.as_secs() as i64)
 }
 
 #[allow(clippy::too_many_arguments)]

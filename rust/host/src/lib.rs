@@ -6,6 +6,7 @@ pub mod approval;
 pub mod auth;
 pub mod boot;
 pub mod checkout;
+mod clock;
 pub mod commerce_ir;
 mod crypto;
 pub mod dispatch;
