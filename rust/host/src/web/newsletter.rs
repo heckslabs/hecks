@@ -1,7 +1,5 @@
-use super::newsletter_send::{
-    site_url, unsubscribe_token, unsubscribe_token_matches, unsubscribe_url,
-};
-use super::{instances_for, last_refusal, respond};
+use super::newsletter_send::{unsubscribe_token, unsubscribe_token_matches, unsubscribe_url};
+use super::{instances_for, last_refusal, respond, site_url};
 use crate::auth;
 use crate::commerce_ir::{newsletter_provider, NewsletterProvider};
 use crate::dispatch;

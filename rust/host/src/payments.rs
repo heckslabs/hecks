@@ -6,7 +6,7 @@ use crate::checkout::STRIPE_API_VERSION;
 use crate::dispatch;
 use crate::journal::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
-use crate::web::{instances_for, json_error, last_refusal, respond};
+use crate::web::{instances_for, json_error, last_refusal, respond, site_url};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::path::Path;
@@ -90,8 +90,7 @@ fn webhook_description(configured: Option<&str>, domain: &str) -> String {
 impl PlatformConfig {
     pub fn from_env() -> Self {
         let var = |name: &str| std::env::var(name).unwrap_or_default();
-        let site_url =
-            std::env::var("SITE_URL").unwrap_or_else(|_| "http://localhost:4321".to_string());
+        let site_url = site_url();
         let webhook_base_url = Some(var("PAYMENTS_WEBHOOK_BASE_URL"))
             .filter(|url| !url.trim().is_empty())
             .unwrap_or_else(|| site_url.clone())

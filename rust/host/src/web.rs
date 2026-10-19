@@ -1045,7 +1045,7 @@ async fn google_callback(
     // The site's admin authenticates on the account cookie, not this
     // host's own session cookie. Cross-origin, a cookie here would never
     // reach the site, so the token is handed across via /api/google-handoff.
-    let site = std::env::var("SITE_URL").unwrap_or_else(|_| "http://localhost:4321".to_string());
+    let site = site_url();
     let site = site.trim_end_matches('/');
     let token = auth::account_token(secret, &session.email, auth::SESSION_TTL_SECS);
     if same_origin(site, &redirect_uri()) {
@@ -2404,6 +2404,13 @@ const COOKIE_FLAGS_PLAIN: &str = "; Path=/; HttpOnly; SameSite=Lax";
 
 fn redirect_with_cookie(location: &str, cookie: &str) -> Value {
     json!({"statusCode": 302, "headers": {"location": location}, "cookies": [cookie], "body": "", "isBase64Encoded": false})
+}
+
+const DEFAULT_SITE_URL: &str = "http://localhost:4321";
+
+/// The public site's origin: `SITE_URL`, else the local development address.
+pub(crate) fn site_url() -> String {
+    std::env::var("SITE_URL").unwrap_or_else(|_| DEFAULT_SITE_URL.to_string())
 }
 
 /// A JSON `{"error": message}` reply with `status`.
