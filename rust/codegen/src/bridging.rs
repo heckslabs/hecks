@@ -527,6 +527,68 @@ pub fn arithmetic_amount_expr(
     None
 }
 
+/// The Rust expression for a text operand that can never be added to the target's Integer field.
+///
+/// Ruby wraps the amount as the target's own type before combining, so a required command
+/// argument carrying text refuses `TypeMismatch` at the mutation step (C4.4). The rule is exact:
+/// the argument is a single, required, non-list value and is either a bare `String` or a value
+/// object whose only field is a `String` named as the target's Integer field (so the rewrap
+/// lands on that field and no other refusal intervenes); the target is a required scalar. Any
+/// other shape keeps its own refusal and so stays ungenerated. The expression yields the `String`.
+pub fn text_operand_expr(
+    mutation: &Json,
+    aggregate: &Json,
+    command: &Json,
+    value_objects_by_name: &HashMap<String, &Json>,
+    target_integer_field: &str,
+) -> Option<String> {
+    let target = mutation.get("target").map(Json::to_s).unwrap_or_default();
+    let aggregate_attrs = aggregate.get("attributes").map_or_default(Json::each);
+    let target_attr = aggregate_attrs
+        .iter()
+        .find(|a| crate::attr::name(a) == target)?;
+    if crate::attr::optional(target_attr) {
+        return None;
+    }
+    let source = mutation.get("source")?;
+    if source.get("kind").map(Json::to_s).unwrap_or_default() != "argument" {
+        return None;
+    }
+    let name = source.get("name").map(Json::to_s).unwrap_or_default();
+    let command_attrs = command.get("attributes").map_or_default(Json::each);
+    let arg_attr = command_attrs
+        .iter()
+        .find(|a| crate::attr::name(a) == name)?;
+    if crate::attr::list(arg_attr) || crate::attr::optional(arg_attr) {
+        return None;
+    }
+    let arg = format!("args.{}", naming::rust_ident_field(&name));
+    if crate::attr::type_name(arg_attr) == "String" {
+        return Some(arg);
+    }
+    let vo = value_objects_by_name
+        .get(crate::attr::type_name(arg_attr))
+        .copied()?;
+    if vo.get("closed_set").is_some_and(Json::as_bool) {
+        return None;
+    }
+    let fields = vo.get("attributes").map_or_default(Json::each);
+    match fields {
+        [only]
+            if crate::attr::type_name(only) == "String"
+                && !crate::attr::list(only)
+                && !crate::attr::optional(only)
+                && crate::attr::name(only) == target_integer_field =>
+        {
+            Some(format!(
+                "{arg}.{}",
+                naming::rust_ident_field(target_integer_field)
+            ))
+        }
+        _ => None,
+    }
+}
+
 /// `clamp:` bounds as `[min, max]` integers; `None` for anything else.
 pub fn clamp_bounds_ints(source: &Json) -> Option<(i64, i64)> {
     if source.get("kind").map(Json::to_s).unwrap_or_default() != "literal" {
@@ -683,4 +745,84 @@ pub fn corrects_given_specs(command: &Json) -> Vec<String> {
         corrects_flag_field(&event_name),
         event_name
     )]
+}
+
+#[cfg(test)]
+mod text_operand_tests {
+    use super::*;
+
+    fn aggregate() -> Json {
+        Json::parse(
+            r#"{"attributes":[
+            {"name":"count","type":"Count","list":false,"optional":false},
+            {"name":"limit","type":"Count","list":false,"optional":true}]}"#,
+        )
+        .unwrap()
+    }
+
+    fn vos() -> Vec<Json> {
+        vec![
+            Json::parse(
+                r#"{"name":"Count","attributes":[{"name":"value","type":"Integer","list":false}]}"#,
+            )
+            .unwrap(),
+            Json::parse(
+                r#"{"name":"Label","attributes":[{"name":"value","type":"String","list":false}]}"#,
+            )
+            .unwrap(),
+            Json::parse(
+                r#"{"name":"Note","attributes":[{"name":"text","type":"String","list":false}]}"#,
+            )
+            .unwrap(),
+        ]
+    }
+
+    fn by_name(vos: &[Json]) -> HashMap<String, &Json> {
+        vos.iter()
+            .map(|vo| (vo.get("name").map(Json::to_s).unwrap_or_default(), vo))
+            .collect()
+    }
+
+    fn operand(target: &str, arg_type: &str, arg_flags: &str) -> Option<String> {
+        let mutation = Json::parse(&format!(
+            r#"{{"target":"{target}","op":"increment","source":{{"kind":"argument","name":"by"}}}}"#
+        ))
+        .unwrap();
+        let command = Json::parse(&format!(
+            r#"{{"attributes":[{{"name":"by","type":"{arg_type}","list":false{arg_flags}}}]}}"#
+        ))
+        .unwrap();
+        let vos = vos();
+        text_operand_expr(&mutation, &aggregate(), &command, &by_name(&vos), "value")
+    }
+
+    #[test]
+    fn a_value_object_holding_text_in_the_target_field_name_is_a_text_operand() {
+        assert_eq!(
+            operand("count", "Label", "").as_deref(),
+            Some("args.by.value")
+        );
+    }
+
+    #[test]
+    fn a_bare_string_argument_is_a_text_operand() {
+        assert_eq!(operand("count", "String", "").as_deref(), Some("args.by"));
+    }
+
+    #[test]
+    fn a_numeric_operand_is_not_a_text_operand() {
+        assert_eq!(operand("count", "Count", ""), None);
+        assert_eq!(operand("count", "Integer", ""), None);
+    }
+
+    #[test]
+    fn a_text_field_named_otherwise_keeps_its_own_refusal() {
+        assert_eq!(operand("count", "Note", ""), None);
+    }
+
+    #[test]
+    fn an_optional_target_or_argument_keeps_its_own_behaviour() {
+        assert_eq!(operand("limit", "Label", ""), None);
+        assert_eq!(operand("count", "Label", r#","optional":true"#), None);
+    }
 }
