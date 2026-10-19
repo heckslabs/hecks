@@ -138,24 +138,10 @@ pub fn run(input: &str) -> String {
                     let def = named_query::find_entity(ENTITY_QUERIES, question).expect("matched by the guard above");
                     match named_query::run_entity(&store, def, args) {
                         Ok(rows) => {
-                            let rows = Json::Array(rows);
-                            query_results.push(Json::obj(vec![
-                                ("query", Json::Str(question.clone())),
-                                ("args", offered.clone()),
-                                ("rows", rows.clone()),
-                                ("reference_rows", rows),
-                            ]));
+                            query_results.push(answered_entry(question, offered, Json::Array(rows), true));
                         }
                         Err(refusal) => {
-                            let message = refusal.to_string();
-                            query_results.push(Json::obj(vec![
-                                ("query", Json::Str(question.clone())),
-                                ("args", offered.clone()),
-                                ("rows", Json::Null),
-                                ("error", Json::Str(message.clone())),
-                                ("reference_rows", Json::Null),
-                                ("reference_error", Json::Str(message)),
-                            ]));
+                            query_results.push(refused_entry(question, offered, &refusal, true));
                             refusals.push((question.clone(), refusal));
                         }
                     }
@@ -164,26 +150,13 @@ pub fn run(input: &str) -> String {
                     Some(def) => match check_query_args(question, args).and_then(|()| named_query::run(&store, def, args, caller_role)) {
                         Ok(entries) => {
                             let rows = Json::Array(entries.into_iter().map(|(id, record)| repository::row_json(id, record)).collect());
-                            query_results.push(Json::obj(vec![
-                                ("query", Json::Str(question.clone())),
-                                ("args", offered.clone()),
-                                ("rows", rows.clone()),
-                                // Same as `rows`: one compiled path (named_query.rs).
-                                ("reference_rows", rows),
-                            ]));
+                            // The reference twin is `rows`: one compiled path (named_query.rs).
+                            query_results.push(answered_entry(question, offered, rows, true));
                         }
                         // A refused query still gets an entry with `rows: null`, as in Ruby; one
                         // compiled path means `error` and `reference_error` are the same string.
                         Err(refusal) => {
-                            let message = refusal.to_string();
-                            query_results.push(Json::obj(vec![
-                                ("query", Json::Str(question.clone())),
-                                ("args", offered.clone()),
-                                ("rows", Json::Null),
-                                ("error", Json::Str(message.clone())),
-                                ("reference_rows", Json::Null),
-                                ("reference_error", Json::Str(message)),
-                            ]));
+                            query_results.push(refused_entry(question, offered, &refusal, true));
                             refusals.push((question.clone(), refusal));
                         }
                     },
@@ -204,24 +177,11 @@ pub fn run(input: &str) -> String {
                 },
                 Json::Str(question) => match read_model::find(READ_MODELS, question) {
                     Some(def) => match read_model::run(&store, def, args) {
-                        Ok(row) => {
-                            query_results.push(Json::obj(vec![
-                                ("query", Json::Str(question.clone())),
-                                ("args", offered.clone()),
-                                ("rows", Json::Array(vec![row])),
-                                // No `reference_rows` key: Ruby sets it only for questions with a
-                                // reference twin, and a read model has none.
-                            ]));
-                        }
-                        // As above, minus the reference keys.
+                        // No reference keys: Ruby sets them only for questions with a reference twin,
+                        // and a read model has none.
+                        Ok(row) => query_results.push(answered_entry(question, offered, Json::Array(vec![row]), false)),
                         Err(refusal) => {
-                            let message = refusal.to_string();
-                            query_results.push(Json::obj(vec![
-                                ("query", Json::Str(question.clone())),
-                                ("args", offered.clone()),
-                                ("rows", Json::Null),
-                                ("error", Json::Str(message)),
-                            ]));
+                            query_results.push(refused_entry(question, offered, &refusal, false));
                             refusals.push((question.clone(), refusal));
                         }
                     },
@@ -568,6 +528,37 @@ fn required_str<'a>(filter: &'a Json, key: &str) -> Result<&'a str, Refusal> {
 
 /// The `refusals` verb column for a refused ad hoc filter, which has no verb; tolerates
 /// missing or mistyped fields.
+/// The log entry for an answered `query` step. A question with a reference twin also carries
+/// `reference_rows`, the same rows because both come from one compiled path.
+fn answered_entry(question: &str, offered: &Json, rows: Json, with_reference: bool) -> Json {
+    let mut fields = vec![
+        ("query", Json::Str(question.to_string())),
+        ("args", offered.clone()),
+        ("rows", rows.clone()),
+    ];
+    if with_reference {
+        fields.push(("reference_rows", rows));
+    }
+    Json::obj(fields)
+}
+
+/// The log entry for a refused `query` step: `rows: null` and the refusal's text, with the
+/// reference twin's null rows and identical error when the question has one.
+fn refused_entry(question: &str, offered: &Json, refusal: &Refusal, with_reference: bool) -> Json {
+    let message = refusal.to_string();
+    let mut fields = vec![
+        ("query", Json::Str(question.to_string())),
+        ("args", offered.clone()),
+        ("rows", Json::Null),
+        ("error", Json::Str(message.clone())),
+    ];
+    if with_reference {
+        fields.push(("reference_rows", Json::Null));
+        fields.push(("reference_error", Json::Str(message)));
+    }
+    Json::obj(fields)
+}
+
 fn filter_label(filter: &Json) -> String {
     let field = |key: &str| filter.get(key).and_then(Json::as_str).unwrap_or("");
     format!(
