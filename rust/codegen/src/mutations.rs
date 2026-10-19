@@ -321,6 +321,16 @@ fn numeric_current(
     )
 }
 
+/// The mutation for a text operand: refuses `TypeMismatch` as Ruby's rewrap of the amount does.
+///
+/// The `?` on an `Err` keeps the closure's `Ok(())` reachable, and the offered text renders
+/// through `Json::describe`, as every refusal quotes a value.
+fn text_operand_refusal(target_type: &str, integer_field: &str, text_expr: &str) -> String {
+    format!(
+        "Err::<(), _>(crate::kernel::Refusal::TypeMismatch(format!(\"{target_type}.{integer_field} expects Integer, got {{}}\", crate::kernel::Json::Str({text_expr}.clone()).describe())))?;"
+    )
+}
+
 // Integer arithmetic that leaves signed 64 bits is a `Refusal::Fault`, never a wrap or a panic.
 #[allow(
     clippy::panic,
@@ -1432,6 +1442,19 @@ fn emit_mutation_line_body(
             .expect("arithmetic target must resolve");
             let vo_type = naming::rust_ident(crate::attr::type_name(target_attr));
             let field_ident = naming::rust_ident_field(&integer_field);
+            if let Some(text) = crate::bridging::text_operand_expr(
+                mutation,
+                aggregate,
+                command,
+                value_objects_by_name,
+                &integer_field,
+            ) {
+                return text_operand_refusal(
+                    crate::attr::type_name(target_attr),
+                    &integer_field,
+                    &text,
+                );
+            }
             let amount_expr = crate::bridging::arithmetic_amount_expr(
                 mutation.get("source").unwrap_or(&Json::Null),
                 command,
@@ -1483,6 +1506,19 @@ fn emit_mutation_line_body(
             .expect("arithmetic target must resolve");
             let vo_type = naming::rust_ident(crate::attr::type_name(target_attr));
             let field_ident = naming::rust_ident_field(&integer_field);
+            if let Some(text) = crate::bridging::text_operand_expr(
+                mutation,
+                aggregate,
+                command,
+                value_objects_by_name,
+                &integer_field,
+            ) {
+                return text_operand_refusal(
+                    crate::attr::type_name(target_attr),
+                    &integer_field,
+                    &text,
+                );
+            }
             let amount_expr = crate::bridging::arithmetic_amount_expr(
                 mutation.get("source").unwrap_or(&Json::Null),
                 command,

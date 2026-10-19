@@ -478,13 +478,23 @@ fn command_skip_reason_with(
             let target =
                 crate::bridging::arithmetic_target_field(m, aggregate, value_objects_by_name);
             match target {
-                Some((_, field)) => crate::bridging::arithmetic_amount_expr(
-                    m.get("source").unwrap_or(&Json::Null),
-                    command,
-                    value_objects_by_name,
-                    &field,
-                )
-                .is_none(),
+                Some((_, field)) => {
+                    crate::bridging::arithmetic_amount_expr(
+                        m.get("source").unwrap_or(&Json::Null),
+                        command,
+                        value_objects_by_name,
+                        &field,
+                    )
+                    .is_none()
+                        && crate::bridging::text_operand_expr(
+                            m,
+                            aggregate,
+                            command,
+                            value_objects_by_name,
+                            &field,
+                        )
+                        .is_none()
+                }
                 None => true,
             }
         })
