@@ -1,3 +1,0 @@
-Hecks.hecksagon "TallyGaps" do
-  TallyGaps::Tally.persisted_by("Memory")
-end

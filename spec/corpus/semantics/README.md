@@ -10,12 +10,10 @@ Implementation-neutral expected behaviour — the executable half of
   (the refusal class, C8.2), final `instances`, ordered `events`
   (without `occurred_at`, which is environmental — C7.3/C9.1)
 - `ruby_only: true` — a fixture whose domain has no Rust cargo feature
-  yet; it still gates the Ruby runtime. The corpus-owned domains under
-  `domains/` are Rust corpus domains (cargo features, regenerated with the
-  rest) except `tally_gaps`, which holds the commands `hecks-codegen` does not
-  generate yet (arithmetic through a value object, `remove` on a
-  value-object list, an operand of the wrong type) and so stays Ruby-only on
-  purpose; each fixture there says which gap in its `ruby_only_reason`.
+  yet; it still gates the Ruby runtime. None carries it today: the
+  corpus-owned domains under `domains/` are Rust corpus domains (cargo
+  features, regenerated with the rest), and the compiled kernel answers
+  every fixture as written.
 
 Expectations were seeded from the Ruby runtime ONCE
 (`hecks test_suite_run.seed_semantics_corpus`), reviewed against the clauses, and are

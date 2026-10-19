@@ -1,14 +1,12 @@
 {
-  "domain": "spec/corpus/semantics/domains/tally_gaps",
-  "ruby_only": true,
-  "ruby_only_reason": "no Rust binary to hold it to: the corpus-owned domain spec/corpus/semantics/domains/tally_gaps has no `tally_gaps` feature in rust/Cargo.toml, on purpose: it holds the commands Rust cannot generate yet. Untag removes from a value-object list, which hecks-codegen does not generate yet (manifest: 'remove on a value-object-typed list is not generated yet'; ADR 0047 item 4).",
+  "domain": "spec/corpus/semantics/domains/tally",
   "spec": [
     "C4.3"
   ],
   "note": "append adds at the tail in order; remove takes every structurally-equal element (C4.3). Tags x, y, x then Untag x leaves exactly [y].",
   "steps": [
     {
-      "verb": "TallyGaps::Tally.Open",
+      "verb": "Tallying::Tally.Open",
       "args": {
         "tag": {
           "value": "t1"
@@ -16,7 +14,7 @@
       }
     },
     {
-      "verb": "TallyGaps::Tally.TagWith",
+      "verb": "Tallying::Tally.TagWith",
       "args": {
         "tally": "t1",
         "label": {
@@ -25,7 +23,7 @@
       }
     },
     {
-      "verb": "TallyGaps::Tally.TagWith",
+      "verb": "Tallying::Tally.TagWith",
       "args": {
         "tally": "t1",
         "label": {
@@ -34,7 +32,7 @@
       }
     },
     {
-      "verb": "TallyGaps::Tally.TagWith",
+      "verb": "Tallying::Tally.TagWith",
       "args": {
         "tally": "t1",
         "label": {
@@ -43,7 +41,7 @@
       }
     },
     {
-      "verb": "TallyGaps::Tally.Untag",
+      "verb": "Tallying::Tally.Untag",
       "args": {
         "tally": "t1",
         "label": {
@@ -57,7 +55,7 @@
 
     ],
     "instances": {
-      "TallyGaps::Tally#t1": {
+      "Tallying::Tally#t1": {
         "tag": {
           "value": "t1"
         },
@@ -81,7 +79,7 @@
     "events": [
       {
         "name": "TallyOpened",
-        "aggregate": "TallyGaps::Tally",
+        "aggregate": "Tallying::Tally",
         "id": "t1",
         "payload": {
           "tag": {
@@ -91,7 +89,7 @@
       },
       {
         "name": "Tagged",
-        "aggregate": "TallyGaps::Tally",
+        "aggregate": "Tallying::Tally",
         "id": "t1",
         "payload": {
           "tally": "t1",
@@ -102,7 +100,7 @@
       },
       {
         "name": "Tagged",
-        "aggregate": "TallyGaps::Tally",
+        "aggregate": "Tallying::Tally",
         "id": "t1",
         "payload": {
           "tally": "t1",
@@ -113,7 +111,7 @@
       },
       {
         "name": "Tagged",
-        "aggregate": "TallyGaps::Tally",
+        "aggregate": "Tallying::Tally",
         "id": "t1",
         "payload": {
           "tally": "t1",
@@ -124,7 +122,7 @@
       },
       {
         "name": "Untagged",
-        "aggregate": "TallyGaps::Tally",
+        "aggregate": "Tallying::Tally",
         "id": "t1",
         "payload": {
           "tally": "t1",

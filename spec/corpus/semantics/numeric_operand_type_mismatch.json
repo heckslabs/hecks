@@ -1,15 +1,13 @@
 {
-  "domain": "spec/corpus/semantics/domains/tally_gaps",
+  "domain": "spec/corpus/semantics/domains/tally",
   "spec": [
     "C4.4",
     "C8.2"
   ],
   "note": "A non-numeric operand (a Label's string added to the count) is a TypeMismatch refusal and leaves the count untouched (C4.4).",
-  "ruby_only": true,
-  "ruby_only_reason": "no Rust binary to hold it to: the corpus-owned domain spec/corpus/semantics/domains/tally_gaps has no `tally_gaps` feature in rust/Cargo.toml, on purpose: it holds the commands Rust cannot generate yet. AddLabel adds a String-carrying value object to an Integer count, which hecks-codegen declines to generate (manifest: 'sets :count increment/decrement/multiply amount or target field isn't bridgeable').",
   "steps": [
     {
-      "verb": "TallyGaps::Tally.Open",
+      "verb": "Tallying::Tally.Open",
       "args": {
         "tag": {
           "value": "t1"
@@ -17,7 +15,7 @@
       }
     },
     {
-      "verb": "TallyGaps::Tally.AddLabel",
+      "verb": "Tallying::Tally.AddLabel",
       "args": {
         "tally": "t1",
         "label": {
@@ -29,13 +27,13 @@
   "expect": {
     "refusals": [
       {
-        "verb": "TallyGaps::Tally.AddLabel",
+        "verb": "Tallying::Tally.AddLabel",
         "error": "Count.value expects Integer, got \"abc\"",
         "kind": "TypeMismatch"
       }
     ],
     "instances": {
-      "TallyGaps::Tally#t1": {
+      "Tallying::Tally#t1": {
         "tag": {
           "value": "t1"
         },
@@ -57,7 +55,7 @@
     "events": [
       {
         "name": "TallyOpened",
-        "aggregate": "TallyGaps::Tally",
+        "aggregate": "Tallying::Tally",
         "id": "t1",
         "payload": {
           "tag": {
