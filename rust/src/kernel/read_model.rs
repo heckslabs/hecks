@@ -1065,24 +1065,31 @@ fn fetch_root(
     head: &ReadModelHead,
     reference_id: &str,
 ) -> Result<(String, Json), Refusal> {
-    let entries = store
-        .scan(head.aggregate)
-        .ok_or_else(|| Refusal::TypeMismatch(format!("unknown aggregate {:?}", head.aggregate)))?;
+    // Borrowed rows: only the one that matches is cloned.
+    let mut found = None;
+    let known = store.scan_each(head.aggregate, &mut |id, record| {
+        if found.is_none() && id == reference_id {
+            found = Some((id.to_string(), record.clone()));
+        }
+    });
+    if !known {
+        return Err(Refusal::TypeMismatch(format!(
+            "unknown aggregate {:?}",
+            head.aggregate
+        )));
+    }
 
-    entries
-        .into_iter()
-        .find(|(id, _)| id == reference_id)
-        .ok_or_else(|| {
-            // Named by its bare bluebook name; `head.aggregate` is the domain-qualified one.
-            let bare = head.aggregate.rsplit("::").next().unwrap_or(head.aggregate);
-            Refusal::NotFound(
-                NotFoundReadModelReferenceMissingArgs {
-                    aggregate: bare,
-                    offered: &format!("{reference_id:?}"),
-                }
-                .render_args(),
-            )
-        })
+    found.ok_or_else(|| {
+        // Named by its bare bluebook name; `head.aggregate` is the domain-qualified one.
+        let bare = head.aggregate.rsplit("::").next().unwrap_or(head.aggregate);
+        Refusal::NotFound(
+            NotFoundReadModelReferenceMissingArgs {
+                aggregate: bare,
+                offered: &format!("{reference_id:?}"),
+            }
+            .render_args(),
+        )
+    })
 }
 
 /// A non-root head's own rows: every instance of this head's aggregate whose reference field(s)
