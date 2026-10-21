@@ -15,6 +15,7 @@ pub mod expr_json;
 #[path = "boundary_fuzz/expr_json.rs"]
 pub mod expr_json_fuzz;
 pub mod extension;
+mod http;
 // Generated: its static regexes are literals that compile, and the generator always emits
 // `r#"…"#`, so the lints below are allowed here.
 #[allow(clippy::expect_used, clippy::needless_raw_string_hashes)]
