@@ -2331,39 +2331,11 @@ fn hex_digit(byte: u8) -> Option<u8> {
     (byte as char).to_digit(16).map(|digit| digit as u8)
 }
 
-const B64: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-
 // pub(crate) so server.rs's own Function URL response handling can
 // decode the same way, without a second copy of this decoder.
 pub(crate) fn base64_decode(input: &str) -> Vec<u8> {
-    let mut table = [255u8; 256];
-    for (i, &c) in B64.iter().enumerate() {
-        table[c as usize] = i as u8;
-    }
-    let clean: Vec<u8> = input
-        .bytes()
-        .filter(|&b| b != b'=' && !b.is_ascii_whitespace())
-        .collect();
-    let mut out = Vec::with_capacity(clean.len() * 3 / 4);
-    for chunk in clean.chunks(4) {
-        let vals: Vec<u32> = chunk
-            .iter()
-            .map(|&b| u32::from(table[b as usize]))
-            .collect();
-        let n = vals.len();
-        let combined = vals
-            .iter()
-            .enumerate()
-            .fold(0u32, |acc, (i, &v)| acc | (v << (18 - 6 * i)));
-        out.push((combined >> 16) as u8);
-        if n > 2 {
-            out.push((combined >> 8) as u8);
-        }
-        if n > 3 {
-            out.push(combined as u8);
-        }
-    }
-    out
+    let compact: String = input.split_ascii_whitespace().collect();
+    crate::b64::standard_decode(&compact).unwrap_or_default()
 }
 
 fn esc(value: &str) -> String {

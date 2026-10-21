@@ -1,6 +1,7 @@
 //! Google sign-in and stateless sessions: OAuth, ID-token verification
 //! against Google's real JWKS, and HMAC-signed session/account cookies.
 
+use crate::b64;
 use crate::crypto::{constant_time_eq, hex_encode};
 use crate::dispatch;
 use crate::host::Host;
@@ -187,13 +188,13 @@ pub fn account_cookie_name() -> String {
 /// and the SSO handoff — deliberately not a `Session` cookie.
 pub fn account_token(secret: &str, email: &str, ttl_secs: u64) -> String {
     let payload = json!({"email": email, "exp": now_secs() + ttl_secs});
-    let encoded = base64_encode(payload.to_string().as_bytes());
+    let encoded = b64::url_encode(payload.to_string().as_bytes());
     format!("{encoded}.{}", sign(secret, &encoded))
 }
 
 pub fn verify_account_token(secret: &str, token: &str) -> Option<String> {
     let payload = verify_sig(secret, token)?;
-    let bytes = base64_decode(&payload);
+    let bytes = b64::url_decode(&payload)?;
     let value: Value = serde_json::from_slice(&bytes).ok()?;
     let exp = value.get("exp")?.as_u64()?;
     if now_secs() > exp {
@@ -211,7 +212,7 @@ pub fn purpose_token(secret: &str, purpose: &str, claims: Value, ttl_secs: u64) 
     let mut payload = claims;
     payload["purpose"] = json!(purpose);
     payload["exp"] = json!(now_secs() + ttl_secs);
-    let encoded = base64_encode(payload.to_string().as_bytes());
+    let encoded = b64::url_encode(payload.to_string().as_bytes());
     format!(
         "{encoded}.{}",
         sign(&purpose_key(secret, purpose), &encoded)
@@ -222,7 +223,7 @@ pub fn purpose_token(secret: &str, purpose: &str, claims: Value, ttl_secs: u64) 
 /// or `None` when the signature, the purpose or the expiry does not hold.
 pub fn verify_purpose_token(secret: &str, purpose: &str, token: &str) -> Option<Value> {
     let payload = verify_sig(&purpose_key(secret, purpose), token)?;
-    let claims: Value = serde_json::from_slice(&base64_decode(&payload)).ok()?;
+    let claims: Value = serde_json::from_slice(&b64::url_decode(&payload)?).ok()?;
     if claims.get("purpose")?.as_str()? != purpose || now_secs() > claims.get("exp")?.as_u64()? {
         return None;
     }
@@ -244,13 +245,13 @@ pub fn session_cookie(secret: &str, session: &Session) -> String {
         "role": session.role,
         "exp": now_secs() + SESSION_TTL_SECS,
     });
-    let encoded = base64_encode(payload.to_string().as_bytes());
+    let encoded = b64::url_encode(payload.to_string().as_bytes());
     format!("{encoded}.{}", sign(secret, &encoded))
 }
 
 pub fn parse_session_cookie(secret: &str, cookie: &str) -> Option<Session> {
     let payload = verify_sig(secret, cookie)?;
-    let bytes = base64_decode(&payload);
+    let bytes = b64::url_decode(&payload)?;
     let value: Value = serde_json::from_slice(&bytes).ok()?;
     // A cookie with no `exp`, or one in the past, is no session: a signed
     // payload alone would otherwise stay valid until the secret changed.
@@ -1116,52 +1117,6 @@ fn verify_sig(secret: &str, token: &str) -> Option<String> {
     }
 }
 
-const B64: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-
-fn base64_encode(input: &[u8]) -> String {
-    let mut out = String::new();
-    for chunk in input.chunks(3) {
-        let b = [
-            chunk[0],
-            *chunk.get(1).unwrap_or(&0),
-            *chunk.get(2).unwrap_or(&0),
-        ];
-        let n = (u32::from(b[0]) << 16) | (u32::from(b[1]) << 8) | u32::from(b[2]);
-        out.push(B64[(n >> 18) as usize & 0x3f] as char);
-        out.push(B64[(n >> 12) as usize & 0x3f] as char);
-        if chunk.len() > 1 {
-            out.push(B64[(n >> 6) as usize & 0x3f] as char);
-        }
-        if chunk.len() > 2 {
-            out.push(B64[n as usize & 0x3f] as char);
-        }
-    }
-    out
-}
-
-fn base64_decode(input: &str) -> Vec<u8> {
-    let mut table = [255u8; 256];
-    for (i, &c) in B64.iter().enumerate() {
-        table[c as usize] = i as u8;
-    }
-    let mut out = Vec::new();
-    let mut buf = 0u32;
-    let mut bits = 0u32;
-    for c in input.bytes() {
-        let v = table[c as usize];
-        if v == 255 {
-            continue;
-        }
-        buf = (buf << 6) | u32::from(v);
-        bits += 6;
-        if bits >= 8 {
-            bits -= 8;
-            out.push((buf >> bits) as u8);
-        }
-    }
-    out
-}
-
 pub(crate) fn urlencode(s: &str) -> String {
     use std::fmt::Write;
     let mut out = String::new();
@@ -1181,29 +1136,6 @@ pub(crate) fn urlencode(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn base64_round_trips_arbitrary_bytes() {
-        for input in [
-            b"".as_slice(),
-            b"a",
-            b"ab",
-            b"abc",
-            b"abcd",
-            b"\x00\xff\x10hello world!",
-        ] {
-            let encoded = base64_encode(input);
-            assert!(
-                !encoded.contains('+') && !encoded.contains('/'),
-                "must be URL-safe: {encoded}"
-            );
-            assert_eq!(
-                base64_decode(&encoded),
-                input,
-                "round trip failed for {input:?}"
-            );
-        }
-    }
 
     #[test]
     fn signed_token_verifies_with_the_right_secret_and_rejects_tampering() {
@@ -1248,7 +1180,7 @@ mod tests {
     #[test]
     fn account_token_matches_the_known_answer_vector() {
         let payload = r#"{"email":"chris@example.com","exp":4102444800}"#;
-        let encoded = base64_encode(payload.as_bytes());
+        let encoded = b64::url_encode(payload.as_bytes());
         assert_eq!(
             encoded,
             "eyJlbWFpbCI6ImNocmlzQGV4YW1wbGUuY29tIiwiZXhwIjo0MTAyNDQ0ODAwfQ"
@@ -1265,9 +1197,10 @@ mod tests {
         // account_token writes the same payload shape: keys in sorted order, no spaces.
         let minted = account_token("s3cret", "chris@example.com", 60);
         let (minted_payload, _) = minted.rsplit_once('.').unwrap();
-        let claims: Value = serde_json::from_slice(&base64_decode(minted_payload)).unwrap();
+        let claims: Value =
+            serde_json::from_slice(&b64::url_decode(minted_payload).unwrap()).unwrap();
         assert_eq!(
-            String::from_utf8(base64_decode(minted_payload)).unwrap(),
+            String::from_utf8(b64::url_decode(minted_payload).unwrap()).unwrap(),
             format!(r#"{{"email":"chris@example.com","exp":{}}}"#, claims["exp"])
         );
     }
@@ -1335,7 +1268,7 @@ mod tests {
         if let Some(exp) = exp {
             payload["exp"] = json!(exp);
         }
-        let encoded = base64_encode(payload.to_string().as_bytes());
+        let encoded = b64::url_encode(payload.to_string().as_bytes());
         format!("{encoded}.{}", sign(secret, &encoded))
     }
 

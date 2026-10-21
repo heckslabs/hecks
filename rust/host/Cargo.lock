@@ -2441,6 +2441,7 @@ dependencies = [
  "aws-sdk-secretsmanager",
  "aws-smithy-http-client",
  "axum",
+ "base64",
  "hmac 0.12.1",
  "jsonwebtoken",
  "lambda_runtime",

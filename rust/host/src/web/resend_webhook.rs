@@ -1,6 +1,7 @@
 use super::{instances_for, respond};
 use crate::clock::unix_now;
 use crate::commerce_ir::newsletter_issues_provider;
+use crate::crypto::constant_time_eq;
 use crate::dispatch;
 use crate::extension::loaded_ir;
 use crate::host::Host;
@@ -197,7 +198,7 @@ fn verify(
             "timestamp {sent} is outside the {TOLERANCE_SECONDS}s tolerance (now: {now})"
         ));
     }
-    let key = base64_decode(secret.strip_prefix("whsec_").unwrap_or(secret))
+    let key = crate::b64::standard_decode(secret.strip_prefix("whsec_").unwrap_or(secret))
         .ok_or_else(|| "webhook secret is not valid base64".to_string())?;
     let mut mac = HmacSha256::new_from_slice(&key)
         .map_err(|e| format!("webhook secret unusable as an HMAC key: {e}"))?;
@@ -206,7 +207,7 @@ fn verify(
     let matches = signatures
         .split(' ')
         .filter_map(|candidate| candidate.strip_prefix("v1,"))
-        .filter_map(base64_decode)
+        .filter_map(crate::b64::standard_decode)
         .any(|signature| constant_time_eq(&signature, &expected));
     if matches {
         Ok(())
@@ -216,34 +217,6 @@ fn verify(
                 .to_string(),
         )
     }
-}
-
-fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
-    a.len() == b.len() && a.iter().zip(b).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
-}
-
-// Standard base64, padded or not; `None` on any other character.
-fn base64_decode(text: &str) -> Option<Vec<u8>> {
-    let mut out = Vec::with_capacity(text.len() * 3 / 4);
-    let (mut bits, mut have) = (0u32, 0u32);
-    for c in text.trim_end_matches('=').bytes() {
-        let value = u32::from(match c {
-            b'A'..=b'Z' => c - b'A',
-            b'a'..=b'z' => c - b'a' + 26,
-            b'0'..=b'9' => c - b'0' + 52,
-            b'+' => 62,
-            b'/' => 63,
-            _ => return None,
-        });
-        bits = (bits << 6) | value;
-        have += 6;
-        if have >= 8 {
-            have -= 8;
-            out.push((bits >> have) as u8);
-            bits &= (1 << have) - 1;
-        }
-    }
-    Some(out)
 }
 
 #[cfg(test)]
@@ -279,13 +252,13 @@ mod tests {
     fn base64_round_trips_with_and_without_padding() {
         for sample in [&b""[..], b"f", b"fo", b"foo", b"foob", b"secret-key"] {
             let encoded = base64_encode(sample);
-            assert_eq!(base64_decode(&encoded).unwrap(), sample);
+            assert_eq!(crate::b64::standard_decode(&encoded).unwrap(), sample);
             assert_eq!(
-                base64_decode(encoded.trim_end_matches('=')).unwrap(),
+                crate::b64::standard_decode(encoded.trim_end_matches('=')).unwrap(),
                 sample
             );
         }
-        assert!(base64_decode("not base64!").is_none());
+        assert!(crate::b64::standard_decode("not base64!").is_none());
     }
 
     #[test]

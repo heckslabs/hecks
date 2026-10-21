@@ -14,22 +14,9 @@
 
 use super::strict_json::{self, JsonObject};
 
-const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-
 /// Encodes bytes as unpadded base64url (RFC 4648 section 5).
 pub fn encode_base64url(bytes: &[u8]) -> String {
-    let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
-    for chunk in bytes.chunks(3) {
-        let word = chunk
-            .iter()
-            .enumerate()
-            .fold(0u32, |acc, (i, b)| acc | u32::from(*b) << (16 - 8 * i));
-        let characters = chunk.len() + 1;
-        for i in 0..characters {
-            out.push(ALPHABET[((word >> (18 - 6 * i)) & 0x3f) as usize] as char);
-        }
-    }
-    out
+    crate::b64::url_encode(bytes)
 }
 
 /// Decodes canonical unpadded base64url.
@@ -37,29 +24,7 @@ pub fn encode_base64url(bytes: &[u8]) -> String {
 /// Returns `None` for padding, any character outside the URL-safe alphabet, a length that no byte
 /// string encodes to, and spare trailing bits that are not zero.
 pub fn decode_base64url(text: &str) -> Option<Vec<u8>> {
-    if text.len() % 4 == 1 {
-        return None;
-    }
-    let mut out = Vec::with_capacity(text.len() / 4 * 3 + 2);
-    let (mut accumulator, mut bits) = (0u32, 0u32);
-    for byte in text.bytes() {
-        accumulator = accumulator << 6 | sextet(byte)?;
-        bits += 6;
-        if bits >= 8 {
-            bits -= 8;
-            out.push((accumulator >> bits) as u8);
-            accumulator &= (1 << bits) - 1;
-        }
-    }
-    // Spare bits must be zero, or a second spelling would decode to the same bytes.
-    (accumulator == 0).then_some(out)
-}
-
-fn sextet(byte: u8) -> Option<u32> {
-    ALPHABET
-        .iter()
-        .position(|candidate| *candidate == byte)
-        .map(|index| index as u32)
+    crate::b64::url_decode(text)
 }
 
 /// Why a token text was refused before any claim was read.
