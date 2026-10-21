@@ -1445,7 +1445,6 @@ fn emit_mutation_line_body(
                     && crate::shared::list_attr_creation_optional(
                         aggregate,
                         crate::attr::name(target_attr),
-                        value_objects_by_name,
                     )
                 {
                     exemplar.render(

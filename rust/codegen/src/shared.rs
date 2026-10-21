@@ -1,7 +1,6 @@
 //! Predicates ported from the retired Ruby generator's `mutations.rb` that `types.rs` and `json_codec.rs` share.
 
 use crate::json::Json;
-use std::collections::HashMap;
 
 /// Mirrors Ruby's `puts`: appends "\n" only when the string does not already end in one.
 pub fn puts_str(out: &mut String, s: &str) {
@@ -71,11 +70,7 @@ pub fn append_claimed_names(command: &Json) -> std::collections::HashSet<String>
 /// A command with `references` acts on an existing record. Otherwise it creates when it supplies,
 /// via a `:set` mutation or a same-named argument, a required non-list owner field, ignoring
 /// arguments claimed by an append (`append_claimed_names`).
-pub fn creates_owner(
-    aggregate: &Json,
-    command: &Json,
-    _value_objects_by_name: &HashMap<String, &Json>,
-) -> bool {
+pub fn creates_owner(aggregate: &Json, command: &Json) -> bool {
     if command.get("references").is_some() {
         return false;
     }
@@ -117,14 +112,10 @@ pub fn creates_owner(
 
 /// Whether a list-typed attribute reads `nil` rather than `[]` in Ruby; see
 /// `mutations.rb#list_attr_creation_optional?`.
-pub fn list_attr_creation_optional(
-    aggregate: &Json,
-    attr_name: &str,
-    value_objects_by_name: &HashMap<String, &Json>,
-) -> bool {
+pub fn list_attr_creation_optional(aggregate: &Json, attr_name: &str) -> bool {
     let commands = aggregate.get("commands").map_or_default(Json::each);
     commands.iter().any(|command| {
-        if !creates_owner(aggregate, command, value_objects_by_name) {
+        if !creates_owner(aggregate, command) {
             return false;
         }
         let mutations = command.get("mutations").map_or_default(Json::each);

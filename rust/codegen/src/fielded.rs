@@ -170,11 +170,8 @@ pub fn emit_fielded_record(
         let list = crate::attr::list(attr);
 
         let arm = if list
-            && crate::shared::list_attr_creation_optional(
-                aggregate,
-                crate::attr::name(attr),
-                value_objects_by_name,
-            ) {
+            && crate::shared::list_attr_creation_optional(aggregate, crate::attr::name(attr))
+        {
             Some(exemplar.render(
                 "fielded_arm_list_optional",
                 &[
@@ -258,13 +255,7 @@ pub fn emit_fielded_record(
         attributes,
         value_objects_by_name,
         &entity_names,
-        |attr| {
-            crate::shared::list_attr_creation_optional(
-                aggregate,
-                crate::attr::name(attr),
-                value_objects_by_name,
-            )
-        },
+        |attr| crate::shared::list_attr_creation_optional(aggregate, crate::attr::name(attr)),
     );
 
     format!(

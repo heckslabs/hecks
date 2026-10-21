@@ -561,8 +561,7 @@ fn optional_source_mismatches_with(
     let mut problems: Vec<String> = Vec::new();
     let cmd_attrs = command.get("attributes").map_or_default(Json::each);
 
-    if creating_possible && crate::shared::creates_owner(aggregate, command, value_objects_by_name)
-    {
+    if creating_possible && crate::shared::creates_owner(aggregate, command) {
         let identified_by = aggregate.get("identified_by").map_or_default(Json::each);
         for path in identified_by {
             let path = path.as_str().unwrap_or("");
@@ -763,7 +762,7 @@ pub fn emit_command(
 ) -> String {
     let record = naming::rust_ident(name_of(aggregate));
     let cmd = naming::rust_ident(name_of(command));
-    let creates = crate::shared::creates_owner(aggregate, command, value_objects_by_name);
+    let creates = crate::shared::creates_owner(aggregate, command);
     let identity = mutations::identity_components(aggregate, command);
     let identity_extra_params: Vec<String> =
         identity.iter().filter_map(|c| c.param.clone()).collect();
@@ -882,7 +881,6 @@ pub fn emit_command(
                             && !crate::shared::list_attr_creation_optional(
                                 aggregate,
                                 crate::attr::name(attr),
-                                value_objects_by_name,
                             )
                         {
                             format!(
@@ -1531,12 +1529,7 @@ pub fn emit_entity_command(
             &[],
         ),
         format!("#[derive(Debug, Clone)]\n{args_struct}"),
-        crate::json_codec::emit_to_json_flat_sparse(
-            exemplar,
-            &args_struct_name,
-            attrs,
-            value_objects_by_name,
-        ),
+        crate::json_codec::emit_to_json_flat_sparse(exemplar, &args_struct_name, attrs),
         {
             // `unknown_argument_allowlist:` as for an aggregate command, plus the entity's
             // identity head (`extra_identity_heads:` in Ruby's `ArgumentGate`).
@@ -1747,12 +1740,7 @@ pub fn emit_nested_entity_command(
             &[],
         ),
         format!("#[derive(Debug, Clone)]\n{args_struct}"),
-        crate::json_codec::emit_to_json_flat_sparse(
-            exemplar,
-            &args_struct_name,
-            attrs,
-            value_objects_by_name,
-        ),
+        crate::json_codec::emit_to_json_flat_sparse(exemplar, &args_struct_name, attrs),
         {
             // Both hops' identity heads, as `ctx.chain.flat_map(&:identity_heads)` in Ruby.
             let mut identity_heads: Vec<String> = entity
