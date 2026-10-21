@@ -4,8 +4,8 @@
 use crate::auth;
 use crate::checkout::STRIPE_API_VERSION;
 use crate::dispatch;
+use crate::host::Host;
 use crate::journal::LineageConfig;
-use crate::lambda_client::LambdaInvoker;
 use crate::web::{instances_for, json_error, last_refusal, respond, site_url};
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -310,25 +310,13 @@ pub fn checkout_plan(connection: Option<&Connection>, platform: &PlatformConfig)
 async fn dispatch_on_connection(
     which: crate::commerce_ir::ConnectionVerb,
     facts: Value,
-    client: &Mutex<Client>,
-    wasm_path: &Path,
-    config: &LineageConfig,
-    invoker: &dyn LambdaInvoker,
+    host: Host<'_>,
 ) -> anyhow::Result<dispatch::Outcome> {
+    let Host { config, .. } = host;
     let verb = crate::commerce_ir::payment_connection_binding(&config.domain)
         .verb(which)
         .to_string();
-    dispatch::handle_routed(
-        client,
-        wasm_path,
-        &verb,
-        json!(CONNECTION_SLUG),
-        facts,
-        None,
-        config,
-        invoker,
-    )
-    .await
+    dispatch::handle_routed(host, &verb, json!(CONNECTION_SLUG), facts, None).await
 }
 
 /// Whether `path` belongs to the payments surface.
@@ -472,8 +460,8 @@ async fn connection_response(
 
 /// The `/payments/connection` routes for a caller holding the account cookie; every
 /// answer is JSON, a bad session is 401 not a redirect, and `None` means an unowned path.
-#[allow(clippy::too_many_arguments)]
 #[allow(clippy::implicit_hasher)] // reason: the cookie map always comes from this crate's own default-hashed parser
+#[allow(clippy::too_many_arguments)]
 pub async fn route(
     method: &str,
     path: &str,
@@ -482,11 +470,14 @@ pub async fn route(
     secret: &str,
     domain_ir: &Value,
     platform: &PlatformConfig,
-    client: &Mutex<Client>,
-    wasm_path: &Path,
-    config: &LineageConfig,
-    invoker: &dyn LambdaInvoker,
+    host: Host<'_>,
 ) -> Option<Value> {
+    let Host {
+        client,
+        wasm_path,
+        config,
+        ..
+    } = host;
     if !owns(method, path) {
         return None;
     }
@@ -496,24 +487,14 @@ pub async fn route(
     };
     Some(match path {
         "/payments/connection" => show(&caller, platform, client, wasm_path, config).await,
-        "/payments/connection/direct" => {
-            direct_route(
-                &caller, raw_body, platform, client, wasm_path, config, invoker,
-            )
-            .await
-        }
-        "/payments/connection/disconnect" => {
-            disconnect_route(&caller, platform, client, wasm_path, config, invoker).await
-        }
+        "/payments/connection/direct" => direct_route(&caller, raw_body, platform, host).await,
+        "/payments/connection/disconnect" => disconnect_route(&caller, platform, host).await,
         "/payments/connection/enable" => {
             switch_route(
                 &caller,
                 crate::commerce_ir::ConnectionVerb::Enable,
                 platform,
-                client,
-                wasm_path,
-                config,
-                invoker,
+                host,
             )
             .await
         }
@@ -522,10 +503,7 @@ pub async fn route(
                 &caller,
                 crate::commerce_ir::ConnectionVerb::Disable,
                 platform,
-                client,
-                wasm_path,
-                config,
-                invoker,
+                host,
             )
             .await
         }
@@ -564,11 +542,14 @@ async fn record_connection(
     caller: &Caller,
     platform: &PlatformConfig,
     facts: Value,
-    client: &Mutex<Client>,
-    wasm_path: &Path,
-    config: &LineageConfig,
-    invoker: &dyn LambdaInvoker,
+    host: Host<'_>,
 ) -> Value {
+    let Host {
+        client,
+        wasm_path,
+        config,
+        ..
+    } = host;
     let existing = match current_connection(client, wasm_path, config).await {
         Ok(existing) => existing,
         Err(response) => return response,
@@ -578,37 +559,18 @@ async fn record_connection(
             let mut creation = facts;
             creation["slug"] = json!({"value": CONNECTION_SLUG});
             dispatch::handle_facts(
-                client,
-                wasm_path,
+                host,
                 &crate::commerce_ir::payment_connection_binding(&config.domain).connect,
                 creation,
                 None,
-                config,
-                invoker,
             )
             .await
         }
         Some("disconnected") => {
-            dispatch_on_connection(
-                crate::commerce_ir::ConnectionVerb::Reconnect,
-                facts,
-                client,
-                wasm_path,
-                config,
-                invoker,
-            )
-            .await
+            dispatch_on_connection(crate::commerce_ir::ConnectionVerb::Reconnect, facts, host).await
         }
         Some("paused") => {
-            dispatch_on_connection(
-                crate::commerce_ir::ConnectionVerb::Resume,
-                facts,
-                client,
-                wasm_path,
-                config,
-                invoker,
-            )
-            .await
+            dispatch_on_connection(crate::commerce_ir::ConnectionVerb::Resume, facts, host).await
         }
         Some(_) => return json_error(409, "an account is already connected — disconnect it first"),
     };
@@ -624,15 +586,11 @@ async fn record_connection(
 // An Owner either saves keys (`save_keys_route`) or picks a mode with keys already
 // in the environment; only public facts are stored (account ref, mode, display
 // name), and the key itself is never stored or logged.
-#[allow(clippy::too_many_arguments)]
 async fn direct_route(
     caller: &Caller,
     raw_body: &str,
     platform: &PlatformConfig,
-    client: &Mutex<Client>,
-    wasm_path: &Path,
-    config: &LineageConfig,
-    invoker: &dyn LambdaInvoker,
+    host: Host<'_>,
 ) -> Value {
     if let Err(response) = require_manager(caller) {
         return response;
@@ -644,7 +602,7 @@ async fn direct_route(
     // The Payments page's Save form sends the keys themselves; the other form
     // names a mode whose keys are already in the environment.
     if body.get("secret_key").is_some() || body.get("publishable_key").is_some() {
-        return save_keys_route(caller, &body, platform, client, wasm_path, config, invoker).await;
+        return save_keys_route(caller, &body, platform, host).await;
     }
     let mode = match body_field(&body, "mode") {
         Ok(mode) => mode,
@@ -663,20 +621,19 @@ async fn direct_route(
         "mode": {"value": mode},
         "display_name": {"value": display_name},
     });
-    record_connection(caller, platform, facts, client, wasm_path, config, invoker).await
+    record_connection(caller, platform, facts, host).await
 }
 
 // Not enabled: a plain disconnect. Enabled: registrations pause instead, since real
 // guests have paid through this account. Disconnecting the business's own account
 // also removes its webhook and deletes the saved keys.
-async fn disconnect_route(
-    caller: &Caller,
-    platform: &PlatformConfig,
-    client: &Mutex<Client>,
-    wasm_path: &Path,
-    config: &LineageConfig,
-    invoker: &dyn LambdaInvoker,
-) -> Value {
+async fn disconnect_route(caller: &Caller, platform: &PlatformConfig, host: Host<'_>) -> Value {
+    let Host {
+        client,
+        wasm_path,
+        config,
+        ..
+    } = host;
     if let Err(response) = require_manager(caller) {
         return response;
     }
@@ -694,7 +651,7 @@ async fn disconnect_route(
     } else {
         crate::commerce_ir::ConnectionVerb::Disconnect
     };
-    match dispatch_on_connection(which, json!({}), client, wasm_path, config, invoker).await {
+    match dispatch_on_connection(which, json!({}), host).await {
         Ok(outcome) if outcome.accepted => {
             if existing.is_direct() {
                 forget_saved_keys(platform, &existing.mode).await;
@@ -712,11 +669,14 @@ async fn switch_route(
     caller: &Caller,
     which: crate::commerce_ir::ConnectionVerb,
     platform: &PlatformConfig,
-    client: &Mutex<Client>,
-    wasm_path: &Path,
-    config: &LineageConfig,
-    invoker: &dyn LambdaInvoker,
+    host: Host<'_>,
 ) -> Value {
+    let Host {
+        client,
+        wasm_path,
+        config,
+        ..
+    } = host;
     if let Err(response) = require_operator(caller) {
         return response;
     }
@@ -725,7 +685,7 @@ async fn switch_route(
         Ok(None) => return json_error(409, "connect an account first"),
         Err(response) => return response,
     }
-    match dispatch_on_connection(which, json!({}), client, wasm_path, config, invoker).await {
+    match dispatch_on_connection(which, json!({}), host).await {
         Ok(outcome) if outcome.accepted => {
             connection_response(caller, platform, client, wasm_path, config).await
         }
@@ -936,16 +896,18 @@ async fn delete_webhook(platform: &PlatformConfig, key: &str, endpoint_id: &str)
 // Checks the keys, has Stripe deliver events here, and stores the keys and webhook
 // secret before recording the connection; saving again in place replaces both.
 // Nothing here answers with, logs, or errors with a key.
-#[allow(clippy::too_many_arguments)]
 async fn save_keys_route(
     caller: &Caller,
     body: &Value,
     platform: &PlatformConfig,
-    client: &Mutex<Client>,
-    wasm_path: &Path,
-    config: &LineageConfig,
-    invoker: &dyn LambdaInvoker,
+    host: Host<'_>,
 ) -> Value {
+    let Host {
+        client,
+        wasm_path,
+        config,
+        ..
+    } = host;
     let Some(store) = platform.store.clone() else {
         return json_error(422, KEYS_NOT_ENABLED);
     };
@@ -1027,8 +989,7 @@ async fn save_keys_route(
         "mode": {"value": mode},
         "display_name": {"value": display_name},
     });
-    let response =
-        record_connection(caller, &fresh, facts, client, wasm_path, config, invoker).await;
+    let response = record_connection(caller, &fresh, facts, host).await;
     if response["statusCode"].as_u64() != Some(200) {
         // The domain would not record the connection, so leave nothing behind.
         delete_webhook(platform, &secret_key, &endpoint_id).await;

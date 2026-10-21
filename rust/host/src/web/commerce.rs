@@ -63,26 +63,15 @@ impl HostExtension for Commerce {
             ctx.path,
             ctx.raw_body,
             headers,
-            ctx.client,
-            ctx.wasm_path,
-            ctx.config,
-            ctx.invoker,
+            ctx.host(),
         )
         .await
         {
             return Some(response);
         }
-        if let Some(response) = newsletter::newsletter_route(
-            ctx.method,
-            ctx.path,
-            ctx.query,
-            ctx.raw_body,
-            ctx.client,
-            ctx.wasm_path,
-            ctx.config,
-            ctx.invoker,
-        )
-        .await
+        if let Some(response) =
+            newsletter::newsletter_route(ctx.method, ctx.path, ctx.query, ctx.raw_body, ctx.host())
+                .await
         {
             return Some(response);
         }
@@ -98,10 +87,7 @@ impl HostExtension for Commerce {
             ctx.path,
             ctx.raw_body,
             stripe_signature,
-            ctx.client,
-            ctx.wasm_path,
-            ctx.config,
-            ctx.invoker,
+            ctx.host(),
         )
         .await
     }
@@ -119,10 +105,7 @@ impl HostExtension for Commerce {
                 ctx.raw_body,
                 ctx.cookies,
                 &secret,
-                ctx.client,
-                ctx.wasm_path,
-                ctx.config,
-                ctx.invoker,
+                ctx.host(),
             )
             .await;
         }
@@ -153,10 +136,7 @@ impl HostExtension for Commerce {
                 &secret,
                 domain_ir,
                 &payments::PlatformConfig::load().await,
-                ctx.client,
-                ctx.wasm_path,
-                ctx.config,
-                ctx.invoker,
+                ctx.host(),
             )
             .await;
         }

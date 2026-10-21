@@ -22,6 +22,7 @@ mod http;
 pub mod field_hints;
 #[cfg(test)]
 pub mod fuzz_support;
+pub mod host;
 pub mod ir;
 pub mod journal;
 pub mod lambda_client;

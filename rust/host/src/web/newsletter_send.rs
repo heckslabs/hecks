@@ -8,12 +8,10 @@ use crate::commerce_ir::{
     newsletter_issues_provider, newsletter_provider, NewsletterIssuesProvider, NewsletterProvider,
 };
 use crate::dispatch;
-use crate::journal::LineageConfig;
-use crate::lambda_client::LambdaInvoker;
+use crate::host::Host;
 use crate::resend::{Email, Mailer};
 use serde_json::{json, Value};
 use std::collections::HashMap;
-use std::path::Path;
 use tokio::sync::Mutex;
 use tokio_postgres::Client;
 
@@ -54,7 +52,6 @@ pub(super) fn issue_action(method: &str, path: &str) -> Option<(String, IssueAct
 
 // `None` when the path doesn't match, or this domain declares neither
 // `newsletter_issues` nor `newsletter`.
-#[allow(clippy::too_many_arguments)]
 pub(super) async fn issue_route(
     method: &str,
     path: &str,
@@ -62,11 +59,9 @@ pub(super) async fn issue_route(
     raw_body: &str,
     cookies: &HashMap<String, String>,
     secret: &str,
-    client: &Mutex<Client>,
-    wasm_path: &Path,
-    config: &LineageConfig,
-    invoker: &dyn LambdaInvoker,
+    host: Host<'_>,
 ) -> Option<Value> {
+    let Host { client, .. } = host;
     let (slug, action) = issue_action(method, path)?;
     let issues = newsletter_issues_provider(domain_ir)?;
     let subscribers = newsletter_provider(domain_ir)?;
@@ -76,20 +71,7 @@ pub(super) async fn issue_route(
         Err(response) => return Some(response),
     };
     Some(match action {
-        IssueAction::Send => {
-            send_issue(
-                &slug,
-                &issues,
-                &subscribers,
-                &mailer,
-                secret,
-                client,
-                wasm_path,
-                config,
-                invoker,
-            )
-            .await
-        }
+        IssueAction::Send => send_issue(&slug, &issues, &subscribers, &mailer, secret, host).await,
         IssueAction::SendTest => send_test(raw_body, &mailer, secret).await,
     })
 }
@@ -198,19 +180,17 @@ fn confirmed_emails(provider: &NewsletterProvider, subscribers: &[(String, Value
     emails.sort();
     emails
 }
-
-#[allow(clippy::too_many_arguments)]
 async fn send_issue(
     slug: &str,
     issues: &NewsletterIssuesProvider,
     subscribers: &NewsletterProvider,
     mailer: &Mailer,
     secret: &str,
-    client: &Mutex<Client>,
-    wasm_path: &Path,
-    config: &LineageConfig,
-    invoker: &dyn LambdaInvoker,
+    host: Host<'_>,
 ) -> Value {
+    let Host {
+        client, wasm_path, ..
+    } = host;
     let read = match dispatch::read(client, wasm_path).await {
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
@@ -231,14 +211,11 @@ async fn send_issue(
     // Marked sent before mailing: a second click then refuses ("only a draft
     // issue can be sent") instead of mailing everyone twice.
     match dispatch::handle_routed(
-        client,
-        wasm_path,
+        host,
         &issues.send_issue,
         json!(slug),
         json!({ "sent_at": { "value": unix_now() } }),
         None,
-        config,
-        invoker,
     )
     .await
     {
@@ -280,17 +257,7 @@ async fn send_issue(
             "subscriber_email": { "value": email },
             "message_id": { "value": delivery.message_id.unwrap_or_default() },
         });
-        match dispatch::handle_facts(
-            client,
-            wasm_path,
-            &issues.record_delivery,
-            facts,
-            None,
-            config,
-            invoker,
-        )
-        .await
-        {
+        match dispatch::handle_facts(host, &issues.record_delivery, facts, None).await {
             Ok(outcome) if outcome.accepted => {}
             other => {
                 // The email went out; only its record is missing. Surface it

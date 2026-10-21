@@ -1,6 +1,7 @@
 //! Lambda custom-runtime entry point (or a long-lived server under
 //! HECKS_SERVE_MODE=1): boots Postgres/wasm state, then dispatches events.
 
+use crate::host::Host;
 use crate::{
     approval, auth, extension, ir, journal, lambda_client, log, mint, rate_limit, secrets, server,
     storage_shape,
@@ -449,8 +450,16 @@ pub async fn run() -> Result<(), Error> {
         let invoker = Arc::clone(&invoker);
         async move {
             let (body, _context) = event.into_parts();
-            server::dispatch_body(body, &client, &wasm_path, &lineage_config, invoker.as_ref())
-                .await
+            server::dispatch_body(
+                body,
+                Host {
+                    client: &client,
+                    wasm_path: &wasm_path,
+                    config: &lineage_config,
+                    invoker: invoker.as_ref(),
+                },
+            )
+            .await
         }
     }))
     .await

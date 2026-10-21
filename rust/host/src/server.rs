@@ -2,6 +2,7 @@
 //! `dispatch_body` with the Lambda custom-runtime path, so neither repeats the other's logic.
 
 use crate::dispatch;
+use crate::host::Host;
 use crate::journal::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
 use crate::log;
@@ -17,21 +18,21 @@ use axum::Router;
 use lambda_runtime::Error;
 use serde_json::Value;
 use std::net::SocketAddr;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio_postgres::Client;
 
 /// The per-request dispatch decision, shared between the Lambda custom-runtime path and the
 /// axum fallback route below. `body` is already-parsed JSON in one of its recognized shapes.
-pub async fn dispatch_body(
-    body: Value,
-    client: &Mutex<Client>,
-    wasm_path: &Path,
-    config: &LineageConfig,
-    invoker: &dyn LambdaInvoker,
-) -> Result<Value, Error> {
-    if let Some(response) = web::render(&body, client, wasm_path, config, invoker).await {
+pub async fn dispatch_body(body: Value, host: Host<'_>) -> Result<Value, Error> {
+    let Host {
+        client,
+        wasm_path,
+        config,
+        ..
+    } = host;
+    if let Some(response) = web::render(&body, host).await {
         return Ok(response);
     }
 
@@ -84,14 +85,14 @@ pub async fn dispatch_body(
             .get("with")
             .cloned()
             .unwrap_or_else(|| serde_json::json!({}));
-        dispatch::handle_routed_as(client, wasm_path, &verb, to, facts, caller, config, invoker)
+        dispatch::handle_routed_as(host, &verb, to, facts, caller)
             .await
             .map_err(|e| format!("{e:#}"))?
     } else if let Some(facts) = body.get("with").cloned() {
         if body.get("args").is_some() {
             return Err("cannot combine \"with\" with legacy args".into());
         }
-        dispatch::handle_facts_as(client, wasm_path, &verb, facts, caller, config, invoker)
+        dispatch::handle_facts_as(host, &verb, facts, caller)
             .await
             .map_err(|e| format!("{e:#}"))?
     } else {
@@ -99,7 +100,7 @@ pub async fn dispatch_body(
             .get("args")
             .cloned()
             .unwrap_or_else(|| serde_json::json!({}));
-        dispatch::handle_as(client, wasm_path, &verb, args, caller, config, invoker)
+        dispatch::handle_as(host, &verb, args, caller)
             .await
             .map_err(|e| format!("{e:#}"))?
     };
@@ -115,6 +116,18 @@ pub struct ServerState {
     pub lineage_config: Arc<LineageConfig>,
     pub invoker: Arc<dyn LambdaInvoker>,
     pub limits: Arc<RateLimits>,
+}
+
+impl ServerState {
+    /// The shared pieces a dispatch needs, borrowed for one call.
+    pub fn host(&self) -> Host<'_> {
+        Host {
+            client: &self.client,
+            wasm_path: &self.wasm_path,
+            config: &self.lineage_config,
+            invoker: self.invoker.as_ref(),
+        }
+    }
 }
 
 /// The document `GET /version` serves: era, IR hash, and build — all fixed for the life of
@@ -238,15 +251,7 @@ async fn route_request(
         Err(refusal) => return *refusal,
     };
 
-    match dispatch_body(
-        envelope,
-        &state.client,
-        &state.wasm_path,
-        &state.lineage_config,
-        state.invoker.as_ref(),
-    )
-    .await
-    {
+    match dispatch_body(envelope, state.host()).await {
         Ok(value) => value_to_response(value),
         Err(e) => {
             log::error(

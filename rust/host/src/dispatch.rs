@@ -1,9 +1,9 @@
 //! Ties the journal and the sandbox together: replays history, then the
 //! new step, persisting it only if the module accepts it.
 
+use crate::host::Host;
 use crate::journal;
-use crate::journal::LineageConfig;
-use crate::lambda_client::{self, LambdaInvoker};
+use crate::lambda_client::{self};
 use crate::wasm_runner;
 use std::path::Path;
 use tokio::sync::Mutex;
@@ -156,97 +156,45 @@ pub fn facts_invocation(facts: serde_json::Value) -> anyhow::Result<serde_json::
 
 // Route-aware entry point; `handle` below stays the compatibility path
 // for callers still sending the older mixed args shape.
-#[allow(clippy::too_many_arguments)]
 pub async fn handle_routed(
-    client: &Mutex<Client>,
-    wasm_path: &Path,
+    host: Host<'_>,
     verb: &str,
     to: serde_json::Value,
     facts: serde_json::Value,
     role: Option<&str>,
-    config: &LineageConfig,
-    invoker: &dyn LambdaInvoker,
 ) -> anyhow::Result<Outcome> {
-    handle(
-        client,
-        wasm_path,
-        verb,
-        routed_invocation(to, facts)?,
-        role,
-        config,
-        invoker,
-    )
-    .await
+    handle(host, verb, routed_invocation(to, facts)?, role).await
 }
 
 /// `handle_routed` for a caller the host can name.
-#[allow(clippy::too_many_arguments)]
 pub async fn handle_routed_as(
-    client: &Mutex<Client>,
-    wasm_path: &Path,
+    host: Host<'_>,
     verb: &str,
     to: serde_json::Value,
     facts: serde_json::Value,
     caller: Caller<'_>,
-    config: &LineageConfig,
-    invoker: &dyn LambdaInvoker,
 ) -> anyhow::Result<Outcome> {
-    handle_as(
-        client,
-        wasm_path,
-        verb,
-        routed_invocation(to, facts)?,
-        caller,
-        config,
-        invoker,
-    )
-    .await
+    handle_as(host, verb, routed_invocation(to, facts)?, caller).await
 }
 
 // Facts-only counterpart to `handle_routed`.
-#[allow(clippy::too_many_arguments)]
 pub async fn handle_facts(
-    client: &Mutex<Client>,
-    wasm_path: &Path,
+    host: Host<'_>,
     verb: &str,
     facts: serde_json::Value,
     role: Option<&str>,
-    config: &LineageConfig,
-    invoker: &dyn LambdaInvoker,
 ) -> anyhow::Result<Outcome> {
-    handle(
-        client,
-        wasm_path,
-        verb,
-        facts_invocation(facts)?,
-        role,
-        config,
-        invoker,
-    )
-    .await
+    handle(host, verb, facts_invocation(facts)?, role).await
 }
 
 /// `handle_facts` for a caller the host can name.
-#[allow(clippy::too_many_arguments)]
 pub async fn handle_facts_as(
-    client: &Mutex<Client>,
-    wasm_path: &Path,
+    host: Host<'_>,
     verb: &str,
     facts: serde_json::Value,
     caller: Caller<'_>,
-    config: &LineageConfig,
-    invoker: &dyn LambdaInvoker,
 ) -> anyhow::Result<Outcome> {
-    handle_as(
-        client,
-        wasm_path,
-        verb,
-        facts_invocation(facts)?,
-        caller,
-        config,
-        invoker,
-    )
-    .await
+    handle_as(host, verb, facts_invocation(facts)?, caller).await
 }
 
 // A Mutex, not a bare Arc<Client>: `handle` needs `Client::transaction`,
@@ -265,13 +213,10 @@ pub async fn handle_facts_as(
 // host-internal dispatch and is unchecked in every enforcement mode. A call that names a role is
 // still checked against it. Callers outside the host go through the `_as` entry points.
 pub async fn handle(
-    client: &Mutex<Client>,
-    wasm_path: &Path,
+    host: Host<'_>,
     verb: &str,
     args: serde_json::Value,
     role: Option<&str>,
-    config: &LineageConfig,
-    invoker: &dyn LambdaInvoker,
 ) -> anyhow::Result<Outcome> {
     let origin = if role.is_none() {
         Origin::HostInternal
@@ -281,16 +226,13 @@ pub async fn handle(
     dispatch_in(
         Enforcement::from_env(),
         origin,
-        client,
-        wasm_path,
+        host,
         verb,
         args,
         Caller {
             role,
             actor_id: None,
         },
-        config,
-        invoker,
     )
     .await
 }
@@ -298,55 +240,36 @@ pub async fn handle(
 /// Dispatches for a caller, applying `HECKS_ROLE_ENFORCEMENT`: unidentified callers are refused (or,
 /// in shadow, logged as would-be refusals and let through).
 pub async fn handle_as(
-    client: &Mutex<Client>,
-    wasm_path: &Path,
+    host: Host<'_>,
     verb: &str,
     args: serde_json::Value,
     caller: Caller<'_>,
-    config: &LineageConfig,
-    invoker: &dyn LambdaInvoker,
 ) -> anyhow::Result<Outcome> {
     dispatch_in(
         Enforcement::from_env(),
         Origin::External,
-        client,
-        wasm_path,
+        host,
         verb,
         args,
         caller,
-        config,
-        invoker,
     )
     .await
 }
 
-#[allow(clippy::too_many_arguments)]
 async fn dispatch_in(
     mode: Enforcement,
     origin: Origin,
-    client: &Mutex<Client>,
-    wasm_path: &Path,
+    host: Host<'_>,
     verb: &str,
     args: serde_json::Value,
     caller: Caller<'_>,
-    config: &LineageConfig,
-    invoker: &dyn LambdaInvoker,
 ) -> anyhow::Result<Outcome> {
     let checked = if origin == Origin::HostInternal {
         caller
     } else {
         mode.effective(caller)
     };
-    let outcome = run(
-        client,
-        wasm_path,
-        verb,
-        args.clone(),
-        checked,
-        config,
-        invoker,
-    )
-    .await?;
+    let outcome = run(host, verb, args.clone(), checked).await?;
     // Only a caller that stated no role (unidentified, or an actor Governance holds no grant for)
     // is let through; a stated role that does not match stays refused, as it is under `Off`.
     if mode == Enforcement::Shadow
@@ -361,30 +284,23 @@ async fn dispatch_in(
                 "refusals": outcome.result.get("refusals"),
             }),
         );
-        return run(
-            client,
-            wasm_path,
-            verb,
-            args,
-            Caller::default(),
-            config,
-            invoker,
-        )
-        .await;
+        return run(host, verb, args, Caller::default()).await;
     }
     Ok(outcome)
 }
 
-#[allow(clippy::too_many_arguments)]
 async fn run(
-    client: &Mutex<Client>,
-    wasm_path: &Path,
+    host: Host<'_>,
     verb: &str,
     args: serde_json::Value,
     caller: Caller<'_>,
-    config: &LineageConfig,
-    invoker: &dyn LambdaInvoker,
 ) -> anyhow::Result<Outcome> {
+    let Host {
+        client,
+        wasm_path,
+        config,
+        invoker,
+    } = host;
     let role = caller.role;
     let mut guard = client.lock().await;
     let txn = guard.transaction().await?;
@@ -816,6 +732,8 @@ pub(crate) mod tests {
         assert!(!fields.to_string().contains("a@b.c"));
     }
     use super::*;
+    use crate::journal::LineageConfig;
+    use crate::lambda_client::LambdaInvoker;
     use tokio_postgres::NoTls;
 
     // A throwaway Postgres database per test, uniquely named so
@@ -937,13 +855,10 @@ pub(crate) mod tests {
             mirrored: None,
         };
         let refused = handle_facts(
-            &client,
-            &wasm,
+            Host::new(&client, &wasm, &everything, &invoker),
             "Banking::Customer.Register",
             open.clone(),
             None,
-            &everything,
-            &invoker,
         )
         .await;
         let message = match refused {
@@ -971,13 +886,10 @@ pub(crate) mod tests {
             mirrored: Some(std::collections::BTreeSet::new()),
         };
         let outcome = handle_facts(
-            &client,
-            &wasm,
+            Host::new(&client, &wasm, &declared, &invoker),
             "Banking::Customer.Register",
             open,
             None,
-            &declared,
-            &invoker,
         )
         .await
         .expect("writes");
@@ -1020,13 +932,15 @@ pub(crate) mod tests {
         };
 
         handle_facts(
-            &client,
-            &wasm_path(),
+            Host::new(
+                &client,
+                &wasm_path(),
+                &config,
+                &crate::lambda_client::NeverInvoker,
+            ),
             "Banking::Customer.Register",
             register("CUST-2"),
             None,
-            &config,
-            &crate::lambda_client::NeverInvoker,
         )
         .await
         .expect("writes");
@@ -1069,13 +983,10 @@ pub(crate) mod tests {
         let config = test_config("Banking", 1);
 
         handle(
-            &client,
-            &wasm_path(),
+            Host::new(&client, &wasm_path(), &config, &lambda_client::NeverInvoker),
             "Banking::Customer.Register",
             register("CUST-0100"),
             None,
-            &config,
-            &lambda_client::NeverInvoker,
         )
         .await
         .unwrap()
@@ -1101,13 +1012,10 @@ pub(crate) mod tests {
         );
 
         handle(
-            &client,
-            &wasm_path(),
+            Host::new(&client, &wasm_path(), &config, &lambda_client::NeverInvoker),
             "Banking::Customer.Suspend",
             serde_json::json!({ "reference": "CUST-0100", "standing": { "value": "watch" } }),
             None,
-            &config,
-            &lambda_client::NeverInvoker,
         )
         .await
         .unwrap()
@@ -1138,13 +1046,15 @@ pub(crate) mod tests {
         provision_lineage(&*client.lock().await, "Banking", 1, &["Customer"]).await;
 
         let outcome = handle(
-            &client,
-            &wasm_path(),
+            Host {
+                client: &client,
+                wasm_path: &wasm_path(),
+                config: &test_config("Banking", 1),
+                invoker: &lambda_client::NeverInvoker,
+            },
             "Banking::Customer.Register",
             register("CUST-0001"),
             None,
-            &test_config("Banking", 1),
-            &lambda_client::NeverInvoker,
         )
         .await
         .unwrap();
@@ -1204,13 +1114,15 @@ pub(crate) mod tests {
 
         let before = crate::auth::httpdate_now();
         let outcome = handle(
-            &client,
-            &wasm_path(),
+            Host {
+                client: &client,
+                wasm_path: &wasm_path(),
+                config: &test_config("Banking", 1),
+                invoker: &lambda_client::NeverInvoker,
+            },
             "Banking::Customer.Register",
             register("CUST-OCCURRED-AT"),
             None,
-            &test_config("Banking", 1),
-            &lambda_client::NeverInvoker,
         )
         .await
         .unwrap();
@@ -1238,13 +1150,10 @@ pub(crate) mod tests {
         let config = test_config("Banking", 1);
 
         let first = handle(
-            &client,
-            &wasm_path(),
+            Host::new(&client, &wasm_path(), &config, &lambda_client::NeverInvoker),
             "Banking::Customer.Register",
             register("CUST-0001"),
             None,
-            &config,
-            &lambda_client::NeverInvoker,
         )
         .await
         .unwrap();
@@ -1258,13 +1167,10 @@ pub(crate) mod tests {
         // succeeded independently: the second registration only refuses
         // if the first's effect was genuinely rebuilt from Postgres.
         let second = handle(
-            &client,
-            &wasm_path(),
+            Host::new(&client, &wasm_path(), &config, &lambda_client::NeverInvoker),
             "Banking::Customer.Register",
             register("CUST-0001"),
             None,
-            &config,
-            &lambda_client::NeverInvoker,
         )
         .await
         .unwrap();
@@ -1293,13 +1199,10 @@ pub(crate) mod tests {
 
         for reference in ["CUST-0004", "CUST-0005", "CUST-0006"] {
             let outcome = handle(
-                &client,
-                &wasm_path(),
+                Host::new(&client, &wasm_path(), &config, &lambda_client::NeverInvoker),
                 "Banking::Customer.Register",
                 register(reference),
                 None,
-                &config,
-                &lambda_client::NeverInvoker,
             )
             .await
             .unwrap();
@@ -1396,13 +1299,10 @@ pub(crate) mod tests {
         let noinvoke = lambda_client::NeverInvoker;
 
         let first = handle(
-            &client,
-            &wasm_path(),
+            Host::new(&client, &wasm_path(), &config, &noinvoke),
             "Banking::Customer.Register",
             register("CUST-0001"),
             None,
-            &config,
-            &noinvoke,
         )
         .await
         .unwrap();
@@ -1435,13 +1335,10 @@ pub(crate) mod tests {
 
         let before = snapshot_and_journal(&client).await;
         let failure = handle(
-            &client,
-            &wasm_path(),
+            Host::new(&client, &wasm_path(), &config, &noinvoke),
             "Banking::Customer.Register",
             register("CUST-0002"),
             None,
-            &config,
-            &noinvoke,
         )
         .await;
         let message = format!(
@@ -1514,13 +1411,10 @@ pub(crate) mod tests {
             .await
             .unwrap();
         let second = handle(
-            &client,
-            &wasm_path(),
+            Host::new(&client, &wasm_path(), &config, &noinvoke),
             "Banking::Customer.Register",
             register("CUST-0002"),
             None,
-            &config,
-            &noinvoke,
         )
         .await
         .unwrap();
@@ -1569,22 +1463,16 @@ pub(crate) mod tests {
 
         let (first, second) = tokio::join!(
             handle(
-                &client,
-                &wasm_path,
+                Host::new(&client, &wasm_path, &config, &lambda_client::NeverInvoker),
                 "Banking::Customer.Register",
                 register("CUST-0002"),
-                None,
-                &config,
-                &lambda_client::NeverInvoker
+                None
             ),
             handle(
-                &client,
-                &wasm_path,
+                Host::new(&client, &wasm_path, &config, &lambda_client::NeverInvoker),
                 "Banking::Customer.Register",
                 register("CUST-0002"),
-                None,
-                &config,
-                &lambda_client::NeverInvoker
+                None
             ),
         );
         let (first, second) = (first.unwrap(), second.unwrap());
@@ -1608,13 +1496,15 @@ pub(crate) mod tests {
         provision_lineage(&*client.lock().await, "Banking", 1, &["Customer"]).await;
 
         handle(
-            &client,
-            &wasm_path(),
+            Host {
+                client: &client,
+                wasm_path: &wasm_path(),
+                config: &test_config("Banking", 1),
+                invoker: &lambda_client::NeverInvoker,
+            },
             "Banking::Customer.Register",
             register("CUST-0003"),
             None,
-            &test_config("Banking", 1),
-            &lambda_client::NeverInvoker,
         )
         .await
         .unwrap()
@@ -1687,13 +1577,10 @@ pub(crate) mod tests {
         let invoker = RecordingInvoker::new();
 
         handle(
-            &client,
-            &wasm_path(),
+            Host::new(&client, &wasm_path(), &config, &invoker),
             "Banking::Customer.Register",
             register("CUST-0007"),
             None,
-            &config,
-            &invoker,
         )
         .await
         .unwrap()
@@ -1708,13 +1595,10 @@ pub(crate) mod tests {
             "customer": "CUST-0007",
         });
         handle(
-            &client,
-            &wasm_path(),
+            Host::new(&client, &wasm_path(), &config, &invoker),
             "Banking::Account.Open",
             open_args,
             None,
-            &config,
-            &invoker,
         )
         .await
         .unwrap()
@@ -1727,13 +1611,10 @@ pub(crate) mod tests {
         // this feature exists for.
         let freeze_args = serde_json::json!({ "number": { "value": "acct-freeze-me" } });
         let outcome = handle(
-            &client,
-            &wasm_path(),
+            Host::new(&client, &wasm_path(), &config, &invoker),
             "Banking::Account.FreezeAccount",
             freeze_args,
             None,
-            &config,
-            &invoker,
         )
         .await
         .unwrap();
@@ -1784,13 +1665,10 @@ pub(crate) mod tests {
         // only ever reads the last step's own reactions, so rehydrating
         // history here doesn't re-invoke the sibling Lambda.
         handle(
-            &client,
-            &wasm_path(),
+            Host::new(&client, &wasm_path(), &config, &invoker),
             "Banking::Customer.Register",
             register("CUST-0008"),
             None,
-            &config,
-            &invoker,
         )
         .await
         .unwrap();
@@ -1815,13 +1693,10 @@ pub(crate) mod tests {
         // The correct role succeeds, same as every other registration,
         // just now with a caller actually bound and matching.
         let matching = handle(
-            &client,
-            &wasm_path(),
+            Host::new(&client, &wasm_path(), &config, &lambda_client::NeverInvoker),
             "Banking::Customer.Register",
             register("CUST-0009"),
             Some("Branch clerk"),
-            &config,
-            &lambda_client::NeverInvoker,
         )
         .await
         .unwrap();
@@ -1835,13 +1710,10 @@ pub(crate) mod tests {
         // caller stating the wrong role must be refused, not silently
         // admitted via the unchecked no-role path.
         let mismatched = handle(
-            &client,
-            &wasm_path(),
+            Host::new(&client, &wasm_path(), &config, &lambda_client::NeverInvoker),
             "Banking::Customer.Register",
             register("CUST-0010"),
             Some("Teller"),
-            &config,
-            &lambda_client::NeverInvoker,
         )
         .await
         .unwrap();
@@ -1915,13 +1787,10 @@ pub(crate) mod tests {
                 dispatch_in(
                     mode,
                     Origin::External,
-                    client,
-                    &wasm_path(),
+                    Host::new(client, &wasm_path(), config, &lambda_client::NeverInvoker),
                     "Banking::Customer.Register",
                     register(id),
                     Caller::default(),
-                    config,
-                    &lambda_client::NeverInvoker,
                 )
                 .await
                 .unwrap()
@@ -1976,13 +1845,10 @@ pub(crate) mod tests {
                 dispatch_in(
                     mode,
                     origin,
-                    client,
-                    &wasm_path(),
+                    Host::new(client, &wasm_path(), config, &lambda_client::NeverInvoker),
                     "Banking::Customer.Register",
                     register(id),
                     caller,
-                    config,
-                    &lambda_client::NeverInvoker,
                 )
                 .await
                 .unwrap()
@@ -2046,13 +1912,10 @@ pub(crate) mod tests {
                 dispatch_in(
                     mode,
                     origin,
-                    client,
-                    &wasm_path(),
+                    Host::new(client, &wasm_path(), config, &lambda_client::NeverInvoker),
                     "Banking::Customer.Register",
                     register(id),
                     Caller::default(),
-                    config,
-                    &lambda_client::NeverInvoker,
                 )
                 .await
                 .unwrap()
@@ -2087,13 +1950,10 @@ pub(crate) mod tests {
         let config = test_config("Banking", 1);
 
         handle(
-            &client,
-            &wasm_path(),
+            Host::new(&client, &wasm_path(), &config, &lambda_client::NeverInvoker),
             "Banking::Customer.Register",
             register("CUST-0012"),
             None,
-            &config,
-            &lambda_client::NeverInvoker,
         )
         .await
         .unwrap()
@@ -2106,13 +1966,10 @@ pub(crate) mod tests {
             "daily_limit": { "cents": 50000 }, "customer": "CUST-0012",
         });
         handle(
-            &client,
-            &wasm_path(),
+            Host::new(&client, &wasm_path(), &config, &lambda_client::NeverInvoker),
             "Banking::Account.Open",
             open_src,
             None,
-            &config,
-            &lambda_client::NeverInvoker,
         )
         .await
         .unwrap()
@@ -2124,24 +1981,17 @@ pub(crate) mod tests {
             "daily_limit": { "cents": 50000 }, "customer": "CUST-0012",
         });
         handle(
-            &client,
-            &wasm_path(),
+            Host::new(&client, &wasm_path(), &config, &lambda_client::NeverInvoker),
             "Banking::Account.Open",
             open_dst,
             None,
-            &config,
-            &lambda_client::NeverInvoker,
         )
         .await
         .unwrap()
         .accepted
         .then_some(())
         .expect("destination account open should succeed");
-        handle(
-            &client, &wasm_path(), "Banking::Account.Credit",
-            serde_json::json!({ "number": "src-rollback", "amount": { "cents": 1000 }, "narrative": { "text": "opening balance" } }),
-            None, &config, &lambda_client::NeverInvoker,
-        )
+        handle(Host::new(&client, &wasm_path(), &config, &lambda_client::NeverInvoker), "Banking::Account.Credit", serde_json::json!({ "number": "src-rollback", "amount": { "cents": 1000 }, "narrative": { "text": "opening balance" } }), None)
         .await.unwrap().accepted.then_some(()).expect("credit should succeed");
 
         // `Transfer.Request`'s own mutation is the first one this step
@@ -2152,13 +2002,10 @@ pub(crate) mod tests {
             "narrative": { "text": "rollback test" }, "source": "src-rollback", "destination": "dst-rollback",
         });
         let outcome = handle(
-            &client,
-            &wasm_path(),
+            Host::new(&client, &wasm_path(), &config, &lambda_client::NeverInvoker),
             "Banking::Transfer.Request",
             transfer_args,
             None,
-            &config,
-            &lambda_client::NeverInvoker,
         )
         .await;
         assert!(
@@ -2196,13 +2043,10 @@ pub(crate) mod tests {
         let invoker = RecordingInvoker::new();
 
         handle(
-            &client,
-            &wasm_path(),
+            Host::new(&client, &wasm_path(), &config, &invoker),
             "Banking::Customer.Register",
             register("CUST-0013"),
             None,
-            &config,
-            &invoker,
         )
         .await
         .unwrap()
@@ -2215,13 +2059,10 @@ pub(crate) mod tests {
             "daily_limit": { "cents": 50000 }, "customer": "CUST-0013",
         });
         handle(
-            &client,
-            &wasm_path(),
+            Host::new(&client, &wasm_path(), &config, &invoker),
             "Banking::Account.Open",
             open_src,
             None,
-            &config,
-            &invoker,
         )
         .await
         .unwrap()
@@ -2233,37 +2074,27 @@ pub(crate) mod tests {
             "daily_limit": { "cents": 50000 }, "customer": "CUST-0013",
         });
         handle(
-            &client,
-            &wasm_path(),
+            Host::new(&client, &wasm_path(), &config, &invoker),
             "Banking::Account.Open",
             open_dst,
             None,
-            &config,
-            &invoker,
         )
         .await
         .unwrap()
         .accepted
         .then_some(())
         .expect("destination account open should succeed");
-        handle(
-            &client, &wasm_path(), "Banking::Account.Credit",
-            serde_json::json!({ "number": "src-backfill", "amount": { "cents": 1000 }, "narrative": { "text": "opening balance" } }),
-            None, &config, &invoker,
-        )
+        handle(Host::new(&client, &wasm_path(), &config, &invoker), "Banking::Account.Credit", serde_json::json!({ "number": "src-backfill", "amount": { "cents": 1000 }, "narrative": { "text": "opening balance" } }), None)
         .await.unwrap().accepted.then_some(()).expect("credit should succeed");
 
         // Freezing the destination first means the credit leg refuses
         // and Settlement compensates, leaving the saga stuck "reversed"
         // — exactly the mid-flight shape this test needs to recover.
         handle(
-            &client,
-            &wasm_path(),
+            Host::new(&client, &wasm_path(), &config, &invoker),
             "Banking::Account.FreezeAccount",
             serde_json::json!({ "number": { "value": "dst-backfill" } }),
             None,
-            &config,
-            &invoker,
         )
         .await
         .unwrap()
@@ -2275,13 +2106,10 @@ pub(crate) mod tests {
             "narrative": { "text": "backfill test" }, "source": "src-backfill", "destination": "dst-backfill",
         });
         handle(
-            &client,
-            &wasm_path(),
+            Host::new(&client, &wasm_path(), &config, &invoker),
             "Banking::Transfer.Request",
             transfer_args,
             None,
-            &config,
-            &invoker,
         )
         .await
         .unwrap()
@@ -2323,13 +2151,10 @@ pub(crate) mod tests {
         // cascade re-running as a side effect repopulates
         // `hecks_lambda_sagas`.
         handle(
-            &client,
-            &wasm_path(),
+            Host::new(&client, &wasm_path(), &config, &invoker),
             "Banking::Customer.Register",
             register("CUST-0014"),
             None,
-            &config,
-            &invoker,
         )
         .await
         .unwrap()
@@ -2402,13 +2227,10 @@ pub(crate) mod tests {
         let invoker = AlwaysFailingInvoker::new();
 
         handle(
-            &client,
-            &wasm_path(),
+            Host::new(&client, &wasm_path(), &config, &invoker),
             "Banking::Customer.Register",
             register("CUST-0011"),
             None,
-            &config,
-            &invoker,
         )
         .await
         .unwrap()
@@ -2423,13 +2245,10 @@ pub(crate) mod tests {
             "customer": "CUST-0011",
         });
         handle(
-            &client,
-            &wasm_path(),
+            Host::new(&client, &wasm_path(), &config, &invoker),
             "Banking::Account.Open",
             open_args,
             None,
-            &config,
-            &invoker,
         )
         .await
         .unwrap()
@@ -2442,13 +2261,10 @@ pub(crate) mod tests {
         // `MAX_DELIVERY_ATTEMPTS` before `handle` ever sees a result.
         let freeze_args = serde_json::json!({ "number": { "value": "acct-freeze-dead-letter" } });
         let outcome = handle(
-            &client,
-            &wasm_path(),
+            Host::new(&client, &wasm_path(), &config, &invoker),
             "Banking::Account.FreezeAccount",
             freeze_args,
             None,
-            &config,
-            &invoker,
         )
         .await;
 
@@ -2506,13 +2322,10 @@ pub(crate) mod tests {
         let invoker = AlwaysFailingInvoker::new();
 
         handle(
-            &client,
-            &wasm_path(),
+            Host::new(&client, &wasm_path(), &config, &invoker),
             "Banking::Customer.Register",
             register("CUST-0022"),
             None,
-            &config,
-            &invoker,
         )
         .await
         .unwrap()
@@ -2527,13 +2340,10 @@ pub(crate) mod tests {
             "customer": "CUST-0022",
         });
         handle(
-            &client,
-            &wasm_path(),
+            Host::new(&client, &wasm_path(), &config, &invoker),
             "Banking::SafeDepositBox.Rent",
             rent_args,
             None,
-            &config,
-            &invoker,
         )
         .await
         .unwrap()
@@ -2546,13 +2356,10 @@ pub(crate) mod tests {
         // retry against AlwaysFailingInvoker.
         let surrender_args = serde_json::json!({ "branch_code": { "value": "downtown" }, "box_number": { "value": 12 } });
         let outcome = handle(
-            &client,
-            &wasm_path(),
+            Host::new(&client, &wasm_path(), &config, &invoker),
             "Banking::SafeDepositBox.Surrender",
             surrender_args,
             None,
-            &config,
-            &invoker,
         )
         .await;
 

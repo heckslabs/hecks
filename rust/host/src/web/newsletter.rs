@@ -3,9 +3,8 @@ use super::{instances_for, last_refusal, respond, site_url};
 use crate::auth;
 use crate::commerce_ir::{newsletter_provider, NewsletterProvider};
 use crate::dispatch;
+use crate::host::Host;
 use crate::ir::ir;
-use crate::journal::LineageConfig;
-use crate::lambda_client::LambdaInvoker;
 use crate::resend::{Email, Mailer};
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -21,36 +20,33 @@ mod tests;
 
 // Guest-facing subscribe/confirm/unsubscribe routes, plus the admin listing.
 // Served here (not passed to Ruby) so a signed link still resolves without one.
-#[allow(clippy::too_many_arguments)]
 pub(super) async fn newsletter_route(
     method: &str,
     path: &str,
     query: &HashMap<String, String>,
     raw_body: &str,
-    client: &Mutex<Client>,
-    wasm_path: &Path,
-    config: &LineageConfig,
-    invoker: &dyn LambdaInvoker,
+    host: Host<'_>,
 ) -> Option<Value> {
+    let Host {
+        client, wasm_path, ..
+    } = host;
     // The chapter that declares `provides "newsletter"` names the verbs
     // and the subscribing aggregate; a domain that attaches none serves
     // none of these routes.
     let provider = ir().and_then(newsletter_provider)?;
     match (method, path) {
-        ("POST", "/newsletter/subscribers") => Some(
-            newsletter_subscribe_route(&provider, raw_body, client, wasm_path, config, invoker)
-                .await,
-        ),
+        ("POST", "/newsletter/subscribers") => {
+            Some(newsletter_subscribe_route(&provider, raw_body, host).await)
+        }
         ("GET", "/newsletter/subscribers") => {
             Some(newsletter_subscribers_list_route(&provider, client, wasm_path).await)
         }
-        ("GET", "/newsletter/subscribers/confirm") => Some(
-            newsletter_confirm_route(&provider, query, client, wasm_path, config, invoker).await,
-        ),
-        ("GET", "/newsletter/subscribers/unsubscribe") => Some(
-            newsletter_unsubscribe_route(&provider, query, client, wasm_path, config, invoker)
-                .await,
-        ),
+        ("GET", "/newsletter/subscribers/confirm") => {
+            Some(newsletter_confirm_route(&provider, query, host).await)
+        }
+        ("GET", "/newsletter/subscribers/unsubscribe") => {
+            Some(newsletter_unsubscribe_route(&provider, query, host).await)
+        }
         _ => None,
     }
 }
@@ -60,11 +56,11 @@ pub(super) async fn newsletter_route(
 async fn newsletter_subscribe_route(
     provider: &NewsletterProvider,
     raw_body: &str,
-    client: &Mutex<Client>,
-    wasm_path: &Path,
-    config: &LineageConfig,
-    invoker: &dyn LambdaInvoker,
+    host: Host<'_>,
 ) -> Value {
+    let Host {
+        client, wasm_path, ..
+    } = host;
     let body: Value = match serde_json::from_str(raw_body) {
         Ok(v) => v,
         Err(e) => {
@@ -102,17 +98,8 @@ async fn newsletter_subscribe_route(
     if existing {
         if let (Some(first), Some(last)) = (first_name, last_name) {
             let facts = json!({"first_name": {"value": first}, "last_name": {"value": last}});
-            if let Err(e) = dispatch::handle_routed(
-                client,
-                wasm_path,
-                &provider.add_name,
-                json!(email),
-                facts,
-                None,
-                config,
-                invoker,
-            )
-            .await
+            if let Err(e) =
+                dispatch::handle_routed(host, &provider.add_name, json!(email), facts, None).await
             {
                 return respond(500, "text/plain", &format!("{e:#}"));
             }
@@ -125,17 +112,7 @@ async fn newsletter_subscribe_route(
         if let Some(last) = last_name {
             facts["last_name"] = json!({"value": last});
         }
-        let outcome = match dispatch::handle_facts(
-            client,
-            wasm_path,
-            &provider.subscribe,
-            facts,
-            None,
-            config,
-            invoker,
-        )
-        .await
-        {
+        let outcome = match dispatch::handle_facts(host, &provider.subscribe, facts, None).await {
             Ok(o) => o,
             Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
         };
@@ -340,11 +317,11 @@ pub(super) async fn send_confirmation_if_pending(
 async fn newsletter_confirm_route(
     provider: &NewsletterProvider,
     query: &HashMap<String, String>,
-    client: &Mutex<Client>,
-    wasm_path: &Path,
-    config: &LineageConfig,
-    invoker: &dyn LambdaInvoker,
+    host: Host<'_>,
 ) -> Value {
+    let Host {
+        client, wasm_path, ..
+    } = host;
     let Some(email) = query.get("email") else {
         return respond(
             400,
@@ -378,17 +355,8 @@ async fn newsletter_confirm_route(
     };
 
     if provider.is_awaiting_confirmation(subscriber.get("status").and_then(|v| v.as_str())) {
-        if let Err(e) = dispatch::handle_routed(
-            client,
-            wasm_path,
-            &provider.confirm,
-            json!(email),
-            json!({}),
-            None,
-            config,
-            invoker,
-        )
-        .await
+        if let Err(e) =
+            dispatch::handle_routed(host, &provider.confirm, json!(email), json!({}), None).await
         {
             return respond(500, "text/plain", &format!("{e:#}"));
         }
@@ -446,11 +414,11 @@ fn unsubscribe_authorized<'a>(
 async fn newsletter_unsubscribe_route(
     provider: &NewsletterProvider,
     query: &HashMap<String, String>,
-    client: &Mutex<Client>,
-    wasm_path: &Path,
-    config: &LineageConfig,
-    invoker: &dyn LambdaInvoker,
+    host: Host<'_>,
 ) -> Value {
+    let Host {
+        client, wasm_path, ..
+    } = host;
     let email = match unsubscribe_authorized(confirm_secret().as_deref(), query) {
         Ok(email) => email,
         Err(refusal) => return refusal,
@@ -470,17 +438,9 @@ async fn newsletter_unsubscribe_route(
     };
 
     if !provider.has_left(subscriber.get("status").and_then(|v| v.as_str())) {
-        if let Err(e) = dispatch::handle_routed(
-            client,
-            wasm_path,
-            &provider.unsubscribe,
-            json!(email),
-            json!({}),
-            None,
-            config,
-            invoker,
-        )
-        .await
+        if let Err(e) =
+            dispatch::handle_routed(host, &provider.unsubscribe, json!(email), json!({}), None)
+                .await
         {
             return respond(500, "text/plain", &format!("{e:#}"));
         }

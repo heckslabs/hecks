@@ -7,6 +7,7 @@ use crate::auth::Session;
 use crate::dispatch;
 use crate::extension::{self, Ctx};
 use crate::field_hints::{EMAIL_HINT, TEL_HINT, TEXTAREA_HINT, URL_HINT};
+use crate::host::Host;
 use crate::ir::ir;
 use crate::journal::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
@@ -35,15 +36,7 @@ pub(crate) use registrations::{
 pub(crate) use registrations::{seats_left, seats_taken};
 
 const UNGATED_PATHS: &[&str] = &["/login", "/logout", "/auth/google", "/auth/google/callback"];
-
-#[allow(clippy::too_many_arguments)]
-pub async fn render(
-    body: &Value,
-    client: &Mutex<Client>,
-    wasm_path: &Path,
-    config: &LineageConfig,
-    invoker: &dyn LambdaInvoker,
-) -> Option<Value> {
+pub async fn render(body: &Value, host: Host<'_>) -> Option<Value> {
     let http_event = body.get("requestContext")?.get("http")?;
 
     let method = http_event
@@ -80,10 +73,10 @@ pub async fn render(
         raw_body: &raw_body,
         cookies: &cookies,
         domain_ir: ir(),
-        client,
-        wasm_path,
-        config,
-        invoker,
+        client: host.client,
+        wasm_path: host.wasm_path,
+        config: host.config,
+        invoker: host.invoker,
     };
     for extension in extension::installed() {
         if let Some(response) = extension.guest_route(&ctx).await {
@@ -99,13 +92,7 @@ pub async fn render(
         ));
     };
 
-    Some(
-        route(
-            domain_ir, method, path, &query, &raw_body, &cookies, client, wasm_path, config,
-            invoker,
-        )
-        .await,
-    )
+    Some(route(domain_ir, method, path, &query, &raw_body, &cookies, host).await)
 }
 
 fn extract_cookies(body: &Value) -> HashMap<String, String> {
@@ -191,8 +178,6 @@ fn json_shaped(path: &str) -> bool {
         _ => false,
     }
 }
-
-#[allow(clippy::too_many_arguments)]
 async fn route(
     domain_ir: &Value,
     method: &str,
@@ -200,11 +185,11 @@ async fn route(
     query: &HashMap<String, String>,
     raw_body: &str,
     cookies: &HashMap<String, String>,
-    client: &Mutex<Client>,
-    wasm_path: &Path,
-    config: &LineageConfig,
-    invoker: &dyn LambdaInvoker,
+    host: Host<'_>,
 ) -> Value {
+    let Host {
+        client, wasm_path, ..
+    } = host;
     let domain_name = domain_ir.get("name").and_then(|v| v.as_str()).unwrap_or("");
     let secret = session_secret();
     let session = cookies
@@ -220,10 +205,7 @@ async fn route(
         cookies,
         session.as_ref(),
         &secret,
-        client,
-        wasm_path,
-        config,
-        invoker,
+        host,
     )
     .await
     {
@@ -245,10 +227,7 @@ async fn route(
             query,
             raw_body,
             session.as_ref(),
-            client,
-            wasm_path,
-            config,
-            invoker,
+            host,
         )
         .await;
     }
@@ -296,10 +275,7 @@ async fn route(
                 method,
                 query,
                 raw_body,
-                client,
-                wasm_path,
-                config,
-                invoker,
+                host,
             )
             .await;
         }
@@ -329,11 +305,14 @@ async fn auth_route(
     cookies: &HashMap<String, String>,
     session: Option<&Session>,
     secret: &str,
-    client: &Mutex<Client>,
-    wasm_path: &Path,
-    config: &LineageConfig,
-    invoker: &dyn LambdaInvoker,
+    host: Host<'_>,
 ) -> Option<Value> {
+    let Host {
+        client,
+        wasm_path,
+        config,
+        invoker,
+    } = host;
     let ctx = Ctx {
         event: None,
         method,
@@ -342,10 +321,10 @@ async fn auth_route(
         raw_body,
         cookies,
         domain_ir: Some(domain_ir),
-        client,
-        wasm_path,
-        config,
-        invoker,
+        client: host.client,
+        wasm_path: host.wasm_path,
+        config: host.config,
+        invoker: host.invoker,
     };
     for extension in extension::installed() {
         if let Some(response) = extension.account_route(&ctx).await {
@@ -391,9 +370,7 @@ async fn auth_route(
             .await,
         ),
 
-        ("POST", "/signups") => {
-            Some(signup_route(raw_body, secret, client, wasm_path, config, invoker).await)
-        }
+        ("POST", "/signups") => Some(signup_route(raw_body, secret, host).await),
 
         ("POST", "/members/disable") => Some(
             set_member_disabled_route(domain_ir, raw_body, cookies, secret, client, config, true)
@@ -710,14 +687,7 @@ const SIGNUP_PURPOSE: &str = "signup";
 
 // POST /signups: dispatches Signups::Signup.SignUp as System, gated by
 // a signup-purpose token rather than a session cookie (nobody is signed in yet).
-async fn signup_route(
-    raw_body: &str,
-    secret: &str,
-    client: &Mutex<Client>,
-    wasm_path: &Path,
-    config: &LineageConfig,
-    invoker: &dyn LambdaInvoker,
-) -> Value {
+async fn signup_route(raw_body: &str, secret: &str, host: Host<'_>) -> Value {
     let body: Value = serde_json::from_str(raw_body).unwrap_or(Value::Null);
     let field = |key: &str| {
         body.get(key)
@@ -739,16 +709,7 @@ async fn signup_route(
     }
 
     let args = json!({"email": {"value": email}, "name": {"value": name}});
-    let outcome = match dispatch::handle(
-        client,
-        wasm_path,
-        "Signups::Signup.SignUp",
-        args,
-        Some("System"),
-        config,
-        invoker,
-    )
-    .await
+    let outcome = match dispatch::handle(host, "Signups::Signup.SignUp", args, Some("System")).await
     {
         Ok(o) => o,
         Err(e) => return json_error(500, &format!("{e:#}")),
@@ -1010,8 +971,6 @@ async fn accounts_sso_token_route(
         &json!({"token": sso_token}).to_string(),
     )
 }
-
-#[allow(clippy::too_many_arguments)]
 async fn google_callback(
     domain_ir: &Value,
     query: &HashMap<String, String>,
@@ -1950,7 +1909,6 @@ async fn record_show(
     );
     html(200, &page(&format!("{agg} {id}"), &body))
 }
-
 #[allow(clippy::too_many_arguments)]
 async fn command_route(
     domain_ir: &Value,
@@ -1962,11 +1920,14 @@ async fn command_route(
     method: &str,
     query: &HashMap<String, String>,
     raw_body: &str,
-    client: &Mutex<Client>,
-    wasm_path: &Path,
-    config: &LineageConfig,
-    invoker: &dyn LambdaInvoker,
+    host: Host<'_>,
 ) -> Value {
+    let Host {
+        client,
+        wasm_path,
+        config,
+        invoker,
+    } = host;
     let fields = command_fields(domain_ir, aggregate, command);
     let cname = command.get("name").and_then(|v| v.as_str()).unwrap_or("");
 
@@ -2023,7 +1984,6 @@ async fn command_route(
     )
     .await
 }
-
 #[allow(clippy::too_many_arguments)]
 async fn submit(
     domain_name: &str,
@@ -2050,11 +2010,17 @@ async fn submit(
 
     // `None`: this web UI has no concept of an authenticated caller's
     // role yet (see auth.rs's own session handling for that).
-    let outcome =
-        match dispatch::handle(client, wasm_path, &verb, args, None, config, invoker).await {
-            Ok(o) => o,
-            Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
-        };
+    let outcome = match dispatch::handle(
+        Host::new(client, wasm_path, config, invoker),
+        &verb,
+        args,
+        None,
+    )
+    .await
+    {
+        Ok(o) => o,
+        Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
+    };
 
     if outcome.accepted {
         let id = own_command_target_id(&outcome.result).unwrap_or("");
@@ -2090,7 +2056,6 @@ async fn submit(
 
 // Mirrors the 422-refusal rendering below (same json/html split) but at
 // 400 — this is a malformed submission `nest` caught, not a domain refusal.
-#[allow(clippy::too_many_arguments)]
 fn bad_request(
     domain_name: &str,
     aggregate: &Value,
@@ -3336,10 +3301,12 @@ mod tests {
             let response = signup_route(
                 &body(token),
                 secret,
-                &client,
-                Path::new("unused"),
-                &members_config(),
-                &crate::lambda_client::NeverInvoker,
+                Host::new(
+                    &client,
+                    Path::new("unused"),
+                    &members_config(),
+                    &crate::lambda_client::NeverInvoker,
+                ),
             )
             .await;
             assert_eq!(response["statusCode"], 401, "{response:?}");
@@ -3354,10 +3321,12 @@ mod tests {
         let unparseable = signup_route(
             "not json",
             secret,
-            &client,
-            Path::new("unused"),
-            &members_config(),
-            &crate::lambda_client::NeverInvoker,
+            Host::new(
+                &client,
+                Path::new("unused"),
+                &members_config(),
+                &crate::lambda_client::NeverInvoker,
+            ),
         )
         .await;
         assert_eq!(unparseable["statusCode"], 401, "{unparseable:?}");
@@ -3386,10 +3355,12 @@ mod tests {
             let response = signup_route(
                 &body,
                 secret,
-                &client,
-                Path::new("unused"),
-                &members_config(),
-                &crate::lambda_client::NeverInvoker,
+                Host::new(
+                    &client,
+                    Path::new("unused"),
+                    &members_config(),
+                    &crate::lambda_client::NeverInvoker,
+                ),
             )
             .await;
             assert_eq!(
