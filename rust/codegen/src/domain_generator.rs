@@ -530,6 +530,7 @@ pub fn generate(
                         false,
                         false,
                         None,
+                        None,
                     ),
                 );
             }
@@ -971,6 +972,7 @@ pub fn generate(
                     true,
                     true,
                     Some(&aggregates_by_name),
+                    Some(agg_name),
                 ),
             );
             puts_blank(&mut out);

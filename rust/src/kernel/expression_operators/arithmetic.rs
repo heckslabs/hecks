@@ -46,16 +46,32 @@ fn checked(
     }
     let l = require_number(lhs, name)?;
     let r = require_number(rhs, name)?;
-    finite(name, symbol, l, r, float_op(l, r))
+    finite(name, symbol, (lhs, rhs), float_op(l, r))
 }
 
-fn finite(name: &str, symbol: &str, l: f64, r: f64, result: f64) -> Result<Value, Refusal> {
+// The operands are quoted as Ruby prints them: an Integer bare, a Float as `Float#to_s`.
+fn finite(
+    name: &str,
+    symbol: &str,
+    operands: (&Value, &Value),
+    result: f64,
+) -> Result<Value, Refusal> {
     if result.is_finite() {
         return Ok(Value::Float(result));
     }
     Err(eval_error(format!(
-        "{name} overflowed: {l} {symbol} {r} is not a finite number"
+        "{name} overflowed: {} {symbol} {} is not a finite number",
+        quoted(operands.0),
+        quoted(operands.1)
     )))
+}
+
+fn quoted(v: &Value) -> String {
+    match v {
+        Value::Int(i) => i.to_string(),
+        Value::Float(f) => crate::kernel::ruby_float::to_s(*f),
+        other => format!("{other:?}"),
+    }
 }
 
 // Integer division floors toward negative infinity, as Ruby's `Integer#/` does (Rust's `/`
@@ -73,7 +89,7 @@ fn divide(lhs: &Value, rhs: &Value) -> Result<Value, Refusal> {
         });
     }
     let l = require_number(lhs, "division")?;
-    finite("division", "/", l, r, l / r)
+    finite("division", "/", (lhs, rhs), l / r)
 }
 
 // `None` only for `i64::MIN / -1`, the one quotient that does not fit.
@@ -217,6 +233,18 @@ mod float_sum_tests {
         let result = sum(&Value::Float(1.0e308), &Value::Float(1.0e308));
         assert!(result.is_err(), "1e308 + 1e308 must fault, not answer inf");
     }
+
+    // The fault quotes operands as Ruby prints them, not as Rust's 309-digit expansion.
+    #[test]
+    fn quotes_the_operands_in_rubys_float_format() {
+        let fault = sum(&Value::Float(1.0e308), &Value::Float(1.0e308)).unwrap_err();
+        assert_eq!(
+            fault,
+            crate::kernel::Refusal::Fault(
+                "addition overflowed: 1.0e+308 + 1.0e+308 is not a finite number".to_string()
+            )
+        );
+    }
 }
 
 #[cfg(test)]
@@ -282,7 +310,9 @@ fn sum(lhs: &Value, rhs: &Value) -> Result<Value, Refusal> {
     // C3.4 — a non-finite Float sum faults like an Integer overflow.
     if !sum.is_finite() {
         return Err(eval_error(format!(
-            "addition overflowed: {l} + {r} is not a finite number"
+            "addition overflowed: {} + {} is not a finite number",
+            quoted(lhs),
+            quoted(rhs)
         )));
     }
     Ok(Value::Float(sum))

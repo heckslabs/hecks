@@ -19,6 +19,7 @@ pub mod read_model;
 pub mod reference_lookup;
 pub mod repository;
 pub mod routing;
+pub mod ruby_float;
 
 pub use dispatch::{
     aggregate_step_site, apply_entity_command, decode_aggregate_arguments, decode_entity_arguments,

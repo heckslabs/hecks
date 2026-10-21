@@ -1,6 +1,7 @@
 {
   "domain": "examples/banking",
   "spec": [
+    "C1.1",
     "C1.2",
     "C8.2"
   ],

@@ -33,7 +33,8 @@ it, except for one law they must uphold (C8.4).
   admissible_transition, assign_creation_attributes, apply_mutations,
   advance_lifecycle, delegate_to_entity, enforce_ensures,
   enforce_invariants, save, emit. Entity commands run
-  `EntityDispatchOrder` the same way.
+  `EntityDispatchOrder` the same way. (fixtures: `refusal_order.json`,
+  `absent_argument_refused.json`, which tag it for the order of the steps)
 - **C1.2 (settled)** Which refusal a caller sees is decided by step
   order: an unknown argument outranks a type mismatch, which outranks a
   role mismatch, which outranks not-found, which outranks an unmet
@@ -57,6 +58,8 @@ it, except for one law they must uphold (C8.4).
   arguments first, then the subject's state; an unknown head is an
   evaluation fault (C8.3), not "false". `parent`, `old` and correction
   bindings are ordinary heads injected by the step that defines them.
+  (fixture: `given_reads_argument_first.json` — the argument-first half;
+  the unknown-head fault needs a malformed domain)
 - **C2.3 (settled)** A post-state rule resolves the *settled state
   first*: inside an `ensures`, a head that is both one of the command's
   arguments and one of the subject's fields names the candidate field,
@@ -70,10 +73,13 @@ it, except for one law they must uphold (C8.4).
   the pre-dispatch state; `ensures` observes the candidate state plus
   `old` (the pre-dispatch state, always); aggregate and entity
   invariants observe the candidate state with no argument scope.
+  (fixtures: `refusal_kind_given_not_met.json`,
+  `ensures_old_denotes_prestate.json`)
 - **C2.5 (settled)** Reference-typed *arguments* are dereferenced (to
   depth 4) before givens run; reference-typed *stored fields* are never
   dereferenced in rules — cross-aggregate reads go through declared
   `projects` copies (ADR 0025 S12).
+  (fixture: `reference_argument_dereferenced.json`)
 
 ## §3 Values
 
@@ -140,11 +146,15 @@ it, except for one law they must uphold (C8.4).
   Known asymmetry, recorded not hidden: a `String` argument still
   admits another scalar (an integer) in Ruby — the self-hosted
   grammar's bootstrap relies on it — while the Rust boundary refuses
-  it; no corpus input exercises the difference. The check is the
+  it; no corpus input exercises the difference. A boolean argument is
+  declared `TrueClass` (or `FalseClass`); `Boolean` is not a declared
+  primitive. The refusal names the aggregate, not the command
+  (`Tally.times expects Integer, got 2.5`), and renders the offered
+  value as compact JSON, in both runtimes. The check is the
   *command* boundary's: a query's declared argument types name the
   argument for callers and generators, never a runtime shape —
   comparison unwraps both sides itself — so a query argument is not
-  type-checked here.
+  type-checked here. (fixture: `bare_argument_type_refused.json`)
 
 ## §4 Effects
 
@@ -168,7 +178,8 @@ it, except for one law they must uphold (C8.4).
   (fixture: `remove_all_matches.json`)
 - **C4.4 (settled)** `increment`/`decrement`/`multiply`/`clamp` are
   numeric; an absent target reads as 0; a non-numeric operand is
-  `TypeMismatch`.
+  `TypeMismatch`. (fixtures: `numeric_effects_absent_target_and_operand.json`,
+  `numeric_operand_type_mismatch.json`)
 - **C4.5 (settled)** An appended entity with no explicit identity is
   minted one past the highest integer identity the list holds (1 when
   empty) — never `size + 1`, which repeats an identity the moment a
@@ -190,6 +201,7 @@ it, except for one law they must uphold (C8.4).
   (fixture: `lifecycle_from_guard_refused.json`)
 - **C5.2 (settled)** A fresh or loaded record without the field holds
   the declared initial state.
+  (fixture: `accepted_pizza_lifecycle.json`)
 - **C5.3 (settled)** The lifecycle field moves only by transition.
   Refused at build, in the Ruby builders and `hecks-parse`: a `sets`
   on the lifecycle field, and two transitions for one command whose
@@ -223,6 +235,7 @@ it, except for one law they must uphold (C8.4).
 - **C7.1 (settled)** An accepted command emits exactly its declared
   events, in declaration order; each payload is the coerced command
   arguments. Event order across a dispatch is semantic.
+  (fixtures: `accepted_pizza_lifecycle.json`, `reaction_order_per_event.json`)
 - **C7.2 (settled)** A refused or faulted command emits nothing and
   records nothing — including events from a delegated entity command
   whose parent later refuses: the delegated leg's emission is part of
@@ -232,7 +245,8 @@ it, except for one law they must uphold (C8.4).
   clause.) (fixtures: `invariant_refused_events_dropped.json`,
   `delegated_event_dropped_on_parent_refusal.json`)
 - **C7.3 (settled)** `occurred_at` is environmental (C9.1), not part of
-  the semantic payload.
+  the semantic payload. It is an absence, so no dispatch-level fixture
+  can pin it; the corpus strips it from every events list it compares.
 
 ## §8 Outcomes
 
@@ -240,12 +254,17 @@ it, except for one law they must uphold (C8.4).
   **accepted** (candidate committed, events emitted), **refused**
   (a domain refusal: state and event history exactly as before), or
   **fault** (the domain or its input is broken in a way the language
-  refuses to interpret).
+  refuses to interpret). (fixtures: `accepted_pizza_lifecycle.json`,
+  `refused_leaves_state_unchanged.json`, `fault_is_not_a_refusal.json`)
 - **C8.2 (settled)** A refusal has a class — one of the
   `Vocabulary::DomainRefusal` names — and a message derived from the
   refusing rule's description. The class is semantic; the corpus
   compares it. Wording templates are shared, but prose is not the
   contract — the class and the refusing site are.
+  (fixtures: `refusal_kind_given_not_met.json`, `refusal_kind_invariant.json`,
+  `refusal_kind_lifecycle.json`, `refusal_kind_not_found.json`,
+  `refusal_kind_already_exists.json`, `refusal_kind_type_mismatch.json`,
+  `refusal_kind_unknown_argument.json`)
 - **C8.3 (settled)** An evaluation fault — an unknown name, nil
   ordering, a wrong-typed operand reaching an operator, a malformed
   ad-hoc ask — is the **fault** outcome: never a refusal class, never a
@@ -258,7 +277,11 @@ it, except for one law they must uphold (C8.4).
   rather than a refusal. (fixture: `fault_is_not_a_refusal.json`)
 - **C8.4 (settled)** The one law the persistence boundary owes the
   semantics: commit is all-or-nothing — a dispatch's state change and
-  its events become durable together or not at all.
+  its events become durable together or not at all. (Not pinned by a corpus fixture: a
+  dispatch outcome shows only the committed result, so a torn commit is
+  invisible to `steps`/`expect`. It needs a fault-injecting store spec —
+  fail the write of the events, or of the state, mid-commit, and assert
+  neither is visible afterwards — run against each store.)
 
 ## §9 Environment
 
@@ -268,7 +291,9 @@ it, except for one law they must uphold (C8.4).
   for `refuse_role_mismatch`), the reaction depth, and the correction
   history (`corrects`). Identical (S, C, env) gives an identical
   outcome; nothing else (ordering of unrelated state, host hash order,
-  process identity) may influence it.
+  process identity) may influence it. (fixture: `environment_caller_role.json`
+  — the caller is the one input a step can state; the clock is stripped from
+  events, C7.3, and reaction depth is pinned by C10.4)
 - **C9.2 (settled)** A correction target is judged against the
   record's *durable* history: whether this record has ever emitted
   the corrected event, as the store remembers it — never against a
@@ -283,7 +308,8 @@ it, except for one law they must uphold (C8.4).
 - **C10.1 (settled)** Policies and sagas run after the triggering
   command commits, outside its atomic boundary; a refused or defective
   reaction never un-commits the trigger. A policy's `where` reads the
-  event payload; unmet is a silent skip.
+  event payload; unmet is a silent skip. (fixtures: `events_and_reactions_order.json`,
+  `refused_reaction_keeps_trigger.json`)
 - **C10.2 (settled)** Every event a dispatch announces is committed
   (C7.1) before any reaction to any of them runs. Reactions then run
   per event, in `emits` order: for each event, its policies — the
@@ -306,6 +332,7 @@ it, except for one law they must uphold (C8.4).
   because no example domain declares two legs on one event)
 - **C10.4 (settled)** Reaction depth is bounded (5); a reaction beyond
   the bound is recorded undelivered, never run.
+  (fixture: `events_and_reactions_order.json`)
 
 ## Corpus contract
 

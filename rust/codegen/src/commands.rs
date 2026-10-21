@@ -478,13 +478,24 @@ fn command_skip_reason_with(
             let target =
                 crate::bridging::arithmetic_target_field(m, aggregate, value_objects_by_name);
             match target {
-                Some((_, field)) => crate::bridging::arithmetic_amount_expr(
-                    m.get("source").unwrap_or(&Json::Null),
-                    command,
-                    value_objects_by_name,
-                    &field,
-                )
-                .is_none(),
+                Some((_, field, kind)) => {
+                    crate::bridging::arithmetic_amount_expr(
+                        m.get("source").unwrap_or(&Json::Null),
+                        command,
+                        value_objects_by_name,
+                        &field,
+                        kind,
+                    )
+                    .is_none()
+                        && crate::bridging::text_operand_expr(
+                            m,
+                            aggregate,
+                            command,
+                            value_objects_by_name,
+                            &field,
+                        )
+                        .is_none()
+                }
                 None => true,
             }
         })
@@ -502,8 +513,7 @@ fn command_skip_reason_with(
     let unsupported_clamp: Vec<String> = clamp_targets
         .iter()
         .filter(|m| {
-            let target =
-                crate::bridging::arithmetic_target_field(m, aggregate, value_objects_by_name);
+            let target = crate::bridging::integer_target_field(m, aggregate, value_objects_by_name);
             let bounds = m.get("source").and_then(crate::bridging::clamp_bounds_ints);
             target.is_none() || bounds.is_none()
         })
@@ -1547,6 +1557,7 @@ pub fn emit_entity_command(
                 true,
                 true,
                 Some(aggregates_by_name),
+                None,
             )
         },
         // Argument gates, run by `kernel::decode_entity_arguments` in `EntityStep::ORDER`.
@@ -1773,6 +1784,7 @@ pub fn emit_nested_entity_command(
                 true,
                 true,
                 Some(aggregates_by_name),
+                None,
             )
         },
         // Argument gates, as in the one-hop entity command.

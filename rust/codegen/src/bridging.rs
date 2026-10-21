@@ -450,6 +450,10 @@ fn closed_set_variant_of_row(row: &Json) -> String {
 }
 
 pub fn integer_field_of(vo: Option<&Json>) -> Option<String> {
+    scalar_field_of(vo, "Integer")
+}
+
+fn scalar_field_of(vo: Option<&Json>, type_name: &str) -> Option<String> {
     let vo = vo?;
     if vo.get("closed_set").is_some_and(Json::as_bool) {
         return None;
@@ -457,22 +461,56 @@ pub fn integer_field_of(vo: Option<&Json>) -> Option<String> {
     let attrs = vo.get("attributes").map_or_default(Json::each);
     attrs
         .iter()
-        .find(|a| crate::attr::type_name(a) == "Integer")
+        .find(|a| crate::attr::type_name(a) == type_name)
         .map(|a| crate::attr::name(a).to_string())
 }
 
-/// The target half of an `:increment`/`:decrement` mutation.
-pub fn arithmetic_target_field<'a>(
-    mutation: &Json,
-    aggregate: &'a Json,
-    value_objects_by_name: &HashMap<String, &Json>,
-) -> Option<(&'a Json, String)> {
+/// Which machine number a value object's arithmetic field is.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NumericKind {
+    Integer,
+    Float,
+}
+
+/// The field arithmetic acts on: the first Integer field, else the first Float field.
+pub fn numeric_field_of(vo: Option<&Json>) -> Option<(String, NumericKind)> {
+    integer_field_of(vo)
+        .map(|field| (field, NumericKind::Integer))
+        .or_else(|| scalar_field_of(vo, "Float").map(|field| (field, NumericKind::Float)))
+}
+
+fn target_attribute<'a>(mutation: &Json, aggregate: &'a Json) -> Option<&'a Json> {
     let target = mutation.get("target").map(Json::to_s).unwrap_or_default();
     let attrs = aggregate.get("attributes").map_or_default(Json::each);
     let target_attr = attrs.iter().find(|a| crate::attr::name(a) == target)?;
     if crate::attr::list(target_attr) {
         return None;
     }
+    Some(target_attr)
+}
+
+/// The target half of an `:increment`/`:decrement`/`:multiply` mutation.
+pub fn arithmetic_target_field<'a>(
+    mutation: &Json,
+    aggregate: &'a Json,
+    value_objects_by_name: &HashMap<String, &Json>,
+) -> Option<(&'a Json, String, NumericKind)> {
+    let target_attr = target_attribute(mutation, aggregate)?;
+    let (field, kind) = numeric_field_of(
+        value_objects_by_name
+            .get(crate::attr::type_name(target_attr))
+            .copied(),
+    )?;
+    Some((target_attr, field, kind))
+}
+
+/// The target of a `:clamp`, whose bounds are integers: Integer-field value objects only.
+pub fn integer_target_field<'a>(
+    mutation: &Json,
+    aggregate: &'a Json,
+    value_objects_by_name: &HashMap<String, &Json>,
+) -> Option<(&'a Json, String)> {
+    let target_attr = target_attribute(mutation, aggregate)?;
     let field = integer_field_of(
         value_objects_by_name
             .get(crate::attr::type_name(target_attr))
@@ -481,8 +519,23 @@ pub fn arithmetic_target_field<'a>(
     Some((target_attr, field))
 }
 
-/// The amount half — resolved to a raw Rust integer-typed expression.
+/// The amount half — resolved to a raw Rust expression of the target field's own type.
 pub fn arithmetic_amount_expr(
+    source: &Json,
+    command: &Json,
+    value_objects_by_name: &HashMap<String, &Json>,
+    target_field: &str,
+    kind: NumericKind,
+) -> Option<String> {
+    match kind {
+        NumericKind::Integer => {
+            integer_amount_expr(source, command, value_objects_by_name, target_field)
+        }
+        NumericKind::Float => float_amount_expr(source, command, value_objects_by_name),
+    }
+}
+
+fn integer_amount_expr(
     source: &Json,
     command: &Json,
     value_objects_by_name: &HashMap<String, &Json>,
@@ -525,6 +578,109 @@ pub fn arithmetic_amount_expr(
         ));
     }
     None
+}
+
+/// The Rust expression for a text operand that can never be added to the target's Integer field.
+///
+/// Ruby wraps the amount as the target's own type before combining, so a required command
+/// argument carrying text refuses `TypeMismatch` at the mutation step (C4.4). The rule is exact:
+/// the argument is a single, required, non-list value and is either a bare `String` or a value
+/// object whose only field is a `String` named as the target's Integer field (so the rewrap
+/// lands on that field and no other refusal intervenes); the target is a required scalar. Any
+/// other shape keeps its own refusal and so stays ungenerated. The expression yields the `String`.
+pub fn text_operand_expr(
+    mutation: &Json,
+    aggregate: &Json,
+    command: &Json,
+    value_objects_by_name: &HashMap<String, &Json>,
+    target_integer_field: &str,
+) -> Option<String> {
+    let target = mutation.get("target").map(Json::to_s).unwrap_or_default();
+    let aggregate_attrs = aggregate.get("attributes").map_or_default(Json::each);
+    let target_attr = aggregate_attrs
+        .iter()
+        .find(|a| crate::attr::name(a) == target)?;
+    if crate::attr::optional(target_attr) {
+        return None;
+    }
+    let source = mutation.get("source")?;
+    if source.get("kind").map(Json::to_s).unwrap_or_default() != "argument" {
+        return None;
+    }
+    let name = source.get("name").map(Json::to_s).unwrap_or_default();
+    let command_attrs = command.get("attributes").map_or_default(Json::each);
+    let arg_attr = command_attrs
+        .iter()
+        .find(|a| crate::attr::name(a) == name)?;
+    if crate::attr::list(arg_attr) || crate::attr::optional(arg_attr) {
+        return None;
+    }
+    let arg = format!("args.{}", naming::rust_ident_field(&name));
+    if crate::attr::type_name(arg_attr) == "String" {
+        return Some(arg);
+    }
+    let vo = value_objects_by_name
+        .get(crate::attr::type_name(arg_attr))
+        .copied()?;
+    if vo.get("closed_set").is_some_and(Json::as_bool) {
+        return None;
+    }
+    let fields = vo.get("attributes").map_or_default(Json::each);
+    match fields {
+        [only]
+            if crate::attr::type_name(only) == "String"
+                && !crate::attr::list(only)
+                && !crate::attr::optional(only)
+                && crate::attr::name(only) == target_integer_field =>
+        {
+            Some(format!(
+                "{arg}.{}",
+                naming::rust_ident_field(target_integer_field)
+            ))
+        }
+        _ => None,
+    }
+}
+
+// A Float target takes a Float or Integer amount, an Integer widened to `f64` as Ruby coerces it.
+fn float_amount_expr(
+    source: &Json,
+    command: &Json,
+    value_objects_by_name: &HashMap<String, &Json>,
+) -> Option<String> {
+    let kind = source.get("kind").map(Json::to_s).unwrap_or_default();
+    if kind == "literal" {
+        let value = source.get("value")?;
+        return match value.number()? {
+            Number::Int(n) => Some(format!("({n} as f64)")),
+            Number::Float(_) => Some(naming::literal_rhs(value)),
+        };
+    }
+    if kind != "argument" {
+        return None;
+    }
+    let name = source.get("name").map(Json::to_s).unwrap_or_default();
+    let attrs = command.get("attributes").map_or_default(Json::each);
+    let arg_attr = attrs.iter().find(|a| crate::attr::name(a) == name)?;
+    let arg = format!(
+        "args.{}",
+        naming::rust_ident_field(crate::attr::name(arg_attr))
+    );
+    match crate::attr::type_name(arg_attr) {
+        "Float" => return Some(arg),
+        "Integer" => return Some(format!("({arg} as f64)")),
+        _ => {}
+    }
+    let (field, field_kind) = numeric_field_of(
+        value_objects_by_name
+            .get(crate::attr::type_name(arg_attr))
+            .copied(),
+    )?;
+    let access = format!("{arg}.{}", naming::rust_ident_field(&field));
+    Some(match field_kind {
+        NumericKind::Float => access,
+        NumericKind::Integer => format!("({access} as f64)"),
+    })
 }
 
 /// `clamp:` bounds as `[min, max]` integers; `None` for anything else.
@@ -683,4 +839,202 @@ pub fn corrects_given_specs(command: &Json) -> Vec<String> {
         corrects_flag_field(&event_name),
         event_name
     )]
+}
+
+#[cfg(test)]
+mod text_operand_tests {
+    use super::*;
+
+    fn aggregate() -> Json {
+        Json::parse(
+            r#"{"attributes":[
+            {"name":"count","type":"Count","list":false,"optional":false},
+            {"name":"limit","type":"Count","list":false,"optional":true}]}"#,
+        )
+        .unwrap()
+    }
+
+    fn vos() -> Vec<Json> {
+        vec![
+            Json::parse(
+                r#"{"name":"Count","attributes":[{"name":"value","type":"Integer","list":false}]}"#,
+            )
+            .unwrap(),
+            Json::parse(
+                r#"{"name":"Label","attributes":[{"name":"value","type":"String","list":false}]}"#,
+            )
+            .unwrap(),
+            Json::parse(
+                r#"{"name":"Note","attributes":[{"name":"text","type":"String","list":false}]}"#,
+            )
+            .unwrap(),
+        ]
+    }
+
+    fn by_name(vos: &[Json]) -> HashMap<String, &Json> {
+        vos.iter()
+            .map(|vo| (vo.get("name").map(Json::to_s).unwrap_or_default(), vo))
+            .collect()
+    }
+
+    fn operand(target: &str, arg_type: &str, arg_flags: &str) -> Option<String> {
+        let mutation = Json::parse(&format!(
+            r#"{{"target":"{target}","op":"increment","source":{{"kind":"argument","name":"by"}}}}"#
+        ))
+        .unwrap();
+        let command = Json::parse(&format!(
+            r#"{{"attributes":[{{"name":"by","type":"{arg_type}","list":false{arg_flags}}}]}}"#
+        ))
+        .unwrap();
+        let vos = vos();
+        text_operand_expr(&mutation, &aggregate(), &command, &by_name(&vos), "value")
+    }
+
+    #[test]
+    fn a_value_object_holding_text_in_the_target_field_name_is_a_text_operand() {
+        assert_eq!(
+            operand("count", "Label", "").as_deref(),
+            Some("args.by.value")
+        );
+    }
+
+    #[test]
+    fn a_bare_string_argument_is_a_text_operand() {
+        assert_eq!(operand("count", "String", "").as_deref(), Some("args.by"));
+    }
+
+    #[test]
+    fn a_numeric_operand_is_not_a_text_operand() {
+        assert_eq!(operand("count", "Count", ""), None);
+        assert_eq!(operand("count", "Integer", ""), None);
+    }
+
+    #[test]
+    fn a_text_field_named_otherwise_keeps_its_own_refusal() {
+        assert_eq!(operand("count", "Note", ""), None);
+    }
+
+    #[test]
+    fn an_optional_target_or_argument_keeps_its_own_behaviour() {
+        assert_eq!(operand("limit", "Label", ""), None);
+        assert_eq!(operand("count", "Label", r#","optional":true"#), None);
+    }
+}
+
+#[cfg(test)]
+mod float_arithmetic_tests {
+    use super::*;
+
+    fn vos() -> Vec<Json> {
+        ["Count:Integer", "Weight:Float", "Label:String"]
+            .iter()
+            .map(|pair| {
+                let (name, ty) = pair.split_once(':').unwrap();
+                Json::parse(&format!(
+                    r#"{{"name":"{name}","attributes":[{{"name":"value","type":"{ty}","list":false}}]}}"#
+                ))
+                .unwrap()
+            })
+            .collect()
+    }
+
+    fn by_name(vos: &[Json]) -> HashMap<String, &Json> {
+        vos.iter()
+            .map(|vo| (vo.get("name").map(Json::to_s).unwrap_or_default(), vo))
+            .collect()
+    }
+
+    fn aggregate() -> Json {
+        Json::parse(r#"{"attributes":[{"name":"weight","type":"Weight","list":false},{"name":"count","type":"Count","list":false},{"name":"label","type":"Label","list":false}]}"#).unwrap()
+    }
+
+    fn command() -> Json {
+        Json::parse(r#"{"attributes":[{"name":"more","type":"Weight"},{"name":"n","type":"Integer"},{"name":"f","type":"Float"},{"name":"c","type":"Count"}]}"#).unwrap()
+    }
+
+    fn mutation(target: &str) -> Json {
+        Json::parse(&format!(r#"{{"target":"{target}","op":"increment"}}"#)).unwrap()
+    }
+
+    fn amount(source: &str, kind: NumericKind) -> Option<String> {
+        let vos = vos();
+        arithmetic_amount_expr(
+            &Json::parse(source).unwrap(),
+            &command(),
+            &by_name(&vos),
+            "value",
+            kind,
+        )
+    }
+
+    #[test]
+    fn a_float_field_value_object_is_a_float_target() {
+        let vos = vos();
+        let aggregate = aggregate();
+        let (_, field, kind) =
+            arithmetic_target_field(&mutation("weight"), &aggregate, &by_name(&vos)).unwrap();
+        assert_eq!((field.as_str(), kind), ("value", NumericKind::Float));
+    }
+
+    #[test]
+    fn an_integer_field_value_object_stays_an_integer_target() {
+        let vos = vos();
+        let aggregate = aggregate();
+        let (_, _, kind) =
+            arithmetic_target_field(&mutation("count"), &aggregate, &by_name(&vos)).unwrap();
+        assert_eq!(kind, NumericKind::Integer);
+    }
+
+    #[test]
+    fn a_text_field_value_object_is_no_arithmetic_target() {
+        let vos = vos();
+        let aggregate = aggregate();
+        assert!(arithmetic_target_field(&mutation("label"), &aggregate, &by_name(&vos)).is_none());
+    }
+
+    #[test]
+    fn clamp_still_takes_only_integer_targets() {
+        let vos = vos();
+        let aggregate = aggregate();
+        assert!(integer_target_field(&mutation("weight"), &aggregate, &by_name(&vos)).is_none());
+        assert!(integer_target_field(&mutation("count"), &aggregate, &by_name(&vos)).is_some());
+    }
+
+    #[test]
+    fn a_float_target_reads_a_float_value_object_argument() {
+        let source = r#"{"kind":"argument","name":"more"}"#;
+        assert_eq!(
+            amount(source, NumericKind::Float).as_deref(),
+            Some("args.more.value")
+        );
+    }
+
+    #[test]
+    fn a_float_target_widens_an_integer_argument_and_integer_value_object() {
+        assert_eq!(
+            amount(r#"{"kind":"argument","name":"n"}"#, NumericKind::Float).as_deref(),
+            Some("(args.n as f64)")
+        );
+        assert_eq!(
+            amount(r#"{"kind":"argument","name":"c"}"#, NumericKind::Float).as_deref(),
+            Some("(args.c.value as f64)")
+        );
+    }
+
+    #[test]
+    fn a_float_target_takes_float_and_integer_literals() {
+        assert_eq!(
+            amount(r#"{"kind":"literal","value":2.5}"#, NumericKind::Float).as_deref(),
+            Some("2.5")
+        );
+        assert_eq!(
+            amount(r#"{"kind":"literal","value":3}"#, NumericKind::Float).as_deref(),
+            Some("(3 as f64)")
+        );
+    }
+
+    #[test]
+    fn an_integer_target_still_refuses_a_float_literal() {
+        assert!(amount(r#"{"kind":"literal","value":2.5}"#, NumericKind::Integer).is_none());
+    }
 }

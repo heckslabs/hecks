@@ -1,0 +1,68 @@
+{
+  "domain": "spec/corpus/semantics/domains/tally",
+  "spec": [
+    "C4.4",
+    "C8.2"
+  ],
+  "note": "A non-numeric operand (a Label's string added to the count) is a TypeMismatch refusal and leaves the count untouched (C4.4).",
+  "steps": [
+    {
+      "verb": "Tallying::Tally.Open",
+      "args": {
+        "tag": {
+          "value": "t1"
+        }
+      }
+    },
+    {
+      "verb": "Tallying::Tally.AddLabel",
+      "args": {
+        "tally": "t1",
+        "label": {
+          "value": "abc"
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "Tallying::Tally.AddLabel",
+        "error": "Count.value expects Integer, got \"abc\"",
+        "kind": "TypeMismatch"
+      }
+    ],
+    "instances": {
+      "Tallying::Tally#t1": {
+        "tag": {
+          "value": "t1"
+        },
+        "count": {
+          "value": 0
+        },
+        "weight": {
+          "value": 0.0
+        },
+        "label": {
+          "value": ""
+        },
+        "limit": null,
+        "tags": [
+
+        ]
+      }
+    },
+    "events": [
+      {
+        "name": "TallyOpened",
+        "aggregate": "Tallying::Tally",
+        "id": "t1",
+        "payload": {
+          "tag": {
+            "value": "t1"
+          }
+        }
+      }
+    ]
+  }
+}
