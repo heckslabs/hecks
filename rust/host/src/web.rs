@@ -433,43 +433,109 @@ async fn auth_route(
             google_callback(domain_ir, query, client, wasm_path, config, secret, invoker).await,
         ),
 
-        ("GET", "/admin/members") => {
-            let Some(session) = session else {
-                return Some(redirect("/login"));
-            };
-            if !is_admin(client, wasm_path, domain_ir, &session.identity_id).await {
-                return Some(html(403, "<p>Admins only.</p>"));
-            }
-            Some(html(200, &admin_members_page(client, domain_ir).await))
-        }
-
-        ("POST", "/admin/members") => {
-            let Some(session) = session else {
-                return Some(redirect("/login"));
-            };
-            if !is_admin(client, wasm_path, domain_ir, &session.identity_id).await {
-                return Some(html(403, "<p>Admins only.</p>"));
-            }
-            let form = parse_form(raw_body);
-            let email = form.get("email").cloned().unwrap_or_default();
-            let role = form.get("role").cloned().unwrap_or_default();
-            if !auth::GRANTABLE_ROLES.contains(&role.as_str()) {
-                return Some(html(
-                    400,
-                    &format!(
-                        "<p>Role must be one of {}.</p>",
-                        auth::GRANTABLE_ROLES.join(", ")
-                    ),
-                ));
-            }
-            match auth::grant_access(client, wasm_path, config, domain_ir, &email, &role).await {
-                Ok(true) => Some(redirect("/admin/members")),
-                Ok(false) => Some(html(404, "<p>No member with that email.</p>")),
-                Err(e) => Some(html(500, &format!("<p>{}</p>", esc(&e.to_string())))),
-            }
-        }
+        ("GET" | "POST", "/admin/members") => Some(
+            admin_members_route(
+                method, domain_ir, raw_body, cookies, session, secret, client, wasm_path, config,
+            )
+            .await,
+        ),
 
         _ => None,
+    }
+}
+
+// Whether the caller may use /admin/members: an admin by the Governance
+// session (the Google callback's `session` cookie) or by the account cookie
+// (what platform sign-in and every other admin route carry). A site whose
+// sign-in only sets the account cookie would otherwise loop back to /login.
+async fn members_page_caller(
+    domain_ir: &Value,
+    cookies: &HashMap<String, String>,
+    session: Option<&Session>,
+    secret: &str,
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+) -> Result<(), Value> {
+    if let Some(session) = session {
+        if is_admin(client, wasm_path, domain_ir, &session.identity_id).await {
+            return Ok(());
+        }
+    }
+    let account = cookies
+        .get(&auth::account_cookie_name())
+        .and_then(|token| auth::verify_account_token(secret, token));
+    if let Some(email) = &account {
+        if auth::caller_is_admin(client, domain_ir, email)
+            .await
+            .unwrap_or(false)
+        {
+            return Ok(());
+        }
+    }
+    if session.is_none() && account.is_none() {
+        return Err(redirect("/login"));
+    }
+    Err(html(403, "<p>Admins only.</p>"))
+}
+
+// GET /admin/members lists everyone and offers a form; POST from that form
+// admits the person when they are new (named as typed, or by the part of the
+// email before the @) and grants the chosen role.
+#[allow(clippy::too_many_arguments)]
+async fn admin_members_route(
+    method: &str,
+    domain_ir: &Value,
+    raw_body: &str,
+    cookies: &HashMap<String, String>,
+    session: Option<&Session>,
+    secret: &str,
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    config: &LineageConfig,
+) -> Value {
+    if let Err(response) =
+        members_page_caller(domain_ir, cookies, session, secret, client, wasm_path).await
+    {
+        return response;
+    }
+    if method == "GET" {
+        return html(200, &admin_members_page(client, domain_ir).await);
+    }
+
+    let form = parse_form(raw_body);
+    let email = form
+        .get("email")
+        .map(|s| s.trim().to_lowercase())
+        .unwrap_or_default();
+    let role = form.get("role").cloned().unwrap_or_default();
+    if !auth::GRANTABLE_ROLES.contains(&role.as_str()) {
+        return html(
+            400,
+            &format!(
+                "<p>Role must be one of {}.</p>",
+                auth::GRANTABLE_ROLES.join(", ")
+            ),
+        );
+    }
+    if !email
+        .split_once('@')
+        .is_some_and(|(local, domain)| !local.is_empty() && domain.contains('.'))
+    {
+        return html(400, "<p>Give a valid email.</p>");
+    }
+    let name = form
+        .get("name")
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| email.split('@').next().unwrap_or_default().to_string());
+    // Ok(false) is "already admitted": the grant below is then all there is to do.
+    if let Err(e) = auth::admit_person(client, config, domain_ir, &email, &name).await {
+        return html(500, &format!("<p>{}</p>", esc(&e.to_string())));
+    }
+    match auth::grant_access(client, wasm_path, config, domain_ir, &email, &role).await {
+        Ok(true) => redirect("/admin/members"),
+        Ok(false) => html(404, "<p>No member with that email.</p>"),
+        Err(e) => html(500, &format!("<p>{}</p>", esc(&e.to_string()))),
     }
 }
 
@@ -1137,7 +1203,8 @@ async fn admin_members_page(client: &Mutex<Client>, domain_ir: &Value) -> String
         <h1 class="text-xl font-semibold mb-4">Members</h1>
         <table class="w-full text-sm mb-6"><thead><tr class="text-left text-slate-500 text-xs uppercase"><th class="py-2 pr-4">Name</th><th class="py-2 pr-4">Email</th><th class="py-2 pr-4">Role</th><th class="py-2">Access</th></tr></thead><tbody>{rows}</tbody></table>
         <form method="post" action="/admin/members" class="flex gap-2 items-center">
-        <input type="email" name="email" placeholder="email of an existing Member" required class="flex-1 border border-slate-300 rounded-md px-3 py-2 text-sm" />
+        <input type="text" name="name" placeholder="Name" class="w-40 border border-slate-300 rounded-md px-3 py-2 text-sm" />
+        <input type="email" name="email" placeholder="Email (their Google account)" required class="flex-1 border border-slate-300 rounded-md px-3 py-2 text-sm" />
         <select name="role" class="border border-slate-300 rounded-md px-3 py-2 text-sm"><option value="Admin">Admin</option><option value="Owner">Owner</option><option value="Member">Member</option></select>
         <button type="submit" class="px-4 py-2 bg-slate-900 text-white rounded-md text-sm">Grant access</button>
         </form></main></body></html>"#
@@ -3476,6 +3543,135 @@ mod tests {
             2,
             "nothing was written"
         );
+    }
+
+    // /admin/members by the account cookie alone, as a site whose sign-in sets only that cookie.
+    async fn members_page(
+        method: &str,
+        body: &str,
+        cookies: &HashMap<String, String>,
+        secret: &str,
+        client: &Mutex<Client>,
+        domain_ir: &Value,
+    ) -> Value {
+        admin_members_route(
+            method,
+            domain_ir,
+            body,
+            cookies,
+            None,
+            secret,
+            client,
+            Path::new("unused"),
+            &members_config(),
+        )
+        .await
+    }
+
+    #[tokio::test]
+    async fn members_page_takes_an_admin_by_the_account_cookie_and_turns_away_anyone_else() {
+        let secret = "s3cret";
+        let (client, domain_ir) =
+            scratch_members_db("hecks_host_web_test_members_page_cookie").await;
+
+        let page = members_page(
+            "GET",
+            "",
+            &session_cookies(secret, "zed@example.com"),
+            secret,
+            &client,
+            &domain_ir,
+        )
+        .await;
+        assert_eq!(page["statusCode"], 200, "{page:?}");
+        assert!(
+            page["body"].as_str().unwrap().contains("amy@example.com"),
+            "the page lists the members"
+        );
+
+        let not_admin = members_page(
+            "GET",
+            "",
+            &session_cookies(secret, "amy@example.com"),
+            secret,
+            &client,
+            &domain_ir,
+        )
+        .await;
+        assert_eq!(not_admin["statusCode"], 403);
+
+        let nobody = members_page("GET", "", &HashMap::new(), secret, &client, &domain_ir).await;
+        assert_eq!(nobody["statusCode"], 302);
+        assert_eq!(nobody["headers"]["location"], "/login");
+    }
+
+    #[tokio::test]
+    async fn members_page_form_admits_a_new_person_and_grants_the_role_or_grants_an_existing_one() {
+        let secret = "s3cret";
+        let (client, domain_ir) = scratch_members_db("hecks_host_web_test_members_page_form").await;
+        let admin = session_cookies(secret, "zed@example.com");
+
+        let added = members_page(
+            "POST",
+            "name=Lou+Ann&email=Lou%40Example.org&role=Admin",
+            &admin,
+            secret,
+            &client,
+            &domain_ir,
+        )
+        .await;
+        assert_eq!(added["statusCode"], 302, "{added:?}");
+        assert_eq!(added["headers"]["location"], "/admin/members");
+        let granted = members_page(
+            "POST",
+            "email=amy%40example.com&role=Owner",
+            &admin,
+            secret,
+            &client,
+            &domain_ir,
+        )
+        .await;
+        assert_eq!(granted["statusCode"], 302, "{granted:?}");
+
+        let people = auth::all_people(&client, &domain_ir).await.unwrap();
+        let lou = people
+            .iter()
+            .find(|p| p["email"] == "lou@example.org")
+            .expect("Lou Ann is admitted");
+        assert_eq!(
+            (
+                lou["name"].as_str(),
+                lou["role"].as_str(),
+                lou["granted"].as_bool()
+            ),
+            (Some("Lou Ann"), Some("Admin"), Some(true))
+        );
+        let amy = people
+            .iter()
+            .find(|p| p["email"] == "amy@example.com")
+            .unwrap();
+        assert_eq!(amy["role"], "Owner");
+
+        let bad = members_page(
+            "POST",
+            "email=not-an-email&role=Admin",
+            &admin,
+            secret,
+            &client,
+            &domain_ir,
+        )
+        .await;
+        assert_eq!(bad["statusCode"], 400);
+        let stranger = members_page(
+            "POST",
+            "email=x%40example.com&role=Admin",
+            &session_cookies(secret, "amy-not@example.com"),
+            secret,
+            &client,
+            &domain_ir,
+        )
+        .await;
+        assert_eq!(stranger["statusCode"], 403);
     }
 
     #[tokio::test]
