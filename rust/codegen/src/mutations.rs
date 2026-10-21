@@ -277,6 +277,67 @@ pub fn pre_state_line() -> String {
     "        let pre = record.clone();".to_string()
 }
 
+/// The value an arithmetic op (`increment`/`decrement`/`multiply`/`clamp`) reads from its target.
+///
+/// An absent optional target reads as 0 (C4.4), the integer field zeroed and every other field at
+/// its declared default. A value object whose other fields lack defaults has no sensible zero, so
+/// that case keeps the unwrap.
+fn numeric_current(
+    optional: bool,
+    target_field: &str,
+    target_attr: &Json,
+    numeric_field: &str,
+    kind: crate::bridging::NumericKind,
+    value_objects_by_name: &HashMap<String, &Json>,
+) -> String {
+    if !optional {
+        return format!("record.{target_field}.clone()");
+    }
+    let vo_type = crate::attr::type_name(target_attr);
+    let attrs = value_objects_by_name
+        .get(vo_type)
+        .and_then(|vo| vo.get("attributes"))
+        .map_or_default(Json::each);
+    let zero_fields: Option<Vec<String>> = attrs
+        .iter()
+        .map(|f| {
+            let name = crate::attr::name(f);
+            let rhs = if name == numeric_field {
+                Some(
+                    match kind {
+                        crate::bridging::NumericKind::Integer => "0",
+                        crate::bridging::NumericKind::Float => "0.0",
+                    }
+                    .to_string(),
+                )
+            } else {
+                crate::attr::default(f).map(naming::literal_rhs)
+            };
+            rhs.map(|rhs| format!("{}: {rhs}", naming::rust_ident_field(name)))
+        })
+        .collect();
+    zero_fields.map_or_else(
+        || format!("record.{target_field}.clone().unwrap()"),
+        |fields| {
+            format!(
+                "record.{target_field}.clone().unwrap_or({} {{ {} }})",
+                naming::rust_ident(vo_type),
+                fields.join(", ")
+            )
+        },
+    )
+}
+
+/// The mutation for a text operand: refuses `TypeMismatch` as Ruby's rewrap of the amount does.
+///
+/// The `?` on an `Err` keeps the closure's `Ok(())` reachable, and the offered text renders
+/// through `Json::describe`, as every refusal quotes a value.
+fn text_operand_refusal(target_type: &str, integer_field: &str, text_expr: &str) -> String {
+    format!(
+        "Err::<(), _>(crate::kernel::Refusal::TypeMismatch(format!(\"{target_type}.{integer_field} expects Integer, got {{}}\", crate::kernel::Json::Str({text_expr}.clone()).describe())))?;"
+    )
+}
+
 // Integer arithmetic that leaves signed 64 bits is a `Refusal::Fault`, never a wrap or a panic.
 #[allow(
     clippy::panic,
@@ -292,6 +353,31 @@ fn checked_arithmetic(op: &str, field_ident: &str, symbol: &str, amount_expr: &s
     format!(
         "{{ let amount = {amount_expr}; current.{field_ident}.{checked}(amount).ok_or_else(|| crate::kernel::Refusal::Fault(format!(\"{op} overflowed: {{}} {symbol} {{}} does not fit in a 64-bit integer\", current.{field_ident}, amount)))? }}"
     )
+}
+
+// A Float result must stay finite (C3.4); a NaN or infinity is a `Refusal::Fault`, worded as Ruby words it.
+fn float_arithmetic(op: &str, field_ident: &str, symbol: &str, amount_expr: &str) -> String {
+    format!(
+        "{{ let amount = {amount_expr}; crate::kernel::ruby_float::finite_or_fault(\"{op}\", \"{symbol}\", current.{field_ident}, amount, current.{field_ident} {symbol} amount)? }}"
+    )
+}
+
+// The new numeric field value: `checked_*` for an Integer target, `finite_or_fault` for a Float one.
+fn arithmetic_field_value(
+    kind: crate::bridging::NumericKind,
+    op: &str,
+    field_ident: &str,
+    symbol: &str,
+    amount_expr: &str,
+) -> String {
+    match kind {
+        crate::bridging::NumericKind::Integer => {
+            checked_arithmetic(op, field_ident, symbol, amount_expr)
+        }
+        crate::bridging::NumericKind::Float => {
+            float_arithmetic(op, field_ident, symbol, amount_expr)
+        }
+    }
 }
 
 pub fn literal_problem(
@@ -622,8 +708,52 @@ pub fn append_field_problems(
         .collect()
 }
 
-/// Problems with `remove:` mutations, which are generatable only against an entity list whose
-/// single-head identity mints, sourced from a declared argument that bridges to its type.
+/// Why a `remove:` on a list of value objects can't be generated, or `None` when it can.
+///
+/// The argument must be a declared command attribute of the element's own value-object type, so
+/// the generated `retain` compares whole values and nothing needs bridging.
+fn value_object_remove_problem(
+    mutation: &Json,
+    command: &Json,
+    target_attr: &Json,
+    value_objects_by_name: &HashMap<String, &Json>,
+) -> Option<String> {
+    let target_name = mutation.get("target").map(Json::to_s).unwrap_or_default();
+    let element_type = crate::attr::type_name(target_attr);
+    if !value_objects_by_name.contains_key(element_type) {
+        return Some(format!(
+            "{target_name}: remove on a list of {element_type}, which is neither an entity nor a value object, is not generated yet"
+        ));
+    }
+    let source = mutation.get("source").filter(|s| {
+        matches!(s, Json::Object(_))
+            && s.get("kind").map(Json::to_s).unwrap_or_default() == "argument"
+    });
+    let Some(source) = source else {
+        return Some(format!(
+            "{target_name}: remove sources a literal or record state, not an argument — not generated yet"
+        ));
+    };
+    let source_name = source.get("name").map(Json::to_s).unwrap_or_default();
+    let cmd_attrs = command.get("attributes").map_or_default(Json::each);
+    let Some(source_attr) = cmd_attrs
+        .iter()
+        .find(|a| crate::attr::name(a) == source_name)
+    else {
+        return Some(format!(
+            "{target_name}: remove sources undeclared argument {source_name}"
+        ));
+    };
+    if crate::attr::list(source_attr) || crate::attr::type_name(source_attr) != element_type {
+        return Some(format!(
+            "{target_name}: remove on a list of {element_type} needs a single {element_type} argument, not {source_name}"
+        ));
+    }
+    None
+}
+
+/// Problems with `remove:` mutations: an entity list whose single-head identity mints, or a
+/// value-object list, each sourced from a declared argument of a matching type.
 pub fn remove_field_problems(
     command: &Json,
     aggregate: &Json,
@@ -642,7 +772,7 @@ pub fn remove_field_problems(
 
             let entities = aggregate.get("entities").map_or_default(Json::each);
             let Some(entity) = entities.iter().find(|e| e.get("name").and_then(Json::as_str) == Some(crate::attr::type_name(target_attr))) else {
-                return Some(format!("{target_name}: remove on a value-object-typed list is not generated yet"));
+                return value_object_remove_problem(m, command, target_attr, value_objects_by_name);
             };
             let entity_name = entity.get("name").and_then(Json::as_str).unwrap_or("");
 
@@ -1380,7 +1510,7 @@ fn emit_mutation_line_body(
             }
         }
         "increment" | "decrement" => {
-            let (target_attr, integer_field) = crate::bridging::arithmetic_target_field(
+            let (target_attr, integer_field, kind) = crate::bridging::arithmetic_target_field(
                 mutation,
                 aggregate,
                 value_objects_by_name,
@@ -1388,11 +1518,25 @@ fn emit_mutation_line_body(
             .expect("arithmetic target must resolve");
             let vo_type = naming::rust_ident(crate::attr::type_name(target_attr));
             let field_ident = naming::rust_ident_field(&integer_field);
+            if let Some(text) = crate::bridging::text_operand_expr(
+                mutation,
+                aggregate,
+                command,
+                value_objects_by_name,
+                &integer_field,
+            ) {
+                return text_operand_refusal(
+                    crate::attr::type_name(target_attr),
+                    &integer_field,
+                    &text,
+                );
+            }
             let amount_expr = crate::bridging::arithmetic_amount_expr(
                 mutation.get("source").unwrap_or(&Json::Null),
                 command,
                 value_objects_by_name,
                 &integer_field,
+                kind,
             )
             .expect("arithmetic amount must resolve");
             // Use the IR's `sign`, not the op name.
@@ -1401,15 +1545,18 @@ fn emit_mutation_line_body(
             } else {
                 "-"
             };
-            let current = if optional {
-                format!("record.{target_field}.clone().unwrap()")
-            } else {
-                format!("record.{target_field}.clone()")
-            };
+            let current = numeric_current(
+                optional,
+                target_field,
+                target_attr,
+                &integer_field,
+                kind,
+                value_objects_by_name,
+            );
             let op = mutation.get("op").map(Json::to_s).unwrap_or_default();
             let updated = format!(
                 "{vo_type} {{ {field_ident}: {}, ..current }}",
-                checked_arithmetic(&op, &field_ident, sign, &amount_expr)
+                arithmetic_field_value(kind, &op, &field_ident, sign, &amount_expr)
             );
             exemplar.render(
                 "mutation_arithmetic",
@@ -1428,8 +1575,8 @@ fn emit_mutation_line_body(
             )
         }
         "multiply" => {
-            // Same Integer-field subset as `increment`/`decrement`, with `*`.
-            let (target_attr, integer_field) = crate::bridging::arithmetic_target_field(
+            // Same numeric-field subset as `increment`/`decrement`, with `*`.
+            let (target_attr, integer_field, kind) = crate::bridging::arithmetic_target_field(
                 mutation,
                 aggregate,
                 value_objects_by_name,
@@ -1437,21 +1584,38 @@ fn emit_mutation_line_body(
             .expect("arithmetic target must resolve");
             let vo_type = naming::rust_ident(crate::attr::type_name(target_attr));
             let field_ident = naming::rust_ident_field(&integer_field);
+            if let Some(text) = crate::bridging::text_operand_expr(
+                mutation,
+                aggregate,
+                command,
+                value_objects_by_name,
+                &integer_field,
+            ) {
+                return text_operand_refusal(
+                    crate::attr::type_name(target_attr),
+                    &integer_field,
+                    &text,
+                );
+            }
             let amount_expr = crate::bridging::arithmetic_amount_expr(
                 mutation.get("source").unwrap_or(&Json::Null),
                 command,
                 value_objects_by_name,
                 &integer_field,
+                kind,
             )
             .expect("arithmetic amount must resolve");
-            let current = if optional {
-                format!("record.{target_field}.clone().unwrap()")
-            } else {
-                format!("record.{target_field}.clone()")
-            };
+            let current = numeric_current(
+                optional,
+                target_field,
+                target_attr,
+                &integer_field,
+                kind,
+                value_objects_by_name,
+            );
             let updated = format!(
                 "{vo_type} {{ {field_ident}: {}, ..current }}",
-                checked_arithmetic("multiply", &field_ident, "*", &amount_expr)
+                arithmetic_field_value(kind, "multiply", &field_ident, "*", &amount_expr)
             );
             exemplar.render(
                 "mutation_arithmetic",
@@ -1471,23 +1635,23 @@ fn emit_mutation_line_body(
         }
         "clamp" => {
             // The source is always a literal `[min, max]` pair, so there is no amount to resolve.
-            let (target_attr, integer_field) = crate::bridging::arithmetic_target_field(
-                mutation,
-                aggregate,
-                value_objects_by_name,
-            )
-            .expect("clamp target must resolve");
+            let (target_attr, integer_field) =
+                crate::bridging::integer_target_field(mutation, aggregate, value_objects_by_name)
+                    .expect("clamp target must resolve");
             let vo_type = naming::rust_ident(crate::attr::type_name(target_attr));
             let field_ident = naming::rust_ident_field(&integer_field);
             let (min, max) = mutation
                 .get("source")
                 .and_then(crate::bridging::clamp_bounds_ints)
                 .expect("clamp bounds must resolve");
-            let current = if optional {
-                format!("record.{target_field}.clone().unwrap()")
-            } else {
-                format!("record.{target_field}.clone()")
-            };
+            let current = numeric_current(
+                optional,
+                target_field,
+                target_attr,
+                &integer_field,
+                crate::bridging::NumericKind::Integer,
+                value_objects_by_name,
+            );
             let updated = format!("{vo_type} {{ {field_ident}: current.{field_ident}.clamp({min}, {max}), ..current }}");
             exemplar.render(
                 "mutation_arithmetic",
@@ -1513,13 +1677,26 @@ fn emit_mutation_line_body(
                 .find(|a| crate::attr::name(a) == target_name)
                 .expect("remove target must be a declared aggregate attribute");
             let entities = aggregate.get("entities").map_or_default(Json::each);
-            let entity = entities
-                .iter()
-                .find(|e| {
-                    e.get("name").and_then(Json::as_str)
-                        == Some(crate::attr::type_name(target_attr))
-                })
-                .expect("remove target must be an entity-typed list");
+            let Some(entity) = entities.iter().find(|e| {
+                e.get("name").and_then(Json::as_str) == Some(crate::attr::type_name(target_attr))
+            }) else {
+                // A value-object list: drop every element equal by value to the argument.
+                let source_name = mutation
+                    .get("source")
+                    .and_then(|s| s.get("name"))
+                    .map(Json::to_s)
+                    .unwrap_or_default();
+                return exemplar.render(
+                    "mutation_remove_value",
+                    &[
+                        ("tmpl_field", target_field.to_string()),
+                        (
+                            "tmpl_remove_value_placeholder()",
+                            format!("args.{}", naming::rust_ident_field(&source_name)),
+                        ),
+                    ],
+                );
+            };
             let (id_attr, _) = entity_identity_mint(entity, value_objects_by_name)
                 .expect("remove target entity's identity must mint");
             let id_field = naming::rust_ident_field(crate::attr::name(id_attr));
@@ -1738,5 +1915,83 @@ mod expression_source_tests {
             rhs.contains("crate::kernel::interpret(&Expr::Mul(")
                 && rhs.contains("Cents { value: number }")
         );
+    }
+}
+
+#[cfg(test)]
+mod value_object_remove_tests {
+    use super::*;
+
+    fn aggregate() -> Json {
+        Json::parse(r#"{"name":"Tally","attributes":[{"name":"tags","type":"Label","list":true}]}"#)
+            .unwrap()
+    }
+
+    fn label() -> Json {
+        Json::parse(
+            r#"{"name":"Label","attributes":[{"name":"value","type":"String","list":false}]}"#,
+        )
+        .unwrap()
+    }
+
+    fn command(argument_type: &str, source: &str) -> Json {
+        Json::parse(&format!(
+            r#"{{"name":"Untag","attributes":[{{"name":"label","type":"{argument_type}","list":false}}],
+            "mutations":[{{"target":"tags","op":"remove","source":{source}}}]}}"#
+        ))
+        .unwrap()
+    }
+
+    fn problems(command: &Json) -> Vec<String> {
+        let label = label();
+        let by_name: HashMap<String, &Json> = HashMap::from([("Label".to_string(), &label)]);
+        remove_field_problems(command, &aggregate(), &by_name)
+    }
+
+    #[test]
+    fn a_value_object_argument_of_the_element_type_is_generatable() {
+        let command = command("Label", r#"{"kind":"argument","name":"label"}"#);
+        assert!(problems(&command).is_empty());
+    }
+
+    #[test]
+    fn an_argument_of_another_type_is_refused() {
+        let command = command("Other", r#"{"kind":"argument","name":"label"}"#);
+        assert!(problems(&command)[0].contains("needs a single Label argument"));
+    }
+
+    #[test]
+    fn a_literal_source_is_refused() {
+        let command = command("Label", r#"{"kind":"literal","value":"x"}"#);
+        assert!(problems(&command)[0].contains("not an argument"));
+    }
+}
+
+#[cfg(test)]
+mod float_arithmetic_tests {
+    use super::*;
+    use crate::bridging::NumericKind;
+
+    #[test]
+    fn a_float_increment_faults_unless_the_sum_is_finite() {
+        assert_eq!(
+            float_arithmetic("increment", "value", "+", "args.more.value"),
+            "{ let amount = args.more.value; crate::kernel::ruby_float::finite_or_fault(\"increment\", \"+\", current.value, amount, current.value + amount)? }"
+        );
+    }
+
+    #[test]
+    fn a_float_multiply_uses_the_product() {
+        assert!(
+            float_arithmetic("multiply", "value", "*", "2.0").contains("current.value * amount)?")
+        );
+    }
+
+    #[test]
+    fn the_kind_picks_checked_integer_or_finite_float_arithmetic() {
+        let integer = arithmetic_field_value(NumericKind::Integer, "increment", "value", "+", "1");
+        let float = arithmetic_field_value(NumericKind::Float, "increment", "value", "+", "1.0");
+        assert!(integer.contains("checked_add") && !integer.contains("ruby_float"));
+        assert!(float.contains("finite_or_fault") && !float.contains("checked_add"));
     }
 }

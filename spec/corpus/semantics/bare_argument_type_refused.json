@@ -1,0 +1,180 @@
+{
+  "domain": "spec/corpus/semantics/domains/tally",
+  "spec": [
+    "C3.8",
+    "C8.2"
+  ],
+  "note": "Bare primitive arguments are type-checked at the command boundary (C3.8): a fractional Integer, a string Float, and a list String are each TypeMismatch refusals before any rule runs, never faults. A boolean argument (declared `TrueClass`) offered a map or a list is refused the same way. The well-formed Measure before and after them is accepted. The Ruby-only String-admits-an-integer asymmetry is deliberately not exercised.",
+  "steps": [
+    {
+      "verb": "Tallying::Tally.Open",
+      "args": {
+        "tag": {
+          "value": "t1"
+        }
+      }
+    },
+    {
+      "verb": "Tallying::Tally.Measure",
+      "args": {
+        "tally": "t1",
+        "times": 3,
+        "ratio": 1.5,
+        "note": "ok",
+        "urgent": true
+      }
+    },
+    {
+      "verb": "Tallying::Tally.Measure",
+      "args": {
+        "tally": "t1",
+        "times": 2.5,
+        "ratio": 1.5,
+        "note": "ok",
+        "urgent": true
+      }
+    },
+    {
+      "verb": "Tallying::Tally.Measure",
+      "args": {
+        "tally": "t1",
+        "times": 3,
+        "ratio": "heavy",
+        "note": "ok",
+        "urgent": true
+      }
+    },
+    {
+      "verb": "Tallying::Tally.Measure",
+      "args": {
+        "tally": "t1",
+        "times": 3,
+        "ratio": 1.5,
+        "note": [
+          "a",
+          "b"
+        ],
+        "urgent": true
+      }
+    },
+    {
+      "verb": "Tallying::Tally.Measure",
+      "args": {
+        "tally": "t1",
+        "times": 3,
+        "ratio": 1.5,
+        "note": "ok",
+        "urgent": {
+          "flag": true
+        }
+      }
+    },
+    {
+      "verb": "Tallying::Tally.Measure",
+      "args": {
+        "tally": "t1",
+        "times": 3,
+        "ratio": 1.5,
+        "note": "ok",
+        "urgent": [
+          true
+        ]
+      }
+    },
+    {
+      "verb": "Tallying::Tally.Measure",
+      "args": {
+        "tally": "t1",
+        "times": 3,
+        "ratio": 1.5,
+        "note": "ok",
+        "urgent": true
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "Tallying::Tally.Measure",
+        "error": "Tally.times expects Integer, got 2.5",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Tallying::Tally.Measure",
+        "error": "Tally.ratio expects Float, got \"heavy\"",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Tallying::Tally.Measure",
+        "error": "Tally.note expects String, got [\"a\",\"b\"]",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Tallying::Tally.Measure",
+        "error": "Tally.urgent expects TrueClass, got {\"flag\":true}",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Tallying::Tally.Measure",
+        "error": "Tally.urgent expects TrueClass, got [true]",
+        "kind": "TypeMismatch"
+      }
+    ],
+    "instances": {
+      "Tallying::Tally#t1": {
+        "tag": {
+          "value": "t1"
+        },
+        "count": {
+          "value": 0
+        },
+        "weight": {
+          "value": 0.0
+        },
+        "label": {
+          "value": ""
+        },
+        "limit": null,
+        "tags": [
+
+        ]
+      }
+    },
+    "events": [
+      {
+        "name": "TallyOpened",
+        "aggregate": "Tallying::Tally",
+        "id": "t1",
+        "payload": {
+          "tag": {
+            "value": "t1"
+          }
+        }
+      },
+      {
+        "name": "Measured",
+        "aggregate": "Tallying::Tally",
+        "id": "t1",
+        "payload": {
+          "tally": "t1",
+          "times": 3,
+          "ratio": 1.5,
+          "note": "ok",
+          "urgent": true
+        }
+      },
+      {
+        "name": "Measured",
+        "aggregate": "Tallying::Tally",
+        "id": "t1",
+        "payload": {
+          "tally": "t1",
+          "times": 3,
+          "ratio": 1.5,
+          "note": "ok",
+          "urgent": true
+        }
+      }
+    ]
+  }
+}

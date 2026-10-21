@@ -1,0 +1,298 @@
+{
+  "domain": "spec/corpus/semantics/domains/tally",
+  "spec": [
+    "C4.4"
+  ],
+  "note": "The numeric effects treat an absent target as 0 (C4.4): the optional limit starts absent; RaiseLimit by 5 gives 5, LowerLimit by 7 gives -2, ClampLimit brings it to 1, ScaleLimit by 4 gives 4. On fresh tallies with the limit still absent, LowerLimit by 3 gives -3, ScaleLimit by 4 gives 0 and ClampLimit gives 1.",
+  "steps": [
+    {
+      "verb": "Tallying::Tally.Open",
+      "args": {
+        "tag": {
+          "value": "t1"
+        }
+      }
+    },
+    {
+      "verb": "Tallying::Tally.RaiseLimit",
+      "args": {
+        "tally": "t1",
+        "by": {
+          "value": 5
+        }
+      }
+    },
+    {
+      "verb": "Tallying::Tally.LowerLimit",
+      "args": {
+        "tally": "t1",
+        "by": {
+          "value": 7
+        }
+      }
+    },
+    {
+      "verb": "Tallying::Tally.ClampLimit",
+      "args": {
+        "tally": "t1"
+      }
+    },
+    {
+      "verb": "Tallying::Tally.ScaleLimit",
+      "args": {
+        "tally": "t1",
+        "factor": {
+          "value": 4
+        }
+      }
+    },
+    {
+      "verb": "Tallying::Tally.Open",
+      "args": {
+        "tag": {
+          "value": "t2"
+        }
+      }
+    },
+    {
+      "verb": "Tallying::Tally.LowerLimit",
+      "args": {
+        "tally": "t2",
+        "by": {
+          "value": 3
+        }
+      }
+    },
+    {
+      "verb": "Tallying::Tally.Open",
+      "args": {
+        "tag": {
+          "value": "t3"
+        }
+      }
+    },
+    {
+      "verb": "Tallying::Tally.ScaleLimit",
+      "args": {
+        "tally": "t3",
+        "factor": {
+          "value": 4
+        }
+      }
+    },
+    {
+      "verb": "Tallying::Tally.Open",
+      "args": {
+        "tag": {
+          "value": "t4"
+        }
+      }
+    },
+    {
+      "verb": "Tallying::Tally.ClampLimit",
+      "args": {
+        "tally": "t4"
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+
+    ],
+    "instances": {
+      "Tallying::Tally#t1": {
+        "tag": {
+          "value": "t1"
+        },
+        "count": {
+          "value": 0
+        },
+        "weight": {
+          "value": 0.0
+        },
+        "label": {
+          "value": ""
+        },
+        "limit": {
+          "value": 4
+        },
+        "tags": [
+
+        ]
+      },
+      "Tallying::Tally#t2": {
+        "tag": {
+          "value": "t2"
+        },
+        "count": {
+          "value": 0
+        },
+        "weight": {
+          "value": 0.0
+        },
+        "label": {
+          "value": ""
+        },
+        "limit": {
+          "value": -3
+        },
+        "tags": [
+
+        ]
+      },
+      "Tallying::Tally#t3": {
+        "tag": {
+          "value": "t3"
+        },
+        "count": {
+          "value": 0
+        },
+        "weight": {
+          "value": 0.0
+        },
+        "label": {
+          "value": ""
+        },
+        "limit": {
+          "value": 0
+        },
+        "tags": [
+
+        ]
+      },
+      "Tallying::Tally#t4": {
+        "tag": {
+          "value": "t4"
+        },
+        "count": {
+          "value": 0
+        },
+        "weight": {
+          "value": 0.0
+        },
+        "label": {
+          "value": ""
+        },
+        "limit": {
+          "value": 1
+        },
+        "tags": [
+
+        ]
+      }
+    },
+    "events": [
+      {
+        "name": "TallyOpened",
+        "aggregate": "Tallying::Tally",
+        "id": "t1",
+        "payload": {
+          "tag": {
+            "value": "t1"
+          }
+        }
+      },
+      {
+        "name": "LimitRaised",
+        "aggregate": "Tallying::Tally",
+        "id": "t1",
+        "payload": {
+          "tally": "t1",
+          "by": {
+            "value": 5
+          }
+        }
+      },
+      {
+        "name": "LimitLowered",
+        "aggregate": "Tallying::Tally",
+        "id": "t1",
+        "payload": {
+          "tally": "t1",
+          "by": {
+            "value": 7
+          }
+        }
+      },
+      {
+        "name": "LimitClamped",
+        "aggregate": "Tallying::Tally",
+        "id": "t1",
+        "payload": {
+          "tally": "t1"
+        }
+      },
+      {
+        "name": "LimitScaled",
+        "aggregate": "Tallying::Tally",
+        "id": "t1",
+        "payload": {
+          "tally": "t1",
+          "factor": {
+            "value": 4
+          }
+        }
+      },
+      {
+        "name": "TallyOpened",
+        "aggregate": "Tallying::Tally",
+        "id": "t2",
+        "payload": {
+          "tag": {
+            "value": "t2"
+          }
+        }
+      },
+      {
+        "name": "LimitLowered",
+        "aggregate": "Tallying::Tally",
+        "id": "t2",
+        "payload": {
+          "tally": "t2",
+          "by": {
+            "value": 3
+          }
+        }
+      },
+      {
+        "name": "TallyOpened",
+        "aggregate": "Tallying::Tally",
+        "id": "t3",
+        "payload": {
+          "tag": {
+            "value": "t3"
+          }
+        }
+      },
+      {
+        "name": "LimitScaled",
+        "aggregate": "Tallying::Tally",
+        "id": "t3",
+        "payload": {
+          "tally": "t3",
+          "factor": {
+            "value": 4
+          }
+        }
+      },
+      {
+        "name": "TallyOpened",
+        "aggregate": "Tallying::Tally",
+        "id": "t4",
+        "payload": {
+          "tag": {
+            "value": "t4"
+          }
+        }
+      },
+      {
+        "name": "LimitClamped",
+        "aggregate": "Tallying::Tally",
+        "id": "t4",
+        "payload": {
+          "tally": "t4"
+        }
+      }
+    ]
+  }
+}

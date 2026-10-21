@@ -38,12 +38,15 @@ pub fn scalar_type_error(
     scalar_type: &str,
     value_var: &str,
 ) -> String {
-    if scalar_type != "Integer" && scalar_type != "Float" && scalar_type != "String" {
+    if !matches!(
+        scalar_type,
+        "Integer" | "Float" | "String" | "TrueClass" | "FalseClass"
+    ) {
         return json_type_error(struct_name, key, scalar_type);
     }
     let template = format!("{struct_name}.{key} expects {scalar_type}, got {{}}");
     let proper = format!(
-        "crate::kernel::Refusal::TypeMismatch(format!({}, {value_var}.inspect()))",
+        "crate::kernel::Refusal::TypeMismatch(format!({}, {value_var}.describe()))",
         naming::ruby_inspect_string(&template)
     );
     if scalar_type != "Integer" {
@@ -51,7 +54,7 @@ pub fn scalar_type_error(
     }
     let range_template = format!("{struct_name}.{key} must fit in a 64-bit integer, got {{}}");
     let range = format!(
-        "crate::kernel::Refusal::TypeMismatch(format!({}, {value_var}.inspect()))",
+        "crate::kernel::Refusal::TypeMismatch(format!({}, {value_var}.describe()))",
         naming::ruby_inspect_string(&range_template)
     );
     format!("if matches!({value_var}, crate::kernel::Json::Num(n, _) if n.is_finite() && n.fract() == 0.0 && n.abs() >= 9.223_372_036_854_776e18) {{ {range} }} else {{ {proper} }}")
@@ -426,6 +429,7 @@ pub fn emit_from_json_flat(
     absent_argument_check: bool,
     interleave_checks: bool,
     aggregates_by_name: Option<&HashMap<String, &Json>>,
+    scalar_owner: Option<&str>,
 ) -> String {
     let command_name = command_name.unwrap_or(struct_name);
     // A refusal names the command (`Write.slugs expects ...`), as Ruby's `Value.for_attribute`
@@ -435,6 +439,9 @@ pub fn emit_from_json_flat(
     } else {
         struct_name
     };
+    // A mistyped bare primitive names the declaring aggregate (Ruby's `check_bare_primitive`), while
+    // the list and shape refusals above keep naming the command.
+    let scalar_error_name = scalar_owner.unwrap_or(error_name);
     let idents: Vec<String> = attributes
         .iter()
         .map(|attr| naming::rust_ident_field(crate::attr::name(attr)))
@@ -466,11 +473,11 @@ pub fn emit_from_json_flat(
                 )
             } else if let (true, Some(scalar)) = (optional, scalar) {
                 // An optional argument offered as null is the same absence as an omitted key.
-                format!("match v.get({}) {{ Some(crate::kernel::Json::Null) | None => None, Some(x) => Some({}) }}", naming::ruby_inspect_string(&key), scalar_from_json_value_expr(error_name, &key, scalar, "x"))
+                format!("match v.get({}) {{ Some(crate::kernel::Json::Null) | None => None, Some(x) => Some({}) }}", naming::ruby_inspect_string(&key), scalar_from_json_value_expr(scalar_error_name, &key, scalar, "x"))
             } else if optional {
                 format!("match v.get({}) {{ Some(crate::kernel::Json::Null) | None => None, Some(x) => Some({}) }}", naming::ruby_inspect_string(&key), composite_from_json_expr(attr, value_objects_by_name, "x"))
             } else if let Some(scalar) = scalar {
-                scalar_from_json_expr(error_name, &key, scalar, crate::attr::default(attr))
+                scalar_from_json_expr(scalar_error_name, &key, scalar, crate::attr::default(attr))
             } else if absent_argument_check {
                 // The argument entry point only; see `required_composite_argument_expr`.
                 required_composite_argument_expr(error_name, &key, attr, value_objects_by_name)

@@ -37,9 +37,50 @@ fn less_than(lhs: &Value, rhs: &Value) -> Result<bool, Refusal> {
         _ => match (lhs, rhs) {
             (Value::Str(l), Value::Str(r)) => Ok(l < r),
             _ => Err(eval_error(format!(
-                "comparison of {lhs:?} with {rhs:?} failed"
+                "comparison of {} with {} failed",
+                ruby_class_of(lhs),
+                describe(rhs)
             ))),
         },
+    }
+}
+
+/// Names `value`'s class the way Ruby's `Evaluator.class_of` does: `nil` for nil, else the
+/// Ruby class name (`Integer`, `Float`, `String`, `TrueClass`, `FalseClass`, `Array`).
+const fn ruby_class_of(value: &Value) -> &'static str {
+    match value {
+        Value::Nil => "nil",
+        Value::Int(_) => "Integer",
+        Value::Float(_) => "Float",
+        Value::Str(_) => "String",
+        Value::Bool(true) => "TrueClass",
+        Value::Bool(false) => "FalseClass",
+        Value::List(_) | Value::Array(_) => "Array",
+    }
+}
+
+/// Renders `value` the way Ruby's `Rendering.describe` does: `nil`, JSON for an array, else
+/// `inspect`. A length-only `List` carries no elements, so it renders as an empty array.
+fn describe(value: &Value) -> String {
+    match value {
+        Value::Nil => "nil".to_string(),
+        Value::Int(n) => n.to_string(),
+        Value::Bool(b) => b.to_string(),
+        Value::Float(f) => format!("{f:?}"),
+        Value::Str(s) => format!("{s:?}"),
+        Value::List(_) => "[]".to_string(),
+        Value::Array(items) => {
+            let parts: Vec<String> = items.iter().map(describe_json).collect();
+            format!("[{}]", parts.join(","))
+        }
+    }
+}
+
+/// An array element as JSON: `null` for nil, else the same text `describe` gives.
+fn describe_json(value: &Value) -> String {
+    match value {
+        Value::Nil => "null".to_string(),
+        other => describe(other),
     }
 }
 
@@ -49,5 +90,44 @@ pub(crate) fn values_equal(lhs: &Value, rhs: &Value) -> bool {
     match (scalar::numeric(lhs), scalar::numeric(rhs)) {
         (Some(l), Some(r)) => l == r,
         _ => lhs == rhs,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn failure(lhs: &Value, rhs: &Value) -> String {
+        match less_than(lhs, rhs) {
+            Err(Refusal::Fault(message)) => message,
+            other => format!("expected a Fault, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn ordering_against_nil_reads_like_ruby() {
+        assert_eq!(
+            failure(&Value::Int(0), &Value::Nil),
+            "comparison of Integer with nil failed"
+        );
+    }
+
+    #[test]
+    fn mixed_kinds_name_the_ruby_class_then_inspect_the_other_side() {
+        assert_eq!(
+            failure(&Value::Str("a".into()), &Value::Int(5)),
+            "comparison of String with 5 failed"
+        );
+        assert_eq!(
+            failure(&Value::Nil, &Value::Str("a".into())),
+            "comparison of nil with \"a\" failed"
+        );
+        assert_eq!(
+            failure(
+                &Value::Bool(true),
+                &Value::Array(vec![Value::Int(1), Value::Nil])
+            ),
+            "comparison of TrueClass with [1,null] failed"
+        );
     }
 }
