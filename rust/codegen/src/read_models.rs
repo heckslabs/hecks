@@ -679,16 +679,48 @@ pub struct ReadModelDef {
     pub authorization: Option<String>,
     pub group_by_fn: Option<String>,
     pub group_by_fn_body: Option<String>,
-    pub count: bool,
-    pub median_field: Option<String>,
-    pub sum_field: Option<String>,
-    pub avg_field: Option<String>,
-    pub min_field: Option<String>,
-    pub max_field: Option<String>,
-    pub percentile_field: Option<String>,
-    pub percentile_at: Option<String>,
-    pub any_field: Option<String>,
-    pub all_field: Option<String>,
+    /// The kernel's `Reduction` variant this read model declares, as the expression the
+    /// generated table holds (`Sum("total")`); `None` when it declares none.
+    pub reduction: Option<String>,
+}
+
+/// The reduction a read model's IR declares, in the kernel's own precedence: `count`, then the
+/// `<word> :field` reductions.
+#[allow(
+    clippy::panic,
+    reason = "a drifted exemplar or invalid IR aborts generation on purpose"
+)]
+fn reduction_of(read_model: &Json) -> Option<String> {
+    if read_model.get("count").is_some() {
+        return Some("Count".to_string());
+    }
+    let field = |key: &str| {
+        read_model
+            .get(key)
+            .map(|v| crate::naming::ruby_inspect_string(&v.to_s()))
+    };
+    let single = [
+        ("median_field", "Median"),
+        ("sum_field", "Sum"),
+        ("avg_field", "Avg"),
+        ("min_field", "Min"),
+        ("max_field", "Max"),
+    ];
+    if let Some(found) = single
+        .iter()
+        .find_map(|(key, variant)| field(key).map(|f| format!("{variant}({f})")))
+    {
+        return Some(found);
+    }
+    if let Some(f) = field("percentile_field") {
+        let Some(at) = read_model.get("percentile_at").map(Json::to_s) else {
+            panic!("percentile_field {f} declares no percentile_at");
+        };
+        return Some(format!("Percentile {{ field: {f}, at: {at}_f64 }}"));
+    }
+    [("any_field", "Any"), ("all_field", "All")]
+        .iter()
+        .find_map(|(key, variant)| field(key).map(|f| format!("{variant}({f})")))
 }
 
 /// `local_wheres, hop_wheres` compiled for one targeted head, mirroring
@@ -810,20 +842,7 @@ pub fn read_model_def(
         },
         group_by_fn,
         group_by_fn_body,
-        count: read_model.get("count").is_some(),
-        median_field: read_model.get("median_field").map(Json::to_s),
-        sum_field: read_model.get("sum_field").map(Json::to_s),
-        avg_field: read_model.get("avg_field").map(Json::to_s),
-        min_field: read_model.get("min_field").map(Json::to_s),
-        max_field: read_model.get("max_field").map(Json::to_s),
-        percentile_field: read_model.get("percentile_field").map(Json::to_s),
-        percentile_at: if read_model.get("percentile_field").is_some() {
-            read_model.get("percentile_at").map(Json::to_s)
-        } else {
-            None
-        },
-        any_field: read_model.get("any_field").map(Json::to_s),
-        all_field: read_model.get("all_field").map(Json::to_s),
+        reduction: reduction_of(read_model),
     }
 }
 
@@ -864,28 +883,13 @@ pub fn emit_read_model_def(rmd: &ReadModelDef) -> String {
         .group_by_fn
         .as_ref()
         .map_or_else(|| "None".to_string(), |f| format!("Some({f})"));
-    let count = if rmd.count { "true" } else { "false" };
-    let field_some = |f: &Option<String>| {
-        f.as_ref().map_or_else(
-            || "None".to_string(),
-            |v| format!("Some({})", crate::naming::ruby_inspect_string(v)),
-        )
-    };
-    let median_field = field_some(&rmd.median_field);
-    let sum_field = field_some(&rmd.sum_field);
-    let avg_field = field_some(&rmd.avg_field);
-    let min_field = field_some(&rmd.min_field);
-    let max_field = field_some(&rmd.max_field);
-    let percentile_field = field_some(&rmd.percentile_field);
-    let percentile_at = rmd
-        .percentile_at
-        .as_ref()
-        .map_or_else(|| "None".to_string(), |at| format!("Some({at}_f64)"));
-    let any_field = field_some(&rmd.any_field);
-    let all_field = field_some(&rmd.all_field);
+    let reduction = rmd.reduction.as_ref().map_or_else(
+        || "None".to_string(),
+        |r| format!("Some(crate::kernel::read_model::Reduction::{r})"),
+    );
 
     format!(
-        "crate::kernel::read_model::ReadModelDef {{\n    verb: {},\n    reference_name: {reference_name},\n    heads: &[\n{heads}\n    ],\n    filtered_heads: &[\n{filtered_heads}\n    ],\n    authorization: {authorization},\n    group_by: {group_by},\n    count: {count},\n    median_field: {median_field},\n    sum_field: {sum_field},\n    avg_field: {avg_field},\n    min_field: {min_field},\n    max_field: {max_field},\n    percentile_field: {percentile_field},\n    percentile_at: {percentile_at},\n    any_field: {any_field},\n    all_field: {all_field},\n}},",
+        "crate::kernel::read_model::ReadModelDef {{\n    verb: {},\n    reference_name: {reference_name},\n    heads: &[\n{heads}\n    ],\n    filtered_heads: &[\n{filtered_heads}\n    ],\n    authorization: {authorization},\n    group_by: {group_by},\n    reduction: {reduction},\n}},",
         crate::naming::ruby_inspect_string(&rmd.verb)
     )
 }
@@ -1083,7 +1087,7 @@ fn unwrap_json_expr(
     format!("match {expr} {{ crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(fields.into_iter().map(|(k, v)| {{ let new_v = match k.as_str() {{ {inner_arms} _ => v }}; (k, new_v) }}).collect()), other => other }}")
 }
 
-const READ_MODEL_TABLE_ROW_PLACEHOLDER: &str = "crate::kernel::read_model::ReadModelDef {\n    verb: \"tmpl_verb\",\n    reference_name: Some(\"tmpl_reference_name\"),\n    heads: &[\n        crate::kernel::read_model::ReadModelHead {\n            aggregate: \"tmpl_aggregate\",\n            as_name: \"tmpl_as_name\",\n            many: true,\n            is_root: false,\n            reference_fields: &[\n                crate::kernel::read_model::ReferenceField { target_aggregate: \"tmpl_target_aggregate\", field: \"tmpl_field\" },\n            ],\n        },\n    ],\n    filtered_heads: &[\n        crate::kernel::read_model::FilteredHead { as_name: \"tmpl_as_name\", conditions: &[crate::kernel::QueryCondition { field: \"tmpl_field\", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal(\"tmpl_literal\") },], reference_hop_conditions: &[crate::kernel::read_model::ReferenceHopCondition { via_field: \"tmpl_via_field\", target_aggregate: \"tmpl_target_aggregate\", through: &[crate::kernel::read_model::HopStep { via_field: \"tmpl_via_field\", target_aggregate: \"tmpl_target_aggregate\" }], inner_field: \"tmpl_inner_field\", inner_comparator: crate::kernel::query_comparators::QueryComparator::Eq, inner_value: crate::kernel::QueryConditionValue::Literal(\"tmpl_literal\") },], order_by: Some(crate::kernel::read_model::ReadModelOrderBy { field: \"tmpl_order_field\", descending: true, nulls: crate::kernel::query_ordering::NullsMode::Last }), offset: Some(crate::kernel::read_model::ReadModelOffset::Literal(1)), limit: Some(crate::kernel::read_model::ReadModelLimit::Literal(5)) },\n    ],\n    authorization: Some(crate::kernel::named_query::TenantAuth { query_name: \"tmpl_query_name\", tenant_field: \"tmpl_tenant_field\", policy: \"tmpl_policy\" }),\n    group_by: None,\n    count: false,\n    median_field: None,\n    sum_field: None,\n    avg_field: None,\n    min_field: None,\n    max_field: None,\n    percentile_field: None,\n    percentile_at: None,\n    any_field: None,\n    all_field: None,\n},";
+const READ_MODEL_TABLE_ROW_PLACEHOLDER: &str = "crate::kernel::read_model::ReadModelDef {\n    verb: \"tmpl_verb\",\n    reference_name: Some(\"tmpl_reference_name\"),\n    heads: &[\n        crate::kernel::read_model::ReadModelHead {\n            aggregate: \"tmpl_aggregate\",\n            as_name: \"tmpl_as_name\",\n            many: true,\n            is_root: false,\n            reference_fields: &[\n                crate::kernel::read_model::ReferenceField { target_aggregate: \"tmpl_target_aggregate\", field: \"tmpl_field\" },\n            ],\n        },\n    ],\n    filtered_heads: &[\n        crate::kernel::read_model::FilteredHead { as_name: \"tmpl_as_name\", conditions: &[crate::kernel::QueryCondition { field: \"tmpl_field\", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal(\"tmpl_literal\") },], reference_hop_conditions: &[crate::kernel::read_model::ReferenceHopCondition { via_field: \"tmpl_via_field\", target_aggregate: \"tmpl_target_aggregate\", through: &[crate::kernel::read_model::HopStep { via_field: \"tmpl_via_field\", target_aggregate: \"tmpl_target_aggregate\" }], inner_field: \"tmpl_inner_field\", inner_comparator: crate::kernel::query_comparators::QueryComparator::Eq, inner_value: crate::kernel::QueryConditionValue::Literal(\"tmpl_literal\") },], order_by: Some(crate::kernel::read_model::ReadModelOrderBy { field: \"tmpl_order_field\", descending: true, nulls: crate::kernel::query_ordering::NullsMode::Last }), offset: Some(crate::kernel::read_model::ReadModelOffset::Literal(1)), limit: Some(crate::kernel::read_model::ReadModelLimit::Literal(5)) },\n    ],\n    authorization: Some(crate::kernel::named_query::TenantAuth { query_name: \"tmpl_query_name\", tenant_field: \"tmpl_tenant_field\", policy: \"tmpl_policy\" }),\n    group_by: None,\n    reduction: None,\n},";
 
 pub fn emit_read_model_table(exemplar: &Exemplar, read_model_defs: &[ReadModelDef]) -> String {
     let rows: Vec<String> = read_model_defs.iter().map(emit_read_model_def).collect();

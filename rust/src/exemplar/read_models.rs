@@ -33,16 +33,7 @@ crate::kernel::read_model::ReadModelDef {
     ],
     authorization: Some(crate::kernel::named_query::TenantAuth { query_name: "tmpl_query_name", tenant_field: "tmpl_tenant_field", policy: "tmpl_policy" }),
     group_by: None,
-    count: false,
-    median_field: None,
-    sum_field: None,
-    avg_field: None,
-    min_field: None,
-    max_field: None,
-    percentile_field: None,
-    percentile_at: None,
-    any_field: None,
-    all_field: None,
+    reduction: None,
 },
 ];
 // TMPL:read_model_table END
