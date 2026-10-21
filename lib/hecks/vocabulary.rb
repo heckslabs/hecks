@@ -514,6 +514,8 @@ module Hecks
       ].freeze,
       "RustReservedWord" => [
         {"word"=>"as"}.freeze,
+        {"word"=>"async"}.freeze,
+        {"word"=>"await"}.freeze,
         {"word"=>"break"}.freeze,
         {"word"=>"const"}.freeze,
         {"word"=>"continue"}.freeze,

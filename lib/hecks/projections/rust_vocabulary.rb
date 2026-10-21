@@ -1,6 +1,7 @@
 require_relative "../naming"
 require_relative "../projector"
 require_relative "../runtime/refusal_wording"
+require_relative "../vocabulary"
 require_relative "vocabulary"
 require_relative "rust_vocabulary/enum_body"
 require_relative "rust_vocabulary/arguments"
@@ -34,10 +35,6 @@ module Hecks
                                       kind: :order }
       }.freeze
 
-      RUST_KEYWORDS = %w[as async await break const continue crate dyn else enum extern false fn for if impl in let loop
-                         match mod move mut pub ref return self static struct super trait true type unsafe use where
-                         while abstract become box do final macro override priv typeof unsized virtual yield try].freeze
-
       # Keywords Rust refuses as a raw identifier, so they cannot take the `r#` escape.
       NOT_RAW = %w[crate self Self super].freeze
 
@@ -49,7 +46,7 @@ module Hecks
       def field_name(name)
         return "#{name}_" if NOT_RAW.include?(name)
 
-        RUST_KEYWORDS.include?(name) ? "r##{name}" : name
+        Hecks::Vocabulary.fetch("RustReservedWord").include?(name) ? "r##{name}" : name
       end
 
       def call(bluebook:, options: {}) = render(bluebook)
