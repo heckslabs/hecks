@@ -2,13 +2,13 @@
 // CargoReservedName vocabularies (lib/hecks/language/bluebook/
 // vocabulary.bluebook). Do not hand-edit — re-run hecks project_reserved_names.
 
-/// The `RustReservedWord` vocabulary, 49 entries.
+/// The `RustReservedWord` vocabulary, 51 entries.
 pub const RUST_KEYWORDS: &[&str] = &[
-    "as", "break", "const", "continue", "crate", "dyn", "else", "enum", "extern", "false", "fn",
-    "for", "if", "impl", "in", "let", "loop", "match", "mod", "move", "mut", "pub", "ref",
-    "return", "self", "Self", "static", "struct", "super", "trait", "true", "type", "unsafe",
-    "use", "where", "while", "abstract", "become", "box", "do", "final", "macro", "override",
-    "priv", "typeof", "unsized", "virtual", "yield", "try",
+    "as", "async", "await", "break", "const", "continue", "crate", "dyn", "else", "enum", "extern",
+    "false", "fn", "for", "if", "impl", "in", "let", "loop", "match", "mod", "move", "mut", "pub",
+    "ref", "return", "self", "Self", "static", "struct", "super", "trait", "true", "type",
+    "unsafe", "use", "where", "while", "abstract", "become", "box", "do", "final", "macro",
+    "override", "priv", "typeof", "unsized", "virtual", "yield", "try",
 ];
 
 /// The `CargoReservedName` vocabulary, 16 entries.

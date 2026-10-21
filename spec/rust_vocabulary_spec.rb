@@ -35,4 +35,10 @@ RSpec.describe "the generated Rust vocabulary tables (hecks project_rust_vocabul
 
     expect(committed - projected.keys).to be_empty
   end
+
+  it "escapes every reserved word a field could take, including the 2018 keywords", :aggregate_failures do
+    escaped = %w[async await match].map { |word| Hecks::Projections::RustVocabulary.field_name(word) }
+
+    expect(escaped).to eq(%w[r#async r#await r#match])
+  end
 end
