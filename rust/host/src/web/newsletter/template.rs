@@ -53,11 +53,12 @@ async fn read_capped(mut response: reqwest::Response) -> Result<String, String> 
 // GETs the template (5 second timeout, size capped); a non-2xx answer or
 // any transport trouble is an `Err` with the reason.
 async fn fetch_template(url: &str) -> Result<String, String> {
-    let http = reqwest::Client::builder()
+    let response = crate::http::client()
+        .get(url)
         .timeout(FETCH_TIMEOUT)
-        .build()
+        .send()
+        .await
         .map_err(|e| e.to_string())?;
-    let response = http.get(url).send().await.map_err(|e| e.to_string())?;
     if !response.status().is_success() {
         return Err(format!("the template answered {}", response.status()));
     }

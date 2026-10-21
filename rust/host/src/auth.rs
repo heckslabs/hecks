@@ -62,7 +62,7 @@ pub async fn verify(code: &str, redirect_uri: &str) -> Result<Claims, String> {
     let client_secret = std::env::var("GOOGLE_CLIENT_SECRET")
         .map_err(|_| "GOOGLE_CLIENT_SECRET not set".to_string())?;
 
-    let http = reqwest::Client::new();
+    let http = crate::http::client();
     let resp = http
         .post("https://oauth2.googleapis.com/token")
         .form(&[
@@ -102,7 +102,7 @@ async fn verify_id_token(id_token: &str, client_id: &str) -> Result<Claims, Stri
         .kid
         .ok_or_else(|| "id_token header has no kid".to_string())?;
 
-    let http = reqwest::Client::new();
+    let http = crate::http::client();
     let jwks: Value = http
         .get("https://www.googleapis.com/oauth2/v3/certs")
         .send()

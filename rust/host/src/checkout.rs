@@ -157,7 +157,7 @@ pub async fn create_checkout_session(
         ("metadata[registration_id]", registration_id),
     ];
 
-    let response = reqwest::Client::new()
+    let response = crate::http::client()
         .post(format!("{}/v1/checkout/sessions", auth.base_url))
         .bearer_auth(auth.api_key)
         .header("Stripe-Version", STRIPE_API_VERSION)

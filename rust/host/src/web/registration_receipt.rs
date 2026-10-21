@@ -74,7 +74,7 @@ async fn site_email(
             query.append_pair("amount_cents", &cents.to_string());
         }
     }
-    let response = reqwest::Client::new()
+    let response = crate::http::client()
         .get(url)
         .header("x-internal-auth", token)
         .timeout(std::time::Duration::from_secs(8))
