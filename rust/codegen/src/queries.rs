@@ -20,6 +20,51 @@ pub enum FieldKind {
     Unknown,
 }
 
+/// Where a dotted field path ends.
+enum PathEnd<'a> {
+    /// The path lands on a member of this type.
+    Type(&'a str),
+    /// The path's head is a list attribute.
+    HeadList,
+    /// The path names nothing: an undeclared attribute or member, a list member, or a step
+    /// through a type with no members (a scalar, or a reference, which is never a value object).
+    Broken,
+}
+
+/// Walks `field` from `aggregate`: its head names an attribute, and any later segments step
+/// through nested value objects. The one walk the kind, boolean and numeric classifiers share;
+/// each then judges the type it lands on.
+fn path_end<'a>(
+    aggregate: &'a Json,
+    field: &str,
+    value_objects_by_name: &HashMap<String, &'a Json>,
+) -> PathEnd<'a> {
+    let mut segments = field.split('.');
+    let head = segments.next().unwrap_or("");
+    let attrs = aggregate.get("attributes").map_or_default(Json::each);
+    let Some(attr) = attrs.iter().find(|a| crate::attr::name(a) == head) else {
+        return PathEnd::Broken;
+    };
+    if crate::attr::list(attr) {
+        return PathEnd::HeadList;
+    }
+    let mut type_name = crate::attr::type_name(attr);
+    for segment in segments {
+        let Some(vo) = value_objects_by_name.get(type_name) else {
+            return PathEnd::Broken;
+        };
+        let members = vo.get("attributes").map_or_default(Json::each);
+        let Some(member) = members.iter().find(|a| crate::attr::name(a) == segment) else {
+            return PathEnd::Broken;
+        };
+        if crate::attr::list(member) {
+            return PathEnd::Broken;
+        }
+        type_name = crate::attr::type_name(member);
+    }
+    PathEnd::Type(type_name)
+}
+
 /// Classifies `field`: its head names an attribute or the lifecycle field, and any
 /// later segments walk nested value objects.
 pub fn query_field_kind(
@@ -29,7 +74,6 @@ pub fn query_field_kind(
 ) -> FieldKind {
     let mut segments = field.split('.');
     let head = segments.next().unwrap_or("");
-    let rest: Vec<&str> = segments.collect();
 
     let lifecycle_field = aggregate
         .get("lifecycle")
@@ -37,7 +81,7 @@ pub fn query_field_kind(
         .map(Json::to_s);
     if let Some(lf) = &lifecycle_field {
         if lf == head {
-            return if rest.is_empty() {
+            return if segments.next().is_none() {
                 FieldKind::String
             } else {
                 FieldKind::Unknown
@@ -45,49 +89,18 @@ pub fn query_field_kind(
         }
     }
 
-    let attrs = aggregate.get("attributes").map_or_default(Json::each);
-    let Some(attr) = attrs.iter().find(|a| crate::attr::name(a) == head) else {
-        return FieldKind::Unknown;
-    };
-    if crate::attr::list(attr) {
-        return FieldKind::Other;
+    match path_end(aggregate, field, value_objects_by_name) {
+        PathEnd::HeadList => FieldKind::Other,
+        PathEnd::Broken => FieldKind::Unknown,
+        PathEnd::Type(type_name) => type_kind(type_name, value_objects_by_name),
     }
-
-    query_type_kind(crate::attr::type_name(attr), &rest, value_objects_by_name)
 }
 
-fn query_type_kind(
-    type_name: &str,
-    segments: &[&str],
-    value_objects_by_name: &HashMap<String, &Json>,
-) -> FieldKind {
+fn type_kind(type_name: &str, value_objects_by_name: &HashMap<String, &Json>) -> FieldKind {
     if naming::reference_type(type_name) {
-        return if segments.is_empty() {
-            FieldKind::String
-        } else {
-            FieldKind::Unknown
-        };
+        return FieldKind::String;
     }
-
-    if segments.is_empty() {
-        return query_scalar_or_vo_kind(type_name, value_objects_by_name);
-    }
-
-    let Some(vo) = value_objects_by_name.get(type_name) else {
-        return FieldKind::Unknown;
-    };
-    let attrs = vo.get("attributes").map_or_default(Json::each);
-    let Some(member) = attrs.iter().find(|a| crate::attr::name(a) == segments[0]) else {
-        return FieldKind::Unknown;
-    };
-    if crate::attr::list(member) {
-        return FieldKind::Unknown;
-    }
-    query_type_kind(
-        crate::attr::type_name(member),
-        &segments[1..],
-        value_objects_by_name,
-    )
+    query_scalar_or_vo_kind(type_name, value_objects_by_name)
 }
 
 fn query_scalar_or_vo_kind(
@@ -115,11 +128,7 @@ fn query_vo_collapse_kind(vo: &Json, value_objects_by_name: &HashMap<String, &Js
         return FieldKind::Number;
     }
     if attrs.len() == 1 {
-        return query_type_kind(
-            crate::attr::type_name(&attrs[0]),
-            &[],
-            value_objects_by_name,
-        );
+        return type_kind(crate::attr::type_name(&attrs[0]), value_objects_by_name);
     }
     FieldKind::Other
 }
@@ -131,61 +140,24 @@ pub fn query_field_boolean(
     field: &str,
     value_objects_by_name: &HashMap<String, &Json>,
 ) -> bool {
-    let mut segments = field.split('.');
-    let head = segments.next().unwrap_or("");
-    let rest: Vec<&str> = segments.collect();
-
-    let attrs = aggregate.get("attributes").map_or_default(Json::each);
-    let Some(attr) = attrs.iter().find(|a| crate::attr::name(a) == head) else {
-        return false;
-    };
-    if crate::attr::list(attr) {
-        return false;
+    match path_end(aggregate, field, value_objects_by_name) {
+        PathEnd::Type(type_name) => type_boolean(type_name, value_objects_by_name),
+        PathEnd::HeadList | PathEnd::Broken => false,
     }
-    query_type_boolean(crate::attr::type_name(attr), &rest, value_objects_by_name)
 }
 
-fn query_type_boolean(
-    type_name: &str,
-    segments: &[&str],
-    value_objects_by_name: &HashMap<String, &Json>,
-) -> bool {
-    if segments.is_empty() {
-        if matches!(type_name, "TrueClass" | "FalseClass") {
-            return true;
-        }
-        if naming::reference_type(type_name) {
-            return false;
-        }
-        let Some(vo) = value_objects_by_name.get(type_name) else {
-            return false;
-        };
-        let attrs = vo.get("attributes").map_or_default(Json::each);
-        if attrs.len() == 1 {
-            return query_type_boolean(
-                crate::attr::type_name(&attrs[0]),
-                &[],
-                value_objects_by_name,
-            );
-        }
-        false
-    } else {
-        let Some(vo) = value_objects_by_name.get(type_name) else {
-            return false;
-        };
-        let attrs = vo.get("attributes").map_or_default(Json::each);
-        let Some(member) = attrs.iter().find(|a| crate::attr::name(a) == segments[0]) else {
-            return false;
-        };
-        if crate::attr::list(member) {
-            return false;
-        }
-        query_type_boolean(
-            crate::attr::type_name(member),
-            &segments[1..],
-            value_objects_by_name,
-        )
+fn type_boolean(type_name: &str, value_objects_by_name: &HashMap<String, &Json>) -> bool {
+    if matches!(type_name, "TrueClass" | "FalseClass") {
+        return true;
     }
+    if naming::reference_type(type_name) {
+        return false;
+    }
+    let Some(vo) = value_objects_by_name.get(type_name) else {
+        return false;
+    };
+    let attrs = vo.get("attributes").map_or_default(Json::each);
+    attrs.len() == 1 && type_boolean(crate::attr::type_name(&attrs[0]), value_objects_by_name)
 }
 
 /// The winning member's own type name for a numeric field ("the sole numeric member wins",
@@ -197,59 +169,31 @@ pub fn query_field_numeric_type(
     field: &str,
     value_objects_by_name: &HashMap<String, &Json>,
 ) -> Option<String> {
-    let mut segments = field.split('.');
-    let head = segments.next().unwrap_or("");
-    let rest: Vec<&str> = segments.collect();
-
-    let attrs = aggregate.get("attributes").map_or_default(Json::each);
-    let attr = attrs.iter().find(|a| crate::attr::name(a) == head)?;
-    if crate::attr::list(attr) {
-        return None;
+    match path_end(aggregate, field, value_objects_by_name) {
+        PathEnd::Type(type_name) => type_numeric(type_name, value_objects_by_name),
+        PathEnd::HeadList | PathEnd::Broken => None,
     }
-    query_type_numeric_type(crate::attr::type_name(attr), &rest, value_objects_by_name)
 }
 
-fn query_type_numeric_type(
-    type_name: &str,
-    segments: &[&str],
-    value_objects_by_name: &HashMap<String, &Json>,
-) -> Option<String> {
-    if segments.is_empty() {
-        if matches!(type_name, "Integer" | "Float") {
-            return Some(type_name.to_string());
-        }
-        if naming::reference_type(type_name) {
-            return None;
-        }
-        let vo = value_objects_by_name.get(type_name)?;
-        let attrs = vo.get("attributes").map_or_default(Json::each);
-        if let Some(numeric_member) = attrs
-            .iter()
-            .find(|a| matches!(crate::attr::type_name(a), "Integer" | "Float"))
-        {
-            return Some(crate::attr::type_name(numeric_member).to_string());
-        }
-        if attrs.len() == 1 {
-            return query_type_numeric_type(
-                crate::attr::type_name(&attrs[0]),
-                &[],
-                value_objects_by_name,
-            );
-        }
-        None
-    } else {
-        let vo = value_objects_by_name.get(type_name)?;
-        let attrs = vo.get("attributes").map_or_default(Json::each);
-        let member = attrs.iter().find(|a| crate::attr::name(a) == segments[0])?;
-        if crate::attr::list(member) {
-            return None;
-        }
-        query_type_numeric_type(
-            crate::attr::type_name(member),
-            &segments[1..],
-            value_objects_by_name,
-        )
+fn type_numeric(type_name: &str, value_objects_by_name: &HashMap<String, &Json>) -> Option<String> {
+    if matches!(type_name, "Integer" | "Float") {
+        return Some(type_name.to_string());
     }
+    if naming::reference_type(type_name) {
+        return None;
+    }
+    let vo = value_objects_by_name.get(type_name)?;
+    let attrs = vo.get("attributes").map_or_default(Json::each);
+    if let Some(numeric_member) = attrs
+        .iter()
+        .find(|a| matches!(crate::attr::type_name(a), "Integer" | "Float"))
+    {
+        return Some(crate::attr::type_name(numeric_member).to_string());
+    }
+    if attrs.len() == 1 {
+        return type_numeric(crate::attr::type_name(&attrs[0]), value_objects_by_name);
+    }
+    None
 }
 
 pub fn query_where_skip_reason(
@@ -1143,4 +1087,84 @@ pub fn emit_query_arg_check_table(query_defs: &[QueryDef]) -> String {
         "/// C3.7 for a named query's own arguments — `query_arg_checks`\n/// (rust/codegen/src/queries.rs) has the full story.\npub fn check_query_args(verb: &str, args: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {{\n    match verb {{\n{}\n        _ => Ok(()),\n    }}\n}}\n",
         arms.join("\n")
     )
+}
+
+#[cfg(test)]
+mod path_tests {
+    use super::*;
+
+    const AGGREGATE: &str = r#"{"lifecycle":{"field":"status"},"attributes":[
+        {"name":"status","type":"String","list":false},
+        {"name":"title","type":"String","list":false},
+        {"name":"count","type":"Integer","list":false},
+        {"name":"flag","type":"TrueClass","list":false},
+        {"name":"owner","type":"Reference<Person>","list":false},
+        {"name":"tags","type":"String","list":true},
+        {"name":"money","type":"Money","list":false},
+        {"name":"nest","type":"Nest","list":false}]}"#;
+    const VALUE_OBJECTS: [&str; 3] = [
+        r#"{"name":"Money","attributes":[{"name":"amount","type":"Float","list":false},{"name":"currency","type":"String","list":false}]}"#,
+        r#"{"name":"Nest","attributes":[{"name":"items","type":"Money","list":true},{"name":"flag","type":"Flag","list":false}]}"#,
+        r#"{"name":"Flag","attributes":[{"name":"on","type":"TrueClass","list":false}]}"#,
+    ];
+
+    /// Runs `check` over the classifiers' common inputs.
+    fn with_schema(check: impl Fn(&Json, &HashMap<String, &Json>)) {
+        let aggregate = Json::parse(AGGREGATE).unwrap();
+        let parsed: Vec<Json> = VALUE_OBJECTS
+            .iter()
+            .map(|text| Json::parse(text).unwrap())
+            .collect();
+        let by_name: HashMap<String, &Json> = parsed
+            .iter()
+            .map(|vo| {
+                (
+                    vo.get("name").and_then(Json::as_str).unwrap().to_string(),
+                    vo,
+                )
+            })
+            .collect();
+        check(&aggregate, &by_name);
+    }
+
+    #[test]
+    fn a_path_is_classified_by_the_type_it_lands_on() {
+        with_schema(|aggregate, vos| {
+            let kind = |path: &str| query_field_kind(aggregate, path, vos);
+            assert_eq!(kind("title"), FieldKind::String);
+            assert_eq!(kind("owner"), FieldKind::String);
+            assert_eq!(kind("status"), FieldKind::String);
+            assert_eq!(kind("count"), FieldKind::Number);
+            assert_eq!(kind("money"), FieldKind::Number);
+            assert_eq!(kind("nest.flag"), FieldKind::Other);
+        });
+    }
+
+    #[test]
+    fn a_path_that_names_nothing_is_unknown_and_a_list_head_is_other() {
+        with_schema(|aggregate, vos| {
+            let kind = |path: &str| query_field_kind(aggregate, path, vos);
+            assert_eq!(kind("missing"), FieldKind::Unknown);
+            assert_eq!(kind("status.x"), FieldKind::Unknown);
+            assert_eq!(kind("owner.x"), FieldKind::Unknown);
+            assert_eq!(kind("nest.items"), FieldKind::Unknown);
+            assert_eq!(kind("tags"), FieldKind::Other);
+        });
+    }
+
+    #[test]
+    fn booleans_and_numeric_types_follow_a_single_member_down() {
+        with_schema(|aggregate, vos| {
+            assert!(query_field_boolean(aggregate, "flag", vos));
+            assert!(query_field_boolean(aggregate, "nest.flag", vos));
+            assert!(query_field_boolean(aggregate, "nest.flag.on", vos));
+            assert!(!query_field_boolean(aggregate, "money", vos));
+            assert!(!query_field_boolean(aggregate, "tags", vos));
+            let numeric = |path: &str| query_field_numeric_type(aggregate, path, vos);
+            assert_eq!(numeric("count").as_deref(), Some("Integer"));
+            assert_eq!(numeric("money").as_deref(), Some("Float"));
+            assert_eq!(numeric("title"), None);
+            assert_eq!(numeric("tags"), None);
+        });
+    }
 }
