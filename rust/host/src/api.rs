@@ -3,8 +3,8 @@
 
 use crate::auth::Session;
 use crate::dispatch;
+use crate::host::Host;
 use crate::journal::LineageConfig;
-use crate::lambda_client::LambdaInvoker;
 use crate::presentation;
 use crate::presentation_write;
 use crate::ui_schema;
@@ -19,7 +19,6 @@ use tokio_postgres::Client;
 /// Every `/api/...` request, answered. `session` is `None` only in tests —
 /// `web::route` runs `auth_gate` first in production — but it stays an
 /// `Option` because `/api/me` itself has a real empty-session answer.
-#[allow(clippy::too_many_arguments)]
 #[allow(clippy::implicit_hasher)] // reason: the query map always comes from this crate's own default-hashed parser
 pub async fn route(
     domain_ir: &Value,
@@ -28,11 +27,14 @@ pub async fn route(
     query: &HashMap<String, String>,
     raw_body: &str,
     session: Option<&Session>,
-    client: &Mutex<Client>,
-    wasm_path: &Path,
-    config: &LineageConfig,
-    invoker: &dyn LambdaInvoker,
+    host: Host<'_>,
 ) -> Value {
+    let Host {
+        client,
+        wasm_path,
+        config,
+        ..
+    } = host;
     match (method, path) {
         ("GET", "/api/me") => ok(&me(session)),
 
@@ -57,9 +59,7 @@ pub async fn route(
             Err(e) => internal_error(&e.to_string()),
         },
 
-        ("PUT", "/api/presentation") => {
-            presentation_save(domain_ir, raw_body, client, wasm_path, config, invoker).await
-        }
+        ("PUT", "/api/presentation") => presentation_save(domain_ir, raw_body, host).await,
 
         // Collection routes (`/api/:coll[/:id]`), matched last so `:coll`
         // doesn't swallow `me`/`schema`. Segments are percent-decoded: a
@@ -81,17 +81,10 @@ pub async fn route(
                     record_show(domain_ir, collection, id, client, wasm_path, config).await
                 }
                 ("POST", [collection]) => {
-                    collection_create(
-                        domain_ir, collection, raw_body, client, wasm_path, config, invoker,
-                    )
-                    .await
+                    collection_create(domain_ir, collection, raw_body, host).await
                 }
                 ("POST", [collection, id, command]) => {
-                    command_route(
-                        domain_ir, collection, id, command, raw_body, client, wasm_path, config,
-                        invoker,
-                    )
-                    .await
+                    command_route(domain_ir, collection, id, command, raw_body, host).await
                 }
                 _ => not_found(&format!("no API route for {method} {path}")),
             }
@@ -331,16 +324,18 @@ fn value_object_field(aggregate: &Value, type_name: &str) -> Option<String> {
 /// console does around it: minting an identity (`apply_identity`) and
 /// checking a cross-aggregate precondition a `given` can't express
 /// (`check_preconditions`), both driven by `collections.<Name>` config.
-#[allow(clippy::too_many_arguments)]
 async fn collection_create(
     domain_ir: &Value,
     collection: &str,
     raw_body: &str,
-    client: &Mutex<Client>,
-    wasm_path: &Path,
-    config: &LineageConfig,
-    invoker: &dyn LambdaInvoker,
+    host: Host<'_>,
 ) -> Value {
+    let Host {
+        client,
+        wasm_path,
+        config,
+        ..
+    } = host;
     let presentation = match presentation::load(client, wasm_path, config).await {
         Ok(presentation) => presentation,
         Err(e) => return internal_error(&e.to_string()),
@@ -386,11 +381,10 @@ async fn collection_create(
         domain_name(domain_ir),
         command_name(creating)
     );
-    let outcome =
-        match dispatch::handle_facts(client, wasm_path, &verb, args, None, config, invoker).await {
-            Ok(outcome) => outcome,
-            Err(e) => return internal_error(&format!("{e:#}")),
-        };
+    let outcome = match dispatch::handle_facts(host, &verb, args, None).await {
+        Ok(outcome) => outcome,
+        Err(e) => return internal_error(&format!("{e:#}")),
+    };
     if !outcome.accepted {
         return domain_refusal(&outcome.result);
     }
@@ -404,18 +398,20 @@ async fn collection_create(
 /// `POST /api/:coll/:id/:command` — a command against an existing record.
 /// Order matters: find the record first (404), then the command (404),
 /// then dispatch — the Ruby engine's own order.
-#[allow(clippy::too_many_arguments)]
 async fn command_route(
     domain_ir: &Value,
     collection: &str,
     id: &str,
     command: &str,
     raw_body: &str,
-    client: &Mutex<Client>,
-    wasm_path: &Path,
-    config: &LineageConfig,
-    invoker: &dyn LambdaInvoker,
+    host: Host<'_>,
 ) -> Value {
+    let Host {
+        client,
+        wasm_path,
+        config,
+        ..
+    } = host;
     let presentation = match presentation::load(client, wasm_path, config).await {
         Ok(presentation) => presentation,
         Err(e) => return internal_error(&e.to_string()),
@@ -445,18 +441,7 @@ async fn command_route(
         domain_name(domain_ir),
         command_name(declared)
     );
-    let outcome = match dispatch::handle_routed(
-        client,
-        wasm_path,
-        &verb,
-        json!(id),
-        args,
-        None,
-        config,
-        invoker,
-    )
-    .await
-    {
+    let outcome = match dispatch::handle_routed(host, &verb, json!(id), args, None).await {
         Ok(outcome) => outcome,
         Err(e) => return internal_error(&format!("{e:#}")),
     };
@@ -949,22 +934,13 @@ fn me(session: Option<&Session>) -> Value {
 /// against this domain's live shape, answered with the reloaded config.
 /// 200 on save; 400 `MalformedBody`; 422 `Malformed` or a domain refusal;
 /// 501 when this host's kernel carries no ConsoleSettings chapter.
-#[allow(clippy::too_many_arguments)]
-async fn presentation_save(
-    domain_ir: &Value,
-    raw_body: &str,
-    client: &Mutex<Client>,
-    wasm_path: &Path,
-    config: &LineageConfig,
-    invoker: &dyn LambdaInvoker,
-) -> Value {
+async fn presentation_save(domain_ir: &Value, raw_body: &str, host: Host<'_>) -> Value {
     let submitted = match parsed_body(raw_body) {
         Ok(submitted) => submitted,
         Err(refusal) => return refusal,
     };
 
-    match presentation_write::save(domain_ir, &submitted, client, wasm_path, config, invoker).await
-    {
+    match presentation_write::save(domain_ir, &submitted, host).await {
         Ok(saved) => ok(&saved),
         Err(presentation_write::SaveRefusal::NoKernel) => {
             not_implemented(PRESENTATION_WRITE_REFUSAL)
@@ -1803,10 +1779,7 @@ mod tests {
         let saved = presentation_save(
             &ir,
             &submitted.to_string(),
-            &client,
-            &wasm,
-            &lineage,
-            &invoker,
+            Host::new(&client, &wasm, &lineage, &invoker),
         )
         .await;
         assert_eq!(saved["statusCode"], 200, "{saved}");
@@ -1861,10 +1834,7 @@ mod tests {
         let again = presentation_save(
             &ir,
             &submitted.to_string(),
-            &client,
-            &wasm,
-            &lineage,
-            &invoker,
+            Host::new(&client, &wasm, &lineage, &invoker),
         )
         .await;
         assert_eq!(again["statusCode"], 200, "{again}");
@@ -1899,8 +1869,12 @@ mod tests {
         let mut bad = every_state_styled();
         bad["states"]["Event"]["open"] = json!({"tone": "chartreuse"});
 
-        let refused =
-            presentation_save(&ir, &bad.to_string(), &client, &wasm, &lineage, &invoker).await;
+        let refused = presentation_save(
+            &ir,
+            &bad.to_string(),
+            Host::new(&client, &wasm, &lineage, &invoker),
+        )
+        .await;
 
         assert_eq!(refused["statusCode"], 422, "{refused}");
         assert_eq!(body(&refused)["error"], "Malformed");
@@ -1939,10 +1913,12 @@ mod tests {
         let refused = presentation_save(
             &ir,
             "not json",
-            &client,
-            &wasm,
-            &lineage,
-            &crate::lambda_client::NeverInvoker,
+            Host::new(
+                &client,
+                &wasm,
+                &lineage,
+                &crate::lambda_client::NeverInvoker,
+            ),
         )
         .await;
 
@@ -1974,10 +1950,12 @@ mod tests {
         let refused = presentation_save(
             &ir,
             r#"{"states":{}}"#,
-            &client,
-            &wasm,
-            &lineage,
-            &crate::lambda_client::NeverInvoker,
+            Host::new(
+                &client,
+                &wasm,
+                &lineage,
+                &crate::lambda_client::NeverInvoker,
+            ),
         )
         .await;
 
@@ -2011,15 +1989,7 @@ mod tests {
         };
         let invoker = crate::lambda_client::NeverInvoker;
 
-        let created = collection_create(
-            &ir,
-            "customers",
-            r#"{"reference":{"value":"CUST-9001"},"name":{"given":"Ada","family":"Lovelace"},"email":{"address":"ada@example.com"}}"#,
-            &client,
-            &wasm,
-            &lineage,
-            &invoker,
-        )
+        let created = collection_create(&ir, "customers", r#"{"reference":{"value":"CUST-9001"},"name":{"given":"Ada","family":"Lovelace"},"email":{"address":"ada@example.com"}}"#, Host::new(&client, &wasm, &lineage, &invoker))
         .await;
 
         assert_eq!(created["statusCode"], 200, "{created}");
@@ -2042,10 +2012,7 @@ mod tests {
             "CUST-9001",
             "suspend",
             r#"{"standing":{"value":"watch"}}"#,
-            &client,
-            &wasm,
-            &lineage,
-            &invoker,
+            Host::new(&client, &wasm, &lineage, &invoker),
         )
         .await;
 
@@ -2061,10 +2028,7 @@ mod tests {
             "CUST-9001",
             "suspend",
             r#"{"standing":{"value":"watch"}}"#,
-            &client,
-            &wasm,
-            &lineage,
-            &invoker,
+            Host::new(&client, &wasm, &lineage, &invoker),
         )
         .await;
 
@@ -2090,10 +2054,7 @@ mod tests {
             "CUST-9001",
             "nope",
             "",
-            &client,
-            &wasm,
-            &lineage,
-            &invoker,
+            Host::new(&client, &wasm, &lineage, &invoker),
         )
         .await;
         assert_eq!(unknown_command["statusCode"], 404);
@@ -2108,10 +2069,7 @@ mod tests {
             "ghost",
             "suspend",
             "",
-            &client,
-            &wasm,
-            &lineage,
-            &invoker,
+            Host::new(&client, &wasm, &lineage, &invoker),
         )
         .await;
         assert_eq!(unknown_record["statusCode"], 404);

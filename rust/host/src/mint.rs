@@ -1021,8 +1021,8 @@ fn strip_keys(state: &Value, keys: &std::collections::HashSet<String>) -> Value 
 /// before anything is minted, so a refusal leaves no half-born era.
 ///
 /// `ir` is the whole `ir.json` value; Layer 1 looks up each aggregate's node from it.
-#[allow(clippy::too_many_arguments)]
 #[allow(clippy::implicit_hasher)] // reason: callers build the map with the default hasher; no caller needs another
+#[allow(clippy::too_many_arguments)]
 pub async fn audit_before_mint<C: GenericClient>(
     client: &C,
     domain: &str,
@@ -1351,7 +1351,6 @@ pub async fn mint_era<C: GenericClient>(
     }
     result
 }
-
 #[allow(clippy::too_many_arguments)]
 async fn mint_era_body<C: GenericClient>(
     client: &C,

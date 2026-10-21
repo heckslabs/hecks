@@ -2,15 +2,11 @@
 // `PUT /api/presentation`: validates against the live domain IR, then dispatches real commands.
 
 use crate::dispatch;
-use crate::journal::LineageConfig;
-use crate::lambda_client::LambdaInvoker;
+use crate::host::Host;
 use crate::presentation::{self, KernelRows};
 use crate::ui_schema;
 use serde_json::{json, Map, Value};
 use std::collections::BTreeSet;
-use std::path::Path;
-use tokio::sync::Mutex;
-use tokio_postgres::Client;
 
 // Duplicates the chapter's own `one_of` so this refuses before any dispatch starts.
 const VALID_TONES: &[&str] = &["good", "warn", "danger", "muted", "accent"];
@@ -35,14 +31,11 @@ pub(crate) enum SaveRefusal {
 pub(crate) async fn save(
     domain_ir: &Value,
     submitted: &Value,
-    client: &Mutex<Client>,
-    wasm_path: &Path,
-    lineage: &LineageConfig,
-    invoker: &dyn LambdaInvoker,
+    host: Host<'_>,
 ) -> Result<Value, SaveRefusal> {
     // Asked before validated: a host with no such chapter cannot honour this request at all,
     // regardless of which rule the submitted config would otherwise break.
-    let existing = match presentation::kernel_rows(client, wasm_path).await {
+    let existing = match presentation::kernel_rows(host.client, host.wasm_path).await {
         Ok(Some(rows)) => rows,
         Ok(None) => return Err(SaveRefusal::NoKernel),
         Err(e) => return Err(SaveRefusal::Internal(format!("{e:#}"))),
@@ -50,12 +43,7 @@ pub(crate) async fn save(
 
     validate(submitted, domain_ir).map_err(SaveRefusal::Malformed)?;
 
-    let writer = Writer {
-        client,
-        wasm_path,
-        lineage,
-        invoker,
-    };
+    let writer = Writer { host };
     writer
         .write_states(section(submitted, "states"), &existing)
         .await?;
@@ -66,7 +54,7 @@ pub(crate) async fn save(
         .write_overview(section(submitted, "overview"), &existing)
         .await?;
 
-    presentation::load(client, wasm_path, lineage)
+    presentation::load(host.client, host.wasm_path, host.config)
         .await
         .map_err(|e| SaveRefusal::Internal(format!("{e:#}")))
 }
@@ -96,44 +84,24 @@ fn list(value: Option<&Value>) -> &[Value] {
 // engines produce the same history for the same request. A field once set and later omitted is
 // never cleared: the chapter declares no `Clear*` command.
 struct Writer<'a> {
-    client: &'a Mutex<Client>,
-    wasm_path: &'a Path,
-    lineage: &'a LineageConfig,
-    invoker: &'a dyn LambdaInvoker,
+    host: Host<'a>,
 }
 
 impl Writer<'_> {
     // A creating command — facts only, no identity to route to.
     async fn declare(&self, verb: &str, facts: Value) -> Result<(), SaveRefusal> {
-        let outcome = dispatch::handle_facts(
-            self.client,
-            self.wasm_path,
-            verb,
-            facts,
-            None,
-            self.lineage,
-            self.invoker,
-        )
-        .await
-        .map_err(|e| SaveRefusal::Internal(format!("{e:#}")))?;
+        let outcome = dispatch::handle_facts(self.host, verb, facts, None)
+            .await
+            .map_err(|e| SaveRefusal::Internal(format!("{e:#}")))?;
         Self::accepted(outcome)
     }
 
     // A command acting on an existing row, routed by that row's own identity: "Agg:state" for
     // StateStyle, the aggregate name for Collection, "overview" for the singleton.
     async fn route(&self, verb: &str, id: &str, facts: Value) -> Result<(), SaveRefusal> {
-        let outcome = dispatch::handle_routed(
-            self.client,
-            self.wasm_path,
-            verb,
-            json!(id),
-            facts,
-            None,
-            self.lineage,
-            self.invoker,
-        )
-        .await
-        .map_err(|e| SaveRefusal::Internal(format!("{e:#}")))?;
+        let outcome = dispatch::handle_routed(self.host, verb, json!(id), facts, None)
+            .await
+            .map_err(|e| SaveRefusal::Internal(format!("{e:#}")))?;
         Self::accepted(outcome)
     }
 

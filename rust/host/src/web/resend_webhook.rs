@@ -3,14 +3,10 @@ use crate::clock::unix_now;
 use crate::commerce_ir::newsletter_issues_provider;
 use crate::dispatch;
 use crate::extension::loaded_ir;
-use crate::journal::LineageConfig;
-use crate::lambda_client::LambdaInvoker;
+use crate::host::Host;
 use hmac::{Hmac, Mac};
 use serde_json::{json, Value};
 use sha2::Sha256;
-use std::path::Path;
-use tokio::sync::Mutex;
-use tokio_postgres::Client;
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -40,18 +36,16 @@ impl Tracked {
         }
     }
 }
-
-#[allow(clippy::too_many_arguments)]
 pub(super) async fn resend_webhook_route(
     method: &str,
     path: &str,
     raw_body: &str,
     headers: Option<&Value>,
-    client: &Mutex<Client>,
-    wasm_path: &Path,
-    config: &LineageConfig,
-    invoker: &dyn LambdaInvoker,
+    host: Host<'_>,
 ) -> Option<Value> {
+    let Host {
+        client, wasm_path, ..
+    } = host;
     if method != "POST" || path != "/webhooks/resend" {
         return None;
     }
@@ -114,18 +108,7 @@ pub(super) async fn resend_webhook_route(
     let verb = format!("{delivery_aggregate}.{}", tracked.command_suffix());
     // A refusal is a repeat (the first open or click is already recorded):
     // benign, and 200 tells Resend not to retry.
-    match dispatch::handle_routed(
-        client,
-        wasm_path,
-        &verb,
-        json!(delivery_id),
-        occurred_at,
-        None,
-        config,
-        invoker,
-    )
-    .await
-    {
+    match dispatch::handle_routed(host, &verb, json!(delivery_id), occurred_at, None).await {
         Err(e) => Some(respond(500, "text/plain", &format!("{e:#}"))),
         Ok(_) => Some(respond(200, "text/plain", "")),
     }

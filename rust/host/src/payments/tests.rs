@@ -4,6 +4,7 @@
 use super::keystore::MemoryStore;
 use super::*;
 use crate::dispatch::tests::{provision_lineage, scratch_db};
+use crate::host::Host;
 use crate::lambda_client::NeverInvoker;
 use crate::web;
 use axum::extract::State;
@@ -333,10 +334,7 @@ impl Tenant {
             SESSION_SECRET,
             &self.domain_ir,
             &platform,
-            &self.client,
-            &self.wasm,
-            &self.config,
-            &NeverInvoker,
+            Host::new(&self.client, &self.wasm, &self.config, &NeverInvoker),
         )
         .await
         .expect("a payments path");
@@ -408,13 +406,10 @@ impl Tenant {
     async fn schedule_event_with_capacity(&self, slug: &str, capacity: i64) {
         let args = json!({"slug": {"value": slug}, "name": {"value": "Sample Studio"}, "price": {"cents": 4200}, "capacity": {"value": capacity}});
         let outcome = dispatch::handle(
-            &self.client,
-            &self.wasm,
+            Host::new(&self.client, &self.wasm, &self.config, &NeverInvoker),
             "CheckoutFixture::Event.Schedule",
             args,
             None,
-            &self.config,
-            &NeverInvoker,
         )
         .await
         .unwrap();
@@ -429,10 +424,7 @@ impl Tenant {
         let response = web::registrations_route(
             &body,
             &platform,
-            &self.client,
-            &self.wasm,
-            &self.config,
-            &NeverInvoker,
+            Host::new(&self.client, &self.wasm, &self.config, &NeverInvoker),
             &crate::commerce_ir::fixture_payments(),
         )
         .await;
@@ -459,10 +451,7 @@ impl Tenant {
             &payload,
             &header,
             &platform,
-            &self.client,
-            &self.wasm,
-            &self.config,
-            &NeverInvoker,
+            Host::new(&self.client, &self.wasm, &self.config, &NeverInvoker),
             &crate::commerce_ir::fixture_payments(),
         )
         .await;
@@ -475,10 +464,7 @@ impl Tenant {
         let response = web::registration_complete_route(
             reference,
             r#"{"outcome":"succeeded"}"#,
-            &self.client,
-            &self.wasm,
-            &self.config,
-            &NeverInvoker,
+            Host::new(&self.client, &self.wasm, &self.config, &NeverInvoker),
             &crate::commerce_ir::fixture_payments(),
         )
         .await;
@@ -558,10 +544,7 @@ async fn a_tampered_or_disabled_session_is_a_401_not_an_owner() {
         SESSION_SECRET,
         &t.domain_ir,
         &t.platform,
-        &t.client,
-        &t.wasm,
-        &t.config,
-        &NeverInvoker,
+        Host::new(&t.client, &t.wasm, &t.config, &NeverInvoker),
     )
     .await
     .unwrap();
@@ -1219,10 +1202,7 @@ async fn a_declined_payment_frees_the_seat_and_a_paid_one_keeps_it() {
     let response = web::registration_complete_route(
         &first,
         r#"{"outcome":"failed"}"#,
-        &t.client,
-        &t.wasm,
-        &t.config,
-        &NeverInvoker,
+        Host::new(&t.client, &t.wasm, &t.config, &NeverInvoker),
         &crate::commerce_ir::fixture_payments(),
     )
     .await;
@@ -1246,13 +1226,10 @@ async fn a_declined_payment_frees_the_seat_and_a_paid_one_keeps_it() {
 async fn registration_command(t: &Tenant, verb: &str, reference: &str) -> dispatch::Outcome {
     let verb = format!("CheckoutFixture::Registration.{verb}");
     dispatch::handle(
-        &t.client,
-        &t.wasm,
+        Host::new(&t.client, &t.wasm, &t.config, &NeverInvoker),
         &verb,
         json!({"id": reference}),
         None,
-        &t.config,
-        &NeverInvoker,
     )
     .await
     .unwrap()
@@ -1553,10 +1530,7 @@ async fn an_event_verified_only_by_the_public_mock_secret_is_refused_for_a_real_
         &payload,
         &header,
         &t.platform,
-        &t.client,
-        &t.wasm,
-        &t.config,
-        &NeverInvoker,
+        Host::new(&t.client, &t.wasm, &t.config, &NeverInvoker),
         &crate::commerce_ir::fixture_payments(),
     )
     .await;

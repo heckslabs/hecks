@@ -3,8 +3,8 @@ use crate::checkout;
 use crate::clock::unix_now;
 use crate::commerce_ir::{payments_provider, PaymentsProvider};
 use crate::dispatch;
+use crate::host::Host;
 use crate::journal::LineageConfig;
-use crate::lambda_client::LambdaInvoker;
 use crate::payments;
 use serde_json::{json, Value};
 use std::path::Path;
@@ -254,54 +254,37 @@ async fn seats_route(
 // Serves the checkout, registration-payment and webhook routes only when the
 // domain's IR declares `provides "payments"`. Takes the IR as a parameter,
 // not `ir()`, so the gate can be tested against one that lacks the key.
-#[allow(clippy::too_many_arguments)]
 pub(super) async fn payments_routes(
     domain_ir: Option<&Value>,
     method: &str,
     path: &str,
     raw_body: &str,
     stripe_signature: &str,
-    client: &Mutex<Client>,
-    wasm_path: &Path,
-    config: &LineageConfig,
-    invoker: &dyn LambdaInvoker,
+    host: Host<'_>,
 ) -> Option<Value> {
     let payments = domain_ir.and_then(payments_provider)?;
-    checkout_route(
-        method,
-        path,
-        raw_body,
-        stripe_signature,
-        client,
-        wasm_path,
-        config,
-        invoker,
-        &payments,
-    )
-    .await
+    checkout_route(method, path, raw_body, stripe_signature, host, &payments).await
 }
-
-#[allow(clippy::too_many_arguments)]
 pub(super) async fn checkout_route(
     method: &str,
     path: &str,
     raw_body: &str,
     stripe_signature: &str,
-    client: &Mutex<Client>,
-    wasm_path: &Path,
-    config: &LineageConfig,
-    invoker: &dyn LambdaInvoker,
+    host: Host<'_>,
     payments: &PaymentsProvider,
 ) -> Option<Value> {
+    let Host {
+        client,
+        wasm_path,
+        config,
+        ..
+    } = host;
     match (method, path) {
         ("POST", "/registrations") => Some(
             registrations_route(
                 raw_body,
                 &payments::PlatformConfig::load().await,
-                client,
-                wasm_path,
-                config,
-                invoker,
+                host,
                 payments,
             )
             .await,
@@ -323,28 +306,14 @@ pub(super) async fn checkout_route(
                 .trim_start_matches("/registrations/")
                 .trim_end_matches("/complete")
                 .trim_end_matches('/');
-            Some(
-                registration_complete_route(
-                    registration_id,
-                    raw_body,
-                    client,
-                    wasm_path,
-                    config,
-                    invoker,
-                    payments,
-                )
-                .await,
-            )
+            Some(registration_complete_route(registration_id, raw_body, host, payments).await)
         }
         ("POST", "/webhooks/stripe") => Some(
             webhook_route(
                 raw_body,
                 stripe_signature,
                 &payments::PlatformConfig::load().await,
-                client,
-                wasm_path,
-                config,
-                invoker,
+                host,
                 payments,
             )
             .await,
@@ -358,22 +327,20 @@ pub(super) async fn checkout_route(
         ("GET", path) if seats_path_slug(path).is_some() => {
             Some(seats_route(path, client, wasm_path, config, payments).await)
         }
-        ("POST", "/events") => {
-            Some(events_route(raw_body, client, wasm_path, config, invoker).await)
-        }
+        ("POST", "/events") => Some(events_route(raw_body, host).await),
         _ => None,
     }
 }
 
 /// POST /events. Dispatches `<domain>::Event.Schedule` — Event is this
 /// deploy's own top-level aggregate, not a vendored chapter like Payments.
-async fn events_route(
-    raw_body: &str,
-    client: &Mutex<Client>,
-    wasm_path: &Path,
-    config: &LineageConfig,
-    invoker: &dyn LambdaInvoker,
-) -> Value {
+async fn events_route(raw_body: &str, host: Host<'_>) -> Value {
+    let Host {
+        client,
+        wasm_path,
+        config,
+        ..
+    } = host;
     let body: Value = match serde_json::from_str(raw_body) {
         Ok(v) => v,
         Err(e) => {
@@ -437,11 +404,10 @@ async fn events_route(
         "capacity": {"value": capacity},
     });
     let verb = crate::commerce_ir::registrations_binding(&config.domain).schedule;
-    let outcome =
-        match dispatch::handle(client, wasm_path, &verb, args, None, config, invoker).await {
-            Ok(o) => o,
-            Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
-        };
+    let outcome = match dispatch::handle(host, &verb, args, None).await {
+        Ok(o) => o,
+        Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
+    };
     if !outcome.accepted {
         return respond(
             422,
@@ -537,12 +503,15 @@ async fn registration_show_route(
 pub(crate) async fn registration_complete_route(
     registration_id: &str,
     raw_body: &str,
-    client: &Mutex<Client>,
-    wasm_path: &Path,
-    config: &LineageConfig,
-    invoker: &dyn LambdaInvoker,
+    host: Host<'_>,
     payments: &PaymentsProvider,
 ) -> Value {
+    let Host {
+        client,
+        wasm_path,
+        config,
+        ..
+    } = host;
     let body: Value = match serde_json::from_str(raw_body) {
         Ok(v) => v,
         Err(e) => {
@@ -610,21 +579,11 @@ pub(crate) async fn registration_complete_route(
             json!({"reference": reference_fact, "reason": {"value": "declined_at_local_checkout"}, "reported_processor": reported_processor}),
         )
     };
-    let outcome_result = match dispatch::handle_routed(
-        client,
-        wasm_path,
-        verb,
-        json!(registration_id),
-        facts,
-        None,
-        config,
-        invoker,
-    )
-    .await
-    {
-        Ok(o) => o,
-        Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
-    };
+    let outcome_result =
+        match dispatch::handle_routed(host, verb, json!(registration_id), facts, None).await {
+            Ok(o) => o,
+            Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
+        };
     // A repeat Succeeded/Failed on an already-settled Payment is a silent
     // no-op on Payment's own `given`, so it isn't surfaced as a 422 here
     // either.
@@ -698,42 +657,30 @@ fn display_name_from(body: &Value) -> Option<String> {
 // POST /registrations. Payment first, then Registration, sharing one
 // reference minted here; `role: None` throughout since the site calls in
 // server-to-server, not as a signed-in user.
-#[allow(clippy::too_many_arguments)]
 pub(crate) async fn registrations_route(
     raw_body: &str,
     platform: &payments::PlatformConfig,
-    client: &Mutex<Client>,
-    wasm_path: &Path,
-    config: &LineageConfig,
-    invoker: &dyn LambdaInvoker,
+    host: Host<'_>,
     payments: &PaymentsProvider,
 ) -> Value {
-    registrations_route_at(
-        raw_body,
-        platform,
-        client,
-        wasm_path,
-        config,
-        invoker,
-        payments,
-        unix_now(),
-    )
-    .await
+    registrations_route_at(raw_body, platform, host, payments, unix_now()).await
 }
 
 // The route with the wall clock passed in, so a test can fix the time the
 // registration cutoff is measured against.
-#[allow(clippy::too_many_arguments)]
 pub(crate) async fn registrations_route_at(
     raw_body: &str,
     platform: &payments::PlatformConfig,
-    client: &Mutex<Client>,
-    wasm_path: &Path,
-    config: &LineageConfig,
-    invoker: &dyn LambdaInvoker,
+    host: Host<'_>,
     payments: &PaymentsProvider,
     now_secs: i64,
 ) -> Value {
+    let Host {
+        client,
+        wasm_path,
+        config,
+        ..
+    } = host;
     let body: Value = match serde_json::from_str(raw_body) {
         Ok(v) => v,
         Err(e) => {
@@ -896,17 +843,7 @@ pub(crate) async fn registrations_route_at(
         "amount": {"cents": price_cents},
         "client": {"name": name, "email": email},
     });
-    let outcome = match dispatch::handle(
-        client,
-        wasm_path,
-        &payments.initiate,
-        initiate_args,
-        None,
-        config,
-        invoker,
-    )
-    .await
-    {
+    let outcome = match dispatch::handle(host, &payments.initiate, initiate_args, None).await {
         Ok(o) => o,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
@@ -948,17 +885,7 @@ pub(crate) async fn registrations_route_at(
         }
     }
     let request_verb = crate::commerce_ir::registrations_binding(&config.domain).request;
-    let outcome = match dispatch::handle(
-        client,
-        wasm_path,
-        &request_verb,
-        request_args,
-        None,
-        config,
-        invoker,
-    )
-    .await
-    {
+    let outcome = match dispatch::handle(host, &request_verb, request_args, None).await {
         Ok(o) => o,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
@@ -1039,17 +966,19 @@ fn mock_secret_refused() -> Value {
 /// `STRIPE_WEBHOOK_SECRET`, a saved signing secret, or — only while neither
 /// is set — the public mock secret, refusing anything only a real processor
 /// could have sent.
-#[allow(clippy::too_many_arguments)]
 pub(crate) async fn webhook_route(
     raw_body: &str,
     signature_header: &str,
     platform: &payments::PlatformConfig,
-    client: &Mutex<Client>,
-    wasm_path: &Path,
-    config: &LineageConfig,
-    invoker: &dyn LambdaInvoker,
+    host: Host<'_>,
     payments: &PaymentsProvider,
 ) -> Value {
+    let Host {
+        client,
+        wasm_path,
+        config,
+        ..
+    } = host;
     let now = unix_now();
     // The environment's signing secret and any saved with the business's own
     // keys are all accepted; with none configured only the mock secret is.
@@ -1153,18 +1082,7 @@ pub(crate) async fn webhook_route(
             // A refusal here (e.g. a redelivered webhook — Stripe's delivery
             // is at-least-once) is a benign no-op: the payment already holds
             // the right status, and 200 tells Stripe's retry logic to stop.
-            match dispatch::handle_routed(
-                client,
-                wasm_path,
-                verb,
-                json!(reference),
-                facts,
-                None,
-                config,
-                invoker,
-            )
-            .await
-            {
+            match dispatch::handle_routed(host, verb, json!(reference), facts, None).await {
                 Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
                 // Only the delivery that settles the payment sends the receipt;
                 // a redelivery is refused and stays quiet.
@@ -1212,13 +1130,10 @@ mod tests {
             "price": {"cents": price_cents}, "capacity": {"value": 20},
         });
         let outcome = dispatch::handle(
-            client,
-            wasm_path,
+            Host::new(client, wasm_path, config, &lambda_client::NeverInvoker),
             "CheckoutFixture::Event.Schedule",
             args,
             None,
-            config,
-            &lambda_client::NeverInvoker,
         )
         .await
         .unwrap();
@@ -1729,10 +1644,7 @@ mod tests {
                     path,
                     "",
                     "",
-                    client,
-                    wasm_path,
-                    config,
-                    &lambda_client::NeverInvoker,
+                    Host::new(client, wasm_path, config, &lambda_client::NeverInvoker),
                 )
                 .await
                 .expect("a seats path");
@@ -1862,10 +1774,12 @@ mod tests {
         let response = registrations_route(
             r#"{"event_slug":"yoga-aug"}"#,
             &payments::test_platform(),
-            &client,
-            &checkout_wasm_path(),
-            &checkout_config(1),
-            &lambda_client::NeverInvoker,
+            Host::new(
+                &client,
+                &checkout_wasm_path(),
+                &checkout_config(1),
+                &lambda_client::NeverInvoker,
+            ),
             &crate::commerce_ir::fixture_payments(),
         )
         .await;
@@ -1902,10 +1816,7 @@ mod tests {
         let response = registrations_route(
             &body,
             &payments::test_platform(),
-            &client,
-            &wasm_path,
-            &config,
-            &lambda_client::NeverInvoker,
+            Host::new(&client, &wasm_path, &config, &lambda_client::NeverInvoker),
             &crate::commerce_ir::fixture_payments(),
         )
         .await;
@@ -1959,10 +1870,7 @@ mod tests {
                     path,
                     "not json",
                     "",
-                    &client,
-                    &wasm_path,
-                    &config,
-                    &lambda_client::NeverInvoker,
+                    Host::new(&client, &wasm_path, &config, &lambda_client::NeverInvoker),
                 )
                 .await;
                 assert!(
@@ -1979,10 +1887,7 @@ mod tests {
             "/registrations",
             "not json",
             "",
-            &client,
-            &wasm_path,
-            &config,
-            &lambda_client::NeverInvoker,
+            Host::new(&client, &wasm_path, &config, &lambda_client::NeverInvoker),
         )
         .await;
         assert_eq!(
@@ -2005,10 +1910,12 @@ mod tests {
         let response = registrations_route(
             "not json",
             &payments::test_platform(),
-            &client,
-            &checkout_wasm_path(),
-            &checkout_config(1),
-            &lambda_client::NeverInvoker,
+            Host::new(
+                &client,
+                &checkout_wasm_path(),
+                &checkout_config(1),
+                &lambda_client::NeverInvoker,
+            ),
             &crate::commerce_ir::fixture_payments(),
         )
         .await;
@@ -2028,10 +1935,12 @@ mod tests {
 
         let response = events_route(
             "not json",
-            &client,
-            &checkout_wasm_path(),
-            &checkout_config(1),
-            &lambda_client::NeverInvoker,
+            Host::new(
+                &client,
+                &checkout_wasm_path(),
+                &checkout_config(1),
+                &lambda_client::NeverInvoker,
+            ),
         )
         .await;
         assert_eq!(response["statusCode"], 400);
@@ -2050,10 +1959,12 @@ mod tests {
 
         let response = events_route(
             r#"{"slug":"new-event"}"#,
-            &client,
-            &checkout_wasm_path(),
-            &checkout_config(1),
-            &lambda_client::NeverInvoker,
+            Host::new(
+                &client,
+                &checkout_wasm_path(),
+                &checkout_config(1),
+                &lambda_client::NeverInvoker,
+            ),
         )
         .await;
         assert_eq!(response["statusCode"], 400);
@@ -2076,10 +1987,7 @@ mod tests {
         let body = json!({"slug": "mock-payments-event", "name": "Mock Payments Event", "price_cents": 4200, "capacity": 20}).to_string();
         let response = events_route(
             &body,
-            &client,
-            &wasm_path,
-            &config,
-            &lambda_client::NeverInvoker,
+            Host::new(&client, &wasm_path, &config, &lambda_client::NeverInvoker),
         )
         .await;
         assert_eq!(response["statusCode"], 201, "{response:?}");
@@ -2119,10 +2027,7 @@ mod tests {
         let body = json!({"slug": "repeat-event", "name": "Repeat Event", "price_cents": 1000, "capacity": 5}).to_string();
         let first = events_route(
             &body,
-            &client,
-            &wasm_path,
-            &config,
-            &lambda_client::NeverInvoker,
+            Host::new(&client, &wasm_path, &config, &lambda_client::NeverInvoker),
         )
         .await;
         assert_eq!(first["statusCode"], 201, "{first:?}");
@@ -2132,10 +2037,7 @@ mod tests {
         let second_body = json!({"slug": "repeat-event", "name": "Different Name", "price_cents": 9999, "capacity": 1}).to_string();
         let second = events_route(
             &second_body,
-            &client,
-            &wasm_path,
-            &config,
-            &lambda_client::NeverInvoker,
+            Host::new(&client, &wasm_path, &config, &lambda_client::NeverInvoker),
         )
         .await;
         assert_eq!(second["statusCode"], 200, "{second:?}");
@@ -2174,10 +2076,12 @@ mod tests {
         let response = registrations_route(
             &body,
             &payments::test_platform(),
-            &client,
-            &checkout_wasm_path(),
-            &checkout_config(1),
-            &lambda_client::NeverInvoker,
+            Host::new(
+                &client,
+                &checkout_wasm_path(),
+                &checkout_config(1),
+                &lambda_client::NeverInvoker,
+            ),
             &crate::commerce_ir::fixture_payments(),
         )
         .await;
@@ -2199,13 +2103,10 @@ mod tests {
 
         schedule_event(&client, &wasm_path, &config, "closed-event", 4200).await;
         let close = dispatch::handle(
-            &client,
-            &wasm_path,
+            Host::new(&client, &wasm_path, &config, &lambda_client::NeverInvoker),
             "CheckoutFixture::Event.Close",
             json!({"id": "closed-event"}),
             None,
-            &config,
-            &lambda_client::NeverInvoker,
         )
         .await
         .unwrap();
@@ -2220,10 +2121,7 @@ mod tests {
         let response = registrations_route(
             &body,
             &payments::test_platform(),
-            &client,
-            &wasm_path,
-            &config,
-            &lambda_client::NeverInvoker,
+            Host::new(&client, &wasm_path, &config, &lambda_client::NeverInvoker),
             &crate::commerce_ir::fixture_payments(),
         )
         .await;
@@ -2250,13 +2148,10 @@ mod tests {
             args["registration_cutoff_hours"] = json!({"value": hours});
         }
         let outcome = dispatch::handle(
-            client,
-            wasm_path,
+            Host::new(client, wasm_path, config, &lambda_client::NeverInvoker),
             "CheckoutFixture::Event.Schedule",
             args,
             None,
-            config,
-            &lambda_client::NeverInvoker,
         )
         .await
         .unwrap();
@@ -2298,10 +2193,7 @@ mod tests {
         let response = registrations_route_at(
             &body,
             &payments::test_platform(),
-            &client,
-            &wasm_path,
-            &config,
-            &lambda_client::NeverInvoker,
+            Host::new(&client, &wasm_path, &config, &lambda_client::NeverInvoker),
             &crate::commerce_ir::fixture_payments(),
             now,
         )
@@ -2345,10 +2237,7 @@ mod tests {
         let response = registrations_route_at(
             &body,
             &payments::test_platform(),
-            &client,
-            &wasm_path,
-            &config,
-            &lambda_client::NeverInvoker,
+            Host::new(&client, &wasm_path, &config, &lambda_client::NeverInvoker),
             &crate::commerce_ir::fixture_payments(),
             now,
         )
@@ -2462,10 +2351,7 @@ mod tests {
         let response = registrations_route(
             &body,
             &payments::test_platform(),
-            &client,
-            &wasm_path,
-            &config,
-            &lambda_client::NeverInvoker,
+            Host::new(&client, &wasm_path, &config, &lambda_client::NeverInvoker),
             &crate::commerce_ir::fixture_payments(),
         )
         .await;
@@ -2508,10 +2394,7 @@ mod tests {
         let response = registrations_route(
             &body,
             &payments::test_platform(),
-            &client,
-            &wasm_path,
-            &config,
-            &lambda_client::NeverInvoker,
+            Host::new(&client, &wasm_path, &config, &lambda_client::NeverInvoker),
             &crate::commerce_ir::fixture_payments(),
         )
         .await;
@@ -2590,10 +2473,7 @@ mod tests {
         let response = registrations_route(
             &body,
             &payments::test_platform(),
-            &client,
-            &wasm_path,
-            &config,
-            &lambda_client::NeverInvoker,
+            Host::new(&client, &wasm_path, &config, &lambda_client::NeverInvoker),
             &crate::commerce_ir::fixture_payments(),
         )
         .await;
@@ -2636,10 +2516,7 @@ mod tests {
             let response = registrations_route(
                 &body,
                 &payments::test_platform(),
-                &client,
-                &wasm_path,
-                &config,
-                &lambda_client::NeverInvoker,
+                Host::new(&client, &wasm_path, &config, &lambda_client::NeverInvoker),
                 &crate::commerce_ir::fixture_payments(),
             )
             .await;
@@ -2684,10 +2561,7 @@ mod tests {
         let response = registrations_route(
             &body,
             &payments::test_platform(),
-            &client,
-            &wasm_path,
-            &config,
-            &lambda_client::NeverInvoker,
+            Host::new(&client, &wasm_path, &config, &lambda_client::NeverInvoker),
             &crate::commerce_ir::fixture_payments(),
         )
         .await;
@@ -2711,10 +2585,7 @@ mod tests {
             &payload,
             &header,
             &payments::test_platform(),
-            &client,
-            &wasm_path,
-            &config,
-            &lambda_client::NeverInvoker,
+            Host::new(&client, &wasm_path, &config, &lambda_client::NeverInvoker),
             &crate::commerce_ir::fixture_payments(),
         )
         .await;
@@ -2748,10 +2619,12 @@ mod tests {
             &payload,
             bad_header,
             &payments::test_platform_with_secret("whsec_test_bad_sig"),
-            &client,
-            &checkout_wasm_path(),
-            &checkout_config(1),
-            &lambda_client::NeverInvoker,
+            Host::new(
+                &client,
+                &checkout_wasm_path(),
+                &checkout_config(1),
+                &lambda_client::NeverInvoker,
+            ),
             &crate::commerce_ir::fixture_payments(),
         )
         .await;
@@ -2773,8 +2646,7 @@ mod tests {
 
         schedule_event(&client, &wasm_path, &config, "webhook-event", 4200).await;
         let initiate = dispatch::handle(
-            &client,
-            &wasm_path,
+            Host::new(&client, &wasm_path, &config, &lambda_client::NeverInvoker),
             "Payments::Payment.Initiate",
             json!({
                 "reference": {"value": "REG-WEBHOOK-1"}, "processor": {"value": "stripe"},
@@ -2782,8 +2654,6 @@ mod tests {
                 "client": {"name": "Ada Lovelace", "email": "ada@example.com"},
             }),
             None,
-            &config,
-            &lambda_client::NeverInvoker,
         )
         .await
         .unwrap();
@@ -2801,10 +2671,7 @@ mod tests {
             &payload,
             &header,
             &payments::test_platform_with_secret(secret),
-            &client,
-            &wasm_path,
-            &config,
-            &lambda_client::NeverInvoker,
+            Host::new(&client, &wasm_path, &config, &lambda_client::NeverInvoker),
             &crate::commerce_ir::fixture_payments(),
         )
         .await;
@@ -2822,10 +2689,7 @@ mod tests {
             &payload,
             &header,
             &payments::test_platform_with_secret(secret),
-            &client,
-            &wasm_path,
-            &config,
-            &lambda_client::NeverInvoker,
+            Host::new(&client, &wasm_path, &config, &lambda_client::NeverInvoker),
             &crate::commerce_ir::fixture_payments(),
         )
         .await;
@@ -2847,8 +2711,7 @@ mod tests {
 
         schedule_event(&client, &wasm_path, &config, "webhook-event-2", 4200).await;
         dispatch::handle(
-            &client,
-            &wasm_path,
+            Host::new(&client, &wasm_path, &config, &lambda_client::NeverInvoker),
             "Payments::Payment.Initiate",
             json!({
                 "reference": {"value": "REG-WEBHOOK-2"}, "processor": {"value": "stripe"},
@@ -2856,8 +2719,6 @@ mod tests {
                 "client": {"name": "Ada Lovelace", "email": "ada@example.com"},
             }),
             None,
-            &config,
-            &lambda_client::NeverInvoker,
         )
         .await
         .unwrap()
@@ -2878,10 +2739,7 @@ mod tests {
             &payload,
             &header,
             &payments::test_platform_with_secret(secret),
-            &client,
-            &wasm_path,
-            &config,
-            &lambda_client::NeverInvoker,
+            Host::new(&client, &wasm_path, &config, &lambda_client::NeverInvoker),
             &crate::commerce_ir::fixture_payments(),
         )
         .await;
@@ -2913,10 +2771,12 @@ mod tests {
             &payload,
             &header,
             &payments::test_platform_with_secret(secret),
-            &client,
-            &checkout_wasm_path(),
-            &checkout_config(1),
-            &lambda_client::NeverInvoker,
+            Host::new(
+                &client,
+                &checkout_wasm_path(),
+                &checkout_config(1),
+                &lambda_client::NeverInvoker,
+            ),
             &crate::commerce_ir::fixture_payments(),
         )
         .await;

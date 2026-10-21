@@ -31,6 +31,18 @@ pub struct Ctx<'a> {
     pub invoker: &'a dyn LambdaInvoker,
 }
 
+impl<'a> Ctx<'a> {
+    /// The request's journal connection, module, lineage and invoker, as one value.
+    pub fn host(&self) -> crate::host::Host<'a> {
+        crate::host::Host {
+            client: self.client,
+            wasm_path: self.wasm_path,
+            config: self.config,
+            invoker: self.invoker,
+        }
+    }
+}
+
 /// A public write an extension wants limited per client: `limit_env` names the budget setting.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RateRule {

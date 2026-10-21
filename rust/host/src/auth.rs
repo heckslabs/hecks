@@ -3,6 +3,7 @@
 
 use crate::crypto::{constant_time_eq, hex_encode};
 use crate::dispatch;
+use crate::host::Host;
 use crate::journal;
 use crate::journal::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
@@ -559,13 +560,10 @@ pub async fn provision(
         // provisioning, not a caller-submitted command, so there is no
         // caller role to assert.
         let register = dispatch::handle(
-            client,
-            wasm_path,
+            Host::new(client, wasm_path, config, invoker),
             &identity.register,
             json!({"identity_id": {"value": identity_id}}),
             None,
-            config,
-            invoker,
         )
         .await?;
         if !register.accepted {
@@ -573,16 +571,13 @@ pub async fn provision(
         }
 
         let link_external = dispatch::handle(
-            client,
-            wasm_path,
+            Host::new(client, wasm_path, config, invoker),
             &identity.link,
             json!({
                 "identity": identity_id, "key": {"value": format!("{issuer}:{subject}")},
                 "issuer": {"value": issuer}, "subject": {"value": subject},
             }),
             None,
-            config,
-            invoker,
         )
         .await?;
         if !link_external.accepted {
@@ -599,13 +594,10 @@ pub async fn provision(
             "this domain attaches no chapter that provides \"authorization\" — cannot grant a role"
         );
     };
-    let assign_role = dispatch::handle(
-        client, wasm_path, &provider.grant,
-        json!({
+    let assign_role = dispatch::handle(Host::new(client, wasm_path, config, invoker), &provider.grant, json!({
             "actor_id": {"value": identity_id}, "role_name": {"value": role}, "scope": {"value": config.domain.clone()},
             "starts_at": {"value": httpdate_now()},
-        }), None, config, invoker,
-    ).await?;
+        }), None).await?;
     if !assign_role.accepted {
         anyhow::bail!("{} refused: {}", provider.grant, assign_role.result);
     }
