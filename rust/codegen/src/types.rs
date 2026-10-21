@@ -386,11 +386,7 @@ pub fn emit_record(
             let list = crate::attr::list(attr);
             let mut ty = naming::rust_type(crate::attr::type_name(attr), list);
             if !list
-                || crate::shared::list_attr_creation_optional(
-                    aggregate,
-                    crate::attr::name(attr),
-                    value_objects_by_name,
-                )
+                || crate::shared::list_attr_creation_optional(aggregate, crate::attr::name(attr))
             {
                 ty = format!("Option<{ty}>");
             }
@@ -671,15 +667,8 @@ mod tests {
         let from_json = crate::json_codec::emit_from_json_flat(
             &exemplar, "Entry", attributes, &by_name, None, None, false, false, None, None,
         );
-        let to_json = crate::json_codec::emit_to_json_flat(
-            &exemplar,
-            "Entry",
-            attributes,
-            &by_name,
-            false,
-            &[],
-            None,
-        );
+        let to_json =
+            crate::json_codec::emit_to_json_flat(&exemplar, "Entry", attributes, false, &[], None);
 
         assert!(from_json.contains("x.as_bool()"));
         assert!(!from_json.contains("TrueClass::from_json"));

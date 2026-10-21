@@ -588,7 +588,6 @@ pub fn emit_to_json_flat(
     exemplar: &Exemplar,
     struct_name: &str,
     attributes: &[Json],
-    value_objects_by_name: &HashMap<String, &Json>,
     optional: bool,
     extra_fields: &[(String, String)],
     aggregate: Option<&Json>,
@@ -601,7 +600,7 @@ pub fn emit_to_json_flat(
             let scalar = naming::effective_scalar_type(crate::attr::type_name(attr));
             let list = crate::attr::list(attr);
 
-            let record_optional_list = list && aggregate.is_some_and(|a| crate::shared::list_attr_creation_optional(a, crate::attr::name(attr), value_objects_by_name));
+            let record_optional_list = list && aggregate.is_some_and(|a| crate::shared::list_attr_creation_optional(a, crate::attr::name(attr)));
             let field_optional = optional || crate::attr::optional(attr);
             let list_is_optional = if aggregate.is_some() { record_optional_list } else { crate::attr::optional(attr) };
 
@@ -680,17 +679,8 @@ pub fn emit_to_json_flat_sparse(
     exemplar: &Exemplar,
     struct_name: &str,
     attributes: &[Json],
-    value_objects_by_name: &HashMap<String, &Json>,
 ) -> String {
-    let dense = emit_to_json_flat(
-        exemplar,
-        struct_name,
-        attributes,
-        value_objects_by_name,
-        false,
-        &[],
-        None,
-    );
+    let dense = emit_to_json_flat(exemplar, struct_name, attributes, false, &[], None);
     let open = "vec![\n";
     let start = dense
         .find(open)
@@ -730,7 +720,7 @@ pub fn emit_from_json_state(
             let scalar = naming::effective_scalar_type(crate::attr::type_name(attr));
             let list = crate::attr::list(attr);
 
-            let record_optional_list = list && aggregate.is_some_and(|a| crate::shared::list_attr_creation_optional(a, crate::attr::name(attr), value_objects_by_name));
+            let record_optional_list = list && aggregate.is_some_and(|a| crate::shared::list_attr_creation_optional(a, crate::attr::name(attr)));
             let list_is_optional = if aggregate.is_some() { record_optional_list } else { crate::attr::optional(attr) };
             let field_optional = optional || crate::attr::optional(attr);
 

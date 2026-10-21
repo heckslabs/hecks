@@ -130,15 +130,7 @@ pub fn emit_port_operation(
     let operation_name = operation.get("name").and_then(Json::as_str).unwrap_or("");
     [
         format!("#[derive(Debug, Clone)]\n{}", struct_lines.join("\n")),
-        crate::json_codec::emit_to_json_flat(
-            exemplar,
-            &args_struct,
-            &fact_attrs,
-            value_objects_by_name,
-            false,
-            &[],
-            None,
-        ),
+        crate::json_codec::emit_to_json_flat(exemplar, &args_struct, &fact_attrs, false, &[], None),
         crate::json_codec::emit_from_json_flat(
             exemplar,
             &args_struct,
