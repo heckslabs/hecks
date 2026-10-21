@@ -4,6 +4,7 @@
 pub mod api;
 pub mod approval;
 pub mod auth;
+mod b64;
 pub mod boot;
 pub mod checkout;
 mod clock;

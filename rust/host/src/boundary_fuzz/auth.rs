@@ -131,7 +131,7 @@ fn a_token_for_one_purpose_never_verifies_for_another_or_as_an_account_token() {
 #[test]
 fn an_expired_or_unexpiring_signed_payload_is_not_a_session() {
     let sign_payload = |payload: Value| {
-        let encoded = base64_encode(payload.to_string().as_bytes());
+        let encoded = b64::url_encode(payload.to_string().as_bytes());
         format!("{encoded}.{}", sign(SECRET, &encoded))
     };
     let person = json!({"identity_id": "i", "email": "e", "name": "n"});
@@ -190,10 +190,14 @@ fn base64_decoding_and_cookie_names_take_any_text() {
             let mut rng = Rng::new(seed ^ 0xBA5E);
             for _ in 0..100 {
                 let text = random_text(&mut rng);
-                let _ = base64_decode(&text);
+                let _ = b64::url_decode(&text);
                 let _ = resolve_account_cookie(Some(&text));
                 let bytes = random_bytes(&mut rng);
-                assert_eq!(base64_decode(&base64_encode(&bytes)), bytes, "seed {seed}");
+                assert_eq!(
+                    b64::url_decode(&b64::url_encode(&bytes)),
+                    Some(bytes),
+                    "seed {seed}"
+                );
             }
         });
     }
