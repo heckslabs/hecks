@@ -109,27 +109,47 @@ pub struct ReadModelDef {
     /// single-attribute value object needs codegen-time type knowledge `run`'s generic body,
     /// holding already-serialized `Json`, doesn't have.
     pub group_by: Option<GroupByFn>,
-    /// `count` on the one `many`-side head — a bare marker; row-count needs no per-read-model
-    /// generated function, unlike `group_by`.
-    pub count: bool,
-    /// `median :field` — the declared numeric field's median across the one `many`-side head.
-    pub median_field: Option<&'static str>,
-    /// `sum :field` — the declared Integer field's total (ADR 0078).
-    pub sum_field: Option<&'static str>,
-    /// `avg :field` — the declared Integer field's mean (ADR 0078).
-    pub avg_field: Option<&'static str>,
-    /// `min :field` — the declared numeric field's smallest value (ADR 0078).
-    pub min_field: Option<&'static str>,
-    /// `max :field` — the declared numeric field's largest value (ADR 0078).
-    pub max_field: Option<&'static str>,
-    /// `percentile :field, at:` — the declared numeric field's value at one interpolated
-    /// rank; `median` is the fixed `at: 0.5` case (ADR 0078).
-    pub percentile_field: Option<&'static str>,
-    pub percentile_at: Option<f64>,
-    /// `any :field` — whether any row's declared boolean field is `true` (ADR 0078).
-    pub any_field: Option<&'static str>,
-    /// `all :field` — whether every row's declared boolean field is `true` (ADR 0078).
-    pub all_field: Option<&'static str>,
+    /// What the one `many`-side head is reduced to, in place of its rows (ADR 0078).
+    pub reduction: Option<Reduction>,
+}
+
+/// One reduction a read model declares over its `many`-side head's rows.
+#[derive(Debug, Clone, Copy)]
+pub enum Reduction {
+    /// `count` — a bare marker; row-count needs no per-read-model generated function.
+    Count,
+    /// `median :field` — the declared numeric field's median.
+    Median(&'static str),
+    /// `sum :field` — the declared Integer field's total.
+    Sum(&'static str),
+    /// `avg :field` — the declared Integer field's mean.
+    Avg(&'static str),
+    /// `min :field` — the declared numeric field's smallest value.
+    Min(&'static str),
+    /// `max :field` — the declared numeric field's largest value.
+    Max(&'static str),
+    /// `percentile :field, at:` — the declared numeric field's value at one interpolated rank;
+    /// `median` is the fixed `at: 0.5` case.
+    Percentile { field: &'static str, at: f64 },
+    /// `any :field` — whether any row's declared boolean field is `true`.
+    Any(&'static str),
+    /// `all :field` — whether every row's declared boolean field is `true`.
+    All(&'static str),
+}
+
+/// The head's rows reduced as declared.
+fn reduce(rows: &[(String, Json)], reduction: Reduction) -> Json {
+    match reduction {
+        Reduction::Count => Json::Num(rows.len() as f64, None),
+        Reduction::Median(field) => median(rows, field),
+        Reduction::Sum(field) => sum(rows, field),
+        Reduction::Avg(field) => avg(rows, field),
+        Reduction::Min(field) => extreme(rows, field, false),
+        Reduction::Max(field) => extreme(rows, field, true),
+        Reduction::Percentile { field, at } => percentile(rows, field, at),
+        Reduction::Any(field) => boolean_reduce(rows, field, false),
+        Reduction::All(field) => boolean_reduce(rows, field, true),
+    }
 }
 
 /// Whether a `group_by` leaf is checked for a second row — decided once, by the generator, from
@@ -426,16 +446,7 @@ mod snake_alias_tests {
             filtered_heads: &[],
             authorization: None,
             group_by: None,
-            count: false,
-            median_field: None,
-            sum_field: None,
-            avg_field: None,
-            min_field: None,
-            max_field: None,
-            percentile_field: None,
-            percentile_at: None,
-            any_field: None,
-            all_field: None,
+            reduction: None,
         }];
 
         assert!(find(&table, "Banking.CustomerPortfolio").is_some());
@@ -615,16 +626,7 @@ mod reference_hop_tests {
             }],
             authorization: None,
             group_by: None,
-            count: false,
-            median_field: None,
-            sum_field: None,
-            avg_field: None,
-            min_field: None,
-            max_field: None,
-            percentile_field: None,
-            percentile_at: None,
-            any_field: None,
-            all_field: None,
+            reduction: None,
         }
     }
 
@@ -1017,30 +1019,8 @@ pub fn run(store: &impl AggregateScan, def: &ReadModelDef, args: &Json) -> Resul
                 )
             })?;
             group_by(rows)?
-        } else if many && def.count {
-            Json::Num(rows.len() as f64, None)
-        } else if let Some(field) = def.median_field.filter(|_| many) {
-            median(&rows, field)
-        } else if let Some(field) = def.sum_field.filter(|_| many) {
-            sum(&rows, field)
-        } else if let Some(field) = def.avg_field.filter(|_| many) {
-            avg(&rows, field)
-        } else if let Some(field) = def.min_field.filter(|_| many) {
-            extreme(&rows, field, false)
-        } else if let Some(field) = def.max_field.filter(|_| many) {
-            extreme(&rows, field, true)
-        } else if let Some(field) = def.percentile_field.filter(|_| many) {
-            percentile(
-                &rows,
-                field,
-                def.percentile_at.ok_or_else(|| {
-                    Refusal::Fault("percentile_field implies percentile_at".to_string())
-                })?,
-            )
-        } else if let Some(field) = def.any_field.filter(|_| many) {
-            boolean_reduce(&rows, field, false)
-        } else if let Some(field) = def.all_field.filter(|_| many) {
-            boolean_reduce(&rows, field, true)
+        } else if let Some(reduction) = def.reduction.filter(|_| many) {
+            reduce(&rows, reduction)
         } else if many {
             Json::Array(
                 rows.into_iter()
