@@ -452,12 +452,7 @@ pub async fn run() -> Result<(), Error> {
             let (body, _context) = event.into_parts();
             server::dispatch_body(
                 body,
-                Host {
-                    client: &client,
-                    wasm_path: &wasm_path,
-                    config: &lineage_config,
-                    invoker: invoker.as_ref(),
-                },
+                Host::new(&client, &wasm_path, &lineage_config, invoker.as_ref()),
             )
             .await
         }

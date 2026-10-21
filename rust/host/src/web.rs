@@ -77,6 +77,7 @@ pub async fn render(body: &Value, host: Host<'_>) -> Option<Value> {
         wasm_path: host.wasm_path,
         config: host.config,
         invoker: host.invoker,
+        host,
     };
     for extension in extension::installed() {
         if let Some(response) = extension.guest_route(&ctx).await {
@@ -312,6 +313,7 @@ async fn auth_route(
         wasm_path,
         config,
         invoker,
+        ..
     } = host;
     let ctx = Ctx {
         event: None,
@@ -325,6 +327,7 @@ async fn auth_route(
         wasm_path: host.wasm_path,
         config: host.config,
         invoker: host.invoker,
+        host,
     };
     for extension in extension::installed() {
         if let Some(response) = extension.account_route(&ctx).await {
@@ -1927,6 +1930,7 @@ async fn command_route(
         wasm_path,
         config,
         invoker,
+        ..
     } = host;
     let fields = command_fields(domain_ir, aggregate, command);
     let cname = command.get("name").and_then(|v| v.as_str()).unwrap_or("");

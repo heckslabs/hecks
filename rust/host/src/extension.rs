@@ -29,17 +29,14 @@ pub struct Ctx<'a> {
     pub wasm_path: &'a Path,
     pub config: &'a LineageConfig,
     pub invoker: &'a dyn LambdaInvoker,
+    /// The four above as one value, for the host's own handlers.
+    pub host: crate::host::Host<'a>,
 }
 
 impl<'a> Ctx<'a> {
     /// The request's journal connection, module, lineage and invoker, as one value.
-    pub fn host(&self) -> crate::host::Host<'a> {
-        crate::host::Host {
-            client: self.client,
-            wasm_path: self.wasm_path,
-            config: self.config,
-            invoker: self.invoker,
-        }
+    pub const fn host(&self) -> crate::host::Host<'a> {
+        self.host
     }
 }
 

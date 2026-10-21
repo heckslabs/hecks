@@ -601,14 +601,7 @@ pub(crate) async fn registration_complete_route(
     // Only a payment that settled just now earns a receipt; a repeat click was
     // refused above as already settled.
     if outcome == "succeeded" && outcome_result.accepted {
-        super::registration_receipt::send_receipt(
-            registration_id,
-            client,
-            wasm_path,
-            config,
-            payments,
-        )
-        .await;
+        super::registration_receipt::deliver_receipt(registration_id, host, payments).await;
     }
 
     let read = match dispatch::read(client, wasm_path).await {
@@ -974,10 +967,7 @@ pub(crate) async fn webhook_route(
     payments: &PaymentsProvider,
 ) -> Value {
     let Host {
-        client,
-        wasm_path,
-        config,
-        ..
+        client, wasm_path, ..
     } = host;
     let now = unix_now();
     // The environment's signing secret and any saved with the business's own
@@ -1087,10 +1077,7 @@ pub(crate) async fn webhook_route(
                 // Only the delivery that settles the payment sends the receipt;
                 // a redelivery is refused and stays quiet.
                 Ok(settled) if settled.accepted && event_type == "checkout.session.completed" => {
-                    super::registration_receipt::send_receipt(
-                        &reference, client, wasm_path, config, payments,
-                    )
-                    .await;
+                    super::registration_receipt::deliver_receipt(&reference, host, payments).await;
                 }
                 Ok(_) => {}
             }
