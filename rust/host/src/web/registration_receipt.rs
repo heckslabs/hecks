@@ -5,12 +5,9 @@
 use super::instances_for;
 use crate::commerce_ir::PaymentsProvider;
 use crate::dispatch;
-use crate::journal::LineageConfig;
+use crate::host::Host;
 use crate::resend::{Email, Mailer};
 use serde_json::{json, Value};
-use std::path::Path;
-use tokio::sync::Mutex;
-use tokio_postgres::Client;
 
 #[cfg(test)]
 mod tests;
@@ -96,15 +93,27 @@ fn built_in_body(first_name: Option<&str>, event_name: &str, amount_cents: Optio
     format!("{greeting}\n\nYou're registered for {event_name}.{paid}\n\nYour seat is held. If anything changes, just reply to this email.\n")
 }
 
+/// Mails the receipt for `reference` without holding up the response when the host can outlive
+/// the request: a slow site or mailer would otherwise delay the checkout redirect, or Stripe's
+/// webhook acknowledgement and so invite a retry. A host built from borrows (the tests, the
+/// Lambda entry point, where a frozen process would drop the task) sends it inline.
+pub(super) async fn deliver_receipt(reference: &str, host: Host<'_>, payments: &PaymentsProvider) {
+    let Some(owned) = host.detach() else {
+        return send_receipt(reference, host, payments).await;
+    };
+    let (reference, payments) = (reference.to_string(), payments.clone());
+    tokio::spawn(async move { send_receipt(&reference, owned.host(), &payments).await });
+}
+
 /// Mails the receipt for `reference` if its Payment has succeeded. A missing
 /// mailer, registrant address or event is skipped quietly.
-pub(super) async fn send_receipt(
-    reference: &str,
-    client: &Mutex<Client>,
-    wasm_path: &Path,
-    config: &LineageConfig,
-    payments: &PaymentsProvider,
-) {
+async fn send_receipt(reference: &str, host: Host<'_>, payments: &PaymentsProvider) {
+    let Host {
+        client,
+        wasm_path,
+        config,
+        ..
+    } = host;
     let mailer = match Mailer::from_env() {
         Ok(Some(mailer)) => mailer,
         Ok(None) => return,

@@ -300,6 +300,7 @@ async fn run(
         wasm_path,
         config,
         invoker,
+        ..
     } = host;
     let role = caller.role;
     let mut guard = client.lock().await;
@@ -1046,12 +1047,12 @@ pub(crate) mod tests {
         provision_lineage(&*client.lock().await, "Banking", 1, &["Customer"]).await;
 
         let outcome = handle(
-            Host {
-                client: &client,
-                wasm_path: &wasm_path(),
-                config: &test_config("Banking", 1),
-                invoker: &lambda_client::NeverInvoker,
-            },
+            Host::new(
+                &client,
+                &wasm_path(),
+                &test_config("Banking", 1),
+                &lambda_client::NeverInvoker,
+            ),
             "Banking::Customer.Register",
             register("CUST-0001"),
             None,
@@ -1114,12 +1115,12 @@ pub(crate) mod tests {
 
         let before = crate::auth::httpdate_now();
         let outcome = handle(
-            Host {
-                client: &client,
-                wasm_path: &wasm_path(),
-                config: &test_config("Banking", 1),
-                invoker: &lambda_client::NeverInvoker,
-            },
+            Host::new(
+                &client,
+                &wasm_path(),
+                &test_config("Banking", 1),
+                &lambda_client::NeverInvoker,
+            ),
             "Banking::Customer.Register",
             register("CUST-OCCURRED-AT"),
             None,
@@ -1496,12 +1497,12 @@ pub(crate) mod tests {
         provision_lineage(&*client.lock().await, "Banking", 1, &["Customer"]).await;
 
         handle(
-            Host {
-                client: &client,
-                wasm_path: &wasm_path(),
-                config: &test_config("Banking", 1),
-                invoker: &lambda_client::NeverInvoker,
-            },
+            Host::new(
+                &client,
+                &wasm_path(),
+                &test_config("Banking", 1),
+                &lambda_client::NeverInvoker,
+            ),
             "Banking::Customer.Register",
             register("CUST-0003"),
             None,

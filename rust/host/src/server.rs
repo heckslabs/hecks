@@ -121,12 +121,12 @@ pub struct ServerState {
 impl ServerState {
     /// The shared pieces a dispatch needs, borrowed for one call.
     pub fn host(&self) -> Host<'_> {
-        Host {
-            client: &self.client,
-            wasm_path: &self.wasm_path,
-            config: &self.lineage_config,
-            invoker: self.invoker.as_ref(),
-        }
+        Host::shared(
+            &self.client,
+            &self.wasm_path,
+            &self.lineage_config,
+            &self.invoker,
+        )
     }
 }
 
