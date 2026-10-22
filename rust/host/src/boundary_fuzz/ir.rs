@@ -15,6 +15,8 @@ const KEYS: &[&str] = &[
     "storage_name",
     "persistence",
     "adapter",
+    "adapters",
+    "port",
     "authorization",
     "grant",
     "assignment_aggregate",
@@ -119,7 +121,10 @@ fn every_provider_reader_answers_any_ir_shape() {
                 let _ = payment_connection_binding(&random_text(&mut rng));
                 if let Err(message) = refuse_unsupported_persistence_adapters(&ir) {
                     assert!(
-                        message.contains("rust/host only has a backend"),
+                        message.contains("rust/host only has a backend")
+                            || message.contains("does not declare")
+                            || message.contains("rather than \"persistence\"")
+                            || message.contains("\"adapters\""),
                         "seed {seed}: unhelpful refusal {message:?}"
                     );
                 }
@@ -128,20 +133,100 @@ fn every_provider_reader_answers_any_ir_shape() {
     }
 }
 
+fn ir_binding(adapter: &str, adapters: Option<Value>) -> Value {
+    let mut ir =
+        json!({"name": "D", "persistence": {"aggregates": [{"name": "A", "adapter": adapter}]}});
+    if let Some(adapters) = adapters {
+        ir["adapters"] = adapters;
+    }
+    ir
+}
+
+fn refusal(ir: &Value) -> String {
+    refuse_unsupported_persistence_adapters(ir).unwrap_err()
+}
+
 #[test]
 fn an_unsupported_persistence_adapter_is_always_refused_at_boot() {
+    // No `adapters` key (every deployed IR today): the old behaviour, byte for byte.
     for adapter in ["Heki", "Memory", "Sqlite", "", "postgres", "Postgres "] {
-        let ir = json!({"name": "D", "persistence": {"aggregates": [{"name": "A", "adapter": adapter}]}});
-        assert!(
-            refuse_unsupported_persistence_adapters(&ir).is_err(),
-            "{adapter:?}"
-        );
+        let message = refusal(&ir_binding(adapter, None));
+        assert!(message.starts_with("rust/host only has a backend for [\"Postgres\", \"PostgresEra\"] today; this domain also binds: A (persisted_by "), "{adapter:?}");
     }
     for adapter in ["Postgres", "PostgresEra"] {
-        let ir = json!({"name": "D", "persistence": {"aggregates": [{"name": "A", "adapter": adapter}]}});
-        assert!(
-            refuse_unsupported_persistence_adapters(&ir).is_ok(),
-            "{adapter:?}"
+        assert!(refuse_unsupported_persistence_adapters(&ir_binding(adapter, None)).is_ok());
+    }
+}
+
+#[test]
+fn declared_supported_adapters_boot() {
+    for adapter in ["Postgres", "PostgresEra"] {
+        for port in [json!("persistence"), Value::Null] {
+            let ir = ir_binding(
+                adapter,
+                Some(
+                    json!([{"name": adapter, "port": port, "fields": [], "secrets": [], "defaults": {}}]),
+                ),
+            );
+            assert!(
+                refuse_unsupported_persistence_adapters(&ir).is_ok(),
+                "{adapter} {port}"
+            );
+        }
+    }
+}
+
+#[test]
+fn declared_but_unsupported_adapters_hit_the_backend_rule() {
+    for adapter in ["Heki", "Memory"] {
+        let ir = ir_binding(
+            adapter,
+            Some(json!([{"name": adapter, "port": "persistence"}])),
         );
+        assert!(
+            refusal(&ir).starts_with("rust/host only has a backend"),
+            "{adapter}"
+        );
+    }
+}
+
+#[test]
+fn supported_but_undeclared_adapters_are_refused_by_name() {
+    for declared in [json!([]), json!([{"name": "Heki", "port": "persistence"}])] {
+        let message = refusal(&ir_binding("Postgres", Some(declared)));
+        assert!(
+            message.contains("A binds Postgres, which the domain's IR does not declare"),
+            "{message}"
+        );
+    }
+}
+
+#[test]
+fn a_non_persistence_port_is_refused() {
+    for port in [json!("mail"), json!(""), json!(7), json!(["persistence"])] {
+        let ir = ir_binding(
+            "Postgres",
+            Some(json!([{"name": "Postgres", "port": port}])),
+        );
+        assert!(
+            refusal(&ir).contains("rather than \"persistence\""),
+            "{port}"
+        );
+    }
+}
+
+#[test]
+fn a_malformed_adapters_key_is_a_clear_refusal_never_a_panic() {
+    for bad in [
+        Value::Null,
+        json!("Postgres"),
+        json!(3),
+        json!({"name": "Postgres"}),
+        json!([{"port": "persistence"}]),
+        json!([{"name": 5}]),
+        json!([null]),
+    ] {
+        let message = refusal(&ir_binding("Postgres", Some(bad.clone())));
+        assert!(message.contains("\"adapters\""), "{bad}: {message}");
     }
 }

@@ -8,6 +8,9 @@ module Hecks
       class TranslationJudge
         include Rules
 
+        # The rule lists an aggregate carries, in the order they are offered to the language.
+        RULE_KINDS = %i[renames moves converts drops retypes computes derives rekeys backfills].freeze
+
         attr_reader :refusals
 
         # @param translation [Bluebook::Translation] the built translation to judge
@@ -67,14 +70,7 @@ module Hecks
           name = aggregate.name
           declare_aggregate(translation, aggregate, name)
 
-          judge_renames(aggregate, name)
-          judge_moves(aggregate, name)
-          judge_converts(aggregate, name)
-          judge_drops(aggregate, name)
-          judge_retypes(aggregate, name)
-          judge_computes(aggregate, name)
-          judge_rekeys(aggregate, name)
-          judge_backfills(aggregate, name)
+          RULE_KINDS.each { |kind| send("judge_#{kind}", aggregate, name) }
         end
 
         def declare_aggregate(translation, aggregate, name)

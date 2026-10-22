@@ -1,5 +1,6 @@
 //! Rust port of the binding facts `lib/hecks/rust_build/project_rust/target_ir.rb` adds beside the
-//! declared IR: `persistence`, `translations` and `source_text`. The capability seams
+//! declared IR: `persistence`, `adapters` (the bound adapters' declarations, from the closure
+//! the caller passes), `translations` and `source_text`. The capability seams
 //! (authorization, identity, payments, ...) are `seams_pass`'s.
 
 use std::collections::HashMap;
@@ -14,6 +15,7 @@ pub fn run(
     ir: &mut Json,
     hecksagon_path: Option<&Path>,
     world_path: Option<&Path>,
+    adapter_declarations: impl FnOnce(&Json) -> Result<Json, String>,
 ) -> Result<(), String> {
     let chapter_name = ir
         .get("name")
@@ -22,6 +24,8 @@ pub fn run(
         .to_string();
     let persistence = persistence(ir, &chapter_name, hecksagon_path, world_path)?;
     ir.set("persistence", persistence);
+    let adapters = adapter_declarations(ir)?;
+    ir.set("adapters", adapters);
     Ok(())
 }
 

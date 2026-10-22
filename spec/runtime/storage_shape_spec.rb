@@ -56,4 +56,30 @@ RSpec.describe "the storage-shape projection" do
     expect(Hecks::Runtime::StorageShape.mint_hash(bluebook)).to start_with(label)
     expect(Hecks::Runtime::StorageShape.mint_label(bluebook)).to eq(label)
   end
+
+  # spec/fixtures/storage_shape_vectors.json is the golden file rust/host/src/storage_shape.rs
+  # asserts too, so a drift in either implementation fails a test on its own side.
+  describe "the shared golden vectors" do
+    # Just the two readers StorageShape takes of a bluebook, over an IR Hash.
+    ShapeStub = Struct.new(:name, :dump) do
+      def to_h = dump
+    end
+
+    SHAPE_VECTORS = JSON.parse(File.read(File.join(InMemoryDomain::ROOT, "spec", "fixtures", "storage_shape_vectors.json")))
+
+    it "carries the real translation edge label among its vectors" do
+      expect(SHAPE_VECTORS.map { |vector| vector["label"] }).to include("77625c")
+    end
+
+    SHAPE_VECTORS.each do |vector|
+      it "#{vector["name"]} mints the canonical form, hash and label", :aggregate_failures do
+        ir = vector["ir"] || JSON.parse(File.read(File.join(InMemoryDomain::ROOT, vector.fetch("ir_file"))))
+        bluebook = ShapeStub.new(ir["name"], ir)
+
+        expect(Hecks::Runtime::StorageShape.canonical(bluebook)).to eq(vector["canonical"])
+        expect(Hecks::Runtime::StorageShape.mint_hash(bluebook)).to eq(vector["hash"])
+        expect(Hecks::Runtime::StorageShape.mint_label(bluebook)).to eq(vector["label"])
+      end
+    end
+  end
 end

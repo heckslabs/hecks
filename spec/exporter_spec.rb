@@ -203,4 +203,31 @@ RSpec.describe Hecks::Projector::Exporter do
       expect(Hecks::Runtime::EraCheck.lineage_capable?(registry, adapter)).to be true
     end
   end
+
+  describe ".persistence_adapters / the IR's adapters key" do
+    def persistence_binding(*names)
+      { aggregates: names.map { |name| { name: "A", storage_name: "a", adapter: name } } }
+    end
+
+    let(:files) { described_class.adapter_files_under([File.join(InMemoryDomain::ROOT, "lib")]) }
+
+    it "declares each distinct bound adapter once, in name order, as hecks-parse adapter prints it",
+       :aggregate_failures do
+      declared = described_class.persistence_adapters(persistence_binding("Memory", "Heki", "Memory"), files)
+
+      expect(declared.map { |adapter| adapter["name"] }).to eq(%w[Heki Memory])
+      expect(declared.first).to eq("name" => "Heki", "port" => "persistence", "fields" => ["dir"],
+                                   "secrets" => [], "defaults" => { "dir" => "data" })
+    end
+
+    it "omits a bound adapter nothing declares and answers [] when nothing is bound", :aggregate_failures do
+      expect(described_class.persistence_adapters(persistence_binding("NoSuchAdapter"), files)).to eq([])
+      expect(described_class.persistence_adapters(persistence_binding, files)).to eq([])
+    end
+
+    it "scans no vendored, build or hidden directory" do
+      relative = files.map { |path| path.delete_prefix("#{InMemoryDomain::ROOT}/") }
+      expect(relative.grep(%r{/(vendor|node_modules|target|tmp|\.[^/]+)/})).to be_empty
+    end
+  end
 end
