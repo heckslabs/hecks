@@ -296,62 +296,9 @@ impl LineageConfig {
     }
 }
 
-/// Ports `Naming.snake` (lib/hecks/naming.rb) verbatim — must match Ruby
-/// exactly so both runtimes derive the same storage names.
-pub fn snake(name: &str) -> String {
-    ruby_downcase(&word_boundary(&acronym_boundary(name)))
-}
-
-/// Lowercases the way Ruby's `String#downcase` does: each character on its own, with the full
-/// Unicode mapping. `str::to_lowercase` differs in one place, a word-final capital sigma, which
-/// it turns into the final form `ς` where Ruby gives `σ`; and `to_ascii_lowercase` leaves every
-/// non-ASCII capital alone. Names derived from a bluebook must come out the same in both runtimes.
-pub fn ruby_downcase(text: &str) -> String {
-    text.chars().flat_map(char::to_lowercase).collect()
-}
-
-fn acronym_boundary(s: &str) -> String {
-    let chars: Vec<char> = s.chars().collect();
-    let mut out = String::new();
-    let mut i = 0;
-    while i < chars.len() {
-        if chars[i].is_ascii_uppercase() {
-            let mut j = i;
-            while j < chars.len() && chars[j].is_ascii_uppercase() {
-                j += 1;
-            }
-            let run_len = j - i;
-            if run_len >= 2 && j < chars.len() && chars[j].is_ascii_lowercase() {
-                out.extend(&chars[i..j - 1]);
-                out.push('_');
-                out.push(chars[j - 1]);
-                i = j;
-                continue;
-            }
-            out.extend(&chars[i..j]);
-            i = j;
-            continue;
-        }
-        out.push(chars[i]);
-        i += 1;
-    }
-    out
-}
-
-fn word_boundary(s: &str) -> String {
-    let chars: Vec<char> = s.chars().collect();
-    let mut out = String::new();
-    for (idx, &c) in chars.iter().enumerate() {
-        if idx > 0 && c.is_ascii_uppercase() {
-            let prev = chars[idx - 1];
-            if prev.is_ascii_lowercase() || prev.is_ascii_digit() {
-                out.push('_');
-            }
-        }
-        out.push(c);
-    }
-    out
-}
+// `Naming.snake` is the one shared port (rust/codegen/src/hecks_naming.rs); the host reaches it
+// through here so both runtimes derive the same storage names.
+pub use crate::hecks_naming::snake;
 
 /// `aggregate.storage_name` ported from ir/aggregate.rb — demodulizes a
 /// qualified name like `"Banking::Customer"` to `"Customer"` before snaking it.
@@ -1095,12 +1042,5 @@ mod naming_vector_tests {
             );
             assert!(got.len() <= POSTGRES_IDENTIFIER_LIMIT);
         }
-    }
-
-    #[test]
-    fn ruby_downcase_folds_unicode_capitals_one_character_at_a_time() {
-        assert_eq!(ruby_downcase("ÉCOLE"), "école");
-        assert_eq!(ruby_downcase("ΟΔΥΣΣΕΑΣ"), "οδυσσεασ");
-        assert_eq!(ruby_downcase("ascii"), "ascii");
     }
 }

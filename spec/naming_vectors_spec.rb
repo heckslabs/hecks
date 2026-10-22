@@ -1,7 +1,8 @@
 require "spec_helper"
 require "hecks/ports/persistence/plugins/era/postgres_era/lineage"
 
-# Naming.snake and Lineage#qualified_name have a hand-written twin in rust/host/src/journal.rs.
+# Hecks::Naming and Lineage#qualified_name have Rust twins: rust/codegen/src/hecks_naming.rs (the one
+# port of Naming, compiled into the parser, build, host and kernel crates) and the host's journal.rs.
 # spec/fixtures/naming_vectors.json is the one table both sides assert, so a drift in either
 # fails a test on its own side.
 RSpec.describe "the shared naming vectors" do
@@ -14,6 +15,17 @@ RSpec.describe "the shared naming vectors" do
   NAMING_VECTORS.fetch("snake").each do |row|
     it "Naming.snake(#{row["input"].inspect}) is #{row["expected"].inspect}" do
       expect(Hecks::Naming.snake(row["input"])).to eq(row["expected"])
+    end
+  end
+
+  {
+    "pascal" => :pascal, "plural" => :plural, "singularize" => :singularize,
+    "demodulise" => :demodulise, "reference_key" => :reference_key
+  }.each do |table, rule|
+    NAMING_VECTORS.fetch(table).each do |row|
+      it "Naming.#{rule}(#{row["input"].inspect}) is #{row["expected"].inspect}" do
+        expect(Hecks::Naming.public_send(rule, row["input"]).to_s).to eq(row["expected"])
+      end
     end
   end
 

@@ -164,7 +164,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     for pkg_name in &vendored_package_names {
         let pkg_files = resolve::vendored_bluebook_files(&domain_path, pkg_name)?;
         let pkg_chapter_name = resolve::header_chapter_name(&pkg_files[0])?;
-        let expected_chapter_name = resolve::pascal(pkg_name);
+        let expected_chapter_name = crate::hecks_naming::pascal(pkg_name);
         if pkg_chapter_name != expected_chapter_name {
             return Err(format!(
                 "hecks-build: {} declares chapter {pkg_chapter_name:?}, but attaches {pkg_name:?}, from: :vendor \

@@ -11,7 +11,12 @@ mod domain_generator;
 mod exemplar;
 mod expr_emitter;
 mod fielded;
+// The one `Hecks::Naming` port, compiled by path into the other Cargo projects too; codegen uses
+// only part of it.
+#[allow(dead_code)]
 mod hecks_naming;
+#[cfg(test)]
+mod hecks_naming_tests;
 mod json;
 mod json_codec;
 mod literal;

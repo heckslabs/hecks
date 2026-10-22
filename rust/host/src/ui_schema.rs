@@ -4,9 +4,8 @@
 
 use serde_json::{json, Map, Value};
 use std::collections::HashMap;
-use std::sync::LazyLock;
 
-use regex::Regex;
+use crate::hecks_naming::{plural, snake};
 
 /// `Hecks::Bluebook::IR::Attribute::PRIMITIVES`.
 const PRIMITIVES: &[&str] = &["String", "Integer", "Float", "TrueClass", "FalseClass"];
@@ -1060,37 +1059,6 @@ fn merge(base: Value, extra: Value) -> Value {
         }
     }
     Value::Object(out)
-}
-
-/// Compiles a pattern written as a literal in this file.
-#[allow(clippy::expect_used)] // reason: every caller passes a literal verified by the specs
-fn literal_regex(pattern: &str) -> Regex {
-    Regex::new(pattern).expect("a literal pattern must compile")
-}
-
-static SNAKE_ACRONYM: LazyLock<Regex> = LazyLock::new(|| literal_regex(r"([A-Z]+)([A-Z][a-z])"));
-static SNAKE_BOUNDARY: LazyLock<Regex> = LazyLock::new(|| literal_regex(r"([a-z\d])([A-Z])"));
-static PLURAL_Y: LazyLock<Regex> = LazyLock::new(|| literal_regex(r"[^aeiou]y$"));
-static PLURAL_ES: LazyLock<Regex> = LazyLock::new(|| literal_regex(r"(s|x|z|ch|sh)$"));
-
-/// `Naming.snake` — the same two word-boundary substitutions, then
-/// downcase.
-pub fn snake(text: &str) -> String {
-    let once = SNAKE_ACRONYM.replace_all(text, "${1}_${2}");
-    let twice = SNAKE_BOUNDARY.replace_all(&once, "${1}_${2}");
-    twice.to_lowercase()
-}
-
-/// `Naming.plural` — three suffix rules, exactly as declared; getting
-/// a collection name wrong reads as a typo forever.
-pub fn plural(word: &str) -> String {
-    if PLURAL_Y.is_match(word) {
-        return format!("{}ies", &word[..word.len() - 1]);
-    }
-    if PLURAL_ES.is_match(word) {
-        return format!("{word}es");
-    }
-    format!("{word}s")
 }
 
 /// `UiSchema.humanize_words` — snake_case, then each word capitalized.

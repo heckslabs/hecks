@@ -10,6 +10,9 @@ mod approval;
 #[path = "../expr_json.rs"]
 mod expr_json;
 #[allow(dead_code)]
+#[path = "../../../codegen/src/hecks_naming.rs"]
+mod hecks_naming;
+#[allow(dead_code)]
 #[path = "../journal.rs"]
 mod journal;
 #[allow(dead_code)]
