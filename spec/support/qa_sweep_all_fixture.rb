@@ -4,7 +4,7 @@ require "tempfile"
 require "fileutils"
 require "pathname"
 require_relative "postgres_probe"
-require_relative "qa_ledger_role"
+require_relative "qa_ledger_fixture"
 require_relative "thread_parking"
 
 # Shared fixture for the `qa_sweep --all` specs; pass a per-file unique database name.
@@ -17,25 +17,6 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
     FIXTURE_RUST_DIR = File.join(InMemoryDomain::ROOT,
                                  "spec/fixtures/qa_sweep_all_found_fixture_rust").freeze
   end
-
-  # The fixture ledger's `.hecksagon`: quality_control.hecksagon, chapter ports included.
-  FIXTURE_HECKSAGON = <<~RUBY.freeze unless defined?(FIXTURE_HECKSAGON)
-    Hecks::Chapters.load!("QualityControl")
-
-    Hecks.hecksagon "QualityControl" do
-      attaches "Governance"
-
-      QualityControl::Target.persisted_by("PostgresEra")
-      QualityControl::Sweep.persisted_by("PostgresEra")
-      QualityControl::Bug.persisted_by("PostgresEra")
-      QualityControl::Angle.persisted_by("PostgresEra")
-      QualityControl::Ticket.persisted_by("PostgresEra")
-      QualityControl::Patch.persisted_by("PostgresEra")
-      QualityControl::Improvement.persisted_by("PostgresEra")
-      QualityControl::DailyQuota.persisted_by("PostgresEra")
-      QualityControl::Clearance.persisted_by("PostgresEra")
-    end
-  RUBY
 
   # Two concurrent processes race the same `Target.claim!`; the loser prints "refused" and exits 1.
   CLAIM_RACE_SCRIPT = <<~RUBY.freeze unless defined?(CLAIM_RACE_SCRIPT)
@@ -121,17 +102,7 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
     @fixture_root = Dir.mktmpdir("qa_sweep_all_spec")
     @fixture_dir  = File.join(@fixture_root, "bluebook")
     FileUtils.mkdir_p(@fixture_dir)
-    File.write(File.join(@fixture_dir, "quality_control.hecksagon"), FIXTURE_HECKSAGON)
-    File.write(File.join(@fixture_dir, "context_map.hecksagon"), InMemoryDomain::GOVERNANCE_POSTGRES_ERA_HECKSAGON)
-    # Same URL shape as the real ledger; PostgresEra refuses to boot as the ambient superuser.
-    url = QaLedgerRole.url(@qa_sweep_all_database)
-    File.write(File.join(@fixture_dir, "quality_control.world"), <<~RUBY)
-      Hecks.world "QualityControl" do
-        realm "QA"
-        persisted_by("PostgresEra") { database "#{url}" }
-      end
-    RUBY
-    File.write(File.join(@fixture_dir, "governance.world"), InMemoryDomain.governance_postgres_era_world(url))
+    QaLedgerFixture.write_files(@fixture_dir, @qa_sweep_all_database)
 
     # Inside the repo root because `qa_sweep` resolves a target's path against it.
     @target_domain_dir = Dir.mktmpdir("qa_sweep_all_spec_target-", InMemoryDomain::ROOT)

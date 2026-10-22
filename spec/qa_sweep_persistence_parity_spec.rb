@@ -1,7 +1,7 @@
 require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "support/postgres_probe"
-require_relative "support/qa_ledger_role"
+require_relative "support/qa_ledger_fixture"
 require "open3"
 require "hecks/quality_control/cli/child"
 require "fileutils"
@@ -11,27 +11,6 @@ require "pathname"
 # whose `compute`/`rekey` edge exercises PostgresEra SQL compilation.
 RSpec.describe "qa_sweep --persistence-parity", :io do
   QA_SWEEP_PERSISTENCE_PARITY_DATABASE = "hecks_qa_sweep_persistence_parity_spec".freeze
-
-  # Same as `FIXTURE_HECKSAGON` in `spec/support/qa_sweep_all_fixture.rb`, under another name:
-  # a constant assigned inside `RSpec.describe do ... end` lands on `Object`, so a shared name
-  # would be overwritten by whichever spec file loads last.
-  LEDGER_HECKSAGON = <<~RUBY.freeze
-    Hecks::Chapters.load!("QualityControl")
-
-    Hecks.hecksagon "QualityControl" do
-      attaches "Governance"
-
-      QualityControl::Target.persisted_by("PostgresEra")
-      QualityControl::Sweep.persisted_by("PostgresEra")
-      QualityControl::Bug.persisted_by("PostgresEra")
-      QualityControl::Angle.persisted_by("PostgresEra")
-      QualityControl::Ticket.persisted_by("PostgresEra")
-      QualityControl::Patch.persisted_by("PostgresEra")
-      QualityControl::Improvement.persisted_by("PostgresEra")
-      QualityControl::DailyQuota.persisted_by("PostgresEra")
-      QualityControl::Clearance.persisted_by("PostgresEra")
-    end
-  RUBY
 
   # A Heki-bound target for the eligibility gate's negative example.
   INELIGIBLE_TARGET_BLUEBOOK = <<~RUBY.freeze
@@ -65,16 +44,7 @@ RSpec.describe "qa_sweep --persistence-parity", :io do
     @fixture_root = Dir.mktmpdir("qa_sweep_persistence_parity_spec")
     @fixture_dir  = File.join(@fixture_root, "bluebook")
     FileUtils.mkdir_p(@fixture_dir)
-    File.write(File.join(@fixture_dir, "quality_control.hecksagon"), LEDGER_HECKSAGON)
-    File.write(File.join(@fixture_dir, "context_map.hecksagon"), InMemoryDomain::GOVERNANCE_POSTGRES_ERA_HECKSAGON)
-    url = QaLedgerRole.url(QA_SWEEP_PERSISTENCE_PARITY_DATABASE)
-    File.write(File.join(@fixture_dir, "quality_control.world"), <<~RUBY)
-      Hecks.world "QualityControl" do
-        realm "QA"
-        persisted_by("PostgresEra") { database "#{url}" }
-      end
-    RUBY
-    File.write(File.join(@fixture_dir, "governance.world"), InMemoryDomain.governance_postgres_era_world(url))
+    QaLedgerFixture.write_files(@fixture_dir, QA_SWEEP_PERSISTENCE_PARITY_DATABASE)
 
     # Inside the real repo `ROOT`, because `qa_sweep` resolves a target path against it.
     @ineligible_dir = Dir.mktmpdir("qa_sweep_persistence_parity_spec_target-", InMemoryDomain::ROOT)
