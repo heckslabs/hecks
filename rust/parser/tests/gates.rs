@@ -785,6 +785,26 @@ fn a_removed_attach_spelling_is_refused_naming_its_replacement() {
     );
 }
 
+#[test]
+fn a_retired_hecksagon_word_is_refused_by_name() {
+    let bluebook = fixture("translates.bluebook");
+    let hecksagon = fixture("retired_hecksagon_word.hecksagon");
+    let output = run(&[
+        "chapter",
+        "--chapter",
+        "FixtureTranslates",
+        bluebook.to_str().unwrap(),
+        hecksagon.to_str().unwrap(),
+    ]);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    assert!(!output.status.success(), "a retired word must not parse");
+    assert!(
+        stderr.contains("`capabilities` is not a hecksagon word and nothing reads it"),
+        "expected the refusal to name the word, got: {stderr}"
+    );
+}
+
 /// Runs `hecks-parse adapter` over the named fixtures; returns exit code, stdout, stderr.
 fn run_adapter(names: &[&str]) -> (i32, String, String) {
     let paths: Vec<PathBuf> = names.iter().map(|n| fixture(n)).collect();

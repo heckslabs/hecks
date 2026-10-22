@@ -1,0 +1,4 @@
+# `capabilities` is a retired word with no replacement; the parser refuses it by name.
+Hecks.hecksagon "FixtureTranslates" do
+  capabilities :webapp
+end
