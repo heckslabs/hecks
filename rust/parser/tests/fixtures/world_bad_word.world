@@ -1,0 +1,3 @@
+Hecks.world "Bad" do
+  puts "hi"
+end
