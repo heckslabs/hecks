@@ -389,6 +389,44 @@ fully-defaulted value object refuses at boot until one of those, or a
 same refuse-at-declaration EraGuard already applies to a vanished or
 retyped field, read on the addition side instead.
 
+**`derive`** gives a new field a value computed from the record's own text,
+in a small expression language with no storage engine in it: `lower`,
+`upper`, `concat`, `replace` (plain text), `lookup` (a table and a
+fallback), string literals, `null`, and fields by dotted path. It reads
+the record as stored, so it runs before every other rule and leaves what
+it reads where it is; `drop` removes a field. A record where the
+expression has no value (a field missing or not text) gets no new field.
+It is pure, so it needs no approval, and `Lineage#translate` and the
+Postgres head agree on every record:
+
+```ruby boot
+Hecks.data_translation("GuideMembers", from: "1", to: "2") do
+  aggregate("Member") do
+    derive "email.value", as: 'concat(lower(replace(name.value, " ", ".")), "@example.com")'
+    rekey_to "email.value"
+    drop :name
+  end
+end
+```
+
+**`rekey_to`** makes the aggregate's identity the value of a derived field,
+so a change of `identified_by` needs no SQL: the id is that value, and a
+record where the derive has no value keeps its id. `Lineage#translate` changes
+the id in process:
+
+```ruby
+lineage = Hecks::Ports::Persistence::Lineage.new(
+  {}, [], [], [],
+  derives: [Hecks::Bluebook::TranslationDerive.new("email", 'concat(lower(name), "@example.com")')],
+  rekeys:  [Hecks::Bluebook::TranslationRekey.new(nil, "email")]
+)
+entry = Hecks::Ports::Persistence::Entry.new(operation: "save", id: "Ada", state: { name: "Ada" })
+lineage.translate(entry).id   # => "ada@example.com"
+```
+
+`compute` and `rekey sql:` below stay for the rare change the expression
+language cannot say, at the price of Postgres-only SQL and the review.
+
 **`compute`** is the one rule with no in-process implementation at
 all — its SQL expression is its only meaning, run inside the era's own
 compiled view, and `Lineage#translate` passes a computed field through

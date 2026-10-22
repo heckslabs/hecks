@@ -76,7 +76,7 @@ module Hecks
 
           registry.translations.each do |translation|
             translation.aggregates.each do |aggregate|
-              next if aggregate.computes.empty? && aggregate.rekeys.empty?
+              next unless aggregate.needs_approval?
 
               raise WiringError,
                     "cannot boot #{translation.domain}::#{aggregate.name}: a compute/rekey rule is declared, but no " \

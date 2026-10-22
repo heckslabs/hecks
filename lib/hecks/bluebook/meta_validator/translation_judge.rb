@@ -9,7 +9,7 @@ module Hecks
         include Rules
 
         # The rule lists an aggregate carries, in the order they are offered to the language.
-        RULE_KINDS = %i[renames moves converts drops retypes computes derives rekeys backfills].freeze
+        RULE_KINDS = %i[renames moves converts drops retypes computes derives rekeys rekey_tos backfills].freeze
 
         attr_reader :refusals
 

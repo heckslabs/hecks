@@ -1,9 +1,9 @@
-# Rekeys Directory's Member from `name` to `email`: `compute` sets the value, `rekey` the id.
-# Both share one expression because Lineage#translate never touches an entry's id, only its state.
+# Rekeys Directory's Member from `name` to `email`: `derive` computes the address from the name,
+# `rekey_to` takes the id from it, and `drop` removes the name the address came from.
 Hecks.data_translation "Directory", from: "dffb74", to: "632545" do
   aggregate "Member" do
-    compute "name", to: "email",
-            sql: "lower(regexp_replace((__s -> 'name') ->> 'value', '\\s+', '.', 'g')) || '@example.com'"
-    rekey sql: "lower(regexp_replace((__s -> 'name') ->> 'value', '\\s+', '.', 'g')) || '@example.com'"
+    derive "email.value", as: 'concat(lower(replace(name.value, " ", ".")), "@example.com")'
+    rekey_to "email.value"
+    drop :name
   end
 end

@@ -79,7 +79,7 @@ RSpec.describe "every live DSL word, used somewhere real" do
     "examples/pizzas/bluebook/translations/2-77625c.bluebook and " \
     "examples/directory/bluebook/translations/2-632545.bluebook (the two real " \
     "translations this repository has) only exercise `aggregate ... was:`, " \
-    "`move ... to:`, `compute ... to:, sql:`, and `rekey sql:`. `corpus_uses?`'s " \
+    "`move ... to:`, `derive ... as:`, `rekey_to`, and `drop`. `corpus_uses?`'s " \
     "naive whole-token scan reports a false positive for this word regardless " \
     "(see the comment on the first entry in this group), so this exemption " \
     "also stands in for that scanner gap.".freeze
@@ -164,15 +164,15 @@ RSpec.describe "every live DSL word, used somewhere real" do
     # Rule.Kind closed set (plus "retired" as a status string in
     # banking.bluebook/expression.bluebook). Verified by hand: the two
     # real translations here (examples/pizzas, examples/directory) only
-    # exercise aggregate/move/compute/rekey, which is why those need no
-    # exemption while the remaining rule kinds still lack a real edge.
+    # exercise aggregate/move/derive/rekey_to/drop, which is why those need
+    # no exemption while the remaining rule kinds still lack a real edge.
     "retired (Translation)"             => TRANSLATION_RULE_GAP,
     "rename (TranslationAggregate)"     => TRANSLATION_RULE_GAP,
     "convert (TranslationAggregate)"    => TRANSLATION_RULE_GAP,
-    "drop (TranslationAggregate)"       => TRANSLATION_RULE_GAP,
     "retype (TranslationAggregate)"     => TRANSLATION_RULE_GAP,
     "backfill (TranslationAggregate)"   => TRANSLATION_RULE_GAP,
-    "derive (TranslationAggregate)"     => TRANSLATION_RULE_GAP,
+    "compute (TranslationAggregate)"    => TRANSLATION_RULE_GAP,
+    "rekey (TranslationAggregate)"      => TRANSLATION_RULE_GAP,
     "unresolved (TranslationAggregate)" =>
                                            "same finding as the rest of this group, plus a second, independent reason: " \
                                            "`unresolved` is a deliberate failure marker (TranslationAggregateBuilder#" \

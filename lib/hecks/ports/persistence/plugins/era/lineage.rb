@@ -101,15 +101,16 @@ module Hecks
         # @return [Boolean] true when the edge declares at least one rekey rule
         def rekey? = !@rules.rekeys.empty?
 
-        # Rewrites one journal entry's state from the held shape into the current one.
+        # Rewrites one journal entry from the held shape into the current one.
         #
-        # The reference semantics for rename, move, convert, drop, and the aggregate-level `was:`.
-        # `compute` is not applied here — its SQL is the only implementation, audited separately.
+        # The reference semantics for derive, rename, move, convert, drop, `was:` and the id a
+        # `rekey_to` takes. `compute` and `rekey` are not applied: their SQL is their only form.
         #
         # @param entry [Ports::Persistence::Entry] the entry as stored, with Symbol
         #   top-level keys and String keys nested in a value-object Hash
         # @return [Ports::Persistence::Entry] a new entry with translated state and the same
-        #   `operation`, `id` and `mirrors`; `entry` itself when it is not a save or has no state
+        #   `operation` and `mirrors`, and the same `id` unless a `rekey_to` gives it a value;
+        #   `entry` itself when it is not a save or has no state
         # @raise [Runtime::WiringError] if a convert value is missing from its `values` table, or a
         #   move/convert would nest under a destination already holding a non-Hash value
         def translate(entry)
@@ -118,8 +119,9 @@ module Hecks
           # Deep, not shallow: a move or convert reaches into a nested
           # value-object hash, and a shallow dup would quietly mutate
           # the caller's copy of the original entry.
+          id = rekeyed_id(entry)
           state = rewrite(deep_dup(entry.state))
-          Entry.new(operation: entry.operation, id: entry.id, state: state, mirrors: entry.mirrors)
+          Entry.new(operation: entry.operation, id: id, state: state, mirrors: entry.mirrors)
         end
 
         # Reports whether a declared retype pairs two type names as the same shape.

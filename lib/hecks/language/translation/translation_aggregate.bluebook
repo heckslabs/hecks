@@ -32,6 +32,7 @@ Hecks.bluebook "Translation" do
     attribute :computes,  list_of(TranslationCompute)
     attribute :derives,   list_of(TranslationDerive)
     attribute :rekeys,    list_of(TranslationRekey)
+    attribute :rekey_tos, list_of(TranslationRekeyTo)
     attribute :backfills, list_of(TranslationBackfill)
 
     # Field names mirror the Struct records in lib/hecks/bluebook/translation.rb, not the
@@ -70,6 +71,10 @@ Hecks.bluebook "Translation" do
 
     value_object "TranslationRekey" do
       attribute :sql, TranslationLiteralText
+    end
+
+    value_object "TranslationRekeyTo" do
+      attribute :to, TranslationName
     end
 
     value_object "TranslationBackfill" do
@@ -188,6 +193,17 @@ Hecks.bluebook "Translation" do
       emits "TranslationRekeyAdded"
     end
 
+    command "AddRekeyTo" do
+      role "Deployment"
+      goal "Take this aggregate's identity from the value of a field a derive computes"
+
+      attribute :to, TranslationName
+
+      sets :rekey_tos, append: { to: :to }
+
+      emits "TranslationRekeyToAdded"
+    end
+
     command "AddBackfill" do
       role "Deployment"
       goal "Name a newly required attribute and the value an existing record reads until written for real"
@@ -221,6 +237,7 @@ Hecks.bluebook "Translation" do
       member word: "compute",         context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "computes", calls: "compute_impl"
       member word: "derive",          context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "derives", calls: "derive_impl"
       member word: "rekey",           context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "rekeys", calls: "rekey_impl"
+      member word: "rekey_to",        context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "rekeys", calls: "rekey_to_impl"
       member word: "backfill",        context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "backfills", calls: "backfill_impl"
       member word: "unresolved",      context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "", calls: "unresolved_impl"
 
@@ -259,6 +276,7 @@ Hecks.bluebook "Translation" do
       member keyword: "derive",          context: "TranslationAggregate", at: "1", named: "",   kind: "text", required: "true", fills: "to"
       member keyword: "derive",          context: "TranslationAggregate", at: "",  named: "as", kind: "text", required: "true", fills: "as"
       member keyword: "rekey",           context: "TranslationAggregate", at: "",  named: "sql",     kind: "text",    required: "true", fills: "sql"
+      member keyword: "rekey_to",        context: "TranslationAggregate", at: "1", named: "", kind: "symbol", required: "true", fills: "to"
       member keyword: "backfill",        context: "TranslationAggregate", at: "1", named: "", kind: "symbol", required: "true", fills: "name"
       member keyword: "backfill",        context: "TranslationAggregate", at: "",  named: "default", kind: "literal", required: "true", fills: "default"
       member keyword: "unresolved",      context: "TranslationAggregate", at: "1", named: "", kind: "symbol", required: "true", fills: "name"

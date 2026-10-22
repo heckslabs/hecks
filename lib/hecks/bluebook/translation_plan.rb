@@ -7,13 +7,14 @@ module Hecks
     #   derive "to" "expression" (a tree)   rename "from" "to"   move "from" "to" (dotted paths)
     #   convert "from" "to" "values" ([old, new] pairs)   drop "path"   retype "from" "to"
     #   compute "from" "to" "sql" "requires"   backfill "path" "default"   rekey "sql" "requires"
+    #   rekey_to "to"
     #
     # `requires` is "postgres" for the ops whose only form is SQL.
     module TranslationPlan
       VERSION = 1
 
       # The op names, in the order they apply; one per rule list of a `TranslationAggregate`.
-      OPS = %w[derive rename move convert drop retype compute backfill rekey].freeze
+      OPS = %w[derive rename move convert drop retype compute backfill rekey rekey_to].freeze
 
       module_function
 
@@ -77,7 +78,11 @@ module Hecks
       end
 
       def rekeys(aggregate)
-        aggregate.rekeys.map { |r| { "op" => "rekey", "sql" => r.sql, "requires" => "postgres" } }
+        aggregate.rekeys.map { |r| r.pure? ? { "op" => "rekey_to", "to" => r.to } : sql_rekey(r) }
+      end
+
+      def sql_rekey(rekey)
+        { "op" => "rekey", "sql" => rekey.sql, "requires" => "postgres" }
       end
     end
   end

@@ -61,9 +61,15 @@ module Hecks
           end
 
           def judge_rekeys(aggregate, name)
-            Array(aggregate.rekeys).each do |rekey|
+            Array(aggregate.sql_rekeys).each do |rekey|
               send_to("Translation::TranslationAggregate.AddRekey", name, to:   name,
                                                                           with: { sql: v(rekey.sql) })
+            end
+          end
+
+          def judge_rekey_tos(aggregate, name)
+            aggregate.rekeys.select(&:pure?).each do |rekey|
+              send_to("Translation::TranslationAggregate.AddRekeyTo", name, to: name, with: { to: v(rekey.to) })
             end
           end
 

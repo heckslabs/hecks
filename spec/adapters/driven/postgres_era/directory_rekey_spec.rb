@@ -5,7 +5,7 @@ require_relative "../../../support/fenced_owner"
 require_relative "../../../support/era_registry_loading"
 
 # Mints examples/directory's committed rekey edge against a real Postgres, seeded with
-# several distinct records (a `backfill` default could fit at most one, hence `compute`).
+# several distinct records (a `backfill` default could fit at most one, hence `derive`).
 RSpec.describe "the Directory example's real rekey edge (examples/directory)", :io do
   include EraRegistryLoading
 
@@ -91,15 +91,6 @@ RSpec.describe "the Directory example's real rekey edge (examples/directory)", :
 
   def drifted_registry = load_registry(ERA_2_SOURCE, translation_source: EDGE_SOURCE)
 
-  def approve_edge!(drifted)
-    edge = drifted.translations.first
-    db = PG.connect(dbname: DIRECTORY_DB)
-    Hecks::Adapters::PostgresEra::Lineage.new(db, "Directory").record_approval!(
-      from: edge.from, to: edge.to, edge_digest: Hecks::Translation::Audit.edge_digest(edge)
-    )
-    db.close
-  end
-
   def journal_ids
     db = PG.connect(dbname: DIRECTORY_DB)
     db.exec("SELECT aggregate_id FROM hecks_journal_directory ORDER BY aggregate_id").map { |r| r["aggregate_id"] }
@@ -112,19 +103,16 @@ RSpec.describe "the Directory example's real rekey edge (examples/directory)", :
     seed_era_one!
   end
 
-  # a rekey is exempt from per-record checks, so the mint refuses without human approval
-  it "refuses to mint a compute+rekey edge nobody approved" do
-    expect { check!(ERA_2_SOURCE, translation_source: EDGE_SOURCE) }.to raise_error(
-      Hecks::Runtime::WiringError, /this edge carries a compute or rekey rule/
-    )
+  # derive and rekey_to are pure, so unlike a rekey written in SQL the mint needs no approval
+  it "mints the edge without anyone approving it" do
+    expect { check!(ERA_2_SOURCE, translation_source: EDGE_SOURCE) }.not_to raise_error
   end
 
-  context "when the edge is approved and minted" do
+  context "when the edge is minted" do
     let(:drifted) { drifted_registry }
     let(:head) { adapter_for(drifted) }
 
     before do
-      approve_edge!(drifted)
       check!(ERA_2_SOURCE, translation_source: EDGE_SOURCE)
     end
 

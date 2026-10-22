@@ -6,7 +6,8 @@ require "hecks/ports/persistence/plugins/era"
 RSpec.describe "the translation language" do
   Malformed = Hecks::Bluebook::DSL::Malformed
 
-  # The pinned-wording table: one declaration per omission, with the refusal it must produce. It is a
+  # The pinned-wording table: one declaration per omission, with the refusal it must produce.
+  # It is a
   # single hash literal rather than one `it` per row.
   # The repo's `table` HashAlignment style would push every `=>` so far right that the
   # multi-line procs overrun LineLength.
@@ -185,7 +186,7 @@ RSpec.describe "the translation language" do
     it "refuses a rule admitted elsewhere in the grammar, naming the legal words" do
       expect(refusal_for { aggregate("Account") { identified_by :cost } })
         .to eq("'identified_by' is not a word TranslationAggregate admits — legal words here: backfill, " \
-               "compute, convert, derive, drop, move, rekey, rename, retype, unresolved")
+               "compute, convert, derive, drop, move, rekey, rekey_to, rename, retype, unresolved")
     end
 
     # A word admitted nowhere in the grammar is left to Ruby's NoMethodError, which `refusal_for`

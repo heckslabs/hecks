@@ -29,7 +29,10 @@ module Hecks
 
     # The aggregate's own key is recomputed by a SQL expression; stored state is untouched.
     # Postgres-only like `compute`, and it has no `from:`/`to:` path.
-    TranslationRekey = Struct.new(:sql)
+    TranslationRekey = Struct.new(:sql, :to) do
+      # A rekey written `rekey_to :field` has no SQL: the id is the value of the derive of `to`.
+      def pure? = !to.nil?
+    end
 
     # A newly added, required attribute with no source in old data.
     # `default` is what an existing record reads until a command writes a real value;
@@ -57,13 +60,19 @@ module Hecks
       # @param retypes [Array<Bluebook::TranslationRetype>] value object or entity type changes
       # @param computes [Array<Bluebook::TranslationCompute>] fields computed by Postgres-only SQL
       # @param derives [Array<Bluebook::TranslationDerive>] fields computed from the record's text
-      # @param rekeys [Array<Bluebook::TranslationRekey>] SQL recomputing the aggregate's identity
+      # @param rekeys [Array<Bluebook::TranslationRekey>] the aggregate's identity, recomputed
       # @param backfills [Array<Bluebook::TranslationBackfill>] new required fields, no old source
       def initialize(name:, **given)
         KeywordFields.assign(self, KeywordFields.fill(given, FIELD_DEFAULTS))
         @name = name.to_s
         @was  = @was&.to_s
       end
+
+      # The rekeys that are SQL a person must review, as opposed to `rekey_to`.
+      def sql_rekeys = rekeys.reject(&:pure?)
+
+      # Whether any rule here is SQL a person must sample before it can run.
+      def needs_approval? = !computes.empty? || !sql_rekeys.empty?
     end
 
     # A declared map from one era of a domain's storage shape to the next.
