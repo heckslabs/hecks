@@ -51,7 +51,7 @@ module Hecks
           JSON.pretty_generate(adapters_in_files(paths))
         end
 
-        # Loads ONE `.adapter` file into a fresh registry. The file's own `require "hecks/..."`
+        # Loads one `.adapter` file into a fresh registry. The file's own `require "hecks/..."`
         # line loads the implementing class and needs `lib/` on the load path, as it is under
         # bundler.
         #
