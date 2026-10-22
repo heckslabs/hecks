@@ -98,7 +98,15 @@ module Hecks
           return full if full.bytesize <= POSTGRES_IDENTIFIER_LIMIT
 
           digest = Digest::SHA256.hexdigest(full)[0, 8]
-          "#{full.byteslice(0, POSTGRES_IDENTIFIER_LIMIT - digest.bytesize - 1)}_#{digest}"
+          "#{whole_characters(full, POSTGRES_IDENTIFIER_LIMIT - digest.bytesize - 1)}_#{digest}"
+        end
+
+        # The longest prefix of `text` made of whole characters that fits in `limit` bytes, so a
+        # multi-byte character is dropped rather than cut in half.
+        def whole_characters(text, limit)
+          bytes = text.byteslice(0, limit)
+          bytes = bytes.byteslice(0, bytes.bytesize - 1) until bytes.valid_encoding?
+          bytes
         end
 
         def quote(name) = PG::Connection.quote_ident(name.to_s)
