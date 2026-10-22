@@ -115,6 +115,13 @@ module Hecks
           return {} if aggregate.derives.empty?
 
           { derives: aggregate.derives.map { |derive| { to: derive.to, expression: derive.expression } } }
+            .merge(rekey_to_rule(aggregate))
+        end
+
+        # The field a `rekey_to` takes the id from, when the aggregate has one.
+        def rekey_to_rule(aggregate)
+          pure = aggregate.rekeys.find(&:pure?)
+          pure ? { rekey_to: pure.to } : {}
         end
 
         # The computes, rekeys and backfills of an aggregate.
@@ -125,7 +132,7 @@ module Hecks
         def computed_rules(aggregate)
           {
             computes:  aggregate.computes.map { |compute| { from: compute.from, to: compute.to, sql: compute.sql } },
-            rekeys:    aggregate.rekeys.map { |rekey| { sql: rekey.sql } },
+            rekeys:    aggregate.sql_rekeys.map { |rekey| { sql: rekey.sql } },
             backfills: aggregate.backfills.map { |backfill| { name: backfill.name.to_s, default: backfill.default } }
           }
         end

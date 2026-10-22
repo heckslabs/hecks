@@ -263,6 +263,16 @@ RSpec.describe "the DSL surface" do
       end
     end
 
+    it ".data_translation registers a rekey_to naming the derived field" do
+      translation = translating { aggregate("Thing") { derive(:email, as: "lower(name.value)").then { rekey_to :email } } }
+
+      expect(translation.for_aggregate("Thing").rekeys.first.to_a).to eq([nil, "email"])
+    end
+
+    it ".data_translation refuses a rekey_to with no derive of that field before it" do
+      expect_translation_refusal(/needs a derive of email declared before it/) { aggregate("Thing") { rekey_to :email } }
+    end
+
     it ".data_translation registers a backfill with its default value" do
       translation = translating { aggregate("Thing") { backfill :tier, default: "standard" } }
       backfilled = translation.for_aggregate("Thing").backfills.first

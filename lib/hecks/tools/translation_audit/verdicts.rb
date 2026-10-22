@@ -37,7 +37,7 @@ module Hecks
             return 1
           end
 
-          needs_approval = edge.aggregates.any? { |declared| !declared.computes.empty? || !declared.rekeys.empty? }
+          needs_approval = edge.aggregates.any?(&:needs_approval?)
           record_approval(lineage, edge) if needs_approval && approve
           db.close
           print_passed(needs_approval, approve)

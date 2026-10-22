@@ -48,6 +48,7 @@ RSpec.describe Hecks::Bluebook::TranslationPlan do
 
   it "has an op for every rule list a TranslationAggregate holds" do
     lists = Hecks::Bluebook::TranslationAggregate::FIELD_DEFAULTS.keys - [:was]
-    expect(described_class::OPS.map { |op| op == "backfill" ? "backfills" : "#{op}s" }).to match_array(lists.map(&:to_s))
+    ops = described_class::OPS - ["rekey_to"]
+    expect(ops.map { |op| op == "backfill" ? "backfills" : "#{op}s" }).to match_array(lists.map(&:to_s))
   end
 end

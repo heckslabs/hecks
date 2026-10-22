@@ -74,4 +74,61 @@ RSpec.describe "the derive rule" do
       expect { edge(&body) }.to raise_error(Hecks::Bluebook::DSL::Malformed, refusal)
     end
   end
+
+  # rekey_to: the id is the value of a derive, and costs no approval.
+  describe "rekey_to" do
+    def rekeyed
+      edge do
+        aggregate "Member" do
+          derive :email, as: 'concat(lower(replace(name.value, " ", ".")), "@x.io")'
+          rekey_to :email
+        end
+      end.for_aggregate("Member")
+    end
+
+    def translated_id(declared, state)
+      entry = Hecks::Ports::Persistence::Entry.new(operation: "save", id: "m1", state: state, mirrors: nil)
+      Hecks::Ports::Persistence::Lineage.from_declared(declared, "Member").translate(entry).id
+    end
+
+    it "gives a record the value of its derive as its id" do
+      expect(translated_id(rekeyed, { name: { "value" => "Chris Young" } })).to eq("chris.young@x.io")
+    end
+
+    it "keeps the old id where the derive has no value" do
+      expect(translated_id(rekeyed, { kind: "biz" })).to eq("m1")
+    end
+
+    it "counts as a rekey, so the identity check is satisfied" do
+      expect(Hecks::Ports::Persistence::Lineage.from_declared(rekeyed, "Member").rekey?).to be(true)
+    end
+
+    it "needs no approval, unlike a rekey written in SQL" do
+      sql = edge { aggregate("Member") { rekey sql: "state->>'a'" } }.for_aggregate("Member")
+      expect([rekeyed.needs_approval?, sql.needs_approval?]).to eq([false, true])
+    end
+
+    it "is left out of what an approval digests but exported with its field" do
+      exported = Hecks::Projector::Exporter.send(:compiled_translation_aggregate, rekeyed)
+      expect(exported).to include(rekeys: [], rekey_to: "email")
+    end
+
+    it "compiles the id to the derive's value or the old id" do
+      expect(Hecks::Translation::RuleCompiler.compile_id_expression(rekeyed)).to start_with("COALESCE(")
+    end
+
+    def rekeyed_twice
+      edge do
+        aggregate("Member") do
+          derive :a, as: "lower(b)"
+          rekey_to :a
+          rekey_to :a
+        end
+      end
+    end
+
+    it "is refused when the aggregate is rekeyed twice" do
+      expect { rekeyed_twice }.to raise_error(Hecks::Bluebook::DSL::Malformed, "an aggregate is rekeyed once")
+    end
+  end
 end

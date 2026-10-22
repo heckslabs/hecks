@@ -30,6 +30,16 @@ module Hecks
             end
           end
 
+          # The id a `rekey_to` gives a record: the value of its derive, read from the stored state;
+          # the record keeps its id where the derive has no value or the edge has no `rekey_to`.
+          def rekeyed_id(entry)
+            rekey = @rules.rekeys.find(&:pure?)
+            return entry.id unless rekey
+
+            derive = @rules.derives.find { |candidate| candidate.to == rekey.to }
+            Bluebook::TranslationExpression.evaluate(derive.tree, entry.state) || entry.id
+          end
+
           def deep_dup(node)
             case node
             when Hash then node.transform_values { |value| deep_dup(value) }

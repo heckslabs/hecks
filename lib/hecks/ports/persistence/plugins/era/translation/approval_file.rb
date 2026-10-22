@@ -58,7 +58,7 @@ module Hecks
       # @param edge [Bluebook::Translation] the parsed translation edge
       # @return [Boolean] true when any aggregate declares a compute or a rekey
       def needs_rehearsal?(edge)
-        edge.aggregates.any? { |declared| !declared.computes.empty? || !declared.rekeys.empty? }
+        edge.aggregates.any?(&:needs_approval?)
       end
 
       # Whether a rehearsal block records a run that passed, with every field named.

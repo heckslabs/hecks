@@ -25,6 +25,10 @@ Hecks.data_translation("ReferenceDomain2", from: "1", to: "2") do
     rekey sql: "new_id_expr"
     backfill :standing, default: "good"
   end
+  aggregate "Member" do
+    derive :email, as: "lower(name.value)"
+    rekey_to :email
+  end
 end
 ```
 
@@ -161,7 +165,23 @@ runtime.registry.translations.last.aggregates.first.derives.first.to_h  # => {to
 THE AGGREGATE'S OWN IDENTITY, recomputed — not a field crossing a boundary (`move`), not a value's own transform (`compute`): the record's key. No path arguments, unlike every other rule here, because nothing is consumed from or moved into `state`, only what identifies the record. Same SQL-only, human-reviewed-sample-is-the-only-verification shape `compute` already has.
 
 ```ruby
-runtime.registry.translations.last.aggregates.first.rekeys.first.to_h  # => {sql: "new_id_expr"}
+runtime.registry.translations.last.aggregates.first.rekeys.first.to_h  # => {sql: "new_id_expr", to: nil}
+```
+
+## rekey_to
+
+<!-- generated:begin word=rekey_to -->
+`rekey_to to` — fills `rekeys`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | symbol | true | to |
+<!-- generated:end -->
+
+Makes the aggregate's identity the value of a field a `derive` computes, so the expression is written once. The derive must be declared before it, and an aggregate is rekeyed once. A record keeps its old id where the derive has no value. Unlike `rekey`, it is pure: no SQL, no approval, and `Lineage#translate` changes the id in process the same way the Postgres head does.
+
+```ruby
+runtime.registry.translations.last.aggregates.last.rekeys.first.to_a  # => [nil, "email"]
 ```
 
 ## backfill

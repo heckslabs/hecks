@@ -92,7 +92,15 @@ module Hecks
       # rather than through `compile_rules`'s progressively-built expression chain.
       def compile_id_expression(declared)
         rekey = declared.rekeys.first
+        return compile_derived_id(declared, rekey) if rekey.pure?
+
         "(SELECT (#{rekey.sql}) FROM (SELECT (state) AS __s) __outer)"
+      end
+
+      # A `rekey_to` id: the derive's value, or the old id for a record where it has no value.
+      def compile_derived_id(declared, rekey)
+        derive = declared.derives.find { |candidate| candidate.to == rekey.to }
+        "COALESCE(#{ExpressionSql.compile(derive.tree, "state")}, aggregate_id)"
       end
 
       # Wraps `expression` so a compute's SQL result lands at its declared destination

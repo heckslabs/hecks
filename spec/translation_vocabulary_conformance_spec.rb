@@ -21,7 +21,7 @@ RSpec.describe "the declared translation rule kinds" do
   AGGREGATE_RULES = (
     (Hecks::Bluebook::DSL::TranslationAggregateBuilder.public_instance_methods(false) -
       %i[build method_missing unresolved_impl rename_impl move_impl convert_impl retype_impl compute_impl
-         derive_impl rekey_impl backfill_impl]).map(&:to_s) +
+         derive_impl rekey_impl rekey_to_impl backfill_impl]).map(&:to_s) +
       Hecks::Bluebook::MetaValidator::SyntaxBoot.call[:keywords]
         .select { |row| row[:context] == "TranslationAggregate" && row[:status] != "retired" }
         .map { |row| row[:word] }

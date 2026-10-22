@@ -1,3 +1,4 @@
+require_relative "derivation_words"
 require_relative "word_gate"
 module Hecks
   module Bluebook
@@ -7,6 +8,7 @@ module Hecks
       class TranslationAggregateBuilder
         GRAMMAR_CONTEXT = "TranslationAggregate".freeze
 
+        include DerivationWords
         include WordGate
 
         # @param name [String, Symbol] the aggregate's name in the destination era
@@ -105,26 +107,6 @@ module Hecks
           @computes << TranslationCompute.new(old_path.to_s, to.to_s, sql.to_s)
         end
 
-        # Declares a new field computed from the record's own text.
-        #
-        # The expression reads the held era's data, so it runs before any other rule and sees the
-        # fields exactly as they were stored. It changes nothing it reads: remove a source with
-        # `drop`. A record where the expression has no value (a field missing or not text) gets
-        # no new field.
-        #
-        # @param to [Symbol, String] the field's path in the destination era
-        # @param as [String] the expression, in `Bluebook::TranslationExpression`'s language
-        # @return [Array<Bluebook::TranslationDerive>] every derive declared so far, this one last
-        # @raise [Bluebook::DSL::Malformed] if `to` or `as` is empty, `to` is derived twice, or `as`
-        #   is not a well-formed expression
-        def derive_impl(to, as:)
-          raise Malformed, "a derive needs a destination path" if to.to_s.empty?
-          raise Malformed, "a derive needs its as: expression" if as.to_s.empty?
-          raise Malformed, "#{to} is derived twice" if @derives.any? { |derive| derive.to == to.to_s }
-
-          @derives << TranslationDerive.new(to.to_s, checked_expression(as))
-        end
-
         # Declares a hand-written Postgres SQL expression that recomputes the aggregate's own
         # identity.
         #
@@ -209,14 +191,6 @@ module Hecks
             "#{@name}'s translation leaves #{render_path(name)} unresolved (candidates: #{rendered.join(", ")}) — " \
               "replace unresolved with a rename, move, convert, or drop before booting."
           end
-        end
-
-        # The expression's text, once the language has accepted it.
-        def checked_expression(text)
-          TranslationExpression.parse(text)
-          text.to_s
-        rescue TranslationExpression::Refused => e
-          raise Malformed, "a derive's as: expression is refused: #{e.message}"
         end
 
         def render_path(path)
