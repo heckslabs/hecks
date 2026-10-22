@@ -3,11 +3,14 @@ require "open3"
 require "hecks/fuzzing"
 require "hecks/fuzzing/differential"
 require_relative "support/rust_conformance_helpers"
+require_relative "support/generated_rust"
 
 # Diffs Ruby against the compiled Rust binary over seeded generated sequences per domain.
 # Needs a real `cargo build` per domain (`:io`), and is kept apart from the hand-curated
 # spec/rust_conformance_spec.rb corpus.
 RSpec.describe "Rust conformance, over generated sequences (native binary)", :io do
+  include_context "with the generated Rust tree"
+
   include RustConformanceHelpers
 
   FUZZ_RUST_DIR = File.join(InMemoryDomain::ROOT, "rust")
