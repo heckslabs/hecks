@@ -37,6 +37,7 @@ module Hecks
           ir[:lineage] = shaped(exporter.lineage(@registry, @domain_name))
           ir[:persistence] = shaped(exporter.persistence(@registry, @domain_name))
           ir[:adapters] = adapters(exporter, ir[:persistence])
+          ir[:world] = world(exporter)
           add_seams(ir, exporter)
           add_edges_and_source(ir)
           ir
@@ -51,6 +52,13 @@ module Hecks
         def adapters(exporter, persistence)
           files = exporter.adapter_files_under([File.join(RustBuild::ROOT, "lib"), File.dirname(@bluebook_dir)])
           shaped(exporter.persistence_adapters(persistence, files))
+        end
+
+        # The target's world persistence, from `<domain directory name>.world` beside the bluebooks
+        # (names only), so the host can check what the world binds against the adapters.
+        def world(exporter)
+          path = File.join(@bluebook_dir, "#{File.basename(File.dirname(@bluebook_dir))}.world")
+          shaped(exporter.persistence_world(path, @domain_name))
         end
 
         def add_seams(document, exporter)
