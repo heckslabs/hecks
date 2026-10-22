@@ -70,8 +70,8 @@ generator change is made once instead of three times.
    `hecks-codegen full`. The Ruby-free `hecks-build` path feeds the same
    codegen from `hecks-parse`. There is one generator and two IR producers,
    and they are checked against each other by the existing pipeline specs.
-   `HECKS_PARSER` and `HECKS_CODEGEN` are deprecated in step 2 and removed in
-   step 6.
+   `HECKS_PARSER` and `HECKS_CODEGEN` are removed: `hecks build_wasm` has
+   one path.
 4. **`write_if_changed.rb` (83 lines) is the one piece of `rust/project`
    with no Rust twin.** Its prune-and-track behaviour moves into the handler
    or into `hecks-build`'s `cargo_sync`/sidecars pass; it is not lost.
