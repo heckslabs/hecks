@@ -1,5 +1,6 @@
-// A Rust port of `web/ui_schema.rb`: turns a domain IR plus config into
-// the exact JSON `GET /api/ui-schema` serves (nav, columns, forms).
+// Turns a domain IR plus config into the exact JSON `GET /api/ui-schema` serves (nav, columns,
+// forms). There is no Ruby ui_schema: the Ruby HTML renderer (lib/hecks/forms/field_shape.rb and
+// value_object_shape.rb) shares its field-shape rules, but this module is the only builder.
 
 use serde_json::{json, Map, Value};
 use std::collections::HashMap;

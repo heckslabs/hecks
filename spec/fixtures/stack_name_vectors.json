@@ -1,0 +1,51 @@
+{
+  "rows": [
+    {
+      "domain": "Pizzas",
+      "name": "hecks-pizzas"
+    },
+    {
+      "domain": "OrderService",
+      "name": "hecks-orderservice"
+    },
+    {
+      "domain": "Compliance",
+      "name": "hecks-compliance"
+    },
+    {
+      "domain": "ATMCard",
+      "name": "hecks-atmcard"
+    },
+    {
+      "domain": "already-lower",
+      "name": "hecks-already-lower"
+    },
+    {
+      "domain": "Hecks3",
+      "name": "hecks-hecks3"
+    },
+    {
+      "domain": "Café",
+      "name": "hecks-café"
+    },
+    {
+      "domain": "İstanbul",
+      "name": "hecks-i̇stanbul"
+    },
+    {
+      "domain": "ÉCOLE",
+      "name": "hecks-école"
+    },
+    {
+      "domain": "日本語",
+      "name": "hecks-日本語"
+    }
+  ],
+  "known_divergences": [
+    {
+      "domain": "ΟΔΥΣΣΕΑΣ",
+      "ruby": "hecks-οδυσσεασ",
+      "rust": "hecks-οδυσσεας"
+    }
+  ]
+}

@@ -1,0 +1,294 @@
+[
+  {
+    "name": "plain_aggregate",
+    "ir": {
+      "name": "Shop",
+      "aggregates": [
+        {
+          "name": "Item",
+          "attributes": [
+            {
+              "name": "title",
+              "type": "String",
+              "list": false,
+              "optional": false
+            },
+            {
+              "name": "price",
+              "type": "Integer",
+              "list": false,
+              "optional": false
+            }
+          ]
+        }
+      ]
+    },
+    "canonical": "{\"name\":\"Shop\",\"aggregates\":[{\"name\":\"Item\",\"identity\":[],\"lifecycle_field\":null,\"attributes\":[{\"name\":\"price\",\"list\":false,\"type\":\"Integer\"},{\"name\":\"title\",\"list\":false,\"type\":\"String\"}]}]}",
+    "hash": "4d3e4b89359f7ae0d601d85877a3e2b50b87d48f2a028678bf050d3c09389e02",
+    "label": "4d3e4b"
+  },
+  {
+    "name": "attributes_reordered",
+    "ir": {
+      "name": "Shop",
+      "aggregates": [
+        {
+          "name": "Item",
+          "attributes": [
+            {
+              "name": "price",
+              "type": "Integer",
+              "list": false,
+              "optional": false
+            },
+            {
+              "name": "title",
+              "type": "String",
+              "list": false,
+              "optional": false
+            }
+          ]
+        }
+      ]
+    },
+    "canonical": "{\"name\":\"Shop\",\"aggregates\":[{\"name\":\"Item\",\"identity\":[],\"lifecycle_field\":null,\"attributes\":[{\"name\":\"price\",\"list\":false,\"type\":\"Integer\"},{\"name\":\"title\",\"list\":false,\"type\":\"String\"}]}]}",
+    "hash": "4d3e4b89359f7ae0d601d85877a3e2b50b87d48f2a028678bf050d3c09389e02",
+    "label": "4d3e4b"
+  },
+  {
+    "name": "aggregates_reordered_with_lifecycle_and_identity",
+    "ir": {
+      "name": "Shop",
+      "aggregates": [
+        {
+          "name": "Order",
+          "identified_by": [
+            "number",
+            "line"
+          ],
+          "lifecycle": {
+            "field": "status"
+          },
+          "attributes": [
+            {
+              "name": "status",
+              "type": "String",
+              "list": false,
+              "optional": false
+            },
+            {
+              "name": "number",
+              "type": "String",
+              "list": false,
+              "optional": false
+            },
+            {
+              "name": "line",
+              "type": "Integer",
+              "list": false,
+              "optional": false
+            }
+          ]
+        },
+        {
+          "name": "Item",
+          "attributes": [
+            {
+              "name": "title",
+              "type": "String",
+              "list": false,
+              "optional": false
+            }
+          ]
+        }
+      ]
+    },
+    "canonical": "{\"name\":\"Shop\",\"aggregates\":[{\"name\":\"Item\",\"identity\":[],\"lifecycle_field\":null,\"attributes\":[{\"name\":\"title\",\"list\":false,\"type\":\"String\"}]},{\"name\":\"Order\",\"identity\":[\"number\",\"line\"],\"lifecycle_field\":\"status\",\"attributes\":[{\"name\":\"line\",\"list\":false,\"type\":\"Integer\"},{\"name\":\"number\",\"list\":false,\"type\":\"String\"},{\"name\":\"status\",\"list\":false,\"type\":\"String\"}]}]}",
+    "hash": "32ec09ab43250fa386101d65e595d13f1e1c714919fe40730b1519f380e29cbb",
+    "label": "32ec09"
+  },
+  {
+    "name": "closed_set_value_object",
+    "ir": {
+      "name": "Shop",
+      "aggregates": [
+        {
+          "name": "Item",
+          "attributes": [
+            {
+              "name": "size",
+              "type": "Size",
+              "list": false,
+              "optional": false
+            }
+          ],
+          "value_objects": [
+            {
+              "name": "Size",
+              "attributes": [
+                {
+                  "name": "value",
+                  "type": "String",
+                  "list": false,
+                  "optional": false
+                },
+                {
+                  "name": "unit",
+                  "type": "String",
+                  "list": false,
+                  "optional": false
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "canonical": "{\"name\":\"Shop\",\"aggregates\":[{\"name\":\"Item\",\"identity\":[],\"lifecycle_field\":null,\"attributes\":[{\"name\":\"size\",\"list\":false,\"type\":{\"type\":\"Size\",\"members\":[{\"name\":\"unit\",\"list\":false,\"type\":\"String\"},{\"name\":\"value\",\"list\":false,\"type\":\"String\"}]}}]}]}",
+    "hash": "955576ffa657369055dcb36e485fef9e8ef35ad81f73573223f665b643207a1a",
+    "label": "955576"
+  },
+  {
+    "name": "list_and_optional_fields_with_entity",
+    "ir": {
+      "name": "Shop",
+      "aggregates": [
+        {
+          "name": "Basket",
+          "attributes": [
+            {
+              "name": "lines",
+              "type": "Line",
+              "list": true,
+              "optional": false
+            },
+            {
+              "name": "note",
+              "type": "String",
+              "list": false,
+              "optional": true,
+              "pattern": "x+",
+              "admits": [
+                "a",
+                "b"
+              ]
+            }
+          ],
+          "entities": [
+            {
+              "name": "Line",
+              "attributes": [
+                {
+                  "name": "sku",
+                  "type": "String",
+                  "list": false,
+                  "optional": false
+                },
+                {
+                  "name": "qty",
+                  "type": "Integer",
+                  "list": false,
+                  "optional": false
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "canonical": "{\"name\":\"Shop\",\"aggregates\":[{\"name\":\"Basket\",\"identity\":[],\"lifecycle_field\":null,\"attributes\":[{\"name\":\"lines\",\"list\":true,\"type\":{\"type\":\"Line\",\"members\":[{\"name\":\"qty\",\"list\":false,\"type\":\"Integer\"},{\"name\":\"sku\",\"list\":false,\"type\":\"String\"}]}},{\"name\":\"note\",\"list\":false,\"type\":\"String\"}]}]}",
+    "hash": "2b4c16224896dacb09608caccc5fa7e804fb2f0c7b1bcc0f6bcbcdbcb9cd717a",
+    "label": "2b4c16"
+  },
+  {
+    "name": "self_referencing_value_object",
+    "ir": {
+      "name": "Tree",
+      "aggregates": [
+        {
+          "name": "Node",
+          "attributes": [
+            {
+              "name": "child",
+              "type": "Link",
+              "list": false,
+              "optional": false
+            }
+          ],
+          "value_objects": [
+            {
+              "name": "Link",
+              "attributes": [
+                {
+                  "name": "child",
+                  "type": "Link",
+                  "list": false,
+                  "optional": false
+                },
+                {
+                  "name": "label",
+                  "type": "String",
+                  "list": false,
+                  "optional": false
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "canonical": "{\"name\":\"Tree\",\"aggregates\":[{\"name\":\"Node\",\"identity\":[],\"lifecycle_field\":null,\"attributes\":[{\"name\":\"child\",\"list\":false,\"type\":{\"type\":\"Link\",\"members\":[{\"name\":\"child\",\"list\":false,\"type\":\"Link\"},{\"name\":\"label\",\"list\":false,\"type\":\"String\"}]}}]}]}",
+    "hash": "9866d89e3695386273c8bc98e669c12549f9eb0b113990f54b57894dfc9bc682",
+    "label": "9866d8"
+  },
+  {
+    "name": "non_ascii_names",
+    "ir": {
+      "name": "Café",
+      "aggregates": [
+        {
+          "name": "Crêpe",
+          "attributes": [
+            {
+              "name": "garniture",
+              "type": "String",
+              "list": false,
+              "optional": false
+            },
+            {
+              "name": "prix_€",
+              "type": "Integer",
+              "list": false,
+              "optional": false
+            },
+            {
+              "name": "日本語",
+              "type": "String",
+              "list": false,
+              "optional": false
+            }
+          ]
+        }
+      ]
+    },
+    "canonical": "{\"name\":\"Café\",\"aggregates\":[{\"name\":\"Crêpe\",\"identity\":[],\"lifecycle_field\":null,\"attributes\":[{\"name\":\"garniture\",\"list\":false,\"type\":\"String\"},{\"name\":\"prix_€\",\"list\":false,\"type\":\"Integer\"},{\"name\":\"日本語\",\"list\":false,\"type\":\"String\"}]}]}",
+    "hash": "df3330e9a59dc94f0ad8989fac0c2be94762401a810ce28f96d1bc8c7ac29a92",
+    "label": "df3330"
+  },
+  {
+    "name": "no_aggregates",
+    "ir": {
+      "name": "Empty"
+    },
+    "canonical": "{\"name\":\"Empty\",\"aggregates\":[]}",
+    "hash": "fe319548b068e7e72790d5e27a44ecfef363c3441921610a8cd7a3f264a4ff89",
+    "label": "fe3195"
+  },
+  {
+    "name": "pizzas_translation_edge_77625c",
+    "ir_file": "rust/src/generated/pizzas/ir.json",
+    "canonical": "{\"name\":\"Pizzas\",\"aggregates\":[{\"name\":\"Order\",\"identity\":[\"name.value\"],\"lifecycle_field\":\"status\",\"attributes\":[{\"name\":\"customer_name\",\"list\":false,\"type\":{\"type\":\"CustomerName\",\"members\":[{\"name\":\"value\",\"list\":false,\"type\":\"String\"}]}},{\"name\":\"name\",\"list\":false,\"type\":{\"type\":\"PizzaName\",\"members\":[{\"name\":\"value\",\"list\":false,\"type\":\"String\"}]}},{\"name\":\"pizza\",\"list\":false,\"type\":{\"type\":\"Pizza\",\"members\":[{\"name\":\"price_cents\",\"list\":false,\"type\":{\"type\":\"Price\",\"members\":[{\"name\":\"cents\",\"list\":false,\"type\":\"Integer\"}]}},{\"name\":\"size\",\"list\":false,\"type\":{\"type\":\"Size\",\"members\":[{\"name\":\"value\",\"list\":false,\"type\":\"String\"}]}}]}},{\"name\":\"toppings\",\"list\":true,\"type\":{\"type\":\"Topping\",\"members\":[{\"name\":\"amount\",\"list\":false,\"type\":\"Integer\"},{\"name\":\"name\",\"list\":false,\"type\":\"String\"}]}}]}]}",
+    "hash": "77625c20f3e7b5320ce4d2455c26f543d2b00ab2572ed28b4acc039f3be7f344",
+    "label": "77625c"
+  }
+]

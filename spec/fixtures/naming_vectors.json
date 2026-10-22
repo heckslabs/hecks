@@ -1,0 +1,244 @@
+{
+  "snake": [
+    {
+      "input": "Pizza",
+      "expected": "pizza"
+    },
+    {
+      "input": "PizzaOrder",
+      "expected": "pizza_order"
+    },
+    {
+      "input": "pizzaOrder",
+      "expected": "pizza_order"
+    },
+    {
+      "input": "pizza_order",
+      "expected": "pizza_order"
+    },
+    {
+      "input": "already_snake",
+      "expected": "already_snake"
+    },
+    {
+      "input": "ATM",
+      "expected": "atm"
+    },
+    {
+      "input": "ATMCard",
+      "expected": "atm_card"
+    },
+    {
+      "input": "HTTPServer",
+      "expected": "http_server"
+    },
+    {
+      "input": "XMLHttpRequest",
+      "expected": "xml_http_request"
+    },
+    {
+      "input": "ABCdEFg",
+      "expected": "ab_cd_e_fg"
+    },
+    {
+      "input": "IOError",
+      "expected": "io_error"
+    },
+    {
+      "input": "Order2",
+      "expected": "order2"
+    },
+    {
+      "input": "Order2Item",
+      "expected": "order2_item"
+    },
+    {
+      "input": "V2Api",
+      "expected": "v2_api"
+    },
+    {
+      "input": "a1B",
+      "expected": "a1_b"
+    },
+    {
+      "input": "ABC123",
+      "expected": "abc123"
+    },
+    {
+      "input": "ABC123Def",
+      "expected": "abc123_def"
+    },
+    {
+      "input": "Plan9From",
+      "expected": "plan9_from"
+    },
+    {
+      "input": "A",
+      "expected": "a"
+    },
+    {
+      "input": "AB",
+      "expected": "ab"
+    },
+    {
+      "input": "aB",
+      "expected": "a_b"
+    },
+    {
+      "input": "Ab",
+      "expected": "ab"
+    },
+    {
+      "input": "_Leading",
+      "expected": "_leading"
+    },
+    {
+      "input": "Trailing_",
+      "expected": "trailing_"
+    },
+    {
+      "input": "Double__Under",
+      "expected": "double__under"
+    },
+    {
+      "input": "Café",
+      "expected": "café"
+    },
+    {
+      "input": "CaféOrder",
+      "expected": "caféorder"
+    },
+    {
+      "input": "straßeName",
+      "expected": "straße_name"
+    },
+    {
+      "input": "日本語Name",
+      "expected": "日本語name"
+    },
+    {
+      "input": "Name日本語",
+      "expected": "name日本語"
+    },
+    {
+      "input": "",
+      "expected": ""
+    },
+    {
+      "input": "VeryLongVeryLongVeryLongVeryLongVeryLongVeryLongVeryLongVeryLongVeryLongVeryLongVeryLongVeryLong",
+      "expected": "very_long_very_long_very_long_very_long_very_long_very_long_very_long_very_long_very_long_very_long_very_long_very_long"
+    }
+  ],
+  "known_divergences": {
+    "snake": [
+      {
+        "input": "ÉcoleDeParis",
+        "ruby": "école_de_paris",
+        "rust": "École_de_paris"
+      },
+      {
+        "input": "Ünïcode",
+        "ruby": "ünïcode",
+        "rust": "Ünïcode"
+      },
+      {
+        "input": "ÀB",
+        "ruby": "àb",
+        "rust": "Àb"
+      }
+    ],
+    "qualified_name_truncation_splitting_a_character": [
+      {
+        "domain": "Cafe",
+        "suffix": "éééééééééééééééééééééééééééééééééééééééé"
+      },
+      {
+        "domain": "Shop",
+        "suffix": "éééééééééééééééééééééééééééééé"
+      }
+    ]
+  },
+  "storage_name": [
+    {
+      "input": "Customer",
+      "expected": "customer"
+    },
+    {
+      "input": "Banking::Customer",
+      "expected": "customer"
+    },
+    {
+      "input": "Banking::Retail::ATMCard",
+      "expected": "atm_card"
+    },
+    {
+      "input": "A::B::HTTPServer",
+      "expected": "http_server"
+    },
+    {
+      "input": "Order2Item",
+      "expected": "order2_item"
+    },
+    {
+      "input": "Café::Crêpe",
+      "expected": "crêpe"
+    }
+  ],
+  "qualified_name": [
+    {
+      "domain": "Pizzas",
+      "suffix": "orders",
+      "expected": "pizzas_orders"
+    },
+    {
+      "domain": "PizzaShop",
+      "suffix": "pizza_order_head_snapshot_3",
+      "expected": "pizza_shop_pizza_order_head_snapshot_3"
+    },
+    {
+      "domain": "HTTPGateway",
+      "suffix": "x",
+      "expected": "http_gateway_x"
+    },
+    {
+      "domain": "Bank",
+      "suffix": "customer_head_snapshot_12",
+      "expected": "bank_customer_head_snapshot_12"
+    },
+    {
+      "domain": "Shop",
+      "suffix": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "expected": "shop_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "domain": "Shop",
+      "suffix": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "expected": "shop_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "domain": "Shop",
+      "suffix": "customer_account_transaction_ledger_entry_head_snapshot_12",
+      "expected": "shop_customer_account_transaction_ledger_entry_head_snapshot_12"
+    },
+    {
+      "domain": "ABigDomainNameForTesting",
+      "suffix": "an_aggregate_with_a_rather_long_name_head_snapshot_104",
+      "expected": "a_big_domain_name_for_testing_an_aggregate_with_a_rath_04ea8824"
+    },
+    {
+      "domain": "Café",
+      "suffix": "x",
+      "expected": "café_x"
+    },
+    {
+      "domain": "Café",
+      "suffix": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "expected": "café_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb_6c1a16fa"
+    },
+    {
+      "domain": "日本語",
+      "suffix": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "expected": "日本語_cccccccccccccccccccccccccccccccccccccccccccc_d8fe369e"
+    }
+  ]
+}
