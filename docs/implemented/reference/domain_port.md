@@ -184,7 +184,7 @@ directions.
 
 Before it, a domain could be *called by* an adapter and never call one:
 `Ports::Extraction.adapter.canonical(...)` is library code reaching for an
-adapter, and `MockStripeAdapter#create_session` is an application doing the
+adapter, and an application calling a payment adapter's method directly is doing the
 same. Neither is the domain asking, and neither leaves a trace in the record.
 
 An `asks` is dispatched like any other port operation — a `policy` reaches it

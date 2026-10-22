@@ -1,8 +1,7 @@
 # Security
 
 hecks runs real code against real state (the Postgres/Sqlite/Heki
-adapters, the Lambda dispatcher, the OAuth2/Google-ID-token
-authentication adapter, generated SAM/deploy artifacts) on behalf of
+adapters, the Lambda dispatcher, generated SAM/deploy artifacts) on behalf of
 whatever project embeds it, so a real vulnerability report is welcome
 and will be taken seriously.
 
@@ -25,7 +24,7 @@ Please do not open a public issue for a suspected vulnerability.
   `spec/corpus/` and `hecks fuzz_run.fuzz`'s own shrinker favor: small enough to
   actually read.
 - Which adapter or port is involved, if any (`Postgres`, `PostgresEra`,
-  `Heki`, the Lambda dispatcher, an authentication adapter) — several
+  `Heki`, the Lambda dispatcher) — several
   of these touch real credentials, real SQL, or a real cloud deploy,
   and the report needs enough context to reproduce, not just describe.
 - Ruby version, hecks gem version (or commit SHA if running off a
@@ -56,9 +55,8 @@ means more than a bad refusal message:
   from AWS-managed secrets and CloudFormation dynamic references
   specifically so nothing is typed in plaintext; a generator change
   that regresses that is a security bug, not a style one.
-- **The OAuth2 / Google-ID-token authentication adapter** and the
-  **Lambda remote-dispatcher adapter** (`lib/hecks/adapters/driven/`) —
-  the two adapters that reach outside the process boundary by design.
+- **The Lambda remote-dispatcher adapter** (`lib/hecks/adapters/driven/`) —
+  an adapter that reaches outside the process boundary by design.
 - **The expression grammar's Admit gate** (`lib/hecks/grammar/
   expression_operators.json`) — a `given`/invariant predicate is parsed
   and stored as canonical text, not held as a closure; anything that

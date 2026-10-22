@@ -8,10 +8,6 @@ gemspec
 gem "pg", "~> 1.5"
 gem "sqlite3", "~> 2.0"
 
-# Test-only: the Google authentication adapter, required lazily.
-gem "oauth2", "~> 2.0"
-gem "google-id-token", "~> 1.4"
-
 # Test-only: the Lambda adapter and remote dispatcher, required lazily.
 gem "aws-sdk-lambda", "~> 1.0"
 
