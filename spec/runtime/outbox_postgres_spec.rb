@@ -1,6 +1,7 @@
 require "spec_helper"
 require "hecks/ports/persistence/plugins/era"
 require_relative "../support/postgres_probe"
+require_relative "../support/scratch_postgres"
 
 # `spec/runtime/outbox_spec.rb`'s crash cases, against the two Postgres
 # adapters — the enqueue shares the save's transaction (`Adapters::
@@ -10,27 +11,7 @@ require_relative "../support/postgres_probe"
 RSpec.describe "the transactional outbox, against Postgres", :io do
   OUTBOX_SPEC_DB = "hecks_outbox_spec".freeze
 
-  before(:all) do
-    skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
-
-    admin = PG.connect(dbname: "postgres")
-    admin.exec("DROP DATABASE IF EXISTS #{OUTBOX_SPEC_DB} WITH (FORCE)")
-    admin.exec("CREATE DATABASE #{OUTBOX_SPEC_DB}")
-    admin.close
-  end
-
-  after(:all) do
-    admin = PG.connect(dbname: "postgres")
-    admin.exec("DROP DATABASE IF EXISTS #{OUTBOX_SPEC_DB} WITH (FORCE)")
-    admin.close
-  end
-
-  before do
-    scrub = PG.connect(dbname: OUTBOX_SPEC_DB)
-    scrub.exec("DROP SCHEMA public CASCADE")
-    scrub.exec("CREATE SCHEMA public")
-    scrub.close
-  end
+  scratch_postgres OUTBOX_SPEC_DB
 
   OUTBOX_PG_SHOP_DOMAIN = proc do
     vision "An order placed is an order remembered."

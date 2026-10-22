@@ -1,6 +1,7 @@
 require "spec_helper"
 require "hecks/ports/persistence/plugins/era"
 require_relative "../support/postgres_probe"
+require_relative "../support/scratch_postgres"
 
 # The `saga_durability_spec.rb` proof, run against Postgres. Kept in its own io-gated file like
 # the other Postgres-specific specs.
@@ -9,27 +10,7 @@ RSpec.describe "durable saga/process-manager state, against Postgres", :io do
   POSTGRES_ERA_ADAPTER = InMemoryDomain::POSTGRES_ERA_ADAPTER
   SAGA_DURABILITY_SPEC_DB = "hecks_saga_durability_spec".freeze
 
-  before(:all) do
-    skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
-
-    admin = PG.connect(dbname: "postgres")
-    admin.exec("DROP DATABASE IF EXISTS #{SAGA_DURABILITY_SPEC_DB} WITH (FORCE)")
-    admin.exec("CREATE DATABASE #{SAGA_DURABILITY_SPEC_DB}")
-    admin.close
-  end
-
-  after(:all) do
-    admin = PG.connect(dbname: "postgres")
-    admin.exec("DROP DATABASE IF EXISTS #{SAGA_DURABILITY_SPEC_DB} WITH (FORCE)")
-    admin.close
-  end
-
-  before do
-    scrub = PG.connect(dbname: SAGA_DURABILITY_SPEC_DB)
-    scrub.exec("DROP SCHEMA public CASCADE")
-    scrub.exec("CREATE SCHEMA public")
-    scrub.close
-  end
+  scratch_postgres SAGA_DURABILITY_SPEC_DB
 
   # Commands declare `role`; without `attaches "Governance"` the builder refuses
   # ungoverned roles (refuse_ungoverned_roles!).

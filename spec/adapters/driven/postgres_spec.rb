@@ -1,5 +1,6 @@
 require "hecks"
 require_relative "../../support/postgres_probe"
+require_relative "../../support/scratch_postgres"
 require_relative "../../support/persistence_adapter_examples"
 
 # Runs only when a Postgres server is reachable (`support/postgres_probe.rb`).
@@ -8,27 +9,7 @@ RSpec.describe Hecks::Adapters::Postgres, :io do
 
   PLAIN_POSTGRES_SPEC_DB = "hecks_postgres_spec".freeze
 
-  before(:all) do
-    skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
-
-    admin = PG.connect(dbname: "postgres")
-    admin.exec("DROP DATABASE IF EXISTS #{PLAIN_POSTGRES_SPEC_DB} WITH (FORCE)")
-    admin.exec("CREATE DATABASE #{PLAIN_POSTGRES_SPEC_DB}")
-    admin.close
-  end
-
-  after(:all) do
-    admin = PG.connect(dbname: "postgres")
-    admin.exec("DROP DATABASE IF EXISTS #{PLAIN_POSTGRES_SPEC_DB} WITH (FORCE)")
-    admin.close
-  end
-
-  before do
-    scrub = PG.connect(dbname: PLAIN_POSTGRES_SPEC_DB)
-    scrub.exec("DROP SCHEMA public CASCADE")
-    scrub.exec("CREATE SCHEMA public")
-    scrub.close
-  end
+  scratch_postgres PLAIN_POSTGRES_SPEC_DB
 
   let(:aggregate) do
     boot_in_memory.registry.bluebook("Pizzas").aggregate("Order")

@@ -1,6 +1,7 @@
 require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "../../support/postgres_probe"
+require_relative "../../support/scratch_postgres"
 require_relative "../../support/persistence_adapter_examples"
 require_relative "../../support/era_registry_loading"
 
@@ -18,27 +19,7 @@ RSpec.describe Hecks::Adapters::PostgresEra, :io do
   PgEraClause = Struct.new(:field, :op, :value)
   PgEraOrder = Struct.new(:field, :direction)
 
-  before(:all) do
-    skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
-
-    admin = PG.connect(dbname: "postgres")
-    admin.exec("DROP DATABASE IF EXISTS #{SPEC_DB} WITH (FORCE)")
-    admin.exec("CREATE DATABASE #{SPEC_DB}")
-    admin.close
-  end
-
-  after(:all) do
-    admin = PG.connect(dbname: "postgres")
-    admin.exec("DROP DATABASE IF EXISTS #{SPEC_DB} WITH (FORCE)")
-    admin.close
-  end
-
-  before do
-    scrub = PG.connect(dbname: SPEC_DB)
-    scrub.exec("DROP SCHEMA public CASCADE")
-    scrub.exec("CREATE SCHEMA public")
-    scrub.close
-  end
+  scratch_postgres SPEC_DB
 
   let(:aggregate) do
     boot_in_memory.registry.bluebook("Pizzas").aggregate("Order")

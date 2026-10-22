@@ -1,5 +1,6 @@
 require "hecks"
 require_relative "../../support/postgres_probe"
+require_relative "../../support/scratch_postgres"
 require_relative "../../support/concurrency_gap_domain"
 
 # Two independent Dispatchers (as in two processes) share one Postgres database and account row,
@@ -14,27 +15,7 @@ RSpec.describe "concurrent dispatch against one Postgres-backed aggregate", :io 
   POSTGRES_GAP_VISION =
     "The smallest domain that reproduces the dispatcher's own read-check-write gap for a state-dependent command.".freeze
 
-  before(:all) do
-    skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
-
-    admin = PG.connect(dbname: "postgres")
-    admin.exec("DROP DATABASE IF EXISTS #{DATABASE} WITH (FORCE)")
-    admin.exec("CREATE DATABASE #{DATABASE}")
-    admin.close
-  end
-
-  after(:all) do
-    admin = PG.connect(dbname: "postgres")
-    admin.exec("DROP DATABASE IF EXISTS #{DATABASE} WITH (FORCE)")
-    admin.close
-  end
-
-  before do
-    scrub = PG.connect(dbname: DATABASE)
-    scrub.exec("DROP SCHEMA public CASCADE")
-    scrub.exec("CREATE SCHEMA public")
-    scrub.close
-  end
+  scratch_postgres DATABASE
 
   # `Open` is state-independent; `Debit` reads `balance` in its `given` and `decrement`, so
   # `DependencyPlanning` chooses TRANSACTIONAL_FALLBACK (plain `find` + `save`), the path targeted.

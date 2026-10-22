@@ -1,6 +1,7 @@
 require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "../../support/postgres_probe"
+require_relative "../../support/scratch_postgres"
 require_relative "../../support/concurrency_gap_domain"
 
 # Two forked processes dispatching against one PostgresEra aggregate are serialized by its
@@ -16,27 +17,7 @@ RSpec.describe "concurrent dispatch against one PostgresEra-backed aggregate", :
     def self.open = new(*Array.new(4) { IO.pipe }.flatten)
   end
 
-  before(:all) do
-    skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
-
-    admin = PG.connect(dbname: "postgres")
-    admin.exec("DROP DATABASE IF EXISTS #{ERA_CONCURRENCY_DATABASE} WITH (FORCE)")
-    admin.exec("CREATE DATABASE #{ERA_CONCURRENCY_DATABASE}")
-    admin.close
-  end
-
-  after(:all) do
-    admin = PG.connect(dbname: "postgres")
-    admin.exec("DROP DATABASE IF EXISTS #{ERA_CONCURRENCY_DATABASE} WITH (FORCE)")
-    admin.close
-  end
-
-  before do
-    scrub = PG.connect(dbname: ERA_CONCURRENCY_DATABASE)
-    scrub.exec("DROP SCHEMA public CASCADE")
-    scrub.exec("CREATE SCHEMA public")
-    scrub.close
-  end
+  scratch_postgres ERA_CONCURRENCY_DATABASE
 
   # Same Account fixture as postgres_concurrent_dispatch_spec.rb, bound to PostgresEra.
   def boot

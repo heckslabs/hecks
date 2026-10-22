@@ -2,6 +2,7 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require "tmpdir"
 require_relative "../support/postgres_probe"
+require_relative "../support/scratch_postgres"
 require_relative "../support/fenced_owner"
 
 # Pins a fix: a vendored package whose chapter is not the Pascal-cased package name (package
@@ -96,29 +97,7 @@ RSpec.describe "PostgresEra era-1 minting for a vendored chapter named unlike it
     db&.close
   end
 
-  before(:all) do
-    skip "no reachable Postgres: start one to run this spec" unless PostgresProbe.available?
-
-    admin = PG.connect(dbname: "postgres")
-    admin.exec("DROP DATABASE IF EXISTS #{CHAPTER_NAME_DB} WITH (FORCE)")
-    admin.exec("CREATE DATABASE #{CHAPTER_NAME_DB}")
-    admin.close
-    FencedOwner.own!(CHAPTER_NAME_DB)
-  end
-
-  after(:all) do
-    admin = PG.connect(dbname: "postgres")
-    admin.exec("DROP DATABASE IF EXISTS #{CHAPTER_NAME_DB} WITH (FORCE)")
-    admin.close
-  end
-
-  before do
-    scrub = PG.connect(dbname: CHAPTER_NAME_DB)
-    scrub.exec("DROP SCHEMA public CASCADE")
-    scrub.exec("CREATE SCHEMA public")
-    scrub.close
-    FencedOwner.own_public!(CHAPTER_NAME_DB)
-  end
+  scratch_postgres CHAPTER_NAME_DB, fenced: true
 
   it "holds the chapter's own source, not the domain's" do
     Dir.mktmpdir do |dir|

@@ -1,6 +1,7 @@
 require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "../../../support/postgres_probe"
+require_relative "../../../support/scratch_postgres"
 require_relative "../../../support/persistence_adapter_examples"
 
 RSpec.describe "PostgresEra execution-plan capabilities", :io do
@@ -12,29 +13,7 @@ RSpec.describe "PostgresEra execution-plan capabilities", :io do
   # already claims that name for a different database.
   EXECUTION_PLAN_DB = "hecks_postgres_era_execution_plan_spec".freeze
 
-  before(:all) do
-    skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
-
-    admin = PG.connect(dbname: "postgres")
-    admin.exec("DROP DATABASE IF EXISTS #{EXECUTION_PLAN_DB} WITH (FORCE)")
-    admin.exec("CREATE DATABASE #{EXECUTION_PLAN_DB}")
-    admin.close
-  end
-
-  after(:all) do
-    next unless PostgresProbe.available?
-
-    admin = PG.connect(dbname: "postgres")
-    admin.exec("DROP DATABASE IF EXISTS #{EXECUTION_PLAN_DB} WITH (FORCE)")
-    admin.close
-  end
-
-  before do
-    scrub = PG.connect(dbname: EXECUTION_PLAN_DB)
-    scrub.exec("DROP SCHEMA public CASCADE")
-    scrub.exec("CREATE SCHEMA public")
-    scrub.close
-  end
+  scratch_postgres EXECUTION_PLAN_DB
 
   let(:aggregate) { item_aggregate("PostgresEraPlanning", "PostgresEra implements the frozen atomic-put contract") }
   let(:store) do
