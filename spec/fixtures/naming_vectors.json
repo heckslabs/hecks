@@ -139,6 +139,400 @@
     {
       "input": "ÀB",
       "expected": "àb"
+    },
+    {
+      "input": "ΟΔΥΣΣΕΑΣ",
+      "expected": "οδυσσεασ"
+    },
+    {
+      "input": "ΑΣ",
+      "expected": "ασ"
+    },
+    {
+      "input": "ΌΣΟΣ",
+      "expected": "όσοσ"
+    },
+    {
+      "input": "AΣ",
+      "expected": "aσ"
+    },
+    {
+      "input": "Σ",
+      "expected": "σ"
+    },
+    {
+      "input": "FooΣ",
+      "expected": "fooσ"
+    },
+    {
+      "input": "ΣFoo",
+      "expected": "σfoo"
+    },
+    {
+      "input": "Éa",
+      "expected": "éa"
+    },
+    {
+      "input": "aÉ",
+      "expected": "aé"
+    },
+    {
+      "input": "Order٣Item",
+      "expected": "order٣item"
+    },
+    {
+      "input": "a٣B",
+      "expected": "a٣b"
+    },
+    {
+      "input": "Ünï",
+      "expected": "ünï"
+    },
+    {
+      "input": "ÀÉÎ",
+      "expected": "àéî"
+    },
+    {
+      "input": "straSSe",
+      "expected": "stra_s_se"
+    },
+    {
+      "input": "ǅ",
+      "expected": "ǆ"
+    },
+    {
+      "input": "İstanbul",
+      "expected": "i̇stanbul"
+    },
+    {
+      "input": "ÄÖÜ",
+      "expected": "äöü"
+    },
+    {
+      "input": "FooÉ",
+      "expected": "fooé"
+    },
+    {
+      "input": "ÉFoo",
+      "expected": "éfoo"
+    },
+    {
+      "input": "Éé",
+      "expected": "éé"
+    }
+  ],
+  "pascal": [
+    {
+      "input": "pizza_name",
+      "expected": "PizzaName"
+    },
+    {
+      "input": "console_settings",
+      "expected": "ConsoleSettings"
+    },
+    {
+      "input": "école_de_paris",
+      "expected": "ÉcoleDeParis"
+    },
+    {
+      "input": "ß_x",
+      "expected": "SSX"
+    },
+    {
+      "input": "ǆx",
+      "expected": "Ǆx"
+    },
+    {
+      "input": "_leading",
+      "expected": "Leading"
+    },
+    {
+      "input": "trailing_",
+      "expected": "Trailing"
+    },
+    {
+      "input": "a__b",
+      "expected": "AB"
+    },
+    {
+      "input": "",
+      "expected": ""
+    },
+    {
+      "input": "already",
+      "expected": "Already"
+    },
+    {
+      "input": "Already_Pascal",
+      "expected": "AlreadyPascal"
+    },
+    {
+      "input": "ǳ",
+      "expected": "Ǳ"
+    },
+    {
+      "input": "ﬁsh_x",
+      "expected": "FIshX"
+    },
+    {
+      "input": "ŉ",
+      "expected": "ʼN"
+    },
+    {
+      "input": "i̇x",
+      "expected": "İx"
+    }
+  ],
+  "plural": [
+    {
+      "input": "client",
+      "expected": "clients"
+    },
+    {
+      "input": "company",
+      "expected": "companies"
+    },
+    {
+      "input": "address",
+      "expected": "addresses"
+    },
+    {
+      "input": "box",
+      "expected": "boxes"
+    },
+    {
+      "input": "day",
+      "expected": "days"
+    },
+    {
+      "input": "y",
+      "expected": "ys"
+    },
+    {
+      "input": "buzz",
+      "expected": "buzzes"
+    },
+    {
+      "input": "church",
+      "expected": "churches"
+    },
+    {
+      "input": "dish",
+      "expected": "dishes"
+    },
+    {
+      "input": "key",
+      "expected": "keys"
+    },
+    {
+      "input": "",
+      "expected": "s"
+    },
+    {
+      "input": "baby",
+      "expected": "babies"
+    },
+    {
+      "input": "É",
+      "expected": "És"
+    },
+    {
+      "input": "ély",
+      "expected": "élies"
+    },
+    {
+      "input": "café",
+      "expected": "cafés"
+    },
+    {
+      "input": "bush",
+      "expected": "bushes"
+    },
+    {
+      "input": "Boxes",
+      "expected": "Boxeses"
+    },
+    {
+      "input": "quiz",
+      "expected": "quizes"
+    },
+    {
+      "input": "ay",
+      "expected": "ays"
+    },
+    {
+      "input": "toy",
+      "expected": "toys"
+    }
+  ],
+  "singularize": [
+    {
+      "input": "Boxes",
+      "expected": "Box"
+    },
+    {
+      "input": "Invoices",
+      "expected": "Invoice"
+    },
+    {
+      "input": "Companies",
+      "expected": "Company"
+    },
+    {
+      "input": "ies",
+      "expected": "ie"
+    },
+    {
+      "input": "ses",
+      "expected": "se"
+    },
+    {
+      "input": "Addresses",
+      "expected": "Address"
+    },
+    {
+      "input": "Buses",
+      "expected": "Bus"
+    },
+    {
+      "input": "Days",
+      "expected": "Day"
+    },
+    {
+      "input": "s",
+      "expected": "s"
+    },
+    {
+      "input": "es",
+      "expected": "e"
+    },
+    {
+      "input": "xes",
+      "expected": "xe"
+    },
+    {
+      "input": "Dishes",
+      "expected": "Dish"
+    },
+    {
+      "input": "Churches",
+      "expected": "Church"
+    },
+    {
+      "input": "Quizzes",
+      "expected": "Quizz"
+    },
+    {
+      "input": "status",
+      "expected": "statu"
+    },
+    {
+      "input": "Cats",
+      "expected": "Cat"
+    },
+    {
+      "input": "A",
+      "expected": "A"
+    },
+    {
+      "input": "",
+      "expected": ""
+    },
+    {
+      "input": "series",
+      "expected": "sery"
+    },
+    {
+      "input": "Bees",
+      "expected": "Bee"
+    },
+    {
+      "input": "Taxes",
+      "expected": "Tax"
+    },
+    {
+      "input": "Pies",
+      "expected": "Py"
+    },
+    {
+      "input": "lies",
+      "expected": "ly"
+    },
+    {
+      "input": "eses",
+      "expected": "es"
+    },
+    {
+      "input": "Faces",
+      "expected": "Face"
+    },
+    {
+      "input": "Éxes",
+      "expected": "Éx"
+    },
+    {
+      "input": "Bushes",
+      "expected": "Bush"
+    },
+    {
+      "input": "Oxes",
+      "expected": "Ox"
+    },
+    {
+      "input": "aches",
+      "expected": "ach"
+    },
+    {
+      "input": "ches",
+      "expected": "ch"
+    },
+    {
+      "input": "Lunches",
+      "expected": "Lunch"
+    }
+  ],
+  "demodulise": [
+    {
+      "input": "Pizzas::Order",
+      "expected": "Order"
+    },
+    {
+      "input": "Order",
+      "expected": "Order"
+    },
+    {
+      "input": "A::B::C",
+      "expected": "C"
+    },
+    {
+      "input": "",
+      "expected": ""
+    },
+    {
+      "input": "::",
+      "expected": ""
+    },
+    {
+      "input": "Foo::",
+      "expected": "Foo"
+    }
+  ],
+  "reference_key": [
+    {
+      "input": "Banking::ATMCard",
+      "expected": "atm_card"
+    },
+    {
+      "input": "Order",
+      "expected": "order"
+    },
+    {
+      "input": "Pizzas::HTTPServer",
+      "expected": "http_server"
+    },
+    {
+      "input": "Ünï::ÉcoleDeParis",
+      "expected": "école_de_paris"
     }
   ],
   "storage_name": [

@@ -6,6 +6,11 @@ mod canonical;
 mod diag;
 mod emit;
 mod expr;
+// The one `Hecks::Naming` port, compiled from `hecks-codegen`'s source: neither crate depends on
+// the other. This crate reads only part of it.
+#[allow(dead_code)]
+#[path = "../../codegen/src/hecks_naming.rs"]
+mod hecks_naming;
 mod ir;
 // Generated table; not every column is consumed by this binary.
 #[allow(dead_code)]

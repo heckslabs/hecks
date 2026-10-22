@@ -55,7 +55,7 @@ pub fn run(
             capable_adapters.iter().any(|a| a == adapter_name)
         })
         .map(|name| {
-            let storage_name = snake_case(&name);
+            let storage_name = crate::hecks_naming::snake(&name);
             Json::Object(vec![
                 ("name".to_string(), Json::String(name)),
                 ("storage_name".to_string(), Json::String(storage_name)),
@@ -224,59 +224,6 @@ fn top_level_class_name(text: &str) -> Option<String> {
     None
 }
 
-// Hand-ported `Naming.snake` (Ruby): split acronym boundaries, then camelCase
-// boundaries, then downcase — no regex dependency.
-pub(crate) fn snake_case(name: &str) -> String {
-    let after_pass1 = split_acronym_boundaries(name);
-    let after_pass2 = split_camel_boundaries(&after_pass1);
-    after_pass2.to_ascii_lowercase()
-}
-
-fn split_acronym_boundaries(text: &str) -> String {
-    let chars: Vec<char> = text.chars().collect();
-    let mut out = String::with_capacity(text.len() + 4);
-    let mut i = 0;
-    while i < chars.len() {
-        // A maximal uppercase run starting at i.
-        if chars[i].is_ascii_uppercase() {
-            let mut run_end = i;
-            while run_end < chars.len() && chars[run_end].is_ascii_uppercase() {
-                run_end += 1;
-            }
-            let run_len = run_end - i;
-            let followed_by_lowercase =
-                run_end < chars.len() && chars[run_end].is_ascii_lowercase();
-            if run_len >= 2 && followed_by_lowercase {
-                // Emit the run minus its last char, an underscore, then
-                // continue scanning from the run's own last char (which
-                // pass 2 or a plain copy picks up next iteration).
-                out.extend(&chars[i..run_end - 1]);
-                out.push('_');
-                i = run_end - 1;
-                continue;
-            }
-        }
-        out.push(chars[i]);
-        i += 1;
-    }
-    out
-}
-
-fn split_camel_boundaries(text: &str) -> String {
-    let chars: Vec<char> = text.chars().collect();
-    let mut out = String::with_capacity(text.len() + 4);
-    for (idx, &c) in chars.iter().enumerate() {
-        if idx > 0 {
-            let prev = chars[idx - 1];
-            if (prev.is_ascii_lowercase() || prev.is_ascii_digit()) && c.is_ascii_uppercase() {
-                out.push('_');
-            }
-        }
-        out.push(c);
-    }
-    out
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -302,7 +249,11 @@ mod tests {
             ("Statement", "statement"),
         ];
         for (input, expected) in cases {
-            assert_eq!(snake_case(input), expected, "snake_case({input:?})");
+            assert_eq!(
+                crate::hecks_naming::snake(input),
+                expected,
+                "snake({input:?})"
+            );
         }
     }
 
