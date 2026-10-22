@@ -46,6 +46,18 @@ RSpec.describe Hecks::Adapters::InProcessBoot do
     end
   RUBY
 
+  BOOT_KERNEL_HECKSAGON = <<~RUBY.freeze
+    Hecks.hecksagon "Shelf" do
+      attaches "Governance"
+      persisted_by "Memory"
+    end
+
+    Hecks.hecksagon "Governance" do
+      Governance::RoleAssignment.persisted_by("Memory")
+      Governance::RoleTransition.persisted_by("Memory")
+    end
+  RUBY
+
   subject(:adapter) { described_class.new }
 
   before(:all) do
@@ -53,9 +65,13 @@ RSpec.describe Hecks::Adapters::InProcessBoot do
     FileUtils.mkdir_p(File.join(@dir, "bluebook"))
     File.write(File.join(@dir, "bluebook/shelf.bluebook"), BOOT_BLUEBOOK)
     File.write(File.join(@dir, "bluebook/shelf.hecksagon"), BOOT_HECKSAGON)
+    @kernel_dir = Dir.mktmpdir("in_process_boot_kernel")
+    FileUtils.mkdir_p(File.join(@kernel_dir, "bluebook"))
+    File.write(File.join(@kernel_dir, "bluebook/shelf.bluebook"), BOOT_BLUEBOOK)
+    File.write(File.join(@kernel_dir, "bluebook/shelf.hecksagon"), BOOT_KERNEL_HECKSAGON)
   end
 
-  after(:all) { FileUtils.rm_rf(@dir) }
+  after(:all) { FileUtils.rm_rf([@dir, @kernel_dir]) }
 
   let(:domain) { { value: @dir } }
 
@@ -96,6 +112,12 @@ RSpec.describe Hecks::Adapters::InProcessBoot do
     expect(adapter.narrate(domain: domain, aggregate: { value: "Book" }).fetch(:text)).to include("Book")
     expect(adapter.docs(domain: domain).fetch(:text)).to include("Book")
     expect(adapter.docs(domain: domain, aggregate: { value: "Book" }).fetch(:text)).to include("Book")
+  end
+
+  it "answers the relationships between contexts: none for a lone domain, a shared kernel for an attach", :aggregate_failures do
+    expect(adapter.relationships(domain: domain).fetch(:text)).to eq("")
+    expect(adapter.relationships(domain: { value: @kernel_dir }).fetch(:text))
+      .to include("Shelf --shared_kernel--> Governance")
   end
 
   it "refuses an aggregate that does not exist, as the projection does" do

@@ -558,6 +558,7 @@ Hecks.hecksagon "Hecks" do
     answers_query "History"
     answers_query "Statements"
     answers_query "Narrate"
+    answers_query "Relationships"
     answers_query "Docs"
     answers_query "ProjectDiagrams"
     answers_query "Glossary"

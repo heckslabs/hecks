@@ -96,6 +96,13 @@ module Hecks
         document(:narrate, domain, aggregate)
       end
 
+      # @param domain [Hash, String] a domain directory
+      # @return [Hash] `text:` one line per relationship between the contexts the domain holds
+      # @raise [Runtime::NotFound] if the domain cannot be found
+      def relationships(domain:)
+        report(Projections::ContextRelationships.text(registry: boot(domain).registry))
+      end
+
       # @param domain [Hash, String, nil] a domain directory; the nearest enclosing one when absent
       # @param aggregate [Hash, String, nil] document only this aggregate
       # @return [Hash] `text:` the domain's usage document
