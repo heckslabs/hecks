@@ -7,7 +7,7 @@ require_relative "../../../support/postgres_probe"
 RSpec.describe "derive, run in process and compiled to Postgres", :io do
   DERIVE_DB = "hecks_derive_equivalence_spec".freeze
 
-  EXPRESSIONS = [
+  DERIVE_EXPRESSIONS = [
     "lower(name.value)",
     "upper(name.value)",
     'concat(lower(replace(name.value, " ", ".")), "@x.io")',
@@ -19,7 +19,7 @@ RSpec.describe "derive, run in process and compiled to Postgres", :io do
     "kind"
   ].freeze
 
-  RECORDS = [
+  DERIVE_RECORDS = [
     { "name" => { "value" => "Chris Young" }, "kind" => "biz" },
     { "name" => { "value" => "" }, "kind" => "it's" },
     { "name" => { "value" => "\u00C0\u00C9\u00CE stra\u00DFe" }, "kind" => "BIZ" },
@@ -71,10 +71,10 @@ RSpec.describe "derive, run in process and compiled to Postgres", :io do
     JSON.parse(row[0]["state"])
   end
 
-  EXPRESSIONS.each do |expression|
+  DERIVE_EXPRESSIONS.each do |expression|
     it "agrees on #{expression}" do
       declared = declared_for(expression)
-      answers = RECORDS.map { |record| [in_process(declared, record), in_postgres(declared, record)] }
+      answers = DERIVE_RECORDS.map { |record| [in_process(declared, record), in_postgres(declared, record)] }
       expect(answers.map(&:first)).to eq(answers.map(&:last))
     end
   end

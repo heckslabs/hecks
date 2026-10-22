@@ -3,8 +3,6 @@ require "hecks/ports/persistence/plugins/era"
 
 # `derive` end to end in Ruby: the word, the refusals it carries, and the in-process rewrite.
 RSpec.describe "the derive rule" do
-  Lineage = Hecks::Ports::Persistence::Lineage unless defined?(Lineage)
-
   def edge(&block)
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) { Hecks.data_translation("Directory", from: "aaaaaa", to: "bbbbbb", &block) }
@@ -13,7 +11,7 @@ RSpec.describe "the derive rule" do
 
   def translated(declared, state)
     entry = Hecks::Ports::Persistence::Entry.new(operation: "save", id: "m1", state: state, mirrors: nil)
-    Lineage.from_declared(declared, "Member").translate(entry).state
+    Hecks::Ports::Persistence::Lineage.from_declared(declared, "Member").translate(entry).state
   end
 
   def chained_derives
@@ -58,7 +56,7 @@ RSpec.describe "the derive rule" do
   end
 
   it "counts as the rule that fills its destination" do
-    expect(Lineage.from_declared(declared, "Member").fills?(:email)).to be(true)
+    expect(Hecks::Ports::Persistence::Lineage.from_declared(declared, "Member").fills?(:email)).to be(true)
   end
 
   {
