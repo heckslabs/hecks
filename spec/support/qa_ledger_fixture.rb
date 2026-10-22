@@ -27,6 +27,25 @@ module QaLedgerFixture
     end
   RUBY
 
+  # Writes the ledger's `.hecksagon` and `.world` files into `dir`, bound to `database`.
+  #
+  # @param dir [String] the fixture bluebook directory
+  # @param database [String] the ledger database the worlds connect to
+  # @return [void]
+  def self.write_files(dir, database)
+    File.write(File.join(dir, "quality_control.hecksagon"), HECKSAGON)
+    File.write(File.join(dir, "context_map.hecksagon"), InMemoryDomain::GOVERNANCE_POSTGRES_ERA_HECKSAGON)
+    # PostgresEra refuses to boot as a superuser; connect as the role `QaLedgerRole` provisions.
+    url = QaLedgerRole.url(database)
+    File.write(File.join(dir, "quality_control.world"), <<~RUBY)
+      Hecks.world "QualityControl" do
+        realm "QA"
+        persisted_by("PostgresEra") { database "#{url}" }
+      end
+    RUBY
+    File.write(File.join(dir, "governance.world"), InMemoryDomain.governance_postgres_era_world(url))
+  end
+
   # A real Postgres database plus a fixture domain directory that symlinks the real chapter.
   class Ledger
     attr_reader :database, :dir
@@ -94,17 +113,7 @@ module QaLedgerFixture
     private
 
     def write_fixture_files
-      File.write(File.join(@dir, "quality_control.hecksagon"), HECKSAGON)
-      File.write(File.join(@dir, "context_map.hecksagon"), InMemoryDomain::GOVERNANCE_POSTGRES_ERA_HECKSAGON)
-      # PostgresEra refuses to boot as a superuser; connect as the role `QaLedgerRole` provisions.
-      url = QaLedgerRole.url(@database)
-      File.write(File.join(@dir, "quality_control.world"), <<~RUBY)
-        Hecks.world "QualityControl" do
-          realm "QA"
-          persisted_by("PostgresEra") { database "#{url}" }
-        end
-      RUBY
-      File.write(File.join(@dir, "governance.world"), InMemoryDomain.governance_postgres_era_world(url))
+      QaLedgerFixture.write_files(@dir, @database)
     end
 
     def create_database

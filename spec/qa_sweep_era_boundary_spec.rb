@@ -1,7 +1,7 @@
 require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "support/postgres_probe"
-require_relative "support/qa_ledger_role"
+require_relative "support/qa_ledger_fixture"
 require "open3"
 require "hecks/quality_control/cli/child"
 require "fileutils"
@@ -12,24 +12,6 @@ require "pathname"
 RSpec.describe "qa_sweep era_boundary", :io do
   QA_SWEEP_ERA_BOUNDARY_LEDGER_DATABASE = "hecks_qa_sweep_era_boundary_spec".freeze
   QA_SWEEP_ERA_BOUNDARY_TARGET_DATABASE = "hecks_qa_sweep_era_boundary_target_spec".freeze
-
-  LEDGER_HECKSAGON_FOR_ERA_BOUNDARY_SPEC = <<~RUBY.freeze
-    Hecks::Chapters.load!("QualityControl")
-
-    Hecks.hecksagon "QualityControl" do
-      attaches "Governance"
-
-      QualityControl::Target.persisted_by("PostgresEra")
-      QualityControl::Sweep.persisted_by("PostgresEra")
-      QualityControl::Bug.persisted_by("PostgresEra")
-      QualityControl::Angle.persisted_by("PostgresEra")
-      QualityControl::Ticket.persisted_by("PostgresEra")
-      QualityControl::Patch.persisted_by("PostgresEra")
-      QualityControl::Improvement.persisted_by("PostgresEra")
-      QualityControl::DailyQuota.persisted_by("PostgresEra")
-      QualityControl::Clearance.persisted_by("PostgresEra")
-    end
-  RUBY
 
   # `MODE_REQUIREMENTS[:era_boundary]` gates eligibility on a PostgresEra binding and a
   # `translations/*.bluebook` file; the file's content is never read by the mode.
@@ -93,16 +75,7 @@ RSpec.describe "qa_sweep era_boundary", :io do
     @fixture_root = Dir.mktmpdir("qa_sweep_era_boundary_spec")
     @fixture_dir  = File.join(@fixture_root, "bluebook")
     FileUtils.mkdir_p(@fixture_dir)
-    File.write(File.join(@fixture_dir, "quality_control.hecksagon"), LEDGER_HECKSAGON_FOR_ERA_BOUNDARY_SPEC)
-    File.write(File.join(@fixture_dir, "context_map.hecksagon"), InMemoryDomain::GOVERNANCE_POSTGRES_ERA_HECKSAGON)
-    url = QaLedgerRole.url(QA_SWEEP_ERA_BOUNDARY_LEDGER_DATABASE)
-    File.write(File.join(@fixture_dir, "quality_control.world"), <<~RUBY)
-      Hecks.world "QualityControl" do
-        realm "QA"
-        persisted_by("PostgresEra") { database "#{url}" }
-      end
-    RUBY
-    File.write(File.join(@fixture_dir, "governance.world"), InMemoryDomain.governance_postgres_era_world(url))
+    QaLedgerFixture.write_files(@fixture_dir, QA_SWEEP_ERA_BOUNDARY_LEDGER_DATABASE)
 
     # Not named after the mode: the basename is printed on every line, so a mode-name prefix
     # would make stdout greps pass whether or not the mode ran.
