@@ -26,8 +26,8 @@ module Hecks
 
       # Admits a new person, in whatever way this domain's adapter defines admission.
       #
-      # The keywords carry the names of a verified sign-in (`Ports::Authentication.verify`),
-      # but nothing here wires the two together, so their shapes are adapter-defined.
+      # The keywords carry the names of a verified OIDC sign-in, but nothing here wires
+      # one to this port, so their shapes are adapter-defined.
       #
       # @param registry [Runtime::Registry] the booted registry to resolve the adapter against
       # @param email [Object] adapter-defined, forwarded unchanged; the person's email
