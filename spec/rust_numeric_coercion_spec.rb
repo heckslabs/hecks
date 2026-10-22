@@ -2,10 +2,13 @@ require "json"
 require "open3"
 require "hecks/fuzzing"
 require_relative "support/rust_conformance_helpers"
+require_relative "support/generated_rust"
 
 # Rust refuses an out-of-range Integer and an overflowing addition; Ruby faults the same way.
 # `io: true`: builds the Rust binary and runs it as a subprocess, like rust_conformance_spec.
 RSpec.describe "Rust numeric coercion — overflow/out-of-range refuses cleanly instead of corrupting", :io do
+  include_context "with the generated Rust tree"
+
   # Distinct from rust_conformance_spec.rb's `RUST_DIR` to avoid an "already initialized
   # constant" warning when both files load in one process.
   NUMERIC_COERCION_RUST_DIR = File.join(InMemoryDomain::ROOT, "rust")
