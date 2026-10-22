@@ -8,11 +8,6 @@ module RustConformanceHelpers
   # Raised when a declared feature fails to build; nil is reserved for "feature not declared".
   BuildFailed = Hecks::RustBuild::NativeBuild::BuildFailed
 
-  class << self
-    # @return [Hash] the process-wide build cache, keyed on [rust_dir, domain_feature]
-    def build_cache = Hecks::RustBuild::NativeBuild.cache
-  end
-
   # Builds the binary for `domain_feature` once per (rust_dir, feature) and memoizes the result;
   # the build lives in `Hecks::RustBuild::NativeBuild`, which the gem carries.
   def build_rust_for(domain_feature, rust_dir)

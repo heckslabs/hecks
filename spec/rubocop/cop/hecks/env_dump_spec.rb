@@ -1,19 +1,8 @@
-require "rubocop"
-# Not "rubocop/rspec/support": its top-level RSpec.configure includes CopHelper into every
-# example group, and CopHelper#registry collides with other specs' own `registry`.
-require "rubocop/rspec/cop_helper"
-require "rubocop/rspec/expect_offense"
+require_relative "../../../support/cop_spec_context"
 require_relative "../../../../lib/rubocop/cop/hecks/env_dump"
 
-# CopHelper extends RSpec::SharedContext, so RSpec must be loaded first.
 RSpec.describe RuboCop::Cop::Hecks::EnvDump do
-  include CopHelper
-  include RuboCop::RSpec::ExpectOffense
-
-  subject(:cop) { described_class.new(config) }
-
-  # Off so offense messages match the cop's `MSG` without the cop-name badge.
-  let(:config) { RuboCop::Config.new("AllCops" => { "DisplayCopNames" => false }) }
+  include_context "with a Hecks cop under test"
 
   # The whole environment carries every secret the process holds.
   it "flags printing the whole environment" do
