@@ -153,3 +153,50 @@ RSpec.shared_examples "a saga-persisting adapter" do
     end
   end
 end
+
+# The `Item` aggregate and records the atomic_put specs put, one per adapter spec. A spec supplies
+# `aggregate` (built with `item_aggregate`) and `store`, the append-only repository under test.
+RSpec.shared_context "with the atomic_put Item aggregate" do
+  def item_aggregate(domain, summary)
+    Hecks::Bluebook::DSL::BluebookBuilder.build(domain) do
+      vision summary
+
+      aggregate "Item" do
+        identified_by do
+          attribute :sku, String
+        end
+
+        value_object("Label") { attribute :value, String }
+        attribute :label, Label
+      end
+    end.aggregate("Item")
+  end
+
+  def item_labelled(label)
+    Hecks::Runtime::Instance.new(
+      aggregate: aggregate,
+      id:        "sku-1",
+      state:     { identity: { sku: "sku-1" }, label: { value: label } }
+    )
+  end
+end
+
+# The atomic_put contract every adapter that reports `:atomic_put` honours.
+RSpec.shared_examples "an atomic_put adapter" do
+  it "reports an insert for the first put of an identity" do
+    expect(store.atomic_put(item_labelled("First")).status).to eq(:inserted)
+  end
+
+  it "reports a replacement for the second put of an identity" do
+    store.atomic_put(item_labelled("First"))
+
+    expect(store.atomic_put(item_labelled("Second")).status).to eq(:replaced)
+  end
+
+  it "appends every put, and finds the latest" do
+    store.atomic_put(item_labelled("First"))
+    store.atomic_put(item_labelled("Second"))
+
+    expect([store.entries.size, store.find("sku-1").state[:label].to_h]).to eq([2, { value: "Second" }])
+  end
+end
