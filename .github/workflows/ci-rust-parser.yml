@@ -74,6 +74,7 @@ jobs:
           bundle exec rspec --tag io \
             spec/parser_parity_spec.rb \
             spec/parser_adapter_parity_spec.rb \
+            spec/parser_world_parity_spec.rb \
             spec/parser_coverage_spec.rb \
             spec/grammar_corpus_spec.rb \
             spec/composer_check_spec.rb \

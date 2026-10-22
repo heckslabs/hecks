@@ -3,6 +3,7 @@ require_relative "../ports/persistence"
 require_relative "exporter/adapters"
 require_relative "exporter/bindings"
 require_relative "exporter/translations"
+require_relative "exporter/worlds"
 
 module Hecks
   module Projector
@@ -76,6 +77,7 @@ module Hecks
       extend Adapters
       extend Bindings
       extend Translations
+      extend Worlds
     end
   end
 end

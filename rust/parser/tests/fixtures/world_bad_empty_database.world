@@ -1,0 +1,3 @@
+Hecks.world "Bad" do
+  default_database ""
+end

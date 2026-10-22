@@ -31,4 +31,11 @@ RSpec.describe "The corpus" do
     expect(files).to include(File.join(Hecks::Corpus::ROOT, "lib/hecks/adapters/driven/heki.adapter"))
     expect(files.grep(%r{/(vendor|node_modules|target)/})).to be_empty
   end
+
+  it "lists every .world file, leaving out vendored copies", :aggregate_failures do
+    files = Hecks::Corpus.world_files
+    expect(files).to include(File.join(Hecks::Corpus::ROOT, "lib/hecks/hecks/deploy.world"))
+    expect(files).to eq(files.sort)
+    expect(files.grep(%r{/(vendor|node_modules|target)/})).to be_empty
+  end
 end

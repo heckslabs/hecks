@@ -3,6 +3,7 @@ require_relative "corpus/adapters"
 require_relative "corpus/routes"
 require_relative "corpus/rust"
 require_relative "corpus/sources"
+require_relative "corpus/worlds"
 
 module Hecks
   # The corpus: every place in this repo that holds a real domain, named once.
@@ -48,6 +49,7 @@ module Hecks
     extend Adapters
     extend Rust
     extend Sources
+    extend Worlds
 
     module_function
 
