@@ -936,6 +936,20 @@
       }
     ]
   },
+  "adapters": [
+    {
+      "name": "Memory",
+      "port": "persistence",
+      "fields": [
+
+      ],
+      "secrets": [
+
+      ],
+      "defaults": {
+      }
+    }
+  ],
   "authorization": {
     "provider": "Governance",
     "grant": "Governance::RoleAssignment.Assign",

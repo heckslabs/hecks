@@ -3,6 +3,7 @@
 
 use std::path::{Path, PathBuf};
 
+use crate::adapters_pass;
 use crate::binding_pass;
 use crate::build_artifact;
 use crate::cargo_sync;
@@ -107,6 +108,12 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
         &mut target_ir,
         hecksagon_path.as_deref(),
         world_path.as_deref(),
+        |ir| {
+            // The same two places `TargetIr#adapters` scans: the source root's `lib/` and the
+            // domain's own directory.
+            let directories = [root.join("lib"), domain_path.clone()];
+            adapters_pass::declarations(&parser_bin, &directories, ir)
+        },
     )?;
 
     // Every other chapter the gem supplies by `attaches "Name"`, resolved through the

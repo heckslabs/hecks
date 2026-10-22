@@ -2,6 +2,7 @@
 //! `<domain>` is a domain directory such as `examples/pizzas`; `--wasm` also cross-compiles to
 //! `wasm32-wasip1`, and `--no-build` generates source only.
 
+mod adapters_pass;
 mod build_artifact;
 mod cargo_sync;
 // The one JSON implementation, compiled from `hecks-codegen`'s own source: neither crate depends on
