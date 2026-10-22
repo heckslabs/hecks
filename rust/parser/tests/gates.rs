@@ -887,3 +887,196 @@ fn every_real_adapter_file_parses() {
         assert!(output.status.success(), "{}", path.display());
     }
 }
+
+/// Runs `hecks-parse world` over the named fixtures; returns exit code, stdout, stderr.
+fn run_world(names: &[&str]) -> (i32, String, String) {
+    let paths: Vec<PathBuf> = names.iter().map(|n| fixture(n)).collect();
+    let mut args = vec!["world"];
+    args.extend(paths.iter().map(|p| p.to_str().unwrap()));
+    let output = run(&args);
+    (
+        output.status.code().unwrap(),
+        String::from_utf8_lossy(&output.stdout).into_owned(),
+        String::from_utf8_lossy(&output.stderr).into_owned(),
+    )
+}
+
+/// Collapses pretty-printed JSON onto one line, for readable assertions.
+fn squash(json: &str) -> String {
+    json.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+#[test]
+fn a_minimal_world_has_null_scalars_and_no_bindings() {
+    let (code, out, _) = run_world(&["world_minimal.world"]);
+    assert_eq!(code, 0);
+    assert_eq!(
+        out,
+        "[\n  {\n    \"domain\": \"Minimal\",\n    \"realm\": null,\n    \"latest\": null,\n    \"default_adapter\": null,\n    \"default_database\": false,\n    \"bindings\": [\n\n    ]\n  }\n]\n"
+    );
+}
+
+#[test]
+fn world_scalars_last_call_wins_and_default_database_is_only_a_flag() {
+    let (code, out, _) = run_world(&["world_scalars.world"]);
+    assert_eq!(code, 0);
+    let flat = squash(&out);
+    assert!(flat.contains("\"realm\": \"Examples\""), "got: {out}");
+    assert!(flat.contains("\"latest\": \"v1\""), "got: {out}");
+    assert!(
+        flat.contains("\"default_adapter\": \"PostgresEra\""),
+        "got: {out}"
+    );
+    assert!(flat.contains("\"default_database\": true"), "got: {out}");
+    assert!(!out.contains("hunter2"), "a value leaked: {out}");
+}
+
+#[test]
+fn bindings_record_verb_adapter_and_setting_names_never_values() {
+    let (code, out, _) = run_world(&["world_bindings.world"]);
+    assert_eq!(code, 0);
+    let flat = squash(&out);
+    assert!(
+        flat.contains(
+            "{ \"verb\": \"persisted_by\", \"adapter\": \"Heki\", \"settings\": [ \"dir\", \"nested\", \"retries\" ] }"
+        ),
+        "got: {out}"
+    );
+    assert!(
+        flat.contains("\"settings\": [ \"region\", \"database\" ]"),
+        "got: {out}"
+    );
+    for value in ["s3cr3t-dir", "SHOP_DATABASE_URL", "us-east-1", "deep"] {
+        assert!(!out.contains(value), "{value} leaked: {out}");
+    }
+}
+
+#[test]
+fn a_multi_line_keyword_call_records_its_keyword_names_in_order() {
+    let (code, out, _) = run_world(&["world_launcher.world"]);
+    assert_eq!(code, 0);
+    assert!(
+        squash(&out).contains(
+            "\"verb\": \"launcher\", \"adapter\": \"Launcher\", \"settings\": [ \"run_keys\", \"settled\", \"names\", \"executable\" ]"
+        ),
+        "got: {out}"
+    );
+}
+
+#[test]
+fn default_database_accepts_an_env_fetch_expression_without_printing_it() {
+    let (code, out, _) = run_world(&["world_env_database.world"]);
+    assert_eq!(code, 0);
+    assert!(
+        squash(&out).contains("\"default_database\": true"),
+        "got: {out}"
+    );
+    assert!(!out.contains("HECKS_DATABASE") && !out.contains("localhost"));
+}
+
+#[test]
+fn blocks_of_one_domain_merge_into_the_first_in_first_appearance_order() {
+    let (code, out, _) = run_world(&["world_merge.world"]);
+    assert_eq!(code, 0);
+    let flat = squash(&out);
+    assert!(flat.find("\"Twice\"").unwrap() < flat.find("\"Other\"").unwrap());
+    assert_eq!(flat.matches("\"domain\": \"Twice\"").count(), 1, "{flat}");
+    // The later block's realm wins; its upper-case Heki binding replaces Heki wholesale (spelling too) in
+    // the first slot; Sqlite stays; the new Memory binding appends.
+    assert!(flat.contains("\"realm\": \"Two\""), "{flat}");
+    assert!(flat.contains("\"latest\": \"v1\""), "{flat}");
+    let heki = flat
+        .find("\"adapter\": \"HEKI\", \"settings\": [ \"path\" ]")
+        .unwrap();
+    let sqlite = flat.find("\"adapter\": \"Sqlite\"").unwrap();
+    let memory = flat.find("\"adapter\": \"Memory\"").unwrap();
+    assert!(heki < sqlite && sqlite < memory, "{flat}");
+    assert!(!flat.contains("\"dir\""), "{flat}");
+}
+
+#[test]
+fn a_repeated_binding_keeps_its_first_slot_with_the_last_call() {
+    let (code, out, _) = run_world(&["world_repeat.world"]);
+    assert_eq!(code, 0);
+    let flat = squash(&out);
+    assert!(
+        flat.contains(
+            "{ \"verb\": \"persisted_by\", \"adapter\": \"heki\", \"settings\": [ \"mode\", \"path\" ] }, { \"verb\": \"projected_by\""
+        ),
+        "{flat}"
+    );
+}
+
+#[test]
+fn world_refusals_exit_one_and_say_why() {
+    let cases: &[(&str, &str)] = &[
+        ("world_bad_word.world", "'puts' is a Ruby method"),
+        ("world_bad_empty_realm.world", "'realm' must not be empty"),
+        (
+            "world_bad_empty_database.world",
+            "'default_database' must not be empty",
+        ),
+        (
+            "world_bad_grammar_verb.world",
+            "'description' is a grammar word",
+        ),
+        ("world_bad_unterminated.world", "unexpected end of file"),
+        ("world_bad_toplevel.world", "must all be 'world'"),
+    ];
+    for (name, needle) in cases {
+        let (code, out, err) = run_world(&[name]);
+        assert_eq!(code, 1, "{name}: {err}");
+        assert!(out.is_empty(), "{name} printed: {out}");
+        assert!(err.contains(needle), "{name}: {err}");
+    }
+}
+
+#[test]
+fn every_real_world_file_parses_and_prints_no_setting_value() {
+    let repo = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let skip = [
+        "target",
+        "vendor",
+        "node_modules",
+        "tmp",
+        ".git",
+        ".aws-sam",
+    ];
+    let mut found = Vec::new();
+    for top in ["lib", "examples", "qa", "spec/fixtures"] {
+        let mut stack = vec![repo.join(top)];
+        while let Some(dir) = stack.pop() {
+            for entry in std::fs::read_dir(dir).unwrap() {
+                let path = entry.unwrap().path();
+                let name = path.file_name().unwrap().to_string_lossy().into_owned();
+                if path.is_dir() {
+                    if !skip.contains(&name.as_str()) {
+                        stack.push(path);
+                    }
+                } else if path.extension().is_some_and(|e| e == "world") {
+                    found.push(path);
+                }
+            }
+        }
+    }
+    assert!(!found.is_empty());
+    found.sort();
+    for path in &found {
+        let output = run(&["world", path.to_str().unwrap()]);
+        assert!(
+            output.status.success(),
+            "{}: {}",
+            path.display(),
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+    let mut args = vec!["world"];
+    args.extend(found.iter().map(|p| p.to_str().unwrap()));
+    let output = run(&args);
+    assert!(output.status.success());
+    let out = String::from_utf8_lossy(&output.stdout);
+    // banking.world sets `dir "data"` and a sqlite path: names print, values never.
+    assert!(out.contains("\"dir\""));
+    assert!(!out.contains("data/banking"), "a value leaked: {out}");
+    assert!(!out.contains("postgres://"), "a value leaked: {out}");
+}
