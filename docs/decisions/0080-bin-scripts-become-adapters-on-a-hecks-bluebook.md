@@ -398,7 +398,7 @@ Environment variables are read by 25 scripts; they become world configuration, n
 **Already adapters in the runtime** (reached through `Hecks.boot`, used by Custodian's DomainRuntime and JournalStore):
 
 - the persistence adapters: Memory, Heki, Sqlite, Postgres with its outbox, PostgresEra, D1 over HTTP, Lambda over the AWS SDK
-- `SystemClock`, `SecureRandomIdentity`, `InProcessKeyVault`, `GoogleAuthentication`
+- `SystemClock`, `SecureRandomIdentity`, `InProcessKeyVault`
 - the `TenantProvisioner` file write
 - the storehouse log and the syntax-boot cache under `Hecks::CacheDir`
 
