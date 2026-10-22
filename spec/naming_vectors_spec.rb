@@ -3,8 +3,8 @@ require "hecks/ports/persistence/plugins/era/postgres_era/lineage"
 
 # Naming.snake and Lineage#qualified_name have a hand-written twin in rust/host/src/journal.rs.
 # spec/fixtures/naming_vectors.json is the one table both sides assert, so a drift in either
-# fails a test on its own side. Rows where the two runtimes are known to differ live under
-# `known_divergences` and are pinned there, not left out.
+# fails a test on its own side. A difference that has not been resolved is pinned under
+# `known_divergences` rather than left out.
 RSpec.describe "the shared naming vectors" do
   NAMING_VECTORS = JSON.parse(File.read(File.join(InMemoryDomain::ROOT, "spec", "fixtures", "naming_vectors.json")))
 
@@ -36,13 +36,6 @@ RSpec.describe "the shared naming vectors" do
   end
 
   describe "known divergences from rust/host" do
-    it "snake lowercases upper-case non-ASCII letters, which the Rust port leaves alone", :aggregate_failures do
-      rows = NAMING_VECTORS.dig("known_divergences", "snake")
-
-      expect(rows.map { |row| Hecks::Naming.snake(row["input"]) }).to eq(rows.map { |row| row["ruby"] })
-      expect(rows.map { |row| row["ruby"] }).not_to eq(rows.map { |row| row["rust"] })
-    end
-
     it "a truncation that cuts a character in half yields invalid UTF-8 here and a panic in Rust", :aggregate_failures do
       rows = NAMING_VECTORS.dig("known_divergences", "qualified_name_truncation_splitting_a_character")
 

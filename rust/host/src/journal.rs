@@ -299,7 +299,15 @@ impl LineageConfig {
 /// Ports `Naming.snake` (lib/hecks/naming.rb) verbatim — must match Ruby
 /// exactly so both runtimes derive the same storage names.
 pub fn snake(name: &str) -> String {
-    word_boundary(&acronym_boundary(name)).to_ascii_lowercase()
+    ruby_downcase(&word_boundary(&acronym_boundary(name)))
+}
+
+/// Lowercases the way Ruby's `String#downcase` does: each character on its own, with the full
+/// Unicode mapping. `str::to_lowercase` differs in one place, a word-final capital sigma, which
+/// it turns into the final form `ς` where Ruby gives `σ`; and `to_ascii_lowercase` leaves every
+/// non-ASCII capital alone. Names derived from a bluebook must come out the same in both runtimes.
+pub fn ruby_downcase(text: &str) -> String {
+    text.chars().flat_map(char::to_lowercase).collect()
 }
 
 fn acronym_boundary(s: &str) -> String {
@@ -1085,17 +1093,11 @@ mod naming_vector_tests {
         }
     }
 
-    // Rust lowercases ASCII only where Ruby's `downcase` is Unicode. Pinned as a known
-    // divergence, not hidden: the Ruby side asserts the "ruby" column of the same rows.
     #[test]
-    fn snake_diverges_from_ruby_only_on_upper_case_non_ascii_letters() {
-        let divergences = vectors()["known_divergences"]["snake"].clone();
-        assert!(!divergences.as_array().unwrap().is_empty());
-        for row in divergences.as_array().unwrap() {
-            let input = row["input"].as_str().unwrap();
-            assert_eq!(snake(input), row["rust"].as_str().unwrap(), "{input:?}");
-            assert_ne!(snake(input), row["ruby"].as_str().unwrap(), "{input:?}");
-        }
+    fn ruby_downcase_folds_unicode_capitals_one_character_at_a_time() {
+        assert_eq!(ruby_downcase("ÉCOLE"), "école");
+        assert_eq!(ruby_downcase("ΟΔΥΣΣΕΑΣ"), "οδυσσεασ");
+        assert_eq!(ruby_downcase("ascii"), "ascii");
     }
 
     // Ruby's `byteslice` cuts mid-character and yields invalid UTF-8; Rust's `&str` slice
