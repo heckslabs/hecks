@@ -503,6 +503,13 @@ async fn admin_members_route(
     {
         return html(400, "<p>Give a valid email.</p>");
     }
+    let days = match expiry_days(
+        form.get("expires_in_days")
+            .map(|s| Value::String(s.clone())),
+    ) {
+        Ok(days) => days,
+        Err(message) => return html(400, &format!("<p>{}</p>", esc(message))),
+    };
     let name = form
         .get("name")
         .map(|s| s.trim().to_string())
@@ -512,11 +519,39 @@ async fn admin_members_route(
     if let Err(e) = auth::admit_person(client, config, domain_ir, &email, &name).await {
         return html(500, &format!("<p>{}</p>", esc(&e.to_string())));
     }
-    match auth::grant_access(client, wasm_path, config, domain_ir, &email, &role).await {
+    let until = days.map(auth::expiry_after_days);
+    match auth::grant_access_until(
+        client,
+        wasm_path,
+        config,
+        domain_ir,
+        &email,
+        &role,
+        until.as_deref(),
+    )
+    .await
+    {
         Ok(true) => redirect("/admin/members"),
         Ok(false) => html(404, "<p>No member with that email.</p>"),
         Err(e) => html(500, &format!("<p>{}</p>", esc(&e.to_string()))),
     }
+}
+
+// The optional `expires_in_days` of a grant: absent, null or blank means an
+// open-ended grant; otherwise a whole number of days, 1 to `MAX_EXPIRY_DAYS`.
+// A JSON number or a numeric string (a form field) both read.
+fn expiry_days(raw: Option<Value>) -> Result<Option<u32>, &'static str> {
+    const MESSAGE: &str = "expires_in_days must be a whole number of days from 1 to 365";
+    let days = match raw {
+        None | Some(Value::Null) => return Ok(None),
+        Some(Value::Number(n)) => n.as_u64(),
+        Some(Value::String(s)) if s.trim().is_empty() => return Ok(None),
+        Some(Value::String(s)) => s.trim().parse::<u64>().ok(),
+        Some(_) => None,
+    };
+    days.filter(|d| (1..=u64::from(auth::MAX_EXPIRY_DAYS)).contains(d))
+        .map(|d| Some(d as u32))
+        .ok_or(MESSAGE)
 }
 
 async fn is_admin(
@@ -668,17 +703,33 @@ pub(crate) async fn add_member_route(
         );
     }
 
+    let days = match expiry_days(body.get("expires_in_days").cloned()) {
+        Ok(days) => days,
+        Err(message) => return json_error(400, message),
+    };
+
     match auth::admit_person(client, config, domain_ir, &email, &name).await {
         Ok(true) => {}
         Ok(false) => return json_error(409, "that email is already admitted"),
         Err(e) => return json_error(500, &format!("admit failed: {e}")),
     }
     let email = email.to_lowercase();
-    match auth::grant_access(client, wasm_path, config, domain_ir, &email, &role).await {
+    let until = days.map(auth::expiry_after_days);
+    match auth::grant_access_until(
+        client,
+        wasm_path,
+        config,
+        domain_ir,
+        &email,
+        &role,
+        until.as_deref(),
+    )
+    .await
+    {
         Ok(true) => respond(
             201,
             "application/json",
-            &json!({"name": name, "email": email, "role": role, "linked": false, "granted": true, "disabled": false, "identity_id": null}).to_string(),
+            &json!({"name": name, "email": email, "role": role, "linked": false, "granted": true, "disabled": false, "access_expires_at": until, "expired": false, "identity_id": null}).to_string(),
         ),
         Ok(false) => json_error(500, &format!("the person was admitted but the {role} role was not granted")),
         Err(e) => json_error(500, &format!("the person was admitted but the {role} role was not granted: {e}")),
@@ -1143,16 +1194,26 @@ async fn admin_members_page(client: &Mutex<Client>, domain_ir: &Value) -> String
             let name = p.get("name").and_then(|v| v.as_str()).unwrap_or("");
             let email = p.get("email").and_then(|v| v.as_str()).unwrap_or("");
             let role = p.get("role").and_then(|v| v.as_str()).unwrap_or("—");
-            let access = if p.get("linked").and_then(serde_json::Value::as_bool) == Some(true) {
-                "linked"
+            let until = p
+                .get("access_expires_at")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            let expired = p.get("expired").and_then(serde_json::Value::as_bool) == Some(true);
+            let mut access = if expired {
+                format!("access ended {until}")
+            } else if p.get("linked").and_then(serde_json::Value::as_bool) == Some(true) {
+                "linked".to_string()
             } else if p.get("granted").and_then(serde_json::Value::as_bool) == Some(true) {
-                "granted, not yet signed in"
+                "granted, not yet signed in".to_string()
             } else {
-                "no access"
+                "no access".to_string()
             };
+            if !expired && !until.is_empty() {
+                access = format!("{access}, until {until}");
+            }
             format!(
                 r#"<tr class="border-b border-slate-100"><td class="py-2 pr-4">{}</td><td class="py-2 pr-4">{}</td><td class="py-2 pr-4">{}</td><td class="py-2">{}</td></tr>"#,
-                esc(name), esc(email), esc(role), esc(access)
+                esc(name), esc(email), esc(role), esc(&access)
             )
         })
         .collect::<Vec<_>>()
@@ -1164,10 +1225,11 @@ async fn admin_members_page(client: &Mutex<Client>, domain_ir: &Value) -> String
         <p class="mb-4"><a href="/" class="text-slate-500 hover:text-slate-700">&larr; back</a></p>
         <h1 class="text-xl font-semibold mb-4">Members</h1>
         <table class="w-full text-sm mb-6"><thead><tr class="text-left text-slate-500 text-xs uppercase"><th class="py-2 pr-4">Name</th><th class="py-2 pr-4">Email</th><th class="py-2 pr-4">Role</th><th class="py-2">Access</th></tr></thead><tbody>{rows}</tbody></table>
-        <form method="post" action="/admin/members" class="flex gap-2 items-center">
+        <form method="post" action="/admin/members" class="flex flex-wrap gap-2 items-center">
         <input type="text" name="name" placeholder="Name" class="w-40 border border-slate-300 rounded-md px-3 py-2 text-sm" />
         <input type="email" name="email" placeholder="Email (their Google account)" required class="flex-1 border border-slate-300 rounded-md px-3 py-2 text-sm" />
         <select name="role" class="border border-slate-300 rounded-md px-3 py-2 text-sm"><option value="Admin">Admin</option><option value="Owner">Owner</option><option value="Member">Member</option></select>
+        <input type="number" name="expires_in_days" min="1" max="365" step="1" placeholder="Days (optional)" title="Leave empty for access with no end date" class="w-32 border border-slate-300 rounded-md px-3 py-2 text-sm" />
         <button type="submit" class="px-4 py-2 bg-slate-900 text-white rounded-md text-sm">Grant access</button>
         </form></main></body></html>"#
     )
@@ -3154,11 +3216,11 @@ mod tests {
         assert_eq!(names, ["amy", "Zed"], "sorted case-insensitively by name");
         assert_eq!(
             people[1],
-            json!({"name": "Zed", "email": "zed@example.com", "role": "Admin", "linked": true, "granted": true, "disabled": false, "identity_id": "id-1"})
+            json!({"name": "Zed", "email": "zed@example.com", "role": "Admin", "linked": true, "granted": true, "disabled": false, "access_expires_at": null, "expired": false, "identity_id": "id-1"})
         );
         assert_eq!(
             people[0],
-            json!({"name": "amy", "email": "amy@example.com", "role": null, "linked": false, "granted": false, "disabled": false, "identity_id": null})
+            json!({"name": "amy", "email": "amy@example.com", "role": null, "linked": false, "granted": false, "disabled": false, "access_expires_at": null, "expired": false, "identity_id": null})
         );
     }
 
@@ -3642,7 +3704,7 @@ mod tests {
         let created: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
         assert_eq!(
             created,
-            json!({"name": "New Person", "email": "new@example.com", "role": "Admin", "linked": false, "granted": true, "disabled": false, "identity_id": null})
+            json!({"name": "New Person", "email": "new@example.com", "role": "Admin", "linked": false, "granted": true, "disabled": false, "access_expires_at": null, "expired": false, "identity_id": null})
         );
 
         let listing = members_route(&domain_ir, &cookies, secret, &client).await;
@@ -4872,6 +4934,491 @@ mod tests {
             registration_list_rows(&other_domain, "Studio").is_empty(),
             "another domain's registrations are not listed"
         );
+    }
+
+    // ---- time-boxed access: a window on the row that ends by itself ----
+
+    const PAST: &str = "2020-01-01T00:00:00Z";
+    const FUTURE: &str = "2099-01-01T00:00:00Z";
+
+    // Writes `access_expires_at` straight onto a row, the way a window that
+    // ran out (or was mangled) looks to the host, whatever wrote it.
+    async fn set_window(client: &Mutex<Client>, email: &str, window: Value) {
+        client
+            .lock()
+            .await
+            .execute(
+                "UPDATE acme_member_head_snapshot_1 SET state = jsonb_set(state, '{access_expires_at}', $2::jsonb) WHERE id = $1",
+                &[&email, &window],
+            )
+            .await
+            .unwrap();
+    }
+
+    fn form_grant(email: &str, role: &str, days: &str) -> String {
+        format!("email={email}&role={role}&expires_in_days={days}")
+    }
+
+    #[tokio::test]
+    async fn a_person_whose_window_has_ended_gets_no_access_anywhere_but_the_row_keeps_its_role() {
+        let secret = "s3cret";
+        let (client, domain_ir) = scratch_two_admins("hecks_host_web_test_expiry_access").await;
+        client
+            .lock()
+            .await
+            .execute(
+                "UPDATE acme_member_head_snapshot_1 SET state = state || '{\"identity_id\": {\"value\": \"id-amy\"}}'::jsonb WHERE id = 'amy@example.com'",
+                &[],
+            )
+            .await
+            .unwrap();
+        set_window(&client, "amy@example.com", json!(PAST)).await;
+        let amy_cookies = session_cookies(secret, "amy@example.com");
+
+        assert!(!auth::has_access(&client, &domain_ir, "amy@example.com")
+            .await
+            .unwrap());
+        assert_eq!(
+            auth::active_role(&client, &domain_ir, "amy@example.com")
+                .await
+                .unwrap(),
+            None
+        );
+        assert!(
+            !auth::caller_is_admin(&client, &domain_ir, "amy@example.com")
+                .await
+                .unwrap()
+        );
+        // The CMS-facing session check and the SSO token route both refuse her.
+        assert_eq!(
+            accounts_me_route(&domain_ir, &amy_cookies, secret, &client).await["statusCode"],
+            401
+        );
+        assert_eq!(
+            accounts_sso_token_route(&domain_ir, &amy_cookies, secret, &client).await["statusCode"],
+            401
+        );
+        // A new Google sign-in through her linked identity is refused too.
+        assert!(
+            auth::session_for_member_by_identity(&client, &domain_ir, "id-amy")
+                .await
+                .unwrap()
+                .is_none()
+        );
+        let amy = person(&client, &domain_ir, "amy@example.com").await;
+        assert_eq!(
+            (
+                amy["role"].as_str(),
+                amy["granted"].clone(),
+                amy["disabled"].clone(),
+                amy["expired"].clone(),
+                amy["access_expires_at"].as_str()
+            ),
+            (
+                Some("Admin"),
+                json!(false),
+                json!(false),
+                json!(true),
+                Some(PAST)
+            )
+        );
+        // Her window has not touched zed's access.
+        assert!(auth::has_access(&client, &domain_ir, "zed@example.com")
+            .await
+            .unwrap());
+    }
+
+    #[tokio::test]
+    async fn a_window_still_open_changes_nothing_until_it_ends() {
+        let secret = "s3cret";
+        let (client, domain_ir) = scratch_two_admins("hecks_host_web_test_expiry_open").await;
+        set_window(&client, "amy@example.com", json!(FUTURE)).await;
+
+        assert!(auth::has_access(&client, &domain_ir, "amy@example.com")
+            .await
+            .unwrap());
+        assert!(
+            auth::caller_is_admin(&client, &domain_ir, "amy@example.com")
+                .await
+                .unwrap()
+        );
+        assert_eq!(
+            accounts_me_route(
+                &domain_ir,
+                &session_cookies(secret, "amy@example.com"),
+                secret,
+                &client
+            )
+            .await["statusCode"],
+            200
+        );
+        let amy = person(&client, &domain_ir, "amy@example.com").await;
+        assert_eq!(
+            (
+                amy["granted"].clone(),
+                amy["expired"].clone(),
+                amy["access_expires_at"].as_str()
+            ),
+            (json!(true), json!(false), Some(FUTURE))
+        );
+    }
+
+    #[tokio::test]
+    async fn a_malformed_window_counts_as_ended_and_fails_closed() {
+        let (client, domain_ir) = scratch_two_admins("hecks_host_web_test_expiry_malformed").await;
+        for bad in [
+            json!("tomorrow"),
+            json!(""),
+            json!(12345),
+            json!(true),
+            json!("2099-13-40T00:00:00Z"),
+            json!("2099-01-01T00:00:00+02:00"),
+            json!({"value": "not a time"}),
+        ] {
+            set_window(&client, "amy@example.com", bad.clone()).await;
+            assert!(
+                !auth::has_access(&client, &domain_ir, "amy@example.com")
+                    .await
+                    .unwrap(),
+                "{bad}"
+            );
+            assert_eq!(
+                person(&client, &domain_ir, "amy@example.com").await["expired"],
+                true,
+                "{bad}"
+            );
+        }
+        // A wrapped value reads like a bare one; null is no window at all.
+        set_window(&client, "amy@example.com", json!({"value": FUTURE})).await;
+        assert!(auth::has_access(&client, &domain_ir, "amy@example.com")
+            .await
+            .unwrap());
+        set_window(&client, "amy@example.com", Value::Null).await;
+        assert!(auth::has_access(&client, &domain_ir, "amy@example.com")
+            .await
+            .unwrap());
+    }
+
+    #[tokio::test]
+    async fn an_expired_admin_neither_passes_the_admin_gate_nor_counts_as_the_last_admin() {
+        let (client, domain_ir) = scratch_two_admins("hecks_host_web_test_expiry_admins").await;
+        set_window(&client, "amy@example.com", json!(PAST)).await;
+
+        // The expired admin cannot act as one.
+        let response = switch_access(
+            &client,
+            &domain_ir,
+            "amy@example.com",
+            "zed@example.com",
+            true,
+        )
+        .await;
+        assert_eq!(response["statusCode"], 403, "{response:?}");
+        let response = set_role(
+            &client,
+            &domain_ir,
+            "amy@example.com",
+            "zed@example.com",
+            "Member",
+        )
+        .await;
+        assert_eq!(response["statusCode"], 403, "{response:?}");
+
+        // Zed is the only admin that counts, so the last-admin guard protects him
+        // even though two rows hold the Admin role.
+        let response = set_role(
+            &client,
+            &domain_ir,
+            "zed@example.com",
+            "zed@example.com",
+            "Member",
+        )
+        .await;
+        assert_eq!(response["statusCode"], 409, "{response:?}");
+        assert_eq!(
+            auth::set_person_disabled(
+                &client,
+                &members_config(),
+                &domain_ir,
+                "zed@example.com",
+                "zed@example.com",
+                true
+            )
+            .await
+            .unwrap(),
+            auth::DisableOutcome::SelfDisable
+        );
+
+        // Removing the expired admin is not refused: she was never one of the active admins.
+        let response = switch_access(
+            &client,
+            &domain_ir,
+            "zed@example.com",
+            "amy@example.com",
+            true,
+        )
+        .await;
+        assert_eq!(response["statusCode"], 200, "{response:?}");
+        assert_eq!(
+            person(&client, &domain_ir, "amy@example.com").await["disabled"],
+            true
+        );
+    }
+
+    #[tokio::test]
+    async fn a_second_admin_whose_window_ended_does_not_unlock_removing_the_last_active_one() {
+        let (client, domain_ir) = scratch_two_admins("hecks_host_web_test_expiry_last").await;
+        // amy would be the second admin, but she has run out: demoting zed through any
+        // other admin is impossible and zed alone is still protected from demotion.
+        set_window(&client, "amy@example.com", json!(PAST)).await;
+        assert_eq!(
+            auth::set_person_role(
+                &client,
+                &members_config(),
+                &domain_ir,
+                "zed@example.com",
+                "zed@example.com",
+                "Member"
+            )
+            .await
+            .unwrap(),
+            auth::RoleOutcome::LastAdmin
+        );
+    }
+
+    #[tokio::test]
+    async fn granting_with_a_window_sets_it_and_granting_again_renews_or_clears_it() {
+        let secret = "s3cret";
+        let (client, domain_ir) = scratch_members_db("hecks_host_web_test_expiry_grant").await;
+        let admin = session_cookies(secret, "zed@example.com");
+        let now = || {
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs() as i64
+        };
+        let ends = |person: &Value| {
+            crate::clock::parse_iso_utc(person["access_expires_at"].as_str().unwrap()).unwrap()
+        };
+
+        let first = members_page(
+            "POST",
+            &form_grant("amy%40example.com", "Member", "7"),
+            &admin,
+            secret,
+            &client,
+            &domain_ir,
+        )
+        .await;
+        assert_eq!(first["statusCode"], 302, "{first:?}");
+        let amy = person(&client, &domain_ir, "amy@example.com").await;
+        assert_eq!(amy["granted"], true);
+        assert!(
+            (ends(&amy) - (now() + 7 * 86_400)).abs() < 120,
+            "a seven day window: {amy}"
+        );
+
+        // Granting again extends the window from now.
+        let renewed = members_page(
+            "POST",
+            &form_grant("amy%40example.com", "Member", "30"),
+            &admin,
+            secret,
+            &client,
+            &domain_ir,
+        )
+        .await;
+        assert_eq!(renewed["statusCode"], 302, "{renewed:?}");
+        let amy = person(&client, &domain_ir, "amy@example.com").await;
+        assert!((ends(&amy) - (now() + 30 * 86_400)).abs() < 120, "{amy}");
+
+        // Renewal revives a lapsed row: the role comes back with the new window.
+        set_window(&client, "amy@example.com", json!(PAST)).await;
+        assert!(!auth::has_access(&client, &domain_ir, "amy@example.com")
+            .await
+            .unwrap());
+        let revived = members_page(
+            "POST",
+            &form_grant("amy%40example.com", "Member", "1"),
+            &admin,
+            secret,
+            &client,
+            &domain_ir,
+        )
+        .await;
+        assert_eq!(revived["statusCode"], 302, "{revived:?}");
+        assert!(auth::has_access(&client, &domain_ir, "amy@example.com")
+            .await
+            .unwrap());
+
+        // A grant with an empty field makes the access open-ended again.
+        let open = members_page(
+            "POST",
+            &form_grant("amy%40example.com", "Member", ""),
+            &admin,
+            secret,
+            &client,
+            &domain_ir,
+        )
+        .await;
+        assert_eq!(open["statusCode"], 302, "{open:?}");
+        let amy = person(&client, &domain_ir, "amy@example.com").await;
+        assert_eq!(
+            (amy["access_expires_at"].clone(), amy["expired"].clone()),
+            (Value::Null, json!(false))
+        );
+    }
+
+    #[tokio::test]
+    async fn a_grant_with_an_unusable_expires_in_days_is_refused_and_writes_nothing() {
+        let secret = "s3cret";
+        let (client, domain_ir) = scratch_members_db("hecks_host_web_test_expiry_refuse").await;
+        let admin = session_cookies(secret, "zed@example.com");
+        let before = journal_rows(&client, "amy@example.com").await;
+
+        for bad in ["0", "-3", "366", "1.5", "soon", "99999999999999999999"] {
+            let form = members_page(
+                "POST",
+                &form_grant("amy%40example.com", "Member", bad),
+                &admin,
+                secret,
+                &client,
+                &domain_ir,
+            )
+            .await;
+            assert_eq!(form["statusCode"], 400, "form {bad}: {form:?}");
+        }
+        for bad in [
+            json!(0),
+            json!(366),
+            json!(1.5),
+            json!("soon"),
+            json!([7]),
+            json!(-1),
+        ] {
+            let body = json!({"email": "new@example.com", "name": "New", "expires_in_days": bad})
+                .to_string();
+            let response = add_member_route(
+                &domain_ir,
+                &body,
+                &admin,
+                secret,
+                &client,
+                Path::new("unused"),
+                &members_config(),
+            )
+            .await;
+            assert_eq!(response["statusCode"], 400, "json {bad}: {response:?}");
+        }
+        assert_eq!(journal_rows(&client, "amy@example.com").await, before);
+        assert_eq!(
+            auth::all_people(&client, &domain_ir).await.unwrap().len(),
+            2,
+            "nobody was admitted by a refused grant"
+        );
+        for edge in ["1", "365"] {
+            let form = members_page(
+                "POST",
+                &form_grant("amy%40example.com", "Member", edge),
+                &admin,
+                secret,
+                &client,
+                &domain_ir,
+            )
+            .await;
+            assert_eq!(form["statusCode"], 302, "{edge}: {form:?}");
+        }
+    }
+
+    #[tokio::test]
+    async fn the_json_admit_and_grant_route_takes_expires_in_days_as_a_number_or_a_string() {
+        let secret = "s3cret";
+        let (client, domain_ir) = scratch_members_db("hecks_host_web_test_expiry_json").await;
+        let admin = session_cookies(secret, "zed@example.com");
+        for (email, days) in [("a@example.com", json!(14)), ("b@example.com", json!("14"))] {
+            let body =
+                json!({"email": email, "name": "N", "role": "Member", "expires_in_days": days})
+                    .to_string();
+            let response = add_member_route(
+                &domain_ir,
+                &body,
+                &admin,
+                secret,
+                &client,
+                Path::new("unused"),
+                &members_config(),
+            )
+            .await;
+            assert_eq!(response["statusCode"], 201, "{response:?}");
+            let created: Value = serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
+            assert_eq!(created["expired"], false);
+            let listed = person(&client, &domain_ir, email).await;
+            assert_eq!(listed["access_expires_at"], created["access_expires_at"]);
+            assert!(listed["access_expires_at"].as_str().unwrap().ends_with('Z'));
+            assert_eq!(listed["granted"], true);
+        }
+    }
+
+    #[tokio::test]
+    async fn the_members_page_shows_each_window_and_offers_the_days_field() {
+        let (client, domain_ir) = scratch_two_admins("hecks_host_web_test_expiry_page").await;
+        set_window(&client, "amy@example.com", json!(PAST)).await;
+        set_window(&client, "zed@example.com", json!(FUTURE)).await;
+        let page = admin_members_page(&client, &domain_ir).await;
+        assert!(page.contains(&format!("access ended {PAST}")), "{page}");
+        assert!(page.contains(&format!("linked, until {FUTURE}")), "{page}");
+        assert!(page.contains(r#"name="expires_in_days""#));
+    }
+
+    #[tokio::test]
+    async fn rows_without_a_window_behave_exactly_as_before() {
+        let secret = "s3cret";
+        let (client, domain_ir) = scratch_two_admins("hecks_host_web_test_expiry_none").await;
+        assert!(auth::has_access(&client, &domain_ir, "amy@example.com")
+            .await
+            .unwrap());
+        assert_eq!(
+            auth::active_role(&client, &domain_ir, "amy@example.com")
+                .await
+                .unwrap()
+                .as_deref(),
+            Some("Admin")
+        );
+        assert_eq!(
+            accounts_me_route(
+                &domain_ir,
+                &session_cookies(secret, "zed@example.com"),
+                secret,
+                &client
+            )
+            .await["statusCode"],
+            200
+        );
+        // The disabled flag still works on its own, and a plain grant adds no field to the row.
+        assert_eq!(
+            switch_access(
+                &client,
+                &domain_ir,
+                "zed@example.com",
+                "amy@example.com",
+                true
+            )
+            .await["statusCode"],
+            200
+        );
+        assert!(!auth::has_access(&client, &domain_ir, "amy@example.com")
+            .await
+            .unwrap());
+        let guard = client.lock().await;
+        let with_field: i64 = guard
+            .query_one(
+                "SELECT count(*) FROM acme_member_head_snapshot_1 WHERE state ? 'access_expires_at'",
+                &[],
+            )
+            .await
+            .unwrap()
+            .get(0);
+        assert_eq!(with_field, 0);
     }
 
     #[test]
