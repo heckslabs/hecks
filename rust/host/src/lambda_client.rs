@@ -265,6 +265,41 @@ mod tests {
         assert_eq!(function_name_for("Banking"), "hecks-banking");
     }
 
+    // spec/fixtures/stack_name_vectors.json is asserted by spec/deploy_stack_names_spec.rb against
+    // all four Ruby copies of the formula, so a drift in any of them fails a test.
+    fn stack_name_vectors() -> Value {
+        serde_json::from_str(include_str!(
+            "../../../spec/fixtures/stack_name_vectors.json"
+        ))
+        .unwrap()
+    }
+
+    #[test]
+    fn function_name_matches_every_shared_stack_name_vector() {
+        let vectors = stack_name_vectors();
+        let rows = vectors["rows"].as_array().unwrap();
+        assert!(!rows.is_empty());
+        for row in rows {
+            let domain = row["domain"].as_str().unwrap();
+            assert_eq!(
+                function_name_for(domain),
+                row["name"].as_str().unwrap(),
+                "{domain}"
+            );
+        }
+    }
+
+    // `to_lowercase` maps a word-final capital sigma to the final form; Ruby's `downcase` does not.
+    #[test]
+    fn function_name_diverges_from_ruby_on_a_final_capital_sigma() {
+        let vectors = stack_name_vectors();
+        for row in vectors["known_divergences"].as_array().unwrap() {
+            let domain = row["domain"].as_str().unwrap();
+            assert_eq!(function_name_for(domain), row["rust"].as_str().unwrap());
+            assert_ne!(function_name_for(domain), row["ruby"].as_str().unwrap());
+        }
+    }
+
     // Records each call and answers with whatever canned outcome the test configured.
     struct MockLambdaInvoker {
         response: Result<InvokeOutcome, String>,
