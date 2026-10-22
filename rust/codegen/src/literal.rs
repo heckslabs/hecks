@@ -2,6 +2,7 @@
 //! `Literal::from_json` covers values embedded raw in ir.json, which were never rendered.
 
 use crate::json::{Json, Number};
+use crate::ruby_value::{self, Value};
 use crate::shared::ruby_to_i;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -56,106 +57,34 @@ impl Literal {
 
 /// `Literal.read`: parses a rendered wire string back to a `Literal`.
 ///
-/// Anything not matching a more specific shape, including a bare word, becomes a `Str`.
+/// Reads through the parser's shared `ruby_value::read`. A bare word becomes a `Str`. An integer
+/// too large for `i64` (the shared reader returns it as `Bare`) becomes `Int(0)`, as `ruby_to_i`
+/// always did: no corpus domain holds one, and a stable `0` keeps generation total.
 pub fn read(text: &str) -> Literal {
-    let raw = text.trim();
-    if raw.is_empty() || raw == "nil" {
-        return Literal::Nil;
-    }
-    if raw == "true" {
-        return Literal::Bool(true);
-    }
-    if raw == "false" {
-        return Literal::Bool(false);
-    }
-    if is_integer(raw) {
-        return Literal::Int(ruby_to_i(raw));
-    }
-    if is_float(raw) {
-        return Literal::Float(raw.parse::<f64>().unwrap_or(0.0));
-    }
-    if let Some(rest) = raw.strip_prefix(':') {
-        return Literal::Symbol(rest.to_string());
-    }
-    if is_quoted(raw) {
-        return Literal::Str(unquote(raw));
-    }
-    if raw.starts_with('{') && raw.ends_with('}') {
-        return read_hash(raw);
-    }
-    if raw.starts_with('[') && raw.ends_with(']') {
-        return read_array(raw);
-    }
+    from_value(ruby_value::read(text))
+}
 
-    Literal::Str(raw.to_string())
+fn from_value(value: Value) -> Literal {
+    match value {
+        Value::Nil => Literal::Nil,
+        Value::Bool(b) => Literal::Bool(b),
+        Value::Int(n) => Literal::Int(n),
+        Value::Float(n) => Literal::Float(n),
+        Value::Str(s) => Literal::Str(s),
+        Value::Symbol(s) => Literal::Symbol(s),
+        Value::Hash(pairs) => {
+            Literal::Hash(pairs.into_iter().map(|(k, v)| (k, from_value(v))).collect())
+        }
+        Value::Array(items) => Literal::Array(items.into_iter().map(from_value).collect()),
+        Value::Bare(text) if is_integer(&text) => Literal::Int(ruby_to_i(&text)),
+        Value::Bare(text) => Literal::Str(text),
+    }
 }
 
 /// `/\A-?\d+\z/`
 fn is_integer(raw: &str) -> bool {
     let s = raw.strip_prefix('-').unwrap_or(raw);
     !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit())
-}
-
-/// `/\A-?\d+\.\d+\z/`
-fn is_float(raw: &str) -> bool {
-    let s = raw.strip_prefix('-').unwrap_or(raw);
-    let Some((int_part, frac_part)) = s.split_once('.') else {
-        return false;
-    };
-    !int_part.is_empty()
-        && !frac_part.is_empty()
-        && int_part.bytes().all(|b| b.is_ascii_digit())
-        && frac_part.bytes().all(|b| b.is_ascii_digit())
-}
-
-fn is_quoted(raw: &str) -> bool {
-    raw.len() >= 2 && raw.starts_with('"') && raw.ends_with('"')
-}
-
-/// Drops the surrounding quotes, then unescapes any backslash-escaped character.
-fn unquote(raw: &str) -> String {
-    let inner = &raw[1..raw.len() - 1];
-    let mut out = String::with_capacity(inner.len());
-    let mut chars = inner.chars();
-    while let Some(c) = chars.next() {
-        if c == '\\' {
-            if let Some(next) = chars.next() {
-                out.push(next);
-                continue;
-            }
-        }
-        out.push(c);
-    }
-    out
-}
-
-fn read_hash(raw: &str) -> Literal {
-    let inner = &raw[1..raw.len() - 1];
-    let pairs = split_items(inner)
-        .into_iter()
-        .map(|item| {
-            // Splits at the first ":" only, like Ruby's `partition`; field names have none.
-            item.find(':').map_or_else(
-                || (item.trim().to_string(), read("")),
-                |idx| {
-                    let key = item[..idx].trim().to_string();
-                    let held = &item[idx + 1..];
-                    (key, read(held))
-                },
-            )
-        })
-        .collect();
-    Literal::Hash(pairs)
-}
-
-fn read_array(raw: &str) -> Literal {
-    let inner = &raw[1..raw.len() - 1];
-    Literal::Array(
-        split_items(inner)
-            .into_iter()
-            .map(|item| read(&item))
-            .collect(),
-    )
 }
 
 /// `naming.rb#literal_rhs` for a `Literal`: String/Integer/Float/Boolean, else panics.
@@ -187,47 +116,61 @@ fn ruby_float_to_s(literal: &Literal) -> String {
     }
 }
 
-/// Splits on commas outside quoted strings and nested braces/brackets.
-fn split_items(body: &str) -> Vec<String> {
-    let mut items: Vec<String> = Vec::new();
-    let mut current = String::new();
-    let mut depth: i32 = 0;
-    let mut quoting = false;
-    let mut escaping = false;
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    for ch in body.chars() {
-        current.push(ch);
-        if escaping {
-            escaping = false;
-            continue;
-        }
-        if quoting && ch == '\\' {
-            escaping = true;
-            continue;
-        }
-        if ch == '"' {
-            quoting = !quoting;
-            continue;
-        }
-        if quoting {
-            continue;
-        }
-
-        if ch == '{' || ch == '[' {
-            depth += 1;
-        }
-        if ch == '}' || ch == ']' {
-            depth -= 1;
-        }
-        if ch == ',' && depth == 0 {
-            current.pop();
-            items.push(std::mem::take(&mut current));
-        }
+    fn s(text: &str) -> Literal {
+        Literal::Str(text.to_string())
     }
-    items.push(current);
-    items
-        .into_iter()
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-        .collect()
+
+    #[test]
+    fn reads_scalars() {
+        assert_eq!(read(""), Literal::Nil);
+        assert_eq!(read("nil"), Literal::Nil);
+        assert_eq!(read("true"), Literal::Bool(true));
+        assert_eq!(read("-12"), Literal::Int(-12));
+        assert_eq!(read("1.5"), Literal::Float(1.5));
+        assert_eq!(read(":name"), Literal::Symbol("name".to_string()));
+        assert_eq!(read(r#""a\"b""#), s("a\"b"));
+    }
+
+    #[test]
+    fn reads_collections() {
+        assert_eq!(
+            read(r#"[1, "x"]"#),
+            Literal::Array(vec![Literal::Int(1), s("x")])
+        );
+        assert_eq!(
+            read("{a: 1, b: :c}"),
+            Literal::Hash(vec![
+                ("a".to_string(), Literal::Int(1)),
+                ("b".to_string(), Literal::Symbol("c".to_string()))
+            ])
+        );
+    }
+
+    #[test]
+    fn bare_word_is_a_string() {
+        assert_eq!(read("Widget"), s("Widget"));
+    }
+
+    #[test]
+    fn overflowing_integer_is_zero_like_ruby_to_i() {
+        assert_eq!(read("99999999999999999999"), Literal::Int(0));
+        assert_eq!(read("-99999999999999999999"), Literal::Int(0));
+    }
+
+    #[test]
+    fn adjacent_and_single_quoted_strings() {
+        assert_eq!(read(r#""a" "b""#), s("ab"));
+        assert_eq!(read(r"'it\'s'"), s("it's"));
+    }
+
+    #[test]
+    fn from_json_and_get() {
+        let hash = read("{a: 1}");
+        assert_eq!(hash.get("a"), Some(&Literal::Int(1)));
+        assert_eq!(Literal::from_json(&Json::Null), Literal::Nil);
+    }
 }
