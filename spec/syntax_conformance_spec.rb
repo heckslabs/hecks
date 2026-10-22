@@ -181,6 +181,7 @@ RSpec.describe "the declared syntax" do
       retype_impl:        "TranslationAggregateBuilder's own real implementation, called by GenericDispatch's calls:",
       compute_impl:       "TranslationAggregateBuilder's own real implementation, called by GenericDispatch's calls:",
       rekey_impl:         "TranslationAggregateBuilder's own real implementation, called by GenericDispatch's calls:",
+      derive_impl:        "TranslationAggregateBuilder's own real implementation, called by GenericDispatch's calls:",
       backfill_impl:      "TranslationAggregateBuilder's own real implementation, called by GenericDispatch's calls:",
       port_impl:          "HecksagonBuilder's own real implementation, called by GenericDispatch's calls:",
       realm_impl:         "WorldBuilder's own real implementation, called by GenericDispatch's calls:",

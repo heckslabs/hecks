@@ -59,17 +59,23 @@ module Hecks
           ancestor_storage_name = renamed_aggregate ? Naming.snake(declared.was) : nil
 
           new(declared.renames, declared.moves, declared.converts, declared.drops,
-              retypes: declared.retypes, computes: declared.computes, rekeys: declared.rekeys,
-              backfills: declared.backfills,
-              ancestor_name: ancestor_name, ancestor_storage_name: ancestor_storage_name)
+              **optional_rules(declared), ancestor_name: ancestor_name, ancestor_storage_name: ancestor_storage_name)
         end
+
+        # The rule lists an edge carries beyond renames, moves, converts and drops.
+        def self.optional_rules(declared)
+          { retypes: declared.retypes, computes: declared.computes, derives: declared.derives,
+            rekeys: declared.rekeys, backfills: declared.backfills }
+        end
+        private_class_method :optional_rules
 
         # @param renames [Hash{Symbol => Symbol}] old attribute name to new name
         # @param moves [Array<Bluebook::TranslationMove>] from/to paths across a value object
         # @param converts [Array<Bluebook::TranslationConvert>] moves mapped through a values table
         # @param drops [Array<Symbol>] bare or dotted paths whose data is discarded
         # @param rules [Hash] the optional rule lists, as `Rules` names them: `retypes:`,
-        #   `computes:`, `rekeys:`, `backfills:`, `ancestor_name:` and `ancestor_storage_name:`
+        #   `computes:`, `derives:`, `rekeys:`, `backfills:`, `ancestor_name:` and
+        #   `ancestor_storage_name:`
         # @raise [ArgumentError] on a keyword `Rules` does not name
         def initialize(renames, moves = [], converts = [], drops = [], **rules)
           @renames = renames

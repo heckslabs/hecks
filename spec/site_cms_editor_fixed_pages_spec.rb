@@ -1,9 +1,6 @@
 require "spec_helper"
-require "tmpdir"
-require "fileutils"
 require "json"
-require "hecks/tools"
-require "hecks/tools/site_routes"
+require_relative "support/editor_fixture_project"
 
 # What the editor derives, from one chapter's declarations, for editing a page of a fixed structure:
 # a working copy that is a value object (or a list) and not a body, a picture slot outside a block
@@ -13,19 +10,11 @@ require "hecks/tools/site_routes"
 # files that depend on the project as goldens, rewritten with `GOLDEN=rewrite`.
 RSpec.describe "the editor's fixed-structure pages, derived from a chapter" do
   let(:project) { File.join(InMemoryDomain::ROOT, "spec/fixtures/site/editor_fixed_pages") }
-  let(:golden)  { File.join(project, "expected/editor") }
   let(:leaflets) { "domain/bluebook/leaflets.bluebook" }
 
+  include_context "with an editor fixture project"
+
   def golden_files = %w[package.json src/config.ts src/schema.ts src/app.ts]
-
-  def files_of(dir = project)
-    all = Hecks::Tools::SiteRoutes.projection(dir, out: "/work/out", editor: "/work/editor")
-    all.select { |path, _| path.start_with?("/work/editor/") }.transform_keys { |path| path.delete_prefix("/work/editor/") }
-  end
-
-  def neutral(text) = text.gsub("^#{Hecks::VERSION}", "^<version>")
-
-  def schema(dir = project) = JSON.parse(files_of(dir).fetch("src/schema.ts")[/SCHEMA: Schema = (\{.*\});\n/m, 1])
 
   def aggregate(name, dir = project) = schema(dir)["aggregates"].find { |agg| agg["name"] == name }
 
@@ -33,36 +22,8 @@ RSpec.describe "the editor's fixed-structure pages, derived from a chapter" do
     aggregate(aggregate_name, dir)["valueObjects"].fetch(object).find { |one| one["name"] == name }
   end
 
-  # The project with some text of one of its files changed (`from`, `to`, and more pairs of the same).
-  def changed(file, *edits)
-    Dir.mktmpdir("cms_editor_fixed_pages") do |dir|
-      FileUtils.cp_r(File.join(project, "."), dir)
-      path = File.join(dir, file)
-      edits.each_slice(2) do |from, to|
-        raise "#{file} has no #{from.inspect}" unless File.read(path).include?(from)
-
-        File.write(path, File.read(path).gsub(from, to))
-      end
-      yield dir
-    end
-  end
-
   describe "the projection" do
-    it "equals the committed goldens for the files that depend on the project", :aggregate_failures do
-      rewrite_goldens if ENV["GOLDEN"] == "rewrite"
-
-      golden_files.each do |name|
-        expect(neutral(files_of.fetch(name))).to eq(File.read(File.join(golden, name))), "#{name} has drifted from its golden"
-      end
-    end
-
-    def rewrite_goldens
-      FileUtils.rm_rf(golden)
-      golden_files.each do |name|
-        FileUtils.mkdir_p(File.dirname(File.join(golden, name)))
-        File.write(File.join(golden, name), neutral(files_of.fetch(name)))
-      end
-    end
+    it_behaves_like "an editor projection with committed goldens"
   end
 
   describe "the working copy of a page" do

@@ -78,7 +78,7 @@ module Hecks
         def compiled_translation_aggregate(aggregate)
           return translation_aggregate(aggregate) unless Ports::Persistence.plugin?(:era)
 
-          translation_aggregate(aggregate).merge(
+          translation_aggregate(aggregate).merge(derived_rules(aggregate)).merge(
             compiled_state_expression: Translation::RuleCompiler.compile_rules(aggregate),
             compiled_id_expression:    (if Translation::RuleCompiler.rekeyed?(aggregate)
                                           Translation::RuleCompiler.compile_id_expression(aggregate)
@@ -107,6 +107,14 @@ module Hecks
             drops:    aggregate.drops.map(&:to_s),
             retypes:  aggregate.retypes.map { |retype| { from: retype.from, to: retype.to } }
           }
+        end
+
+        # The derives of an aggregate, in the export of compiled rules only: a derive is pure, so it
+        # is never part of what an approval digests. An aggregate with none adds no key.
+        def derived_rules(aggregate)
+          return {} if aggregate.derives.empty?
+
+          { derives: aggregate.derives.map { |derive| { to: derive.to, expression: derive.expression } } }
         end
 
         # The computes, rekeys and backfills of an aggregate.

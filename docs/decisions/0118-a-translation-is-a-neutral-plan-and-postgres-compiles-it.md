@@ -1,6 +1,6 @@
 # A translation is a neutral plan, and Postgres is one compiler of it
 
-**Status:** Proposed. Nothing is built. Date: 2026-10-16.
+**Status:** Proposed. Built so far: the plan schema (`Bluebook::TranslationPlan`, `Translation#to_plan`) and `derive` with its expression language, interpreted in Ruby and compiled to Postgres. Not built: `rekey_to`, removing `sql:` from `compute` and `rekey`, the hecksagon escape hatch. Date: 2026-10-16.
 
 ## Context
 
@@ -18,23 +18,26 @@ How often the escape hatch is used matters for the size of the fix. In the repos
 
 1. **The parser emits a translation plan: data, not SQL.** One schema, one op list per aggregate, shared by every runtime. Each existing structured rule keeps its meaning and gets one op (`rename`, `move`, `convert`, `drop`, `retype`, `backfill`). The plan, not the SQL it compiles to, is what `ir.json` carries and what a minted era records.
 
-2. **`compute` and `rekey` become `derive` and `rekey_to` over a closed expression vocabulary.**
+2. **`compute` and `rekey` become `derive` and `rekey_to` over a closed expression language.**
 
    ```ruby
    aggregate "Member" do
-     derive :email, from: :name, as: concat(lower(replace(name, /\s+/, ".")), "@example.com")
+     derive :email, as: 'concat(lower(replace(name.value, " ", ".")), "@example.com")'
      rekey_to :email
    end
    ```
 
-   - `derive` reads `from:` without consuming it, so the status workaround disappears. `drop` is how a field is removed.
-   - `rekey_to` names the field whose value becomes the aggregate's id, so the expression is written once.
-   - The vocabulary is pure and total: field reference, literal, `lower`, `upper`, `concat`, `replace`, `lookup` (a table with a required `else:` or a refusal for an unmapped value, the behaviour `convert` already has), `multiply`, `divide`. A word is added when a real translation needs it, with a conformance fixture, and not before.
-   - There is no expression that can fail for a data-dependent reason the mint step cannot see, and no function with side effects.
+   - The expression is text in a small language of its own, parsed to a tree of plain arrays that is also its plan form. Writing it as text keeps the builder free of expression methods, and gives the Ruby and Rust sides one thing to read.
+   - `derive` reads the record as stored, so it runs before every other rule and sees the held era's shape. It does not consume what it reads, so the `status` workaround disappears; `drop` removes a field.
+   - `rekey_to` names the field whose value becomes the aggregate's id, so the expression is written once. (Not built yet.)
+   - The language is pure and total: a field reference reads a stored text value (anything else has no value), a literal, `null`, `lower`, `upper` (ASCII only), `concat`, `replace` (plain text, never a pattern), and `lookup` (a table plus a fallback that is a string or `null`). A function with a valueless argument has no value, and a record where the whole expression has no value gets no new field.
+   - Arithmetic (`multiply`, `divide`) is not in the first version. Ruby and Postgres disagree on what `100 / 100` is and how a decimal prints as JSON, so adding it needs a number model both can honour first.
+   - Case folding is ASCII only and `replace` is not a pattern because Postgres's `lower` follows the database collation and its patterns are POSIX; either would let the in-process rewrite and the head disagree on a record.
+   - A derive needs no approval gate. It is pure, so unlike `compute` and `rekey` it has nothing a person must sample, and it is left out of what an approval digests.
 
-3. **Two interpreters and one compiler read the plan.** Ruby (`Lineage#translate`) and Rust each interpret every op in-process. The Postgres adapter compiles the plan into the existing `hecks_tr_*` chain, materialized views and head view, which stay as they are. The compiler is the only code that knows `jsonb`. It refuses at mint time an op it cannot express, instead of failing in a query.
+3. **One interpreter and one compiler read the plan; the Rust host runs what Ruby compiled.** Ruby (`Lineage#translate`) interprets every op in process. The Postgres adapter compiles the plan into the existing `hecks_tr_*` chain, materialized views and head view, which stay as they are. The Rust host does not interpret rules: it reads the compiled expression Ruby exports and runs it in Postgres, and its build pass refuses any rule it has not ported. A Rust interpreter would be a second implementation to hold to the corpus, and is built only when a Rust path needs to translate without Postgres. The compiler is the only code that knows `jsonb`. It refuses at mint time an op it cannot express, instead of failing in a query.
 
-4. **The conformance corpus is the arbiter.** A fixture is a plan plus seed rows plus the expected rows, frozen. Ruby, Rust and the Postgres compiler must all produce the expected rows, so `derive` and `rekey_to` finally have a second implementation to disagree with.
+4. **The conformance corpus is the arbiter.** A fixture is a plan plus seed rows plus the expected rows, frozen. The Ruby interpreter and the Postgres compiler must both produce the expected rows, so `derive` and `rekey_to` finally have a second implementation to disagree with. `spec/adapters/driven/postgres_era/derive_equivalence_spec.rb` does this for `derive` today.
 
 5. **Raw SQL is an adapter-scoped escape hatch, not a bluebook word.** A translation that needs an expression the vocabulary lacks declares it in the hecksagon, under the Postgres adapter, with `via: :sql`. A plan holding such an op cannot run on another adapter, and `model_check` says so before mint. `sql:` on `compute` and `rekey` is removed from the bluebook language.
 
@@ -43,7 +46,7 @@ How often the escape hatch is used matters for the size of the fix. In the repos
 ## Consequences
 
 - A translation reads as part of the model and runs on any adapter that implements the plan interpreter, which makes a non-Postgres adapter for era translation possible for the first time.
-- The Rust host stops copying SQL from Ruby and implements the same plan, tested against the same corpus.
+- The Rust host keeps running the SQL Ruby compiles; a Rust interpreter of the plan is a later step, built when something needs to translate without Postgres.
 - One more representation (the plan) and one more compiler path to keep honest; the corpus is what keeps it honest.
 - The vocabulary is a ceiling. A translation that needs more than it offers uses the hecksagon escape hatch, which is more friction than writing `sql:` today. With two real uses on record, that is the intended trade.
 - Open question: whether `lookup` should be a `convert` with a computed source, folding two words into one.

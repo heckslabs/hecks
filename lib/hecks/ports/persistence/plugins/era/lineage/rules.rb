@@ -7,17 +7,18 @@ module Hecks
         #
         # - `retypes` — type names meaning the same shape
         # - `computes` — SQL-only rules, never applied in process
+        # - `derives` — new fields computed from the record's own text
         # - `rekeys` — SQL rewrites of identity; only the first is read
         # - `backfills` — defaults for a new attribute
         # - `ancestor_name` — the aggregate's name before the edge, if renamed
         # - `ancestor_storage_name` — snake_case storage name of `ancestor_name`
-        Rules = Struct.new(:retypes, :computes, :rekeys, :backfills, :ancestor_name, :ancestor_storage_name,
+        Rules = Struct.new(:retypes, :computes, :derives, :rekeys, :backfills, :ancestor_name, :ancestor_storage_name,
                            keyword_init: true) do
           # Builds the rules with every list defaulting to empty.
           #
           # @param given [Hash] any of the members; an unknown key raises ArgumentError
           # @return [Rules]
-          def self.build(**given) = new(retypes: [], computes: [], rekeys: [], backfills: [], **given)
+          def self.build(**given) = new(retypes: [], computes: [], derives: [], rekeys: [], backfills: [], **given)
         end
       end
     end

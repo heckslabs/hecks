@@ -2,12 +2,13 @@ module Hecks
   module Ports
     module Persistence
       class Lineage
-        # The reference semantics of rename, move, convert, drop and backfill, applied in that
-        # order to a deep copy of one entry's state.
+        # The reference semantics of derive, rename, move, convert, drop and backfill, applied in
+        # that order to a deep copy of one entry's state.
         module Rewrite
           private
 
           def rewrite(state)
+            apply_derives(state)
             apply_renames(state, @renames)
             @moves.each { |move| apply_move(state, move) }
             @converts.each { |convert| apply_convert(state, convert) }
@@ -15,6 +16,18 @@ module Hecks
             # Only fills a gap nothing else already filled; dotted-path aware, like apply_drop.
             @rules.backfills.each { |backfill| apply_backfill(state, backfill) }
             state
+          end
+
+          # Every derive reads the state as stored, so the values are all computed before the
+          # first is written; a derive with no value writes nothing.
+          def apply_derives(state)
+            computed = @rules.derives.map { |derive| [derive, Bluebook::TranslationExpression.evaluate(derive.tree, state)] }
+            computed.each do |derive, value|
+              next if value.nil?
+
+              top, member = derive.to.split(".", 2)
+              insert(state, top.to_sym, member, value, rule: "derive #{derive.to}")
+            end
           end
 
           def deep_dup(node)
