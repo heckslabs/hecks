@@ -382,7 +382,7 @@ pub fn find<'a>(table: &'a [ReadModelDef], verb: &str) -> Option<&'a ReadModelDe
 }
 
 /// True when `declared_verb` and `asked` name the same domain and `asked`'s name half equals
-/// `declared_verb`'s name half run through `Naming.snake`.
+/// `declared_verb`'s name half run through `to_snake`.
 fn matches_snake_alias(declared_verb: &str, asked: &str) -> bool {
     let Some((domain, name)) = declared_verb.split_once('.') else {
         return false;
@@ -391,15 +391,39 @@ fn matches_snake_alias(declared_verb: &str, asked: &str) -> bool {
         return false;
     };
 
-    domain == asked_domain && hecks_naming::snake(name) == asked_name
+    domain == asked_domain && to_snake(name) == asked_name
 }
 
-// `Hecks::Naming.snake` is the one shared port (rust/codegen/src/hecks_naming.rs), std-only like the
-// rest of this kernel; the codegen and the kernel are independent Cargo projects, so the file is
-// compiled here by path. The kernel reads only `snake` from it.
-#[allow(dead_code)]
-#[path = "../../codegen/src/hecks_naming.rs"]
-mod hecks_naming;
+/// A port of `Hecks::Naming.snake` (lib/hecks/naming.rb). No regex engine in this
+/// dependency-free kernel, so the two `gsub` passes collapse into one left-to-right scan of
+/// adjacent-character pairs. The kernel stays self-contained on purpose: it is compiled into every
+/// domain's wasm module from a workspace that holds only this crate, so it cannot include a file
+/// from `rust/codegen` the way the host, parser and build crates share `hecks_naming.rs`.
+fn to_snake(name: &str) -> String {
+    let chars: Vec<char> = name.chars().collect();
+    let mut out = String::with_capacity(name.len() + 4);
+
+    for (i, &c) in chars.iter().enumerate() {
+        if i > 0 {
+            let prev = chars[i - 1];
+            // "HTTPServer" splits before the "S" of "Server", not before the "H" of "HTTP".
+            let rule1 = prev.is_ascii_uppercase()
+                && c.is_ascii_uppercase()
+                && chars.get(i + 1).is_some_and(char::is_ascii_lowercase);
+            // "customerPortfolio" splits before "P".
+            let rule2 =
+                (prev.is_ascii_lowercase() || prev.is_ascii_digit()) && c.is_ascii_uppercase();
+            if rule1 || rule2 {
+                out.push('_');
+            }
+        }
+        out.push(c);
+    }
+
+    // Ruby's `downcase` is Unicode, one character at a time (a word-final capital sigma stays a
+    // plain sigma); only the word boundaries above are ASCII-only, as in Ruby's patterns.
+    out.chars().flat_map(char::to_lowercase).collect()
+}
 
 #[cfg(test)]
 mod snake_alias_tests {
@@ -407,25 +431,16 @@ mod snake_alias_tests {
 
     // Every case here was checked against the real Ruby `Naming.snake`, not just this port.
     #[test]
-    fn the_shared_snake_matches_ruby_naming_snake() {
-        assert_eq!(
-            hecks_naming::snake("CustomerPortfolio"),
-            "customer_portfolio"
-        );
-        assert_eq!(
-            hecks_naming::snake("ComplianceDashboard"),
-            "compliance_dashboard"
-        );
-        assert_eq!(hecks_naming::snake("Active"), "active");
-        assert_eq!(hecks_naming::snake("ByFee"), "by_fee");
-        assert_eq!(hecks_naming::snake("HTTPServer"), "http_server");
-        assert_eq!(hecks_naming::snake("Type2Foo"), "type2_foo");
+    fn to_snake_matches_ruby_naming_snake() {
+        assert_eq!(to_snake("CustomerPortfolio"), "customer_portfolio");
+        assert_eq!(to_snake("ComplianceDashboard"), "compliance_dashboard");
+        assert_eq!(to_snake("Active"), "active");
+        assert_eq!(to_snake("ByFee"), "by_fee");
+        assert_eq!(to_snake("HTTPServer"), "http_server");
+        assert_eq!(to_snake("Type2Foo"), "type2_foo");
         // Ruby lowercases every Unicode capital, though only ASCII ones start a word boundary.
-        assert_eq!(hecks_naming::snake("ÉcoleDeParis"), "école_de_paris");
-        assert!(matches_snake_alias(
-            "Banking.ÉcoleDeParis",
-            "Banking.école_de_paris"
-        ));
+        assert_eq!(to_snake("ÉcoleDeParis"), "école_de_paris");
+        assert_eq!(to_snake("ΟΔΥΣΣΕΑΣ"), "οδυσσεασ");
     }
 
     #[test]
