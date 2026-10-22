@@ -1,0 +1,3 @@
+Hecks.adapter "Bad" do
+  field :path, default: "a/{other}/b"
+end

@@ -1,0 +1,9 @@
+Hecks.adapter "First" do
+  port "one"
+  field :a
+end
+
+adapter "Second" do
+  port "two"
+  secret :s
+end

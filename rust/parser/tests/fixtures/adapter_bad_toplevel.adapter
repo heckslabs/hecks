@@ -1,0 +1,4 @@
+require "a/b"
+puts "hi"
+Hecks.adapter "Bad" do
+end
