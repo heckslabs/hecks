@@ -6,6 +6,7 @@ require "json"
 require "hecks/tools"
 require "hecks/tools/site_routes"
 require_relative "support/editor_node"
+require_relative "support/editor_fixture_project"
 
 # The editor working on a post or a page as one thing, run under node against a stand-in host: the
 # records that go with a record (a document, pictures, search wording), the actions scheduled for it,
@@ -122,16 +123,13 @@ JS
 RSpec.describe "the generated workflow editor, run by node" do
   let(:project) { File.join(InMemoryDomain::ROOT, "spec/fixtures/site/editor_workflow") }
 
-  def files
-    projected = Hecks::Tools::SiteRoutes.projection(project, out: "/work/out", editor: "/work/editor")
-    projected.select { |path, _| path.start_with?("/work/editor/") }.transform_keys { |path| path.delete_prefix("/work/editor/") }
-  end
+  include_context "with an editor fixture project"
 
   def run
     skip "node cannot strip TypeScript types here" unless EditorNode.available?
 
     host = File.read(File.join(InMemoryDomain::ROOT, "spec/support/editor_stand_in_host.mjs"))
-    @run ||= EditorNode.run(files, EDITOR_WORKFLOW_SCENARIO, extra: { "host.mjs" => host })
+    @run ||= EditorNode.run(editor_files, EDITOR_WORKFLOW_SCENARIO, extra: { "host.mjs" => host })
   end
 
   def result(key) = run.fetch(key)

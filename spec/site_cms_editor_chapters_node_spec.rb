@@ -6,6 +6,7 @@ require "json"
 require "hecks/tools"
 require "hecks/tools/site_routes"
 require_relative "support/editor_node"
+require_relative "support/editor_fixture_project"
 
 # The multi-chapter editor, run under node against a fake host: its navigation, its roles, the
 # pickers and the checks on what they name, the lists a page at a time, the moments, and the forms.
@@ -181,15 +182,12 @@ EDITOR_ZONES = {
 RSpec.describe "the generated multi-chapter editor, run by node" do
   let(:project) { File.join(InMemoryDomain::ROOT, "spec/fixtures/site/editor_chapters") }
 
-  def files
-    projected = Hecks::Tools::SiteRoutes.projection(project, out: "/work/out", editor: "/work/editor")
-    projected.select { |path, _| path.start_with?("/work/editor/") }.transform_keys { |path| path.delete_prefix("/work/editor/") }
-  end
+  include_context "with an editor fixture project"
 
   def run
     skip "node cannot strip TypeScript types here" unless EditorNode.available?
 
-    @run ||= EditorNode.run(files, EDITOR_CHAPTERS_SCENARIO)
+    @run ||= EditorNode.run(editor_files, EDITOR_CHAPTERS_SCENARIO)
   end
 
   def result(key) = run.fetch(key)
@@ -413,7 +411,8 @@ RSpec.describe "the generated multi-chapter editor, run by node" do
     def in_zone(zone)
       skip "node cannot strip TypeScript types here" unless EditorNode.available?
 
-      EditorNode.run(files, EDITOR_EPOCH_SCENARIO, env: { "TZ" => zone, "LANG" => "en_US.UTF-8", "LC_ALL" => "en_US.UTF-8" })
+      EditorNode.run(editor_files, EDITOR_EPOCH_SCENARIO,
+                     env: { "TZ" => zone, "LANG" => "en_US.UTF-8", "LC_ALL" => "en_US.UTF-8" })
     end
 
     EDITOR_ZONES.each do |zone, (local, offset, day)|
