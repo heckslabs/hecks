@@ -104,7 +104,7 @@ RSpec.describe "the DSL surface is fully covered" do
     "TranslationAggregateBuilder" => [
       Hecks::Bluebook::DSL::TranslationAggregateBuilder,
       # These are all covered by their `_impl` dispatch targets.
-      %i[rename_impl move_impl convert_impl retype_impl compute_impl rekey_impl backfill_impl unresolved_impl]
+      %i[rename_impl move_impl convert_impl retype_impl compute_impl derive_impl rekey_impl backfill_impl unresolved_impl]
     ]
   }.freeze
 

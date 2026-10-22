@@ -21,6 +21,7 @@ Hecks.data_translation("ReferenceDomain2", from: "1", to: "2") do
     drop    :legacy_field
     retype  "OldType",   to: "NewType"
     compute "amount",    to: "cents", sql: "amount * 100"
+    derive  :label,      as: 'concat(upper(code), "-", lookup(tier, {"gold": "G"}, "S"))'
     rekey sql: "new_id_expr"
     backfill :standing, default: "good"
   end
@@ -128,6 +129,23 @@ A computed transform whose only implementation is the SQL expression itself — 
 
 ```ruby
 runtime.registry.translations.last.aggregates.first.computes.first.to_h  # => {from: "amount", to: "cents", sql: "amount * 100"}
+```
+
+## derive
+
+<!-- generated:begin word=derive -->
+`derive to, as:` — fills `derives`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | to |
+| `as:` | text | true | as |
+<!-- generated:end -->
+
+A new field computed from the record's own text, in a small language with no storage engine in it: `lower`, `upper`, `concat`, `replace`, `lookup`, string literals, `null`, and fields named by dotted path (`name.value`). It reads the data as stored in the held era, so it runs before every other rule, and the fields it reads stay where they are; `drop` removes them. A field that is missing or not text has no value, a function with a valueless argument has none either, and a record where the whole expression has no value gets no new field. `lookup` takes a table and a fallback (a string, or `null` for none). Case folding is ASCII only and `replace` is plain text, not a pattern, so the in-process rewrite and the Postgres head agree on every record. Unlike `compute`, it needs no approval and runs on any adapter.
+
+```ruby
+runtime.registry.translations.last.aggregates.first.derives.first.to_h  # => {to: "label", expression: "concat(upper(code), \"-\", lookup(tier, {\"gold\": \"G\"}, \"S\"))"}
 ```
 
 ## rekey

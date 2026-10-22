@@ -251,6 +251,18 @@ RSpec.describe "the DSL surface" do
       expect_translation_refusal(/needs its sql: expression/) { aggregate("Thing") { rekey sql: "" } }
     end
 
+    it ".data_translation registers a derive with its expression" do
+      translation = translating { aggregate("Thing") { derive :email, as: "lower(name.value)" } }
+
+      expect(translation.for_aggregate("Thing").derives.first.to_a).to eq(["email", "lower(name.value)"])
+    end
+
+    it ".data_translation refuses a derive whose expression is not well formed" do
+      expect_translation_refusal(/as: expression is refused: nope is not a function/) do
+        aggregate("Thing") { derive :email, as: "nope(a)" }
+      end
+    end
+
     it ".data_translation registers a backfill with its default value" do
       translation = translating { aggregate("Thing") { backfill :tier, default: "standard" } }
       backfilled = translation.for_aggregate("Thing").backfills.first
