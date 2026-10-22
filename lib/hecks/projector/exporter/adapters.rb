@@ -41,15 +41,14 @@ module Hecks
           paths.flat_map { |path| adapters(load_adapter_file(path)) }
         end
 
-        # The adapters of the given files as pretty JSON with empty collections written `[]` and
-        # `{}`. The json 2.7 generator spreads an empty one over lines (`[\n\n  ]`); newer
-        # generators and `hecks-parse` print it compact. A string value cannot hold a raw newline,
-        # so the rewrite never touches data.
+        # The adapters of the given files as the pretty JSON `hecks-parse adapter` prints for them,
+        # byte for byte: the bundled json's `JSON.pretty_generate`, whose spacing of an empty
+        # collection `hecks-parse` reproduces.
         #
         # @param paths [Array<String>] `.adapter` file paths
         # @return [String] the JSON `hecks-parse adapter` prints for the same files
         def adapters_json(paths)
-          JSON.pretty_generate(adapters_in_files(paths)).gsub(/\[\n\s*\n\s*\]/, "[]").gsub(/\{\n\s*\}/, "{}")
+          JSON.pretty_generate(adapters_in_files(paths))
         end
 
         # Loads ONE `.adapter` file into a fresh registry. The file's own `require "hecks/..."`
