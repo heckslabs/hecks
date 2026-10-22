@@ -110,18 +110,11 @@ RSpec.describe "remove: on an entity-typed list" do
     end
   end
 
-  def load_memory_stack
-    Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-    Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-    Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-    Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-  end
-
   def boot
     registry = Hecks::Runtime::Registry.new
 
     Hecks.with_registry(registry) do
-      load_memory_stack
+      MemoryPorts.load!
       Kernel.eval(ENTITY_LIST_REMOVE_SOURCE, TOPLEVEL_BINDING, "entity_list_remove.bluebook", 1)
       bind_hecksagons
     end

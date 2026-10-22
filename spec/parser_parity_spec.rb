@@ -134,10 +134,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
   end
 
   def self.load_oracle_ports
-    Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-    Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-    Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-    Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+    MemoryPorts.load!
   end
 
   # A fresh registry holding the ports, the bluebooks among `paths` and then their companions.

@@ -120,10 +120,7 @@ RSpec.describe "durable saga/process-manager state" do
     end
 
     def load_memory_ports
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      MemoryPorts.load!
     end
 
     def bind_memory_hecksagons

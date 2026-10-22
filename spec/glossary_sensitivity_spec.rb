@@ -44,8 +44,7 @@ RSpec.describe "glossary sensitivity tagging" do
                 category: "phi", readable_by: "Privacy officer" }.freeze
 
   def load_clinic(dir)
-    [InMemoryDomain::PERSISTENCE_PORT, InMemoryDomain::EXTRACTION_PORT, InMemoryDomain::MEMORY_ADAPTER,
-     InMemoryDomain::PRISM_ADAPTER].each { |file| Kernel.load(file) }
+    MemoryPorts.load!
     InMemoryDomain.load_bluebook_files(dir)
   end
 

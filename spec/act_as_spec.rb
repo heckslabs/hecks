@@ -8,8 +8,7 @@ RSpec.describe "act_as — a role acting as another, checked against Governance"
     registry = Hecks::Runtime::Registry.new
 
     Hecks.with_registry(registry) do
-      [InMemoryDomain::PERSISTENCE_PORT, InMemoryDomain::EXTRACTION_PORT, InMemoryDomain::MEMORY_ADAPTER,
-       InMemoryDomain::PRISM_ADAPTER].each { |port| Kernel.load(port) }
+      MemoryPorts.load!
       yield
     end
 

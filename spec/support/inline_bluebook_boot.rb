@@ -9,12 +9,16 @@ module InlineBluebookBoot
   # @param source [String] the bluebook text
   # @param hecksagon_name [String] the chapter whose ports the block binds
   # @param validate [Boolean] whether the Judge runs while the source loads
+  # @param root [String, nil] the registry's root directory, for an adapter that writes files
+  # @param adapters [Array<String>] adapter files to load after the memory stack
   # @yield the hecksagon body, run once the source has been evaluated
   # @return [Hecks::Runtime::Runtime] the booted runtime
-  def boot(source, hecksagon_name, validate: false, &binds)
-    registry = Hecks::Runtime::Registry.new
+  def boot(source, hecksagon_name, validate: false, root: nil, adapters: [], &binds)
+    registry = Hecks::Runtime::Registry.new(root: root)
     with_bluebook_file(source) do |path|
-      judging(validate) { load_inline_domain(registry, source, path) { Hecks.hecksagon(hecksagon_name, &binds) } }
+      judging(validate) do
+        load_inline_domain(registry, source, path, adapters) { Hecks.hecksagon(hecksagon_name, &binds) }
+      end
     end
     registry.verify!
     Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
@@ -35,9 +39,10 @@ module InlineBluebookBoot
     validate ? yield : Hecks::Bluebook::MetaValidator.while_disabled(&)
   end
 
-  def load_inline_domain(registry, source, path, &)
+  def load_inline_domain(registry, source, path, adapters, &)
     Hecks.with_registry(registry) do
       MemoryPorts.load!
+      adapters.each { |file| Kernel.load(file) }
       Kernel.eval(source, TOPLEVEL_BINDING, path, 1)
       yield
     end

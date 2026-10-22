@@ -56,10 +56,7 @@ RSpec.describe "a query that needs a fact" do
   end
 
   def load_adapters
-    Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-    Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-    Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-    Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+    MemoryPorts.load!
   end
 
   def declare_pilot

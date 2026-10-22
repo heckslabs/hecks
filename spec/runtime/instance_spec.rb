@@ -1,39 +1,11 @@
 require "spec_helper"
-require "tempfile"
+require_relative "../support/inline_bluebook_boot"
 
 # A composite identity has no single head for `Instance#materialize_identity!` to fall back on.
 # A creating command may receive the heads as addressing arguments without declaring or `sets`-ing
 # them; they must still be materialized, or the record is addressed but persists them as nil.
 RSpec.describe Hecks::Runtime::Instance do
-  def load_memory_stack
-    Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-    Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-    Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-    Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-  end
-
-  def declare_domain(registry, source, path, hecksagon_name, &binds)
-    Hecks::Bluebook::MetaValidator.while_disabled do
-      Hecks.with_registry(registry) do
-        load_memory_stack
-        Kernel.eval(source, TOPLEVEL_BINDING, path, 1)
-        Hecks.hecksagon(hecksagon_name, &binds)
-      end
-    end
-  end
-
-  def boot(source, hecksagon_name, &binds)
-    file = Tempfile.new(["instance-composite-identity-", ".bluebook"])
-    file.write(source)
-    file.flush
-
-    registry = Hecks::Runtime::Registry.new
-    declare_domain(registry, source, file.path, hecksagon_name, &binds)
-    registry.verify!
-    Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
-  ensure
-    file&.close!
-  end
+  include InlineBluebookBoot
 
   COMPOSITE_IDENTITY_SOURCE = <<~BLUEBOOK.freeze
     Hecks.bluebook "CompositeIdentityGrowth" do

@@ -1,7 +1,10 @@
 require "hecks"
 require_relative "../../support/postgres_probe"
+require_relative "../../support/persistence_adapter_examples"
 
 RSpec.describe "Postgres atomic_put persistence", :io do
+  include_context "with the atomic_put Item aggregate"
+
   SCHEMA = "hecks_atomic_put_spec".freeze
 
   def database
@@ -45,21 +48,6 @@ RSpec.describe "Postgres atomic_put persistence", :io do
     connection.close
   end
 
-  def item_aggregate
-    Hecks::Bluebook::DSL::BluebookBuilder.build("PostgresPlanning") do
-      vision "Postgres implements the atomic-put execution contract"
-
-      aggregate "Item" do
-        identified_by do
-          attribute :sku, String
-        end
-
-        value_object("Label") { attribute :value, String }
-        attribute :label, Label
-      end
-    end.aggregate("Item")
-  end
-
   def repository(aggregate)
     adapter = Hecks::Adapters::Postgres.new(
       aggregate: aggregate,
@@ -68,44 +56,21 @@ RSpec.describe "Postgres atomic_put persistence", :io do
     Hecks::Ports::Persistence::AppendOnly.new(adapter)
   end
 
-  def item(aggregate, label)
-    Hecks::Runtime::Instance.new(
-      aggregate: aggregate,
-      id:        "sku-1",
-      state:     { identity: { sku: "sku-1" }, label: { value: label } }
-    )
-  end
-
-  let(:aggregate) { item_aggregate }
-  let(:stored) { repository(aggregate) }
+  let(:aggregate) { item_aggregate("PostgresPlanning", "Postgres implements the atomic-put execution contract") }
+  let(:store) { repository(aggregate) }
 
   it "reports the capabilities it has" do
-    expect(stored.capabilities).to eq(%i[atomic_put optimistic_concurrency])
+    expect(store.capabilities).to eq(%i[atomic_put optimistic_concurrency])
   end
 
-  it "reports an insert for the first put of an identity" do
-    expect(stored.atomic_put(item(aggregate, "First")).status).to eq(:inserted)
-  end
-
-  it "reports a replacement for the second put of an identity" do
-    stored.atomic_put(item(aggregate, "First"))
-
-    expect(stored.atomic_put(item(aggregate, "Second")).status).to eq(:replaced)
-  end
-
-  it "appends every put, and finds the latest" do
-    stored.atomic_put(item(aggregate, "First"))
-    stored.atomic_put(item(aggregate, "Second"))
-
-    expect([stored.entries.size, stored.find("sku-1").state[:label].to_h]).to eq([2, { value: "Second" }])
-  end
+  it_behaves_like "an atomic_put adapter"
 
   # One writer that waits for `start` before it puts, so both writers put at the same moment.
   def racing_writer(stored, label, ready, start)
     Thread.new do
       ready << true
       start.pop
-      stored.atomic_put(item(aggregate, label)).status
+      stored.atomic_put(item_labelled(label)).status
     end
   end
 
@@ -130,10 +95,10 @@ RSpec.describe "Postgres atomic_put persistence", :io do
   end
 
   it "rolls the journal append back when projection fails", :aggregate_failures do
-    stored.adapter.define_singleton_method(:project) { |_entry| raise "projection failed" }
+    store.adapter.define_singleton_method(:project) { |_entry| raise "projection failed" }
 
-    expect { stored.atomic_put(item(aggregate, "Never committed")) }.to raise_error(RuntimeError, "projection failed")
-    expect(stored.entries).to be_empty
-    expect(stored.find("sku-1")).to be_nil
+    expect { store.atomic_put(item_labelled("Never committed")) }.to raise_error(RuntimeError, "projection failed")
+    expect(store.entries).to be_empty
+    expect(store.find("sku-1")).to be_nil
   end
 end

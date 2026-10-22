@@ -54,10 +54,7 @@ RSpec.describe "concurrent dispatch against one PostgresEra-backed aggregate", :
   end
 
   def load_ports
-    Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-    Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-    Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-    Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+    MemoryPorts.load!
     Kernel.load(InMemoryDomain::POSTGRES_ERA_ADAPTER)
   end
 

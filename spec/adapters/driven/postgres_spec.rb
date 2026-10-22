@@ -1,8 +1,11 @@
 require "hecks"
 require_relative "../../support/postgres_probe"
+require_relative "../../support/persistence_adapter_examples"
 
 # Runs only when a Postgres server is reachable (`support/postgres_probe.rb`).
 RSpec.describe Hecks::Adapters::Postgres, :io do
+  include_context "with the Pizzas Order adapter helpers"
+
   PLAIN_POSTGRES_SPEC_DB = "hecks_postgres_spec".freeze
 
   before(:all) do
@@ -35,12 +38,6 @@ RSpec.describe Hecks::Adapters::Postgres, :io do
     described_class.new(aggregate: aggregate, settings: { database: PLAIN_POSTGRES_SPEC_DB })
   end
 
-  def instance(id, **fields)
-    built = Hecks::Runtime::Instance.new(aggregate: aggregate, id: id)
-    fields.each { |name, value| built[name] = Hecks::Runtime::Value.for(aggregate, name, value) }
-    built
-  end
-
   def indexes_on(db, table)
     db.exec_params("SELECT indexname FROM pg_indexes WHERE tablename = $1", [table]).map { |row| row["indexname"] }
   end
@@ -58,21 +55,13 @@ RSpec.describe Hecks::Adapters::Postgres, :io do
 
   def reopened_adapter = described_class.new(aggregate: aggregate, settings: { database: PLAIN_POSTGRES_SPEC_DB })
 
-  def margherita
-    instance("p1", name: { value: "Margherita" },
-                   pizza: { price_cents: { cents: 1200 }, size: { value: "small" } }, status: "available")
+  def other_domain_adapter
+    described_class.new(aggregate: aggregate, settings: { database: PLAIN_POSTGRES_SPEC_DB, domain: "OtherDomain" })
   end
 
   def priced_pizza(id, label, cents)
     instance(id, name: { value: label }, pizza: { price_cents: { cents: cents }, size: { value: "small" } })
   end
-
-  def pizza_purchased(id, customer, at)
-    Hecks::Runtime::Event.new(name: "PizzaPurchased", aggregate: "Pizza", id: id,
-                              payload: { customer: customer }, occurred_at: at)
-  end
-
-  def event_summary(events) = events.map { |item| [item.name, item.id, item.payload] }
 
   it "refuses a binding that declares no database" do
     expect { described_class.new(aggregate: aggregate, settings: {}) }
@@ -97,36 +86,6 @@ RSpec.describe Hecks::Adapters::Postgres, :io do
     # `status` is a plain text column; the value objects and `toppings` are jsonb.
     expect(order_column_types).to include("id" => "text", "status" => "text", "name" => "jsonb", "pizza" => "jsonb",
                                           "customer_name" => "jsonb", "toppings" => "jsonb")
-  end
-
-  it "saves and finds one back through its own typed columns", :aggregate_failures do
-    adapter.save(margherita)
-
-    found = adapter.find("p1")
-    expect(found.name.to_h).to eq(value: "Margherita")
-    expect(found.pizza.to_h).to eq(price_cents: { cents: 1200 }, size: { value: "small" })
-    expect(found.status).to eq("available")
-  end
-
-  it "round-trips a list of value objects through its jsonb column", :aggregate_failures do
-    adapter.save(instance("p1", toppings: [{ name: "Basil", amount: 3 }]))
-
-    toppings = adapter.find("p1").toppings
-    expect(toppings).to all(be_a(Hecks::Runtime::Value))
-    expect(toppings.map(&:to_h)).to eq([{ name: "Basil", amount: 3 }])
-  end
-
-  it "answers nil for an id it never stored" do
-    expect(adapter.find("nope")).to be_nil
-  end
-
-  it "keeps every write in the append-only log and reads the last one back", :aggregate_failures do
-    adapter.save(instance("p1", status: "available"))
-    adapter.save(instance("p1", status: "sold"))
-
-    expect(adapter.count).to eq(1)
-    expect(adapter.find("p1").status).to eq("sold")
-    expect(adapter.entries.map { |entry| entry.state[:status] }).to eq(%w[available sold])
   end
 
   def mirror_rows(condition)
@@ -157,42 +116,6 @@ RSpec.describe Hecks::Adapters::Postgres, :io do
     end
   end
 
-  it "lists everything it holds", :aggregate_failures do
-    adapter.save(instance("p1", name: { value: "Margherita" }))
-    adapter.save(instance("p2", name: { value: "Bare" }))
-
-    expect(adapter.all.map(&:id)).to contain_exactly("p1", "p2")
-    expect(adapter.count).to eq(2)
-  end
-
-  it "deletes through the append-only log and the materialized table", :aggregate_failures do
-    adapter.save(instance("p1", name: { value: "Temporary" }))
-
-    expect(adapter.delete("p1")).to be(true)
-    expect(adapter.find("p1")).to be_nil
-    expect(adapter.entries.last.operation).to eq("delete")
-    expect(adapter.delete("missing")).to be(true)
-  end
-
-  it "records and reloads domain events" do
-    adapter.record_event(pizza_purchased("p1", "c1", "2026-01-01T00:00:00Z"))
-
-    expect(event_summary(adapter.events)).to eq([["PizzaPurchased", "p1", { customer: "c1" }]])
-  end
-
-  def record_events_of_two_pizzas_and_an_order
-    adapter.record_event(pizza_purchased("p1", "c1", "2026-01-01T00:00:00Z"))
-    adapter.record_event(pizza_purchased("p2", "c2", "2026-01-01T00:00:01Z"))
-    adapter.record_event(Hecks::Runtime::Event.new(name: "OrderPlaced", aggregate: "Order", id: "p1",
-                                                   payload: { total: 12 }, occurred_at: "2026-01-01T00:00:02Z"))
-  end
-
-  it "reads back only one record's events, not the whole shared table" do
-    record_events_of_two_pizzas_and_an_order
-
-    expect(event_summary(adapter.events_for(aggregate: "Pizza", id: "p1"))).to eq([["PizzaPurchased", "p1", { customer: "c1" }]])
-  end
-
   it "indexes the shared events table by aggregate and aggregate_id" do
     adapter
 
@@ -213,12 +136,6 @@ RSpec.describe Hecks::Adapters::Postgres, :io do
     expect { adapter.find("p1") }.to raise_error(PG::ConnectionBad)
     # But the connection healed, so the next dispatch is not stuck on a broken handle.
     expect(adapter.find("p1").status).to eq("sold")
-  end
-
-  it "outlives the adapter that wrote it" do
-    adapter.save(instance("p1", name: { value: "Margherita" }, status: "sold"))
-
-    expect(reopened_adapter.find("p1").status).to eq("sold")
   end
 
   def order_indexes = with_db { |db| indexes_on(db, "order").sort }
@@ -247,100 +164,17 @@ RSpec.describe Hecks::Adapters::Postgres, :io do
     expect(reopened.find("p1").customer_name.value).to eq("Chris")
   end
 
-  describe "the replay checkpoint (bounds AppendOnly#recover!'s replay to what a restart missed)" do
-    it "advances with every project, so entries_since(checkpoint) is empty right after a write" do
-      adapter.save(instance("p1", status: "available"))
+  it_behaves_like "a journalled record adapter"
+  it_behaves_like "a checkpointed journal adapter"
 
-      expect(adapter.entries_since(adapter.checkpoint)).to eq([])
-    end
+  it "keeps AppendOnly#recover! from bumping hecks_version when nothing is behind the checkpoint" do
+    repository = Hecks::Ports::Persistence::AppendOnly.new(adapter)
+    repository.save(instance("p1", status: "available"))
+    version_before = repository.find("p1").version
 
-    it "starts at zero for a table that has never been checkpointed" do
-      expect(adapter.checkpoint).to eq(0)
-    end
+    repository.recover!
 
-    it "lets entries_since skip everything at or before a given sequence" do
-      adapter.save(instance("p1", status: "available"))
-      first_checkpoint = adapter.checkpoint
-      adapter.save(instance("p2", status: "available"))
-
-      expect(adapter.entries_since(first_checkpoint).map(&:id)).to eq(["p2"])
-    end
-
-    it "keeps AppendOnly#recover! from bumping hecks_version when nothing is behind the checkpoint" do
-      repository = Hecks::Ports::Persistence::AppendOnly.new(adapter)
-      repository.save(instance("p1", status: "available"))
-      version_before = repository.find("p1").version
-
-      repository.recover!
-
-      expect(repository.find("p1").version).to eq(version_before)
-    end
-
-    it "still catches up a real gap: an entry journaled without being projected is picked up", :aggregate_failures do
-      entry = Hecks::Ports::Persistence::Entry.new(operation: "save", id: "p1", state: { status: "available" })
-      adapter.append(entry)
-      expect(adapter.find("p1")).to be_nil
-
-      Hecks::Ports::Persistence::AppendOnly.new(adapter).recover!
-
-      expect(adapter.find("p1").status).to eq("available")
-    end
-  end
-
-  describe "compact_entries! (deletes old journal rows a :refresh projection no longer needs)" do
-    it "starts at zero when nothing has ever been compacted" do
-      expect(adapter.compacted_through).to eq(0)
-    end
-
-    context "with two entries compacted through the checkpoint" do
-      before do
-        adapter.save(instance("p1", status: "available"))
-        adapter.save(instance("p2", status: "available"))
-        @through = adapter.checkpoint
-      end
-
-      it "reports how many rows it deleted" do
-        expect(adapter.compact_entries!(through: @through)).to eq(2)
-      end
-
-      it "empties the journal, leaving the aggregate table untouched", :aggregate_failures do
-        adapter.compact_entries!(through: @through)
-
-        expect(adapter.entries).to eq([])
-        expect(adapter.find("p1").status).to eq("available")
-      end
-
-      it "records how far it compacted" do
-        adapter.compact_entries!(through: @through)
-
-        expect(adapter.compacted_through).to eq(@through)
-      end
-    end
-
-    it "leaves rows after through in the journal" do
-      adapter.save(instance("p1", status: "available"))
-      first = adapter.checkpoint
-      adapter.save(instance("p2", status: "available"))
-
-      adapter.compact_entries!(through: first)
-
-      expect(adapter.entries.map(&:id)).to eq(["p2"])
-    end
-
-    context "with a first entry compacted and a second saved" do
-      before do
-        adapter.save(instance("p1", status: "available"))
-        adapter.compact_entries!(through: adapter.checkpoint)
-        adapter.save(instance("p2", status: "available"))
-        @high_water = adapter.checkpoint
-      end
-
-      it "never moves compacted_through backwards" do
-        [@high_water, 0].each { |through| adapter.compact_entries!(through: through) }
-
-        expect(adapter.compacted_through).to eq(@high_water)
-      end
-    end
+    expect(repository.find("p1").version).to eq(version_before)
   end
 
   describe "a declared `where`/`order_by` query" do
@@ -436,35 +270,5 @@ RSpec.describe Hecks::Adapters::Postgres, :io do
       .to contain_exactly("p1", "p2")
   end
 
-  describe "the optional saga-persistence capability (§2/§3/§4)" do
-    it "saves a saga instance and reads it back through each_saga" do
-      adapter.save_saga(process_manager: "Onboarding", correlation: "c1",
-                        state: "awaiting_credit", memory: { amount: 100 })
-
-      expect(adapter.each_saga.to_a).to eq([["Onboarding", "c1", "awaiting_credit", { amount: 100 }, []]])
-    end
-
-    it "upserts on a repeated save for the same (process_manager, correlation)" do
-      adapter.save_saga(process_manager: "Onboarding", correlation: "c1", state: "start", memory: {})
-      adapter.save_saga(process_manager: "Onboarding", correlation: "c1", state: "next", memory: { step: 2 })
-
-      expect(adapter.each_saga.to_a).to eq([["Onboarding", "c1", "next", { step: 2 }, []]])
-    end
-
-    it "deletes a saga instance" do
-      adapter.save_saga(process_manager: "Onboarding", correlation: "c1", state: "start", memory: {})
-      adapter.delete_saga(process_manager: "Onboarding", correlation: "c1")
-
-      expect(adapter.each_saga.to_a).to eq([])
-    end
-
-    it "isolates sagas by domain within one shared database", :aggregate_failures do
-      other = described_class.new(aggregate: aggregate, settings: { database: PLAIN_POSTGRES_SPEC_DB, domain: "OtherDomain" })
-      adapter.save_saga(process_manager: "Onboarding", correlation: "c1", state: "start", memory: {})
-      other.save_saga(process_manager: "Onboarding", correlation: "c1", state: "different", memory: {})
-
-      expect(adapter.each_saga.to_a).to eq([["Onboarding", "c1", "start", {}, []]])
-      expect(other.each_saga.to_a).to eq([["Onboarding", "c1", "different", {}, []]])
-    end
-  end
+  it_behaves_like "a saga-persisting adapter"
 end

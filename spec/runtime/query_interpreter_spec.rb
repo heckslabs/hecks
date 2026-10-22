@@ -34,10 +34,7 @@ RSpec.describe "a query's own rows keep a declared :id attribute from clobbering
 
   def declare_thingy(registry, path)
     Hecks.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      MemoryPorts.load!
       Kernel.eval(QUERY_INTERPRETER_THINGY_SOURCE, TOPLEVEL_BINDING, path, 1)
 
       Hecks.hecksagon("Thingy") do
