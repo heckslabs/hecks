@@ -64,8 +64,7 @@ RSpec.describe "translates, a hecksagon-level cross-domain reaction" do
     registry = Hecks::Runtime::Registry.new
 
     Hecks.with_registry(registry) do
-      [InMemoryDomain::PERSISTENCE_PORT, InMemoryDomain::EXTRACTION_PORT,
-       InMemoryDomain::MEMORY_ADAPTER, InMemoryDomain::PRISM_ADAPTER].each { |file| Kernel.load(file) }
+      MemoryPorts.load!
 
       DECLARE_TRANSLATES_FOREIGN.call
       DECLARE_TRANSLATES_LOCAL.call

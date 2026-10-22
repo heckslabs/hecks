@@ -88,8 +88,7 @@ RSpec.describe Hecks::Projector::Exporter do
   # Pizzas' hecksagon attaches Governance, which `provides "authorization"`; the bare
   # bluebook attaches nothing.
   def load_core_ports
-    [InMemoryDomain::PERSISTENCE_PORT, InMemoryDomain::EXTRACTION_PORT, InMemoryDomain::MEMORY_ADAPTER,
-     InMemoryDomain::PRISM_ADAPTER].each { |port| Kernel.load(port) }
+    MemoryPorts.load!
   end
 
   def pizzas_registry(with_hecksagon:)

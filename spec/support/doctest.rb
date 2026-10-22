@@ -183,10 +183,7 @@ module Doctest
     end
 
     def load_adapters
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      MemoryPorts.load!
       Kernel.load(InMemoryDomain::POSTGRES_ERA_ADAPTER) if @guide.postgres
     end
 

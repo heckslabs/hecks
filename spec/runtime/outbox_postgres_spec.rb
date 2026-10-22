@@ -67,10 +67,7 @@ RSpec.describe "the transactional outbox, against Postgres", :io do
   end
 
   def load_postgres_stack
-    Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-    Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-    Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-    Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+    MemoryPorts.load!
     Kernel.load(InMemoryDomain::POSTGRES_ADAPTER)
     Kernel.load(InMemoryDomain::POSTGRES_ERA_ADAPTER)
   end

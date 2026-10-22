@@ -6,10 +6,7 @@ RSpec.describe "Waybill" do
   WAYBILL_ROOT = File.join(InMemoryDomain::ROOT, "qa/stress_domains/waybill/bluebook").freeze
 
   def load_waybill_files
-    Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-    Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-    Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-    Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+    MemoryPorts.load!
     Kernel.load(File.join(WAYBILL_ROOT, "waybill.bluebook"))
   end
 

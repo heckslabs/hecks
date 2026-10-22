@@ -229,8 +229,7 @@ RSpec.describe "events first-class (ADR 0025, S6)" do
   def boot_banking_runtime
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
-      [InMemoryDomain::PERSISTENCE_PORT, InMemoryDomain::EXTRACTION_PORT,
-       InMemoryDomain::MEMORY_ADAPTER, InMemoryDomain::PRISM_ADAPTER].each { |file| Kernel.load(file) }
+      MemoryPorts.load!
       InMemoryDomain.load_bluebook_files(InMemoryDomain::BANKING_BLUEBOOK_DIR)
     end
     registry.verify!

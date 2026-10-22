@@ -9,10 +9,7 @@ RSpec.describe "arithmetic on a VO-typed attribute that was never set" do
   def boot(&binds)
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      MemoryPorts.load!
 
       Hecks.bluebook("ArithmeticAbsentCurrent") do
         supporting

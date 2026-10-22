@@ -4,10 +4,7 @@ RSpec.describe Hecks::Ports::AccessControl do
   def registry_with(&extra)
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      MemoryPorts.load!
       Kernel.load(File.expand_path("../../lib/hecks/ports/access_control.port", __dir__))
       extra&.call
     end

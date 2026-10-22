@@ -5,10 +5,7 @@ RSpec.describe Hecks::Ports::Agent do
   def registry_with(*adapter_paths)
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      MemoryPorts.load!
       Kernel.load(File.expand_path("../../lib/hecks/ports/agent.port", __dir__))
       adapter_paths.each { |path| Kernel.load(path) }
     end

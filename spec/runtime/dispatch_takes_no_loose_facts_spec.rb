@@ -9,10 +9,7 @@ RSpec.describe "dispatch takes no loose keyword facts" do
   let(:runtime) do
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      MemoryPorts.load!
       Kernel.load(InMemoryDomain::PIZZAS_BLUEBOOK)
       Hecks.hecksagon("Pizzas") do
         attaches "Governance"

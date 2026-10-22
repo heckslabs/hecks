@@ -14,18 +14,11 @@ RSpec.describe "cross-aggregate query filtering" do
     end
   end
 
-  def load_memory_stack
-    Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-    Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-    Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-    Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-  end
-
   def boot_hop_chain
     registry = Hecks::Runtime::Registry.new
 
     Hecks.with_registry(registry) do
-      load_memory_stack
+      MemoryPorts.load!
       Kernel.load(HOP_CHAIN)
       bind_memory
     end

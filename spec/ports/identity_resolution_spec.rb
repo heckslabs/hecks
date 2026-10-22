@@ -2,8 +2,7 @@ require "hecks"
 
 RSpec.describe Hecks::Ports::IdentityResolution do
   def load_in_memory_ports
-    [InMemoryDomain::PERSISTENCE_PORT, InMemoryDomain::EXTRACTION_PORT,
-     InMemoryDomain::MEMORY_ADAPTER, InMemoryDomain::PRISM_ADAPTER].each { |path| Kernel.load(path) }
+    MemoryPorts.load!
   end
 
   def registry_with(*adapter_paths, &extra)

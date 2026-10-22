@@ -536,8 +536,7 @@ RSpec.describe "a query answered by a port the hecksagon binds" do
     def ruby_export(path)
       registry = Hecks::Runtime::Registry.new(root: @dir)
       Hecks.with_registry(registry) do
-        [InMemoryDomain::PERSISTENCE_PORT, InMemoryDomain::EXTRACTION_PORT,
-         InMemoryDomain::MEMORY_ADAPTER, InMemoryDomain::PRISM_ADAPTER].each { |port| Kernel.load(port) }
+        MemoryPorts.load!
         InMemoryDomain.load_bluebook_files([path])
       end
       "#{JSON.pretty_generate(Hecks::Projector::Exporter.call(registry).fetch("Lookup"))}\n"

@@ -44,8 +44,7 @@ RSpec.describe "limit and offset on one query" do
     registry = Hecks::Runtime::Registry.new
 
     Hecks.with_registry(registry) do
-      [InMemoryDomain::PERSISTENCE_PORT, InMemoryDomain::EXTRACTION_PORT, InMemoryDomain::MEMORY_ADAPTER,
-       InMemoryDomain::PRISM_ADAPTER].each { |port| Kernel.load(port) }
+      MemoryPorts.load!
 
       Hecks.bluebook("Paging", &PAGING_BLUEBOOK)
       Hecks.hecksagon("Paging") { Paging::Ticket.persisted_by("Memory") }

@@ -11,10 +11,7 @@ RSpec.describe "verify! warning for an undurable process_manager" do
 
   def load_wire(registry)
     Hecks.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      MemoryPorts.load!
       Kernel.load(WIRE_BLUEBOOK)
     end
   end

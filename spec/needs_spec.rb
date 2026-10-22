@@ -63,8 +63,7 @@ RSpec.describe "a command that needs :now" do
   def load_needs_pilot(registry)
     link = link_aggregate
     Hecks.with_registry(registry) do
-      [InMemoryDomain::PERSISTENCE_PORT, InMemoryDomain::EXTRACTION_PORT,
-       InMemoryDomain::MEMORY_ADAPTER, InMemoryDomain::PRISM_ADAPTER].each { |file| Kernel.load(file) }
+      MemoryPorts.load!
       Hecks.bluebook("NeedsPilot", &link)
       stub_const("Hecks::Adapters::NeedsClock", NeedsFixedClock)
       Hecks.adapter("NeedsClock") { port "clock" }

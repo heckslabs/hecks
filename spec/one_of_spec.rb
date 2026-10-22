@@ -4,10 +4,7 @@ RSpec.describe "one_of" do
   ONE_OF_BANKING = InMemoryDomain::BANKING_BLUEBOOK_DIR
 
   def load_ports
-    Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-    Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-    Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-    Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+    MemoryPorts.load!
   end
 
   def boot_banking

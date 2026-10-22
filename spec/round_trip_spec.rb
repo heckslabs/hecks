@@ -13,10 +13,7 @@ RSpec.describe "a bluebook dispatched in and read back out" do
   def load_corpus(file)
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      MemoryPorts.load!
       path = File.absolute_path(file, InMemoryDomain::ROOT)
       load_bluebook_files(path)
     end

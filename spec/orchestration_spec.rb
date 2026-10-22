@@ -20,10 +20,7 @@ RSpec.describe "the distance between the builder's graph and the language's" do
   def load_chapter(file)
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      MemoryPorts.load!
       path = File.absolute_path(file, InMemoryDomain::ROOT)
       load_bluebook_files(path)
     end

@@ -9,10 +9,7 @@ RSpec.describe "a reference that arrives as an object" do
     registry = Hecks::Runtime::Registry.new
 
     Hecks.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      MemoryPorts.load!
       Kernel.load(SETTLEMENT)
       Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
     end
@@ -84,10 +81,7 @@ RSpec.describe "a reference that arrives as an object" do
       registry = Hecks::Runtime::Registry.new
 
       Hecks.with_registry(registry) do
-        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+        MemoryPorts.load!
         Kernel.load(OPTIONAL_REFERENCE_HOP_CHAIN)
         Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
       end
@@ -118,10 +112,7 @@ RSpec.describe "a reference that arrives as an object" do
       registry = Hecks::Runtime::Registry.new
 
       Hecks.with_registry(registry) do
-        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+        MemoryPorts.load!
         load_bluebook_files(BANKING)
         Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
       end

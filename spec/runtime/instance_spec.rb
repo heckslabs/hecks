@@ -5,17 +5,10 @@ require "tempfile"
 # A creating command may receive the heads as addressing arguments without declaring or `sets`-ing
 # them; they must still be materialized, or the record is addressed but persists them as nil.
 RSpec.describe Hecks::Runtime::Instance do
-  def load_memory_stack
-    Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-    Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-    Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-    Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-  end
-
   def declare_domain(registry, source, path, hecksagon_name, &binds)
     Hecks::Bluebook::MetaValidator.while_disabled do
       Hecks.with_registry(registry) do
-        load_memory_stack
+        MemoryPorts.load!
         Kernel.eval(source, TOPLEVEL_BINDING, path, 1)
         Hecks.hecksagon(hecksagon_name, &binds)
       end

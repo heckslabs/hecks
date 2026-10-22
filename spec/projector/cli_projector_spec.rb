@@ -83,8 +83,7 @@ RSpec.describe Hecks::Projector::CliProjector do
   end
 
   def load_adapters
-    [InMemoryDomain::PERSISTENCE_PORT, InMemoryDomain::EXTRACTION_PORT,
-     InMemoryDomain::MEMORY_ADAPTER, InMemoryDomain::PRISM_ADAPTER].each { |file| Kernel.load(file) }
+    MemoryPorts.load!
   end
 
   # Neither corpus bluebook declares a port (ports live in the hecksagon), so set one up here;

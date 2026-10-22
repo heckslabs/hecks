@@ -21,10 +21,7 @@ RSpec.describe "a port operation, dispatched" do
   DECLINE_ARGS = { to: "P1", with: { reason: { code: "insufficient_funds", message: "card declined" } } }.freeze
 
   def load_payments_files
-    Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-    Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-    Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-    Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+    MemoryPorts.load!
     Kernel.load(File.join(InMemoryDomain::ROOT, "spec/fixtures/payments.bluebook"))
   end
 

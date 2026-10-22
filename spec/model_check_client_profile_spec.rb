@@ -84,8 +84,7 @@ RSpec.describe "the model checker's client profile" do
     registry = Hecks::Runtime::Registry.new
     wiring = shop_wiring(projection)
     Hecks.with_registry(registry) do
-      [InMemoryDomain::PERSISTENCE_PORT, InMemoryDomain::EXTRACTION_PORT,
-       InMemoryDomain::MEMORY_ADAPTER, InMemoryDomain::PRISM_ADAPTER].each { |file| Kernel.load(file) }
+      MemoryPorts.load!
       eval(SHOP, TOPLEVEL_BINDING, "client_profile_shop.bluebook")
       Hecks.hecksagon("ClientProfileShop", &wiring)
     end
