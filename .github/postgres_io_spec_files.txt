@@ -104,5 +104,6 @@ spec/rust_host_reference_validate_conformance_spec.rb
 spec/self_consistency_rust_spec.rb
 spec/smoke_harness_node_spec.rb
 spec/smoke_http_spec.rb
+spec/support/persistence_adapter_examples.rb
 spec/tenant_isolation_fuzz_spec.rb
 spec/tenant_isolation_spec.rb
