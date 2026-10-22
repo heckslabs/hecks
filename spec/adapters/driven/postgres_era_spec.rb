@@ -1,12 +1,15 @@
 require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "../../support/postgres_probe"
+require_relative "../../support/persistence_adapter_examples"
 require_relative "../../support/era_registry_loading"
 
 # Runs only when a Postgres server is reachable (`support/postgres_probe.rb`); manages its own
 # scratch database.
 RSpec.describe Hecks::Adapters::PostgresEra, :io do
   include EraRegistryLoading
+
+  include_context "with the Pizzas Order adapter helpers"
 
   SPEC_DB = "hecks_adapter_spec".freeze
 
@@ -45,10 +48,10 @@ RSpec.describe Hecks::Adapters::PostgresEra, :io do
     described_class.new(aggregate: aggregate, settings: { database: SPEC_DB })
   end
 
-  def instance(id, **fields)
-    built = Hecks::Runtime::Instance.new(aggregate: aggregate, id: id)
-    fields.each { |name, value| built[name] = Hecks::Runtime::Value.for(aggregate, name, value) }
-    built
+  def reopened_adapter = described_class.new(aggregate: aggregate, settings: { database: SPEC_DB })
+
+  def other_domain_adapter
+    described_class.new(aggregate: aggregate, settings: { database: SPEC_DB, domain: "OtherDomain" })
   end
 
   def with_db(&)
@@ -69,18 +72,6 @@ RSpec.describe Hecks::Adapters::PostgresEra, :io do
   def declared_where(field, operator, value, **)
     declared_query([PgEraClause.new(field, operator, value)], **)
   end
-
-  def margherita
-    instance("p1", name: { value: "Margherita" },
-                   pizza: { price_cents: { cents: 1200 }, size: { value: "small" } }, status: "available")
-  end
-
-  def pizza_purchased(id, customer, at)
-    Hecks::Runtime::Event.new(name: "PizzaPurchased", aggregate: "Pizza", id: id,
-                              payload: { customer: customer }, occurred_at: at)
-  end
-
-  def event_summary(events) = events.map { |item| [item.name, item.id, item.payload] }
 
   it "declares :atomic_append — append already commits the snapshot inside its own transaction" do
     expect(adapter.persistence_capabilities).to include(:atomic_append)
@@ -205,46 +196,7 @@ RSpec.describe Hecks::Adapters::PostgresEra, :io do
     expect(reopened.find("p1").status).to eq("sold")
   end
 
-  describe "the optional saga-persistence capability (§2/§3/§4)" do
-    it "saves a saga instance and reads it back through each_saga" do
-      adapter.save_saga(process_manager: "Onboarding", correlation: "c1",
-                        state: "awaiting_credit", memory: { amount: 100 })
-
-      rows = adapter.each_saga.to_a
-      expect(rows).to eq([["Onboarding", "c1", "awaiting_credit", { amount: 100 }, []]])
-    end
-
-    it "upserts on a repeated save for the same (process_manager, correlation)" do
-      adapter.save_saga(process_manager: "Onboarding", correlation: "c1", state: "start", memory: {})
-      adapter.save_saga(process_manager: "Onboarding", correlation: "c1", state: "next", memory: { step: 2 })
-
-      rows = adapter.each_saga.to_a
-      expect(rows).to eq([["Onboarding", "c1", "next", { step: 2 }, []]])
-    end
-
-    it "deletes a saga instance" do
-      adapter.save_saga(process_manager: "Onboarding", correlation: "c1", state: "start", memory: {})
-      adapter.delete_saga(process_manager: "Onboarding", correlation: "c1")
-
-      expect(adapter.each_saga.to_a).to eq([])
-    end
-
-    it "outlives the adapter that wrote it, same as an aggregate's own state" do
-      adapter.save_saga(process_manager: "Onboarding", correlation: "c1", state: "start", memory: { a: 1 })
-
-      reopened = described_class.new(aggregate: aggregate, settings: { database: SPEC_DB })
-      expect(reopened.each_saga.to_a).to eq([["Onboarding", "c1", "start", { a: 1 }, []]])
-    end
-
-    it "isolates sagas by domain, the same column-based isolation hecks_eras uses", :aggregate_failures do
-      other = described_class.new(aggregate: aggregate, settings: { database: SPEC_DB, domain: "OtherDomain" })
-      adapter.save_saga(process_manager: "Onboarding", correlation: "c1", state: "start", memory: {})
-      other.save_saga(process_manager: "Onboarding", correlation: "c1", state: "different", memory: {})
-
-      expect(adapter.each_saga.to_a).to eq([["Onboarding", "c1", "start", {}, []]])
-      expect(other.each_saga.to_a).to eq([["Onboarding", "c1", "different", {}, []]])
-    end
-  end
+  it_behaves_like "a saga-persisting adapter"
 
   describe "the `schema` setting — shared-instance isolation" do
     before do

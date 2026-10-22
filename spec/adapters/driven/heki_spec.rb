@@ -2,8 +2,11 @@ require "hecks"
 require "tmpdir"
 require "zlib"
 require "json"
+require_relative "../../support/persistence_adapter_examples"
 
 RSpec.describe Hecks::Adapters::Heki do
+  include_context "with the Pizzas Order adapter helpers"
+
   around do |example|
     @dir = Dir.mktmpdir("hecks-heki-")
     example.run
@@ -20,14 +23,12 @@ RSpec.describe Hecks::Adapters::Heki do
     described_class.new(aggregate: aggregate, settings: { dir: "." }, root: @dir)
   end
 
-  def instance(id, **fields)
-    built = Hecks::Runtime::Instance.new(aggregate: aggregate, id: id)
-    fields.each { |name, value| built[name] = Hecks::Runtime::Value.for(aggregate, name, value) }
-    built
-  end
-
   # A second adapter over the same directory, as a fresh boot would open it.
   def reopened_adapter = described_class.new(aggregate: aggregate, settings: { dir: "." }, root: @dir)
+
+  def other_domain_adapter
+    described_class.new(aggregate: aggregate, settings: { dir: ".", domain: "OtherDomain" }, root: @dir)
+  end
 
   describe "the adapter contract" do
     it "answers nil for an id it never stored" do
@@ -287,28 +288,9 @@ RSpec.describe Hecks::Adapters::Heki do
     end
   end
 
-  describe "the optional saga-persistence capability (§2/§3/§4)" do
-    it "saves a saga instance and reads it back through each_saga" do
-      adapter.save_saga(process_manager: "Onboarding", correlation: "c1",
-                        state: "awaiting_credit", memory: { amount: 100 })
+  it_behaves_like "a saga-persisting adapter"
 
-      expect(adapter.each_saga.to_a).to eq([["Onboarding", "c1", "awaiting_credit", { amount: 100 }, []]])
-    end
-
-    it "replaces on a repeated save for the same (process_manager, correlation)" do
-      adapter.save_saga(process_manager: "Onboarding", correlation: "c1", state: "start", memory: {})
-      adapter.save_saga(process_manager: "Onboarding", correlation: "c1", state: "next", memory: { step: 2 })
-
-      expect(adapter.each_saga.to_a).to eq([["Onboarding", "c1", "next", { step: 2 }, []]])
-    end
-
-    it "deletes a saga instance" do
-      adapter.save_saga(process_manager: "Onboarding", correlation: "c1", state: "start", memory: {})
-      adapter.delete_saga(process_manager: "Onboarding", correlation: "c1")
-
-      expect(adapter.each_saga.to_a).to eq([])
-    end
-
+  describe "saga storage in a heki directory" do
     it "writes a sibling file, not the aggregate's own store", :aggregate_failures do
       adapter.save_saga(process_manager: "Onboarding", correlation: "c1", state: "start", memory: {})
 
@@ -316,29 +298,12 @@ RSpec.describe Hecks::Adapters::Heki do
       expect(File.exist?(File.join(@dir, "order.heki"))).to be false
     end
 
-    it "outlives the adapter that wrote it, same as an aggregate's own state" do
-      adapter.save_saga(process_manager: "Onboarding", correlation: "c1", state: "start", memory: { a: 1 })
-
-      reopened = described_class.new(aggregate: aggregate, settings: { dir: "." }, root: @dir)
-      expect(reopened.each_saga.to_a).to eq([["Onboarding", "c1", "start", { a: 1 }, []]])
-    end
-
     it "replays its journal when a crash leaves no current saga snapshot, same recovery as an aggregate's own store" do
       adapter.save_saga(process_manager: "Onboarding", correlation: "c1", state: "first", memory: {})
       adapter.save_saga(process_manager: "Onboarding", correlation: "c1", state: "recovered", memory: {})
       FileUtils.rm_f(File.join(@dir, "hecks_saga_instances.heki"))
 
-      reopened = described_class.new(aggregate: aggregate, settings: { dir: "." }, root: @dir)
-      expect(reopened.each_saga.to_a).to eq([["Onboarding", "c1", "recovered", {}, []]])
-    end
-
-    it "isolates sagas by domain within one shared directory", :aggregate_failures do
-      other = described_class.new(aggregate: aggregate, settings: { dir: ".", domain: "OtherDomain" }, root: @dir)
-      adapter.save_saga(process_manager: "Onboarding", correlation: "c1", state: "start", memory: {})
-      other.save_saga(process_manager: "Onboarding", correlation: "c1", state: "different", memory: {})
-
-      expect(adapter.each_saga.to_a).to eq([["Onboarding", "c1", "start", {}, []]])
-      expect(other.each_saga.to_a).to eq([["Onboarding", "c1", "different", {}, []]])
+      expect(reopened_adapter.each_saga.to_a).to eq([["Onboarding", "c1", "recovered", {}, []]])
     end
   end
 
