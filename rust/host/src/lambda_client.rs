@@ -17,9 +17,9 @@ pub trait LambdaInvoker: Send + Sync {
 }
 
 // Mirrors Ruby's `"hecks-#{domain.downcase}"` — deployed stack names depend on
-// this exact casing.
+// this exact casing, down to a word-final capital sigma, so it lowercases as Ruby does.
 pub fn function_name_for(domain: &str) -> String {
-    format!("hecks-{}", domain.to_lowercase())
+    format!("hecks-{}", crate::journal::ruby_downcase(domain))
 }
 
 // Mirrors `PolicyInterpreter#deliver`'s record shape, minus `on:` — this crate
@@ -286,17 +286,6 @@ mod tests {
                 row["name"].as_str().unwrap(),
                 "{domain}"
             );
-        }
-    }
-
-    // `to_lowercase` maps a word-final capital sigma to the final form; Ruby's `downcase` does not.
-    #[test]
-    fn function_name_diverges_from_ruby_on_a_final_capital_sigma() {
-        let vectors = stack_name_vectors();
-        for row in vectors["known_divergences"].as_array().unwrap() {
-            let domain = row["domain"].as_str().unwrap();
-            assert_eq!(function_name_for(domain), row["rust"].as_str().unwrap());
-            assert_ne!(function_name_for(domain), row["ruby"].as_str().unwrap());
         }
     }
 
