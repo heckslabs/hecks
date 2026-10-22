@@ -30,8 +30,8 @@ module Hecks
           # the same way a backfill would.
           #
           # @param path [String, Symbol] the name of a top-level attribute new in the current shape
-          # @return [Boolean] true when a rename, move, convert or compute lands a value in that
-          #   attribute, or a backfill names it
+          # @return [Boolean] true when a rename, move, convert, compute or derive lands a value in
+          #   that attribute, or a backfill names it
           def fills?(path)
             path = path.to_s
 
@@ -47,8 +47,8 @@ module Hecks
             [*@moves, *@converts, *@rules.computes].map(&:from) + @drops.map(&:to_s)
           end
 
-          # Every path a move, convert or compute writes to.
-          def destinations = [*@moves, *@converts, *@rules.computes].map(&:to)
+          # Every path a move, convert, compute or derive writes to.
+          def destinations = [*@moves, *@converts, *@rules.computes, *@rules.derives].map(&:to)
 
           def backfilled?(name) = @rules.backfills.any? { |backfill| backfill.name.to_s == name }
         end

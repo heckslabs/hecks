@@ -1,4 +1,5 @@
 require "json"
+require_relative "expression_sql"
 
 module Hecks
   module Translation
@@ -7,10 +8,11 @@ module Hecks
     module RuleCompiler
       module_function
 
-      # Compiles one edge's rename/move/convert/drop/compute/backfill rules into a nested
+      # Compiles one edge's derive/rename/move/convert/drop/compute/backfill rules into a nested
       # SQL expression over `state`, composed innermost-first in that phase order.
       def compile_rules(declared)
-        expression = compile_renames("state", declared.renames)
+        expression = compile_derives("state", declared.derives)
+        expression = compile_renames(expression, declared.renames)
         expression = compile_moves(expression, declared.moves)
         expression = compile_converts(expression, declared.converts)
         expression = compile_drops(expression, declared.drops)
@@ -18,6 +20,21 @@ module Hecks
         # Backfilled last, same order as `Lineage#translate`'s in-process pass, so the
         # boot-time mint audit (which reads only this compiled SQL) sees the same result.
         compile_backfills(expression, declared.backfills)
+      end
+
+      # Wraps `expression` in each derive, every one reading the record as it was stored.
+      def compile_derives(expression, derives)
+        derives.inject(expression) { |sql, derive| compile_derive(sql, derive) }
+      end
+
+      # Wraps `expression` so a derive's text lands at its destination when the expression has a
+      # value; the expression reads the stored `state`, never the rules composed before it.
+      def compile_derive(expression, derive)
+        value = ExpressionSql.compile(derive.tree, "state")
+        "(SELECT CASE WHEN __d IS NULL THEN __s " \
+          "ELSE hecks_tr_insert(__s, #{path_literal(derive.to)}, to_jsonb(__d), " \
+          "#{text_literal("derive #{derive.to}")}) END " \
+          "FROM (SELECT (#{expression}) AS __s) __outer, LATERAL (SELECT #{value} AS __d) __derived)"
       end
 
       # Folds each rule of one kind into `expression`, innermost-first.
