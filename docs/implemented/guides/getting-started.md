@@ -212,7 +212,7 @@ method on the record in hand:
 
 ```ruby
 order = Order.create_pizza!(name: "Margherita",
-                            pizza: { price_cents: { cents: 1200 }, size: "large" })
+                            pizza: { price_cents: 1200, size: "large" })
 
 order.status                   # => "available"
 order.toppings                 # => []
@@ -222,7 +222,7 @@ Commands return the record, so calls can be chained in sequence:
 
 ```ruby
 order.add_topping!(topping: "Basil", amount: 3)
-order.purchase!(customer_name: "Chris", amount: { cents: 1200 })
+order.purchase!(customer_name: "Chris", amount: 1200)
 
 order.status                   # => "sold"
 order.toppings.map(&:to_h)     # => [{ name: "Basil", amount: 3 }]
@@ -250,7 +250,7 @@ order.add_topping!(topping: "Late", amount: 1)   # ~> GivenNotMet: a sold pizza 
 And try to put a nameless pizza on the menu:
 
 ```ruby
-Order.create_pizza!(name: "", pizza: { price_cents: { cents: 1200 }, size: "large" })   # ~> TypeMismatch: PizzaName.value must match [^ \t\n\r], got ""
+Order.create_pizza!(name: "", pizza: { price_cents: 1200, size: "large" })   # ~> TypeMismatch: PizzaName.value must match [^ \t\n\r], got ""
 ```
 
 Two different refusals, and the difference matters. The `given` is the

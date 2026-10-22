@@ -92,8 +92,8 @@ end
 ```
 
 ```ruby
-runtime.dispatch("DomainPortReference::Shipment.Book", with: { waybill: { value: "wb-1" }, note: { text: "two crates" } })
-runtime.dispatch("DomainPortReference::Shipment.Book", with: { waybill: { value: "wb-remote" }, note: { text: "one crate" } })
+runtime.dispatch("DomainPortReference::Shipment.Book", with: { waybill: "wb-1", note: "two crates" })
+runtime.dispatch("DomainPortReference::Shipment.Book", with: { waybill: "wb-remote", note: "one crate" })
 ```
 
 ## operation
@@ -337,7 +337,7 @@ A behaviors file swaps the adapter without touching the bluebook: it loads a sib
 `adapters/` folder whose adapter implements the same port with canned answers.
 
 ```ruby
-where = runtime.query("DomainPortReference::Shipment.Whereabouts", waybill: { value: "wb-1" }).first
+where = runtime.query("DomainPortReference::Shipment.Whereabouts", waybill: "wb-1").first
 where  # => { at: "the depot" }
 ```
 
