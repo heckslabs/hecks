@@ -200,12 +200,23 @@ RSpec.describe Hecks::Adapters::InProcessOperations do
       expect(answer).to include(cursor: 2, events: [])
     end
 
+    # The wait is judged on a fake clock that only `sleep` advances, so a stalled runner cannot fail
+    # it: a real stopwatch with a ceiling of a few seconds did, once, on CI.
     it "waits no longer than asked for a first entry, then answers the same cursor", :aggregate_failures do
-      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-      answer = adapter.follow(domain: @dir, since: 2, wait: 1, interval: 0.1)
+      answer, elapsed = follow_on_a_fake_clock(since: 2, wait: 1, interval: 0.1)
 
       expect(answer).to include(cursor: 2, events: [])
-      expect(Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).to be < 3
+      expect(elapsed.call).to be_between(1.0 - 1e-9, 1.0 + 0.1 + 1e-9)
+    end
+
+    # Follows the log with `monotonic` and `sleep` replaced by a clock that `sleep` advances.
+    #
+    # @return [Array(Hash, Proc)] the answer, and a lambda reading the fake seconds that passed
+    def follow_on_a_fake_clock(**options)
+      now = 0.0
+      allow(adapter).to receive(:monotonic) { now }
+      allow(adapter).to receive(:sleep) { |seconds| now += seconds }
+      [adapter.follow(domain: @dir, **options), -> { now }]
     end
   end
 
