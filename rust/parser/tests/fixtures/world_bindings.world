@@ -1,0 +1,13 @@
+world "Bound" do
+  persisted_by("Heki") do
+    dir "s3cr3t-dir"
+    nested do
+      deep "x"
+    end
+    retries 3
+  end
+  deployed_to("AwsLambda") do
+    region "us-east-1"
+    database ENV.fetch("SHOP_DATABASE_URL", "postgres://x")
+  end
+end

@@ -1,0 +1,7 @@
+Hecks.world "Launch" do
+  launcher "Launcher", run_keys: true,
+                       settled: %w[a.b
+                                  c.d],
+                       names: { "k" => "v", "k2" => "v2" },
+                       executable: "exe/x"
+end

@@ -397,6 +397,27 @@ pub struct Provision {
     pub verb: String,
 }
 
+/// One domain's world: its scalar markers and its bindings. Setting values are deliberately not
+/// held here (they can be secrets); `default_database` records only that one was set.
+#[derive(Debug, Clone, Default)]
+pub struct World {
+    pub domain: String,
+    pub realm: Option<String>,
+    pub latest: Option<String>,
+    pub default_adapter: Option<String>,
+    pub default_database: bool,
+    pub bindings: Vec<Binding>,
+}
+
+/// A `verb "Adapter"` call, keyed by verb and adapter spelling folded to lower case.
+#[derive(Debug, Clone, Default)]
+pub struct Binding {
+    pub verb: String,
+    pub adapter: String,
+    // Keyword-argument names first, then block body keys, each once, in order.
+    pub settings: Vec<String>,
+}
+
 /// One `Hecks.adapter "Name" do ... end` block of a `.adapter` file.
 #[derive(Debug, Clone, Default)]
 pub struct Adapter {

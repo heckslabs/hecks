@@ -1,0 +1,12 @@
+Hecks.world "Repeat" do
+  persisted_by("Heki") do
+    dir "a"
+  end
+  projected_by("Sqlite") do
+    database "b"
+  end
+  persisted_by("heki", mode: "x") do
+    path "c"
+    mode "y"
+  end
+end
