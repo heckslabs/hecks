@@ -1,6 +1,7 @@
 require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "../../../support/postgres_probe"
+require_relative "../../../support/scratch_postgres"
 require_relative "../../../support/fenced_owner"
 require_relative "../../../support/era_registry_loading"
 require_relative "../../../support/era_app_role"
@@ -80,30 +81,7 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :
     end
   BLUEBOOK
 
-  before(:all) do
-    skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
-
-    admin = PG.connect(dbname: "postgres")
-    admin.exec("DROP DATABASE IF EXISTS #{RENAME_DB} WITH (FORCE)")
-    admin.exec("CREATE DATABASE #{RENAME_DB}")
-    admin.close
-    # PostgresEra refuses to boot as a superuser; see support/fenced_owner.rb
-    FencedOwner.own!(RENAME_DB)
-  end
-
-  after(:all) do
-    admin = PG.connect(dbname: "postgres")
-    admin.exec("DROP DATABASE IF EXISTS #{RENAME_DB} WITH (FORCE)")
-    admin.close
-  end
-
-  before do
-    scrub = PG.connect(dbname: RENAME_DB)
-    scrub.exec("DROP SCHEMA public CASCADE")
-    scrub.exec("CREATE SCHEMA public")
-    scrub.close
-    FencedOwner.own_public!(RENAME_DB)
-  end
+  scratch_postgres RENAME_DB, fenced: true
 
   def app_role_database = RENAME_DB
   def app_role_name = RENAME_ROLE

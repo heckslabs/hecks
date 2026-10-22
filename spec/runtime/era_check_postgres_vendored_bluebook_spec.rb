@@ -2,6 +2,7 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require "tmpdir"
 require_relative "../support/postgres_probe"
+require_relative "../support/scratch_postgres"
 require_relative "../support/fenced_owner"
 
 # Pins a fix: PostgresEra's era-1 self-mint for a second, vendored bluebook
@@ -135,29 +136,7 @@ RSpec.describe "PostgresEra era-1 minting for a second bluebook in a multi-blueb
     end
   end
 
-  before(:all) do
-    skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
-
-    admin = PG.connect(dbname: "postgres")
-    admin.exec("DROP DATABASE IF EXISTS #{VENDORED_BLUEBOOK_DB} WITH (FORCE)")
-    admin.exec("CREATE DATABASE #{VENDORED_BLUEBOOK_DB}")
-    admin.close
-    FencedOwner.own!(VENDORED_BLUEBOOK_DB)
-  end
-
-  after(:all) do
-    admin = PG.connect(dbname: "postgres")
-    admin.exec("DROP DATABASE IF EXISTS #{VENDORED_BLUEBOOK_DB} WITH (FORCE)")
-    admin.close
-  end
-
-  before do
-    scrub = PG.connect(dbname: VENDORED_BLUEBOOK_DB)
-    scrub.exec("DROP SCHEMA public CASCADE")
-    scrub.exec("CREATE SCHEMA public")
-    scrub.close
-    FencedOwner.own_public!(VENDORED_BLUEBOOK_DB)
-  end
+  scratch_postgres VENDORED_BLUEBOOK_DB, fenced: true
 
   it "stamps the SECOND bluebook's own era-1 held_text with its own source, not the first bluebook's", :aggregate_failures do
     held = held_text_after_boot

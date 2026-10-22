@@ -2,6 +2,7 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require "tmpdir"
 require_relative "../support/postgres_probe"
+require_relative "../support/scratch_postgres"
 require_relative "../support/fenced_owner"
 
 # Pins a fix (ADR 0059): Lineage#head_view/#head_snapshot/#matview were
@@ -183,29 +184,7 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
     rows.map { |row| row["name"] }
   end
 
-  before(:all) do
-    skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
-
-    admin = PG.connect(dbname: "postgres")
-    admin.exec("DROP DATABASE IF EXISTS #{STORAGE_COLLISION_DB} WITH (FORCE)")
-    admin.exec("CREATE DATABASE #{STORAGE_COLLISION_DB}")
-    admin.close
-    FencedOwner.own!(STORAGE_COLLISION_DB)
-  end
-
-  after(:all) do
-    admin = PG.connect(dbname: "postgres")
-    admin.exec("DROP DATABASE IF EXISTS #{STORAGE_COLLISION_DB} WITH (FORCE)")
-    admin.close
-  end
-
-  before do
-    scrub = PG.connect(dbname: STORAGE_COLLISION_DB)
-    scrub.exec("DROP SCHEMA public CASCADE")
-    scrub.exec("CREATE SCHEMA public")
-    scrub.close
-    FencedOwner.own_public!(STORAGE_COLLISION_DB)
-  end
+  scratch_postgres STORAGE_COLLISION_DB, fenced: true
 
   describe "attaches from: :vendor: two fresh domains, one storage_name" do
     def note_values(dispatcher, chapter) = dispatcher.query("#{chapter}::Note.All").map { |r| r[:ref][:value] }

@@ -1,6 +1,7 @@
 require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "../../../support/postgres_probe"
+require_relative "../../../support/scratch_postgres"
 require_relative "../../../support/fenced_owner"
 require_relative "../../../support/era_registry_loading"
 
@@ -14,29 +15,7 @@ RSpec.describe "PostgresEra migration data safety", :io do
 
   DATA_SAFETY_DB = "hecks_era_data_safety_spec".freeze
 
-  before(:all) do
-    skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
-
-    admin = PG.connect(dbname: "postgres")
-    admin.exec("DROP DATABASE IF EXISTS #{DATA_SAFETY_DB} WITH (FORCE)")
-    admin.exec("CREATE DATABASE #{DATA_SAFETY_DB}")
-    admin.close
-    FencedOwner.own!(DATA_SAFETY_DB)
-  end
-
-  after(:all) do
-    admin = PG.connect(dbname: "postgres")
-    admin.exec("DROP DATABASE IF EXISTS #{DATA_SAFETY_DB} WITH (FORCE)")
-    admin.close
-  end
-
-  before do
-    scrub = PG.connect(dbname: DATA_SAFETY_DB)
-    scrub.exec("DROP SCHEMA public CASCADE")
-    scrub.exec("CREATE SCHEMA public")
-    scrub.close
-    FencedOwner.own_public!(DATA_SAFETY_DB)
-  end
+  scratch_postgres DATA_SAFETY_DB, fenced: true
 
   def lineage_manager = Hecks::Adapters::PostgresEra::LineageManager
 
