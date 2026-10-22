@@ -69,16 +69,16 @@ RSpec.describe "the Rust parser's own coverage", :io do
     # Of the sibling grammars beside `MetaValidator::GRAMMAR_FILES`, `hecks-parse`
     # builds only `port`/`operation` and a PortOperation's `reference_to`/
     # `attribute`/`emits` (all reported); the rest is a parser stage of its own.
-    ["a sibling grammar (world, hecksagon ports/adapters, data translation) hecks-parse does not build", [
-      %w[adapter File], %w[aggregate Translation], %w[answers DomainPort], %w[answers Port],
+    ["a sibling grammar (world, hecksagon ports, data translation) hecks-parse does not build", [
+      %w[aggregate Translation], %w[answers DomainPort], %w[answers Port],
       %w[answers PortOperation], %w[answers_query DomainPort], %w[asks DomainPort],
       %w[backfill TranslationAggregate],
       %w[compute TranslationAggregate], %w[convert TranslationAggregate], %w[data_translation File],
       %w[default_adapter World], %w[default_database World], %w[drop TranslationAggregate],
-      %w[field Adapter], %w[latest World], %w[move TranslationAggregate],
-      %w[port Adapter], %w[port File], %w[realm World], %w[refuses PortOperation],
+      %w[latest World], %w[move TranslationAggregate],
+      %w[port File], %w[realm World], %w[refuses PortOperation],
       %w[rekey TranslationAggregate], %w[rename TranslationAggregate], %w[retired Translation],
-      %w[retype TranslationAggregate], %w[secret Adapter], %w[signal DomainPort], %w[signal Port],
+      %w[retype TranslationAggregate], %w[signal DomainPort], %w[signal Port],
       %w[subscribe Hecksagon], %w[tells DomainPort], %w[unresolved TranslationAggregate],
       %w[verb DomainPort],
       %w[verb Port], %w[world File]

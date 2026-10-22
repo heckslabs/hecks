@@ -784,3 +784,106 @@ fn a_removed_attach_spelling_is_refused_naming_its_replacement() {
         "expected the refusal to name the replacement, got: {stderr}"
     );
 }
+
+/// Runs `hecks-parse adapter` over the named fixtures; returns exit code, stdout, stderr.
+fn run_adapter(names: &[&str]) -> (i32, String, String) {
+    let paths: Vec<PathBuf> = names.iter().map(|n| fixture(n)).collect();
+    let mut args = vec!["adapter"];
+    args.extend(paths.iter().map(|p| p.to_str().unwrap()));
+    let output = run(&args);
+    (
+        output.status.code().unwrap(),
+        String::from_utf8_lossy(&output.stdout).into_owned(),
+        String::from_utf8_lossy(&output.stderr).into_owned(),
+    )
+}
+
+#[test]
+fn a_minimal_adapter_has_a_null_port_and_empty_collections() {
+    let (code, out, _) = run_adapter(&["adapter_minimal.adapter"]);
+    assert_eq!(code, 0);
+    assert_eq!(
+        out,
+        "[\n  {\n    \"name\": \"Minimal\",\n    \"port\": null,\n    \"fields\": [\n\n    ],\n    \"secrets\": [\n\n    ],\n    \"defaults\": {\n    }\n  }\n]\n"
+    );
+}
+
+#[test]
+fn adapter_fields_defaults_and_secrets_keep_their_order() {
+    let (code, out, _) = run_adapter(&["adapter_fields.adapter"]);
+    assert_eq!(code, 0);
+    // A repeated port replaces; a duplicate field appears twice; a repeated default keeps its
+    // first slot with the last value.
+    assert!(out.contains("\"port\": \"storage\""), "got: {out}");
+    assert!(
+        out.contains("\"dir\",\n      \"retries\",\n      \"verbose\",\n      \"note\",\n      \"dir\",\n      \"plain\""),
+        "got: {out}"
+    );
+    assert!(out.contains("\"api_token\""), "got: {out}");
+    assert!(
+        out.contains("\"dir\": \"data/{name}\",\n      \"retries\": 3,\n      \"verbose\": false,\n      \"note\": null"),
+        "got: {out}"
+    );
+}
+
+#[test]
+fn several_blocks_and_files_print_in_file_then_declaration_order() {
+    let (code, out, _) = run_adapter(&[
+        "adapter_multi_block.adapter",
+        "adapter_require_line.adapter",
+    ]);
+    assert_eq!(code, 0);
+    let first = out.find("\"First\"").unwrap();
+    let second = out.find("\"Second\"").unwrap();
+    let required = out.find("\"Required\"").unwrap();
+    assert!(first < second && second < required, "got: {out}");
+}
+
+#[test]
+fn a_top_level_require_line_is_skipped() {
+    let (code, out, _) = run_adapter(&["adapter_require_line.adapter"]);
+    assert_eq!(code, 0);
+    assert!(out.contains("\"port\": \"CI\""), "got: {out}");
+}
+
+#[test]
+fn adapter_refusals_exit_one_and_say_why() {
+    let cases: &[(&str, &str)] = &[
+        ("adapter_bad_default_float.adapter", "default (1.5)"),
+        ("adapter_bad_default_symbol.adapter", "default (:fast)"),
+        ("adapter_stray_brace.adapter", "uses braces; only"),
+        (
+            "adapter_unknown_word.adapter",
+            "'persisted_by' is not a word",
+        ),
+        ("adapter_bad_toplevel.adapter", "'puts' is not a word"),
+    ];
+    for (name, needle) in cases {
+        let (code, out, err) = run_adapter(&[name]);
+        assert_eq!(code, 1, "{name}");
+        assert!(out.is_empty(), "{name} printed: {out}");
+        assert!(err.contains(needle), "{name}: {err}");
+    }
+}
+
+#[test]
+fn every_real_adapter_file_parses() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../lib");
+    let mut found = Vec::new();
+    let mut stack = vec![root];
+    while let Some(dir) = stack.pop() {
+        for entry in std::fs::read_dir(dir).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                stack.push(path);
+            } else if path.extension().is_some_and(|e| e == "adapter") {
+                found.push(path);
+            }
+        }
+    }
+    assert!(!found.is_empty());
+    for path in found {
+        let output = run(&["adapter", path.to_str().unwrap()]);
+        assert!(output.status.success(), "{}", path.display());
+    }
+}

@@ -1,5 +1,6 @@
 require "json"
 require_relative "../ports/persistence"
+require_relative "exporter/adapters"
 require_relative "exporter/bindings"
 require_relative "exporter/translations"
 
@@ -72,6 +73,7 @@ module Hecks
         { aggregates: aggregates }
       end
 
+      extend Adapters
       extend Bindings
       extend Translations
     end

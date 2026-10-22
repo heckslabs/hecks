@@ -396,3 +396,14 @@ pub struct Provision {
     pub key: String,
     pub verb: String,
 }
+
+/// One `Hecks.adapter "Name" do ... end` block of a `.adapter` file.
+#[derive(Debug, Clone, Default)]
+pub struct Adapter {
+    pub name: String,
+    pub port: Option<String>,
+    pub fields: Vec<String>,
+    pub secrets: Vec<String>,
+    // Field name to default, first-insertion order; a repeated key keeps its first slot.
+    pub defaults: Vec<(String, crate::ruby_value::Value)>,
+}

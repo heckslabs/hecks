@@ -1,0 +1,12 @@
+# fields, defaults and a secret
+Hecks.adapter "Fielded" do
+  port "persistence" # first
+  port "storage"
+  field :dir, default: "data/{storage_name}.db"
+  field :retries, default: 3
+  field :verbose, default: false
+  field :note, default: nil
+  field :dir, default: "data/{name}"
+  field :plain
+  secret :api_token
+end

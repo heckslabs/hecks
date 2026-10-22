@@ -47,15 +47,16 @@ fn run(args: &[String]) -> Result<(), RunError> {
     match args.first().map(String::as_str) {
         Some("chapter") => run_chapter(&args[1..]),
         Some("resolve") => run_resolve(&args[1..]),
+        Some("adapter") => run_adapter(&args[1..]),
         Some("coverage") => {
             run_coverage();
             Ok(())
         }
         Some(other) => Err(RunError::Usage(format!(
-            "unknown subcommand '{other}' — expected 'chapter', 'resolve', or 'coverage'"
+            "unknown subcommand '{other}' — expected 'chapter', 'resolve', 'adapter', or 'coverage'"
         ))),
         None => Err(RunError::Usage(
-            "hecks-parse <chapter|resolve|coverage> ...".to_string(),
+            "hecks-parse <chapter|resolve|adapter|coverage> ...".to_string(),
         )),
     }
 }
@@ -148,11 +149,34 @@ fn run_resolve(args: &[String]) -> Result<(), RunError> {
     Ok(())
 }
 
+/// `hecks-parse adapter <file.adapter>...`: prints the declared adapters as a JSON array, in
+/// file order then declaration order.
+fn run_adapter(args: &[String]) -> Result<(), RunError> {
+    if args.is_empty() {
+        return Err(RunError::Usage(
+            "hecks-parse adapter <file.adapter>...".to_string(),
+        ));
+    }
+    let mut adapters = Vec::new();
+    for path in args {
+        let source = fs::read_to_string(path)
+            .map_err(|e| RunError::Usage(format!("could not read '{path}': {e}")))?;
+        adapters.extend(parse::adapter::parse_file(path, &source)?);
+    }
+    let value = emit::JsonValue::Array(adapters.iter().map(emit::adapter_json).collect());
+    println!("{}", emit::write(&value));
+    Ok(())
+}
+
 /// `(word, context)` pairs this parser builds real IR for, printed by `hecks-parse coverage`.
 /// A word that is only gated, never built into IR, must stay off this list.
 const COVERED_PAIRS: &[(&str, &str)] = &[
     ("bluebook", "File"),
     ("hecksagon", "File"),
+    ("adapter", "File"),
+    ("port", "Adapter"),
+    ("field", "Adapter"),
+    ("secret", "Adapter"),
     ("vision", "Bluebook"),
     ("core", "Bluebook"),
     ("supporting", "Bluebook"),

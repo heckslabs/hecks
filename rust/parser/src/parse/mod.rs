@@ -1,6 +1,7 @@
 //! Word, body, and argument gates, plus the recursive body walker.
 //! Per-construct modules build IR; a word they do not build fails with `not_yet_implemented`.
 
+pub mod adapter;
 pub mod aggregate;
 pub mod chapter;
 pub mod command;

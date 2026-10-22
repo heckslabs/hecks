@@ -931,6 +931,29 @@ fn ruby_value_json(value: &ruby_value::Value) -> JsonValue {
     }
 }
 
+/// One declared adapter, keys in the order the Ruby side prints them.
+pub fn adapter_json(adapter: &ir::Adapter) -> JsonValue {
+    JsonValue::Object(vec![
+        ("name".to_string(), JsonValue::str(adapter.name.clone())),
+        (
+            "port".to_string(),
+            JsonValue::opt_str(adapter.port.as_ref()),
+        ),
+        ("fields".to_string(), JsonValue::strings(&adapter.fields)),
+        ("secrets".to_string(), JsonValue::strings(&adapter.secrets)),
+        (
+            "defaults".to_string(),
+            JsonValue::Object(
+                adapter
+                    .defaults
+                    .iter()
+                    .map(|(k, v)| (k.clone(), ruby_value_json(v)))
+                    .collect(),
+            ),
+        ),
+    ])
+}
+
 fn indent(out: &mut String, depth: usize) {
     for _ in 0..depth {
         out.push_str("  ");
