@@ -67,6 +67,16 @@ pub fn apply(
                 call.word.as_str(),
                 "port" | "subscribe" | "attaches" | "translates" | "bounded" | "driven_by" | "end"
             ) {
+                if matches!(call.word.as_str(), "capabilities" | "concerns" | "annotate") {
+                    return Err(Diagnostic::new(
+                        file,
+                        line.number,
+                        format!(
+                            "`{}` is not a hecksagon word and nothing reads it; delete the line",
+                            call.word
+                        ),
+                    ));
+                }
                 let instead = match call.word.as_str() {
                     "uses_framework" => Some("attaches \"Name\""),
                     "uses_embryonaut_bluebook" => Some("attaches \"name\", from: :vendor"),
