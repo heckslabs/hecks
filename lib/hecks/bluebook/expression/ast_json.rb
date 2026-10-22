@@ -97,15 +97,6 @@ module Hecks
             "`value >= 100 && value <= 599` in place of `value.between?(100, 599)`"
         end
 
-        # Every name a rule resolves at its root: the first segment of each `lookup` path, unique.
-        def lookup_heads(ast)
-          heads = []
-          each_node(ast) do |node|
-            heads << node["path"].first.to_s if node["op"] == "lookup" && node["path"].is_a?(::Array)
-          end
-          heads.uniq
-        end
-
         # Visits `node` and every Hash nested inside it, depth-first.
         def each_node(node, &block)
           case node

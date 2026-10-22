@@ -28,8 +28,6 @@ module Hecks
         include FieldCache
         include TransformInstaller
 
-        JOURNAL_COLUMNS = "ordinal, era, aggregate, aggregate_id, operation, state, mirrors".freeze
-
         # Longer identifiers are silently truncated by Postgres, so `qualified_name` hashes them.
         POSTGRES_IDENTIFIER_LIMIT = 63
 

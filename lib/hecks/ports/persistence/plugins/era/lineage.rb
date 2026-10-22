@@ -101,14 +101,6 @@ module Hecks
         # @return [Boolean] true when the edge declares at least one rekey rule
         def rekey? = !@rules.rekeys.empty?
 
-        # Returns the SQL expression the edge's first rekey rule declares.
-        #
-        # Only the first rule is read, the same one-per-aggregate assumption
-        # `compute` makes; more than one is a DSL-level decision to arbitrate elsewhere.
-        #
-        # @return [String, nil] the first rekey rule's SQL; nil when the edge declares no rekey
-        def rekey_sql = @rules.rekeys.first&.sql
-
         # Rewrites one journal entry's state from the held shape into the current one.
         #
         # The reference semantics for rename, move, convert, drop, and the aggregate-level `was:`.

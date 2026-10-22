@@ -4,9 +4,6 @@ module Hecks
     # other composer files. It is a small rule set, not a model call: the same inputs always give
     # the same answer, and it reads only the author's intent and the check's verdict.
     module Layout
-      # The right-hand panels the page can show.
-      PANELS = %w[diagram statements findings wiring].freeze
-
       module_function
 
       # @param intent [String] "edit", "wire", "question" or "new_domain"

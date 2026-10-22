@@ -4,8 +4,6 @@ require_relative "../../bluebook/expression/canonical_form"
 
 module Hecks
   module Adapters
-    class NotExtractable < StandardError; end
-
     # Extracts a `given`/`ensures`/invariant block's own source text via
     # `prism`, canonicalised into readable, comparable text (era diffing, docs).
     module Prism

@@ -10,17 +10,8 @@ module Hecks
     module WriteIfChanged
       module_function
 
-      # Records every path written or confirmed unchanged inside the block, then deletes
-      # files left in `dir` that were never touched (orphans of removed aggregates).
-      # Every write is recorded against every open ancestor directory.
-      # `push_directory`/`pop_and_prune` are the same operation split for non-adjacent writes.
-      def track_directory(dir)
-        push_directory(dir)
-        yield
-      ensure
-        pop_and_prune(dir)
-      end
-
+      # Starts recording every path written or confirmed unchanged inside `dir`, against every open
+      # ancestor directory too; `pop_and_prune` closes it and deletes the files never touched.
       def push_directory(dir)
         FileUtils.mkdir_p(dir)
         stack.push([File.expand_path(dir), Set.new])

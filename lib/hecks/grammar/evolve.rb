@@ -96,9 +96,6 @@ module Hecks
         end
       end
 
-      # Narrow compatibility entry point for single-file callers; syntax_paths is normal.
-      def syntax_path = syntax_paths.first
-
       # Resolves the file(s) a call should search or write.
       def paths_for(path) = path ? Array(path) : syntax_paths
 

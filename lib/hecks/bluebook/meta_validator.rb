@@ -203,17 +203,6 @@ module Hecks
         registry
       end
 
-      # Whether `grammar_registry`'s memoized singleton has finished its
-      # fixpoint judge and attached-chapter load.
-      #
-      # A cache keyed on "finished" instead of its own inputs already missed
-      # data for a whole build window once.
-      #
-      # @return [Boolean]
-      def self.grammar_registry_ready?
-        @grammar_registry && @grammar_ready_for == @grammar_registry.object_id
-      end
-
       # Loads every `ATTACHED_GRAMMAR_DIR` chapter file into `registry`,
       # judged the ordinary way since the fixpoint has already run.
       #
