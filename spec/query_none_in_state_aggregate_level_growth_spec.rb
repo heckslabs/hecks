@@ -14,8 +14,7 @@ RSpec.describe "none_in_state on an ordinary AGGREGATE-level Memory query" do
   def declare_in(registry, file, source, hecksagon_name, &binds)
     Hecks::Bluebook::MetaValidator.while_disabled do
       Hecks.with_registry(registry) do
-        [InMemoryDomain::PERSISTENCE_PORT, InMemoryDomain::EXTRACTION_PORT, InMemoryDomain::MEMORY_ADAPTER,
-         InMemoryDomain::PRISM_ADAPTER].each { |port| Kernel.load(port) }
+        MemoryPorts.load!
         Kernel.eval(source, TOPLEVEL_BINDING, file.path, 1)
         Hecks.hecksagon(hecksagon_name, &binds)
       end

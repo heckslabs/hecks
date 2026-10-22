@@ -5,10 +5,7 @@ require "time"
 # dispatches as if there were no role), refused once a caller states a role that does not match.
 RSpec.describe "role-based command rejections" do
   def load_ports
-    Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-    Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-    Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-    Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+    MemoryPorts.load!
     Kernel.load(File.expand_path("../../lib/hecks/ports/authorization.port", __dir__))
     Kernel.load(File.expand_path("../../lib/hecks/adapters/driven/governance_authorization.adapter", __dir__))
   end

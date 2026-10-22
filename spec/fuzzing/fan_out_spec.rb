@@ -11,10 +11,7 @@ RSpec.describe "Hecks::Fuzzing::Replay.fan_out_findings" do
     registry = Hecks::Runtime::Registry.new
 
     Hecks.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      MemoryPorts.load!
 
       Hecks.bluebook "Fanout" do
         aggregate "Customer" do

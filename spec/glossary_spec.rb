@@ -13,10 +13,7 @@ RSpec.describe "the glossary a domain carries with it" do
   def chapter_of(domain, name)
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      MemoryPorts.load!
       # `qa` holds the ledger's wiring only; its chapter is the one that wiring loads by name.
       InMemoryDomain.load_bluebook_files(Hecks::Corpus.bluebook_files(File.join(InMemoryDomain::ROOT, domain, "bluebook")))
     end

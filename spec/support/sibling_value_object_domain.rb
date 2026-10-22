@@ -92,8 +92,7 @@ module SiblingValueObjectDomain
 
   # Loads the persistence and extraction ports and their in-memory and Prism adapters.
   def self.load_ports_and_adapters
-    [InMemoryDomain::PERSISTENCE_PORT, InMemoryDomain::EXTRACTION_PORT,
-     InMemoryDomain::MEMORY_ADAPTER, InMemoryDomain::PRISM_ADAPTER].each { |file| Kernel.load(file) }
+    MemoryPorts.load!
   end
   private_class_method :load_ports_and_adapters
 end

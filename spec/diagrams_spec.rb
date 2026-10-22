@@ -7,10 +7,7 @@ RSpec.describe "the generated diagrams" do
   def boot_banking
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      MemoryPorts.load!
       load_bluebook_files(InMemoryDomain::BANKING_BLUEBOOK_DIR)
     end
     registry

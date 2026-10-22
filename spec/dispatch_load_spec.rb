@@ -15,10 +15,7 @@ RSpec.describe "a chapter loaded by dispatching its own declarations" do
   def load_chapter(file)
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      MemoryPorts.load!
       load_bluebook_files(File.absolute_path(file, InMemoryDomain::ROOT))
     end
     registry

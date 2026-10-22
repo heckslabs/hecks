@@ -55,10 +55,7 @@ RSpec.describe "GitHub CI webhook, end to end" do
   end
 
   def load_quality_control_domain
-    Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-    Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-    Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-    Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+    MemoryPorts.load!
     Kernel.load(File.join(WEBHOOK_QC_ROOT, "quality_control.bluebook"))
   end
 

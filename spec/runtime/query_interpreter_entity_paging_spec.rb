@@ -9,10 +9,7 @@ RSpec.describe "QueryInterpreter — entity offset and dotted where/order_by" do
     registry = Hecks::Runtime::Registry.new
 
     Hecks.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      MemoryPorts.load!
 
       Hecks.bluebook "EntityPaging" do
         aggregate "Board" do

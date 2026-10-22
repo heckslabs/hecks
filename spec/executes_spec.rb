@@ -15,10 +15,7 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
   }.freeze
 
   def load_meta_adapters
-    Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-    Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-    Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-    Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+    MemoryPorts.load!
   end
 
   # Loads the meta-domain's adapters and then whatever the block loads into a fresh registry,
