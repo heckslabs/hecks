@@ -6,6 +6,7 @@ require "json"
 require "hecks/tools"
 require "hecks/tools/site_routes"
 require_relative "support/editor_node"
+require_relative "support/editor_fixture_project"
 
 # The editor working on a page as an ordered list of mixed blocks, run under node against a stand-in
 # host (spec/support/editor_stand_in_host.mjs): the cards the list is drawn as, the form each kind
@@ -127,14 +128,11 @@ JS
 RSpec.describe "the generated block list editor, run by node" do
   let(:project) { File.join(InMemoryDomain::ROOT, "spec/fixtures/site/editor_sections") }
 
-  def files
-    projected = Hecks::Tools::SiteRoutes.projection(project, out: "/work/out", editor: "/work/editor")
-    projected.select { |path, _| path.start_with?("/work/editor/") }.transform_keys { |path| path.delete_prefix("/work/editor/") }
-  end
+  include_context "with an editor fixture project"
 
   def run
     host = File.read(File.join(InMemoryDomain::ROOT, "spec/support/editor_stand_in_host.mjs"))
-    @run ||= EditorNode.run(files, BLOCKS_NODE_SCENARIO, extra: { "host.mjs" => host })
+    @run ||= EditorNode.run(editor_files, BLOCKS_NODE_SCENARIO, extra: { "host.mjs" => host })
   end
 
   def result(key) = run.fetch(key)
@@ -379,7 +377,7 @@ RSpec.describe "the generated block list editor, run by node" do
     end
 
     it "is a module node can parse", :process do
-      expect(parses?(files.fetch("src/browser/blocks.js"))).to be(true)
+      expect(parses?(editor_files.fetch("src/browser/blocks.js"))).to be(true)
     end
   end
 

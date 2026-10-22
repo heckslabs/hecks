@@ -6,6 +6,7 @@ require "json"
 require "hecks/tools"
 require "hecks/tools/site_routes"
 require_relative "support/editor_node"
+require_relative "support/editor_fixture_project"
 
 # The editor working on pages of a fixed structure, run under node against a stand-in host
 # (spec/support/editor_stand_in_host.mjs): the form of a working copy that is a value object, a picture
@@ -148,14 +149,11 @@ JS
 RSpec.describe "the generated fixed-structure page editor, run by node" do
   let(:project) { File.join(InMemoryDomain::ROOT, "spec/fixtures/site/editor_fixed_pages") }
 
-  def files
-    projected = Hecks::Tools::SiteRoutes.projection(project, out: "/work/out", editor: "/work/editor")
-    projected.select { |path, _| path.start_with?("/work/editor/") }.transform_keys { |path| path.delete_prefix("/work/editor/") }
-  end
+  include_context "with an editor fixture project"
 
   def run
     host = File.read(File.join(InMemoryDomain::ROOT, "spec/support/editor_stand_in_host.mjs"))
-    @run ||= EditorNode.run(files, FIXED_PAGES_NODE_SCENARIO, extra: { "host.mjs" => host })
+    @run ||= EditorNode.run(editor_files, FIXED_PAGES_NODE_SCENARIO, extra: { "host.mjs" => host })
   end
 
   def result(key) = run.fetch(key)
@@ -505,7 +503,7 @@ RSpec.describe "the generated fixed-structure page editor, run by node" do
 
   describe "the scripts", if: EditorNode.available? do
     def parses?(name)
-      script = files.fetch(name).sub(/^const loadPicker = .*$/, "const loadPicker = null;")
+      script = editor_files.fetch(name).sub(/^const loadPicker = .*$/, "const loadPicker = null;")
       Dir.mktmpdir("fixed_pages_script") do |dir|
         File.write(File.join(dir, "script.mjs"), script)
         Open3.capture2e("node", "--check", File.join(dir, "script.mjs")).last.success?

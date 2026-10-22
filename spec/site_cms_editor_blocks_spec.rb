@@ -1,9 +1,6 @@
 require "spec_helper"
-require "tmpdir"
-require "fileutils"
 require "json"
-require "hecks/tools"
-require "hecks/tools/site_routes"
+require_relative "support/editor_fixture_project"
 
 # What the editor derives, from one chapter's declarations, for editing an ordered list of mixed
 # blocks: a `list_of` value object that has a discriminator (a part that is one of a closed set).
@@ -13,56 +10,20 @@ require "hecks/tools/site_routes"
 # `GOLDEN=rewrite`.
 RSpec.describe "the editor's block lists, derived from a chapter" do
   let(:project) { File.join(InMemoryDomain::ROOT, "spec/fixtures/site/editor_sections") }
-  let(:golden)  { File.join(project, "expected/editor") }
   let(:layouts) { "domain/bluebook/layouts.bluebook" }
+
+  include_context "with an editor fixture project"
 
   def golden_files
     %w[package.json src/config.ts src/schema.ts src/app.ts src/ui/blocks.ts src/ui/block_list.js src/browser/blocks.js]
   end
 
-  def files_of(dir = project)
-    all = Hecks::Tools::SiteRoutes.projection(dir, out: "/work/out", editor: "/work/editor")
-    all.select { |path, _| path.start_with?("/work/editor/") }.transform_keys { |path| path.delete_prefix("/work/editor/") }
-  end
-
-  def neutral(text) = text.gsub("^#{Hecks::VERSION}", "^<version>")
-
-  def schema(dir = project) = JSON.parse(files_of(dir).fetch("src/schema.ts")[/SCHEMA: Schema = (\{.*\});\n/m, 1])
-
   def layout(dir = project) = schema(dir)["aggregates"].find { |agg| agg["name"] == "PageLayout" }
 
   def block_list(name = "panels", dir = project) = layout(dir)["attributes"].find { |attr| attr["name"] == name }["blockList"]
 
-  # The project with some text of one of its files changed (`from`, `to`, and more pairs of the same).
-  def changed(file, *edits)
-    Dir.mktmpdir("cms_editor_blocks") do |dir|
-      FileUtils.cp_r(File.join(project, "."), dir)
-      path = File.join(dir, file)
-      edits.each_slice(2) do |from, to|
-        raise "#{file} has no #{from.inspect}" unless File.read(path).include?(from)
-
-        File.write(path, File.read(path).gsub(from, to))
-      end
-      yield dir
-    end
-  end
-
   describe "the projection" do
-    it "equals the committed goldens for the files that depend on the project", :aggregate_failures do
-      rewrite_goldens if ENV["GOLDEN"] == "rewrite"
-
-      golden_files.each do |name|
-        expect(neutral(files_of.fetch(name))).to eq(File.read(File.join(golden, name))), "#{name} has drifted from its golden"
-      end
-    end
-
-    def rewrite_goldens
-      FileUtils.rm_rf(golden)
-      golden_files.each do |name|
-        FileUtils.mkdir_p(File.dirname(File.join(golden, name)))
-        File.write(File.join(golden, name), neutral(files_of.fetch(name)))
-      end
-    end
+    it_behaves_like "an editor projection with committed goldens"
   end
 
   describe "finding a block list" do

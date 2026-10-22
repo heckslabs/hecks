@@ -1,9 +1,6 @@
 require "spec_helper"
-require "tmpdir"
-require "fileutils"
 require "json"
-require "hecks/tools"
-require "hecks/tools/site_routes"
+require_relative "support/editor_fixture_project"
 
 # One editor over several chapters, and what it derives from the bluebooks' own declarations: the
 # relationship pickers, the moments, and the listing. The neutral project in
@@ -12,23 +9,11 @@ require "hecks/tools/site_routes"
 # rewritten with `GOLDEN=rewrite`.
 RSpec.describe "the editor over several chapters" do
   let(:project) { File.join(InMemoryDomain::ROOT, "spec/fixtures/site/editor_chapters") }
-  let(:golden)  { File.join(project, "expected/editor") }
+
+  include_context "with an editor fixture project"
 
   # The files whose text depends on the project; every other file is the same template.
   def golden_files = %w[package.json src/config.ts src/schema.ts src/app.ts]
-
-  def files_of(dir)
-    all = Hecks::Tools::SiteRoutes.projection(dir, out: "/work/out", editor: "/work/editor")
-    all.select { |path, _| path.start_with?("/work/editor/") }.transform_keys { |path| path.delete_prefix("/work/editor/") }
-  end
-
-  def editor_files = files_of(project)
-
-  def neutral(text) = text.gsub("^#{Hecks::VERSION}", "^<version>")
-
-  def schema(dir = project)
-    JSON.parse(files_of(dir).fetch("src/schema.ts")[/SCHEMA: Schema = (\{.*\});\n/m, 1])
-  end
 
   def aggregate(name, chapter, dir = project)
     schema(dir)["aggregates"].find { |agg| agg["name"] == name && agg["chapter"] == chapter }
@@ -49,21 +34,7 @@ RSpec.describe "the editor over several chapters" do
   end
 
   describe "the projection" do
-    it "equals the committed goldens for the files that depend on the project", :aggregate_failures do
-      rewrite_goldens if ENV["GOLDEN"] == "rewrite"
-
-      golden_files.each do |name|
-        expect(neutral(editor_files.fetch(name))).to eq(File.read(File.join(golden, name))), "#{name} has drifted from its golden"
-      end
-    end
-
-    def rewrite_goldens
-      FileUtils.rm_rf(golden)
-      golden_files.each do |name|
-        FileUtils.mkdir_p(File.dirname(File.join(golden, name)))
-        File.write(File.join(golden, name), neutral(editor_files.fetch(name)))
-      end
-    end
+    it_behaves_like "an editor projection with committed goldens"
   end
 
   describe "the chapters" do
