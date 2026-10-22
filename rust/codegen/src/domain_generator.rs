@@ -1257,7 +1257,7 @@ pub fn generate(
                     assignments: false,
                     entity: Some(queries::EntityScope {
                         list_field: crate::attr::name(list_attr).to_string(),
-                        parent_key: crate::naming::snake(agg_name),
+                        parent_key: crate::hecks_naming::snake(agg_name),
                         identity_keys,
                     }),
                 });
