@@ -141,18 +141,6 @@
       "expected": "àb"
     }
   ],
-  "known_divergences": {
-    "qualified_name_truncation_splitting_a_character": [
-      {
-        "domain": "Cafe",
-        "suffix": "éééééééééééééééééééééééééééééééééééééééé"
-      },
-      {
-        "domain": "Shop",
-        "suffix": "éééééééééééééééééééééééééééééé"
-      }
-    ]
-  },
   "storage_name": [
     {
       "input": "Customer",
@@ -180,6 +168,16 @@
     }
   ],
   "qualified_name": [
+    {
+      "domain": "Cafe",
+      "suffix": "éééééééééééééééééééééééééééééééééééééééé",
+      "expected": "cafe_éééééééééééééééééééééééé_7946487b"
+    },
+    {
+      "domain": "Shop",
+      "suffix": "éééééééééééééééééééééééééééééé",
+      "expected": "shop_éééééééééééééééééééééééé_b15e7501"
+    },
     {
       "domain": "Pizzas",
       "suffix": "orders",

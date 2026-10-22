@@ -11,7 +11,7 @@ use sha2::{Digest, Sha256};
 use tokio_postgres::GenericClient;
 
 fn journal_table(domain: &str) -> String {
-    format!("hecks_journal_{}", storage_shape_snake(domain))
+    format!("hecks_journal_{}", crate::journal::snake(domain))
 }
 
 fn sequence(domain: &str) -> String {
@@ -34,12 +34,6 @@ fn matview(domain: &str, storage_name: &str, era: i32, label: &str) -> String {
 
 fn head_view(domain: &str, storage_name: &str) -> String {
     crate::journal::qualified_name(domain, &format!("{storage_name}_head"))
-}
-
-// `Naming.snake` — same pure syntactic transform `crate::journal::snake`
-// already ports; reused directly rather than duplicated a second time.
-fn storage_shape_snake(name: &str) -> String {
-    crate::journal::snake(name)
 }
 
 fn text_literal(text: &str) -> String {
@@ -711,7 +705,7 @@ fn names_by_era(current_name: &str, edges: &[&Edge]) -> (Vec<String>, Vec<String
     }
     let storage = current
         .iter()
-        .map(|name| storage_shape_snake(name))
+        .map(|name| crate::journal::snake(name))
         .collect();
     (current, storage)
 }

@@ -379,7 +379,7 @@ fn journal_table(domain: &str) -> String {
 const POSTGRES_IDENTIFIER_LIMIT: usize = 63;
 
 /// Same algorithm as `Lineage#qualified_name` (lineage.rb): 63-byte limit,
-/// SHA256 suffix, domain-qualified so two domains' storage names can't
+/// SHA256 suffix over the full name, a cut that never splits a character, domain-qualified so two domains' storage names can't
 /// collide (ADR 0059).
 pub(crate) fn qualified_name(domain: &str, suffix: &str) -> String {
     let full = format!("{}_{}", snake(domain), suffix);
@@ -389,7 +389,11 @@ pub(crate) fn qualified_name(domain: &str, suffix: &str) -> String {
 
     let digest = format!("{:x}", Sha256::digest(full.as_bytes()));
     let digest = &digest[0..8];
-    let keep = POSTGRES_IDENTIFIER_LIMIT - digest.len() - 1;
+    let mut keep = POSTGRES_IDENTIFIER_LIMIT - digest.len() - 1;
+    // Cut at the longest prefix of whole characters that fits, as the Ruby side does.
+    while !full.is_char_boundary(keep) {
+        keep -= 1;
+    }
     format!("{}_{}", &full[0..keep], digest)
 }
 
@@ -1098,20 +1102,5 @@ mod naming_vector_tests {
         assert_eq!(ruby_downcase("ÉCOLE"), "école");
         assert_eq!(ruby_downcase("ΟΔΥΣΣΕΑΣ"), "οδυσσεασ");
         assert_eq!(ruby_downcase("ascii"), "ascii");
-    }
-
-    // Ruby's `byteslice` cuts mid-character and yields invalid UTF-8; Rust's `&str` slice
-    // panics instead. Neither is a name Postgres would accept, so the rows stay out of the table.
-    #[test]
-    fn truncation_splitting_a_character_panics_where_ruby_yields_invalid_utf8() {
-        let rows = vectors()["known_divergences"]
-            ["qualified_name_truncation_splitting_a_character"]
-            .clone();
-        assert!(!rows.as_array().unwrap().is_empty());
-        for row in rows.as_array().unwrap() {
-            let domain = row["domain"].as_str().unwrap().to_string();
-            let suffix = row["suffix"].as_str().unwrap().to_string();
-            assert!(std::panic::catch_unwind(|| qualified_name(&domain, &suffix)).is_err());
-        }
     }
 }
