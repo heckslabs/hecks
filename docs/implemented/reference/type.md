@@ -29,9 +29,9 @@ end
 ```
 
 ```ruby
-runtime.dispatch("Banking::Customer.Register", with: { reference: { value: "ty-1" },
+runtime.dispatch("Banking::Customer.Register", with: { reference: "ty-1",
                                                        name: { given: "Grace", family: "Hopper" },
-                                                       email: { address: "grace@example.com" } })
+                                                       email: "grace@example.com" })
 ```
 
 ## list_of
@@ -52,12 +52,12 @@ single `Tag` would be.
 starts empty and each `append:` adds one more, in the order posted:
 
 ```ruby
-account = Banking::Account.open!(customer: "ty-1", number: { value: "ty-a1" },
-                                kind: { name: "current" }, daily_limit: { cents: 50_000 })
+account = Banking::Account.open!(customer: "ty-1", number: "ty-a1",
+                                kind: "current", daily_limit: 50_000)
 account.ledger  # => []
 
-account.credit!(amount: { cents: 2_500 }, narrative: { text: "opening deposit" })
-account.credit!(amount: { cents: 1_000 }, narrative: { text: "transfer in" })
+account.credit!(amount: { cents: 2_500 }, narrative: "opening deposit")
+account.credit!(amount: { cents: 1_000 }, narrative: "transfer in")
 account.ledger.size  # => 2
 ```
 
@@ -92,8 +92,8 @@ value object. Full story in aggregates-and-value-objects.md.
 `value_object "Size"` anywhere in the chapter, the type synthesises one:
 
 ```ruby
-box = Banking::SafeDepositBox.rent!(customer: "ty-1", branch_code: { value: "DT" },
-                                   box_number: { value: 12 }, size: { value: "large" })
+box = Banking::SafeDepositBox.rent!(customer: "ty-1", branch_code: "DT",
+                                   box_number: 12, size: "large")
 box.size.value  # => "large"
 ```
 
@@ -101,7 +101,7 @@ The set is closed, and a value outside it is refused at the entry point rather
 than stored and discovered later:
 
 ```ruby
-huge = { customer: "ty-1", branch_code: { value: "DT" }, box_number: { value: 13 }, size: { value: "enormous" } }
+huge = { customer: "ty-1", branch_code: "DT", box_number: 13, size: "enormous" }
 Banking::SafeDepositBox.rent!(**huge)  # ~> InvariantViolation: Size admits "small", "medium", "large"
 ```
 

@@ -54,7 +54,7 @@ supplies itself:
 transition "OnboardingCleared" => "cleared", from: "screening" do
   dispatch Account::Open, with: {
     customer: :customer, number: :account_number,
-    kind: { name: "current" }, daily_limit: { cents: 0 }
+    kind: "current", daily_limit: 0
   }
 end
 ```
@@ -63,11 +63,11 @@ Nothing at the call site names an account. Clearing the case is the
 whole act, and the account exists afterwards:
 
 ```ruby
-runtime.dispatch("Banking::Customer.Register", with: { reference: { value: "hd-1" },
+runtime.dispatch("Banking::Customer.Register", with: { reference: "hd-1",
                                                        name: { given: "Annie", family: "Easley" },
-                                                       email: { address: "annie@example.com" } })
-kase = Banking::OnboardingCase.open!(customer: "hd-1", reference: { value: "hd-c1" },
-                                    account_number: { value: "hd-a1" })
+                                                       email: "annie@example.com" })
+kase = Banking::OnboardingCase.open!(customer: "hd-1", reference: "hd-c1",
+                                    account_number: "hd-a1")
 kase.clear!
 
 Banking::Account.find("hd-a1")[:customer]  # => "hd-1"

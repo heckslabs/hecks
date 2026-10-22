@@ -114,21 +114,21 @@ end
 ```
 
 ```ruby
-runtime.dispatch("Banking::Customer.Register", with: { reference: { value: "rm-1" },
+runtime.dispatch("Banking::Customer.Register", with: { reference: "rm-1",
                                                        name: { given: "Sofia", family: "Kovalevskaya" },
-                                                       email: { address: "sofia@example.com" } })
-account = Banking::Account.open!(customer: "rm-1", number: { value: "rm-a1" },
-                                kind: { name: "current" }, daily_limit: { cents: 50_000 })
-Banking::Account.open!(customer: "rm-1", number: { value: "rm-a2" },
-                      kind: { name: "savings" }, daily_limit: { cents: 10_000 })
+                                                       email: "sofia@example.com" })
+account = Banking::Account.open!(customer: "rm-1", number: "rm-a1",
+                                kind: "current", daily_limit: 50_000)
+Banking::Account.open!(customer: "rm-1", number: "rm-a2",
+                      kind: "savings", daily_limit: 10_000)
 
-payment = Banking::CardPayment.authorize!(account: "rm-a1", authorisation: { value: "auth-1" },
-                                         amount: { cents: 4_200 }, merchant: { value: "Corner Shop" })
+payment = Banking::CardPayment.authorize!(account: "rm-a1", authorisation: "auth-1",
+                                         amount: 4_200, merchant: "Corner Shop")
 payment.capture!
 payment.dispute!(disputed_by: "rm-1")
 
-second = Banking::CardPayment.authorize!(account: "rm-a1", authorisation: { value: "auth-2" },
-                                        amount: { cents: 900 }, merchant: { value: "Kiosk" })
+second = Banking::CardPayment.authorize!(account: "rm-a1", authorisation: "auth-2",
+                                        amount: 900, merchant: "Kiosk")
 second.capture!
 second.dispute!(disputed_by: "rm-1")
 
@@ -138,17 +138,17 @@ second.dispute!(disputed_by: "rm-1")
 # genuine second page, without disturbing "rm-a1"'s own two disputes
 # that `count`/`median` already rely on above.
 [4_200, 900, 500, 400, 300, 200, 100].each_with_index do |cents, index|
-  card = Banking::CardPayment.authorize!(account: "rm-a2", authorisation: { value: "auth-page-#{index}" },
-                                        amount: { cents: cents }, merchant: { value: "Shop#{index}" })
+  card = Banking::CardPayment.authorize!(account: "rm-a2", authorisation: "auth-page-#{index}",
+                                        amount: cents, merchant: "Shop#{index}")
   card.capture!
   card.dispute!(disputed_by: "rm-1")
 end
 
-runtime.dispatch("ReadModelReference::Depot.OpenDepot", with: { code: { value: "dp-1" } })
-runtime.dispatch("ReadModelReference::Parcel.Accept", with: { label: { value: "p-1" }, depot: "dp-1", region: { value: "north" }, weight: { value: 30 }, fragile: { value: true } })
-runtime.dispatch("ReadModelReference::Parcel.Accept", with: { label: { value: "p-2" }, depot: "dp-1", region: { value: "north" }, weight: { value: 20 }, fragile: { value: false } })
-runtime.dispatch("ReadModelReference::Parcel.Accept", with: { label: { value: "p-3" }, depot: "dp-1", region: { value: "north" }, weight: { value: 10 }, fragile: { value: false } })
-runtime.dispatch("ReadModelReference::Parcel.Accept", with: { label: { value: "p-4" }, depot: "dp-1", region: { value: "north" }, fragile: { value: false } })
+runtime.dispatch("ReadModelReference::Depot.OpenDepot", with: { code: "dp-1" })
+runtime.dispatch("ReadModelReference::Parcel.Accept", with: { label: "p-1", depot: "dp-1", region: "north", weight: 30, fragile: true })
+runtime.dispatch("ReadModelReference::Parcel.Accept", with: { label: "p-2", depot: "dp-1", region: "north", weight: 20, fragile: false })
+runtime.dispatch("ReadModelReference::Parcel.Accept", with: { label: "p-3", depot: "dp-1", region: "north", weight: 10, fragile: false })
+runtime.dispatch("ReadModelReference::Parcel.Accept", with: { label: "p-4", depot: "dp-1", region: "north", fragile: false })
 ```
 
 ## description
@@ -671,7 +671,7 @@ collection `where` is (see `where`).
 side is capped — the depot itself is still one whole record:
 
 ```ruby
-manifest = runtime.query("ReadModelReference.DepotManifest", depot: "dp-1", region: { value: "north" }).first
+manifest = runtime.query("ReadModelReference.DepotManifest", depot: "dp-1", region: "north").first
 manifest[:parcels].size  # => 2
 manifest[:depot][:code][:value]  # => "dp-1"
 ```

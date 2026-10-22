@@ -55,28 +55,28 @@ alongside real dispatches against the boot above.
 Seed two customers and four accounts, then look at the everyday roll:
 
 ```ruby
-runtime.dispatch("Banking::Customer.Register", with: { reference: { value: "c1" },
-                                                       name: { given: "Ada", family: "Voss" }, email: { address: "ada@example.com" } })
-runtime.dispatch("Banking::Customer.Register", with: { reference: { value: "c2" },
-                                                       name: { given: "Bo", family: "Reyes" }, email: { address: "bo@example.com" } })
+runtime.dispatch("Banking::Customer.Register", with: { reference: "c1",
+                                                       name: { given: "Ada", family: "Voss" }, email: "ada@example.com" })
+runtime.dispatch("Banking::Customer.Register", with: { reference: "c2",
+                                                       name: { given: "Bo", family: "Reyes" }, email: "bo@example.com" })
 
-runtime.dispatch("Banking::Account.Open", with: { customer: "c1", number: { value: "a" },
-                                                  kind: { name: "current" }, daily_limit: { cents: 100_000 } })
-runtime.dispatch_flat("Banking::Account.Credit", number: { value: "a" }, amount: { cents: 300, currency: "USD" },
-                  narrative: { text: "Opening" })
-runtime.dispatch("Banking::Account.Open", with: { customer: "c1", number: { value: "b" },
-                                                  kind: { name: "current" }, daily_limit: { cents: 100_000 } })
-runtime.dispatch_flat("Banking::Account.Credit", number: { value: "b" }, amount: { cents: 500, currency: "USD" },
-                  narrative: { text: "Opening" })
-runtime.dispatch("Banking::Account.Open", with: { customer: "c1", number: { value: "c" },
-                                                  kind: { name: "current" }, daily_limit: { cents: 100_000 } })
-runtime.dispatch_flat("Banking::Account.Credit", number: { value: "c" }, amount: { cents: 1000, currency: "USD" },
-                  narrative: { text: "Opening" })
-runtime.dispatch("Banking::Account.Open", with: { customer: "c1", number: { value: "d" },
-                                                  kind: { name: "current" }, daily_limit: { cents: 100_000 } })
+runtime.dispatch("Banking::Account.Open", with: { customer: "c1", number: "a",
+                                                  kind: "current", daily_limit: 100_000 })
+runtime.dispatch_flat("Banking::Account.Credit", number: "a", amount: { cents: 300, currency: "USD" },
+                  narrative: "Opening")
+runtime.dispatch("Banking::Account.Open", with: { customer: "c1", number: "b",
+                                                  kind: "current", daily_limit: 100_000 })
+runtime.dispatch_flat("Banking::Account.Credit", number: "b", amount: { cents: 500, currency: "USD" },
+                  narrative: "Opening")
+runtime.dispatch("Banking::Account.Open", with: { customer: "c1", number: "c",
+                                                  kind: "current", daily_limit: 100_000 })
+runtime.dispatch_flat("Banking::Account.Credit", number: "c", amount: { cents: 1000, currency: "USD" },
+                  narrative: "Opening")
+runtime.dispatch("Banking::Account.Open", with: { customer: "c1", number: "d",
+                                                  kind: "current", daily_limit: 100_000 })
 
-runtime.dispatch_flat("Banking::Account.FreezeAccount", number: { value: "c" })
-runtime.dispatch_flat("Banking::Account.CloseAccount", number: { value: "d" })
+runtime.dispatch_flat("Banking::Account.FreezeAccount", number: "c")
+runtime.dispatch_flat("Banking::Account.CloseAccount", number: "d")
 ```
 
 Four accounts: `a` at 300 cents, `b` at 500, `c` at 1000 (later frozen),
@@ -117,10 +117,10 @@ One more account, opened for `c2` WHILE `c2` is still active —
 has to happen before what comes next, not after:
 
 ```ruby
-runtime.dispatch("Banking::Account.Open", with: { customer: "c2", number: { value: "e" },
-                                                  kind: { name: "current" }, daily_limit: { cents: 100_000 } })
-runtime.dispatch_flat("Banking::Customer.Suspend", reference: { value: "c2" },
-                  standing: { value: "chargeback investigation" })
+runtime.dispatch("Banking::Account.Open", with: { customer: "c2", number: "e",
+                                                  kind: "current", daily_limit: 100_000 })
+runtime.dispatch_flat("Banking::Customer.Suspend", reference: "c2",
+                  standing: "chargeback investigation")
 ```
 
 `ne` is the opposite direction — everyone the everyday roll leaves out:
@@ -329,10 +329,10 @@ end
 ```
 
 ```ruby
-runtime.dispatch("Banking::CardPayment.Authorize", with: { account: "a", authorisation: { value: "auth-1" },
-                                                           amount: { cents: 4200 }, merchant: { value: "Risky Co" }, tags: [{ value: "high_risk" }] })
-runtime.dispatch("Banking::CardPayment.Authorize", with: { account: "b", authorisation: { value: "auth-2" },
-                                                           amount: { cents: 1500 }, merchant: { value: "Ordinary Co" } })
+runtime.dispatch("Banking::CardPayment.Authorize", with: { account: "a", authorisation: "auth-1",
+                                                           amount: 4200, merchant: "Risky Co", tags: [{ value: "high_risk" }] })
+runtime.dispatch("Banking::CardPayment.Authorize", with: { account: "b", authorisation: "auth-2",
+                                                           amount: 1500, merchant: "Ordinary Co" })
 
 runtime.query("Banking::CardPayment.Flagged").map { |row| row[:authorisation].value }
 # => ["auth-1"]
@@ -378,8 +378,8 @@ rented.authorization.to_h   # => { policy: "vault_access", tenant: "branch_code"
 Rent a box, then ask without naming a branch:
 
 ```ruby
-runtime.dispatch("Banking::SafeDepositBox.Rent", with: { customer: "c1", branch_code: { value: "DOWNTOWN" },
-                                                         box_number: { value: 12 }, size: { value: "medium" } })
+runtime.dispatch("Banking::SafeDepositBox.Rent", with: { customer: "c1", branch_code: "DOWNTOWN",
+                                                         box_number: 12, size: "medium" })
 
 runtime.query("Banking::SafeDepositBox.Rented")   # ~> Unauthorized: declares authorize with tenant: branch_code — pass branch_code: to name which branch_code this ask is scoped to
 ```
@@ -564,10 +564,10 @@ something:
 ```ruby
 [["auth-10", 9000], ["auth-11", 7000], ["auth-12", 5000],
  ["auth-13", 3000], ["auth-14", 2000], ["auth-15", 1000]].each do |auth, cents|
-  runtime.dispatch("Banking::CardPayment.Authorize", with: { account: "a", authorisation: { value: auth },
-                                                             amount: { cents: cents }, merchant: { value: "Merchant #{auth}" } })
-  runtime.dispatch_flat("Banking::CardPayment.Capture", authorisation: { value: auth })
-  runtime.dispatch_flat("Banking::CardPayment.Dispute", authorisation: { value: auth }, disputed_by: "c1")
+  runtime.dispatch("Banking::CardPayment.Authorize", with: { account: "a", authorisation: auth,
+                                                             amount: cents, merchant: "Merchant #{auth}" })
+  runtime.dispatch_flat("Banking::CardPayment.Capture", authorisation: auth)
+  runtime.dispatch_flat("Banking::CardPayment.Dispute", authorisation: auth, disputed_by: "c1")
 end
 ```
 
@@ -722,10 +722,10 @@ end
 ```
 
 ```ruby
-runtime.dispatch("Bookshelf::Novel.Publish", with: { ref: { value: "n1" } })
-runtime.dispatch("Bookshelf::Character.Introduce", with: { ref: { value: "c1" }, novel: "n1" })
-runtime.dispatch("Bookshelf::Character.Introduce", with: { ref: { value: "c2" }, novel: "n1", superseded_by: { value: "c1" } })
-runtime.dispatch("Bookshelf::Note.Write", with: { ref: { value: "note1" }, novel: "n1" })
+runtime.dispatch("Bookshelf::Novel.Publish", with: { ref: "n1" })
+runtime.dispatch("Bookshelf::Character.Introduce", with: { ref: "c1", novel: "n1" })
+runtime.dispatch("Bookshelf::Character.Introduce", with: { ref: "c2", novel: "n1", superseded_by: "c1" })
+runtime.dispatch("Bookshelf::Note.Write", with: { ref: "note1", novel: "n1" })
 
 summary = runtime.query("Bookshelf.novel_summary", novel: "n1")
 

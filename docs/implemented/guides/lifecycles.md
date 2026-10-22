@@ -67,10 +67,10 @@ A card payment authorizes against an existing account, so the
 walkthrough needs one first:
 
 ```ruby
-runtime.dispatch("Banking::Customer.Register", with: { reference: { value: "c1" },
-                                                       name: { given: "Odile", family: "Payer" }, email: { address: "odile@example.com" } })
-runtime.dispatch("Banking::Account.Open", with: { customer: "c1", number: { value: "a1" },
-                                                  kind: { name: "current" }, daily_limit: { cents: 50_000 } })
+runtime.dispatch("Banking::Customer.Register", with: { reference: "c1",
+                                                       name: { given: "Odile", family: "Payer" }, email: "odile@example.com" })
+runtime.dispatch("Banking::Account.Open", with: { customer: "c1", number: "a1",
+                                                  kind: "current", daily_limit: 50_000 })
 ```
 
 ## The default, and the automatic move
@@ -81,8 +81,8 @@ transition sets it, because `Authorize` is the creating command and
 
 ```ruby
 payment = Banking::CardPayment.authorize!(account: "a1",
-  authorisation: { value: "auth-742" }, amount: { cents: 4200 },
-  merchant: { value: "Corner Shop" })
+  authorisation: "auth-742", amount: 4200,
+  merchant: "Corner Shop")
 payment.status  # => "authorized"
 ```
 

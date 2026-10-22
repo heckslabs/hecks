@@ -131,11 +131,11 @@ end
 ```
 
 ```ruby
-runtime.dispatch("Banking::Customer.Register", with: { reference: { value: "cm-1" },
+runtime.dispatch("Banking::Customer.Register", with: { reference: "cm-1",
                                                        name: { given: "Annie", family: "Cannon" },
-                                                       email: { address: "annie@example.com" } })
-account = Banking::Account.open!(customer: "cm-1", number: { value: "cm-a1" },
-                                kind: { name: "current" }, daily_limit: { cents: 50_000 })
+                                                       email: "annie@example.com" })
+account = Banking::Account.open!(customer: "cm-1", number: "cm-a1",
+                                kind: "current", daily_limit: 50_000)
 ```
 
 ## role
@@ -154,7 +154,7 @@ Names who calls this command — "Compliance officer", "Back office". Optional: 
 a caller who states nothing is not refused:
 
 ```ruby
-runtime.dispatch_flat("Banking::Account.FreezeAccount", number: { value: "cm-a1" })
+runtime.dispatch_flat("Banking::Account.FreezeAccount", number: "cm-a1")
 Banking::Account.find("cm-a1").status  # => "frozen"
 ```
 
@@ -165,7 +165,7 @@ Hecks.as_caller(role: "Teller") { runtime.dispatch("Banking::Account.Unfreeze", 
 ```
 
 ```ruby
-Hecks.as_caller(role: "Compliance officer") { runtime.dispatch_flat("Banking::Account.Unfreeze", number: { value: "cm-a1" }) }
+Hecks.as_caller(role: "Compliance officer") { runtime.dispatch_flat("Banking::Account.Unfreeze", number: "cm-a1") }
 Banking::Account.find("cm-a1").status  # => "open"
 ```
 
@@ -261,7 +261,7 @@ this account is open and the balance is empty, so it is the second that
 answers:
 
 ```ruby
-account.debit!(amount: { cents: 999 }, narrative: { text: "nothing there" })  # ~> GivenNotMet: the balance covers it
+account.debit!(amount: { cents: 999 }, narrative: "nothing there")  # ~> GivenNotMet: the balance covers it
 ```
 
 The description IS the message, verbatim — which is why a `given` is
@@ -290,10 +290,10 @@ written as a sentence a caller can act on rather than a name.
 one op per call, three calls across two commands here:
 
 ```ruby
-meter = CommandReference::Meter.install!(serial: { value: 7 })
+meter = CommandReference::Meter.install!(serial: 7)
 meter.reading.units  # => 0
 
-meter.advance!(units: { units: 12 }, note: { note: "first read" })
+meter.advance!(units: 12, note: "first read")
 meter.reading.units  # => 12
 meter.marks.map { |mark| mark[:note] }  # => ["first read"]
 ```
@@ -302,7 +302,7 @@ Arithmetic accumulates rather than replacing, which is the difference
 between `increment:` and `to:`:
 
 ```ruby
-meter.advance!(units: { units: 5 }, note: { note: "second read" })
+meter.advance!(units: 5, note: "second read")
 meter.reading.units  # => 17
 ```
 
@@ -377,9 +377,9 @@ already does. A delegating command declares no `sets`/`emits` of its
 own — its result IS the target's.
 
 ```ruby
-board = CommandReference::Board.open!(name: { value: "b1" })
-board.place_piece!(id: { value: "p1" }, square: { file: 3, rank: 3 })
-board.move_piece!(id: { value: "p1" }, to: { file: 5, rank: 5 })
+board = CommandReference::Board.open!(name: "b1")
+board.place_piece!(id: "p1", square: { file: 3, rank: 3 })
+board.move_piece!(id: "p1", to: { file: 5, rank: 5 })
 
 board = runtime.registry.repository("CommandReference", runtime.registry.bluebook("CommandReference").aggregate("Board")).find("b1")
 board[:pieces].first[:square].to_h  # => {:file=>5, :rank=>5}
@@ -407,8 +407,8 @@ accumulates the events of every command run through it, so the rent that
 created this box is still in the list — the last two are `Surrender`'s.)
 
 ```ruby
-box = Banking::SafeDepositBox.rent!(customer: "cm-1", branch_code: { value: "DT" },
-                                   box_number: { value: 4 }, size: { value: "small" })
+box = Banking::SafeDepositBox.rent!(customer: "cm-1", branch_code: "DT",
+                                   box_number: 4, size: "small")
 box.surrender!.events.map(&:name)  # => ["BoxRented", "BoxSurrendered", "KeyReturnDue"]
 ```
 
@@ -427,10 +427,10 @@ A mutation source that reads the RECORD'S OWN FIELD rather than an argument — 
 `Board.Snapshot` above declares no argument and records the board as it stands. A later move does not rewrite what was recorded — the copy is by value.
 
 ```ruby
-board = CommandReference::Board.open!(name: { value: "b-1" })
-board.place_piece!(id: { value: "p1" }, square: { file: 1, rank: 1 })
+board = CommandReference::Board.open!(name: "b-1")
+board.place_piece!(id: "p1", square: { file: 1, rank: 1 })
 board.snapshot!
-board.move_piece!(id: { value: "p1" }, to: { file: 2, rank: 2 })
+board.move_piece!(id: "p1", to: { file: 2, rank: 2 })
 
 board[:positions].first[:pieces].first[:square].to_h  # => {:file=>1, :rank=>1}
 board[:pieces].first[:square].to_h  # => {:file=>2, :rank=>2}
@@ -460,7 +460,7 @@ An argument that declares `default:` is filled when the caller leaves it out, be
 Omittable when it would only retype what the owner already declared: a bare `sets :field` (no `to:` naming a different source) already says the command takes an argument named `:field`, so when the command itself declares no `attribute :field`, it imports the owning aggregate's (or entity's) own attribute of that name verbatim — type, pattern, `optional:`, `admits:`, all of it. `Install` above never declares `attribute :serial` — it imports `Meter`'s own `serial` — and still takes it as an argument:
 
 ```ruby
-CommandReference::Meter.install!(serial: { value: 9 }).serial.value  # => 9
+CommandReference::Meter.install!(serial: 9).serial.value  # => 9
 ```
 
 An explicit local `attribute :field` is never clobbered by this — it is checked first, so a command narrowing or retyping its own argument still wins.
@@ -469,14 +469,14 @@ A command takes the arguments it declares — all of them, and no others.
 Missing one refuses:
 
 ```ruby
-account.credit!(narrative: { text: "no amount" })  # ~> AbsentArgument: Credit was not given amount
+account.credit!(narrative: "no amount")  # ~> AbsentArgument: Credit was not given amount
 ```
 
 And so does a name it never declared, rather than the value riding along
 unread:
 
 ```ruby
-account.credit!(amount: { cents: 1 }, narrative: { text: "ok" }, memo: "extra")  # ~> UnknownArgument: Credit does not declare memo
+account.credit!(amount: { cents: 1 }, narrative: "ok", memo: "extra")  # ~> UnknownArgument: Credit does not declare memo
 ```
 
 ## ensures
@@ -504,8 +504,8 @@ Both hold on an ordinary debit, so nothing is visible but the result —
 which is what a postcondition looks like when the code is right:
 
 ```ruby
-account.credit!(amount: { cents: 5_000 }, narrative: { text: "funding" })
-account.debit!(amount: { cents: 2_000 }, narrative: { text: "rent" })
+account.credit!(amount: { cents: 5_000 }, narrative: "funding")
+account.debit!(amount: { cents: 2_000 }, narrative: "rent")
 account.balance.cents  # => 3000
 ```
 
@@ -581,10 +581,10 @@ end
 Left out, `now` is read from the clock. Named, the caller's time is kept, so a test or a back-fill can choose its own:
 
 ```ruby
-from_clock = NeedsLifetime::Link.issue!(ref: { value: "a" })
+from_clock = NeedsLifetime::Link.issue!(ref: "a")
 from_clock.issued_at.value  # => 1700000000
 
-named = NeedsLifetime::Link.issue!(ref: { value: "b" }, now: { value: 42 })
+named = NeedsLifetime::Link.issue!(ref: "b", now: 42)
 named.issued_at.value  # => 42
 ```
 
@@ -606,19 +606,19 @@ A command declaring what past event it amends, rather than acting fresh — the 
 Two refusals fire before any dispatch runs at all: `corrects` naming an event nothing in the aggregate ever `emits` is refused the moment the aggregate finishes building (a real event this domain never announces is an authoring mistake, not a business rule), and so is `reverses: true` against an original that used a non-invertible verb. A THIRD refusal is a dispatch-time fact about the record in hand, not the declaration — `CorrectFee` corrects `FeeApplied`, so correcting an account that was never charged a fee refuses with `NothingToCorrect`, never silently applying a correction with nothing behind it:
 
 ```ruby
-runtime.dispatch("Banking::Customer.Register", with: { reference: { value: "cf-1" },
+runtime.dispatch("Banking::Customer.Register", with: { reference: "cf-1",
                                                        name: { given: "Annie", family: "Cannon" },
-                                                       email: { address: "annie@example.com" } })
-account = Banking::Account.open!(customer: "cf-1", number: { value: "cf-a1" },
-                                kind: { name: "current" }, daily_limit: { cents: 50_000 })
+                                                       email: "annie@example.com" })
+account = Banking::Account.open!(customer: "cf-1", number: "cf-a1",
+                                kind: "current", daily_limit: 50_000)
 account.correct_fee!(amount: { cents: 500 })  # ~> NothingToCorrect: CorrectFee refused — corrects FeeApplied, but Banking::Account #cf-a1 has never emitted it
 ```
 
 `ApplyFee` first is what makes `CorrectFee` admissible — the correction hands the fee straight back:
 
 ```ruby
-account.credit!(amount: { cents: 10_000 }, narrative: { text: "funding" })
-account.apply_fee!(amount: { cents: 500 }, narrative: { text: "monthly maintenance" })
+account.credit!(amount: { cents: 10_000 }, narrative: "funding")
+account.apply_fee!(amount: { cents: 500 }, narrative: "monthly maintenance")
 account.balance.cents      # => 9_500
 account.fees_cents.cents   # => 500
 
