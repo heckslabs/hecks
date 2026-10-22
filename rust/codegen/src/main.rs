@@ -27,6 +27,12 @@ mod read_models;
 mod reference_specs;
 mod registry;
 mod reserved_names;
+#[path = "../../parser/src/ruby_value.rs"]
+#[allow(
+    dead_code,
+    reason = "shared with the parser, which uses parts codegen does not"
+)]
+mod ruby_value;
 mod shared;
 mod sidecars;
 mod skip_reason;
