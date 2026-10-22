@@ -53,6 +53,13 @@ module Hecks
             end
           end
 
+          def judge_derives(aggregate, name)
+            Array(aggregate.derives).each do |derive|
+              fields = { to: v(derive.to), expression: v(derive.expression) }
+              send_to("Translation::TranslationAggregate.AddDerive", name, to: name, with: fields)
+            end
+          end
+
           def judge_rekeys(aggregate, name)
             Array(aggregate.rekeys).each do |rekey|
               send_to("Translation::TranslationAggregate.AddRekey", name, to:   name,

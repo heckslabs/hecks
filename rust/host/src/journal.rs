@@ -1032,3 +1032,84 @@ mod lineage_tests {
         assert_eq!(attempts, 3);
     }
 }
+
+#[cfg(test)]
+mod naming_vector_tests {
+    use super::*;
+    use serde_json::Value;
+
+    // spec/fixtures/naming_vectors.json is asserted by spec/naming_vectors_spec.rb against
+    // Naming.snake and Lineage#qualified_name, so a drift in either runtime fails a test.
+    fn vectors() -> Value {
+        serde_json::from_str(include_str!("../../../spec/fixtures/naming_vectors.json")).unwrap()
+    }
+
+    fn table(section: &str) -> Vec<Value> {
+        let rows = vectors()[section].as_array().unwrap().clone();
+        assert!(!rows.is_empty(), "{section} rows went missing");
+        rows
+    }
+
+    #[test]
+    fn snake_matches_every_shared_row() {
+        for row in table("snake") {
+            let input = row["input"].as_str().unwrap();
+            assert_eq!(snake(input), row["expected"].as_str().unwrap(), "{input:?}");
+        }
+    }
+
+    #[test]
+    fn storage_name_matches_every_shared_row() {
+        for row in table("storage_name") {
+            let input = row["input"].as_str().unwrap();
+            assert_eq!(
+                storage_name(input),
+                row["expected"].as_str().unwrap(),
+                "{input:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn qualified_name_matches_every_shared_row() {
+        for row in table("qualified_name") {
+            let domain = row["domain"].as_str().unwrap();
+            let suffix = row["suffix"].as_str().unwrap();
+            let got = qualified_name(domain, suffix);
+            assert_eq!(
+                got,
+                row["expected"].as_str().unwrap(),
+                "{domain:?} {suffix:?}"
+            );
+            assert!(got.len() <= POSTGRES_IDENTIFIER_LIMIT);
+        }
+    }
+
+    // Rust lowercases ASCII only where Ruby's `downcase` is Unicode. Pinned as a known
+    // divergence, not hidden: the Ruby side asserts the "ruby" column of the same rows.
+    #[test]
+    fn snake_diverges_from_ruby_only_on_upper_case_non_ascii_letters() {
+        let divergences = vectors()["known_divergences"]["snake"].clone();
+        assert!(!divergences.as_array().unwrap().is_empty());
+        for row in divergences.as_array().unwrap() {
+            let input = row["input"].as_str().unwrap();
+            assert_eq!(snake(input), row["rust"].as_str().unwrap(), "{input:?}");
+            assert_ne!(snake(input), row["ruby"].as_str().unwrap(), "{input:?}");
+        }
+    }
+
+    // Ruby's `byteslice` cuts mid-character and yields invalid UTF-8; Rust's `&str` slice
+    // panics instead. Neither is a name Postgres would accept, so the rows stay out of the table.
+    #[test]
+    fn truncation_splitting_a_character_panics_where_ruby_yields_invalid_utf8() {
+        let rows = vectors()["known_divergences"]
+            ["qualified_name_truncation_splitting_a_character"]
+            .clone();
+        assert!(!rows.as_array().unwrap().is_empty());
+        for row in rows.as_array().unwrap() {
+            let domain = row["domain"].as_str().unwrap().to_string();
+            let suffix = row["suffix"].as_str().unwrap().to_string();
+            assert!(std::panic::catch_unwind(|| qualified_name(&domain, &suffix)).is_err());
+        }
+    }
+}

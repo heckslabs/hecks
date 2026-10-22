@@ -164,30 +164,65 @@ mod tests {
     use super::*;
     use std::fs;
 
-    // The real ir.json for examples/pizzas, not a fixture, so drift from Ruby fails here.
-    fn pizzas_ir() -> Value {
-        let path = concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../src/generated/pizzas/ir.json"
-        );
-        let text = fs::read_to_string(path).expect(
-            "rust/src/generated/pizzas/ir.json — run hecks project_rust examples/pizzas first",
-        );
+    const REPO: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
+
+    // spec/fixtures/storage_shape_vectors.json is asserted by spec/runtime/storage_shape_spec.rb
+    // too, so a drift in either implementation fails a test on its own side.
+    fn vectors() -> Vec<Value> {
+        serde_json::from_str(include_str!(
+            "../../../spec/fixtures/storage_shape_vectors.json"
+        ))
+        .expect("valid vectors JSON")
+    }
+
+    // A vector carries its IR inline, or names an ir.json in the repo (the real pizzas one).
+    fn ir_of(vector: &Value) -> Value {
+        if let Some(ir) = vector.get("ir") {
+            return ir.clone();
+        }
+        let file = vector["ir_file"].as_str().expect("ir or ir_file");
+        let text = fs::read_to_string(format!("{REPO}/{file}"))
+            .unwrap_or_else(|e| panic!("{file}: {e} - run hecks project_rust examples/pizzas"));
         serde_json::from_str(&text).expect("valid JSON")
     }
 
     #[test]
-    fn mint_label_reproduces_the_real_translation_edge_s_own_to_label() {
+    fn every_golden_vector_matches_the_ruby_canonical_hash_and_label() {
+        let vectors = vectors();
+        assert!(vectors.len() >= 8, "the vector file went missing");
+        for vector in &vectors {
+            let name = vector["name"].as_str().unwrap();
+            let ir = ir_of(vector);
+            assert_eq!(
+                canonical(&ir),
+                vector["canonical"].as_str().unwrap(),
+                "{name}"
+            );
+            assert_eq!(mint_hash(&ir), vector["hash"].as_str().unwrap(), "{name}");
+            assert_eq!(mint_label(&ir), vector["label"].as_str().unwrap(), "{name}");
+        }
+    }
+
+    #[test]
+    fn the_real_translation_edge_label_is_among_the_vectors() {
         // examples/pizzas/bluebook/translations/2-77625c.bluebook names "77625c" as the label Ruby
         // computed for this shape (Minter#mint! requires `edge.to == label`).
-        let ir = pizzas_ir();
-        assert_eq!(mint_label(&ir), "77625c");
+        let labels: Vec<String> = vectors()
+            .iter()
+            .map(|v| v["label"].as_str().unwrap().to_string())
+            .collect();
+        assert!(labels.iter().any(|label| label == "77625c"));
     }
 
     #[test]
     fn a_reordered_but_otherwise_identical_ir_hashes_the_same() {
         // Pins that attribute order is normalised: reordering must not look like a schema change.
-        let ir = pizzas_ir();
+        let ir = ir_of(
+            vectors()
+                .iter()
+                .find(|v| v["name"] == "pizzas_translation_edge_77625c")
+                .unwrap(),
+        );
         let mut reordered = ir.clone();
         if let Some(aggregates) = reordered
             .get_mut("aggregates")

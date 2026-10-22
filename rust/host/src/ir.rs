@@ -59,8 +59,62 @@ pub fn persistence_adapters(domain_ir: &Value) -> Vec<(String, String)> {
 }
 
 /// The only persistence adapters `rust/host` has a real backend for — see
-/// `refuse_unsupported_persistence_adapters` below.
+/// `refuse_unsupported_persistence_adapters` below. Must list the same names
+/// as [`BACKENDS`] (a test holds them together).
 pub const SUPPORTED_PERSISTENCE_ADAPTERS: &[&str] = &["Postgres", "PostgresEra"];
+
+/// What serves a bound adapter inside this host.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Backend {
+    /// The one `tokio_postgres` engine (journal tables, era heads).
+    TokioPostgres,
+}
+
+/// The host's implemented backends, adapter name -> backend. A future backend
+/// is one more row here (and one in [`SUPPORTED_PERSISTENCE_ADAPTERS`]).
+pub const BACKENDS: &[(&str, Backend)] = &[
+    ("Postgres", Backend::TokioPostgres),
+    ("PostgresEra", Backend::TokioPostgres),
+];
+
+/// The backend that serves `adapter`, if the host has one.
+pub fn backend_for(adapter: &str) -> Option<Backend> {
+    BACKENDS
+        .iter()
+        .find(|(name, _)| *name == adapter)
+        .map(|(_, backend)| *backend)
+}
+
+/// The port every persistence binding must be declared against.
+const PERSISTENCE_PORT: &str = "persistence";
+
+/// `ir.json`'s own `adapters` key, as `name -> declaration`. `None` when the
+/// key is absent (an older IR); `Some(Err(..))` when present but malformed
+/// (not an array, or an entry without a string `name`).
+pub fn adapter_declarations(
+    domain_ir: &Value,
+) -> Option<Result<std::collections::BTreeMap<String, &Value>, String>> {
+    let raw = domain_ir.get("adapters")?;
+    let Some(entries) = raw.as_array() else {
+        return Some(Err(
+            "the IR's \"adapters\" key is not an array of adapter declarations".to_string(),
+        ));
+    };
+    let mut declared = std::collections::BTreeMap::new();
+    for (index, entry) in entries.iter().enumerate() {
+        match entry.get("name").and_then(|n| n.as_str()) {
+            Some(name) => {
+                declared.insert(name.to_string(), entry);
+            }
+            None => {
+                return Some(Err(format!(
+                    "the IR's \"adapters\" entry {index} has no string \"name\""
+                )))
+            }
+        }
+    }
+    Some(Ok(declared))
+}
 
 /// The chapter this domain's role checks resolve against, read from
 /// `ir.json`'s own `authorization` key. `None` when nothing provides it.
@@ -139,10 +193,45 @@ pub fn identity_provider(domain_ir: &Value) -> Option<IdentityProvider> {
 
 /// Refuses at boot rather than silently building a second, disjoint history
 /// nothing but this runtime reads while the real state lives elsewhere.
+///
+/// Each aggregate's bound adapter is looked up in the IR, then in the host's
+/// [`BACKENDS`] table. Rules, in order:
+/// 1. When the IR carries an `adapters` key (even empty), the bound adapter
+///    must be declared there.
+/// 2. That declaration's `port`, when non-null, must be `"persistence"`.
+/// 3. The adapter must have a host backend (the long-standing refusal).
+///
+/// Compatibility: deployed IR files predate the `adapters` key. When it is
+/// absent, rules 1 and 2 are skipped and only rule 3 applies, exactly as
+/// before. A present-but-malformed `adapters` value is refused with a
+/// message naming the problem (it never panics).
 pub fn refuse_unsupported_persistence_adapters(domain_ir: &Value) -> Result<(), String> {
-    let unsupported: Vec<String> = persistence_adapters(domain_ir)
+    let bindings = persistence_adapters(domain_ir);
+    if let Some(declared) = adapter_declarations(domain_ir) {
+        let declared = declared?;
+        for (aggregate, adapter) in &bindings {
+            let Some(declaration) = declared.get(adapter) else {
+                return Err(format!(
+                    "{aggregate} binds {adapter}, which the domain's IR does not declare (no \
+                     .adapter file declares it) — refusing instead of guessing what it means"
+                ));
+            };
+            match declaration.get("port") {
+                None | Some(Value::Null) => {}
+                Some(Value::String(port)) if port == PERSISTENCE_PORT => {}
+                Some(port) => {
+                    return Err(format!(
+                        "{aggregate} binds {adapter}, which the domain's IR declares for port \
+                         {port} rather than {PERSISTENCE_PORT:?} — refusing a persistence \
+                         binding to a non-persistence adapter"
+                    ))
+                }
+            }
+        }
+    }
+    let unsupported: Vec<String> = bindings
         .into_iter()
-        .filter(|(_, adapter)| !SUPPORTED_PERSISTENCE_ADAPTERS.contains(&adapter.as_str()))
+        .filter(|(_, adapter)| backend_for(adapter).is_none())
         .map(|(name, adapter)| format!("{name} (persisted_by {adapter:?})"))
         .collect();
     if unsupported.is_empty() {
@@ -297,6 +386,92 @@ mod tests {
     fn refuse_unsupported_persistence_adapters_passes_a_domain_with_no_persistence_key() {
         let ir = serde_json::json!({ "name": "Pizzas" });
         assert!(refuse_unsupported_persistence_adapters(&ir).is_ok());
+    }
+
+    fn bound(adapters: &[(&str, &str)]) -> Value {
+        let aggregates: Vec<Value> = adapters
+            .iter()
+            .map(|(n, a)| serde_json::json!({"name": n, "adapter": a}))
+            .collect();
+        serde_json::json!({"persistence": {"aggregates": aggregates}})
+    }
+
+    fn with_adapters(mut ir: Value, adapters: Value) -> Value {
+        ir["adapters"] = adapters;
+        ir
+    }
+
+    #[test]
+    fn backend_table_matches_the_supported_names() {
+        let names: Vec<&str> = BACKENDS.iter().map(|(n, _)| *n).collect();
+        assert_eq!(names, SUPPORTED_PERSISTENCE_ADAPTERS);
+    }
+
+    #[test]
+    fn absent_adapters_key_keeps_the_old_behaviour() {
+        assert!(refuse_unsupported_persistence_adapters(&bound(&[("A", "Postgres")])).is_ok());
+        let err = refuse_unsupported_persistence_adapters(&bound(&[("A", "Heki")])).unwrap_err();
+        assert!(err.starts_with("rust/host only has a backend"), "{err}");
+    }
+
+    #[test]
+    fn declared_and_supported_boots_with_null_or_persistence_port() {
+        let ir = with_adapters(
+            bound(&[("A", "Postgres"), ("B", "PostgresEra")]),
+            serde_json::json!([
+                {"name": "Postgres", "port": "persistence"},
+                {"name": "PostgresEra", "port": null}
+            ]),
+        );
+        assert!(refuse_unsupported_persistence_adapters(&ir).is_ok());
+    }
+
+    #[test]
+    fn empty_adapters_key_refuses_every_binding_as_undeclared() {
+        let ir = with_adapters(bound(&[("A", "Postgres")]), serde_json::json!([]));
+        let err = refuse_unsupported_persistence_adapters(&ir).unwrap_err();
+        assert!(
+            err.contains("A binds Postgres, which the domain's IR does not declare"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn declared_but_unsupported_hits_the_backend_rule() {
+        let ir = with_adapters(
+            bound(&[("A", "Heki")]),
+            serde_json::json!([{"name": "Heki", "port": "persistence"}]),
+        );
+        let err = refuse_unsupported_persistence_adapters(&ir).unwrap_err();
+        assert!(err.starts_with("rust/host only has a backend"), "{err}");
+        assert!(err.contains("A (persisted_by \"Heki\")"), "{err}");
+    }
+
+    #[test]
+    fn wrong_port_is_refused_before_the_backend_rule() {
+        let ir = with_adapters(
+            bound(&[("A", "Postgres")]),
+            serde_json::json!([{"name": "Postgres", "port": "mail"}]),
+        );
+        let err = refuse_unsupported_persistence_adapters(&ir).unwrap_err();
+        assert!(
+            err.contains("A binds Postgres") && err.contains("\"mail\""),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn malformed_adapters_are_refused_not_panicked() {
+        for bad in [
+            serde_json::json!("x"),
+            serde_json::json!({"name": "Postgres"}),
+            serde_json::json!([{"port": "persistence"}]),
+            serde_json::json!([null, 3]),
+        ] {
+            let ir = with_adapters(bound(&[("A", "Postgres")]), bad);
+            let err = refuse_unsupported_persistence_adapters(&ir).unwrap_err();
+            assert!(err.contains("\"adapters\""), "{err}");
+        }
     }
 }
 

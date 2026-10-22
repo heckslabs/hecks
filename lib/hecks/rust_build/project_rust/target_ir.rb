@@ -36,6 +36,7 @@ module Hecks
           ir = shaped(exporter.call(@registry).fetch(@domain_name))
           ir[:lineage] = shaped(exporter.lineage(@registry, @domain_name))
           ir[:persistence] = shaped(exporter.persistence(@registry, @domain_name))
+          ir[:adapters] = adapters(exporter, ir[:persistence])
           add_seams(ir, exporter)
           add_edges_and_source(ir)
           ir
@@ -44,6 +45,13 @@ module Hecks
         private
 
         def shaped(payload) = self.class.json_shaped(payload)
+
+        # The bound persistence adapters' declarations, from the `.adapter` files under the
+        # source root's `lib/` and the domain's own directory, so the host can look them up.
+        def adapters(exporter, persistence)
+          files = exporter.adapter_files_under([File.join(RustBuild::ROOT, "lib"), File.dirname(@bluebook_dir)])
+          shaped(exporter.persistence_adapters(persistence, files))
+        end
 
         def add_seams(document, exporter)
           seams = SEAMS.to_h { |seam| [seam, exporter.public_send(seam, @registry, @domain_name)] }

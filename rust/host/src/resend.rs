@@ -1,5 +1,5 @@
-//! Sends one newsletter email through Resend's REST API. The Ruby adapter answers the
-//! same `deliver` question, so the send loop never knows which provider is live.
+//! Sends one newsletter email through Resend's REST API. The Rust host is the only
+//! implementation of this `deliver` answer; there is no Ruby adapter or mock beside it.
 
 use serde_json::{json, Value};
 use std::time::Duration;
@@ -10,7 +10,7 @@ const MAX_ATTEMPTS: u32 = 4;
 const DEFAULT_RETRY_SECS: u64 = 1;
 const MAX_RETRY_SECS: u64 = 5;
 /// The address the mock refuses, and (in `mock_deliver`) the reason it gives. Adapter-side test
-/// vocabulary: the domain names neither, and the Ruby mock keeps its own copy (ADR 0099).
+/// vocabulary: the domain names neither (ADR 0099).
 const MOCK_BOUNCE_ADDRESS: &str = "bounce@example.com";
 
 /// One email to one recipient.

@@ -20,6 +20,13 @@ module Hecks
     # the compiled Postgres head; an aggregate carrying one refuses to boot elsewhere.
     TranslationCompute = Struct.new(:from, :to, :sql)
 
+    # A new field computed from the record's own text by an expression, read before any other
+    # rule runs. The fields the expression reads stay where they are; `drop` removes them.
+    # `expression` is the source text and `tree` its parsed plan form.
+    TranslationDerive = Struct.new(:to, :expression) do
+      def tree = TranslationExpression.parse(expression)
+    end
+
     # The aggregate's own key is recomputed by a SQL expression; stored state is untouched.
     # Postgres-only like `compute`, and it has no `from:`/`to:` path.
     TranslationRekey = Struct.new(:sql)
@@ -32,12 +39,13 @@ module Hecks
     # One aggregate's part of a translation between eras.
     # `drops` makes data loss a declared decision.
     class TranslationAggregate
-      attr_reader :name, :was, :renames, :moves, :converts, :drops, :retypes, :computes, :rekeys, :backfills
+      attr_reader :name, :was, :renames, :moves, :converts, :drops, :retypes, :computes, :derives, :rekeys,
+                  :backfills
 
       # Every optional field and what it holds when the declaration omits it.
       FIELD_DEFAULTS = {
         was: nil, renames: {}, moves: [], converts: [], drops: [], retypes: [],
-        computes: [], rekeys: [], backfills: []
+        computes: [], derives: [], rekeys: [], backfills: []
       }.freeze
 
       # @param name [String, Symbol] the aggregate's name in the destination era
@@ -48,6 +56,7 @@ module Hecks
       # @param drops [Array<Symbol>] fields deliberately not carried forward
       # @param retypes [Array<Bluebook::TranslationRetype>] value object or entity type changes
       # @param computes [Array<Bluebook::TranslationCompute>] fields computed by Postgres-only SQL
+      # @param derives [Array<Bluebook::TranslationDerive>] fields computed from the record's text
       # @param rekeys [Array<Bluebook::TranslationRekey>] SQL recomputing the aggregate's identity
       # @param backfills [Array<Bluebook::TranslationBackfill>] new required fields, no old source
       def initialize(name:, **given)
@@ -83,6 +92,11 @@ module Hecks
       # @return [Bluebook::TranslationAggregate, nil] the aggregate's translation, or
       #   `nil` if `name` carries no translation rules
       def for_aggregate(name) = @aggregates.find { |aggregate| aggregate.name == name.to_s }
+
+      # This edge as plain data: each aggregate's rules as an ordered list of ops.
+      #
+      # @return [Hash] see `Bluebook::TranslationPlan`
+      def to_plan = TranslationPlan.build(self)
     end
   end
 end
