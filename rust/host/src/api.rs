@@ -458,7 +458,7 @@ fn dispatchable_command<'a>(aggregate: &'a Value, wanted: &str) -> Option<&'a Va
     ui_schema::commands(aggregate)
         .into_iter()
         .filter(|command| !ui_schema::creates(command))
-        .find(|command| ui_schema::snake(command_name(command)) == wanted)
+        .find(|command| crate::hecks_naming::snake(command_name(command)) == wanted)
 }
 
 fn command_name(command: &Value) -> &str {

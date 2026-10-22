@@ -106,7 +106,7 @@ fn persistence(
             ("name".to_string(), Json::String(name.clone())),
             (
                 "storage_name".to_string(),
-                Json::String(lineage_pass::snake_case(&name)),
+                Json::String(crate::hecks_naming::snake(&name)),
             ),
             ("adapter".to_string(), Json::String(adapter)),
         ]));

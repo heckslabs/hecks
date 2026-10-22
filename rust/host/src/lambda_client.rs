@@ -19,7 +19,7 @@ pub trait LambdaInvoker: Send + Sync {
 // Mirrors Ruby's `"hecks-#{domain.downcase}"` — deployed stack names depend on
 // this exact casing, down to a word-final capital sigma, so it lowercases as Ruby does.
 pub fn function_name_for(domain: &str) -> String {
-    format!("hecks-{}", crate::journal::ruby_downcase(domain))
+    format!("hecks-{}", crate::hecks_naming::ruby_downcase(domain))
 }
 
 // Mirrors `PolicyInterpreter#deliver`'s record shape, minus `on:` — this crate

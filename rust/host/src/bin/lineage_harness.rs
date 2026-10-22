@@ -8,9 +8,12 @@
 //! stdout is `{"results": [...]}`, one entry per operation in order. A per-operation Postgres
 //! error (such as an RLS refusal) lands in that entry; only a failed connection exits nonzero.
 
-// journal.rs has no `crate::` references, so it is shared with `bootstrap` by path, not a lib
-// split.
+// journal.rs reaches only `crate::hecks_naming`, so it is shared with `bootstrap` by path, not a
+// lib split, and carries that one file with it.
 // The flat-journal functions it also carries are unused here.
+#[allow(dead_code)]
+#[path = "../../../codegen/src/hecks_naming.rs"]
+mod hecks_naming;
 #[allow(dead_code)]
 #[path = "../journal.rs"]
 mod journal;
