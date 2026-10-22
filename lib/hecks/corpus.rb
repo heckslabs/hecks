@@ -1,4 +1,5 @@
 require_relative "fuzzing/target_capabilities"
+require_relative "corpus/adapters"
 require_relative "corpus/routes"
 require_relative "corpus/rust"
 require_relative "corpus/sources"
@@ -44,6 +45,7 @@ module Hecks
 
     KINDS = (DIRECTORY_KINDS.keys + FILE_KINDS.keys).freeze
 
+    extend Adapters
     extend Rust
     extend Sources
 

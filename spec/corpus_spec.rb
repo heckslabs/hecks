@@ -25,4 +25,10 @@ RSpec.describe "The corpus" do
       expect(File).to exist(script), "no corpus script for #{bluebook} — expected #{script}"
     end
   end
+
+  it "lists every .adapter file, leaving out vendored copies", :aggregate_failures do
+    files = Hecks::Corpus.adapter_files
+    expect(files).to include(File.join(Hecks::Corpus::ROOT, "lib/hecks/adapters/driven/heki.adapter"))
+    expect(files.grep(%r{/(vendor|node_modules|target)/})).to be_empty
+  end
 end
