@@ -1,7 +1,7 @@
 require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "support/postgres_probe"
-require_relative "support/qa_ledger_role"
+require_relative "support/qa_ledger_fixture"
 require "open3"
 require "hecks/quality_control/cli/child"
 require "fileutils"
@@ -11,25 +11,6 @@ require "pathname"
 # Needs no PostgresEra binding: every domain has the `sqlite` capability.
 RSpec.describe "qa_sweep adapter_parity_sqlite", :io do
   QA_SWEEP_ADAPTER_PARITY_SQLITE_DATABASE = "hecks_qa_sweep_adapter_parity_sqlite_spec".freeze
-
-  # Copy of the shared fixture; top-level constants need a name no other spec file uses.
-  LEDGER_HECKSAGON_FOR_ADAPTER_PARITY_SQLITE_SPEC = <<~RUBY.freeze
-    Hecks::Chapters.load!("QualityControl")
-
-    Hecks.hecksagon "QualityControl" do
-      attaches "Governance"
-
-      QualityControl::Target.persisted_by("PostgresEra")
-      QualityControl::Sweep.persisted_by("PostgresEra")
-      QualityControl::Bug.persisted_by("PostgresEra")
-      QualityControl::Angle.persisted_by("PostgresEra")
-      QualityControl::Ticket.persisted_by("PostgresEra")
-      QualityControl::Patch.persisted_by("PostgresEra")
-      QualityControl::Improvement.persisted_by("PostgresEra")
-      QualityControl::DailyQuota.persisted_by("PostgresEra")
-      QualityControl::Clearance.persisted_by("PostgresEra")
-    end
-  RUBY
 
   # Same widget as the shared fixture, bound to Memory to show no PostgresEra binding is needed.
   ADAPTER_PARITY_SQLITE_TARGET_BLUEBOOK = <<~RUBY.freeze
@@ -85,16 +66,7 @@ RSpec.describe "qa_sweep adapter_parity_sqlite", :io do
     @fixture_root = Dir.mktmpdir("qa_sweep_adapter_parity_sqlite_spec")
     @fixture_dir  = File.join(@fixture_root, "bluebook")
     FileUtils.mkdir_p(@fixture_dir)
-    File.write(File.join(@fixture_dir, "quality_control.hecksagon"), LEDGER_HECKSAGON_FOR_ADAPTER_PARITY_SQLITE_SPEC)
-    File.write(File.join(@fixture_dir, "context_map.hecksagon"), InMemoryDomain::GOVERNANCE_POSTGRES_ERA_HECKSAGON)
-    url = QaLedgerRole.url(QA_SWEEP_ADAPTER_PARITY_SQLITE_DATABASE)
-    File.write(File.join(@fixture_dir, "quality_control.world"), <<~RUBY)
-      Hecks.world "QualityControl" do
-        realm "QA"
-        persisted_by("PostgresEra") { database "#{url}" }
-      end
-    RUBY
-    File.write(File.join(@fixture_dir, "governance.world"), InMemoryDomain.governance_postgres_era_world(url))
+    QaLedgerFixture.write_files(@fixture_dir, QA_SWEEP_ADAPTER_PARITY_SQLITE_DATABASE)
 
     # Inside the repo `ROOT` because `qa_sweep` resolves a target `path` against it.
     # The prefix omits the mode name: the basename is printed, and a full name would make the
