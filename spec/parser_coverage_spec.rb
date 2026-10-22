@@ -78,7 +78,7 @@ RSpec.describe "the Rust parser's own coverage", :io do
       %w[drop TranslationAggregate],
       %w[latest World], %w[move TranslationAggregate],
       %w[port File], %w[realm World], %w[refuses PortOperation],
-      %w[rekey TranslationAggregate], %w[rename TranslationAggregate], %w[retired Translation],
+      %w[rekey TranslationAggregate], %w[rekey_to TranslationAggregate], %w[rename TranslationAggregate], %w[retired Translation],
       %w[retype TranslationAggregate], %w[signal DomainPort], %w[signal Port],
       %w[subscribe Hecksagon], %w[tells DomainPort], %w[unresolved TranslationAggregate],
       %w[verb DomainPort],
