@@ -1,0 +1,6 @@
+# the implementation is required by name
+require "hecks/some/path"
+
+Hecks.adapter "Required" do
+  port "CI"
+end

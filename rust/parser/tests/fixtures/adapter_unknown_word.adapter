@@ -1,0 +1,4 @@
+Hecks.adapter "Bad" do
+  port "x"
+  persisted_by "Heki"
+end
