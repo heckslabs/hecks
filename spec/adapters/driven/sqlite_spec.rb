@@ -70,51 +70,9 @@ RSpec.describe Hecks::Adapters::Sqlite do
     expect(store.count).to eq(1)
   end
 
-  it "saves and finds one back", :aggregate_failures do
-    adapter.save(margherita)
-
-    found = adapter.find("p1")
-    expect(found.name.to_h).to eq(value: "Margherita")
-    expect(found.pizza.to_h).to eq(price_cents: { cents: 1200 }, size: { value: "small" })
-    expect(found.status).to eq("available")
-  end
-
-  it "round-trips a list of value objects through its JSON column", :aggregate_failures do
-    adapter.save(instance("p1", toppings: [{ name: "Basil", amount: 3 }]))
-
-    # ADR 0047/0055 — toppings elements are real Hecks::Runtime::Value
-    # instances now (Value::Coercion#hydrate_entity_list was fixed to
-    # hydrate value-object lists, not just entity ones), same as
-    # `found.name`/`found.pizza` above already are for a scalar
-    # composite attribute — compared via `.to_h`, matching those.
-    toppings = adapter.find("p1").toppings
-    expect(toppings).to all(be_a(Hecks::Runtime::Value))
-    expect(toppings.map(&:to_h)).to eq([{ name: "Basil", amount: 3 }])
-  end
-
-  it "answers nil for an id it never stored" do
-    expect(adapter.find("nope")).to be_nil
-  end
-
   def journalled_statuses
     raw_db.execute('SELECT state FROM "order_entries" ORDER BY sequence')
           .map { |entry| JSON.parse(entry["state"]).fetch("status") }
-  end
-
-  it "keeps every write and reads the last entry", :aggregate_failures do
-    adapter.save(instance("p1", status: "available"))
-    adapter.save(instance("p1", status: "sold"))
-
-    expect([adapter.count, adapter.find("p1").status]).to eq([1, "sold"])
-    expect(journalled_statuses).to eq(%w[available sold])
-  end
-
-  it "lists everything it holds", :aggregate_failures do
-    adapter.save(instance("p1", name: { value: "Margherita" }))
-    adapter.save(instance("p2", name: { value: "Bare" }))
-
-    expect(adapter.all.map(&:id)).to contain_exactly("p1", "p2")
-    expect(adapter.count).to eq(2)
   end
 
   it "pushes an 'in' where-clause down to SQL, matching any of the comma-separated list" do
@@ -123,15 +81,6 @@ RSpec.describe Hecks::Adapters::Sqlite do
 
     expect(adapter.query(Hecks::Bluebook::Query.new(name: "ByName", wheres: [where]), {}).map(&:id))
       .to contain_exactly("p1", "p2")
-  end
-
-  it "deletes through the append-only log and materialized table", :aggregate_failures do
-    adapter.save(instance("p1", name: { value: "Temporary" }))
-
-    expect(adapter.delete("p1")).to be(true)
-    expect(adapter.find("p1")).to be_nil
-    expect(adapter.entries.last.operation).to eq("delete")
-    expect(adapter.delete("missing")).to be(true)
   end
 
   def mirror_rows(condition) = raw_db.execute("SELECT mirrors FROM \"order_entries\" WHERE #{condition}")
@@ -160,25 +109,6 @@ RSpec.describe Hecks::Adapters::Sqlite do
     end
   end
 
-  it "records and reloads domain events" do
-    adapter.record_event(pizza_purchased("p1", "c1", "2026-01-01T00:00:00Z"))
-
-    expect(event_summary(adapter.events)).to eq([["PizzaPurchased", "p1", { customer: "c1" }]])
-  end
-
-  def record_events_of_two_pizzas_and_an_order
-    adapter.record_event(pizza_purchased("p1", "c1", "2026-01-01T00:00:00Z"))
-    adapter.record_event(pizza_purchased("p2", "c2", "2026-01-01T00:00:01Z"))
-    adapter.record_event(Hecks::Runtime::Event.new(name: "OrderPlaced", aggregate: "Order", id: "p1",
-                                                   payload: { total: 12 }, occurred_at: "2026-01-01T00:00:02Z"))
-  end
-
-  it "reads back only one record's events, not the whole shared table" do
-    record_events_of_two_pizzas_and_an_order
-
-    expect(event_summary(adapter.events_for(aggregate: "Pizza", id: "p1"))).to eq([["PizzaPurchased", "p1", { customer: "c1" }]])
-  end
-
   # Drops the entry table of a fresh database and recreates it as it was before the operation and
   # mirror columns existed.
   def make_legacy_database
@@ -200,12 +130,14 @@ RSpec.describe Hecks::Adapters::Sqlite do
     expect(upgraded.entries.last.operation).to eq("save")
   end
 
-  it "outlives the adapter that wrote it" do
-    adapter.save(instance("p1", name: { value: "Margherita" }, status: "sold"))
+  it "journals each write as its own row of the entry table" do
+    adapter.save(instance("p1", status: "available"))
+    adapter.save(instance("p1", status: "sold"))
 
-    expect(reopened_adapter.find("p1").status).to eq("sold")
+    expect(journalled_statuses).to eq(%w[available sold])
   end
 
+  it_behaves_like "a journalled record adapter"
   it_behaves_like "a checkpointed journal adapter"
   it_behaves_like "a saga-persisting adapter"
 end

@@ -24,6 +24,86 @@ RSpec.shared_context "with the Pizzas Order adapter helpers" do
   def event_summary(events) = events.map { |item| [item.name, item.id, item.payload] }
 end
 
+# The core record contract of the SQL journalling adapters (Sqlite, Postgres, PostgresEra): what
+# is saved is found, every write is journaled, a delete is journaled too, events are kept per
+# record, and a second adapter over the same store sees it all.
+RSpec.shared_examples "a journalled record adapter" do
+  def record_events_of_two_pizzas_and_an_order
+    adapter.record_event(pizza_purchased("p1", "c1", "2026-01-01T00:00:00Z"))
+    adapter.record_event(pizza_purchased("p2", "c2", "2026-01-01T00:00:01Z"))
+    adapter.record_event(Hecks::Runtime::Event.new(name: "OrderPlaced", aggregate: "Order", id: "p1",
+                                                   payload: { total: 12 }, occurred_at: "2026-01-01T00:00:02Z"))
+  end
+
+  it "saves and finds one back", :aggregate_failures do
+    adapter.save(margherita)
+
+    found = adapter.find("p1")
+    expect(found.name.to_h).to eq(value: "Margherita")
+    expect(found.pizza.to_h).to eq(price_cents: { cents: 1200 }, size: { value: "small" })
+    expect(found.status).to eq("available")
+  end
+
+  it "round-trips a list of value objects", :aggregate_failures do
+    adapter.save(instance("p1", toppings: [{ name: "Basil", amount: 3 }]))
+
+    toppings = adapter.find("p1").toppings
+    expect(toppings).to all(be_a(Hecks::Runtime::Value))
+    expect(toppings.map(&:to_h)).to eq([{ name: "Basil", amount: 3 }])
+  end
+
+  it "answers nil for an id it never stored" do
+    expect(adapter.find("nope")).to be_nil
+  end
+
+  it "keeps every write in the journal and reads the last one back", :aggregate_failures do
+    adapter.save(instance("p1", status: "available"))
+    adapter.save(instance("p1", status: "sold"))
+
+    expect(adapter.count).to eq(1)
+    expect(adapter.find("p1").status).to eq("sold")
+    expect(adapter.entries.map { |entry| entry.state[:status] }).to eq(%w[available sold])
+  end
+
+  it "lists everything it holds", :aggregate_failures do
+    adapter.save(instance("p1", name: { value: "Margherita" }))
+    adapter.save(instance("p2", name: { value: "Bare" }))
+
+    expect(adapter.all.map(&:id)).to contain_exactly("p1", "p2")
+    expect(adapter.count).to eq(2)
+  end
+
+  it "deletes through the journal and the stored record", :aggregate_failures do
+    adapter.save(instance("p1", name: { value: "Temporary" }))
+
+    expect(adapter.delete("p1")).to be(true)
+    expect(adapter.find("p1")).to be_nil
+    expect(adapter.entries.last.operation).to eq("delete")
+  end
+
+  it "answers true when asked to delete an id it never held" do
+    expect(adapter.delete("missing")).to be(true)
+  end
+
+  it "records and reloads domain events" do
+    adapter.record_event(pizza_purchased("p1", "c1", "2026-01-01T00:00:00Z"))
+
+    expect(event_summary(adapter.events)).to eq([["PizzaPurchased", "p1", { customer: "c1" }]])
+  end
+
+  it "reads back only one record's events, not the whole shared table" do
+    record_events_of_two_pizzas_and_an_order
+
+    expect(event_summary(adapter.events_for(aggregate: "Pizza", id: "p1"))).to eq([["PizzaPurchased", "p1", { customer: "c1" }]])
+  end
+
+  it "outlives the adapter that wrote it" do
+    adapter.save(instance("p1", name: { value: "Margherita" }, status: "sold"))
+
+    expect(reopened_adapter.find("p1").status).to eq("sold")
+  end
+end
+
 # The replay checkpoint and journal compaction: an append-only table the adapter projects from.
 RSpec.shared_examples "a checkpointed journal adapter" do
   describe "the replay checkpoint (bounds AppendOnly#recover!'s replay to what a restart missed)" do
