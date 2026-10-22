@@ -127,26 +127,21 @@
     {
       "input": "VeryLongVeryLongVeryLongVeryLongVeryLongVeryLongVeryLongVeryLongVeryLongVeryLongVeryLongVeryLong",
       "expected": "very_long_very_long_very_long_very_long_very_long_very_long_very_long_very_long_very_long_very_long_very_long_very_long"
+    },
+    {
+      "input": "ÉcoleDeParis",
+      "expected": "école_de_paris"
+    },
+    {
+      "input": "Ünïcode",
+      "expected": "ünïcode"
+    },
+    {
+      "input": "ÀB",
+      "expected": "àb"
     }
   ],
   "known_divergences": {
-    "snake": [
-      {
-        "input": "ÉcoleDeParis",
-        "ruby": "école_de_paris",
-        "rust": "École_de_paris"
-      },
-      {
-        "input": "Ünïcode",
-        "ruby": "ünïcode",
-        "rust": "Ünïcode"
-      },
-      {
-        "input": "ÀB",
-        "ruby": "àb",
-        "rust": "Àb"
-      }
-    ],
     "qualified_name_truncation_splitting_a_character": [
       {
         "domain": "Cafe",
