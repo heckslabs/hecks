@@ -97,9 +97,9 @@ RSpec.describe "the Deploy chapter's PreviewRun", :io do
 
   def state_status(json) = json.dig("state", "status")
 
-  def report_of(json) = json.dig("state", "report", "value")
+  def report_of(json) = json.dig("state", "report")
 
-  def refusal_of(json) = json.dig("state", "refusal", "value")
+  def refusal_of(json) = json.dig("state", "refusal")
 
   # What the refusal names when a write is not confirmed.
   def plan_phrases(verb)

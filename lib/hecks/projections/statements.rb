@@ -1,11 +1,15 @@
 require_relative "../projector"
+require_relative "statements/relationships"
+require_relative "statements/actions"
 
 module Hecks
   module Projections
-    # A domain's declared facts as flat plain-English sentences, one checkable statement per fact.
-    # Never invents one: relationships read from shape, invariants use the author's description.
+    # A domain's declared facts as flat plain-English sentences, one checkable statement per fact:
+    # what each thing holds and points at, what is always true of it, how it moves between
+    # states, and what each of its commands checks. Never invents one: relationships read from
+    # shape and names, and every rule uses the author's own description.
     #
-    #   Pizzas.project(Projections::Statements) # => ["A Pizza has many toppings.", ...]
+    #   Pizzas.project(Projections::Statements) # => ["Each order holds a list of toppings.", ...]
     module Statements
       extend Hecks::Projector::Target
 
@@ -18,8 +22,8 @@ module Hecks
       # @param bluebook [Bluebook::Chapter] the chapter being projected
       # @param options [Hash{Symbol => Object}] ignored; present to satisfy the
       #   `Projector::Target` calling convention
-      # @return [Array<String>] one sentence per attribute relationship and invariant,
-      #   in holder order
+      # @return [Array<String>] each holder's relationships, invariants, moves and command
+      #   rules, in holder order
       def call(bluebook:, options: {})
         holders(bluebook).flat_map { |holder| statements_for(holder) }
       end
@@ -27,31 +31,18 @@ module Hecks
       def holders(bluebook) = bluebook.aggregates.flat_map { |aggregate| [aggregate, *aggregate.entities] }
 
       def statements_for(holder)
-        attribute_statements(holder) + invariant_statements(holder)
+        attribute_statements(holder) + invariant_statements(holder) +
+          Actions.lifecycle(holder) + Actions.rules(holder)
       end
 
-      # `has_many` and `list_of` read the same in English; `attribute.name` is the author's noun.
+      # @param holder [Bluebook::Aggregate, Bluebook::Entity] the construct being read
+      # @return [Array<String>] one sentence per list or reference attribute
       def attribute_statements(holder)
         holder.attributes.filter_map { |attribute| attribute_statement(holder, attribute) }
       end
 
-      def attribute_statement(holder, attribute)
-        subject = "#{article(holder.hecks_name)} #{holder.hecks_name}"
-        return "#{subject} has many #{attribute.name}." if attribute.list?
-
-        target = attribute.relationship && attribute.type.target_name
-        target_phrase = target && "#{article(target).downcase} #{target}"
-        case attribute.relationship
-        when "has_one"      then "#{subject} has #{target_phrase}."
-        when "belongs_to"   then "#{subject} belongs to #{target_phrase}."
-        when "reference_to" then "#{subject} references #{target_phrase}."
-        end
-      end
-
-      # Vowel-letter heuristic is safe: construct names are plain words, never initialisms.
-      # @param word [String] a construct name to prefix
-      # @return [String] `"An"` if `word` starts with a vowel letter, `"A"` otherwise
-      def article(word) = word.to_s.match?(/\A[AEIOUaeiou]/) ? "An" : "A"
+      # @return [String, nil] the attribute's sentence, or nil for a plain field
+      def attribute_statement(holder, attribute) = Relationships.sentence(holder, attribute)
 
       # Invariants sit on the holder and on each nested value object; both are read.
       # @param holder [Bluebook::Aggregate, Bluebook::Entity] the construct whose

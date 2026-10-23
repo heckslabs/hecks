@@ -65,7 +65,7 @@ module Hecks
             %(<option value="#{Escape.attr(option_value)}"#{" selected" if option_value.to_s == selected.to_s}>) \
               "#{Escape.html(option_label)}</option>"
           end
-          blank = field.optional? ? %(<option value="">—</option>) : ""
+          blank = field.optional? ? %(<option value="">(none)</option>) : ""
           select_tag(field, "#{blank}#{options.join}")
         end
 
@@ -80,7 +80,7 @@ module Hecks
         end
 
         def self.reference_blank(field, value)
-          return %(<option value="">—</option>) if field.optional?
+          return %(<option value="">(none)</option>) if field.optional?
 
           %(<option value="" disabled#{" selected" unless value}>choose one…</option>)
         end

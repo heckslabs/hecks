@@ -40,7 +40,7 @@ RSpec.describe "the Deploy chapter's CostCheck" do
 
     expect(status).to eq(0)
     expect(json.dig("state", "status")).to eq("within_budget")
-    expect(json.dig("state", "report", "value")).to include("(2 days)", "$2.40/day", "against $75", "Amazon RDS")
+    expect(json.dig("state", "report")).to include("(2 days)", "$2.40/day", "against $75", "Amazon RDS")
   end
 
   it "records a monthly rate over the budget as flagged, exits 1 under --wait, and says what it was", :aggregate_failures do
@@ -50,7 +50,7 @@ RSpec.describe "the Deploy chapter's CostCheck" do
 
     expect(status).to eq(1)
     expect(json.dig("state", "status")).to eq("flagged")
-    expect(json.dig("state", "refusal", "value")).to include("over budget:", "$5.00/day", "$152.19/month against $75")
+    expect(json.dig("state", "refusal")).to include("over budget:", "$5.00/day", "$152.19/month against $75")
   end
 
   it "flags a reading it could not take, with the reason aws gave", :aggregate_failures do
@@ -60,7 +60,7 @@ RSpec.describe "the Deploy chapter's CostCheck" do
 
     expect(status).to eq(1)
     expect(json.dig("state", "status")).to eq("flagged")
-    expect(json.dig("state", "refusal", "value")).to include("Unable to locate credentials")
+    expect(json.dig("state", "refusal")).to include("Unable to locate credentials")
   end
 
   def refusal_for(argv)

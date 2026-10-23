@@ -47,12 +47,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
   end
 
   # A scratch directory for each example, named by `dir` in the groups that write files.
-  around do |example|
-    Dir.mktmpdir("deploy_table") do |scratch|
-      @dir = scratch
-      example.run
-    end
-  end
+  scratch_directory :dir, "deploy_table"
 
   attr_reader :dir
 
@@ -136,7 +131,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
 
       expect(status).to eq(0)
       expect(json.dig("state", "status")).to eq("matching")
-      expect(json.dig("state", "report", "value")).to eq("no differences\n")
+      expect(json.dig("state", "report")).to eq("no differences\n")
     end
 
     it "shows the events of a matching comparison, and the Drift half declining", :aggregate_failures do
@@ -152,13 +147,13 @@ RSpec.describe "the Deploy rows of the ADR command table" do
 
       expect(status).to eq(1)
       expect(json.dig("state", "status")).to eq("drifted")
-      expect(json.dig("state", "report", "value")).to include("~ Bucket (AWS::S3::Bucket)", "BucketName")
+      expect(json.dig("state", "report")).to include("~ Bucket (AWS::S3::Bucket)", "BucketName")
       expect(json.fetch("events")).to eq(%w[ComparisonRequested ComparisonAnswered TemplatesDrifted])
     end
 
     it "writes the report as JSON with --json" do
       json, = diff_answer("a.yaml", "b.yaml", "--json")
-      report = JSON.parse(json.dig("state", "report", "value"))
+      report = JSON.parse(json.dig("state", "report"))
 
       expect(report.fetch("different")).to be(true)
     end
@@ -168,7 +163,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
 
       expect(status).to eq(1)
       expect(json.dig("state", "status")).to eq("refused")
-      expect(json.dig("state", "refusal", "value")).to include("does not exist")
+      expect(json.dig("state", "refusal")).to include("does not exist")
     end
   end
 
@@ -192,7 +187,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
       expect(status).to eq(0)
       expect(json.dig("state", "status")).to eq("provisioned")
       expect(json.fetch("events")).to eq(%w[TenantProvisionRequested TenantProvisioned TenantRecorded])
-      expect(json.dig("state", "output", "value")).to eq("wrote #{File.join(dir, "environments/acme.world")}\n")
+      expect(json.dig("state", "output")).to eq("wrote #{File.join(dir, "environments/acme.world")}\n")
     end
 
     it "writes the tenant's overlay world" do
@@ -269,7 +264,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
 
       expect(status).to eq(0)
       expect(json.dig("state", "status")).to eq("projected")
-      expect(json.dig("state", "output", "value")).to eq("wrote deploy/pizzas/template.yaml\n")
+      expect(json.dig("state", "output")).to eq("wrote deploy/pizzas/template.yaml\n")
     end
 
     it "keeps a generator that refused as a faulted recipe with its own sentence, and exits 1 under --wait",
@@ -279,7 +274,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
 
       expect(status).to eq(1)
       expect(json.dig("state", "status")).to eq("faulted")
-      expect(json.dig("state", "refusal", "value")).to include("no deployed_to block")
+      expect(json.dig("state", "refusal")).to include("no deployed_to block")
     end
 
     it "keeps a Makefile that hides a failure as a flagged lint, and exits 1 under --wait", :aggregate_failures do
@@ -318,7 +313,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
       json, status = answer(["makefile_check.lint", "makefiles=deploy/pizzas/Makefile", "--wait"])
 
       expect(status).to eq(1)
-      expect(json.dig("state", "refusal", "value")).to include("needs a hecks checkout")
+      expect(json.dig("state", "refusal")).to include("needs a hecks checkout")
     end
 
     # A project beside the cwd, with the Hecks tree pointed at a gem directory holding no checkout.
@@ -339,7 +334,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
     it "generates a recipe for a project beside the cwd, from an installed gem with no checkout", :aggregate_failures do
       json, status = generate_recipe(install_gem_project)
 
-      expect(json.dig("state", "refusal", "value")).to be_nil
+      expect(json.dig("state", "refusal")).to be_nil
       expect(status).to eq(0)
       expect(json.dig("state", "status")).to eq("projected")
     end

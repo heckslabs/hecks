@@ -77,20 +77,26 @@ module Hecks
         end
 
         def verb_entries(bluebook, homes)
-          holders(bluebook).flat_map { |holder| command_entries(holder, homes) + query_entries(holder, homes) }
+          shapes = bluebook.aggregates.to_h { |aggregate| [aggregate.hecks_name, aggregate.value_objects] }
+          holders(bluebook).flat_map do |holder|
+            command_entries(holder, homes) + query_entries(holder, homes, shapes[homes[holder.hecks_name]])
+          end
         end
 
         def command_entries(holder, homes)
           holder.commands.map do |command|
             Entry.new(name: command.hecks_name, kind: :command, within: holder.hecks_name,
-                      section: homes[holder.hecks_name], facts: { command: command, holder: holder })
+                      section: homes[holder.hecks_name],
+                      facts: { command: command, holder: holder, within: homes[holder.hecks_name] })
           end
         end
 
-        def query_entries(holder, homes)
+        # A query carries its holder and the aggregate's value objects, to speak its fields.
+        def query_entries(holder, homes, value_objects)
           holder.queries.map do |query|
             Entry.new(name: query.hecks_name, kind: :query, within: holder.hecks_name,
-                      section: homes[holder.hecks_name], facts: { query: query })
+                      section: homes[holder.hecks_name],
+                      facts: { query: query, holder: holder, value_objects: Array(value_objects) })
           end
         end
 

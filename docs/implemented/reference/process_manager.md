@@ -23,7 +23,7 @@ process_manager "Onboarding" do
   transition "OnboardingCleared" => "cleared", from: "screening" do
     dispatch Account::Open, with: {
       customer: :customer, number: :account_number,
-      kind: { name: "current" }, daily_limit: { cents: 0 }
+      kind: "current", daily_limit: 0
     }
   end
 
@@ -47,9 +47,9 @@ end
 ```
 
 ```ruby
-runtime.dispatch("Banking::Customer.Register", with: { reference: { value: "pm-1" },
+runtime.dispatch("Banking::Customer.Register", with: { reference: "pm-1",
                                                        name: { given: "Katherine", family: "Johnson" },
-                                                       email: { address: "katherine@example.com" } })
+                                                       email: "katherine@example.com" })
 ```
 
 ## correlates_by
@@ -71,8 +71,8 @@ so the declaration is refused at load time unless it names a scalar.
 filed under the case's own reference — not a saga id of its own:
 
 ```ruby
-kase = Banking::OnboardingCase.open!(customer: "pm-1", reference: { value: "pm-c1" },
-                                    account_number: { value: "pm-a1" })
+kase = Banking::OnboardingCase.open!(customer: "pm-1", reference: "pm-c1",
+                                    account_number: "pm-a1")
 runtime.registry.saga_instances["Onboarding"].keys  # => ["pm-c1"]
 ```
 

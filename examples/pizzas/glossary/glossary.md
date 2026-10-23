@@ -1,27 +1,14 @@
-# Pizzas — Glossary
+# Pizzas glossary
 
 > Put toppings on a pizza and sell it to a customer.
 
-Every term Pizzas uses, in the words of the people who work in it — grouped under the thing each belongs to, and listed A to Z within it. This page is generated from the working specification, so it says what the system does today, not what anyone hoped it would do. If a sentence here reads wrong to you, the specification is wrong: say so.
-
-```mermaid
-flowchart LR
-    n_order["Order"]
-```
+The terms Pizzas uses, written the way the people who work in it would say them. Each term sits under the thing it belongs to: first what can be done with it, then what it records, the lists you can ask for, and what it is made of. The page is generated from the working specification, so it describes what the system does today. If a sentence reads wrong to you, the specification is wrong, and it is worth saying so.
 
 ## Order
 
 > An order that gathers toppings on a pizza and is eventually sold to a customer.
 
 Starts out available. Can be available or sold.
-
-**How it fits**
-
-```mermaid
-flowchart LR
-    n_order["Order"]:::focus
-    classDef focus stroke-width:3px
-```
 
 **How it moves**
 
@@ -31,9 +18,11 @@ stateDiagram-v2
     available --> sold: Purchase
 ```
 
+- Purchasing an order moves it from available to sold.
+
 **Always true**
 
-- An Order has many toppings.
+- Each order holds a list of toppings.
 - A pizza is named.
 - A price is never negative.
 - A customer is named.
@@ -41,106 +30,154 @@ stateDiagram-v2
 - A topping name is more than whitespace.
 - An amount is positive.
 
-### Add topping
+### Actions
+
+#### Add topping
 
 Customize a pizza with an ingredient. Done by the chef.
 
-### Available
+Needs a topping ([Topping name](#topping-name)) and an amount ([Topping amount](#topping-amount)).
 
-### By customer
+Allowed only when: the order is available; at most 10 toppings.
 
-### By customer descending
+Adds to the toppings.
 
-### By customer unset last
+Records [Topping added](#topping-added).
 
-### By price
-
-### By price descending
-
-### Costing less than
-
-### Create pizza
+#### Create pizza
 
 Put a new pizza on the menu. Done by the chef.
 
-### Customer name
+Needs a name ([Pizza name](#pizza-name)) and a pizza ([Pizza](#pizza)).
 
-Text.
+Sets the name and the pizza.
 
-Always true: a customer is named.
+Records [Pizza created](#pizza-created).
 
-### Everything
+#### Purchase
 
-### Expensive
+Buy the pizza. Done by the customer.
 
-### Pizza
+Needs an amount ([Price](#price)) and a customer name ([Customer name](#customer-name), optional).
 
-Made up of price cents ([Price](#price)) and size ([Size](#size)).
+Allowed only when: the order is available; a pizza needs at least one topping; a payment was actually made; the payment covers the price.
 
-### Pizza created
+Sets the customer name and moves the order from available to sold.
+
+Records [Pizza purchased](#pizza-purchased).
+
+### What it records
+
+#### Pizza created
 
 Recorded after [Create pizza](#create-pizza).
 
-### Pizza name
-
-Text.
-
-Always true: a pizza is named.
-
-### Pizza purchased
+#### Pizza purchased
 
 Recorded after [Purchase](#purchase).
 
-### Price
+#### Topping added
+
+Recorded after [Add topping](#add-topping).
+
+### Lists
+
+#### Available
+
+Orders that are available, sorted by pizza name, A to Z.
+
+#### By customer
+
+All orders, sorted by customer name, A to Z.
+
+#### By customer descending
+
+All orders, sorted by customer name, Z to A.
+
+#### By customer unset last
+
+All orders, sorted by customer name, A to Z, with orders that have no customer name last.
+
+#### By price
+
+All orders, sorted by price, lowest first.
+
+#### By price descending
+
+All orders, sorted by price, highest first.
+
+#### Costing less than
+
+Orders whose price is less than the ceiling you give, sorted by pizza name, A to Z.
+
+#### Everything
+
+All orders.
+
+#### Expensive
+
+Orders whose price is more than 1000, sorted by pizza name, A to Z.
+
+### What it is made of
+
+#### Customer name
+
+Text that must not be blank.
+
+Always true: a customer is named.
+
+#### Pizza
+
+Made up of price cents ([Price](#price)) and size ([Size](#size)).
+
+#### Pizza name
+
+Text that must not be blank.
+
+Always true: a pizza is named.
+
+#### Price
 
 Made up of cents (a whole number).
 
 Always true: a price is never negative.
 
-### Purchase
-
-Buy the pizza. Done by the customer.
-
-### Size
+#### Size
 
 One of small or large.
 
-### Topping
+#### Topping
 
-Made up of name (text) and amount (a whole number).
+Made up of name (text, must not be blank) and amount (a whole number).
 
-### Topping added
-
-Recorded after [Add topping](#add-topping).
-
-### Topping amount
+#### Topping amount
 
 A whole number.
 
 Always true: an amount is positive.
 
-### Topping name
+#### Topping name
 
-Text.
+Text that must not be blank.
 
 Always true: a topping is named; a topping name is more than whitespace.
 
 ## Roles
 
-> Who does what. A role is named once here rather than under every term it touches.
+> Who does what. Each role is listed once, with the actions it is responsible for.
 
-### Chef
+#### Chef
 
 Responsible for [Create pizza](#create-pizza) and [Add topping](#add-topping).
 
-### Customer
+#### Customer
 
 Responsible for [Purchase](#purchase).
 
 ## Reactions
 
-> What happens on its own, in response to something this specification does not itself raise.
+> What happens on its own when something arrives from outside this specification.
 
-### On pizza payment received
+#### On pizza payment received
 
-When Pizza payment received happens, [Order](#order) is asked to [Purchase](#purchase).
+When "Pizza payment received" arrives from outside, [Order](#order) is asked to [Purchase](#purchase).

@@ -12,7 +12,7 @@ Hecks.bluebook "Banking" do
 
     value_object "CustomerNumber" do
       attribute :value, String, matches: :present
-      invariant("a customer reference is present") { !value.to_s.empty? }
+      invariant("a customer number is never empty") { !value.to_s.empty? }
     end
 
     value_object "CustomerStanding" do

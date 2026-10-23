@@ -9,12 +9,7 @@ RSpec.describe Hecks::Adapters::Codebase::Conformance do
   let(:tree) { Hecks::Adapters::Codebase::Tree.new }
   let(:failure) { Hecks::Adapters::ConsoleCapture::Failure }
 
-  around do |example|
-    Dir.mktmpdir do |dir|
-      @dir = dir
-      example.run
-    end
-  end
+  scratch_directory
 
   # Answers the matrix's report with a fixed status, and remembers what the tool was asked. The
   # matrix runs in this process, so what is stubbed is `Hecks::Tools.run`.

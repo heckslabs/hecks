@@ -56,7 +56,7 @@ pub(super) async fn resend_webhook_route(
             .and_then(|v| v.as_str())
             .unwrap_or("")
     };
-    let secret = std::env::var(SECRET_VARIABLE).unwrap_or_default();
+    let secret = crate::secrets::var(SECRET_VARIABLE).unwrap_or_default();
     if secret.trim().is_empty() {
         return Some(respond(
             503,

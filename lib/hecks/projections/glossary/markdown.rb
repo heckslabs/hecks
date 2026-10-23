@@ -10,21 +10,22 @@ module Hecks
       # Renders `glossary.md`, the source the glossary page is built from.
       # Uses only Markdown that GitHub renders as-is, so the file reads on its own.
       module Markdown
-        LEDE = "Every term %<name>s uses, in the words of the people who work in it — grouped under the thing " \
-               "each belongs to, and listed A to Z within it. This page is generated from the working " \
-               "specification, so it says what the system does today, not what anyone hoped it would do. " \
-               "If a sentence here reads wrong to you, the specification is wrong: say so.".freeze
+        LEDE = "The terms %<name>s uses, written the way the people who work in it would say them. " \
+               "Each term sits under the thing it belongs to: first what can be done with it, then " \
+               "what it records, the lists you can ask for, and what it is made of. The page is " \
+               "generated from the working specification, so it describes what the system does today. " \
+               "If a sentence reads wrong to you, the specification is wrong, and it is worth saying so.".freeze
 
         STANDING = {
-          ROLES       => "Who does what. A role is named once here rather than under every term it touches.",
-          READ_MODELS => "Questions answered across more than one of the things above.",
-          REACTIONS   => "What happens on its own, in response to something this specification does not itself raise."
+          ROLES       => "Who does what. Each role is listed once, with the actions it is responsible for.",
+          READ_MODELS => "Questions answered by reading more than one of the things above.",
+          REACTIONS   => "What happens on its own when something arrives from outside this specification."
         }.freeze
 
         module_function
 
         # Titles the document after its chapter.
-        def title(bluebook) = "#{bluebook.name} — Glossary"
+        def title(bluebook) = "#{bluebook.name} glossary"
 
         # Renders the full `glossary.md` document.
         #
@@ -41,13 +42,15 @@ module Hecks
           parts = ["# #{title(bluebook)}"]
           parts << "> #{bluebook.vision}" if bluebook.vision
           parts << format(LEDE, name: bluebook.name)
-          parts << fence(Mermaid.map(bluebook))
+          parts << fence(Mermaid.map(bluebook)) if bluebook.aggregates.size > 1
           parts.join("\n\n")
         end
 
         # Renders one `##` section: its opening, then every term inside it.
         def section_text(section, document)
-          terms = section.terms.map { |entry| term_text(entry, document.index) }
+          terms = Groups.walk(section).map do |kind, item|
+            kind == :group ? "### #{item}" : term_text(item, document.index)
+          end
           ["## #{section.title}", *section_opening(section, document), *terms].join("\n\n")
         end
 
@@ -67,11 +70,19 @@ module Hecks
           parts + diagrams(aggregate, bluebook) + facts(always_true(aggregate, bluebook), marked)
         end
 
-        # The "How it fits" diagram, and "How it moves" when the aggregate has a lifecycle.
+        # The "How it fits" diagram when the aggregate has neighbours to draw, and "How it moves"
+        # with each move in words when it has a lifecycle.
         def diagrams(aggregate, bluebook)
-          parts = ["**How it fits**", fence(Mermaid.context(aggregate, bluebook))]
-          parts << "**How it moves**" << fence(Mermaid.lifecycle(aggregate)) if aggregate.lifecycle
-          parts
+          parts = []
+          parts << "**How it fits**" << fence(Mermaid.context(aggregate, bluebook)) if Mermaid.neighbours?(aggregate, bluebook)
+          parts + moves(aggregate)
+        end
+
+        def moves(aggregate)
+          return [] unless aggregate.lifecycle
+
+          lines = Statements::Actions.lifecycle(aggregate).drop(1).map { |sentence| "- #{sentence}" }
+          ["**How it moves**", fence(Mermaid.lifecycle(aggregate)), lines.join("\n")]
         end
 
         # The "Always true" and "Handled as sensitive" lists, each only when it has lines.
@@ -85,25 +96,17 @@ module Hecks
           parts
         end
 
-        # The statements projection's sentences for `aggregate` and its entities, spoken.
-        # Invariants stay verbatim; construct names in other sentences are replaced with
-        # how they are said, because this page never shows an identifier.
-        def always_true(aggregate, bluebook)
-          names = bluebook.aggregates.flat_map { |other| [other.hecks_name, *other.entities.map(&:hecks_name)] }
+        # The statements projection's relationship and invariant sentences for `aggregate` and
+        # its entities, each said once.
+        def always_true(aggregate, _bluebook)
           [aggregate, *aggregate.entities].flat_map do |holder|
-            Statements.attribute_statements(holder).map { |sentence| spoken(sentence, names) } +
-              Statements.invariant_statements(holder)
+            Statements.attribute_statements(holder) + Statements.invariant_statements(holder)
           end.uniq
         end
 
-        # Replaces every whole-word construct name in `sentence` with how it is said.
-        def spoken(sentence, names)
-          names.reduce(sentence) { |text, name| text.gsub(/\b#{Regexp.escape(name)}\b/, Naming.words(name)) }
-        end
-
-        # Renders one term's `###` heading and its paragraphs.
+        # Renders one term's `####` heading and its paragraphs.
         def term_text(entry, index)
-          ["### #{entry.headword}", *Sentences.paragraphs(entry, index)].join("\n\n")
+          ["#### #{entry.headword}", *Sentences.paragraphs(entry, index)].join("\n\n")
         end
 
         # Wraps a Mermaid diagram's source in a fenced code block.

@@ -168,18 +168,18 @@ end
 ```
 
 ```ruby
-runtime.dispatch("Banking::Customer.Register", with: { reference: { value: "qy-1" },
+runtime.dispatch("Banking::Customer.Register", with: { reference: "qy-1",
                                                        name: { given: "Nancy", family: "Roman" },
-                                                       email: { address: "nancy@example.com" } })
-account = Banking::Account.open!(customer: "qy-1", number: { value: "qy-a1" },
-                                kind: { name: "current" }, daily_limit: { cents: 50_000 })
-account.credit!(amount: { cents: 9_000 }, narrative: { text: "funding" })
+                                                       email: "nancy@example.com" })
+account = Banking::Account.open!(customer: "qy-1", number: "qy-a1",
+                                kind: "current", daily_limit: 50_000)
+account.credit!(amount: { cents: 9_000 }, narrative: "funding")
 
-runtime.dispatch("QueryReference::Warden.Appoint", with: { badge: { value: "w-1" } })
-runtime.dispatch("QueryReference::Warden.Appoint", with: { badge: { value: "w-2" } })
-runtime.dispatch("QueryReference::Sighting.Log", with: { tag: { value: "s-1" }, warden: "w-1", species: { value: "heron" }, count: { value: 3 } })
-runtime.dispatch("QueryReference::Sighting.Log", with: { tag: { value: "s-2" }, warden: "w-1", species: { value: "egret" } })
-runtime.dispatch("QueryReference::Sighting.Log", with: { tag: { value: "s-3" }, warden: "w-2", species: { value: "ibis" }, count: { value: 1 } })
+runtime.dispatch("QueryReference::Warden.Appoint", with: { badge: "w-1" })
+runtime.dispatch("QueryReference::Warden.Appoint", with: { badge: "w-2" })
+runtime.dispatch("QueryReference::Sighting.Log", with: { tag: "s-1", warden: "w-1", species: "heron", count: 3 })
+runtime.dispatch("QueryReference::Sighting.Log", with: { tag: "s-2", warden: "w-1", species: "egret" })
+runtime.dispatch("QueryReference::Sighting.Log", with: { tag: "s-3", warden: "w-2", species: "ibis", count: 1 })
 ```
 
 ## description
@@ -344,7 +344,7 @@ moment its customer is suspended, so the dangerous state this query
 exists to surface can no longer be reached.
 
 ```ruby
-Banking::Customer.find("qy-1").suspend!(standing: { value: "under-review" })
+Banking::Customer.find("qy-1").suspend!(standing: "under-review")
 Banking::Account.find("qy-a1").status  # => "frozen"
 runtime.query("Banking::Account.OpenForSuspendedCustomers")  # => []
 ```
@@ -410,8 +410,8 @@ declared.
 :branch_code`. Two boxes, in two branches:
 
 ```ruby
-Banking::SafeDepositBox.rent!(customer: "qy-1", branch_code: { value: "DT" }, box_number: { value: 1 }, size: { value: "small" })
-Banking::SafeDepositBox.rent!(customer: "qy-1", branch_code: { value: "UP" }, box_number: { value: 1 }, size: { value: "large" })
+Banking::SafeDepositBox.rent!(customer: "qy-1", branch_code: "DT", box_number: 1, size: "small")
+Banking::SafeDepositBox.rent!(customer: "qy-1", branch_code: "UP", box_number: 1, size: "large")
 ```
 
 The tenant boundary is mandatory — an ask that does not say which branch
@@ -425,7 +425,7 @@ Name it, and every row is scoped to it. The other branch's box is not
 in the answer, and no `where` said so:
 
 ```ruby
-runtime.query("Banking::SafeDepositBox.Rented", branch_code: { value: "DT" }).map { |row| row[:branch_code][:value] }  # => ["DT"]
+runtime.query("Banking::SafeDepositBox.Rented", branch_code: "DT").map { |row| row[:branch_code][:value] }  # => ["DT"]
 ```
 
 The policy name beside it is the half that is NOT checked — nothing in
@@ -529,8 +529,8 @@ when the bluebook is built, as is a fact the runtime cannot supply or one declar
 lit, one until a little before the clock reads and one until a little after:
 
 ```ruby
-runtime.dispatch("QueryReference::Lamp.Light", with: { ref: { value: "old" }, lit_until: { value: 1_699_999_000 } })
-runtime.dispatch("QueryReference::Lamp.Light", with: { ref: { value: "new" }, lit_until: { value: 1_700_000_500 } })
+runtime.dispatch("QueryReference::Lamp.Light", with: { ref: "old", lit_until: 1_699_999_000 })
+runtime.dispatch("QueryReference::Lamp.Light", with: { ref: "new", lit_until: 1_700_000_500 })
 ```
 
 Left out, `now` is the clock's reading (1,700,000,000 here), so only the later lamp is lit. Named, the
@@ -538,7 +538,7 @@ caller's own time is kept, so the same query can be asked as of another moment:
 
 ```ruby
 runtime.query("QueryReference::Lamp.Lit").map { |row| row[:ref][:value] }  # => ["new"]
-runtime.query("QueryReference::Lamp.Lit", now: { value: 1_699_999_000 }).map { |row| row[:ref][:value] }  # => ["new", "old"]
+runtime.query("QueryReference::Lamp.Lit", now: 1_699_999_000).map { |row| row[:ref][:value] }  # => ["new", "old"]
 ```
 
 Unlike a command, a query writes no event, so nothing records the answer: the fill is for that

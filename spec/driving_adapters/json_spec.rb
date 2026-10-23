@@ -119,21 +119,21 @@ RSpec.describe Hecks::Adapters::Driving::Json do
   describe ".materialize" do
     def margherita_state(pizza)
       { id:            pizza.id,
-        name:          { value: "Margherita" },
-        pizza:         { price_cents: { cents: 1200 }, size: { value: "large" } },
+        name:          "Margherita",
+        pizza:         { price_cents: 1200, size: "large" },
         toppings:      [],
         customer_name: nil,
         status:        "available" }
     end
 
-    it "deep-unwraps a Handle's nested Runtime::Value fields to plain Ruby", :aggregate_failures do
+    it "deep-unwraps a Handle's nested Runtime::Value fields, a one-field one to its bare value", :aggregate_failures do
       pizza = order(boot_in_memory)
       result = json.materialize(pizza)
 
       expect(result).to eq(margherita_state(pizza))
       # `eq` alone misses a leftover Runtime::Value, which compares equal by content.
-      expect(result[:pizza][:price_cents]).to be_a(Hash)
-      expect(result[:pizza][:price_cents]).not_to be_a(Hecks::Runtime::Value)
+      expect(result[:pizza]).to be_a(Hash)
+      expect(result[:pizza]).not_to be_a(Hecks::Runtime::Value)
     end
 
     it "deep-unwraps a plain state hash the same way, without needing a Handle" do
@@ -142,7 +142,7 @@ RSpec.describe Hecks::Adapters::Driving::Json do
 
       result = json.materialize(pizza.to_h)
 
-      expect(result[:pizza]).to eq(price_cents: { cents: 1200 }, size: { value: "large" })
+      expect(result[:pizza]).to eq(price_cents: 1200, size: "large")
     end
   end
 

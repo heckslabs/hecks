@@ -9,12 +9,7 @@ RSpec.describe Hecks::Fuzzing::DomainGenerator, :aggregate_failures do
   DG_FORM_PAIRS = [%w[composite_id has_entity], %w[lifecycle closed_set], %w[multi_hop_where list_attr],
                    %w[two_hop_given revalued_reference], %w[composite_piece has_default]].freeze
 
-  around do |example|
-    Dir.mktmpdir do |dir|
-      @scratch = dir
-      example.run
-    end
-  end
+  scratch_directory :scratch
 
   def scratch_dir = @scratch
 

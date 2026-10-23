@@ -11,8 +11,7 @@ module Hecks
       module Html
         Block = Struct.new(:type, :text, :items, :level, keyword_init: true)
 
-        FONTS   = "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;" \
-                  "0,6..72,600;1,6..72,400&family=Instrument+Sans:wght@400;500;600&display=swap".freeze
+        FONTS   = "https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap".freeze
         MERMAID = "https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js".freeze
 
         module_function

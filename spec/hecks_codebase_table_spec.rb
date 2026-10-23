@@ -145,7 +145,7 @@ RSpec.describe "the Codebase rows of the ADR command table" do
   end
 
   # The names of the runs a listing query answers.
-  def runs_listed(query) = JSON.parse(launch([query]).first).map { |run| run.dig("run", "value") }
+  def runs_listed(query) = JSON.parse(launch([query]).first).map { |run| run["run"] }
 
   def accept_of(aggregate_name)
     @bluebook.aggregate(aggregate_name).commands.find { |command| command.hecks_name == "Accept" }
@@ -186,7 +186,7 @@ RSpec.describe "the Codebase rows of the ADR command table" do
     row = JSON.parse(out).fetch("state")
 
     expect([status, row.fetch("status")]).to eq([1, "faulted"])
-    expect(row.dig("refusal", "value")).to include("needs a hecks checkout")
+    expect(row["refusal"]).to include("needs a hecks checkout")
     expect(runs_listed("language_run.language_faulted")).to include("refused-1")
   end
 

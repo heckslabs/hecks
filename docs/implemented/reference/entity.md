@@ -131,13 +131,13 @@ end
 ```
 
 ```ruby
-runtime.dispatch("Banking::Customer.Register", with: { reference: { value: "en-1" },
+runtime.dispatch("Banking::Customer.Register", with: { reference: "en-1",
                                                        name: { given: "Evelyn", family: "Boyd" },
-                                                       email: { address: "evelyn@example.com" } })
-account = Banking::Account.open!(customer: "en-1", number: { value: "en-a1" },
-                                kind: { name: "current" }, daily_limit: { cents: 50_000 })
-account.credit!(amount: { cents: 10_000 }, narrative: { text: "opening" })
-account.debit!(amount: { cents: 2_500 }, narrative: { text: "groceries" })
+                                                       email: "evelyn@example.com" })
+account = Banking::Account.open!(customer: "en-1", number: "en-a1",
+                                kind: "current", daily_limit: 50_000)
+account.credit!(amount: { cents: 10_000 }, narrative: "opening")
+account.debit!(amount: { cents: 2_500 }, narrative: "groceries")
 ```
 
 ## description
@@ -310,8 +310,8 @@ Same vocabulary as a command on an aggregate — see command.md — but this one
 account that holds it, and naming which entry by its own sequence:
 
 ```ruby
-runtime.dispatch_flat("Banking::Account.LedgerEntry.Reverse", number: { value: "en-a1" },
-                 sequence: { value: 2 }, narrative: { text: "posted in error" })
+runtime.dispatch_flat("Banking::Account.LedgerEntry.Reverse", number: "en-a1",
+                 sequence: 2, narrative: "posted in error")
 Banking::Account.find("en-a1").ledger[1][:state]  # => "reversed"
 ```
 
@@ -345,13 +345,13 @@ reading, before `state == "posted"` (the entry's OWN field, no
 `parent.` needed) is ever reached:
 
 ```ruby
-runtime.dispatch("Banking::Customer.Register", with: { reference: { value: "pa-1" },
-                                                       name: { given: "Parent", family: "Reader" }, email: { address: "pa@example.com" } })
-account = Banking::Account.open!(customer: "pa-1", number: { value: "pa-a1" },
-                                kind: { name: "current" }, daily_limit: { cents: 50_000 })
-account.credit!(amount: { cents: 1_000 }, narrative: { text: "opening deposit" })
-runtime.dispatch_flat("Banking::Customer.Suspend", reference: "pa-1", standing: { value: "under review" })
-runtime.dispatch_flat("Banking::Account.LedgerEntry.Reverse", number: { value: "pa-a1" }, sequence: { value: 1 }, narrative: { text: "reversing" })  # ~> GivenNotMet: customer is active
+runtime.dispatch("Banking::Customer.Register", with: { reference: "pa-1",
+                                                       name: { given: "Parent", family: "Reader" }, email: "pa@example.com" })
+account = Banking::Account.open!(customer: "pa-1", number: "pa-a1",
+                                kind: "current", daily_limit: 50_000)
+account.credit!(amount: { cents: 1_000 }, narrative: "opening deposit")
+runtime.dispatch_flat("Banking::Customer.Suspend", reference: "pa-1", standing: "under review")
+runtime.dispatch_flat("Banking::Account.LedgerEntry.Reverse", number: "pa-a1", sequence: 1, narrative: "reversing")  # ~> GivenNotMet: customer is active
 ```
 
 ## query
@@ -393,7 +393,7 @@ entry above has already moved. Reversing it twice is refused against the
 ENTRY's state — the account is still perfectly open:
 
 ```ruby
-runtime.dispatch_flat("Banking::Account.LedgerEntry.Reverse", number: { value: "en-a1" }, sequence: { value: 2 }, narrative: { text: "again" })  # ~> GivenNotMet: entry is posted
+runtime.dispatch_flat("Banking::Account.LedgerEntry.Reverse", number: "en-a1", sequence: 2, narrative: "again")  # ~> GivenNotMet: entry is posted
 ```
 
 ```ruby
@@ -445,11 +445,11 @@ Points an entity at a real ROOT, the same way an aggregate's own `reference_to` 
 `Depot` — a real root of its own, not another piece:
 
 ```ruby
-runtime.dispatch("EntityReference::Depot.OpenDepot", with: { code: { value: "dp-1" } })
-runtime.dispatch("EntityReference::Depot.OpenDepot", with: { code: { value: "dp-2" } })
-runtime.dispatch("EntityReference::Manifest.OpenManifest", with: { docket: { value: "mf-1" } })
-runtime.dispatch_flat("EntityReference::Manifest.AddCrate", manifest: "mf-1", slot: { value: 1 },
-                 handler: { value: "Ada" }, depot: "dp-1", origin: "dp-1")
+runtime.dispatch("EntityReference::Depot.OpenDepot", with: { code: "dp-1" })
+runtime.dispatch("EntityReference::Depot.OpenDepot", with: { code: "dp-2" })
+runtime.dispatch("EntityReference::Manifest.OpenManifest", with: { docket: "mf-1" })
+runtime.dispatch_flat("EntityReference::Manifest.AddCrate", manifest: "mf-1", slot: 1,
+                 handler: "Ada", depot: "dp-1", origin: "dp-1")
 ```
 
 The reference is stored on the crate itself, one field among its own:
@@ -472,7 +472,7 @@ EntityReference::Manifest.find("mf-1").crates.first[:depot]  # => "dp-1"
 The one shape `reference_to`/`has_one`/`belongs_to` cannot express at all — a LIST of targets, admitting zero, never refused for being empty the way a required singular relationship is (`validate_relationship_cardinality`'s own early return on `attribute.list?`). `waypoints` is every depot this crate has passed through in transit, set here without ever touching `destination` (`has_one`'s own section, next) — a required list needs no partner value the way a required singular field would:
 
 ```ruby
-runtime.dispatch_flat("EntityReference::Manifest.Crate.Route", docket: { value: "mf-1" }, slot: { value: 1 },
+runtime.dispatch_flat("EntityReference::Manifest.Crate.Route", docket: "mf-1", slot: 1,
                  waypoints: ["dp-1", "dp-2"])
 EntityReference::Manifest.find("mf-1").crates.first[:waypoints]  # => ["dp-1", "dp-2"]
 ```
@@ -528,14 +528,14 @@ A piece nested inside a piece — the same word, opening the same body, one leve
 A nested entity is created the same way any entity is: by its OWNER's own append command, never by a creating verb of its own. `Crate.Seal` is Crate's own command, and reaching it takes both outer identities — Manifest's own `docket`, then Crate's own `slot` — the same two-part reach `command.md`'s own reading through `parent` already uses one level down:
 
 ```ruby
-runtime.dispatch_flat("EntityReference::Manifest.Crate.Seal", docket: { value: "mf-1" }, slot: { value: 1 }, stamp: { value: "inspected-1" })
+runtime.dispatch_flat("EntityReference::Manifest.Crate.Seal", docket: "mf-1", slot: 1, stamp: "inspected-1")
 EntityReference::Manifest.find("mf-1").crates.first[:seals].map { |seal| seal[:stamp][:value] }  # => ["inspected-1"]
 ```
 
 A second seal appends beside the first — nested data, ordinary list semantics:
 
 ```ruby
-runtime.dispatch_flat("EntityReference::Manifest.Crate.Seal", docket: { value: "mf-1" }, slot: { value: 1 }, stamp: { value: "inspected-2" })
+runtime.dispatch_flat("EntityReference::Manifest.Crate.Seal", docket: "mf-1", slot: 1, stamp: "inspected-2")
 EntityReference::Manifest.find("mf-1").crates.first[:seals].size  # => 2
 ```
 

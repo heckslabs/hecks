@@ -372,12 +372,7 @@ RSpec.describe "a read model's query options" do
   end
 
   describe "against a real Sqlite store" do
-    around do |example|
-      Dir.mktmpdir do |tmp|
-        @dir = tmp
-        example.run
-      end
-    end
+    scratch_directory
 
     attr_reader :dir
 

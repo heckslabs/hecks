@@ -8,6 +8,7 @@ use crate::host::Host;
 use crate::journal;
 use crate::journal::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
+use crate::needs::{Clock, ProcessClock};
 use serde_json::{json, Value};
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -34,8 +35,8 @@ pub struct Session {
 }
 
 pub fn authorization_url(redirect_uri: &str, secret: &str) -> Result<String, String> {
-    let client_id =
-        std::env::var("GOOGLE_CLIENT_ID").map_err(|_| "GOOGLE_CLIENT_ID not set".to_string())?;
+    let client_id = crate::secrets::var("GOOGLE_CLIENT_ID")
+        .map_err(|_| "GOOGLE_CLIENT_ID not set".to_string())?;
     let payload = now_secs().to_string();
     let state = format!("{payload}.{}", sign(secret, &payload));
     Ok(format!(
@@ -59,9 +60,9 @@ pub fn verify_state(state: &str, secret: &str) -> Result<(), String> {
 }
 
 pub async fn verify(code: &str, redirect_uri: &str) -> Result<Claims, String> {
-    let client_id =
-        std::env::var("GOOGLE_CLIENT_ID").map_err(|_| "GOOGLE_CLIENT_ID not set".to_string())?;
-    let client_secret = std::env::var("GOOGLE_CLIENT_SECRET")
+    let client_id = crate::secrets::var("GOOGLE_CLIENT_ID")
+        .map_err(|_| "GOOGLE_CLIENT_ID not set".to_string())?;
+    let client_secret = crate::secrets::var("GOOGLE_CLIENT_SECRET")
         .map_err(|_| "GOOGLE_CLIENT_SECRET not set".to_string())?;
 
     let http = crate::http::client();
@@ -484,7 +485,7 @@ pub async fn session_for_member_by_identity(
     drop(guard);
     Ok(row.and_then(|r| {
         let state: Value = r.get(0);
-        if is_disabled(&state) {
+        if is_lapsed(&state) {
             return None;
         }
         Some(Session {
@@ -516,7 +517,7 @@ pub async fn provision(
     let Some(member) = member_row_by_email(client, domain_ir, email).await? else {
         return Ok(None);
     };
-    if is_disabled(&member) {
+    if is_lapsed(&member) {
         return Ok(None);
     }
     let role = member
@@ -632,17 +633,82 @@ pub async fn grant_access(
     email: &str,
     role: &str,
 ) -> anyhow::Result<bool> {
+    let outcome =
+        grant_access_until(client, wasm_path, config, domain_ir, email, role, None).await?;
+    Ok(outcome == GrantOutcome::Done)
+}
+
+/// What `grant_access_until` decided.
+#[derive(Debug, PartialEq, Eq)]
+pub enum GrantOutcome {
+    /// The role (and window, if any) is now on the person's row.
+    Done,
+    /// No person with that email exists.
+    UnknownPerson,
+    /// The change would leave no active admin without an end date.
+    LastOpenAdmin,
+}
+
+/// Grants `role` like `grant_access`, for a window ending at `expires_at`
+/// (an ISO 8601 UTC instant) when one is given. Granting again renews: the
+/// new window replaces the old, and `None` clears it, so a plain grant makes
+/// the access open-ended. Refused when it would take the site's last
+/// open-ended admin off that footing, locked with other membership writes.
+pub async fn grant_access_until(
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    config: &LineageConfig,
+    domain_ir: &Value,
+    email: &str,
+    role: &str,
+    expires_at: Option<&str>,
+) -> anyhow::Result<GrantOutcome> {
     let _ = wasm_path;
-    let Some(member) = member_row_by_email(client, domain_ir, email).await? else {
-        return Ok(false);
+    let (aggregate_name, storage_name) = membership_aggregate(domain_ir)?;
+    let domain = domain_ir.get("name").and_then(|v| v.as_str()).unwrap_or("");
+    let target = email.trim().to_lowercase();
+
+    let mut guard = client.lock().await;
+    let txn = guard.transaction().await?;
+    txn.execute(
+        "SELECT pg_advisory_xact_lock(hashtext('hecks_ordinal:' || $1))",
+        &[&config.domain],
+    )
+    .await?;
+    let rows = journal::read_lineage_head_all(&txn, domain, &storage_name).await?;
+    let Some((id, member)) = rows.iter().find(|(id, _)| id.to_lowercase() == target) else {
+        return Ok(GrantOutcome::UnknownPerson);
     };
 
     // Same append protocol `provision` uses. GrantAccess's own bluebook
-    // command sets only `:role`, no other invariant to preserve here.
-    let mut new_state = member;
+    // command sets only `:role`; the window is a host-side field beside it,
+    // like `disabled`, so it needs no bluebook attribute.
+    let mut new_state = member.clone();
     new_state["role"] = json!({"value": role});
-    append_member_state(client, config, domain_ir, email, &new_state).await?;
-    Ok(true)
+    match expires_at {
+        Some(instant) => new_state[EXPIRY_FIELD] = json!(instant),
+        None => {
+            if let Some(fields) = new_state.as_object_mut() {
+                fields.remove(EXPIRY_FIELD);
+            }
+        }
+    }
+    if strands_open_admin(&rows, id, &new_state) {
+        return Ok(GrantOutcome::LastOpenAdmin);
+    }
+    journal::append_lineage_mutation(
+        &txn,
+        config,
+        &journal::Mutation {
+            aggregate: &aggregate_name,
+            id,
+            operation: "save",
+            state: &new_state,
+        },
+    )
+    .await?;
+    txn.commit().await?;
+    Ok(GrantOutcome::Done)
 }
 
 /// Admits a new person (name + email), the same state `Admit` sets.
@@ -676,6 +742,77 @@ fn is_disabled(state: &Value) -> bool {
         .unwrap_or(false)
 }
 
+// The row field holding the end of a time-boxed access window, an ISO 8601
+// UTC instant. It sits beside `disabled` in the row state, so a grant that
+// carries no window leaves the person with open-ended access as before.
+const EXPIRY_FIELD: &str = "access_expires_at";
+
+// The window's end as written on the row: a bare string, or a `{"value": ..}`
+// wrapper as other timestamp attributes carry.
+enum Window {
+    // No window is set (absent or null).
+    Open,
+    // A window ending at this many epoch seconds.
+    Ends(i64),
+    // A window is set but is not a readable instant; it counts as ended.
+    Unreadable,
+}
+
+fn window_of(state: &Value) -> Window {
+    let Some(raw) = state.get(EXPIRY_FIELD).filter(|v| !v.is_null()) else {
+        return Window::Open;
+    };
+    let text = raw.get("value").unwrap_or(raw).as_str();
+    text.and_then(crate::clock::parse_iso_utc)
+        .map_or(Window::Unreadable, Window::Ends)
+}
+
+// The window's end for display: the stored text, exactly as written.
+fn expiry_text(state: &Value) -> Option<String> {
+    let raw = state.get(EXPIRY_FIELD).filter(|v| !v.is_null())?;
+    let text = raw.get("value").unwrap_or(raw);
+    Some(
+        text.as_str()
+            .map_or_else(|| text.to_string(), str::to_string),
+    )
+}
+
+// Whether the row's access window has ended at `now` (epoch seconds). An
+// unreadable value counts as ended: access fails closed.
+fn is_expired_at(state: &Value, now: i64) -> bool {
+    match window_of(state) {
+        Window::Open => false,
+        Window::Unreadable => true,
+        Window::Ends(ends) => ends <= now,
+    }
+}
+
+// Whether the row grants no access right now: disabled, or its window ended.
+// Every check that lets a person in or counts an admin asks this, never
+// `is_disabled` alone; disabling and enabling keep the raw flag.
+fn is_lapsed(state: &Value) -> bool {
+    is_lapsed_at(state, ProcessClock.now_secs())
+}
+
+fn is_lapsed_at(state: &Value, now: i64) -> bool {
+    is_disabled(state) || is_expired_at(state, now)
+}
+
+/// The ISO 8601 UTC instant `days` days after `now` (epoch seconds), the
+/// value `grant_access_until` stores as the end of a window.
+pub fn expiry_after_days_from(days: u32, now: i64) -> String {
+    crate::clock::iso_utc((now + i64::from(days) * 86_400).max(0) as u64)
+}
+
+/// `expiry_after_days_from` counted from the process clock, which a spec
+/// can fix (`needs::set_fixed_clock`).
+pub fn expiry_after_days(days: u32) -> String {
+    expiry_after_days_from(days, ProcessClock.now_secs())
+}
+
+/// The longest window a grant may carry, in days.
+pub const MAX_EXPIRY_DAYS: u32 = 365;
+
 // A deleted person's row is never erased (this is an append-only journal,
 // same as every other aggregate here) — "deleted" only means all_people
 // stops listing it. There is deliberately no undelete route: re-admitting
@@ -708,9 +845,10 @@ pub fn is_admin_role(role: &str) -> bool {
     ADMIN_ROLES.contains(&role)
 }
 
-// Whether the row holds an admin role ("Admin" or "Owner") and is not disabled.
+// Whether the row holds an admin role ("Admin" or "Owner") and is not disabled
+// or past its access window.
 fn is_active_admin(state: &Value) -> bool {
-    role_of(state).is_some_and(is_admin_role) && !is_disabled(state)
+    role_of(state).is_some_and(is_admin_role) && !is_lapsed(state)
 }
 
 // Whether `state` is the only active admin (Admin or Owner) among `rows`.
@@ -718,8 +856,32 @@ fn is_last_active_admin(rows: &[(String, Value)], state: &Value) -> bool {
     is_active_admin(state) && rows.iter().filter(|(_, s)| is_active_admin(s)).count() <= 1
 }
 
+// Whether the row is an active admin with no end date: the kind of access a
+// site keeps at least one of, because a window's lapse cannot be prevented.
+fn is_open_admin(state: &Value) -> bool {
+    is_active_admin(state) && matches!(window_of(state), Window::Open)
+}
+
+// Whether replacing the row `id` with `after` would leave the site with no
+// open-ended admin where it had one, or would make the site's first admin one
+// with an end date. A site that has admins but none open-ended (it was never
+// given one) is not made worse by a change, so this stays false there.
+fn strands_open_admin(rows: &[(String, Value)], id: &str, after: &Value) -> bool {
+    let had = rows.iter().any(|(_, s)| is_open_admin(s));
+    let keeps = is_open_admin(after)
+        || rows
+            .iter()
+            .any(|(other, s)| other.to_lowercase() != id.to_lowercase() && is_open_admin(s));
+    let first_admin = !rows
+        .iter()
+        .any(|(_, s)| role_of(s).is_some_and(is_admin_role));
+    let windowed_first = first_admin && role_of(after).is_some_and(is_admin_role) && !keeps;
+    (had && !keeps) || windowed_first
+}
+
 /// Whether the person with `email` (compared case-insensitively) is an
-/// active admin: granted the "Admin" or "Owner" role and not disabled.
+/// active admin: granted the "Admin" or "Owner" role, not disabled, and not
+/// past its access window.
 pub async fn caller_is_admin(
     client: &Mutex<Client>,
     domain_ir: &Value,
@@ -733,7 +895,8 @@ pub async fn caller_is_admin(
 }
 
 /// Whether `email` may hold a session right now: admitted, granted a role,
-/// and not disabled — a signature alone can't tell, since a cookie outlives a later disable.
+/// and neither disabled nor past its access window — a signature alone can't
+/// tell, since a cookie outlives a later disable or the end of the window.
 pub async fn has_access(
     client: &Mutex<Client>,
     domain_ir: &Value,
@@ -744,12 +907,13 @@ pub async fn has_access(
         .await?
         .iter()
         .any(|(id, state)| {
-            id.to_lowercase() == email && role_of(state).is_some() && !is_disabled(state)
+            id.to_lowercase() == email && role_of(state).is_some() && !is_lapsed(state)
         }))
 }
 
 /// The role `email` holds right now, or `None` if unknown, roleless, or
-/// disabled — reads the live membership head, never the session cookie.
+/// disabled or past its window — reads the live membership head, never the
+/// session cookie.
 pub async fn active_role(
     client: &Mutex<Client>,
     domain_ir: &Value,
@@ -759,7 +923,7 @@ pub async fn active_role(
     Ok(member_rows(client, domain_ir)
         .await?
         .iter()
-        .find(|(id, state)| id.to_lowercase() == email && !is_disabled(state))
+        .find(|(id, state)| id.to_lowercase() == email && !is_lapsed(state))
         .and_then(|(_, state)| role_of(state).map(String::from)))
 }
 
@@ -788,9 +952,12 @@ fn linked_identity_id(state: &Value) -> Option<String> {
 }
 
 /// Every admitted person as a JSON row: name, email, role, `linked`
-/// (signed in), `granted` (has access), `disabled`, and `identity_id`
+/// (signed in), `granted` (has access right now), `disabled` (the raw flag),
+/// `access_expires_at` (the end of a time-boxed window, `null` when open-ended),
+/// `expired` (the window has ended or is unreadable), and `identity_id`
 /// (the Governance identity id, `null` until the person has signed in).
 pub async fn all_people(client: &Mutex<Client>, domain_ir: &Value) -> anyhow::Result<Vec<Value>> {
+    let now = ProcessClock.now_secs();
     Ok(member_rows(client, domain_ir)
         .await?
         .into_iter()
@@ -802,13 +969,16 @@ pub async fn all_people(client: &Mutex<Client>, domain_ir: &Value) -> anyhow::Re
                 .and_then(|v| v.get("value"))
                 .is_some();
             let disabled = is_disabled(&state);
+            let expired = is_expired_at(&state, now);
             json!({
                 "name": state.get("name").and_then(|v| v.get("value")),
                 "email": state.get("email").and_then(|v| v.get("value")),
                 "role": role,
                 "linked": linked,
-                "granted": role.is_some() && !disabled,
+                "granted": role.is_some() && !disabled && !expired,
                 "disabled": disabled,
+                "access_expires_at": expiry_text(&state),
+                "expired": expired,
                 "identity_id": linked_identity_id(&state),
             })
         })
@@ -828,6 +998,8 @@ pub enum DisableOutcome {
     UnknownPerson,
     /// Disabling would leave no active Admin.
     LastAdmin,
+    /// Disabling would leave no active Admin without an end date.
+    LastOpenAdmin,
 }
 
 /// Disables or enables `target` for `caller`, keeping role and identity
@@ -877,6 +1049,9 @@ pub async fn set_person_disabled(
         new_state["disabled"] = json!(true);
     } else if let Some(fields) = new_state.as_object_mut() {
         fields.remove("disabled");
+    }
+    if strands_open_admin(&rows, id, &new_state) {
+        return Ok(DisableOutcome::LastOpenAdmin);
     }
     journal::append_lineage_mutation(
         &txn,
@@ -974,6 +1149,8 @@ pub enum RoleOutcome {
     UnknownPerson,
     /// The change would leave no active Admin or Owner.
     LastAdmin,
+    /// The change would leave no active Admin or Owner without an end date.
+    LastOpenAdmin,
 }
 
 /// Sets `target`'s role on `caller`'s behalf; any active admin may
@@ -1017,6 +1194,9 @@ pub async fn set_person_role(
 
     let mut new_state = state.clone();
     new_state["role"] = json!({"value": role});
+    if strands_open_admin(&rows, id, &new_state) {
+        return Ok(RoleOutcome::LastOpenAdmin);
+    }
     journal::append_lineage_mutation(
         &txn,
         config,
@@ -1069,33 +1249,13 @@ fn now_secs() -> u64 {
 }
 
 // `dispatch.rs`'s `occurred_at` stamping reuses this exact rendering
-// rather than re-deriving it — see the body comment for the format
+// rather than re-deriving it -- see the body comment for the format
 // guarantee both call sites depend on.
 pub(crate) fn httpdate_now() -> String {
     // ISO 8601 UTC, matching Ruby's Time.now.utc.iso8601 -- Governance::
     // RoleAssignment.starts_at only needs to parse as a real instant,
     // never re-derived from or compared against wall-clock time here.
-    let secs = now_secs();
-    let days = secs / 86_400;
-    let rem = secs % 86_400;
-    let (h, m, s) = (rem / 3600, (rem % 3600) / 60, rem % 60);
-    let (y, mo, d) = civil_from_days(days as i64);
-    format!("{y:04}-{mo:02}-{d:02}T{h:02}:{m:02}:{s:02}Z")
-}
-
-// Howard Hinnant's days-from-civil algorithm, inverted -- avoids
-// pulling in a full date/time crate for one timestamp format.
-const fn civil_from_days(z: i64) -> (i64, u32, u32) {
-    let z = z + 719_468;
-    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
-    let doe = (z - era * 146_097) as u64;
-    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146_096) / 365;
-    let y = yoe as i64 + era * 400;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let d = (doy - (153 * mp + 2) / 5 + 1) as u32;
-    let m = if mp < 10 { mp + 3 } else { mp - 9 } as u32;
-    (if m <= 2 { y + 1 } else { y }, m, d)
+    crate::clock::iso_utc(now_secs())
 }
 
 #[allow(clippy::expect_used)] // reason: HMAC accepts a key of any length, so construction cannot fail
@@ -1371,6 +1531,49 @@ mod tests {
         assert!(!holds_admin(&instances, "id-2", Some(&provider)));
         // No declared provider: no assignment can exist, so never admin.
         assert!(!holds_admin(&instances, "id-1", None));
+    }
+
+    #[test]
+    fn a_window_lapses_exactly_at_its_end_and_a_missing_one_never_does() {
+        let ends = crate::clock::parse_iso_utc("2026-10-22T12:00:00Z").unwrap();
+        let row = json!({"role": {"value": "Member"}, "access_expires_at": "2026-10-22T12:00:00Z"});
+        assert!(!is_lapsed_at(&row, ends - 1), "one second before the end");
+        assert!(is_lapsed_at(&row, ends), "the end instant itself is over");
+        assert!(is_lapsed_at(&row, ends + 1));
+        let open = json!({"role": {"value": "Member"}});
+        assert!(!is_lapsed_at(&open, i64::MAX));
+        let unreadable = json!({"access_expires_at": "next week"});
+        assert!(is_lapsed_at(&unreadable, 0), "unreadable fails closed");
+        let disabled = json!({"disabled": true, "access_expires_at": "2099-01-01T00:00:00Z"});
+        assert!(
+            is_lapsed_at(&disabled, 0),
+            "an open window does not undo a disable"
+        );
+    }
+
+    #[test]
+    fn expiry_after_days_counts_whole_days_from_the_given_instant() {
+        let start = crate::clock::parse_iso_utc("2026-10-22T08:30:15Z").unwrap();
+        assert_eq!(expiry_after_days_from(1, start), "2026-10-23T08:30:15Z");
+        assert_eq!(
+            expiry_after_days_from(MAX_EXPIRY_DAYS, start),
+            "2027-10-22T08:30:15Z"
+        );
+    }
+
+    #[test]
+    fn is_last_active_admin_ignores_an_admin_whose_window_ended() {
+        let admin = json!({"role": {"value": "Admin"}});
+        let expired =
+            json!({"role": {"value": "Admin"}, "access_expires_at": "2020-01-01T00:00:00Z"});
+        let rows = |states: &[&Value]| -> Vec<(String, Value)> {
+            states
+                .iter()
+                .map(|s| (String::new(), (*s).clone()))
+                .collect()
+        };
+        assert!(is_last_active_admin(&rows(&[&admin, &expired]), &admin));
+        assert!(!is_last_active_admin(&rows(&[&admin, &expired]), &expired));
     }
 
     #[test]

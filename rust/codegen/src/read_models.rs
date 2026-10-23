@@ -3,6 +3,7 @@
 
 use crate::exemplar::Exemplar;
 use crate::json::Json;
+use crate::presenters::unwrap_json_expr;
 use crate::queries;
 use crate::shared::ruby_to_i;
 use crate::skip_reason::{reskip, skip, SkipReason};
@@ -1028,63 +1029,6 @@ fn group_by_leaf_check(
         "crate::kernel::read_model::LeafCheck::RefuseCollision({})",
         crate::naming::ruby_inspect_string(read_model_name)
     )
-}
-
-// Port of `Value.materialize_unwrapped` (Ruby).
-fn unwrap_json_expr(
-    expr: &str,
-    type_name: &str,
-    list: bool,
-    aggregate: &Json,
-    value_objects_by_name: &HashMap<String, &Json>,
-) -> String {
-    if list {
-        let inner = unwrap_json_expr("item", type_name, false, aggregate, value_objects_by_name);
-        return format!("match {expr} {{ crate::kernel::Json::Array(items) => crate::kernel::Json::Array(items.into_iter().map(|item| {inner}).collect()), other => other }}");
-    }
-
-    let vo = value_objects_by_name.get(type_name).copied();
-    let entity = aggregate
-        .get("entities")
-        .map_or_default(Json::each)
-        .iter()
-        .find(|e| e.get("name").map(Json::to_s).unwrap_or_default() == type_name);
-    let fields_meta: Option<&[Json]> = vo.map_or_else(
-        || entity.and_then(|e| e.get("attributes").map(Json::each)),
-        |vo| vo.get("attributes").map(Json::each),
-    );
-    let Some(fields_meta) = fields_meta else {
-        return expr.to_string();
-    };
-
-    if vo.is_some() && fields_meta.len() == 1 {
-        let field = &fields_meta[0];
-        let unwrapped = unwrap_json_expr(
-            "field_value",
-            crate::attr::type_name(field),
-            crate::attr::list(field),
-            aggregate,
-            value_objects_by_name,
-        );
-        let field_name = crate::attr::name(field);
-        return format!("match {expr} {{ crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == {field_name:?}).map_or(crate::kernel::Json::Null, |(_, field_value)| {unwrapped}), other => other }}");
-    }
-
-    let inner_arms: Vec<String> = fields_meta
-        .iter()
-        .map(|f| {
-            let unwrapped = unwrap_json_expr(
-                "v",
-                crate::attr::type_name(f),
-                crate::attr::list(f),
-                aggregate,
-                value_objects_by_name,
-            );
-            format!("{:?} => {unwrapped},", crate::attr::name(f))
-        })
-        .collect();
-    let inner_arms = inner_arms.join(" ");
-    format!("match {expr} {{ crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(fields.into_iter().map(|(k, v)| {{ let new_v = match k.as_str() {{ {inner_arms} _ => v }}; (k, new_v) }}).collect()), other => other }}")
 }
 
 const READ_MODEL_TABLE_ROW_PLACEHOLDER: &str = "crate::kernel::read_model::ReadModelDef {\n    verb: \"tmpl_verb\",\n    reference_name: Some(\"tmpl_reference_name\"),\n    heads: &[\n        crate::kernel::read_model::ReadModelHead {\n            aggregate: \"tmpl_aggregate\",\n            as_name: \"tmpl_as_name\",\n            many: true,\n            is_root: false,\n            reference_fields: &[\n                crate::kernel::read_model::ReferenceField { target_aggregate: \"tmpl_target_aggregate\", field: \"tmpl_field\" },\n            ],\n        },\n    ],\n    filtered_heads: &[\n        crate::kernel::read_model::FilteredHead { as_name: \"tmpl_as_name\", conditions: &[crate::kernel::QueryCondition { field: \"tmpl_field\", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal(\"tmpl_literal\") },], reference_hop_conditions: &[crate::kernel::read_model::ReferenceHopCondition { via_field: \"tmpl_via_field\", target_aggregate: \"tmpl_target_aggregate\", through: &[crate::kernel::read_model::HopStep { via_field: \"tmpl_via_field\", target_aggregate: \"tmpl_target_aggregate\" }], inner_field: \"tmpl_inner_field\", inner_comparator: crate::kernel::query_comparators::QueryComparator::Eq, inner_value: crate::kernel::QueryConditionValue::Literal(\"tmpl_literal\") },], order_by: Some(crate::kernel::read_model::ReadModelOrderBy { field: \"tmpl_order_field\", descending: true, nulls: crate::kernel::query_ordering::NullsMode::Last }), offset: Some(crate::kernel::read_model::ReadModelOffset::Literal(1)), limit: Some(crate::kernel::read_model::ReadModelLimit::Literal(5)) },\n    ],\n    authorization: Some(crate::kernel::named_query::TenantAuth { query_name: \"tmpl_query_name\", tenant_field: \"tmpl_tenant_field\", policy: \"tmpl_policy\" }),\n    group_by: None,\n    reduction: None,\n},";

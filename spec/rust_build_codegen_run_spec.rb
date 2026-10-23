@@ -11,12 +11,7 @@ require "hecks/rust_build/project_rust"
 RSpec.describe Hecks::RustBuild::ProjectRust::CodegenRun do
   let(:checkout_crate) { File.join(Hecks::RustBuild::ROOT, "rust/codegen") }
 
-  around do |example|
-    Dir.mktmpdir("codegen-run") do |dir|
-      @dir = dir
-      example.run
-    end
-  end
+  scratch_directory :dir, "codegen-run"
 
   describe ".crate_dir" do
     it "is the workspace's own crate when it carries one, as a packaged copy does" do

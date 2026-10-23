@@ -2,9 +2,30 @@ require "spec_helper"
 
 # Projections::Statements turns declared facts into plain-English sentences, never inventing one.
 RSpec.describe "the domain's own English statements" do
-  PIZZAS_STATEMENTS = ["An Order has many toppings.", "A pizza is named.", "A price is never negative.",
-                       "A customer is named.", "A topping is named.", "A topping name is more than whitespace.",
-                       "An amount is positive."].freeze
+  PIZZAS_STATEMENTS = [
+    "Each order holds a list of toppings.",
+    "A pizza is named.",
+    "A price is never negative.",
+    "A customer is named.",
+    "A topping is named.",
+    "A topping name is more than whitespace.",
+    "An amount is positive.",
+    "An order starts out available.",
+    "Purchasing an order moves it from available to sold.",
+    "Creating a pizza is done by the chef.",
+    "Adding a topping is done by the chef.",
+    "Adding a topping requires: the order is available.",
+    "Adding a topping requires: at most 10 toppings.",
+    "Purchasing an order is done by the customer.",
+    "Purchasing an order requires: a pizza needs at least one topping.",
+    "Purchasing an order requires: a payment was actually made.",
+    "Purchasing an order requires: the payment covers the price."
+  ].freeze
+
+  BANKING_RELATIONSHIPS = ["Each account belongs to one customer.", "Each transfer has one source account.",
+                           "Each transfer has one destination account.",
+                           "Each card payment can be disputed by one customer.",
+                           "Each account holds its ledger, a list of ledger entries."].freeze
 
   def boot_banking
     registry = Hecks::Runtime::Registry.new
@@ -15,10 +36,11 @@ RSpec.describe "the domain's own English statements" do
     registry
   end
 
-  let(:pizzas_chapter)  { boot_in_memory.registry.bluebook("Pizzas") }
-  let(:banking_chapter) { boot_banking.bluebook("Banking") }
+  let(:pizzas_chapter)     { boot_in_memory.registry.bluebook("Pizzas") }
+  let(:banking_chapter)    { boot_banking.bluebook("Banking") }
+  let(:banking_statements) { Hecks::Projector.call(:statements, bluebook: banking_chapter) }
 
-  it "states exactly Pizzas' own declared list attribute and every invariant, verbatim" do
+  it "states Pizzas' list, invariants, lifecycle and every command rule, rules verbatim" do
     expect(Hecks::Projector.call(:statements, bluebook: pizzas_chapter)).to eq(PIZZAS_STATEMENTS)
   end
 
@@ -30,23 +52,36 @@ RSpec.describe "the domain's own English statements" do
 
   # Regression: output read "A ATMCard" and "a Account".
   it "never gets the indefinite article wrong, anywhere in a real, richly-relational domain" do
-    statements = Hecks::Projector.call(:statements, bluebook: banking_chapter)
-    wrong_article = statements.grep(/\bA (Account|ATMCard|ExternalTransfer|OnboardingCase|Onboarding)\b/)
-    expect(wrong_article).to be_empty, "wrong article (should be \"An\"): #{wrong_article.join(", ")}"
+    wrong_article = banking_statements.grep(/\b[Aa] (account|ATM card|external transfer|onboarding case)\b/)
+    expect(wrong_article).to be_empty, "wrong article (should be \"an\"): #{wrong_article.join(", ")}"
   end
 
-  it "draws one relationship statement per real reference/belongs_to/has_many/has_one attribute in banking" do
-    statements = Hecks::Projector.call(:statements, bluebook: banking_chapter)
-    holder_relationship_attributes = banking_chapter.aggregates.flat_map { |a| [a, *a.entities] }
-                                                    .flat_map { |h| h.attributes.select(&:reference?) }
+  it "draws one relationship statement per reference and list attribute in banking" do
+    attributes = banking_chapter.aggregates.flat_map { |a| [a, *a.entities] }
+                                .flat_map { |h| h.attributes.select { |a| a.reference? || a.list? } }
+    expect(banking_statements.grep(/\AEach /).size).to eq(attributes.size)
+  end
 
-    relationship_statements = statements.grep(/\b(has a|has an|belongs to|references)\b/)
-    expect(relationship_statements.size).to eq(holder_relationship_attributes.size)
+  it "says what each reference is, by its name and cardinality, never just that it references", :aggregate_failures do
+    expect(banking_statements).to include(*BANKING_RELATIONSHIPS)
+    expect(banking_statements.grep(/references/)).to be_empty
+  end
+
+  it "states each move, merging the states a command moves from", :aggregate_failures do
+    expect(banking_statements).to include("Closing an account moves it from open or frozen to closed.",
+                                          "Rejecting a dispute moves the card payment from disputed to captured.",
+                                          "Retrying a scheduled payment keeps it failed.",
+                                          "Marking a transfer debited moves it from requested to debited.")
+  end
+
+  it "states what a command guarantees afterwards, and who does it", :aggregate_failures do
+    expect(banking_statements).to include("After debiting an account: the balance fell by exactly the amount.",
+                                          "Debiting an account is done by the teller.",
+                                          "Withdrawing from an ATM card requires: the ATM card is active.")
   end
 
   it "states a real, known invariant capitalized and punctuated, unparaphrased" do
-    statements = Hecks::Projector.call(:statements, bluebook: banking_chapter)
-    expect(statements).to include("A retry limit is positive.")
+    expect(banking_statements).to include("A retry limit is positive.")
   end
 
   it "states nothing for an attribute that is neither a list nor a relationship" do

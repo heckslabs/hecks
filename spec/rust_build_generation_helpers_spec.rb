@@ -24,12 +24,7 @@ RSpec.describe "hecks project_rust generation helpers" do
   end
 
   describe Hecks::RustBuild::WriteIfChanged do
-    around do |example|
-      Dir.mktmpdir("write-if-changed") do |dir|
-        @dir = dir
-        example.run
-      end
-    end
+    scratch_directory :dir, "write-if-changed"
 
     it "leaves an unchanged file's mtime alone, so Cargo does not rebuild", :aggregate_failures do
       path = File.join(@dir, "a.rs")

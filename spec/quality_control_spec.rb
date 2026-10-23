@@ -155,7 +155,7 @@ RSpec.describe "QualityControl" do
       text, code = cli("target.claim", "id=banking", "held_by.value=agent-one")
 
       expect(code).to eq(0)
-      expect(JSON.parse(text).dig("state", "claimed_at", "value")).to eq(1_000)
+      expect(JSON.parse(text).dig("state", "claimed_at")).to eq(1_000)
     end
 
     # The entry point supplies only what was omitted.
@@ -163,7 +163,7 @@ RSpec.describe "QualityControl" do
       target
       text, = cli("target.claim", "id=banking", "held_by.value=agent-one", "now.value=55")
 
-      expect(JSON.parse(text).dig("state", "claimed_at", "value")).to eq(55)
+      expect(JSON.parse(text).dig("state", "claimed_at")).to eq(55)
     end
 
     # `window` must not be a caller argument, or any agent could take a live claim by passing a
@@ -634,7 +634,7 @@ RSpec.describe "QualityControl" do
       text, code = propose_through_cli
 
       expect(code).to eq(0)
-      expect(JSON.parse(text).dig("state", "proposed_at", "value")).to eq(1_000)
+      expect(JSON.parse(text).dig("state", "proposed_at")).to eq(1_000)
     end
 
     it "refuses a premise too short to act on without the proposer in the room" do
