@@ -35,6 +35,7 @@ pub mod log;
 pub mod mint;
 pub mod needs;
 pub mod payments;
+pub mod plugins;
 pub mod platform_signin;
 pub mod presentation;
 pub mod presentation_write;

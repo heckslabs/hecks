@@ -3113,6 +3113,18 @@ RSpec.describe "the DSL surface" do
     it "an adapter needing no configuration declares nothing" do
       expect(build_adapter { port "post" }.all_fields).to eq([])
     end
+
+    it "answers_query and runs make a plugin, its module found beside its .adapter file", :aggregate_failures do
+      adapter = build_adapter do
+        answers_query "Calendar::Event.Occurrences"
+        runs "occurrences.wasm"
+      end
+
+      expect(adapter).to be_plugin
+      expect(adapter.answered_queries).to eq(["Calendar::Event.Occurrences"])
+      expect(adapter.plugin_path).to eq(File.join(__dir__, "occurrences.wasm"))
+      expect(build_adapter { port "post" }).not_to be_plugin
+    end
   end
 
   describe "a domain port" do

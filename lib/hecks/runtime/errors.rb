@@ -68,6 +68,10 @@ module Hecks
     # It is not mapped back to a specific class such as GivenNotMet.
     class RemoteRefusal < StandardError; end
 
+    # A wasm plugin's refusal of a question it was asked (`Runtime::WasmPlugin`), with its own
+    # words: a time zone it does not know, a window it will not expand.
+    class PluginRefusal < StandardError; end
+
     # The refusals that are the domain saying no, which a reaction records as undelivered.
     # Anything else is a runtime defect and must propagate rather than read as a refusal.
     #

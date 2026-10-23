@@ -96,6 +96,25 @@ fn parse_body(
                     1,
                 )?);
             }
+            "answers_query" => {
+                adapter.answers.push(super::positional_text(
+                    file,
+                    number,
+                    "answers_query",
+                    &gated.args,
+                    1,
+                )?);
+            }
+            // A repeat replaces the earlier value, as the Ruby builder's setter does.
+            "runs" => {
+                adapter.runs = Some(super::positional_text(
+                    file,
+                    number,
+                    "runs",
+                    &gated.args,
+                    1,
+                )?);
+            }
             _ => {
                 return Err(super::not_built_yet(
                     "Adapter",
