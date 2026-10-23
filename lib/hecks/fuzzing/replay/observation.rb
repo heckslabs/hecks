@@ -11,6 +11,7 @@ module Hecks
             reactions: @runtime.reactions, sagas: @runtime.sagas, saga_instances: saga_instances,
             queries: @queries, dry_runs: @dry_runs, dry_run_traces: @dry_run_traces,
             fan_outs: @fan_outs, guard_checks: @guard_checks, role_checks: @role_checks,
+            refusal_traces: @refusal_traces,
             mutation_traces: @mutation_traces, outbox_traces: @outbox_traces,
             saga_dispatches: @runtime.saga_dispatches, policy_dispatches: @runtime.policy_dispatches,
             bluebook: @runtime.registry.bluebooks.values.first,

@@ -80,7 +80,7 @@ module Hecks
 
         def string
           token = @scan.scan(STRING) || refuse("expected a string")
-          JSON.parse(token, quirks_mode: true)
+          JSON.parse(token)
         rescue JSON::ParserError
           refuse("#{token} is not a well-formed string")
         end

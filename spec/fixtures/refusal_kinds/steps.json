@@ -1,0 +1,24 @@
+{
+  "note": "Every refusal kind a single in-process boot of refusal_kinds.bluebook reaches; `expect` names the kind each refusing step must raise, and a step without one must be accepted.",
+  "steps": [
+    { "verb": "RefusalKinds::Box.Open", "role": "Teller", "args": { "number": { "value": "b1" } } },
+    { "verb": "RefusalKinds::Box.Open", "role": "Teller", "args": { "number": { "value": "b1" } }, "expect": "AlreadyExists" },
+    { "verb": "RefusalKinds::Box.Open", "role": "Teller", "args": {}, "expect": "AbsentArgument" },
+    { "verb": "RefusalKinds::Box.Open", "role": "Teller", "args": { "number": { "value": "b2" }, "colour": { "value": "red" } }, "expect": "UnknownArgument" },
+    { "verb": "RefusalKinds::Box.Deposit", "role": "Teller", "args": { "number": { "value": "nope" }, "amount": { "cents": 5 } }, "expect": "NotFound" },
+    { "verb": "RefusalKinds::Box.Deposit", "role": "Teller", "args": { "number": { "value": "b1" }, "amount": { "cents": "five" } }, "expect": "TypeMismatch" },
+    { "verb": "RefusalKinds::Box.Deposit", "role": "Teller", "args": { "number": { "value": "b1" }, "amount": { "cents": 20000 } }, "expect": "GivenNotMet" },
+    { "verb": "RefusalKinds::Box.Deposit", "role": "Customer", "args": { "number": { "value": "b1" }, "amount": { "cents": 5 } }, "expect": "Unauthorized" },
+    { "verb": "RefusalKinds::Box.ReverseDeposit", "role": "Teller", "args": { "number": { "value": "b1" } }, "expect": "NothingToCorrect" },
+    { "verb": "RefusalKinds::Box.Deposit", "role": "Teller", "args": { "number": { "value": "b1" }, "amount": { "cents": 500 } } },
+    { "verb": "RefusalKinds::Box.Withdraw", "role": "Teller", "args": { "number": { "value": "b1" }, "amount": { "cents": 900 } }, "expect": "InvariantViolation" },
+    { "verb": "RefusalKinds::Box.Overstate", "role": "Teller", "args": { "number": { "value": "b1" }, "amount": { "cents": 100 } }, "expect": "EnsuresNotMet" },
+    { "verb": "RefusalKinds::Box.AddSlot", "role": "Teller", "args": { "number": { "value": "b1" }, "label": { "value": "s1" } } },
+    { "verb": "RefusalKinds::Box.Slot.Drain", "role": "Teller", "args": { "number": { "value": "b1" }, "label": { "value": "s1" } }, "expect": "InvariantViolation" },
+    { "verb": "RefusalKinds::Box.Slot.Fill", "role": "Teller", "args": { "number": { "value": "b1" }, "label": { "value": "s1" } } },
+    { "verb": "RefusalKinds::Box.Slot.Drain", "role": "Teller", "args": { "number": { "value": "b1" }, "label": { "value": "s1" } } },
+    { "verb": "RefusalKinds::Box.Nope", "role": "Teller", "args": { "number": { "value": "b1" } }, "expect": "UnknownVerb" },
+    { "verb": "RefusalKinds::Box.Close", "role": "Teller", "args": { "number": { "value": "b1" } } },
+    { "verb": "RefusalKinds::Box.Close", "role": "Teller", "args": { "number": { "value": "b1" } }, "expect": "LifecycleRefused" }
+  ]
+}

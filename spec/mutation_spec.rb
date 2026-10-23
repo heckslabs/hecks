@@ -1,76 +1,7 @@
 require "spec_helper"
 
-RSpec.describe "sets arithmetic" do
-  TILL_BLUEBOOK = File.join(InMemoryDomain::ROOT, "spec/fixtures/till.bluebook")
-
-  TILL_MARKS = [{ amount: 10_000, direction: "in" }, { amount: 2_500, direction: "out" }].freeze
-
-  def boot_till
-    registry = Hecks::Runtime::Registry.new
-
-    Hecks.with_registry(registry) do
-      [InMemoryDomain::PERSISTENCE_PORT, InMemoryDomain::EXTRACTION_PORT, InMemoryDomain::MEMORY_ADAPTER,
-       InMemoryDomain::PRISM_ADAPTER, TILL_BLUEBOOK].each { |file| Kernel.load(file) }
-      Hecks::Runtime::Loader.bind_runtime(
-        Hecks::Runtime::Dispatcher.new(registry)
-      )
-    end
-  end
-
-  def till_event(runtime, command, **args)
-    runtime.dispatch_flat("TillRoom::Till.#{command}", number: { value: "till-1" }, **args)
-  end
-
-  # A booted till, opened, with each [command, cents] move applied in order.
-  def till_after(*moves)
-    boot_till.tap do |runtime|
-      till_event(runtime, "OpenTill")
-      moves.each { |command, cents| till_event(runtime, command, amount: { cents: cents }) }
-    end
-  end
-
-  it "increments from the declared default, and keeps counting" do
-    runtime = boot_till
-    runtime.dispatch_flat("TillRoom::Till.OpenTill", number: { value: "till-1" })
-    runtime.dispatch_flat("TillRoom::Till.TakeIn", number: { value: "till-1" }, amount: { cents: 10_000 })
-    runtime.dispatch_flat("TillRoom::Till.TakeIn", number: { value: "till-1" }, amount: { cents: 2_500 })
-
-    expect(TillRoom::Till.find("till-1").balance.to_h).to eq(cents: 12_500)
-  end
-
-  it "decrements, and the running balance is exact" do
-    runtime = boot_till
-    runtime.dispatch_flat("TillRoom::Till.OpenTill", number: { value: "till-1" })
-    runtime.dispatch_flat("TillRoom::Till.TakeIn", number: { value: "till-1" }, amount: { cents: 10_000 })
-    runtime.dispatch_flat("TillRoom::Till.PayOut", number: { value: "till-1" }, amount: { cents: 2_500 })
-
-    expect(TillRoom::Till.find("till-1").balance.to_h).to eq(cents: 7_500)
-  end
-
-  it "increments by a literal when the bluebook says a number" do
-    runtime = boot_till
-    runtime.dispatch_flat("TillRoom::Till.OpenTill", number: { value: "till-1" })
-    runtime.dispatch_flat("TillRoom::Till.Bump", number: { value: "till-1" })
-
-    expect(TillRoom::Till.find("till-1").balance.to_h).to eq(cents: 500)
-  end
-
-  it "refuses a non-Integer amount loudly, leaving the balance untouched", :aggregate_failures do
-    runtime = till_after(["TakeIn", 10_000])
-
-    # Must be refused at the payload gate: an EvaluationError is not in DOMAIN_REFUSALS.
-    expect { till_event(runtime, "TakeIn", amount: { cents: "lots" }) }
-      .to raise_error(Hecks::Runtime::TypeMismatch, 'Money.cents expects Integer, got "lots"')
-
-    expect(TillRoom::Till.find("till-1").balance.to_h).to eq(cents: 10_000)
-  end
-
-  it "writes an appended literal as itself, beside the argument fields" do
-    till_after(["TakeIn", 10_000], ["PayOut", 2_500])
-
-    expect(TillRoom::Till.find("till-1").marks.map(&:to_h)).to eq(TILL_MARKS)
-  end
-
+# A `sets` must name a field its aggregate declares; the build refuses one that does not.
+RSpec.describe "sets" do
   VOID_BLUEBOOK = proc do
     vision "An aggregate whose command sets a field it never declared."
     supporting

@@ -327,6 +327,12 @@ Hecks.bluebook "QualityControl" do
       returns Document
     end
 
+    query "Mutate" do
+      description "Mutation-test the Rust kernel: change one operator or return value at a time and run its tests; a mutant no test catches is a finding."
+      attribute :arguments, Words, optional: true
+      returns Document
+    end
+
     query "JudgeNovelty" do
       description "Whether a new stress domain puts two forms together on one aggregate that no existing target does: the gate before it becomes a target."
       attribute :domain,    DomainPath

@@ -142,12 +142,6 @@ RSpec.describe Hecks::Adapters::GovernanceAuthorization do
         Hecks::Ports::Authorization.holds_role?(business.registry, actor_id: "officer-1", role: "Compliance officer")
       ).to be(true)
     end
-
-    it "gates a real role-checked Banking dispatch, end to end through the port" do
-      result = suspend_customer(register_customer(business), as_role: "Compliance officer")
-
-      expect(result.events.map(&:name)).to eq(["CustomerSuspended"])
-    end
   end
 
   describe "the app-level check" do

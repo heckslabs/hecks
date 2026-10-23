@@ -94,9 +94,10 @@ RSpec.shared_context "with a qa_tick fixture" do |database_name|
            out: File::NULL, err: File::NULL) or raise "git #{args.join(" ")} failed"
   end
 
-  # Zero generated domains per tick: a throwaway tick must not spend minutes building them.
+  # No generated domains and no mutation files: a throwaway tick must not spend minutes on them.
   def tick
-    QaLibCli.run(@ledger, "qa_tick", env: { "QA_REPO_DIR" => @repo, "QA_GENERATED_DOMAINS_PER_TICK" => "0" })
+    QaLibCli.run(@ledger, "qa_tick",
+                 env: { "QA_REPO_DIR" => @repo, "QA_GENERATED_DOMAINS_PER_TICK" => "0", "QA_MUTATION_FILES" => "" })
   end
 
   # Boots the fixture ledger in-process only to write `Target` rows.

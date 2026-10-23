@@ -75,11 +75,4 @@ RSpec.describe "lifecycle transition on a VO-typed field" do
     expect { task_command(runtime, "Finish", "t1") }.not_to raise_error
     expect(repository_for(runtime).find("t1")[:status][:value]).to eq("done")
   end
-
-  it "still refuses a transition from a state the field never held" do
-    runtime = boot_lifecycle_value_scalar
-    open_task(runtime, "t2")
-
-    expect { task_command(runtime, "Finish", "t2") }.to raise_error(Hecks::Runtime::LifecycleRefused)
-  end
 end

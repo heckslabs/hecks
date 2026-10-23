@@ -174,6 +174,7 @@ publisher at rubygems.org > hecks > Trusted publishers > GitHub Actions (organiz
 | `hecks quality_control target.seed` | `bin/qa_seed_targets` |
 | `hecks quality_control target.check_generated_domains [arguments="--domains 3 --start N --forms a,b --seeds 5 --steps 25 --adversarial 0.3 --rust --shrink-budget 200 --domain-shrink-budget 40 --promote dir --name N --from-dials --blueprint F --source F"]` | `bin/qa_generated_domains` |
 | `hecks quality_control target.mine_combinations [arguments="--candidates 3 --rust --seeds 5 --steps 25 --adversarial 0.3 --repair-rounds 1 --agent CMD --from DIR --against PATH --brief"]` | `bin/qa_mine_combinations` |
+| `hecks quality_control target.mutate [arguments="--file rust/src/… --from-dials"]` | (new: no `bin/` script) |
 | `hecks quality_control target.judge_novelty <domain> [arguments="--against PATH …"]` | `bin/qa_domain_novelty` |
 | `hecks quality_control target.discover_external_domains [arguments="--projects-dir ~/Projects --max-depth 3 --known-path PATH …"]` | `bin/qa_discover_external_domains` |
 | `hecks quality_control sweep.migrate_ledger_from_heki <domain> data= [arguments="[aggregate …] --force"] (a dry run without --force)` | `bin/qa_postgres_migrate` |

@@ -1,5 +1,6 @@
 require_relative "observation"
 require_relative "read_only_steps"
+require_relative "refusal_trace"
 
 module Hecks
   module Fuzzing
@@ -18,7 +19,8 @@ module Hecks
         # `outbox_ids` is a set of delivery_ids, not a size, because `runtime.outbox.rows`
         # concatenates several stores' own arrays, so a plain "grew from N to M" tail slice
         # could miss or misattribute rows once more than one repository has an outbox.
-        Marks = Struct.new(:reaction, :saga, :outbox_ids, :fan_out_snapshot, :guard_check, :mutation_trace, :role_check)
+        Marks = Struct.new(:reaction, :saga, :outbox_ids, :fan_out_snapshot, :guard_check, :mutation_trace, :role_check,
+                           :refusal_trace)
 
         # @param runtime [Hecks::Runtime] a freshly booted runtime
         def initialize(runtime)
@@ -63,8 +65,9 @@ module Hecks
 
         # The two checks recorded before a dispatch and compared with its outcome afterwards.
         def start_checks
-          @guard_checks = []
-          @role_checks  = []
+          @guard_checks   = []
+          @role_checks    = []
+          @refusal_traces = []
         end
 
         def play_step(step)
@@ -91,6 +94,15 @@ module Hecks
           record_effects(step, result, marks)
         rescue *Runtime::DOMAIN_REFUSALS, Bluebook::Expression::EvaluationError => e
           record_refusal(step, e, marks&.guard_check, marks&.role_check)
+          record_refusal_trace(step, e, marks&.refusal_trace)
+        end
+
+        # A refused dispatch's before and after, for `Properties.refusals_leave_no_trace`.
+        def record_refusal_trace(step, error, before)
+          return unless before
+
+          @refusal_traces << { verb: step["verb"], kind: Replay.refusal_kind(error), before: before,
+                               after: RefusalTrace.snapshot(@runtime) }
         end
 
         # Taken before dispatch, so this step's own reactions, sagas and outbox rows can be
@@ -104,7 +116,8 @@ module Hecks
         def take_marks(step, args)
           Marks.new(@runtime.reactions.size, @runtime.sagas.size, @runtime.outbox.rows.map(&:delivery_id),
                     fan_out_snapshot, GuardCheck.build(@runtime, step["verb"], args),
-                    MutationTrace.build(@runtime, step["verb"], args), RoleCheck.build(@runtime, step))
+                    MutationTrace.build(@runtime, step["verb"], args), RoleCheck.build(@runtime, step),
+                    RefusalTrace.snapshot(@runtime))
         end
 
         def record_effects(step, result, marks)

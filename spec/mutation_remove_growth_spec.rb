@@ -1,10 +1,9 @@
 require "spec_helper"
 require_relative "support/inline_bluebook_boot"
 
-# Real dispatch coverage for the `remove` mutation op: the list-removal
-# counterpart to `append`, matching an element by value equality, no
-# read-modify-write (plan.bluebook's RemoveDependency/DeactivateSprint --
-# "a concurrent Add can never be lost").
+# The `remove` mutation op given a value nothing holds: a no-op, not a refusal. Removing a
+# match by value equality is held by the semantics corpus (remove_all_matches.json) and
+# spec/categories/mutation_ops_spec.rb.
 RSpec.describe "mutation op remove" do
   include InlineBluebookBoot
 
@@ -72,13 +71,6 @@ RSpec.describe "mutation op remove" do
   end
 
   def dependencies_of(runtime, id) = sprint_repository(runtime).find(id)[:dependencies].map { |d| d[:value] }
-
-  it "removes a matching element by value equality" do
-    runtime = boot_sprint_with("s1", "db", "api")
-    dispatch_sprint(runtime, "RemoveDependency", id: "s1", dependency: { value: "db" })
-
-    expect(dependencies_of(runtime, "s1")).to eq(["api"])
-  end
 
   it "is a no-op, not an error, removing a value that was never added" do
     runtime = boot_sprint_with("s2", "db")
