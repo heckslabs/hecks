@@ -514,6 +514,144 @@ policy "RecordTheEra" do
     trigger Host::Lose, with: { refusal: :refusal }
   end
 
+  # Many agents finish together and each would push, running every pre-push check at once. A
+  # boarding waits its turn behind the push in flight from the same repository, then pushes the
+  # local branch with whatever else has landed on it, or finds an earlier push already carried it.
+  aggregate "PushTrain" do
+    description "One push of a checkout's branch, taken in turn: carried by an earlier push, pushed, or refused."
+
+    attribute :run,      RunKey
+    attribute :branch,   Word,   optional: true
+    attribute :remote,   Word,   optional: true
+    attribute :checkout, Word,   optional: true
+    attribute :boarded,  Word,   optional: true
+    attribute :pushed,   Word,   optional: true
+    attribute :report,   Report, optional: true
+    attribute :refusal,  Report, optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, matches: :present
+    end
+
+    # A branch, a remote, a directory or a commit.
+    value_object "Word" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      mark :failure, "faulted"
+      transition "Push"  => "pushed",  from: "requested"
+      transition "Ride"  => "carried", from: "requested"
+      transition "Fault" => "faulted", from: "requested"
+    end
+
+    command "Board" do
+      role "Operator"
+      goal "Push this checkout's branch once the push ahead of it lands, unless that push already carried it"
+
+      attribute :run,      RunKey
+      attribute :branch,   Word, default: "main"
+      attribute :remote,   Word, default: "origin"
+      attribute :checkout, Word, optional: true
+
+      sets :run
+      sets :branch
+      sets :remote
+      sets :checkout
+
+      emits BoardingRequested
+    end
+
+    # The branch was pushed: every commit on it reached the remote, what this boarding carried and
+    # whatever landed on it while it waited.
+    command "Push" do
+      role "System"
+      goal "Record the commit a boarding pushed"
+
+      reference_to PushTrain
+      attribute :checkout, Word
+      attribute :boarded,  Word
+      attribute :pushed,   Word
+      attribute :report,   Report
+
+      sets :checkout
+      sets :boarded
+      sets :pushed
+      sets :report
+
+      emits BranchPushed
+    end
+
+    # An earlier push already took the boarded commit to the remote, so this one pushed nothing.
+    command "Ride" do
+      role "System"
+      goal "Record that an earlier push already carried the boarded commit"
+
+      reference_to PushTrain
+      attribute :checkout, Word
+      attribute :boarded,  Word
+      attribute :report,   Report
+
+      sets :checkout
+      sets :boarded
+      sets :report
+
+      emits CarriedByEarlierPush
+    end
+
+    command "Fault" do
+      role "System"
+      goal "Record why a boarding could not push"
+
+      reference_to PushTrain
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits PushFaulted
+    end
+
+    query "Outcome" do
+      description "How one boarding ended: pushed, carried by an earlier push, or why it failed."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+  end
+
+  policy "CarryWhenBoarded" do
+    on      "PushTrain.BoardingRequested"
+    trigger PushTrain::Train::Carry, with: { run: :run }
+  end
+
+  policy "RecordThePush" do
+    on      "PushTrain.TrainAnswered"
+    where   { outcome.value == "pushed" }
+    trigger PushTrain::Push, with: { checkout: :checkout, boarded: :boarded, pushed: :pushed, report: :report }
+  end
+
+  policy "RecordTheRide" do
+    on      "PushTrain.TrainAnswered"
+    where   { outcome.value == "carried" }
+    trigger PushTrain::Ride, with: { checkout: :checkout, boarded: :boarded, report: :report }
+  end
+
+  policy "RecordTheRefusedPush" do
+    on      "PushTrain.TrainRefused"
+    trigger PushTrain::Fault, with: { refusal: :refusal }
+  end
+
+  # Deploys stay by hand: a push that reached the remote says a deploy is ready, and nothing more.
+  policy "AnnounceWhenPushed" do
+    on      "PushTrain.BranchPushed"
+    trigger PushTrain::Alerts::Announce, with: { run: :run }
+  end
+
   aggregate "Era" do
     description "One change to a domain's journal of eras, and how it ended: a store's upkeep."
 
