@@ -112,19 +112,21 @@ RSpec.describe "a query a wasm plugin answers" do
   end
 
   describe "the IR a host reads" do
-    it "carries the module and, for each question, the aggregate each reference names", :aggregate_failures do
-      runtime = boot_domain
-      plugins = Hecks::Projector::Exporter.plugins(runtime.registry)
-      expect(plugins.size).to eq(1)
-      plugin = plugins.first
+    subject(:plugins) { Hecks::Projector::Exporter.plugins(boot_domain.registry) }
 
-      expect(plugin.slice("adapter", "runs")).to eq("adapter" => "Doubler", "runs" => "doubler.wasm")
-      expect(plugin["queries"]).to eq(
-        [{ "question" => "Pluginned::Ledger.Doubled", "references" => { "entry" => "Pluginned::Ledger" } },
-         { "question" => "Pluginned::Ledger.Tripled", "references" => {} }]
-      )
-      expect(Base64.strict_decode64(plugin["module"])).to eq(File.binread(DOUBLER_WASM))
-      expect(plugin["sha256"]).to eq(Digest::SHA256.file(DOUBLER_WASM).hexdigest)
+    let(:queries) do
+      [{ "question" => "Pluginned::Ledger.Doubled", "references" => { "entry" => "Pluginned::Ledger" } },
+       { "question" => "Pluginned::Ledger.Tripled", "references" => {} }]
+    end
+
+    it "names the plugin, its module and each question with the aggregate each reference names" do
+      expect(plugins.map { |plugin| plugin.slice("adapter", "runs", "queries") })
+        .to eq([{ "adapter" => "Doubler", "runs" => "doubler.wasm", "queries" => queries }])
+    end
+
+    it "carries the module itself, with its digest", :aggregate_failures do
+      expect(Base64.strict_decode64(plugins.first["module"])).to eq(File.binread(DOUBLER_WASM))
+      expect(plugins.first["sha256"]).to eq(Digest::SHA256.file(DOUBLER_WASM).hexdigest)
     end
   end
 
@@ -155,9 +157,12 @@ RSpec.describe "a query a wasm plugin answers" do
         .to raise_error(Hecks::Bluebook::DSL::Malformed, /only a plugin answers queries/)
     end
 
-    it "refuses a module path that leaves the adapter's directory, and a query written short" do
+    it "refuses a module path that leaves the adapter's directory" do
       expect { boot_domain(adapters: { "doubler" => plugin_adapter("Doubler", runs: "../doubler.wasm") }) }
         .to raise_error(Hecks::Bluebook::DSL::Malformed, /PluginModule/)
+    end
+
+    it "refuses a query written without its chapter" do
       expect { boot_domain(adapters: { "doubler" => plugin_adapter("Doubler", answers: ["Ledger.Doubled"]) }) }
         .to raise_error(Hecks::Bluebook::DSL::Malformed, /AnsweredQuery/)
     end

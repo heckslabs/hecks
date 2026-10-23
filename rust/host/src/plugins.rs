@@ -30,11 +30,19 @@ pub struct PluginQuery {
 pub fn answering(domain_ir: Option<&Value>, question: &str) -> Option<PluginQuery> {
     let plugins = domain_ir?.get("plugins")?.as_array()?;
     plugins.iter().find_map(|plugin| {
-        let query = plugin.get("queries")?.as_array()?.iter().find(|q| q["question"] == question)?;
+        let query = plugin
+            .get("queries")?
+            .as_array()?
+            .iter()
+            .find(|q| q["question"] == question)?;
         let references = query
             .get("references")
             .and_then(|r| r.as_object())
-            .map(|r| r.iter().filter_map(|(arg, agg)| Some((arg.clone(), agg.as_str()?.to_string()))).collect())
+            .map(|r| {
+                r.iter()
+                    .filter_map(|(arg, agg)| Some((arg.clone(), agg.as_str()?.to_string())))
+                    .collect()
+            })
             .unwrap_or_default();
         Some(PluginQuery {
             adapter: plugin.get("adapter")?.as_str()?.to_string(),
@@ -57,8 +65,12 @@ pub async fn answer(
     let module = module_path(domain_ir, plugin)?;
     let mut asked_with = args.as_object().cloned().unwrap_or_default();
     if !plugin.references.is_empty() {
-        let current = dispatch::read(client, wasm_path).await.map_err(|e| format!("{e:#}"))?;
-        if let Err(missing) = resolve_references(&plugin.references, &current["instances"], &mut asked_with) {
+        let current = dispatch::read(client, wasm_path)
+            .await
+            .map_err(|e| format!("{e:#}"))?;
+        if let Err(missing) =
+            resolve_references(&plugin.references, &current["instances"], &mut asked_with)
+        {
             return Ok(refusal(&plugin.question, &args, "NotFound", &missing));
         }
     }
@@ -67,8 +79,12 @@ pub async fn answer(
         .await
         .map_err(|e| e.to_string())?
         .map_err(|e| format!("{} failed: {e:#}", plugin.adapter))?;
-    let reply: Value = serde_json::from_str(&output)
-        .map_err(|e| format!("{} answered with text that is not JSON: {e}", plugin.adapter))?;
+    let reply: Value = serde_json::from_str(&output).map_err(|e| {
+        format!(
+            "{} answered with text that is not JSON: {e}",
+            plugin.adapter
+        )
+    })?;
     if let Some(rows) = reply.get("rows") {
         return Ok(json!({
             "instances": {},
@@ -77,10 +93,18 @@ pub async fn answer(
             "queries": [{ "query": plugin.question, "args": args, "rows": rows }],
         }));
     }
-    match reply.get("refused").and_then(|r| r.as_str()) {
-        Some(why) => Ok(refusal(&plugin.question, &args, "PluginRefusal", &format!("{}: {why}", plugin.question))),
-        None => Err(format!("{} answered {} with neither rows nor a refusal", plugin.adapter, plugin.question)),
-    }
+    reply.get("refused").and_then(|r| r.as_str()).map_or_else(
+        || {
+            Err(format!(
+                "{} answered {} with neither rows nor a refusal",
+                plugin.adapter, plugin.question
+            ))
+        },
+        |why| {
+            let message = format!("{}: {why}", plugin.question);
+            Ok(refusal(&plugin.question, &args, "PluginRefusal", &message))
+        },
+    )
 }
 
 /// Replaces each reference argument's id with the state of the record it names, its id beside
@@ -93,7 +117,11 @@ pub fn resolve_references(
     args: &mut Map<String, Value>,
 ) -> Result<(), String> {
     for (argument, aggregate) in references {
-        let Some(id) = args.get(argument).and_then(|v| v.as_str()).map(str::to_string) else {
+        let Some(id) = args
+            .get(argument)
+            .and_then(|v| v.as_str())
+            .map(str::to_string)
+        else {
             continue;
         };
         let short = aggregate.rsplit("::").next().unwrap_or(aggregate);
@@ -114,7 +142,7 @@ fn refusal(question: &str, args: &Value, kind: &str, message: &str) -> Value {
 
 /// Writes the plugin's module to a cache file named by its digest, once, and answers its path.
 fn module_path(domain_ir: &Value, plugin: &PluginQuery) -> Result<PathBuf, String> {
-    let path = std::env::temp_dir().join("hecks-plugins").join(format!("{}.wasm", plugin.sha256));
+    let path = plugin_dir().join(format!("{}.wasm", plugin.sha256));
     if path.exists() {
         return Ok(path);
     }
@@ -128,9 +156,12 @@ fn module_path(domain_ir: &Value, plugin: &PluginQuery) -> Result<PathBuf, Strin
         .map_err(|e| format!("{}'s module is not base64: {e}", plugin.adapter))?;
     let digest = hex(&Sha256::digest(&bytes));
     if digest != plugin.sha256 {
-        return Err(format!("{}'s module does not match its digest", plugin.adapter));
+        return Err(format!(
+            "{}'s module does not match its digest",
+            plugin.adapter
+        ));
     }
-    std::fs::create_dir_all(path.parent().unwrap()).map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(plugin_dir()).map_err(|e| e.to_string())?;
     // Written beside and renamed, so a concurrent reader never compiles a partial module.
     let partial = path.with_extension(format!("{}.partial", std::process::id()));
     std::fs::write(&partial, &bytes).map_err(|e| e.to_string())?;
@@ -138,8 +169,17 @@ fn module_path(domain_ir: &Value, plugin: &PluginQuery) -> Result<PathBuf, Strin
     Ok(path)
 }
 
+/// Where modules are written, one file per digest.
+fn plugin_dir() -> PathBuf {
+    std::env::temp_dir().join("hecks-plugins")
+}
+
 fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| format!("{b:02x}")).collect()
+    use std::fmt::Write as _;
+    bytes.iter().fold(String::new(), |mut out, byte| {
+        let _ = write!(out, "{byte:02x}");
+        out
+    })
 }
 
 #[cfg(test)]
@@ -168,7 +208,10 @@ mod tests {
         let ir = ir();
         let found = answering(Some(&ir), "Pluginned::Ledger.Doubled").unwrap();
         assert_eq!(found.adapter, "Doubler");
-        assert_eq!(found.references, vec![("entry".to_string(), "Pluginned::Ledger".to_string())]);
+        assert_eq!(
+            found.references,
+            vec![("entry".to_string(), "Pluginned::Ledger".to_string())]
+        );
         assert!(answering(Some(&ir), "Pluginned::Ledger.Halved").is_none());
         assert!(answering(None, "Pluginned::Ledger.Doubled").is_none());
     }
@@ -176,12 +219,18 @@ mod tests {
     #[test]
     fn hands_a_reference_over_as_the_record_state_with_its_id() {
         let instances = json!({ "Pluginned::Ledger#house": { "name": { "value": "house" }, "note": { "value": "rent" } } });
-        let mut args = json!({ "entry": "house", "amount": 21 }).as_object().cloned().unwrap();
+        let mut args = json!({ "entry": "house", "amount": 21 })
+            .as_object()
+            .cloned()
+            .unwrap();
         let references = vec![("entry".to_string(), "Pluginned::Ledger".to_string())];
 
         resolve_references(&references, &instances, &mut args).unwrap();
 
-        assert_eq!(args["entry"], json!({ "name": { "value": "house" }, "note": { "value": "rent" }, "id": "house" }));
+        assert_eq!(
+            args["entry"],
+            json!({ "name": { "value": "house" }, "note": { "value": "rent" }, "id": "house" })
+        );
         let mut missing = json!({ "entry": "nowhere" }).as_object().cloned().unwrap();
         assert_eq!(
             resolve_references(&references, &instances, &mut missing),
@@ -201,7 +250,10 @@ mod tests {
 
         let output = wasm_runner::run(&module, &input.to_string()).unwrap();
 
-        assert_eq!(serde_json::from_str::<Value>(&output).unwrap(), json!({ "rows": [{ "amount": 42, "note": "rent" }] }));
+        assert_eq!(
+            serde_json::from_str::<Value>(&output).unwrap(),
+            json!({ "rows": [{ "amount": 42, "note": "rent" }] })
+        );
     }
 
     #[test]
@@ -210,6 +262,9 @@ mod tests {
         ir["plugins"][0]["sha256"] = json!("0".repeat(64));
         let plugin = answering(Some(&ir), "Pluginned::Ledger.Doubled").unwrap();
 
-        assert_eq!(module_path(&ir, &plugin), Err("Doubler's module does not match its digest".to_string()));
+        assert_eq!(
+            module_path(&ir, &plugin),
+            Err("Doubler's module does not match its digest".to_string())
+        );
     }
 }

@@ -13,7 +13,8 @@ module Hecks
         # @param registry [Runtime::Registry] the loaded registry
         # @return [Array<Hash{String => Object}>] `"adapter"`, `"runs"`, `"sha256"` and `"module"`
         #   (the module's bytes, base64), and `"queries"`: each answered question with
-        #   `"references"`, its `reference_to` arguments mapped to the qualified aggregate each names
+        #   `"references"`, its `reference_to` arguments mapped to the qualified aggregate each
+        #   names
         def plugins(registry)
           registry.adapters.values.select(&:plugin?).sort_by(&:name).map { |adapter| plugin_hash(registry, adapter) }
         end

@@ -27,21 +27,25 @@ module Hecks
       check_loadable!(name, registry)
       return if registry.bluebook(Naming.pascal(name.to_s))
 
-      dir   = File.join(registry.root, "vendor", "embryonaut_bluebooks", name.to_s, "bluebook")
-      files = Dir.glob(File.join(dir, "*.bluebook"))
-
-      if files.empty?
-        raise Runtime::WiringError,
-              "no vendored embryonaut bluebook named #{name.inspect} at #{dir} — " \
-              "vendor it with hecks vendor #{name}"
-      end
-
+      dir = File.join(registry.root, "vendor", "embryonaut_bluebooks", name.to_s, "bluebook")
       # Loaded in the glob's alphabetical order; a package with several
       # files that reopen the same bluebook is named to rely on that.
-      files.each { |file| Kernel.load(file) }
+      vendored_bluebooks(name, dir).each { |file| Kernel.load(file) }
       # A package's plugin adapters, which answer its queries with the wasm modules beside them.
       Dir.glob(File.join(dir, "*.adapter")).each { |file| Kernel.load(file) }
     end
+
+    # @return [Array<String>] the package's vendored `.bluebook` files
+    # @raise [Runtime::WiringError] if there are none
+    def self.vendored_bluebooks(name, dir)
+      files = Dir.glob(File.join(dir, "*.bluebook"))
+      return files unless files.empty?
+
+      raise Runtime::WiringError,
+            "no vendored embryonaut bluebook named #{name.inspect} at #{dir} — " \
+            "vendor it with hecks vendor #{name}"
+    end
+    private_class_method :vendored_bluebooks
 
     # @raise [Runtime::WiringError] if `registry` has no root to vendor from, or `name` is not a
     #   package name
