@@ -22,6 +22,17 @@ pub struct Caller<'a> {
     pub actor_id: Option<&'a str>,
 }
 
+impl<'a> Caller<'a> {
+    /// The caller a signed-in session dispatches as: the role it carries and the identity
+    /// Governance holds assignments for. No session is an unidentified caller.
+    pub fn signed_in(session: Option<&'a crate::auth::Session>) -> Self {
+        session.map_or_else(Self::default, |session| Self {
+            role: session.role.as_deref(),
+            actor_id: Some(session.identity_id.as_str()).filter(|id| !id.is_empty()),
+        })
+    }
+}
+
 /// The role an unidentified caller is dispatched under when roles are enforced: no command declares
 /// it, so a command that declares any role refuses it.
 pub const ANONYMOUS_ROLE: &str = "Anonymous";
@@ -72,7 +83,12 @@ impl Enforcement {
 /// `HECKS_ROLE_ENFORCEMENT`, which guards what callers outside the host may do.
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum Origin {
+    /// A caller the host's internal protocol names, from one of its own peers.
     External,
+    /// A signed-in request to the console API or the web UI. Its caller is checked as an
+    /// `External` one is, and every fact its command needs is the host's answer, never the
+    /// request's.
+    Request,
     HostInternal,
 }
 
@@ -211,7 +227,8 @@ pub async fn handle_facts_as(
 //
 // This entry point and `handle_facts`/`handle_routed` are the host's own: a call with no role is a
 // host-internal dispatch and is unchecked in every enforcement mode. A call that names a role is
-// still checked against it. Callers outside the host go through the `_as` entry points.
+// still checked against it. A peer naming its caller goes through the `_as` entry points, and a
+// request to the console API or the web UI through the `_request` ones.
 pub async fn handle(
     host: Host<'_>,
     verb: &str,
@@ -235,6 +252,45 @@ pub async fn handle(
         },
     )
     .await
+}
+
+/// `handle_as` for a request from outside the host: the console API and the web UI.
+pub async fn handle_request(
+    host: Host<'_>,
+    verb: &str,
+    args: serde_json::Value,
+    caller: Caller<'_>,
+) -> anyhow::Result<Outcome> {
+    dispatch_in(
+        Enforcement::from_env(),
+        Origin::Request,
+        host,
+        verb,
+        args,
+        caller,
+    )
+    .await
+}
+
+/// `handle_routed_as` for a request from outside the host.
+pub async fn handle_routed_request(
+    host: Host<'_>,
+    verb: &str,
+    to: serde_json::Value,
+    facts: serde_json::Value,
+    caller: Caller<'_>,
+) -> anyhow::Result<Outcome> {
+    handle_request(host, verb, routed_invocation(to, facts)?, caller).await
+}
+
+/// `handle_facts_as` for a request from outside the host.
+pub async fn handle_facts_request(
+    host: Host<'_>,
+    verb: &str,
+    facts: serde_json::Value,
+    caller: Caller<'_>,
+) -> anyhow::Result<Outcome> {
+    handle_request(host, verb, facts_invocation(facts)?, caller).await
 }
 
 /// Dispatches for a caller, applying `HECKS_ROLE_ENFORCEMENT`: unidentified callers are refused (or,
@@ -269,7 +325,7 @@ async fn dispatch_in(
     } else {
         mode.effective(caller)
     };
-    let outcome = run(host, verb, args.clone(), checked).await?;
+    let outcome = run(origin, host, verb, args.clone(), checked).await?;
     // Only a caller that stated no role (unidentified, or an actor Governance holds no grant for)
     // is let through; a stated role that does not match stays refused, as it is under `Off`.
     if mode == Enforcement::Shadow
@@ -284,12 +340,13 @@ async fn dispatch_in(
                 "refusals": outcome.result.get("refusals"),
             }),
         );
-        return run(host, verb, args, Caller::default()).await;
+        return run(origin, host, verb, args, Caller::default()).await;
     }
     Ok(outcome)
 }
 
 async fn run(
+    origin: Origin,
     host: Host<'_>,
     verb: &str,
     args: serde_json::Value,
@@ -340,9 +397,13 @@ async fn run(
     // before the step is journaled, so a replay re-dispatches the recorded answer (ADR 0081).
     let mut args = args;
     if let Some(domain_ir) = crate::ir::ir() {
-        crate::needs::fill_needs(domain_ir, verb, &mut args, &crate::needs::ProcessClock);
-        // An argument with a declared default is filled the same way, so the journal holds it too.
-        crate::needs::fill_defaults(domain_ir, verb, &mut args);
+        fill_arguments(
+            origin,
+            domain_ir,
+            verb,
+            &mut args,
+            &crate::needs::ProcessClock,
+        );
     }
     let mut step = serde_json::json!({ "verb": verb, "args": args.clone() });
     if let Some(role) = role {
@@ -612,6 +673,25 @@ async fn run(
     Ok(Outcome { result, accepted })
 }
 
+// Answers the facts the command needs and fills its declared defaults. A value the caller supplied
+// for a needed fact is kept (ADR 0081) unless the dispatch is a request from outside the host,
+// which may not set the clock a time-window guard reads.
+fn fill_arguments(
+    origin: Origin,
+    domain_ir: &serde_json::Value,
+    verb: &str,
+    args: &mut serde_json::Value,
+    clock: &dyn crate::needs::Clock,
+) {
+    if origin == Origin::Request {
+        crate::needs::answer_needs(domain_ir, verb, args, clock);
+    } else {
+        crate::needs::fill_needs(domain_ir, verb, args, clock);
+    }
+    // An argument with a declared default is filled the same way, so the journal holds it too.
+    crate::needs::fill_defaults(domain_ir, verb, args);
+}
+
 // One line per dispatched command: what was asked (verb, role — never
 // the facts) and what the domain answered.
 fn log_command(verb: &str, role: Option<&str>, accepted: bool, result: &serde_json::Value) {
@@ -702,6 +782,35 @@ pub async fn query(
     if let Some(domain_ir) = crate::ir::ir() {
         crate::needs::fill_query_needs(domain_ir, question, &mut args, &crate::needs::ProcessClock);
     }
+    answer_query(client, wasm_path, question, args).await
+}
+
+/// `query` for a request from outside the host: every fact the query needs is the host's answer,
+/// never the request's.
+pub async fn query_request(
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    question: &str,
+    args: serde_json::Value,
+) -> anyhow::Result<serde_json::Value> {
+    let mut args = args;
+    if let Some(domain_ir) = crate::ir::ir() {
+        crate::needs::answer_query_needs(
+            domain_ir,
+            question,
+            &mut args,
+            &crate::needs::ProcessClock,
+        );
+    }
+    answer_query(client, wasm_path, question, args).await
+}
+
+async fn answer_query(
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    question: &str,
+    args: serde_json::Value,
+) -> anyhow::Result<serde_json::Value> {
     let state = read(client, wasm_path).await?;
     let seed = state
         .get("instances")
@@ -1787,6 +1896,25 @@ pub(crate) mod tests {
             1,
             "only the correctly-authorized registration should be persisted"
         );
+    }
+
+    // ADR 0081 keeps a needed fact the caller supplied, but only the host and its peers may: a
+    // request's `now` would move a time-window guard.
+    #[test]
+    fn only_a_request_from_outside_the_host_has_its_needed_facts_replaced() {
+        let ir = serde_json::json!({"name": "Lease", "aggregates": [{"name": "Slot", "commands": [
+            {"name": "Take", "attributes": [{"name": "now", "type": "Integer"}],
+             "needs": [{"fact": "now"}]}
+        ]}]});
+        let fill = |origin: Origin| {
+            let mut args = serde_json::json!({"with": {"now": 42}});
+            let clock = crate::needs::FixedClock(7);
+            fill_arguments(origin, &ir, "Lease::Slot.Take", &mut args, &clock);
+            args["with"]["now"].clone()
+        };
+        assert_eq!(fill(Origin::Request), serde_json::json!(7));
+        assert_eq!(fill(Origin::External), serde_json::json!(42));
+        assert_eq!(fill(Origin::HostInternal), serde_json::json!(42));
     }
 
     #[test]
