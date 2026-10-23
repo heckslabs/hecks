@@ -10,12 +10,7 @@ RSpec.describe Hecks::Adapters::TenantProvisioner, "#write_overlay" do
     { slug: "acme", domain: "Scratch", realm: "Acme", schema: "acme", database: "hecks_tenants" }
   end
 
-  around do |example|
-    Dir.mktmpdir("provisioner") do |dir|
-      @dir = dir
-      example.run
-    end
-  end
+  scratch_directory :dir, "provisioner"
 
   it "accepts bare arguments" do
     answer = adapter.write_overlay(**tenant, directory: @dir)

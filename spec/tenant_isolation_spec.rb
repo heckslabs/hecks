@@ -61,12 +61,7 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
   WORLD
 
   # A scratch directory for each example, named by `dir`.
-  around do |example|
-    Dir.mktmpdir do |scratch|
-      @dir = scratch
-      example.run
-    end
-  end
+  scratch_directory
 
   attr_reader :dir
 
