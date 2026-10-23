@@ -1258,6 +1258,7 @@ pub(crate) fn httpdate_now() -> String {
     crate::clock::iso_utc(now_secs())
 }
 
+#[allow(clippy::expect_used)] // reason: HMAC accepts a key of any length, so construction cannot fail
 fn sign(secret: &str, payload: &str) -> String {
     use hmac::{Hmac, Mac};
     use sha2::Sha256;
