@@ -2,6 +2,7 @@
 //! Commerce (payments, checkout, newsletter, registrations, mail) plugs in through [`extension::HostExtension`].
 
 pub mod api;
+pub mod arg_limits;
 pub mod auth;
 mod b64;
 pub mod boot;

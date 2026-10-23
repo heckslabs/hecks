@@ -4,12 +4,72 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
+use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncWrite};
-use wasmtime::{Engine, Linker, Module, Store};
+use wasmtime::{Config, Engine, Linker, Module, ResourceLimiter, Store, Trap};
 use wasmtime_wasi::cli::{IsTerminal, StdinStream, StdoutStream};
 use wasmtime_wasi::p1::{self, WasiP1Ctx};
 use wasmtime_wasi::p2::pipe::{MemoryInputPipe, MemoryOutputPipe};
 use wasmtime_wasi::WasiCtxBuilder;
+
+/// What one kernel run may spend. `dispatch::run` holds the shared database client and an open
+/// transaction while the kernel runs, so a run that never ends, or that grows without bound, would
+/// stall every write the host serves.
+#[derive(Clone, Copy, Debug)]
+struct Limits {
+    deadline: Duration,
+    memory_bytes: usize,
+    output_bytes: usize,
+}
+
+/// The limits every real run gets.
+///
+/// - `deadline`: the corpus's runs finish in milliseconds, and a world fed in at the 1 GiB memory
+///   cap still finishes in about 4 s on an Apple M-series release build, so 10 s leaves room for a
+///   slower production core without letting one run hold the database for long.
+/// - `memory_bytes`: a run needs roughly five to nine times its output in linear memory, so a world
+///   whose answer fits `output_bytes` fits in 1 GiB; a run past it could not have answered anyway.
+/// - `output_bytes`: the whole world comes back on stdout, and the host holds it in memory too.
+const KERNEL_LIMITS: Limits = Limits {
+    deadline: Duration::from_secs(10),
+    memory_bytes: 1024 * 1024 * 1024,
+    output_bytes: 64 * 1024 * 1024,
+};
+
+/// How often the shared engine's epoch advances; a deadline is counted in these ticks, so a run
+/// is stopped at most one tick after its deadline.
+const EPOCH_TICK: Duration = Duration::from_millis(100);
+
+/// One run's WASI context and the memory cap its store enforces.
+struct RunState {
+    wasi: WasiP1Ctx,
+    memory_bytes: usize,
+    memory_refused: bool,
+}
+
+impl ResourceLimiter for RunState {
+    fn memory_growing(
+        &mut self,
+        _current: usize,
+        desired: usize,
+        maximum: Option<usize>,
+    ) -> wasmtime::Result<bool> {
+        let allowed = desired <= self.memory_bytes && maximum.is_none_or(|max| desired <= max);
+        // Refused, not trapped: the guest sees a failed `memory.grow` and aborts, and `run` reads
+        // this flag to say why.
+        self.memory_refused |= !allowed;
+        Ok(allowed)
+    }
+
+    fn table_growing(
+        &mut self,
+        _current: usize,
+        desired: usize,
+        maximum: Option<usize>,
+    ) -> wasmtime::Result<bool> {
+        Ok(maximum.is_none_or(|max| desired <= max))
+    }
+}
 
 #[derive(Clone)]
 struct StepsIn(MemoryInputPipe);
@@ -39,6 +99,27 @@ impl StdoutStream for StepsOut {
     fn async_stream(&self) -> Box<dyn AsyncWrite + Send + Sync> {
         Box::new(self.0.clone())
     }
+}
+
+/// The one engine every module compiles against, with epoch interruption on so a run can be
+/// stopped at its deadline. A background thread advances its epoch every `EPOCH_TICK`.
+fn engine() -> &'static Engine {
+    static ENGINE: OnceLock<Engine> = OnceLock::new();
+    ENGINE.get_or_init(|| {
+        let mut config = Config::new();
+        config.epoch_interruption(true);
+        #[allow(clippy::expect_used)] // reason: a default config with epochs on always builds
+        let engine = Engine::new(&config).expect("an engine with epoch interruption builds");
+        let ticking = engine.clone();
+        std::thread::Builder::new()
+            .name("wasm-epoch".to_string())
+            .spawn(move || loop {
+                std::thread::sleep(EPOCH_TICK);
+                ticking.increment_epoch();
+            })
+            .ok();
+        engine
+    })
 }
 
 // Cached per (warm) process, not per call — `Engine`/`Module` hold only
@@ -76,7 +157,7 @@ fn engine_and_module(wasm_path: &Path) -> anyhow::Result<(Engine, Module)> {
     if let Some((engine, module)) = compiled.as_ref() {
         return Ok((engine.clone(), module.clone()));
     }
-    let engine = Engine::default();
+    let engine = engine().clone();
     let module = Module::from_file(&engine, wasm_path)?;
     #[cfg(test)]
     COMPILED_PATHS.lock().unwrap().push(wasm_path.to_path_buf());
@@ -109,40 +190,89 @@ pub fn warm(wasm_path: &Path) -> anyhow::Result<()> {
 /// Runs `wasm_path` (a wasm32-wasip1 module speaking the `{"steps"}` ->
 /// `{"instances","events","refusals"}` contract) against `input`,
 /// returning its stdout. `Store`/`Linker` are fresh every call.
+///
+/// A run that passes its deadline, its memory cap or its output cap (`KERNEL_LIMITS`) is stopped
+/// and answered with an error naming the cap, never with a truncated world.
 pub fn run(wasm_path: &Path, input: &str) -> anyhow::Result<String> {
+    run_within(KERNEL_LIMITS, wasm_path, input)
+}
+
+fn run_within(limits: Limits, wasm_path: &Path, input: &str) -> anyhow::Result<String> {
     let (engine, module) = engine_and_module(wasm_path)?;
 
-    let mut linker: Linker<WasiP1Ctx> = Linker::new(&engine);
-    p1::add_to_linker_sync(&mut linker, |ctx| ctx)?;
+    let mut linker: Linker<RunState> = Linker::new(&engine);
+    p1::add_to_linker_sync(&mut linker, |state: &mut RunState| &mut state.wasi)?;
 
-    let stdout_pipe = MemoryOutputPipe::new(64 * 1024 * 1024);
-    let wasi_ctx = WasiCtxBuilder::new()
+    let stdout_pipe = MemoryOutputPipe::new(limits.output_bytes);
+    let wasi = WasiCtxBuilder::new()
         .stdin(StepsIn(MemoryInputPipe::new(input.to_string())))
         .stdout(StepsOut(stdout_pipe.clone()))
         .build_p1();
 
-    let mut store = Store::new(&engine, wasi_ctx);
-    let instance = linker.instantiate(&mut store, &module)?;
-    let start = instance.get_typed_func::<(), ()>(&mut store, "_start")?;
+    let mut store = Store::new(
+        &engine,
+        RunState {
+            wasi,
+            memory_bytes: limits.memory_bytes,
+            memory_refused: false,
+        },
+    );
+    store.limiter(|state| state);
+    store.set_epoch_deadline(deadline_ticks(limits.deadline));
+    let started = start(&mut store, &linker, &module, limits.deadline);
+    let memory_refused = store.data().memory_refused;
+    drop(store);
+
+    let output = stdout_pipe.contents();
+    if output.len() >= limits.output_bytes {
+        anyhow::bail!(
+            "the kernel's answer passed the {} MiB output cap; the world is too large to answer",
+            limits.output_bytes / (1024 * 1024)
+        );
+    }
+    if let Err(err) = started {
+        if memory_refused {
+            anyhow::bail!(
+                "the kernel needed more than its {} MiB memory cap",
+                limits.memory_bytes / (1024 * 1024)
+            );
+        }
+        return Err(err);
+    }
+    Ok(String::from_utf8(output.to_vec())?)
+}
+
+/// Instantiates `module` and calls its `_start`, which the store stops once `deadline` passes.
+fn start(
+    store: &mut Store<RunState>,
+    linker: &Linker<RunState>,
+    module: &Module,
+    deadline: Duration,
+) -> anyhow::Result<()> {
+    let instance = linker.instantiate(&mut *store, module)?;
+    let start = instance.get_typed_func::<(), ()>(&mut *store, "_start")?;
 
     // A WASI "command" module calls `proc_exit` (an `I32Exit` trap) on
     // ordinary completion too — exit code 0 is success here, same as a
     // native process's exit status after `main` returns.
-    match start.call(&mut store, ()) {
-        Ok(()) => {}
-        Err(err) => {
-            if let Some(exit) = err.downcast_ref::<wasmtime_wasi::I32Exit>() {
-                if exit.0 != 0 {
-                    anyhow::bail!("wasm module exited with status {}", exit.0);
-                }
-            } else {
-                return Err(err.into());
-            }
-        }
+    match start.call(&mut *store, ()) {
+        Ok(()) => Ok(()),
+        Err(err) => match err.downcast_ref::<wasmtime_wasi::I32Exit>() {
+            Some(exit) if exit.0 == 0 => Ok(()),
+            Some(exit) => anyhow::bail!("wasm module exited with status {}", exit.0),
+            None if err.downcast_ref::<Trap>() == Some(&Trap::Interrupt) => anyhow::bail!(
+                "the kernel ran past its {} ms deadline and was stopped",
+                deadline.as_millis()
+            ),
+            None => Err(err.into()),
+        },
     }
+}
 
-    drop(store);
-    Ok(String::from_utf8(stdout_pipe.contents().to_vec())?)
+/// `deadline` in whole epoch ticks, rounded up so a deadline shorter than one tick still runs.
+fn deadline_ticks(deadline: Duration) -> u64 {
+    let ticks = deadline.as_nanos().div_ceil(EPOCH_TICK.as_nanos());
+    u64::try_from(ticks).unwrap_or(u64::MAX).max(1)
 }
 
 #[cfg(test)]
@@ -189,6 +319,68 @@ pub(crate) mod tests {
         let answer = run(&path, r#"{"steps": []}"#).unwrap();
         assert!(answer.contains("instances"), "got {answer}");
         assert_eq!(compile_count(&path), 1, "run reused the warmed module");
+    }
+
+    /// A `.wat` module written to a path no other test uses, so the module cache never serves
+    /// one test's module to another.
+    fn wat_module(name: &str, wat: &str) -> PathBuf {
+        let dir =
+            std::env::temp_dir().join(format!("hecks_wasm_runner_{}_{name}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("module.wat");
+        std::fs::write(&path, wat).unwrap();
+        path
+    }
+
+    const SMALL: Limits = Limits {
+        deadline: Duration::from_millis(200),
+        memory_bytes: 1024 * 1024,
+        output_bytes: 16,
+    };
+
+    #[test]
+    fn a_run_past_its_deadline_is_stopped_with_an_error_naming_it() {
+        let path = wat_module(
+            "spin",
+            r#"(module (memory (export "memory") 1) (func (export "_start") (loop br 0)))"#,
+        );
+        let began = std::time::Instant::now();
+        let err = run_within(SMALL, &path, "").unwrap_err().to_string();
+        assert!(err.contains("200 ms deadline"), "got {err}");
+        assert!(
+            began.elapsed() < Duration::from_secs(5),
+            "took {:?}",
+            began.elapsed()
+        );
+    }
+
+    #[test]
+    fn a_run_that_grows_past_its_memory_cap_is_refused_with_an_error_naming_it() {
+        let path = wat_module(
+            "grow",
+            r#"(module (memory (export "memory") 1)
+                 (func (export "_start")
+                   (if (i32.eq (memory.grow (i32.const 100)) (i32.const -1)) (then unreachable))))"#,
+        );
+        let err = run_within(SMALL, &path, "").unwrap_err().to_string();
+        assert!(err.contains("1 MiB memory cap"), "got {err}");
+    }
+
+    #[test]
+    fn an_answer_past_the_output_cap_is_an_error_not_a_truncated_world() {
+        let path = wat_module(
+            "chatty",
+            r#"(module
+                 (import "wasi_snapshot_preview1" "fd_write"
+                   (func $fd_write (param i32 i32 i32 i32) (result i32)))
+                 (memory (export "memory") 1)
+                 (data (i32.const 0) "\08\00\00\00\20\00\00\00")
+                 (data (i32.const 8) "{\"instances\": {}, \"events\": []}")
+                 (func (export "_start")
+                   (drop (call $fd_write (i32.const 1) (i32.const 0) (i32.const 1) (i32.const 64)))))"#,
+        );
+        let err = run_within(SMALL, &path, "").unwrap_err().to_string();
+        assert!(err.contains("output cap"), "got {err}");
     }
 
     #[test]

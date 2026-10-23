@@ -8,6 +8,7 @@ use crate::{
 };
 
 use lambda_runtime::{service_fn, Error, LambdaEvent};
+use rustls::pki_types::{pem::PemObject, CertificateDer};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -105,7 +106,7 @@ pub async fn run() -> Result<(), Error> {
     // own RDS CA specifically, not a generic public bundle (see
     // Cargo.toml).
     let mut roots = rustls::RootCertStore::empty();
-    for cert in rustls_pemfile::certs(&mut include_bytes!("../rds-ca-bundle.pem").as_slice()) {
+    for cert in CertificateDer::pem_slice_iter(include_bytes!("../rds-ca-bundle.pem")) {
         roots.add(cert.map_err(|e| format!("parsing rds-ca-bundle.pem: {e}"))?)?;
     }
     let tls_config = rustls::ClientConfig::builder()
