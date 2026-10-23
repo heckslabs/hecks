@@ -53,7 +53,9 @@ module Hecks
 
         def shaped(payload) = self.class.json_shaped(payload)
 
-        # The wasm plugins the host runs for queries no hecksagon binds, omitted when there are none.
+        # The wasm plugins the host runs for queries no hecksagon binds; none, no key.
+        #
+        # @return [void]
         def add_plugins(document, exporter)
           plugins = exporter.plugins(@registry)
           document[:plugins] = shaped(plugins) unless plugins.empty?
