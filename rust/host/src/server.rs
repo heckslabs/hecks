@@ -25,16 +25,36 @@ use tokio_postgres::Client;
 
 /// The per-request dispatch decision, shared between the Lambda custom-runtime path and the
 /// axum fallback route below. `body` is already-parsed JSON in one of its recognized shapes.
+///
+/// `"bare": true` beside any of them (`verb` with `to`/`with` or `args`, `read`, `query`) answers
+/// the same outcome with each single-field value object as its bare field
+/// (`{"name": "Margherita"}`, not `{"name": {"value": "Margherita"}}`). What is stored is the
+/// same either way; without `bare` the answer is the stored shape.
 pub async fn dispatch_body(body: Value, host: Host<'_>) -> Result<Value, Error> {
+    if let Some(response) = web::render(&body, host).await {
+        return Ok(response);
+    }
+    let answer = kernel_answer(&body, host).await?;
+    if !wants_bare(&body) {
+        return Ok(answer);
+    }
+    Ok(dispatch::present(host.wasm_path, answer)
+        .await
+        .map_err(|e| format!("{e:#}"))?)
+}
+
+fn wants_bare(body: &Value) -> bool {
+    body.get("bare").and_then(Value::as_bool) == Some(true)
+}
+
+// The kernel's outcome for a read, query or command body, in the stored shape.
+async fn kernel_answer(body: &Value, host: Host<'_>) -> Result<Value, Error> {
     let Host {
         client,
         wasm_path,
         config,
         ..
     } = host;
-    if let Some(response) = web::render(&body, host).await {
-        return Ok(response);
-    }
 
     if body.get("read").and_then(serde_json::Value::as_bool) == Some(true) {
         // `{e:#}`: anyhow's alternate Display walks `source()` to the real message,
@@ -48,7 +68,7 @@ pub async fn dispatch_body(body: Value, host: Host<'_>) -> Result<Value, Error> 
     // A query step reads current state and writes nothing to the journal.
     if body.get("query").is_some() {
         return Ok(crate::query_step::answer(
-            &body,
+            body,
             crate::ir::ir(),
             &config.domain,
             client,
@@ -1039,6 +1059,58 @@ mod tests {
             "a warmed read took {:?}",
             started.elapsed()
         );
+    }
+
+    // The checkout fixture's `Event`: `slug`, `name` and `capacity` hold one `value` field and
+    // `price` one `cents` field, so each answers as a bare scalar when asked to.
+    #[tokio::test]
+    async fn a_bare_body_answers_single_field_value_objects_bare_and_the_default_stays_wrapped() {
+        let client = crate::dispatch::tests::scratch_db("rust_host_serve_bare").await;
+        crate::dispatch::tests::provision_lineage(
+            &*client.lock().await,
+            "CheckoutFixture",
+            1,
+            &["Event"],
+        )
+        .await;
+        let config = LineageConfig {
+            domain: "CheckoutFixture".to_string(),
+            era: Some(1),
+            mirrored: None,
+        };
+        let wasm = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../dist/checkout_fixture.wasm");
+        let host = Host::new(&client, &wasm, &config, &crate::lambda_client::NeverInvoker);
+        let schedule = serde_json::json!({
+            "verb": "CheckoutFixture::Event.Schedule",
+            "role": "Organizer",
+            "with": {"slug": "intro", "name": "Intro", "price": 1500, "capacity": 10},
+            "bare": true,
+        });
+
+        let scheduled = dispatch_body(schedule, host).await.unwrap();
+        let wrapped = dispatch_body(serde_json::json!({"read": true}), host)
+            .await
+            .unwrap();
+        let bare = dispatch_body(serde_json::json!({"read": true, "bare": true}), host)
+            .await
+            .unwrap();
+
+        let event = "CheckoutFixture::Event#intro";
+        assert_eq!(
+            scheduled["instances"][event]["name"], "Intro",
+            "{scheduled}"
+        );
+        assert_eq!(
+            scheduled["events"][0]["payload"]["price"], 1500,
+            "{scheduled}"
+        );
+        assert_eq!(
+            wrapped["instances"][event]["name"],
+            serde_json::json!({"value": "Intro"}),
+            "{wrapped}"
+        );
+        assert_eq!(bare["instances"][event]["price"], 1500, "{bare}");
+        assert_eq!(bare["instances"][event]["capacity"], 10, "{bare}");
     }
 
     #[test]
