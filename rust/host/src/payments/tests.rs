@@ -56,6 +56,10 @@ struct FakeState {
     webhooks_created: AtomicUsize,
     // Stripe cannot delete a webhook endpoint (an outage, say).
     fail_deletes: AtomicBool,
+    // How many session requests answer together: each waits until that many have arrived, so
+    // that many registrations are past their seat check at once. Zero answers each at once.
+    session_rendezvous: AtomicUsize,
+    sessions_arrived: AtomicUsize,
 }
 
 struct FakeStripe {
@@ -73,6 +77,8 @@ impl FakeStripe {
             refuse_webhooks: AtomicBool::new(false),
             webhooks_created: AtomicUsize::new(0),
             fail_deletes: AtomicBool::new(false),
+            session_rendezvous: AtomicUsize::new(0),
+            sessions_arrived: AtomicUsize::new(0),
         });
         let app = axum::Router::new()
             .fallback(answer)
@@ -118,6 +124,9 @@ async fn answer(
     let path = recorded.path.clone();
     let method = recorded.method.clone();
     state.requests.lock().unwrap().push(recorded);
+    if (method.as_str(), path.as_str()) == ("POST", "/v1/checkout/sessions") {
+        meet_the_other_sessions(&state).await;
+    }
 
     let (status, reply) = match (method.as_str(), path.as_str()) {
         // Stripe does not recognise the key: every call it authenticates is a 401.
@@ -175,6 +184,18 @@ async fn answer(
         ),
     };
     (status, axum::Json(reply)).into_response()
+}
+
+// Holds a session request until `session_rendezvous` of them have arrived (five seconds at most).
+async fn meet_the_other_sessions(state: &FakeState) {
+    let expected = state.session_rendezvous.load(Ordering::SeqCst);
+    let arrived = state.sessions_arrived.fetch_add(1, Ordering::SeqCst) + 1;
+    for _ in 0..1000 {
+        if arrived >= expected || state.sessions_arrived.load(Ordering::SeqCst) >= expected {
+            return;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+    }
 }
 
 struct Tenant {
@@ -418,8 +439,11 @@ impl Tenant {
 
     // POST /registrations for `slug`; the checkout URL and registration id on success.
     async fn register(&self, slug: &str) -> (u64, Value) {
-        let body = json!({"event_slug": slug, "name": "Ada Lovelace", "email": "ada@example.com"})
-            .to_string();
+        self.register_as(slug, "ada@example.com").await
+    }
+
+    async fn register_as(&self, slug: &str, email: &str) -> (u64, Value) {
+        let body = json!({"event_slug": slug, "name": "Ada Lovelace", "email": email}).to_string();
         let platform = self.platform_now().await;
         let response = web::registrations_route(
             &body,
@@ -464,6 +488,7 @@ impl Tenant {
         let response = web::registration_complete_route(
             reference,
             r#"{"outcome":"succeeded"}"#,
+            &self.platform_now().await,
             Host::new(&self.client, &self.wasm, &self.config, &NeverInvoker),
             &crate::commerce_ir::fixture_payments(),
         )
@@ -496,8 +521,16 @@ fn sign(secret: &str, now: i64, payload: &str) -> String {
     format!("t={now},v1={digest}")
 }
 
+// A Checkout Session that collected the fixture event's price (`schedule_event`'s 4200 cents).
 fn completed(reference: &str) -> Value {
-    json!({"type": "checkout.session.completed", "data": {"object": {"id": "cs_test_1", "metadata": {"registration_id": reference}}}})
+    session_event("checkout.session.completed", reference, "paid", 4200)
+}
+
+fn session_event(event_type: &str, reference: &str, payment_status: &str, cents: i64) -> Value {
+    json!({"type": event_type, "data": {"object": {
+        "id": "cs_test_1", "metadata": {"registration_id": reference},
+        "payment_status": payment_status, "amount_total": cents, "currency": "usd",
+    }}})
 }
 
 fn expired(reference: &str) -> Value {
@@ -930,7 +963,7 @@ async fn disconnecting_while_payments_are_enabled_pauses_them() {
 }
 
 #[tokio::test]
-async fn checkout_stays_on_the_mock_until_payments_are_enabled() {
+async fn checkout_is_the_mock_only_while_no_connection_exists() {
     let t = tenant("hecks_pay_test_checkout_mock").await;
     t.schedule_event("mock-event").await;
 
@@ -945,16 +978,12 @@ async fn checkout_stays_on_the_mock_until_payments_are_enabled() {
         "{body}"
     );
 
-    // Connected but not enabled: still the mock.
+    // Connected but not enabled: registrations wait, never a free walkthrough.
     t.connect().await;
     let (status, body) = t.register("mock-event").await;
-    assert_eq!(status, 200, "{body}");
-    assert!(
-        body["checkout_url"]
-            .as_str()
-            .unwrap()
-            .starts_with("https://site.example/pay/"),
-        "{body}"
+    assert_eq!(
+        (status, body["error"].as_str()),
+        (503, Some("payments are temporarily unavailable"))
     );
     assert!(
         t.fake.requests_to("/v1/checkout/sessions").is_empty(),
@@ -966,7 +995,7 @@ async fn checkout_stays_on_the_mock_until_payments_are_enabled() {
         .iter()
         .map(|(_, p)| p["processor"]["value"].as_str().unwrap().to_string())
         .collect();
-    assert_eq!(processors, vec!["mock_stripe", "mock_stripe"]);
+    assert_eq!(processors, vec!["mock_stripe"]);
 }
 
 #[tokio::test]
@@ -1192,6 +1221,67 @@ async fn an_unpaid_checkout_holds_the_seat_until_its_session_expires() {
     );
 }
 
+// Two guests past the seat check for the last seat at once (both waiting on Stripe): once both
+// are written, the event holds no more registrations than seats.
+#[tokio::test]
+async fn two_guests_racing_for_the_last_seat_never_oversell_it() {
+    let t = tenant("hecks_pay_test_capacity_race").await;
+    t.schedule_event_with_capacity("last-seat", 1).await;
+    t.connect().await;
+    t.enable().await;
+    t.fake.state.session_rendezvous.store(2, Ordering::SeqCst);
+
+    let (first, second) = tokio::join!(
+        t.register_as("last-seat", "ada@example.com"),
+        t.register_as("last-seat", "grace@example.com")
+    );
+
+    let read = dispatch::read(&t.client, &t.wasm).await.unwrap();
+    let taken = web::seats_taken(
+        &read,
+        "CheckoutFixture",
+        &crate::commerce_ir::fixture_payments(),
+        "last-seat",
+    );
+    assert!(taken <= 1, "{taken} seats taken of 1: {first:?} {second:?}");
+    let admitted = [first.0, second.0]
+        .iter()
+        .filter(|status| **status == 200)
+        .count();
+    assert!(
+        admitted <= 1,
+        "both guests were admitted: {first:?} {second:?}"
+    );
+    for (status, body) in [first, second].iter().filter(|(status, _)| *status != 200) {
+        assert_eq!(
+            (*status, body["error"].as_str()),
+            (409, Some("this event is full"))
+        );
+    }
+}
+
+// Opening a mock walkthrough checkout costs nothing and nothing lapses it, so it holds no seat:
+// the seat is taken when the walkthrough is paid, and refused then if the event filled up.
+#[tokio::test]
+async fn an_unpaid_mock_checkout_holds_no_seat_and_paying_takes_one() {
+    let t = tenant("hecks_pay_test_capacity_mock_hold").await;
+    t.schedule_event_with_capacity("one-seat", 1).await;
+
+    let (status, first) = t.register("one-seat").await;
+    assert_eq!(status, 200, "{first}");
+    let (status, second) = t.register("one-seat").await;
+    assert_eq!(
+        status, 200,
+        "an unpaid walkthrough must not fill the event: {second}"
+    );
+
+    let first = first["registration_id"].as_str().unwrap().to_string();
+    let second = second["registration_id"].as_str().unwrap().to_string();
+    assert_eq!(t.settle(&first).await, 200);
+    assert_eq!(t.settle(&second).await, 409, "the only seat is taken");
+    assert_eq!(t.payment_status(&second).await, "pending");
+}
+
 #[tokio::test]
 async fn a_declined_payment_frees_the_seat_and_a_paid_one_keeps_it() {
     let t = tenant("hecks_pay_test_capacity_declined").await;
@@ -1202,6 +1292,7 @@ async fn a_declined_payment_frees_the_seat_and_a_paid_one_keeps_it() {
     let response = web::registration_complete_route(
         &first,
         r#"{"outcome":"failed"}"#,
+        &t.platform_now().await,
         Host::new(&t.client, &t.wasm, &t.config, &NeverInvoker),
         &crate::commerce_ir::fixture_payments(),
     )
@@ -1465,13 +1556,20 @@ async fn an_enabled_connection_whose_secret_key_is_missing_is_paused_not_mock() 
     );
 }
 
+// The walkthrough's Pay button settles a mock payment only while checkout is the walkthrough: a
+// mock payment opened before real payments were switched on stays unpaid for good after.
 #[tokio::test]
-async fn only_a_mock_payment_can_be_settled_by_hand() {
+async fn only_a_mock_payment_is_settled_by_hand_and_only_while_checkout_is_the_mock() {
     let t = tenant("hecks_pay_test_complete").await;
     t.schedule_event("hand-event").await;
 
-    let (_, mock) = t.register("hand-event").await;
-    let mock_ref = mock["registration_id"].as_str().unwrap().to_string();
+    let (_, settled) = t.register("hand-event").await;
+    let settled_ref = settled["registration_id"].as_str().unwrap().to_string();
+    assert_eq!(t.settle(&settled_ref).await, 200);
+    assert_eq!(t.payment_status(&settled_ref).await, "succeeded");
+
+    let (_, stale) = t.register("hand-event").await;
+    let stale_ref = stale["registration_id"].as_str().unwrap().to_string();
     t.connect().await;
     t.enable().await;
     let (_, real) = t.register("hand-event").await;
@@ -1483,8 +1581,12 @@ async fn only_a_mock_payment_can_be_settled_by_hand() {
         "a real processor's payment is settled only by its webhook"
     );
     assert_eq!(t.payment_status(&real_ref).await, "pending");
-    assert_eq!(t.settle(&mock_ref).await, 200);
-    assert_eq!(t.payment_status(&mock_ref).await, "succeeded");
+    assert_eq!(
+        t.settle(&stale_ref).await,
+        403,
+        "a mock payment left over from before payments were enabled is never settled for free"
+    );
+    assert_eq!(t.payment_status(&stale_ref).await, "pending");
 }
 
 #[tokio::test]
@@ -1558,19 +1660,15 @@ fn checkout_plan_is_decided_from_the_connection_lifecycle() {
     };
     let own = |status: &str, mode: &str| with(status, "stripe", mode, SELF_ACCOUNT);
     assert!(matches!(checkout_plan(None, &platform), CheckoutPlan::Mock));
-    for status in ["connected", "disconnected"] {
+    for status in ["connected", "disconnected", "paused"] {
         assert!(
             matches!(
                 checkout_plan(Some(&own(status, "test")), &platform),
-                CheckoutPlan::Mock
+                CheckoutPlan::Paused
             ),
-            "{status}"
+            "{status}: a business that has its own account never falls back to the mock"
         );
     }
-    assert!(matches!(
-        checkout_plan(Some(&own("paused", "test")), &platform),
-        CheckoutPlan::Paused
-    ));
     assert!(matches!(
         checkout_plan(Some(&own("enabled", "test")), &platform),
         CheckoutPlan::Stripe { ref api_key, ref publishable_key } if api_key == "sk_test_own" && publishable_key == "pk_test_own"
@@ -1780,16 +1878,9 @@ async fn the_own_account_charges_with_its_own_key_and_names_no_other_account() {
     t.schedule_event("own-event").await;
     t.connect().await;
 
-    // Connected but not enabled: still the mock, no Stripe call.
+    // Connected but not enabled: registrations wait, no Stripe call.
     let (status, body) = t.register("own-event").await;
-    assert_eq!(status, 200, "{body}");
-    assert!(
-        body["checkout_url"]
-            .as_str()
-            .unwrap()
-            .starts_with("https://site.example/pay/"),
-        "{body}"
-    );
+    assert_eq!(status, 503, "{body}");
     assert!(t.fake.requests_to("/v1/checkout/sessions").is_empty());
 
     t.enable().await;
@@ -1984,8 +2075,10 @@ async fn saving_keys_checks_them_creates_the_webhook_and_keeps_every_secret_out_
         "url=https%3A%2F%2Fwebhooks.example.test%2Fwebhooks%2Fstripe",
         "description=Checkout+Fixture+website",
         "enabled_events%5B0%5D=checkout.session.completed",
-        "enabled_events%5B1%5D=checkout.session.expired",
-        "enabled_events%5B2%5D=charge.refunded",
+        "enabled_events%5B1%5D=checkout.session.async_payment_succeeded",
+        "enabled_events%5B2%5D=checkout.session.async_payment_failed",
+        "enabled_events%5B3%5D=checkout.session.expired",
+        "enabled_events%5B4%5D=charge.refunded",
     ] {
         assert!(
             created[0].body.contains(expected),
