@@ -5,9 +5,13 @@ module Hecks
     # The digest here must match the source repo's own bin/bluebook_digest
     # output for the same tag, or a vendored copy cannot be trusted.
     Lock = Struct.new(:package, :version, :tag, :commit, :digest, :shape, keyword_init: true) do
+      # What a package's `bluebook/` directory ships and a project vendors: its bluebooks, and the
+      # plugin adapters and wasm modules that answer their queries.
+      self::PACKAGE_FILES = "*.{bluebook,adapter,wasm}"
+
       # Sorted by name so the digest never depends on directory listing order.
       def self.digest_of(dir)
-        names = Dir.children(dir).select { |name| name.end_with?(".bluebook") }.sort
+        names = Dir.children(dir).select { |name| File.fnmatch(self::PACKAGE_FILES, name, File::FNM_EXTGLOB) }.sort
         return nil if names.empty?
 
         lines = names.map { |name| "#{Digest::SHA256.file(File.join(dir, name)).hexdigest}  #{name}\n" }
