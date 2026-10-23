@@ -172,7 +172,6 @@ pub struct VerifiedClaims {
     /// The `roles` claim when it is an array; its string members only.
     pub roles: Vec<String>,
     pub nonce: String,
-    pub jti: String,
     pub issued_at: i64,
     pub not_before: i64,
     pub expires_at: i64,
@@ -422,7 +421,6 @@ fn accepted(all: JsonObject) -> VerifiedClaims {
         idp_subject: optional("idp_sub"),
         roles: role_names(&all),
         nonce: text("nonce"),
-        jti: text("jti"),
         issued_at: time("iat"),
         not_before: time("nbf"),
         expires_at: time("exp"),
