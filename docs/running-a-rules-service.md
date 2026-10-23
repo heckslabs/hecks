@@ -837,9 +837,10 @@ session-cookie API instead. The `curl` examples in this step that target
 | Body | Meaning |
 | --- | --- |
 | `{"read": true}` | The whole current state: `instances`, keyed `"<Domain>::<Aggregate>#<id>"`. |
-| `{"verb": "<Domain>::<Aggregate>.<Command>", "with": {...}, "role": "..."}` | A command that creates a record. `with` holds the command's facts, in the same shape `hecks docs` prints (value objects as `{"value": ...}` objects). |
+| `{"verb": "<Domain>::<Aggregate>.<Command>", "with": {...}, "role": "..."}` | A command that creates a record. `with` holds the command's facts, in the same shape `hecks docs` prints; a value object with one field may be given as its bare value (`"name": "Yoga"` for `{"value": "Yoga"}`). |
 | `{"verb": "...", "to": "<id>", "with": {...}, "role": "..."}` | A command on an existing record; `to` is its id. |
 | `{"verb": "...", "args": {...}}` | The older shape, still accepted. Combining it with `to` or `with` answers `500` with `{"error":"cannot combine to/with with legacy args"}`. |
+| any of the above plus `"bare": true` | The same outcome, with each single-field value object in `instances`, event payloads and query rows answered as its bare field (`"name": "Yoga"`). What is stored does not change; `@hecks/client` sends it by default. |
 
 `role` is optional (7.1). So is `actor_id`, the Governance identity id of an
 identified caller; send it and leave `role` unset so Governance's role
