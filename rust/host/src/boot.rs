@@ -392,6 +392,7 @@ pub async fn run() -> Result<(), Error> {
     // `role` is optional, mirroring `args`: an absent key means no
     // caller asserted a role, and `dispatch::handle`'s `check_role`
     // stays on its unchecked path. Read by `server::dispatch_body` below.
+    let limits = Arc::new(rate_limit::RateLimits::from_env());
     if serve_mode {
         log::info(
             "boot",
@@ -402,7 +403,6 @@ pub async fn run() -> Result<(), Error> {
             &my_hash,
             std::env::var("HECKS_BUILD").ok().as_deref(),
         );
-        let limits = Arc::new(rate_limit::RateLimits::from_env());
         let state = server::ServerState {
             client,
             wasm_path,
@@ -418,8 +418,12 @@ pub async fn run() -> Result<(), Error> {
         let wasm_path = Arc::clone(&wasm_path);
         let lineage_config = Arc::clone(&lineage_config);
         let invoker = Arc::clone(&invoker);
+        let limits = Arc::clone(&limits);
         async move {
             let (body, _context) = event.into_parts();
+            if let Some(refusal) = server::lambda_rate_limited(&limits, &body) {
+                return Ok(refusal);
+            }
             server::dispatch_body(
                 body,
                 Host::new(&client, &wasm_path, &lineage_config, invoker.as_ref()),

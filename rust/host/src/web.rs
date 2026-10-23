@@ -11,9 +11,11 @@ use crate::host::Host;
 use crate::ir::ir;
 use crate::journal::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
+use crate::platform_signin::jti::JtiStore;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::path::Path;
+use std::sync::OnceLock;
 use tokio::sync::Mutex;
 use tokio_postgres::Client;
 
@@ -23,6 +25,8 @@ mod newsletter_send;
 mod registration_receipt;
 mod registrations;
 mod resend_webhook;
+#[cfg(test)]
+mod signin_tests;
 
 pub use commerce::Commerce;
 use registrations::{payments_routes, CheckoutRequest};
@@ -313,7 +317,6 @@ async fn auth_route(
         client,
         wasm_path,
         config,
-        invoker,
         ..
     } = host;
     let ctx = Ctx {
@@ -342,10 +345,7 @@ async fn auth_route(
             &login_page(query.get("error").map(std::string::String::as_str)),
         )),
 
-        ("POST", "/logout") => Some(redirect_with_cookie(
-            "/login",
-            &format!("session=; Max-Age=0{}", cookie_flags()),
-        )),
+        ("POST", "/logout") => Some(logout_response()),
 
         // No password login: Google OAuth is the only sign-in path, and the
         // /accounts/* routes here are just the session-cookie family that
@@ -364,6 +364,8 @@ async fn auth_route(
         ("GET", "/accounts/me") => {
             Some(accounts_me_route(domain_ir, cookies, secret, client).await)
         }
+
+        ("POST", "/accounts/google-handoff") => Some(google_handoff_route(raw_body, secret)),
 
         ("GET", "/members") => Some(members_route(domain_ir, cookies, secret, client).await),
 
@@ -401,18 +403,22 @@ async fn auth_route(
             Some(accounts_sso_token_route(domain_ir, cookies, secret, client).await)
         }
 
-        ("GET", "/auth/google") => match auth::authorization_url(&redirect_uri(), secret) {
-            Ok(url) => Some(redirect(&url)),
-            Err(e) => Some(respond(
-                500,
-                "text/plain",
-                &format!("Google sign-in isn't configured: {e}"),
-            )),
-        },
+        ("GET", "/auth/google") => Some(google_start()),
 
-        ("GET", "/auth/google/callback") => Some(
-            google_callback(domain_ir, query, client, wasm_path, config, secret, invoker).await,
-        ),
+        // The sign-in cookie is cleared whatever the outcome: one cookie, one attempt.
+        ("GET", "/auth/google/callback") => {
+            let secure = secure_cookies();
+            let response = match google_signin_for(query, cookies, secure) {
+                Some(signin) => {
+                    google_callback(domain_ir, query, &signin.nonce, secret, host).await
+                }
+                None => redirect("/login?error=google_failed"),
+            };
+            Some(with_cookie(
+                response,
+                &auth::google_signin_clear_header(secure),
+            ))
+        }
 
         ("GET" | "POST", "/admin/members") => Some(
             admin_members_route(
@@ -975,29 +981,100 @@ async fn accounts_sso_token_route(
         &json!({"token": sso_token}).to_string(),
     )
 }
+// Logging out ends both sessions: the Governance `session` cookie and the account cookie.
+fn logout_response() -> Value {
+    with_cookie(
+        redirect_with_cookie("/login", &format!("session=; Max-Age=0{}", cookie_flags())),
+        &format!(
+            "{}=; Max-Age=0{}",
+            auth::account_cookie_name(),
+            cookie_flags()
+        ),
+    )
+}
+
+// Starts a Google sign-in bound to this browser: the cookie set here holds the state and nonce
+// the callback must bring back (auth/google_signin.rs).
+fn google_start() -> Value {
+    let signin = auth::GoogleSignin::fresh();
+    match auth::authorization_url(&redirect_uri(), &signin) {
+        Ok(url) => redirect_with_cookie(
+            &url,
+            &auth::google_signin_set_header(&signin, secure_cookies()),
+        ),
+        Err(e) => respond(
+            500,
+            "text/plain",
+            &format!("Google sign-in isn't configured: {e}"),
+        ),
+    }
+}
+
+// The sign-in this browser started, when the callback's `state` is the one its cookie holds.
+fn google_signin_for(
+    query: &HashMap<String, String>,
+    cookies: &HashMap<String, String>,
+    secure: bool,
+) -> Option<auth::GoogleSignin> {
+    let Some(signin) = auth::read_google_signin(cookies, secure) else {
+        eprintln!("google_callback: no sign-in cookie");
+        return None;
+    };
+    let state = query.get("state").map_or("", String::as_str);
+    if !signin.state_matches(state) {
+        eprintln!("google_callback: state does not match the sign-in cookie");
+        return None;
+    }
+    Some(signin)
+}
+
+// A site on another origin than this host trades the handoff token from the callback's redirect
+// for the account token here, server-to-server, so the long-lived token never rides a URL.
+fn google_handoff_route(raw_body: &str, secret: &str) -> Value {
+    static SPENT: OnceLock<JtiStore> = OnceLock::new();
+    let spent = SPENT.get_or_init(JtiStore::new);
+    let token = serde_json::from_str::<Value>(raw_body)
+        .ok()
+        .and_then(|body| body.get("token")?.as_str().map(str::to_string));
+    token
+        .and_then(|token| auth::redeem_handoff_token(secret, &token, spent))
+        .map_or_else(
+            || {
+                json_error(
+                    401,
+                    "this sign-in handoff is invalid, expired or already used",
+                )
+            },
+            |account| {
+                respond(
+                    200,
+                    "application/json",
+                    &json!({ "token": account }).to_string(),
+                )
+            },
+        )
+}
+
 async fn google_callback(
     domain_ir: &Value,
     query: &HashMap<String, String>,
-    client: &Mutex<Client>,
-    wasm_path: &Path,
-    config: &LineageConfig,
+    nonce: &str,
     secret: &str,
-    invoker: &dyn LambdaInvoker,
+    host: Host<'_>,
 ) -> Value {
+    let Host {
+        client,
+        wasm_path,
+        config,
+        invoker,
+        ..
+    } = host;
     let Some(code) = query.get("code") else {
         eprintln!("google_callback: missing code");
         return redirect("/login?error=google_failed");
     };
-    let Some(state) = query.get("state") else {
-        eprintln!("google_callback: missing state");
-        return redirect("/login?error=google_failed");
-    };
-    if let Err(e) = auth::verify_state(state, secret) {
-        eprintln!("google_callback: state: {e}");
-        return redirect("/login?error=google_failed");
-    }
 
-    let claims = match auth::verify(code, &redirect_uri()).await {
+    let claims = match auth::verify(code, &redirect_uri(), nonce).await {
         Ok(c) => c,
         Err(e) => {
             eprintln!("google_callback: token exchange: {e}");
@@ -1073,11 +1150,12 @@ async fn google_callback(
 
     // The site's admin authenticates on the account cookie, not this
     // host's own session cookie. Cross-origin, a cookie here would never
-    // reach the site, so the token is handed across via /api/google-handoff.
+    // reach the site, so a one-minute handoff token goes to its
+    // /api/google-handoff, which trades it at /accounts/google-handoff.
     let site = site_url();
     let site = site.trim_end_matches('/');
-    let token = auth::account_token(secret, &session.email, auth::SESSION_TTL_SECS);
     if same_origin(site, &redirect_uri()) {
+        let token = auth::account_token(secret, &session.email, auth::SESSION_TTL_SECS);
         let cookie = format!(
             "{}={token}{}; Max-Age={}",
             auth::account_cookie_name(),
@@ -1090,7 +1168,7 @@ async fn google_callback(
         redirect(&format!(
             "{}/api/google-handoff?token={}",
             site,
-            auth::urlencode(&token)
+            auth::urlencode(&auth::handoff_token(secret, &session.email))
         ))
     }
 }
@@ -2416,6 +2494,20 @@ const COOKIE_FLAGS_PLAIN: &str = "; Path=/; HttpOnly; SameSite=Lax";
 
 fn redirect_with_cookie(location: &str, cookie: &str) -> Value {
     json!({"statusCode": 302, "headers": {"location": location}, "cookies": [cookie], "body": "", "isBase64Encoded": false})
+}
+
+// `response` with one more `Set-Cookie` beside any it already carries.
+fn with_cookie(mut response: Value, cookie: &str) -> Value {
+    match response.get_mut("cookies").and_then(Value::as_array_mut) {
+        Some(cookies) => cookies.push(json!(cookie)),
+        None => response["cookies"] = json!([cookie]),
+    }
+    response
+}
+
+// Whether cookies this host sets carry `Secure` (see `cookie_flags`).
+fn secure_cookies() -> bool {
+    cookie_flags() == COOKIE_FLAGS_SECURE
 }
 
 const DEFAULT_SITE_URL: &str = "http://localhost:4321";

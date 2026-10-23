@@ -1,5 +1,6 @@
 //! Per-address sliding-window rate limits for the public write routes a stranger can abuse,
-//! enforced in `server.rs` before dispatch so a refused request costs no Postgres lock or run.
+//! enforced before dispatch (`server.rs`, in serve and Lambda mode alike) so a refused request costs
+//! no Postgres lock or run.
 
 use crate::crypto::constant_time_eq;
 use crate::extension::RateRule;
@@ -561,13 +562,28 @@ const fn is_private(ip: IpAddr) -> bool {
     }
 }
 
+const TOO_MANY_REQUESTS: &str = "too many requests, please try again later";
+
 pub fn too_many_requests(retry_after_secs: u64) -> Response {
-    let body = json!({ "error": "too many requests, please try again later" }).to_string();
+    let body = json!({ "error": TOO_MANY_REQUESTS }).to_string();
     let mut response = (StatusCode::TOO_MANY_REQUESTS, body).into_response();
     let headers = response.headers_mut();
     headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
     headers.insert(RETRY_AFTER, HeaderValue::from(retry_after_secs));
     response
+}
+
+/// `too_many_requests` as a Function-URL response, for Lambda mode.
+pub fn too_many_requests_event(retry_after_secs: u64) -> serde_json::Value {
+    json!({
+        "statusCode": 429,
+        "headers": {
+            "content-type": "application/json",
+            "retry-after": retry_after_secs.to_string(),
+        },
+        "body": json!({ "error": TOO_MANY_REQUESTS }).to_string(),
+        "isBase64Encoded": false,
+    })
 }
 
 #[cfg(test)]
