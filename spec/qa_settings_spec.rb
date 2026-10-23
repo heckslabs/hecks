@@ -44,6 +44,9 @@ RSpec.describe Hecks::Fuzzing::QaSettings do
       generated_domains_per_tick: 2
       generated_domains_rust: true
       generated_domain_seeds: 5
+      mutation_files:
+        - rust/src/kernel/dispatch.rs
+      mutation_equivalent: []
       structural_refusal_boundary:
         - cursor
         - consistency

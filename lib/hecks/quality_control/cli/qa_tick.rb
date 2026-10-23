@@ -12,8 +12,9 @@ require_relative "qa_tick/output"
 module Hecks
   module QualityControlCli
     # The command behind `hecks quality_control sweep.tick`: one QA tick. It needs a clean tree,
-    # rebases on `origin/main`, then runs `QaPrCheck`, `QaSweep --all` and `QaGeneratedDomains
-    # --from-dials` and prints one report.
+    # rebases on `origin/main`, then runs `QaPrCheck`, `QaSweep --all`, `QaGeneratedDomains
+    # --from-dials` and `QaMutate --from-dials` and prints one report. The dials can turn the last
+    # two off.
     #
     # It exits 2 if any step found something, 1 if none did but a step errored or it refused, 0 if
     # all are clean. The step order is enforced here, not in prose. `QA_REPO_DIR` picks the
@@ -104,12 +105,17 @@ module Hecks
         exit(command.call(argv))
       end
 
+      # One step's name, as the report and the log title it, with its output and exit status.
+      Step = Struct.new(:name, :output, :exit_code)
+
       def run_steps
-        pr_check_output, pr_check_exit = run_pr_check
-        sweep_output, sweep_exit = run_sweep
-        generated_output, generated_exit = run_generated_domains
-        log_path = write_tick_log!(pr_check_output, sweep_output, generated_output)
-        report([pr_check_exit, sweep_exit, generated_exit], reclaimed_holds(sweep_output), log_path)
+        steps = [
+          Step.new("check_pull_requests", *run_pr_check),
+          Step.new("ask run --all", *run_sweep),
+          Step.new("check_generated_domains --from-dials", *run_generated_domains),
+          Step.new("mutate --from-dials", *run_mutation)
+        ]
+        report(steps, reclaimed_holds(steps[1].output), write_tick_log!(steps))
       end
 
       def run_pr_check
@@ -129,6 +135,13 @@ module Hecks
       def run_generated_domains
         banner "hecks quality_control check_generated_domains --from-dials"
         output, exit_code = run_step(->(argv) { QaGeneratedDomains.call(argv, root: @root) }, "--from-dials")
+        puts output
+        [output, exit_code]
+      end
+
+      def run_mutation
+        banner "hecks quality_control mutate --from-dials"
+        output, exit_code = run_step(->(argv) { QaMutate.call(argv, root: @root) }, "--from-dials")
         puts output
         [output, exit_code]
       end

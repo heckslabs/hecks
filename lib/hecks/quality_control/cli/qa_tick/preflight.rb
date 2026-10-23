@@ -14,7 +14,8 @@ module Hecks
           "hecks/fuzzing/differential", "hecks/fuzzing/era_boundary", "hecks/fuzzing/concurrent_dispatch",
           "hecks/fuzzing/domain_generator", "hecks/fuzzing/generated_domain_check",
           "hecks/quality_control/adapters/git_pr", "hecks/quality_control/cli/qa_pr_check",
-          "hecks/quality_control/cli/qa_sweep", "hecks/quality_control/cli/qa_generated_domains"
+          "hecks/quality_control/cli/qa_sweep", "hecks/quality_control/cli/qa_generated_domains",
+          "hecks/quality_control/cli/qa_mutate"
         ].freeze
 
         private

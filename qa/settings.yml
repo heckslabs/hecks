@@ -61,6 +61,15 @@ generated_domains_per_tick: 2
 generated_domains_rust: true
 generated_domain_seeds: 5
 
+# The Rust kernel's mutation test, run by each tick after the generated domains (about 8 minutes).
+# The two equivalents compare positions where `<` and `<=` cannot differ.
+mutation_files:
+  - rust/src/kernel/dispatch.rs
+  - rust/src/kernel/orchestrate.rs
+mutation_equivalent:
+  - "replace < with <= in aggregate_position"
+  - "replace < with <= in entity_position"
+
 # Construct families a sweep may skip. Shrink-only: spec/fuzzing/rust_gap_manifest_spec.rb fails
 # when a family here is not declared `generated: false` by a committed manifest.
 structural_refusal_boundary: []
