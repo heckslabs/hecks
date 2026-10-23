@@ -1,6 +1,7 @@
 //! HTTP server for AWS Fargate (`HECKS_SERVE_MODE=1`): the axum fallback route below shares
 //! `dispatch_body` with the Lambda custom-runtime path, so neither repeats the other's logic.
 
+use crate::arg_limits;
 use crate::dispatch;
 use crate::host::Host;
 use crate::journal::LineageConfig;
@@ -390,6 +391,18 @@ fn admit(
     {
         parsed
     } else {
+        if let Some(longest) = arg_limits::oversized(&parsed) {
+            return Err(Box::new(
+                (
+                    StatusCode::PAYLOAD_TOO_LARGE,
+                    format!(
+                        "a string in the body is {longest} bytes; at most {} are accepted",
+                        arg_limits::MAX_STRING_ARG_BYTES
+                    ),
+                )
+                    .into_response(),
+            ));
+        }
         synthesize_function_url_envelope(method, uri, headers, body)
     };
 
@@ -621,6 +634,28 @@ mod tests {
             &body,
         )
         .unwrap_or_else(|_| panic!("{from} POST {path} was refused before dispatch"))
+    }
+
+    #[test]
+    fn a_public_body_with_a_string_past_the_cap_is_refused_and_a_peers_is_not() {
+        let big = format!(
+            r#"{{"verb":"Post.Publish","with":{{"body":"{}"}}}}"#,
+            "x".repeat(arg_limits::MAX_STRING_ARG_BYTES + 1)
+        );
+        let body = Bytes::from(big.clone());
+        let refused = admit(
+            &limits_from(&[]),
+            peer("203.0.113.7:5000"),
+            &Method::POST,
+            &"/api/posts".parse().unwrap(),
+            &HeaderMap::new(),
+            &body,
+        )
+        .expect_err("a public body past the cap must be refused");
+        assert_eq!(refused.status(), StatusCode::PAYLOAD_TOO_LARGE);
+
+        let envelope = admitted("127.0.0.1:5000", "/anything", &big);
+        assert_eq!(envelope["verb"], "Post.Publish");
     }
 
     // The gap this closes: a public POST to any path the load balancer forwards carried
