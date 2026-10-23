@@ -19,6 +19,7 @@ module Hecks
         :dispatch_binding_fidelity,
         :mutations_match_recompute,
         :dry_runs_leave_no_trace,
+        :refusals_leave_no_trace,
         :corrections_reference_an_emitted_event,
         :outbox_rows_match_reactions,
         :policy_reactions_follow_declared_wiring,
@@ -59,6 +60,8 @@ module Hecks
         # a word a bluebook declares. Listed empty rather than omitted, so every
         # property still names what it is answerable for.
         dry_runs_leave_no_trace:                          [],
+        # Every refusal kind, whichever rule raised it, so no one construct answers for it.
+        refusals_leave_no_trace:                          [],
         # Another runtime entry point, not a grammar construct — same reasoning as
         # dry_runs_leave_no_trace above.
         outbox_rows_match_reactions:                      [],
