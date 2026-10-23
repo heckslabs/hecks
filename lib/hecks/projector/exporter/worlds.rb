@@ -88,7 +88,7 @@ module Hecks
         end
 
         # @param bindings [Array<Hash{String => Object}>] a world's `"bindings"`
-        # @return [Array<Hash{String => Object}>] the `persisted_by` ones as adapter and setting names
+        # @return [Array<Hash{String => Object}>] the `persisted_by` ones, adapter and setting names
         def persisted_by_binds(bindings)
           bindings.select { |bind| bind["verb"] == "persisted_by" }
                   .map { |bind| { "adapter" => bind["adapter"], "settings" => bind["settings"] } }

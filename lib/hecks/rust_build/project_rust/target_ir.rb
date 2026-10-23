@@ -36,14 +36,19 @@ module Hecks
           ir = shaped(exporter.call(@registry).fetch(@domain_name))
           ir[:lineage] = shaped(exporter.lineage(@registry, @domain_name))
           ir[:persistence] = shaped(exporter.persistence(@registry, @domain_name))
-          ir[:adapters] = adapters(exporter, ir[:persistence])
-          ir[:world] = world(exporter)
+          add_persistence_wiring(ir, exporter)
           add_seams(ir, exporter)
           add_edges_and_source(ir)
           ir
         end
 
         private
+
+        # The adapters and the world that the host checks the persistence against.
+        def add_persistence_wiring(document, exporter)
+          document[:adapters] = adapters(exporter, document[:persistence])
+          document[:world] = world(exporter)
+        end
 
         def shaped(payload) = self.class.json_shaped(payload)
 

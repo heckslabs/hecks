@@ -1,12 +1,12 @@
 require "tmpdir"
 require "fileutils"
 require "hecks"
-require "hecks/rust_build"
+require "hecks/rust_build/project_rust"
 
 RSpec.describe "the target IR's world key" do
   let(:root) { Dir.mktmpdir }
   let(:bluebook_dir) { File.join(root, "shop", "bluebook") }
-  let(:empty) { { "default_adapter" => nil, "default_database" => false, "persistence" => [] } }
+  let(:empty) { { default_adapter: nil, default_database: false, persistence: [] } }
 
   before { FileUtils.mkdir_p(bluebook_dir) }
 
@@ -28,7 +28,7 @@ RSpec.describe "the target IR's world key" do
     expect(world_key).to eq(empty)
   end
 
-  it "lists persisted_by binds with setting names only", :aggregate_failures do
+  def write_secret_world
     write_world(<<~WORLD)
       Hecks.world "Shop" do
         persisted_by("Postgres") do
@@ -37,12 +37,16 @@ RSpec.describe "the target IR's world key" do
         projected_by("Sqlite") { database "x.sqlite3" }
       end
     WORLD
-    expect(world_key["persistence"]).to eq([{ "adapter" => "Postgres", "settings" => ["url"] }])
+  end
+
+  it "lists persisted_by binds with setting names only", :aggregate_failures do
+    write_secret_world
+    expect(world_key[:persistence]).to eq([{ adapter: "Postgres", settings: ["url"] }])
     expect(JSON.generate(world_key)).not_to include("postgres://")
   end
 
   it "reports a world with only a default adapter" do
     write_world(%(Hecks.world "Shop" do\n  default_adapter "Memory"\nend\n))
-    expect(world_key).to eq(empty.merge("default_adapter" => "Memory"))
+    expect(world_key).to eq(empty.merge(default_adapter: "Memory"))
   end
 end
