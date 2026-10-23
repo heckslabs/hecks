@@ -39,6 +39,8 @@ module Hecks
       # Loaded in the glob's alphabetical order; a package with several
       # files that reopen the same bluebook is named to rely on that.
       files.each { |file| Kernel.load(file) }
+      # A package's plugin adapters, which answer its queries with the wasm modules beside them.
+      Dir.glob(File.join(dir, "*.adapter")).each { |file| Kernel.load(file) }
     end
 
     # @raise [Runtime::WiringError] if `registry` has no root to vendor from, or `name` is not a

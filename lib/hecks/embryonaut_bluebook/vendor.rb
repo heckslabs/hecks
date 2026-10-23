@@ -57,7 +57,7 @@ module Hecks
       def pin_files(tag, version, previous)
         shape = nil
         pin = Vendoring.pin(from: @source.path, ref: tag || @ref, subtree: "#{@name}/bluebook",
-                            into: package_dir, glob: "*.bluebook") do |staged, commit|
+                            into: package_dir, glob: Lock::PACKAGE_FILES) do |staged, commit|
           shape = Shape.labels(staged)
           next nil unless tag
 
