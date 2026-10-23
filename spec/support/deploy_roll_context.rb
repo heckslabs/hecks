@@ -80,10 +80,10 @@ RSpec.shared_context "with the deploy roll stand-ins" do
 
   def smoke_dispatched? = runner.calls.any? { |call| call.start_with?("gh workflow run") }
 
-  # The named fields of a roll's state: its status as is, every other field as its value.
+  # The named fields of a roll's state, each as the launcher answers it.
   def state_of(json, *fields)
     state = json.fetch("state")
-    fields.to_h { |field| [field, field == "status" ? state[field] : state.dig(field, "value")] }
+    fields.to_h { |field| [field, state[field]] }
   end
 
   def refusal_of(json) = json.dig("state", "refusal")
