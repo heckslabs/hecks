@@ -38,12 +38,7 @@ RSpec.describe "Domain.project" do
   end
 
   describe "out:" do
-    around do |example|
-      Dir.mktmpdir do |dir|
-        @dir = dir
-        example.run
-      end
-    end
+    scratch_directory
 
     after { Hecks::Projector.registry.delete(:stub_text) }
 
@@ -106,12 +101,7 @@ RSpec.describe "Domain.project" do
   end
 
   describe "emits: :files" do
-    around do |example|
-      Dir.mktmpdir do |dir|
-        @dir = dir
-        example.run
-      end
-    end
+    scratch_directory
 
     after { Hecks::Projector.registry.delete(:tree_stub) }
 

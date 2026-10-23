@@ -9,12 +9,13 @@ require_relative "value/flags"
 require_relative "value/identifiers"
 require_relative "value/entity_list_coercion"
 require_relative "value/admission"
+require_relative "value/unwrapping"
 
 module Hecks
   module Runtime
     # A typed value object: frozen fields, read by name.
     # Construction lives in value/coercion.rb, field_checks.rb, entity_list_coercion.rb and
-    # admission.rb.
+    # admission.rb; the shape a caller is answered with in unwrapping.rb.
     class Value
       extend FieldChecks
       extend Coercion
@@ -24,6 +25,7 @@ module Hecks
       extend Identifiers
       extend EntityListCoercion
       extend Admission
+      extend Unwrapping
 
       attr_reader :value_object
 
@@ -114,32 +116,6 @@ module Hecks
         else value
         end
       end
-
-      # `materialize`, but a single-attribute value object unwraps to its bare field.
-      # Opt-in for `group_by` rows; `materialize` keeps the wrapped shape callers depend on.
-      #
-      # @param value [Object] the value to materialize; anything that is not a `Runtime::Value`,
-      #   Array or Hash passes through unchanged
-      # @return [Object] `value` with every nested `Runtime::Value` replaced by its own sole
-      #   field's value (recursively unwrapped), or by its own `Hash` of fields when it has
-      #   more than one
-      def self.materialize_unwrapped(value)
-        case value
-        when self then unwrap_value_object(value)
-        when Array then value.map { |item| materialize_unwrapped(item) }
-        when Hash then value.transform_values { |item| materialize_unwrapped(item) }
-        else value
-        end
-      end
-
-      def self.unwrap_value_object(value)
-        sole = value.value_object.sole_attribute
-        return materialize_unwrapped(value[sole.name]) if sole
-
-        # Not `value.to_h`: it materializes nested values to Hashes, ending the recursion.
-        value.value_object.attributes.to_h { |attr| [attr.name, materialize_unwrapped(value[attr.name])] }
-      end
-      private_class_method :unwrap_value_object
 
       # Reduces an append-only `list_of` sub-log to its current state: the latest row per `key`.
       # Grouping only; what counts as removed, and the ordering, belong to the caller.

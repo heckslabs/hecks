@@ -28,7 +28,7 @@ Hecks.bluebook "Banking" do
 
     value_object "TransferReference" do
       attribute :value, String, matches: :present
-      invariant("a transfer is referenced") { !value.to_s.empty? }
+      invariant("a transfer reference is never empty") { !value.to_s.empty? }
     end
     attribute :narrative, Narrative
 

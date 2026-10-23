@@ -21,12 +21,7 @@ RSpec.describe "the reserved chapter name Hecks, checked at verify!" do
     end
   RUBY
 
-  around do |example|
-    Dir.mktmpdir do |tmp|
-      @dir = tmp
-      example.run
-    end
-  end
+  scratch_directory
 
   attr_reader :dir
 

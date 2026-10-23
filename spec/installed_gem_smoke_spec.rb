@@ -59,7 +59,7 @@ RSpec.describe "the installed hecks gem", :io do
   def wasm_outcome_ok?(record, code)
     return record.dig("state", "status") != "faulted" if code.zero?
 
-    record.dig("state", "refusal", "value").match?(/wasm32-wasip1|cargo|rustup/)
+    record.dig("state", "refusal").match?(/wasm32-wasip1|cargo|rustup/)
   end
 
   it "runs from a directory that is not a hecks checkout", :aggregate_failures do

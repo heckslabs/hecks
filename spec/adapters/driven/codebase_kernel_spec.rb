@@ -8,12 +8,7 @@ RSpec.describe Hecks::Adapters::Codebase::KernelTables do
   let(:failure) { Hecks::Adapters::ConsoleCapture::Failure }
   let(:other) { Hecks::Adapters::Codebase::Tree.new(root: @dir) }
 
-  around do |example|
-    Dir.mktmpdir do |dir|
-      @dir = dir
-      example.run
-    end
-  end
+  scratch_directory
 
   def shapes = File.join(@dir, "rust/src/kernel/attribute_shapes/mod.rs")
 

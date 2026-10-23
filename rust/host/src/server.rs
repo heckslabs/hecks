@@ -25,16 +25,36 @@ use tokio_postgres::Client;
 
 /// The per-request dispatch decision, shared between the Lambda custom-runtime path and the
 /// axum fallback route below. `body` is already-parsed JSON in one of its recognized shapes.
+///
+/// `"bare": true` beside any of them (`verb` with `to`/`with` or `args`, `read`, `query`) answers
+/// the same outcome with each single-field value object as its bare field
+/// (`{"name": "Margherita"}`, not `{"name": {"value": "Margherita"}}`). What is stored is the
+/// same either way; without `bare` the answer is the stored shape.
 pub async fn dispatch_body(body: Value, host: Host<'_>) -> Result<Value, Error> {
+    if let Some(response) = web::render(&body, host).await {
+        return Ok(response);
+    }
+    let answer = kernel_answer(&body, host).await?;
+    if !wants_bare(&body) {
+        return Ok(answer);
+    }
+    Ok(dispatch::present(host.wasm_path, answer)
+        .await
+        .map_err(|e| format!("{e:#}"))?)
+}
+
+fn wants_bare(body: &Value) -> bool {
+    body.get("bare").and_then(Value::as_bool) == Some(true)
+}
+
+// The kernel's outcome for a read, query or command body, in the stored shape.
+async fn kernel_answer(body: &Value, host: Host<'_>) -> Result<Value, Error> {
     let Host {
         client,
         wasm_path,
         config,
         ..
     } = host;
-    if let Some(response) = web::render(&body, host).await {
-        return Ok(response);
-    }
 
     if body.get("read").and_then(serde_json::Value::as_bool) == Some(true) {
         // `{e:#}`: anyhow's alternate Display walks `source()` to the real message,
@@ -48,7 +68,7 @@ pub async fn dispatch_body(body: Value, host: Host<'_>) -> Result<Value, Error> 
     // A query step reads current state and writes nothing to the journal.
     if body.get("query").is_some() {
         return Ok(crate::query_step::answer(
-            &body,
+            body,
             crate::ir::ir(),
             &config.domain,
             client,
@@ -297,7 +317,13 @@ fn admit(
     // they're honored only from a peer on this host (the task's own sidecar); everyone
     // else — the load balancer, i.e. the public internet — gets an ordinary request
     // envelope for the path it actually hit.
-    let envelope = if trusts_internal_dispatch(peer) && is_internal_dispatch_shape(&parsed) {
+    // A proxy on this host (an AwsBox's Caddy, which a tunnel also goes through) makes every
+    // public request arrive from loopback too; the forwarding headers it always adds are what
+    // tell its traffic apart from a sidecar's.
+    let envelope = if trusts_internal_dispatch(peer)
+        && !came_through_a_proxy(headers)
+        && is_internal_dispatch_shape(&parsed)
+    {
         parsed
     } else {
         synthesize_function_url_envelope(method, uri, headers, body)
@@ -337,6 +363,20 @@ fn trusts_internal_dispatch(peer: SocketAddr) -> bool {
                     .is_some_and(|mapped| mapped.is_loopback())
         }
     }
+}
+
+/// Whether a proxy forwarded this request: Caddy's `reverse_proxy` always sets the
+/// `X-Forwarded-*` headers, and a client cannot make it drop them.
+fn came_through_a_proxy(headers: &HeaderMap) -> bool {
+    [
+        "x-forwarded-for",
+        "x-forwarded-host",
+        "x-forwarded-proto",
+        "forwarded",
+        "via",
+    ]
+    .iter()
+    .any(|name| headers.contains_key(*name))
 }
 
 /// Whether `value` already matches one of `dispatch_body`'s recognized shapes; anything
@@ -566,6 +606,39 @@ mod tests {
             let envelope = admitted("127.0.0.1:5000", "/anything", body);
 
             assert_eq!(envelope, serde_json::from_str::<Value>(body).unwrap());
+        }
+    }
+
+    // The gap this closes: on an AwsBox, Caddy proxies the public internet to 127.0.0.1, so
+    // a public `{"read": true}` or `{"verb": ..., "role": "Admin"}` arrived from loopback and
+    // reached the kernel as the internal protocol.
+    #[test]
+    fn a_verb_or_read_body_a_proxy_on_this_host_forwarded_is_an_ordinary_request() {
+        for header in [
+            "x-forwarded-for",
+            "x-forwarded-host",
+            "x-forwarded-proto",
+            "forwarded",
+            "via",
+        ] {
+            let mut headers = HeaderMap::new();
+            headers.insert(header, "203.0.113.7".parse().unwrap());
+            let body = Bytes::from(r#"{"verb":"Approve","role":"Admin"}"#);
+            let envelope = admit(
+                &limits_from(&[]),
+                peer("127.0.0.1:5000"),
+                &Method::POST,
+                &"/anything".parse().unwrap(),
+                &headers,
+                &body,
+            )
+            .unwrap_or_else(|_| panic!("a request carrying {header} was refused"));
+
+            assert!(
+                envelope.get("verb").is_none(),
+                "a body forwarded with {header} must not reach dispatch as a command"
+            );
+            assert_eq!(envelope["rawPath"], "/anything");
         }
     }
 
@@ -986,6 +1059,58 @@ mod tests {
             "a warmed read took {:?}",
             started.elapsed()
         );
+    }
+
+    // The checkout fixture's `Event`: `slug`, `name` and `capacity` hold one `value` field and
+    // `price` one `cents` field, so each answers as a bare scalar when asked to.
+    #[tokio::test]
+    async fn a_bare_body_answers_single_field_value_objects_bare_and_the_default_stays_wrapped() {
+        let client = crate::dispatch::tests::scratch_db("rust_host_serve_bare").await;
+        crate::dispatch::tests::provision_lineage(
+            &*client.lock().await,
+            "CheckoutFixture",
+            1,
+            &["Event"],
+        )
+        .await;
+        let config = LineageConfig {
+            domain: "CheckoutFixture".to_string(),
+            era: Some(1),
+            mirrored: None,
+        };
+        let wasm = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../dist/checkout_fixture.wasm");
+        let host = Host::new(&client, &wasm, &config, &crate::lambda_client::NeverInvoker);
+        let schedule = serde_json::json!({
+            "verb": "CheckoutFixture::Event.Schedule",
+            "role": "Organizer",
+            "with": {"slug": "intro", "name": "Intro", "price": 1500, "capacity": 10},
+            "bare": true,
+        });
+
+        let scheduled = dispatch_body(schedule, host).await.unwrap();
+        let wrapped = dispatch_body(serde_json::json!({"read": true}), host)
+            .await
+            .unwrap();
+        let bare = dispatch_body(serde_json::json!({"read": true, "bare": true}), host)
+            .await
+            .unwrap();
+
+        let event = "CheckoutFixture::Event#intro";
+        assert_eq!(
+            scheduled["instances"][event]["name"], "Intro",
+            "{scheduled}"
+        );
+        assert_eq!(
+            scheduled["events"][0]["payload"]["price"], 1500,
+            "{scheduled}"
+        );
+        assert_eq!(
+            wrapped["instances"][event]["name"],
+            serde_json::json!({"value": "Intro"}),
+            "{wrapped}"
+        );
+        assert_eq!(bare["instances"][event]["price"], 1500, "{bare}");
+        assert_eq!(bare["instances"][event]["capacity"], 10, "{bare}");
     }
 
     #[test]

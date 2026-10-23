@@ -37,12 +37,7 @@ RSpec.describe Hecks::Fuzzing::IsolatedBoot, :aggregate_failures do
   BLUEBOOK
 
   # Every example works in its own scratch directory, named `root` or `copy` by what it stands for.
-  around do |example|
-    Dir.mktmpdir do |dir|
-      @scratch = dir
-      example.run
-    end
-  end
+  scratch_directory :scratch
 
   def root = @scratch
 

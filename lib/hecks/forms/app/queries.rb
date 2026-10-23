@@ -25,11 +25,10 @@ module Hecks
         def query_html(domain, aggregate, query, asked)
           action = "/#{domain}/#{aggregate.hecks_name}/#{query.hecks_name}.html"
           results, error = asked.empty? ? [nil, nil] : run_query(domain, aggregate, query, asked)
-          html("#{domain}::#{aggregate.hecks_name}.#{query.hecks_name}",
+          html(Humanize.phrase(query.hecks_name),
                QueryFormRenderer.render(registry: @registry, domain: domain, aggregate: aggregate, query: query,
                                         action: action, params: asked, results: results, error: error),
-               breadcrumbs: [[domain, "/"], [aggregate.hecks_name, "/#{domain}/#{aggregate.hecks_name}.html"],
-                             [query.hecks_name, nil]],
+               breadcrumbs: verb_breadcrumbs(domain, aggregate, query),
                status:      error ? 422 : 200)
         end
 

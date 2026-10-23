@@ -1,8 +1,8 @@
-# Banking — Glossary
+# Banking glossary
 
 > Customers hold accounts, accounts move money, and every movement is a transfer that can fail halfway. The domain that has to get it right twice — once in the rules, once in the recovery.
 
-Every term Banking uses, in the words of the people who work in it — grouped under the thing each belongs to, and listed A to Z within it. This page is generated from the working specification, so it says what the system does today, not what anyone hoped it would do. If a sentence here reads wrong to you, the specification is wrong: say so.
+The terms Banking uses, written the way the people who work in it would say them. Each term sits under the thing it belongs to: first what can be done with it, then what it records, the lists you can ask for, and what it is made of. The page is generated from the working specification, so it describes what the system does today. If a sentence reads wrong to you, the specification is wrong, and it is worth saying so.
 
 ```mermaid
 flowchart LR
@@ -71,10 +71,14 @@ stateDiagram-v2
     frozen --> closed: Close account
 ```
 
+- Freezing an account moves it from open to frozen.
+- Unfreezing an account moves it from frozen to open.
+- Closing an account moves it from open or frozen to closed.
+
 **Always true**
 
-- An Account references a Customer.
-- An Account has many ledger.
+- Each account belongs to one customer.
+- Each account holds its ledger, a list of ledger entries.
 - The balance never goes negative.
 - An account number is present.
 - A daily limit is non-negative.
@@ -83,195 +87,317 @@ stateDiagram-v2
 - An amount is positive.
 - A movement explains itself.
 
-### Account closed
+### Actions
 
-Recorded after [Close account](#close-account). Prompts [Notify on closure](#notify-on-closure).
-
-### Account credited
-
-Recorded after [Credit](#credit).
-
-### Account debited
-
-Recorded after [Debit](#debit).
-
-### Account frozen
-
-Recorded after [Freeze account](#freeze-account). Prompts [Review on freeze](#review-on-freeze).
-
-### Account kind
-
-One of current, savings, or reserve.
-
-### Account number
-
-Text.
-
-Always true: an account number is present.
-
-### Account opened
-
-Recorded after [Open](#open).
-
-### Account unfrozen
-
-Recorded after [Unfreeze](#unfreeze).
-
-### Accrue interest
+#### Accrue interest
 
 Credit the account with interest earned. Done by the system.
 
-### Amend
+Needs an amount ([Positive money](#positive-money)).
+
+Allowed only when: the account is open; customer is active.
+
+Raises the balance and the interest cents.
+
+Records [Interest accrued](#interest-accrued).
+
+#### Amend
 
 Correct a movement posted for the wrong amount. Done by the back office.
 
-### Apply fee
+Needs an adjustment ([Money](#money)) and a narrative ([Narrative](#narrative)).
+
+Allowed only when: customer is active; account is open; entry is posted; an amendment leaves a non-negative amount.
+
+Raises the amount, sets the narrative, and keeps the ledger entry posted.
+
+Records [Ledger entry amended](#ledger-entry-amended).
+
+#### Apply fee
 
 Charge the account a fee. Done by the system.
 
-### At most
+Needs an amount ([Positive money](#positive-money)) and a narrative ([Narrative](#narrative)).
 
-Accounts holding no more than a cap the caller supplies — the small-balance closure candidates.
+Allowed only when: the account is open; customer is active; the balance covers a fee.
 
-### Close account
+Lowers the balance and raises the fees cents.
+
+Records [Fee applied](#fee-applied).
+
+#### Close account
 
 Close an account that has been emptied. Done by the branch clerk.
 
-### Correct fee
+Allowed only when: the account is open or frozen; customer is not closed; an account closes empty.
+
+Moves the account from open or frozen to closed.
+
+Records [Account closed](#account-closed).
+
+#### Correct fee
 
 Reverse a fee that was applied in error. Done by the back office.
 
-### Correct interest
+Needs an amount ([Positive money](#positive-money)).
+
+Allowed only when: the account is open; customer is active; a correction cannot exceed collected fees.
+
+Corrects the fee applied, raises the balance, and lowers the fees cents.
+
+Records [Fee corrected](#fee-corrected).
+
+#### Correct interest
 
 Reverse interest that was accrued in error. Done by the back office.
 
-### Credit
+Needs an amount ([Positive money](#positive-money)).
+
+Allowed only when: the account is open; customer is active; a correction cannot exceed accrued interest; the balance covers an interest correction.
+
+Lowers the balance and the interest cents.
+
+Records [Interest corrected](#interest-corrected).
+
+#### Credit
 
 Put money in. Done by the teller.
 
-### Daily limit
+Needs an amount ([Positive money](#positive-money)) and a narrative ([Narrative](#narrative)).
+
+Allowed only when: the account is open; customer is active.
+
+Raises the balance and adds to the ledger.
+
+Records [Account credited](#account-credited).
+
+#### Debit
+
+Take money out, if it is there to take. Done by the teller.
+
+Needs an amount ([Positive money](#positive-money)) and a narrative ([Narrative](#narrative)).
+
+Allowed only when: the account is open; customer is active; the balance covers it; the daily limit allows it.
+
+Lowers the balance and adds to the ledger.
+
+Afterwards, always: the balance fell by exactly the amount; a ledger entry was posted.
+
+Records [Account debited](#account-debited).
+
+#### Freeze account
+
+Stop an account moving while something is investigated. Done by the compliance officer.
+
+Allowed only when: the account is open; customer is not closed.
+
+Moves the account from open to frozen.
+
+Records [Account frozen](#account-frozen).
+
+#### Open
+
+Give a customer somewhere to keep money. Done by the branch clerk.
+
+Needs a customer ([Customer](#customer)), a number ([Account number](#account-number)), a kind ([Account kind](#account-kind)), and a daily limit ([Daily limit](#daily-limit)).
+
+Allowed only when: customer is active.
+
+Sets the customer, the number, the kind, and the daily limit.
+
+Records [Account opened](#account-opened).
+
+#### Reverse
+
+Undo a movement that should not have been posted. Done by the back office.
+
+Needs a narrative ([Narrative](#narrative)).
+
+Allowed only when: customer is active; account is open; entry is posted.
+
+Sets the narrative and moves the ledger entry from posted to reversed.
+
+Records [Ledger entry reversed](#ledger-entry-reversed).
+
+#### Unfreeze
+
+Release a cleared account. Done by the compliance officer.
+
+Allowed only when: the account is frozen; customer is active.
+
+Moves the account from frozen to open.
+
+Records [Account unfrozen](#account-unfrozen).
+
+### What it records
+
+#### Account closed
+
+Recorded after [Close account](#close-account). Prompts [Notify on closure](#notify-on-closure).
+
+#### Account credited
+
+Recorded after [Credit](#credit).
+
+#### Account debited
+
+Recorded after [Debit](#debit).
+
+#### Account frozen
+
+Recorded after [Freeze account](#freeze-account). Prompts [Review on freeze](#review-on-freeze).
+
+#### Account opened
+
+Recorded after [Open](#open).
+
+#### Account unfrozen
+
+Recorded after [Unfreeze](#unfreeze).
+
+#### Fee applied
+
+Recorded after [Apply fee](#apply-fee).
+
+#### Fee corrected
+
+Recorded after [Correct fee](#correct-fee).
+
+#### Interest accrued
+
+Recorded after [Accrue interest](#accrue-interest).
+
+#### Interest corrected
+
+Recorded after [Correct interest](#correct-interest).
+
+#### Ledger entry amended
+
+Recorded after [Amend](#amend).
+
+#### Ledger entry reversed
+
+Recorded after [Reverse](#reverse).
+
+### What happens on its own
+
+#### Notify on closure
+
+When [Account closed](#account-closed) happens, Notifications is asked to send, in Notifications.
+
+#### Review on freeze
+
+When [Account frozen](#account-frozen) happens, Account freeze review is asked to open, in Compliance.
+
+### Lists
+
+#### At most
+
+Accounts holding no more than a cap the caller supplies — the small-balance closure candidates.
+
+Accounts whose balance is at most the cap you give, sorted by balance, lowest first.
+
+#### High balance
+
+Accounts holding at least a floor the caller supplies — the private-banking referral list.
+
+Accounts whose balance is at least the floor you give, sorted by balance, highest first.
+
+#### Open (the list)
+
+Accounts that can transact today.
+
+Accounts that are open, sorted by account number, A to Z.
+
+#### Open for customer
+
+One customer's own open accounts — the for_each target that freezes every one of them on suspension, not just whichever the event payload happened to carry.
+
+Accounts whose customer is the reference you give and that are open, sorted by account number, A to Z.
+
+#### Open for suspended customers
+
+Open accounts whose customer has since been suspended — live money movement nobody should be approving right now.
+
+Accounts that are open and whose customer's status is suspended, sorted by account number, A to Z.
+
+#### Overdrawn
+
+Accounts below a floor the caller supplies — the morning risk report.
+
+Accounts whose balance is less than the floor you give, sorted by balance, lowest first.
+
+Shows at most 100.
+
+#### Reachable
+
+Accounts that still exist as far as a caller is concerned — anything short of closed.
+
+Accounts that are open or frozen, sorted by account number, A to Z.
+
+#### Reversed
+
+Entries that were undone — the audit trail nobody wants to need.
+
+Ledger entries that are reversed.
+
+#### Strictly above
+
+Accounts holding MORE than a floor the caller supplies — the referral list without the accounts sitting exactly on the line.
+
+Accounts whose balance is more than the floor you give, sorted by balance, highest first.
+
+### What it is made of
+
+#### Account kind
+
+One of current, savings, or reserve.
+
+#### Account number
+
+Text that must not be blank.
+
+Always true: an account number is present.
+
+#### Daily limit
 
 Made up of cents (a whole number).
 
 Always true: a daily limit is non-negative.
 
-### Debit
-
-Take money out, if it is there to take. Done by the teller.
-
-### Fee applied
-
-Recorded after [Apply fee](#apply-fee).
-
-### Fee corrected
-
-Recorded after [Correct fee](#correct-fee).
-
-### Freeze account
-
-Stop an account moving while something is investigated. Done by the compliance officer.
-
-### High balance
-
-Accounts holding at least a floor the caller supplies — the private-banking referral list.
-
-### Interest accrued
-
-Recorded after [Accrue interest](#accrue-interest).
-
-### Interest corrected
-
-Recorded after [Correct interest](#correct-interest).
-
-### Ledger direction
+#### Ledger direction
 
 One of credit or debit.
 
-### Ledger entry
+#### Ledger entry
 
 One movement across the account, in the order it was posted.
 
 Starts out posted. Can be posted or reversed.
 
-### Ledger entry amended
-
-Recorded after [Amend](#amend).
-
-### Ledger entry reversed
-
-Recorded after [Reverse](#reverse).
-
-### Ledger sequence
+#### Ledger sequence
 
 A whole number.
 
 Always true: a ledger sequence is positive.
 
-### Money
+#### Money
 
 Made up of cents (a whole number) and currency (text).
 
 Always true: a currency is a three-letter code.
 
-### Narrative
+#### Narrative
 
-Made up of text (text).
+Made up of text (text, must not be blank).
 
 Always true: a movement explains itself.
 
-### Notify on closure
-
-When [Account closed](#account-closed) happens, Notifications is asked to send, in Notifications.
-
-### Open
-
-Give a customer somewhere to keep money. Done by the branch clerk.
-
-### Open (the list)
-
-Accounts that can transact today.
-
-### Open for customer
-
-One customer's own open accounts — the for_each target that freezes every one of them on suspension, not just whichever the event payload happened to carry.
-
-### Open for suspended customers
-
-Open accounts whose customer has since been suspended — live money movement nobody should be approving right now.
-
-### Overdrawn
-
-Accounts below a floor the caller supplies — the morning risk report.
-
-### Positive money
+#### Positive money
 
 Made up of cents (a whole number) and currency (text).
 
 Always true: an amount is positive; a currency is a three-letter code.
-
-### Reachable
-
-Accounts that still exist as far as a caller is concerned — anything short of closed.
-
-### Reverse
-
-Undo a movement that should not have been posted. Done by the back office.
-
-### Reversed
-
-Entries that were undone — the audit trail nobody wants to need.
-
-### Review on freeze
-
-When [Account frozen](#account-frozen) happens, Account freeze review is asked to open, in Compliance.
-
-### Strictly above
-
-Accounts holding MORE than a floor the caller supplies — the referral list without the accounts sitting exactly on the line.
-
-### Unfreeze
-
-Release a cleared account. Done by the compliance officer.
 
 ## ATM card
 
@@ -301,111 +427,176 @@ stateDiagram-v2
     active --> retired: Retire
 ```
 
+- Activating an ATM card moves it from issued to active.
+- Retiring an ATM card moves it from issued or active to retired.
+
 **Always true**
 
-- An ATM card references an Account.
-- An ATM card has many withdrawals.
+- Each ATM card belongs to one account.
+- Each ATM card holds a list of withdrawals.
 - A card serial is present.
 - A daily fee is non-negative.
 - A withdrawal sequence is positive.
 - A withdrawal amount is positive.
 - A withdrawal explains itself.
 
-### Activate
+### Actions
+
+#### Activate
 
 Start using a card. Done by the customer.
 
-### Active
+Allowed only when: the ATM card is issued; customer is active.
 
-Live cards in nickname order, unnamed ones last — real nicknames sort among themselves first.
+Moves the ATM card from issued to active.
 
-### ATM card activated
+Records [ATM card activated](#atm-card-activated).
+
+#### Dispute
+
+Challenge a withdrawal that was not mine. Done by the customer.
+
+Needs a narrative ([Narrative](#narrative-1)).
+
+Allowed only when: the withdrawal is taken; customer is active; account is open; card is not retired.
+
+Sets the narrative and moves the withdrawal from taken to disputed.
+
+Records [Withdrawal disputed](#withdrawal-disputed).
+
+#### Issue
+
+Put a card in a customer's hand. Done by the branch clerk.
+
+Needs an account ([Account](#account)), a serial ([Card serial](#card-serial)), and a daily fee ([Daily fee](#daily-fee)).
+
+Allowed only when: customer is active; account is open.
+
+Sets the account, the serial, and the daily fee.
+
+Records [ATM card issued](#atm-card-issued).
+
+#### Rename
+
+Name a card so it is recognisable. Done by the customer.
+
+Needs a nickname ([Card nickname](#card-nickname)).
+
+Allowed only when: the ATM card is issued or active; customer is active.
+
+Sets the nickname.
+
+Records [ATM card renamed](#atm-card-renamed).
+
+#### Retire
+
+Take a card out of service. Done by the back office.
+
+Allowed only when: the ATM card is issued or active; customer is active.
+
+Moves the ATM card from issued or active to retired.
+
+Records [ATM card retired](#atm-card-retired).
+
+#### Withdraw
+
+Take cash out at a machine. Done by the customer.
+
+Needs a cents ([Withdrawal amount](#withdrawal-amount)) and a narrative ([Narrative](#narrative-1)).
+
+Allowed only when: the ATM card is active; customer is active; account is open.
+
+Adds to the withdrawals.
+
+Records [Cash withdrawn](#cash-withdrawn).
+
+### What it records
+
+#### ATM card activated
 
 Recorded after [Activate](#activate).
 
-### ATM card issued
+#### ATM card issued
 
 Recorded after [Issue](#issue).
 
-### ATM card renamed
+#### ATM card renamed
 
 Recorded after [Rename](#rename).
 
-### ATM card retired
+#### ATM card retired
 
 Recorded after [Retire](#retire).
 
-### By fee
-
-Live cards by what they cost to hold, cheapest first — a fee is a Float, so the order is numeric and not alphabetical.
-
-### Card nickname
-
-Text.
-
-### Card serial
-
-Text.
-
-Always true: a card serial is present.
-
-### Cash withdrawn
+#### Cash withdrawn
 
 Recorded after [Withdraw](#withdraw).
 
-### Daily fee
+#### Withdrawal disputed
+
+Recorded after [Dispute](#dispute).
+
+### Lists
+
+#### Active
+
+Live cards in nickname order, unnamed ones last — real nicknames sort among themselves first.
+
+ATM cards that are active, sorted by card nickname, A to Z, with ATM cards that have no card nickname last.
+
+#### By fee
+
+Live cards by what they cost to hold, cheapest first — a fee is a Float, so the order is numeric and not alphabetical.
+
+ATM cards that are active, sorted by daily fee, lowest first.
+
+Shows at most 3.
+
+#### Recent
+
+The first two withdrawals still standing, whatever else was taken.
+
+Withdrawals that are taken.
+
+Shows at most 2.
+
+### What it is made of
+
+#### Card nickname
+
+Text.
+
+#### Card serial
+
+Text that must not be blank.
+
+Always true: a card serial is present.
+
+#### Daily fee
 
 Made up of amount (a number).
 
 Always true: a daily fee is non-negative.
 
-### Dispute
+#### Narrative
 
-Challenge a withdrawal that was not mine. Done by the customer.
-
-### Issue
-
-Put a card in a customer's hand. Done by the branch clerk.
-
-### Narrative
-
-Made up of text (text).
+Made up of text (text, must not be blank).
 
 Always true: a withdrawal explains itself.
 
-### Recent
-
-The first two withdrawals still standing, whatever else was taken.
-
-### Rename
-
-Name a card so it is recognisable. Done by the customer.
-
-### Retire
-
-Take a card out of service. Done by the back office.
-
-### Withdraw
-
-Take cash out at a machine. Done by the customer.
-
-### Withdrawal
+#### Withdrawal
 
 One handful of cash, in the order it was taken.
 
 Starts out taken. Can be taken or disputed.
 
-### Withdrawal amount
+#### Withdrawal amount
 
 Made up of cents (a whole number).
 
 Always true: a withdrawal amount is positive.
 
-### Withdrawal disputed
-
-Recorded after [Dispute](#dispute).
-
-### Withdrawal sequence
+#### Withdrawal sequence
 
 A whole number.
 
@@ -445,112 +636,186 @@ stateDiagram-v2
     disputed --> captured: Reject dispute
 ```
 
+- Capturing a card payment moves it from authorized to captured.
+- Voiding a card payment moves it from authorized to voided.
+- Refunding a card payment moves it from captured to refunded.
+- Reversing a card payment moves it from captured to reversed.
+- Disputing a card payment moves it from captured or refunded to disputed.
+- Charging back a card payment moves it from disputed to charged back.
+- Rejecting a dispute moves the card payment from disputed to captured.
+
 **Always true**
 
-- A Card payment references an Account.
-- A Card payment references a Customer.
-- A Card payment has many tags.
+- Each card payment belongs to one account.
+- Each card payment can be disputed by one customer.
+- Each card payment holds a list of tags.
 - A payment amount is positive.
 - A merchant name is present.
 - A tag is not the empty string.
 
-### Authorisation code
+### Actions
 
-Text.
-
-### Authorize
+#### Authorize
 
 Put a hold on funds for a purchase.
 
-### Capture
+Needs an authorisation ([Authorisation code](#authorisation-code)), tags (a list of [Tag](#tag), optional), an account ([Account](#account)), an amount ([Payment amount](#payment-amount)), and a merchant ([Merchant name](#merchant-name)).
+
+Allowed only when: customer is active; account is open.
+
+Sets the account, the amount, the merchant, the tags, and the authorisation.
+
+Records [Card authorized](#card-authorized).
+
+#### Capture
 
 Turn an authorization into an actual charge. Done by the system.
 
-### Card authorized
+Allowed only when: the card payment is authorized; customer is active; account is open.
 
-Recorded after [Authorize](#authorize).
+Moves the card payment from authorized to captured.
 
-### Card captured
+Records [Card captured](#card-captured).
 
-Recorded after [Capture](#capture).
-
-### Card charged back
-
-Recorded after [Chargeback](#chargeback).
-
-### Card dispute rejected
-
-Recorded after [Reject dispute](#reject-dispute).
-
-### Card disputed
-
-Recorded after [Dispute](#dispute-1).
-
-### Card refunded
-
-Recorded after [Refund](#refund).
-
-### Card reversed
-
-Recorded after [Reverse](#reverse-1).
-
-### Card voided
-
-Recorded after [Void](#void).
-
-### Chargeback
+#### Chargeback
 
 Uphold a customer's dispute and claw the charge back. Done by the compliance officer.
 
-### Dispute
+Allowed only when: the card payment is disputed; customer is active; account is open.
+
+Moves the card payment from disputed to charged back.
+
+Records [Card charged back](#card-charged-back).
+
+#### Dispute
 
 Challenge a payment that already settled. Done by the customer.
 
-### Disputed
+Needs a disputed by ([Customer](#customer)).
+
+Allowed only when: the card payment is captured or refunded; account is open; customer is active.
+
+Sets the disputed by and moves the card payment from captured or refunded to disputed.
+
+Records [Card disputed](#card-disputed).
+
+#### Refund
+
+Give the money back after a charge settled. Done by the system.
+
+Allowed only when: the card payment is captured; customer is active; account is open.
+
+Moves the card payment from captured to refunded.
+
+Records [Card refunded](#card-refunded).
+
+#### Reject dispute
+
+Uphold the charge and close a customer's dispute. Done by the compliance officer.
+
+Allowed only when: the card payment is disputed; customer is active; account is open.
+
+Moves the card payment from disputed to captured.
+
+Records [Card dispute rejected](#card-dispute-rejected).
+
+#### Reverse
+
+Undo a captured charge with no customer dispute involved. Done by the system.
+
+Allowed only when: the card payment is captured; customer is active; account is open.
+
+Moves the card payment from captured to reversed.
+
+Records [Card reversed](#card-reversed).
+
+#### Void
+
+Cancel an authorization before it settles. Done by the system.
+
+Allowed only when: the card payment is authorized; customer is active; account is open.
+
+Moves the card payment from authorized to voided.
+
+Records [Card voided](#card-voided).
+
+### What it records
+
+#### Card authorized
+
+Recorded after [Authorize](#authorize).
+
+#### Card captured
+
+Recorded after [Capture](#capture).
+
+#### Card charged back
+
+Recorded after [Chargeback](#chargeback).
+
+#### Card dispute rejected
+
+Recorded after [Reject dispute](#reject-dispute).
+
+#### Card disputed
+
+Recorded after [Dispute](#dispute-1).
+
+#### Card refunded
+
+Recorded after [Refund](#refund).
+
+#### Card reversed
+
+Recorded after [Reverse](#reverse-1).
+
+#### Card voided
+
+Recorded after [Void](#void).
+
+### Lists
+
+#### Disputed
 
 Charges currently under a customer's dispute, awaiting a compliance decision.
 
-### Flagged
+Card payments that are disputed.
+
+#### Flagged
 
 Charges carrying a risk tag, for the fraud queue.
 
-### Merchant name
+Card payments whose tag includes high risk.
 
-Text.
+#### Pending
+
+Authorized charges not yet captured, voided, or otherwise resolved.
+
+Card payments that are authorized.
+
+### What it is made of
+
+#### Authorisation code
+
+Text that must not be blank.
+
+#### Merchant name
+
+Text that must not be blank.
 
 Always true: a merchant name is present.
 
-### Payment amount
+#### Payment amount
 
 Made up of cents (a whole number).
 
 Always true: a payment amount is positive.
 
-### Pending
+#### Tag
 
-Authorized charges not yet captured, voided, or otherwise resolved.
-
-### Refund
-
-Give the money back after a charge settled. Done by the system.
-
-### Reject dispute
-
-Uphold the charge and close a customer's dispute. Done by the compliance officer.
-
-### Reverse
-
-Undo a captured charge with no customer dispute involved. Done by the system.
-
-### Tag
-
-Text.
+Text that must not be blank.
 
 Always true: a tag is not the empty string.
-
-### Void
-
-Cancel an authorization before it settles. Done by the system.
 
 ## Customer
 
@@ -585,82 +850,130 @@ stateDiagram-v2
     suspended --> closed: Close
 ```
 
+- Suspending a customer moves it from active to suspended.
+- Reinstating a customer moves it from suspended to active.
+- Closing a customer moves it from active or suspended to closed.
+
 **Always true**
 
-- A customer reference is present.
+- A customer number is never empty.
 - A standing is named.
 - A given name is present.
 - A family name is present.
 
-### Close
+### Actions
+
+#### Close
 
 End the relationship. Done by the branch clerk.
 
-### Customer closed
+Allowed only when: the customer is active or suspended.
 
-Recorded after [Close](#close).
+Moves the customer from active or suspended to closed.
 
-### Customer number
+Records [Customer closed](#customer-closed).
 
-Text.
-
-Always true: a customer reference is present.
-
-### Customer registered
-
-Recorded after [Register](#register).
-
-### Customer reinstated
-
-Recorded after [Reinstate](#reinstate).
-
-### Customer standing
-
-Text.
-
-Always true: a standing is named.
-
-### Customer suspended
-
-Recorded after [Suspend](#suspend). Prompts [Freeze accounts on suspension](#freeze-accounts-on-suspension).
-
-### Email address
-
-Made up of address (text).
-
-### Freeze accounts on suspension
-
-When [Customer suspended](#customer-suspended) happens, [Account](#account) is asked to [Freeze account](#freeze-account), once for each row of [Open for customer](#open-for-customer).
-
-### In good standing
-
-The everyday customer roll — active, and nothing outstanding against them.
-
-### Not good standing
-
-Everyone who is not in the everyday roll — suspended, under review, or anything else that is not simply "good".
-
-### Person name
-
-Made up of given (text) and family (text).
-
-Always true: a given name is present; a family name is present.
-
-### Register
+#### Register
 
 Take on a new customer. Done by the branch clerk.
 
-### Reinstate
+Needs a reference ([Customer number](#customer-number)), a name ([Person name](#person-name)), and an email ([Email address](#email-address)).
+
+Sets the reference, the name, and the email.
+
+Records [Customer registered](#customer-registered).
+
+#### Reinstate
 
 Let a cleared customer transact again. Done by the compliance officer.
 
-### Suspend
+Allowed only when: the customer is suspended.
+
+Sets the standing and moves the customer from suspended to active.
+
+Records [Customer reinstated](#customer-reinstated).
+
+#### Suspend
 
 Stop a customer transacting while something is investigated. Done by the compliance officer.
 
-### Suspended
+Needs a standing ([Customer standing](#customer-standing)).
+
+Allowed only when: the customer is active.
+
+Sets the standing and moves the customer from active to suspended.
+
+Records [Customer suspended](#customer-suspended).
+
+### What it records
+
+#### Customer closed
+
+Recorded after [Close](#close).
+
+#### Customer registered
+
+Recorded after [Register](#register).
+
+#### Customer reinstated
+
+Recorded after [Reinstate](#reinstate).
+
+#### Customer suspended
+
+Recorded after [Suspend](#suspend). Prompts [Freeze accounts on suspension](#freeze-accounts-on-suspension).
+
+### What happens on its own
+
+#### Freeze accounts on suspension
+
+When [Customer suspended](#customer-suspended) happens, [Account](#account) is asked to [Freeze account](#freeze-account), once for each row of [Open for customer](#open-for-customer).
+
+### Lists
+
+#### In good standing
+
+The everyday customer roll — active, and nothing outstanding against them.
+
+Customers that are active and whose customer standing is good, sorted by customer number, A to Z.
+
+#### Not good standing
+
+Everyone who is not in the everyday roll — suspended, under review, or anything else that is not simply "good".
+
+Customers whose customer standing is not good, sorted by customer number, A to Z.
+
+#### Suspended
 
 The compliance queue, newest concern first.
+
+Customers that are suspended, sorted by customer number, Z to A.
+
+Shows at most 50.
+
+### What it is made of
+
+#### Customer number
+
+Text that must not be blank.
+
+Always true: a customer number is never empty.
+
+#### Customer standing
+
+Text that must not be blank.
+
+Always true: a standing is named.
+
+#### Email address
+
+Made up of address (text, must follow a set format).
+
+#### Person name
+
+Made up of given (text, must not be blank) and family (text, must not be blank).
+
+Always true: a given name is present; a family name is present.
 
 ## External transfer
 
@@ -688,71 +1001,113 @@ stateDiagram-v2
     sent --> returned: Return
 ```
 
+- Sending a transfer moves the external transfer from requested to sent.
+- Recalling an external transfer moves it from sent to recalled.
+- Returning an external transfer moves it from sent to returned.
+
 **Always true**
 
-- An External transfer references an Account.
+- Each external transfer belongs to one account.
 - An external transfer amount is positive.
 - A beneficiary name is present.
 
-### Beneficiary name
+### Actions
 
-Text.
+#### Recall
+
+Ask the external network to stop a transfer already sent. Done by the customer.
+
+Allowed only when: the external transfer is sent; customer is active; account is open.
+
+Moves the external transfer from sent to recalled.
+
+Records [External transfer recalled](#external-transfer-recalled).
+
+#### Request
+
+Send money to an account outside the bank. Done by the customer.
+
+Needs an end to end ([End to end reference](#end-to-end-reference)), an account ([Account](#account)), an amount ([External amount](#external-amount)), a beneficiary ([Beneficiary name](#beneficiary-name)), and a direction ([Movement direction](#movement-direction)).
+
+Allowed only when: customer is active; account is open.
+
+Sets the account, the amount, the beneficiary, the direction, and the end to end.
+
+Records [External transfer requested](#external-transfer-requested).
+
+#### Return
+
+Record that the external network sent the money back. Done by the system.
+
+Allowed only when: the external transfer is sent; customer is active; account is open.
+
+Moves the external transfer from sent to returned.
+
+Records [External transfer returned](#external-transfer-returned).
+
+#### Send transfer
+
+Release the transfer to the external network. Done by the system.
+
+Allowed only when: the external transfer is requested; customer is active; account is open.
+
+Moves the external transfer from requested to sent.
+
+Records [External transfer sent](#external-transfer-sent).
+
+### What it records
+
+#### External transfer recalled
+
+Recorded after [Recall](#recall).
+
+#### External transfer requested
+
+Recorded after [Request](#request).
+
+#### External transfer returned
+
+Recorded after [Return](#return).
+
+#### External transfer sent
+
+Recorded after [Send transfer](#send-transfer).
+
+### What happens on its own
+
+#### External settlement
+
+Begins when [External transfer requested](#external-transfer-requested) happens and ends when [External transfer sent](#external-transfer-sent) happens. Along the way it can be requested or returned.
+
+### Lists
+
+#### Sent
+
+Transfers already released to the external network, awaiting its outcome.
+
+External transfers that are sent.
+
+### What it is made of
+
+#### Beneficiary name
+
+Text that must not be blank.
 
 Always true: a beneficiary name is present.
 
-### End to end reference
+#### End to end reference
 
-Text.
+Text that must not be blank.
 
-### External amount
+#### External amount
 
 Made up of cents (a whole number).
 
 Always true: an external transfer amount is positive.
 
-### External settlement
-
-Begins when [External transfer requested](#external-transfer-requested) happens and ends when [External transfer sent](#external-transfer-sent) happens. Along the way it can be requested or returned.
-
-### External transfer recalled
-
-Recorded after [Recall](#recall).
-
-### External transfer requested
-
-Recorded after [Request](#request).
-
-### External transfer returned
-
-Recorded after [Return](#return).
-
-### External transfer sent
-
-Recorded after [Send transfer](#send-transfer).
-
-### Movement direction
+#### Movement direction
 
 Text.
-
-### Recall
-
-Ask the external network to stop a transfer already sent. Done by the customer.
-
-### Request
-
-Send money to an account outside the bank. Done by the customer.
-
-### Return
-
-Record that the external network sent the money back. Done by the system.
-
-### Send transfer
-
-Release the transfer to the external network. Done by the system.
-
-### Sent
-
-Transfers already released to the external network, awaiting its outcome.
 
 ## Onboarding case
 
@@ -779,55 +1134,90 @@ stateDiagram-v2
     screening --> declined: Decline
 ```
 
+- Clearing an onboarding case moves it from screening to cleared.
+- Declining an onboarding case moves it from screening to declined.
+
 **Always true**
 
-- An Onboarding case references a Customer.
-- An onboarding case is referenced.
+- Each onboarding case belongs to one customer.
+- An onboarding reference is never empty.
 - An account number is present.
 
-### Account number
+### Actions
 
-Text.
-
-Always true: an account number is present.
-
-### Clear
+#### Clear
 
 Pass a customer's identity and screening checks. Done by the compliance officer.
 
-### Decline
+Allowed only when: the onboarding case is screening; customer is active.
+
+Moves the onboarding case from screening to cleared.
+
+Records [Onboarding cleared](#onboarding-cleared).
+
+#### Decline
 
 Refuse a customer who does not clear screening — no account was ever opened, so nothing is undone. Done by the compliance officer.
 
-### Onboarding
+Allowed only when: the onboarding case is screening; customer is active.
 
-Begins when [Onboarding opened](#onboarding-opened) happens and ends when [Account opened](#account-opened) happens. Along the way it can be screening, cleared, or declined.
+Moves the onboarding case from screening to declined.
 
-### Onboarding cleared
+Records [Onboarding declined](#onboarding-declined).
 
-Recorded after [Clear](#clear).
-
-### Onboarding declined
-
-Recorded after [Decline](#decline).
-
-### Onboarding opened
-
-Recorded after [Open](#open-1).
-
-### Onboarding reference
-
-Text.
-
-Always true: an onboarding case is referenced.
-
-### Open
+#### Open
 
 Open a KYC case for a newly registered customer, naming the account it will become. Done by the branch clerk.
 
-### Screening
+Needs a customer ([Customer](#customer)), a reference ([Onboarding reference](#onboarding-reference)), and an account number ([Account number](#account-number-1)).
+
+Allowed only when: customer is active.
+
+Sets the customer, the reference, and the account number.
+
+Records [Onboarding opened](#onboarding-opened).
+
+### What it records
+
+#### Onboarding cleared
+
+Recorded after [Clear](#clear).
+
+#### Onboarding declined
+
+Recorded after [Decline](#decline).
+
+#### Onboarding opened
+
+Recorded after [Open](#open-1).
+
+### What happens on its own
+
+#### Onboarding
+
+Begins when [Onboarding opened](#onboarding-opened) happens and ends when [Account opened](#account-opened) happens. Along the way it can be screening, cleared, or declined.
+
+### Lists
+
+#### Screening
 
 Cases still waiting on a compliance decision.
+
+Onboarding cases that are screening, sorted by onboarding reference, A to Z.
+
+### What it is made of
+
+#### Account number
+
+Text that must not be blank.
+
+Always true: an account number is present.
+
+#### Onboarding reference
+
+Text that must not be blank.
+
+Always true: an onboarding reference is never empty.
 
 ## Safe deposit box
 
@@ -858,11 +1248,14 @@ stateDiagram-v2
     rented --> vacant: Surrender
 ```
 
+- Renting a safe deposit box moves it from vacant to rented.
+- Surrendering a safe deposit box moves it from rented to vacant.
+
 **Always true**
 
-- A Safe deposit box belongs to a Customer.
-- A Safe deposit box has many visits.
-- A Safe deposit box has many keys.
+- Each safe deposit box belongs to one customer.
+- Each safe deposit box holds a list of visits.
+- Each safe deposit box holds its keys, a list of key issuances.
 - A branch is coded.
 - A box is numbered from one.
 - A visit sequence is positive.
@@ -870,119 +1263,181 @@ stateDiagram-v2
 - A key is serialed.
 - A written note is not blank.
 
-### Annotate
+### Actions
+
+#### Annotate
 
 Note something unusual about a visit after the fact. Done by the vault officer.
 
-### Box number
+Needs a note ([Visit note](#visit-note)).
+
+Allowed only when: the visit is logged; customer is active; box is rented.
+
+Sets the note and keeps the visit logged.
+
+Records [Visit annotated](#visit-annotated).
+
+#### Issue key
+
+Cut a key for the box. Done by the vault officer.
+
+Needs a serial ([Key serial](#key-serial)).
+
+Allowed only when: the safe deposit box is rented; customer is active.
+
+Adds to the keys.
+
+Records [Key issued](#key-issued).
+
+#### Log visit
+
+Record that the box was opened. Done by the vault officer.
+
+Needs a date ([Visit date](#visit-date)), a sequence ([Visit sequence](#visit-sequence)), and a note ([Visit note](#visit-note), optional).
+
+Allowed only when: the safe deposit box is rented; customer is active.
+
+Adds to the visits.
+
+Records [Box opened](#box-opened).
+
+#### Rent
+
+Assign the box to a customer. Done by the branch clerk.
+
+Needs a branch code ([Branch code](#branch-code)), a box number ([Box number](#box-number)), a size ([Size](#size)), and a customer ([Customer](#customer)).
+
+Allowed only when: the safe deposit box is vacant; customer is active.
+
+Sets the customer, the branch code, the box number, and the size and moves the safe deposit box from vacant to rented.
+
+Records [Box rented](#box-rented).
+
+#### Return
+
+Take a key back when a holder is done with it. Done by the vault officer.
+
+Needs a serial ([Key serial](#key-serial)).
+
+Allowed only when: customer is active; box is rented.
+
+Moves the key issuance from issued to returned.
+
+Records [Key returned](#key-returned).
+
+#### Surrender
+
+Give the box back and take the keys off the account. Done by the customer.
+
+Allowed only when: the safe deposit box is rented; customer is active.
+
+Moves the safe deposit box from rented to vacant.
+
+Records [Box surrendered](#box-surrendered) and [Key return due](#key-return-due).
+
+### What it records
+
+#### Box opened
+
+Recorded after [Log visit](#log-visit).
+
+#### Box rented
+
+Recorded after [Rent](#rent).
+
+#### Box surrendered
+
+Recorded after [Surrender](#surrender). Prompts [Review on box surrender](#review-on-box-surrender).
+
+#### Key issued
+
+Recorded after [Issue key](#issue-key).
+
+#### Key return due
+
+Recorded after [Surrender](#surrender). Prompts [Flag key return](#flag-key-return).
+
+#### Key returned
+
+Recorded after [Return](#return-1).
+
+#### Visit annotated
+
+Recorded after [Annotate](#annotate).
+
+### What happens on its own
+
+#### Flag key return
+
+When [Key return due](#key-return-due) happens, Notifications is asked to send, in Notifications.
+
+#### Review on box surrender
+
+When [Box surrendered](#box-surrendered) happens, Box surrender review is asked to open, in Compliance.
+
+### Lists
+
+#### Recent
+
+The last few visits, whatever the box has seen.
+
+Visits that are logged.
+
+Shows at most 5.
+
+#### Rented
+
+Boxes currently assigned to a customer, for the annual access audit.
+
+Safe deposit boxes that are rented, sorted by branch code, A to Z.
+
+### What it is made of
+
+#### Box number
 
 A whole number.
 
 Always true: a box is numbered from one.
 
-### Box opened
+#### Branch code
 
-Recorded after [Log visit](#log-visit).
-
-### Box rented
-
-Recorded after [Rent](#rent).
-
-### Box surrendered
-
-Recorded after [Surrender](#surrender). Prompts [Review on box surrender](#review-on-box-surrender).
-
-### Branch code
-
-Text.
+Text that must not be blank.
 
 Always true: a branch is coded.
 
-### Flag key return
-
-When [Key return due](#key-return-due) happens, Notifications is asked to send, in Notifications.
-
-### Issue key
-
-Cut a key for the box. Done by the vault officer.
-
-### Key issuance
+#### Key issuance
 
 One key cut for the box, held by whoever last signed for it.
 
 Starts out issued. Can be issued or returned.
 
-### Key issued
+#### Key serial
 
-Recorded after [Issue key](#issue-key).
-
-### Key return due
-
-Recorded after [Surrender](#surrender). Prompts [Flag key return](#flag-key-return).
-
-### Key returned
-
-Recorded after [Return](#return-1).
-
-### Key serial
-
-Text.
+Text that must not be blank.
 
 Always true: a key is serialed.
 
-### Log visit
-
-Record that the box was opened. Done by the vault officer.
-
-### Recent
-
-The last few visits, whatever the box has seen.
-
-### Rent
-
-Assign the box to a customer. Done by the branch clerk.
-
-### Rented
-
-Boxes currently assigned to a customer, for the annual access audit.
-
-### Return
-
-Take a key back when a holder is done with it. Done by the vault officer.
-
-### Review on box surrender
-
-When [Box surrendered](#box-surrendered) happens, Box surrender review is asked to open, in Compliance.
-
-### Size
+#### Size
 
 One of small, medium, or large.
 
-### Surrender
-
-Give the box back and take the keys off the account. Done by the customer.
-
-### Visit
+#### Visit
 
 One opening of the box, in the order it happened that day.
 
 Starts out logged. Can be logged.
 
-### Visit annotated
+#### Visit date
 
-Recorded after [Annotate](#annotate).
-
-### Visit date
-
-Text.
+Text that must not be blank.
 
 Always true: a visit names its date.
 
-### Visit note
+#### Visit note
 
 Made up of text (text).
 
-### Visit sequence
+#### Visit sequence
 
 A whole number.
 
@@ -1016,100 +1471,158 @@ stateDiagram-v2
     failed --> abandoned: Abandon
 ```
 
+- Executing a scheduled payment moves it from scheduled to executed.
+- Cancelling a scheduled payment moves it from scheduled to cancelled.
+- Failing a scheduled payment moves it from scheduled to failed.
+- Retrying a scheduled payment keeps it failed.
+- Abandoning a scheduled payment moves it from failed to abandoned.
+
 **Always true**
 
-- A Scheduled payment references an Account.
+- Each scheduled payment belongs to one account.
 - A scheduled payment amount is positive.
 - A payment recipient is present.
 - A payment due date is present.
 - A retry count is non-negative.
 - A retry limit is positive.
 
-### Abandon
+### Actions
+
+#### Abandon
 
 Give up on a payment that could not be collected after every retry. Done by the back office.
 
-### Cancel
+Allowed only when: the scheduled payment is failed; customer is active; account is open; every retry is exhausted.
+
+Moves the scheduled payment from failed to abandoned.
+
+Records [Scheduled payment abandoned](#scheduled-payment-abandoned).
+
+#### Cancel
 
 Call off a payment before its due date. Done by the customer.
 
-### Due
+Allowed only when: the scheduled payment is scheduled; customer is active; account is open.
 
-Payments still scheduled, ordered by when they're due.
+Moves the scheduled payment from scheduled to cancelled.
 
-### Execute
+Records [Scheduled payment cancelled](#scheduled-payment-cancelled).
+
+#### Execute
 
 Collect a payment on its due date. Done by the system.
 
-### Fail
+Allowed only when: the scheduled payment is scheduled; customer is active; account is open.
+
+Moves the scheduled payment from scheduled to executed.
+
+Records [Scheduled payment executed](#scheduled-payment-executed).
+
+#### Fail
 
 Record that today's presentment could not be collected. Done by the system.
 
-### Instruction reference
+Allowed only when: the scheduled payment is scheduled; customer is active; account is open.
 
-Text.
+Moves the scheduled payment from scheduled to failed.
 
-### Payment due date
+Records [Scheduled payment failed](#scheduled-payment-failed).
 
-Text.
-
-Always true: a payment due date is present.
-
-### Payment recipient
-
-Text.
-
-Always true: a payment recipient is present.
-
-### Payment scheduled
-
-Recorded after [Schedule](#schedule).
-
-### Retry
+#### Retry
 
 Re-present a failed payment, up to the limit the schedule names. Done by the system.
 
-### Retry count
+Allowed only when: the scheduled payment is failed; customer is active; account is open; a retry is still allowed.
+
+Raises the attempts and keeps the scheduled payment failed.
+
+Afterwards, always: a retry never lowers the attempt count.
+
+Records [Scheduled payment failed](#scheduled-payment-failed).
+
+#### Schedule
+
+Set up a payment to collect on a future date. Done by the customer.
+
+Needs an instruction ([Instruction reference](#instruction-reference)), an account ([Account](#account)), an amount ([Scheduled amount](#scheduled-amount)), a recipient ([Payment recipient](#payment-recipient)), and a due on ([Payment due date](#payment-due-date)).
+
+Allowed only when: customer is active; account is open.
+
+Sets the account, the amount, the recipient, the due on, and the instruction.
+
+Records [Payment scheduled](#payment-scheduled).
+
+### What it records
+
+#### Payment scheduled
+
+Recorded after [Schedule](#schedule).
+
+#### Scheduled payment abandoned
+
+Recorded after [Abandon](#abandon).
+
+#### Scheduled payment cancelled
+
+Recorded after [Cancel](#cancel).
+
+#### Scheduled payment executed
+
+Recorded after [Execute](#execute).
+
+#### Scheduled payment failed
+
+Recorded after [Fail](#fail) or [Retry](#retry). Prompts [Retry on payment failure](#retry-on-payment-failure).
+
+### What happens on its own
+
+#### Retry on payment failure
+
+When [Scheduled payment failed](#scheduled-payment-failed) happens, [Scheduled payment](#scheduled-payment) is asked to [Retry](#retry).
+
+### Lists
+
+#### Due
+
+Payments still scheduled, ordered by when they're due.
+
+Scheduled payments that are scheduled, sorted by payment due date, A to Z.
+
+### What it is made of
+
+#### Instruction reference
+
+Text that must not be blank.
+
+#### Payment due date
+
+Text that must not be blank.
+
+Always true: a payment due date is present.
+
+#### Payment recipient
+
+Text that must not be blank.
+
+Always true: a payment recipient is present.
+
+#### Retry count
 
 A whole number.
 
 Always true: a retry count is non-negative.
 
-### Retry limit
+#### Retry limit
 
 A whole number.
 
 Always true: a retry limit is positive.
 
-### Retry on payment failure
-
-When [Scheduled payment failed](#scheduled-payment-failed) happens, [Scheduled payment](#scheduled-payment) is asked to [Retry](#retry).
-
-### Schedule
-
-Set up a payment to collect on a future date. Done by the customer.
-
-### Scheduled amount
+#### Scheduled amount
 
 Made up of cents (a whole number).
 
 Always true: a scheduled payment amount is positive.
-
-### Scheduled payment abandoned
-
-Recorded after [Abandon](#abandon).
-
-### Scheduled payment cancelled
-
-Recorded after [Cancel](#cancel).
-
-### Scheduled payment executed
-
-Recorded after [Execute](#execute).
-
-### Scheduled payment failed
-
-Recorded after [Fail](#fail) or [Retry](#retry). Prompts [Retry on payment failure](#retry-on-payment-failure).
 
 ## Statement
 
@@ -1127,35 +1640,49 @@ flowchart LR
 
 **Always true**
 
-- A Statement references an Account.
+- Each statement belongs to one account.
 - A statement names its period.
 - A statement is dated.
 
-### Generate
+### Actions
+
+#### Generate
 
 Close out one period's activity into a permanent record. Done by the system.
 
-### Statement amount
+Needs a period ([Statement period](#statement-period)), an opening balance ([Statement amount](#statement-amount)), a closing balance ([Statement amount](#statement-amount)), a generated on ([Statement date](#statement-date)), a frequency ([Statement frequency](#statement-frequency)), and an account ([Account](#account)).
 
-Made up of cents (a whole number).
+Allowed only when: customer is active; account is open.
 
-### Statement date
+Sets the account, the period, the opening balance, the closing balance, the generated on, and the frequency.
 
-Text.
+Records [Statement generated](#statement-generated).
 
-Always true: a statement is dated.
+### What it records
 
-### Statement frequency
-
-One of: monthly (retention months 84, paper fee cents 0); quarterly (retention months 120, paper fee cents 0); annual (retention months 240, paper fee cents 500).
-
-### Statement generated
+#### Statement generated
 
 Recorded after [Generate](#generate).
 
-### Statement period
+### What it is made of
 
-Text.
+#### Statement amount
+
+Made up of cents (a whole number).
+
+#### Statement date
+
+Text that must not be blank.
+
+Always true: a statement is dated.
+
+#### Statement frequency
+
+One of: monthly (retention months 84, paper fee cents 0); quarterly (retention months 120, paper fee cents 0); annual (retention months 240, paper fee cents 500).
+
+#### Statement period
+
+Text that must not be blank.
 
 Always true: a statement names its period.
 
@@ -1188,159 +1715,216 @@ stateDiagram-v2
     requested --> rejected: Reject
 ```
 
+- Marking a transfer debited moves it from requested to debited.
+- Marking a transfer credited moves it from debited to credited.
+- Settling a transfer moves it from credited to settled.
+- Reversing a transfer moves it from debited to reversed.
+- Rejecting a transfer moves it from requested to rejected.
+
 **Always true**
 
-- A Transfer references an Account.
-- A transfer is referenced.
+- Each transfer has one source account.
+- Each transfer has one destination account.
+- A transfer reference is never empty.
 - A transfer amount is positive.
 - A transfer explains itself.
 
-### Credited
+### Actions
+
+#### Credited
 
 Record that the destination credit committed. Done by the system.
 
-### Debited
+Allowed only when: the transfer is debited; destination customer is active; destination account is open.
+
+Moves the transfer from debited to credited.
+
+Records [Transfer credited](#transfer-credited).
+
+#### Debited
 
 Record that the source account has given up the money. Done by the system.
 
-### In flight
+Allowed only when: the transfer is requested; source customer is active; source account is open.
 
-Transfers that have left one account and not arrived at the other. The list that must always empty.
+Moves the transfer from requested to debited.
 
-### Narrative
+Records [Transfer debited](#transfer-debited).
 
-Made up of text (text).
-
-Always true: a transfer explains itself.
-
-### Reject
+#### Reject
 
 Refuse a transfer before any money moved. Done by the system.
 
-### Request
+Allowed only when: the transfer is requested; source customer is active; source account is open.
+
+Moves the transfer from requested to rejected.
+
+Records [Transfer rejected](#transfer-rejected).
+
+#### Request
 
 Send money to another account. Done by the customer.
 
-### Reverse
+Needs a reference ([Transfer reference](#transfer-reference)), an amount ([Transfer money](#transfer-money)), a narrative ([Narrative](#narrative-2)), a source ([Account](#account)), and a destination ([Account](#account)).
+
+Allowed only when: source customer is active; source account is open; a transfer names its source; a transfer goes somewhere; a transfer moves BETWEEN accounts.
+
+Sets the amount, the narrative, the source, the destination, and the reference.
+
+Records [Transfer requested](#transfer-requested).
+
+#### Reverse
 
 Put the money back when the credit could not be made. Done by the system.
 
-### Settle
+Allowed only when: the transfer is debited; source customer is active; source account is open.
+
+Moves the transfer from debited to reversed.
+
+Records [Transfer reversed](#transfer-reversed).
+
+#### Settle
 
 Record that the destination has received it. Done by the system.
 
-### Settlement
+Allowed only when: the transfer is credited; destination customer is active; destination account is open.
 
-Begins when [Transfer requested](#transfer-requested) happens and ends when [Transfer settled](#transfer-settled) happens. Along the way it can be requested, awaiting credit, settled, or reversed.
+Moves the transfer from credited to settled.
 
-### Transfer credited
+Records [Transfer settled](#transfer-settled).
+
+### What it records
+
+#### Transfer credited
 
 Recorded after [Credited](#credited).
 
-### Transfer debited
+#### Transfer debited
 
 Recorded after [Debited](#debited).
 
-### Transfer money
+#### Transfer rejected
+
+Recorded after [Reject](#reject).
+
+#### Transfer requested
+
+Recorded after [Request](#request-1).
+
+#### Transfer reversed
+
+Recorded after [Reverse](#reverse-2).
+
+#### Transfer settled
+
+Recorded after [Settle](#settle).
+
+### What happens on its own
+
+#### Settlement
+
+Begins when [Transfer requested](#transfer-requested) happens and ends when [Transfer settled](#transfer-settled) happens. Along the way it can be requested, awaiting credit, settled, or reversed.
+
+### Lists
+
+#### In flight
+
+Transfers that have left one account and not arrived at the other. The list that must always empty.
+
+Transfers that are debited, sorted by status.
+
+### What it is made of
+
+#### Narrative
+
+Made up of text (text, must not be blank).
+
+Always true: a transfer explains itself.
+
+#### Transfer money
 
 Made up of cents (a whole number).
 
 Always true: a transfer amount is positive.
 
-### Transfer reference
+#### Transfer reference
 
-Text.
+Text that must not be blank.
 
-Always true: a transfer is referenced.
-
-### Transfer rejected
-
-Recorded after [Reject](#reject).
-
-### Transfer requested
-
-Recorded after [Request](#request-1).
-
-### Transfer reversed
-
-Recorded after [Reverse](#reverse-2).
-
-### Transfer settled
-
-Recorded after [Settle](#settle).
+Always true: a transfer reference is never empty.
 
 ## Roles
 
-> Who does what. A role is named once here rather than under every term it touches.
+> Who does what. Each role is listed once, with the actions it is responsible for.
 
-### Back office
+#### Back office
 
 Responsible for [Correct fee](#correct-fee), [Correct interest](#correct-interest), [Amend](#amend), [Reverse](#reverse), [Retire](#retire), and [Abandon](#abandon).
 
-### Branch clerk
+#### Branch clerk
 
 Responsible for [Register](#register), [Close](#close), [Open (account)](#open), [Close account](#close-account), [Open (onboarding case)](#open-1), [Issue](#issue), and [Rent](#rent).
 
-### Compliance officer
+#### Compliance officer
 
 Responsible for [Suspend](#suspend), [Reinstate](#reinstate), [Freeze account](#freeze-account), [Unfreeze](#unfreeze), [Clear](#clear), [Decline](#decline), [Chargeback](#chargeback), and [Reject dispute](#reject-dispute).
 
-### Customer
+#### Customer
 
 Responsible for [Rename](#rename), [Withdraw](#withdraw), [Activate](#activate), [Dispute (withdrawal)](#dispute), [Dispute (card payment)](#dispute-1), [Surrender](#surrender), [Request (transfer)](#request-1), [Request (external transfer)](#request), [Recall](#recall), [Schedule](#schedule), and [Cancel](#cancel).
 
-### System
+#### System
 
 Responsible for [Apply fee](#apply-fee), [Accrue interest](#accrue-interest), [Capture](#capture), [Void](#void), [Refund](#refund), [Reverse (card payment)](#reverse-1), [Generate](#generate), [Debited](#debited), [Settle](#settle), [Credited](#credited), [Reverse (transfer)](#reverse-2), [Reject](#reject), [Send transfer](#send-transfer), [Return](#return), [Execute](#execute), [Fail](#fail), and [Retry](#retry).
 
-### Teller
+#### Teller
 
 Responsible for [Credit](#credit) and [Debit](#debit).
 
-### Vault officer
+#### Vault officer
 
 Responsible for [Log visit](#log-visit), [Issue key](#issue-key), [Annotate](#annotate), and [Return](#return-1).
 
 ## Read models
 
-> Questions answered across more than one of the things above.
+> Questions answered by reading more than one of the things above.
 
-### Accounts by kind
+#### Accounts by kind
 
 Every account the bank holds, sorted into what kind it is, then by its own number.
 
-### Compliance dashboard
+#### Compliance dashboard
 
 One account, its own status, and any card charges disputed against it — the working set for a compliance review.
 
-### Customer portfolio
+#### Customer portfolio
 
 A customer's cross-account position, rebuilt from aggregate heads.
 
-### Disputed payment average
+#### Disputed payment average
 
 The mean amount of an account's own disputed card charges — whether the total is one outlier or many similar ones.
 
-### Disputed payment count
+#### Disputed payment count
 
 How many of an account's own card charges are under dispute — a single number, not the rows themselves.
 
-### Disputed payment largest
+#### Disputed payment largest
 
 The largest amount among an account's own disputed card charges.
 
-### Disputed payment median
+#### Disputed payment median
 
 The median amount of an account's own disputed card charges.
 
-### Disputed payment p95
+#### Disputed payment p95
 
 The 95th percentile amount of an account's own disputed card charges — the tail risk a median alone hides.
 
-### Disputed payment smallest
+#### Disputed payment smallest
 
 The smallest amount among an account's own disputed card charges.
 
-### Disputed payment total
+#### Disputed payment total
 
 The total amount of an account's own disputed card charges — the exposure a risk manager wants first.

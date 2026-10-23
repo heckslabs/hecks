@@ -380,7 +380,7 @@
                 "op": "not"
               },
               "canonical": "!value.to_s.empty?",
-              "description": "a customer reference is present"
+              "description": "a customer number is never empty"
             }
           ],
           "members": [
@@ -3106,7 +3106,7 @@
                 "op": "not"
               },
               "canonical": "!value.to_s.empty?",
-              "description": "an onboarding case is referenced"
+              "description": "an onboarding reference is never empty"
             }
           ],
           "members": [
@@ -7757,7 +7757,7 @@
                 "op": "not"
               },
               "canonical": "!value.to_s.empty?",
-              "description": "a transfer is referenced"
+              "description": "a transfer reference is never empty"
             }
           ],
           "members": [

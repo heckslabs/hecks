@@ -75,12 +75,7 @@ RSpec.describe "none_in_state on an ordinary AGGREGATE-level query" do
     context "with a #{adapter}-backed aggregate" do
       let(:domain) { "AggregateAntiJoin#{adapter}Growth" }
 
-      around do |example|
-        Dir.mktmpdir("hecks-none-in-state-") do |dir|
-          @dir = dir
-          example.run
-        end
-      end
+      scratch_directory :dir, "hecks-none-in-state-"
 
       def boot_anti_join(adapter, adapter_files)
         chapter = domain

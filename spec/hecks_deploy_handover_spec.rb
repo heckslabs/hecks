@@ -64,7 +64,7 @@ RSpec.describe "the Deploy chapter's Handover", :io do
     with_domain do |domain|
       json, = clear(domain)
 
-      expect(json.dig("state", "output", "value")).to include("shop.world: cleared region, public_url")
+      expect(json.dig("state", "output")).to include("shop.world: cleared region, public_url")
     end
   end
 
@@ -112,7 +112,7 @@ RSpec.describe "the Deploy chapter's Handover", :io do
     with_domain("bluebook/shop.world" => "Hecks.world(\"Shop\") do\nend\n") do |domain|
       json, = clear(domain)
 
-      expect(json.dig("state", "output", "value")).to eq("no deployed_to settings to clear")
+      expect(json.dig("state", "output")).to eq("no deployed_to settings to clear")
     end
   end
 
@@ -122,7 +122,7 @@ RSpec.describe "the Deploy chapter's Handover", :io do
 
       sentence = "#{FAULT_PREFIX}#{domain}/bluebook holds no .world file to clear"
 
-      expect([status, json.dig("state", "refusal", "value")]).to eq([1, sentence])
+      expect([status, json.dig("state", "refusal")]).to eq([1, sentence])
     end
   end
 end

@@ -125,12 +125,12 @@ RSpec.describe "the Hecks command table through the launcher" do
 
   # A row's status beside the text of its `field`.
   def status_and(row, field)
-    [row.fetch("status"), row.dig(field, "value")]
+    [row.fetch("status"), row[field]]
   end
 
   # The names a listing query answers, read from each row's `key` field.
   def listed(query, key)
-    JSON.parse(run_verb(query).first).map { |row| row.dig(key, "value") }
+    JSON.parse(run_verb(query).first).map { |row| row[key] }
   end
 
   def journal_size
@@ -162,7 +162,7 @@ RSpec.describe "the Hecks command table through the launcher" do
       expect([status, JSON.parse(out).fetch("events")]).to eq([0, ["ModelCheckRequested"]])
       row = verdict_of("clean-1")
       expect(row.fetch("status")).to eq("clean")
-      expect(row.dig("report", "value")).to include("no dead states")
+      expect(row["report"]).to include("no dead states")
     end
 
     it "flags a domain whose model has a finding, and keeps what was found", :aggregate_failures do
@@ -170,7 +170,7 @@ RSpec.describe "the Hecks command table through the launcher" do
 
       row = verdict_of("shelf-1")
       expect(row.fetch("status")).to eq("flagged")
-      expect(row.dig("refusal", "value")).to include("Lend")
+      expect(row["refusal"]).to include("Lend")
       expect(listed("model_check_run.flagged", "run")).to include("shelf-1")
     end
 
@@ -207,7 +207,7 @@ RSpec.describe "the Hecks command table through the launcher" do
 
       row = outcome_of("refresh-1")
       expect(row.fetch("status")).to eq("succeeded")
-      expect(row.dig("output", "value")).to eq("refreshed 0 projection(s)")
+      expect(row["output"]).to eq("refreshed 0 projection(s)")
     end
 
     it "run_behaviors keeps the per-test report", :aggregate_failures do
@@ -215,7 +215,7 @@ RSpec.describe "the Hecks command table through the launcher" do
 
       row = outcome_of("behave-1")
       expect(row.fetch("status")).to eq("succeeded")
-      expect(row.dig("output", "value")).to include("Shelve records a book")
+      expect(row["output"]).to include("Shelve records a book")
     end
 
     it "run dispatches a verb against the domain", :aggregate_failures do
@@ -223,7 +223,7 @@ RSpec.describe "the Hecks command table through the launcher" do
 
       row = outcome_of("verb-1")
       expect(row.fetch("status")).to eq("succeeded")
-      expect(row.dig("output", "value")).to include("Dune")
+      expect(row["output"]).to include("Dune")
     end
 
     it "run keeps a refusal as a failed operation, with the domain's own sentence", :aggregate_failures do
@@ -231,7 +231,7 @@ RSpec.describe "the Hecks command table through the launcher" do
 
       row = outcome_of("verb-2")
       expect(row.fetch("status")).to eq("failed")
-      expect(row.dig("refusal", "value")).to include("title")
+      expect(row["refusal"]).to include("title")
       expect(listed("operation.failed", "run")).to include("verb-2")
     end
 
@@ -256,7 +256,7 @@ RSpec.describe "the Hecks command table through the launcher" do
 
       row = outcome_of("script-1")
       expect(row.fetch("status")).to eq("failed")
-      expect(row.dig("script", "value")).to end_with("no-such-steps.json")
+      expect(row["script"]).to end_with("no-such-steps.json")
     end
 
     it "smoke_test dispatches one call per command", :aggregate_failures do
@@ -264,7 +264,7 @@ RSpec.describe "the Hecks command table through the launcher" do
 
       row = outcome_of("smoke-1")
       expect(row.fetch("status")).to eq("succeeded")
-      expect(row.dig("output", "value")).to include("dispatched cleanly")
+      expect(row["output"]).to include("dispatched cleanly")
     end
 
     it "smoke_http fails without a signing secret in the environment, and never takes one as an argument", :aggregate_failures do
@@ -272,7 +272,7 @@ RSpec.describe "the Hecks command table through the launcher" do
 
       row = outcome_of("hook-1")
       expect(row.fetch("status")).to eq("failed")
-      expect(row.dig("refusal", "value")).to include("SMOKE_WEBHOOK_SECRET")
+      expect(row["refusal"]).to include("SMOKE_WEBHOOK_SECRET")
       expect(run_verb("operation.smoke_http", "--help").first).not_to include("secret")
     end
 
@@ -280,7 +280,7 @@ RSpec.describe "the Hecks command table through the launcher" do
       launched = open_console_sessions("console-1")
 
       expect(launched).to eq([:irb])
-      expect(outcome_of("console-1").dig("output", "value")).to include("console session ended")
+      expect(outcome_of("console-1")["output"]).to include("console session ended")
     end
   end
 
@@ -364,7 +364,7 @@ RSpec.describe "the Hecks command table through the launcher" do
 
       row = standing_of("http://127.0.0.1:1")
       expect(row.fetch("status")).to eq("unreachable")
-      expect(row.dig("refusal", "value")).to include("could not be reached")
+      expect(row["refusal"]).to include("could not be reached")
     end
 
     context "when the host answers an era", :io do
@@ -398,7 +398,7 @@ RSpec.describe "the Hecks command table through the launcher" do
 
       it "keeps the era a host reports, flags a drift, and rechecks the same host", :aggregate_failures do
         row = era_check("host.check_era", "eras-ok.txt", "abc123")
-        expect([row.fetch("status"), row.dig("era", "value"), row.dig("version", "value")]).to eq(%w[observed abc123 3.0.0])
+        expect([row.fetch("status"), row["era"], row["version"]]).to eq(%w[observed abc123 3.0.0])
 
         drifted = era_check("host.recheck", "eras-old.txt", "def456")
         expect(drifted.fetch("status")).to eq("drifted")
@@ -538,7 +538,7 @@ RSpec.describe "the Hecks command table through the launcher" do
 
       expect([status, JSON.parse(out).fetch("events")]).to eq([0, ["HekiCompactionRequested"]])
       row = settlement_of("compact-1")
-      expect([row.fetch("status"), row.dig("report", "value")]).to match(["settled", a_string_including(COMPACTED)])
+      expect([row.fetch("status"), row["report"]]).to match(["settled", a_string_including(COMPACTED)])
       expect(File.size(File.join(@dir, "data", "gadget.heki.journal"))).to eq(0)
     end
 
@@ -582,7 +582,7 @@ RSpec.describe "the Hecks command table through the launcher" do
 
       row = settlement_of("compact-3")
       expect(row.fetch("status")).to eq("refused")
-      expect(row.dig("refusal", "value")).to include("no such domain")
+      expect(row["refusal"]).to include("no such domain")
       expect(listed("era.abandoned", "run")).to include("compact-3")
     end
 
@@ -611,7 +611,7 @@ RSpec.describe "the Hecks command table through the launcher" do
       out, status = run_verb("operation.bootstrap_admin", crew, "email=ada@example.com", "name=Ada")
 
       expect(status).to eq(0)
-      expect(JSON.parse(out).dig("state", "output", "value")).to eq("Granted Admin access to ada@example.com (admitted first)")
+      expect(JSON.parse(out).dig("state", "output")).to eq("Granted Admin access to ada@example.com (admitted first)")
     end
 
     it "exits 1 for a second", :aggregate_failures do
@@ -651,7 +651,7 @@ RSpec.describe "the Hecks command table through the launcher" do
 
       row = pinning_of("payments@1.2.0")
       expect(row.fetch("status")).to eq("refused")
-      expect(row.dig("refusal", "value")).to include("no source repository")
+      expect(row["refusal"]).to include("no source repository")
       expect(listed("package.unpinned", "package")).to include("payments@1.2.0")
     end
 
@@ -764,7 +764,7 @@ RSpec.describe "the Hecks command table through the launcher" do
         out, status = run_verb("package.release", "widgets", "root=#{registry.path}")
 
         expect(status).to eq(0)
-        expect(JSON.parse(out).dig("state", "report", "value")).to include("git push origin widgets-v1.0.0")
+        expect(JSON.parse(out).dig("state", "report")).to include("git push origin widgets-v1.0.0")
         expect(registry.git("tag", "--list")).to eq("widgets-v1.0.0\n")
       end
 
@@ -974,7 +974,7 @@ RSpec.describe "the Hecks command table through the launcher" do
       served = served_by_mcp("mcp-1")
 
       expect(served).to eq([["--stdio"]])
-      expect(ended_of("mcp-1").dig("output", "value")).to eq("mcp server closed")
+      expect(ended_of("mcp-1")["output"]).to eq("mcp server closed")
     end
   end
 
@@ -1158,7 +1158,7 @@ RSpec.describe "the Hecks command table through the launcher" do
 
       expect(started).to eq([["bench", "--domain", "pizzas", "--iterations", "10", "--warmup", "0", "--runs", "1",
                               "--format", "json"]])
-      expect(conclusion_of("bench-1").dig("report", "value")).to include("ops/s")
+      expect(conclusion_of("bench-1")["report"]).to include("ops/s")
     end
 
     it "generate_sequence answers a replayable script, and writes no journal entry of its own", :aggregate_failures do

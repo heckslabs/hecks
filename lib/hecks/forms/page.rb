@@ -35,7 +35,7 @@ module Hecks
           #{body}
           </main>
           <footer class="site-footer">
-            <p>Generated straight from the loaded bluebook IR — nothing here is hand-authored per page. See <code>docs/command-form-and-query-form-bluebook.md</code>.</p>
+            <p>Every page here is generated from the domain's description (its bluebook). None is written by hand.</p>
           </footer>
           <script>#{SCRIPT}</script>
           </body>

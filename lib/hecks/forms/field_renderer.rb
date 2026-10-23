@@ -51,7 +51,7 @@ module Hecks
 
       def self.list_tail(field, item)
         <<~HTML
-            <span class="help" id="#{dom_id(field.path)}-help">One #{Escape.html(item.label.downcase)} per line#{" — each line is one JSON object" unless item.leaf?}.</span>
+            <span class="help" id="#{dom_id(field.path)}-help">One #{Escape.html(item.label.downcase)} per line#{", each line one JSON object" unless item.leaf?}.</span>
           </div>
         HTML
       end

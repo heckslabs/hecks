@@ -63,9 +63,9 @@ RSpec.describe "the Deploy chapter's SmokeRun", :io do
     runner.box_report(compose: images, containers: up.join("\n"))
   end
 
-  def report_of(json) = json.dig("state", "report", "value")
+  def report_of(json) = json.dig("state", "report")
 
-  def refusal_of(json) = json.dig("state", "refusal", "value")
+  def refusal_of(json) = json.dig("state", "refusal")
 
   it "is declared in the Deploy chapter, with the DeployToolchain port it asks" do
     commands = @hecks.registry.bluebook("Deploy").aggregate("SmokeRun").commands.map(&:hecks_name)
@@ -115,7 +115,7 @@ RSpec.describe "the Deploy chapter's SmokeRun", :io do
 
   def refusal_for(*argv)
     out, status = run_smoke(*argv)
-    [JSON.parse(out).dig("state", "refusal", "value"), status]
+    [JSON.parse(out).dig("state", "refusal"), status]
   end
 
   def project_with_generated_script
@@ -129,7 +129,7 @@ RSpec.describe "the Deploy chapter's SmokeRun", :io do
     out, status = run_smoke(project_with_generated_script)
 
     expect(status).to eq(0)
-    expect(JSON.parse(out).dig("state", "report", "value")).to eq("found-it")
+    expect(JSON.parse(out).dig("state", "report")).to eq("found-it")
   end
 
   it "flags a project with no script, and names script= as the way out", :aggregate_failures do
@@ -159,7 +159,7 @@ RSpec.describe "the Deploy chapter's SmokeRun", :io do
     dir = project_with_two_scripts
     out, = run_smoke(dir, "script=#{File.join(dir, "b", "smoke-after-deploy.sh")}")
 
-    expect(JSON.parse(out).dig("state", "report", "value")).to eq("b")
+    expect(JSON.parse(out).dig("state", "report")).to eq("b")
   end
 
   it "flags a script override that does not exist", :aggregate_failures do

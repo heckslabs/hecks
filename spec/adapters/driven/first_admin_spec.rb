@@ -18,14 +18,13 @@ RSpec.describe Hecks::Adapters::FirstAdmin do
     result = bootstrap.call(email: "ada@example.com", name: "Ada")
 
     expect(result.to_s).to eq("Granted Admin access to ada@example.com (admitted first)")
-    expect(people).to contain_exactly(include(email: { value: "ada@example.com" }, name: { value: "Ada" },
-                                              role: { value: "Admin" }))
+    expect(people).to contain_exactly(include(email: "ada@example.com", name: "Ada", role: "Admin"))
   end
 
   it "names the person by the start of their email when no name is given" do
     bootstrap.call(email: "ada@example.com")
 
-    expect(people.first.fetch(:name)).to eq(value: "ada")
+    expect(people.first.fetch(:name)).to eq("ada")
   end
 
   def admit_ada_beforehand
@@ -43,12 +42,12 @@ RSpec.describe Hecks::Adapters::FirstAdmin do
     result = bootstrap.call(email: "ada@example.com", name: "Ignored")
 
     expect(result.admitted).to be(false)
-    expect(people).to contain_exactly(include(name: { value: "Ada L" }, role: { value: "Admin" }))
+    expect(people).to contain_exactly(include(name: "Ada L", role: "Admin"))
   end
 
   it "grants the role it is asked for", :aggregate_failures do
     expect(bootstrap.call(email: "ada@example.com", role: "Owner").role).to eq("Owner")
-    expect(people.first.fetch(:role)).to eq(value: "Owner")
+    expect(people.first.fetch(:role)).to eq("Owner")
   end
 
   it "refuses once an administrator exists, naming them, and changes nothing", :aggregate_failures do
@@ -56,7 +55,7 @@ RSpec.describe Hecks::Adapters::FirstAdmin do
 
     expect { bootstrap.call(email: "grace@example.com") }
       .to raise_error(Hecks::Runtime::NotFound, /an administrator already exists \(ada@example.com\)/)
-    expect(people.map { |person| person.dig(:email, :value) }).to eq(["ada@example.com"])
+    expect(people.map { |person| person[:email] }).to eq(["ada@example.com"])
   end
 
   it "counts an Owner as an administrator too" do

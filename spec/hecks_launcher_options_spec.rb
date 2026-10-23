@@ -69,7 +69,7 @@ RSpec.describe "the launcher's opt-in options" do
 
       expect(status).to eq(0)
       expect(key).not_to be_empty
-      expect(JSON.parse(run_verb("query", "model_check_run.verdict", key).first).first.dig("run", "value")).to eq(key)
+      expect(JSON.parse(run_verb("query", "model_check_run.verdict", key).first).first["run"]).to eq(key)
     end
 
     it "refuses, saying to name a key, when no identity adapter can mint one" do
@@ -100,7 +100,7 @@ RSpec.describe "the launcher's opt-in options" do
       out, = run_verb("model_check_run.model_check", "run=mine-1", "domains=#{File.join(@dir, "clean")}")
 
       expect(JSON.parse(out)).not_to have_key("run")
-      expect(JSON.parse(run_verb("query", "model_check_run.verdict", "mine-1").first).first.dig("run", "value")).to eq("mine-1")
+      expect(JSON.parse(run_verb("query", "model_check_run.verdict", "mine-1").first).first["run"]).to eq("mine-1")
     end
 
     it "leaves a chapter that did not opt in alone" do

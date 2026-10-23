@@ -65,6 +65,13 @@ the repo; see `lib/hecks/forms/html.rb`'s own note). Concretely:
   visible focus rings, a `required` attribute and a visible `*` wherever a
   command actually requires the field (not decoration — read straight off
   `IR::Attribute#optional?`).
+- **Words a business person reads.** Headings, buttons, breadcrumbs and
+  verb lists say a command or query by its name in words (`AddTopping` reads
+  "Add topping"), the record picker is labelled by the aggregate ("Order")
+  with help naming what identifies one ("by the order's name"), a declared
+  `role` reads "Done by: Chef (not checked in this preview)", and `given`s
+  sit under "Checked first." The code name (`Pizzas::Order.AddTopping`)
+  stays in the Inspect panel, where a feature developer looks for it.
 - **Progressive enhancement, not a requirement.** Every form is a plain
   `method=post`/`method=get` HTML form; it works with JavaScript disabled.
   The ~20 lines of vanilla JS in `page.rb` (copy-to-clipboard, a live
@@ -142,7 +149,7 @@ plainly named an email address.
 | same-attribute `one_of` (>4 members) | `<select>`, same path rule |
 | `admits:` (a set declared elsewhere) | radio/select the same way, unwrapped through the attribute's *own* value-object shape if it has one — the SET and the WIRE SHAPE are resolved independently, because they can be declared in different places |
 | `{cents, currency}`-shaped value object | a `cents` number input (labelled "in cents", with a live "= $10.50" preview) + a plain currency text field — never a fabricated currency dropdown; nothing in the bluebook enumerates currencies, so nothing here invents a list |
-| single-attribute value object (`EmailAddress{address}`, `CustomerNumber{value}`) | unwrapped to the *inner* attribute's own shape, at the dotted path (`email.address`) — the [[feedback_name_the_scalar_field]] rule, applied to a form the same way it's applied to Ruby call sites |
+| single-attribute value object (`EmailAddress{address}`, `CustomerNumber{value}`) | unwrapped to the *inner* attribute's own shape, at the dotted path (`email.address`) — the [[feedback_name_the_scalar_field]] rule, applied to a form the same way it's applied to Ruby call sites. The label is the command's own name for the attribute (`topping`, not the inner `value`), and the help says what the value object accepts, from declared data only: the named `matches:` pattern, the type, and invariants simple enough to read (`value.positive?` reads as "a whole number above zero"); any other invariant is quoted by its description (`lib/hecks/forms/rule_words.rb`) |
 | any other multi-attribute value object | a `<fieldset>`, one input per field |
 | `reference_to` | `<select>` populated from the target aggregate's real records (id → id, capped at 200) — falls back to a plain text id input if the repository isn't reachable, never a 500 |
 | `list_of` | a textarea, one item per line; a multi-field element is read as one JSON object per line — the honest fallback where a second widget wasn't built |
@@ -295,3 +302,6 @@ banking's real attributes (no adapter needed; `Field` is pure IR reading).
 and the Memory adapter: content negotiation, a full create-then-show round
 trip, a sticky rejected submission, a parameterized query, lifecycle-aware
 command links on a record page, 404s.
+`spec/forms/form_wording_spec.rb` pins the words a form shows (labels, help,
+headings, buttons, role and precondition wording), and
+`spec/forms/rule_words_spec.rb` the plain-word reading of declared rules.

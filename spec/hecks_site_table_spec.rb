@@ -17,12 +17,7 @@ RSpec.describe "the Site row of the ADR command table" do
     @bluebook = @hecks.registry.bluebook("Site")
   end
 
-  around do |example|
-    Dir.mktmpdir("site_project") do |dir|
-      @dir = dir
-      example.run
-    end
-  end
+  scratch_directory :dir, "site_project"
 
   after do
     Hecks::Adapters::Codebase::Tree.root = nil
@@ -107,7 +102,7 @@ RSpec.describe "the Site row of the ADR command table" do
     json, = project_to(@dir, "--check")
 
     expect(json.dig("state", "status")).to eq("faulted")
-    expect(json.dig("state", "refusal", "value")).to include(
+    expect(json.dig("state", "refusal")).to include(
       "out of date", "routes.ts", "run hecks site site_projection.project_site"
     )
   end
@@ -126,7 +121,7 @@ RSpec.describe "the Site row of the ADR command table" do
 
     expect(status).to eq(1)
     expect(json.dig("state", "status")).to eq("faulted")
-    expect(json.dig("state", "refusal", "value")).to include("no chapter declares a value_object \"Route\"")
+    expect(json.dig("state", "refusal")).to include("no chapter declares a value_object \"Route\"")
   end
 
   it "runs outside a hecks checkout, since the tool ships in the gem and reads only the project", :aggregate_failures do

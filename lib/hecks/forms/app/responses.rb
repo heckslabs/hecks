@@ -1,5 +1,6 @@
 require "json"
 require_relative "../page"
+require_relative "../../runtime/value"
 
 module Hecks
   module Forms
@@ -13,8 +14,9 @@ module Hecks
           respond(status, "text/html; charset=utf-8", Page.render(title: title, body: body, breadcrumbs: breadcrumbs))
         end
 
+        # A single-field value object answers as its bare field, as `Json.materialize` does.
         def json(status, payload)
-          respond(status, "application/json", JSON.pretty_generate(payload))
+          respond(status, "application/json", JSON.pretty_generate(Runtime::Value.materialize_unwrapped(payload)))
         end
 
         def redirect(location)

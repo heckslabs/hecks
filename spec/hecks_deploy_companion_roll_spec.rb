@@ -88,7 +88,7 @@ RSpec.describe "the Deploy chapter's CompanionRoll", :io do
 
     expect(status).to eq(1)
     expect(json.dig("state", "status")).to eq("flagged")
-    expect(json.dig("state", "refusal", "value")).to include(*refusal_plan)
+    expect(json.dig("state", "refusal")).to include(*refusal_plan)
     expect(logged).to be_empty
   end
 
@@ -97,7 +97,7 @@ RSpec.describe "the Deploy chapter's CompanionRoll", :io do
 
     expect(status).to eq(0)
     expect(json.dig("state", "status")).to eq("planned")
-    expect(json.dig("state", "report", "value")).to include("dry run: nothing was run")
+    expect(json.dig("state", "report")).to include("dry run: nothing was run")
     expect(logged).to be_empty
   end
 
@@ -106,7 +106,7 @@ RSpec.describe "the Deploy chapter's CompanionRoll", :io do
 
     expect(status).to eq(0)
     expect(json.dig("state", "status")).to eq("rolled")
-    expect(json.dig("state", "report", "value")).to include("umami Up 15 seconds", "Umami is up on the box")
+    expect(json.dig("state", "report")).to include("umami Up 15 seconds", "Umami is up on the box")
     expect(logged).to include("deploy-umami.sh umami:4")
   end
 
@@ -115,21 +115,21 @@ RSpec.describe "the Deploy chapter's CompanionRoll", :io do
 
     expect(status).to eq(1)
     expect(json.dig("state", "status")).to eq("flagged")
-    expect(json.dig("state", "refusal", "value")).to include("companion roll ended 1", "Umami is NOT healthy")
+    expect(json.dig("state", "refusal")).to include("companion roll ended 1", "Umami is NOT healthy")
   end
 
   it "flags a stack with no box instance", :aggregate_failures do
     json, status = rolled("taskdef=umami:4", "confirm=true", env: { "STUB_NO_BOX" => "1" })
 
     expect(status).to eq(1)
-    expect(json.dig("state", "refusal", "value")).to include("no box instance")
+    expect(json.dig("state", "refusal")).to include("no box instance")
   end
 
   it "finds the script of another companion by name, and says how to name one when there is none", :aggregate_failures do
     json, status = rolled("taskdef=umami:4", "companion=metrics", "confirm=true", script: false)
 
     expect(status).to eq(1)
-    expect(json.dig("state", "refusal", "value")).to include("no deploy-metrics.sh", "script=<path>")
+    expect(json.dig("state", "refusal")).to include("no deploy-metrics.sh", "script=<path>")
   end
 
   it "lists the rolls that were flagged" do

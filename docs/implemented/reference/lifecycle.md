@@ -27,11 +27,11 @@ end
 ```
 
 ```ruby
-runtime.dispatch("Banking::Customer.Register", with: { reference: { value: "lc-1" },
+runtime.dispatch("Banking::Customer.Register", with: { reference: "lc-1",
                                                        name: { given: "Ada", family: "Byron" },
-                                                       email: { address: "ada@example.com" } })
-account = Banking::Account.open!(customer: "lc-1", number: { value: "lc-a1" },
-                                kind: { name: "current" }, daily_limit: { cents: 50_000 })
+                                                       email: "ada@example.com" })
+account = Banking::Account.open!(customer: "lc-1", number: "lc-a1",
+                                kind: "current", daily_limit: 50_000)
 ```
 
 ## transition
@@ -89,7 +89,7 @@ Given a list, the command may fire from any of several states —
 closes an account whether or not it was frozen first:
 
 ```ruby
-runtime.dispatch_flat("Banking::Account.CloseAccount", number: { value: "lc-a1" })
+runtime.dispatch_flat("Banking::Account.CloseAccount", number: "lc-a1")
 Banking::Account.find("lc-a1").status  # => "closed"
 ```
 
