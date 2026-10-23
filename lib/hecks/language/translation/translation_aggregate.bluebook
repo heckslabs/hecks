@@ -29,10 +29,8 @@ Hecks.bluebook "Translation" do
     attribute :converts,  list_of(TranslationConvert)
     attribute :drops,     list_of(TranslationName)
     attribute :retypes,   list_of(TranslationRetype)
-    attribute :computes,  list_of(TranslationCompute)
     attribute :derives,   list_of(TranslationDerive)
     attribute :rekeys,    list_of(TranslationRekey)
-    attribute :rekey_tos, list_of(TranslationRekeyTo)
     attribute :backfills, list_of(TranslationBackfill)
 
     # Field names mirror the Struct records in lib/hecks/bluebook/translation.rb, not the
@@ -58,22 +56,12 @@ Hecks.bluebook "Translation" do
       attribute :to,   TranslationName
     end
 
-    value_object "TranslationCompute" do
-      attribute :from, TranslationName
-      attribute :to,   TranslationName
-      attribute :sql,  TranslationLiteralText
-    end
-
     value_object "TranslationDerive" do
       attribute :to,         TranslationName
       attribute :expression, TranslationLiteralText
     end
 
     value_object "TranslationRekey" do
-      attribute :sql, TranslationLiteralText
-    end
-
-    value_object "TranslationRekeyTo" do
       attribute :to, TranslationName
     end
 
@@ -157,19 +145,6 @@ Hecks.bluebook "Translation" do
       emits "TranslationRetypeAdded"
     end
 
-    command "AddCompute" do
-      role "Deployment"
-      goal "Move data at an old path to a new one, transformed by a real SQL expression"
-
-      attribute :from, TranslationName
-      attribute :to,   TranslationName
-      attribute :sql,  TranslationLiteralText
-
-      sets :computes, append: { from: :from, to: :to, sql: :sql }
-
-      emits "TranslationComputeAdded"
-    end
-
     command "AddDerive" do
       role "Deployment"
       goal "Give a new field a value computed from the record's own text, read before any other rule runs"
@@ -182,24 +157,13 @@ Hecks.bluebook "Translation" do
       emits "TranslationDeriveAdded"
     end
 
-    command "AddRekey" do
-      role "Deployment"
-      goal "Recompute this aggregate's own identity by a real SQL expression"
-
-      attribute :sql, TranslationLiteralText
-
-      sets :rekeys, append: { sql: :sql }
-
-      emits "TranslationRekeyAdded"
-    end
-
     command "AddRekeyTo" do
       role "Deployment"
       goal "Take this aggregate's identity from the value of a field a derive computes"
 
       attribute :to, TranslationName
 
-      sets :rekey_tos, append: { to: :to }
+      sets :rekeys, append: { to: :to }
 
       emits "TranslationRekeyToAdded"
     end
@@ -234,9 +198,7 @@ Hecks.bluebook "Translation" do
       member word: "convert",         context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "converts", calls: "convert_impl"
       member word: "drop",            context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "drops"
       member word: "retype",          context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "retypes", calls: "retype_impl"
-      member word: "compute",         context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "computes", calls: "compute_impl"
       member word: "derive",          context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "derives", calls: "derive_impl"
-      member word: "rekey",           context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "rekeys", calls: "rekey_impl"
       member word: "rekey_to",        context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "rekeys", calls: "rekey_to_impl"
       member word: "backfill",        context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "backfills", calls: "backfill_impl"
       member word: "unresolved",      context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "", calls: "unresolved_impl"
@@ -270,12 +232,8 @@ Hecks.bluebook "Translation" do
       member keyword: "drop",            context: "TranslationAggregate", at: "1", named: "",       kind: "symbol",  required: "true", fills: "name", blank_message: "a drop needs a name"
       member keyword: "retype",          context: "TranslationAggregate", at: "1", named: "",       kind: "text",    required: "true", fills: "old_type"
       member keyword: "retype",          context: "TranslationAggregate", at: "",  named: "to", kind: "text", required: "true", fills: "to"
-      member keyword: "compute",         context: "TranslationAggregate", at: "1", named: "", kind: "text", required: "true", fills: "old_path"
-      member keyword: "compute",         context: "TranslationAggregate", at: "",  named: "to",      kind: "text",    required: "true", fills: "to"
-      member keyword: "compute",         context: "TranslationAggregate", at: "",  named: "sql",     kind: "text",    required: "true", fills: "sql"
       member keyword: "derive",          context: "TranslationAggregate", at: "1", named: "",   kind: "text", required: "true", fills: "to"
       member keyword: "derive",          context: "TranslationAggregate", at: "",  named: "as", kind: "text", required: "true", fills: "as"
-      member keyword: "rekey",           context: "TranslationAggregate", at: "",  named: "sql",     kind: "text",    required: "true", fills: "sql"
       member keyword: "rekey_to",        context: "TranslationAggregate", at: "1", named: "", kind: "symbol", required: "true", fills: "to"
       member keyword: "backfill",        context: "TranslationAggregate", at: "1", named: "", kind: "symbol", required: "true", fills: "name"
       member keyword: "backfill",        context: "TranslationAggregate", at: "",  named: "default", kind: "literal", required: "true", fills: "default"

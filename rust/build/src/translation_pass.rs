@@ -2,7 +2,7 @@
 //! edge made of renames and moves needs: the declared rules plus the SQL expression
 //! `Translation::RuleCompiler.compile_rules` builds for them.
 //!
-//! A rule kind this pass does not compile (convert, drop, retype, compute, rekey, backfill) is
+//! A rule kind this pass does not compile (convert, drop, retype, backfill) is
 //! refused by name, so a domain never ships an edge whose SQL was silently left out.
 
 use std::path::Path;
@@ -120,8 +120,6 @@ fn aggregate_json(aggregate: &Aggregate) -> Json {
         ("converts".into(), empty()),
         ("drops".into(), empty()),
         ("retypes".into(), empty()),
-        ("computes".into(), empty()),
-        ("rekeys".into(), empty()),
         ("backfills".into(), empty()),
         (
             "compiled_state_expression".into(),
@@ -213,7 +211,7 @@ mod tests {
 
     #[test]
     fn refuses_a_rule_it_cannot_compile() {
-        let text = "Hecks.data_translation \"A\", from: \"1\", to: \"2\" do\n  aggregate \"B\" do\n    compute :a, to: \"b\", sql: \"1\"\n  end\nend\n";
+        let text = "Hecks.data_translation \"A\", from: \"1\", to: \"2\" do\n  aggregate \"B\" do\n    backfill :a, default: 1\n  end\nend\n";
         assert!(edge(text).unwrap_err().contains("cannot compile"));
     }
 }

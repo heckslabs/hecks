@@ -18,6 +18,8 @@ module Hecks
       # a domain that holds no era answers that it holds none, and only `hold_first` holds one.
       # What a reading refuses is a `Runtime::NotFound`, the refusal a launcher words as an answer.
       module Readings
+        AUDIT_PASSED = "AUDIT PASSED \u2014 review the samples above; intent is yours to approve."
+
         include Scaffolding
         include Attestation
 
@@ -112,17 +114,7 @@ module Hecks
           return "#{held.bluebook.name} stands at era 1 — no edge to audit." unless finding
           raise Runtime::NotFound, "#{finding.report}\nAUDIT REFUSED." unless finding.ok
 
-          [finding.report, audit_verdict(finding.edge, path)].join("\n")
-        end
-
-        def audit_verdict(edge, path)
-          if Translation::ApprovalFile.needs_rehearsal?(edge)
-            "AUDIT PASSED — this edge carries a compute or rekey rule, and the samples above are its ONLY " \
-              "verification. If they show what you intended, rehearse it against a snapshot and run " \
-              "`hecks approve_translation #{path} --confirm` with the rehearsal; the mint refuses until then."
-          else
-            "AUDIT PASSED — review the samples above; intent is yours to approve."
-          end
+          [finding.report, AUDIT_PASSED].join("\n")
         end
       end
     end

@@ -88,40 +88,6 @@ module Hecks
           @retypes << TranslationRetype.new(old_type.to_s, to.to_s)
         end
 
-        # Declares a field computed by a hand-written Postgres SQL expression.
-        #
-        # The scaffold never proposes one; a human writes it, and human-sampled review is
-        # its only verification.
-        #
-        # @param old_path [String, Symbol] the source field's path in the held era
-        # @param to [String, Symbol] the field's path in the destination era
-        # @param sql [String] the Postgres SQL expression computing the destination value
-        # @return [Array<Bluebook::TranslationCompute>] every compute declared so far, this one
-        #   last
-        # @raise [Bluebook::DSL::Malformed] if `old_path`, `to`, or `sql` is empty
-        def compute_impl(old_path, to:, sql:)
-          raise Malformed, "a compute needs a destination path (to:)" if to.to_s.empty?
-          raise Malformed, "a compute needs a source path" if old_path.to_s.empty?
-          raise Malformed, "a compute needs its sql: expression" if sql.to_s.empty?
-
-          @computes << TranslationCompute.new(old_path.to_s, to.to_s, sql.to_s)
-        end
-
-        # Declares a hand-written Postgres SQL expression that recomputes the aggregate's own
-        # identity.
-        #
-        # No path arguments, unlike the rules above: only the record's key is recomputed, not
-        # state moved into it. Verified the same human-reviewed-only way as `compute`.
-        #
-        # @param sql [String] the Postgres SQL expression computing the destination identity
-        # @return [Array<Bluebook::TranslationRekey>] every rekey declared so far, this one last
-        # @raise [Bluebook::DSL::Malformed] if `sql` is empty
-        def rekey_impl(sql:)
-          raise Malformed, "a rekey needs its sql: expression" if sql.to_s.empty?
-
-          @rekeys << TranslationRekey.new(sql.to_s)
-        end
-
         # Declares a newly added, required attribute and the default existing records read
         # until a real value is written.
         #
@@ -161,7 +127,7 @@ module Hecks
         def build
           TranslationAggregate.new(
             name: @name, was: @was, renames: @renames, moves: @moves, converts: @converts,
-            drops: @drops, retypes: @retypes, computes: @computes, derives: @derives, rekeys: @rekeys,
+            drops: @drops, retypes: @retypes, derives: @derives, rekeys: @rekeys,
             backfills: @backfills
           )
         end
@@ -174,7 +140,6 @@ module Hecks
           @converts  = []
           @drops     = []
           @retypes   = []
-          @computes  = []
           @derives   = []
           @rekeys    = []
           @backfills = []
@@ -186,7 +151,7 @@ module Hecks
           rendered = Array(candidates).map { |candidate| render_path(candidate) }
           if rendered.empty?
             "#{@name}'s translation leaves #{render_path(name)} unresolved (no candidate matched — " \
-              "consider drop, or compute on Postgres) — replace unresolved with a real rule before booting."
+              "consider drop) — replace unresolved with a real rule before booting."
           else
             "#{@name}'s translation leaves #{render_path(name)} unresolved (candidates: #{rendered.join(", ")}) — " \
               "replace unresolved with a rename, move, convert, or drop before booting."

@@ -42,10 +42,6 @@ module Hecks
           end
         end
 
-        # @param _edge [Bluebook::Translation] unused
-        # @return [Array<Hash>] none: a postgres copy runs the compiled rules itself
-        def limits(_edge) = []
-
         private
 
         def schema_candidates(subject)

@@ -170,7 +170,7 @@ RSpec.describe "Booting a domain bound to a lazily loaded persistence plugin" do
       seen = run_fresh(full_boot_script)
 
       expect(seen).to include("plugin" => true)
-      expect(seen["gates"]).to include("era_compute_rules", "era_check")
+      expect(seen["gates"]).to include("era_check")
     end
   end
 end

@@ -41,14 +41,9 @@ RSpec.describe Hecks::Bluebook::TranslationPlan do
     expect(JSON.parse(JSON.generate(plan))).to eq(plan)
   end
 
-  it "is portable until an op names a storage engine" do
-    sql = declared { aggregate("Account") { compute "a", to: "b", sql: "a" } }.to_plan
-    expect([described_class.portable?(plan), described_class.portable?(sql)]).to eq([true, false])
-  end
-
   it "has an op for every rule list a TranslationAggregate holds" do
     lists = Hecks::Bluebook::TranslationAggregate::FIELD_DEFAULTS.keys - [:was]
-    ops = described_class::OPS - ["rekey_to"]
-    expect(ops.map { |op| op == "backfill" ? "backfills" : "#{op}s" }).to match_array(lists.map(&:to_s))
+    renamed = { "backfill" => "backfills", "rekey_to" => "rekeys" }
+    expect(described_class::OPS.map { |op| renamed.fetch(op, "#{op}s") }).to match_array(lists.map(&:to_s))
   end
 end

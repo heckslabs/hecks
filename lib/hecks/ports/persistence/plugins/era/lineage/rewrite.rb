@@ -33,7 +33,7 @@ module Hecks
           # The id a `rekey_to` gives a record: the value of its derive, read from the stored state;
           # the record keeps its id where the derive has no value or the edge has no `rekey_to`.
           def rekeyed_id(entry)
-            rekey = @rules.rekeys.find(&:pure?)
+            rekey = @rules.rekeys.first
             return entry.id unless rekey
 
             derive = @rules.derives.find { |candidate| candidate.to == rekey.to }

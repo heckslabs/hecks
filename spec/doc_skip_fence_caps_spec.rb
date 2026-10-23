@@ -17,7 +17,6 @@ RSpec.describe "```ruby skip fences in executable documentation" do
     "docs/implemented/guides/policies-and-process-managers.md" => 7,
     "docs/implemented/guides/queries-and-read-models.md"       => 12,
     "docs/implemented/guides/running-a-runtime.md"             => 3,
-    "docs/implemented/guides/schema-evolution.md"              => 1,
     "docs/implemented/guides/wiring.md"                        => 8,
     "docs/implemented/guides/writing-an-adapter.md"            => 11,
     "docs/implemented/reference/aggregate.md"                  => 1,

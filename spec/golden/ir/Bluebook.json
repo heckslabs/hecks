@@ -33898,24 +33898,6 @@
             [
               [
                 "script",
-                "translation_audit"
-              ],
-              [
-                "section",
-                "Custodian"
-              ],
-              [
-                "aggregate",
-                "Era"
-              ],
-              [
-                "verb",
-                "approve_translation"
-              ]
-            ],
-            [
-              [
-                "script",
                 "compact"
               ],
               [

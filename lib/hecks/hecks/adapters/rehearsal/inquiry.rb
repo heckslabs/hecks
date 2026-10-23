@@ -45,7 +45,7 @@ module Hecks
           refusals, after = edge ? @store.audit(@subject, edge) : [[], {}]
           rust = RustAudit.call(@subject, after)
           report = AuditReport.new(minting: minting, edge: edge, states: after, ruby: refusals, rust: rust)
-          answer(edge, report, (refusals + rust.violations).uniq, limits(edge, rust, report))
+          answer(edge, report, (refusals + rust.violations).uniq, limits(rust, report))
         end
 
         private
@@ -82,7 +82,7 @@ module Hecks
         def copy_facts = census.facts.merge(copy_empty: flag(copy_empty?))
 
         def edge_facts(edge)
-          { minting: plain(minting), edge_present: flag(!edge.nil?), edge_approved: flag(approved?(edge)) }
+          { minting: plain(minting), edge_present: flag(!edge.nil?) }
         end
 
         def eras = @eras ||= @store.eras(@subject)
@@ -97,16 +97,9 @@ module Hecks
           before == @subject.label ? "none" : "next"
         end
 
-        def approved?(edge)
-          return false unless edge
-
-          !Translation::ApprovalFile.needs_rehearsal?(edge) ||
-            !Translation::ApprovalFile.applicable(@subject.directory, edge).nil?
-        end
-
-        def limits(edge, rust, report)
+        def limits(rust, report)
           engine = rust.ran ? [] : [ENGINE_LIMIT]
-          engine + report.limits + ALWAYS + @store.limits(edge) + [journal_limit] + attached_limits +
+          engine + report.limits + ALWAYS + [journal_limit] + attached_limits +
             (@subject.held.capable? ? [] : [binding_note])
         end
 

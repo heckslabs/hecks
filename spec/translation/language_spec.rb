@@ -52,17 +52,6 @@ RSpec.describe "the translation language" do
         retype "Money", to: ""
       end
     } => "a retype needs a destination type name (to:)",
-    proc {
-      aggregate("Account") do
-        compute "price_cents", to: "", sql: "x"
-      end
-    } => "a compute needs a destination path (to:)",
-    proc { aggregate("Account") { compute "", to: "price_dollars", sql: "x" } } => "a compute needs a source path",
-    proc {
-      aggregate("Account") do
-        compute "price_cents", to: "price_dollars", sql: ""
-      end
-    } => "a compute needs its sql: expression",
     proc { aggregate("Account") { backfill "", default: "x" } } => "a backfill needs a name",
     proc {
       aggregate("Account") do
@@ -105,25 +94,6 @@ RSpec.describe "the translation language" do
     it "registers retired aggregates at the domain level" do
       translation = build_translation { retired "Ledger" }
       expect(translation.retired).to eq(["Ledger"])
-    end
-
-    describe "a compute" do
-      let(:declared) { declared_for { compute "price_cents", to: "price_dollars", sql: "price_cents::numeric / 100" } }
-      let(:lineage) { Hecks::Ports::Persistence::Lineage.new({}, computes: declared.computes) }
-
-      it "registers with its SQL expression" do
-        expect(declared.computes.map { |c| [c.from, c.to, c.sql] })
-          .to eq([["price_cents", "price_dollars", "price_cents::numeric / 100"]])
-      end
-
-      it "counts its from path as explained", :aggregate_failures do
-        expect(lineage.explains?("price_cents")).to be(true)
-        expect(lineage.computes?).to be(true)
-      end
-
-      it "leaves a translated entry's state as it was" do
-        expect(lineage.translate(entry_with(price_cents: 100)).state).to eq(price_cents: 100)
-      end
     end
 
     describe "a backfill" do
@@ -186,7 +156,7 @@ RSpec.describe "the translation language" do
     it "refuses a rule admitted elsewhere in the grammar, naming the legal words" do
       expect(refusal_for { aggregate("Account") { identified_by :cost } })
         .to eq("'identified_by' is not a word TranslationAggregate admits — legal words here: backfill, " \
-               "compute, convert, derive, drop, move, rekey, rekey_to, rename, retype, unresolved")
+               "convert, derive, drop, move, rekey_to, rename, retype, unresolved")
     end
 
     # A word admitted nowhere in the grammar is left to Ruby's NoMethodError, which `refusal_for`
@@ -207,7 +177,7 @@ RSpec.describe "the translation language" do
     it "an unresolved placeholder with no candidates can only boot into a refusal, never a guess" do
       expect(refusal_for { aggregate("Account") { unresolved "price.currency", candidates: [] } })
         .to eq("Account's translation leaves \"price.currency\" unresolved (no candidate matched — " \
-               "consider drop, or compute on Postgres) — replace unresolved with a real rule before booting.")
+               "consider drop) — replace unresolved with a real rule before booting.")
     end
   end
 

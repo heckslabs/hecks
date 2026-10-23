@@ -35,7 +35,6 @@ Hecks.bluebook "Hecks" do
     attribute :after,          ShapeLabel,  optional: true
     attribute :minting,        Minting,     optional: true
     attribute :edge_present,   Switch,      optional: true
-    attribute :edge_approved,  Switch,      optional: true
     attribute :refused_rows,   list_of(RefusedRow), optional: true
     attribute :refusal_total,  Count,       optional: true
     attribute :audited,        Switch,      optional: true
@@ -279,15 +278,14 @@ Hecks.bluebook "Hecks" do
       emits RehearsalBooted
     end
 
-    # The mint's own three layers and its edge, approval and coverage rules, run over the copy.
+    # The mint's own three layers and its edge and coverage rules, run over the copy.
     command "Audit" do
       role "System"
-      goal "Record whether an edge leads to the shape and is approved, and every row the mint's audit would refuse"
+      goal "Record whether an edge leads to the shape, and every row the mint's audit would refuse"
 
       reference_to RehearsalRun
       attribute :minting,       Minting
       attribute :edge_present,  Switch
-      attribute :edge_approved, Switch
       attribute :refused_rows,  list_of(RefusedRow), optional: true
       attribute :refusal_total, Count
       attribute :audited,       Switch
@@ -302,7 +300,6 @@ Hecks.bluebook "Hecks" do
 
       sets :minting
       sets :edge_present
-      sets :edge_approved
       sets :refused_rows
       sets :refusal_total
       sets :audited
@@ -326,7 +323,6 @@ Hecks.bluebook "Hecks" do
       attribute :verdict,       Verdict
       attribute :refusal_total, Count
       attribute :edge_present,  Switch
-      attribute :edge_approved, Switch
 
       given("a rehearsal that finds a refused row would not mint") { refusal_total.value == 0 }
       given("a rehearsal judged to mint names that verdict") { verdict.value == "would_mint" }
@@ -439,7 +435,7 @@ Hecks.bluebook "Hecks" do
 
   policy "RecordAuditWhenStoreExamined" do
     on      "RehearsalRun.StoreExamined"
-    trigger RehearsalRun::Audit, with: { minting: :minting, edge_present: :edge_present, edge_approved: :edge_approved,
+    trigger RehearsalRun::Audit, with: { minting: :minting, edge_present: :edge_present,
                                           refused_rows: :refused_rows, refusal_total: :refusal_total,
                                           audited: :audited, rows_examined: :rows_examined,
                                           rust_rows_examined: :rust_rows_examined,
@@ -451,11 +447,10 @@ Hecks.bluebook "Hecks" do
   policy "JudgeWhenNothingWouldStopTheMint" do
     on      "RehearsalRun.RehearsalAudited"
     where do
-      (minting.value != "next" || edge_present.value) && refusal_total.value == 0 &&
-        (minting.value != "next" || edge_approved.value)
+      (minting.value != "next" || edge_present.value) && refusal_total.value == 0
     end
     trigger RehearsalRun::Judge, with: { verdict: "would_mint", refusal_total: :refusal_total,
-                                          edge_present: :edge_present, edge_approved: :edge_approved }
+                                          edge_present: :edge_present }
   end
 
   policy "WithholdWhenNoEdgeLeadsOn" do
@@ -468,10 +463,9 @@ Hecks.bluebook "Hecks" do
   policy "WithholdWhenTheMintWouldRefuse" do
     on      "RehearsalRun.RehearsalAudited"
     where do
-      (minting.value != "next" || edge_present.value) &&
-        (refusal_total.value > 0 || (minting.value == "next" && !edge_approved.value))
+      (minting.value != "next" || edge_present.value) && refusal_total.value > 0
     end
     trigger RehearsalRun::Withhold, with: { verdict: "would_refuse",
-                                             refusal: "the mint would refuse: see the refused rows and the edge's approval" }
+                                             refusal: "the mint would refuse: see the refused rows" }
   end
 end

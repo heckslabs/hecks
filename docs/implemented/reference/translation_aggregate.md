@@ -20,9 +20,7 @@ Hecks.data_translation("ReferenceDomain2", from: "1", to: "2") do
     convert "status",    to: "state", values: { "open" => "active" }
     drop    :legacy_field
     retype  "OldType",   to: "NewType"
-    compute "amount",    to: "cents", sql: "amount * 100"
     derive  :label,      as: 'concat(upper(code), "-", lookup(tier, {"gold": "G"}, "S"))'
-    rekey sql: "new_id_expr"
     backfill :standing, default: "good"
   end
   aggregate "Member" do
@@ -117,24 +115,6 @@ A value object's or entity's own TYPE NAME changed, its member structure unchang
 runtime.registry.translations.last.aggregates.first.retypes.first.to_h  # => {from: "OldType", to: "NewType"}
 ```
 
-## compute
-
-<!-- generated:begin word=compute -->
-`compute old_path, to:, sql:` — fills `computes`
-
-| argument | kind | required | fills |
-|---|---|---|---|
-| positional 1 | text | true | old_path |
-| `to:` | text | true | to |
-| `sql:` | text | true | sql |
-<!-- generated:end -->
-
-A computed transform whose only implementation is the SQL expression itself — Postgres-only by construction. The scaffold never proposes one; a human writes it, and the audit's human-sampled review is its only verification.
-
-```ruby
-runtime.registry.translations.last.aggregates.first.computes.first.to_h  # => {from: "amount", to: "cents", sql: "amount * 100"}
-```
-
 ## derive
 
 <!-- generated:begin word=derive -->
@@ -152,22 +132,6 @@ A new field computed from the record's own text, in a small language with no sto
 runtime.registry.translations.last.aggregates.first.derives.first.to_h  # => {to: "label", expression: "concat(upper(code), \"-\", lookup(tier, {\"gold\": \"G\"}, \"S\"))"}
 ```
 
-## rekey
-
-<!-- generated:begin word=rekey -->
-`rekey sql:` — fills `rekeys`
-
-| argument | kind | required | fills |
-|---|---|---|---|
-| `sql:` | text | true | sql |
-<!-- generated:end -->
-
-THE AGGREGATE'S OWN IDENTITY, recomputed — not a field crossing a boundary (`move`), not a value's own transform (`compute`): the record's key. No path arguments, unlike every other rule here, because nothing is consumed from or moved into `state`, only what identifies the record. Same SQL-only, human-reviewed-sample-is-the-only-verification shape `compute` already has.
-
-```ruby
-runtime.registry.translations.last.aggregates.first.rekeys.first.to_h  # => {sql: "new_id_expr", to: nil}
-```
-
 ## rekey_to
 
 <!-- generated:begin word=rekey_to -->
@@ -181,7 +145,7 @@ runtime.registry.translations.last.aggregates.first.rekeys.first.to_h  # => {sql
 Makes the aggregate's identity the value of a field a `derive` computes, so the expression is written once. The derive must be declared before it, and an aggregate is rekeyed once. A record keeps its old id where the derive has no value. Unlike `rekey`, it is pure: no SQL, no approval, and `Lineage#translate` changes the id in process the same way the Postgres head does.
 
 ```ruby
-runtime.registry.translations.last.aggregates.last.rekeys.first.to_a  # => [nil, "email"]
+runtime.registry.translations.last.aggregates.last.rekeys.first.to_a  # => ["email"]
 ```
 
 ## backfill

@@ -103,14 +103,9 @@ RSpec.describe "the derive rule" do
       expect(Hecks::Ports::Persistence::Lineage.from_declared(rekeyed, "Member").rekey?).to be(true)
     end
 
-    it "needs no approval, unlike a rekey written in SQL" do
-      sql = edge { aggregate("Member") { rekey sql: "state->>'a'" } }.for_aggregate("Member")
-      expect([rekeyed.needs_approval?, sql.needs_approval?]).to eq([false, true])
-    end
-
-    it "is left out of what an approval digests but exported with its field" do
+    it "is exported with the field it takes the id from" do
       exported = Hecks::Projector::Exporter.send(:compiled_translation_aggregate, rekeyed)
-      expect(exported).to include(rekeys: [], rekey_to: "email")
+      expect(exported).to include(rekey_to: "email")
     end
 
     it "compiles the id to the derive's value or the old id" do

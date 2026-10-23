@@ -29,7 +29,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     operation.smoke_test operation.smoke_http operation.outcome operation.failed
     operation.follow host.check_era host.recheck host.standing
     host.drifted era.hold_first era.merge_tail era.reattest
-    era.backfill_projections era.compact era.compact_heki era.approve_translation
+    era.backfill_projections era.compact era.compact_heki
     era.settlement era.abandoned era.scaffold_translation era.audit_translation
     era.attestation era.compaction package.vendor package.revendor
     package.pinning package.unpinned package.verify package.digest package.check package.release
@@ -388,7 +388,8 @@ RSpec.describe "the Hecks command table through the launcher" do
         server.close
       end
 
-      # Writes the expected era to `file`, asks `verb` about the host against it and answers the standing.
+      # Writes the expected era to `file`, asks `verb` about the host against it and answers the
+      # standing.
       def era_check(verb, file, era)
         write(file, "#{era}\n")
         run_verb(verb, url, "expected=#{File.join(@dir, file)}")
@@ -418,7 +419,8 @@ RSpec.describe "the Hecks command table through the launcher" do
     HEKI_FIXTURE = File.join(InMemoryDomain::ROOT, "spec/fixtures/heki_compact_fixture/bluebook").freeze
     BANKING_EXAMPLE = File.join(InMemoryDomain::ROOT, "examples/banking/bluebook").freeze
 
-    # Seeding and compaction write the journal under the shared data directory; each example starts clean.
+    # Seeding and compaction write the journal under the shared data directory; each example
+    # starts clean.
     after { FileUtils.rm_rf(File.join(@dir, "data")) }
 
     COMPACTED = "COMPACTED gadget: discarded 3 journal entries".freeze
@@ -462,7 +464,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     end
 
     it "refuses every change that changes something until it is confirmed, and records nothing", :aggregate_failures do
-      %w[era.hold_first era.merge_tail era.compact era.compact_heki era.approve_translation].each do |verb|
+      %w[era.hold_first era.merge_tail era.compact era.compact_heki].each do |verb|
         expect(unconfirmed_attempt(verb)).to include(status: 1, out: include("is confirmed"), recorded: false)
       end
       expect(run_verb("era.reattest", @shelf, "era=1", "run=unconfirmed-reattest").last).to eq(1)

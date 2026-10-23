@@ -18,20 +18,17 @@ module Hecks
 
           # Registers this plugin's era gates on one boot's gate list.
           #
-          # Two `:pre_verify` gates: `era_compute_rules` always runs; `era_check` (ADR 0031)
-          # runs only when the registry binds something lineage-capable.
+          # One `:pre_verify` gate, `era_check` (ADR 0031), registered only when the registry
+          # binds something lineage-capable.
           #
           # @param registry [Runtime::Registry] the registry being booted, asked whether any
           #   bluebook's first aggregate is bound to a lineage-capable adapter
           # @param gates [Runtime::BootGates] this boot's gate list, registered onto in place
           # @return [Runtime::BootGates, nil] `gates` when `:era_check` was registered; nil when
-          #   the registry binds nothing lineage-capable, so only `:era_compute_rules` was added
+          #   the registry binds nothing lineage-capable
           # @raise [Runtime::WiringError] if an aggregate's persistence binding is missing,
           #   ambiguous, or carries an unsupported role
           def contribute_boot_gates(registry, gates)
-            gates.register(:era_compute_rules, lambda { |reg, _dir|
-              Runtime::EraCheck.check_compute_rules_for_registry!(reg)
-            }, phase: :pre_verify)
             gates.register(:era_check, Runtime::EraCheck.method(:check_lineage!), phase: :pre_verify) if
               Runtime::EraCheck.lineage_capable_registry?(registry)
           end
