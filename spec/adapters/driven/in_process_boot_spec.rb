@@ -120,6 +120,10 @@ RSpec.describe Hecks::Adapters::InProcessBoot do
       .to include("Shelf --shared_kernel--> Governance")
   end
 
+  it "answers a starting world, and that none is needed when the domain binds only memory" do
+    expect(adapter.world_skeleton(domain: domain).fetch(:text)).to eq(Hecks::Projections::WorldSkeleton::NONE)
+  end
+
   it "refuses an aggregate that does not exist, as the projection does" do
     expect { adapter.narrate(domain: domain, aggregate: { value: "Nope" }) }.to raise_error(Hecks::Runtime::NotFound)
   end
