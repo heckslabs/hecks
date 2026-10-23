@@ -5314,6 +5314,58 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn the_first_admin_of_a_site_must_be_open_ended() {
+        let (client, domain_ir) = scratch_members_db("hecks_host_web_test_open_first").await;
+        // Nobody holds an admin role yet.
+        client
+            .lock()
+            .await
+            .execute("UPDATE acme_member_head_snapshot_1 SET state = state - 'role' WHERE id = 'zed@example.com'", &[])
+            .await
+            .unwrap();
+        let outcome = |days: Option<&'static str>, who: &'static str| {
+            let (client, domain_ir) = (&client, &domain_ir);
+            async move {
+                auth::grant_access_until(
+                    client,
+                    Path::new("unused"),
+                    &members_config(),
+                    domain_ir,
+                    who,
+                    "Admin",
+                    days,
+                )
+                .await
+                .unwrap()
+            }
+        };
+        assert_eq!(
+            outcome(Some(FUTURE), "zed@example.com").await,
+            auth::GrantOutcome::LastOpenAdmin
+        );
+        assert_eq!(
+            person(&client, &domain_ir, "zed@example.com").await["role"],
+            Value::Null
+        );
+
+        // Open-ended first admin is allowed, and a windowed second one after it.
+        assert_eq!(
+            outcome(None, "zed@example.com").await,
+            auth::GrantOutcome::Done
+        );
+        let r = form_status(
+            &client,
+            &domain_ir,
+            "zed@example.com",
+            "amy%40example.com",
+            "Admin",
+            "5",
+        )
+        .await;
+        assert_eq!(r["statusCode"], 302, "{r:?}");
+    }
+
+    #[tokio::test]
     async fn a_json_grant_to_a_new_person_never_trips_the_open_ended_guard() {
         let secret = "s3cret";
         let (client, domain_ir) = scratch_members_db("hecks_host_web_test_open_json").await;

@@ -863,15 +863,20 @@ fn is_open_admin(state: &Value) -> bool {
 }
 
 // Whether replacing the row `id` with `after` would leave the site with no
-// open-ended admin where it had one. A site that has none already (it was
-// never given one) is not made worse by a change, so this stays false there.
+// open-ended admin where it had one, or would make the site's first admin one
+// with an end date. A site that has admins but none open-ended (it was never
+// given one) is not made worse by a change, so this stays false there.
 fn strands_open_admin(rows: &[(String, Value)], id: &str, after: &Value) -> bool {
     let had = rows.iter().any(|(_, s)| is_open_admin(s));
     let keeps = is_open_admin(after)
         || rows
             .iter()
             .any(|(other, s)| other.to_lowercase() != id.to_lowercase() && is_open_admin(s));
-    had && !keeps
+    let first_admin = !rows
+        .iter()
+        .any(|(_, s)| role_of(s).is_some_and(is_admin_role));
+    let windowed_first = first_admin && role_of(after).is_some_and(is_admin_role) && !keeps;
+    (had && !keeps) || windowed_first
 }
 
 /// Whether the person with `email` (compared case-insensitively) is an
