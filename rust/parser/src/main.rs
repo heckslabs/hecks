@@ -203,6 +203,8 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("port", "Adapter"),
     ("field", "Adapter"),
     ("secret", "Adapter"),
+    ("answers_query", "Adapter"),
+    ("runs", "Adapter"),
     ("world", "File"),
     ("realm", "World"),
     ("latest", "World"),

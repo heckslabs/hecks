@@ -19,6 +19,11 @@ Hecks.adapter("reference_memory") do
   field  :region, default: "us-east-1"
   secret :api_key
 end
+
+Hecks.adapter("reference_plugin") do
+  answers_query "Calendar::Event.Occurrences"
+  runs "occurrences.wasm"
+end
 ```
 
 ## port
@@ -80,5 +85,52 @@ Names one SENSITIVE config value a world's own wiring for this adapter must supp
 
 ```ruby
 runtime.registry.adapters["reference_memory"].secrets  # => [:api_key]
+```
+
+## answers_query
+
+<!-- generated:begin word=answers_query -->
+`answers_query answers` — fills `answers`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | answers |
+<!-- generated:end -->
+
+Names one query a plugin answers, written in full as `Chapter::Aggregate.Query`, called once per
+query. The query is declared in the bluebook with `returns`, as any query answered from outside
+is; what differs is that no hecksagon line binds it. At boot the runtime binds each `returns`
+query no hecksagon binds to the one plugin that says it answers it, so a package that ships its
+plugin beside its bluebook needs no wiring in the project that vendors it. Two plugins naming
+one query is refused rather than chosen between, and a hecksagon `answers_query` binding still
+wins over a plugin. Only an adapter that `runs` a module may answer queries.
+
+```ruby
+runtime.registry.adapters["reference_plugin"].answered_queries  # => ["Calendar::Event.Occurrences"]
+```
+
+## runs
+
+<!-- generated:begin word=runs -->
+`runs runs` — fills `runs`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | runs |
+<!-- generated:end -->
+
+Names the wasm module a plugin runs, a file beside its `.adapter` (never a path out of that
+directory). The module is a WASI command: it reads one question as JSON on stdin,
+`{"question": "Calendar::Event.Occurrences", "args": {...}}`, and writes one answer as JSON on
+stdout, `{"rows": [...]}` or `{"refused": "why"}`. An argument declared with `reference_to`
+arrives as the state of the record it names, so the plugin never reaches the store. The module
+gets no files, network, environment or arguments: it answers from its question alone, so the
+same question always gets the same answer (the Ruby runtime also fixes its clock and randomness).
+The Ruby runtime and the Rust host run the same module; the IR carries it to the host, so every
+deploy that ships the IR ships the plugin. Ruby compiles it at boot, so a missing or broken
+module stops the boot, not the first question. Running one on Ruby needs the `wasmtime` gem.
+
+```ruby
+runtime.registry.adapters["reference_plugin"].runs  # => "occurrences.wasm"
 ```
 

@@ -11,6 +11,7 @@ require_relative "value"
 require_relative "query_interpreter/arguments"
 require_relative "query_interpreter/entity_rows"
 require_relative "query_interpreter/outside_answer"
+require_relative "query_interpreter/plugin_answer"
 
 module Hecks
   module Runtime
@@ -20,6 +21,7 @@ module Hecks
       include Arguments
       include EntityRows
       include OutsideAnswer
+      include PluginAnswer
 
       attr_reader :registry
 
@@ -42,6 +44,8 @@ module Hecks
         args = normalize_args(aggregate, declared, args)
         port = aggregate.query_binding(declared.name)
         return answered_from_outside(aggregate, declared, args, port) if port
+        plugin = answering_plugin(domain, aggregate, declared)
+        return answered_by_plugin(domain, aggregate, declared, args, plugin) if plugin
 
         Freezer.deep(local_answer(domain, aggregate, declared, args))
       end
@@ -64,6 +68,8 @@ module Hecks
         # takes it through the same shape check, so a diff against #call sees only the adapter.
         port = aggregate.query_binding(declared.name)
         return answered_from_outside(aggregate, declared, args, port) if port
+        plugin = answering_plugin(domain, aggregate, declared)
+        return answered_by_plugin(domain, aggregate, declared, args, plugin) if plugin
 
         declared = TenantScope.apply(declared, args)
         reference_interpret(@registry.repository(domain, aggregate).all, declared, args,

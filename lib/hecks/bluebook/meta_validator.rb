@@ -71,7 +71,8 @@ module Hecks
       # @raise [DSL::Malformed] if `AdapterJudge` finds `adapter` malformed
       def self.call_adapter(adapter)
         judge_artifact(adapter, AdapterJudge, "#{adapter.name}'s adapter") do
-          JSON.generate([adapter.name, adapter.port, adapter.fields, adapter.secrets, adapter.declared_defaults])
+          JSON.generate([adapter.name, adapter.port, adapter.fields, adapter.secrets, adapter.declared_defaults,
+                         adapter.answered_queries, adapter.runs])
         end
       end
 
