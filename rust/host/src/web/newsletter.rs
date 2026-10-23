@@ -14,6 +14,7 @@ use tokio::sync::Mutex;
 use tokio_postgres::Client;
 
 mod cooldown;
+mod naming;
 mod template;
 #[cfg(test)]
 mod tests;
@@ -52,7 +53,8 @@ pub(super) async fn newsletter_route(
 }
 
 // Called twice by the two-step signup form: first without a name (Subscribe),
-// then with one (AddName).
+// then with one (AddName). The reply is the same whether or not the address
+// was already on the list, so the form cannot be used to learn who is.
 async fn newsletter_subscribe_route(
     provider: &NewsletterProvider,
     raw_body: &str,
@@ -96,12 +98,10 @@ async fn newsletter_subscribe_route(
         .any(|(id, _)| id == email);
 
     if existing {
+        let token = body.get("token").and_then(|v| v.as_str());
         if let (Some(first), Some(last)) = (first_name, last_name) {
-            let facts = json!({"first_name": {"value": first}, "last_name": {"value": last}});
-            if let Err(e) =
-                dispatch::handle_routed(host, &provider.add_name, json!(email), facts, None).await
-            {
-                return respond(500, "text/plain", &format!("{e:#}"));
+            if may_name(naming_window(), confirm_secret().as_deref(), email, token) {
+                add_name(provider, email, first, last, host).await;
             }
         }
     } else {
@@ -123,33 +123,56 @@ async fn newsletter_subscribe_route(
                 &last_refusal(&outcome.result).to_string(),
             );
         }
+        naming_window().opened(email);
         send_confirmation(email).await;
     }
 
     // Confirm is not dispatched here: a new subscriber stays `pending`
-    // until they follow the confirm link (the route below). This route only
-    // reports where the subscriber ended up.
-    let read = match dispatch::read(client, wasm_path).await {
-        Ok(r) => r,
-        Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
-    };
-    let subscribers = instances_for(&read, &provider.instance_prefix());
-    let Some((_, subscriber)) = subscribers.iter().find(|(id, _)| id == email) else {
-        return respond(
-            500,
-            "text/plain",
-            "subscriber vanished immediately after being written",
-        );
-    };
-    let status = subscriber
-        .get("status")
-        .and_then(|v| v.as_str())
-        .unwrap_or_else(|| provider.initial_status());
+    // until they follow the confirm link (the route below), and that is
+    // what every reply says.
     respond(
         200,
         "application/json",
-        &json!({"email": email, "status": status}).to_string(),
+        &json!({"email": email, "status": provider.initial_status()}).to_string(),
     )
+}
+
+// Names an address already on the list only in the form's second step, shortly after this process
+// took its Subscribe, or with the address's own confirm token.
+fn may_name(
+    naming: &naming::NamingWindow,
+    secret: Option<&str>,
+    email: &str,
+    token: Option<&str>,
+) -> bool {
+    let signed = match (secret, token) {
+        (Some(secret), Some(token)) => confirm_token_matches(secret, token, email),
+        _ => false,
+    };
+    signed || naming.is_open(email)
+}
+
+// Best-effort, like the confirmation email: a name the subscriber's lifecycle refuses is logged,
+// and the reply stays the one every subscribe request gets.
+async fn add_name(
+    provider: &NewsletterProvider,
+    email: &str,
+    first: &str,
+    last: &str,
+    host: Host<'_>,
+) {
+    let facts = json!({"first_name": {"value": first}, "last_name": {"value": last}});
+    if let Err(e) =
+        dispatch::handle_routed(host, &provider.add_name, json!(email), facts, None).await
+    {
+        eprintln!("newsletter: the subscriber's name was not recorded: {e:#}");
+    }
+}
+
+// Per-process only (not shared across instances); see `NamingWindow`.
+fn naming_window() -> &'static naming::NamingWindow {
+    static NAMING: OnceLock<naming::NamingWindow> = OnceLock::new();
+    NAMING.get_or_init(|| naming::NamingWindow::new(naming::WINDOW, naming::CAPACITY))
 }
 
 // Reads directly off `instances`, not `dispatch::query`: Subscriber lives
@@ -230,8 +253,13 @@ fn confirm_url(site_url: &str, email: &str, token: &str) -> String {
 // Per-process only (not shared across instances); see `ConfirmationCooldown`.
 fn confirmation_cooldown() -> &'static cooldown::ConfirmationCooldown {
     static COOLDOWN: OnceLock<cooldown::ConfirmationCooldown> = OnceLock::new();
-    COOLDOWN
-        .get_or_init(|| cooldown::ConfirmationCooldown::new(cooldown::WINDOW, cooldown::CAPACITY))
+    COOLDOWN.get_or_init(|| {
+        cooldown::ConfirmationCooldown::new(
+            cooldown::WINDOW,
+            cooldown::CAPACITY,
+            cooldown::GLOBAL_LIMIT,
+        )
+    })
 }
 
 fn confirmation_body(confirm_url: &str) -> String {
@@ -260,7 +288,7 @@ pub(super) async fn send_confirmation(email: &str) {
         }
     };
     if !confirmation_cooldown().try_acquire(email) {
-        eprintln!("newsletter: a confirmation was already emailed to this address in the last 10 minutes, so none was sent; the subscriber stays pending");
+        eprintln!("newsletter: no confirmation was sent, since this mailbox had one in the last 10 minutes or the cap on confirmations per 10 minutes is reached; the subscriber stays pending");
         return;
     }
     let site = site_url();
