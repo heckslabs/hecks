@@ -5,7 +5,9 @@ Dates are when a change landed on `main`, not when this file was written.
 Entries below are grouped by theme, not itemized commit-by-commit; see
 `git log` for the full history.
 
-## [Unreleased] - planned 4.0.0
+## [Unreleased]
+
+## [4.0.0] - 2026-10-23
 
 - **Breaking (4.0.0): `compute` and `rekey sql:` are removed from the translation language, and with them the approval a SQL edge needed (ADR 0118).** The two rules that took a raw Postgres expression are gone: a translation file that declares `compute ... sql:` or `rekey sql:` stops loading. `derive` (a new field computed from the record's own text, no SQL) and `rekey_to` (the id is the value of a derive) replace them, run on every adapter, and are held to the same answer in Ruby and in the Postgres head by a spec. Because no rule is left that only a person can verify, the machinery that reviewed such edges is deleted: `hecks era.approve_translation` and the `Era.ApproveTranslation` command, `hecks audit_translation --approve`, the committed `translations/<from>-<to>.approval` file and `Hecks::Translation::ApprovalFile`, the `hecks_approvals` journal table (a deployed one is left in place and ignored) and `Lineage#record_approval!`, the Rust host's approval boot phase (`approval.rs`) and the `approvals` key of `ir.json`, the `compute rules require the Postgres adapter` boot refusal, and the `needs_approval?` / `sql_rekeys` / `computes` readers on `Bluebook::TranslationAggregate`. `Bluebook::TranslationCompute` is gone and `TranslationRekey` holds only the field it takes the id from. `Translation#to_plan` has no `compute` or `rekey` op. The rehearsal (`hecks rehearsal_run`) is unchanged except that it no longer asks whether an edge is approved. Migrate a `compute` to a `derive` plus a `drop` of the field it read, and a `rekey sql:` to a `derive` plus `rekey_to`; a transform the expression language cannot say (arithmetic, a pattern) has no replacement yet. A journal that already holds an era minted from such an edge keeps working, since a minted era stores the SQL it was minted with. Until 4.0.0 is released this is on `edge`, not on a published version.
 
