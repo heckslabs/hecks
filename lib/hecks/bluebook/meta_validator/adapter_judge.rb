@@ -36,9 +36,11 @@ module Hecks
         end
 
         def judge!
-          send_to("Adapter::Adapter.Declare", @adapter.name, name: v(@adapter.name), port: v(@adapter.port))
+          send_to("Adapter::Adapter.Declare", @adapter.name, name: v(@adapter.name), port: v(@adapter.port),
+                                                             runs: v(@adapter.runs))
           add_fields
           add_all("AddSecret", @adapter.secrets)
+          add_all("AnswerQuery", @adapter.answered_queries)
         end
 
         # Offers one `AddField` per field, each with its declared default when it has one.

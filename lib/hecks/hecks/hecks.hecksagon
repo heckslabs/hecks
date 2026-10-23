@@ -68,6 +68,22 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  Hecks::PushTrain.port "Train" do
+    asks "Carry", to: PushTrain do
+      attribute :run, RunKey
+      answers "TrainAnswered"
+      refuses "TrainRefused"
+    end
+  end
+
+  Hecks::PushTrain.port "Alerts" do
+    asks "Announce", to: PushTrain do
+      attribute :run, RunKey
+      answers "DeployReadyAnnounced"
+      refuses "AnnouncementRefused"
+    end
+  end
+
   Hecks::Era.port "JournalStore" do
     asks "Examine", to: Era do
       attribute :run, RunKey
@@ -558,6 +574,8 @@ Hecks.hecksagon "Hecks" do
     answers_query "History"
     answers_query "Statements"
     answers_query "Narrate"
+    answers_query "Relationships"
+    answers_query "WorldSkeleton"
     answers_query "Docs"
     answers_query "ProjectDiagrams"
     answers_query "Glossary"

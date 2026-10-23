@@ -1,3 +1,5 @@
+require_relative "../../projections/context_relationships"
+
 module Hecks
   module CLI
     module ModelCheck
@@ -7,9 +9,41 @@ module Hecks
         # @api private
         def examine_all(booted, options)
           known_domains = booted.flat_map { |_, registry| registry.bluebooks.keys + registry.hecksagons.keys }.to_set
-          shared = { known_domains: known_domains, global_emitted_events: emitted_events_of(booted) }
+          owners = aggregate_owners_of(booted)
+          shared = { known_domains: known_domains, global_emitted_events: emitted_events_of(booted),
+                     aggregate_owners: owners }
 
-          booted.reduce(true) { |all_ok, (name, registry)| domain_passes?(name, registry, options, **shared) && all_ok }
+          domains_ok = booted.reduce(true) do |all_ok, (name, registry)|
+            domain_passes?(name, registry, options, shared) && all_ok
+          end
+          contexts_pass?(booted, owners) && domains_ok
+        end
+
+        # Each aggregate name to the contexts that declare it, across every booted registry.
+        #
+        # @api private
+        def aggregate_owners_of(booted)
+          pairs = booted.flat_map do |_, registry|
+            registry.bluebooks.values.flat_map do |chapter|
+              chapter.aggregates.map { |aggregate| [aggregate.hecks_name, chapter.name.to_s] }
+            end
+          end
+          pairs.group_by(&:first).transform_values { |rows| rows.map(&:last).uniq }
+        end
+
+        # The checks that need every context at once: cycles between contexts. Prints a section
+        # only when it finds something.
+        #
+        # @api private
+        def contexts_pass?(booted, owners)
+          edges = booted.flat_map do |_, registry|
+            Projections::ContextRelationships.call(registry: registry, owners: owners)
+          end
+          findings = Bluebook::ModelCheck.context_cycle_findings(edges.uniq)
+          return true if findings.empty?
+
+          puts "── contexts"
+          passes?(findings, "")
         end
 
         # @api private
@@ -19,11 +53,11 @@ module Hecks
           end.to_set
         end
 
-        def domain_passes?(name, registry, options, known_domains:, global_emitted_events:)
+        def domain_passes?(name, registry, options, shared)
           puts "── #{name}"
 
-          scope = { known_domains: known_domains, global_emitted_events: global_emitted_events,
-                    rust_target: rust_target?(name, options.rust_dir), strict: options.strict, profile: options.profile }
+          scope = shared.merge(rust_target: rust_target?(name, options.rust_dir), strict: options.strict,
+                               profile: options.profile)
           chapters = registry.bluebooks.values
           findings = chapters.flat_map do |chapter|
             Bluebook::ModelCheck.call(chapter, hecksagon: registry.hecksagon(chapter.name), **scope)

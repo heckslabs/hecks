@@ -4,6 +4,7 @@ require_relative "model_check/client_profile"
 require_relative "model_check/lifecycle_checks"
 require_relative "model_check/saga_checks"
 require_relative "model_check/policy_checks"
+require_relative "model_check/context_checks"
 require_relative "model_check/ask_checks"
 require_relative "model_check/reference_checks"
 require_relative "model_check/verbs"
@@ -28,12 +29,14 @@ module Hecks
 
       # What `call` takes from one corpus scan besides the chapter, and each key's default.
       CONTEXT_DEFAULTS = {
-        hecksagon: nil, known_domains: nil, global_emitted_events: nil, rust_target: false, strict: false
+        hecksagon: nil, known_domains: nil, global_emitted_events: nil, aggregate_owners: nil,
+        rust_target: false, strict: false
       }.freeze
 
       extend LifecycleChecks
       extend SagaChecks
       extend PolicyChecks
+      extend ContextChecks
       extend AskChecks
       extend ReferenceChecks
       extend Verbs
@@ -46,10 +49,10 @@ module Hecks
       # @param profile [Symbol, nil] :client adds ClientProfile's error findings
       # @param context [Hash] the rest of what one corpus scan knows, each key optional:
       #   `hecksagon` (this bluebook's own sibling wiring file, if the caller loaded one),
-      #   `known_domains` (every bluebook/hecksagon name booted anywhere in this corpus scan,
-      #   checked to catch a typo'd across/attaches target), `global_emitted_events` (every
-      #   event emitted anywhere in the corpus, checked as a fallback so a translates reaction
-      #   isn't flagged deaf), `rust_target` and `strict` (see `rust_reserved_name_findings`)
+      #   `known_domains` (every bluebook/hecksagon name in the scan, to catch a typo'd across or
+      #   attaches target), `global_emitted_events` (every event emitted in the corpus, so a
+      #   translates reaction isn't flagged deaf), `aggregate_owners` (each aggregate name to the
+      #   contexts declaring it, to find what a translates listens to), `rust_target` and `strict`
       # @return [Array<Finding>] every finding this bluebook triggers
       # @raise [ArgumentError] if profile is neither nil nor :client, or a context key is unknown
       def call(bluebook, profile: nil, **context)
@@ -69,11 +72,19 @@ module Hecks
           *bluebook.aggregates.flat_map { |aggregate| aggregate_lifecycle_findings(aggregate) },
           *key_by_value_findings(bluebook),
           *bluebook.process_managers.flat_map { |process_manager| saga_findings(bluebook, process_manager) },
+          *reaction_findings(bluebook, options),
+          *unused_ask_findings(bluebook)
+        ]
+      end
+
+      # Each policy's own checks, then the context a translates listens to.
+      def reaction_findings(bluebook, options)
+        [
           *bluebook.policies.flat_map do |policy|
             policy_findings(bluebook, policy, options[:hecksagon], options[:known_domains],
                             options[:global_emitted_events])
           end,
-          *unused_ask_findings(bluebook)
+          *translates_source_findings(bluebook, options[:hecksagon], options[:aggregate_owners])
         ]
       end
 

@@ -23,13 +23,16 @@ module Hecks
         #   declared), `"fields"`/`"secrets"` (`Array<String>`), `"defaults"` (field name to its
         #   JSON-native default, in first-declaration order)
         def adapter_hash(adapter)
-          {
+          declared = {
             "name"     => adapter.name,
             "port"     => adapter.port,
             "fields"   => (adapter.fields || []).map(&:to_s),
             "secrets"  => (adapter.secrets || []).map(&:to_s),
             "defaults" => adapter.declared_defaults.to_h { |field, value| [field.to_s, value] }
           }
+          return declared unless adapter.plugin?
+
+          declared.merge("answers" => adapter.answered_queries, "runs" => adapter.runs)
         end
 
         # Loads each `.adapter` file into its own fresh registry and exports what it declared,

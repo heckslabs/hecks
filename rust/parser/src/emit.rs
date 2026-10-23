@@ -931,8 +931,20 @@ fn ruby_value_json(value: &ruby_value::Value) -> JsonValue {
     }
 }
 
-/// One declared adapter, keys in the order the Ruby side prints them.
+/// One declared adapter, keys in the order the Ruby side prints them; a plugin adds `answers` and
+/// `runs` after them.
 pub fn adapter_json(adapter: &ir::Adapter) -> JsonValue {
+    let JsonValue::Object(mut keys) = declared_adapter_json(adapter) else {
+        unreachable!("an adapter is a JSON object")
+    };
+    if let Some(runs) = &adapter.runs {
+        keys.push(("answers".to_string(), JsonValue::strings(&adapter.answers)));
+        keys.push(("runs".to_string(), JsonValue::str(runs.clone())));
+    }
+    JsonValue::Object(keys)
+}
+
+fn declared_adapter_json(adapter: &ir::Adapter) -> JsonValue {
     JsonValue::Object(vec![
         ("name".to_string(), JsonValue::str(adapter.name.clone())),
         (

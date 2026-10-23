@@ -56,14 +56,15 @@ module Hecks
       #
       # @param ref [String] the commit-ish to read from
       # @param subtree [String] a repository-relative directory, such as `"payments/bluebook"`
-      # @param glob [String] a `File.fnmatch` pattern the file's own name must match
+      # @param glob [String] a `File.fnmatch` pattern the file's own name must match; braces
+      #   (`"*.{bluebook,adapter}"`) name alternatives
       # @return [Array<String>] repository-relative paths, sorted
       def files(ref, subtree, glob = "*")
         out, _err, status = git("ls-tree", "-r", "--name-only", ref, "--", subtree)
         return [] unless status.success?
 
         out.lines.map(&:chomp).select do |file|
-          File.dirname(file) == subtree && File.fnmatch(glob, File.basename(file))
+          File.dirname(file) == subtree && File.fnmatch(glob, File.basename(file), File::FNM_EXTGLOB)
         end.sort
       end
 

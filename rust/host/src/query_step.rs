@@ -1,10 +1,11 @@
 //! The wire's query step: `{"query": "Aggregate.Query", "args": {...}}`.
 //!
 //! A declared query that filters stored records is answered by the kernel against current
-//! state, the way the Ruby launcher and entry points answer it. A query that `returns` a value object
-//! is answered from outside the domain (a hecksagon `answers_query` binding); this host binds
-//! no adapter, so it refuses that question rather than answer it from the aggregate's rows, and
-//! it writes nothing to the journal for either.
+//! state, the way the Ruby launcher and entry points answer it. A query a wasm plugin says it
+//! answers (the IR's `plugins`) is answered by that plugin's module, the one the Ruby runtime
+//! runs too. Any other query that `returns` a value object is answered from outside the domain (a
+//! hecksagon `answers_query` binding); this host binds no such adapter, so it refuses that
+//! question rather than answer it from the aggregate's rows. None of these writes to the journal.
 
 use crate::dispatch;
 use serde_json::{json, Value};
@@ -17,6 +18,8 @@ use tokio_postgres::Client;
 pub enum Plan {
     /// Ask the kernel this qualified question (`Domain::Aggregate.Query`).
     Kernel(String),
+    /// Ask the wasm plugin that says it answers this question (the IR's `plugins`).
+    Plugin(crate::plugins::PluginQuery),
     /// Refuse with this kind and message; the kernel is never invoked.
     Refuse { kind: &'static str, message: String },
 }
@@ -35,6 +38,11 @@ pub fn plan(domain_ir: Option<&Value>, domain: &str, question: &str) -> Plan {
     // this host's would send an attached chapter's query to a table that does not hold it.
     let (owner, short) = question.rsplit_once("::").unwrap_or((domain, question));
     let qualified = format!("{owner}::{short}");
+    // A plugin answers for any chapter, this domain's or an attached one's: the IR's `plugins`
+    // carries what the host needs to ask it, without that chapter's own IR.
+    if let Some(plugin) = crate::plugins::answering(domain_ir, &qualified) {
+        return Plan::Plugin(plugin);
+    }
     let Some((aggregate_name, query_name)) = short.split_once('.') else {
         return Plan::Kernel(qualified);
     };
@@ -111,6 +119,10 @@ pub async fn answer(
         Plan::Kernel(qualified) => dispatch::query(client, wasm_path, &qualified, args)
             .await
             .map_err(|e| format!("{e:#}")),
+        Plan::Plugin(plugin) => {
+            let domain_ir = domain_ir.ok_or("a plugin question needs the domain's IR")?;
+            crate::plugins::answer(&plugin, domain_ir, args, client, wasm_path).await
+        }
         Plan::Refuse { kind, message } => Ok(refusal_result(question, &args, kind, &message)),
     }
 }
@@ -140,6 +152,33 @@ mod tests {
         assert_eq!(
             plan(Some(&ir), "Banking", "Banking::Ledger.Open"),
             Plan::Kernel("Banking::Ledger.Open".into())
+        );
+    }
+
+    #[test]
+    fn a_question_a_plugin_answers_goes_to_the_plugin_for_this_domain_or_an_attached_chapter() {
+        let mut ir = domain();
+        ir["plugins"] = json!([{
+            "adapter": "Occurrences",
+            "runs": "occurrences.wasm",
+            "sha256": "ab",
+            "queries": [
+                { "question": "Banking::Ledger.Rows", "references": {} },
+                { "question": "Calendar::Event.Occurrences", "references": { "event": "Calendar::Event" } }
+            ]
+        }]);
+
+        let Plan::Plugin(own) = plan(Some(&ir), "Banking", "Ledger.Rows") else {
+            panic!("not a plugin plan")
+        };
+        assert_eq!(own.question, "Banking::Ledger.Rows");
+        let Plan::Plugin(attached) = plan(Some(&ir), "Banking", "Calendar::Event.Occurrences")
+        else {
+            panic!("not a plugin plan")
+        };
+        assert_eq!(
+            attached.references,
+            vec![("event".to_string(), "Calendar::Event".to_string())]
         );
     }
 

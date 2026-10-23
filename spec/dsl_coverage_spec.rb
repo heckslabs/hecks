@@ -62,7 +62,7 @@ RSpec.describe "the DSL surface is fully covered" do
     ],
     "AdapterBuilder"              => [
       Hecks::Bluebook::DSL::AdapterBuilder,
-      %i[port field secret]
+      %i[port field secret answers_query runs]
     ],
     "WorldBuilder"                => [
       Hecks::Bluebook::DSL::WorldBuilder,

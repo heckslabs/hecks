@@ -9,12 +9,12 @@ use crate::json::Json;
 /// Sets `ir["lineage"]` to `{"capable_aggregates": [{"name":, "storage_name":}, ...]}`,
 /// matching `Exporter.lineage`'s own output shape.
 ///
-/// An aggregate with no `persisted_by` bind falls back to `world_path`'s own
-/// `default_adapter` for the target chapter, then to `"Memory"`.
+/// An aggregate with no `persisted_by` bind falls back to the world's `default_adapter` for the
+/// target chapter, then to `"Memory"`.
 pub fn run(
     ir: &mut Json,
     hecksagon_path: Option<&Path>,
-    world_path: Option<&Path>,
+    world_default: Option<&str>,
     root: &Path,
 ) -> Result<(), String> {
     let binds = match hecksagon_path {
@@ -25,20 +25,7 @@ pub fn run(
         }
         None => HashMap::new(),
     };
-    let chapter_name = ir
-        .get("name")
-        .and_then(Json::as_str)
-        .unwrap_or_default()
-        .to_string();
-    let fallback_adapter = match world_path {
-        Some(path) => {
-            let text = std::fs::read_to_string(path)
-                .map_err(|e| format!("reading {}: {e}", path.display()))?;
-            default_adapter_name(&text, &chapter_name)
-        }
-        None => None,
-    }
-    .unwrap_or_else(|| "Memory".to_string());
+    let fallback_adapter = world_default.unwrap_or("Memory").to_string();
     let capable_adapters = lineage_capable_adapter_names(root)?;
 
     // Collected before `ir.set` below: Rust can't hold this borrow of `ir`
@@ -113,46 +100,6 @@ pub(crate) fn persistence_binds(text: &str) -> HashMap<String, String> {
     }
 
     binds
-}
-
-// Only lines inside the target chapter's own `Hecks.world` block count; the
-// last `default_adapter` there wins, matching the Ruby builder.
-pub(crate) fn default_adapter_name(text: &str, chapter: &str) -> Option<String> {
-    let mut in_target_world = false;
-    let mut found = None;
-
-    for line in text.lines() {
-        if let Some(opened) = world_opener_name(line) {
-            in_target_world = opened == chapter;
-            continue;
-        }
-        if !in_target_world {
-            continue;
-        }
-
-        let Some(rest) = line.trim_start().strip_prefix("default_adapter") else {
-            continue;
-        };
-        if !rest.starts_with(char::is_whitespace) {
-            continue;
-        }
-        let Some(open_quote) = rest.find('"') else {
-            continue;
-        };
-        let quoted = &rest[open_quote + 1..];
-        let Some(close_quote) = quoted.find('"') else {
-            continue;
-        };
-        found = Some(quoted[..close_quote].to_string());
-    }
-
-    found
-}
-
-fn world_opener_name(line: &str) -> Option<String> {
-    let rest = line.strip_prefix("Hecks.world")?;
-    let quoted = &rest[rest.find('"')? + 1..];
-    Some(quoted[..quoted.find('"')?].to_string())
 }
 
 // Where an adapter class can live: the driven adapters, and the era plugin that holds `PostgresEra`,
@@ -263,20 +210,6 @@ mod tests {
         let binds = persistence_binds(text);
         assert_eq!(binds.get("Customer").map(String::as_str), Some("Heki"));
         assert_eq!(binds.get("Statement"), None);
-    }
-
-    #[test]
-    fn reads_the_default_adapter_of_the_target_chapters_own_world_only() {
-        let text = "Hecks.world \"Alpha\" do\n  # default_adapter \"Heki\"\n  default_adapter \"PostgresEra\"\nend\n\nHecks.world(\"Beta\") do\n  default_adapter \"Memory\"\nend\n";
-        assert_eq!(
-            default_adapter_name(text, "Alpha"),
-            Some("PostgresEra".to_string())
-        );
-        assert_eq!(
-            default_adapter_name(text, "Beta"),
-            Some("Memory".to_string())
-        );
-        assert_eq!(default_adapter_name(text, "Gamma"), None);
     }
 
     #[test]

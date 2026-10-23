@@ -14,7 +14,7 @@ use crate::translation_pass;
 pub fn run(
     ir: &mut Json,
     hecksagon_path: Option<&Path>,
-    world_path: Option<&Path>,
+    world_default: Option<&str>,
     adapter_declarations: impl FnOnce(&Json) -> Result<Json, String>,
 ) -> Result<(), String> {
     let chapter_name = ir
@@ -22,7 +22,7 @@ pub fn run(
         .and_then(Json::as_str)
         .unwrap_or_default()
         .to_string();
-    let persistence = persistence(ir, &chapter_name, hecksagon_path, world_path)?;
+    let persistence = persistence(ir, &chapter_name, hecksagon_path, world_default)?;
     ir.set("persistence", persistence);
     let adapters = adapter_declarations(ir)?;
     ir.set("adapters", adapters);
@@ -70,7 +70,7 @@ fn persistence(
     ir: &Json,
     chapter: &str,
     hecksagon: Option<&Path>,
-    world: Option<&Path>,
+    world_default: Option<&str>,
 ) -> Result<Json, String> {
     let (binds, hecksagon_default) = match hecksagon {
         Some(path) => {
@@ -82,11 +82,7 @@ fn persistence(
         }
         None => (HashMap::new(), None),
     };
-    let world_default = match world {
-        Some(path) => lineage_pass::default_adapter_name(&read(path)?, chapter),
-        None => None,
-    };
-    let declared = hecksagon_default.or(world_default);
+    let declared = hecksagon_default.or_else(|| world_default.map(str::to_string));
     let mut aggregates = Vec::new();
     for aggregate in ir.get("aggregates").map_or(&[][..], Json::each) {
         let name = aggregate

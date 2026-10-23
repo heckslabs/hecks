@@ -99,16 +99,23 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     // rather than chaining a live object through both passes.
     let mut target_ir = Json::parse(&target_ir_text)
         .map_err(|e| format!("re-parsing target ir.json for lineage: {e}"))?;
+    let chapter_name = target_ir
+        .get("name")
+        .and_then(Json::as_str)
+        .unwrap_or_default()
+        .to_string();
+    let world = world_pass::read(&chapter_name, &parser_bin, world_path.as_deref())?;
+    let world_default = world_pass::default_adapter(&world);
     lineage_pass::run(
         &mut target_ir,
         hecksagon_path.as_deref(),
-        world_path.as_deref(),
+        world_default.as_deref(),
         root,
     )?;
     binding_pass::run(
         &mut target_ir,
         hecksagon_path.as_deref(),
-        world_path.as_deref(),
+        world_default.as_deref(),
         |ir| {
             // The same two places `TargetIr#adapters` scans: the source root's `lib/` and the
             // domain's own directory.
@@ -116,7 +123,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
             adapters_pass::declarations(&parser_bin, &directories, ir)
         },
     )?;
-    world_pass::run(&mut target_ir, &parser_bin, world_path.as_deref())?;
+    target_ir.set("world", world);
 
     // Every other chapter the gem supplies by `attaches "Name"`, resolved through the
     // same directory listing (`resolve::framework_members`) the Ruby

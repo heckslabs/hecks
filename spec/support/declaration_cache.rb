@@ -16,15 +16,22 @@ module DeclarationCache
   #   relative paths and contents; any other is known by its files' paths, sizes and mtimes. The
   #   `vendor/embryonaut_bluebooks` tree beside the directory counts too, since `attaches ...,
   #   from: :vendor` loads from it: two copies differ when only their vendored packages do.
+  #   A plugin adapter holds the absolute path of its `.wasm` module, so a scratch copy holding one
+  #   is known by where it is as well.
   def self.signature(directory)
-    scratch = directory.start_with?(Dir.tmpdir)
     vendor  = File.join(File.dirname(directory), "vendor", "embryonaut_bluebooks", "**", "*")
     files   = Dir.glob(File.join(directory, "**", "*")) + Dir.glob(vendor)
+    scratch = scratch?(directory, files)
     files.filter_map do |path|
       next unless File.file?(path)
 
       scratch ? [path.delete_prefix(File.dirname(directory)), Digest::MD5.file(path).hexdigest] : file_stamp(path)
     end.unshift(scratch ? :scratch : directory)
+  end
+
+  # @return [Boolean] whether the directory is a scratch copy known by its contents alone
+  def self.scratch?(directory, files)
+    directory.start_with?(Dir.tmpdir) && files.none? { |path| path.end_with?(".wasm") }
   end
 
   def self.file_stamp(path)
