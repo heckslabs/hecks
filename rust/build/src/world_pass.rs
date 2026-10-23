@@ -7,7 +7,7 @@ use std::path::Path;
 use crate::json::Json;
 use crate::subprocess;
 
-/// Sets `world` right after `adapters` when a `.world` file sits beside the domain. No file, no key.
+/// Sets `world` right after `adapters`. With no `.world` file beside the domain it is the empty fact.
 ///
 /// # Errors
 ///
@@ -15,16 +15,21 @@ use crate::subprocess;
 /// `hecks-parse world` prints.
 pub fn run(ir: &mut Json, parser_bin: &Path, world: Option<&Path>) -> Result<(), String> {
     let Some(world) = world else {
+        ir.set("world", fact(None));
         return Ok(());
     };
-    let domain = ir.get("name").and_then(Json::as_str).unwrap_or_default();
+    let domain = ir
+        .get("name")
+        .and_then(Json::as_str)
+        .unwrap_or_default()
+        .to_string();
     let world_arg = world.to_string_lossy();
     let printed = subprocess::run_capture(&parser_bin.to_string_lossy(), &["world", &world_arg])?;
     let parsed = Json::parse(&printed).map_err(|e| format!("parsing hecks-parse world: {e}"))?;
     let entry = parsed
         .each()
         .iter()
-        .find(|w| w.get("domain").and_then(Json::as_str) == Some(domain));
+        .find(|w| w.get("domain").and_then(Json::as_str) == Some(domain.as_str()));
     ir.set("world", fact(entry));
     Ok(())
 }
