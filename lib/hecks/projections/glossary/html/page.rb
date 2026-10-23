@@ -41,6 +41,7 @@ module Hecks
             <p class="sub">Glossary</p>
             <input type="search" placeholder="Find a term" aria-label="Find a term" autocomplete="off">
             <p class="count"></p>
+            <p class="progress" hidden></p>
             <ol>
             @@ITEMS@@
             </ol>
@@ -69,7 +70,7 @@ module Hecks
           end
 
           def rail(title, sections, slugs)
-            domain = title.split(" — ").first
+            domain = Page.domain(title)
             items = sections.map do |section|
               heading = section[:heading]
               %(<li><a href="##{slugs[heading]}">#{Html.inline(heading.text)}</a></li>)
@@ -77,13 +78,17 @@ module Hecks
             fill(RAIL, "DOMAIN" => Html.escape(domain), "ITEMS" => items.join("\n"))
           end
 
+          # @param title [String] the document's title, such as "Pizzas glossary"
+          # @return [String] the domain's name alone
+          def domain(title) = title.delete_suffix(" glossary")
+
           def front_matter(blocks)
             ["<header>", *blocks.filter_map { |block| front_part(block) }, "</header>"].join("\n")
           end
 
           def front_part(block)
             case block.type
-            when :heading   then "<h1>#{Html.inline(block.text.split(" — ").first)}</h1>"
+            when :heading   then "<h1>#{Html.inline(Page.domain(block.text))}</h1>"
             when :quote     then "<p class=\"vision\">#{Html.inline(block.text)}</p>"
             when :paragraph then "<p class=\"lede\">#{Html.inline(block.text)}</p>"
             when :mermaid   then Html.figure(block, "How it all fits together")

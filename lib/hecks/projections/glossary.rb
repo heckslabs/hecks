@@ -2,6 +2,7 @@ require_relative "../projector"
 require_relative "../naming"
 require_relative "statements"
 require_relative "glossary/sections"
+require_relative "glossary/groups"
 require_relative "glossary/sensitivity"
 require_relative "glossary/sentences"
 require_relative "glossary/mermaid"
@@ -77,7 +78,7 @@ module Hecks
       def with_headwords(entries, section_name)
         entries.each { |entry| entry.headword = Naming.words(entry.name) }
         entries.group_by(&:headword).each_value { |group| qualify_repeats(group, section_name) }
-        entries.sort_by { |entry| [entry.headword.downcase, entry.kind.to_s] }
+        entries.sort_by { |entry| [Groups.rank(entry), entry.headword.downcase, entry.kind.to_s] }
       end
 
       def qualify_repeats(group, section_name)

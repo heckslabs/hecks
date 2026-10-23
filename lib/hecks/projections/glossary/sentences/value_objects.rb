@@ -1,6 +1,7 @@
 require_relative "../../../naming"
 require_relative "../../statements"
 require_relative "../sensitivity"
+require_relative "../../../bluebook/named_pattern"
 
 module Hecks
   module Projections
@@ -12,6 +13,13 @@ module Hecks
           TYPE_WORDS = {
             "Integer" => "a whole number", "Float" => "a number", "String" => "text",
             "Boolean" => "yes or no", "TrueClass" => "yes or no", "FalseClass" => "yes or no"
+          }.freeze
+
+          # What each named pattern asks of a value, in words.
+          PATTERN_WORDS = {
+            present: "must not be blank", not_empty: "must not be empty", no_whitespace: "must have no spaces",
+            snake_name: "must be lowercase words joined by underscores", git_sha: "must be a commit id",
+            digits: "must be digits only"
           }.freeze
 
           module_function
@@ -28,7 +36,7 @@ module Hecks
             attributes = value_object.attributes
             return "A marker with no details of its own." if attributes.empty?
 
-            return "#{Sentences.upper_first(type_words(attributes.first, index, within))}." if bare_value?(attributes)
+            return bare_sentence(attributes.first, index, within) if bare_value?(attributes)
 
             fields = attributes.map { |field| field_phrase(field, index, within, sensitive[field.name.to_s]) }
             "Made up of #{Naming.to_sentence_list(fields)}."
@@ -36,16 +44,35 @@ module Hecks
 
           def bare_value?(attributes) = attributes.size == 1 && attributes.first.name.to_s == "value"
 
-          # "amount (a whole number)", or "medications (text, PHI)" when marked sensitive.
+          # "Text that must not be blank.", or just "A whole number." when nothing constrains it.
+          def bare_sentence(field, index, within)
+            rule = constraint(field)
+            "#{Sentences.upper_first(type_words(field, index, within))}#{" that #{rule}" if rule}."
+          end
+
+          # "amount (a whole number)", "name (text, must not be blank)", or, when marked
+          # sensitive, "medications (text, PHI)".
           def field_phrase(field, index, within, marking = nil)
-            detail = [type_words(field, index, within), (Sensitivity.tag(marking) if marking)].compact.join(", ")
+            detail = [type_words(field, index, within), constraint(field), ("optional" if field.optional?),
+                      (Sensitivity.tag(marking) if marking)].compact.join(", ")
             "#{Naming.words(field.name).downcase} (#{detail})"
           end
 
+          # A plain type in words, a reference as a link to what it points at, otherwise a link
+          # to the value's own term.
           def type_words(field, index, within)
-            type  = field.type.to_s
-            inner = TYPE_WORDS[type] || index.link(:value_object, type, within: within)
+            inner = if field.reference? then index.link(:aggregate, field.type.target_name)
+                    else TYPE_WORDS[field.type.to_s] || index.link(:value_object, field.type.to_s, within: within)
+                    end
             field.list? ? "a list of #{inner}" : inner
+          end
+
+          # What a field's pattern asks of its value, or nil when it has none.
+          def constraint(field)
+            return nil unless field.pattern
+
+            name = Bluebook::NamedPattern::TABLE.key(field.pattern)
+            name ? PATTERN_WORDS[name] : "must follow a set format"
           end
 
           # A multi-field row leads with its first field and keeps the rest beside it,

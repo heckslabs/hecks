@@ -3,48 +3,57 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Banking — Glossary</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Instrument+Sans:wght@400;500;600&display=swap">
+<title>Banking glossary</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"></script>
 <style>
-/* The glossary page. Ledger paper: faint blue horizontal rules between
-   entries, one red vertical margin rule down the navigation. The rules
-   carry information — the red marks the section in view, the blue
-   separates entries — and nothing else on the page is decoration. */
+/* The glossary page, set for someone reviewing a domain: each thing is a
+   section, its groups of terms sit under it, and every rule is a line the
+   reader can tick. Colour marks only what a reviewer acts on: links, rules
+   and what has been ticked. */
 
 :root {
-  --paper: #f3f5f8;
+  --paper: #f7f7f5;
   --panel: #ffffff;
-  --ink: #1a2b4a;
-  --ink-soft: #4a5873;
-  --ink-faint: #8592a8;
-  --rule: #c9d3e3;
-  --red: #b0413e;
-  --red-wash: rgba(176, 65, 62, 0.09);
+  --ink: #1d2433;
+  --ink-soft: #465066;
+  --ink-faint: #6b7489;
+  --rule: #dfe2e8;
+  --accent: #2557a7;
+  --rule-mark: #b5651d;
+  --rule-wash: #fbf3ea;
+  --done: #2f7d4f;
+  --done-wash: #edf7f0;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --paper: #0f1726;
-    --panel: #141e33;
-    --ink: #e3e7ee;
-    --ink-soft: #b4bdd0;
-    --ink-faint: #7f8ba6;
-    --rule: #2a3854;
-    --red: #d9635f;
-    --red-wash: rgba(217, 99, 95, 0.14);
+    --paper: #14171d;
+    --panel: #1b1f27;
+    --ink: #e7e9ee;
+    --ink-soft: #bcc2cf;
+    --ink-faint: #8f97a8;
+    --rule: #2e3440;
+    --accent: #8db4f5;
+    --rule-mark: #e2a368;
+    --rule-wash: #2a231c;
+    --done: #7ccf9c;
+    --done-wash: #1a2a21;
   }
 }
 
 :root[data-theme="dark"] {
-  --paper: #0f1726;
-  --panel: #141e33;
-  --ink: #e3e7ee;
-  --ink-soft: #b4bdd0;
-  --ink-faint: #7f8ba6;
-  --rule: #2a3854;
-  --red: #d9635f;
-  --red-wash: rgba(217, 99, 95, 0.14);
+  --paper: #14171d;
+  --panel: #1b1f27;
+  --ink: #e7e9ee;
+  --ink-soft: #bcc2cf;
+  --ink-faint: #8f97a8;
+  --rule: #2e3440;
+  --accent: #8db4f5;
+  --rule-mark: #e2a368;
+  --rule-wash: #2a231c;
+  --done: #7ccf9c;
+  --done-wash: #1a2a21;
 }
 
 html { color-scheme: light dark; scroll-behavior: smooth; }
@@ -53,22 +62,21 @@ body {
   margin: 0;
   background: var(--paper);
   color: var(--ink);
-  font-family: "Newsreader", Georgia, "Times New Roman", serif;
+  font-family: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   font-size: 17px;
-  line-height: 1.55;
-  font-variant-numeric: oldstyle-nums;
+  line-height: 1.6;
 }
 
-a { color: var(--red); }
-:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+a { color: var(--accent); text-underline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .page {
   display: grid;
-  grid-template-columns: 15.5rem minmax(0, 1fr);
+  grid-template-columns: 16rem minmax(0, 1fr);
   min-height: 100vh;
 }
 
-/* ── the rail ───────────────────────────────────────────────────── */
+/* the rail */
 
 .rail {
   position: sticky;
@@ -76,174 +84,150 @@ a { color: var(--red); }
   height: 100vh;
   box-sizing: border-box;
   overflow-y: auto;
-  padding: 2.4rem 1.3rem 2rem 1.6rem;
+  padding: 2rem 1.25rem;
   border-right: 1px solid var(--rule);
-  font-family: "Instrument Sans", system-ui, -apple-system, sans-serif;
-  font-size: 0.92rem;
+  background: var(--panel);
+  font-size: 0.95rem;
 }
 
-.rail .domain {
-  font-family: "Newsreader", Georgia, serif;
-  font-size: 1.55rem;
-  font-weight: 600;
-  line-height: 1.1;
-  margin: 0;
-}
-
-.rail .sub { color: var(--ink-faint); margin: 0.15rem 0 1.4rem; font-size: 0.82rem; }
+.rail .domain { font-size: 1.4rem; font-weight: 700; line-height: 1.2; margin: 0; }
+.rail .sub { color: var(--ink-faint); margin: 0.1rem 0 1.2rem; }
 
 .rail input {
   width: 100%;
   box-sizing: border-box;
   font: inherit;
-  padding: 0.45rem 0.65rem;
+  padding: 0.5rem 0.7rem;
   border: 1px solid var(--rule);
-  border-radius: 4px;
-  background: var(--panel);
+  border-radius: 6px;
+  background: var(--paper);
   color: var(--ink);
 }
 
 .rail input::placeholder { color: var(--ink-faint); }
+.rail .count, .rail .progress { color: var(--ink-faint); font-size: 0.85rem; margin: 0.5rem 0 0; }
+.rail .progress { color: var(--done); font-weight: 600; }
 
-.rail .count { color: var(--ink-faint); font-size: 0.78rem; margin: 0.45rem 0 1.2rem; }
-
-.rail ol {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  border-left: 2px solid var(--red);
-}
+.rail ol { list-style: none; margin: 1.2rem 0 0; padding: 0; }
 
 .rail li a {
   display: block;
-  padding: 0.28rem 0.85rem;
-  margin-left: -2px;
-  border-left: 2px solid transparent;
+  padding: 0.35rem 0.6rem;
+  border-radius: 6px;
   color: var(--ink-soft);
   text-decoration: none;
 }
 
-.rail li a:hover { color: var(--ink); }
+.rail li a:hover { background: var(--paper); color: var(--ink); }
+.rail li a[aria-current="true"] { background: var(--paper); color: var(--ink); font-weight: 600; }
 
-.rail li a[aria-current="true"] {
-  color: var(--ink);
-  font-weight: 600;
-  border-left-color: var(--ink);
-}
+/* the text column */
 
-/* ── the text column ────────────────────────────────────────────── */
+main { padding: 2.5rem 3rem 6rem; max-width: 50rem; }
 
-main {
-  padding: 3.2rem 4rem 7rem 3.6rem;
-  max-width: 47rem;
-}
+header h1 { font-size: 2.4rem; font-weight: 700; line-height: 1.15; margin: 0 0 0.75rem; }
+.vision { font-size: 1.2rem; color: var(--ink-soft); margin: 0 0 1rem; }
+.lede { color: var(--ink-soft); margin: 0 0 1.5rem; max-width: 64ch; }
 
-header h1 {
-  font-size: 3rem;
-  font-weight: 500;
-  line-height: 1.02;
-  letter-spacing: -0.012em;
-  margin: 0 0 1.1rem;
-}
-
-.vision {
-  font-size: 1.28rem;
-  font-style: italic;
-  line-height: 1.45;
-  color: var(--ink-soft);
-  margin: 0 0 1.2rem;
-}
-
-.lede { color: var(--ink-soft); margin: 0 0 1.6rem; max-width: 62ch; }
-
-figure { margin: 1.2rem 0 1.8rem; }
+figure { margin: 1rem 0 1.25rem; }
 
 figcaption, .caption {
-  font-family: "Instrument Sans", system-ui, sans-serif;
-  font-size: 0.8rem;
-  color: var(--ink-faint);
-  margin: 0 0 0.4rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0 0 0.5rem;
 }
 
-.caption { margin-top: 1.6rem; }
+.caption { margin-top: 1.5rem; }
 
 pre.mermaid {
   margin: 0;
-  padding: 1rem 1.2rem;
+  padding: 1rem;
   background: var(--panel);
   border: 1px solid var(--rule);
-  border-radius: 6px;
+  border-radius: 8px;
   overflow-x: auto;
-  font-family: "Instrument Sans", system-ui, sans-serif;
-  font-size: 0.85rem;
+  font-family: inherit;
+  font-size: 0.9rem;
   line-height: 1.4;
   color: var(--ink-soft);
 }
 
 pre.mermaid svg { display: block; max-width: 100%; height: auto; }
 
-section { margin-top: 4.5rem; scroll-margin-top: 1.5rem; }
-
-section h2 {
-  display: inline-block;
-  font-size: 2.1rem;
-  font-weight: 500;
-  line-height: 1.1;
-  margin: 0 0 0.5rem;
-  padding-bottom: 0.3rem;
-  border-bottom: 2px solid var(--red);
+section {
+  margin-top: 3rem;
+  padding: 1.75rem 2rem 1.5rem;
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  scroll-margin-top: 1rem;
 }
 
-.about {
-  font-size: 1.18rem;
-  color: var(--ink-soft);
-  margin: 0.5rem 0 0.7rem;
-  max-width: 60ch;
-}
+section h2 { font-size: 1.9rem; font-weight: 700; line-height: 1.2; margin: 0 0 0.4rem; }
+.about { font-size: 1.1rem; color: var(--ink-soft); margin: 0 0 1rem; max-width: 64ch; }
+section > p:not(.about):not(.caption) { margin: 0 0 0.8rem; max-width: 64ch; }
 
-section > p:not(.about):not(.caption) { margin: 0 0 0.8rem; max-width: 62ch; }
+/* rules a reviewer ticks */
 
-.rules {
-  list-style: none;
-  margin: 0 0 1.2rem;
-  padding: 0;
-  max-width: 62ch;
-}
+.rules { list-style: none; margin: 0 0 1rem; padding: 0; }
 
 .rules li {
-  padding: 0.38rem 0;
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  padding: 0.45rem 0.6rem;
   border-bottom: 1px solid var(--rule);
 }
 
-.terms { margin-top: 1.8rem; border-top: 1px solid var(--rule); }
+.rules li:last-child { border-bottom: 0; }
+.rules li.done { background: var(--done-wash); }
+
+input.tick {
+  flex: none;
+  width: 1.1rem;
+  height: 1.1rem;
+  margin: 0.25rem 0 0;
+  accent-color: var(--done);
+  cursor: pointer;
+}
+
+/* groups and terms */
+
+h3.group {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 2rem 0 0.25rem;
+  padding-top: 1rem;
+  border-top: 2px solid var(--rule);
+  scroll-margin-top: 1rem;
+}
+
+.terms { margin: 0; }
 
 .term {
   display: grid;
-  grid-template-columns: 12.5rem minmax(0, 1fr);
-  column-gap: 1.6rem;
+  grid-template-columns: 11rem minmax(0, 1fr);
+  column-gap: 1.25rem;
   padding: 0.9rem 0;
   border-bottom: 1px solid var(--rule);
-  scroll-margin-top: 1.5rem;
+  scroll-margin-top: 1rem;
 }
 
-.term h3 {
-  font-size: 1.08rem;
-  font-weight: 600;
-  line-height: 1.35;
-  margin: 0.05rem 0 0;
-}
+.term:last-child { border-bottom: 0; }
+.term.done h4::after { content: " \2713"; color: var(--done); }
 
-.term p { margin: 0 0 0.4rem; }
+.term h4 { grid-column: 1; grid-row: 1 / span 20; font-size: 1.05rem; font-weight: 700; line-height: 1.4; margin: 0; }
+.term > :not(h4) { grid-column: 2; }
+.term h4 label { display: flex; gap: 0.5rem; align-items: flex-start; cursor: pointer; }
+.term p { margin: 0 0 0.45rem; }
 .term p:last-child { margin-bottom: 0; }
 
-.term p.rule { color: var(--ink-soft); font-size: 0.95rem; }
-
-.term a, .rules a {
-  color: var(--red);
-  font-style: italic;
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 2px;
+.term p.rule {
+  padding: 0.35rem 0.6rem;
+  border-left: 3px solid var(--rule-mark);
+  background: var(--rule-wash);
+  border-radius: 0 4px 4px 0;
 }
 
 /* A search narrows the page to the terms that match. */
@@ -251,32 +235,38 @@ section.searching figure,
 section.searching .rules,
 section.searching .caption,
 section.searching .about,
+section.searching h3.group,
 section.searching > p { display: none; }
 
-section.searching .terms { border-top: 0; margin-top: 0.8rem; }
-
-/* Landing on a term from a link. */
 .landed { animation: land 1.4s ease-out; }
 
 @keyframes land {
-  from { background: var(--red-wash); }
+  from { background: var(--rule-wash); }
   to { background: transparent; }
 }
 
 @media (max-width: 760px) {
+  body { font-size: 16px; }
   .page { grid-template-columns: 1fr; }
-  .rail { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--rule); }
-  .rail ol { display: flex; flex-wrap: wrap; gap: 0.2rem 0.6rem; border-left: 0; }
-  .rail li a { padding: 0.2rem 0.4rem; border-left: 0; }
-  .rail li a[aria-current="true"] { border-bottom: 2px solid var(--red); }
-  main { padding: 1.8rem 1.2rem 4rem; }
-  header h1 { font-size: 2.3rem; }
-  .term { grid-template-columns: 1fr; row-gap: 0.25rem; }
+  .rail { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--rule); padding: 1.25rem 16px; }
+  .rail ol { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+  .rail li a { padding: 0.25rem 0.5rem; }
+  main { padding: 1.25rem 16px 4rem; }
+  header h1 { font-size: 1.9rem; }
+  section { padding: 1.25rem 1rem; margin-top: 1.5rem; }
+  .term { grid-template-columns: 1fr; row-gap: 0.35rem; }
+  .term h4, .term > :not(h4) { grid-column: 1; grid-row: auto; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .landed { animation: none; }
+}
+
+@media print {
+  .rail { display: none; }
+  .page { grid-template-columns: 1fr; }
+  section { break-inside: avoid-page; border: 0; }
 }
 
 </style>
@@ -288,6 +278,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <p class="sub">Glossary</p>
 <input type="search" placeholder="Find a term" aria-label="Find a term" autocomplete="off">
 <p class="count"></p>
+<p class="progress" hidden></p>
 <ol>
 <li><a href="#account">Account</a></li>
 <li><a href="#atm-card">ATM card</a></li>
@@ -308,7 +299,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <header>
 <h1>Banking</h1>
 <p class="vision">Customers hold accounts, accounts move money, and every movement is a transfer that can fail halfway. The domain that has to get it right twice — once in the rules, once in the recovery.</p>
-<p class="lede">Every term Banking uses, in the words of the people who work in it — grouped under the thing each belongs to, and listed A to Z within it. This page is generated from the working specification, so it says what the system does today, not what anyone hoped it would do. If a sentence here reads wrong to you, the specification is wrong: say so.</p>
+<p class="lede">The terms Banking uses, written the way the people who work in it would say them. Each term sits under the thing it belongs to: first what can be done with it, then what it records, the lists you can ask for, and what it is made of. The page is generated from the working specification, so it describes what the system does today. If a sentence reads wrong to you, the specification is wrong, and it is worth saying so.</p>
 <figure>
 <figcaption>How it all fits together</figcaption>
 <pre class="mermaid">flowchart LR
@@ -371,192 +362,263 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
     open --&gt; closed: Close account
     frozen --&gt; closed: Close account</pre>
 </figure>
+<ul class="rules"><li>Freezing an account moves it from open to frozen.</li><li>Unfreezing an account moves it from frozen to open.</li><li>Closing an account moves it from open or frozen to closed.</li></ul>
 <p class="caption">Always true</p>
-<ul class="rules"><li>An Account references a Customer.</li><li>An Account has many ledger.</li><li>The balance never goes negative.</li><li>An account number is present.</li><li>A daily limit is non-negative.</li><li>A ledger sequence is positive.</li><li>A currency is a three-letter code.</li><li>An amount is positive.</li><li>A movement explains itself.</li></ul>
+<ul class="rules"><li>Each account belongs to one customer.</li><li>Each account holds its ledger, a list of ledger entries.</li><li>The balance never goes negative.</li><li>An account number is present.</li><li>A daily limit is non-negative.</li><li>A ledger sequence is positive.</li><li>A currency is a three-letter code.</li><li>An amount is positive.</li><li>A movement explains itself.</li></ul>
+<h3 class="group" id="actions">Actions</h3>
+<div class="terms">
+<article class="term" id="accrue-interest">
+<h4>Accrue interest</h4>
+<p>Credit the account with interest earned. Done by the system.</p>
+<p>Needs an amount (<a href="#positive-money">Positive money</a>).</p>
+<p class="rule">Allowed only when: the account is open; customer is active.</p>
+<p>Raises the balance and the interest cents.</p>
+<p>Records <a href="#interest-accrued">Interest accrued</a>.</p>
+</article>
+<article class="term" id="amend">
+<h4>Amend</h4>
+<p>Correct a movement posted for the wrong amount. Done by the back office.</p>
+<p>Needs an adjustment (<a href="#money">Money</a>) and a narrative (<a href="#narrative">Narrative</a>).</p>
+<p class="rule">Allowed only when: customer is active; account is open; entry is posted; an amendment leaves a non-negative amount.</p>
+<p>Raises the amount, sets the narrative, and keeps the ledger entry posted.</p>
+<p>Records <a href="#ledger-entry-amended">Ledger entry amended</a>.</p>
+</article>
+<article class="term" id="apply-fee">
+<h4>Apply fee</h4>
+<p>Charge the account a fee. Done by the system.</p>
+<p>Needs an amount (<a href="#positive-money">Positive money</a>) and a narrative (<a href="#narrative">Narrative</a>).</p>
+<p class="rule">Allowed only when: the account is open; customer is active; the balance covers a fee.</p>
+<p>Lowers the balance and raises the fees cents.</p>
+<p>Records <a href="#fee-applied">Fee applied</a>.</p>
+</article>
+<article class="term" id="close-account">
+<h4>Close account</h4>
+<p>Close an account that has been emptied. Done by the branch clerk.</p>
+<p class="rule">Allowed only when: the account is open or frozen; customer is not closed; an account closes empty.</p>
+<p>Moves the account from open or frozen to closed.</p>
+<p>Records <a href="#account-closed">Account closed</a>.</p>
+</article>
+<article class="term" id="correct-fee">
+<h4>Correct fee</h4>
+<p>Reverse a fee that was applied in error. Done by the back office.</p>
+<p>Needs an amount (<a href="#positive-money">Positive money</a>).</p>
+<p class="rule">Allowed only when: the account is open; customer is active; a correction cannot exceed collected fees.</p>
+<p>Corrects the fee applied, raises the balance, and lowers the fees cents.</p>
+<p>Records <a href="#fee-corrected">Fee corrected</a>.</p>
+</article>
+<article class="term" id="correct-interest">
+<h4>Correct interest</h4>
+<p>Reverse interest that was accrued in error. Done by the back office.</p>
+<p>Needs an amount (<a href="#positive-money">Positive money</a>).</p>
+<p class="rule">Allowed only when: the account is open; customer is active; a correction cannot exceed accrued interest; the balance covers an interest correction.</p>
+<p>Lowers the balance and the interest cents.</p>
+<p>Records <a href="#interest-corrected">Interest corrected</a>.</p>
+</article>
+<article class="term" id="credit">
+<h4>Credit</h4>
+<p>Put money in. Done by the teller.</p>
+<p>Needs an amount (<a href="#positive-money">Positive money</a>) and a narrative (<a href="#narrative">Narrative</a>).</p>
+<p class="rule">Allowed only when: the account is open; customer is active.</p>
+<p>Raises the balance and adds to the ledger.</p>
+<p>Records <a href="#account-credited">Account credited</a>.</p>
+</article>
+<article class="term" id="debit">
+<h4>Debit</h4>
+<p>Take money out, if it is there to take. Done by the teller.</p>
+<p>Needs an amount (<a href="#positive-money">Positive money</a>) and a narrative (<a href="#narrative">Narrative</a>).</p>
+<p class="rule">Allowed only when: the account is open; customer is active; the balance covers it; the daily limit allows it.</p>
+<p>Lowers the balance and adds to the ledger.</p>
+<p class="rule">Afterwards, always: the balance fell by exactly the amount; a ledger entry was posted.</p>
+<p>Records <a href="#account-debited">Account debited</a>.</p>
+</article>
+<article class="term" id="freeze-account">
+<h4>Freeze account</h4>
+<p>Stop an account moving while something is investigated. Done by the compliance officer.</p>
+<p class="rule">Allowed only when: the account is open; customer is not closed.</p>
+<p>Moves the account from open to frozen.</p>
+<p>Records <a href="#account-frozen">Account frozen</a>.</p>
+</article>
+<article class="term" id="open">
+<h4>Open</h4>
+<p>Give a customer somewhere to keep money. Done by the branch clerk.</p>
+<p>Needs a customer (<a href="#customer">Customer</a>), a number (<a href="#account-number">Account number</a>), a kind (<a href="#account-kind">Account kind</a>), and a daily limit (<a href="#daily-limit">Daily limit</a>).</p>
+<p class="rule">Allowed only when: customer is active.</p>
+<p>Sets the customer, the number, the kind, and the daily limit.</p>
+<p>Records <a href="#account-opened">Account opened</a>.</p>
+</article>
+<article class="term" id="reverse">
+<h4>Reverse</h4>
+<p>Undo a movement that should not have been posted. Done by the back office.</p>
+<p>Needs a narrative (<a href="#narrative">Narrative</a>).</p>
+<p class="rule">Allowed only when: customer is active; account is open; entry is posted.</p>
+<p>Sets the narrative and moves the ledger entry from posted to reversed.</p>
+<p>Records <a href="#ledger-entry-reversed">Ledger entry reversed</a>.</p>
+</article>
+<article class="term" id="unfreeze">
+<h4>Unfreeze</h4>
+<p>Release a cleared account. Done by the compliance officer.</p>
+<p class="rule">Allowed only when: the account is frozen; customer is active.</p>
+<p>Moves the account from frozen to open.</p>
+<p>Records <a href="#account-unfrozen">Account unfrozen</a>.</p>
+</article>
+</div>
+<h3 class="group" id="what-it-records">What it records</h3>
 <div class="terms">
 <article class="term" id="account-closed">
-<h3>Account closed</h3>
+<h4>Account closed</h4>
 <p>Recorded after <a href="#close-account">Close account</a>. Prompts <a href="#notify-on-closure">Notify on closure</a>.</p>
 </article>
 <article class="term" id="account-credited">
-<h3>Account credited</h3>
+<h4>Account credited</h4>
 <p>Recorded after <a href="#credit">Credit</a>.</p>
 </article>
 <article class="term" id="account-debited">
-<h3>Account debited</h3>
+<h4>Account debited</h4>
 <p>Recorded after <a href="#debit">Debit</a>.</p>
 </article>
 <article class="term" id="account-frozen">
-<h3>Account frozen</h3>
+<h4>Account frozen</h4>
 <p>Recorded after <a href="#freeze-account">Freeze account</a>. Prompts <a href="#review-on-freeze">Review on freeze</a>.</p>
 </article>
-<article class="term" id="account-kind">
-<h3>Account kind</h3>
-<p>One of current, savings, or reserve.</p>
-</article>
-<article class="term" id="account-number">
-<h3>Account number</h3>
-<p>Text.</p>
-<p class="rule">Always true: an account number is present.</p>
-</article>
 <article class="term" id="account-opened">
-<h3>Account opened</h3>
+<h4>Account opened</h4>
 <p>Recorded after <a href="#open">Open</a>.</p>
 </article>
 <article class="term" id="account-unfrozen">
-<h3>Account unfrozen</h3>
+<h4>Account unfrozen</h4>
 <p>Recorded after <a href="#unfreeze">Unfreeze</a>.</p>
 </article>
-<article class="term" id="accrue-interest">
-<h3>Accrue interest</h3>
-<p>Credit the account with interest earned. Done by the system.</p>
-</article>
-<article class="term" id="amend">
-<h3>Amend</h3>
-<p>Correct a movement posted for the wrong amount. Done by the back office.</p>
-</article>
-<article class="term" id="apply-fee">
-<h3>Apply fee</h3>
-<p>Charge the account a fee. Done by the system.</p>
-</article>
-<article class="term" id="at-most">
-<h3>At most</h3>
-<p>Accounts holding no more than a cap the caller supplies — the small-balance closure candidates.</p>
-</article>
-<article class="term" id="close-account">
-<h3>Close account</h3>
-<p>Close an account that has been emptied. Done by the branch clerk.</p>
-</article>
-<article class="term" id="correct-fee">
-<h3>Correct fee</h3>
-<p>Reverse a fee that was applied in error. Done by the back office.</p>
-</article>
-<article class="term" id="correct-interest">
-<h3>Correct interest</h3>
-<p>Reverse interest that was accrued in error. Done by the back office.</p>
-</article>
-<article class="term" id="credit">
-<h3>Credit</h3>
-<p>Put money in. Done by the teller.</p>
-</article>
-<article class="term" id="daily-limit">
-<h3>Daily limit</h3>
-<p>Made up of cents (a whole number).</p>
-<p class="rule">Always true: a daily limit is non-negative.</p>
-</article>
-<article class="term" id="debit">
-<h3>Debit</h3>
-<p>Take money out, if it is there to take. Done by the teller.</p>
-</article>
 <article class="term" id="fee-applied">
-<h3>Fee applied</h3>
+<h4>Fee applied</h4>
 <p>Recorded after <a href="#apply-fee">Apply fee</a>.</p>
 </article>
 <article class="term" id="fee-corrected">
-<h3>Fee corrected</h3>
+<h4>Fee corrected</h4>
 <p>Recorded after <a href="#correct-fee">Correct fee</a>.</p>
 </article>
-<article class="term" id="freeze-account">
-<h3>Freeze account</h3>
-<p>Stop an account moving while something is investigated. Done by the compliance officer.</p>
-</article>
-<article class="term" id="high-balance">
-<h3>High balance</h3>
-<p>Accounts holding at least a floor the caller supplies — the private-banking referral list.</p>
-</article>
 <article class="term" id="interest-accrued">
-<h3>Interest accrued</h3>
+<h4>Interest accrued</h4>
 <p>Recorded after <a href="#accrue-interest">Accrue interest</a>.</p>
 </article>
 <article class="term" id="interest-corrected">
-<h3>Interest corrected</h3>
+<h4>Interest corrected</h4>
 <p>Recorded after <a href="#correct-interest">Correct interest</a>.</p>
 </article>
-<article class="term" id="ledger-direction">
-<h3>Ledger direction</h3>
-<p>One of credit or debit.</p>
-</article>
-<article class="term" id="ledger-entry">
-<h3>Ledger entry</h3>
-<p>One movement across the account, in the order it was posted.</p>
-<p>Starts out posted. Can be posted or reversed.</p>
-</article>
 <article class="term" id="ledger-entry-amended">
-<h3>Ledger entry amended</h3>
+<h4>Ledger entry amended</h4>
 <p>Recorded after <a href="#amend">Amend</a>.</p>
 </article>
 <article class="term" id="ledger-entry-reversed">
-<h3>Ledger entry reversed</h3>
+<h4>Ledger entry reversed</h4>
 <p>Recorded after <a href="#reverse">Reverse</a>.</p>
 </article>
+</div>
+<h3 class="group" id="what-happens-on-its-own">What happens on its own</h3>
+<div class="terms">
+<article class="term" id="notify-on-closure">
+<h4>Notify on closure</h4>
+<p>When <a href="#account-closed">Account closed</a> happens, Notifications is asked to send, in Notifications.</p>
+</article>
+<article class="term" id="review-on-freeze">
+<h4>Review on freeze</h4>
+<p>When <a href="#account-frozen">Account frozen</a> happens, Account freeze review is asked to open, in Compliance.</p>
+</article>
+</div>
+<h3 class="group" id="lists">Lists</h3>
+<div class="terms">
+<article class="term" id="at-most">
+<h4>At most</h4>
+<p>Accounts holding no more than a cap the caller supplies — the small-balance closure candidates.</p>
+<p>Accounts whose balance is at most the cap you give, sorted by balance, lowest first.</p>
+</article>
+<article class="term" id="high-balance">
+<h4>High balance</h4>
+<p>Accounts holding at least a floor the caller supplies — the private-banking referral list.</p>
+<p>Accounts whose balance is at least the floor you give, sorted by balance, highest first.</p>
+</article>
+<article class="term" id="open-the-list">
+<h4>Open (the list)</h4>
+<p>Accounts that can transact today.</p>
+<p>Accounts that are open, sorted by account number, A to Z.</p>
+</article>
+<article class="term" id="open-for-customer">
+<h4>Open for customer</h4>
+<p>One customer&#39;s own open accounts — the for_each target that freezes every one of them on suspension, not just whichever the event payload happened to carry.</p>
+<p>Accounts whose customer is the reference you give and that are open, sorted by account number, A to Z.</p>
+</article>
+<article class="term" id="open-for-suspended-customers">
+<h4>Open for suspended customers</h4>
+<p>Open accounts whose customer has since been suspended — live money movement nobody should be approving right now.</p>
+<p>Accounts that are open and whose customer&#39;s status is suspended, sorted by account number, A to Z.</p>
+</article>
+<article class="term" id="overdrawn">
+<h4>Overdrawn</h4>
+<p>Accounts below a floor the caller supplies — the morning risk report.</p>
+<p>Accounts whose balance is less than the floor you give, sorted by balance, lowest first.</p>
+<p>Shows at most 100.</p>
+</article>
+<article class="term" id="reachable">
+<h4>Reachable</h4>
+<p>Accounts that still exist as far as a caller is concerned — anything short of closed.</p>
+<p>Accounts that are open or frozen, sorted by account number, A to Z.</p>
+</article>
+<article class="term" id="reversed">
+<h4>Reversed</h4>
+<p>Entries that were undone — the audit trail nobody wants to need.</p>
+<p>Ledger entries that are reversed.</p>
+</article>
+<article class="term" id="strictly-above">
+<h4>Strictly above</h4>
+<p>Accounts holding MORE than a floor the caller supplies — the referral list without the accounts sitting exactly on the line.</p>
+<p>Accounts whose balance is more than the floor you give, sorted by balance, highest first.</p>
+</article>
+</div>
+<h3 class="group" id="what-it-is-made-of">What it is made of</h3>
+<div class="terms">
+<article class="term" id="account-kind">
+<h4>Account kind</h4>
+<p>One of current, savings, or reserve.</p>
+</article>
+<article class="term" id="account-number">
+<h4>Account number</h4>
+<p>Text that must not be blank.</p>
+<p class="rule">Always true: an account number is present.</p>
+</article>
+<article class="term" id="daily-limit">
+<h4>Daily limit</h4>
+<p>Made up of cents (a whole number).</p>
+<p class="rule">Always true: a daily limit is non-negative.</p>
+</article>
+<article class="term" id="ledger-direction">
+<h4>Ledger direction</h4>
+<p>One of credit or debit.</p>
+</article>
+<article class="term" id="ledger-entry">
+<h4>Ledger entry</h4>
+<p>One movement across the account, in the order it was posted.</p>
+<p>Starts out posted. Can be posted or reversed.</p>
+</article>
 <article class="term" id="ledger-sequence">
-<h3>Ledger sequence</h3>
+<h4>Ledger sequence</h4>
 <p>A whole number.</p>
 <p class="rule">Always true: a ledger sequence is positive.</p>
 </article>
 <article class="term" id="money">
-<h3>Money</h3>
+<h4>Money</h4>
 <p>Made up of cents (a whole number) and currency (text).</p>
 <p class="rule">Always true: a currency is a three-letter code.</p>
 </article>
 <article class="term" id="narrative">
-<h3>Narrative</h3>
-<p>Made up of text (text).</p>
+<h4>Narrative</h4>
+<p>Made up of text (text, must not be blank).</p>
 <p class="rule">Always true: a movement explains itself.</p>
 </article>
-<article class="term" id="notify-on-closure">
-<h3>Notify on closure</h3>
-<p>When <a href="#account-closed">Account closed</a> happens, Notifications is asked to send, in Notifications.</p>
-</article>
-<article class="term" id="open">
-<h3>Open</h3>
-<p>Give a customer somewhere to keep money. Done by the branch clerk.</p>
-</article>
-<article class="term" id="open-the-list">
-<h3>Open (the list)</h3>
-<p>Accounts that can transact today.</p>
-</article>
-<article class="term" id="open-for-customer">
-<h3>Open for customer</h3>
-<p>One customer&#39;s own open accounts — the for_each target that freezes every one of them on suspension, not just whichever the event payload happened to carry.</p>
-</article>
-<article class="term" id="open-for-suspended-customers">
-<h3>Open for suspended customers</h3>
-<p>Open accounts whose customer has since been suspended — live money movement nobody should be approving right now.</p>
-</article>
-<article class="term" id="overdrawn">
-<h3>Overdrawn</h3>
-<p>Accounts below a floor the caller supplies — the morning risk report.</p>
-</article>
 <article class="term" id="positive-money">
-<h3>Positive money</h3>
+<h4>Positive money</h4>
 <p>Made up of cents (a whole number) and currency (text).</p>
 <p class="rule">Always true: an amount is positive; a currency is a three-letter code.</p>
 </article>
-<article class="term" id="reachable">
-<h3>Reachable</h3>
-<p>Accounts that still exist as far as a caller is concerned — anything short of closed.</p>
-</article>
-<article class="term" id="reverse">
-<h3>Reverse</h3>
-<p>Undo a movement that should not have been posted. Done by the back office.</p>
-</article>
-<article class="term" id="reversed">
-<h3>Reversed</h3>
-<p>Entries that were undone — the audit trail nobody wants to need.</p>
-</article>
-<article class="term" id="review-on-freeze">
-<h3>Review on freeze</h3>
-<p>When <a href="#account-frozen">Account frozen</a> happens, Account freeze review is asked to open, in Compliance.</p>
-</article>
-<article class="term" id="strictly-above">
-<h3>Strictly above</h3>
-<p>Accounts holding MORE than a floor the caller supplies — the referral list without the accounts sitting exactly on the line.</p>
-</article>
-<article class="term" id="unfreeze">
-<h3>Unfreeze</h3>
-<p>Release a cleared account. Done by the compliance officer.</p>
-</article></div>
+</div>
 </section>
 <section id="atm-card">
 <h2>ATM card</h2>
@@ -580,103 +642,142 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
     issued --&gt; retired: Retire
     active --&gt; retired: Retire</pre>
 </figure>
+<ul class="rules"><li>Activating an ATM card moves it from issued to active.</li><li>Retiring an ATM card moves it from issued or active to retired.</li></ul>
 <p class="caption">Always true</p>
-<ul class="rules"><li>An ATM card references an Account.</li><li>An ATM card has many withdrawals.</li><li>A card serial is present.</li><li>A daily fee is non-negative.</li><li>A withdrawal sequence is positive.</li><li>A withdrawal amount is positive.</li><li>A withdrawal explains itself.</li></ul>
+<ul class="rules"><li>Each ATM card belongs to one account.</li><li>Each ATM card holds a list of withdrawals.</li><li>A card serial is present.</li><li>A daily fee is non-negative.</li><li>A withdrawal sequence is positive.</li><li>A withdrawal amount is positive.</li><li>A withdrawal explains itself.</li></ul>
+<h3 class="group" id="actions-1">Actions</h3>
 <div class="terms">
 <article class="term" id="activate">
-<h3>Activate</h3>
+<h4>Activate</h4>
 <p>Start using a card. Done by the customer.</p>
+<p class="rule">Allowed only when: the ATM card is issued; customer is active.</p>
+<p>Moves the ATM card from issued to active.</p>
+<p>Records <a href="#atm-card-activated">ATM card activated</a>.</p>
 </article>
-<article class="term" id="active">
-<h3>Active</h3>
-<p>Live cards in nickname order, unnamed ones last — real nicknames sort among themselves first.</p>
+<article class="term" id="dispute">
+<h4>Dispute</h4>
+<p>Challenge a withdrawal that was not mine. Done by the customer.</p>
+<p>Needs a narrative (<a href="#narrative-1">Narrative</a>).</p>
+<p class="rule">Allowed only when: the withdrawal is taken; customer is active; account is open; card is not retired.</p>
+<p>Sets the narrative and moves the withdrawal from taken to disputed.</p>
+<p>Records <a href="#withdrawal-disputed">Withdrawal disputed</a>.</p>
 </article>
+<article class="term" id="issue">
+<h4>Issue</h4>
+<p>Put a card in a customer&#39;s hand. Done by the branch clerk.</p>
+<p>Needs an account (<a href="#account">Account</a>), a serial (<a href="#card-serial">Card serial</a>), and a daily fee (<a href="#daily-fee">Daily fee</a>).</p>
+<p class="rule">Allowed only when: customer is active; account is open.</p>
+<p>Sets the account, the serial, and the daily fee.</p>
+<p>Records <a href="#atm-card-issued">ATM card issued</a>.</p>
+</article>
+<article class="term" id="rename">
+<h4>Rename</h4>
+<p>Name a card so it is recognisable. Done by the customer.</p>
+<p>Needs a nickname (<a href="#card-nickname">Card nickname</a>).</p>
+<p class="rule">Allowed only when: the ATM card is issued or active; customer is active.</p>
+<p>Sets the nickname.</p>
+<p>Records <a href="#atm-card-renamed">ATM card renamed</a>.</p>
+</article>
+<article class="term" id="retire">
+<h4>Retire</h4>
+<p>Take a card out of service. Done by the back office.</p>
+<p class="rule">Allowed only when: the ATM card is issued or active; customer is active.</p>
+<p>Moves the ATM card from issued or active to retired.</p>
+<p>Records <a href="#atm-card-retired">ATM card retired</a>.</p>
+</article>
+<article class="term" id="withdraw">
+<h4>Withdraw</h4>
+<p>Take cash out at a machine. Done by the customer.</p>
+<p>Needs a cents (<a href="#withdrawal-amount">Withdrawal amount</a>) and a narrative (<a href="#narrative-1">Narrative</a>).</p>
+<p class="rule">Allowed only when: the ATM card is active; customer is active; account is open.</p>
+<p>Adds to the withdrawals.</p>
+<p>Records <a href="#cash-withdrawn">Cash withdrawn</a>.</p>
+</article>
+</div>
+<h3 class="group" id="what-it-records-1">What it records</h3>
+<div class="terms">
 <article class="term" id="atm-card-activated">
-<h3>ATM card activated</h3>
+<h4>ATM card activated</h4>
 <p>Recorded after <a href="#activate">Activate</a>.</p>
 </article>
 <article class="term" id="atm-card-issued">
-<h3>ATM card issued</h3>
+<h4>ATM card issued</h4>
 <p>Recorded after <a href="#issue">Issue</a>.</p>
 </article>
 <article class="term" id="atm-card-renamed">
-<h3>ATM card renamed</h3>
+<h4>ATM card renamed</h4>
 <p>Recorded after <a href="#rename">Rename</a>.</p>
 </article>
 <article class="term" id="atm-card-retired">
-<h3>ATM card retired</h3>
+<h4>ATM card retired</h4>
 <p>Recorded after <a href="#retire">Retire</a>.</p>
 </article>
-<article class="term" id="by-fee">
-<h3>By fee</h3>
-<p>Live cards by what they cost to hold, cheapest first — a fee is a Float, so the order is numeric and not alphabetical.</p>
+<article class="term" id="cash-withdrawn">
+<h4>Cash withdrawn</h4>
+<p>Recorded after <a href="#withdraw">Withdraw</a>.</p>
 </article>
+<article class="term" id="withdrawal-disputed">
+<h4>Withdrawal disputed</h4>
+<p>Recorded after <a href="#dispute">Dispute</a>.</p>
+</article>
+</div>
+<h3 class="group" id="lists-1">Lists</h3>
+<div class="terms">
+<article class="term" id="active">
+<h4>Active</h4>
+<p>Live cards in nickname order, unnamed ones last — real nicknames sort among themselves first.</p>
+<p>ATM cards that are active, sorted by card nickname, A to Z, with ATM cards that have no card nickname last.</p>
+</article>
+<article class="term" id="by-fee">
+<h4>By fee</h4>
+<p>Live cards by what they cost to hold, cheapest first — a fee is a Float, so the order is numeric and not alphabetical.</p>
+<p>ATM cards that are active, sorted by daily fee, lowest first.</p>
+<p>Shows at most 3.</p>
+</article>
+<article class="term" id="recent">
+<h4>Recent</h4>
+<p>The first two withdrawals still standing, whatever else was taken.</p>
+<p>Withdrawals that are taken.</p>
+<p>Shows at most 2.</p>
+</article>
+</div>
+<h3 class="group" id="what-it-is-made-of-1">What it is made of</h3>
+<div class="terms">
 <article class="term" id="card-nickname">
-<h3>Card nickname</h3>
+<h4>Card nickname</h4>
 <p>Text.</p>
 </article>
 <article class="term" id="card-serial">
-<h3>Card serial</h3>
-<p>Text.</p>
+<h4>Card serial</h4>
+<p>Text that must not be blank.</p>
 <p class="rule">Always true: a card serial is present.</p>
 </article>
-<article class="term" id="cash-withdrawn">
-<h3>Cash withdrawn</h3>
-<p>Recorded after <a href="#withdraw">Withdraw</a>.</p>
-</article>
 <article class="term" id="daily-fee">
-<h3>Daily fee</h3>
+<h4>Daily fee</h4>
 <p>Made up of amount (a number).</p>
 <p class="rule">Always true: a daily fee is non-negative.</p>
 </article>
-<article class="term" id="dispute">
-<h3>Dispute</h3>
-<p>Challenge a withdrawal that was not mine. Done by the customer.</p>
-</article>
-<article class="term" id="issue">
-<h3>Issue</h3>
-<p>Put a card in a customer&#39;s hand. Done by the branch clerk.</p>
-</article>
 <article class="term" id="narrative-1">
-<h3>Narrative</h3>
-<p>Made up of text (text).</p>
+<h4>Narrative</h4>
+<p>Made up of text (text, must not be blank).</p>
 <p class="rule">Always true: a withdrawal explains itself.</p>
 </article>
-<article class="term" id="recent">
-<h3>Recent</h3>
-<p>The first two withdrawals still standing, whatever else was taken.</p>
-</article>
-<article class="term" id="rename">
-<h3>Rename</h3>
-<p>Name a card so it is recognisable. Done by the customer.</p>
-</article>
-<article class="term" id="retire">
-<h3>Retire</h3>
-<p>Take a card out of service. Done by the back office.</p>
-</article>
-<article class="term" id="withdraw">
-<h3>Withdraw</h3>
-<p>Take cash out at a machine. Done by the customer.</p>
-</article>
 <article class="term" id="withdrawal">
-<h3>Withdrawal</h3>
+<h4>Withdrawal</h4>
 <p>One handful of cash, in the order it was taken.</p>
 <p>Starts out taken. Can be taken or disputed.</p>
 </article>
 <article class="term" id="withdrawal-amount">
-<h3>Withdrawal amount</h3>
+<h4>Withdrawal amount</h4>
 <p>Made up of cents (a whole number).</p>
 <p class="rule">Always true: a withdrawal amount is positive.</p>
 </article>
-<article class="term" id="withdrawal-disputed">
-<h3>Withdrawal disputed</h3>
-<p>Recorded after <a href="#dispute">Dispute</a>.</p>
-</article>
 <article class="term" id="withdrawal-sequence">
-<h3>Withdrawal sequence</h3>
+<h4>Withdrawal sequence</h4>
 <p>A whole number.</p>
 <p class="rule">Always true: a withdrawal sequence is positive.</p>
-</article></div>
+</article>
+</div>
 </section>
 <section id="card-payment">
 <h2>Card payment</h2>
@@ -706,104 +807,145 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
     disputed --&gt; charged_back: Chargeback
     disputed --&gt; captured: Reject dispute</pre>
 </figure>
+<ul class="rules"><li>Capturing a card payment moves it from authorized to captured.</li><li>Voiding a card payment moves it from authorized to voided.</li><li>Refunding a card payment moves it from captured to refunded.</li><li>Reversing a card payment moves it from captured to reversed.</li><li>Disputing a card payment moves it from captured or refunded to disputed.</li><li>Charging back a card payment moves it from disputed to charged back.</li><li>Rejecting a dispute moves the card payment from disputed to captured.</li></ul>
 <p class="caption">Always true</p>
-<ul class="rules"><li>A Card payment references an Account.</li><li>A Card payment references a Customer.</li><li>A Card payment has many tags.</li><li>A payment amount is positive.</li><li>A merchant name is present.</li><li>A tag is not the empty string.</li></ul>
+<ul class="rules"><li>Each card payment belongs to one account.</li><li>Each card payment can be disputed by one customer.</li><li>Each card payment holds a list of tags.</li><li>A payment amount is positive.</li><li>A merchant name is present.</li><li>A tag is not the empty string.</li></ul>
+<h3 class="group" id="actions-2">Actions</h3>
 <div class="terms">
-<article class="term" id="authorisation-code">
-<h3>Authorisation code</h3>
-<p>Text.</p>
-</article>
 <article class="term" id="authorize">
-<h3>Authorize</h3>
+<h4>Authorize</h4>
 <p>Put a hold on funds for a purchase.</p>
+<p>Needs an authorisation (<a href="#authorisation-code">Authorisation code</a>), tags (a list of <a href="#tag">Tag</a>, optional), an account (<a href="#account">Account</a>), an amount (<a href="#payment-amount">Payment amount</a>), and a merchant (<a href="#merchant-name">Merchant name</a>).</p>
+<p class="rule">Allowed only when: customer is active; account is open.</p>
+<p>Sets the account, the amount, the merchant, the tags, and the authorisation.</p>
+<p>Records <a href="#card-authorized">Card authorized</a>.</p>
 </article>
 <article class="term" id="capture">
-<h3>Capture</h3>
+<h4>Capture</h4>
 <p>Turn an authorization into an actual charge. Done by the system.</p>
+<p class="rule">Allowed only when: the card payment is authorized; customer is active; account is open.</p>
+<p>Moves the card payment from authorized to captured.</p>
+<p>Records <a href="#card-captured">Card captured</a>.</p>
 </article>
+<article class="term" id="chargeback">
+<h4>Chargeback</h4>
+<p>Uphold a customer&#39;s dispute and claw the charge back. Done by the compliance officer.</p>
+<p class="rule">Allowed only when: the card payment is disputed; customer is active; account is open.</p>
+<p>Moves the card payment from disputed to charged back.</p>
+<p>Records <a href="#card-charged-back">Card charged back</a>.</p>
+</article>
+<article class="term" id="dispute-1">
+<h4>Dispute</h4>
+<p>Challenge a payment that already settled. Done by the customer.</p>
+<p>Needs a disputed by (<a href="#customer">Customer</a>).</p>
+<p class="rule">Allowed only when: the card payment is captured or refunded; account is open; customer is active.</p>
+<p>Sets the disputed by and moves the card payment from captured or refunded to disputed.</p>
+<p>Records <a href="#card-disputed">Card disputed</a>.</p>
+</article>
+<article class="term" id="refund">
+<h4>Refund</h4>
+<p>Give the money back after a charge settled. Done by the system.</p>
+<p class="rule">Allowed only when: the card payment is captured; customer is active; account is open.</p>
+<p>Moves the card payment from captured to refunded.</p>
+<p>Records <a href="#card-refunded">Card refunded</a>.</p>
+</article>
+<article class="term" id="reject-dispute">
+<h4>Reject dispute</h4>
+<p>Uphold the charge and close a customer&#39;s dispute. Done by the compliance officer.</p>
+<p class="rule">Allowed only when: the card payment is disputed; customer is active; account is open.</p>
+<p>Moves the card payment from disputed to captured.</p>
+<p>Records <a href="#card-dispute-rejected">Card dispute rejected</a>.</p>
+</article>
+<article class="term" id="reverse-1">
+<h4>Reverse</h4>
+<p>Undo a captured charge with no customer dispute involved. Done by the system.</p>
+<p class="rule">Allowed only when: the card payment is captured; customer is active; account is open.</p>
+<p>Moves the card payment from captured to reversed.</p>
+<p>Records <a href="#card-reversed">Card reversed</a>.</p>
+</article>
+<article class="term" id="void">
+<h4>Void</h4>
+<p>Cancel an authorization before it settles. Done by the system.</p>
+<p class="rule">Allowed only when: the card payment is authorized; customer is active; account is open.</p>
+<p>Moves the card payment from authorized to voided.</p>
+<p>Records <a href="#card-voided">Card voided</a>.</p>
+</article>
+</div>
+<h3 class="group" id="what-it-records-2">What it records</h3>
+<div class="terms">
 <article class="term" id="card-authorized">
-<h3>Card authorized</h3>
+<h4>Card authorized</h4>
 <p>Recorded after <a href="#authorize">Authorize</a>.</p>
 </article>
 <article class="term" id="card-captured">
-<h3>Card captured</h3>
+<h4>Card captured</h4>
 <p>Recorded after <a href="#capture">Capture</a>.</p>
 </article>
 <article class="term" id="card-charged-back">
-<h3>Card charged back</h3>
+<h4>Card charged back</h4>
 <p>Recorded after <a href="#chargeback">Chargeback</a>.</p>
 </article>
 <article class="term" id="card-dispute-rejected">
-<h3>Card dispute rejected</h3>
+<h4>Card dispute rejected</h4>
 <p>Recorded after <a href="#reject-dispute">Reject dispute</a>.</p>
 </article>
 <article class="term" id="card-disputed">
-<h3>Card disputed</h3>
+<h4>Card disputed</h4>
 <p>Recorded after <a href="#dispute-1">Dispute</a>.</p>
 </article>
 <article class="term" id="card-refunded">
-<h3>Card refunded</h3>
+<h4>Card refunded</h4>
 <p>Recorded after <a href="#refund">Refund</a>.</p>
 </article>
 <article class="term" id="card-reversed">
-<h3>Card reversed</h3>
+<h4>Card reversed</h4>
 <p>Recorded after <a href="#reverse-1">Reverse</a>.</p>
 </article>
 <article class="term" id="card-voided">
-<h3>Card voided</h3>
+<h4>Card voided</h4>
 <p>Recorded after <a href="#void">Void</a>.</p>
 </article>
-<article class="term" id="chargeback">
-<h3>Chargeback</h3>
-<p>Uphold a customer&#39;s dispute and claw the charge back. Done by the compliance officer.</p>
-</article>
-<article class="term" id="dispute-1">
-<h3>Dispute</h3>
-<p>Challenge a payment that already settled. Done by the customer.</p>
-</article>
+</div>
+<h3 class="group" id="lists-2">Lists</h3>
+<div class="terms">
 <article class="term" id="disputed">
-<h3>Disputed</h3>
+<h4>Disputed</h4>
 <p>Charges currently under a customer&#39;s dispute, awaiting a compliance decision.</p>
+<p>Card payments that are disputed.</p>
 </article>
 <article class="term" id="flagged">
-<h3>Flagged</h3>
+<h4>Flagged</h4>
 <p>Charges carrying a risk tag, for the fraud queue.</p>
+<p>Card payments whose tag includes high risk.</p>
+</article>
+<article class="term" id="pending">
+<h4>Pending</h4>
+<p>Authorized charges not yet captured, voided, or otherwise resolved.</p>
+<p>Card payments that are authorized.</p>
+</article>
+</div>
+<h3 class="group" id="what-it-is-made-of-2">What it is made of</h3>
+<div class="terms">
+<article class="term" id="authorisation-code">
+<h4>Authorisation code</h4>
+<p>Text that must not be blank.</p>
 </article>
 <article class="term" id="merchant-name">
-<h3>Merchant name</h3>
-<p>Text.</p>
+<h4>Merchant name</h4>
+<p>Text that must not be blank.</p>
 <p class="rule">Always true: a merchant name is present.</p>
 </article>
 <article class="term" id="payment-amount">
-<h3>Payment amount</h3>
+<h4>Payment amount</h4>
 <p>Made up of cents (a whole number).</p>
 <p class="rule">Always true: a payment amount is positive.</p>
 </article>
-<article class="term" id="pending">
-<h3>Pending</h3>
-<p>Authorized charges not yet captured, voided, or otherwise resolved.</p>
-</article>
-<article class="term" id="refund">
-<h3>Refund</h3>
-<p>Give the money back after a charge settled. Done by the system.</p>
-</article>
-<article class="term" id="reject-dispute">
-<h3>Reject dispute</h3>
-<p>Uphold the charge and close a customer&#39;s dispute. Done by the compliance officer.</p>
-</article>
-<article class="term" id="reverse-1">
-<h3>Reverse</h3>
-<p>Undo a captured charge with no customer dispute involved. Done by the system.</p>
-</article>
 <article class="term" id="tag">
-<h3>Tag</h3>
-<p>Text.</p>
+<h4>Tag</h4>
+<p>Text that must not be blank.</p>
 <p class="rule">Always true: a tag is not the empty string.</p>
 </article>
-<article class="term" id="void">
-<h3>Void</h3>
-<p>Cancel an authorization before it settles. Done by the system.</p>
-</article></div>
+</div>
 </section>
 <section id="customer">
 <h2>Customer</h2>
@@ -832,76 +974,108 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
     active --&gt; closed: Close
     suspended --&gt; closed: Close</pre>
 </figure>
+<ul class="rules"><li>Suspending a customer moves it from active to suspended.</li><li>Reinstating a customer moves it from suspended to active.</li><li>Closing a customer moves it from active or suspended to closed.</li></ul>
 <p class="caption">Always true</p>
-<ul class="rules"><li>A customer reference is present.</li><li>A standing is named.</li><li>A given name is present.</li><li>A family name is present.</li></ul>
+<ul class="rules"><li>A customer number is never empty.</li><li>A standing is named.</li><li>A given name is present.</li><li>A family name is present.</li></ul>
+<h3 class="group" id="actions-3">Actions</h3>
 <div class="terms">
 <article class="term" id="close">
-<h3>Close</h3>
+<h4>Close</h4>
 <p>End the relationship. Done by the branch clerk.</p>
+<p class="rule">Allowed only when: the customer is active or suspended.</p>
+<p>Moves the customer from active or suspended to closed.</p>
+<p>Records <a href="#customer-closed">Customer closed</a>.</p>
 </article>
+<article class="term" id="register">
+<h4>Register</h4>
+<p>Take on a new customer. Done by the branch clerk.</p>
+<p>Needs a reference (<a href="#customer-number">Customer number</a>), a name (<a href="#person-name">Person name</a>), and an email (<a href="#email-address">Email address</a>).</p>
+<p>Sets the reference, the name, and the email.</p>
+<p>Records <a href="#customer-registered">Customer registered</a>.</p>
+</article>
+<article class="term" id="reinstate">
+<h4>Reinstate</h4>
+<p>Let a cleared customer transact again. Done by the compliance officer.</p>
+<p class="rule">Allowed only when: the customer is suspended.</p>
+<p>Sets the standing and moves the customer from suspended to active.</p>
+<p>Records <a href="#customer-reinstated">Customer reinstated</a>.</p>
+</article>
+<article class="term" id="suspend">
+<h4>Suspend</h4>
+<p>Stop a customer transacting while something is investigated. Done by the compliance officer.</p>
+<p>Needs a standing (<a href="#customer-standing">Customer standing</a>).</p>
+<p class="rule">Allowed only when: the customer is active.</p>
+<p>Sets the standing and moves the customer from active to suspended.</p>
+<p>Records <a href="#customer-suspended">Customer suspended</a>.</p>
+</article>
+</div>
+<h3 class="group" id="what-it-records-3">What it records</h3>
+<div class="terms">
 <article class="term" id="customer-closed">
-<h3>Customer closed</h3>
+<h4>Customer closed</h4>
 <p>Recorded after <a href="#close">Close</a>.</p>
 </article>
-<article class="term" id="customer-number">
-<h3>Customer number</h3>
-<p>Text.</p>
-<p class="rule">Always true: a customer reference is present.</p>
-</article>
 <article class="term" id="customer-registered">
-<h3>Customer registered</h3>
+<h4>Customer registered</h4>
 <p>Recorded after <a href="#register">Register</a>.</p>
 </article>
 <article class="term" id="customer-reinstated">
-<h3>Customer reinstated</h3>
+<h4>Customer reinstated</h4>
 <p>Recorded after <a href="#reinstate">Reinstate</a>.</p>
 </article>
-<article class="term" id="customer-standing">
-<h3>Customer standing</h3>
-<p>Text.</p>
-<p class="rule">Always true: a standing is named.</p>
-</article>
 <article class="term" id="customer-suspended">
-<h3>Customer suspended</h3>
+<h4>Customer suspended</h4>
 <p>Recorded after <a href="#suspend">Suspend</a>. Prompts <a href="#freeze-accounts-on-suspension">Freeze accounts on suspension</a>.</p>
 </article>
-<article class="term" id="email-address">
-<h3>Email address</h3>
-<p>Made up of address (text).</p>
-</article>
+</div>
+<h3 class="group" id="what-happens-on-its-own-1">What happens on its own</h3>
+<div class="terms">
 <article class="term" id="freeze-accounts-on-suspension">
-<h3>Freeze accounts on suspension</h3>
+<h4>Freeze accounts on suspension</h4>
 <p>When <a href="#customer-suspended">Customer suspended</a> happens, <a href="#account">Account</a> is asked to <a href="#freeze-account">Freeze account</a>, once for each row of <a href="#open-for-customer">Open for customer</a>.</p>
 </article>
+</div>
+<h3 class="group" id="lists-3">Lists</h3>
+<div class="terms">
 <article class="term" id="in-good-standing">
-<h3>In good standing</h3>
+<h4>In good standing</h4>
 <p>The everyday customer roll — active, and nothing outstanding against them.</p>
+<p>Customers that are active and whose customer standing is good, sorted by customer number, A to Z.</p>
 </article>
 <article class="term" id="not-good-standing">
-<h3>Not good standing</h3>
+<h4>Not good standing</h4>
 <p>Everyone who is not in the everyday roll — suspended, under review, or anything else that is not simply &quot;good&quot;.</p>
-</article>
-<article class="term" id="person-name">
-<h3>Person name</h3>
-<p>Made up of given (text) and family (text).</p>
-<p class="rule">Always true: a given name is present; a family name is present.</p>
-</article>
-<article class="term" id="register">
-<h3>Register</h3>
-<p>Take on a new customer. Done by the branch clerk.</p>
-</article>
-<article class="term" id="reinstate">
-<h3>Reinstate</h3>
-<p>Let a cleared customer transact again. Done by the compliance officer.</p>
-</article>
-<article class="term" id="suspend">
-<h3>Suspend</h3>
-<p>Stop a customer transacting while something is investigated. Done by the compliance officer.</p>
+<p>Customers whose customer standing is not good, sorted by customer number, A to Z.</p>
 </article>
 <article class="term" id="suspended">
-<h3>Suspended</h3>
+<h4>Suspended</h4>
 <p>The compliance queue, newest concern first.</p>
-</article></div>
+<p>Customers that are suspended, sorted by customer number, Z to A.</p>
+<p>Shows at most 50.</p>
+</article>
+</div>
+<h3 class="group" id="what-it-is-made-of-3">What it is made of</h3>
+<div class="terms">
+<article class="term" id="customer-number">
+<h4>Customer number</h4>
+<p>Text that must not be blank.</p>
+<p class="rule">Always true: a customer number is never empty.</p>
+</article>
+<article class="term" id="customer-standing">
+<h4>Customer standing</h4>
+<p>Text that must not be blank.</p>
+<p class="rule">Always true: a standing is named.</p>
+</article>
+<article class="term" id="email-address">
+<h4>Email address</h4>
+<p>Made up of address (text, must follow a set format).</p>
+</article>
+<article class="term" id="person-name">
+<h4>Person name</h4>
+<p>Made up of given (text, must not be blank) and family (text, must not be blank).</p>
+<p class="rule">Always true: a given name is present; a family name is present.</p>
+</article>
+</div>
 </section>
 <section id="external-transfer">
 <h2>External transfer</h2>
@@ -923,67 +1097,96 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
     sent --&gt; recalled: Recall
     sent --&gt; returned: Return</pre>
 </figure>
+<ul class="rules"><li>Sending a transfer moves the external transfer from requested to sent.</li><li>Recalling an external transfer moves it from sent to recalled.</li><li>Returning an external transfer moves it from sent to returned.</li></ul>
 <p class="caption">Always true</p>
-<ul class="rules"><li>An External transfer references an Account.</li><li>An external transfer amount is positive.</li><li>A beneficiary name is present.</li></ul>
+<ul class="rules"><li>Each external transfer belongs to one account.</li><li>An external transfer amount is positive.</li><li>A beneficiary name is present.</li></ul>
+<h3 class="group" id="actions-4">Actions</h3>
 <div class="terms">
-<article class="term" id="beneficiary-name">
-<h3>Beneficiary name</h3>
-<p>Text.</p>
-<p class="rule">Always true: a beneficiary name is present.</p>
+<article class="term" id="recall">
+<h4>Recall</h4>
+<p>Ask the external network to stop a transfer already sent. Done by the customer.</p>
+<p class="rule">Allowed only when: the external transfer is sent; customer is active; account is open.</p>
+<p>Moves the external transfer from sent to recalled.</p>
+<p>Records <a href="#external-transfer-recalled">External transfer recalled</a>.</p>
 </article>
-<article class="term" id="end-to-end-reference">
-<h3>End to end reference</h3>
-<p>Text.</p>
+<article class="term" id="request">
+<h4>Request</h4>
+<p>Send money to an account outside the bank. Done by the customer.</p>
+<p>Needs an end to end (<a href="#end-to-end-reference">End to end reference</a>), an account (<a href="#account">Account</a>), an amount (<a href="#external-amount">External amount</a>), a beneficiary (<a href="#beneficiary-name">Beneficiary name</a>), and a direction (<a href="#movement-direction">Movement direction</a>).</p>
+<p class="rule">Allowed only when: customer is active; account is open.</p>
+<p>Sets the account, the amount, the beneficiary, the direction, and the end to end.</p>
+<p>Records <a href="#external-transfer-requested">External transfer requested</a>.</p>
 </article>
-<article class="term" id="external-amount">
-<h3>External amount</h3>
-<p>Made up of cents (a whole number).</p>
-<p class="rule">Always true: an external transfer amount is positive.</p>
+<article class="term" id="return">
+<h4>Return</h4>
+<p>Record that the external network sent the money back. Done by the system.</p>
+<p class="rule">Allowed only when: the external transfer is sent; customer is active; account is open.</p>
+<p>Moves the external transfer from sent to returned.</p>
+<p>Records <a href="#external-transfer-returned">External transfer returned</a>.</p>
 </article>
-<article class="term" id="external-settlement">
-<h3>External settlement</h3>
-<p>Begins when <a href="#external-transfer-requested">External transfer requested</a> happens and ends when <a href="#external-transfer-sent">External transfer sent</a> happens. Along the way it can be requested or returned.</p>
+<article class="term" id="send-transfer">
+<h4>Send transfer</h4>
+<p>Release the transfer to the external network. Done by the system.</p>
+<p class="rule">Allowed only when: the external transfer is requested; customer is active; account is open.</p>
+<p>Moves the external transfer from requested to sent.</p>
+<p>Records <a href="#external-transfer-sent">External transfer sent</a>.</p>
 </article>
+</div>
+<h3 class="group" id="what-it-records-4">What it records</h3>
+<div class="terms">
 <article class="term" id="external-transfer-recalled">
-<h3>External transfer recalled</h3>
+<h4>External transfer recalled</h4>
 <p>Recorded after <a href="#recall">Recall</a>.</p>
 </article>
 <article class="term" id="external-transfer-requested">
-<h3>External transfer requested</h3>
+<h4>External transfer requested</h4>
 <p>Recorded after <a href="#request">Request</a>.</p>
 </article>
 <article class="term" id="external-transfer-returned">
-<h3>External transfer returned</h3>
+<h4>External transfer returned</h4>
 <p>Recorded after <a href="#return">Return</a>.</p>
 </article>
 <article class="term" id="external-transfer-sent">
-<h3>External transfer sent</h3>
+<h4>External transfer sent</h4>
 <p>Recorded after <a href="#send-transfer">Send transfer</a>.</p>
 </article>
+</div>
+<h3 class="group" id="what-happens-on-its-own-2">What happens on its own</h3>
+<div class="terms">
+<article class="term" id="external-settlement">
+<h4>External settlement</h4>
+<p>Begins when <a href="#external-transfer-requested">External transfer requested</a> happens and ends when <a href="#external-transfer-sent">External transfer sent</a> happens. Along the way it can be requested or returned.</p>
+</article>
+</div>
+<h3 class="group" id="lists-4">Lists</h3>
+<div class="terms">
+<article class="term" id="sent">
+<h4>Sent</h4>
+<p>Transfers already released to the external network, awaiting its outcome.</p>
+<p>External transfers that are sent.</p>
+</article>
+</div>
+<h3 class="group" id="what-it-is-made-of-4">What it is made of</h3>
+<div class="terms">
+<article class="term" id="beneficiary-name">
+<h4>Beneficiary name</h4>
+<p>Text that must not be blank.</p>
+<p class="rule">Always true: a beneficiary name is present.</p>
+</article>
+<article class="term" id="end-to-end-reference">
+<h4>End to end reference</h4>
+<p>Text that must not be blank.</p>
+</article>
+<article class="term" id="external-amount">
+<h4>External amount</h4>
+<p>Made up of cents (a whole number).</p>
+<p class="rule">Always true: an external transfer amount is positive.</p>
+</article>
 <article class="term" id="movement-direction">
-<h3>Movement direction</h3>
+<h4>Movement direction</h4>
 <p>Text.</p>
 </article>
-<article class="term" id="recall">
-<h3>Recall</h3>
-<p>Ask the external network to stop a transfer already sent. Done by the customer.</p>
-</article>
-<article class="term" id="request">
-<h3>Request</h3>
-<p>Send money to an account outside the bank. Done by the customer.</p>
-</article>
-<article class="term" id="return">
-<h3>Return</h3>
-<p>Record that the external network sent the money back. Done by the system.</p>
-</article>
-<article class="term" id="send-transfer">
-<h3>Send transfer</h3>
-<p>Release the transfer to the external network. Done by the system.</p>
-</article>
-<article class="term" id="sent">
-<h3>Sent</h3>
-<p>Transfers already released to the external network, awaiting its outcome.</p>
-</article></div>
+</div>
 </section>
 <section id="onboarding-case">
 <h2>Onboarding case</h2>
@@ -1004,51 +1207,77 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
     screening --&gt; cleared: Clear
     screening --&gt; declined: Decline</pre>
 </figure>
+<ul class="rules"><li>Clearing an onboarding case moves it from screening to cleared.</li><li>Declining an onboarding case moves it from screening to declined.</li></ul>
 <p class="caption">Always true</p>
-<ul class="rules"><li>An Onboarding case references a Customer.</li><li>An onboarding case is referenced.</li><li>An account number is present.</li></ul>
+<ul class="rules"><li>Each onboarding case belongs to one customer.</li><li>An onboarding reference is never empty.</li><li>An account number is present.</li></ul>
+<h3 class="group" id="actions-5">Actions</h3>
 <div class="terms">
-<article class="term" id="account-number-1">
-<h3>Account number</h3>
-<p>Text.</p>
-<p class="rule">Always true: an account number is present.</p>
-</article>
 <article class="term" id="clear">
-<h3>Clear</h3>
+<h4>Clear</h4>
 <p>Pass a customer&#39;s identity and screening checks. Done by the compliance officer.</p>
+<p class="rule">Allowed only when: the onboarding case is screening; customer is active.</p>
+<p>Moves the onboarding case from screening to cleared.</p>
+<p>Records <a href="#onboarding-cleared">Onboarding cleared</a>.</p>
 </article>
 <article class="term" id="decline">
-<h3>Decline</h3>
+<h4>Decline</h4>
 <p>Refuse a customer who does not clear screening — no account was ever opened, so nothing is undone. Done by the compliance officer.</p>
+<p class="rule">Allowed only when: the onboarding case is screening; customer is active.</p>
+<p>Moves the onboarding case from screening to declined.</p>
+<p>Records <a href="#onboarding-declined">Onboarding declined</a>.</p>
 </article>
-<article class="term" id="onboarding">
-<h3>Onboarding</h3>
-<p>Begins when <a href="#onboarding-opened">Onboarding opened</a> happens and ends when <a href="#account-opened">Account opened</a> happens. Along the way it can be screening, cleared, or declined.</p>
+<article class="term" id="open-1">
+<h4>Open</h4>
+<p>Open a KYC case for a newly registered customer, naming the account it will become. Done by the branch clerk.</p>
+<p>Needs a customer (<a href="#customer">Customer</a>), a reference (<a href="#onboarding-reference">Onboarding reference</a>), and an account number (<a href="#account-number-1">Account number</a>).</p>
+<p class="rule">Allowed only when: customer is active.</p>
+<p>Sets the customer, the reference, and the account number.</p>
+<p>Records <a href="#onboarding-opened">Onboarding opened</a>.</p>
 </article>
+</div>
+<h3 class="group" id="what-it-records-5">What it records</h3>
+<div class="terms">
 <article class="term" id="onboarding-cleared">
-<h3>Onboarding cleared</h3>
+<h4>Onboarding cleared</h4>
 <p>Recorded after <a href="#clear">Clear</a>.</p>
 </article>
 <article class="term" id="onboarding-declined">
-<h3>Onboarding declined</h3>
+<h4>Onboarding declined</h4>
 <p>Recorded after <a href="#decline">Decline</a>.</p>
 </article>
 <article class="term" id="onboarding-opened">
-<h3>Onboarding opened</h3>
+<h4>Onboarding opened</h4>
 <p>Recorded after <a href="#open-1">Open</a>.</p>
 </article>
-<article class="term" id="onboarding-reference">
-<h3>Onboarding reference</h3>
-<p>Text.</p>
-<p class="rule">Always true: an onboarding case is referenced.</p>
+</div>
+<h3 class="group" id="what-happens-on-its-own-3">What happens on its own</h3>
+<div class="terms">
+<article class="term" id="onboarding">
+<h4>Onboarding</h4>
+<p>Begins when <a href="#onboarding-opened">Onboarding opened</a> happens and ends when <a href="#account-opened">Account opened</a> happens. Along the way it can be screening, cleared, or declined.</p>
 </article>
-<article class="term" id="open-1">
-<h3>Open</h3>
-<p>Open a KYC case for a newly registered customer, naming the account it will become. Done by the branch clerk.</p>
-</article>
+</div>
+<h3 class="group" id="lists-5">Lists</h3>
+<div class="terms">
 <article class="term" id="screening">
-<h3>Screening</h3>
+<h4>Screening</h4>
 <p>Cases still waiting on a compliance decision.</p>
-</article></div>
+<p>Onboarding cases that are screening, sorted by onboarding reference, A to Z.</p>
+</article>
+</div>
+<h3 class="group" id="what-it-is-made-of-5">What it is made of</h3>
+<div class="terms">
+<article class="term" id="account-number-1">
+<h4>Account number</h4>
+<p>Text that must not be blank.</p>
+<p class="rule">Always true: an account number is present.</p>
+</article>
+<article class="term" id="onboarding-reference">
+<h4>Onboarding reference</h4>
+<p>Text that must not be blank.</p>
+<p class="rule">Always true: an onboarding reference is never empty.</p>
+</article>
+</div>
 </section>
 <section id="safe-deposit-box">
 <h2>Safe deposit box</h2>
@@ -1073,120 +1302,161 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
     vacant --&gt; rented: Rent
     rented --&gt; vacant: Surrender</pre>
 </figure>
+<ul class="rules"><li>Renting a safe deposit box moves it from vacant to rented.</li><li>Surrendering a safe deposit box moves it from rented to vacant.</li></ul>
 <p class="caption">Always true</p>
-<ul class="rules"><li>A Safe deposit box belongs to a Customer.</li><li>A Safe deposit box has many visits.</li><li>A Safe deposit box has many keys.</li><li>A branch is coded.</li><li>A box is numbered from one.</li><li>A visit sequence is positive.</li><li>A visit names its date.</li><li>A key is serialed.</li><li>A written note is not blank.</li></ul>
+<ul class="rules"><li>Each safe deposit box belongs to one customer.</li><li>Each safe deposit box holds a list of visits.</li><li>Each safe deposit box holds its keys, a list of key issuances.</li><li>A branch is coded.</li><li>A box is numbered from one.</li><li>A visit sequence is positive.</li><li>A visit names its date.</li><li>A key is serialed.</li><li>A written note is not blank.</li></ul>
+<h3 class="group" id="actions-6">Actions</h3>
 <div class="terms">
 <article class="term" id="annotate">
-<h3>Annotate</h3>
+<h4>Annotate</h4>
 <p>Note something unusual about a visit after the fact. Done by the vault officer.</p>
+<p>Needs a note (<a href="#visit-note">Visit note</a>).</p>
+<p class="rule">Allowed only when: the visit is logged; customer is active; box is rented.</p>
+<p>Sets the note and keeps the visit logged.</p>
+<p>Records <a href="#visit-annotated">Visit annotated</a>.</p>
 </article>
-<article class="term" id="box-number">
-<h3>Box number</h3>
-<p>A whole number.</p>
-<p class="rule">Always true: a box is numbered from one.</p>
+<article class="term" id="issue-key">
+<h4>Issue key</h4>
+<p>Cut a key for the box. Done by the vault officer.</p>
+<p>Needs a serial (<a href="#key-serial">Key serial</a>).</p>
+<p class="rule">Allowed only when: the safe deposit box is rented; customer is active.</p>
+<p>Adds to the keys.</p>
+<p>Records <a href="#key-issued">Key issued</a>.</p>
 </article>
+<article class="term" id="log-visit">
+<h4>Log visit</h4>
+<p>Record that the box was opened. Done by the vault officer.</p>
+<p>Needs a date (<a href="#visit-date">Visit date</a>), a sequence (<a href="#visit-sequence">Visit sequence</a>), and a note (<a href="#visit-note">Visit note</a>, optional).</p>
+<p class="rule">Allowed only when: the safe deposit box is rented; customer is active.</p>
+<p>Adds to the visits.</p>
+<p>Records <a href="#box-opened">Box opened</a>.</p>
+</article>
+<article class="term" id="rent">
+<h4>Rent</h4>
+<p>Assign the box to a customer. Done by the branch clerk.</p>
+<p>Needs a branch code (<a href="#branch-code">Branch code</a>), a box number (<a href="#box-number">Box number</a>), a size (<a href="#size">Size</a>), and a customer (<a href="#customer">Customer</a>).</p>
+<p class="rule">Allowed only when: the safe deposit box is vacant; customer is active.</p>
+<p>Sets the customer, the branch code, the box number, and the size and moves the safe deposit box from vacant to rented.</p>
+<p>Records <a href="#box-rented">Box rented</a>.</p>
+</article>
+<article class="term" id="return-1">
+<h4>Return</h4>
+<p>Take a key back when a holder is done with it. Done by the vault officer.</p>
+<p>Needs a serial (<a href="#key-serial">Key serial</a>).</p>
+<p class="rule">Allowed only when: customer is active; box is rented.</p>
+<p>Moves the key issuance from issued to returned.</p>
+<p>Records <a href="#key-returned">Key returned</a>.</p>
+</article>
+<article class="term" id="surrender">
+<h4>Surrender</h4>
+<p>Give the box back and take the keys off the account. Done by the customer.</p>
+<p class="rule">Allowed only when: the safe deposit box is rented; customer is active.</p>
+<p>Moves the safe deposit box from rented to vacant.</p>
+<p>Records <a href="#box-surrendered">Box surrendered</a> and <a href="#key-return-due">Key return due</a>.</p>
+</article>
+</div>
+<h3 class="group" id="what-it-records-6">What it records</h3>
+<div class="terms">
 <article class="term" id="box-opened">
-<h3>Box opened</h3>
+<h4>Box opened</h4>
 <p>Recorded after <a href="#log-visit">Log visit</a>.</p>
 </article>
 <article class="term" id="box-rented">
-<h3>Box rented</h3>
+<h4>Box rented</h4>
 <p>Recorded after <a href="#rent">Rent</a>.</p>
 </article>
 <article class="term" id="box-surrendered">
-<h3>Box surrendered</h3>
+<h4>Box surrendered</h4>
 <p>Recorded after <a href="#surrender">Surrender</a>. Prompts <a href="#review-on-box-surrender">Review on box surrender</a>.</p>
 </article>
-<article class="term" id="branch-code">
-<h3>Branch code</h3>
-<p>Text.</p>
-<p class="rule">Always true: a branch is coded.</p>
-</article>
-<article class="term" id="flag-key-return">
-<h3>Flag key return</h3>
-<p>When <a href="#key-return-due">Key return due</a> happens, Notifications is asked to send, in Notifications.</p>
-</article>
-<article class="term" id="issue-key">
-<h3>Issue key</h3>
-<p>Cut a key for the box. Done by the vault officer.</p>
-</article>
-<article class="term" id="key-issuance">
-<h3>Key issuance</h3>
-<p>One key cut for the box, held by whoever last signed for it.</p>
-<p>Starts out issued. Can be issued or returned.</p>
-</article>
 <article class="term" id="key-issued">
-<h3>Key issued</h3>
+<h4>Key issued</h4>
 <p>Recorded after <a href="#issue-key">Issue key</a>.</p>
 </article>
 <article class="term" id="key-return-due">
-<h3>Key return due</h3>
+<h4>Key return due</h4>
 <p>Recorded after <a href="#surrender">Surrender</a>. Prompts <a href="#flag-key-return">Flag key return</a>.</p>
 </article>
 <article class="term" id="key-returned">
-<h3>Key returned</h3>
+<h4>Key returned</h4>
 <p>Recorded after <a href="#return-1">Return</a>.</p>
 </article>
-<article class="term" id="key-serial">
-<h3>Key serial</h3>
-<p>Text.</p>
-<p class="rule">Always true: a key is serialed.</p>
+<article class="term" id="visit-annotated">
+<h4>Visit annotated</h4>
+<p>Recorded after <a href="#annotate">Annotate</a>.</p>
 </article>
-<article class="term" id="log-visit">
-<h3>Log visit</h3>
-<p>Record that the box was opened. Done by the vault officer.</p>
-</article>
-<article class="term" id="recent-1">
-<h3>Recent</h3>
-<p>The last few visits, whatever the box has seen.</p>
-</article>
-<article class="term" id="rent">
-<h3>Rent</h3>
-<p>Assign the box to a customer. Done by the branch clerk.</p>
-</article>
-<article class="term" id="rented">
-<h3>Rented</h3>
-<p>Boxes currently assigned to a customer, for the annual access audit.</p>
-</article>
-<article class="term" id="return-1">
-<h3>Return</h3>
-<p>Take a key back when a holder is done with it. Done by the vault officer.</p>
+</div>
+<h3 class="group" id="what-happens-on-its-own-4">What happens on its own</h3>
+<div class="terms">
+<article class="term" id="flag-key-return">
+<h4>Flag key return</h4>
+<p>When <a href="#key-return-due">Key return due</a> happens, Notifications is asked to send, in Notifications.</p>
 </article>
 <article class="term" id="review-on-box-surrender">
-<h3>Review on box surrender</h3>
+<h4>Review on box surrender</h4>
 <p>When <a href="#box-surrendered">Box surrendered</a> happens, Box surrender review is asked to open, in Compliance.</p>
 </article>
+</div>
+<h3 class="group" id="lists-6">Lists</h3>
+<div class="terms">
+<article class="term" id="recent-1">
+<h4>Recent</h4>
+<p>The last few visits, whatever the box has seen.</p>
+<p>Visits that are logged.</p>
+<p>Shows at most 5.</p>
+</article>
+<article class="term" id="rented">
+<h4>Rented</h4>
+<p>Boxes currently assigned to a customer, for the annual access audit.</p>
+<p>Safe deposit boxes that are rented, sorted by branch code, A to Z.</p>
+</article>
+</div>
+<h3 class="group" id="what-it-is-made-of-6">What it is made of</h3>
+<div class="terms">
+<article class="term" id="box-number">
+<h4>Box number</h4>
+<p>A whole number.</p>
+<p class="rule">Always true: a box is numbered from one.</p>
+</article>
+<article class="term" id="branch-code">
+<h4>Branch code</h4>
+<p>Text that must not be blank.</p>
+<p class="rule">Always true: a branch is coded.</p>
+</article>
+<article class="term" id="key-issuance">
+<h4>Key issuance</h4>
+<p>One key cut for the box, held by whoever last signed for it.</p>
+<p>Starts out issued. Can be issued or returned.</p>
+</article>
+<article class="term" id="key-serial">
+<h4>Key serial</h4>
+<p>Text that must not be blank.</p>
+<p class="rule">Always true: a key is serialed.</p>
+</article>
 <article class="term" id="size">
-<h3>Size</h3>
+<h4>Size</h4>
 <p>One of small, medium, or large.</p>
 </article>
-<article class="term" id="surrender">
-<h3>Surrender</h3>
-<p>Give the box back and take the keys off the account. Done by the customer.</p>
-</article>
 <article class="term" id="visit">
-<h3>Visit</h3>
+<h4>Visit</h4>
 <p>One opening of the box, in the order it happened that day.</p>
 <p>Starts out logged. Can be logged.</p>
 </article>
-<article class="term" id="visit-annotated">
-<h3>Visit annotated</h3>
-<p>Recorded after <a href="#annotate">Annotate</a>.</p>
-</article>
 <article class="term" id="visit-date">
-<h3>Visit date</h3>
-<p>Text.</p>
+<h4>Visit date</h4>
+<p>Text that must not be blank.</p>
 <p class="rule">Always true: a visit names its date.</p>
 </article>
 <article class="term" id="visit-note">
-<h3>Visit note</h3>
+<h4>Visit note</h4>
 <p>Made up of text (text).</p>
 </article>
 <article class="term" id="visit-sequence">
-<h3>Visit sequence</h3>
+<h4>Visit sequence</h4>
 <p>A whole number.</p>
 <p class="rule">Always true: a visit sequence is positive.</p>
-</article></div>
+</article>
+</div>
 </section>
 <section id="scheduled-payment">
 <h2>Scheduled payment</h2>
@@ -1210,90 +1480,126 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
     failed --&gt; failed: Retry
     failed --&gt; abandoned: Abandon</pre>
 </figure>
+<ul class="rules"><li>Executing a scheduled payment moves it from scheduled to executed.</li><li>Cancelling a scheduled payment moves it from scheduled to cancelled.</li><li>Failing a scheduled payment moves it from scheduled to failed.</li><li>Retrying a scheduled payment keeps it failed.</li><li>Abandoning a scheduled payment moves it from failed to abandoned.</li></ul>
 <p class="caption">Always true</p>
-<ul class="rules"><li>A Scheduled payment references an Account.</li><li>A scheduled payment amount is positive.</li><li>A payment recipient is present.</li><li>A payment due date is present.</li><li>A retry count is non-negative.</li><li>A retry limit is positive.</li></ul>
+<ul class="rules"><li>Each scheduled payment belongs to one account.</li><li>A scheduled payment amount is positive.</li><li>A payment recipient is present.</li><li>A payment due date is present.</li><li>A retry count is non-negative.</li><li>A retry limit is positive.</li></ul>
+<h3 class="group" id="actions-7">Actions</h3>
 <div class="terms">
 <article class="term" id="abandon">
-<h3>Abandon</h3>
+<h4>Abandon</h4>
 <p>Give up on a payment that could not be collected after every retry. Done by the back office.</p>
+<p class="rule">Allowed only when: the scheduled payment is failed; customer is active; account is open; every retry is exhausted.</p>
+<p>Moves the scheduled payment from failed to abandoned.</p>
+<p>Records <a href="#scheduled-payment-abandoned">Scheduled payment abandoned</a>.</p>
 </article>
 <article class="term" id="cancel">
-<h3>Cancel</h3>
+<h4>Cancel</h4>
 <p>Call off a payment before its due date. Done by the customer.</p>
-</article>
-<article class="term" id="due">
-<h3>Due</h3>
-<p>Payments still scheduled, ordered by when they&#39;re due.</p>
+<p class="rule">Allowed only when: the scheduled payment is scheduled; customer is active; account is open.</p>
+<p>Moves the scheduled payment from scheduled to cancelled.</p>
+<p>Records <a href="#scheduled-payment-cancelled">Scheduled payment cancelled</a>.</p>
 </article>
 <article class="term" id="execute">
-<h3>Execute</h3>
+<h4>Execute</h4>
 <p>Collect a payment on its due date. Done by the system.</p>
+<p class="rule">Allowed only when: the scheduled payment is scheduled; customer is active; account is open.</p>
+<p>Moves the scheduled payment from scheduled to executed.</p>
+<p>Records <a href="#scheduled-payment-executed">Scheduled payment executed</a>.</p>
 </article>
 <article class="term" id="fail">
-<h3>Fail</h3>
+<h4>Fail</h4>
 <p>Record that today&#39;s presentment could not be collected. Done by the system.</p>
+<p class="rule">Allowed only when: the scheduled payment is scheduled; customer is active; account is open.</p>
+<p>Moves the scheduled payment from scheduled to failed.</p>
+<p>Records <a href="#scheduled-payment-failed">Scheduled payment failed</a>.</p>
 </article>
+<article class="term" id="retry">
+<h4>Retry</h4>
+<p>Re-present a failed payment, up to the limit the schedule names. Done by the system.</p>
+<p class="rule">Allowed only when: the scheduled payment is failed; customer is active; account is open; a retry is still allowed.</p>
+<p>Raises the attempts and keeps the scheduled payment failed.</p>
+<p class="rule">Afterwards, always: a retry never lowers the attempt count.</p>
+<p>Records <a href="#scheduled-payment-failed">Scheduled payment failed</a>.</p>
+</article>
+<article class="term" id="schedule">
+<h4>Schedule</h4>
+<p>Set up a payment to collect on a future date. Done by the customer.</p>
+<p>Needs an instruction (<a href="#instruction-reference">Instruction reference</a>), an account (<a href="#account">Account</a>), an amount (<a href="#scheduled-amount">Scheduled amount</a>), a recipient (<a href="#payment-recipient">Payment recipient</a>), and a due on (<a href="#payment-due-date">Payment due date</a>).</p>
+<p class="rule">Allowed only when: customer is active; account is open.</p>
+<p>Sets the account, the amount, the recipient, the due on, and the instruction.</p>
+<p>Records <a href="#payment-scheduled">Payment scheduled</a>.</p>
+</article>
+</div>
+<h3 class="group" id="what-it-records-7">What it records</h3>
+<div class="terms">
+<article class="term" id="payment-scheduled">
+<h4>Payment scheduled</h4>
+<p>Recorded after <a href="#schedule">Schedule</a>.</p>
+</article>
+<article class="term" id="scheduled-payment-abandoned">
+<h4>Scheduled payment abandoned</h4>
+<p>Recorded after <a href="#abandon">Abandon</a>.</p>
+</article>
+<article class="term" id="scheduled-payment-cancelled">
+<h4>Scheduled payment cancelled</h4>
+<p>Recorded after <a href="#cancel">Cancel</a>.</p>
+</article>
+<article class="term" id="scheduled-payment-executed">
+<h4>Scheduled payment executed</h4>
+<p>Recorded after <a href="#execute">Execute</a>.</p>
+</article>
+<article class="term" id="scheduled-payment-failed">
+<h4>Scheduled payment failed</h4>
+<p>Recorded after <a href="#fail">Fail</a> or <a href="#retry">Retry</a>. Prompts <a href="#retry-on-payment-failure">Retry on payment failure</a>.</p>
+</article>
+</div>
+<h3 class="group" id="what-happens-on-its-own-5">What happens on its own</h3>
+<div class="terms">
+<article class="term" id="retry-on-payment-failure">
+<h4>Retry on payment failure</h4>
+<p>When <a href="#scheduled-payment-failed">Scheduled payment failed</a> happens, <a href="#scheduled-payment">Scheduled payment</a> is asked to <a href="#retry">Retry</a>.</p>
+</article>
+</div>
+<h3 class="group" id="lists-7">Lists</h3>
+<div class="terms">
+<article class="term" id="due">
+<h4>Due</h4>
+<p>Payments still scheduled, ordered by when they&#39;re due.</p>
+<p>Scheduled payments that are scheduled, sorted by payment due date, A to Z.</p>
+</article>
+</div>
+<h3 class="group" id="what-it-is-made-of-7">What it is made of</h3>
+<div class="terms">
 <article class="term" id="instruction-reference">
-<h3>Instruction reference</h3>
-<p>Text.</p>
+<h4>Instruction reference</h4>
+<p>Text that must not be blank.</p>
 </article>
 <article class="term" id="payment-due-date">
-<h3>Payment due date</h3>
-<p>Text.</p>
+<h4>Payment due date</h4>
+<p>Text that must not be blank.</p>
 <p class="rule">Always true: a payment due date is present.</p>
 </article>
 <article class="term" id="payment-recipient">
-<h3>Payment recipient</h3>
-<p>Text.</p>
+<h4>Payment recipient</h4>
+<p>Text that must not be blank.</p>
 <p class="rule">Always true: a payment recipient is present.</p>
 </article>
-<article class="term" id="payment-scheduled">
-<h3>Payment scheduled</h3>
-<p>Recorded after <a href="#schedule">Schedule</a>.</p>
-</article>
-<article class="term" id="retry">
-<h3>Retry</h3>
-<p>Re-present a failed payment, up to the limit the schedule names. Done by the system.</p>
-</article>
 <article class="term" id="retry-count">
-<h3>Retry count</h3>
+<h4>Retry count</h4>
 <p>A whole number.</p>
 <p class="rule">Always true: a retry count is non-negative.</p>
 </article>
 <article class="term" id="retry-limit">
-<h3>Retry limit</h3>
+<h4>Retry limit</h4>
 <p>A whole number.</p>
 <p class="rule">Always true: a retry limit is positive.</p>
 </article>
-<article class="term" id="retry-on-payment-failure">
-<h3>Retry on payment failure</h3>
-<p>When <a href="#scheduled-payment-failed">Scheduled payment failed</a> happens, <a href="#scheduled-payment">Scheduled payment</a> is asked to <a href="#retry">Retry</a>.</p>
-</article>
-<article class="term" id="schedule">
-<h3>Schedule</h3>
-<p>Set up a payment to collect on a future date. Done by the customer.</p>
-</article>
 <article class="term" id="scheduled-amount">
-<h3>Scheduled amount</h3>
+<h4>Scheduled amount</h4>
 <p>Made up of cents (a whole number).</p>
 <p class="rule">Always true: a scheduled payment amount is positive.</p>
 </article>
-<article class="term" id="scheduled-payment-abandoned">
-<h3>Scheduled payment abandoned</h3>
-<p>Recorded after <a href="#abandon">Abandon</a>.</p>
-</article>
-<article class="term" id="scheduled-payment-cancelled">
-<h3>Scheduled payment cancelled</h3>
-<p>Recorded after <a href="#cancel">Cancel</a>.</p>
-</article>
-<article class="term" id="scheduled-payment-executed">
-<h3>Scheduled payment executed</h3>
-<p>Recorded after <a href="#execute">Execute</a>.</p>
-</article>
-<article class="term" id="scheduled-payment-failed">
-<h3>Scheduled payment failed</h3>
-<p>Recorded after <a href="#fail">Fail</a> or <a href="#retry">Retry</a>. Prompts <a href="#retry-on-payment-failure">Retry on payment failure</a>.</p>
-</article></div>
+</div>
 </section>
 <section id="statement">
 <h2>Statement</h2>
@@ -1307,34 +1613,46 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
     classDef focus stroke-width:3px</pre>
 </figure>
 <p class="caption">Always true</p>
-<ul class="rules"><li>A Statement references an Account.</li><li>A statement names its period.</li><li>A statement is dated.</li></ul>
+<ul class="rules"><li>Each statement belongs to one account.</li><li>A statement names its period.</li><li>A statement is dated.</li></ul>
+<h3 class="group" id="actions-8">Actions</h3>
 <div class="terms">
 <article class="term" id="generate">
-<h3>Generate</h3>
+<h4>Generate</h4>
 <p>Close out one period&#39;s activity into a permanent record. Done by the system.</p>
+<p>Needs a period (<a href="#statement-period">Statement period</a>), an opening balance (<a href="#statement-amount">Statement amount</a>), a closing balance (<a href="#statement-amount">Statement amount</a>), a generated on (<a href="#statement-date">Statement date</a>), a frequency (<a href="#statement-frequency">Statement frequency</a>), and an account (<a href="#account">Account</a>).</p>
+<p class="rule">Allowed only when: customer is active; account is open.</p>
+<p>Sets the account, the period, the opening balance, the closing balance, the generated on, and the frequency.</p>
+<p>Records <a href="#statement-generated">Statement generated</a>.</p>
 </article>
+</div>
+<h3 class="group" id="what-it-records-8">What it records</h3>
+<div class="terms">
+<article class="term" id="statement-generated">
+<h4>Statement generated</h4>
+<p>Recorded after <a href="#generate">Generate</a>.</p>
+</article>
+</div>
+<h3 class="group" id="what-it-is-made-of-8">What it is made of</h3>
+<div class="terms">
 <article class="term" id="statement-amount">
-<h3>Statement amount</h3>
+<h4>Statement amount</h4>
 <p>Made up of cents (a whole number).</p>
 </article>
 <article class="term" id="statement-date">
-<h3>Statement date</h3>
-<p>Text.</p>
+<h4>Statement date</h4>
+<p>Text that must not be blank.</p>
 <p class="rule">Always true: a statement is dated.</p>
 </article>
 <article class="term" id="statement-frequency">
-<h3>Statement frequency</h3>
+<h4>Statement frequency</h4>
 <p>One of: monthly (retention months 84, paper fee cents 0); quarterly (retention months 120, paper fee cents 0); annual (retention months 240, paper fee cents 500).</p>
 </article>
-<article class="term" id="statement-generated">
-<h3>Statement generated</h3>
-<p>Recorded after <a href="#generate">Generate</a>.</p>
-</article>
 <article class="term" id="statement-period">
-<h3>Statement period</h3>
-<p>Text.</p>
+<h4>Statement period</h4>
+<p>Text that must not be blank.</p>
 <p class="rule">Always true: a statement names its period.</p>
-</article></div>
+</article>
+</div>
 </section>
 <section id="transfer">
 <h2>Transfer</h2>
@@ -1359,165 +1677,203 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
     debited --&gt; reversed: Reverse
     requested --&gt; rejected: Reject</pre>
 </figure>
+<ul class="rules"><li>Marking a transfer debited moves it from requested to debited.</li><li>Marking a transfer credited moves it from debited to credited.</li><li>Settling a transfer moves it from credited to settled.</li><li>Reversing a transfer moves it from debited to reversed.</li><li>Rejecting a transfer moves it from requested to rejected.</li></ul>
 <p class="caption">Always true</p>
-<ul class="rules"><li>A Transfer references an Account.</li><li>A transfer is referenced.</li><li>A transfer amount is positive.</li><li>A transfer explains itself.</li></ul>
+<ul class="rules"><li>Each transfer has one source account.</li><li>Each transfer has one destination account.</li><li>A transfer reference is never empty.</li><li>A transfer amount is positive.</li><li>A transfer explains itself.</li></ul>
+<h3 class="group" id="actions-9">Actions</h3>
 <div class="terms">
 <article class="term" id="credited">
-<h3>Credited</h3>
+<h4>Credited</h4>
 <p>Record that the destination credit committed. Done by the system.</p>
+<p class="rule">Allowed only when: the transfer is debited; destination customer is active; destination account is open.</p>
+<p>Moves the transfer from debited to credited.</p>
+<p>Records <a href="#transfer-credited">Transfer credited</a>.</p>
 </article>
 <article class="term" id="debited">
-<h3>Debited</h3>
+<h4>Debited</h4>
 <p>Record that the source account has given up the money. Done by the system.</p>
-</article>
-<article class="term" id="in-flight">
-<h3>In flight</h3>
-<p>Transfers that have left one account and not arrived at the other. The list that must always empty.</p>
-</article>
-<article class="term" id="narrative-2">
-<h3>Narrative</h3>
-<p>Made up of text (text).</p>
-<p class="rule">Always true: a transfer explains itself.</p>
+<p class="rule">Allowed only when: the transfer is requested; source customer is active; source account is open.</p>
+<p>Moves the transfer from requested to debited.</p>
+<p>Records <a href="#transfer-debited">Transfer debited</a>.</p>
 </article>
 <article class="term" id="reject">
-<h3>Reject</h3>
+<h4>Reject</h4>
 <p>Refuse a transfer before any money moved. Done by the system.</p>
+<p class="rule">Allowed only when: the transfer is requested; source customer is active; source account is open.</p>
+<p>Moves the transfer from requested to rejected.</p>
+<p>Records <a href="#transfer-rejected">Transfer rejected</a>.</p>
 </article>
 <article class="term" id="request-1">
-<h3>Request</h3>
+<h4>Request</h4>
 <p>Send money to another account. Done by the customer.</p>
+<p>Needs a reference (<a href="#transfer-reference">Transfer reference</a>), an amount (<a href="#transfer-money">Transfer money</a>), a narrative (<a href="#narrative-2">Narrative</a>), a source (<a href="#account">Account</a>), and a destination (<a href="#account">Account</a>).</p>
+<p class="rule">Allowed only when: source customer is active; source account is open; a transfer names its source; a transfer goes somewhere; a transfer moves BETWEEN accounts.</p>
+<p>Sets the amount, the narrative, the source, the destination, and the reference.</p>
+<p>Records <a href="#transfer-requested">Transfer requested</a>.</p>
 </article>
 <article class="term" id="reverse-2">
-<h3>Reverse</h3>
+<h4>Reverse</h4>
 <p>Put the money back when the credit could not be made. Done by the system.</p>
+<p class="rule">Allowed only when: the transfer is debited; source customer is active; source account is open.</p>
+<p>Moves the transfer from debited to reversed.</p>
+<p>Records <a href="#transfer-reversed">Transfer reversed</a>.</p>
 </article>
 <article class="term" id="settle">
-<h3>Settle</h3>
+<h4>Settle</h4>
 <p>Record that the destination has received it. Done by the system.</p>
+<p class="rule">Allowed only when: the transfer is credited; destination customer is active; destination account is open.</p>
+<p>Moves the transfer from credited to settled.</p>
+<p>Records <a href="#transfer-settled">Transfer settled</a>.</p>
 </article>
-<article class="term" id="settlement">
-<h3>Settlement</h3>
-<p>Begins when <a href="#transfer-requested">Transfer requested</a> happens and ends when <a href="#transfer-settled">Transfer settled</a> happens. Along the way it can be requested, awaiting credit, settled, or reversed.</p>
-</article>
+</div>
+<h3 class="group" id="what-it-records-9">What it records</h3>
+<div class="terms">
 <article class="term" id="transfer-credited">
-<h3>Transfer credited</h3>
+<h4>Transfer credited</h4>
 <p>Recorded after <a href="#credited">Credited</a>.</p>
 </article>
 <article class="term" id="transfer-debited">
-<h3>Transfer debited</h3>
+<h4>Transfer debited</h4>
 <p>Recorded after <a href="#debited">Debited</a>.</p>
 </article>
+<article class="term" id="transfer-rejected">
+<h4>Transfer rejected</h4>
+<p>Recorded after <a href="#reject">Reject</a>.</p>
+</article>
+<article class="term" id="transfer-requested">
+<h4>Transfer requested</h4>
+<p>Recorded after <a href="#request-1">Request</a>.</p>
+</article>
+<article class="term" id="transfer-reversed">
+<h4>Transfer reversed</h4>
+<p>Recorded after <a href="#reverse-2">Reverse</a>.</p>
+</article>
+<article class="term" id="transfer-settled">
+<h4>Transfer settled</h4>
+<p>Recorded after <a href="#settle">Settle</a>.</p>
+</article>
+</div>
+<h3 class="group" id="what-happens-on-its-own-6">What happens on its own</h3>
+<div class="terms">
+<article class="term" id="settlement">
+<h4>Settlement</h4>
+<p>Begins when <a href="#transfer-requested">Transfer requested</a> happens and ends when <a href="#transfer-settled">Transfer settled</a> happens. Along the way it can be requested, awaiting credit, settled, or reversed.</p>
+</article>
+</div>
+<h3 class="group" id="lists-8">Lists</h3>
+<div class="terms">
+<article class="term" id="in-flight">
+<h4>In flight</h4>
+<p>Transfers that have left one account and not arrived at the other. The list that must always empty.</p>
+<p>Transfers that are debited, sorted by status.</p>
+</article>
+</div>
+<h3 class="group" id="what-it-is-made-of-9">What it is made of</h3>
+<div class="terms">
+<article class="term" id="narrative-2">
+<h4>Narrative</h4>
+<p>Made up of text (text, must not be blank).</p>
+<p class="rule">Always true: a transfer explains itself.</p>
+</article>
 <article class="term" id="transfer-money">
-<h3>Transfer money</h3>
+<h4>Transfer money</h4>
 <p>Made up of cents (a whole number).</p>
 <p class="rule">Always true: a transfer amount is positive.</p>
 </article>
 <article class="term" id="transfer-reference">
-<h3>Transfer reference</h3>
-<p>Text.</p>
-<p class="rule">Always true: a transfer is referenced.</p>
+<h4>Transfer reference</h4>
+<p>Text that must not be blank.</p>
+<p class="rule">Always true: a transfer reference is never empty.</p>
 </article>
-<article class="term" id="transfer-rejected">
-<h3>Transfer rejected</h3>
-<p>Recorded after <a href="#reject">Reject</a>.</p>
-</article>
-<article class="term" id="transfer-requested">
-<h3>Transfer requested</h3>
-<p>Recorded after <a href="#request-1">Request</a>.</p>
-</article>
-<article class="term" id="transfer-reversed">
-<h3>Transfer reversed</h3>
-<p>Recorded after <a href="#reverse-2">Reverse</a>.</p>
-</article>
-<article class="term" id="transfer-settled">
-<h3>Transfer settled</h3>
-<p>Recorded after <a href="#settle">Settle</a>.</p>
-</article></div>
+</div>
 </section>
 <section id="roles">
 <h2>Roles</h2>
-<p class="about">Who does what. A role is named once here rather than under every term it touches.</p>
+<p class="about">Who does what. Each role is listed once, with the actions it is responsible for.</p>
 <div class="terms">
 <article class="term" id="back-office">
-<h3>Back office</h3>
+<h4>Back office</h4>
 <p>Responsible for <a href="#correct-fee">Correct fee</a>, <a href="#correct-interest">Correct interest</a>, <a href="#amend">Amend</a>, <a href="#reverse">Reverse</a>, <a href="#retire">Retire</a>, and <a href="#abandon">Abandon</a>.</p>
 </article>
 <article class="term" id="branch-clerk">
-<h3>Branch clerk</h3>
+<h4>Branch clerk</h4>
 <p>Responsible for <a href="#register">Register</a>, <a href="#close">Close</a>, <a href="#open">Open (account)</a>, <a href="#close-account">Close account</a>, <a href="#open-1">Open (onboarding case)</a>, <a href="#issue">Issue</a>, and <a href="#rent">Rent</a>.</p>
 </article>
 <article class="term" id="compliance-officer">
-<h3>Compliance officer</h3>
+<h4>Compliance officer</h4>
 <p>Responsible for <a href="#suspend">Suspend</a>, <a href="#reinstate">Reinstate</a>, <a href="#freeze-account">Freeze account</a>, <a href="#unfreeze">Unfreeze</a>, <a href="#clear">Clear</a>, <a href="#decline">Decline</a>, <a href="#chargeback">Chargeback</a>, and <a href="#reject-dispute">Reject dispute</a>.</p>
 </article>
 <article class="term" id="customer-1">
-<h3>Customer</h3>
+<h4>Customer</h4>
 <p>Responsible for <a href="#rename">Rename</a>, <a href="#withdraw">Withdraw</a>, <a href="#activate">Activate</a>, <a href="#dispute">Dispute (withdrawal)</a>, <a href="#dispute-1">Dispute (card payment)</a>, <a href="#surrender">Surrender</a>, <a href="#request-1">Request (transfer)</a>, <a href="#request">Request (external transfer)</a>, <a href="#recall">Recall</a>, <a href="#schedule">Schedule</a>, and <a href="#cancel">Cancel</a>.</p>
 </article>
 <article class="term" id="system">
-<h3>System</h3>
+<h4>System</h4>
 <p>Responsible for <a href="#apply-fee">Apply fee</a>, <a href="#accrue-interest">Accrue interest</a>, <a href="#capture">Capture</a>, <a href="#void">Void</a>, <a href="#refund">Refund</a>, <a href="#reverse-1">Reverse (card payment)</a>, <a href="#generate">Generate</a>, <a href="#debited">Debited</a>, <a href="#settle">Settle</a>, <a href="#credited">Credited</a>, <a href="#reverse-2">Reverse (transfer)</a>, <a href="#reject">Reject</a>, <a href="#send-transfer">Send transfer</a>, <a href="#return">Return</a>, <a href="#execute">Execute</a>, <a href="#fail">Fail</a>, and <a href="#retry">Retry</a>.</p>
 </article>
 <article class="term" id="teller">
-<h3>Teller</h3>
+<h4>Teller</h4>
 <p>Responsible for <a href="#credit">Credit</a> and <a href="#debit">Debit</a>.</p>
 </article>
 <article class="term" id="vault-officer">
-<h3>Vault officer</h3>
+<h4>Vault officer</h4>
 <p>Responsible for <a href="#log-visit">Log visit</a>, <a href="#issue-key">Issue key</a>, <a href="#annotate">Annotate</a>, and <a href="#return-1">Return</a>.</p>
-</article></div>
+</article>
+</div>
 </section>
 <section id="read-models">
 <h2>Read models</h2>
-<p class="about">Questions answered across more than one of the things above.</p>
+<p class="about">Questions answered by reading more than one of the things above.</p>
 <div class="terms">
 <article class="term" id="accounts-by-kind">
-<h3>Accounts by kind</h3>
+<h4>Accounts by kind</h4>
 <p>Every account the bank holds, sorted into what kind it is, then by its own number.</p>
 </article>
 <article class="term" id="compliance-dashboard">
-<h3>Compliance dashboard</h3>
+<h4>Compliance dashboard</h4>
 <p>One account, its own status, and any card charges disputed against it — the working set for a compliance review.</p>
 </article>
 <article class="term" id="customer-portfolio">
-<h3>Customer portfolio</h3>
+<h4>Customer portfolio</h4>
 <p>A customer&#39;s cross-account position, rebuilt from aggregate heads.</p>
 </article>
 <article class="term" id="disputed-payment-average">
-<h3>Disputed payment average</h3>
+<h4>Disputed payment average</h4>
 <p>The mean amount of an account&#39;s own disputed card charges — whether the total is one outlier or many similar ones.</p>
 </article>
 <article class="term" id="disputed-payment-count">
-<h3>Disputed payment count</h3>
+<h4>Disputed payment count</h4>
 <p>How many of an account&#39;s own card charges are under dispute — a single number, not the rows themselves.</p>
 </article>
 <article class="term" id="disputed-payment-largest">
-<h3>Disputed payment largest</h3>
+<h4>Disputed payment largest</h4>
 <p>The largest amount among an account&#39;s own disputed card charges.</p>
 </article>
 <article class="term" id="disputed-payment-median">
-<h3>Disputed payment median</h3>
+<h4>Disputed payment median</h4>
 <p>The median amount of an account&#39;s own disputed card charges.</p>
 </article>
 <article class="term" id="disputed-payment-p95">
-<h3>Disputed payment p95</h3>
+<h4>Disputed payment p95</h4>
 <p>The 95th percentile amount of an account&#39;s own disputed card charges — the tail risk a median alone hides.</p>
 </article>
 <article class="term" id="disputed-payment-smallest">
-<h3>Disputed payment smallest</h3>
+<h4>Disputed payment smallest</h4>
 <p>The smallest amount among an account&#39;s own disputed card charges.</p>
 </article>
 <article class="term" id="disputed-payment-total">
-<h3>Disputed payment total</h3>
+<h4>Disputed payment total</h4>
 <p>The total amount of an account&#39;s own disputed card charges — the exposure a risk manager wants first.</p>
-</article></div>
+</article>
+</div>
 </section>
 </main>
 </div>
 <script>
-// The page's three behaviours: draw the diagrams, find a term, and
-// keep the rail pointing at the section in view. Nothing here changes
-// what the page says — that is all in the Markdown it was rendered from.
+// The page's behaviours: draw the diagrams, find a term, keep the rail
+// pointing at the section in view, and let a reviewer tick each rule and
+// term as checked. Ticks stay in this browser only; nothing here changes
+// what the page says, which is all in the Markdown it was rendered from.
 (function () {
   var root = document.documentElement;
   var dark = root.dataset.theme === "dark" ||
@@ -1534,12 +1890,71 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 
   var input = document.querySelector(".rail input");
   var count = document.querySelector(".rail .count");
+  var progress = document.querySelector(".rail .progress");
   var terms = Array.prototype.slice.call(document.querySelectorAll(".term"));
   var sections = Array.prototype.slice.call(document.querySelectorAll("main section"));
   var links = {};
   Array.prototype.forEach.call(document.querySelectorAll(".rail a"), function (a) {
     links[a.getAttribute("href").slice(1)] = a;
   });
+
+  // Ticks are kept per page, keyed by the section and the text ticked.
+  var storeKey = "glossary-ticks:" + document.title;
+  var ticked = {};
+  try { ticked = JSON.parse(window.localStorage.getItem(storeKey) || "{}") || {}; } catch (e) { ticked = {}; }
+
+  function save() {
+    try { window.localStorage.setItem(storeKey, JSON.stringify(ticked)); } catch (e) { /* not kept */ }
+  }
+
+  var ticks = [];
+
+  function addTick(holder, before, key, label) {
+    var box = document.createElement("input");
+    box.type = "checkbox";
+    box.className = "tick";
+    box.setAttribute("aria-label", "Checked: " + label);
+    box.checked = !!ticked[key];
+    holder.classList.toggle("done", box.checked);
+    box.addEventListener("change", function () {
+      if (box.checked) { ticked[key] = true; } else { delete ticked[key]; }
+      holder.classList.toggle("done", box.checked);
+      save();
+      tally();
+    });
+    before.parentNode.insertBefore(box, before);
+    ticks.push(box);
+  }
+
+  sections.forEach(function (section) {
+    Array.prototype.forEach.call(section.querySelectorAll(".rules li"), function (li) {
+      var text = li.textContent.trim();
+      var span = document.createElement("span");
+      while (li.firstChild) span.appendChild(li.firstChild);
+      li.appendChild(span);
+      addTick(li, span, section.id + "|" + text, text);
+    });
+  });
+
+  terms.forEach(function (term) {
+    var heading = term.querySelector("h4");
+    var text = heading.textContent.trim();
+    var label = document.createElement("label");
+    var span = document.createElement("span");
+    span.textContent = text;
+    heading.textContent = "";
+    label.appendChild(span);
+    heading.appendChild(label);
+    addTick(term, span, "term|" + term.id, text);
+  });
+
+  function tally() {
+    var done = ticks.filter(function (box) { return box.checked; }).length;
+    progress.hidden = ticks.length === 0;
+    progress.textContent = done + " of " + ticks.length + " checked";
+  }
+
+  tally();
 
   function filter() {
     var query = input.value.trim().toLowerCase();

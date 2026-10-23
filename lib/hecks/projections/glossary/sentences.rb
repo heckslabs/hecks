@@ -2,6 +2,8 @@ require_relative "../../naming"
 require_relative "../statements"
 require_relative "sensitivity"
 require_relative "sentences/value_objects"
+require_relative "sentences/actions"
+require_relative "sentences/queries"
 
 module Hecks
   module Projections
@@ -12,8 +14,6 @@ module Hecks
       module Sentences
         # The one sentence each kind of term other than an entity or value object carries.
         SINGLES = {
-          command:    ->(facts, _index) { command_sentence(facts[:command]) },
-          query:      ->(facts, _index) { facts[:query].description },
           event:      ->(facts, index) { event_sentence(facts, index) },
           policy:     ->(facts, index) { policy_sentence(facts[:policy], index) },
           saga:       ->(facts, index) { saga_sentence(facts[:saga], index) },
@@ -28,6 +28,8 @@ module Hecks
           case entry.kind
           when :entity       then holder_paragraphs(facts[:entity])
           when :value_object then value_object_paragraphs(entry, index)
+          when :command      then Actions.paragraphs(facts, index)
+          when :query        then Queries.paragraphs(facts[:query], facts[:holder], facts[:value_objects])
           else [SINGLES.fetch(entry.kind).call(facts, index)]
           end.compact
         end
@@ -67,12 +69,20 @@ module Hecks
         # A cross-domain trigger (`across "Compliance"`) is spoken as words with the
         # domain named, since there is nothing here to link to.
         def policy_sentence(policy, index)
-          sentence = "When #{index.link(:event, bare(policy.on_event))} happens, #{asked_phrase(policy, index)}"
+          sentence = "When #{trigger_phrase(bare(policy.on_event), index)}, #{asked_phrase(policy, index)}"
           if policy.for_each
             query_holder, query = split_trigger(policy.for_each)
             sentence += ", once for each row of #{index.link(:query, query, within: query_holder)}"
           end
           "#{sentence}."
+        end
+
+        # "Topping added happens", or, for an event nothing here records, its name in quotes
+        # and where it comes from.
+        def trigger_phrase(event, index)
+          return "#{index.link(:event, event)} happens" if index[:event, event]
+
+          "\"#{Naming.words(event)}\" arrives from outside"
         end
 
         # What the policy asks of whom, linked unless the trigger crosses into another domain.

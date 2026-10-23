@@ -35,6 +35,9 @@ module Hecks
           (lines << "    classDef focus stroke-width:3px").uniq.join("\n")
         end
 
+        # @return [Boolean] whether the aggregate has anything around it worth drawing
+        def neighbours?(aggregate, bluebook) = !neighbours(aggregate, bluebook).empty?
+
         # The nodes and edges for the aggregate's entities, what it references, and what
         # references it.
         def neighbours(aggregate, bluebook)
