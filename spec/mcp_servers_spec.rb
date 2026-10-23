@@ -35,7 +35,8 @@ RSpec.describe "the stdio MCP servers" do
   # Runs a server to completion over pipes, feeding it one JSON-RPC request per line.
   def run_over_pipes(script, requests = [], args: [], env: {})
     input = requests.map { |request| "#{JSON.generate(request)}\n" }.join
-    out, err, status = Open3.capture3(env, *script, *args, chdir: root, stdin_data: input)    { out: out, err: err, status: status, responses: out.lines.map { |line| JSON.parse(line) } }
+    out, err, status = Open3.capture3(env, *script, *args, chdir: root, stdin_data: input)
+    { out: out, err: err, status: status, responses: out.lines.map { |line| JSON.parse(line) } }
   end
 
   def tool_call(id, name, arguments)
