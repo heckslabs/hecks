@@ -11,7 +11,7 @@ module Hecks
       def self.index(registry:, domain:, aggregate:)
         instances = registry.repository(domain, aggregate).all
         <<~HTML
-          <h1>#{Escape.html("#{domain}::#{aggregate.hecks_name}")}</h1>
+          <h1>#{Escape.html(Naming.plural(Humanize.phrase(aggregate.hecks_name)))}</h1>
           #{%(<p class="goal">#{Escape.html(aggregate.description)}</p>) if aggregate.description}
           #{creating_links(domain, aggregate)}
           <h2>Records (#{instances.size})</h2>
@@ -26,7 +26,7 @@ module Hecks
 
         links = creators.map do |cmd|
           %(<a class="button" href="/#{domain}/#{aggregate.hecks_name}/#{cmd.hecks_name}.html">) \
-            "+ #{Escape.html(cmd.hecks_name)}</a>"
+            "+ #{Escape.html(Humanize.phrase(cmd.hecks_name))}</a>"
         end
         %(<div class="actions">#{links.join}</div>)
       end
@@ -40,7 +40,7 @@ module Hecks
         state = instance.state
         current = aggregate.lifecycle && state[aggregate.lifecycle.field]
         <<~HTML
-          <h1>#{Escape.html("#{domain}::#{aggregate.hecks_name}")} <span class="mono">#{Escape.html(id)}</span></h1>
+          <h1>#{Escape.html(Humanize.phrase(aggregate.hecks_name))} <span class="mono">#{Escape.html(id)}</span></h1>
           #{lifecycle_badge(aggregate, current)}
           #{state_table(state)}
           <h2>Commands</h2>
@@ -76,7 +76,8 @@ module Hecks
       # Omits lifecycle transitions that dispatch would refuse from the current state.
       def self.command_links(domain, aggregate, id, current_state)
         commands = aggregate.commands.reject(&:creates?).select { |cmd| applies?(aggregate, cmd, current_state) }
-        return "<p><em>No commands act on an existing #{Escape.html(aggregate.hecks_name)}.</em></p>" if commands.empty?
+        noun = Escape.html(Humanize.noun(aggregate.hecks_name))
+        return "<p><em>No commands act on an existing #{noun}.</em></p>" if commands.empty?
 
         items = commands.map { |cmd| command_item(domain, aggregate, cmd, id) }
         %(<ul class="verb-list">#{items.join}</ul>)
@@ -86,7 +87,7 @@ module Hecks
       def self.command_item(domain, aggregate, cmd, id)
         # The id is free-form, so it is percent-encoded as a query value.
         href = "/#{domain}/#{aggregate.hecks_name}/#{cmd.hecks_name}.html?to=#{Escape.url(id)}"
-        %(<li><a href="#{Escape.attr(href)}"><span>#{Escape.html(cmd.hecks_name)}</span>) \
+        %(<li><a href="#{Escape.attr(href)}"><span>#{Escape.html(Humanize.phrase(cmd.hecks_name))}</span>) \
           "<span class=\"kind\">#{Escape.html(cmd.goal.to_s)}</span></a></li>"
       end
 
@@ -110,15 +111,18 @@ module Hecks
 
         cmd_items = commands.map { |c| verb_item(domain, aggregate, c, "command") }
         query_items = aggregate.queries.map { |q| verb_item(domain, aggregate, q, "query") }
-        %(<h2>Every command &amp; query on #{Escape.html(aggregate.hecks_name)}</h2>) \
+        %(<h2>Commands and queries for #{plural_noun(aggregate)}</h2>) \
           "<ul class=\"verb-list\">#{(cmd_items + query_items).join}</ul>"
       end
 
       # @param kind [String] the word shown beside the verb, `"command"` or `"query"`
       # @return [String] the list item linking to the verb's own page
+      # @return [String] the aggregate's name as a lowercase plural, HTML-escaped: "orders"
+      def self.plural_noun(aggregate) = Escape.html(Naming.plural(Humanize.noun(aggregate.hecks_name)))
+
       def self.verb_item(domain, aggregate, verb, kind)
         %(<li><a href="/#{domain}/#{aggregate.hecks_name}/#{verb.hecks_name}.html">) \
-          "<span>#{Escape.html(verb.hecks_name)}</span><span class=\"kind\">#{kind}</span></a></li>"
+          "<span>#{Escape.html(Humanize.phrase(verb.hecks_name))}</span><span class=\"kind\">#{kind}</span></a></li>"
       end
     end
   end

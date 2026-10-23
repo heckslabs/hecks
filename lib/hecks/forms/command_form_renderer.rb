@@ -43,7 +43,7 @@ module Hecks
         fields_html = fields_markup(registry, domain, all_fields, form)
         action = form.fetch(:action)
         cancel = "/#{domain}/#{aggregate.hecks_name}"
-        [header(domain, aggregate, command), error_banner(form[:error]),
+        [header(aggregate, command), error_banner(form[:error]),
          form_markup(action, fields_html, command, cancel).chomp,
          inspect_panel(domain, aggregate, command, action, all_fields)].join("\n").concat("\n")
       end
@@ -64,7 +64,7 @@ module Hecks
           <form method="post" action="#{Escape.attr(action)}" novalidate>
             #{fields_html}
             <div class="actions">
-              <button type="submit">#{Escape.html(command.hecks_name)}</button>
+              <button type="submit">#{Escape.html(Humanize.phrase(command.hecks_name))}</button>
               <a class="button secondary" href="#{Escape.attr(cancel)}">Cancel</a>
             </div>
           </form>
@@ -72,31 +72,56 @@ module Hecks
       end
 
       # Builds the `to` field a non-creating command uses to name the record it acts on,
-      # labelled with the aggregate's identity paths.
+      # labelled with the aggregate's name and helped by what identifies one ("the order's
+      # name").
       #
       # @param aggregate [Bluebook::Aggregate] the aggregate whose records the picker offers
       # @return [Forms::Field] a `:reference` field at path `"to"` targeting `aggregate`
       def self.identity_field(aggregate)
-        Field.new(path: "to", label: "#{aggregate.hecks_name} (#{aggregate.identity_paths.join(", ")})",
+        noun = Humanize.noun(aggregate.hecks_name)
+        Field.new(path: "to", label: Humanize.phrase(aggregate.hecks_name),
                   kind: :reference, html_type: "text", target_aggregate: aggregate,
-                  help: "The record this command acts on.")
+                  help: "Which #{noun} this is for, by the #{noun}'s #{identity_words(aggregate)}.")
       end
 
-      # Renders the form's heading: the command's qualified name, its role and creates
-      # badges, its goal, and its preconditions callout.
+      # Names what identifies a record in words: `["name.value"]` -> "name", a composite
+      # `["bank", "number"]` -> "bank and number". A dotted path names its first segment,
+      # since the hops after it reach inside a value object.
       #
-      # @param domain [String] name of the domain (chapter) the aggregate belongs to
+      # @param aggregate [Bluebook::Aggregate] the aggregate whose identity is named
+      # @return [String] the identity's field names as lowercase words; "id" when it has none
+      def self.identity_words(aggregate)
+        names = aggregate.identity_paths.map { |path| Humanize.noun(path.to_s.split(".").first) }.uniq
+        names.empty? ? "id" : Naming.to_sentence_list(names)
+      end
+
+      # Renders the form's heading: the command's name in words, its role and creates
+      # badges, its goal, and its preconditions callout. The code name stays in the inspect
+      # panel.
+      #
       # @param aggregate [Bluebook::Aggregate] the aggregate that declares the command
       # @param command [Bluebook::Command] the command being described
       # @return [String] HTML for the heading block
-      def self.header(domain, aggregate, command)
+      def self.header(aggregate, command)
         <<~HTML
-          <h1>#{Escape.html("#{domain}::#{aggregate.hecks_name}.#{command.hecks_name}")}</h1>
-          #{%(<span class="badge role" title="Declared on the command; this prototype dispatches with no caller bound, so the check does not run.">role: #{Escape.html(command.role)} (not enforced here)</span>) if command.role}
-          #{%(<span class="badge">creates a new #{Escape.html(aggregate.hecks_name)}</span>) if command.creates?}
+          <h1>#{Escape.html(Humanize.phrase(command.hecks_name))}</h1>
+          #{role_badge(command)}
+          #{%(<span class="badge">Creates a new #{Escape.html(Humanize.noun(aggregate.hecks_name))}</span>) if command.creates?}
           #{%(<p class="goal">#{Escape.html(command.goal)}</p>) if command.goal}
           #{givens_callout(command)}
         HTML
+      end
+
+      # Names who the command is for. The preview dispatches with no caller bound, so the role
+      # is shown but not checked, and the badge says so.
+      #
+      # @param command [Bluebook::Command] the command whose declared role is shown
+      # @return [String] HTML for the badge, or `""` when the command declares no role
+      def self.role_badge(command)
+        return "" unless command.role
+
+        title = "The bluebook declares who does this. This preview signs nobody in, so it does not check."
+        %(<span class="badge role" title="#{title}">Done by: #{Escape.html(command.role)} (not checked in this preview)</span>)
       end
 
       # Renders the command's `given` preconditions as a callout, so a caller sees what
@@ -108,7 +133,8 @@ module Hecks
         return "" if command.givens.empty?
 
         items = command.givens.map { |given| "<li>#{Escape.html(given.description)}</li>" }
-        %(<div class="callout"><strong>Preconditions</strong> — refused if any fail:<ul>#{items.join}</ul></div>)
+        %(<div class="callout"><strong>Checked first.</strong> The action is refused if any of these fail:) \
+          "<ul>#{items.join}</ul></div>"
       end
 
       # Renders a refused submission as an alert banner carrying the refusal's class name
@@ -121,7 +147,7 @@ module Hecks
 
         <<~HTML
           <div class="error-banner" role="alert">
-            <p><strong>#{Escape.html(error.class.name.split("::").last)}</strong> — #{Escape.html(error.message)}</p>
+            <p><strong>Refused (#{Escape.html(error.class.name.split("::").last)}):</strong> #{Escape.html(error.message)}</p>
           </div>
         HTML
       end
@@ -174,9 +200,9 @@ module Hecks
       def self.inspect_head(verb, command, curl)
         <<~HTML
           <details class="inspect">
-            <summary>Inspect — #{Escape.html(verb)}</summary>
+            <summary>Inspect: #{Escape.html(verb)}</summary>
             <p>Emits: #{emitted_events(command)}</p>
-            <p>Equivalent request (as <code>curl</code>) — every field is <code>#{Escape.html("name.path")}</code>-encoded, form or JSON alike:</p>
+            <p>The same request as <code>curl</code>. Every field is sent by its dotted path (<code>#{Escape.html("name.path")}</code>), as a form or as JSON:</p>
             <div class="link-row"><code id="curl-snippet">#{Escape.html(curl)}</code><button type="button" class="copy" data-copy="#curl-snippet">copy</button></div>
         HTML
       end
