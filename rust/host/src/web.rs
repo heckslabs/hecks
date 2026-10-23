@@ -276,6 +276,7 @@ async fn route(
                 method,
                 query,
                 raw_body,
+                dispatch::Caller::signed_in(session.as_ref()),
                 host,
             )
             .await;
@@ -1923,6 +1924,7 @@ async fn command_route(
     method: &str,
     query: &HashMap<String, String>,
     raw_body: &str,
+    caller: dispatch::Caller<'_>,
     host: Host<'_>,
 ) -> Value {
     let Host {
@@ -1951,6 +1953,7 @@ async fn command_route(
             config,
             true,
             invoker,
+            caller,
         )
         .await;
     }
@@ -1985,6 +1988,7 @@ async fn command_route(
         config,
         false,
         invoker,
+        caller,
     )
     .await
 }
@@ -2000,6 +2004,7 @@ async fn submit(
     config: &LineageConfig,
     json_mode: bool,
     invoker: &dyn LambdaInvoker,
+    caller: dispatch::Caller<'_>,
 ) -> Value {
     let agg = agg_name(aggregate);
     let cname = command.get("name").and_then(|v| v.as_str()).unwrap_or("");
@@ -2012,13 +2017,12 @@ async fn submit(
         Err(e) => return bad_request(domain_name, aggregate, command, fields, raw, json_mode, &e),
     };
 
-    // `None`: this web UI has no concept of an authenticated caller's
-    // role yet (see auth.rs's own session handling for that).
-    let outcome = match dispatch::handle(
+    // Dispatched as the signed-in caller, checked against the role the command declares.
+    let outcome = match dispatch::handle_request(
         Host::new(client, wasm_path, config, invoker),
         &verb,
         args,
-        None,
+        caller,
     )
     .await
     {
@@ -2849,6 +2853,81 @@ mod tests {
             Some("abc def"),
             "HTML forms still treat + as space"
         );
+    }
+
+    // A form submitted through the generated UI dispatches as the signed-in caller, so a role the
+    // command does not declare is refused as it is over the internal protocol.
+    #[tokio::test]
+    async fn a_form_submit_dispatches_as_the_signed_in_caller() {
+        let client = crate::dispatch::tests::scratch_db("rust_host_web_submit_roles").await;
+        crate::dispatch::tests::provision_lineage(
+            &*client.lock().await,
+            "Banking",
+            1,
+            &["Customer"],
+        )
+        .await;
+        let wasm = crate::dispatch::tests::wasm_path();
+        let ir: Value = serde_json::from_str(
+            &std::fs::read_to_string(
+                std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                    .join("../dist/banking.ir.json"),
+            )
+            .expect("hecks build_wasm writes banking.ir.json beside the wasm"),
+        )
+        .expect("valid IR");
+        let lineage = LineageConfig {
+            domain: "Banking".to_string(),
+            era: Some(1),
+            mirrored: None,
+        };
+        let invoker = crate::lambda_client::NeverInvoker;
+        let submit_as = |role: &'static str, reference: &'static str| {
+            let (client, wasm, ir, lineage, invoker) = (&client, &wasm, &ir, &lineage, &invoker);
+            async move {
+                let cookies = signed_in_cookies(role);
+                let form = format!(
+                    "reference.value={reference}&name.given=Ada&name.family=Lovelace&email.address=ada%40example.com"
+                );
+                let host = Host::new(client, wasm, lineage, invoker);
+                let path = "/Banking/Customer/Register.json";
+                route(ir, "POST", path, &HashMap::new(), &form, &cookies, host).await
+            }
+        };
+
+        let teller = submit_as("Teller", "CUST-9201").await;
+        assert_eq!(teller["statusCode"], 422, "{teller}");
+        assert!(
+            teller["body"]
+                .as_str()
+                .unwrap_or_default()
+                .contains("Unauthorized"),
+            "{teller}"
+        );
+        let clerk = submit_as("Branch clerk", "CUST-9202").await;
+        assert_eq!(clerk["statusCode"], 201, "{clerk}");
+    }
+
+    // A session cookie signed with the host's own secret, for a caller Governance knows nothing of.
+    fn signed_in_cookies(role: &str) -> HashMap<String, String> {
+        if crate::secrets::var("SESSION_SECRET")
+            .unwrap_or_default()
+            .is_empty()
+        {
+            crate::secrets::provide("SESSION_SECRET", "a-session-secret-for-tests".to_string());
+        }
+        let session = Session {
+            identity_id: String::new(),
+            email: "clerk@example.com".to_string(),
+            name: "Clerk".to_string(),
+            role: Some(role.to_string()),
+        };
+        let mut cookies = HashMap::new();
+        cookies.insert(
+            "session".to_string(),
+            auth::session_cookie(&session_secret(), &session),
+        );
+        cookies
     }
 
     #[test]
