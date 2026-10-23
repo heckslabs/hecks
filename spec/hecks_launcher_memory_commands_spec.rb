@@ -22,7 +22,7 @@ RSpec.describe "the launcher's memory commands" do
                                              executable: "exe/hecks", memory_commands: %w[init], opted: true)
 
     expect(source).to include('ARGV << "--wait" if MEMORY_COMMANDS.include?(ARGV.first.to_s.chomp("!"))')
-    expect(source).to include('JSON.parse(text).dig("state", "refusal", "value")')
+    expect(source).to include('JSON.parse(text).dig("state", "refusal")')
   end
 
   it "refuses a command that is not a plain word" do

@@ -116,7 +116,7 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
       expect(code).to eq(0)
       answer = JSON.parse(output)
       expect(answer.values_at("id", "events")).to eq(["Margherita", ["PizzaCreated"]])
-      expect(answer.dig("state", "pizza", "price_cents", "cents")).to eq(1200)
+      expect(answer.dig("state", "pizza", "price_cents")).to eq(1200)
     end
 
     it "reaches an existing record through a bare word, the command's first argument", :aggregate_failures do
@@ -226,7 +226,7 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
       output, code = run("ask", "order.available")
 
       expect(code).to eq(0)
-      expect(JSON.parse(output).map { |row| row.dig("name", "value") }).to include("Bare")
+      expect(JSON.parse(output).map { |row| row["name"] }).to include("Bare")
     end
 
     it "answers through `query`, the word `ask` used to be", :aggregate_failures do
@@ -234,7 +234,7 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
       output, code = run("query", "order.available")
 
       expect(code).to eq(0)
-      expect(JSON.parse(output).map { |row| row.dig("name", "value") }).to include("Bare")
+      expect(JSON.parse(output).map { |row| row["name"] }).to include("Bare")
     end
 
     it "refuses a question by its bare name", :aggregate_failures do

@@ -40,7 +40,7 @@ describe("apply", () => {
   it("sends the verb, target, arguments and role, and returns the parsed new state", async () => {
     const { fetch, sent } = answering({ ...item(12000), refusals: [] });
     const items = await reprice(clientFor(fetch, { role: "Organizer" }));
-    assert.deepEqual(sent, [{ verb: "Shop::Item.Reprice", to: "y-1", with: { price: { cents: 12000 } }, role: "Organizer" }]);
+    assert.deepEqual(sent, [{ verb: "Shop::Item.Reprice", to: "y-1", with: { price: { cents: 12000 } }, role: "Organizer", bare: true }]);
     assert.equal(items[0][1].price.cents, 12000);
   });
 
@@ -129,7 +129,7 @@ describe("reaching the domain", () => {
     globalThis.fetch = fetch;
     const client = new HostClient({ domain: "Shop", url: URL_ });
     await client.read();
-    assert.deepEqual(sent, [{ read: true }]);
+    assert.deepEqual(sent, [{ read: true, bare: true }]);
   });
 });
 
@@ -201,6 +201,12 @@ describe("configuration", () => {
   it("omits `to` for a command that creates and sends empty facts by default", async () => {
     const { fetch, sent } = answering({});
     await clientFor(fetch).dispatch("Item.Sell");
+    assert.deepEqual(sent, [{ verb: "Shop::Item.Sell", with: {}, bare: true }]);
+  });
+
+  it("asks for the stored, wrapped shape when built with bare: false", async () => {
+    const { fetch, sent } = answering({});
+    await clientFor(fetch, { bare: false }).dispatch("Item.Sell");
     assert.deepEqual(sent, [{ verb: "Shop::Item.Sell", with: {} }]);
   });
 
@@ -242,13 +248,13 @@ describe("query", () => {
   it("posts the qualified question with its arguments and nothing else", async () => {
     const { fetch, sent } = answering({ queries: [{ query: "Shop::Item.Open", rows: [] }] });
     await clientFor(fetch, { role: "Organizer" }).query("Item.Open", { cap: 3 });
-    assert.deepEqual(sent, [{ query: "Shop::Item.Open", args: { cap: 3 } }]);
+    assert.deepEqual(sent, [{ query: "Shop::Item.Open", args: { cap: 3 }, bare: true }]);
   });
 
   it("sends empty arguments by default", async () => {
     const { fetch, sent } = answering({ queries: [] });
     await clientFor(fetch).query("Shop::Item.Open");
-    assert.deepEqual(sent, [{ query: "Shop::Item.Open", args: {} }]);
+    assert.deepEqual(sent, [{ query: "Shop::Item.Open", args: {}, bare: true }]);
   });
 
   it("reads the rows of the answer, bare or qualified", async () => {
@@ -272,10 +278,10 @@ describe("query", () => {
   it("is answered by the in-process host", async () => {
     const host = fakeHost();
     const client = new HostClient({ domain: "CheckoutFixture", url: URL_, fetch: host.fetch });
-    await client.dispatch("Event.Schedule", { slug: { value: "a" } });
-    await client.dispatch("Event.Schedule", { slug: { value: "b" } });
+    await client.dispatch("Event.Schedule", { slug: "a" });
+    await client.dispatch("Event.Schedule", { slug: "b" });
     await client.dispatch("Event.Close", {}, "b");
-    assert.deepEqual(rowsOf(await client.query("Event.Open"), "Event.Open").map((row) => row.slug.value), ["a"]);
+    assert.deepEqual(rowsOf(await client.query("Event.Open"), "Event.Open").map((row) => row.slug), ["a"]);
     await assert.rejects(async () => rowsOf(await client.query("Event.Nope"), "Event.Nope"), DomainRefusal);
   });
 });
