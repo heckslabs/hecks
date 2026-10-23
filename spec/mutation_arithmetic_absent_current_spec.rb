@@ -1,7 +1,9 @@
 require "spec_helper"
 
-# Increment/decrement/multiply on a never-set VO-typed attribute treat the absent current as
-# zero, unwrapping `amount`'s numeric field instead of refusing (as #clamp already does).
+# Arithmetic on a never-set VO-typed attribute reads the absent current as zero and unwraps the
+# amount's numeric field; the semantics corpus holds that, in
+# numeric_effects_absent_target_and_operand. This pins the one case it must refuse: a source
+# value with more than one numeric field.
 RSpec.describe "arithmetic on a VO-typed attribute that was never set" do
   # One inline bluebook, declared whole: splitting the DSL block would scatter the fixture.
   # rubocop:disable-next Metrics/AbcSize
@@ -74,27 +76,6 @@ RSpec.describe "arithmetic on a VO-typed attribute that was never set" do
   end
 
   let(:runtime) { boot { ArithmeticAbsentCurrent::Wallet.persisted_by("Memory") } }
-
-  it "increment wraps the raw result back into the declared VO type" do
-    runtime.dispatch_flat("ArithmeticAbsentCurrent::Wallet.Open", label: { value: "w1" })
-    runtime.dispatch_flat("ArithmeticAbsentCurrent::Wallet.Deposit", label: "w1", amount: { cents: 500 })
-
-    expect(ArithmeticAbsentCurrent::Wallet.find("w1")[:balance].to_h).to eq(cents: 500)
-  end
-
-  it "decrement wraps the raw result back into the declared VO type" do
-    runtime.dispatch_flat("ArithmeticAbsentCurrent::Wallet.Open", label: { value: "w1" })
-    runtime.dispatch_flat("ArithmeticAbsentCurrent::Wallet.Withdraw", label: "w1", amount: { cents: 500 })
-
-    expect(ArithmeticAbsentCurrent::Wallet.find("w1")[:balance].to_h).to eq(cents: -500)
-  end
-
-  it "multiply wraps the raw result back into the declared VO type" do
-    runtime.dispatch_flat("ArithmeticAbsentCurrent::Wallet.Open", label: { value: "w1" })
-    runtime.dispatch_flat("ArithmeticAbsentCurrent::Wallet.Scale", label: "w1", factor: { cents: 7 })
-
-    expect(ArithmeticAbsentCurrent::Wallet.find("w1")[:balance].to_h).to eq(cents: 0)
-  end
 
   it "refuses rather than guesses when the source value has more than one numeric field" do
     runtime.dispatch_flat("ArithmeticAbsentCurrent::Wallet.Open", label: { value: "w1" })

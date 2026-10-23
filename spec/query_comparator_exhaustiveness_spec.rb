@@ -1,7 +1,8 @@
 require "spec_helper"
 
-# Backstop for a name outside the closed comparator set covered by query_comparators_spec.rb:
-# it must be refused, not silently compared for equality.
+# Backstop for a name outside the closed comparator set that
+# spec/categories/query_comparator_kinds_spec.rb covers: it must be refused, not silently compared
+# for equality.
 RSpec.describe "Comparison.holds?, an unrecognized comparator" do
   it "refuses rather than silently comparing for equality" do
     expect do

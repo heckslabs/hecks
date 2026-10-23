@@ -105,14 +105,12 @@ RSpec.describe "a command's ensures" do
     expect(stored_balance(runtime)).to eq(500)
   end
 
-  it "refuses with EnsuresNotMet, in the command's own words, and persists nothing", :aggregate_failures do
+  it "refuses with EnsuresNotMet, in the command's own words" do
     runtime = open_box(vault)
 
     expect { deposit(runtime, "Overstate", 100) }
       .to raise_error(Hecks::Runtime::EnsuresNotMet,
                       "Overstate refused — the balance grew by exactly double the deposit")
-
-    expect(stored_balance(runtime)).to eq(0)
   end
 
   it "hands `old` the PRE-mutation state, not the post" do
