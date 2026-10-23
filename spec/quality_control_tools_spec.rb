@@ -24,10 +24,10 @@ RSpec.describe "the QualityControl tool queries" do
     end
   end
 
-  it "answers twelve scripts by four ports", :aggregate_failures do
+  it "answers thirteen scripts by four ports", :aggregate_failures do
     expect(tool_queries.map { |_, _, port| port }.uniq.sort)
       .to eq(%w[AngleTools ClearanceTools SweepTools TargetTools])
-    expect(tool_queries.size).to eq(12)
+    expect(tool_queries.size).to eq(13)
   end
 
   # The class of the one adapter bound to the port.
