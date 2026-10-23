@@ -479,7 +479,7 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
         run_verb("era.hold_first", @domain, "run=first-1", "--confirm")
         row = settlement_row("first-1")
 
-        expect([row.fetch("status"), row.dig("report", "value")]).to eq(["settled", "Ledger holds era 1 now."])
+        expect([row.fetch("status"), row["report"]]).to eq(["settled", "Ledger holds era 1 now."])
       end
 
       it "refuses a merge before a second era exists" do
@@ -527,7 +527,7 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
 
         expect(reattest_reasons("att-3")).to be_empty
         row = settlement_row("att-3")
-        expect([row.fetch("status"), row.dig("report", "value")]).to match(["settled", /\AATTESTED: era 1 re-frozen as /])
+        expect([row.fetch("status"), row["report"]]).to match(["settled", /\AATTESTED: era 1 re-frozen as /])
       end
     end
 
