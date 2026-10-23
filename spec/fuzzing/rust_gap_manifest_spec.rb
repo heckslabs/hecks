@@ -23,12 +23,7 @@ RSpec.describe Hecks::Fuzzing::RustGapManifest, :aggregate_failures do
   end
 
   # Every example works in its own scratch crate directory.
-  around do |example|
-    Dir.mktmpdir do |dir|
-      @scratch = dir
-      example.run
-    end
-  end
+  scratch_directory :scratch
 
   def root = @scratch
 

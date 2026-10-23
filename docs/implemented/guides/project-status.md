@@ -54,12 +54,12 @@ end
 -->
 
 ```ruby
-order = Order.create_pizza!(name: "Quattro", pizza: { price_cents: { cents: 1500 }, size: "large" })
+order = Order.create_pizza!(name: "Quattro", pizza: { price_cents: 1500, size: "large" })
 
-order.purchase!(customer_name: "Sam", amount: { cents: 1500 })   # ~> GivenNotMet: a pizza needs at least one topping
+order.purchase!(customer_name: "Sam", amount: 1500)   # ~> GivenNotMet: a pizza needs at least one topping
 
 order.add_topping!(topping: "Olive", amount: 2)
-order.purchase!(customer_name: "Sam", amount: { cents: 1500 })
+order.purchase!(customer_name: "Sam", amount: 1500)
 order.status   # => "sold"
 ```
 

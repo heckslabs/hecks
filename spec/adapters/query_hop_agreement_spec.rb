@@ -198,12 +198,7 @@ RSpec.describe "cross-aggregate hop queries answer correctly on real SQL adapter
   end
 
   describe "Sqlite" do
-    around do |example|
-      Dir.mktmpdir("hecks-hop-agreement") do |dir|
-        @sqlite_root = dir
-        example.run
-      end
-    end
+    scratch_directory :sqlite_root, "hecks-hop-agreement"
 
     let(:runtime) { boot_hop_chain(adapter: "Sqlite", sqlite_root: @sqlite_root) }
 

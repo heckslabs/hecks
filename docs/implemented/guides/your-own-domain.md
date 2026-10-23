@@ -277,7 +277,7 @@ holds the command's facts in the shape `hecks docs` printed:
 ```sh
 aws lambda invoke --function-name hecks-lending --region us-east-1 \
   --cli-binary-format raw-in-base64-out \
-  --payload '{"verb": "Lending::Book.Shelve", "with": {"isbn": {"value": "978-0"}, "title": {"value": "Dune"}}}' \
+  --payload '{"verb": "Lending::Book.Shelve", "with": {"isbn": "978-0", "title": "Dune"}}' \
   out.json && cat out.json
 ```
 

@@ -155,12 +155,7 @@ RSpec.describe Hecks::Adapters::Codebase::Style do
   end
 
   describe "canonicalise" do
-    around do |example|
-      Dir.mktmpdir do |dir|
-        @dir = dir
-        example.run
-      end
-    end
+    scratch_directory
 
     def canonicalise(path) = style("canonicalise", { file: word(path) })
 

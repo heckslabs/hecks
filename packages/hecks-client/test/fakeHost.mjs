@@ -7,9 +7,31 @@
 // host sends (instances, events, refusals), so the scenario in scenario.mjs
 // passes against this fake and against a live host alike. It also answers the
 // query step: `Event.Open` lists the open sessions, any other name is refused
-// the way the host refuses a question its domain does not declare.
+// the way the host refuses a question its domain does not declare. Like the
+// host, it keeps each single-field value object wrapped (`{ value: "x" }`,
+// `{ cents: 900 }`) and answers it bare when the request says `bare: true`.
 
 const DOMAIN = "CheckoutFixture";
+
+// The one field each of Event's single-field value objects declares.
+const SOLE_FIELD = { slug: "value", name: "value", price: "cents", capacity: "value" };
+
+const wrap = (facts) =>
+  Object.fromEntries(Object.entries(facts).map(([key, raw]) =>
+    [key, key in SOLE_FIELD && (raw === null || typeof raw !== "object") ? { [SOLE_FIELD[key]]: raw } : raw]));
+
+const unwrap = (state) =>
+  Object.fromEntries(Object.entries(state).map(([key, held]) =>
+    [key, key in SOLE_FIELD && held && typeof held === "object" ? held[SOLE_FIELD[key]] : held]));
+
+// A whole answer, with every state and query row in it answered bare.
+const presented = (reply) => ({
+  ...reply,
+  ...(reply.instances && {
+    instances: Object.fromEntries(Object.entries(reply.instances).map(([key, state]) => [key, unwrap(state)])),
+  }),
+  ...(reply.queries && { queries: reply.queries.map((entry) => ({ ...entry, rows: entry.rows && entry.rows.map(unwrap) })) }),
+});
 
 const answer = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -26,8 +48,8 @@ export function fakeHost() {
   const refusal = (verb, kind, error) => outcome([{ verb, kind, error }]);
 
   const schedule = (verb, facts) => {
-    const id = facts.slug?.value;
-    instances[`${DOMAIN}::Event#${id}`] = { ...structuredClone(facts), status: "open" };
+    const held = wrap(structuredClone(facts));
+    instances[`${DOMAIN}::Event#${held.slug?.value}`] = { ...held, status: "open" };
     return outcome();
   };
 
@@ -64,7 +86,8 @@ export function fakeHost() {
     if (!String(url).endsWith("/dispatch") || init.method !== "POST") return new Response("", { status: 404 });
     const body = JSON.parse(String(init.body));
     requests.push(body);
-    return answer(handle(body));
+    const reply = handle(body);
+    return answer(body.bare === true ? presented(reply) : reply);
   };
 
   return { fetch: fakeFetch, requests, instances };

@@ -93,7 +93,7 @@ fn default_extensions() -> Vec<Arc<dyn HostExtension>> {
     let vars = crate::platform_signin::settings::PROCESS_VARIABLES
         .iter()
         .filter_map(|name| {
-            std::env::var(name)
+            crate::secrets::var(name)
                 .ok()
                 .map(|value| (name.to_string(), value))
         })

@@ -8,12 +8,7 @@ RSpec.describe "hecks stores" do
   # Uniquely named: load_hygiene_spec.rb rejects top-level constants that collide across specs.
   STORES_LAUNCHER = File.join(InMemoryDomain::ROOT, "exe/hecks").freeze
 
-  around do |example|
-    Dir.mktmpdir do |dir|
-      @dir = dir
-      example.run
-    end
-  end
+  scratch_directory
 
   it "exits non-zero with a clear message for a nonexistent domain path", :aggregate_failures, :process do
     missing = File.join(@dir, "no-such-domain")

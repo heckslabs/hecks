@@ -62,10 +62,7 @@ pub async fn run() -> Result<(), Error> {
     // Secrets-Manager-at-cold-start approach as DB_SECRET_ARN above,
     // applied to auth.rs's GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET and
     // web.rs's SESSION_SECRET.
-    //
-    // Safety: this runs before any request is dispatched, so nothing
-    // else reads or writes the environment concurrently with these
-    // `set_var` calls.
+    // They go into `secrets::provide`, not the process environment.
     if let Ok(oauth_secret_id) = std::env::var("GOOGLE_OAUTH_SECRET_ID") {
         let secret_json = secret_fetcher
             .fetch_secret_string(&oauth_secret_id)
@@ -73,10 +70,8 @@ pub async fn run() -> Result<(), Error> {
             .map_err(|e| format!("fetching GOOGLE_OAUTH_SECRET_ID from Secrets Manager: {e:#}"))?;
         let client_id = secrets::extract_field(&secret_json, "client_id")?;
         let client_secret = secrets::extract_field(&secret_json, "client_secret")?;
-        unsafe {
-            std::env::set_var("GOOGLE_CLIENT_ID", client_id);
-            std::env::set_var("GOOGLE_CLIENT_SECRET", client_secret);
-        }
+        secrets::provide("GOOGLE_CLIENT_ID", client_id);
+        secrets::provide("GOOGLE_CLIENT_SECRET", client_secret);
     }
     if let Ok(session_secret_arn) = std::env::var("SESSION_SECRET_ARN") {
         let secret_json = secret_fetcher
@@ -84,9 +79,7 @@ pub async fn run() -> Result<(), Error> {
             .await
             .map_err(|e| format!("fetching SESSION_SECRET_ARN from Secrets Manager: {e:#}"))?;
         let session_secret = secrets::extract_field(&secret_json, "session_secret")?;
-        unsafe {
-            std::env::set_var("SESSION_SECRET", session_secret);
-        }
+        secrets::provide("SESSION_SECRET", session_secret);
     }
     for extension in extension::installed() {
         extension.boot_secrets(&secret_fetcher).await;
@@ -227,7 +220,7 @@ pub async fn run() -> Result<(), Error> {
     // The era-partitioned lineage subsystem is provisioned only when
     // something needs it: a lineage-capable aggregate, or Google auth
     // configured (ADR 0034 requires it for Member sessions either way).
-    let needs_lineage = !aggregates.is_empty() || std::env::var("GOOGLE_CLIENT_ID").is_ok();
+    let needs_lineage = !aggregates.is_empty() || secrets::var("GOOGLE_CLIENT_ID").is_ok();
 
     let era: Option<i32> = if needs_lineage {
         // Idempotent (gated by `provisioner?`); must run before the

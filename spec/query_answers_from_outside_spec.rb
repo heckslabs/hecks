@@ -196,12 +196,7 @@ RSpec.describe "a query answered by a port the hecksagon binds" do
 
   def without_binding(name) = OUTSIDE_HECKSAGON.sub(%(    answers_query "#{name}"\n), "")
 
-  around do |example|
-    Dir.mktmpdir("outside") do |dir|
-      @dir = dir
-      example.run
-    end
-  end
+  scratch_directory :dir, "outside"
 
   describe "an answer that is its declared shape" do
     it "comes from the adapter, which is handed plain data, and arrives as the value object's fields" do

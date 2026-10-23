@@ -795,6 +795,10 @@ Hecks.bluebook "Bluebook" do
              meaning: "Whether generated domains are also compared against a compiled Rust binary built in a scratch copy."
       member name: "generated_domain_seeds", type: "Integer",
              meaning: "Generated sequences run per generated domain."
+      member name: "mutation_files", type: "Array",
+             meaning: "Rust files `hecks quality_control target.mutate --from-dials` mutates, and so the files one `hecks quality_control sweep.tick` mutation-tests after the generated domains; empty skips the step."
+      member name: "mutation_equivalent", type: "Array",
+             meaning: "Mutants that behave the same as the original code, by the name `cargo mutants --list` gives them without the file and line; never run, so they cannot be reported as survivors."
       member name: "structural_refusal_boundary", type: "Array",
              meaning: "Construct families a skipped query verb may belong to. A skip inside the list is logged Held, one outside it Surprised. Shrink-only: spec/fuzzing/rust_gap_manifest_spec.rb fails when a family here is declared by no committed manifest."
     end
@@ -939,6 +943,7 @@ Hecks.bluebook "Bluebook" do
       member script: "qa_seed_targets", section: "QualityControl", aggregate: "Target", verb: "seed"
       member script: "qa_generated_domains", section: "QualityControl", aggregate: "Target", verb: "check_generated_domains", passes: "--domains 3 --start N --forms a,b --seeds 5 --steps 25 --adversarial 0.3 --rust --shrink-budget 200 --domain-shrink-budget 40 --promote dir --name N --from-dials --blueprint F --source F"
       member script: "qa_mine_combinations", section: "QualityControl", aggregate: "Target", verb: "mine_combinations", passes: "--candidates 3 --rust --seeds 5 --steps 25 --adversarial 0.3 --repair-rounds 1 --agent CMD --from DIR --against PATH --brief"
+      member script: "(new)", section: "QualityControl", aggregate: "Target", verb: "mutate", passes: "--file rust/src/… --from-dials"
       member script: "qa_domain_novelty", section: "QualityControl", aggregate: "Target", verb: "judge_novelty", passes: "--against PATH …"
       member script: "qa_discover_external_domains", section: "QualityControl", aggregate: "Target", verb: "discover_external_domains", passes: "--projects-dir ~/Projects --max-depth 3 --known-path PATH …"
       member script: "qa_postgres_migrate", section: "QualityControl", aggregate: "Sweep", verb: "migrate_ledger_from_heki", passes: "[aggregate …] --force", note: "a dry run without --force"

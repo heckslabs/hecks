@@ -52,7 +52,7 @@ The package is ESM and ships its type declarations.
 ## Use
 
 ```ts
-import { HostClient, text, whole } from "@hecks/client";
+import { HostClient } from "@hecks/client";
 
 const client = new HostClient({
   domain: "Shop",
@@ -66,17 +66,17 @@ const answer = await client.read();
 // One aggregate's states, as [id, state] pairs.
 const events = client.instancesOf(answer, "Event").map(([id, state]) => ({
   id,
-  name: text(state.name), // {value: "Yoga"} -> "Yoga"
-  priceCents: whole(state.price, "cents"), // {cents: 10800} -> 10800
+  name: state.name, // a one-field value object answers bare: "Yoga"
+  priceCents: state.price, // 10800
 }));
 
 // A command, judged by the state that comes back.
 const repriced = await client.apply({
   verb: "Event.Reprice",
   to: "yoga-1",
-  with: { price: { cents: 12000 } },
+  with: { price: 12000 },
   parse: (answer) => client.instancesOf(answer, "Event"),
-  confirm: (states) => states.find(([id]) => id === "yoga-1")?.[1].price?.cents === 12000,
+  confirm: (states) => states.find(([id]) => id === "yoga-1")?.[1].price === 12000,
 });
 ```
 
@@ -92,6 +92,7 @@ const repriced = await client.apply({
 | `actorId` | The Governance identity id of the signed-in person, sent as `actor_id` with every command unless a call names its own. An identified caller should pass this and leave `role` unset, so Governance's role assignments decide. The host honors `actor_id` only on its internal protocol, from its own peers. |
 | `timeoutMs` | How long one request may take before it counts as unreachable. Defaults to `8000`. |
 | `fetch` | The `fetch` to send requests with, for tests or a custom agent. Defaults to the global `fetch`, looked up on each call. |
+| `bare` | Whether the host answers a value object that has one field as that field's bare value (`name: "Yoga"`, not `name: { value: "Yoga" }`). Defaults to `true`, sent as `"bare": true` on every request; `false` asks for the wrapped shape the host stores. A command takes either form. |
 
 The environment variables are read once, when the client is constructed. A
 missing domain or URL throws a `TypeError`.
@@ -111,8 +112,8 @@ missing domain or URL throws a `TypeError`.
 Standalone readers, importable without a client:
 
 - `instancesOf(answer, "Domain::Aggregate")`: the same lookup with the aggregate named in full.
-- `text(raw): string | null`: a string value object's text, `null` when absent or empty.
-- `whole(raw, key): number`: a numeric value object's number under `key` (`"value"`, `"cents"`), `0` when absent.
+- `text(raw): string | null`: a string value object's text, bare or wrapped, `null` when absent or empty.
+- `whole(raw, key): number`: a numeric value object's number, bare or wrapped under `key` (`"value"`, `"cents"`), `0` when absent.
 - `optionalWhole(raw, key): number | null`: like `whole`, but `null` when the attribute was left unset.
 - `rowsOf(answer, name?): Record<string, unknown>[] | null`: the rows a query answered, `null` when the answer has no entry for it; throws `DomainRefusal` when the host refused the question (an unknown query, or one answered outside the domain).
 - `refusalOf(answer, verb): DomainRefusal`: the domain's own words for why a command changed nothing.

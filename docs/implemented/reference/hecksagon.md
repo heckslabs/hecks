@@ -340,7 +340,7 @@ end
 ```
 
 ```ruby
-runtime.dispatch("Provisioning::Tenant.Provision", to: "acme", with: { id: { value: "acme" } })
+runtime.dispatch("Provisioning::Tenant.Provision", to: "acme", with: { id: "acme" })
 runtime.registry.repository("Tenancy", runtime.registry.bluebook("Tenancy").aggregate("Tenant")).find("acme").nil?
 # => false
 ```

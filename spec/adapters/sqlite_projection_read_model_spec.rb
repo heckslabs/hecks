@@ -134,12 +134,7 @@ RSpec.describe "Adapters::SqliteProjection#query_read_model" do
     raise "expected the native SqliteProjection path, got #{adapter.class}"
   end
 
-  around do |example|
-    Dir.mktmpdir do |dir|
-      @dir = dir
-      example.run
-    end
-  end
+  scratch_directory
 
   let(:runtime) { boot(@dir) }
 

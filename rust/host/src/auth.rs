@@ -34,8 +34,8 @@ pub struct Session {
 }
 
 pub fn authorization_url(redirect_uri: &str, secret: &str) -> Result<String, String> {
-    let client_id =
-        std::env::var("GOOGLE_CLIENT_ID").map_err(|_| "GOOGLE_CLIENT_ID not set".to_string())?;
+    let client_id = crate::secrets::var("GOOGLE_CLIENT_ID")
+        .map_err(|_| "GOOGLE_CLIENT_ID not set".to_string())?;
     let payload = now_secs().to_string();
     let state = format!("{payload}.{}", sign(secret, &payload));
     Ok(format!(
@@ -59,9 +59,9 @@ pub fn verify_state(state: &str, secret: &str) -> Result<(), String> {
 }
 
 pub async fn verify(code: &str, redirect_uri: &str) -> Result<Claims, String> {
-    let client_id =
-        std::env::var("GOOGLE_CLIENT_ID").map_err(|_| "GOOGLE_CLIENT_ID not set".to_string())?;
-    let client_secret = std::env::var("GOOGLE_CLIENT_SECRET")
+    let client_id = crate::secrets::var("GOOGLE_CLIENT_ID")
+        .map_err(|_| "GOOGLE_CLIENT_ID not set".to_string())?;
+    let client_secret = crate::secrets::var("GOOGLE_CLIENT_SECRET")
         .map_err(|_| "GOOGLE_CLIENT_SECRET not set".to_string())?;
 
     let http = crate::http::client();

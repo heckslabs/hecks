@@ -11,10 +11,12 @@ RSpec.describe "hecks quality_control tick", :io do
 
   # The steps of a tick, in the order they must run: the PR check first, the sweep second.
   TICK_STEP_ORDER = ["── hecks quality_control check_pull_requests", "── hecks quality_control ask run --all",
-                     "── hecks quality_control check_generated_domains --from-dials"].freeze
+                     "── hecks quality_control check_generated_domains --from-dials",
+                     "── hecks quality_control mutate --from-dials"].freeze
 
   TICK_REPORT = ["generated domains: off (QualityControlDials::GENERATED_DOMAINS_PER_TICK is 0)",
                  "hecks quality_control check_generated_domains: clean (exit 0)",
+                 "mutation: off (no mutation_files)", "hecks quality_control mutate: clean (exit 0)",
                  "── git fetch origin && git rebase origin/main", "no PRs tracked as open", "rotation is empty",
                  "stale holds reclaimed: 0", "tick: clean (exit 0)"].freeze
 

@@ -185,12 +185,12 @@ impl HostExtension for Commerce {
                 .map(|api_key| (api_key, secrets::optional_field(&json, "webhook_secret")))
         });
         match read {
-            Ok((api_key, webhook_secret)) => unsafe {
-                std::env::set_var("RESEND_API_KEY", api_key);
+            Ok((api_key, webhook_secret)) => {
+                secrets::provide("RESEND_API_KEY", api_key);
                 if let Some(webhook_secret) = webhook_secret {
-                    std::env::set_var("RESEND_WEBHOOK_SECRET", webhook_secret);
+                    secrets::provide("RESEND_WEBHOOK_SECRET", webhook_secret);
                 }
-            },
+            }
             Err(e) => {
                 eprintln!("RESEND_SECRET_ID could not be read, so email sending stays off: {e}");
             }

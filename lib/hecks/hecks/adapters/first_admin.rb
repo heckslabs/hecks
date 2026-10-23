@@ -57,7 +57,7 @@ module Hecks
         provider = membership_provider
         verbs, gate, people = check_unadministered(provider)
 
-        admitted = people.none? { |person| person.dig(:email, :value) == email }
+        admitted = people.none? { |person| person[:email] == email }
         admit(provider, verbs.fetch(:admit), email, name || email[/\A[^@]+/]) if admitted
         grant(provider, verbs.fetch(:grant), email, role || gate)
         Result.new(email: email, role: role || gate, admitted: admitted)
@@ -103,10 +103,10 @@ module Hecks
       end
 
       def refuse_if_administered!(people, roles)
-        held = people.select { |person| roles.map(&:downcase).include?(person.dig(:role, :value).to_s.downcase) }
+        held = people.select { |person| roles.map(&:downcase).include?(person[:role].to_s.downcase) }
         return if held.empty?
 
-        who = held.map { |person| person.dig(:email, :value) }.join(", ")
+        who = held.map { |person| person[:email] }.join(", ")
         raise Runtime::NotFound, "an administrator already exists (#{who}); grant roles through the " \
                                  "domain's own #{roles.first} access instead"
       end

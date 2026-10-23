@@ -156,6 +156,23 @@ subagent's judgments:
    generator fix is deliberate work (`exe/hecks quality_control improvement.open`),
    never a Bug.
 
+## On a surviving mutant
+
+`exe/hecks quality_control query sweep.tick`'s fourth step, `exe/hecks quality_control query target.mutate --from-dials`,
+runs `cargo mutants` over the `mutation_files` dial (an empty list turns it off) and prints the
+kill rate. A `FOUND SOMETHING` block lists each mutant no test caught, as
+`file:line:col: replace X with Y in fn`. A survivor is a missing test, not a bug in the code. The
+per-finding subagent's judgments:
+
+1. **Equivalent?** If the mutant behaves the same as the original for every input, add its name
+   (without `file:line:col:`) to `mutation_equivalent` in `qa/settings.yml`, with the reason in
+   the commit.
+2. **Otherwise:** write the test that kills it, beside the code's other guard tests, and open it
+   as an Improvement (`exe/hecks quality_control improvement.open`). Never a Bug.
+
+The step needs `rust/src/generated` (`hecks regeneration_run.regenerate_corpus --confirm`); without it the build
+fails before any mutant runs, and the step reports an operational error.
+
 ## Mining combinations with an agent (opt-in, never part of a tick)
 
 Only when a person asks for it ("mine new combinations", "have an agent

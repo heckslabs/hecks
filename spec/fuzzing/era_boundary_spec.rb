@@ -185,12 +185,7 @@ RSpec.describe Hecks::Fuzzing::EraBoundary, :aggregate_failures, :io do
     write_fixture_files!(@fixture_root, ERA_BOUNDARY_V2_SOURCE)
   end
 
-  around do |example|
-    Dir.mktmpdir("era_boundary_spec") do |dir|
-      @fixture_root = dir
-      example.run
-    end
-  end
+  scratch_directory :fixture_root, "era_boundary_spec"
 
   before do
     scrub = PG.connect(dbname: ERA_BOUNDARY_SPEC_DATABASE)
