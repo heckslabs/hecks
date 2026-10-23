@@ -531,11 +531,17 @@ async fn admin_members_route(
     )
     .await
     {
-        Ok(true) => redirect("/admin/members"),
-        Ok(false) => html(404, "<p>No member with that email.</p>"),
+        Ok(auth::GrantOutcome::Done) => redirect("/admin/members"),
+        Ok(auth::GrantOutcome::UnknownPerson) => html(404, "<p>No member with that email.</p>"),
+        Ok(auth::GrantOutcome::LastOpenAdmin) => {
+            html(409, &format!("<p>{}</p>", esc(NEEDS_OPEN_ADMIN)))
+        }
         Err(e) => html(500, &format!("<p>{}</p>", esc(&e.to_string()))),
     }
 }
+
+// The refusal when a change would leave no active admin without an end date.
+const NEEDS_OPEN_ADMIN: &str = "a site must keep at least one admin without an end date";
 
 // The optional `expires_in_days` of a grant: absent, null or blank means an
 // open-ended grant; otherwise a whole number of days, 1 to `MAX_EXPIRY_DAYS`.
@@ -726,12 +732,13 @@ pub(crate) async fn add_member_route(
     )
     .await
     {
-        Ok(true) => respond(
+        Ok(auth::GrantOutcome::Done) => respond(
             201,
             "application/json",
             &json!({"name": name, "email": email, "role": role, "linked": false, "granted": true, "disabled": false, "access_expires_at": until, "expired": false, "identity_id": null}).to_string(),
         ),
-        Ok(false) => json_error(500, &format!("the person was admitted but the {role} role was not granted")),
+        Ok(auth::GrantOutcome::UnknownPerson) => json_error(500, &format!("the person was admitted but the {role} role was not granted")),
+        Ok(auth::GrantOutcome::LastOpenAdmin) => json_error(409, NEEDS_OPEN_ADMIN),
         Err(e) => json_error(500, &format!("the person was admitted but the {role} role was not granted: {e}")),
     }
 }
@@ -825,6 +832,7 @@ async fn set_member_disabled_route(
             json_error(403, "you can't disable your own admin access")
         }
         Ok(auth::DisableOutcome::UnknownPerson) => json_error(404, "no member with that email"),
+        Ok(auth::DisableOutcome::LastOpenAdmin) => json_error(409, NEEDS_OPEN_ADMIN),
         Ok(auth::DisableOutcome::LastAdmin) => {
             json_error(409, "there must always be at least one admin")
         }
@@ -917,6 +925,7 @@ async fn set_member_role_route(
         ),
         Ok(auth::RoleOutcome::CallerNotAdmin) => json_error(403, "admins only"),
         Ok(auth::RoleOutcome::UnknownPerson) => json_error(404, "no member with that email"),
+        Ok(auth::RoleOutcome::LastOpenAdmin) => json_error(409, NEEDS_OPEN_ADMIN),
         Ok(auth::RoleOutcome::LastAdmin) => {
             json_error(409, "there must always be at least one admin")
         }
@@ -4957,6 +4966,394 @@ mod tests {
 
     fn form_grant(email: &str, role: &str, days: &str) -> String {
         format!("email={email}&role={role}&expires_in_days={days}")
+    }
+
+    const NEEDS_OPEN: &str = "a site must keep at least one admin without an end date";
+
+    // Posts a grant through the members form as `caller`; returns the status.
+    async fn form_status(
+        client: &Mutex<Client>,
+        domain_ir: &Value,
+        caller: &str,
+        email: &str,
+        role: &str,
+        days: &str,
+    ) -> Value {
+        let secret = "s3cret";
+        members_page(
+            "POST",
+            &form_grant(email, role, days),
+            &session_cookies(secret, caller),
+            secret,
+            client,
+            domain_ir,
+        )
+        .await
+    }
+
+    async fn expires_of(client: &Mutex<Client>, domain_ir: &Value, email: &str) -> Value {
+        person(client, domain_ir, email).await["access_expires_at"].clone()
+    }
+
+    #[tokio::test]
+    async fn a_lone_open_ended_admin_cannot_be_given_a_window_or_a_lesser_role() {
+        let (client, domain_ir) = scratch_members_db("hecks_host_web_test_open_lone").await;
+        let before = journal_rows(&client, "zed@example.com").await;
+
+        for days in ["7", "365"] {
+            let r = form_status(
+                &client,
+                &domain_ir,
+                "zed@example.com",
+                "zed%40example.com",
+                "Admin",
+                days,
+            )
+            .await;
+            assert_eq!(r["statusCode"], 409, "{r:?}");
+            assert!(r["body"].as_str().unwrap().contains(NEEDS_OPEN), "{r:?}");
+        }
+        // The same grant that drops the admin role also takes the open-ended admin away.
+        let r = form_status(
+            &client,
+            &domain_ir,
+            "zed@example.com",
+            "zed%40example.com",
+            "Member",
+            "",
+        )
+        .await;
+        assert_eq!(r["statusCode"], 409, "{r:?}");
+        assert_eq!(
+            journal_rows(&client, "zed@example.com").await,
+            before,
+            "nothing was written"
+        );
+        assert_eq!(
+            expires_of(&client, &domain_ir, "zed@example.com").await,
+            Value::Null
+        );
+
+        // A plain grant that keeps the role is fine, and so is anything for a non-admin.
+        let r = form_status(
+            &client,
+            &domain_ir,
+            "zed@example.com",
+            "zed%40example.com",
+            "Owner",
+            "",
+        )
+        .await;
+        assert_eq!(r["statusCode"], 302, "{r:?}");
+        let r = form_status(
+            &client,
+            &domain_ir,
+            "zed@example.com",
+            "amy%40example.com",
+            "Member",
+            "5",
+        )
+        .await;
+        assert_eq!(
+            r["statusCode"], 302,
+            "a non-admin takes a window freely: {r:?}"
+        );
+        assert!(expires_of(&client, &domain_ir, "amy@example.com")
+            .await
+            .is_string());
+    }
+
+    #[tokio::test]
+    async fn with_two_open_ended_admins_either_may_take_a_window_but_not_both() {
+        let (client, domain_ir) = scratch_two_admins("hecks_host_web_test_open_two").await;
+        let r = form_status(
+            &client,
+            &domain_ir,
+            "zed@example.com",
+            "amy%40example.com",
+            "Admin",
+            "10",
+        )
+        .await;
+        assert_eq!(r["statusCode"], 302, "{r:?}");
+        assert!(expires_of(&client, &domain_ir, "amy@example.com")
+            .await
+            .is_string());
+
+        // zed is now the one open-ended admin left.
+        let r = form_status(
+            &client,
+            &domain_ir,
+            "amy@example.com",
+            "zed%40example.com",
+            "Admin",
+            "10",
+        )
+        .await;
+        assert_eq!(r["statusCode"], 409, "{r:?}");
+        assert_eq!(
+            expires_of(&client, &domain_ir, "zed@example.com").await,
+            Value::Null
+        );
+    }
+
+    #[tokio::test]
+    async fn an_open_ended_admin_beside_a_windowed_one_is_protected_on_every_path() {
+        let (client, domain_ir) = scratch_two_admins("hecks_host_web_test_open_beside").await;
+        set_window(&client, "amy@example.com", json!(FUTURE)).await;
+
+        // Renewing the windowed admin, or lifting the window, is always allowed.
+        for days in ["30", ""] {
+            let r = form_status(
+                &client,
+                &domain_ir,
+                "zed@example.com",
+                "amy%40example.com",
+                "Admin",
+                days,
+            )
+            .await;
+            assert_eq!(r["statusCode"], 302, "{r:?}");
+        }
+        set_window(&client, "amy@example.com", json!(FUTURE)).await;
+
+        // Windowing, disabling or demoting zed would leave only a window that will end.
+        let r = form_status(
+            &client,
+            &domain_ir,
+            "amy@example.com",
+            "zed%40example.com",
+            "Admin",
+            "9",
+        )
+        .await;
+        assert_eq!(r["statusCode"], 409, "{r:?}");
+        let r = switch_access(
+            &client,
+            &domain_ir,
+            "amy@example.com",
+            "zed@example.com",
+            true,
+        )
+        .await;
+        assert_eq!(r["statusCode"], 409, "{r:?}");
+        assert_eq!(error_of(&r), NEEDS_OPEN);
+        let r = set_role(
+            &client,
+            &domain_ir,
+            "amy@example.com",
+            "zed@example.com",
+            "Member",
+        )
+        .await;
+        assert_eq!(r["statusCode"], 409, "{r:?}");
+        assert_eq!(error_of(&r), NEEDS_OPEN);
+        let zed = person(&client, &domain_ir, "zed@example.com").await;
+        assert_eq!(
+            (zed["role"].clone(), zed["disabled"].clone()),
+            (json!("Admin"), json!(false))
+        );
+
+        // The windowed admin itself may be disabled, demoted or re-enabled: zed stays.
+        let r = switch_access(
+            &client,
+            &domain_ir,
+            "zed@example.com",
+            "amy@example.com",
+            true,
+        )
+        .await;
+        assert_eq!(r["statusCode"], 200, "{r:?}");
+        let r = switch_access(
+            &client,
+            &domain_ir,
+            "zed@example.com",
+            "amy@example.com",
+            false,
+        )
+        .await;
+        assert_eq!(r["statusCode"], 200, "{r:?}");
+        let r = set_role(
+            &client,
+            &domain_ir,
+            "zed@example.com",
+            "amy@example.com",
+            "Member",
+        )
+        .await;
+        assert_eq!(r["statusCode"], 200, "{r:?}");
+    }
+
+    #[tokio::test]
+    async fn a_lapsed_or_unreadable_admin_is_not_an_open_ended_active_one() {
+        let (client, domain_ir) = scratch_two_admins("hecks_host_web_test_open_lapsed").await;
+        set_window(&client, "amy@example.com", json!(PAST)).await;
+        // amy's window ended, so zed is the only active admin and is protected.
+        let r = form_status(
+            &client,
+            &domain_ir,
+            "zed@example.com",
+            "zed%40example.com",
+            "Admin",
+            "3",
+        )
+        .await;
+        assert_eq!(r["statusCode"], 409, "{r:?}");
+        let r = switch_access(
+            &client,
+            &domain_ir,
+            "zed@example.com",
+            "amy@example.com",
+            true,
+        )
+        .await;
+        assert_eq!(
+            r["statusCode"], 200,
+            "disabling an admin who already lapsed is harmless: {r:?}"
+        );
+
+        // An unreadable window fails closed: zed is lapsed, so amy is the one left.
+        let (client, domain_ir) = scratch_two_admins("hecks_host_web_test_open_unreadable").await;
+        set_window(&client, "zed@example.com", json!("whenever")).await;
+        let r = form_status(
+            &client,
+            &domain_ir,
+            "amy@example.com",
+            "amy%40example.com",
+            "Admin",
+            "3",
+        )
+        .await;
+        assert_eq!(r["statusCode"], 409, "{r:?}");
+        let r = set_role(
+            &client,
+            &domain_ir,
+            "amy@example.com",
+            "amy@example.com",
+            "Member",
+        )
+        .await;
+        assert_eq!(r["statusCode"], 409, "{r:?}");
+        // Renewing the unreadable row, or clearing it with a plain grant, is allowed.
+        let r = form_status(
+            &client,
+            &domain_ir,
+            "amy@example.com",
+            "zed%40example.com",
+            "Admin",
+            "3",
+        )
+        .await;
+        assert_eq!(r["statusCode"], 302, "{r:?}");
+        set_window(&client, "zed@example.com", json!("whenever")).await;
+        let r = form_status(
+            &client,
+            &domain_ir,
+            "amy@example.com",
+            "zed%40example.com",
+            "Admin",
+            "",
+        )
+        .await;
+        assert_eq!(r["statusCode"], 302, "{r:?}");
+        assert_eq!(
+            expires_of(&client, &domain_ir, "zed@example.com").await,
+            Value::Null
+        );
+    }
+
+    #[tokio::test]
+    async fn a_client_admin_stays_open_ended_while_an_operator_works_on_a_window() {
+        let (client, domain_ir) = scratch_two_admins("hecks_host_web_test_open_operator").await;
+        // amy is the operator, with a window; zed is the client's open-ended admin.
+        let r = form_status(
+            &client,
+            &domain_ir,
+            "zed@example.com",
+            "amy%40example.com",
+            "Admin",
+            "30",
+        )
+        .await;
+        assert_eq!(r["statusCode"], 302, "{r:?}");
+        let r = form_status(
+            &client,
+            &domain_ir,
+            "zed@example.com",
+            "amy%40example.com",
+            "Admin",
+            "60",
+        )
+        .await;
+        assert_eq!(r["statusCode"], 302, "the operator's window renews: {r:?}");
+        let r = form_status(
+            &client,
+            &domain_ir,
+            "amy@example.com",
+            "zed%40example.com",
+            "Admin",
+            "1",
+        )
+        .await;
+        assert_eq!(
+            r["statusCode"], 409,
+            "the operator cannot window the client admin: {r:?}"
+        );
+        // Even after the operator's window ends, the client admin still opens the gate.
+        set_window(&client, "amy@example.com", json!(PAST)).await;
+        assert!(
+            auth::caller_is_admin(&client, &domain_ir, "zed@example.com")
+                .await
+                .unwrap()
+        );
+        assert!(
+            !auth::caller_is_admin(&client, &domain_ir, "amy@example.com")
+                .await
+                .unwrap()
+        );
+    }
+
+    #[tokio::test]
+    async fn a_json_grant_to_a_new_person_never_trips_the_open_ended_guard() {
+        let secret = "s3cret";
+        let (client, domain_ir) = scratch_members_db("hecks_host_web_test_open_json").await;
+        let body = json!({"email": "new@example.com", "name": "New", "role": "Admin", "expires_in_days": 5}).to_string();
+        let r = add_member_route(
+            &domain_ir,
+            &body,
+            &session_cookies(secret, "zed@example.com"),
+            secret,
+            &client,
+            Path::new("unused"),
+            &members_config(),
+        )
+        .await;
+        assert_eq!(r["statusCode"], 201, "{r:?}");
+        // The lone open-ended admin is still zed; windowing him is refused.
+        let outcome = auth::grant_access_until(
+            &client,
+            Path::new("unused"),
+            &members_config(),
+            &domain_ir,
+            "zed@example.com",
+            "Admin",
+            Some(FUTURE),
+        )
+        .await
+        .unwrap();
+        assert_eq!(outcome, auth::GrantOutcome::LastOpenAdmin);
+        let outcome = auth::grant_access_until(
+            &client,
+            Path::new("unused"),
+            &members_config(),
+            &domain_ir,
+            "nobody@example.com",
+            "Admin",
+            None,
+        )
+        .await
+        .unwrap();
+        assert_eq!(outcome, auth::GrantOutcome::UnknownPerson);
     }
 
     #[tokio::test]
