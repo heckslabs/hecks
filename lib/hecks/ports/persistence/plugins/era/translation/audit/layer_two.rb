@@ -9,7 +9,7 @@ module Hecks
         # Checks one aggregate's records across the edge for id conservation and, where a
         # per-record comparison is possible, agreement with the reference transform.
         #
-        # Compute paths and rekeyed aggregates are exempt from the comparison.
+        # Rekeyed aggregates are exempt from the comparison.
         #
         # @param violations [Array<String>] collector this method appends messages to
         # @param aggregate [Bluebook::Aggregate] the current era's IR for the aggregate
@@ -24,7 +24,7 @@ module Hecks
           check_id_conservation!(violations, aggregate, before, after, rekeyed: rekeyed)
 
           return unless declared
-          # A rekey's SQL is its only implementation and `after` cannot be looked up by old id.
+          # A rekeyed record's `after` cannot be looked up by its old id.
           return if rekeyed
 
           check_value_preservation!(violations, aggregate, declared, before, after)
@@ -56,12 +56,11 @@ module Hecks
         # @return [void]
         def check_value_preservation!(violations, aggregate, declared, before, after)
           rules = Ports::Persistence::Lineage.from_declared(declared, aggregate.name)
-          compute_paths = compute_paths_of(declared)
 
           before.each do |id, state|
             next unless after.key?(id)
 
-            diverged = divergence(rules, id, state, after[id], compute_paths)
+            diverged = divergence(rules, id, state, after[id])
             next if diverged.empty?
 
             violations << "#{aggregate.name}##{id}: the translated state diverges from the reference " \
@@ -74,28 +73,6 @@ module Hecks
         # @param state [Hash, nil] a state with Symbol or String keys
         # @return [Hash{String => Object}, nil] a deep copy with String keys at every depth
         def normalize(state) = JSON.parse(JSON.generate(state))
-
-        # Removes the paths a compute owns from a normalized state, in place.
-        #
-        # A dotted path removes only its own member, never the whole top-level key, so sibling
-        # members stay under the equivalence check and silent loss there is still caught.
-        #
-        # @param state [Hash{String => Object}] a normalized state; mutated
-        # @param paths [Array<String>] bare (`"price_cents"`) or dotted (`"price.cents"`)
-        #   compute paths
-        # @return [Hash{String => Object}] `state` itself, with those paths deleted
-        def strip_compute_paths(state, paths)
-          paths.each do |path|
-            segments = path.split(".")
-            if segments.length == 1
-              state.delete(segments.first)
-            else
-              parent = segments[0..-2].reduce(state) { |node, segment| node.is_a?(Hash) ? node[segment] : nil }
-              parent.delete(segments.last) if parent.is_a?(Hash)
-            end
-          end
-          state
-        end
 
         private
 
@@ -118,15 +95,11 @@ module Hecks
             "(lost #{lost.sort.inspect}, gained #{gained.sort.inspect})"
         end
 
-        def compute_paths_of(declared)
-          declared.computes.flat_map { |compute| [compute.from, compute.to] }.map(&:to_s)
-        end
-
         # The keys at which one record's translated state differs from the reference transform.
-        def divergence(rules, id, state, translated, compute_paths)
+        def divergence(rules, id, state, translated)
           entry = Ports::Persistence::Entry.new(operation: "save", id: id, state: state.transform_keys(&:to_sym))
-          expected = strip_compute_paths(normalize(rules.translate(entry).state), compute_paths)
-          actual = strip_compute_paths(normalize(translated), compute_paths)
+          expected = normalize(rules.translate(entry).state)
+          actual = normalize(translated)
           (expected.keys | actual.keys).reject { |key| expected[key] == actual[key] }
         end
       end

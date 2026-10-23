@@ -950,6 +950,13 @@
       }
     }
   ],
+  "world": {
+    "default_adapter": null,
+    "default_database": false,
+    "persistence": [
+
+    ]
+  },
   "authorization": {
     "provider": "Governance",
     "grant": "Governance::RoleAssignment.Assign",
@@ -987,12 +994,6 @@
 
           ],
           "retypes": [
-
-          ],
-          "computes": [
-
-          ],
-          "rekeys": [
 
           ],
           "backfills": [

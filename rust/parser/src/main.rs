@@ -6,6 +6,11 @@ mod canonical;
 mod diag;
 mod emit;
 mod expr;
+// The one `Hecks::Naming` port, compiled from `hecks-codegen`'s source: neither crate depends on
+// the other. This crate reads only part of it.
+#[allow(dead_code)]
+#[path = "../../codegen/src/hecks_naming.rs"]
+mod hecks_naming;
 mod ir;
 // Generated table; not every column is consumed by this binary.
 #[allow(dead_code)]
@@ -48,15 +53,16 @@ fn run(args: &[String]) -> Result<(), RunError> {
         Some("chapter") => run_chapter(&args[1..]),
         Some("resolve") => run_resolve(&args[1..]),
         Some("adapter") => run_adapter(&args[1..]),
+        Some("world") => run_world(&args[1..]),
         Some("coverage") => {
             run_coverage();
             Ok(())
         }
         Some(other) => Err(RunError::Usage(format!(
-            "unknown subcommand '{other}' — expected 'chapter', 'resolve', 'adapter', or 'coverage'"
+            "unknown subcommand '{other}' — expected 'chapter', 'resolve', 'adapter', 'world', or 'coverage'"
         ))),
         None => Err(RunError::Usage(
-            "hecks-parse <chapter|resolve|adapter|coverage> ...".to_string(),
+            "hecks-parse <chapter|resolve|adapter|world|coverage> ...".to_string(),
         )),
     }
 }
@@ -168,6 +174,26 @@ fn run_adapter(args: &[String]) -> Result<(), RunError> {
     Ok(())
 }
 
+/// `hecks-parse world <file.world>...`: prints one world per distinct domain, in order of first
+/// appearance across the files, later blocks of a domain merged into the first.
+fn run_world(args: &[String]) -> Result<(), RunError> {
+    if args.is_empty() {
+        return Err(RunError::Usage(
+            "hecks-parse world <file.world>...".to_string(),
+        ));
+    }
+    let mut blocks = Vec::new();
+    for path in args {
+        let source = fs::read_to_string(path)
+            .map_err(|e| RunError::Usage(format!("could not read '{path}': {e}")))?;
+        blocks.extend(parse::world::parse_file(path, &source)?);
+    }
+    let worlds = parse::world::merge(blocks);
+    let value = emit::JsonValue::Array(worlds.iter().map(emit::world_json).collect());
+    println!("{}", emit::write(&value));
+    Ok(())
+}
+
 /// `(word, context)` pairs this parser builds real IR for, printed by `hecks-parse coverage`.
 /// A word that is only gated, never built into IR, must stay off this list.
 const COVERED_PAIRS: &[(&str, &str)] = &[
@@ -177,6 +203,11 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("port", "Adapter"),
     ("field", "Adapter"),
     ("secret", "Adapter"),
+    ("world", "File"),
+    ("realm", "World"),
+    ("latest", "World"),
+    ("default_database", "World"),
+    ("default_adapter", "World"),
     ("vision", "Bluebook"),
     ("core", "Bluebook"),
     ("supporting", "Bluebook"),

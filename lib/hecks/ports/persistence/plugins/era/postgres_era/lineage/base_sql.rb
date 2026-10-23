@@ -29,18 +29,6 @@ module Hecks
             )
           SQL
 
-          # The Layer-3 approvals of translation edges.
-          APPROVALS_SQL = <<~SQL.freeze
-            CREATE TABLE IF NOT EXISTS hecks_approvals (
-              domain           text NOT NULL,
-              from_label       text NOT NULL,
-              to_label         text NOT NULL,
-              edge_digest      text NOT NULL,
-              reviewed_ordinal bigint NOT NULL,
-              approved_at      timestamptz NOT NULL DEFAULT now()
-            )
-          SQL
-
           # An owned sequence default, not generated always as identity, which
           # partitioned tables only support from Postgres 17.
           JOURNAL_SQL = <<~SQL.freeze

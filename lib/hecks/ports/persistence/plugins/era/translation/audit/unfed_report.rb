@@ -8,7 +8,7 @@ module Hecks
         #
         # @param aggregate [Bluebook::Aggregate] the current era's IR for the aggregate
         # @param declared [Bluebook::TranslationAggregate, nil] this edge's rules; the
-        #   destinations of its renames, moves, converts and computes count as fed
+        #   destinations of its renames, moves, converts and derives count as fed
         # @param after [Hash{String => Hash}] translated state per record id
         # @return [Array<String>] names of unfed attributes, in declaration order; `[]` when
         #   every attribute is fed or `after` holds no records
@@ -25,12 +25,12 @@ module Hecks
         # The top-level attribute names an edge's destinations feed.
         #
         # @param declared [Bluebook::TranslationAggregate, nil] this edge's rules
-        # @return [Array<String>] the destinations of renames, moves, converts and computes, cut to
+        # @return [Array<String>] the destinations of renames, moves, converts and derives, cut to
         #   their top-level name; `[]` when there is no edge
         def fed_names(declared)
           return [] unless declared
 
-          rules = [declared.moves, declared.converts, declared.computes].flat_map { |list| list.map(&:to) }
+          rules = [declared.moves, declared.converts, declared.derives].flat_map { |list| list.map(&:to) }
           (declared.renames.values.map(&:to_s) + rules).map { |path| path.to_s.split(".").first }
         end
 

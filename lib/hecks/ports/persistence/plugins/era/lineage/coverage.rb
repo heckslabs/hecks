@@ -12,7 +12,7 @@ module Hecks
           # attribute that is new outright, never a path that existed and moved.
           #
           # @param path [String, Symbol] a bare attribute name or a dotted value-object member path
-          # @return [Boolean] true when a rename, move, convert, drop or compute names the path or
+          # @return [Boolean] true when a rename, move, convert, or drop names the path or
           #   its top-level attribute as its source, or a backfill names the top-level attribute
           def explains?(path)
             path = path.to_s
@@ -30,7 +30,7 @@ module Hecks
           # the same way a backfill would.
           #
           # @param path [String, Symbol] the name of a top-level attribute new in the current shape
-          # @return [Boolean] true when a rename, move, convert, compute or derive lands a value in
+          # @return [Boolean] true when a rename, move, convert or derive lands a value in
           #   that attribute, or a backfill names it
           def fills?(path)
             path = path.to_s
@@ -42,13 +42,13 @@ module Hecks
 
           private
 
-          # Every path a move, convert, compute or drop reads from.
+          # Every path a move, convert or drop reads from.
           def sources
-            [*@moves, *@converts, *@rules.computes].map(&:from) + @drops.map(&:to_s)
+            [*@moves, *@converts].map(&:from) + @drops.map(&:to_s)
           end
 
-          # Every path a move, convert, compute or derive writes to.
-          def destinations = [*@moves, *@converts, *@rules.computes, *@rules.derives].map(&:to)
+          # Every path a move, convert or derive writes to.
+          def destinations = [*@moves, *@converts, *@rules.derives].map(&:to)
 
           def backfilled?(name) = @rules.backfills.any? { |backfill| backfill.name.to_s == name }
         end

@@ -3,7 +3,7 @@ Hecks.bluebook "Directory" do
   supporting
 
   # Keyed by `email`, not `name` (two members can share one); the translation beside this file
-  # derives both with `compute` and `rekey`, since a `backfill` default is one literal per row.
+  # derives both with `derive` and `rekey_to`, since a `backfill` default is one literal per row.
   aggregate "Member" do
     description "One staff member, addressed by the email that is actually theirs alone."
 

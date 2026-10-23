@@ -2,11 +2,14 @@ require "json"
 require "open3"
 require "hecks/fuzzing"
 require_relative "../support/rust_conformance_helpers"
+require_relative "../support/generated_rust"
 
 # A has_many field (a list of references) must generate Rust that compiles and round-trips.
 # The fixture's `Circle` has_many Members, and its `Admit` sets :members from list_of(Handle).
 # `io: true` -- a real `cargo build` and a compiled-binary subprocess.
 RSpec.describe "has_many — Rust codegen compiles and round-trips (BUG#25)", :io do
+  include_context "with the generated Rust tree"
+
   include RustConformanceHelpers
 
   # HAS_MANY_ prefix: spec/load_hygiene_spec.rb refuses spec files sharing a top-level constant.

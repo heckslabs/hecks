@@ -30,17 +30,14 @@ module Hecks
         end
 
         # @return [Integer] the exit status
-        def conclude(db, lineage, edge, failed, approve)
+        def conclude(db, failed)
+          db.close
           if failed
-            db.close
             puts "AUDIT REFUSED."
             return 1
           end
 
-          needs_approval = edge.aggregates.any? { |declared| !declared.computes.empty? || !declared.rekeys.empty? }
-          record_approval(lineage, edge) if needs_approval && approve
-          db.close
-          print_passed(needs_approval, approve)
+          puts "AUDIT PASSED — review the samples above; intent is yours to approve."
           0
         end
 
@@ -78,28 +75,6 @@ module Hecks
           puts "   ##{sample[:id]}"
           puts "     before: #{JSON.generate(sample[:before])}" if sample[:before]
           puts "     after:  #{JSON.generate(sample[:after])}" if sample[:after]
-        end
-
-        # Binds to what was reviewed — this edge and the journal as it stands now — so it must
-        # live in the database, not the repo.
-        def record_approval(lineage, edge)
-          lineage.record_approval!(
-            from: edge.from, to: edge.to,
-            edge_digest: Hecks::Translation::Audit.edge_digest(edge)
-          )
-        end
-
-        def print_passed(needs_approval, approve)
-          if needs_approval && approve
-            puts "AUDIT PASSED — approval recorded in the database, bound to this edge and this journal."
-            puts "A journal that advances before the mint invalidates it; re-run with --approve if that happens."
-          elsif needs_approval
-            puts "AUDIT PASSED — this edge carries a compute or rekey rule, and the samples above are " \
-                 "its ONLY verification."
-            puts "If they show what you intended, run again with --approve; the mint refuses until you do."
-          else
-            puts "AUDIT PASSED — review the samples above; intent is yours to approve."
-          end
         end
       end
     end

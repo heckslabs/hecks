@@ -14,6 +14,7 @@ use crate::rustfmt;
 use crate::seams_pass;
 use crate::subprocess;
 use crate::tmp::TempDir;
+use crate::world_pass;
 
 pub struct Options {
     pub build_native: bool,
@@ -115,6 +116,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
             adapters_pass::declarations(&parser_bin, &directories, ir)
         },
     )?;
+    world_pass::run(&mut target_ir, &parser_bin, world_path.as_deref())?;
 
     // Every other chapter the gem supplies by `attaches "Name"`, resolved through the
     // same directory listing (`resolve::framework_members`) the Ruby
@@ -164,7 +166,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     for pkg_name in &vendored_package_names {
         let pkg_files = resolve::vendored_bluebook_files(&domain_path, pkg_name)?;
         let pkg_chapter_name = resolve::header_chapter_name(&pkg_files[0])?;
-        let expected_chapter_name = resolve::pascal(pkg_name);
+        let expected_chapter_name = crate::hecks_naming::pascal(pkg_name);
         if pkg_chapter_name != expected_chapter_name {
             return Err(format!(
                 "hecks-build: {} declares chapter {pkg_chapter_name:?}, but attaches {pkg_name:?}, from: :vendor \

@@ -73,16 +73,16 @@ RSpec.describe "the Rust parser's own coverage", :io do
       %w[aggregate Translation], %w[answers DomainPort], %w[answers Port],
       %w[answers PortOperation], %w[answers_query DomainPort], %w[asks DomainPort],
       %w[backfill TranslationAggregate],
-      %w[compute TranslationAggregate], %w[convert TranslationAggregate], %w[data_translation File],
-      %w[default_adapter World], %w[default_database World], %w[derive TranslationAggregate],
+      %w[convert TranslationAggregate], %w[data_translation File],
+      %w[derive TranslationAggregate],
       %w[drop TranslationAggregate],
-      %w[latest World], %w[move TranslationAggregate],
-      %w[port File], %w[realm World], %w[refuses PortOperation],
-      %w[rekey TranslationAggregate], %w[rename TranslationAggregate], %w[retired Translation],
+      %w[move TranslationAggregate],
+      %w[port File], %w[refuses PortOperation],
+      %w[rekey_to TranslationAggregate], %w[rename TranslationAggregate], %w[retired Translation],
       %w[retype TranslationAggregate], %w[signal DomainPort], %w[signal Port],
       %w[subscribe Hecksagon], %w[tells DomainPort], %w[unresolved TranslationAggregate],
       %w[verb DomainPort],
-      %w[verb Port], %w[world File]
+      %w[verb Port]
     ]],
     # Declared query/read-model options no tracked corpus member happens to
     # use — `limit`/`where`/`order_by` are, and are reported.

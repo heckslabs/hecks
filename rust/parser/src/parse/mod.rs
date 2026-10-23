@@ -16,6 +16,7 @@ pub mod process_manager;
 pub mod query;
 pub mod read_model;
 pub mod value_object;
+pub mod world;
 
 use crate::diag::{Diagnostic, ParseResult};
 use crate::ir;

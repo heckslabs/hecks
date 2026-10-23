@@ -31,11 +31,6 @@ module Hecks
 
         Naming.words(segment)
       end
-
-      # "amount.cents" -> "Amount → Cents", for a fieldset legend spanning several hops.
-      def self.breadcrumb(path)
-        path.to_s.split(".").map { |part| label(part) }.join(" → ")
-      end
     end
 
     # Attribute -> Field: the one mapping every form renderer reads instead of re-deriving.

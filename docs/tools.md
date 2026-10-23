@@ -44,7 +44,7 @@ answers `--help`. A `|` inside a form is escaped as `\|` in the cell.
 | `hecks era.reattest <domain> era= --confirm` | `bin/reattest_era` |
 | `hecks era.backfill_projections <domain>` | `bin/backfill_era_projections` |
 | `hecks era.scaffold_translation <domain>` | `bin/scaffold_translation` |
-| `hecks era.audit_translation <domain>`; `hecks era.approve_translation <domain> [snapshot=] [host_version=] [rehearsal=] [rehearsed_at=] --confirm` | `bin/translation_audit` |
+| `hecks era.audit_translation <domain>` | `bin/translation_audit` |
 | `hecks era.compact <domain> [aggregates=] --confirm` | `bin/compact` |
 | `hecks era.compact_heki <domain> [aggregates=] --confirm` | `bin/heki_compact` |
 | `hecks package.vendor <package> [from=] [root=] (waits: a refusal exits 1 with its reason on stderr)` | `bin/vendor_bluebook` |

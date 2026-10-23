@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
-use serde_json::{json, Value};
+use serde_json::Value;
 
 use super::config::PlatformSigninConfig;
 use super::handler::{CallbackRequest, Random, SigninHandler, SigninLog};
@@ -311,9 +311,4 @@ pub fn single(doc: &Value, name: &str) -> Value {
         .find(|v| v["name"] == name)
         .unwrap_or_else(|| panic!("vector {name}"))
         .clone()
-}
-
-#[allow(dead_code)]
-fn _unused() -> Value {
-    json!({})
 }

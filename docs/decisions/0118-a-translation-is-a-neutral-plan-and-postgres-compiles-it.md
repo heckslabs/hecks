@@ -1,6 +1,6 @@
 # A translation is a neutral plan, and Postgres is one compiler of it
 
-**Status:** Proposed. Built so far: the plan schema (`Bluebook::TranslationPlan`, `Translation#to_plan`) and `derive` with its expression language, interpreted in Ruby and compiled to Postgres. Not built: `rekey_to`, removing `sql:` from `compute` and `rekey`, the hecksagon escape hatch. Date: 2026-10-16.
+**Status:** Accepted, partly built. Built: the plan schema (`Bluebook::TranslationPlan`, `Translation#to_plan`); `derive` with its expression language and `rekey_to`, interpreted in Ruby and compiled to Postgres; `examples/directory`'s edge rewritten with them; and the removal of `compute` and `rekey sql:` together with the approval machinery they required, planned for 4.0.0 and live on `edge`. Not built: the hecksagon escape hatch for SQL, which nothing uses yet. Date: 2026-10-16.
 
 ## Context
 
@@ -29,7 +29,7 @@ How often the escape hatch is used matters for the size of the fix. In the repos
 
    - The expression is text in a small language of its own, parsed to a tree of plain arrays that is also its plan form. Writing it as text keeps the builder free of expression methods, and gives the Ruby and Rust sides one thing to read.
    - `derive` reads the record as stored, so it runs before every other rule and sees the held era's shape. It does not consume what it reads, so the `status` workaround disappears; `drop` removes a field.
-   - `rekey_to` names the field whose value becomes the aggregate's id, so the expression is written once. (Not built yet.)
+   - `rekey_to` names the field whose value becomes the aggregate's id, so the expression is written once. A record where the derive has no value keeps its id. Like `derive` it is pure and needs no approval, and `Lineage#translate` changes the id in process.
    - The language is pure and total: a field reference reads a stored text value (anything else has no value), a literal, `null`, `lower`, `upper` (ASCII only), `concat`, `replace` (plain text, never a pattern), and `lookup` (a table plus a fallback that is a string or `null`). A function with a valueless argument has no value, and a record where the whole expression has no value gets no new field.
    - Arithmetic (`multiply`, `divide`) is not in the first version. Ruby and Postgres disagree on what `100 / 100` is and how a decimal prints as JSON, so adding it needs a number model both can honour first.
    - Case folding is ASCII only and `replace` is not a pattern because Postgres's `lower` follows the database collation and its patterns are POSIX; either would let the in-process rewrite and the head disagree on a record.
@@ -39,7 +39,7 @@ How often the escape hatch is used matters for the size of the fix. In the repos
 
 4. **The conformance corpus is the arbiter.** A fixture is a plan plus seed rows plus the expected rows, frozen. The Ruby interpreter and the Postgres compiler must both produce the expected rows, so `derive` and `rekey_to` finally have a second implementation to disagree with. `spec/adapters/driven/postgres_era/derive_equivalence_spec.rb` does this for `derive` today.
 
-5. **Raw SQL is an adapter-scoped escape hatch, not a bluebook word.** A translation that needs an expression the vocabulary lacks declares it in the hecksagon, under the Postgres adapter, with `via: :sql`. A plan holding such an op cannot run on another adapter, and `model_check` says so before mint. `sql:` on `compute` and `rekey` is removed from the bluebook language.
+5. **Raw SQL is removed, not moved.** `sql:` on `compute` and `rekey` is gone from the bluebook language, and the approval, audit-sampling and rehearsal-gating machinery that existed only to review such edges is deleted with it. An adapter-scoped escape hatch in the hecksagon is not built: nothing in the corpus needs one, and it can be added when a translation does. Arithmetic and pattern matching are the likely first needs.
 
 6. **Existing eras are not rewritten.** A minted era stores the compiled SQL it was minted with, and the lineage hash covers it. The two translations that use `compute`/`rekey sql:` are rewritten once, as ordinary new translations; the other live translations need no edit.
 

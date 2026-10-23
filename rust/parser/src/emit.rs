@@ -954,6 +954,45 @@ pub fn adapter_json(adapter: &ir::Adapter) -> JsonValue {
     ])
 }
 
+/// One merged world, keys in the order the Ruby side prints them. Setting values never appear.
+pub fn world_json(world: &ir::World) -> JsonValue {
+    JsonValue::Object(vec![
+        ("domain".to_string(), JsonValue::str(world.domain.clone())),
+        (
+            "realm".to_string(),
+            JsonValue::opt_str(world.realm.as_ref()),
+        ),
+        (
+            "latest".to_string(),
+            JsonValue::opt_str(world.latest.as_ref()),
+        ),
+        (
+            "default_adapter".to_string(),
+            JsonValue::opt_str(world.default_adapter.as_ref()),
+        ),
+        (
+            "default_database".to_string(),
+            JsonValue::Bool(world.default_database),
+        ),
+        (
+            "bindings".to_string(),
+            JsonValue::Array(
+                world
+                    .bindings
+                    .iter()
+                    .map(|b| {
+                        JsonValue::Object(vec![
+                            ("verb".to_string(), JsonValue::str(b.verb.clone())),
+                            ("adapter".to_string(), JsonValue::str(b.adapter.clone())),
+                            ("settings".to_string(), JsonValue::strings(&b.settings)),
+                        ])
+                    })
+                    .collect(),
+            ),
+        ),
+    ])
+}
+
 fn indent(out: &mut String, depth: usize) {
     for _ in 0..depth {
         out.push_str("  ");

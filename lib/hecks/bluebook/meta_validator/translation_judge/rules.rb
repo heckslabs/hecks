@@ -3,7 +3,7 @@ module Hecks
     module MetaValidator
       class TranslationJudge
         # Offers each rule collection of one translated aggregate: renames, moves, converts,
-        # drops, retypes, computes, rekeys and backfills.
+        # drops, retypes, derives, rekeys and backfills.
         module Rules
           private
 
@@ -44,15 +44,6 @@ module Hecks
             end
           end
 
-          def judge_computes(aggregate, name)
-            Array(aggregate.computes).each do |compute|
-              send_to("Translation::TranslationAggregate.AddCompute", name, to:   name,
-                                                                            with: { from: v(compute.from),
-                                                                                    to:   v(compute.to),
-                                                                                    sql:  v(compute.sql) })
-            end
-          end
-
           def judge_derives(aggregate, name)
             Array(aggregate.derives).each do |derive|
               fields = { to: v(derive.to), expression: v(derive.expression) }
@@ -61,9 +52,8 @@ module Hecks
           end
 
           def judge_rekeys(aggregate, name)
-            Array(aggregate.rekeys).each do |rekey|
-              send_to("Translation::TranslationAggregate.AddRekey", name, to:   name,
-                                                                          with: { sql: v(rekey.sql) })
+            aggregate.rekeys.each do |rekey|
+              send_to("Translation::TranslationAggregate.AddRekeyTo", name, to: name, with: { to: v(rekey.to) })
             end
           end
 

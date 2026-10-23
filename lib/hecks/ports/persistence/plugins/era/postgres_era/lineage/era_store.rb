@@ -6,8 +6,8 @@ module Hecks
   module Adapters
     class PostgresEra
       class Lineage
-        # CRUD over `hecks_eras`/`hecks_era_texts`/`hecks_approvals`: era text
-        # integrity, archiving, Layer-3 approvals, and once-only era naming.
+        # CRUD over `hecks_eras`/`hecks_era_texts`: era text
+        # integrity, archiving, and once-only era naming.
         module EraStore
           # Verifies each held text's digest before returning it; a missing digest is backfilled.
           def eras
@@ -46,26 +46,6 @@ module Hecks
               "ON CONFLICT DO NOTHING",
               [@domain, ordinal, Digest::SHA256.hexdigest(text), text]
             )
-          end
-
-          # Always inserts a new row; `approval_for` picks the latest for a shape pair.
-          def record_approval!(from:, to:, edge_digest:)
-            @db.exec_params(
-              "INSERT INTO hecks_approvals (domain, from_label, to_label, edge_digest, reviewed_ordinal) " \
-              "VALUES ($1, $2, $3, $4, $5)",
-              [@domain, from, to, edge_digest, last_ordinal]
-            )
-          end
-
-          def approval_for(from:, to:)
-            rows = @db.exec_params(
-              "SELECT edge_digest, reviewed_ordinal FROM hecks_approvals " \
-              "WHERE domain = $1 AND from_label = $2 AND to_label = $3 ORDER BY approved_at DESC, reviewed_ordinal DESC LIMIT 1",
-              [@domain, from, to]
-            )
-            return nil if rows.ntuples.zero?
-
-            { edge_digest: rows[0]["edge_digest"], reviewed_ordinal: rows[0]["reviewed_ordinal"].to_i }
           end
 
           # Sets hash/label only once; nothing ever recomputes a stored name to verify it.

@@ -11,7 +11,7 @@ use sha2::{Digest, Sha256};
 use tokio_postgres::GenericClient;
 
 fn journal_table(domain: &str) -> String {
-    format!("hecks_journal_{}", storage_shape_snake(domain))
+    format!("hecks_journal_{}", crate::journal::snake(domain))
 }
 
 fn sequence(domain: &str) -> String {
@@ -36,12 +36,6 @@ fn head_view(domain: &str, storage_name: &str) -> String {
     crate::journal::qualified_name(domain, &format!("{storage_name}_head"))
 }
 
-// `Naming.snake` — same pure syntactic transform `crate::journal::snake`
-// already ports; reused directly rather than duplicated a second time.
-fn storage_shape_snake(name: &str) -> String {
-    crate::journal::snake(name)
-}
-
 fn text_literal(text: &str) -> String {
     format!("'{}'", text.replace('\'', "''"))
 }
@@ -59,7 +53,6 @@ pub struct Aggregate {
 pub struct EdgeAggregate {
     pub name: String,
     pub was: Option<String>,
-    pub has_compute_or_rekey: bool,
     pub compiled_state_expression: String,
     pub compiled_id_expression: Option<String>,
 }
@@ -109,14 +102,6 @@ pub fn parse_edges(ir: &Value, domain: &str) -> Vec<Edge> {
                                         .unwrap_or_default()
                                         .to_string(),
                                     was: agg.get("was").and_then(Value::as_str).map(str::to_string),
-                                    has_compute_or_rekey: !agg
-                                        .get("computes")
-                                        .and_then(Value::as_array)
-                                        .is_none_or(Vec::is_empty)
-                                        || !agg
-                                            .get("rekeys")
-                                            .and_then(Value::as_array)
-                                            .is_none_or(Vec::is_empty),
                                     compiled_state_expression: agg
                                         .get("compiled_state_expression")
                                         .and_then(Value::as_str)
@@ -386,14 +371,6 @@ pub async fn ensure_base<C: GenericClient>(client: &C, domain: &str) -> anyhow::
              domain text NOT NULL, ordinal int NOT NULL, digest text NOT NULL, held_text text NOT NULL, \
              archived_at timestamptz NOT NULL DEFAULT now(), \
              PRIMARY KEY (domain, ordinal, digest))",
-        )
-        .await?;
-    client
-        .batch_execute(
-            "CREATE TABLE IF NOT EXISTS hecks_approvals (\
-             domain text NOT NULL, from_label text NOT NULL, to_label text NOT NULL, \
-             edge_digest text NOT NULL, reviewed_ordinal bigint NOT NULL, \
-             approved_at timestamptz NOT NULL DEFAULT now())",
         )
         .await?;
     client
@@ -711,7 +688,7 @@ fn names_by_era(current_name: &str, edges: &[&Edge]) -> (Vec<String>, Vec<String
     }
     let storage = current
         .iter()
-        .map(|name| storage_shape_snake(name))
+        .map(|name| crate::journal::snake(name))
         .collect();
     (current, storage)
 }
@@ -963,28 +940,13 @@ async fn audit_layer_two<C: GenericClient>(
         return Ok(());
     }
 
-    let compute_tops: std::collections::HashSet<String> = declared
-        .get("computes")
-        .and_then(Value::as_array)
-        .map(|computes| {
-            computes
-                .iter()
-                .flat_map(|c| [c.get("from"), c.get("to")])
-                .flatten()
-                .filter_map(Value::as_str)
-                .map(|path| path.split('.').next().unwrap_or(path).to_string())
-                .collect()
-        })
-        .unwrap_or_default();
-
     for (id, state) in &before {
         let Some(actual_after) = after.get(id) else {
             continue;
         };
         let expected = reference_transform::translate(declared, state)?;
-        let expected = strip_keys(&expected, &compute_tops);
-        let actual = strip_keys(actual_after, &compute_tops);
-        if expected != actual {
+        let actual = actual_after;
+        if &expected != actual {
             let mut diverged: Vec<String> = expected
                 .as_object()
                 .into_iter()
@@ -1003,18 +965,6 @@ async fn audit_layer_two<C: GenericClient>(
         }
     }
     Ok(())
-}
-
-fn strip_keys(state: &Value, keys: &std::collections::HashSet<String>) -> Value {
-    match state {
-        Value::Object(map) => Value::Object(
-            map.iter()
-                .filter(|(k, _)| !keys.contains(*k))
-                .map(|(k, v)| (k.clone(), v.clone()))
-                .collect(),
-        ),
-        other => other.clone(),
-    }
 }
 
 /// The whole mint-time audit, over every lineage-capable aggregate. Runs
@@ -1140,7 +1090,7 @@ async fn compile_head<C: GenericClient>(
         .await?;
     Ok(())
 }
-/// Mints era 1: fresh domain, no edge, never needs the approval gate.
+/// Mints era 1: fresh domain, no edge to translate.
 pub async fn hold_first<C: GenericClient>(
     client: &C,
     domain: &str,
@@ -1309,8 +1259,8 @@ async fn table_or_view_exists<C: GenericClient>(client: &C, name: &str) -> anyho
     Ok(row.is_some())
 }
 
-/// The one transaction that makes era `ordinal` real. Approval-gate checking
-/// is the caller's job; this function mints once asked to.
+/// The one transaction that makes era `ordinal` real; the caller decides when
+/// to mint, and this function mints once asked to.
 #[allow(clippy::too_many_arguments)]
 pub async fn mint_era<C: GenericClient>(
     client: &C,
@@ -1676,7 +1626,6 @@ mod tests {
         EdgeAggregate {
             name: name.to_string(),
             was: was.map(str::to_string),
-            has_compute_or_rekey: false,
             compiled_state_expression: expression.to_string(),
             compiled_id_expression: None,
         }
@@ -1936,7 +1885,6 @@ mod tests {
             aggregates: vec![EdgeAggregate {
                 name: "Widget".to_string(),
                 was: None,
-                has_compute_or_rekey: false,
                 compiled_state_expression: "hecks_tr_rename(state, 'cost', 'amount')".to_string(),
                 compiled_id_expression: None,
             }],
@@ -2169,7 +2117,6 @@ mod tests {
             aggregates: vec![EdgeAggregate {
                 name: "Registration".to_string(),
                 was: None,
-                has_compute_or_rekey: false,
                 compiled_state_expression: "state || jsonb_build_object('status', 'active')"
                     .to_string(),
                 compiled_id_expression: None,
@@ -2266,7 +2213,6 @@ mod tests {
             aggregates: vec![EdgeAggregate {
                 name: aggregate.to_string(),
                 was: None,
-                has_compute_or_rekey: false,
                 compiled_state_expression: expression.to_string(),
                 compiled_id_expression: None,
             }],
@@ -2689,7 +2635,6 @@ mod tests {
             aggregates: vec![EdgeAggregate {
                 name: "Widget".to_string(),
                 was: None,
-                has_compute_or_rekey: false,
                 compiled_state_expression: "hecks_tr_rename(state, 'cost', 'amount')".to_string(),
                 compiled_id_expression: None,
             }],

@@ -15,15 +15,14 @@ module Hecks
       module Examination
         # What every fact is until an examination finds otherwise.
         NEUTRAL = {
-          capable: false, held: 0, forks: 0, contested: 0, edges: 0, bound: 0, candidates: 0,
-          audited: false, rehearsal_needed: false, rehearsal_recorded: false,
+          capable: false, held: 0, forks: 0, contested: 0, bound: 0, candidates: 0,
           drifted: false, loadable: false, shape_kept: false
         }.freeze
 
         # Examines the domain a change was asked for.
         #
         # @param held [Hash] the `Era` record: `operation`, `domain`, and whichever of `winners`,
-        #   `era`, `aggregates` and the rehearsal fields the request carried
+        #   `era` and `aggregates` the request carried
         # @return [Hash{Symbol => Hash}] every fact, as `{ value: x }`, and the request's own
         #   `operation`, which the reactions to the examination read
         # @raise [Runtime::NotFound] if the domain cannot be loaded or has no such era
@@ -88,26 +87,6 @@ module Hecks
         def examine_compaction(held, kind)
           compaction = Compaction.new(plain(held[:domain]), aggregates: names(held[:aggregates]), kind: kind)
           { candidates: compaction.candidates.size, bound: compaction.bound.size }
-        end
-
-        def examine_approve_translation(held)
-          domain = HeldDomain.open(plain(held[:domain]))
-          return {} unless domain.capable?
-
-          domain.reading do |lineage|
-            eras = domain.held_eras(lineage)
-            finding = eras.empty? ? nil : EdgeAudit.call(domain, lineage, eras)
-            next { capable: true, held: eras.size } unless finding
-
-            { capable: true, held: eras.size, edges: finding.leaving, audited: finding.ok }.merge(rehearsal_facts(finding, held))
-          end
-        end
-
-        def rehearsal_facts(finding, held)
-          {
-            rehearsal_needed:   Translation::ApprovalFile.needs_rehearsal?(finding.edge),
-            rehearsal_recorded: Translation::ApprovalFile.rehearsed?(rehearsal_block(held))
-          }
         end
 
         # How many eras, before the latest, do not have exactly one edge leading to the next.

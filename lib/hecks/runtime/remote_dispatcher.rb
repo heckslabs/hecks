@@ -117,8 +117,8 @@ module Hecks
         [domain, aggregate]
       end
 
-      # Not every aggregate in a routed domain is Lambda-bound (a `compute` rule can
-      # only run against Postgres). Test the adapter's capability, not its name.
+      # Not every aggregate in a routed domain is Lambda-bound (a persistence binding
+      # may name another adapter). Test the adapter's capability, not its name.
       def remote_bound?(domain, aggregate)
         adapter_name = Ports::Persistence::BindingPolicy.resolve(@registry, domain, aggregate).adapter
         @registry.adapter_class(adapter_name) <= Ports::Persistence::RemoteRuntime

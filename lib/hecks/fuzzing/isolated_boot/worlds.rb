@@ -74,12 +74,9 @@ module Hecks
 
         def hecksagon_names_in(path) = File.read(path).scan(HECKSAGON_NAME).flatten
 
-        # Deletes every `translations/*.bluebook` in the copy. A compute/rekey translation
-        # edge refuses to boot under any non-lineage-capable adapter (only `PostgresEra`
-        # answers `lineage_capable? == true`), so every other mode strips it here rather
-        # than tripping that refusal. Safe to drop: an ephemeral, zero-history boot never
-        # has a pre-existing era-1 row to translate — the edge only matters at mint time,
-        # against a real database, never here.
+        # Deletes every `translations/*.bluebook` in the copy. Safe to drop: an ephemeral,
+        # zero-history boot never has a pre-existing era-1 row to translate; the edge only
+        # matters at mint time, against a real database, never here.
         def strip_translations!(copy)
           Dir.glob(File.join(copy, "**", "translations", "*.bluebook")).each { |path| File.delete(path) }
         end

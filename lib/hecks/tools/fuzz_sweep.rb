@@ -29,9 +29,7 @@ module Hecks
       KNOWN_FUZZ_FINDINGS = {}.freeze
 
       # Why a domain is skipped, by the reason `known_unfuzzable_wiring_gap` answers.
-      SKIPPED_DOMAIN_REASONS = {
-        skip_compute_rekey: "declares compute/rekey, which only an era/Postgres-bound boot can interpret"
-      }.freeze
+      SKIPPED_DOMAIN_REASONS = {}.freeze
 
       # The persistence an ephemeral boot may use.
       ADAPTERS = %i[memory sqlite postgres].freeze

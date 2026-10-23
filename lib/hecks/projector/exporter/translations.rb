@@ -38,33 +38,15 @@ module Hecks
           JSON.pretty_generate(translations(registry))
         end
 
-        # The digest-relevant shape `ApprovalDigest.edge_digest` hashes — declared rules only,
-        # never the compiled SQL, so a compiler-output change can't invalidate an approval.
-        #
-        # @param translation [Bluebook::Translation] the translation to digest
-        # @return [Hash{Symbol => Object}] `:domain` (String), `:from`/`:to` (the era
-        #   identifiers as declared), `:retired` (`Array<String>`), and `:aggregates`
-        #   (each `translation_aggregate`'s own Hash)
-        def translation_hash(translation)
-          {
-            domain:     translation.domain,
-            from:       translation.from,
-            to:         translation.to,
-            retired:    translation.retired,
-            aggregates: translation.aggregates.map { |aggregate| translation_aggregate(aggregate) }
-          }
-        end
-
-        # Digests one aggregate's own declared translation rules.
+        # One aggregate's declared translation rules as plain data.
         #
         # @param aggregate [Bluebook::TranslationAggregate] the aggregate's own
-        #   translation rules to digest
+        #   translation rules
         # @return [Hash{Symbol => Object}] `:name` (String), `:was` (String, nil),
-        #   `:renames` (`Hash{String => String}`), `:moves`/`:converts`/`:retypes`/
-        #   `:computes`/`:rekeys`/`:backfills` (each an `Array<Hash>`), `:drops`
-        #   (`Array<String>`)
+        #   `:renames` (`Hash{String => String}`), `:moves`/`:converts`/`:retypes`/`:backfills`
+        #   (each an `Array<Hash>`), `:drops` (`Array<String>`)
         def translation_aggregate(aggregate)
-          structural_rules(aggregate).merge(typed_rules(aggregate)).merge(computed_rules(aggregate))
+          structural_rules(aggregate).merge(typed_rules(aggregate)).merge(backfill_rules(aggregate))
         end
 
         # `translation_aggregate`'s fields, plus precompiled SQL from the same
@@ -109,25 +91,18 @@ module Hecks
           }
         end
 
-        # The derives of an aggregate, in the export of compiled rules only: a derive is pure, so it
-        # is never part of what an approval digests. An aggregate with none adds no key.
+        # The derives and the `rekey_to` of an aggregate, in the export of compiled rules only. An
+        # aggregate with none adds no key.
         def derived_rules(aggregate)
           return {} if aggregate.derives.empty?
 
-          { derives: aggregate.derives.map { |derive| { to: derive.to, expression: derive.expression } } }
+          rules = { derives: aggregate.derives.map { |derive| { to: derive.to, expression: derive.expression } } }
+          aggregate.rekeys.empty? ? rules : rules.merge(rekey_to: aggregate.rekeys.first.to)
         end
 
-        # The computes, rekeys and backfills of an aggregate.
-        #
-        # `rekeys`/`backfills` are digest-relevant too — a rekey with no compute
-        # would otherwise collide with any other, letting its SQL change silently
-        # invalidate nothing.
-        def computed_rules(aggregate)
-          {
-            computes:  aggregate.computes.map { |compute| { from: compute.from, to: compute.to, sql: compute.sql } },
-            rekeys:    aggregate.rekeys.map { |rekey| { sql: rekey.sql } },
-            backfills: aggregate.backfills.map { |backfill| { name: backfill.name.to_s, default: backfill.default } }
-          }
+        # The backfills of an aggregate.
+        def backfill_rules(aggregate)
+          { backfills: aggregate.backfills.map { |backfill| { name: backfill.name.to_s, default: backfill.default } } }
         end
       end
     end

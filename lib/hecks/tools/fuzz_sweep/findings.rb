@@ -48,19 +48,13 @@ module Hecks
           failure[:message].split("; ").all? { |chunk| matchers.any? { |regex| regex.match?(chunk) } }
         end
 
-        # Skips only exact, already-tracked wiring gaps; any other WiringError is re-raised.
+        # Skips only exact, already-tracked wiring gaps (`SKIPPED_DOMAIN_REASONS`); none is tracked
+        # now, so any WiringError is re-raised.
         #
         # @param error [Hecks::Runtime::WiringError] what generating a sequence raised
         # @return [Symbol] a key of `SKIPPED_DOMAIN_REASONS`
         def known_unfuzzable_wiring_gap(error)
-          case error.message
-          when %r{a compute/rekey rule is declared}
-            # compute/rekey needs an era/Postgres migration, so it cannot boot under IsolatedBoot's
-            # Memory rebind. Real coverage lives in spec/adapters/driven/postgres_era/*_spec.rb.
-            :skip_compute_rekey
-          else
-            raise error
-          end
+          raise error
         end
 
         # Shrinks steps, then arguments, keeping a removal only while the same finding reproduces.

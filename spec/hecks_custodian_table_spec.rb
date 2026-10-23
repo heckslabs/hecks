@@ -61,8 +61,6 @@ RSpec.describe "the Custodian rows of the ADR command table" do
                      verb: "scaffold_translation"),
     CustodianRow.new(script: "translation_audit", aggregate: "Era", name: "AuditTranslation",
                      verb: "audit_translation"),
-    CustodianRow.new(script: "translation_audit", aggregate: "Era", name: "ApproveTranslation",
-                     verb: "approve_translation"),
     CustodianRow.new(script: "compact", aggregate: "Era", name: "Compact",
                      verb: "compact"),
     CustodianRow.new(script: "heki_compact", aggregate: "Era", name: "CompactHeki",

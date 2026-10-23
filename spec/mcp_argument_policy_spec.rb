@@ -8,9 +8,9 @@ RSpec.describe Hecks::Adapters::Driving::McpScope do
   PLAIN_ARGUMENTS = %w[
     aggregates alert_key arguments at body budget check closes context digest email era example exclude expert fills format
     from_run
-    gate host_version inner ir_version iterations kind lane name named new_name no_ai only opens package
+    gate inner ir_version iterations kind lane name named new_name no_ai only opens package
     pairs_shape
-    parallel persist_regressions pin profile rehearsal rehearsed_at required role run runs seed_start seeds ships_from snapshot
+    parallel persist_regressions pin profile required role run runs seed_start seeds ships_from
     stage stdout steps strict subject tags target targets timeout to top verb version warmup winners word workers
   ].freeze
 

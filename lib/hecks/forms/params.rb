@@ -203,19 +203,6 @@ module Hecks
         end
         into
       end
-
-      # Renders held values as a URL query string, percent-encoding each flattened path and
-      # value.
-      #
-      # @param fields [Array<Forms::Field>] the field tree naming which paths to read
-      # @param values [Hash{String, Symbol => Object}] held values, flat or nested; see
-      #   `FieldRenderer.dig`
-      # @return [String] `key=value` pairs joined with `&`, without a leading `?`; `""` when
-      #   `flatten` yields no pairs
-      def self.to_query_string(fields, values)
-        pairs = flatten(fields, values)
-        pairs.map { |key, value| "#{URI.encode_www_form_component(key)}=#{URI.encode_www_form_component(value)}" }.join("&")
-      end
     end
   end
 end

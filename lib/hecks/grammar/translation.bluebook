@@ -23,7 +23,7 @@ Hecks.bluebook "Translation" do
     # "retired" is the edge-level declaration (TranslationBuilder#retired).
     value_object "Kind" do
       attribute :value, String,
-                one_of: ["rename", "move", "convert", "drop", "retype", "retired", "compute", "derive", "rekey",
+                one_of: ["rename", "move", "convert", "drop", "retype", "retired", "derive", "rekey_to",
                          "backfill", "unresolved"]
     end
 

@@ -31,7 +31,7 @@ module Hecks
               "Check it with hecks audit_translation, then boot."
           elsif unresolved.positive?
             "#{unresolved} unresolved — decide what each became (rename/move/convert/drop, or " \
-              "compute on PostgresEra), then boot."
+              "derive), then boot."
           end
         end
       end

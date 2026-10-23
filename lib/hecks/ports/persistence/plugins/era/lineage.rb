@@ -64,7 +64,7 @@ module Hecks
 
         # The rule lists an edge carries beyond renames, moves, converts and drops.
         def self.optional_rules(declared)
-          { retypes: declared.retypes, computes: declared.computes, derives: declared.derives,
+          { retypes: declared.retypes, derives: declared.derives,
             rekeys: declared.rekeys, backfills: declared.backfills }
         end
         private_class_method :optional_rules
@@ -74,7 +74,7 @@ module Hecks
         # @param converts [Array<Bluebook::TranslationConvert>] moves mapped through a values table
         # @param drops [Array<Symbol>] bare or dotted paths whose data is discarded
         # @param rules [Hash] the optional rule lists, as `Rules` names them: `retypes:`,
-        #   `computes:`, `derives:`, `rekeys:`, `backfills:`, `ancestor_name:` and
+        #   `derives:`, `rekeys:`, `backfills:`, `ancestor_name:` and
         #   `ancestor_storage_name:`
         # @raise [ArgumentError] on a keyword `Rules` does not name
         def initialize(renames, moves = [], converts = [], drops = [], **rules)
@@ -85,14 +85,6 @@ module Hecks
           @rules = Rules.build(**rules)
         end
 
-        # Reports whether any rule in this edge is a compute.
-        #
-        # Compute has no in-process implementation; an aggregate carrying
-        # one refuses to boot anywhere but Postgres.
-        #
-        # @return [Boolean] true when the edge declares at least one compute rule
-        def computes? = !@rules.computes.empty?
-
         # Reports whether this edge rewrites the aggregate's identity.
         #
         # The single source of truth for this; other call sites ask here
@@ -101,23 +93,16 @@ module Hecks
         # @return [Boolean] true when the edge declares at least one rekey rule
         def rekey? = !@rules.rekeys.empty?
 
-        # Returns the SQL expression the edge's first rekey rule declares.
+        # Rewrites one journal entry from the held shape into the current one.
         #
-        # Only the first rule is read, the same one-per-aggregate assumption
-        # `compute` makes; more than one is a DSL-level decision to arbitrate elsewhere.
-        #
-        # @return [String, nil] the first rekey rule's SQL; nil when the edge declares no rekey
-        def rekey_sql = @rules.rekeys.first&.sql
-
-        # Rewrites one journal entry's state from the held shape into the current one.
-        #
-        # The reference semantics for rename, move, convert, drop, and the aggregate-level `was:`.
-        # `compute` is not applied here — its SQL is the only implementation, audited separately.
+        # The reference semantics for derive, rename, move, convert, drop, `was:` and the id a
+        # `rekey_to` takes.
         #
         # @param entry [Ports::Persistence::Entry] the entry as stored, with Symbol
         #   top-level keys and String keys nested in a value-object Hash
         # @return [Ports::Persistence::Entry] a new entry with translated state and the same
-        #   `operation`, `id` and `mirrors`; `entry` itself when it is not a save or has no state
+        #   `operation` and `mirrors`, and the same `id` unless a `rekey_to` gives it a value;
+        #   `entry` itself when it is not a save or has no state
         # @raise [Runtime::WiringError] if a convert value is missing from its `values` table, or a
         #   move/convert would nest under a destination already holding a non-Hash value
         def translate(entry)
@@ -126,8 +111,9 @@ module Hecks
           # Deep, not shallow: a move or convert reaches into a nested
           # value-object hash, and a shallow dup would quietly mutate
           # the caller's copy of the original entry.
+          id = rekeyed_id(entry)
           state = rewrite(deep_dup(entry.state))
-          Entry.new(operation: entry.operation, id: entry.id, state: state, mirrors: entry.mirrors)
+          Entry.new(operation: entry.operation, id: id, state: state, mirrors: entry.mirrors)
         end
 
         # Reports whether a declared retype pairs two type names as the same shape.

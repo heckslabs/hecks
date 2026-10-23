@@ -2,7 +2,6 @@
 //! Commerce (payments, checkout, newsletter, registrations, mail) plugs in through [`extension::HostExtension`].
 
 pub mod api;
-pub mod approval;
 pub mod auth;
 mod b64;
 pub mod boot;
@@ -24,6 +23,11 @@ pub mod field_hints;
 #[cfg(test)]
 pub mod fuzz_support;
 pub mod host;
+// The one `Hecks::Naming` port, compiled from `hecks-codegen`'s source: the host and the codegen
+// are independent Cargo projects, so the file is shared by path rather than by dependency.
+#[allow(dead_code)]
+#[path = "../../codegen/src/hecks_naming.rs"]
+pub mod hecks_naming;
 pub mod ir;
 pub mod journal;
 pub mod lambda_client;

@@ -232,25 +232,6 @@ RSpec.describe "the DSL surface" do
       expect(translating { retired "Ledger" }.retired).to eq(["Ledger"])
     end
 
-    it ".data_translation registers a compute with its SQL expression" do
-      translation = translating do
-        aggregate("Thing") { compute "price_cents", to: "price_dollars", sql: "price_cents::numeric / 100" }
-      end
-      computed = translation.for_aggregate("Thing").computes.first
-
-      expect([computed.from, computed.to, computed.sql]).to eq(["price_cents", "price_dollars", "price_cents::numeric / 100"])
-    end
-
-    it ".data_translation registers a rekey with its SQL expression" do
-      translation = translating { aggregate("Thing") { rekey sql: "(__s ->> 'email')" } }
-
-      expect(translation.for_aggregate("Thing").rekeys.first.sql).to eq("(__s ->> 'email')")
-    end
-
-    it ".data_translation refuses a rekey with no sql:" do
-      expect_translation_refusal(/needs its sql: expression/) { aggregate("Thing") { rekey sql: "" } }
-    end
-
     it ".data_translation registers a derive with its expression" do
       translation = translating { aggregate("Thing") { derive :email, as: "lower(name.value)" } }
 
@@ -261,6 +242,16 @@ RSpec.describe "the DSL surface" do
       expect_translation_refusal(/as: expression is refused: nope is not a function/) do
         aggregate("Thing") { derive :email, as: "nope(a)" }
       end
+    end
+
+    it ".data_translation registers a rekey_to naming the derived field" do
+      translation = translating { aggregate("Thing") { derive(:email, as: "lower(name.value)").then { rekey_to :email } } }
+
+      expect(translation.for_aggregate("Thing").rekeys.first.to_a).to eq(["email"])
+    end
+
+    it ".data_translation refuses a rekey_to with no derive of that field before it" do
+      expect_translation_refusal(/needs a derive of email declared before it/) { aggregate("Thing") { rekey_to :email } }
     end
 
     it ".data_translation registers a backfill with its default value" do

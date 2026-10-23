@@ -35,9 +35,6 @@ module Hecks
         array:   %w[arr_num arr_str].freeze
       }.freeze
 
-      # Element type per array attribute, so a block parameter gets the right leaf set.
-      ARRAY_ELEMENT_TYPE = { "arr_num" => :numeric, "arr_str" => :string }.freeze
-
       BLOCK_PARAM = "el".freeze
 
       MAX_DEPTH = 3

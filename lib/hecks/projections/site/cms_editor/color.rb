@@ -97,12 +97,6 @@ module Hecks
           # @return [Boolean] whether `value` reaches `ratio` on every background
           def reads?(value, against, ratio) = against.all? { |back| contrast(value, back) >= ratio }
 
-          # @param background [String] a fill
-          # @param light [String] a light foreground to try
-          # @param dark [String] a dark foreground to try
-          # @return [String] whichever reads better on `background`
-          def foreground(background, light, dark) = contrast(light, background) >= contrast(dark, background) ? light : dark
-
           # @return [Float] the hue, in degrees, of a colour given by its channels
           def angle(red, green, blue, high, spread)
             degrees = if high == red then ((green - blue) / spread) % 6

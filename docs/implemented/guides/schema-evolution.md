@@ -389,32 +389,45 @@ fully-defaulted value object refuses at boot until one of those, or a
 same refuse-at-declaration EraGuard already applies to a vanished or
 retyped field, read on the addition side instead.
 
-**`compute`** is the one rule with no in-process implementation at
-all — its SQL expression is its only meaning, run inside the era's own
-compiled view, and `Lineage#translate` passes a computed field through
-untouched on purpose. That is exactly why minting an edge with a
-`compute` rule requires `hecks era.approve_translation --confirm` first: a
-human has to look at the before/after sample, because nothing else can
-verify it. If you reach for `compute`, budget the review — it is not
-optional, and the mint refuses without it.
+**`derive`** gives a new field a value computed from the record's own text,
+in a small expression language with no storage engine in it: `lower`,
+`upper`, `concat`, `replace` (plain text), `lookup` (a table and a
+fallback), string literals, `null`, and fields by dotted path. It reads
+the record as stored, so it runs before every other rule and leaves what
+it reads where it is; `drop` removes a field. A record where the
+expression has no value (a field missing or not text) gets no new field.
+It is pure, so it needs no approval, and `Lineage#translate` and the
+Postgres head agree on every record:
 
-**`rekey`** is the aggregate's own identity changing what it's computed
-from — `identified_by :name` becoming `identified_by :email`,
-say. Ordinarily this refuses outright: stored ids were minted under the
-old key, and nothing in the other seven rule kinds says "these rows are
-the same entity under a new key." A `rekey` rule is exactly that
-declaration — SQL-only, like `compute`, with no in-process reference
-implementation (`Lineage#translate` never touches an entry's `id`,
-only its `state`) and the same `hecks era.approve_translation --confirm`
-requirement before it can mint. Unlike every other rule here, it takes
-no `from:`/`to:` path — it isn't moving or consuming a `state` field,
-only recomputing what identifies the record:
-
-```ruby skip
-aggregate("Member") do
-  rekey sql: "CASE ((__s -> 'name') ->> 'value') WHEN 'Chris Young' THEN 'chris@example.com' END"
+```ruby boot
+Hecks.data_translation("GuideMembers", from: "1", to: "2") do
+  aggregate("Member") do
+    derive "email.value", as: 'concat(lower(replace(name.value, " ", ".")), "@example.com")'
+    rekey_to "email.value"
+    drop :name
+  end
 end
 ```
+
+**`rekey_to`** makes the aggregate's identity the value of a derived field,
+so a change of `identified_by` needs no SQL: the id is that value, and a
+record where the derive has no value keeps its id. `Lineage#translate` changes
+the id in process:
+
+```ruby
+lineage = Hecks::Ports::Persistence::Lineage.new(
+  {}, [], [], [],
+  derives: [Hecks::Bluebook::TranslationDerive.new("email", 'concat(lower(name), "@example.com")')],
+  rekeys:  [Hecks::Bluebook::TranslationRekey.new("email")]
+)
+entry = Hecks::Ports::Persistence::Entry.new(operation: "save", id: "Ada", state: { name: "Ada" })
+lineage.translate(entry).id   # => "ada@example.com"
+```
+
+A `rekey_to` is also how an aggregate's `identified_by` may change: stored ids were minted under
+the old key, and nothing in the other rule kinds says "these rows are the same entity under a new
+key". Ordinarily a changed identity refuses outright; `rekey_to` is that declaration, with no
+`from:`/`to:` path, since it moves no field, only recomputes what identifies the record.
 
 The journal row itself never changes — `aggregate_id` stays whatever it
 was minted under, forever, the same immutability every other rule here
@@ -477,8 +490,7 @@ check is the one that holds when the fence cannot.
 Change the bluebook. Run `hecks era.scaffold_translation`. Resolve every
 `unresolved` line it leaves you — that is where the real decisions
 live, not busywork to get through. Run `hecks era.audit_translation` and
-read the sample; do not skim it. Then boot. If a `compute` or `rekey`
-rule is involved, run the audit with `--approve` first, and mean it.
+read the sample; do not skim it. Then boot.
 
 The domain never learns any of this happened. The bluebook you write
 next describes the shape you have now, not the history that got you

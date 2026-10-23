@@ -3,7 +3,7 @@ require "hecks/ports/persistence/plugins/era"
 require "tmpdir"
 
 # The boot-time era gate: only lineage-capable adapters hold eras (Postgres side in
-# spec/adapters/postgres_lineage_spec.rb). The compute gate's refusal wording is pinned.
+# spec/adapters/postgres_lineage_spec.rb).
 RSpec.describe "the era check at boot" do
   ERA_FIXTURES = File.join(InMemoryDomain::ROOT, "spec", "fixtures", "eras")
 
@@ -13,12 +13,6 @@ RSpec.describe "the era check at boot" do
   ERA_BROKEN = "Hecks.bluebook \"Shaped\" do\n  ((((\nend\n".freeze
   ERA_COSMETIC = "# an operator fixed a typo in a comment\n#{ERA_V1}".freeze
   ERA_WRONG_FORM_HASH = ("0" * 64).freeze
-
-  ERA_COMPUTE_TRANSLATION = <<~RUBY.freeze
-    Hecks.data_translation("Shaped", from: "1", to: "2") do
-      aggregate("Account") { compute "price_cents", to: "price_dollars", sql: "price_cents::numeric / 100" }
-    end
-  RUBY
 
   around do |example|
     Dir.mktmpdir do |dir|
@@ -139,11 +133,6 @@ RSpec.describe "the era check at boot" do
     expect { check!(root, ERA_DRIFTED) }.not_to raise_error
     expect { check!(root, ERA_BEHAVIOR_ONLY) }.not_to raise_error
     expect(Dir.exist?(File.join(root, "data", "eras"))).to be(false)
-  end
-
-  it "refuses a compute rule per-rule and by name on any non-Postgres adapter" do
-    expect { check!(root, ERA_V1, translation_source: ERA_COMPUTE_TRANSLATION) }
-      .to raise_error(Hecks::Runtime::WiringError, "compute rules require the Postgres adapter; Account is bound to Memory")
   end
 
   it "cosmetic edits (comments, whitespace) still project to the minted era name" do

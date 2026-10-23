@@ -39,13 +39,10 @@
     {
       "domain": "日本語",
       "name": "hecks-日本語"
-    }
-  ],
-  "known_divergences": [
+    },
     {
       "domain": "ΟΔΥΣΣΕΑΣ",
-      "ruby": "hecks-οδυσσεασ",
-      "rust": "hecks-οδυσσεας"
+      "name": "hecks-οδυσσεασ"
     }
   ]
 }

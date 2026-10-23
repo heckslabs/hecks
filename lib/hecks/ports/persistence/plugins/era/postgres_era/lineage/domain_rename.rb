@@ -76,7 +76,7 @@ module Hecks
           end
 
           def rename_rows!
-            %w[hecks_eras hecks_era_texts hecks_approvals].each do |table|
+            %w[hecks_eras hecks_era_texts].each do |table|
               @db.exec_params("UPDATE #{table} SET domain = $1 WHERE domain = $2", [@domain, @formerly_known_as])
             end
             # hecks_attestations is created lazily on first reattest!, so it may not exist.

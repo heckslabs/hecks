@@ -11,6 +11,10 @@ mod binding_pass;
 #[allow(dead_code)]
 #[path = "../../codegen/src/json.rs"]
 mod json;
+// The one `Hecks::Naming` port, compiled from `hecks-codegen`'s source for the same reason.
+#[allow(dead_code)]
+#[path = "../../codegen/src/hecks_naming.rs"]
+mod hecks_naming;
 mod lineage_pass;
 mod pipeline;
 mod reserved_names;
@@ -21,6 +25,7 @@ mod seams_pass;
 mod subprocess;
 mod tmp;
 mod translation_pass;
+mod world_pass;
 
 use std::process::ExitCode;
 

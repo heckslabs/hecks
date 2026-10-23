@@ -43,7 +43,6 @@ module Hecks
           gates = BootGates.new
           load_bound_adapters!(registry)
           Ports::Persistence.each_plugin { |plugin| plugin.contribute_boot_gates(registry, gates) }
-          check_compute_rules_backstop!(registry)
 
           gates.run!(:pre_verify, registry, directory)
           registry.verify!
@@ -65,25 +64,6 @@ module Hecks
           bound   = registry.hecksagons.each_value.flat_map { |hecksagon| hecksagon.binds.map(&:adapter) }
           default = registry.worlds.each_value.filter_map(&:default_adapter)
           (bound + default).each { |name| load_adapter(registry, name) }
-        end
-
-        # A backstop only: fires when a translation declares a `computes`/
-        # `rekeys` rule but no persistence plugin is loaded to interpret it.
-        # Any loaded plugin's own compute-rules gate refuses earlier, by name,
-        # whenever one is loaded — this only runs when nothing was.
-        def check_compute_rules_backstop!(registry)
-          return if Ports::Persistence.plugins_loaded?
-
-          registry.translations.each do |translation|
-            translation.aggregates.each do |aggregate|
-              next if aggregate.computes.empty? && aggregate.rekeys.empty?
-
-              raise WiringError,
-                    "cannot boot #{translation.domain}::#{aggregate.name}: a compute/rekey rule is declared, but no " \
-                    "persistence plugin that can interpret it is loaded (e.g. require " \
-                    "\"hecks/ports/persistence/plugins/era\")"
-            end
-          end
         end
 
         private

@@ -1,4 +1,4 @@
-require_relative "../../query_specification/common/comparators"
+require_relative "../../vocabulary"
 require_relative "../../query_specification/common/where_clause"
 require_relative "../../query_specification/field_path"
 require_relative "../../ports/query/in_memory"
@@ -9,10 +9,6 @@ module Hecks
       # Answers the ad hoc `{aggregate:, field:, op:, value:}` filter steps that bypass the
       # declared query DSL.
       module Filters
-        # Mirrors QuerySpecification::Common::COMPARATORS, not the Rust
-        # kernel's own comparator enum, which is missing `none_in_state` and has drifted.
-        FILTER_COMPARATORS = Hecks::QuerySpecification::Common::COMPARATORS.map(&:to_s).freeze
-
         # Answers one ad hoc filter step, the mirror image of kernel/cli.rs's own
         # `run_filter`, calling the same production `Ports::Query::InMemory` rather than
         # re-deriving comparator behavior by hand. Sorted by id ascending regardless,
@@ -31,7 +27,7 @@ module Hecks
 
         # A malformed ad-hoc ask is a fault (C8.3), not a bare RuntimeError.
         def check_comparator!(comparator)
-          return if FILTER_COMPARATORS.include?(comparator)
+          return if Hecks::Vocabulary.fetch("QueryComparator").include?(comparator)
 
           raise Bluebook::Expression::EvaluationError, "unknown query comparator #{comparator.inspect}"
         end

@@ -4,6 +4,7 @@ require "json"
 require "tmpdir"
 require "open3"
 require_relative "fixtures/codegen_manifest/gap_families"
+require_relative "support/generated_rust"
 
 # The manifest hecks-codegen writes for a banking copy with one ungeneratable construct planted
 # per skip family, held to a frozen snapshot. It stands where the Ruby-versus-Rust manifest
@@ -12,6 +13,8 @@ require_relative "fixtures/codegen_manifest/gap_families"
 # no corpus domain has. Regenerate with GOLDEN=rewrite only when a reason string really changed;
 # `bin/rust_coverage`'s allowlist cites them, so read the diff first.
 RSpec.describe "hecks-codegen manifest for every planted construct family", :io do
+  include_context "with the generated Rust tree"
+
   PLANTED_CODEGEN_DIR = File.expand_path("../rust/codegen", __dir__)
   PLANTED_CODEGEN_BINARY = File.join(PLANTED_CODEGEN_DIR, "target", "debug", "hecks-codegen")
   PLANTED_BANKING_IR = File.expand_path("../rust/src/generated/banking/ir.json", __dir__)

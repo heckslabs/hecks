@@ -16,10 +16,6 @@ module Hecks
     # The attribute kept its name, so `rename`/`move` cannot express it.
     TranslationRetype = Struct.new(:from, :to)
 
-    # A computed transform whose only implementation is a SQL expression run inside
-    # the compiled Postgres head; an aggregate carrying one refuses to boot elsewhere.
-    TranslationCompute = Struct.new(:from, :to, :sql)
-
     # A new field computed from the record's own text by an expression, read before any other
     # rule runs. The fields the expression reads stay where they are; `drop` removes them.
     # `expression` is the source text and `tree` its parsed plan form.
@@ -27,9 +23,9 @@ module Hecks
       def tree = TranslationExpression.parse(expression)
     end
 
-    # The aggregate's own key is recomputed by a SQL expression; stored state is untouched.
-    # Postgres-only like `compute`, and it has no `from:`/`to:` path.
-    TranslationRekey = Struct.new(:sql)
+    # The aggregate's id is the value of the field a `derive` writes, for every record where that
+    # derive has a value; a record where it has none keeps its id.
+    TranslationRekey = Struct.new(:to)
 
     # A newly added, required attribute with no source in old data.
     # `default` is what an existing record reads until a command writes a real value;
@@ -39,13 +35,12 @@ module Hecks
     # One aggregate's part of a translation between eras.
     # `drops` makes data loss a declared decision.
     class TranslationAggregate
-      attr_reader :name, :was, :renames, :moves, :converts, :drops, :retypes, :computes, :derives, :rekeys,
-                  :backfills
+      attr_reader :name, :was, :renames, :moves, :converts, :drops, :retypes, :derives, :rekeys, :backfills
 
       # Every optional field and what it holds when the declaration omits it.
       FIELD_DEFAULTS = {
         was: nil, renames: {}, moves: [], converts: [], drops: [], retypes: [],
-        computes: [], derives: [], rekeys: [], backfills: []
+        derives: [], rekeys: [], backfills: []
       }.freeze
 
       # @param name [String, Symbol] the aggregate's name in the destination era
@@ -55,9 +50,8 @@ module Hecks
       # @param converts [Array<Bluebook::TranslationConvert>] fields remapped via a lookup table
       # @param drops [Array<Symbol>] fields deliberately not carried forward
       # @param retypes [Array<Bluebook::TranslationRetype>] value object or entity type changes
-      # @param computes [Array<Bluebook::TranslationCompute>] fields computed by Postgres-only SQL
       # @param derives [Array<Bluebook::TranslationDerive>] fields computed from the record's text
-      # @param rekeys [Array<Bluebook::TranslationRekey>] SQL recomputing the aggregate's identity
+      # @param rekeys [Array<Bluebook::TranslationRekey>] the aggregate's identity, recomputed
       # @param backfills [Array<Bluebook::TranslationBackfill>] new required fields, no old source
       def initialize(name:, **given)
         KeywordFields.assign(self, KeywordFields.fill(given, FIELD_DEFAULTS))

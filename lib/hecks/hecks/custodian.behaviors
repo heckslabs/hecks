@@ -105,12 +105,6 @@ Hecks.behaviors "Custodian" do
     expect refused: "an era is counted from one"
   end
 
-  test "ApproveTranslation refuses a rehearsal that neither passed nor failed" do
-    tests "ApproveTranslation", on: "Era"
-    input domain: { value: "examples/pizzas" }, run: { value: "approve" }, confirm: { value: true }, rehearsal: { value: "maybe" }
-    expect refused: "must match"
-  end
-
   test "CompactHeki keeps a domain that is not there as a refused change" do
     tests "CompactHeki", on: "Era"
     input domain: { value: "/tmp/hecks-behaviors-absent/heki-domain" }, run: { value: "compact" }, confirm: { value: true }
