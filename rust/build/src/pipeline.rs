@@ -14,6 +14,7 @@ use crate::rustfmt;
 use crate::seams_pass;
 use crate::subprocess;
 use crate::tmp::TempDir;
+use crate::world_pass;
 
 pub struct Options {
     pub build_native: bool,
@@ -115,6 +116,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
             adapters_pass::declarations(&parser_bin, &directories, ir)
         },
     )?;
+    world_pass::run(&mut target_ir, &parser_bin, world_path.as_deref())?;
 
     // Every other chapter the gem supplies by `attaches "Name"`, resolved through the
     // same directory listing (`resolve::framework_members`) the Ruby

@@ -71,6 +71,29 @@ module Hecks
           JSON.pretty_generate(worlds_in_files(paths))
         end
 
+        # The IR's `world` key: what a domain's world says about persistence, names only. A missing
+        # file, or a file with no world for the domain, gives the empty default.
+        #
+        # @param path [String] the `.world` file the domain sits beside (it need not exist)
+        # @param domain [String] the target domain's name
+        # @return [Hash{String => Object}] `"default_adapter"` (String or nil), `"default_database"`
+        #   (Boolean) and `"persistence"` (each `persisted_by` bind as `"adapter"` and the
+        #   `"settings"` names)
+        def persistence_world(path, domain)
+          world = (File.file?(path) ? worlds_in_files([path]) : []).find { |entry| entry["domain"] == domain }
+          return { "default_adapter" => nil, "default_database" => false, "persistence" => [] } unless world
+
+          { "default_adapter" => world["default_adapter"], "default_database" => world["default_database"],
+            "persistence" => persisted_by_binds(world["bindings"]) }
+        end
+
+        # @param bindings [Array<Hash{String => Object}>] a world's `"bindings"`
+        # @return [Array<Hash{String => Object}>] the `persisted_by` ones, adapter and setting names
+        def persisted_by_binds(bindings)
+          bindings.select { |bind| bind["verb"] == "persisted_by" }
+                  .map { |bind| { "adapter" => bind["adapter"], "settings" => bind["settings"] } }
+        end
+
         # @param value [String, nil] a scalar a world may leave unset
         # @return [String, nil] the value, or nil when it is nil or empty
         def present_string(value) = value.nil? || value.empty? ? nil : value

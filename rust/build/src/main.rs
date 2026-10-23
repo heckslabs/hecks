@@ -25,6 +25,7 @@ mod seams_pass;
 mod subprocess;
 mod tmp;
 mod translation_pass;
+mod world_pass;
 
 use std::process::ExitCode;
 

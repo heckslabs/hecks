@@ -191,6 +191,75 @@ pub fn identity_provider(domain_ir: &Value) -> Option<IdentityProvider> {
     })
 }
 
+/// Settings a world binding carries that are not adapter fields.
+const WORLD_EXEMPT_SETTINGS: &[&str] = &["adapter", "role"];
+
+fn world_error(what: &str) -> String {
+    format!("the IR's \"world\" {what}")
+}
+
+fn declared_names(declaration: &Value) -> std::collections::BTreeSet<&str> {
+    ["fields", "secrets"]
+        .iter()
+        .filter_map(|key| declaration.get(key)?.as_array())
+        .flatten()
+        .filter_map(|name| name.as_str())
+        .collect()
+}
+
+fn check_world_binding(
+    binding: &Value,
+    declared: &std::collections::BTreeMap<String, &Value>,
+) -> Result<(), String> {
+    let adapter = binding
+        .get("adapter")
+        .and_then(|a| a.as_str())
+        .ok_or_else(|| world_error("persistence entry has no string \"adapter\""))?;
+    let settings = binding
+        .get("settings")
+        .and_then(|s| s.as_array())
+        .ok_or_else(|| world_error("persistence entry's \"settings\" is not an array"))?;
+    let Some(declaration) = declared.get(adapter) else {
+        return Ok(());
+    };
+    let known = declared_names(declaration);
+    for setting in settings {
+        let name = setting
+            .as_str()
+            .ok_or_else(|| world_error("persistence entry has a setting that is not a string"))?;
+        if !WORLD_EXEMPT_SETTINGS.contains(&name) && !known.contains(name) {
+            return Err(format!(
+                "{adapter} does not declare {name:?} — the world sets it, but the adapter declares \
+                 {known:?}. Add the field to the adapter, or remove it from the world."
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Refuses a world that sets, on a declared persistence adapter, a setting the adapter does not
+/// declare as a field or secret (`adapter` and `role` are exempt). Entries for adapters the IR's
+/// `adapters` key does not declare are skipped, and an IR without a `world` key is not checked.
+pub fn refuse_undeclared_world_settings(domain_ir: &Value) -> Result<(), String> {
+    let Some(world) = domain_ir.get("world") else {
+        return Ok(());
+    };
+    if !world.is_object() {
+        return Err(world_error("key is not an object"));
+    }
+    let entries = world
+        .get("persistence")
+        .and_then(|p| p.as_array())
+        .ok_or_else(|| world_error("\"persistence\" is not an array"))?;
+    let declared = match adapter_declarations(domain_ir) {
+        Some(declared) => declared?,
+        None => return Ok(()),
+    };
+    entries
+        .iter()
+        .try_for_each(|binding| check_world_binding(binding, &declared))
+}
+
 /// Refuses at boot rather than silently building a second, disjoint history
 /// nothing but this runtime reads while the real state lives elsewhere.
 ///
@@ -206,6 +275,7 @@ pub fn identity_provider(domain_ir: &Value) -> Option<IdentityProvider> {
 /// before. A present-but-malformed `adapters` value is refused with a
 /// message naming the problem (it never panics).
 pub fn refuse_unsupported_persistence_adapters(domain_ir: &Value) -> Result<(), String> {
+    refuse_undeclared_world_settings(domain_ir)?;
     let bindings = persistence_adapters(domain_ir);
     if let Some(declared) = adapter_declarations(domain_ir) {
         let declared = declared?;
@@ -349,6 +419,55 @@ mod tests {
             err.contains("Heki"),
             "error should name the unsupported adapter: {err}"
         );
+    }
+
+    fn world_ir(settings: &Value) -> Value {
+        serde_json::json!({
+            "adapters": [{"name": "PostgresEra", "port": "persistence",
+                          "fields": ["url"], "secrets": ["password"], "defaults": {}}],
+            "world": {"default_adapter": null, "default_database": false,
+                      "persistence": [{"adapter": "PostgresEra", "settings": settings}]}
+        })
+    }
+
+    #[test]
+    fn a_world_setting_the_adapter_does_not_declare_is_refused() {
+        let err =
+            refuse_undeclared_world_settings(&world_ir(&serde_json::json!(["bogus"]))).unwrap_err();
+        assert!(
+            err.contains("PostgresEra") && err.contains("bogus"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn declared_fields_secrets_role_and_adapter_pass() {
+        let ir = world_ir(&serde_json::json!(["url", "password", "role", "adapter"]));
+        assert!(refuse_undeclared_world_settings(&ir).is_ok());
+    }
+
+    #[test]
+    fn an_undeclared_adapter_in_the_world_is_skipped() {
+        let mut ir = world_ir(&serde_json::json!(["bogus"]));
+        ir["adapters"] = serde_json::json!([]);
+        assert!(refuse_undeclared_world_settings(&ir).is_ok());
+    }
+
+    #[test]
+    fn an_ir_without_a_world_key_is_not_checked() {
+        assert!(refuse_undeclared_world_settings(&serde_json::json!({"name": "X"})).is_ok());
+    }
+
+    #[test]
+    fn a_malformed_world_is_refused() {
+        let mut not_object = world_ir(&serde_json::json!([]));
+        not_object["world"] = serde_json::json!("x");
+        let mut not_array = world_ir(&serde_json::json!([]));
+        not_array["world"]["persistence"] = serde_json::json!({});
+        let bad_setting = world_ir(&serde_json::json!([3]));
+        for ir in [not_object, not_array, bad_setting] {
+            assert!(refuse_undeclared_world_settings(&ir).is_err());
+        }
     }
 
     #[test]
