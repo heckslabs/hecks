@@ -7,12 +7,7 @@ require_relative "../../lib/hecks/quality_control/adapters/agent"
 RSpec.describe Hecks::Adapters::Agent do
   subject(:adapter) { described_class.new }
 
-  around do |example|
-    Dir.mktmpdir("agent_spec") do |dir|
-      @dir = dir
-      example.run
-    end
-  end
+  scratch_directory :dir, "agent_spec"
 
   def agent_script(body)
     path = File.join(@dir, "agent.rb")

@@ -17,12 +17,7 @@ RSpec.describe "the Site row of the ADR command table" do
     @bluebook = @hecks.registry.bluebook("Site")
   end
 
-  around do |example|
-    Dir.mktmpdir("site_project") do |dir|
-      @dir = dir
-      example.run
-    end
-  end
+  scratch_directory :dir, "site_project"
 
   after do
     Hecks::Adapters::Codebase::Tree.root = nil

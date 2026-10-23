@@ -157,12 +157,7 @@ RSpec.describe "hecks deploy lint", :io do
   # --- End-to-end CLI ----------------------------------------------------
 
   describe "the tool, in this process" do
-    around do |example|
-      Dir.mktmpdir do |dir|
-        @dir = dir
-        example.run
-      end
-    end
+    scratch_directory
 
     def write_recipes
       clean = File.join(@dir, "clean")
@@ -199,12 +194,7 @@ RSpec.describe "hecks deploy lint", :io do
   MAKEFILE
 
   describe "the CLI itself" do
-    around do |example|
-      Dir.mktmpdir do |dir|
-        @dir = dir
-        example.run
-      end
-    end
+    scratch_directory
 
     # The child's whole program: the tool the launcher's `deploy lint` runs, as a process.
     def self.lint_command

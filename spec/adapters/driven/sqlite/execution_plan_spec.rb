@@ -5,12 +5,7 @@ require_relative "../../../support/persistence_adapter_examples"
 RSpec.describe "SQLite execution-plan capabilities" do
   include_context "with the atomic_put Item aggregate"
 
-  around do |example|
-    Dir.mktmpdir("hecks-sqlite-plan-") do |root|
-      @root = root
-      example.run
-    end
-  end
+  scratch_directory :root, "hecks-sqlite-plan-"
 
   let(:aggregate) { item_aggregate("SqlitePlanning", "SQLite implements the same atomic-put contract as Memory") }
   let(:store) do

@@ -47,12 +47,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
   end
 
   # A scratch directory for each example, named by `dir` in the groups that write files.
-  around do |example|
-    Dir.mktmpdir("deploy_table") do |scratch|
-      @dir = scratch
-      example.run
-    end
-  end
+  scratch_directory :dir, "deploy_table"
 
   attr_reader :dir
 

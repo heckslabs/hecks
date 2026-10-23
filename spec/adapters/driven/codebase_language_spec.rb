@@ -43,12 +43,7 @@ RSpec.describe Hecks::Adapters::Codebase::Language do
     end
 
     context "with another tree" do
-      around do |example|
-        Dir.mktmpdir do |dir|
-          @dir = dir
-          example.run
-        end
-      end
+      scratch_directory
 
       let(:other) { Hecks::Adapters::Codebase::Tree.new(root: @dir) }
 
