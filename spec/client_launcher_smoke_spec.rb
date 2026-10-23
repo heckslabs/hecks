@@ -201,7 +201,7 @@ RSpec.describe "client launcher smoke" do
 
       expect(answers.map { |a| a["id"] }).to all(eq("Margherita"))
       expect(answers.map { |a| a["events"] }).to all(eq(["PizzaCreated"]))
-      expect(answers.first.dig("state", "pizza", "size", "value")).to eq("large")
+      expect(answers.first.dig("state", "pizza", "size")).to eq("large")
       expect(answers.first.dig("state", "status")).to eq("available")
     end
 

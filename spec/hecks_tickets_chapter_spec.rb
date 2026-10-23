@@ -63,7 +63,7 @@ RSpec.describe "the Tickets chapter" do
 
     out, = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks", argv: ["tickets", "finding.open"])
 
-    expect(JSON.parse(out).map { |row| row.dig("finding", "value") }).to include("f-open")
+    expect(JSON.parse(out).map { |row| row["finding"] }).to include("f-open")
   end
 
   it "files a finding when a conformance or gate run faults", :aggregate_failures do

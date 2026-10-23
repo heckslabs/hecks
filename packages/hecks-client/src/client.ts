@@ -9,6 +9,12 @@
 //     "role": "Role", "actor_id": "<id>" }
 //     -> the same shape after the command ran
 //
+// Every request also carries `"bare": true` unless the client was built with
+// `bare: false`: the host then answers a value object that has one field as
+// that field's own value (`name: "Margherita"`, not `name: { value: "Margherita" }`),
+// the same shape a command takes it in. Without it the host answers the shape
+// it stores.
+//
 // The host answers HTTP 200 whether or not the domain refused, and its
 // `refusals` list can carry entries replayed from history, so a command is
 // judged by the state that comes back (see `HostClient#apply`), never by the
@@ -56,6 +62,11 @@ export interface ClientOptions {
   timeoutMs?: number;
   /** The fetch to send requests with. Defaults to the global `fetch`, looked up on each call. */
   fetch?: typeof fetch;
+  /**
+   * Whether the host answers a single-field value object as its bare value. Defaults to true;
+   * false asks for the wrapped shape the host stores (`{ value: "x" }`, `{ cents: 900 }`).
+   */
+  bare?: boolean;
 }
 
 /**
@@ -91,6 +102,7 @@ export class HostClient {
   private readonly actorId: string | undefined;
   private readonly timeoutMs: number;
   private readonly fetchImpl: typeof fetch | undefined;
+  private readonly bare: boolean;
 
   constructor(options: ClientOptions = {}) {
     const domain = options.domain ?? fromEnv("HECKS_DOMAIN");
@@ -103,6 +115,7 @@ export class HostClient {
     this.actorId = options.actorId;
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     this.fetchImpl = options.fetch;
+    this.bare = options.bare ?? true;
   }
 
   /** A name in full: one that already carries `::` is left alone, any other is placed in this client's domain. */
@@ -164,7 +177,7 @@ export class HostClient {
       res = await send(`${this.url}/dispatch`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify(this.bare ? { ...body, bare: true } : body),
         signal: AbortSignal.timeout(this.timeoutMs),
       });
     } catch (err) {

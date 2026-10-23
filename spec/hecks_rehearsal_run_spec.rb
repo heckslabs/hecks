@@ -49,7 +49,7 @@ RSpec.describe "rehearsing a domain's next era" do
     write_rows(document)
   end
 
-  def verdict_of(record) = record.dig("verdict", "value")
+  def verdict_of(record) = record["verdict"]
 
   def status_of(record) = record["status"]
 
@@ -83,14 +83,14 @@ RSpec.describe "rehearsing a domain's next era" do
     record = rehearse
 
     expect([status_of(record), verdict_of(record)]).to eq(%w[judged would_mint])
-    expect(record.dig("minting", "value")).to eq("next")
+    expect(record["minting"]).to eq("next")
   end
 
   it "names the era held and the era a mint would hold", :aggregate_failures, :process do
     state = rehearse
 
-    expect(state.dig("before", "value")).to eq("708420")
-    expect(state.dig("after", "value")).to eq("7edd70")
+    expect(state["before"]).to eq("708420")
+    expect(state["after"]).to eq("7edd70")
   end
 
   it "says what it did not check", :process do
@@ -112,15 +112,15 @@ RSpec.describe "rehearsing a domain's next era" do
     held_current_shape
     state = rehearse
 
-    expect(state.dig("minting", "value")).to eq("none")
-    expect(state.dig("verdict", "value")).to eq("would_mint")
+    expect(state["minting"]).to eq("none")
+    expect(state["verdict"]).to eq("would_mint")
   end
 
   it "would hold the first era when a copy is asked to be empty", :aggregate_failures, :process do
     declare_copy('mode "empty"')
     record = rehearse
 
-    expect(record.dig("minting", "value")).to eq("first")
+    expect(record["minting"]).to eq("first")
     expect(verdict_of(record)).to eq("would_mint")
   end
 
@@ -129,23 +129,23 @@ RSpec.describe "rehearsing a domain's next era" do
     record = rehearse
 
     expect([status_of(record), verdict_of(record)]).to eq(%w[withheld needs_edge])
-    expect(record.dig("edge_present", "value")).to be(false)
+    expect(record["edge_present"]).to be(false)
   end
 
   describe "how much was audited" do
     it "counts the rows and aggregates the audit read", :aggregate_failures, :process do
       record = rehearse
 
-      expect(record.dig("audited", "value")).to be(true)
-      expect(record.values_at("rows_examined", "aggregates_examined").map { |count| count["value"] }).to eq([3, 2])
+      expect(record["audited"]).to be(true)
+      expect(record.values_at("rows_examined", "aggregates_examined")).to eq([3, 2])
     end
 
     it "says no row was read when the shape stands", :aggregate_failures, :process do
       held_current_shape
       record = rehearse
 
-      expect(record.dig("audited", "value")).to be(false)
-      expect(record.dig("reason", "value")).to eq("no mint is needed at this shape, so no stored row was examined")
+      expect(record["audited"]).to be(false)
+      expect(record["reason"]).to eq("no mint is needed at this shape, so no stored row was examined")
     end
 
     it "carries that limit in what a clean verdict did not check", :process do
@@ -157,7 +157,7 @@ RSpec.describe "rehearsing a domain's next era" do
     it "shows the head and journal counts side by side", :aggregate_failures, :process do
       record = rehearse
 
-      expect(record.dig("head_rows", "value")).to eq(3)
+      expect(record["head_rows"]).to eq(3)
       expect(record["census"]).to include("aggregate" => "Widget", "head" => 2, "journal" => 2)
     end
 
@@ -173,11 +173,11 @@ RSpec.describe "rehearsing a domain's next era" do
       record = rehearse
 
       expect([status_of(record), verdict_of(record)]).to eq(%w[withheld empty_copy])
-      expect(record.dig("copy_empty", "value")).to be(true)
+      expect(record["copy_empty"]).to be(true)
     end
 
     it "says what the copy lacked and what to set", :aggregate_failures, :process do
-      reason = rehearse.dig("refusal", "value")
+      reason = rehearse["refusal"]
 
       expect(reason).to include("no rows for domain Shop")
       expect(reason).to include("name the document that holds the stored records in `rows`")
@@ -210,7 +210,7 @@ RSpec.describe "rehearsing a domain's next era" do
     it "names the environment, the file and the aggregate when a bind is missing", :aggregate_failures do
       bind_only_order
       overlay("staging")
-      reason = rehearse.dig("refusal", "value")
+      reason = rehearse["refusal"]
 
       expect(reason).to include("Shop::Widget has no persisted_by bind")
       expect(reason).to include("no environment overlay (none named", "overlays this domain holds: staging")
@@ -243,7 +243,7 @@ RSpec.describe "rehearsing a domain's next era" do
     end
 
     it "counts the rows it was refused for", :process do
-      expect(rehearse.dig("refusal_total", "value")).to eq(1)
+      expect(rehearse["refusal_total"]).to eq(1)
     end
   end
 
@@ -252,7 +252,7 @@ RSpec.describe "rehearsing a domain's next era" do
     state = rehearse
 
     expect(state.fetch("refused_rows").size).to eq(50)
-    expect(state.dig("refusal_total", "value")).to eq(55)
+    expect(state["refusal_total"]).to eq(55)
   end
 
   it "cannot boot a domain that does not load", :aggregate_failures do
@@ -267,7 +267,7 @@ RSpec.describe "rehearsing a domain's next era" do
     record = rehearse
 
     expect(status_of(record)).to eq("refused")
-    expect(record.dig("refusal", "value")).to include("declares no `rehearsed_by`")
+    expect(record["refusal"]).to include("declares no `rehearsed_by`")
   end
 
   it "is refused when the world holds a literal connection instead of an environment name", :aggregate_failures do
@@ -276,13 +276,13 @@ RSpec.describe "rehearsing a domain's next era" do
     record = rehearse
 
     expect(status_of(record)).to eq("refused")
-    expect(record.dig("refusal", "value")).to include("name the environment variable")
+    expect(record["refusal"]).to include("name the environment variable")
   end
 
   it "is refused when this install is not the pin", :process do
     record = rehearse("pinned", "pin=9.9.9")
 
-    expect(record.dig("refusal", "value")).to include("not the pin 9.9.9")
+    expect(record["refusal"]).to include("not the pin 9.9.9")
   end
 
   it "keeps no rehearsal: the aggregate is bound to Memory" do

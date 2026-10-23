@@ -36,7 +36,7 @@ module Hecks
           if MEMORY_COMMANDS.include?(ARGV.first.to_s.chomp("!"))
             why = begin
               require "json"
-              JSON.parse(text).dig("state", "refusal", "value")
+              JSON.parse(text).dig("state", "refusal")
             rescue JSON::ParserError
               nil
             end

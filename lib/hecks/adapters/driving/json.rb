@@ -83,20 +83,19 @@ module Hecks
         #   with Symbol keys; a leaf is returned as it came
         def deep_symbolize(value) = Runtime::Value.deep_symbolize(value)
 
-        # Unwraps a record, a query row, or any value holding `Runtime::Value`s into plain
-        # Hashes, Arrays and scalars a JSON encoder can walk.
-        #
-        # Delegates to `Runtime::Value.materialize`; the only addition is `#to_h` on a
-        # `Handle`, which `materialize` does not recognize.
+        # Unwraps a record, a query row, or any value holding `Runtime::Value`s into the plain
+        # data a caller is answered with. A single-field value object answers as its bare
+        # field (`name: "Margherita"`), the shape a command takes it in; stored state stays
+        # wrapped.
         #
         # @param value [Adapters::Driving::Handle, Runtime::Value, Hash, Array, Object] what to
-        #   unwrap;
-        #   a `Handle` is read through its `to_h`, so its `:id` comes along
+        #   unwrap; a `Handle` is read through its `to_h`, so its `:id` comes along
         # @return [Hash, Array, Object] the same data with every `Runtime::Value` replaced
-        #   by a Hash of its fields; any other value is returned as it came
+        #   by its sole field's value, or by a Hash of its fields when it has more than one;
+        #   any other value is returned as it came
         def materialize(value)
           value = value.to_h if value.is_a?(Handle)
-          Runtime::Value.materialize(value)
+          Runtime::Value.materialize_unwrapped(value)
         end
 
         # Turns a command's JSON body, raw or already parsed, into the `to:`/`with:`

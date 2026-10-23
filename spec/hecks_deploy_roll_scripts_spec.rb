@@ -293,14 +293,14 @@ RSpec.describe "the box roll's log capture and the generated Makefile", :io do
       out, status = deploy_call("box_roll.run", dir)
 
       expect(status).to eq(1)
-      expect(JSON.parse(out).dig("state", "refusal", "value")).to include("no deploy-box.sh under")
+      expect(JSON.parse(out).dig("state", "refusal")).to include("no deploy-box.sh under")
     end
 
     it "names script= when two scripts are found", :aggregate_failures do
       two_scripts
       out, = deploy_call("box_roll.run", dir, "skip_smoke=true")
 
-      expect(JSON.parse(out).dig("state", "refusal", "value")).to include("2 deploy-box.sh files", "script=<path>")
+      expect(JSON.parse(out).dig("state", "refusal")).to include("2 deploy-box.sh files", "script=<path>")
     end
 
     it "runs the script that script= names", :aggregate_failures do
@@ -308,7 +308,7 @@ RSpec.describe "the box roll's log capture and the generated Makefile", :io do
       out, status = deploy_call("box_roll.run", dir, "script=#{File.join(dir, "b", "deploy-box.sh")}", "skip_smoke=true")
 
       expect(status).to eq(0)
-      expect(JSON.parse(out).dig("state", "report", "value")).to eq("b")
+      expect(JSON.parse(out).dig("state", "report")).to eq("b")
     end
   end
 end

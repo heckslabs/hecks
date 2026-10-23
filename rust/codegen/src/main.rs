@@ -26,6 +26,7 @@ mod naming;
 mod optional_pass;
 mod ports;
 mod prelude;
+mod presenters;
 mod queries;
 mod reactions;
 mod read_models;
@@ -376,6 +377,11 @@ fn run_full(args: &[String]) -> Result<(), String> {
     puts_str(
         &mut merged_rs,
         &read_models::emit_read_model_table(&ex, &merged_read_models),
+    );
+    puts_blank(&mut merged_rs);
+    puts_str(
+        &mut merged_rs,
+        &presenters::emit_present_router(&merged_aggregates),
     );
 
     let merged_path = format!("{target_out_dir}/merged.rs");
