@@ -67,6 +67,26 @@ RSpec.describe Hecks::EmbryonautBluebook, ".vendor!" do
       expect(result.shape.first).to match(/\AWidgets \h{6}\z/)
     end
 
+    # Releases 1.0.1 with a plugin adapter and its module beside the bluebook, and vendors it.
+    def vendor_with_plugin
+      repo.write("widgets/bluebook/counting.adapter" => "Hecks.adapter \"Counting\" do\nend\n",
+                 "widgets/bluebook/counting.wasm"    => "\0asm")
+      release("1.0.1")
+      vendor(ref: "1.0.1")
+      File.join(package_dir, "bluebook")
+    end
+
+    it "vendors a plugin adapter and its wasm module beside the bluebook", :process do
+      expect(Dir.children(vendor_with_plugin).sort).to eq(%w[counting.adapter counting.wasm widgets.bluebook])
+    end
+
+    it "locks the plugin's files with the bluebook", :aggregate_failures, :process do
+      dir = vendor_with_plugin
+
+      expect(lock.digest).to eq(Hecks::EmbryonautBluebook::Lock.digest_of(dir))
+      expect(lock.digest).not_to eq(shell_digest(dir))
+    end
+
     it "records the digest the registry's own script computes", :process do
       vendor(ref: "1.0.0")
 

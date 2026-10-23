@@ -14,13 +14,27 @@ module Hecks
     # `defaults` maps a field's name to the value used when the world gives none; a string may hold
     # a `{name}` or `{storage_name}` placeholder, filled from the aggregate the adapter is built
     # for.
-    Adapter = Struct.new(:name, :port, :fields, :secrets, :defaults, keyword_init: true) do
+    #
+    # A plugin adapter instead `runs` a `.wasm` module beside its `.adapter` file (`source_dir`)
+    # and names the queries it `answers` (`"Chapter::Aggregate.Query"`); it needs no port, and the
+    # runtime binds each query it answers without a hecksagon line.
+    Adapter = Struct.new(:name, :port, :fields, :secrets, :defaults, :answers, :runs, :source_dir,
+                         keyword_init: true) do
       def declares?(field) = all_fields.include?(field.to_sym)
 
       def all_fields = (fields || []) + (secrets || [])
 
       # @return [Hash{Symbol => Object}] the declared defaults, empty when none
       def declared_defaults = defaults || {}
+
+      # @return [Array<String>] the qualified queries this adapter answers, empty when none
+      def answered_queries = answers || []
+
+      # @return [Boolean] whether this adapter is a wasm plugin
+      def plugin? = !runs.nil?
+
+      # @return [String, nil] where the plugin's module is, beside its `.adapter` file
+      def plugin_path = runs && File.expand_path(runs, source_dir || Dir.pwd)
     end
 
     Bind = Struct.new(:aggregate, :verb, :adapter, :role, keyword_init: true) do

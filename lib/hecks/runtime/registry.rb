@@ -161,6 +161,14 @@ module Hecks
       # @return [Bluebook::Adapter] `item`, unchanged
       def add_adapter(item) = @declared.adapters[item.name] = item
 
+      # Finds the plugin adapters that say they answer a query.
+      #
+      # @param question [String] the qualified query, such as `"Calendar::Event.Occurrences"`
+      # @return [Array<Bluebook::Adapter>] every loaded plugin naming it, by name
+      def plugins_answering(question)
+        adapters.values.select { |adapter| adapter.answered_queries.include?(question) }.sort_by(&:name)
+      end
+
       # Merges into any world already registered for the domain, the same shape as
       # add_hecksagon. Settings merge shallow, keyed by verb (and "verb:adapter"); an
       # overlay key wins over the base's same key, and a key only the base declares

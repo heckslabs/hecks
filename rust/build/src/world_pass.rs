@@ -7,31 +7,31 @@ use std::path::Path;
 use crate::json::Json;
 use crate::subprocess;
 
-/// Sets `world` right after `adapters`. With no `.world` file beside the domain it is the empty fact.
+/// The `world` fact for `domain`. With no `.world` file beside the domain it is the empty fact.
 ///
 /// # Errors
 ///
 /// Returns the parser's failure, or a message naming output that is not the JSON array
 /// `hecks-parse world` prints.
-pub fn run(ir: &mut Json, parser_bin: &Path, world: Option<&Path>) -> Result<(), String> {
+pub fn read(domain: &str, parser_bin: &Path, world: Option<&Path>) -> Result<Json, String> {
     let Some(world) = world else {
-        ir.set("world", fact(None));
-        return Ok(());
+        return Ok(fact(None));
     };
-    let domain = ir
-        .get("name")
-        .and_then(Json::as_str)
-        .unwrap_or_default()
-        .to_string();
     let world_arg = world.to_string_lossy();
     let printed = subprocess::run_capture(&parser_bin.to_string_lossy(), &["world", &world_arg])?;
     let parsed = Json::parse(&printed).map_err(|e| format!("parsing hecks-parse world: {e}"))?;
     let entry = parsed
         .each()
         .iter()
-        .find(|w| w.get("domain").and_then(Json::as_str) == Some(domain.as_str()));
-    ir.set("world", fact(entry));
-    Ok(())
+        .find(|w| w.get("domain").and_then(Json::as_str) == Some(domain));
+    Ok(fact(entry))
+}
+
+/// The world's `default_adapter`, when it names one.
+pub fn default_adapter(fact: &Json) -> Option<String> {
+    fact.get("default_adapter")
+        .and_then(Json::as_str)
+        .map(str::to_string)
 }
 
 fn fact(entry: Option<&Json>) -> Json {
@@ -79,6 +79,15 @@ mod tests {
 
     fn parsed(text: &str) -> Json {
         Json::parse(text).expect("fixture json")
+    }
+
+    #[test]
+    fn the_default_adapter_is_read_from_the_fact_or_absent() {
+        let named = fact(Some(&parsed(
+            r#"{"domain":"C","default_adapter":"Heki","bindings":[]}"#,
+        )));
+        assert_eq!(default_adapter(&named), Some("Heki".to_string()));
+        assert_eq!(default_adapter(&fact(None)), None);
     }
 
     #[test]

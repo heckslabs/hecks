@@ -427,4 +427,8 @@ pub struct Adapter {
     pub secrets: Vec<String>,
     // Field name to default, first-insertion order; a repeated key keeps its first slot.
     pub defaults: Vec<(String, crate::ruby_value::Value)>,
+    // A plugin's qualified queries (`Chapter::Aggregate.Query`), in declaration order.
+    pub answers: Vec<String>,
+    // A plugin's wasm module, beside its `.adapter` file.
+    pub runs: Option<String>,
 }

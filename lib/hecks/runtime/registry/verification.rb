@@ -2,6 +2,7 @@ require_relative "../../bluebook/hecksagon"
 require_relative "hecksagon_rules"
 require_relative "ask_verification"
 require_relative "query_verification"
+require_relative "plugin_query_verification"
 require_relative "chapter_verification"
 require_relative "durability_warnings"
 
@@ -14,6 +15,7 @@ module Hecks
         include HecksagonRules
         include AskVerification
         include QueryVerification
+        include PluginQueryVerification
         include ChapterVerification
         include DurabilityWarnings
 

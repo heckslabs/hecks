@@ -166,6 +166,13 @@ RSpec.describe "a hecksagon attaching a chapter the gem carries" do
       end
     end
 
+    %w[capabilities concerns annotate].each do |word|
+      it "refuses #{word}, a retired word nothing reads" do
+        expect { registry_with { Hecks.hecksagon("Hexed") { public_send(word, :webapp) } } }
+          .to raise_error(Hecks::Bluebook::DSL::Malformed, /`#{word}` is not a hecksagon word and nothing reads it/)
+      end
+    end
+
     it "merges two hecksagon blocks' attachments without repeating one" do
       registry = registry_with do
         Hecks.hecksagon("Hexed") { attaches "Governance" }

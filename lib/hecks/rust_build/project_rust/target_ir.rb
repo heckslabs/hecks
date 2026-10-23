@@ -39,6 +39,7 @@ module Hecks
           add_persistence_wiring(ir, exporter)
           add_seams(ir, exporter)
           add_edges_and_source(ir)
+          add_plugins(ir, exporter)
           ir
         end
 
@@ -51,6 +52,14 @@ module Hecks
         end
 
         def shaped(payload) = self.class.json_shaped(payload)
+
+        # The wasm plugins the host runs for queries no hecksagon binds; none, no key.
+        #
+        # @return [void]
+        def add_plugins(document, exporter)
+          plugins = exporter.plugins(@registry)
+          document[:plugins] = shaped(plugins) unless plugins.empty?
+        end
 
         # The bound persistence adapters' declarations, from the `.adapter` files under the
         # source root's `lib/` and the domain's own directory, so the host can look them up.
