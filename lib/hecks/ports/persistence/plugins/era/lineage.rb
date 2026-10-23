@@ -64,7 +64,7 @@ module Hecks
 
         # The rule lists an edge carries beyond renames, moves, converts and drops.
         def self.optional_rules(declared)
-          { retypes: declared.retypes, computes: declared.computes, derives: declared.derives,
+          { retypes: declared.retypes, derives: declared.derives,
             rekeys: declared.rekeys, backfills: declared.backfills }
         end
         private_class_method :optional_rules
@@ -74,7 +74,7 @@ module Hecks
         # @param converts [Array<Bluebook::TranslationConvert>] moves mapped through a values table
         # @param drops [Array<Symbol>] bare or dotted paths whose data is discarded
         # @param rules [Hash] the optional rule lists, as `Rules` names them: `retypes:`,
-        #   `computes:`, `derives:`, `rekeys:`, `backfills:`, `ancestor_name:` and
+        #   `derives:`, `rekeys:`, `backfills:`, `ancestor_name:` and
         #   `ancestor_storage_name:`
         # @raise [ArgumentError] on a keyword `Rules` does not name
         def initialize(renames, moves = [], converts = [], drops = [], **rules)
@@ -84,14 +84,6 @@ module Hecks
           @drops = drops
           @rules = Rules.build(**rules)
         end
-
-        # Reports whether any rule in this edge is a compute.
-        #
-        # Compute has no in-process implementation; an aggregate carrying
-        # one refuses to boot anywhere but Postgres.
-        #
-        # @return [Boolean] true when the edge declares at least one compute rule
-        def computes? = !@rules.computes.empty?
 
         # Reports whether this edge rewrites the aggregate's identity.
         #
@@ -104,7 +96,7 @@ module Hecks
         # Rewrites one journal entry from the held shape into the current one.
         #
         # The reference semantics for derive, rename, move, convert, drop, `was:` and the id a
-        # `rekey_to` takes. `compute` and `rekey` are not applied: their SQL is their only form.
+        # `rekey_to` takes.
         #
         # @param entry [Ports::Persistence::Entry] the entry as stored, with Symbol
         #   top-level keys and String keys nested in a value-object Hash

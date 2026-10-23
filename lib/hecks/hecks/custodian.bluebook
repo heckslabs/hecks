@@ -524,20 +524,12 @@ policy "RecordTheEra" do
     attribute :era,                 Ordinal,       optional: true
     attribute :aggregates,          AggregateList, optional: true
     attribute :confirm,             Switch,        optional: true
-    attribute :snapshot,            Snapshot,      optional: true
-    attribute :host_version,        HostVersion,   optional: true
-    attribute :rehearsal,           Verdict,       optional: true
-    attribute :rehearsed_at,        Moment,        optional: true
     attribute :capable,             Switch,        optional: true
     attribute :held,                Count,         optional: true
     attribute :forks,               Count,         optional: true
     attribute :contested,           Count,         optional: true
-    attribute :edges,               Count,         optional: true
     attribute :bound,               Count,         optional: true
     attribute :candidates,          Count,         optional: true
-    attribute :audited,             Switch,        optional: true
-    attribute :rehearsal_needed,    Switch,        optional: true
-    attribute :rehearsal_recorded,  Switch,        optional: true
     attribute :drifted,             Switch,        optional: true
     attribute :loadable,            Switch,        optional: true
     attribute :shape_kept,          Switch,        optional: true
@@ -558,7 +550,7 @@ policy "RecordTheEra" do
 
     value_object "OperationName" do
       attribute :value, String,
-                pattern: '^(hold_first|merge_tail|reattest|backfill_projections|compact|compact_heki|approve_translation)$'
+                pattern: '^(hold_first|merge_tail|reattest|backfill_projections|compact|compact_heki)$'
     end
 
     # `id:old,id:new`: which world's record wins for each id both worlds touched since the cut.
@@ -583,24 +575,6 @@ policy "RecordTheEra" do
 
     value_object "Count" do
       attribute :value, Integer
-    end
-
-    # The rehearsal a compute or rekey edge is approved on: the snapshot it ran against, the host
-    # that ran it, whether it passed, and when.
-    value_object "Snapshot" do
-      attribute :value, String, matches: :not_empty
-    end
-
-    value_object "HostVersion" do
-      attribute :value, String, matches: :present
-    end
-
-    value_object "Verdict" do
-      attribute :value, String, pattern: '^(pass|fail)$'
-    end
-
-    value_object "Moment" do
-      attribute :value, String, pattern: '^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[^ \t\n\r]+$'
     end
 
     value_object "Report" do
@@ -730,34 +704,6 @@ policy "RecordTheEra" do
       emits HekiCompactionRequested
     end
 
-    # Writes `translations/<edge>.approval` beside the edge, for the host to apply at its next
-    # boot. An edge with a compute or rekey rule also needs the rehearsal a person ran by hand.
-    command "ApproveTranslation" do
-      role "Operator"
-      goal "Approve the edge that leads a domain's latest era to its current shape, in a committed file"
-
-      attribute :domain,       DomainPath
-      attribute :run,          RunKey
-      attribute :confirm,      Switch,      optional: true
-      attribute :snapshot,     Snapshot,    optional: true
-      attribute :host_version, HostVersion, optional: true
-      attribute :rehearsal,    Verdict,     optional: true
-      attribute :rehearsed_at, Moment,      optional: true
-
-      given("the approval is confirmed") { confirm.value == true }
-
-      sets :domain
-      sets :run
-      sets :confirm
-      sets :snapshot
-      sets :host_version
-      sets :rehearsal
-      sets :rehearsed_at
-      sets :operation, to: "approve_translation"
-
-      emits ApprovalRequested
-    end
-
     # The facts the journal store reported, held against the change that was asked for.
     command "Permit" do
       role "System"
@@ -768,12 +714,8 @@ policy "RecordTheEra" do
       attribute :held,               Count
       attribute :forks,              Count
       attribute :contested,          Count
-      attribute :edges,              Count
       attribute :bound,              Count
       attribute :candidates,         Count
-      attribute :audited,            Switch
-      attribute :rehearsal_needed,   Switch
-      attribute :rehearsal_recorded, Switch
       attribute :drifted,            Switch
       attribute :loadable,           Switch
       attribute :shape_kept,         Switch
@@ -795,13 +737,6 @@ policy "RecordTheEra" do
       given("no projection reads the journal that would be emptied") do
         (operation.value != "compact" && operation.value != "compact_heki") || bound.value == 0
       end
-      given("exactly one edge leaves the latest era") do
-        operation.value != "approve_translation" || edges.value == 1
-      end
-      given("the audit passed") { operation.value != "approve_translation" || audited.value }
-      given("a rehearsal that passed is recorded for an edge with a compute or rekey rule") do
-        operation.value != "approve_translation" || !rehearsal_needed.value || rehearsal_recorded.value
-      end
       given("the held text no longer matches its digest: there is nothing to re-attest") do
         operation.value != "reattest" || drifted.value
       end
@@ -816,12 +751,8 @@ policy "RecordTheEra" do
       sets :held
       sets :forks
       sets :contested
-      sets :edges
       sets :bound
       sets :candidates
-      sets :audited
-      sets :rehearsal_needed
-      sets :rehearsal_recorded
       sets :drifted
       sets :loadable
       sets :shape_kept
@@ -930,17 +861,11 @@ policy "RecordTheEra" do
     trigger Era::JournalStore::Examine, with: { run: :run }
   end
 
-  policy "ExamineWhenApprovalRequested" do
-    on      "Era.ApprovalRequested"
-    trigger Era::JournalStore::Examine, with: { run: :run }
-  end
-
   policy "PermitWhenExamined" do
     on      "Era.EraExamined"
     trigger Era::Permit, with: {
-      capable: :capable, held: :held, forks: :forks, contested: :contested, edges: :edges,
-      bound: :bound, candidates: :candidates, audited: :audited,
-      rehearsal_needed: :rehearsal_needed, rehearsal_recorded: :rehearsal_recorded,
+      capable: :capable, held: :held, forks: :forks, contested: :contested,
+      bound: :bound, candidates: :candidates,
       drifted: :drifted, loadable: :loadable, shape_kept: :shape_kept
     }
   end
@@ -956,8 +881,6 @@ policy "RecordTheEra" do
         (operation.value == "merge_tail" && (held.value <= 1 || forks.value != 0 || contested.value != 0)) ||
         ((operation.value == "compact" || operation.value == "compact_heki") &&
           (candidates.value <= 0 || bound.value != 0)) ||
-        (operation.value == "approve_translation" &&
-          (edges.value != 1 || !audited.value || (rehearsal_needed.value && !rehearsal_recorded.value))) ||
         (operation.value == "reattest" && (!drifted.value || !loadable.value || !shape_kept.value))
     end
     trigger Era::Abandon, with: { refusal: "the journal's facts do not admit this change" }

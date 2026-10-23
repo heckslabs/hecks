@@ -138,8 +138,8 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     <<~RUBY
       Hecks.data_translation("Ledger", from: #{from.inspect}, to: #{to.inspect}) do
         aggregate("Account") do
-          rekey sql: "'ref-' || ((__s -> 'kind') ->> 'label')"
-          backfill :ref, default: "unknown"
+          derive "ref.value", as: 'concat("ref-", kind.label)'
+          rekey_to "ref.value"
         end
       end
     RUBY
@@ -650,7 +650,8 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
           "VALUES (1, 'acct', $1, 'save', $2) RETURNING ordinal",
           ["a9", late_state]
         )[0]["ordinal"]
-        # ...plus the era-1 snapshot table that append would write; old_world.find reads it verbatim.
+        # ...plus the era-1 snapshot table that append would write; old_world.find reads it
+        # verbatim.
         db.exec_params("INSERT INTO ledger_acct_head_snapshot_1 (id, ordinal, state) VALUES ($1, $2, $3)",
                        ["a9", ordinal, late_state])
       end
@@ -881,137 +882,6 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     end
   end
 
-  PRICING_V1 = <<~BLUEBOOK.freeze
-    Hecks.bluebook "Pricing" do
-      aggregate "Quote" do
-        identified_by :sku
-
-        attribute :sku, Sku
-        attribute :price_cents, Cents
-
-        value_object "Sku" do
-          attribute :value, String
-        end
-
-        value_object "Cents" do
-          attribute :value, Integer
-        end
-      end
-    end
-  BLUEBOOK
-
-  PRICING_V2 = <<~BLUEBOOK.freeze
-    Hecks.bluebook "Pricing" do
-      aggregate "Quote" do
-        identified_by :sku
-
-        attribute :sku, Sku
-        attribute :price_dollars, Dollars
-
-        value_object "Sku" do
-          attribute :value, String
-        end
-
-        value_object "Dollars" do
-          attribute :value, Float
-        end
-      end
-    end
-  BLUEBOOK
-
-  UNAPPROVED_EDGE_REFUSAL = "cannot mint era 2 of Pricing: this edge carries a compute or rekey rule, and the audit's " \
-                            "human-approved sample is its only verification — run hecks audit_translation with " \
-                            "--approve, then boot again".freeze
-
-  JOURNAL_ADVANCED_REFUSAL = /
-    the\ journal\ advanced\ past\ the\ approved\ review\ \(ordinal\ 1\ reviewed,\ 2\ now\)\ —\ the\ samples
-    \ a\ human\ approved\ no\ longer\ cover\ the\ data;\ re-run\ hecks\ audit_translation\ with\ --approve
-  /x
-
-  # One edge's lifecycle: refuse without approval, approve, invalidate by advancing the journal,
-  # approve again, mint, then compare the compiled SQL to the in-process reference.
-  context "with a compute rule on the edge from a saved quote" do
-    before do
-      pricing_v1 = load_registry(PRICING_V1)
-      check_loaded!(pricing_v1, PRICING_V1)
-      @quote = pricing_v1.bluebooks.values.first.aggregate("Quote")
-      @quotes = Hecks::Adapters::PostgresEra.new(aggregate: @quote, settings: { database: LINEAGE_DB, domain: "Pricing" })
-      save_quote("q1", 1250)
-      @drifted = load_registry(PRICING_V2, translation_source: compute_edge)
-    end
-
-    def save_quote(id, cents)
-      @quotes.save(Hecks::Runtime::Instance.new(aggregate: @quote, id: id, state: { price_cents: { "value" => cents } }))
-    end
-
-    def compute_edge
-      <<~RUBY
-        Hecks.data_translation("Pricing", from: #{label_of(PRICING_V1).inspect}, to: #{label_of(PRICING_V2).inspect}) do
-          aggregate("Quote") do
-            compute "price_cents", to: "price_dollars",
-                    sql: "jsonb_build_object('value', (price_cents::jsonb ->> 'value')::numeric / 100)"
-          end
-        end
-      RUBY
-    end
-
-    # The approval binds to the edge's content and the journal's high-water ordinal at review
-    # time, in the database itself.
-    def approve_compute_edge!
-      with_db do |db|
-        Hecks::Adapters::PostgresEra::Lineage.new(db, "Pricing").record_approval!(
-          from: label_of(PRICING_V1), to: label_of(PRICING_V2),
-          edge_digest: Hecks::Translation::Audit.edge_digest(@drifted.translations.first)
-        )
-      end
-    end
-
-    # a compute's only verification is the audit's human-approved sample
-    # — without the approval token the mint refuses, non-interactively
-    it "refuses the mint without the approval token" do
-      expect { check_loaded!(@drifted, PRICING_V2) }.to raise_error(Hecks::Runtime::WiringError, UNAPPROVED_EDGE_REFUSAL)
-    end
-
-    it "refuses the mint once the journal advanced past the approved review" do
-      approve_compute_edge!
-      save_quote("q2", 300)
-
-      expect { check_loaded!(@drifted, PRICING_V2) }.to raise_error(Hecks::Runtime::WiringError, JOURNAL_ADVANCED_REFUSAL)
-    end
-
-    context "when approved and minted" do
-      before do
-        approve_compute_edge!
-        check_loaded!(@drifted, PRICING_V2)
-      end
-
-      it "evaluates the compute inside the compiled matview — its SQL is its only implementation" do
-        matview = "pricing_quote_lineage_2_#{label_of(PRICING_V2)}"
-        compiled = with_db { |db| JSON.parse(db.exec("SELECT state FROM #{matview} WHERE aggregate_id = 'q1'")[0]["state"]) }
-
-        expect(compiled).to eq("price_dollars" => { "value" => 12.5 }, "sku" => { "value" => "q1" })
-      end
-
-      # ...and the in-process reference transform deliberately did not —
-      # compute is exempt from the equivalence gate; there is nothing
-      # in-process to hold it against.
-      it "leaves the in-process reference transform unchanged" do
-        declared = @drifted.translations.first.for_aggregate("Quote")
-        rules = Hecks::Ports::Persistence::Lineage.from_declared(declared, "Quote")
-        entry = Hecks::Ports::Persistence::Entry.new(operation: "save", id: "q1", state: { price_cents: { "value" => 1250 } })
-
-        expect(rules.translate(entry).state).to eq(price_cents: { "value" => 1250 })
-      end
-
-      it "serves the head with the computed value" do
-        v2_quote = @drifted.bluebooks.values.first.aggregate("Quote")
-        head = Hecks::Adapters::PostgresEra.new(aggregate: v2_quote, settings: { database: LINEAGE_DB, domain: "Pricing" })
-
-        expect(head.find("q1").price_dollars.to_h).to eq(value: 12.5)
-      end
-    end
-  end
-
   ROSTER_V1 = <<~BLUEBOOK.freeze
     Hecks.bluebook "Roster" do
       aggregate "Person" do
@@ -1062,21 +932,16 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
   ROSTER_REKEY_EDGE = <<~RUBY.freeze
     Hecks.data_translation("Roster", from: %<from>s, to: %<to>s) do
       aggregate("Person") do
-        rekey sql: "CASE ((__s -> 'name') ->> 'value') WHEN 'Chris Young' THEN 'chris@example.com' END"
-        # `rekey` explains the NEW IDENTITY (the row's id going forward);
-        # it says nothing about the stored `email` ATTRIBUTE's own value
-        # for an old row read through this translation, which is a
-        # separate question `unsafe_additions` asks. Same value either
-        # way for this single-row fixture, but a real answer, not a
-        # coincidence of the rekey SQL happening to be readable twice.
-        backfill :email, default: "chris@example.com"
+        # `rekey_to` makes the NEW IDENTITY (the row's id going forward) the value `derive` writes
+        # into the stored `email` attribute, so the id and the attribute cannot disagree.
+        derive "email.value", as: 'lookup(name.value, {"Chris Young": "chris@example.com"}, null)'
+        rekey_to "email.value"
       end
     end
   RUBY
 
-  # Same approval lifecycle as the compute example: the record resolves under its new id
-  # while the raw journal stays keyed to the old one.
-  context "with a rekey of an aggregate's identity on the edge from a saved person" do
+  # The record resolves under its new id while the raw journal stays keyed to the old one.
+  context "with a rekey_to of an aggregate's identity on the edge from a saved person" do
     before do
       roster_v1 = load_registry(ROSTER_V1)
       check_loaded!(roster_v1, ROSTER_V1)
@@ -1089,27 +954,8 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
 
     def rekey_edge = format(ROSTER_REKEY_EDGE, from: label_of(ROSTER_V1).inspect, to: label_of(ROSTER_V2).inspect)
 
-    def approve_rekey_edge!
-      with_db do |db|
-        Hecks::Adapters::PostgresEra::Lineage.new(db, "Roster").record_approval!(
-          from: label_of(ROSTER_V1), to: label_of(ROSTER_V2),
-          edge_digest: Hecks::Translation::Audit.edge_digest(@drifted.translations.first)
-        )
-      end
-    end
-
-    # a rekey's only verification is the audit's human-approved sample,
-    # same as compute — the mint refuses non-interactively without it
-    it "refuses the mint without the approval token" do
-      expect { check_loaded!(@drifted, ROSTER_V2) }
-        .to raise_error(Hecks::Runtime::WiringError, /this edge carries a compute or rekey rule/)
-    end
-
-    context "when approved and minted" do
-      before do
-        approve_rekey_edge!
-        check_loaded!(@drifted, ROSTER_V2)
-      end
+    context "when minted" do
+      before { check_loaded!(@drifted, ROSTER_V2) }
 
       def head
         person = @drifted.bluebooks.values.first.aggregate("Person")
@@ -1579,22 +1425,8 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
       @edges = "#{v1_to_v2_edge}\n#{edge_source_v3_rekey(from: @l2, to: @l3)}"
     end
 
-    # a rekey's only verification is the audit's human-approved sample; the mint refuses without it
-    it "refuses the mint without the approval token" do
-      expect { check!(V3_REKEYED_SOURCE, translation_source: @edges) }
-        .to raise_error(Hecks::Runtime::WiringError, /this edge carries a compute or rekey rule/)
-    end
-
-    context "when approved and minted" do
-      before do
-        drifted = load_registry(V3_REKEYED_SOURCE, translation_source: @edges)
-        edge = drifted.translations.find { |translation| translation.from == @l2 && translation.to == @l3 }
-        with_db do |db|
-          Hecks::Adapters::PostgresEra::Lineage.new(db, "Ledger")
-                                               .record_approval!(from: @l2, to: @l3, edge_digest: Hecks::Translation::Audit.edge_digest(edge))
-        end
-        check!(V3_REKEYED_SOURCE, translation_source: @edges)
-      end
+    context "when minted" do
+      before { check!(V3_REKEYED_SOURCE, translation_source: @edges) }
 
       it "builds era 3 from era 2's matview, not from raw history" do
         expect(matview_definition(@l3)).to include("ledger_account_lineage_2_#{@l2}")

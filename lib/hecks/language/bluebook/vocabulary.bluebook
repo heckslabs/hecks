@@ -846,7 +846,6 @@ Hecks.bluebook "Bluebook" do
       member script: "backfill_era_projections", section: "Custodian", aggregate: "Era", verb: "backfill_projections"
       member script: "scaffold_translation", section: "Custodian", aggregate: "Era", verb: "scaffold_translation"
       member script: "translation_audit", section: "Custodian", aggregate: "Era", verb: "audit_translation"
-      member script: "translation_audit", section: "Custodian", aggregate: "Era", verb: "approve_translation"
       member script: "compact", section: "Custodian", aggregate: "Era", verb: "compact"
       member script: "heki_compact", section: "Custodian", aggregate: "Era", verb: "compact_heki"
       member script: "vendor_bluebook", section: "Custodian", aggregate: "Package", verb: "vendor", note: "waits: a refusal exits 1 with its reason on stderr"

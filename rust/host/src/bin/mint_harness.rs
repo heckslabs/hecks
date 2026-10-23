@@ -4,9 +4,6 @@
 // Modules are shared with `bootstrap` by path, not a lib split, so `crate::` in mint.rs resolves
 // here.
 #[allow(dead_code)]
-#[path = "../approval.rs"]
-mod approval;
-#[allow(dead_code)]
 #[path = "../expr_json.rs"]
 mod expr_json;
 #[allow(dead_code)]
@@ -125,25 +122,12 @@ async fn main() -> anyhow::Result<()> {
             let chain = mint::edge_chain(&edges, &labels)
                 .map_err(|e| anyhow::anyhow!("drifted from era {from_ordinal} ({from_label}) to {my_label} with no covering edge -- {e}"))?;
 
-            // The same gate the host runs: a compute/rekey edge mints only on an approval, from the
-            // journal or committed in ir.json's `approvals`.
+            // The raw ir.json edges, matched to the chain by from/to pair for the audit.
             let raw_edges = ir
                 .get("translations")
                 .and_then(Value::as_array)
                 .cloned()
                 .unwrap_or_default();
-            let committed_approvals = approval::committed(&ir);
-            for edge in &chain {
-                // An edge with no raw entry fails closed, as the host does, and never skips the gate.
-                let Some(raw_edge) = raw_edges.iter().find(|candidate| {
-                    candidate.get("domain").and_then(Value::as_str) == Some(domain.as_str())
-                        && candidate.get("from").and_then(Value::as_str) == Some(edge.from.as_str())
-                        && candidate.get("to").and_then(Value::as_str) == Some(edge.to.as_str())
-                }) else {
-                    anyhow::bail!("cannot boot: {domain}'s edge {} -> {} vanished between parsing and approval-checking it", edge.from, edge.to);
-                };
-                approval::check(&client, domain, raw_edge, ordinal, &committed_approvals).await?;
-            }
             let watermarks: HashMap<i32, Option<i64>> =
                 held.iter().map(|h| (h.ordinal, h.watermark)).collect();
             mint::audit_before_mint(

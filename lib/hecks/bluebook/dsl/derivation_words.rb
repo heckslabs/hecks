@@ -27,7 +27,7 @@ module Hecks
         # Declares that the aggregate's identity is the value of a field a `derive` computes.
         #
         # The id is that value for every record where the derive has a value, and stays what it was
-        # for the rest. Unlike `rekey`, it is pure, so it needs no approval.
+        # for the rest.
         #
         # @param to [Symbol, String] the destination field of a `derive` declared earlier
         # @return [Array<Bluebook::TranslationRekey>] every rekey declared so far, this one last
@@ -38,7 +38,7 @@ module Hecks
           raise Malformed, "rekey_to #{to} needs a derive of #{to} declared before it" unless derived?(to)
           raise Malformed, "an aggregate is rekeyed once" unless @rekeys.empty?
 
-          @rekeys << TranslationRekey.new(nil, to.to_s)
+          @rekeys << TranslationRekey.new(to.to_s)
         end
 
         private

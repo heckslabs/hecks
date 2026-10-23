@@ -8,7 +8,7 @@ module Hecks
     module RuleCompiler
       module_function
 
-      # Compiles one edge's derive/rename/move/convert/drop/compute/backfill rules into a nested
+      # Compiles one edge's derive/rename/move/convert/drop/backfill rules into a nested
       # SQL expression over `state`, composed innermost-first in that phase order.
       def compile_rules(declared)
         expression = compile_derives("state", declared.derives)
@@ -16,7 +16,6 @@ module Hecks
         expression = compile_moves(expression, declared.moves)
         expression = compile_converts(expression, declared.converts)
         expression = compile_drops(expression, declared.drops)
-        expression = compile_computes(expression, declared.computes)
         # Backfilled last, same order as `Lineage#translate`'s in-process pass, so the
         # boot-time mint audit (which reads only this compiled SQL) sees the same result.
         compile_backfills(expression, declared.backfills)
@@ -47,8 +46,6 @@ module Hecks
       def compile_converts(expression, converts) = converts.inject(expression) { |sql, convert| compile_convert(sql, convert) }
 
       def compile_drops(expression, drops) = drops.inject(expression) { |sql, name| compile_drop(sql, name) }
-
-      def compile_computes(expression, computes) = computes.inject(expression) { |sql, compute| compile_compute(sql, compute) }
 
       def compile_backfills(expression, backfills)
         backfills.inject(expression) { |sql, backfill| compile_backfill(sql, backfill) }
@@ -88,33 +85,12 @@ module Hecks
         "CASE WHEN #{guard} THEN #{compile_id_expression(declared)} ELSE aggregate_id END AS aggregate_id"
       end
 
-      # Evaluates a rekey's own SQL against the record's current `state`, read directly
-      # rather than through `compile_rules`'s progressively-built expression chain.
+      # A `rekey_to` id: the value of the derive it names, read from the record's stored `state`,
+      # or the old id for a record where the derive has no value.
       def compile_id_expression(declared)
         rekey = declared.rekeys.first
-        return compile_derived_id(declared, rekey) if rekey.pure?
-
-        "(SELECT (#{rekey.sql}) FROM (SELECT (state) AS __s) __outer)"
-      end
-
-      # A `rekey_to` id: the derive's value, or the old id for a record where it has no value.
-      def compile_derived_id(declared, rekey)
         derive = declared.derives.find { |candidate| candidate.to == rekey.to }
         "COALESCE(#{ExpressionSql.compile(derive.tree, "state")}, aggregate_id)"
-      end
-
-      # Wraps `expression` so a compute's SQL result lands at its declared destination
-      # when the source path is present; the whole record stays readable as `__s`.
-      def compile_compute(expression, compute)
-        from = compute.from.to_s
-        to = compute.to.to_s
-        "(SELECT CASE WHEN (__x).present THEN " \
-          "hecks_tr_insert((__x).remaining, #{path_literal(to)}, to_jsonb((#{compute.sql})), " \
-          "#{text_literal("compute #{from} to: #{to}")}) " \
-          "ELSE __s END " \
-          "FROM (SELECT (#{expression}) AS __s) __outer, " \
-          "LATERAL (SELECT hecks_tr_extract(__s, #{path_literal(from)}) AS __x) __extract, " \
-          "LATERAL (SELECT (__s #>> #{path_literal(from)}) AS #{quote(from)}) __fields)"
       end
 
       # Wraps `expression` so a backfill's default lands at its declared path only when
@@ -126,13 +102,6 @@ module Hecks
           "ELSE hecks_tr_insert(__s, #{path_literal(name)}, #{text_literal(default_json)}::jsonb, " \
           "#{text_literal("backfill #{name}")}) END " \
           "FROM (SELECT (#{expression}) AS __s) __outer)"
-      end
-
-      # Quotes a Postgres identifier; requires "pg" lazily so a non-Postgres-bound
-      # domain never gains a hard dependency on the gem just by loading this file.
-      def quote(name)
-        require "pg"
-        PG::Connection.quote_ident(name.to_s)
       end
 
       # Renders a Ruby value as a single-quoted SQL text literal, escaping embedded quotes.

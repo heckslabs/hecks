@@ -27,4 +27,4 @@ survives regeneration.
 - [Port](port.md) — 3 words
 - [Adapter](adapter.md) — 3 words
 - [Translation](translation.md) — 2 words
-- [TranslationAggregate](translation_aggregate.md) — 11 words
+- [TranslationAggregate](translation_aggregate.md) — 9 words

@@ -11,7 +11,7 @@ module Hecks
     # binding facts, and translation edges (declared and compiled).
     #
     # The capability bindings (`authorization`, `membership`, ...) are `Exporter::Bindings` and
-    # the translation edges (`translations`, `translation_hash`, ...) are `Exporter::Translations`;
+    # the translation edges (`translations`, `translations_json`, ...) are `Exporter::Translations`;
     # both are reachable as methods of `Exporter` itself.
     module Exporter
       module_function

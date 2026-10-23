@@ -65,15 +65,6 @@ module Hecks
           [refusals, after]
         end
 
-        # @param edge [Bluebook::Translation] the edge
-        # @return [Array<Hash>] what memory cannot apply, as report limits
-        def limits(edge)
-          return [] unless edge && Translation::ApprovalFile.needs_rehearsal?(edge)
-
-          [{ what: "the edge's compute and rekey rules",
-             why:  "they are SQL, which only a postgres copy runs; memory leaves those fields as stored" }]
-        end
-
         private
 
         def records(name) = @document.dig("records", name.to_s) || {}

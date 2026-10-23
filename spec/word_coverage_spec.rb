@@ -171,8 +171,6 @@ RSpec.describe "every live DSL word, used somewhere real" do
     "convert (TranslationAggregate)"    => TRANSLATION_RULE_GAP,
     "retype (TranslationAggregate)"     => TRANSLATION_RULE_GAP,
     "backfill (TranslationAggregate)"   => TRANSLATION_RULE_GAP,
-    "compute (TranslationAggregate)"    => TRANSLATION_RULE_GAP,
-    "rekey (TranslationAggregate)"      => TRANSLATION_RULE_GAP,
     "unresolved (TranslationAggregate)" =>
                                            "same finding as the rest of this group, plus a second, independent reason: " \
                                            "`unresolved` is a deliberate failure marker (TranslationAggregateBuilder#" \

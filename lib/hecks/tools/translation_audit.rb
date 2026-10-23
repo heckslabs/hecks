@@ -12,13 +12,12 @@ require_relative "translation_audit/verdicts"
 module Hecks
   module Tools
     # Runs the translation audit's three layers standalone against a domain's latest or pending
-    # edge. Read-only except `--approve`, which records the human approval in the database.
+    # edge. Read-only.
     #
-    #   hecks audit_translation <domain> [--approve]
+    #   hecks audit_translation <domain>
     module TranslationAudit
-      # What one audit run works on: the loaded domain, its open journal, and whether `--approve`
-      # was given.
-      Session = Struct.new(:registry, :bluebook, :directory, :db, :lineage, :approve)
+      # What one audit run works on: the loaded domain and its open journal.
+      Session = Struct.new(:registry, :bluebook, :directory, :db, :lineage)
 
       extend DomainLoading
       extend Edges
@@ -28,18 +27,17 @@ module Hecks
 
       # Audits the edge and prints each aggregate's verdict and samples.
       #
-      # @param argv [Array<String>] the domain directory, and `--approve` to record approval
+      # @param argv [Array<String>] the domain directory
       # @param root [String] unused: the domain is read from the path given
       # @return [Integer] 0 when the audit passes or there is no edge, 1 when it is refused
       # @raise [SystemExit] when the domain cannot be loaded or is not lineage-capable
       def main(argv, **)
         argv = argv.dup
-        approve = argv.delete("--approve")
-        domain_path = argv.shift or abort "usage: hecks audit_translation <domain> [--approve]"
+        domain_path = argv.shift or abort "usage: hecks audit_translation <domain>"
 
         registry, bluebook, directory = load_domain(domain_path)
         db, lineage = open_lineage(registry, bluebook)
-        audit(Session.new(registry, bluebook, directory, db, lineage, approve))
+        audit(Session.new(registry, bluebook, directory, db, lineage))
       end
 
       # @param session [Session] the loaded domain and its open journal
@@ -59,7 +57,7 @@ module Hecks
 
         edge = chain.last[:translation]
         failed = report(session.bluebook, session.lineage, edge, era, chain)
-        conclude(session.db, session.lineage, edge, failed, session.approve)
+        conclude(session.db, failed)
       end
 
       # A journal with no era yet holds the bluebook as its first, so there is no edge to audit.

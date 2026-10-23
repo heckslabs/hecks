@@ -1,6 +1,6 @@
 # A translation is a neutral plan, and Postgres is one compiler of it
 
-**Status:** Proposed. Built so far: the plan schema (`Bluebook::TranslationPlan`, `Translation#to_plan`) and `derive` with its expression language and `rekey_to`, interpreted in Ruby and compiled to Postgres, and `examples/directory`'s edge rewritten with them. Not built: removing `sql:` from `compute` and `rekey`, and the hecksagon escape hatch. Both break translations outside this repository, so they wait for a decision to break them. Date: 2026-10-16.
+**Status:** Accepted, partly built. Built: the plan schema (`Bluebook::TranslationPlan`, `Translation#to_plan`); `derive` with its expression language and `rekey_to`, interpreted in Ruby and compiled to Postgres; `examples/directory`'s edge rewritten with them; and the removal of `compute` and `rekey sql:` together with the approval machinery they required, planned for 4.0.0 and live on `edge`. Not built: the hecksagon escape hatch for SQL, which nothing uses yet. Date: 2026-10-16.
 
 ## Context
 
@@ -39,7 +39,7 @@ How often the escape hatch is used matters for the size of the fix. In the repos
 
 4. **The conformance corpus is the arbiter.** A fixture is a plan plus seed rows plus the expected rows, frozen. The Ruby interpreter and the Postgres compiler must both produce the expected rows, so `derive` and `rekey_to` finally have a second implementation to disagree with. `spec/adapters/driven/postgres_era/derive_equivalence_spec.rb` does this for `derive` today.
 
-5. **Raw SQL is an adapter-scoped escape hatch, not a bluebook word.** A translation that needs an expression the vocabulary lacks declares it in the hecksagon, under the Postgres adapter, with `via: :sql`. A plan holding such an op cannot run on another adapter, and `model_check` says so before mint. `sql:` on `compute` and `rekey` is removed from the bluebook language.
+5. **Raw SQL is removed, not moved.** `sql:` on `compute` and `rekey` is gone from the bluebook language, and the approval, audit-sampling and rehearsal-gating machinery that existed only to review such edges is deleted with it. An adapter-scoped escape hatch in the hecksagon is not built: nothing in the corpus needs one, and it can be added when a translation does. Arithmetic and pattern matching are the likely first needs.
 
 6. **Existing eras are not rewritten.** A minted era stores the compiled SQL it was minted with, and the lineage hash covers it. The two translations that use `compute`/`rekey sql:` are rewritten once, as ordinary new translations; the other live translations need no edit.
 

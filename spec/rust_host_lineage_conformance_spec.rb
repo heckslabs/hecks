@@ -9,7 +9,6 @@ require_relative "support/postgres_probe"
 RSpec.describe "Rust/Ruby lineage parity (rust/host)", :io do
   RUST_HOST_DIR = File.join(InMemoryDomain::ROOT, "rust", "host")
   SEED_SCRIPT = File.join(RUST_HOST_DIR, "tests", "fixtures", "mint_and_seed_lineage.rb")
-  COMPUTE_SEED_SCRIPT = File.join(RUST_HOST_DIR, "tests", "fixtures", "mint_and_seed_lineage_compute.rb")
   MINT_VIA_RUST_SCRIPT = File.join(RUST_HOST_DIR, "tests", "fixtures", "mint_via_rust_matches_ruby.rb")
 
   # The throwaway database and the two roles an example works against.
@@ -255,17 +254,6 @@ RSpec.describe "Rust/Ruby lineage parity (rust/host)", :io do
 
     expect(raw.ntuples).to eq(1)
     expect(result["state"]).to eq(JSON.parse(raw[0]["state"]))
-  end
-
-  # compute/rekey has no in-process Ruby reference, so ground truth is Postgres's own compiled SQL.
-  it "reads a compute-migrated era back exactly as Postgres's own compiled SQL produced it, minted only " \
-     "because a real, matching approval was recorded first", :aggregate_failures do
-    ground_truth = seeded("compute_", role_prefix: "rhlc", script: COMPUTE_SEED_SCRIPT)
-    rust_rows = harness_rows(ground_truth)
-
-    expect(rust_rows).to eq(sorted_rows(ground_truth))
-    # Every row is in the post-compute shape, including those translated by the mint.
-    expect(rust_rows.map { |_, state| state.keys }).to all(contain_exactly("kind", "doubled"))
   end
 
   # Mints the same edge independently in Ruby and in Rust (mint_harness), then diffs the views.

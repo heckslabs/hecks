@@ -77,14 +77,12 @@ module Hecks
                          "hecksagon, not a deploy-time guess, names the identity verbs."
         end
 
-        # Edges carry their own precompiled SQL, so a boot-time mint only executes it. Committed
-        # approvals sit beside the edges. The source text is verbatim: the era's integrity digest is
+        # Edges carry their own precompiled SQL, so a boot-time mint only executes it. The source
+        # text is verbatim: the era's integrity digest is
         # the SHA256 of it, not of anything re-derived from the parsed IR.
         def add_edges_and_source(document)
           edges = Hecks::Projector::Exporter.translations(@registry).select { |edge| edge[:domain] == @domain_name }
           document[:translations] = shaped(edges)
-          approvals = Hecks::Translation::ApprovalFile.read_all(@bluebook_dir)
-          document[:approvals] = shaped(approvals) unless approvals.empty?
           document[:source_text] = Hecks::Runtime::EraCheck.source_text_for(
             @registry.bluebooks.fetch(@domain_name), @bluebook_dir, registry: @registry
           )

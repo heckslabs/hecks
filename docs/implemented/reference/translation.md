@@ -34,7 +34,7 @@ end
 | `was:` | text | false | was |
 <!-- generated:end -->
 
-One aggregate's own move from the pinned old era to the pinned new one — a table of rules (`rename`, `move`, `convert`, `drop`, `retype`, `compute`, `rekey`, `backfill`), see the TranslationAggregate reference page for the words inside. `was:` names the aggregate's OWN prior name, for an aggregate that was renamed outright rather than just having fields renamed inside it — leave it unset when the aggregate kept its name.
+One aggregate's own move from the pinned old era to the pinned new one — a table of rules (`rename`, `move`, `convert`, `drop`, `retype`, `derive`, `rekey_to`, `backfill`), see the TranslationAggregate reference page for the words inside. `was:` names the aggregate's OWN prior name, for an aggregate that was renamed outright rather than just having fields renamed inside it — leave it unset when the aggregate kept its name.
 
 ```ruby
 runtime.registry.translations.last.aggregates.map(&:name)  # => ["Account"]

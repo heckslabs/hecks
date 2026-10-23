@@ -14,7 +14,7 @@ module Hecks
     module EraCheck
       module_function
 
-      # Runs both halves of the era gate over every bluebook in a registry.
+      # Runs the era gate over every bluebook in a registry.
       #
       # Looks up each bluebook's own source separately: `attaches` can share a boot between
       # the domain's own bluebook and a differently-sourced one, so one file read once and reused
@@ -23,25 +23,10 @@ module Hecks
       # @param registry [Runtime::Registry] the registry being booted
       # @param directory [String] the domain's bluebook directory, searched for each source
       # @return [void]
-      # @raise [Runtime::WiringError] if a compute rule is bound to a non-lineage-capable adapter,
-      #   a persistence binding cannot be resolved, a lineage-bound bluebook has no findable
-      #   source, or `era_check!` refuses the boot
+      # @raise [Runtime::WiringError] if a persistence binding cannot be resolved, a lineage-bound
+      #   bluebook has no findable source, or `era_check!` refuses the boot
       def check!(registry, directory)
-        check_compute_rules_for_registry!(registry)
         check_lineage!(registry, directory)
-      end
-
-      # Refuses the boot when any bluebook's compute rule is bound away from Postgres.
-      #
-      # Runs unconditionally for every registry, unlike check_lineage!'s
-      # capability-gated pass below (ADR 0031).
-      #
-      # @param registry [Runtime::Registry] the registry whose bluebooks are all checked
-      # @return [void]
-      # @raise [Runtime::WiringError] if an aggregate carrying a compute rule is bound to an
-      #   adapter that is not lineage-capable, or its persistence binding cannot be resolved
-      def check_compute_rules_for_registry!(registry)
-        registry.bluebooks.each_value { |bluebook| check_compute_rules!(registry, bluebook) }
       end
 
       # Hands every bluebook, with its own source text, to its adapter's era check.
@@ -220,29 +205,6 @@ module Hecks
         raise WiringError,
               "cannot boot #{bluebook.name}: bound to a lineage-capable adapter, but no source file for " \
               "it could be found (checked #{directory.inspect} and the framework registry)"
-      end
-
-      # Refuses the boot when one bluebook's compute rule is bound away from Postgres.
-      #
-      # A compute rule's SQL is its only implementation, so it cannot
-      # boot on any adapter but Postgres, independent of shape checks.
-      #
-      # @param registry [Runtime::Registry] the registry holding the declared translations
-      #   and the aggregate's bindings
-      # @param bluebook [Bluebook::Chapter] the bluebook whose aggregates are checked
-      # @return [void]
-      # @raise [Runtime::WiringError] if an aggregate carrying a compute rule is bound to an
-      #   adapter that is not lineage-capable, or its persistence binding cannot be resolved
-      def check_compute_rules!(registry, bluebook)
-        bluebook.aggregates.each do |aggregate|
-          lineage = Ports::Persistence::Lineage.for(registry, bluebook.name, aggregate)
-          next unless lineage&.computes?
-
-          adapter = adapter_for(registry, bluebook.name, aggregate)
-          next if lineage_capable?(registry, adapter)
-
-          raise WiringError, "compute rules require the Postgres adapter; #{aggregate.name} is bound to #{adapter}"
-        end
       end
 
       # Names the adapter an aggregate's authoritative persistence bind points at.
