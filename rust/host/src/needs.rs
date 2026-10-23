@@ -1,7 +1,8 @@
 // Facts a command `needs` (ADR 0081): the host answers them before the kernel reads the arguments,
 // the way the Ruby interpreter does in `decode_arguments`. The command's own IR carries
 // `"needs": [{"fact": "now"}]`; a needed fact the caller left out is filled with the clock's
-// answer, a supplied one is kept. The answer is written into the arguments before they are
+// answer, a supplied one is kept, except on a request from outside the host (`answer_needs`), where
+// the clock's answer replaces it. The answer is written into the arguments before they are
 // journaled, so a replay re-dispatches the recorded value rather than asking the clock again.
 
 use serde_json::{json, Value};
@@ -274,12 +275,35 @@ fn answer(fact: &str, attribute_type: Option<&str>, clock: &dyn Clock) -> Option
 /// the caller supplied (even a null) is kept; a command that needs nothing is untouched.
 pub fn fill_needs(domain_ir: &Value, verb: &str, args: &mut Value, clock: &dyn Clock) {
     let needs = declared_needs(domain_ir, verb);
-    if needs.is_empty() {
-        return;
+    if let Some(facts) = facts_mut(args) {
+        fill(needs, facts, clock, Supplied::Kept);
     }
-    let Some(facts) = facts_mut(args) else { return };
+}
+
+/// Answers every fact `verb` needs from the clock, replacing any value `args` carries for it: a
+/// request from outside the host may not say what time it is.
+pub fn answer_needs(domain_ir: &Value, verb: &str, args: &mut Value, clock: &dyn Clock) {
+    let needs = declared_needs(domain_ir, verb);
+    if let Some(facts) = facts_mut(args) {
+        fill(needs, facts, clock, Supplied::Replaced);
+    }
+}
+
+/// What happens to a needed fact the caller already supplied.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Supplied {
+    Kept,
+    Replaced,
+}
+
+fn fill(
+    needs: Vec<(&str, Option<&str>)>,
+    facts: &mut serde_json::Map<String, Value>,
+    clock: &dyn Clock,
+    supplied: Supplied,
+) {
     for (fact, attribute_type) in needs {
-        if facts.contains_key(fact) {
+        if supplied == Supplied::Kept && facts.contains_key(fact) {
             continue;
         }
         if let Some(value) = answer(fact, attribute_type, clock) {
@@ -328,19 +352,17 @@ fn declared_query_needs<'a>(
 /// arguments are not an object, is untouched.
 pub fn fill_query_needs(domain_ir: &Value, question: &str, args: &mut Value, clock: &dyn Clock) {
     let needs = declared_query_needs(domain_ir, question);
-    if needs.is_empty() {
-        return;
+    if let Some(facts) = args.as_object_mut() {
+        fill(needs, facts, clock, Supplied::Kept);
     }
-    let Some(facts) = args.as_object_mut() else {
-        return;
-    };
-    for (fact, attribute_type) in needs {
-        if facts.contains_key(fact) {
-            continue;
-        }
-        if let Some(value) = answer(fact, attribute_type, clock) {
-            facts.insert(fact.to_string(), value);
-        }
+}
+
+/// Answers every fact the query `question` needs from the clock, replacing any value `args`
+/// carries for it, as `answer_needs` does for a command.
+pub fn answer_query_needs(domain_ir: &Value, question: &str, args: &mut Value, clock: &dyn Clock) {
+    let needs = declared_query_needs(domain_ir, question);
+    if let Some(facts) = args.as_object_mut() {
+        fill(needs, facts, clock, Supplied::Replaced);
     }
 }
 
@@ -430,6 +452,18 @@ mod tests {
         let mut args = json!({"with": {"now": {"value": 42}}});
         fill_needs(&ir, &first_needing(&ir), &mut args, &FixedClock(7));
         assert_eq!(args["with"]["now"], json!({"value": 42}));
+    }
+
+    #[test]
+    fn a_request_from_outside_the_host_cannot_set_the_clock() {
+        let ir = lease_ir();
+        let mut args = json!({"with": {"now": {"value": 42}, "holder": "a"}});
+        answer_needs(&ir, &first_needing(&ir), &mut args, &FixedClock(7));
+        assert_eq!(args["with"]["now"], json!({"value": 7}));
+        assert_eq!(args["with"]["holder"], "a");
+        let mut null = json!({"now": null});
+        answer_needs(&ir, &first_needing(&ir), &mut null, &FixedClock(7));
+        assert_eq!(null["now"], json!({"value": 7}));
     }
 
     #[test]
@@ -605,6 +639,18 @@ mod tests {
             &FixedClock(5),
         );
         assert_eq!(named["now"], json!({"value": 9}));
+    }
+
+    #[test]
+    fn a_query_from_outside_the_host_cannot_set_the_clock() {
+        let mut args = json!({"now": {"value": 9}});
+        answer_query_needs(
+            &query_ir(),
+            "Lease::Slot.Expired",
+            &mut args,
+            &FixedClock(5),
+        );
+        assert_eq!(args["now"], json!({"value": 5}));
     }
 
     #[test]

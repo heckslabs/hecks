@@ -15,8 +15,15 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::Mutex;
 use tokio_postgres::Client;
 
+mod google_signin;
+
+pub use google_signin::GoogleSignin;
+pub use google_signin::{
+    clear_header as google_signin_clear_header, read as read_google_signin,
+    set_header as google_signin_set_header,
+};
+
 const ISSUER: &str = "https://accounts.google.com";
-const STATE_TTL_SECS: u64 = 600;
 
 /// A verified Google ID token's claims.
 pub struct Claims {
@@ -34,32 +41,22 @@ pub struct Session {
     pub role: Option<String>,
 }
 
-pub fn authorization_url(redirect_uri: &str, secret: &str) -> Result<String, String> {
+/// Google's consent page for one sign-in: `signin`'s `state` comes back on the callback and its
+/// `nonce` inside the ID token, and both must match the cookie `/auth/google` set beside them.
+pub fn authorization_url(redirect_uri: &str, signin: &GoogleSignin) -> Result<String, String> {
     let client_id = crate::secrets::var("GOOGLE_CLIENT_ID")
         .map_err(|_| "GOOGLE_CLIENT_ID not set".to_string())?;
-    let payload = now_secs().to_string();
-    let state = format!("{payload}.{}", sign(secret, &payload));
     Ok(format!(
-        "https://accounts.google.com/o/oauth2/v2/auth?client_id={}&redirect_uri={}&response_type=code&scope={}&state={}",
+        "https://accounts.google.com/o/oauth2/v2/auth?client_id={}&redirect_uri={}&response_type=code&scope={}&state={}&nonce={}",
         urlencode(&client_id),
         urlencode(redirect_uri),
         urlencode("openid email profile"),
-        urlencode(&state),
+        urlencode(&signin.state),
+        urlencode(&signin.nonce),
     ))
 }
 
-// No server-side stash to compare against — recomputing the HMAC here
-// is the whole check: a forged, mismatched, or expired state fails on it.
-pub fn verify_state(state: &str, secret: &str) -> Result<(), String> {
-    let payload = verify_sig(secret, state).ok_or_else(|| "state mismatch".to_string())?;
-    let minted: u64 = payload.parse().map_err(|_| "state mismatch".to_string())?;
-    if now_secs().saturating_sub(minted) > STATE_TTL_SECS {
-        return Err("state expired".to_string());
-    }
-    Ok(())
-}
-
-pub async fn verify(code: &str, redirect_uri: &str) -> Result<Claims, String> {
+pub async fn verify(code: &str, redirect_uri: &str, nonce: &str) -> Result<Claims, String> {
     let client_id = crate::secrets::var("GOOGLE_CLIENT_ID")
         .map_err(|_| "GOOGLE_CLIENT_ID not set".to_string())?;
     let client_secret = crate::secrets::var("GOOGLE_CLIENT_SECRET")
@@ -92,13 +89,13 @@ pub async fn verify(code: &str, redirect_uri: &str) -> Result<Claims, String> {
         .and_then(|v| v.as_str())
         .ok_or_else(|| "no id_token in the response".to_string())?;
 
-    verify_id_token(id_token, &client_id).await
+    verify_id_token(id_token, &client_id, nonce).await
 }
 
 // Fetched fresh, never cached: this is a real sign-in, not a hot path,
 // and missing Google's own key rotation would be worse than one extra
 // HTTPS round trip per login.
-async fn verify_id_token(id_token: &str, client_id: &str) -> Result<Claims, String> {
+async fn verify_id_token(id_token: &str, client_id: &str, nonce: &str) -> Result<Claims, String> {
     let header =
         jsonwebtoken::decode_header(id_token).map_err(|e| format!("bad id_token header: {e}"))?;
     let kid = header
@@ -141,6 +138,7 @@ async fn verify_id_token(id_token: &str, client_id: &str) -> Result<Claims, Stri
     let token = jsonwebtoken::decode::<Value>(id_token, &decoding_key, &validation)
         .map_err(|err| format!("id_token signature/claims invalid: {err}"))?;
     let claims = token.claims;
+    check_nonce(&claims, nonce)?;
 
     Ok(Claims {
         issuer: claims
@@ -160,6 +158,17 @@ async fn verify_id_token(id_token: &str, client_id: &str) -> Result<Claims, Stri
         email_verified: matches!(claims.get("email_verified"), Some(Value::Bool(true)))
             || claims.get("email_verified").and_then(|v| v.as_str()) == Some("true"),
     })
+}
+
+// The ID token must carry the nonce this browser's sign-in cookie holds, so a token minted for
+// someone else's sign-in cannot finish this one.
+fn check_nonce(claims: &Value, expected: &str) -> Result<(), String> {
+    let carried = claims.get("nonce").and_then(Value::as_str).unwrap_or("");
+    if constant_time_eq(carried.as_bytes(), expected.as_bytes()) {
+        Ok(())
+    } else {
+        Err("id_token nonce does not match this sign-in".to_string())
+    }
 }
 
 /// The cookie name the account token travels in when a deploy names none.
@@ -233,6 +242,39 @@ pub fn verify_purpose_token(secret: &str, purpose: &str, token: &str) -> Option<
 
 fn purpose_key(secret: &str, purpose: &str) -> String {
     format!("{purpose}:{secret}")
+}
+
+const HANDOFF_PURPOSE: &str = "google-handoff";
+const HANDOFF_TTL_SECS: u64 = 60;
+
+/// A one-minute, single-use stand-in for `email`'s account token. It rides the redirect onto a
+/// site on another origin, where a URL is logged and kept in history, and the site trades it for
+/// the account token server-to-server (`redeem_handoff_token`).
+pub fn handoff_token(secret: &str, email: &str) -> String {
+    let jti = uuid::Uuid::new_v4().simple().to_string();
+    purpose_token(
+        secret,
+        HANDOFF_PURPOSE,
+        json!({ "email": email, "jti": jti }),
+        HANDOFF_TTL_SECS,
+    )
+}
+
+/// The account token a handoff token stands for, the first time it is redeemed; `None` when it is
+/// forged, expired, minted for another purpose, or already spent in `spent`.
+pub fn redeem_handoff_token(
+    secret: &str,
+    token: &str,
+    spent: &crate::platform_signin::jti::JtiStore,
+) -> Option<String> {
+    let claims = verify_purpose_token(secret, HANDOFF_PURPOSE, token)?;
+    let email = claims.get("email")?.as_str()?;
+    let jti = claims.get("jti")?.as_str()?;
+    let expires_at = i64::try_from(claims.get("exp")?.as_u64()?).ok()?;
+    let now = i64::try_from(now_secs()).ok()?;
+    spent
+        .claim(jti, expires_at + 1, now)
+        .then(|| account_token(secret, email, SESSION_TTL_SECS))
 }
 
 /// How long a session cookie, and the account token minted beside it, stays valid.
@@ -1447,15 +1489,42 @@ mod tests {
     }
 
     #[test]
-    fn oauth_state_verifies_fresh_and_rejects_forged_or_expired() {
-        let fresh = now_secs().to_string();
-        let state = format!("{fresh}.{}", sign("s3cret", &fresh));
-        assert!(verify_state(&state, "s3cret").is_ok());
-        assert!(verify_state(&state, "wrong-secret").is_err());
+    fn an_id_token_is_accepted_only_with_the_sign_ins_own_nonce() {
+        assert!(check_nonce(&json!({"nonce": "n-123"}), "n-123").is_ok());
+        assert!(check_nonce(&json!({"nonce": "n-456"}), "n-123").is_err());
+        assert!(check_nonce(&json!({}), "n-123").is_err());
+        assert!(check_nonce(&json!({"nonce": 5}), "n-123").is_err());
+    }
 
-        let stale = (now_secs() - STATE_TTL_SECS - 1).to_string();
-        let expired = format!("{stale}.{}", sign("s3cret", &stale));
-        assert!(verify_state(&expired, "s3cret").is_err());
+    #[test]
+    fn a_handoff_token_is_redeemed_once_for_the_account_token() {
+        let spent = crate::platform_signin::jti::JtiStore::new();
+        let handoff = handoff_token("s3cret", "zed@example.com");
+        assert_eq!(verify_account_token("s3cret", &handoff), None);
+        let account = redeem_handoff_token("s3cret", &handoff, &spent).unwrap();
+        assert_eq!(
+            verify_account_token("s3cret", &account).as_deref(),
+            Some("zed@example.com")
+        );
+        assert_eq!(redeem_handoff_token("s3cret", &handoff, &spent), None);
+    }
+
+    #[test]
+    fn an_account_or_foreign_token_is_not_a_handoff_token() {
+        let spent = crate::platform_signin::jti::JtiStore::new();
+        let account = account_token("s3cret", "zed@example.com", 60);
+        assert_eq!(redeem_handoff_token("s3cret", &account, &spent), None);
+        let handoff = handoff_token("other-secret", "zed@example.com");
+        assert_eq!(redeem_handoff_token("s3cret", &handoff, &spent), None);
+    }
+
+    #[test]
+    fn the_consent_url_carries_the_sign_ins_state_and_nonce() {
+        crate::secrets::provide("GOOGLE_CLIENT_ID", "client-1".to_string());
+        let signin = GoogleSignin::fresh();
+        let url = authorization_url("https://host.example/auth/google/callback", &signin).unwrap();
+        assert!(url.contains(&format!("&state={}", signin.state)), "{url}");
+        assert!(url.contains(&format!("&nonce={}", signin.nonce)), "{url}");
     }
 
     #[test]

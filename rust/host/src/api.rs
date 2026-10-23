@@ -59,7 +59,17 @@ pub async fn route(
             Err(e) => internal_error(&e.to_string()),
         },
 
-        ("PUT", "/api/presentation") => presentation_save(domain_ir, raw_body, host).await,
+        // The config names collection keys, identity strategies and preconditions, and its
+        // ConsoleSettings commands dispatch as the host itself, so only an admin may save it.
+        ("PUT", "/api/presentation") => {
+            if !session
+                .and_then(|session| session.role.as_deref())
+                .is_some_and(crate::auth::is_admin_role)
+            {
+                return refusal(403, "Forbidden", "admins only");
+            }
+            presentation_save(domain_ir, raw_body, host).await
+        }
 
         // Collection routes (`/api/:coll[/:id]`), matched last so `:coll`
         // doesn't swallow `me`/`schema`. Segments are percent-decoded: a
@@ -81,10 +91,12 @@ pub async fn route(
                     record_show(domain_ir, collection, id, client, wasm_path, config).await
                 }
                 ("POST", [collection]) => {
-                    collection_create(domain_ir, collection, raw_body, host).await
+                    let caller = dispatch::Caller::signed_in(session);
+                    collection_create(domain_ir, collection, raw_body, caller, host).await
                 }
                 ("POST", [collection, id, command]) => {
-                    command_route(domain_ir, collection, id, command, raw_body, host).await
+                    let caller = dispatch::Caller::signed_in(session);
+                    command_route(domain_ir, collection, id, command, raw_body, caller, host).await
                 }
                 _ => not_found(&format!("no API route for {method} {path}")),
             }
@@ -248,7 +260,7 @@ async fn named_query_rows(
         ui_schema::agg_name(aggregate),
         named.get("name").and_then(|v| v.as_str()).unwrap_or("")
     );
-    let result = match dispatch::query(client, wasm_path, &question, args).await {
+    let result = match dispatch::query_request(client, wasm_path, &question, args).await {
         Ok(result) => result,
         Err(e) => return internal_error(&format!("{e:#}")),
     };
@@ -328,6 +340,7 @@ async fn collection_create(
     domain_ir: &Value,
     collection: &str,
     raw_body: &str,
+    caller: dispatch::Caller<'_>,
     host: Host<'_>,
 ) -> Value {
     let Host {
@@ -381,7 +394,7 @@ async fn collection_create(
         domain_name(domain_ir),
         command_name(creating)
     );
-    let outcome = match dispatch::handle_facts(host, &verb, args, None).await {
+    let outcome = match dispatch::handle_facts_request(host, &verb, args, caller).await {
         Ok(outcome) => outcome,
         Err(e) => return internal_error(&format!("{e:#}")),
     };
@@ -404,6 +417,7 @@ async fn command_route(
     id: &str,
     command: &str,
     raw_body: &str,
+    caller: dispatch::Caller<'_>,
     host: Host<'_>,
 ) -> Value {
     let Host {
@@ -441,7 +455,8 @@ async fn command_route(
         domain_name(domain_ir),
         command_name(declared)
     );
-    let outcome = match dispatch::handle_routed(host, &verb, json!(id), args, None).await {
+    let outcome = match dispatch::handle_routed_request(host, &verb, json!(id), args, caller).await
+    {
         Ok(outcome) => outcome,
         Err(e) => return internal_error(&format!("{e:#}")),
     };
@@ -1989,7 +2004,7 @@ mod tests {
         };
         let invoker = crate::lambda_client::NeverInvoker;
 
-        let created = collection_create(&ir, "customers", r#"{"reference":{"value":"CUST-9001"},"name":{"given":"Ada","family":"Lovelace"},"email":{"address":"ada@example.com"}}"#, Host::new(&client, &wasm, &lineage, &invoker))
+        let created = collection_create(&ir, "customers", r#"{"reference":{"value":"CUST-9001"},"name":{"given":"Ada","family":"Lovelace"},"email":{"address":"ada@example.com"}}"#, dispatch::Caller::default(), Host::new(&client, &wasm, &lineage, &invoker))
         .await;
 
         assert_eq!(created["statusCode"], 200, "{created}");
@@ -2012,6 +2027,7 @@ mod tests {
             "CUST-9001",
             "suspend",
             r#"{"standing":{"value":"watch"}}"#,
+            dispatch::Caller::default(),
             Host::new(&client, &wasm, &lineage, &invoker),
         )
         .await;
@@ -2028,6 +2044,7 @@ mod tests {
             "CUST-9001",
             "suspend",
             r#"{"standing":{"value":"watch"}}"#,
+            dispatch::Caller::default(),
             Host::new(&client, &wasm, &lineage, &invoker),
         )
         .await;
@@ -2054,6 +2071,7 @@ mod tests {
             "CUST-9001",
             "nope",
             "",
+            dispatch::Caller::default(),
             Host::new(&client, &wasm, &lineage, &invoker),
         )
         .await;
@@ -2069,6 +2087,7 @@ mod tests {
             "ghost",
             "suspend",
             "",
+            dispatch::Caller::default(),
             Host::new(&client, &wasm, &lineage, &invoker),
         )
         .await;
@@ -2077,6 +2096,139 @@ mod tests {
             body(&unknown_record)["message"],
             "no Customer found for id \"ghost\""
         );
+    }
+
+    fn signed_in(role: &str) -> Session {
+        Session {
+            identity_id: String::new(),
+            role: Some(role.to_string()),
+            ..session()
+        }
+    }
+
+    // A signed-in caller's role reaches the kernel, so a command the role may not run is refused
+    // the way the internal protocol refuses it.
+    #[tokio::test]
+    async fn a_write_route_dispatches_as_the_signed_in_caller_and_refuses_a_role_the_command_does_not_declare(
+    ) {
+        let client = crate::dispatch::tests::scratch_db("rust_host_api_write_roles").await;
+        crate::dispatch::tests::provision_lineage(
+            &*client.lock().await,
+            "Banking",
+            1,
+            &["Customer"],
+        )
+        .await;
+        let wasm = crate::dispatch::tests::wasm_path();
+        let ir = banking_ir();
+        let lineage = LineageConfig {
+            domain: "Banking".to_string(),
+            era: Some(1),
+            mirrored: None,
+        };
+        let invoker = crate::lambda_client::NeverInvoker;
+        let post = |path: &'static str, body: &'static str, session: Session| {
+            let (client, wasm, ir, lineage, invoker) = (&client, &wasm, &ir, &lineage, &invoker);
+            async move {
+                let host = Host::new(client, wasm, lineage, invoker);
+                route(
+                    ir,
+                    "POST",
+                    path,
+                    &HashMap::new(),
+                    body,
+                    Some(&session),
+                    host,
+                )
+                .await
+            }
+        };
+        let customer = r#"{"reference":{"value":"CUST-9101"},"name":{"given":"Ada","family":"Lovelace"},"email":{"address":"ada@example.com"}}"#;
+
+        let teller = post("/api/customers", customer, signed_in("Teller")).await;
+        assert_eq!(teller["statusCode"], 422, "{teller}");
+        assert_eq!(body(&teller)["error"], "Unauthorized");
+
+        let clerk = post("/api/customers", customer, signed_in("Branch clerk")).await;
+        assert_eq!(clerk["statusCode"], 200, "{clerk}");
+
+        let suspend = r#"{"standing":{"value":"watch"}}"#;
+        let by_clerk = post(
+            "/api/customers/CUST-9101/suspend",
+            suspend,
+            signed_in("Branch clerk"),
+        )
+        .await;
+        assert_eq!(by_clerk["statusCode"], 422, "{by_clerk}");
+        assert_eq!(body(&by_clerk)["error"], "Unauthorized");
+    }
+
+    // The presentation config rewrites collection keys, identity strategies and preconditions, so
+    // only an admin may save it.
+    #[tokio::test]
+    async fn only_an_admin_may_save_the_presentation_config() {
+        let client = crate::dispatch::tests::scratch_db("rust_host_api_presentation_admin").await;
+        crate::dispatch::tests::provision_lineage(
+            &*client.lock().await,
+            "CheckoutFixture",
+            1,
+            &["Event", "StateStyle", "Collection", "Overview"],
+        )
+        .await;
+        let (wasm, ir) = console_fixture();
+        let lineage = LineageConfig {
+            domain: "CheckoutFixture".to_string(),
+            era: Some(1),
+            mirrored: None,
+        };
+        let invoker = crate::lambda_client::NeverInvoker;
+        let submitted = every_state_styled().to_string();
+        let put = |session: Option<Session>| {
+            let (client, wasm, ir, lineage, invoker) = (&client, &wasm, &ir, &lineage, &invoker);
+            let submitted = submitted.clone();
+            async move {
+                let host = Host::new(client, wasm, lineage, invoker);
+                let path = "/api/presentation";
+                route(
+                    ir,
+                    "PUT",
+                    path,
+                    &HashMap::new(),
+                    &submitted,
+                    session.as_ref(),
+                    host,
+                )
+                .await
+            }
+        };
+
+        let refused = [
+            ("no session", None),
+            ("a member", Some(signed_in("Member"))),
+            ("no role", Some(session_without_role())),
+        ];
+        for (who, session) in refused {
+            let response = put(session).await;
+            assert_eq!(response["statusCode"], 403, "{who}: {response}");
+        }
+        assert_eq!(
+            presentation::load(&client, &wasm, &lineage)
+                .await
+                .expect("a config"),
+            json!({"states": {}, "collections": {}, "overview": {}}),
+            "a refused save writes nothing"
+        );
+        for admin in ["Admin", "Owner"] {
+            let response = put(Some(signed_in(admin))).await;
+            assert_eq!(response["statusCode"], 200, "{admin}: {response}");
+        }
+    }
+
+    fn session_without_role() -> Session {
+        Session {
+            role: None,
+            ..session()
+        }
     }
 
     #[test]

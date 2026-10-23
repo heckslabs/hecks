@@ -104,6 +104,9 @@ pub fn mock_checkout_session(
 // Pinned: `embedded_page` needs this version line, not whatever the account defaults to.
 pub const STRIPE_API_VERSION: &str = "2026-04-22.dahlia";
 
+/// The currency every Checkout Session charges in, lower-case as Stripe writes it.
+pub const CURRENCY: &str = "usd";
+
 pub struct StripeAuth<'a> {
     pub api_key: &'a str,
     pub base_url: &'a str,
@@ -144,7 +147,7 @@ pub async fn create_checkout_session(
         ("ui_mode", "embedded_page"),
         ("redirect_on_completion", "never"),
         ("expires_at", expires_at.as_str()),
-        ("line_items[0][price_data][currency]", "usd"),
+        ("line_items[0][price_data][currency]", CURRENCY),
         (
             "line_items[0][price_data][unit_amount]",
             unit_amount.as_str(),

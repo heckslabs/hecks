@@ -1,6 +1,7 @@
 //! HTTP server for AWS Fargate (`HECKS_SERVE_MODE=1`): the axum fallback route below shares
 //! `dispatch_body` with the Lambda custom-runtime path, so neither repeats the other's logic.
 
+use crate::arg_limits;
 use crate::dispatch;
 use crate::host::Host;
 use crate::journal::LineageConfig;
@@ -32,7 +33,7 @@ use tokio_postgres::Client;
 /// same either way; without `bare` the answer is the stored shape.
 pub async fn dispatch_body(body: Value, host: Host<'_>) -> Result<Value, Error> {
     if let Some(response) = web::render(&body, host).await {
-        return Ok(response);
+        return Ok(conceal_internal_error(response));
     }
     let answer = kernel_answer(&body, host).await?;
     if !wants_bare(&body) {
@@ -41,6 +42,69 @@ pub async fn dispatch_body(body: Value, host: Host<'_>) -> Result<Value, Error> 
     Ok(dispatch::present(host.wasm_path, answer)
         .await
         .map_err(|e| format!("{e:#}"))?)
+}
+
+/// A route's `500` keeps its detail in the log and tells the caller only a request id to quote:
+/// an error's text can name tables, queries and paths that are nobody else's business.
+fn conceal_internal_error(mut response: Value) -> Value {
+    if response.get("statusCode").and_then(Value::as_u64) != Some(500) {
+        return response;
+    }
+    let request_id = new_request_id();
+    log::error(
+        "internal_error",
+        serde_json::json!({ "request_id": request_id, "detail": response.get("body") }),
+    );
+    response["headers"]["content-type"] = Value::from("application/json");
+    response["body"] = Value::from(internal_error_body(&request_id).to_string());
+    response["isBase64Encoded"] = Value::Bool(false);
+    response
+}
+
+fn internal_error_body(request_id: &str) -> Value {
+    serde_json::json!({ "error": "internal error", "request_id": request_id })
+}
+
+fn new_request_id() -> String {
+    uuid::Uuid::new_v4().simple().to_string()
+}
+
+/// The `429` a Lambda Function-URL event over a public route's rate limit gets, judged as `admit`
+/// judges a request in serve mode, with `requestContext.http.sourceIp` as the peer. An event with
+/// no route (an internal verb or read invocation) is never limited.
+pub fn lambda_rate_limited(limits: &RateLimits, event: &Value) -> Option<Value> {
+    let (method, path) = envelope_route(event)?;
+    let peer = event
+        .pointer("/requestContext/http/sourceIp")
+        .and_then(Value::as_str)
+        .and_then(|ip| ip.parse().ok());
+    match limits.check(method, path, &event_headers(event), peer) {
+        Verdict::Limited { retry_after_secs } => {
+            Some(rate_limit::too_many_requests_event(retry_after_secs))
+        }
+        Verdict::Allowed => None,
+    }
+}
+
+// A Function-URL event's `headers` object as a `HeaderMap`; a name or value that is not a valid
+// header is left out.
+fn event_headers(event: &Value) -> HeaderMap {
+    let mut headers = HeaderMap::new();
+    for (name, value) in event
+        .get("headers")
+        .and_then(Value::as_object)
+        .into_iter()
+        .flatten()
+    {
+        let parsed = (
+            HeaderName::from_bytes(name.as_bytes()),
+            value.as_str().map(HeaderValue::from_str),
+        );
+        if let (Ok(name), Some(Ok(value))) = parsed {
+            headers.append(name, value);
+        }
+    }
+    headers
 }
 
 fn wants_bare(body: &Value) -> bool {
@@ -274,13 +338,14 @@ async fn route_request(
     match dispatch_body(envelope, state.host()).await {
         Ok(value) => value_to_response(value),
         Err(e) => {
+            let request_id = new_request_id();
             log::error(
                 "dispatch_failed",
-                serde_json::json!({ "error": format!("{e}") }),
+                serde_json::json!({ "error": format!("{e}"), "request_id": request_id }),
             );
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                axum::Json(serde_json::json!({ "error": format!("{e}") })),
+                axum::Json(internal_error_body(&request_id)),
             )
                 .into_response()
         }
@@ -326,6 +391,18 @@ fn admit(
     {
         parsed
     } else {
+        if let Some(longest) = arg_limits::oversized(&parsed) {
+            return Err(Box::new(
+                (
+                    StatusCode::PAYLOAD_TOO_LARGE,
+                    format!(
+                        "a string in the body is {longest} bytes; at most {} are accepted",
+                        arg_limits::MAX_STRING_ARG_BYTES
+                    ),
+                )
+                    .into_response(),
+            ));
+        }
         synthesize_function_url_envelope(method, uri, headers, body)
     };
 
@@ -557,6 +634,28 @@ mod tests {
             &body,
         )
         .unwrap_or_else(|_| panic!("{from} POST {path} was refused before dispatch"))
+    }
+
+    #[test]
+    fn a_public_body_with_a_string_past_the_cap_is_refused_and_a_peers_is_not() {
+        let big = format!(
+            r#"{{"verb":"Post.Publish","with":{{"body":"{}"}}}}"#,
+            "x".repeat(arg_limits::MAX_STRING_ARG_BYTES + 1)
+        );
+        let body = Bytes::from(big.clone());
+        let refused = admit(
+            &limits_from(&[]),
+            peer("203.0.113.7:5000"),
+            &Method::POST,
+            &"/api/posts".parse().unwrap(),
+            &HeaderMap::new(),
+            &body,
+        )
+        .expect_err("a public body past the cap must be refused");
+        assert_eq!(refused.status(), StatusCode::PAYLOAD_TOO_LARGE);
+
+        let envelope = admitted("127.0.0.1:5000", "/anything", &big);
+        assert_eq!(envelope["verb"], "Post.Publish");
     }
 
     // The gap this closes: a public POST to any path the load balancer forwards carried
@@ -837,6 +936,75 @@ mod tests {
             body,
             serde_json::json!({ "error": "too many requests, please try again later" })
         );
+    }
+
+    fn function_url_event(path: &str, source_ip: &str) -> Value {
+        serde_json::json!({
+            "requestContext": { "http": { "method": "POST", "sourceIp": source_ip } },
+            "rawPath": path,
+            "headers": { "content-type": "application/json" },
+            "body": "{}",
+        })
+    }
+
+    #[test]
+    fn a_lambda_burst_from_one_source_ip_is_refused_with_a_429_event() {
+        let limits = limits_from(&[("HECKS_RATE_LIMIT_SUBSCRIBE", "2")]);
+        let event = function_url_event(SUBSCRIBE, "203.0.113.7");
+        assert_eq!(lambda_rate_limited(&limits, &event), None);
+        assert_eq!(lambda_rate_limited(&limits, &event), None);
+        let refused = lambda_rate_limited(&limits, &event).expect("the third is over the limit");
+        assert_eq!(refused["statusCode"], 429);
+        assert!(
+            refused["headers"]["retry-after"].as_str().is_some(),
+            "{refused}"
+        );
+        let body: Value = serde_json::from_str(refused["body"].as_str().unwrap()).unwrap();
+        assert_eq!(body["error"], "too many requests, please try again later");
+    }
+
+    #[test]
+    fn lambda_limits_count_each_source_ip_apart_and_never_an_internal_invocation() {
+        let limits = limits_from(&[("HECKS_RATE_LIMIT_SUBSCRIBE", "1")]);
+        assert_eq!(
+            lambda_rate_limited(&limits, &function_url_event(SUBSCRIBE, "203.0.113.7")),
+            None
+        );
+        assert_eq!(
+            lambda_rate_limited(&limits, &function_url_event(SUBSCRIBE, "203.0.113.8")),
+            None
+        );
+        let read = serde_json::json!({ "read": true });
+        for _ in 0..3 {
+            assert_eq!(lambda_rate_limited(&limits, &read), None);
+        }
+    }
+
+    #[test]
+    fn a_routes_500_reaches_the_caller_as_a_request_id_not_its_detail() {
+        let failed = serde_json::json!({
+            "statusCode": 500,
+            "headers": { "content-type": "text/plain" },
+            "body": "relation \"secret_table\" does not exist",
+            "isBase64Encoded": false,
+        });
+        let concealed = conceal_internal_error(failed);
+        let body: Value = serde_json::from_str(concealed["body"].as_str().unwrap()).unwrap();
+        assert_eq!(body["error"], "internal error");
+        assert_eq!(body["request_id"].as_str().map(str::len), Some(32));
+        assert!(
+            !concealed.to_string().contains("secret_table"),
+            "{concealed}"
+        );
+        assert_eq!(concealed["headers"]["content-type"], "application/json");
+    }
+
+    #[test]
+    fn a_response_that_is_not_a_500_is_passed_through() {
+        for status in [200, 404, 422, 502] {
+            let response = serde_json::json!({ "statusCode": status, "body": "kept" });
+            assert_eq!(conceal_internal_error(response.clone()), response);
+        }
     }
 
     #[tokio::test]

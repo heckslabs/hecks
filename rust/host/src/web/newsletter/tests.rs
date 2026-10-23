@@ -234,3 +234,56 @@ fn without_a_template_the_plain_text_confirmation_is_unchanged() {
     let body = confirmation_body(CONFIRM);
     assert_eq!(body, format!("Please confirm your newsletter subscription by opening this link:\n\n{CONFIRM}\n\nIf you didn't ask for this, you can ignore this email and nothing will be sent to you.\n"));
 }
+
+fn fresh_naming() -> naming::NamingWindow {
+    naming::NamingWindow::new(naming::WINDOW, naming::CAPACITY)
+}
+
+#[test]
+fn an_address_already_on_the_list_cannot_be_named_by_a_stranger() {
+    let naming = fresh_naming();
+    assert!(!may_name(
+        &naming,
+        Some("s3cret-value"),
+        "a@example.com",
+        None
+    ));
+    assert!(!may_name(
+        &naming,
+        Some("s3cret-value"),
+        "a@example.com",
+        Some("garbage")
+    ));
+    let other = confirm_token("s3cret-value", "b@example.com");
+    assert!(!may_name(
+        &naming,
+        Some("s3cret-value"),
+        "a@example.com",
+        Some(&other)
+    ));
+}
+
+#[test]
+fn the_forms_second_step_names_the_address_it_just_subscribed() {
+    let naming = fresh_naming();
+    naming.opened("a@example.com");
+    assert!(may_name(&naming, None, "a@example.com", None));
+    assert!(!may_name(&naming, None, "b@example.com", None));
+}
+
+#[test]
+fn the_addresss_own_confirm_token_names_it_at_any_time() {
+    let token = confirm_token("s3cret-value", "a@example.com");
+    assert!(may_name(
+        &fresh_naming(),
+        Some("s3cret-value"),
+        "a@example.com",
+        Some(&token)
+    ));
+    assert!(!may_name(
+        &fresh_naming(),
+        None,
+        "a@example.com",
+        Some(&token)
+    ));
+}
