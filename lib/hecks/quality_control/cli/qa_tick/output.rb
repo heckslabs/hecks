@@ -42,27 +42,21 @@ module Hecks
             "finding; the full record is in the tick's log file)\n"
         end
 
-        def write_tick_log!(pr_check_output, sweep_output, generated_output)
+        def write_tick_log!(steps)
           dir = File.join(@root, "tmp/qa-tick-logs")
           FileUtils.mkdir_p(dir)
           path = File.join(dir, "#{Time.now.strftime("%Y%m%d-%H%M%S")}-#{Process.pid}.log")
-          File.write(path, <<~LOG)
-            #{"=" * 72}
-            hecks quality_control check_pull_requests -- full raw output
-            #{"=" * 72}
-            #{pr_check_output}
-
-            #{"=" * 72}
-            hecks quality_control ask run --all -- full raw output
-            #{"=" * 72}
-            #{sweep_output}
-
-            #{"=" * 72}
-            hecks quality_control check_generated_domains --from-dials -- full raw output
-            #{"=" * 72}
-            #{generated_output}
-          LOG
+          File.write(path, steps.map { |step| log_section(step) }.join("\n"))
           path
+        end
+
+        def log_section(step)
+          <<~LOG
+            #{"=" * 72}
+            hecks quality_control #{step.name} -- full raw output
+            #{"=" * 72}
+            #{step.output}
+          LOG
         end
 
         def verdict(code)
@@ -74,21 +68,20 @@ module Hecks
           end
         end
 
-        def report(exits, reclaimed, log_path)
+        def report(steps, reclaimed, log_path)
           banner "tick report"
-          print_step_verdicts(exits)
+          steps.each { |step| puts step_verdict(step) }
           puts stale_holds_line(reclaimed)
-          tick_exit = tick_exit_for(exits)
+          tick_exit = tick_exit_for(steps.map(&:exit_code))
           puts "tick: #{verdict(tick_exit)} (exit #{tick_exit})"
-          puts "full raw output (all three steps, unabridged): #{log_path}"
+          puts "full raw output (every step, unabridged): #{log_path}"
           tick_exit
         end
 
-        def print_step_verdicts(exits)
-          pr_check_exit, sweep_exit, generated_exit = exits
-          puts "hecks quality_control check_pull_requests:   #{verdict(pr_check_exit)} (exit #{pr_check_exit.inspect})"
-          puts "hecks quality_control ask run --all: #{verdict(sweep_exit)} (exit #{sweep_exit.inspect})"
-          puts "hecks quality_control check_generated_domains: #{verdict(generated_exit)} (exit #{generated_exit.inspect})"
+        # The verb alone, without its flags: `check_generated_domains`, not `... --from-dials`.
+        def step_verdict(step)
+          verb = step.name.delete_suffix(" --from-dials")
+          "hecks quality_control #{verb}: #{verdict(step.exit_code)} (exit #{step.exit_code.inspect})"
         end
 
         def stale_holds_line(reclaimed)

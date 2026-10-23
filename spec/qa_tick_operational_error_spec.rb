@@ -9,7 +9,7 @@ require_relative "support/qa_tick_fixture"
 RSpec.describe "hecks quality_control tick", :io do
   include_context "with a qa_tick fixture", "hecks_qa_tick_operational_error_spec"
 
-  TICK_ERROR_LINES = ["hecks quality_control check_pull_requests:   clean (exit 0)",
+  TICK_ERROR_LINES = ["hecks quality_control check_pull_requests: clean (exit 0)",
                       "hecks quality_control ask run --all: operational error (exit 1)",
                       "tick: operational error (exit 1)"].freeze
 
