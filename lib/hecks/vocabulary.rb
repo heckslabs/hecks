@@ -136,7 +136,8 @@ module Hecks
         {"name"=>"scale_call"}.freeze
       ].freeze,
       "PrebuiltBinary" => [
-        {"name"=>"host", "crate"=>"rust/host", "executable"=>"bootstrap", "target"=>"x86_64-unknown-linux-gnu", "runner"=>"ubuntu-24.04"}.freeze
+        {"name"=>"host", "crate"=>"rust/host", "executable"=>"bootstrap", "target"=>"x86_64-unknown-linux-gnu", "runner"=>"ubuntu-24.04"}.freeze,
+        {"name"=>"host-arm64", "crate"=>"rust/host", "executable"=>"bootstrap", "target"=>"aarch64-unknown-linux-gnu", "runner"=>"ubuntu-22.04-arm"}.freeze
       ].freeze,
       "Primitive" => [
         {"name"=>"String"}.freeze,
