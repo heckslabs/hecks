@@ -168,12 +168,18 @@ mod tests {
             ]
         }]);
 
-        let Plan::Plugin(own) = plan(Some(&ir), "Banking", "Ledger.Rows") else { panic!("not a plugin plan") };
-        assert_eq!(own.question, "Banking::Ledger.Rows");
-        let Plan::Plugin(attached) = plan(Some(&ir), "Banking", "Calendar::Event.Occurrences") else {
+        let Plan::Plugin(own) = plan(Some(&ir), "Banking", "Ledger.Rows") else {
             panic!("not a plugin plan")
         };
-        assert_eq!(attached.references, vec![("event".to_string(), "Calendar::Event".to_string())]);
+        assert_eq!(own.question, "Banking::Ledger.Rows");
+        let Plan::Plugin(attached) = plan(Some(&ir), "Banking", "Calendar::Event.Occurrences")
+        else {
+            panic!("not a plugin plan")
+        };
+        assert_eq!(
+            attached.references,
+            vec![("event".to_string(), "Calendar::Event".to_string())]
+        );
     }
 
     #[test]

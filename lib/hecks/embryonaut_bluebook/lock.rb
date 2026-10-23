@@ -7,7 +7,7 @@ module Hecks
     Lock = Struct.new(:package, :version, :tag, :commit, :digest, :shape, keyword_init: true) do
       # What a package's `bluebook/` directory ships and a project vendors: its bluebooks, and the
       # plugin adapters and wasm modules that answer their queries.
-      self::PACKAGE_FILES = "*.{bluebook,adapter,wasm}"
+      self::PACKAGE_FILES = "*.{bluebook,adapter,wasm}".freeze
 
       # Sorted by name so the digest never depends on directory listing order.
       def self.digest_of(dir)

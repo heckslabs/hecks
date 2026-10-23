@@ -44,6 +44,7 @@ module Hecks
         args = normalize_args(aggregate, declared, args)
         port = aggregate.query_binding(declared.name)
         return answered_from_outside(aggregate, declared, args, port) if port
+
         plugin = answering_plugin(domain, aggregate, declared)
         return answered_by_plugin(domain, aggregate, declared, args, plugin) if plugin
 
@@ -68,6 +69,7 @@ module Hecks
         # takes it through the same shape check, so a diff against #call sees only the adapter.
         port = aggregate.query_binding(declared.name)
         return answered_from_outside(aggregate, declared, args, port) if port
+
         plugin = answering_plugin(domain, aggregate, declared)
         return answered_by_plugin(domain, aggregate, declared, args, plugin) if plugin
 
