@@ -506,9 +506,7 @@ pub async fn read_lineage_head_by_id<C: GenericClient>(
 #[derive(Debug, Clone)]
 pub struct HeldEra {
     pub ordinal: i32,
-    pub hash: Option<String>,
     pub label: Option<String>,
-    pub held_text: String,
     pub watermark: Option<i64>,
 }
 
@@ -517,7 +515,7 @@ pub struct HeldEra {
 pub async fn held_eras<C: GenericClient>(client: &C, domain: &str) -> anyhow::Result<Vec<HeldEra>> {
     let rows = client
         .query(
-            "SELECT ordinal, hash, label, held_text, watermark, held_digest FROM hecks_eras \
+            "SELECT ordinal, label, held_text, watermark, held_digest FROM hecks_eras \
              WHERE domain = $1 ORDER BY ordinal",
             &[&domain],
         )
@@ -542,9 +540,7 @@ pub async fn held_eras<C: GenericClient>(client: &C, domain: &str) -> anyhow::Re
 
             Ok(HeldEra {
                 ordinal,
-                hash: row.get("hash"),
                 label: row.get("label"),
-                held_text,
                 watermark: row.get("watermark"),
             })
         })
