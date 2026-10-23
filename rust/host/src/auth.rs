@@ -633,13 +633,27 @@ pub async fn grant_access(
     email: &str,
     role: &str,
 ) -> anyhow::Result<bool> {
-    grant_access_until(client, wasm_path, config, domain_ir, email, role, None).await
+    let outcome =
+        grant_access_until(client, wasm_path, config, domain_ir, email, role, None).await?;
+    Ok(outcome == GrantOutcome::Done)
+}
+
+/// What `grant_access_until` decided.
+#[derive(Debug, PartialEq, Eq)]
+pub enum GrantOutcome {
+    /// The role (and window, if any) is now on the person's row.
+    Done,
+    /// No person with that email exists.
+    UnknownPerson,
+    /// The change would leave no active admin without an end date.
+    LastOpenAdmin,
 }
 
 /// Grants `role` like `grant_access`, for a window ending at `expires_at`
 /// (an ISO 8601 UTC instant) when one is given. Granting again renews: the
 /// new window replaces the old, and `None` clears it, so a plain grant makes
-/// the access open-ended.
+/// the access open-ended. Refused when it would take the site's last
+/// open-ended admin off that footing, locked with other membership writes.
 pub async fn grant_access_until(
     client: &Mutex<Client>,
     wasm_path: &Path,
@@ -648,16 +662,28 @@ pub async fn grant_access_until(
     email: &str,
     role: &str,
     expires_at: Option<&str>,
-) -> anyhow::Result<bool> {
+) -> anyhow::Result<GrantOutcome> {
     let _ = wasm_path;
-    let Some(member) = member_row_by_email(client, domain_ir, email).await? else {
-        return Ok(false);
+    let (aggregate_name, storage_name) = membership_aggregate(domain_ir)?;
+    let domain = domain_ir.get("name").and_then(|v| v.as_str()).unwrap_or("");
+    let target = email.trim().to_lowercase();
+
+    let mut guard = client.lock().await;
+    let txn = guard.transaction().await?;
+    txn.execute(
+        "SELECT pg_advisory_xact_lock(hashtext('hecks_ordinal:' || $1))",
+        &[&config.domain],
+    )
+    .await?;
+    let rows = journal::read_lineage_head_all(&txn, domain, &storage_name).await?;
+    let Some((id, member)) = rows.iter().find(|(id, _)| id.to_lowercase() == target) else {
+        return Ok(GrantOutcome::UnknownPerson);
     };
 
     // Same append protocol `provision` uses. GrantAccess's own bluebook
     // command sets only `:role`; the window is a host-side field beside it,
     // like `disabled`, so it needs no bluebook attribute.
-    let mut new_state = member;
+    let mut new_state = member.clone();
     new_state["role"] = json!({"value": role});
     match expires_at {
         Some(instant) => new_state[EXPIRY_FIELD] = json!(instant),
@@ -667,8 +693,22 @@ pub async fn grant_access_until(
             }
         }
     }
-    append_member_state(client, config, domain_ir, email, &new_state).await?;
-    Ok(true)
+    if strands_open_admin(&rows, id, &new_state) {
+        return Ok(GrantOutcome::LastOpenAdmin);
+    }
+    journal::append_lineage_mutation(
+        &txn,
+        config,
+        &journal::Mutation {
+            aggregate: &aggregate_name,
+            id,
+            operation: "save",
+            state: &new_state,
+        },
+    )
+    .await?;
+    txn.commit().await?;
+    Ok(GrantOutcome::Done)
 }
 
 /// Admits a new person (name + email), the same state `Admit` sets.
@@ -816,6 +856,24 @@ fn is_last_active_admin(rows: &[(String, Value)], state: &Value) -> bool {
     is_active_admin(state) && rows.iter().filter(|(_, s)| is_active_admin(s)).count() <= 1
 }
 
+// Whether the row is an active admin with no end date: the kind of access a
+// site keeps at least one of, because a window's lapse cannot be prevented.
+fn is_open_admin(state: &Value) -> bool {
+    is_active_admin(state) && matches!(window_of(state), Window::Open)
+}
+
+// Whether replacing the row `id` with `after` would leave the site with no
+// open-ended admin where it had one. A site that has none already (it was
+// never given one) is not made worse by a change, so this stays false there.
+fn strands_open_admin(rows: &[(String, Value)], id: &str, after: &Value) -> bool {
+    let had = rows.iter().any(|(_, s)| is_open_admin(s));
+    let keeps = is_open_admin(after)
+        || rows
+            .iter()
+            .any(|(other, s)| other.to_lowercase() != id.to_lowercase() && is_open_admin(s));
+    had && !keeps
+}
+
 /// Whether the person with `email` (compared case-insensitively) is an
 /// active admin: granted the "Admin" or "Owner" role, not disabled, and not
 /// past its access window.
@@ -935,6 +993,8 @@ pub enum DisableOutcome {
     UnknownPerson,
     /// Disabling would leave no active Admin.
     LastAdmin,
+    /// Disabling would leave no active Admin without an end date.
+    LastOpenAdmin,
 }
 
 /// Disables or enables `target` for `caller`, keeping role and identity
@@ -984,6 +1044,9 @@ pub async fn set_person_disabled(
         new_state["disabled"] = json!(true);
     } else if let Some(fields) = new_state.as_object_mut() {
         fields.remove("disabled");
+    }
+    if strands_open_admin(&rows, id, &new_state) {
+        return Ok(DisableOutcome::LastOpenAdmin);
     }
     journal::append_lineage_mutation(
         &txn,
@@ -1081,6 +1144,8 @@ pub enum RoleOutcome {
     UnknownPerson,
     /// The change would leave no active Admin or Owner.
     LastAdmin,
+    /// The change would leave no active Admin or Owner without an end date.
+    LastOpenAdmin,
 }
 
 /// Sets `target`'s role on `caller`'s behalf; any active admin may
@@ -1124,6 +1189,9 @@ pub async fn set_person_role(
 
     let mut new_state = state.clone();
     new_state["role"] = json!({"value": role});
+    if strands_open_admin(&rows, id, &new_state) {
+        return Ok(RoleOutcome::LastOpenAdmin);
+    }
     journal::append_lineage_mutation(
         &txn,
         config,
