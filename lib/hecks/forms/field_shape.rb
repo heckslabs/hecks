@@ -3,6 +3,7 @@ require_relative "../bluebook/attribute"
 require_relative "../naming"
 require_relative "value_object_shape"
 require_relative "text_shape"
+require_relative "rule_words"
 
 module Hecks
   # The forms surface: the `expose` DSL, the IR->HTML renderers and the Rack app (see forms.rb).
@@ -30,6 +31,22 @@ module Hecks
         return segment if segment.empty?
 
         Naming.words(segment)
+      end
+
+      # A code name as a phrase: "AddTopping" -> "Add topping", "Order" -> "Order".
+      #
+      # @param name [String, Symbol, #to_s] a command, query or aggregate name
+      # @return [String] the sentence-cased words
+      def self.phrase(name) = Naming.words(name)
+
+      # A code name as words inside a sentence: "BankAccount" -> "bank account", "ATMCard" ->
+      # "ATM card".
+      #
+      # @param name [String, Symbol, #to_s] an aggregate or field name
+      # @return [String] the words, the first lowercased unless it is an acronym
+      def self.noun(name)
+        words = Naming.words(name)
+        words.match?(/\A[A-Z]{2,}\b/) ? words : words.sub(/\A./, &:downcase)
       end
     end
 
@@ -74,12 +91,8 @@ module Hecks
 
       def self.reference_field(attribute, common)
         target = attribute.type.resolve
-        Field.new(**common, kind: :reference, html_type: "text", target_aggregate: target,
-                            help: if target
-                                    "References an existing #{target.hecks_name} by id."
-                                  else
-                                    "References an aggregate in another domain — enter its id."
-                                  end)
+        help = target ? "An existing #{Humanize.noun(target.hecks_name)}, by its id." : "A record in another domain, by its id."
+        Field.new(**common, kind: :reference, html_type: "text", target_aggregate: target, help: help)
       end
 
       # Mirrors Runtime::Value::Admission#admitted_members (same split, chapter walk and
@@ -114,14 +127,24 @@ module Hecks
         return closed_set_field(shape, common) if shape.closed_set?
         return money_field(shape, common) if ValueObjectShape.money?(shape)
 
-        # A single-attribute value object names a scalar, not a group: unwrap it so the form
-        # asks for one thing and the inner attribute's own pattern drives the input type.
-        if (inner = ValueObjectShape.sole_attribute(shape))
-          return resolve(inner, aggregate: aggregate, path: "#{common[:path]}.#{inner.name}")
-                 .tap { |field| field.optional = common[:optional] || field.optional }
-        end
+        inner = ValueObjectShape.sole_attribute(shape)
+        return sole_attribute_field(shape, inner, aggregate, common) if inner
 
         group_field(shape, aggregate, common)
+      end
+
+      # A single-attribute value object names a scalar, not a group: unwrap it so the form
+      # asks for one thing and the inner attribute's own pattern drives the input type. The
+      # label stays the command's own name for it (`topping`), never the inner `value`, and
+      # the help says what the value object's rules accept.
+      #
+      # @return [Forms::Field] the inner attribute's field at the dotted path
+      def self.sole_attribute_field(shape, inner, aggregate, common)
+        field = resolve(inner, aggregate: aggregate, path: "#{common[:path]}.#{inner.name}")
+        field.label = common[:label]
+        field.optional = common[:optional] || field.optional
+        field.help = RuleWords.describe(inner, shape.invariants) if field.leaf? && field.kind != :reference
+        field
       end
 
       def self.cross_aggregate_value_object(aggregate, type_name)
@@ -140,10 +163,10 @@ module Hecks
       def self.money_field(shape, common)
         cents = Field.new(path: "#{common[:path]}.cents", label: "Amount (cents)", kind: :number,
                           html_type: "number", step: "1", optional: common[:optional],
-                          default: shape.attribute(:cents)&.default, help: "Whole cents — 1050 is $10.50.")
+                          default: shape.attribute(:cents)&.default, help: "In cents: 1050 is $10.50.")
         currency = Field.new(path: "#{common[:path]}.currency", label: "Currency", kind: :text, html_type: "text",
                              optional: true, default: shape.attribute(:currency)&.default || "USD",
-                             help: "Three-letter code.")
+                             help: "Three-letter code, such as USD.")
         Field.new(path: common[:path], label: common[:label], kind: :money, optional: common[:optional],
                   children: [cents, currency])
       end
@@ -168,6 +191,7 @@ module Hecks
       end
 
       def self.primitive_field(attribute, common)
+        common = common.merge(help: RuleWords.describe(attribute))
         case attribute.type.to_s
         when "Integer" then Field.new(**common, kind: :number, html_type: "number", step: "1")
         when "Float"   then Field.new(**common, kind: :number, html_type: "number", step: "any")

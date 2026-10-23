@@ -22,7 +22,7 @@ module Hecks
         reference_options = ReferenceOptions.collect(registry, domain, fields)
 
         <<~HTML
-          #{header(domain, aggregate, query)}
+          #{header(query)}
           #{canonical_link(action, fields)}
           #{quick_links(action, fields)}
           #{filter_form(action, fields, view.fetch(:params, {}), reference_options)}
@@ -32,9 +32,9 @@ module Hecks
         HTML
       end
 
-      def self.header(domain, aggregate, query)
+      def self.header(query)
         <<~HTML
-          <h1>#{Escape.html("#{domain}::#{aggregate.hecks_name}.#{query.hecks_name}")}</h1>
+          <h1>#{Escape.html(Humanize.phrase(query.hecks_name))}</h1>
           #{%(<p class="goal">#{Escape.html(query.description)}</p>) if query.description}
           #{badges(query)}
         HTML
@@ -50,7 +50,7 @@ module Hecks
         paths = Params.paths(fields)
         template = paths.empty? ? action : "#{action}?#{paths.map { |path| "#{path}={#{path}}" }.join("&")}"
         <<~HTML
-          <p class="help">Every query is a plain GET — this exact URL is bookmarkable, linkable from a dashboard, curlable, whatever a feature needs:</p>
+          <p class="help">This query is a plain link. Bookmark it, share it, or put it on a dashboard:</p>
           <div class="link-row"><code id="canonical-link">#{Escape.html(template)}</code><button type="button" class="copy" data-copy="#canonical-link">copy</button></div>
         HTML
       end
@@ -81,7 +81,8 @@ module Hecks
       def self.error_banner(error)
         return "" unless error
 
-        %(<div class="error-banner" role="alert"><p><strong>#{Escape.html(error.class.name.split("::").last)}</strong> — ) \
+        kind = Escape.html(error.class.name.split("::").last)
+        %(<div class="error-banner" role="alert"><p><strong>Refused (#{kind}):</strong> ) \
           "#{Escape.html(error.message)}</p></div>"
       end
 
@@ -96,7 +97,7 @@ module Hecks
         paths = Params.paths(fields)
         <<~HTML
           <details class="inspect">
-            <summary>Inspect — #{Escape.html(verb)}</summary>
+            <summary>Inspect: #{Escape.html(verb)}</summary>
             <p>Parameters: #{paths.empty? ? "<em>none</em>" : paths.map { |p| "<code>#{Escape.html(p)}</code>" }.join(", ")}</p>
             <pre>#{Escape.html(JSON.pretty_generate(query.to_h))}</pre>
           </details>

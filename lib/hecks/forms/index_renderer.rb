@@ -1,4 +1,5 @@
 require_relative "html"
+require_relative "field_shape"
 
 module Hecks
   module Forms
@@ -40,7 +41,7 @@ module Hecks
                  "#{aggregate.queries.size} quer#{aggregate.queries.size == 1 ? "y" : "ies"}"
         <<~HTML
           <li><a href="/#{Escape.attr(name)}/#{Escape.attr(aggregate.hecks_name)}.html">
-            <span>#{Escape.html(aggregate.hecks_name)}</span><span class="kind">#{Escape.html(counts)}</span>
+            <span>#{Escape.html(Humanize.phrase(aggregate.hecks_name))}</span><span class="kind">#{Escape.html(counts)}</span>
           </a></li>
         HTML
       end

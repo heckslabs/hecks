@@ -28,11 +28,10 @@ module Hecks
         # @param page [Hash] optionally `status:`, the submitted `values:`, the `error:` to show and
         #   the `prefill:` values
         def command_form(domain, aggregate, command, action, **page)
-          html("#{domain}::#{aggregate.hecks_name}.#{command.hecks_name}",
+          html(Humanize.phrase(command.hecks_name),
                CommandFormRenderer.render(registry: @registry, domain: domain, aggregate: aggregate, command: command,
                                           action: action, **page.slice(:values, :error, :prefill)),
-               breadcrumbs: [[domain, "/"], [aggregate.hecks_name, "/#{domain}/#{aggregate.hecks_name}.html"],
-                             [command.hecks_name, nil]],
+               breadcrumbs: verb_breadcrumbs(domain, aggregate, command),
                status:      page.fetch(:status, 200))
         end
 

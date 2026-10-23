@@ -12,9 +12,9 @@ module Hecks
           return respond(405, "text/plain", "GET only") unless request.get?
           return aggregate_json(chapter, aggregate) unless format == "html"
 
-          html("#{chapter.name}::#{aggregate.hecks_name}",
+          html(Naming.plural(Humanize.phrase(aggregate.hecks_name)),
                RecordRenderer.index(registry: @registry, domain: chapter.name, aggregate: aggregate),
-               breadcrumbs: [[chapter.name, "/"], [aggregate.hecks_name, nil]])
+               breadcrumbs: [[chapter.name, "/"], [Humanize.phrase(aggregate.hecks_name), nil]])
         end
 
         def aggregate_json(chapter, aggregate)
@@ -52,10 +52,22 @@ module Hecks
           # `id:` last, as in `aggregate_route`.
           return json(200, instance.state.merge(id: instance.id)) if format != "html"
 
-          html("#{domain}::#{aggregate.hecks_name} #{id}",
+          html("#{Humanize.phrase(aggregate.hecks_name)} #{id}",
                RecordRenderer.show(registry: @registry, domain: domain, aggregate: aggregate, id: id),
-               breadcrumbs: [[domain, "/"], [aggregate.hecks_name, "/#{domain}/#{aggregate.hecks_name}.html"],
-                             [id, nil]])
+               breadcrumbs: aggregate_crumbs(domain, aggregate) + [[id, nil]])
+        end
+
+        # @return [Array<Array(String, String)>] the domain and aggregate crumbs every page
+        #   under an aggregate starts with, the aggregate named in words
+        def aggregate_crumbs(domain, aggregate)
+          [[domain, "/"], [Humanize.phrase(aggregate.hecks_name), "/#{domain}/#{aggregate.hecks_name}.html"]]
+        end
+
+        # @param verb [Bluebook::Command, Bluebook::Query] the command or query the page is for
+        # @return [Array<Array(String, String), Array(String, nil)>] the aggregate crumbs, then
+        #   the verb named in words as the current page
+        def verb_breadcrumbs(domain, aggregate, verb)
+          aggregate_crumbs(domain, aggregate) + [[Humanize.phrase(verb.hecks_name), nil]]
         end
 
         def find_aggregate(chapter, name)
