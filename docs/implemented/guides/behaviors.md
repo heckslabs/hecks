@@ -153,7 +153,7 @@ path   = File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.behavi
 result = Hecks::Behaviors.run(path)
 
 result.parse_error                              # => nil
-result.runs.size                                 # => 7
+result.runs.size                                 # => 11
 result.runs.map(&:status).uniq                   # => [:pass]
 result.runs.first.description                    # => "CreatePizza puts a fresh pizza on the menu, available for sale"
 ```
