@@ -38,7 +38,8 @@ module Hecks
 
       # @param crate [String] a row's crate, the directory under the checkout (`rust/host`)
       # @param target [String] the triple the caller builds for
-      # @return [String, nil] the name of the row that publishes the crate for the target, nil when none does
+      # @return [String, nil] the name of the row that publishes the crate for the target,
+      #   nil when none does
       def name_for(crate, target)
         found = Hecks::Vocabulary.rows("PrebuiltBinary").find { |row| row["crate"] == crate && row["target"] == target }
         found&.fetch("name")
@@ -48,7 +49,8 @@ module Hecks
       # @param crate_dir [String] the crate's directory
       # @param target [String] the triple the caller builds for
       # @param into [String] the file to write the binary to
-      # @return [String, nil] `into`, or nil when no row publishes the crate for the target or `fetch` misses
+      # @return [String, nil] `into`, or nil when no row publishes the crate for the target
+      #   or `fetch` misses
       def fetch_for(crate, crate_dir, target:, into:)
         name = name_for(crate, target) or return
         fetch(name, crate_dir, target: target, into: into)

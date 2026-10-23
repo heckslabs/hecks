@@ -30,7 +30,8 @@ module Hecks
       end
 
       # @param name [String] the crate's name
-      # @return [String] the crate's directory in the per-user cache (`XDG_CACHE_HOME`, else `~/.cache`)
+      # @return [String] the crate's directory in the per-user cache
+      #   (`XDG_CACHE_HOME`, else `~/.cache`)
       def shared(name)
         File.join(ENV.fetch("XDG_CACHE_HOME", File.join(Dir.home, ".cache")), "hecks", "cargo-target", name)
       end
