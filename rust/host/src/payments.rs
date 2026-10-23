@@ -264,7 +264,7 @@ pub fn connection(read: &Value, domain: &str) -> Option<Connection> {
 
 /// What checkout does for one request.
 pub enum CheckoutPlan {
-    /// No connection, or one that is not enabled: the mock walkthrough.
+    /// No connection at all: the mock walkthrough.
     Mock,
     /// Payments are enabled: charged on the business's own account with its own
     /// key; the guest pays in a form embedded in the site via the publishable key.
@@ -272,8 +272,8 @@ pub enum CheckoutPlan {
         api_key: String,
         publishable_key: String,
     },
-    /// Payments were enabled and cannot be taken now. Registrations answer
-    /// 503; never a fallback to the mock.
+    /// A connection exists but payments cannot be taken now (paused, not yet
+    /// enabled, or disconnected). Registrations answer 503; never a fallback to the mock.
     Paused,
 }
 
@@ -302,8 +302,9 @@ pub fn checkout_plan(connection: Option<&Connection>, platform: &PlatformConfig)
                 }
             }
         }
-        "paused" => CheckoutPlan::Paused,
-        _ => CheckoutPlan::Mock,
+        // Paused, not yet enabled, or disconnected: a business that has, or had, its own
+        // account, where the walkthrough would let anyone register without paying.
+        _ => CheckoutPlan::Paused,
     }
 }
 
@@ -743,8 +744,12 @@ const STRIPE_UNREACHABLE: &str = "Could not reach Stripe. Please try again in a 
 const WEBHOOK_PERMISSION: &str = "That key can't create the webhook. In Stripe, give it Webhook Endpoints → Write as well and try again.";
 const WEBHOOK_FAILED: &str = "Stripe could not set up the payment webhook. Please try again.";
 const STORE_FAILED: &str = "The keys could not be stored, so nothing was saved. Please try again.";
-const WEBHOOK_EVENTS: [&str; 3] = [
+// A session paid by a delayed method (a bank debit) completes unpaid and settles through the two
+// `async_payment_*` events.
+const WEBHOOK_EVENTS: [&str; 5] = [
     "checkout.session.completed",
+    "checkout.session.async_payment_succeeded",
+    "checkout.session.async_payment_failed",
     "checkout.session.expired",
     "charge.refunded",
 ];

@@ -25,7 +25,7 @@ mod registrations;
 mod resend_webhook;
 
 pub use commerce::Commerce;
-use registrations::payments_routes;
+use registrations::{payments_routes, CheckoutRequest};
 // payments.rs, its tests and the boot check reach these through `web::`.
 pub use registrations::checkout_enabled;
 #[cfg(test)]

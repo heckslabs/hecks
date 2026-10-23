@@ -7,6 +7,7 @@ use crate::host::Host;
 use crate::journal::LineageConfig;
 use crate::payments;
 use serde_json::{json, Value};
+use std::collections::HashMap;
 use std::path::Path;
 use tokio::sync::Mutex;
 use tokio_postgres::Client;
@@ -44,6 +45,38 @@ fn payment_processor(read: &Value, payments: &PaymentsProvider, reference: &str)
 // Payment statuses whose registration still holds a seat come from the
 // payment lifecycle's `holds_seat` mark (`PaymentsProvider::holds_seat`). A
 // registration with no Payment, or one in a state that frees its seat, holds none.
+// A mock walkthrough payment still waiting to be settled holds none either: anyone may open
+// one, nothing ever lapses it, and its seat is taken when it is settled instead.
+
+/// The processor a Payment records when checkout is the mock walkthrough.
+const MOCK_PROCESSOR: &str = "mock_stripe";
+
+/// The status a Payment waits in until its processor settles it.
+const PENDING: &str = "pending";
+
+/// A Payment's `status`, when it has one.
+fn payment_status(read: &Value, payments: &PaymentsProvider, reference: &str) -> Option<String> {
+    instances_for(read, &payments.instance_prefix())
+        .into_iter()
+        .find(|(id, _)| id == reference)
+        .and_then(|(_, payment)| {
+            payment
+                .get("status")
+                .and_then(|s| s.as_str())
+                .map(String::from)
+        })
+}
+
+/// Whether a Payment holds its registration's seat: its status is one `holds_seat` lists, and
+/// it is not a mock walkthrough payment still waiting to be settled.
+fn payment_holds_seat(payment: &Value, payments: &PaymentsProvider) -> bool {
+    let Some(status) = payment.get("status").and_then(|s| s.as_str()) else {
+        return false;
+    };
+    let processor = plain_id(payment.get("processor"));
+    let waiting_walkthrough = status == PENDING && processor.as_deref() == Some(MOCK_PROCESSOR);
+    payments.holds_seat.iter().any(|held| held == status) && !waiting_walkthrough
+}
 
 /// Whether a registration's own lifecycle state is one the chapter declares gives its seat
 /// back (`RegistrationsProvider::frees_seat`). A missing or non-text `status` is active.
@@ -77,21 +110,15 @@ fn count_seats(
     binding: &crate::commerce_ir::RegistrationsProvider,
     payments: &PaymentsProvider,
 ) -> std::collections::HashMap<String, usize> {
-    let statuses: std::collections::HashMap<String, String> =
+    let holding: std::collections::HashSet<String> =
         instances_for(read, &payments.instance_prefix())
             .into_iter()
-            .filter_map(|(id, payment)| {
-                payment
-                    .get("status")
-                    .and_then(|s| s.as_str())
-                    .map(|s| (id, s.to_string()))
-            })
+            .filter(|(_, payment)| payment_holds_seat(payment, payments))
+            .map(|(id, _)| id)
             .collect();
     let mut counts = std::collections::HashMap::new();
     for (id, registration) in instances_for(read, &binding.registration_prefix()) {
-        let holds = statuses
-            .get(&id)
-            .is_some_and(|status| payments.holds_seat.iter().any(|held| held == status));
+        let holds = holding.contains(&id);
         let freed = registration_frees_seat(&registration, &binding.frees_seat);
         if let (true, false, Some(event_slug)) =
             (holds, freed, plain_id(registration.get("event_slug")))
@@ -259,18 +286,29 @@ pub(super) async fn payments_routes(
     method: &str,
     path: &str,
     raw_body: &str,
-    stripe_signature: &str,
+    request: &CheckoutRequest<'_>,
     host: Host<'_>,
 ) -> Option<Value> {
-    let payments = domain_ir.and_then(payments_provider)?;
-    checkout_route(method, path, raw_body, stripe_signature, host, &payments).await
+    let domain_ir = domain_ir?;
+    let payments = payments_provider(domain_ir)?;
+    checkout_route(method, path, raw_body, request, host, domain_ir, &payments).await
 }
+
+/// What a checkout route reads off the request besides its method, path and body.
+pub(super) struct CheckoutRequest<'a> {
+    /// The `Stripe-Signature` header, empty when absent.
+    pub stripe_signature: &'a str,
+    /// The request's cookies, which carry the account cookie POST /events checks.
+    pub cookies: &'a HashMap<String, String>,
+}
+
 pub(super) async fn checkout_route(
     method: &str,
     path: &str,
     raw_body: &str,
-    stripe_signature: &str,
+    request: &CheckoutRequest<'_>,
     host: Host<'_>,
+    domain_ir: &Value,
     payments: &PaymentsProvider,
 ) -> Option<Value> {
     let Host {
@@ -299,48 +337,152 @@ pub(super) async fn checkout_route(
             )
         }
         // POST /registrations/:id/complete: mock checkout's Pay/Cancel button,
-        // refused unless the Payment's own processor is "mock_stripe". Settles
+        // refused unless checkout is the walkthrough and the Payment's own processor is
+        // "mock_stripe". Settles
         // through the same PaymentGateway port as POST /webhooks/stripe.
         ("POST", path) if path.starts_with("/registrations/") && path.ends_with("/complete") => {
             let registration_id = path
                 .trim_start_matches("/registrations/")
                 .trim_end_matches("/complete")
                 .trim_end_matches('/');
-            Some(registration_complete_route(registration_id, raw_body, host, payments).await)
+            Some(
+                registration_complete_route(
+                    registration_id,
+                    raw_body,
+                    &payments::PlatformConfig::load().await,
+                    host,
+                    payments,
+                )
+                .await,
+            )
         }
         ("POST", "/webhooks/stripe") => Some(
             webhook_route(
                 raw_body,
-                stripe_signature,
+                request.stripe_signature,
                 &payments::PlatformConfig::load().await,
                 host,
                 payments,
             )
             .await,
         ),
-        // POST /events: a mock-payments service schedules a new session
-        // when an editor picks a date. Idempotent — Event.find first means
-        // a repeat call for the same slug is a no-op, not an error.
         ("GET", "/events/seats") => {
             Some(seats_route(path, client, wasm_path, config, payments).await)
         }
         ("GET", path) if seats_path_slug(path).is_some() => {
             Some(seats_route(path, client, wasm_path, config, payments).await)
         }
-        ("POST", "/events") => Some(events_route(raw_body, host).await),
+        // POST /events: an Admin or Owner schedules a new session by hand. The CMS schedules
+        // through the internal dispatch protocol instead, so this route answers no guest.
+        ("POST", "/events") => Some(
+            events_route(
+                raw_body,
+                domain_ir,
+                request.cookies,
+                // Unset, it verifies no cookie, so every caller is refused.
+                &crate::secrets::var("SESSION_SECRET").unwrap_or_default(),
+                host,
+            )
+            .await,
+        ),
         _ => None,
     }
 }
 
-/// POST /events. Dispatches `<domain>::Event.Schedule` — Event is this
-/// deploy's own top-level aggregate, not a vendored chapter like Payments.
-async fn events_route(raw_body: &str, host: Host<'_>) -> Value {
+/// The account cookie's person, when they are an active Admin or Owner; otherwise the 401 or 403
+/// to answer. Read before anything else, so a refused caller learns nothing about the domain.
+async fn require_admin_caller(
+    domain_ir: &Value,
+    cookies: &HashMap<String, String>,
+    secret: &str,
+    client: &Mutex<Client>,
+) -> Result<String, Value> {
+    let Some(caller) = cookies
+        .get(&crate::auth::account_cookie_name())
+        .filter(|_| !secret.is_empty())
+        .and_then(|token| crate::auth::verify_account_token(secret, token))
+    else {
+        return Err(super::json_error(401, "not logged in"));
+    };
+    match crate::auth::caller_is_admin(client, domain_ir, &caller).await {
+        Ok(true) => Ok(caller),
+        Ok(false) => Err(super::json_error(403, "admins only")),
+        Err(e) => Err(super::json_error(
+            500,
+            &format!("members lookup failed: {e}"),
+        )),
+    }
+}
+
+/// The fields POST /events schedules an event with, as `Event.Schedule` takes them.
+fn schedule_args(body: &Value) -> Result<Value, Value> {
+    let missing = |field: &str| {
+        respond(
+            400,
+            "application/json",
+            &json!({"error": format!("missing {field}")}).to_string(),
+        )
+    };
+    let slug = body
+        .get("slug")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| missing("slug"))?;
+    let name = body
+        .get("name")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| missing("name"))?;
+    let price_cents = body
+        .get("price_cents")
+        .and_then(Value::as_i64)
+        .ok_or_else(|| missing("price_cents"))?;
+    let capacity = body
+        .get("capacity")
+        .and_then(Value::as_i64)
+        .ok_or_else(|| missing("capacity"))?;
+    Ok(json!({
+        "slug": {"value": slug},
+        "name": {"value": name},
+        "price": {"cents": price_cents},
+        "capacity": {"value": capacity},
+    }))
+}
+
+/// Whether a scheduled event already carries the name, price and capacity of `args`. A
+/// single-field value reads the same bare or wrapped as `{"value": ...}`.
+fn schedules_the_same(event: &Value, args: &Value) -> bool {
+    let plain = |v: &Value, field: &str| {
+        v.get(field)
+            .map(|value| value.get("value").unwrap_or(value).clone())
+    };
+    let cents = |v: &Value| v.get("price").and_then(|p| p.get("cents")).cloned();
+    ["name", "capacity"]
+        .iter()
+        .all(|field| plain(event, field) == plain(args, field))
+        && cents(event) == cents(args)
+}
+
+/// POST /events. Dispatches `<domain>::Event.Schedule` — Event is this deploy's own top-level
+/// aggregate, not a vendored chapter like Payments — for an active Admin or Owner holding the
+/// account cookie. The host vouches for the caller as GET /registrations does and dispatches
+/// host-internally: a member's role (Admin, Owner) is not one the domain's commands declare.
+/// A repeat call for a scheduled slug answers the event as it stands when every field matches,
+/// and 409 when any differs, so nobody can hold a slug at a price the editor never set.
+async fn events_route(
+    raw_body: &str,
+    domain_ir: &Value,
+    cookies: &HashMap<String, String>,
+    secret: &str,
+    host: Host<'_>,
+) -> Value {
     let Host {
         client,
         wasm_path,
         config,
         ..
     } = host;
+    if let Err(response) = require_admin_caller(domain_ir, cookies, secret, client).await {
+        return response;
+    }
     let body: Value = match serde_json::from_str(raw_body) {
         Ok(v) => v,
         Err(e) => {
@@ -351,13 +493,14 @@ async fn events_route(raw_body: &str, host: Host<'_>) -> Value {
             )
         }
     };
-    let Some(slug) = body.get("slug").and_then(|v| v.as_str()) else {
-        return respond(
-            400,
-            "application/json",
-            &json!({"error": "missing slug"}).to_string(),
-        );
+    let args = match schedule_args(&body) {
+        Ok(args) => args,
+        Err(response) => return response,
     };
+    let slug = args["slug"]["value"]
+        .as_str()
+        .unwrap_or_default()
+        .to_string();
 
     let read = match dispatch::read(client, wasm_path).await {
         Ok(r) => r,
@@ -367,42 +510,22 @@ async fn events_route(raw_body: &str, host: Host<'_>) -> Value {
         &read,
         &crate::commerce_ir::registrations_binding(&config.domain).event_prefix(),
     );
-    if let Some((_, existing)) = events.iter().find(|(id, _)| id == slug) {
+    if let Some((_, existing)) = events.iter().find(|(id, _)| *id == slug) {
+        if !schedules_the_same(existing, &args) {
+            return respond(
+                409,
+                "application/json",
+                &json!({"error": "an event with this slug is already scheduled with other details"})
+                    .to_string(),
+            );
+        }
         return respond(
             200,
             "application/json",
-            &serde_json::to_string_pretty(&with_id(slug, existing)).unwrap_or_default(),
+            &serde_json::to_string_pretty(&with_id(&slug, existing)).unwrap_or_default(),
         );
     }
 
-    let Some(name) = body.get("name").and_then(|v| v.as_str()) else {
-        return respond(
-            400,
-            "application/json",
-            &json!({"error": "missing name"}).to_string(),
-        );
-    };
-    let Some(price_cents) = body.get("price_cents").and_then(serde_json::Value::as_i64) else {
-        return respond(
-            400,
-            "application/json",
-            &json!({"error": "missing price_cents"}).to_string(),
-        );
-    };
-    let Some(capacity) = body.get("capacity").and_then(serde_json::Value::as_i64) else {
-        return respond(
-            400,
-            "application/json",
-            &json!({"error": "missing capacity"}).to_string(),
-        );
-    };
-
-    let args = json!({
-        "slug": {"value": slug},
-        "name": {"value": name},
-        "price": {"cents": price_cents},
-        "capacity": {"value": capacity},
-    });
     let verb = crate::commerce_ir::registrations_binding(&config.domain).schedule;
     let outcome = match dispatch::handle(host, &verb, args, None).await {
         Ok(o) => o,
@@ -424,7 +547,7 @@ async fn events_route(raw_body: &str, host: Host<'_>) -> Value {
         &read,
         &crate::commerce_ir::registrations_binding(&config.domain).event_prefix(),
     );
-    let Some((_, event)) = events.iter().find(|(id, _)| id == slug) else {
+    let Some((_, event)) = events.iter().find(|(id, _)| *id == slug) else {
         return respond(
             500,
             "text/plain",
@@ -434,12 +557,13 @@ async fn events_route(raw_body: &str, host: Host<'_>) -> Value {
     respond(
         201,
         "application/json",
-        &serde_json::to_string_pretty(&with_id(slug, event)).unwrap_or_default(),
+        &serde_json::to_string_pretty(&with_id(&slug, event)).unwrap_or_default(),
     )
 }
 
-/// GET /registrations/:id: event and attendee fields, plus amount_cents and
-/// payment_status from the same-reference Payment.
+/// GET /registrations/:id: the event, the attendee's name, and amount_cents and payment_status
+/// from the same-reference Payment. Anyone holding the id may ask (it rides in the pay and
+/// confirmation URLs), so the answer carries no contact detail: no email, no phone.
 async fn registration_show_route(
     registration_id: &str,
     client: &Mutex<Client>,
@@ -490,19 +614,21 @@ async fn registration_show_route(
         "attendee": {
             "first_name": attendee.get("first_name"),
             "last_name": attendee.get("last_name"),
-            "email": attendee.get("email"),
-            "phone": attendee.get("phone"),
         },
         "amount_cents": payment.and_then(|p| p.get("amount")).and_then(|a| a.get("cents")),
         "payment_status": payment.and_then(|p| p.get("status")),
     }).to_string())
 }
 
-/// POST /registrations/:id/complete. Refused unless the Payment itself was
-/// initiated on "mock_stripe"; settles through the same PaymentGateway port webhook_route uses.
+/// POST /registrations/:id/complete. Refused unless checkout is the mock walkthrough right now
+/// and the Payment itself was initiated on "mock_stripe", so a walkthrough payment left over from
+/// before real payments were switched on can never be settled for free; settles through the same
+/// PaymentGateway port webhook_route uses. A walkthrough payment holds no seat while it waits, so
+/// a success takes the seat here and is refused when the event has none left.
 pub(crate) async fn registration_complete_route(
     registration_id: &str,
     raw_body: &str,
+    platform: &payments::PlatformConfig,
     host: Host<'_>,
     payments: &PaymentsProvider,
 ) -> Value {
@@ -545,16 +671,23 @@ pub(crate) async fn registration_complete_route(
         &read,
         &crate::commerce_ir::registrations_binding(&config.domain).registration_prefix(),
     );
-    if !registrations.iter().any(|(id, _)| id == registration_id) {
+    let Some((_, registration)) = registrations.iter().find(|(id, _)| id == registration_id) else {
         return respond(
             404,
             "application/json",
             &json!({"error": "no such registration"}).to_string(),
         );
-    }
+    };
 
+    let walkthrough = matches!(
+        payments::checkout_plan(
+            payments::connection(&read, &config.domain).as_ref(),
+            platform
+        ),
+        payments::CheckoutPlan::Mock
+    );
     let processor = match payment_processor(&read, payments, registration_id) {
-        Some(processor) if processor == "mock_stripe" => processor,
+        Some(processor) if walkthrough && processor == MOCK_PROCESSOR => processor,
         _ => {
             return respond(
                 403,
@@ -563,6 +696,18 @@ pub(crate) async fn registration_complete_route(
             )
         }
     };
+    let event_slug = plain_id(registration.get("event_slug")).unwrap_or_default();
+    let waiting = payment_status(&read, payments, registration_id).as_deref() == Some(PENDING);
+    if outcome == "succeeded"
+        && waiting
+        && seats_left(&read, &config.domain, payments, &event_slug) == Some(0)
+    {
+        return respond(
+            409,
+            "application/json",
+            &json!({"error": "this event is full"}).to_string(),
+        );
+    }
     let reported_processor = json!({"value": processor});
     // `reference_to Payment, as: :reference` keeps `reference` inside `with:`
     // too — `to:` alone isn't enough, the argument parser still expects it
@@ -762,14 +907,14 @@ pub(crate) async fn registrations_route_at(
         .unwrap_or("");
 
     // What checkout does is decided per request from this tenant's own
-    // PaymentConnection, before anything is written — a paused connection
-    // must never fall back to the mock walkthrough.
+    // PaymentConnection, before anything is written — a connection that is
+    // not enabled must never fall back to the mock walkthrough.
     let plan = payments::checkout_plan(
         payments::connection(&read, &config.domain).as_ref(),
         platform,
     );
     let processor = match plan {
-        payments::CheckoutPlan::Mock => "mock_stripe",
+        payments::CheckoutPlan::Mock => MOCK_PROCESSOR,
         payments::CheckoutPlan::Stripe { .. } => "stripe",
         payments::CheckoutPlan::Paused => {
             return respond(
@@ -889,6 +1034,11 @@ pub(crate) async fn registrations_route_at(
             &last_refusal(&outcome.result).to_string(),
         );
     }
+    if let Some(full) =
+        give_back_an_oversold_seat(&reference, event_slug, processor, host, payments).await
+    {
+        return full;
+    }
 
     // The domain's reaction has already subscribed the address by now; a
     // registrant who ticked the box gets the same signed confirm link as the
@@ -932,8 +1082,8 @@ pub(crate) async fn registrations_route_at(
         confirm_query("cancelled")
     );
 
-    // A tenant with no connection, or a disabled one, is on the mock
-    // walkthrough, never a misconfiguration to refuse. success_url/cancel_url
+    // A tenant with no connection is on the mock walkthrough, never a
+    // misconfiguration to refuse. success_url/cancel_url
     // belong to this walkthrough only — an embedded session redirects nowhere.
     let checkout_url =
         checkout::mock_checkout_session(&reference, &success_url, &cancel_url, site_url);
@@ -942,6 +1092,61 @@ pub(crate) async fn registrations_route_at(
         "application/json",
         &json!({"checkout_url": checkout_url, "registration_id": reference}).to_string(),
     )
+}
+
+/// The failure reason a Payment records when its registration lost the event's last seat.
+const EVENT_FULL_REASON: &str = "event_full";
+
+/// The seat check of POST /registrations, made again once its Payment and Registration are
+/// written: the first check and these writes are seconds apart (a Stripe session opens in
+/// between), so two guests can both pass it for the last seat. When the event now holds more
+/// registrations than seats, this one's Payment fails, which gives its seat back, and the answer
+/// is the 409 of a full event. When both racers see the overflow both give their seat back,
+/// which leaves a seat open rather than one too many taken.
+async fn give_back_an_oversold_seat(
+    reference: &str,
+    event_slug: &str,
+    processor: &str,
+    host: Host<'_>,
+    payments: &PaymentsProvider,
+) -> Option<Value> {
+    let Host {
+        client,
+        wasm_path,
+        config,
+        ..
+    } = host;
+    let read = match dispatch::read(client, wasm_path).await {
+        Ok(r) => r,
+        Err(e) => return Some(respond(500, "text/plain", &format!("{e:#}"))),
+    };
+    let events = instances_for(
+        &read,
+        &crate::commerce_ir::registrations_binding(&config.domain).event_prefix(),
+    );
+    let capacity = events
+        .iter()
+        .find(|(id, _)| id == event_slug)
+        .and_then(|(_, event)| event_capacity(event))?;
+    let taken = seats_taken(&read, &config.domain, payments, event_slug);
+    if taken as i64 <= capacity {
+        return None;
+    }
+    let facts = json!({
+        "reference": {"value": reference},
+        "reason": {"value": EVENT_FULL_REASON},
+        "reported_processor": {"value": processor},
+    });
+    if let Err(e) =
+        dispatch::handle_routed(host, &payments.failed, json!(reference), facts, None).await
+    {
+        return Some(respond(500, "text/plain", &format!("{e:#}")));
+    }
+    Some(respond(
+        409,
+        "application/json",
+        &json!({"error": "this event is full"}).to_string(),
+    ))
 }
 
 // The answer for an event that only the public mock secret could vouch for.
@@ -954,6 +1159,81 @@ fn mock_secret_refused() -> Value {
         .to_string(),
     )
 }
+
+/// Whether a Checkout Session collected what its Payment asked for: Stripe reports it `paid`, for
+/// the Payment's amount, in its currency. A session paid by a delayed method (a bank debit)
+/// completes `unpaid` and is settled later by `checkout.session.async_payment_succeeded`.
+fn session_collected(session: &Value, payment: Option<&Value>) -> bool {
+    let Some(amount) = payment.and_then(|p| p.get("amount")) else {
+        return false;
+    };
+    let lower = |v: Option<&Value>| v.and_then(Value::as_str).map(str::to_lowercase);
+    let asked_currency =
+        lower(amount.get("currency")).unwrap_or_else(|| checkout::CURRENCY.to_string());
+    let paid = session.get("payment_status").and_then(Value::as_str) == Some("paid");
+    let asked_cents = amount.get("cents").and_then(Value::as_i64);
+    paid && asked_cents.is_some()
+        && session.get("amount_total").and_then(Value::as_i64) == asked_cents
+        && lower(session.get("currency")) == Some(asked_currency)
+}
+
+/// What one Checkout Session event settles, as the port operation and its facts. A session that
+/// collected the Payment's money succeeds it; one that expired, or whose delayed payment failed,
+/// fails it. A session not yet paid, or paid a sum other than the Payment's, settles nothing: the
+/// mismatch is logged for the business to reconcile. A mock walkthrough payment settles on the
+/// event alone, since the mock webhook carries no amounts and the walkthrough charges nothing.
+fn settlement<'a>(
+    event_type: &str,
+    session: &Value,
+    payment: Option<&Value>,
+    reference_fact: &Value,
+    reported_processor: &Value,
+    payments: &'a PaymentsProvider,
+) -> Option<(&'a str, Value)> {
+    let fail = |reason: &str| {
+        Some((
+            payments.failed.as_str(),
+            json!({"reference": reference_fact, "reason": {"value": reason}, "reported_processor": reported_processor}),
+        ))
+    };
+    match event_type {
+        "checkout.session.completed" | "checkout.session.async_payment_succeeded" => {
+            let walkthrough = reported_processor["value"] == MOCK_PROCESSOR;
+            if !walkthrough && !session_collected(session, payment) {
+                if session.get("payment_status").and_then(Value::as_str) == Some("paid") {
+                    eprintln!(
+                        "webhook: a paid Checkout Session does not match its Payment's amount, so it was not settled: {}",
+                        reference_fact["value"]
+                    );
+                }
+                return None;
+            }
+            // The PaymentIntent id when one exists, else the Checkout
+            // Session's own id — `.get`, not a panic, since a synthetic
+            // test payload carries no payment_intent at all.
+            let transaction_id = session
+                .get("payment_intent")
+                .and_then(|v| v.as_str())
+                .or_else(|| session.get("id").and_then(|v| v.as_str()))
+                .unwrap_or("")
+                .to_string();
+            Some((
+                payments.succeeded.as_str(),
+                json!({
+                    "reference": reference_fact,
+                    "transaction_id": {"value": transaction_id},
+                    "reported_processor": reported_processor,
+                }),
+            ))
+        }
+        "checkout.session.expired" => fail(&payments.lapse_reason),
+        "checkout.session.async_payment_failed" => fail(ASYNC_PAYMENT_FAILED_REASON),
+        _ => None,
+    }
+}
+
+/// The failure reason a Payment records when the processor reports its delayed payment failed.
+const ASYNC_PAYMENT_FAILED_REASON: &str = "async_payment_failed";
 
 /// POST /webhooks/stripe. Verifies the signature against
 /// `STRIPE_WEBHOOK_SECRET`, a saved signing secret, or — only while neither
@@ -1028,7 +1308,7 @@ pub(crate) async fn webhook_route(
         // Defaults to "stripe" when there's no matching Payment.
         let processor =
             payment_processor(&read, payments, &reference).unwrap_or_else(|| "stripe".to_string());
-        if fallback_secret && processor != "mock_stripe" {
+        if fallback_secret && processor != MOCK_PROCESSOR {
             return refuse_fallback();
         }
         let reported_processor = json!({"value": processor});
@@ -1037,36 +1317,18 @@ pub(crate) async fn webhook_route(
         // string, and `reference` stays inside `with:` too, since the
         // argument parser still expects to find it in facts.
         let reference_fact = json!({"value": reference.clone()});
-        let verb_and_facts = match event_type {
-            "checkout.session.completed" => {
-                // The PaymentIntent id when one exists, else the Checkout
-                // Session's own id — `.get`, not a panic, since a synthetic
-                // test payload carries no payment_intent at all.
-                let transaction_id = object
-                    .get("payment_intent")
-                    .and_then(|v| v.as_str())
-                    .or_else(|| object.get("id").and_then(|v| v.as_str()))
-                    .unwrap_or("")
-                    .to_string();
-                Some((
-                    payments.succeeded.as_str(),
-                    json!({
-                        "reference": reference_fact,
-                        "transaction_id": {"value": transaction_id},
-                        "reported_processor": reported_processor,
-                    }),
-                ))
-            }
-            "checkout.session.expired" => Some((
-                payments.failed.as_str(),
-                json!({
-                    "reference": reference_fact,
-                    "reason": {"value": payments.lapse_reason},
-                    "reported_processor": reported_processor,
-                }),
-            )),
-            _ => None,
-        };
+        let payment = instances_for(&read, &payments.instance_prefix())
+            .into_iter()
+            .find(|(id, _)| *id == reference)
+            .map(|(_, payment)| payment);
+        let verb_and_facts = settlement(
+            event_type,
+            &object,
+            payment.as_ref(),
+            &reference_fact,
+            &reported_processor,
+            payments,
+        );
 
         if let Some((verb, facts)) = verb_and_facts {
             // A refusal here (e.g. a redelivered webhook — Stripe's delivery
@@ -1076,7 +1338,7 @@ pub(crate) async fn webhook_route(
                 Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
                 // Only the delivery that settles the payment sends the receipt;
                 // a redelivery is refused and stays quiet.
-                Ok(settled) if settled.accepted && event_type == "checkout.session.completed" => {
+                Ok(settled) if settled.accepted && verb == payments.succeeded => {
                     super::registration_receipt::deliver_receipt(&reference, host, payments).await;
                 }
                 Ok(_) => {}
@@ -1098,6 +1360,16 @@ mod tests {
             domain: "CheckoutFixture".to_string(),
             era: Some(era),
             mirrored: None,
+        }
+    }
+
+    // A request with no Stripe signature and no cookies.
+    fn no_request() -> CheckoutRequest<'static> {
+        static NO_COOKIES: std::sync::LazyLock<HashMap<String, String>> =
+            std::sync::LazyLock::new(HashMap::new);
+        CheckoutRequest {
+            stripe_signature: "",
+            cookies: &NO_COOKIES,
         }
     }
 
@@ -1630,7 +1902,7 @@ mod tests {
                     "GET",
                     path,
                     "",
-                    "",
+                    &no_request(),
                     Host::new(client, wasm_path, config, &lambda_client::NeverInvoker),
                 )
                 .await
@@ -1856,7 +2128,7 @@ mod tests {
                     method,
                     path,
                     "not json",
-                    "",
+                    &no_request(),
                     Host::new(&client, &wasm_path, &config, &lambda_client::NeverInvoker),
                 )
                 .await;
@@ -1873,7 +2145,7 @@ mod tests {
             "POST",
             "/registrations",
             "not json",
-            "",
+            &no_request(),
             Host::new(&client, &wasm_path, &config, &lambda_client::NeverInvoker),
         )
         .await;
@@ -1909,19 +2181,116 @@ mod tests {
         assert_eq!(response["statusCode"], 400);
     }
 
-    #[tokio::test]
-    async fn events_route_refuses_invalid_json_outright() {
-        let client = scratch_db("hecks_host_web_test_events_bad_json").await;
-        provision_lineage(
-            &*client.lock().await,
-            "CheckoutFixture",
-            1,
-            &["Event", "Registration", "Payment"],
-        )
-        .await;
+    const EVENTS_SECRET: &str = "s3cret";
+    const EVENTS_ADMIN: &str = "admin@example.com";
+    const EVENTS_MEMBER: &str = "member@example.com";
 
-        let response = events_route(
-            "not json",
+    // A scratch database with the fixture's lineage and a membership table holding one Admin
+    // and one Member, and the domain IR that names that membership.
+    async fn events_db(name: &str) -> (Mutex<Client>, Value) {
+        let client = scratch_db(name).await;
+        {
+            let guard = client.lock().await;
+            provision_lineage(
+                &guard,
+                "CheckoutFixture",
+                1,
+                &["Event", "Registration", "Payment"],
+            )
+            .await;
+            guard
+                .batch_execute(
+                    "CREATE TABLE acme_member_head_snapshot_1 (id text PRIMARY KEY, ordinal bigint NOT NULL, state jsonb NOT NULL);
+                     CREATE VIEW acme_member_head AS SELECT id, state FROM acme_member_head_snapshot_1;",
+                )
+                .await
+                .unwrap();
+            for (email, role) in [(EVENTS_ADMIN, "Admin"), (EVENTS_MEMBER, "Member")] {
+                let state = json!({"email": {"value": email}, "role": {"value": role}});
+                guard
+                    .execute(
+                        "INSERT INTO acme_member_head_snapshot_1 (id, ordinal, state) VALUES ($1, 0, $2::jsonb)",
+                        &[&email, &state],
+                    )
+                    .await
+                    .unwrap();
+            }
+        }
+        let domain_ir = json!({
+            "name": "Acme",
+            "lineage": {"capable_aggregates": [{"name": "Member", "storage_name": "member"}]},
+            "membership": {"provider": "Acme", "aggregate": "Acme::Member"},
+        });
+        (client, domain_ir)
+    }
+
+    // The cookies of a signed-in `email`, or none.
+    fn events_cookies(email: Option<&str>) -> HashMap<String, String> {
+        email
+            .map(|email| {
+                (
+                    crate::auth::account_cookie_name(),
+                    crate::auth::account_token(EVENTS_SECRET, email, 60),
+                )
+            })
+            .into_iter()
+            .collect()
+    }
+
+    // POST /events as `email` (none: no account cookie).
+    async fn post_event(
+        client: &Mutex<Client>,
+        domain_ir: &Value,
+        email: Option<&str>,
+        body: &str,
+    ) -> Value {
+        events_route(
+            body,
+            domain_ir,
+            &events_cookies(email),
+            EVENTS_SECRET,
+            Host::new(
+                client,
+                &checkout_wasm_path(),
+                &checkout_config(1),
+                &lambda_client::NeverInvoker,
+            ),
+        )
+        .await
+    }
+
+    fn event_keys(read: &Value) -> Vec<String> {
+        read["instances"]
+            .as_object()
+            .unwrap()
+            .keys()
+            .filter(|k| k.starts_with("CheckoutFixture::Event#"))
+            .cloned()
+            .collect()
+    }
+
+    // A guest, a forged cookie and a signed-in Member are all refused before anything is read
+    // or written: scheduling (and so pricing) a bookable event is an Admin's or Owner's.
+    #[tokio::test]
+    async fn events_route_schedules_nothing_for_anyone_but_an_active_admin() {
+        let (client, domain_ir) = events_db("hecks_host_web_test_events_auth").await;
+        let body = json!({"slug": "squat", "name": "Squatted", "price_cents": 1, "capacity": 999})
+            .to_string();
+
+        let guest = post_event(&client, &domain_ir, None, &body).await;
+        assert_eq!(guest["statusCode"], 401, "{guest:?}");
+        let member = post_event(&client, &domain_ir, Some(EVENTS_MEMBER), &body).await;
+        assert_eq!(member["statusCode"], 403, "{member:?}");
+        let mut forged = HashMap::new();
+        forged.insert(
+            crate::auth::account_cookie_name(),
+            crate::auth::account_token("another-secret", EVENTS_ADMIN, 60),
+        );
+        let forged = events_route(
+            &body,
+            &domain_ir,
+            &forged,
+            EVENTS_SECRET,
             Host::new(
                 &client,
                 &checkout_wasm_path(),
@@ -1930,28 +2299,32 @@ mod tests {
             ),
         )
         .await;
+        assert_eq!(forged["statusCode"], 401, "{forged:?}");
+
+        let read = dispatch::read(&client, &checkout_wasm_path())
+            .await
+            .unwrap();
+        assert!(
+            event_keys(&read).is_empty(),
+            "a refused caller scheduled an event"
+        );
+    }
+
+    #[tokio::test]
+    async fn events_route_refuses_invalid_json_outright() {
+        let (client, domain_ir) = events_db("hecks_host_web_test_events_bad_json").await;
+        let response = post_event(&client, &domain_ir, Some(EVENTS_ADMIN), "not json").await;
         assert_eq!(response["statusCode"], 400);
     }
 
     #[tokio::test]
     async fn events_route_refuses_a_body_missing_any_required_field() {
-        let client = scratch_db("hecks_host_web_test_events_missing_fields").await;
-        provision_lineage(
-            &*client.lock().await,
-            "CheckoutFixture",
-            1,
-            &["Event", "Registration", "Payment"],
-        )
-        .await;
-
-        let response = events_route(
+        let (client, domain_ir) = events_db("hecks_host_web_test_events_missing_fields").await;
+        let response = post_event(
+            &client,
+            &domain_ir,
+            Some(EVENTS_ADMIN),
             r#"{"slug":"new-event"}"#,
-            Host::new(
-                &client,
-                &checkout_wasm_path(),
-                &checkout_config(1),
-                &lambda_client::NeverInvoker,
-            ),
         )
         .await;
         assert_eq!(response["statusCode"], 400);
@@ -1960,23 +2333,9 @@ mod tests {
 
     #[tokio::test]
     async fn events_route_schedules_a_new_event_and_returns_201() {
-        let client = scratch_db("hecks_host_web_test_events_new").await;
-        provision_lineage(
-            &*client.lock().await,
-            "CheckoutFixture",
-            1,
-            &["Event", "Registration", "Payment"],
-        )
-        .await;
-        let config = checkout_config(1);
-        let wasm_path = checkout_wasm_path();
-
+        let (client, domain_ir) = events_db("hecks_host_web_test_events_new").await;
         let body = json!({"slug": "mock-payments-event", "name": "Mock Payments Event", "price_cents": 4200, "capacity": 20}).to_string();
-        let response = events_route(
-            &body,
-            Host::new(&client, &wasm_path, &config, &lambda_client::NeverInvoker),
-        )
-        .await;
+        let response = post_event(&client, &domain_ir, Some(EVENTS_ADMIN), &body).await;
         assert_eq!(response["statusCode"], 201, "{response:?}");
         let response_body: Value =
             serde_json::from_str(response["body"].as_str().unwrap()).unwrap();
@@ -1986,21 +2345,51 @@ mod tests {
         assert_eq!(response_body["capacity"]["value"], 20);
         assert_eq!(response_body["status"], "open");
 
-        let read = dispatch::read(&client, &wasm_path).await.unwrap();
-        let instances = read["instances"].as_object().unwrap();
-        assert!(
-            instances
-                .keys()
-                .any(|k| k == "CheckoutFixture::Event#mock-payments-event"),
-            "Event.Schedule should have committed for real: {instances:?}"
+        let read = dispatch::read(&client, &checkout_wasm_path())
+            .await
+            .unwrap();
+        assert_eq!(
+            event_keys(&read),
+            vec!["CheckoutFixture::Event#mock-payments-event".to_string()],
+            "Event.Schedule should have committed for real"
         );
     }
 
-    // A repeat call for the same slug is a 200 no-op returning the existing
-    // event's state, never a second Event.Schedule dispatch.
+    // A repeat call with the same fields is a 200 answering the existing event; one with other
+    // fields is a 409 and changes nothing, so an early call cannot fix a slug's price.
     #[tokio::test]
-    async fn events_route_is_idempotent_on_a_repeat_slug() {
-        let client = scratch_db("hecks_host_web_test_events_idempotent").await;
+    async fn events_route_answers_a_matching_repeat_and_refuses_a_different_one() {
+        let (client, domain_ir) = events_db("hecks_host_web_test_events_idempotent").await;
+        let body = json!({"slug": "repeat-event", "name": "Repeat Event", "price_cents": 1000, "capacity": 5}).to_string();
+        let first = post_event(&client, &domain_ir, Some(EVENTS_ADMIN), &body).await;
+        assert_eq!(first["statusCode"], 201, "{first:?}");
+
+        let again = post_event(&client, &domain_ir, Some(EVENTS_ADMIN), &body).await;
+        assert_eq!(again["statusCode"], 200, "{again:?}");
+        let different = json!({"slug": "repeat-event", "name": "Different Name", "price_cents": 9999, "capacity": 1}).to_string();
+        let refused = post_event(&client, &domain_ir, Some(EVENTS_ADMIN), &different).await;
+        assert_eq!(refused["statusCode"], 409, "{refused:?}");
+
+        let read = dispatch::read(&client, &checkout_wasm_path())
+            .await
+            .unwrap();
+        assert_eq!(
+            event_keys(&read).len(),
+            1,
+            "exactly one Event, never a second dispatch"
+        );
+        let event = &read["instances"]["CheckoutFixture::Event#repeat-event"];
+        assert_eq!(
+            event["price"]["cents"], 1000,
+            "the refused repeat changed the price"
+        );
+    }
+
+    // The registration id rides in the pay and confirmation URLs (and so in Referer headers), so
+    // whoever holds it may read the registration back, but never the attendee's contact details.
+    #[tokio::test]
+    async fn the_registration_read_back_by_id_carries_no_email_or_phone() {
+        let client = scratch_db("hecks_host_web_test_registration_show").await;
         provision_lineage(
             &*client.lock().await,
             "CheckoutFixture",
@@ -2008,42 +2397,47 @@ mod tests {
             &["Event", "Registration", "Payment"],
         )
         .await;
-        let config = checkout_config(1);
-        let wasm_path = checkout_wasm_path();
-
-        let body = json!({"slug": "repeat-event", "name": "Repeat Event", "price_cents": 1000, "capacity": 5}).to_string();
-        let first = events_route(
-            &body,
+        let (config, wasm_path) = (checkout_config(1), checkout_wasm_path());
+        schedule_event(&client, &wasm_path, &config, "show-event", 4200).await;
+        let body =
+            json!({"event_slug": "show-event", "name": "Ada Lovelace", "email": "ada@example.com"});
+        let registered = registrations_route(
+            &body.to_string(),
+            &payments::test_platform(),
             Host::new(&client, &wasm_path, &config, &lambda_client::NeverInvoker),
+            &crate::commerce_ir::fixture_payments(),
         )
         .await;
-        assert_eq!(first["statusCode"], 201, "{first:?}");
+        let registered: Value = serde_json::from_str(registered["body"].as_str().unwrap()).unwrap();
+        let id = registered["registration_id"]
+            .as_str()
+            .expect("a registration id");
 
-        // A second call with different name/price/capacity still returns the
-        // original event's state, 200 not 201 — idempotency keys only on slug.
-        let second_body = json!({"slug": "repeat-event", "name": "Different Name", "price_cents": 9999, "capacity": 1}).to_string();
-        let second = events_route(
-            &second_body,
-            Host::new(&client, &wasm_path, &config, &lambda_client::NeverInvoker),
+        let shown = registration_show_route(
+            id,
+            &client,
+            &wasm_path,
+            &config,
+            &crate::commerce_ir::fixture_payments(),
         )
         .await;
-        assert_eq!(second["statusCode"], 200, "{second:?}");
-        let second_body: Value = serde_json::from_str(second["body"].as_str().unwrap()).unwrap();
+        let shown_body = shown["body"].as_str().unwrap();
+        assert_eq!(shown["statusCode"], 200, "{shown:?}");
+        assert!(!shown_body.contains("ada@example.com"), "{shown_body}");
+        let shown: Value = serde_json::from_str(shown_body).unwrap();
         assert_eq!(
-            second_body["name"]["value"], "Repeat Event",
-            "must return the ORIGINAL event, not re-schedule with the new fields"
+            (
+                shown["attendee"].get("email"),
+                shown["attendee"].get("phone")
+            ),
+            (None, None)
         );
-        assert_eq!(second_body["price"]["cents"], 1000);
-
-        let read = dispatch::read(&client, &wasm_path).await.unwrap();
-        let instances = read["instances"].as_object().unwrap();
         assert_eq!(
-            instances
-                .keys()
-                .filter(|k| k.starts_with("CheckoutFixture::Event#repeat-event"))
-                .count(),
-            1,
-            "exactly one Event, never a second dispatch: {instances:?}"
+            (
+                shown["amount_cents"].as_i64(),
+                shown["payment_status"].as_str()
+            ),
+            (Some(4200), Some("pending"))
         );
     }
 
@@ -2649,8 +3043,12 @@ mod tests {
         let secret = "whsec_test_completed";
         let payload = json!({
             "type": "checkout.session.completed",
-            "data": {"object": {"metadata": {"registration_id": "REG-WEBHOOK-1"}, "payment_intent": "pi_test_abc"}},
-        }).to_string();
+            "data": {"object": {
+                "metadata": {"registration_id": "REG-WEBHOOK-1"}, "payment_intent": "pi_test_abc",
+                "payment_status": "paid", "amount_total": 4200, "currency": "usd",
+            }},
+        })
+        .to_string();
         let now = now_secs();
         let header = sign_stripe_header(secret, now, &payload);
 
@@ -2681,6 +3079,109 @@ mod tests {
         )
         .await;
         assert_eq!(redelivered["statusCode"], 200, "a redelivered webhook must not surface the resulting refusal as an error: {redelivered:?}");
+    }
+
+    // A scratch fixture with a scheduled event and a pending 4200-cent Stripe Payment `reference`.
+    async fn stripe_payment_db(name: &str, reference: &str) -> Mutex<Client> {
+        let client = scratch_db(name).await;
+        provision_lineage(
+            &*client.lock().await,
+            "CheckoutFixture",
+            1,
+            &["Event", "Registration", "Payment"],
+        )
+        .await;
+        let (config, wasm_path) = (checkout_config(1), checkout_wasm_path());
+        schedule_event(&client, &wasm_path, &config, "webhook-event", 4200).await;
+        let initiate = dispatch::handle(
+            Host::new(&client, &wasm_path, &config, &lambda_client::NeverInvoker),
+            "Payments::Payment.Initiate",
+            json!({
+                "reference": {"value": reference}, "processor": {"value": "stripe"},
+                "payment_type": {"value": "card"}, "amount": {"cents": 4200},
+                "client": {"name": "Ada Lovelace", "email": "ada@example.com"},
+            }),
+            None,
+        )
+        .await
+        .unwrap();
+        assert!(initiate.accepted, "{:?}", initiate.result);
+        client
+    }
+
+    // Delivers one signed Checkout Session event for `reference` and answers the Payment's status.
+    async fn deliver_session_event(
+        client: &Mutex<Client>,
+        reference: &str,
+        event_type: &str,
+        session: Value,
+    ) -> Value {
+        let secret = "whsec_test_session";
+        let mut object = session;
+        object["metadata"] = json!({"registration_id": reference});
+        let payload = json!({"type": event_type, "data": {"object": object}}).to_string();
+        let header = sign_stripe_header(secret, now_secs(), &payload);
+        let (config, wasm_path) = (checkout_config(1), checkout_wasm_path());
+        let response = webhook_route(
+            &payload,
+            &header,
+            &payments::test_platform_with_secret(secret),
+            Host::new(client, &wasm_path, &config, &lambda_client::NeverInvoker),
+            &crate::commerce_ir::fixture_payments(),
+        )
+        .await;
+        assert_eq!(response["statusCode"], 200, "{response:?}");
+        let read = dispatch::read(client, &wasm_path).await.unwrap();
+        read["instances"][format!("Payments::Payment#{reference}")]["status"].clone()
+    }
+
+    // A completed session settles the Payment only when Stripe says it is paid, for the
+    // Payment's amount, in its currency; a delayed method settles on its own later event.
+    #[tokio::test]
+    async fn webhook_route_settles_only_a_session_paid_in_full() {
+        let reference = "REG-WEBHOOK-PAID";
+        let client = stripe_payment_db("hecks_host_web_test_webhook_paid_in_full", reference).await;
+        let completed = "checkout.session.completed";
+        for (session, why) in [
+            (
+                json!({"payment_status": "unpaid", "amount_total": 4200, "currency": "usd"}),
+                "a delayed method, not yet paid",
+            ),
+            (
+                json!({"payment_status": "paid", "amount_total": 100, "currency": "usd"}),
+                "another amount",
+            ),
+            (
+                json!({"payment_status": "paid", "amount_total": 4200, "currency": "eur"}),
+                "another currency",
+            ),
+            (json!({"id": "cs_bare"}), "no payment facts at all"),
+        ] {
+            let status = deliver_session_event(&client, reference, completed, session).await;
+            assert_eq!(status, "pending", "{why} must not settle the payment");
+        }
+
+        let paid = json!({"payment_status": "paid", "amount_total": 4200, "currency": "usd"});
+        let status = deliver_session_event(
+            &client,
+            reference,
+            "checkout.session.async_payment_succeeded",
+            paid,
+        )
+        .await;
+        assert_eq!(status, "succeeded", "the delayed payment settled");
+    }
+
+    #[tokio::test]
+    async fn webhook_route_fails_a_payment_whose_delayed_payment_failed() {
+        let reference = "REG-WEBHOOK-ASYNC-FAIL";
+        let client = stripe_payment_db("hecks_host_web_test_webhook_async_failed", reference).await;
+        let unpaid = json!({"payment_status": "unpaid", "amount_total": 4200, "currency": "usd"});
+        let failed = "checkout.session.async_payment_failed";
+        assert_eq!(
+            deliver_session_event(&client, reference, failed, unpaid).await,
+            "failed"
+        );
     }
 
     #[tokio::test]
