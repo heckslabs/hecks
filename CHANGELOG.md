@@ -7,7 +7,7 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
-- **Security: the Rust host bounds every kernel run.** `wasm_runner` stops a run at a 10 s deadline (epoch interruption), refuses linear memory past 1 GiB, and answers an error naming the cap when the kernel's answer passes the 64 MiB output cap, where a run could before spin forever while holding the database client, or fail with a bare wasm trap. `arg_limits` holds a 256 KiB cap on a string command argument and the refusal (`ArgumentTooLarge`) for one past it.
+- **Security: the Rust host bounds every kernel run.** `wasm_runner` stops a run at a 10 s deadline (epoch interruption), refuses linear memory past 1 GiB, and answers an error naming the cap when the kernel's answer passes the 64 MiB output cap, where a run could before spin forever while holding the database client, or fail with a bare wasm trap. A public request whose body carries a string past 256 KiB (`arg_limits`) is answered 413 before anything is dispatched; the internal protocol from a peer on the same host is not capped.
 
 - **Security: `rust/host` dependencies.** wasmtime and wasmtime-wasi 49.0.1 to 49.0.4 (RUSTSEC-2026-0321 to 0327, 0352 to 0364, 0378, 0379 among them the aarch64 `br_table` miscompile and a filesystem sandbox escape), rustls 0.23.45 to 0.23.46 (0346 to 0349), rustls-webpki 0.103.16 (0382), webpki-roots 1.0.11 (0381), quinn-proto 0.11.19 (0338 to 0342), ctutils 0.4.5 (0385), tokio 1.54.1 (0386), and the yanked chacha20 0.10.1 to 0.10.2. The unmaintained `rustls-pemfile` is gone: the RDS bundle is read with `rustls::pki_types`'s own PEM reader. `cargo audit` on `rust/host` and `rust/` reports nothing.
 

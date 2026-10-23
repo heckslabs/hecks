@@ -337,19 +337,20 @@ fn invalid_utf8_and_oversized_bodies_are_answered() {
         400
     );
 
-    // A 16 MiB body of valid JSON is admitted as text (a size cap belongs to the listener, not here)
-    // and a 16 MiB run of openers is refused by the parser's depth limit rather than overflowing.
+    // A 16 MiB string in valid JSON is answered 413 by the string cap (`arg_limits`), and a 16 MiB
+    // run of openers is refused by the parser's depth limit rather than overflowing.
     guarded("large bodies", move || {
         let big_string = Bytes::from(format!("\"{}\"", "a".repeat(16 * 1024 * 1024)));
-        assert!(admit(
+        let oversized = admit(
             &limits,
             from,
             &Method::POST,
             &uri,
             &HeaderMap::new(),
-            &big_string
+            &big_string,
         )
-        .is_ok());
+        .expect_err("refused");
+        assert_eq!(status_of(&oversized), 413);
         let openers = Bytes::from("[".repeat(16 * 1024 * 1024));
         let refusal = admit(
             &limits,

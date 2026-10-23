@@ -1,30 +1,22 @@
-//! The largest string a command argument may carry.
+//! The largest string a public request body may carry.
 //!
 //! Every kernel run feeds the whole world in and reads it all back (`wasm_runner`), and a string
-//! an argument carries is copied several times into that answer. Without a cap, a few requests
-//! at the HTTP body limit grow the world past the kernel's output cap, and every later command
-//! fails. The cap is checked before the step is journaled, so an oversized string never reaches
-//! the journal or the world.
+//! a command argument carries is copied several times into that answer. Without a cap, a few
+//! requests at the HTTP body limit grow the world past the kernel's output cap, and every later
+//! command fails. `server::admit` checks a public request's body against it before anything is
+//! dispatched; the internal protocol, from a peer on this host, is not capped.
 
-use serde_json::{json, Value};
+use serde_json::Value;
 
 /// 256 KiB: room for a long post body or an embedded document, small enough that one request
 /// adds a bounded amount to every later kernel run.
 pub const MAX_STRING_ARG_BYTES: usize = 256 * 1024;
 
-/// The refusal, in the kernel's own `{"refusals": [...]}` shape, for a command whose arguments
-/// hold a string longer than `MAX_STRING_ARG_BYTES`, at any depth; `None` when every string fits.
-pub fn refusal(verb: &str, args: &Value) -> Option<Value> {
-    let longest = longest_string(args);
-    (longest > MAX_STRING_ARG_BYTES).then(|| {
-        json!({"refusals": [{
-            "verb": verb,
-            "error": format!(
-                "an argument is {longest} bytes; a string argument may be at most {MAX_STRING_ARG_BYTES} bytes"
-            ),
-            "kind": "ArgumentTooLarge",
-        }]})
-    })
+/// The byte length of the longest string anywhere in `value`, when it is past
+/// `MAX_STRING_ARG_BYTES`; `None` when every string fits.
+pub fn oversized(value: &Value) -> Option<usize> {
+    let longest = longest_string(value);
+    (longest > MAX_STRING_ARG_BYTES).then_some(longest)
 }
 
 /// The byte length of the longest string anywhere in `value`.
@@ -40,18 +32,17 @@ fn longest_string(value: &Value) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
-    fn arguments_within_the_cap_are_not_refused() {
-        let args = json!({"name": "x".repeat(MAX_STRING_ARG_BYTES), "count": 3});
-        assert_eq!(refusal("Post.Publish", &args), None);
+    fn strings_within_the_cap_pass() {
+        let body = json!({"name": "x".repeat(MAX_STRING_ARG_BYTES), "count": 3});
+        assert_eq!(oversized(&body), None);
     }
 
     #[test]
-    fn a_nested_string_past_the_cap_is_refused_in_the_kernels_shape() {
-        let args = json!({"with": {"tags": ["ok", "x".repeat(MAX_STRING_ARG_BYTES + 1)]}});
-        let refused = refusal("Post.Publish", &args).unwrap();
-        assert_eq!(refused["refusals"][0]["verb"], "Post.Publish");
-        assert_eq!(refused["refusals"][0]["kind"], "ArgumentTooLarge");
+    fn a_nested_string_past_the_cap_is_found_at_any_depth() {
+        let body = json!({"with": {"tags": ["ok", "x".repeat(MAX_STRING_ARG_BYTES + 1)]}});
+        assert_eq!(oversized(&body), Some(MAX_STRING_ARG_BYTES + 1));
     }
 }
