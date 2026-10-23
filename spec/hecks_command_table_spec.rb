@@ -28,7 +28,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     operation.run operation.refresh_projections operation.run_behaviors operation.open_console
     operation.smoke_test operation.smoke_http operation.outcome operation.failed
     operation.follow host.check_era host.recheck host.standing
-    host.drifted era.hold_first era.merge_tail era.reattest
+    host.drifted push_train.board push_train.outcome era.hold_first era.merge_tail era.reattest
     era.backfill_projections era.compact era.compact_heki
     era.settlement era.abandoned era.scaffold_translation era.audit_translation
     era.attestation era.compaction package.vendor package.revendor
