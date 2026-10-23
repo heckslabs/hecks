@@ -13,6 +13,7 @@ require_relative "properties/corrections"
 require_relative "properties/outbox"
 require_relative "properties/policy_wiring"
 require_relative "properties/references"
+require_relative "properties/refusals"
 require_relative "properties/role_checks"
 require_relative "properties/read_model_names"
 require_relative "properties/read_models"
@@ -36,6 +37,7 @@ module Hecks
       extend Outbox
       extend PolicyWiring
       extend References
+      extend Refusals
       extend RoleChecks
       extend ReadModelNames
       extend ReadModels

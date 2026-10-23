@@ -1,0 +1,138 @@
+# One query per comparator the query vocabulary declares, so a category test can ask each and
+# hold its answer to the reference engine and to every store. `steps.json` beside it asks them.
+Hecks.bluebook "Comparing" do
+  vision "Items asked about every way a query can compare, including against another aggregate's state."
+  core
+
+  aggregate "Claim" do
+    description "A claim an item may name, held until released."
+
+    identified_by :code
+
+    attribute :code, Code
+
+    lifecycle :status, default: "held" do
+      transition "Release" => "released", from: "held"
+    end
+
+    value_object "Code" do
+      attribute :value, String
+    end
+
+    command "File" do
+      goal "Open a claim"
+
+      attribute :code, Code
+
+      emits "ClaimFiled"
+    end
+
+    command "Release" do
+      goal "Release a held claim"
+
+      reference_to Claim
+
+      emits "ClaimReleased"
+    end
+  end
+
+  aggregate "Item" do
+    description "An item with an amount, tags, a stage, and the code of a claim it names."
+
+    identified_by :code
+
+    attribute :code,       Code
+    attribute :amount,     Amount
+    attribute :tags,       list_of(Tag)
+    attribute :claim_code, ClaimCode
+
+    lifecycle :status, default: "held" do
+      transition "Release" => "released", from: "held"
+    end
+
+    value_object "Code" do
+      attribute :value, String
+    end
+
+    value_object "Amount" do
+      attribute :cents, Integer
+    end
+
+    value_object "Tag" do
+      attribute :value, String
+    end
+
+    value_object "ClaimCode" do
+      attribute :value, String
+    end
+
+    command "Add" do
+      goal "Add an item naming a claim"
+
+      attribute :code,       Code
+      attribute :amount,     Amount
+      attribute :claim_code, ClaimCode
+
+      emits "ItemAdded"
+    end
+
+    command "TagWith" do
+      goal "Tag an item"
+
+      reference_to Item
+      attribute :tag, Tag
+
+      sets :tags, append: :tag
+
+      emits "ItemTagged"
+    end
+
+    command "Release" do
+      goal "Release a held item"
+
+      reference_to Item
+
+      emits "ItemReleased"
+    end
+
+    query "Held" do
+      where(status: "held")
+    end
+
+    query "NotHeld" do
+      where(status: { ne: "held" })
+    end
+
+    query "Above" do
+      attribute :floor, Amount
+      where(amount: { gt: :floor })
+    end
+
+    query "AtLeast" do
+      attribute :floor, Amount
+      where(amount: { gte: :floor })
+    end
+
+    query "Below" do
+      attribute :ceiling, Amount
+      where(amount: { lt: :ceiling })
+    end
+
+    query "AtMost" do
+      attribute :ceiling, Amount
+      where(amount: { lte: :ceiling })
+    end
+
+    query "InEitherStage" do
+      where(status: { in: "held,released" })
+    end
+
+    query "TaggedHot" do
+      where(tags: { contains: "hot" })
+    end
+
+    query "NamingNoHeldClaim" do
+      where(claim_code: { none_in_state: "Claim:held" })
+    end
+  end
+end

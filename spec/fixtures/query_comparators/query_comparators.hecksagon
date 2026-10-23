@@ -1,0 +1,5 @@
+# Bound explicitly, so a fuzz boot can rebind both aggregates to another store and compare.
+Hecks.hecksagon "Comparing" do
+  Comparing::Claim.persisted_by("Memory")
+  Comparing::Item.persisted_by("Memory")
+end
