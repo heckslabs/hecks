@@ -75,6 +75,18 @@ Hecks.bluebook "Hecks" do
       returns Document
     end
 
+    query "Relationships" do
+      description "How the contexts a domain holds depend on each other: shared kernel, customer/supplier, anti-corruption layer, subscription."
+      attribute :domain, DomainPath
+      returns Document
+    end
+
+    query "WorldSkeleton" do
+      description "A starting .world for a domain: the settings and secrets its bound adapters declare, with no secret's value."
+      attribute :domain, DomainPath
+      returns Document
+    end
+
     query "Docs" do
       description "A domain's usage document, whole or for one aggregate."
       attribute :domain,    DomainPath,    optional: true
