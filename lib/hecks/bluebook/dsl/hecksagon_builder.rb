@@ -37,6 +37,10 @@ module Hecks
           "uses_embryonaut_bluebook" => ->(name) { "attaches #{name.to_s.inspect}, from: :vendor" }
         }.freeze
 
+        # Words older hecksagons carry that no grammar word or port defines and nothing reads. They
+        # are refused by name so the file fails at the line, not later as an unknown adapter.
+        RETIRED_WORDS = %w[capabilities concerns annotate].freeze
+
         attr_reader :binds, :subscriptions, :attachments
 
         def initialize(domain)
@@ -158,16 +162,18 @@ module Hecks
           self
         end
 
-        # Raises for a word 3.4.0 removed, naming the spelling that replaces it.
+        # Raises for a word 3.4.0 removed, naming the spelling that replaces it, and for a retired
+        # word that has no replacement.
         #
         # @param verb [Symbol] the word the hecksagon block called
         # @param name [Object, nil] its first argument, echoed into the replacement
-        # @raise [Malformed] when the word is one of `REMOVED_WORDS`
+        # @raise [Malformed] when the word is one of `REMOVED_WORDS` or `RETIRED_WORDS`
         def refuse_removed_word(verb, name)
           instead = REMOVED_WORDS[verb.to_s]
-          return unless instead
+          raise Malformed, "`#{verb}` was removed in 3.4.0; use `#{instead.call(name)}`" if instead
+          return unless RETIRED_WORDS.include?(verb.to_s)
 
-          raise Malformed, "`#{verb}` was removed in 3.4.0; use `#{instead.call(name)}`"
+          raise Malformed, "`#{verb}` is not a hecksagon word and nothing reads it; delete the line"
         end
         private :refuse_removed_word
 
