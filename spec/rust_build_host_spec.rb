@@ -84,9 +84,16 @@ RSpec.describe Hecks::RustBuild::Host do
   it "compiles nothing when hecks has published this crate's host, and stages the one it downloaded", :aggregate_failures do
     publish_host
 
-    expect(build).to eq(0)
+    expect(build("--target=aarch64-unknown-linux-gnu")).to eq(0)
     expect(cargo_calls).to be_empty
-    expect(File.read(File.join(stage, "shelf-host"))).to eq("published host for aarch64-apple-darwin")
+    expect(File.read(File.join(stage, "shelf-host"))).to eq("published host for aarch64-unknown-linux-gnu")
+  end
+
+  it "compiles, asking for no download, for a target no row publishes the host for", :aggregate_failures do
+    publish_host
+
+    expect(build).to eq(0)
+    expect(Hecks::RustBuild::PrebuiltBinary).not_to have_received(:fetch)
   end
 
   it "keeps Cargo's output beside the host crate when no target dir is named, so a second build is incremental" do

@@ -720,6 +720,8 @@ Hecks.bluebook "Bluebook" do
     # GitHub-hosted image it is built on, pinned (never `-latest`) because a binary links the
     # runner's glibc and must run on every host that runs that image or a newer one.
     # The release is tagged `<name>-<key>` and carries `<executable>-<target>` and its `.sha256`.
+    # A crate can have one row a target; a build takes the row for its crate and target. The arm64
+    # host builds on Ubuntu 22.04 (glibc 2.35) so it runs in a Debian bookworm (glibc 2.36) image.
     value_object "PrebuiltBinary" do
       attribute :name,   String
       attribute :crate,  String
@@ -729,6 +731,8 @@ Hecks.bluebook "Bluebook" do
 
       member name: "host", crate: "rust/host", executable: "bootstrap", target: "x86_64-unknown-linux-gnu",
              runner: "ubuntu-24.04"
+      member name: "host-arm64", crate: "rust/host", executable: "bootstrap", target: "aarch64-unknown-linux-gnu",
+             runner: "ubuntu-22.04-arm"
     end
 
     # The dials of the hecks_qa loop: what each is called, the type of value it takes and what it

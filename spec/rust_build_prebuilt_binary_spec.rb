@@ -118,4 +118,10 @@ RSpec.describe Hecks::RustBuild::PrebuiltBinary do
   it "has a row for the host, which is what the publish workflow is projected from" do
     expect(described_class.row("host")).to include("crate" => "rust/host", "executable" => "bootstrap")
   end
+
+  it "names the row that publishes a crate for a target", :aggregate_failures do
+    expect(described_class.name_for("rust/host", "x86_64-unknown-linux-gnu")).to eq("host")
+    expect(described_class.name_for("rust/host", "aarch64-unknown-linux-gnu")).to eq("host-arm64")
+    expect(described_class.name_for("rust/host", "aarch64-apple-darwin")).to be_nil
+  end
 end
