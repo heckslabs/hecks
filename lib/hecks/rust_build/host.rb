@@ -5,6 +5,7 @@ require "open3"
 require_relative "../rust_build"
 require_relative "wasm"
 require_relative "prebuilt_binary"
+require_relative "target_dir"
 
 module Hecks
   module RustBuild
@@ -15,7 +16,7 @@ module Hecks
     #
     # The host is compiled from the workspace this release carries (`rust/host`), so the binary is
     # the one the installed gem was released with; nothing is fetched. The module and IR come from
-    # `Wasm`. `CARGO_TARGET_DIR` names where Cargo writes (the copy's `target/` for a client), so
+    # `Wasm`. `TargetDir` names where Cargo writes (one shared cache for an installed copy), so
     # a second build recompiles only what changed. Stages `<domain>-host`, `<domain>.wasm` and
     # `<domain>.ir.json` in `--stage` (default `.hecks/host/<target>/` in the working directory).
     module Host
@@ -102,9 +103,9 @@ module Hecks
       # `<arch>-linux-gnu-gcc` on PATH unless `CARGO_TARGET_<TRIPLE>_LINKER` already names a linker.
       def compile(target)
         host_dir = File.join(RustBuild.rust_dir, "host")
-        target_dir = ENV.fetch("CARGO_TARGET_DIR", File.join(host_dir, "target"))
+        target_dir = TargetDir.for(host_dir)
         binary = File.join(target_dir, target, "release", BINARY)
-        return binary if PrebuiltBinary.fetch("host", host_dir, target: target, into: binary)
+        return binary if PrebuiltBinary.fetch_for("rust/host", host_dir, target: target, into: binary)
 
         cargo_build(target, host_dir, { "CARGO_TARGET_DIR" => target_dir }.merge(linker_for(target)))
         binary
