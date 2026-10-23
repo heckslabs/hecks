@@ -23,9 +23,14 @@ export function hostUrl(options: HostOptions = {}): string {
   return (options.url ?? (process.env[EDITOR.hostEnv] || EDITOR.hostDefault)).replace(/\/+$/, "");
 }
 
-/** A client for the domain this editor edits. */
+/**
+ * A client for the domain this editor edits. It reads and writes the stored shape (`bare: false`),
+ * since its forms walk every value object by the schema's own fields.
+ */
 export function hostClient(options: HostOptions = {}): HostClient {
-  return new HostClient({ domain: options.domain ?? SCHEMA.domain, url: hostUrl(options), fetch: options.fetch, timeoutMs: EDITOR.timeoutMs });
+  return new HostClient({
+    domain: options.domain ?? SCHEMA.domain, url: hostUrl(options), fetch: options.fetch, timeoutMs: EDITOR.timeoutMs, bare: false,
+  });
 }
 
 /**

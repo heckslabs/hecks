@@ -86,5 +86,5 @@ RSpec.shared_context "with the deploy roll stand-ins" do
     fields.to_h { |field| [field, field == "status" ? state[field] : state.dig(field, "value")] }
   end
 
-  def refusal_of(json) = json.dig("state", "refusal", "value")
+  def refusal_of(json) = json.dig("state", "refusal")
 end
