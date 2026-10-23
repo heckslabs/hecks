@@ -1,0 +1,22 @@
+{
+  "note": "Claims c1 held and c2 released; items i1 (3, names c1), i2 (7, tagged hot, names c2) and i3 (10, released, names a claim that does not exist); then every comparator's query, each with the item codes it must answer.",
+  "steps": [
+    { "verb": "Comparing::Claim.File", "args": { "code": { "value": "c1" } } },
+    { "verb": "Comparing::Claim.File", "args": { "code": { "value": "c2" } } },
+    { "verb": "Comparing::Claim.Release", "args": { "code": { "value": "c2" } } },
+    { "verb": "Comparing::Item.Add", "args": { "code": { "value": "i1" }, "amount": { "cents": 3 }, "claim_code": { "value": "c1" } } },
+    { "verb": "Comparing::Item.Add", "args": { "code": { "value": "i2" }, "amount": { "cents": 7 }, "claim_code": { "value": "c2" } } },
+    { "verb": "Comparing::Item.Add", "args": { "code": { "value": "i3" }, "amount": { "cents": 10 }, "claim_code": { "value": "nonexistent" } } },
+    { "verb": "Comparing::Item.TagWith", "args": { "code": { "value": "i2" }, "tag": { "value": "hot" } } },
+    { "verb": "Comparing::Item.Release", "args": { "code": { "value": "i3" } } },
+    { "query": "Comparing::Item.Held", "args": {}, "expect": ["i1", "i2"] },
+    { "query": "Comparing::Item.NotHeld", "args": {}, "expect": ["i3"] },
+    { "query": "Comparing::Item.Above", "args": { "floor": { "cents": 7 } }, "expect": ["i3"] },
+    { "query": "Comparing::Item.AtLeast", "args": { "floor": { "cents": 7 } }, "expect": ["i2", "i3"] },
+    { "query": "Comparing::Item.Below", "args": { "ceiling": { "cents": 7 } }, "expect": ["i1"] },
+    { "query": "Comparing::Item.AtMost", "args": { "ceiling": { "cents": 7 } }, "expect": ["i1", "i2"] },
+    { "query": "Comparing::Item.InEitherStage", "args": {}, "expect": ["i1", "i2", "i3"] },
+    { "query": "Comparing::Item.TaggedHot", "args": {}, "expect": ["i2"] },
+    { "query": "Comparing::Item.NamingNoHeldClaim", "args": {}, "expect": ["i2", "i3"] }
+  ]
+}

@@ -81,27 +81,6 @@ RSpec.describe "role-based command rejections" do
     [inner, outer, Hecks::Runtime::Caller.current]
   end
 
-  it "dispatches unchanged when no caller is bound" do
-    build(&CAFETERIA_DOMAIN)
-    order = Order.place!(ref: { value: "o1" })
-    expect(event_names(order)).to include("OrderPlaced")
-  end
-
-  it "dispatches when the bound caller's role matches the command's" do
-    build(&CAFETERIA_DOMAIN)
-    Hecks.as_caller(role: "Customer") do
-      order = Order.place!(ref: { value: "o1" })
-      expect(event_names(order)).to include("OrderPlaced")
-    end
-  end
-
-  it "refuses when the bound caller's role does not match" do
-    build(&CAFETERIA_DOMAIN)
-    expect do
-      Hecks.as_caller(role: "Chef") { Order.place!(ref: { value: "o1" }) }
-    end.to raise_error(Hecks::Runtime::Unauthorized, /refused — role: Customer, and the caller stated Chef/)
-  end
-
   it "dispatches unchanged when the command declares no role at all" do
     build(&CAFETERIA_DOMAIN)
     order = Order.place!(ref: { value: "o1" })

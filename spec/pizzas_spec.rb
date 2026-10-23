@@ -187,13 +187,6 @@ RSpec.describe "Pizzas" do
 
       expect(add_topping(pizza, "Basil", 1).state[:toppings].size).to eq(1)
     end
-
-    it "leaves the instance untouched when a command is refused", :aggregate_failures do
-      pizza = topped
-      expect { add_topping(pizza, "Air", -5) }.to raise_error(Hecks::Runtime::InvariantViolation)
-
-      expect(order_repository.find(pizza.id).toppings.size).to eq(1)
-    end
   end
 
   describe "the entry point" do

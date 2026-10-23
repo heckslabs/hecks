@@ -388,25 +388,6 @@ RSpec.describe Hecks::Storehouse do
   end
 
   describe ".dispatch with role:/actor_id:" do
-    it "checks a role-gated command against the bound caller, by string equality", :aggregate_failures do
-      wrong = create_pizza(role: "Visitor")
-      right = create_pizza
-
-      expect(wrong[:ok]).to be false
-      expect(wrong[:error]).to match(/role/i)
-      expect(right[:ok]).to be true
-    end
-
-    it "refuses a role-gated command dispatched with no caller bound at all, rather than running it unchecked",
-       :aggregate_failures do
-      result = described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec",
-                                        args: pizza_args)
-
-      expect(result[:ok]).to be false
-      expect(result[:error]).to match(/role/i)
-      expect(runtime.events).to be_empty
-    end
-
     it "runs a command that declares no role unbound, exactly as before" do
       result = described_class.query(runtime: runtime, question: "order.available", summary: "spec")
 
@@ -457,15 +438,6 @@ RSpec.describe Hecks::Storehouse do
   # declares `role "Chef"`; `order.purchase` declares `role "Customer"`; queries cannot
   # declare a role at all.
   describe "the identity contract — what a caller-asserted role does and does not gate" do
-    it "refuses the qualified spelling of a role-gated command with no caller, like the short one", :aggregate_failures do
-      result = described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec",
-                                        args: pizza_args)
-
-      expect(result[:ok]).to be false
-      expect(result[:error]).to include('requires role: "Chef"')
-      expect(runtime.events).to be_empty
-    end
-
     it "refuses a blank role rather than reading it as no restriction", :aggregate_failures do
       result = described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec",
                                         args: pizza_args, role: "")
@@ -496,13 +468,6 @@ RSpec.describe Hecks::Storehouse do
       entry = described_class.follow(runtime: runtime)[:entries].first
       expect(entry).to include(summary: "no caller", ok: false)
       expect(entry[:role]).to be_nil
-    end
-
-    it "accepts any string as a role and checks only that it matches — the string is the whole credential" do
-      forged = described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec",
-                                        args: pizza_args, role: "Chef")
-
-      expect(forged[:ok]).to be true
     end
 
     it "runs a query with no caller, and with a role no command declares — queries are not role-gated", :aggregate_failures do

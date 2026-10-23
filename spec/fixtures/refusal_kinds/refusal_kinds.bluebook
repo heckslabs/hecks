@@ -1,0 +1,151 @@
+# One domain that can refuse with each domain refusal kind a single in-process boot reaches,
+# at aggregate and entity level, before and after its mutations apply. `steps.json` beside it
+# walks every one; spec/categories/refusal_kinds_spec.rb holds each refusal to leaving no trace.
+Hecks.bluebook "RefusalKinds" do
+  vision "A vault box that refuses every way a command can be refused, and changes nothing when it does."
+  core
+
+  aggregate "Box" do
+    description "A box with a balance that must never go negative, holding slots of its own."
+
+    identified_by :number
+
+    attribute :number,  Number
+    attribute :balance, Money, default: { cents: 0 }
+    attribute :slots,   list_of(Slot)
+
+    lifecycle :status, default: "open" do
+      transition "Close" => "closed", from: "open"
+    end
+
+    invariant("the balance never goes negative") { balance.cents >= 0 }
+
+    value_object "Number" do
+      attribute :value, String
+    end
+
+    value_object "Money" do
+      attribute :cents, Integer
+    end
+
+    value_object "Label" do
+      attribute :value, String
+    end
+
+    value_object "Count" do
+      attribute :value, Integer, default: 0
+    end
+
+    command "Open" do
+      role "Teller"
+      goal "Bring a box into being"
+
+      attribute :number, Number
+
+      emits "Opened"
+    end
+
+    command "Deposit" do
+      role "Teller"
+      goal "Add cents up to a cap"
+
+      reference_to Box
+      attribute :amount, Money
+
+      given("a deposit stays under the cap") { amount.cents <= 10000 }
+
+      sets :balance, increment: :amount
+
+      emits "Deposited"
+    end
+
+    command "Withdraw" do
+      role "Teller"
+      goal "Take cents out, which the balance invariant refuses past zero"
+
+      reference_to Box
+      attribute :amount, Money
+
+      sets :balance, decrement: :amount
+
+      emits "Withdrawn"
+    end
+
+    command "Overstate" do
+      role "Teller"
+      goal "Add cents while claiming twice as many, which the postcondition refuses"
+
+      reference_to Box
+      attribute :amount, Money
+
+      sets :balance, increment: :amount
+
+      ensures("the balance grew by double the deposit") { balance.cents == old.balance.cents + (amount.cents * 2) }
+
+      emits "Overstated"
+    end
+
+    command "ReverseDeposit" do
+      role "Teller"
+      goal "Undo a deposit, which refuses when no deposit happened"
+
+      reference_to Box
+
+      corrects "Deposited", reason: "deposited in error"
+
+      sets :balance, decrement: { cents: 1 }
+
+      emits "DepositReversed"
+    end
+
+    command "Close" do
+      role "Teller"
+      goal "Close an open box"
+
+      reference_to Box
+
+      emits "Closed"
+    end
+
+    command "AddSlot" do
+      role "Teller"
+      goal "Give the box a slot"
+
+      reference_to Box
+      attribute :label, Label
+
+      sets :slots, append: { label: :label }
+
+      emits "SlotAdded"
+    end
+
+    entity "Slot" do
+      description "A slot holding a count that must never go negative."
+
+      identified_by :label
+
+      attribute :label, Label
+      attribute :count, Count
+
+      invariant("a slot count never goes negative") { count.value >= 0 }
+
+      command "Fill" do
+        role "Teller"
+        goal "Add one to the slot's count"
+
+        sets :count, increment: { value: 1 }
+
+        emits "SlotFilled"
+      end
+
+      command "Drain" do
+        role "Teller"
+        goal "Take one from the slot's count, which its invariant refuses past zero"
+
+        sets :count, decrement: { value: 1 }
+
+        emits "SlotDrained"
+      end
+    end
+  end
+end

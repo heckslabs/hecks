@@ -1,7 +1,8 @@
 require "spec_helper"
 
-# `EntityBuilder#invariant`: a piece's shape rule, checked against every instance
-# at the same checkpoints as the aggregate's own invariants.
+# `EntityBuilder#invariant` reading an optional field a piece was given no value for: it reads nil,
+# so the rule admits the piece. That a piece's invariant is checked and refuses is held by
+# spec/categories/refusal_kinds_spec.rb.
 RSpec.describe "a piece's own invariant, checked against every instance the aggregate holds" do
   BANKING_BLUEBOOK = InMemoryDomain::BANKING_BLUEBOOK_DIR unless defined?(BANKING_BLUEBOOK)
 
@@ -29,16 +30,7 @@ RSpec.describe "a piece's own invariant, checked against every instance the aggr
                                                                date: { value: "2026-08-16" }, sequence: { value: 1 }, **note)
   end
 
-  it "refuses a visit whose own note is present but empty" do
-    expect { log_visit(rented_runtime, note: { text: "" }) }
-      .to raise_error(Hecks::Runtime::InvariantViolation, /Visit refused.*a written note is not blank/)
-  end
-
   it "accepts a visit with no note at all — optional stays optional" do
     expect { log_visit(rented_runtime) }.not_to raise_error
-  end
-
-  it "accepts a visit with a genuine note" do
-    expect { log_visit(rented_runtime, note: { text: "Vault officer inspected the lock." }) }.not_to raise_error
   end
 end

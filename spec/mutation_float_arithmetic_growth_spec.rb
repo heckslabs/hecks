@@ -1,8 +1,8 @@
 require "spec_helper"
 require_relative "support/inline_bluebook_boot"
 
-# Pins Float support in CommandRules::Arithmetic's increment/decrement ops: a
-# Float-typed field must not raise TypeMismatch on its own declared step.
+# Pins Float support in CommandRules::Arithmetic's decrement op: a Float-typed field must not
+# raise TypeMismatch on its own declared step. Increment's is held by the semantics corpus.
 RSpec.describe "Float arithmetic on increment/decrement" do
   include InlineBluebookBoot
 
@@ -56,15 +56,6 @@ RSpec.describe "Float arithmetic on increment/decrement" do
     boot(FLOAT_ARITHMETIC_SOURCE, "FloatArithmeticGrowth") do
       FloatArithmeticGrowth::Organ.persisted_by("Memory")
     end
-  end
-
-  it "increments a Float-typed value object field" do
-    runtime = boot_float_arithmetic
-    runtime.dispatch_flat("FloatArithmeticGrowth::Organ.Open", id: { value: "o1" }, strength: { value: 0.5 })
-    runtime.dispatch_flat("FloatArithmeticGrowth::Organ.Grow", id: "o1", amount: { value: 0.02 })
-
-    organ = repository_for(runtime).find("o1")
-    expect(organ[:strength][:value]).to be_within(0.0001).of(0.52)
   end
 
   it "decrements a Float-typed value object field" do

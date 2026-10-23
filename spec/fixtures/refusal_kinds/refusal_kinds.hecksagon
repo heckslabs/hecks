@@ -1,0 +1,11 @@
+# Bound explicitly, so a fuzz boot can rebind the box to another store and compare the two.
+# Governance is attached because the box's commands declare a role.
+Hecks.hecksagon "RefusalKinds" do
+  attaches "Governance"
+  RefusalKinds::Box.persisted_by("Memory")
+end
+
+Hecks.hecksagon "Governance" do
+  Governance::RoleAssignment.persisted_by("Memory")
+  Governance::RoleTransition.persisted_by("Memory")
+end

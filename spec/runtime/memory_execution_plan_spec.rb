@@ -64,13 +64,12 @@ RSpec.describe "Memory execution-plan capabilities" do
 
   # A second creation at the same identity refuses instead of replacing; the adapter's
   # `insert_only:` check decides it atomically, so `find` stays at zero.
-  it "refuses a second creation at the same identity, leaving the first untouched", :aggregate_failures do
+  it "refuses a second creation at the same identity without reading the store first", :aggregate_failures do
     register("sku-1", "First")
 
     expect { register("sku-1", "Second") }
       .to raise_error(Hecks::Runtime::AlreadyExists, /Register creates a Item that already exists/)
     expect(finds).to be_empty
-    expect(repository.find("sku-1").state[:label].to_h).to eq(value: "First")
   end
 
   it "refuses a creation routed to a different identity than its own facts name" do

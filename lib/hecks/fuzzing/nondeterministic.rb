@@ -20,9 +20,12 @@ module Hecks
                        "runs (Replay's own projected `:events` leave it off for the same reason)"
         }.freeze,
         history:    {
-          bluebook:  "a live IR object (the first-loaded bluebook) handed to properties — an object " \
-                     "identity, not a value, so two boots never compare equal on it",
-          bluebooks: "the full live IR map, keyed by domain — object identities, same as `bluebook`"
+          bluebook:       "a live IR object (the first-loaded bluebook) handed to properties — an object " \
+                          "identity, not a value, so two boots never compare equal on it",
+          bluebooks:      "the full live IR map, keyed by domain — object identities, same as `bluebook`",
+          refusal_traces: "the before and after snapshots Properties::Refusals reads, holding outbox " \
+                          "delivery ids that inherit event_uid's per-enqueue uuid; the refusals " \
+                          "themselves are already compared as `refusals`"
         }.freeze
       }.freeze
 
