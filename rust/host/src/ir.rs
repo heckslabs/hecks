@@ -191,6 +191,34 @@ pub fn identity_provider(domain_ir: &Value) -> Option<IdentityProvider> {
     })
 }
 
+/// Refuses a `.world` that names a persistence adapter the host has no backend for: the world's
+/// default adapter and every `persisted_by` binding. An IR without a `world` key is not checked.
+pub fn refuse_unsupported_world(domain_ir: &Value) -> Result<(), String> {
+    let Some(world) = domain_ir.get("world") else {
+        return Ok(());
+    };
+    let default = world.get("default_adapter").and_then(|v| v.as_str());
+    let bound = world
+        .get("persistence")
+        .and_then(|v| v.as_array())
+        .into_iter()
+        .flatten()
+        .filter_map(|binding| binding.get("adapter")?.as_str());
+    let unsupported: Vec<&str> = default
+        .into_iter()
+        .chain(bound)
+        .filter(|adapter| backend_for(adapter).is_none())
+        .collect();
+    if unsupported.is_empty() {
+        return Ok(());
+    }
+    Err(format!(
+        "rust/host only has a backend for {SUPPORTED_PERSISTENCE_ADAPTERS:?} today; this domain's \
+         world names: {}. Refusing instead of persisting somewhere the world did not choose.",
+        unsupported.join(", ")
+    ))
+}
+
 /// Refuses at boot rather than silently building a second, disjoint history
 /// nothing but this runtime reads while the real state lives elsewhere.
 ///
@@ -206,6 +234,7 @@ pub fn identity_provider(domain_ir: &Value) -> Option<IdentityProvider> {
 /// before. A present-but-malformed `adapters` value is refused with a
 /// message naming the problem (it never panics).
 pub fn refuse_unsupported_persistence_adapters(domain_ir: &Value) -> Result<(), String> {
+    refuse_unsupported_world(domain_ir)?;
     let bindings = persistence_adapters(domain_ir);
     if let Some(declared) = adapter_declarations(domain_ir) {
         let declared = declared?;
@@ -349,6 +378,25 @@ mod tests {
             err.contains("Heki"),
             "error should name the unsupported adapter: {err}"
         );
+    }
+
+    #[test]
+    fn a_world_naming_an_unsupported_adapter_is_refused() {
+        let ir = serde_json::json!({"world": {"default_adapter": "Heki", "default_database": false, "persistence": []}});
+        assert!(refuse_unsupported_world(&ir).unwrap_err().contains("Heki"));
+        let bound = serde_json::json!({"world": {"default_adapter": null, "default_database": false,
+            "persistence": [{"adapter": "Sqlite", "settings": []}]}});
+        assert!(refuse_unsupported_world(&bound)
+            .unwrap_err()
+            .contains("Sqlite"));
+    }
+
+    #[test]
+    fn a_supported_or_absent_world_passes() {
+        let ok = serde_json::json!({"world": {"default_adapter": "PostgresEra", "default_database": true,
+            "persistence": [{"adapter": "Postgres", "settings": []}]}});
+        assert!(refuse_unsupported_world(&ok).is_ok());
+        assert!(refuse_unsupported_world(&serde_json::json!({"name": "X"})).is_ok());
     }
 
     #[test]
