@@ -1,6 +1,36 @@
 //! Fetches secrets from Secrets Manager at runtime, not via CloudFormation dynamic references.
 //! A resolved reference lands decrypted in function configuration, readable account-wide.
 
+use std::collections::HashMap;
+use std::sync::{OnceLock, RwLock};
+
+// Secrets fetched at boot live here instead of in the process environment: `std::env::set_var` is
+// unsound once tokio's worker and blocking threads exist, since any of them may read the
+// environment (a DNS lookup does) at the same moment.
+static FETCHED: OnceLock<RwLock<HashMap<&'static str, String>>> = OnceLock::new();
+
+fn fetched() -> &'static RwLock<HashMap<&'static str, String>> {
+    FETCHED.get_or_init(RwLock::default)
+}
+
+/// Records a secret fetched at boot under the environment variable name it stands in for.
+pub fn provide(name: &'static str, value: String) {
+    fetched()
+        .write()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .insert(name, value);
+}
+
+/// The value of `name`: a secret fetched at boot when there is one, else the process environment.
+pub fn var(name: &str) -> Result<String, std::env::VarError> {
+    let provided = fetched()
+        .read()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .get(name)
+        .cloned();
+    provided.map_or_else(|| std::env::var(name), Ok)
+}
+
 pub struct AwsSecretFetcher {
     client: aws_sdk_secretsmanager::Client,
 }
@@ -216,5 +246,15 @@ mod tests {
     #[test]
     fn refuses_invalid_json() {
         assert!(extract_field("not json", "password").is_err());
+    }
+
+    #[test]
+    fn a_provided_secret_is_read_back_and_an_unprovided_one_falls_back_to_the_environment() {
+        provide("HECKS_SECRETS_SPEC_PROVIDED", "from-boot".to_string());
+        assert_eq!(
+            var("HECKS_SECRETS_SPEC_PROVIDED").as_deref(),
+            Ok("from-boot")
+        );
+        assert!(var("HECKS_SECRETS_SPEC_NEVER_SET").is_err());
     }
 }
