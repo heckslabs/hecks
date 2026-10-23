@@ -396,7 +396,9 @@ fn matches_snake_alias(declared_verb: &str, asked: &str) -> bool {
 
 /// A port of `Hecks::Naming.snake` (lib/hecks/naming.rb). No regex engine in this
 /// dependency-free kernel, so the two `gsub` passes collapse into one left-to-right scan of
-/// adjacent-character pairs; every declared read-model/query name is plain ASCII.
+/// adjacent-character pairs. The kernel stays self-contained on purpose: it is compiled into every
+/// domain's wasm module from a workspace that holds only this crate, so it cannot include a file
+/// from `rust/codegen` the way the host, parser and build crates share `hecks_naming.rs`.
 fn to_snake(name: &str) -> String {
     let chars: Vec<char> = name.chars().collect();
     let mut out = String::with_capacity(name.len() + 4);
@@ -418,8 +420,9 @@ fn to_snake(name: &str) -> String {
         out.push(c);
     }
 
-    out.make_ascii_lowercase();
-    out
+    // Ruby's `downcase` is Unicode, one character at a time (a word-final capital sigma stays a
+    // plain sigma); only the word boundaries above are ASCII-only, as in Ruby's patterns.
+    out.chars().flat_map(char::to_lowercase).collect()
 }
 
 #[cfg(test)]
@@ -435,6 +438,9 @@ mod snake_alias_tests {
         assert_eq!(to_snake("ByFee"), "by_fee");
         assert_eq!(to_snake("HTTPServer"), "http_server");
         assert_eq!(to_snake("Type2Foo"), "type2_foo");
+        // Ruby lowercases every Unicode capital, though only ASCII ones start a word boundary.
+        assert_eq!(to_snake("ÉcoleDeParis"), "école_de_paris");
+        assert_eq!(to_snake("ΟΔΥΣΣΕΑΣ"), "οδυσσεασ");
     }
 
     #[test]

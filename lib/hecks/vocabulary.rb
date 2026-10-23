@@ -412,7 +412,6 @@ module Hecks
         {"script"=>"backfill_era_projections", "section"=>"Custodian", "aggregate"=>"Era", "verb"=>"backfill_projections"}.freeze,
         {"script"=>"scaffold_translation", "section"=>"Custodian", "aggregate"=>"Era", "verb"=>"scaffold_translation"}.freeze,
         {"script"=>"translation_audit", "section"=>"Custodian", "aggregate"=>"Era", "verb"=>"audit_translation"}.freeze,
-        {"script"=>"translation_audit", "section"=>"Custodian", "aggregate"=>"Era", "verb"=>"approve_translation"}.freeze,
         {"script"=>"compact", "section"=>"Custodian", "aggregate"=>"Era", "verb"=>"compact"}.freeze,
         {"script"=>"heki_compact", "section"=>"Custodian", "aggregate"=>"Era", "verb"=>"compact_heki"}.freeze,
         {"script"=>"vendor_bluebook", "section"=>"Custodian", "aggregate"=>"Package", "verb"=>"vendor", "note"=>"waits: a refusal exits 1 with its reason on stderr"}.freeze,

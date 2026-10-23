@@ -65,21 +65,10 @@ pub fn framework_members(root: &Path) -> Result<Vec<(String, PathBuf)>, String> 
             .and_then(|s| s.to_str())
             .unwrap_or("")
             .to_string();
-        members.push((pascal(&stem), path));
+        members.push((crate::hecks_naming::pascal(&stem), path));
     }
     members.sort();
     Ok(members)
-}
-
-pub fn pascal(text: &str) -> String {
-    text.split('_')
-        .map(|part| {
-            let mut chars = part.chars();
-            chars.next().map_or_else(String::new, |first| {
-                first.to_uppercase().collect::<String>() + chars.as_str()
-            })
-        })
-        .collect()
 }
 
 // Discovery, not a mirrored filename list, so a new concept cannot drift from this pipeline.
@@ -221,9 +210,12 @@ mod tests {
 
     #[test]
     fn pascal_cases_snake_case_stems() {
-        assert_eq!(pascal("governance"), "Governance");
-        assert_eq!(pascal("console_settings"), "ConsoleSettings");
-        assert_eq!(pascal("identity"), "Identity");
+        assert_eq!(crate::hecks_naming::pascal("governance"), "Governance");
+        assert_eq!(
+            crate::hecks_naming::pascal("console_settings"),
+            "ConsoleSettings"
+        );
+        assert_eq!(crate::hecks_naming::pascal("identity"), "Identity");
     }
 
     #[test]

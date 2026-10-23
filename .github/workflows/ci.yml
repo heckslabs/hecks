@@ -112,8 +112,8 @@ jobs:
       - name: The version files, the changelog and the release workflow agree
         run: >-
           bundle exec rspec spec/readme_version_spec.rb spec/hecks_client_version_spec.rb
-          spec/host_release_sync_spec.rb spec/changelog_planned_release_spec.rb
-          spec/docs_stale_version_spec.rb spec/release_workflow_spec.rb
+          spec/changelog_planned_release_spec.rb spec/docs_stale_version_spec.rb
+          spec/release_workflow_spec.rb
 
   # Calls ci-rspec.yml; secrets are passed explicitly.
   rspec_impl:

@@ -78,4 +78,37 @@ RSpec.describe "derive, run in process and compiled to Postgres", :io do
       expect(answers.map(&:first)).to eq(answers.map(&:last))
     end
   end
+
+  def rekeyed_for(expression)
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
+      Hecks.data_translation("Directory", from: "aaaaaa", to: "bbbbbb") do
+        aggregate("Member") do
+          derive "out.value", as: expression
+          rekey_to "out.value"
+        end
+      end
+    end
+    registry.translations.first.for_aggregate("Member")
+  end
+
+  def id_in_process(declared, record)
+    entry = Hecks::Ports::Persistence::Entry.new(operation: "save", id: "old", state: record.transform_keys(&:to_sym),
+                                                 mirrors: nil)
+    Hecks::Ports::Persistence::Lineage.from_declared(declared, "Member").translate(entry).id
+  end
+
+  def id_in_postgres(declared, record)
+    sql = Hecks::Translation::RuleCompiler.compile_id_expression(declared)
+    @db.exec_params("SELECT #{sql} AS id FROM (SELECT 'old'::text AS aggregate_id, $1::jsonb AS state) t",
+                    [JSON.generate(record)])[0]["id"]
+  end
+
+  DERIVE_EXPRESSIONS.each do |expression|
+    it "agrees on the id rekey_to gives from #{expression}" do
+      declared = rekeyed_for(expression)
+      ids = DERIVE_RECORDS.map { |record| [id_in_process(declared, record), id_in_postgres(declared, record)] }
+      expect(ids.map(&:first)).to eq(ids.map(&:last))
+    end
+  end
 end

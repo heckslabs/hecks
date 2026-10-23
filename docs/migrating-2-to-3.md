@@ -56,11 +56,8 @@ also runs from `verified`. Anything that dispatches the old names by string uses
 
 ## 6. Approve era edges with a committed file
 
-An edge is approved by `translations/<from>-<to>.approval`, a JSON file beside the edge that the
-host reads at its next boot. It is valid while its digest matches the edge, and while its
-`host_version` has the same `major.minor` as the running host's Hecks release. A journal approval
-bound to the tip still satisfies the check, so an edge approved before 3.0.0 keeps booting. Write
-new approvals as the file.
+Superseded in 4.0: an edge no longer needs an approval, because the two rules that required one
+(`compute` and a SQL `rekey`) are gone. Use `derive` and `rekey_to`.
 
 ## 7. Expect a larger gem
 

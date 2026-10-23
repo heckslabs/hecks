@@ -3,6 +3,7 @@ require_relative "../ports/persistence"
 require_relative "exporter/adapters"
 require_relative "exporter/bindings"
 require_relative "exporter/translations"
+require_relative "exporter/worlds"
 
 module Hecks
   module Projector
@@ -10,7 +11,7 @@ module Hecks
     # binding facts, and translation edges (declared and compiled).
     #
     # The capability bindings (`authorization`, `membership`, ...) are `Exporter::Bindings` and
-    # the translation edges (`translations`, `translation_hash`, ...) are `Exporter::Translations`;
+    # the translation edges (`translations`, `translations_json`, ...) are `Exporter::Translations`;
     # both are reachable as methods of `Exporter` itself.
     module Exporter
       module_function
@@ -76,6 +77,7 @@ module Hecks
       extend Adapters
       extend Bindings
       extend Translations
+      extend Worlds
     end
   end
 end

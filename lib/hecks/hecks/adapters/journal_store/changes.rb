@@ -117,32 +117,6 @@ module Hecks
         def apply_compaction(held, kind)
           Compaction.new(plain(held[:domain]), aggregates: names(held[:aggregates]), kind: kind).apply!.join("\n")
         end
-
-        # Writes `translations/<edge>.approval`; the host reads it at its next boot.
-        def apply_approve_translation(held)
-          domain = HeldDomain.open(plain(held[:domain]))
-          finding = domain.reading { |lineage| audited_edge(domain, lineage) }
-          document = approval_document(domain, finding, held)
-          path = Translation::ApprovalFile.write!(domain.directory, finding.edge, document)
-          "approval of edge #{document["edge"]} written to #{path} (digest #{document["edge_digest"][0, 12]}…, " \
-            "by #{document["approved_by"]}). Commit it with the edge; the host applies it at its next boot."
-        end
-
-        def approval_document(domain, finding, held)
-          Translation::ApprovalFile.build(
-            edge: finding.edge, approved_by: Git.new.identity(chdir: domain.directory),
-            approved_at: Time.now.utc.iso8601, rehearsal: rehearsal_block(held)
-          )
-        end
-
-        def audited_edge(domain, lineage)
-          eras = domain.held_eras(lineage)
-          finding = eras.empty? ? nil : EdgeAudit.call(domain, lineage, eras)
-          raise Runtime::WiringError, "#{domain.bluebook.name} has no edge to approve" unless finding
-          raise Runtime::WiringError, "#{finding.report}\nAUDIT REFUSED." unless finding.ok
-
-          finding
-        end
       end
     end
   end

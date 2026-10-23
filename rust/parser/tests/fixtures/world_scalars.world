@@ -1,0 +1,8 @@
+# a comment
+Hecks.world("Scalars") do
+  realm "Examples" # trailing
+  latest "v1"
+  default_adapter "Memory"
+  default_adapter "PostgresEra"
+  default_database "postgres://u:hunter2@db.example/app"
+end

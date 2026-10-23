@@ -44,11 +44,4 @@ RSpec.describe "the shared stack-name vectors" do
       end
     end
   end
-
-  it "pins where Ruby's downcase and the Rust port's to_lowercase differ", :aggregate_failures do
-    rows = STACK_NAME_VECTORS.fetch("known_divergences")
-
-    expect(rows.map { |row| "hecks-#{row["domain"].downcase}" }).to eq(rows.map { |row| row["ruby"] })
-    expect(rows.map { |row| row["ruby"] }).not_to eq(rows.map { |row| row["rust"] })
-  end
 end

@@ -36,13 +36,19 @@ module Hecks
           ir = shaped(exporter.call(@registry).fetch(@domain_name))
           ir[:lineage] = shaped(exporter.lineage(@registry, @domain_name))
           ir[:persistence] = shaped(exporter.persistence(@registry, @domain_name))
-          ir[:adapters] = adapters(exporter, ir[:persistence])
+          add_persistence_wiring(ir, exporter)
           add_seams(ir, exporter)
           add_edges_and_source(ir)
           ir
         end
 
         private
+
+        # The adapters and the world that the host checks the persistence against.
+        def add_persistence_wiring(document, exporter)
+          document[:adapters] = adapters(exporter, document[:persistence])
+          document[:world] = world(exporter)
+        end
 
         def shaped(payload) = self.class.json_shaped(payload)
 
@@ -51,6 +57,13 @@ module Hecks
         def adapters(exporter, persistence)
           files = exporter.adapter_files_under([File.join(RustBuild::ROOT, "lib"), File.dirname(@bluebook_dir)])
           shaped(exporter.persistence_adapters(persistence, files))
+        end
+
+        # The target's world persistence, from `<domain directory name>.world` beside the bluebooks
+        # (names only), so the host can check what the world binds against the adapters.
+        def world(exporter)
+          path = File.join(@bluebook_dir, "#{File.basename(File.dirname(@bluebook_dir))}.world")
+          shaped(exporter.persistence_world(path, @domain_name))
         end
 
         def add_seams(document, exporter)
@@ -64,14 +77,12 @@ module Hecks
                          "hecksagon, not a deploy-time guess, names the identity verbs."
         end
 
-        # Edges carry their own precompiled SQL, so a boot-time mint only executes it. Committed
-        # approvals sit beside the edges. The source text is verbatim: the era's integrity digest is
+        # Edges carry their own precompiled SQL, so a boot-time mint only executes it. The source
+        # text is verbatim: the era's integrity digest is
         # the SHA256 of it, not of anything re-derived from the parsed IR.
         def add_edges_and_source(document)
           edges = Hecks::Projector::Exporter.translations(@registry).select { |edge| edge[:domain] == @domain_name }
           document[:translations] = shaped(edges)
-          approvals = Hecks::Translation::ApprovalFile.read_all(@bluebook_dir)
-          document[:approvals] = shaped(approvals) unless approvals.empty?
           document[:source_text] = Hecks::Runtime::EraCheck.source_text_for(
             @registry.bluebooks.fetch(@domain_name), @bluebook_dir, registry: @registry
           )

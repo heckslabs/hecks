@@ -31,7 +31,6 @@ module Hecks
       # @raise [Failure] when the target is not installed or a step fails
       def call(argv)
         domain = argv.first or raise Failure, "usage: hecks build_wasm <domain>"
-        return build_with_rust(domain) if ENV["HECKS_PARSER"] == "rust" && ENV["HECKS_CODEGEN"] == "rust"
 
         require_target!
         rust_dir = RustBuild.rust_dir
@@ -46,17 +45,6 @@ module Hecks
         puts "== regenerating #{scratch}/src/generated/ for #{domain} =="
         status = RustBuild.with_env("HECKS_RUST_DIR" => scratch) { ProjectRust.call([domain]) }
         raise Failure, "project_rust failed for #{domain}" unless status.zero?
-      end
-
-      # With the Rust parser and codegen, `hecks-build` runs the same steps and writes the same
-      # outputs.
-      def build_with_rust(domain)
-        build_dir = File.join(ROOT, "rust", "build")
-        puts "== cargo build (hecks-build) =="
-        RustBuild.command!("cargo", "build", chdir: build_dir)
-        puts "== hecks-build #{domain} --wasm =="
-        RustBuild.command!(File.join(build_dir, "target", "debug", "hecks-build"), domain, "--wasm")
-        0
       end
 
       def require_target!

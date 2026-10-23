@@ -2,8 +2,8 @@
 //! mirroring `Hecks::Bluebook::AskResolution`: by the event's aggregate and the ask's name, with
 //! `chosen` (`ask_via`) breaking a tie between ports.
 
+use crate::hecks_naming;
 use crate::json::Json;
-use crate::naming;
 
 /// Policies whose `ask` is replaced by the `Aggregate::Port.Operation` trigger it resolves to,
 /// so every table below reads the verb as it reads a port-naming `trigger`.
@@ -77,7 +77,7 @@ fn candidates<'a>(aggregate: &'a Json, ask: &str) -> Vec<(String, &'a Json)> {
         let port_name = port.get("name").map(Json::to_s).unwrap_or_default();
         for op in port.get("operations").map_or_default(Json::each) {
             let outbound = op.get("direction").map(Json::to_s).as_deref() == Some("outbound");
-            let spelled = naming::snake(&op.get("name").map(Json::to_s).unwrap_or_default());
+            let spelled = hecks_naming::snake(&op.get("name").map(Json::to_s).unwrap_or_default());
             if outbound && spelled == ask {
                 found.push((port_name.clone(), op));
             }

@@ -3,12 +3,11 @@ require "json"
 require_relative "audit/layer_one"
 require_relative "audit/layer_two"
 require_relative "audit/unfed_report"
-require_relative "audit/approval_digest"
 
 module Hecks
   module Translation
-    # Derives the audit's assertions per layer (audit/layer_one, layer_two, unfed_report,
-    # approval_digest); Layer 3, the human-approved sample, is assembled in `check`.
+    # Derives the audit's assertions per layer (audit/layer_one, layer_two, unfed_report);
+    # Layer 3, the human-approved sample, is assembled in `check`.
     module Audit
       Verdict = Struct.new(:violations, :dropped, :unfed, :samples, keyword_init: true) do
         # Reports whether the mechanical layers found nothing to refuse.
@@ -23,7 +22,6 @@ module Hecks
       extend LayerOne
       extend LayerTwo
       extend UnfedReport
-      extend ApprovalDigest
 
       module_function
 

@@ -138,29 +138,4 @@ RSpec.describe "hecks-build (rust/build) pipeline parity", :io do
       expect(pipeline_differences(domain, dirs)).to be_empty
     end
   end
-
-  describe "hecks build_wasm, opted into the all-Rust pipeline" do
-    # Opted in, hecks build_wasm must delegate to `hecks-build --wasm` and yield the same .wasm.
-    def run_hecks_build_wasm!(domain)
-      _out, err, status = Open3.capture3({ "PATH" => ENV.fetch("PATH", nil) }, HECKS_BUILD_BINARY, domain, "--wasm",
-                                         chdir: HB_ROOT)
-      raise "hecks-build #{domain} --wasm failed:\n#{err}" unless status.success?
-    end
-
-    def dist_wasm = File.join(HB_ROOT, "rust", "dist", "pizzas.wasm")
-
-    def run_project_wasm_opted_in!(domain)
-      env = { "PATH" => ENV.fetch("PATH", nil), "HECKS_PARSER" => "rust", "HECKS_CODEGEN" => "rust" }
-      _out, err, status = Open3.capture3(env, *RepoTool.argv("project_wasm"), domain, chdir: HB_ROOT)
-      raise "hecks build_wasm (opt-in) #{domain} failed:\n#{err}" unless status.success?
-    end
-
-    it "produces the identical .wasm hecks-build --wasm produces directly, not the Ruby generator's own build" do
-      run_hecks_build_wasm!("examples/pizzas")
-      direct_wasm = File.binread(dist_wasm)
-      run_project_wasm_opted_in!("examples/pizzas")
-
-      expect(File.binread(dist_wasm)).to eq(direct_wasm)
-    end
-  end
 end

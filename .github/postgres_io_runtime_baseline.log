@@ -23,7 +23,6 @@ spec/bench_spec.rb:15.24
 spec/check_era_spec.rb:0.01
 spec/cli_launcher_forms_spec.rb:25.44
 spec/cli_spec.rb:3.68
-spec/committed_approval_rehearsal_spec.rb:6.44
 spec/deploy_bluebook_spec.rb:1.22
 spec/deploy_lint_spec.rb:9.48
 spec/deploy_provision_spec.rb:18.87

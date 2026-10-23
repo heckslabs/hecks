@@ -11,7 +11,12 @@ mod domain_generator;
 mod exemplar;
 mod expr_emitter;
 mod fielded;
+// The one `Hecks::Naming` port, compiled by path into the other Cargo projects too; codegen uses
+// only part of it.
+#[allow(dead_code)]
 mod hecks_naming;
+#[cfg(test)]
+mod hecks_naming_tests;
 mod json;
 mod json_codec;
 mod literal;
@@ -27,6 +32,12 @@ mod read_models;
 mod reference_specs;
 mod registry;
 mod reserved_names;
+#[path = "../../parser/src/ruby_value.rs"]
+#[allow(
+    dead_code,
+    reason = "shared with the parser, which uses parts codegen does not"
+)]
+mod ruby_value;
 mod shared;
 mod sidecars;
 mod skip_reason;

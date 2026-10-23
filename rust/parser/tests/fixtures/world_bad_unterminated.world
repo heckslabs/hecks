@@ -1,0 +1,4 @@
+Hecks.world "Bad" do
+  persisted_by("Heki") do
+    dir "a"
+end

@@ -157,15 +157,9 @@ module Hecks
         # First `end` after the opener is the block's own — member rows sit bare (ADR 0025).
         def keyword_blocks(source) = seed_blocks(source, "KeywordSeed")
 
-        # The first KeywordSeed block's source text.
-        def keyword_block(source) = seed_block(source, "KeywordSeed", required: true)
-
         # ArgumentSeed blocks; see keyword_blocks for why the first bare end
         # after the opener is already the block's own.
         def argument_blocks(source) = seed_blocks(source, "ArgumentSeed")
-
-        # The first ArgumentSeed block's source text.
-        def argument_block(source) = seed_block(source, "ArgumentSeed", required: true)
       end
     end
   end

@@ -1,0 +1,24 @@
+Hecks.world "Twice" do
+  realm "One"
+  latest "v1"
+  persisted_by("Heki") do
+    dir "a"
+  end
+  projected_by("Sqlite") do
+    database "b"
+  end
+end
+
+Hecks.world "Other" do
+  realm "Elsewhere"
+end
+
+Hecks.world "Twice" do
+  realm "Two"
+  persisted_by("HEKI") do
+    path "c"
+  end
+  rehearsed_by("Memory") do
+    rows "../x.json"
+  end
+end

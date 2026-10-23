@@ -194,7 +194,6 @@ spec/hecks_tools_doc_spec.rb:5.97
 spec/hecksagon_attaches_spec.rb:1.51
 spec/hecksagon_builder_shadow_spec.rb:0.00
 spec/hecksagon_translates_spec.rb:4.10
-spec/host_release_sync_spec.rb:0.00
 spec/identifier_numeric_coercion_growth_spec.rb:0.00
 spec/identity_spec.rb:0.09
 spec/interview_draft_spec.rb:2.06

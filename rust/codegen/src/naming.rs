@@ -249,12 +249,6 @@ fn capitalize(word: &str) -> String {
     })
 }
 
-/// Port of `Hecks::Naming.snake` —
-/// `gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2').gsub(/([a-z\d])([A-Z])/, '\1_\2').downcase`.
-pub fn snake(text: &str) -> String {
-    crate::hecks_naming::snake(text)
-}
-
 /// `name.to_s.gsub(/([a-z0-9])([A-Z])/, '\1_\2').upcase`
 pub fn screaming_snake(name: &str) -> String {
     let chars: Vec<char> = name.chars().collect();

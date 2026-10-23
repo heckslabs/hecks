@@ -65,8 +65,7 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
     end
   BLUEBOOK
 
-  # The same shape change as `JS_V2`, its data carried by a `compute` and a `rekey` that only a
-  # rehearsal can vouch for.
+  # The edge that carries `JS_V1`'s data to `JS_V2`'s shape.
   JS_EDGE = <<~RUBY.freeze
     Hecks.data_translation("Ledger", from: %<from>s, to: %<to>s) do
       aggregate("Account", was: "Acct") do
@@ -74,18 +73,6 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
         move "amount.currency", to: "denomination.code"
         convert "kind.label", to: "kind.label", values: { "biz" => "business", "pers" => "personal" }
         drop :legacy_note
-      end
-    end
-  RUBY
-
-  JS_COMPUTED_EDGE = <<~RUBY.freeze
-    Hecks.data_translation("Ledger", from: %<from>s, to: %<to>s) do
-      aggregate("Account", was: "Acct") do
-        rename :cost, to: :amount
-        move "amount.currency", to: "denomination.code"
-        drop :legacy_note
-        compute "kind", to: "kind", sql: "jsonb_build_object('label', upper(__s -> 'kind' ->> 'label'))"
-        rekey sql: "upper(__s -> 'kind' ->> 'label')"
       end
     end
   RUBY
@@ -310,100 +297,6 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
 
       expect { store.audit_translation(domain: { value: @domain }) }
         .to raise_error(Hecks::Runtime::NotFound, /no translation edge leads/)
-    end
-  end
-
-  describe "approving an edge in a committed file" do
-    before do
-      Open3.capture2e("git", "init", "-q", @domain.tap { |path| FileUtils.mkdir_p(path) })
-      Open3.capture2e("git", "-C", @domain, "config", "user.name", "Ada Lovelace")
-      Open3.capture2e("git", "-C", @domain, "config", "user.email", "ada@example.com")
-      hold_v1_with_a_record
-    end
-
-    def approval_path = File.join(bluebook_dir, "translations", "#{label_of(JS_V1)}-#{label_of(JS_V2)}.approval")
-
-    def approval_document = JSON.parse(File.read(approval_path))
-
-    def passing_rehearsal(**overrides)
-      { snapshot: { value: "rds:ledger-2026-09-28" }, host_version: { value: Hecks::VERSION },
-        rehearsal: { value: "pass" }, rehearsed_at: { value: "2026-09-28T12:00:00Z" } }.merge(overrides)
-    end
-
-    context "with an edge that has no compute or rekey" do
-      before { write_domain(edge: JS_EDGE) }
-
-      it "reports the facts such an edge needs" do
-        expect(facts("approve_translation")).to include(capable: true, edges: 1, audited: true, rehearsal_needed: false)
-      end
-
-      it "writes the file, and reports its path" do
-        expect(apply_report("approve_translation")).to include(approval_path)
-      end
-    end
-
-    context "with an edge that has no compute or rekey, once approved" do
-      before do
-        write_domain(edge: JS_EDGE)
-        apply_report("approve_translation")
-      end
-
-      it "writes the edge, its digest, who approved and when, in that order" do
-        expect(approval_document.keys).to eq(%w[edge edge_digest approved_by approved_at])
-      end
-
-      it "names the edge and its approver" do
-        expect(approval_document).to include("edge"        => "#{label_of(JS_V1)}-#{label_of(JS_V2)}",
-                                             "approved_by" => "Ada Lovelace <ada@example.com>")
-      end
-
-      it "stamps the time of approval" do
-        expect(approval_document["approved_at"]).to match(/\A[0-9]{4}-[0-9]{2}-[0-9]{2}T/)
-      end
-    end
-
-    context "with an edge that has a compute or rekey" do
-      before { write_domain(edge: JS_COMPUTED_EDGE) }
-
-      it "asks a rehearsal of it" do
-        expect(facts("approve_translation")).to include(rehearsal_needed: true, rehearsal_recorded: false)
-      end
-
-      it "refuses to apply it without a rehearsal that passed" do
-        expect { store.apply(**request("approve_translation")) }
-          .to raise_error(ArgumentError, /approved on a rehearsal that passed/)
-      end
-
-      it "records a rehearsal that passed" do
-        expect(facts("approve_translation", **passing_rehearsal)).to include(rehearsal_recorded: true)
-      end
-
-      it "does not record a rehearsal that failed" do
-        expect(facts("approve_translation", **passing_rehearsal(rehearsal: { value: "fail" })))
-          .to include(rehearsal_recorded: false)
-      end
-
-      it "applies the committed file at the mint", :aggregate_failures do
-        store.apply(**request("approve_translation", **passing_rehearsal))
-
-        expect(mint_v2.resolved_eras["Ledger"]).to eq(2)
-        expect(sql("SELECT edge_digest FROM hecks_approvals").size).to eq(1)
-      end
-
-      it "records the release it ran on when the rehearsal names no host version", :aggregate_failures do
-        store.apply(**request("approve_translation", **passing_rehearsal.except(:host_version)))
-
-        expect(approval_document.dig("rehearsal", "host_version")).to eq(Hecks::VERSION)
-        expect { mint_v2 }.not_to raise_error
-      end
-
-      it "does not mint on a committed approval whose edge changed since" do
-        store.apply(**request("approve_translation", **passing_rehearsal))
-        edge_path = File.join(bluebook_dir, "translations", "2-#{label_of(JS_V2)}.bluebook")
-        File.write(edge_path, File.read(edge_path).sub("upper(", "lower("))
-
-        expect { mint_v2 }.to raise_error(Hecks::Runtime::WiringError, /human-approved sample is its only verification/)
-      end
     end
   end
 

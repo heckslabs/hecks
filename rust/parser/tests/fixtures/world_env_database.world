@@ -1,0 +1,3 @@
+Hecks.world "Env" do
+  default_database ENV.fetch("HECKS_DATABASE", "postgres://hecks@localhost/hecks")
+end

@@ -118,7 +118,6 @@ module Hecks
             # NULL reads as 1.
             @db.exec("ALTER TABLE hecks_eras ADD COLUMN IF NOT EXISTS canon_form int")
             @db.exec(ERA_TEXTS_SQL)
-            @db.exec(APPROVALS_SQL)
           end
 
           def create_journal!
