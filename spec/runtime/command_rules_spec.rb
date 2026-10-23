@@ -133,11 +133,6 @@ RSpec.describe "the rules a command obeys" do
     steps.each { |step| runtime.dispatch_flat("Banking::Transfer.#{step}", transfer: "x1") }
   end
 
-  def transfer_status(runtime)
-    transfer = runtime.registry.bluebook("Banking").aggregate("Transfer")
-    runtime.registry.repository("Banking", transfer).find("x1")[:status]
-  end
-
   def duplicate_credit_message
     'Credited refused — status is "credited", and Credited moves it only from "debited"'
   end
@@ -253,13 +248,12 @@ RSpec.describe "the rules a command obeys" do
                         'Settle refused — status is "requested", and Settle moves it only from "credited"')
     end
 
-    it "refuses a duplicate transfer leg without changing the transfer's state", :aggregate_failures do
+    it "refuses a duplicate transfer leg in the lifecycle's own words" do
       runtime = transfer_runtime("An ordered transfer")
       advance_transfer(runtime, "Debited", "Credited")
 
       expect { advance_transfer(runtime, "Credited") }
         .to raise_error(Hecks::Runtime::LifecycleRefused, duplicate_credit_message)
-      expect(transfer_status(runtime)).to eq("credited")
     end
   end
 

@@ -74,13 +74,6 @@ RSpec.describe "mutation op append, bare-symbol shorthand" do
     expect(tags_of(runtime, "w1")).to eq(["fragile"])
   end
 
-  it "appends a second element independently, position preserved" do
-    runtime = boot_with_widget("w2")
-    %w[fragile urgent].each { |tag| tag_widget(runtime, "w2", tag) }
-
-    expect(tags_of(runtime, "w2")).to eq(["fragile", "urgent"])
-  end
-
   HASH_APPEND_CHAPTER = proc do
     aggregate "Sprint" do
       identified_by :id

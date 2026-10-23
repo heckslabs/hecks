@@ -1,5 +1,9 @@
 require "spec_helper"
 
+# Banking's account ledger, appended to without naming a sequence: each entry's identity is
+# minted, so identical writes never read as a collision. The balance invariant over generated
+# traces is held by the property battery (spec/fuzzing/properties_spec.rb) and the refusal
+# fixture (spec/categories/refusal_kinds_spec.rb).
 RSpec.describe "Banking's generated account machine" do
   STATE_MACHINE_BLUEBOOK = InMemoryDomain::BANKING_BLUEBOOK_DIR
 
@@ -13,7 +17,6 @@ RSpec.describe "Banking's generated account machine" do
     end
   end
 
-  # One shared boot: each seed uses its own customer ref and account number.
   let(:runtime) { boot_banking }
 
   def open_account(customer, number)
@@ -29,39 +32,8 @@ RSpec.describe "Banking's generated account machine" do
     runtime.dispatch_flat("Banking::Account.#{verb}", number: { value: number }, amount: amount, narrative: { text: narrative })
   end
 
-  # Whether the stored balance is the model's and not negative.
-  def sound?(balance, model) = balance.to_h == { cents: model, currency: "USD" } && balance.cents >= 0
-
   def stored_account(number)
     runtime.registry.repository("Banking", runtime.registry.bluebook("Banking").aggregate("Account")).find(number)
-  end
-
-  # The model's balance after the step: unchanged when the runtime refuses it.
-  def apply_step(seed, verb, amount, model)
-    post(verb, "a#{seed}", amount, "generated #{seed}")
-    model + (verb == "Credit" ? amount : -amount)
-  rescue Hecks::Runtime::GivenNotMet, Hecks::Runtime::InvariantViolation
-    model
-  end
-
-  # Fifty random credits and debits on a fresh account; one sentence for each step after which the
-  # stored balance departs from the model's, or goes negative.
-  def balance_violations(seed)
-    open_account("c#{seed}", "a#{seed}")
-    model = 0
-    random = Random.new(seed)
-
-    Array.new(50) do
-      amount = random.rand(-200..1_200)
-      verb   = random.rand(2).zero? ? "Credit" : "Debit"
-      model  = apply_step(seed, verb, amount, model)
-      balance = stored_account("a#{seed}")[:balance]
-      "seed #{seed}: stored #{balance.to_h.inspect}, model #{model}" unless sound?(balance, model)
-    end.compact
-  end
-
-  it "preserves the account balance invariant across deterministic command traces" do
-    expect(20.times.flat_map { |seed| balance_violations(seed) }).to be_empty
   end
 
   # Negative control for MutationApplier#check_entity_collision: the append never names
