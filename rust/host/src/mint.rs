@@ -1699,9 +1699,7 @@ mod tests {
     fn held(ordinal: i32, label: Option<&str>) -> journal::HeldEra {
         journal::HeldEra {
             ordinal,
-            hash: label.map(|_| "irrelevant".to_string()),
             label: label.map(str::to_string),
-            held_text: String::new(),
             watermark: None,
         }
     }
