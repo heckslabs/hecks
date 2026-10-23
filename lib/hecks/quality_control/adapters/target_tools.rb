@@ -6,8 +6,8 @@ module Hecks
   module Adapters
     # The `TargetTools` port's adapter: answers `Target`'s queries by running the QA commands that
     # enrol, generate and judge chapters: the seed, the generated-domain check, the combination
-    # miner, the novelty gate and the external-domain scan. A finding or a judgment is an answer;
-    # anything else the command calls an error is refused with its report.
+    # miner, the mutation test, the novelty gate and the external-domain scan. A finding or a
+    # judgment is an answer; anything else the command calls an error is refused with its report.
     class TargetTools < QaTool
       # @return [Hash] `text:` each corpus domain's outcome: identified, or already on file
       def seed
@@ -24,6 +24,12 @@ module Hecks
       # @return [Hash] `text:` the miner's report
       def mine_combinations(arguments: nil)
         run_command("qa_mine_combinations", *words(arguments), answers: [0, 1])
+      end
+
+      # @param arguments [Hash, String, nil] the command's own flags, such as `--from-dials`
+      # @return [Hash] `text:` the kill rate, and every mutant no test caught
+      def mutate(arguments: nil)
+        run_command("qa_mutate", *words(arguments), answers: [0, 2])
       end
 
       # @param domain [Hash, String] the candidate stress domain's path
