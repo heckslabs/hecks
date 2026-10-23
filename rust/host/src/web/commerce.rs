@@ -4,7 +4,7 @@
 
 use super::{
     checkout_enabled, newsletter, newsletter_send, payments_routes, registrations_list_route,
-    resend_webhook, respond, session_secret,
+    resend_webhook, respond, session_secret, CheckoutRequest,
 };
 use crate::extension::{Ctx, HostExtension, RateRule};
 use crate::payments;
@@ -81,15 +81,11 @@ impl HostExtension for Commerce {
             .and_then(|h| h.get("stripe-signature"))
             .and_then(|v| v.as_str())
             .unwrap_or("");
-        payments_routes(
-            ir,
-            ctx.method,
-            ctx.path,
-            ctx.raw_body,
+        let request = CheckoutRequest {
             stripe_signature,
-            ctx.host(),
-        )
-        .await
+            cookies: ctx.cookies,
+        };
+        payments_routes(ir, ctx.method, ctx.path, ctx.raw_body, &request, ctx.host()).await
     }
 
     async fn account_route(&self, ctx: &Ctx<'_>) -> Option<Value> {
