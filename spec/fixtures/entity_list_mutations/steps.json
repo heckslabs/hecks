@@ -1,0 +1,19 @@
+{
+  "note": "Each field-writing op on an entity, driven into the states where a broken op shows: a count raised, multiplied, left in range by a clamp and then capped by one, and tags removed by value, every match at once, then a remove that matches nothing. `expect` is the list after the last step.",
+  "steps": [
+    { "verb": "EntityListMutations::Board.OpenBoard", "role": "Editor", "args": { "name": { "value": "b1" } } },
+    { "verb": "EntityListMutations::Board.AddList", "role": "Editor", "args": { "name": { "value": "b1" }, "label": { "value": "l1" } } },
+    { "verb": "EntityListMutations::Board.TaggedList.Bump", "role": "Editor", "args": { "name": { "value": "b1" }, "label": { "value": "l1" } } },
+    { "verb": "EntityListMutations::Board.TaggedList.Bump", "role": "Editor", "args": { "name": { "value": "b1" }, "label": { "value": "l1" } } },
+    { "verb": "EntityListMutations::Board.TaggedList.Scale", "role": "Editor", "args": { "name": { "value": "b1" }, "label": { "value": "l1" }, "factor": 3 } },
+    { "verb": "EntityListMutations::Board.TaggedList.Clamp", "role": "Editor", "args": { "name": { "value": "b1" }, "label": { "value": "l1" } } },
+    { "verb": "EntityListMutations::Board.TaggedList.Scale", "role": "Editor", "args": { "name": { "value": "b1" }, "label": { "value": "l1" }, "factor": 4 } },
+    { "verb": "EntityListMutations::Board.TaggedList.Clamp", "role": "Editor", "args": { "name": { "value": "b1" }, "label": { "value": "l1" } } },
+    { "verb": "EntityListMutations::Board.TaggedList.AddTag", "role": "Editor", "args": { "name": { "value": "b1" }, "label": { "value": "l1" }, "key": "k1", "value": "v1" } },
+    { "verb": "EntityListMutations::Board.TaggedList.AddTag", "role": "Editor", "args": { "name": { "value": "b1" }, "label": { "value": "l1" }, "key": "k2", "value": "v2" } },
+    { "verb": "EntityListMutations::Board.TaggedList.AddTag", "role": "Editor", "args": { "name": { "value": "b1" }, "label": { "value": "l1" }, "key": "k1", "value": "v1" } },
+    { "verb": "EntityListMutations::Board.TaggedList.RemoveTag", "role": "Editor", "args": { "name": { "value": "b1" }, "label": { "value": "l1" }, "tag": { "key": "k1", "value": "v1" } } },
+    { "verb": "EntityListMutations::Board.TaggedList.RemoveTag", "role": "Editor", "args": { "name": { "value": "b1" }, "label": { "value": "l1" }, "tag": { "key": "zz", "value": "zz" } } }
+  ],
+  "expect": { "count": { "value": 10 }, "tags": [{ "key": "k2", "value": "v2" }] }
+}

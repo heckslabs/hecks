@@ -58,17 +58,29 @@ RSpec.describe "every mutation op", :aggregate_failures do
   # refusal fixture's own steps.
   def self.histories
     @histories ||= ENTITY_OP_DOMAINS.flat_map { |dir| (1..10).map { |seed| generated(File.join(root, dir), seed) } } +
-                   [fixture_history]
+                   [fixture_history, entity_history]
   end
 
   def self.generated(dir, seed)
     Hecks::Fuzzing::Replay.call(dir, Hecks::Fuzzing::SequenceGenerator.generate(dir, seed: seed, steps: 25))
   end
 
-  def self.fixture_history
-    dir = File.join(root, "spec/fixtures/refusal_kinds")
+  def self.fixture_history = replay_steps("spec/fixtures/refusal_kinds")
+
+  # The entity fixture's own steps, which drive each op into the state where a broken one shows.
+  def self.entity_history = @entity_history ||= replay_steps("spec/fixtures/entity_list_mutations")
+
+  def self.replay_steps(fixture)
+    dir = File.join(root, fixture)
     Hecks::Fuzzing::Replay.call(dir, JSON.parse(File.read(File.join(dir, "steps.json")))["steps"])
   end
+
+  # The one list the entity fixture's steps leave, as plain data.
+  def self.entity_list
+    JSON.parse(JSON.generate(Hecks::Runtime::Value.materialize(entity_history[:instances]))).values.first["lists"].first
+  end
+
+  def self.entity_expectation = JSON.parse(File.read(File.join(root, "spec/fixtures/entity_list_mutations/steps.json")))["expect"]
 
   # The ops an accepted entity command applied, across every traced replay.
   def self.entity_ops_applied
@@ -87,6 +99,14 @@ RSpec.describe "every mutation op", :aggregate_failures do
     it "applies #{op} to an entity's field in a traced replay" do
       expect(self.class.entity_ops_applied).to include(op)
     end
+  end
+
+  it "leaves the entity fixture's list as its steps pin: raised, multiplied, clamped, removed by value" do
+    expect(self.class.entity_list.slice("count", "tags")).to eq(self.class.entity_expectation)
+  end
+
+  it "accepts every one of the entity fixture's steps" do
+    expect(self.class.entity_history[:refusals]).to be_empty
   end
 
   it "agrees with the independent recompute on every entity mutation applied" do
