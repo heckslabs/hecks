@@ -420,8 +420,8 @@ RUNTIME.dispatch_port(
   "Pizzas", "Order", "PaymentGateway", "Receive",
   flat: {
     name:          NAME,
-    customer_name: { value: "Chris" },
-    amount:        { cents: 1200 }
+    customer_name: "Chris",
+    amount:        1200
   }
 )
 ```
@@ -479,9 +479,9 @@ NAME = "GuideMargherita"
 
 order = Pizzas::Order.create_pizza!(
   name:  { value: NAME },
-  pizza: { price_cents: { cents: 1200 }, size: { value: "large" } }
+  pizza: { price_cents: 1200, size: "large" }
 )
-order.add_topping!(topping: { value: "Basil" }, amount: { value: 3 })
+order.add_topping!(topping: "Basil", amount: 3)
 
 order.status  # => "available"
 ```
@@ -495,8 +495,8 @@ announced = runtime.dispatch_port(
   "Pizzas", "Order", "PaymentGateway", "Receive",
   flat: {
     name:          NAME,
-    customer_name: { value: "Chris" },
-    amount:        { cents: 1200 }
+    customer_name: "Chris",
+    amount:        1200
   }
 )
 announced.map(&:name)  # => ["PizzaPaymentReceived"]

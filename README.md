@@ -137,11 +137,11 @@ end
 -->
 
 ```ruby
-order = Order.create_pizza!(name: "Margherita", pizza: { price_cents: { cents: 1200 }, size: "large" })
-order.purchase!(customer_name: "Chris", amount: { cents: 1200 })   # ~> GivenNotMet: a pizza needs at least one topping
+order = Order.create_pizza!(name: "Margherita", pizza: { price_cents: 1200, size: "large" })
+order.purchase!(customer_name: "Chris", amount: 1200)   # ~> GivenNotMet: a pizza needs at least one topping
 
 order.add_topping!(topping: "Basil", amount: 3)
-order.purchase!(customer_name: "Chris", amount: { cents: 1200 })
+order.purchase!(customer_name: "Chris", amount: 1200)
 
 order.status             # => "sold"
 order.events.last.name   # => "PizzaPurchased"
@@ -477,9 +477,9 @@ the git-tracked `examples/banking/data/`, so a dispatch there shows up in
 `git clean -f examples/banking/data` put the clone back.
 
 ```ruby skip
-customer = Customer.register!(reference: "CUST-1001", name: { given: "Chris", family: "Young" }, email: { address: "chris@example.com" })
-account  = Account.open!(customer: "CUST-1001", number: "1001", kind: { name: "current" }, daily_limit: { cents: 50_000 })
-account.credit!(amount: { cents: 500, currency: "USD" }, narrative: { text: "Opening deposit" })
+customer = Customer.register!(reference: "CUST-1001", name: { given: "Chris", family: "Young" }, email: "chris@example.com")
+account  = Account.open!(customer: "CUST-1001", number: "1001", kind: "current", daily_limit: 50_000)
+account.credit!(amount: { cents: 500, currency: "USD" }, narrative: "Opening deposit")
 
 account.balance.to_h    # => { cents: 500, currency: "USD" }
 account.status          # => "open"

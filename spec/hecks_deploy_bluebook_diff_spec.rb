@@ -80,7 +80,7 @@ RSpec.describe "the Deploy chapter's BluebookDiff", :io do
 
   def diff_files(old, new) = diff("old=#{write_json("old.json", old)}", "new=#{write_json("new.json", new)}")
 
-  def report_of(json) = json.dig("state", "report", "value")
+  def report_of(json) = json.dig("state", "report")
 
   def calls
     path = File.join(dir, "calls.log")
@@ -146,7 +146,7 @@ RSpec.describe "the Deploy chapter's BluebookDiff", :io do
 
       expect(status).to eq(1)
       expect(json.dig("state", "status")).to eq("flagged")
-      expect(json.dig("state", "refusal", "value")).to include("old= and new= together")
+      expect(json.dig("state", "refusal")).to include("old= and new= together")
     end
   end
 

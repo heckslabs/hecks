@@ -255,9 +255,9 @@ customer who does not exist yet.
 becomes a module method the same way every aggregate's does:
 
 ```ruby
-customer = Banking::Customer.register!(reference: { value: "CUST-0001" },
+customer = Banking::Customer.register!(reference: "CUST-0001",
                                        name: { given: "Odile", family: "Vasseur" },
-                                       email: { address: "odile@example.com" })
+                                       email: "odile@example.com")
 customer.reference.to_h   # => { value: "CUST-0001" }
 ```
 
@@ -265,8 +265,8 @@ customer.reference.to_h   # => { value: "CUST-0001" }
 — gets the same entry point:
 
 ```ruby
-box = Banking::SafeDepositBox.rent!(branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
-                                    size: { value: "medium" }, customer: "CUST-0001")
+box = Banking::SafeDepositBox.rent!(branch_code: "DOWNTOWN", box_number: 12,
+                                    size: "medium", customer: "CUST-0001")
 box.status         # => "rented"
 box.size.to_h       # => { value: "medium" }
 ```
@@ -284,11 +284,11 @@ identity every time:
 
 ```ruby
 runtime.dispatch_flat("Banking::SafeDepositBox.LogVisit",
-                  branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
-                  date: { value: "2026-01-05" }, sequence: { value: 1 })
+                  branch_code: "DOWNTOWN", box_number: 12,
+                  date: "2026-01-05", sequence: 1)
 runtime.dispatch_flat("Banking::SafeDepositBox.LogVisit",
-                  branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
-                  date: { value: "2026-01-05" }, sequence: { value: 2 }, note: { text: "Second visit, same day" })
+                  branch_code: "DOWNTOWN", box_number: 12,
+                  date: "2026-01-05", sequence: 2, note: "Second visit, same day")
 
 box = Banking::SafeDepositBox.find("DOWNTOWN:12")
 box.visits.map { |v| [v[:sequence].to_h, v[:state]] }   # => [[{ value: 1 }, "logged"], [{ value: 2 }, "logged"]]
@@ -315,9 +315,9 @@ identity in play:
 
 ```ruby
 runtime.dispatch_flat("Banking::SafeDepositBox.Visit.Annotate",
-                  branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
-                  date: { value: "2026-01-05" }, sequence: { value: 1 },
-                  note: { text: "Flagged for a follow-up" })
+                  branch_code: "DOWNTOWN", box_number: 12,
+                  date: "2026-01-05", sequence: 1,
+                  note: "Flagged for a follow-up")
 
 box = Banking::SafeDepositBox.find("DOWNTOWN:12")
 box.visits.map { |v| v[:note].to_h }   # => [{ text: "Flagged for a follow-up" }, { text: "Second visit, same day" }]
@@ -334,7 +334,7 @@ the box right but name a visit that never happened and you get
 `NotFound` naming the entity, not the box:
 
 ```ruby
-runtime.dispatch_flat("Banking::SafeDepositBox.Visit.Annotate", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 }, date: { value: "2026-01-05" }, sequence: { value: 99 }, note: { text: "x" })   # ~> NotFound: no Visit with date.value, sequence.value
+runtime.dispatch_flat("Banking::SafeDepositBox.Visit.Annotate", branch_code: "DOWNTOWN", box_number: 12, date: "2026-01-05", sequence: 99, note: "x")   # ~> NotFound: no Visit with date.value, sequence.value
 ```
 
 Get the box's OWN identity wrong instead — a branch and number nothing
@@ -342,7 +342,7 @@ was ever rented under — and the runtime never gets as far as looking
 at `visits` at all:
 
 ```ruby
-runtime.dispatch_flat("Banking::SafeDepositBox.Visit.Annotate", branch_code: { value: "DOWNTOWN" }, box_number: { value: 999 }, date: { value: "2026-01-05" }, sequence: { value: 1 }, note: { text: "x" })   # ~> NotFound: no SafeDepositBox with branch_code.value, box_number.value
+runtime.dispatch_flat("Banking::SafeDepositBox.Visit.Annotate", branch_code: "DOWNTOWN", box_number: 999, date: "2026-01-05", sequence: 1, note: "x")   # ~> NotFound: no SafeDepositBox with branch_code.value, box_number.value
 ```
 
 Two different `NotFound`s, naming two different things, because a
@@ -356,7 +356,7 @@ on the aggregate, appending to `keys`:
 
 ```ruby
 runtime.dispatch_flat("Banking::SafeDepositBox.IssueKey",
-                  branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 }, serial: { value: "KEY-1" })
+                  branch_code: "DOWNTOWN", box_number: 12, serial: "KEY-1")
 ```
 
 `KeyIssuance::Return`'s `given` reads a field off the entity's OWN
@@ -371,7 +371,7 @@ contains it.)
 
 ```ruby
 runtime.dispatch_flat("Banking::SafeDepositBox.KeyIssuance.Return",
-                  branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 }, serial: { value: "KEY-1" })
+                  branch_code: "DOWNTOWN", box_number: 12, serial: "KEY-1")
 
 box = Banking::SafeDepositBox.find("DOWNTOWN:12")
 box.keys.map { |k| k[:status] }   # => ["returned"]
@@ -383,7 +383,7 @@ before, but because `admissible_transition` re-checks the key's
 current state every time, and that state changed underneath it:
 
 ```ruby
-runtime.dispatch_flat("Banking::SafeDepositBox.KeyIssuance.Return", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 }, serial: { value: "KEY-1" })   # ~> LifecycleRefused: Return refused — status is "returned", and Return moves it only from "issued"
+runtime.dispatch_flat("Banking::SafeDepositBox.KeyIssuance.Return", branch_code: "DOWNTOWN", box_number: 12, serial: "KEY-1")   # ~> LifecycleRefused: Return refused — status is "returned", and Return moves it only from "issued"
 ```
 
 The event it would have announced never happens; the ones that already

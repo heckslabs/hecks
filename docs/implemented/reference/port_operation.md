@@ -77,8 +77,8 @@ end
 ```
 
 ```ruby
-runtime.dispatch("PortOperationReference::Licence.Grant", with: { serial: { value: "lic-1" }, holder: { value: "Ada" } })
-runtime.dispatch("PortOperationReference::Licence.Grant", with: { serial: { value: "lic-unknown" }, holder: { value: "Bee" } })
+runtime.dispatch("PortOperationReference::Licence.Grant", with: { serial: "lic-1", holder: "Ada" })
+runtime.dispatch("PortOperationReference::Licence.Grant", with: { serial: "lic-unknown", holder: "Bee" })
 ```
 
 ## reference_to
@@ -106,7 +106,7 @@ never reaches the payload at all; the emitted event carries it as the
 event's own `id` instead:
 
 ```ruby
-told = runtime.dispatch("PortOperationReference::Licence.Registry.Inspected", to: "lic-1", with: { serial: "lic-1", inspector: { value: "Grace" } })
+told = runtime.dispatch("PortOperationReference::Licence.Registry.Inspected", to: "lic-1", with: { serial: "lic-1", inspector: "Grace" })
 told.events.first.id  # => "lic-1"
 ```
 

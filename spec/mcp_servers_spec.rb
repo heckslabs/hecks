@@ -414,7 +414,7 @@ RSpec.describe "the stdio MCP servers" do
     it "runs one spec example after another in the same server, each answering its own summary", :process do
       results = server_results(spec_example_calls, env: repository_server_env("test_suite_run.run_spec_example"))
 
-      reports = (1..3).map { |id| payload(results[id]).dig("state", "report", "value").to_s }
+      reports = (1..3).map { |id| payload(results[id]).dig("state", "report").to_s }
       expect(reports).to all(include("1 example, 0 failures"))
     end
 
