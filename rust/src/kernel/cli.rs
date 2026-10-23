@@ -1,5 +1,6 @@
 //! The stdin/stdout JSON CLI shared by the native binary and the wasm32-wasip1 module.
-//! `run` reads `{"steps": [...]}` and hands each step to `kernel::orchestrate` (ADR 0012).
+//! `run` reads `{"steps": [...]}` and hands each step to `kernel::orchestrate` (ADR 0012), or
+//! `{"present": answer}` and answers that answer bare (`kernel::present`).
 
 use super::{
     named_query, orchestrate, query_comparators, read_model, repository, AggregateScan,
@@ -23,6 +24,18 @@ pub fn run(input: &str) -> String {
         Ok(v) => v,
         Err(e) => return error_output(&format!("invalid JSON on stdin: {e}")),
     };
+
+    // `{"present": answer}`: a run's answer in the bare shape a caller reads (single-field value
+    // objects as their sole field); no step runs, and stored state stays wrapped.
+    // Parsed again keeping number text, so a Float the answer carries is written back unchanged.
+    if parsed.get("present").is_some() {
+        let answer = Json::parse_keeping_number_text(input)
+            .ok()
+            .and_then(|whole| whole.get("present").cloned())
+            .unwrap_or(Json::Null);
+        return super::present::present_answer(answer, crate::generated::active::present)
+            .to_json_string();
+    }
 
     // Optional `"needs"`: which commands need which outside facts (ADR 0081), passed by the host.
     super::needs::install(parsed.get("needs"));

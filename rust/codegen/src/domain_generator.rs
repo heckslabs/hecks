@@ -1116,6 +1116,12 @@ pub fn generate(
             }
         }
 
+        puts_blank(&mut out);
+        puts_str(
+            &mut out,
+            &crate::presenters::emit_aggregate_presenter(aggregate, &value_objects_by_name),
+        );
+
         aggregate_files.push(GeneratedFile {
             name: format!("{}.rs", crate::naming::aggregate_module(agg_name)),
             content: out,

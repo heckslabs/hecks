@@ -10,6 +10,7 @@ pub mod named_query;
 pub mod needs;
 pub mod orchestrate;
 pub mod pattern;
+pub mod present;
 pub mod query_ordering;
 pub mod vocab;
 // Kept at its old path so existing `refusal_wording::RefusalSite` call sites still resolve.
