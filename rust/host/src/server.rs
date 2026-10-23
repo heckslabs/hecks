@@ -213,7 +213,13 @@ fn admit(limits: &RateLimits, peer: SocketAddr, method: &Method, uri: &Uri, head
     // they're honored only from a peer on this host (the task's own sidecar); everyone
     // else — the load balancer, i.e. the public internet — gets an ordinary request
     // envelope for the path it actually hit.
-    let envelope = if trusts_internal_dispatch(peer) && is_internal_dispatch_shape(&parsed) {
+    // A proxy on this host (an AwsBox's Caddy, which a tunnel also goes through) makes every
+    // public request arrive from loopback too; the forwarding headers it always adds are what
+    // tell its traffic apart from a sidecar's.
+    let envelope = if trusts_internal_dispatch(peer)
+        && !came_through_a_proxy(headers)
+        && is_internal_dispatch_shape(&parsed)
+    {
         parsed
     } else {
         synthesize_function_url_envelope(method, uri, headers, body)
@@ -242,6 +248,20 @@ fn trusts_internal_dispatch(peer: SocketAddr) -> bool {
         std::net::IpAddr::V4(addr) => addr.is_loopback(),
         std::net::IpAddr::V6(addr) => addr.is_loopback() || addr.to_ipv4_mapped().is_some_and(|mapped| mapped.is_loopback()),
     }
+}
+
+/// Whether a proxy forwarded this request: Caddy's `reverse_proxy` always sets the
+/// `X-Forwarded-*` headers, and a client cannot make it drop them.
+fn came_through_a_proxy(headers: &HeaderMap) -> bool {
+    [
+        "x-forwarded-for",
+        "x-forwarded-host",
+        "x-forwarded-proto",
+        "forwarded",
+        "via",
+    ]
+    .iter()
+    .any(|name| headers.contains_key(*name))
 }
 
 /// Whether `value` already matches one of `dispatch_body`'s recognized shapes; anything
@@ -406,6 +426,39 @@ mod tests {
             let envelope = admitted("127.0.0.1:5000", "/anything", body);
 
             assert_eq!(envelope, serde_json::from_str::<Value>(body).unwrap());
+        }
+    }
+
+    // The gap this closes: on an AwsBox, Caddy proxies the public internet to 127.0.0.1, so
+    // a public `{"read": true}` or `{"verb": ..., "role": "Admin"}` arrived from loopback and
+    // reached the kernel as the internal protocol.
+    #[test]
+    fn a_verb_or_read_body_a_proxy_on_this_host_forwarded_is_an_ordinary_request() {
+        for header in [
+            "x-forwarded-for",
+            "x-forwarded-host",
+            "x-forwarded-proto",
+            "forwarded",
+            "via",
+        ] {
+            let mut headers = HeaderMap::new();
+            headers.insert(header, "203.0.113.7".parse().unwrap());
+            let body = Bytes::from(r#"{"verb":"Approve","role":"Admin"}"#);
+            let envelope = admit(
+                &limits_from(&[]),
+                peer("127.0.0.1:5000"),
+                &Method::POST,
+                &"/anything".parse().unwrap(),
+                &headers,
+                &body,
+            )
+            .unwrap_or_else(|_| panic!("a request carrying {header} was refused"));
+
+            assert!(
+                envelope.get("verb").is_none(),
+                "a body forwarded with {header} must not reach dispatch as a command"
+            );
+            assert_eq!(envelope["rawPath"], "/anything");
         }
     }
 
