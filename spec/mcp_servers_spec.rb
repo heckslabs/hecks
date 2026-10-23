@@ -548,12 +548,7 @@ RSpec.describe "the stdio MCP servers" do
   end
 
   describe "hecks serve_query_ir_mcp" do
-    around do |example|
-      Dir.mktmpdir("hecks-mcp-outside") do |dir|
-        @outside = dir
-        example.run
-      end
-    end
+    scratch_directory :outside, "hecks-mcp-outside"
 
     # A domains directory outside the project root whose bluebook writes a marker file when loaded.
     def plant_loadable_domain

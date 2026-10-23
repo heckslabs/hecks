@@ -16,12 +16,7 @@ RSpec.describe Hecks::Adapters::DeployToolchain do
     Hecks::Adapters::Codebase::Tree.root = nil
   end
 
-  around do |example|
-    Dir.mktmpdir("deploy_toolchain") do |dir|
-      @dir = dir
-      example.run
-    end
-  end
+  scratch_directory :dir, "deploy_toolchain"
 
   def shell_answering(*answers)
     FakeCodebaseShell.new(*answers).tap do |shell|

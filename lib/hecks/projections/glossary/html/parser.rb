@@ -25,7 +25,7 @@ module Hecks
 
             case line
             when /\A```mermaid/ then fence(lines, index)
-            when /\A(\#{1,3}) (.+)\z/ then [heading(Regexp.last_match), index + 1]
+            when /\A(\#{1,4}) (.+)\z/ then [heading(Regexp.last_match), index + 1]
             when /\A> / then [Block.new(type: :quote, text: line[2..]), index + 1]
             when /\A- / then list(lines, index)
             else paragraph(lines, index)

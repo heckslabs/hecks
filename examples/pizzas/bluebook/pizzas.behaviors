@@ -45,6 +45,39 @@ Hecks.behaviors "Pizzas" do
     expect emits: ["PizzaPurchased"]
   end
 
+  test "Purchase refuses a payment that does not cover the price" do
+    tests "Purchase", on: "Order"
+    setup  "CreatePizza", name: "Underpaid", pizza: { price_cents: { cents: 1200 }, size: "large" }
+    setup  "AddTopping",  name: "Underpaid", topping: "Basil", amount: 1
+    input  name: "Underpaid", customer_name: "Chris", amount: { cents: 500 }
+    expect refused: "the payment covers the price"
+  end
+
+  # The processor's way in: the port only announces the payment, and OnPizzaPaymentReceived
+  # carries it to Purchase, whose rules decide whether the pizza sells.
+  test "a payment received through the gateway sells the pizza" do
+    tests "Pizzas::Order.PaymentGateway.Receive"
+    setup  "CreatePizza", name: "Paid For", pizza: { price_cents: { cents: 1200 }, size: "large" }
+    setup  "AddTopping",  name: "Paid For", topping: "Basil", amount: 1
+    input  to: "Paid For", with: { customer_name: { value: "Chris" }, amount: { cents: 1200 } }
+    expect emits: ["PizzaPaymentReceived", "PizzaPurchased"]
+  end
+
+  test "an underpayment through the gateway is recorded, but sells nothing" do
+    tests "Pizzas::Order.PaymentGateway.Receive"
+    setup  "CreatePizza", name: "Short", pizza: { price_cents: { cents: 1200 }, size: "large" }
+    setup  "AddTopping",  name: "Short", topping: "Basil", amount: 1
+    input  to: "Short", with: { customer_name: { value: "Chris" }, amount: { cents: 500 } }
+    expect emits: ["PizzaPaymentReceived"]
+  end
+
+  test "a payment through the gateway for a pizza with no toppings sells nothing" do
+    tests "Pizzas::Order.PaymentGateway.Receive"
+    setup  "CreatePizza", name: "Plain", pizza: { price_cents: { cents: 900 }, size: "small" }
+    input  to: "Plain", with: { customer_name: { value: "Chris" }, amount: { cents: 900 } }
+    expect emits: ["PizzaPaymentReceived"]
+  end
+
   test "a sold pizza is no longer Available" do
     tests "Available", on: "Order", kind: :query
     setup  "CreatePizza", name: "Fresh",     pizza: { price_cents: { cents: 1000 }, size: "small" }

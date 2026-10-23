@@ -129,12 +129,7 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
     "custodian_role_assignment_head_snapshot_1", "governance_role_assignment_head_snapshot_1"
   ].freeze
 
-  around do |example|
-    Dir.mktmpdir do |tmp|
-      @dir = tmp
-      example.run
-    end
-  end
+  scratch_directory
 
   attr_reader :dir
 

@@ -698,11 +698,17 @@ mod lineage_tests {
         assert_eq!(eras[1].ordinal, 2);
         let from_label = eras[0].label.clone().expect("era 1 has a minted label");
         let to_label = eras[1].label.clone().expect("era 2 has a minted label");
-        assert_ne!(from_label, to_label, "a real edge names two DIFFERENT shapes");
+        assert_ne!(
+            from_label, to_label,
+            "a real edge names two DIFFERENT shapes"
+        );
 
         // Era 1 took two writes and era 2 one, so the journal's high-water mark is past them.
         let ordinal = last_ordinal(&client, "Ledger").await.expect("last_ordinal");
-        assert!(ordinal >= 3, "last_ordinal should reflect the real writes: {ordinal}");
+        assert!(
+            ordinal >= 3,
+            "last_ordinal should reflect the real writes: {ordinal}"
+        );
     }
 
     // The boot-gate case the RLS test doesn't cover: this crate's own

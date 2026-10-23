@@ -125,7 +125,7 @@ fn extract_cookies(body: &Value) -> HashMap<String, String> {
 // at boot, since a domain with no web layer never sets it at all.
 #[allow(clippy::panic)] // reason: refusing to boot beats signing cookies with a publicly-known key
 fn session_secret() -> String {
-    let secret = std::env::var("SESSION_SECRET").unwrap_or_default();
+    let secret = crate::secrets::var("SESSION_SECRET").unwrap_or_default();
     if let Err(e) = validate_session_secret(&secret) {
         panic!("{e}");
     }

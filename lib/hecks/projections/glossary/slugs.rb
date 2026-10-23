@@ -14,7 +14,10 @@ module Hecks
           take.call(Markdown.title(bluebook))
           sections.each do |section|
             section.slug = take.call(section.title)
-            section.terms.each { |entry| entry.slug = take.call(entry.headword) }
+            Groups.walk(section).each do |kind, item|
+              slug = take.call(kind == :group ? item : item.headword)
+              item.slug = slug unless kind == :group
+            end
           end
         end
 
