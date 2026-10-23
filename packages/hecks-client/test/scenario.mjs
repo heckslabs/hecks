@@ -5,14 +5,14 @@
 
 import assert from "node:assert/strict";
 
-import { DomainRefusal, refusalOf, text, whole } from "../dist/index.js";
+import { DomainRefusal, refusalOf } from "../dist/index.js";
 
 const eventsFrom = (client, answer) =>
   client.instancesOf(answer, "Event").map(([slug, state]) => ({
     slug,
-    name: text(state.name),
-    priceCents: whole(state.price, "cents"),
-    capacity: whole(state.capacity, "value"),
+    name: state.name,
+    priceCents: state.price,
+    capacity: state.capacity,
     status: state.status,
   }));
 
@@ -23,7 +23,7 @@ export async function runEventScenario(client, slug = `session-${Date.now()}`) {
 
   const scheduled = await client.apply({
     verb: "Event.Schedule",
-    with: { slug: { value: slug }, name: { value: "Yoga" }, price: { cents: 10800 }, capacity: { value: 12 } },
+    with: { slug, name: "Yoga", price: 10800, capacity: 12 },
     parse: (answer) => eventsFrom(client, answer),
     confirm: (events) => events.some((event) => event.slug === slug),
   });

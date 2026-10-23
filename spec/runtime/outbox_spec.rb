@@ -152,12 +152,7 @@ RSpec.describe "the transactional outbox" do
   end
 
   describe "on SqlitePersistence" do
-    around do |example|
-      Dir.mktmpdir do |dir|
-        @dir = dir
-        example.run
-      end
-    end
+    scratch_directory
 
     attr_reader :dir
 

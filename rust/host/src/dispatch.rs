@@ -715,6 +715,29 @@ pub async fn query(
     parse_kernel_output(&output)
 }
 
+/// Answers `answer` (a kernel answer already computed and persisted) in the bare shape a caller
+/// reads, by one more wasm run of the kernel's `{"present": answer}` input: each single-field
+/// value object as its sole field. Nothing is stored or replayed.
+pub async fn present(
+    wasm_path: &Path,
+    answer: serde_json::Value,
+) -> anyhow::Result<serde_json::Value> {
+    let owned_wasm_path = wasm_path.to_path_buf();
+    tokio::task::spawn_blocking(move || {
+        present_with(&answer, |input| wasm_runner::run(&owned_wasm_path, input))
+    })
+    .await?
+}
+
+/// Presents `answer` as `present` does, with `run` standing in for the kernel (text in, text out).
+pub(crate) fn present_with(
+    answer: &serde_json::Value,
+    run: impl FnOnce(&str) -> anyhow::Result<String>,
+) -> anyhow::Result<serde_json::Value> {
+    let input = serde_json::json!({ "present": answer }).to_string();
+    parse_kernel_output(&run(&input)?)
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
 
@@ -961,6 +984,30 @@ pub(crate) mod tests {
             era: Some(era),
             mirrored: None,
         }
+    }
+
+    #[test]
+    fn present_hands_the_kernel_the_answer_under_present_and_answers_what_it_returns() {
+        let answer = serde_json::json!({"instances": {"Shop::Item#a": {"name": {"value": "x"}}}});
+        let mut sent = String::new();
+        let presented = present_with(&answer, |input| {
+            sent = input.to_string();
+            Ok(r#"{"instances":{"Shop::Item#a":{"name":"x"}}}"#.to_string())
+        })
+        .unwrap();
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&sent).unwrap(),
+            serde_json::json!({ "present": answer })
+        );
+        assert_eq!(presented["instances"]["Shop::Item#a"]["name"], "x");
+    }
+
+    #[test]
+    fn present_is_an_error_when_the_kernel_fails() {
+        let failed = present_with(&serde_json::json!({}), |_| {
+            Ok(r#"{"error":"expected a top-level {\"steps\": [...]} object"}"#.to_string())
+        });
+        assert!(failed.is_err());
     }
 
     pub(crate) fn wasm_path() -> std::path::PathBuf {

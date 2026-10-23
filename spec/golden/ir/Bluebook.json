@@ -33385,6 +33385,34 @@
             [
               [
                 "name",
+                "mutation_files"
+              ],
+              [
+                "type",
+                "Array"
+              ],
+              [
+                "meaning",
+                "Rust files `hecks quality_control target.mutate --from-dials` mutates, and so the files one `hecks quality_control sweep.tick` mutation-tests after the generated domains; empty skips the step."
+              ]
+            ],
+            [
+              [
+                "name",
+                "mutation_equivalent"
+              ],
+              [
+                "type",
+                "Array"
+              ],
+              [
+                "meaning",
+                "Mutants that behave the same as the original code, by the name `cargo mutants --list` gives them without the file and line; never run, so they cannot be reported as survivors."
+              ]
+            ],
+            [
+              [
+                "name",
                 "structural_refusal_boundary"
               ],
               [
@@ -35587,6 +35615,28 @@
               [
                 "passes",
                 "--candidates 3 --rust --seeds 5 --steps 25 --adversarial 0.3 --repair-rounds 1 --agent CMD --from DIR --against PATH --brief"
+              ]
+            ],
+            [
+              [
+                "script",
+                "(new)"
+              ],
+              [
+                "section",
+                "QualityControl"
+              ],
+              [
+                "aggregate",
+                "Target"
+              ],
+              [
+                "verb",
+                "mutate"
+              ],
+              [
+                "passes",
+                "--file rust/src/… --from-dials"
               ]
             ],
             [

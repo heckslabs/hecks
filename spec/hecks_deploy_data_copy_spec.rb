@@ -144,7 +144,7 @@ RSpec.describe "the Deploy chapter's DataCopy and CopyVerification", :io do
 
   def pg_dumps = scratch.calls.grep(/\Apg_dump/)
 
-  def refusal_of(json) = json.dig("state", "refusal", "value")
+  def refusal_of(json) = json.dig("state", "refusal")
 
   it "declares both aggregates in the Deploy chapter, joined by policies", :aggregate_failures do
     chapter = @hecks.registry.bluebook("Deploy")
@@ -181,8 +181,8 @@ RSpec.describe "the Deploy chapter's DataCopy and CopyVerification", :io do
 
       expect(status).to eq(0)
       expect(json.dig("state", "status")).to eq("planned")
-      expect(json.dig("state", "report", "value")).to include("schemas widgets, widgets_cms", "force=true drops",
-                                                              "dry run: nothing was run")
+      expect(json.dig("state", "report")).to include("schemas widgets, widgets_cms", "force=true drops",
+                                                     "dry run: nothing was run")
     end
 
     it "runs nothing and requests no verification for dry_run=true", :aggregate_failures do
@@ -203,7 +203,7 @@ RSpec.describe "the Deploy chapter's DataCopy and CopyVerification", :io do
 
       expect(status).to eq(0), json.to_json
       expect(json.dig("state", "status")).to eq("verified")
-      expect(json.dig("state", "verification", "value")).to include("OK: 2 tables")
+      expect(json.dig("state", "verification")).to include("OK: 2 tables")
       expect(verification_status(json)).to eq("verified")
     end
 
@@ -300,7 +300,7 @@ RSpec.describe "the Deploy chapter's DataCopy and CopyVerification", :io do
 
       expect(status).to eq(0), json.to_json
       expect(json.dig("state", "status")).to eq("verified")
-      expect(json.dig("state", "verification", "value")).to include("OK: 2 tables")
+      expect(json.dig("state", "verification")).to include("OK: 2 tables")
     end
 
     it "records the match as the verdict, and copies nothing", :aggregate_failures do

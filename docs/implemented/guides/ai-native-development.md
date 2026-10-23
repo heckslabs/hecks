@@ -46,7 +46,7 @@ end
 catalog = Hecks::Storehouse.catalog(runtime: runtime)
 catalog[:aggregates].first[:commands]   # => ["add_topping!", "create_pizza!", "purchase!"]
 
-pizza = { name: "Diavola", pizza: { price_cents: { cents: 1400 }, size: "large" } }
+pizza = { name: "Diavola", pizza: { price_cents: 1400, size: "large" } }
 
 unbound = Hecks::Storehouse.dispatch(runtime: runtime, command: "order.create_pizza", summary: "add a pizza", args: pizza)
 unbound[:ok]                             # => false

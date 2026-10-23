@@ -11,12 +11,7 @@ RSpec.describe Hecks::Adapters::TenantProvisioner do
       schema: { value: "acme" }, database: { value: "hecks_tenants" } }
   end
 
-  around do |example|
-    Dir.mktmpdir("provisioner") do |dir|
-      @dir = dir
-      example.run
-    end
-  end
+  scratch_directory :dir, "provisioner"
 
   def overlay_path = File.join(@dir, "environments/acme.world")
 

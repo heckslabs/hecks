@@ -69,7 +69,7 @@ RSpec.describe "watching a lane" do
     Hecks::Adapters::Codebase::Promotion.checks = checks.new(world.fetch(:states, {}), world.fetch(:by_commit, {}))
   end
 
-  def open_findings = JSON.parse(launch("tickets", "finding.open").first).map { |row| row.dig("finding", "value") }
+  def open_findings = JSON.parse(launch("tickets", "finding.open").first).map { |row| row["finding"] }
 
   it "completes a lane that is behind by less than its Lane row allows, and files nothing", :aggregate_failures do
     out = watch("on-time", hours: 3)

@@ -188,7 +188,7 @@ const CONFIRM_PURPOSE: &str = "newsletter-confirm";
 
 // SESSION_SECRET; unset means no confirm link can be signed and none is sent.
 fn confirm_secret() -> Option<String> {
-    std::env::var("SESSION_SECRET")
+    crate::secrets::var("SESSION_SECRET")
         .ok()
         .filter(|s| !s.is_empty())
 }

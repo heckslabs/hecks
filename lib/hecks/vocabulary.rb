@@ -172,6 +172,8 @@ module Hecks
         {"name"=>"generated_domains_per_tick", "type"=>"Integer", "meaning"=>"How many generated domains one `hecks quality_control sweep.tick` checks after the rotation sweep; 0 skips the step."}.freeze,
         {"name"=>"generated_domains_rust", "type"=>"Boolean", "meaning"=>"Whether generated domains are also compared against a compiled Rust binary built in a scratch copy."}.freeze,
         {"name"=>"generated_domain_seeds", "type"=>"Integer", "meaning"=>"Generated sequences run per generated domain."}.freeze,
+        {"name"=>"mutation_files", "type"=>"Array", "meaning"=>"Rust files `hecks quality_control target.mutate --from-dials` mutates, and so the files one `hecks quality_control sweep.tick` mutation-tests after the generated domains; empty skips the step."}.freeze,
+        {"name"=>"mutation_equivalent", "type"=>"Array", "meaning"=>"Mutants that behave the same as the original code, by the name `cargo mutants --list` gives them without the file and line; never run, so they cannot be reported as survivors."}.freeze,
         {"name"=>"structural_refusal_boundary", "type"=>"Array", "meaning"=>"Construct families a skipped query verb may belong to. A skip inside the list is logged Held, one outside it Surprised. Shrink-only: spec/fuzzing/rust_gap_manifest_spec.rb fails when a family here is declared by no committed manifest."}.freeze
       ].freeze,
       "QueryComparator" => [
@@ -505,6 +507,7 @@ module Hecks
         {"script"=>"qa_seed_targets", "section"=>"QualityControl", "aggregate"=>"Target", "verb"=>"seed"}.freeze,
         {"script"=>"qa_generated_domains", "section"=>"QualityControl", "aggregate"=>"Target", "verb"=>"check_generated_domains", "passes"=>"--domains 3 --start N --forms a,b --seeds 5 --steps 25 --adversarial 0.3 --rust --shrink-budget 200 --domain-shrink-budget 40 --promote dir --name N --from-dials --blueprint F --source F"}.freeze,
         {"script"=>"qa_mine_combinations", "section"=>"QualityControl", "aggregate"=>"Target", "verb"=>"mine_combinations", "passes"=>"--candidates 3 --rust --seeds 5 --steps 25 --adversarial 0.3 --repair-rounds 1 --agent CMD --from DIR --against PATH --brief"}.freeze,
+        {"script"=>"(new)", "section"=>"QualityControl", "aggregate"=>"Target", "verb"=>"mutate", "passes"=>"--file rust/src/… --from-dials"}.freeze,
         {"script"=>"qa_domain_novelty", "section"=>"QualityControl", "aggregate"=>"Target", "verb"=>"judge_novelty", "passes"=>"--against PATH …"}.freeze,
         {"script"=>"qa_discover_external_domains", "section"=>"QualityControl", "aggregate"=>"Target", "verb"=>"discover_external_domains", "passes"=>"--projects-dir ~/Projects --max-depth 3 --known-path PATH …"}.freeze,
         {"script"=>"qa_postgres_migrate", "section"=>"QualityControl", "aggregate"=>"Sweep", "verb"=>"migrate_ledger_from_heki", "passes"=>"[aggregate …] --force", "note"=>"a dry run without --force"}.freeze,

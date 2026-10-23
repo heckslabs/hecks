@@ -46,12 +46,7 @@ RSpec.describe "hecks ask shape" do
     ["", e.message]
   end
 
-  around do |example|
-    Dir.mktmpdir do |dir|
-      @dir = dir
-      example.run
-    end
-  end
+  scratch_directory
 
   # Writes `name`.bluebook into the scratch directory; answers its path.
   def write_bluebook(name, domain, aggregate)

@@ -371,9 +371,21 @@ impl Json {
     }
 
     pub fn parse(input: &str) -> Result<Self, String> {
+        Self::parse_with(input, false)
+    }
+
+    /// Parses `input` keeping every number literal's source text, so writing the value back
+    /// reproduces each number exactly as given (`0.0` stays `0.0`, not `0`). For a document that
+    /// is only reshaped and written out again, never evaluated.
+    pub fn parse_keeping_number_text(input: &str) -> Result<Self, String> {
+        Self::parse_with(input, true)
+    }
+
+    fn parse_with(input: &str, keep_number_text: bool) -> Result<Self, String> {
         let mut parser = Parser {
             chars: input.chars().peekable(),
             depth: 0,
+            keep_number_text,
         };
         let value = parser.parse_value()?;
         parser.skip_ws();
@@ -703,6 +715,7 @@ fn write_escaped_string(s: &str, out: &mut String) {
 struct Parser<'a> {
     chars: std::iter::Peekable<std::str::Chars<'a>>,
     depth: usize,
+    keep_number_text: bool,
 }
 
 /// How deeply arrays and objects may nest before `parse` refuses. Each level is a recursive call,
@@ -895,7 +908,8 @@ impl Parser<'_> {
         // A literal with a `.`/exponent is a genuine `Float`, and Ruby's `Float` is the same
         // `f64` Rust's is, so there is nothing to preserve there.
         let is_plain_integer = !s.contains('.') && !s.contains(['e', 'E']);
-        let keeps_source = is_plain_integer && canonical_integer_digits(value) != s;
+        let keeps_source =
+            self.keep_number_text || (is_plain_integer && canonical_integer_digits(value) != s);
         // `1e999` parses to infinity with no source text kept, and `write` would print it as `inf`:
         // not JSON, so refuse it. A plain integer keeps its digits, which `write` re-emits as-is.
         if !value.is_finite() && !keeps_source {

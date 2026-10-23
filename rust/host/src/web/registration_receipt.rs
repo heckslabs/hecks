@@ -50,7 +50,7 @@ async fn site_email(
     first_name: Option<&str>,
     amount_cents: Option<i64>,
 ) -> Option<SiteEmail> {
-    let secret = std::env::var("SESSION_SECRET")
+    let secret = crate::secrets::var("SESSION_SECRET")
         .ok()
         .filter(|s| !s.is_empty())?;
     let token = crate::auth::purpose_token(

@@ -67,7 +67,7 @@ impl Mailer {
     /// `Ok(None)` when nothing is configured; `Err` when a key is set without `RESEND_FROM` —
     /// marking an issue sent is irreversible, so a missing key must refuse before that happens.
     pub fn from_env() -> Result<Option<Self>, String> {
-        let var = |name: &str| std::env::var(name).unwrap_or_default();
+        let var = |name: &str| crate::secrets::var(name).unwrap_or_default();
         Self::configured(
             &var("RESEND_API_KEY"),
             &var("RESEND_FROM"),

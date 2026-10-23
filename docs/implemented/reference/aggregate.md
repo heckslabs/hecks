@@ -95,10 +95,10 @@ Two references to the same target need `as:` to tell them apart —
 each names its own `as:`:
 
 ```ruby
-big   = AggregateReference::Studio.found!(name: { value: "Big Studio" })
-indie = AggregateReference::Studio.found!(name: { value: "Indie Circuit" })
-niche = AggregateReference::Studio.found!(name: { value: "Niche Films" })
-film  = AggregateReference::Film.greenlight!(title: { value: "Debut" }, financier: big.id, distributor: indie.id,
+big   = AggregateReference::Studio.found!(name: "Big Studio")
+indie = AggregateReference::Studio.found!(name: "Indie Circuit")
+niche = AggregateReference::Studio.found!(name: "Niche Films")
+film  = AggregateReference::Film.greenlight!(title: "Debut", financier: big.id, distributor: indie.id,
                                             syndicate_lead: big.id, backers: [indie.id, niche.id])
 film.financier.id    # => "Big Studio"
 film.distributor.id  # => "Indie Circuit"
@@ -512,8 +512,8 @@ Banking::ExternalTransfer.ir.commands.find { |c| c.hecks_name == "Request" }.att
 `SafeDepositBox.LogVisit`'s note, omitted here without refusal:
 
 ```ruby
-box = Banking::SafeDepositBox.rent!(customer: "ag-1", branch_code: { value: "DT" }, box_number: { value: 9 }, size: { value: "small" })
-box.log_visit!(date: { value: "2026-08-14" }, sequence: { value: 1 }).visits.size  # => 1
+box = Banking::SafeDepositBox.rent!(customer: "ag-1", branch_code: "DT", box_number: 9, size: "small")
+box.log_visit!(date: "2026-08-14", sequence: 1).visits.size  # => 1
 ```
 
 A value-object-typed attribute whose OWN declared type carries exactly
@@ -523,7 +523,7 @@ one field accepts a bare scalar in place of the wrapped `{ field: ...
 dispatches identically:
 
 ```ruby
-Banking::SafeDepositBox.rent!(customer: "ag-1", branch_code: { value: "DT" }, box_number: { value: 10 }, size: "small").size.value  # => "small"
+Banking::SafeDepositBox.rent!(customer: "ag-1", branch_code: "DT", box_number: 10, size: "small").size.value  # => "small"
 ```
 
 A genuinely multi-field value object still refuses the bare form —

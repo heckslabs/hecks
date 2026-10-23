@@ -64,7 +64,7 @@ RSpec.describe "Pizzas, connected to the outside world" do
     it "sells a topped pizza through the Purchase form" do
       topped_pizza("Funghi")
       post "/Pizzas/Order/Purchase.html", "to" => "Funghi", "customer_name.value" => "Chris", "amount.cents" => "1200"
-      expect(order("Funghi")).to include("status" => "sold", "customer_name" => { "value" => "Chris" })
+      expect(order("Funghi")).to include("status" => "sold", "customer_name" => "Chris")
     end
 
     it "answers a refused purchase with the form again and the rule's words", :aggregate_failures do
@@ -80,7 +80,7 @@ RSpec.describe "Pizzas, connected to the outside world" do
       topped_pizza("Paid")
       pay("Paid", 1200)
       expect(json_body).to include("sold" => true, "events" => ["PizzaPaymentReceived"])
-      expect(order("Paid")).to include("status" => "sold", "customer_name" => { "value" => "Chris" })
+      expect(order("Paid")).to include("status" => "sold", "customer_name" => "Chris")
     end
 
     it "records an underpayment but sells nothing, naming the rule that refused it", :aggregate_failures do

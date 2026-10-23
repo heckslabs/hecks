@@ -924,3 +924,18 @@ pub fn check_query_args(
 }
 
 pub const READ_MODELS: &[crate::kernel::read_model::ReadModelDef] = &[];
+
+/// One `"Domain::Aggregate"` state as a caller is answered with it (the kernel's
+/// `{"present": answer}` input); stored state stays wrapped. An unknown name passes through.
+pub fn present(aggregate: &str, state: crate::kernel::Json) -> crate::kernel::Json {
+    match aggregate {
+        "Pizzas::Order" => crate::generated::pizzas::order::present(state),
+        "Governance::RoleAssignment" => {
+            crate::generated::governance::roleassignment::present(state)
+        }
+        "Governance::RoleTransition" => {
+            crate::generated::governance::roletransition::present(state)
+        }
+        _ => state,
+    }
+}

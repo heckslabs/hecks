@@ -14,12 +14,7 @@ RSpec.describe "the era check at boot" do
   ERA_COSMETIC = "# an operator fixed a typo in a comment\n#{ERA_V1}".freeze
   ERA_WRONG_FORM_HASH = ("0" * 64).freeze
 
-  around do |example|
-    Dir.mktmpdir do |dir|
-      @root = dir
-      example.run
-    end
-  end
+  scratch_directory :root
 
   attr_reader :root
 

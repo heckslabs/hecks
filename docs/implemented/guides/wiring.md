@@ -129,11 +129,11 @@ hook, no callback, nothing in `Pizzas::Order`'s own declaration
 that could even ask which adapter answered:
 
 ```ruby
-order = Order.create_pizza!(name: { value: "Margherita" },
-                            pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
+order = Order.create_pizza!(name: "Margherita",
+                            pizza: { price_cents: 1200, size: "large" })
 order.status   # => "available"
 
-order.add_topping!(topping: { value: "Basil" }, amount: { value: 3 })
+order.add_topping!(topping: "Basil", amount: 3)
 order.toppings.map(&:to_h)   # => [{ name: "Basil", amount: 3 }]
 ```
 
@@ -177,7 +177,7 @@ use:
 
 ```ruby
 events = runtime.dispatch_port("Pizzas", "Order", "PaymentGateway", "Receive",
-                                flat: { name: order.id, customer_name: { value: "Chris" }, amount: { cents: 1200 } })
+                                flat: { name: order.id, customer_name: "Chris", amount: 1200 })
 events.map(&:name)   # => ["PizzaPaymentReceived"]
 ```
 
