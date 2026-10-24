@@ -15,7 +15,11 @@ runs:
       id: cache
       uses: actions/cache@v4
       with:
-        path: rust/src/generated
+        # Cargo.toml too: regeneration rewrites its features, and the codegen_drift check compares
+        # the committed one against what a regeneration on these inputs wrote.
+        path: |
+          rust/src/generated
+          rust/Cargo.toml
         key: generated-rust-${{ runner.os }}-${{ steps.inputs.outputs.hash }}
 
     - name: Regenerate the generated Rust

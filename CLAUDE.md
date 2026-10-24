@@ -206,6 +206,28 @@ commit must pass as `RequiredCheck` rows beside them.
   (`regeneration_run.project_lanes --live --confirm`); never hand-edit the
   generated files.
 
+## Keep CI under three minutes
+
+CI on `main` ran in about 160s with every job run for real; by 2026-10-23 it took
+10 minutes or more. Nothing was skipped wrongly: work had landed in jobs where it
+runs cold. Before adding a spec or a step, check where it runs:
+
+- **A spec that runs `cargo` goes in a Rust job that holds that crate's cache**, never
+  in a Postgres io shard (`IO_PARALLEL_EXCLUDE_PATTERN` in
+  `.github/workflows/ci-postgres-io-parallel.yml`). A shard has no Rust cache, so one
+  `cargo build` there costs minutes. A host harness spec belongs in
+  `rspec_rust_host_lineage`, and a `cargo test` of the host in `rspec_rust_host_cargo`,
+  whose `target-test` build is warm.
+- **Don't regenerate the corpus a second time in a job.** The `generated-rust`
+  action already restores or regenerates `rust/src/generated` and `rust/Cargo.toml`;
+  compare against that.
+- **Refresh the runtime baselines when you add io spec files**:
+  `exe/hecks test_suite_run.refresh_runtime_baseline from_run=<a green CI run id> --confirm --wait`,
+  then `test_suite_run.write_io_parallel_spec_list`. Shards group by these logs, and a
+  file missing from them lands wherever it lands.
+- **Look at the job times after your push** (`gh run view <id> --json jobs`). A job
+  that grew by a minute is the regression; say so rather than leave it.
+
 ## Never hand-edit generated output
 
 - A file starting with a `# Generated ... do not edit` (Ruby) or

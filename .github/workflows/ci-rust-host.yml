@@ -165,6 +165,11 @@ jobs:
       - name: "cargo test (rust/host)"
         run: cd rust/host && bundle exec cargo test
 
+      # Here and not in the lineage job: its `cargo test --lib query_step` builds the host's test
+      # profile, which is warm only in this job's target-test directory (from rust/host).
+      - name: "rspec: Rust host query step (rust/host)"
+        run: bundle exec rspec --tag io spec/rust_host_query_step_spec.rb
+
   rspec_rust_host_lineage:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -198,5 +203,6 @@ jobs:
       - name: "rspec: Rust/Ruby expression parity (rust/host)"
         run: bundle exec rspec --tag io spec/rust_host_expr_json_conformance_spec.rb
 
-      - name: "rspec: Rust host query step (rust/host)"
-        run: bundle exec rspec --tag io spec/rust_host_query_step_spec.rb
+      # Both build validate_harness, warm in this job's host cache and cold in a Postgres io shard.
+      - name: "rspec: Rust host reference validation parity and the rehearsal store (rust/host)"
+        run: bundle exec rspec --tag io spec/rust_host_reference_validate_conformance_spec.rb spec/adapters/driven/rehearsal_store_spec.rb

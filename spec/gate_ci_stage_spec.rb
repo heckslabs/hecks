@@ -25,9 +25,17 @@ RSpec.describe "the ci gate stage" do
       shared = stages.dig("ci", "checks").select { |check| stages.dig("pre_push", "checks").include?(check) }
 
       expect(shared.map { |check| check["id"] }).to include(
-        "model_check", "engine_agreement", "doc_coverage", "rubocop", "codegen_drift",
-        "comment_style", "comment_blocks"
+        "model_check", "engine_agreement", "doc_coverage", "rubocop", "comment_style", "comment_blocks"
       )
+    end
+
+    it "compares codegen drift against the job's own regeneration rather than regenerating again", :aggregate_failures do
+      ci_drift = stages.dig("ci", "checks").find { |check| check["id"] == "codegen_drift" }
+      push_drift = stages.dig("pre_push", "checks").find { |check| check["id"] == "codegen_drift" }
+
+      expect(ci_drift.fetch("run")).to start_with("git", "diff", "--exit-code")
+      expect(ci_drift.fetch("run")).to include("rust/src/generated", "rust/Cargo.toml")
+      expect(push_drift.fetch("run")).to include("regeneration_run.regenerate_corpus", "--check")
     end
 
     it "sets no env of its own, so a job's journal choice reaches its checks" do

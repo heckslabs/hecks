@@ -172,8 +172,9 @@ jobs:
 
       # The test build is a different dependency set (`cargo test` enables the dev-dependencies'
       # features); warm_host_test_crate warms it into its own cache.
-      - name: Warm rust/host (both harness binaries)
+      - name: Warm rust/host (the harness binaries)
         run: |
           cd rust/host
           cargo build --bin lineage_harness
           cargo build --bin mint_harness
+          cargo build --bin validate_harness
