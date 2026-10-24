@@ -224,6 +224,48 @@ impl Store {
         self.lineage().ok_or(StoreError::Unsupported("lineage"))
     }
 
+    /// Every journaled step in order, whichever backend holds them.
+    #[cfg(test)]
+    pub async fn journal_steps(&self) -> Vec<serde_json::Value> {
+        match self {
+            Self::Postgres(store) => {
+                let guard = store.lineage().lock().await;
+                crate::journal::load_steps(&*guard).await.unwrap()
+            }
+            Self::Memory(store) => store
+                .committed()
+                .0
+                .into_iter()
+                .map(|(_, verb, args)| serde_json::json!({ "verb": verb, "args": args }))
+                .collect(),
+        }
+    }
+
+    /// Every dead letter as `(policy, target_domain, target_verb, attempts)`, ordered by policy.
+    #[cfg(test)]
+    pub async fn dead_letter_rows(&self) -> Vec<(String, String, String, i32)> {
+        match self {
+            Self::Postgres(store) => {
+                let guard = store.lineage().lock().await;
+                let sql = "SELECT policy, target_domain, target_verb, attempts \
+                           FROM hecks_cross_domain_dead_letters ORDER BY policy";
+                let rows = guard.query(sql, &[]).await.unwrap();
+                rows.iter()
+                    .map(|r| (r.get(0), r.get(1), r.get(2), r.get(3)))
+                    .collect()
+            }
+            Self::Memory(store) => {
+                let mut rows: Vec<_> = store
+                    .dead_letters()
+                    .into_iter()
+                    .map(|d| (d.policy, d.target_domain, d.target_verb, d.attempts))
+                    .collect();
+                rows.sort();
+                rows
+            }
+        }
+    }
+
     /// The raw connection, for test fixtures and assertions that reach beneath the seam.
     #[cfg(test)]
     pub async fn lock(&self) -> tokio::sync::MutexGuard<'_, Client> {

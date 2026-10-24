@@ -1232,17 +1232,10 @@ mod tests {
     // `price` one `cents` field, so each answers as a bare scalar when asked to.
     #[tokio::test]
     async fn a_bare_body_answers_single_field_value_objects_bare_and_the_default_stays_wrapped() {
-        let client = crate::dispatch::tests::scratch_db("rust_host_serve_bare").await;
-        crate::dispatch::tests::provision_lineage(
-            &*client.lock().await,
-            "CheckoutFixture",
-            1,
-            &["Event"],
-        )
-        .await;
+        let client = crate::dispatch::tests::memory_store();
         let config = LineageConfig {
             domain: "CheckoutFixture".to_string(),
-            era: Some(1),
+            era: None,
             mirrored: None,
         };
         let wasm = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../dist/checkout_fixture.wasm");

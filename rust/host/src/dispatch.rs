@@ -876,6 +876,20 @@ pub(crate) mod tests {
         Store::postgres(client)
     }
 
+    /// An empty in-memory store, for tests that need a journal and nothing Postgres-specific.
+    pub(crate) fn memory_store() -> Store {
+        Store::memory(crate::store::MemoryStore::new())
+    }
+
+    /// The config a memory-backed host runs under: no era, so nothing mirrors into lineage.
+    pub(crate) fn memory_config(domain: &str) -> LineageConfig {
+        LineageConfig {
+            domain: domain.to_string(),
+            era: None,
+            mirrored: None,
+        }
+    }
+
     // Not Ruby's real provisioning — just enough structure for
     // `journal::current_era` and `append_lineage_mutation` to succeed,
     // without reproducing Ruby's full DDL.
@@ -1113,9 +1127,8 @@ pub(crate) mod tests {
     // query answered against whatever state the journal currently holds.
     #[tokio::test]
     async fn a_declared_query_answers_against_current_state() {
-        let client = scratch_db("rust_host_dispatch_test_query").await;
-        provision_lineage(&*client.lock().await, "Banking", 1, &["Customer"]).await;
-        let config = test_config("Banking", 1);
+        let client = crate::dispatch::tests::memory_store();
+        let config = crate::dispatch::tests::memory_config("Banking");
 
         handle(
             Host::new(&client, &wasm_path(), &config, &lambda_client::NeverInvoker),
@@ -1244,15 +1257,14 @@ pub(crate) mod tests {
     // in the returned event, not just what the in-kernel unit tests prove.
     #[tokio::test]
     async fn occurred_at_is_stamped_onto_every_returned_event_with_this_crate_s_own_real_clock() {
-        let client = scratch_db("rust_host_dispatch_test_occurred_at").await;
-        provision_lineage(&*client.lock().await, "Banking", 1, &["Customer"]).await;
+        let client = crate::dispatch::tests::memory_store();
 
         let before = crate::auth::httpdate_now();
         let outcome = handle(
             Host::new(
                 &client,
                 &wasm_path(),
-                &test_config("Banking", 1),
+                &crate::dispatch::tests::memory_config("Banking"),
                 &lambda_client::NeverInvoker,
             ),
             "Banking::Customer.Register",
@@ -1280,9 +1292,8 @@ pub(crate) mod tests {
 
     #[tokio::test]
     async fn rehydrates_prior_history_before_evaluating_the_new_command() {
-        let client = scratch_db("rust_host_dispatch_test_2").await;
-        provision_lineage(&*client.lock().await, "Banking", 1, &["Customer"]).await;
-        let config = test_config("Banking", 1);
+        let client = crate::dispatch::tests::memory_store();
+        let config = crate::dispatch::tests::memory_config("Banking");
 
         let first = handle(
             Host::new(&client, &wasm_path(), &config, &lambda_client::NeverInvoker),
@@ -1315,7 +1326,7 @@ pub(crate) mod tests {
             "duplicate registration should be refused, proving prior state was rehydrated: {:?}",
             second.result
         );
-        let steps = journal::load_steps(&*client.lock().await).await.unwrap();
+        let steps = client.journal_steps().await;
         assert_eq!(
             steps.len(),
             1,
@@ -1591,9 +1602,8 @@ pub(crate) mod tests {
         // appended — silently violating the uniqueness the domain
         // itself enforces. With the lock serializing the whole
         // read-then-append sequence, exactly one must be accepted.
-        let client = scratch_db("rust_host_dispatch_test_3").await;
-        provision_lineage(&*client.lock().await, "Banking", 1, &["Customer"]).await;
-        let config = test_config("Banking", 1);
+        let client = crate::dispatch::tests::memory_store();
+        let config = crate::dispatch::tests::memory_config("Banking");
         let wasm_path = wasm_path();
 
         let (first, second) = tokio::join!(
@@ -1617,7 +1627,7 @@ pub(crate) mod tests {
             "exactly one of two concurrent duplicate registrations should be accepted: {:?} / {:?}",
             first.result, second.result
         );
-        let steps = journal::load_steps(&*client.lock().await).await.unwrap();
+        let steps = client.journal_steps().await;
         assert_eq!(
             steps.len(),
             1,
@@ -1627,14 +1637,13 @@ pub(crate) mod tests {
 
     #[tokio::test]
     async fn read_reflects_prior_dispatches_without_persisting_anything_new() {
-        let client = scratch_db("rust_host_dispatch_test_4").await;
-        provision_lineage(&*client.lock().await, "Banking", 1, &["Customer"]).await;
+        let client = crate::dispatch::tests::memory_store();
 
         handle(
             Host::new(
                 &client,
                 &wasm_path(),
-                &test_config("Banking", 1),
+                &crate::dispatch::tests::memory_config("Banking"),
                 &lambda_client::NeverInvoker,
             ),
             "Banking::Customer.Register",
@@ -1661,7 +1670,7 @@ pub(crate) mod tests {
 
         // The sharp proof a read never appends: the journal is exactly
         // as long after the read as it was before it.
-        let steps = journal::load_steps(&*client.lock().await).await.unwrap();
+        let steps = client.journal_steps().await;
         assert_eq!(steps.len(), 1, "a read must never persist a journal row");
     }
 
@@ -1700,15 +1709,8 @@ pub(crate) mod tests {
 
     #[tokio::test]
     async fn a_cross_domain_policy_delivers_through_the_real_rehydrate_replay_path() {
-        let client = scratch_db("rust_host_dispatch_test_6").await;
-        provision_lineage(
-            &*client.lock().await,
-            "Banking",
-            1,
-            &["Customer", "Account"],
-        )
-        .await;
-        let config = test_config("Banking", 1);
+        let client = crate::dispatch::tests::memory_store();
+        let config = crate::dispatch::tests::memory_config("Banking");
         let invoker = RecordingInvoker::new();
 
         handle(
@@ -1821,9 +1823,8 @@ pub(crate) mod tests {
     // registry — real, corpus-declared.
     #[tokio::test]
     async fn a_role_gated_command_is_actually_checked_against_the_caller_role() {
-        let client = scratch_db("rust_host_dispatch_test_7").await;
-        provision_lineage(&*client.lock().await, "Banking", 1, &["Customer"]).await;
-        let config = test_config("Banking", 1);
+        let client = crate::dispatch::tests::memory_store();
+        let config = crate::dispatch::tests::memory_config("Banking");
 
         // The correct role succeeds, same as every other registration,
         // just now with a caller actually bound and matching.
@@ -1868,7 +1869,7 @@ pub(crate) mod tests {
 
         // And the refused command was never persisted — same discipline
         // every other refusal in this file is held to.
-        let steps = journal::load_steps(&*client.lock().await).await.unwrap();
+        let steps = client.journal_steps().await;
         assert_eq!(
             steps.len(),
             1,
@@ -1931,9 +1932,8 @@ pub(crate) mod tests {
     #[tokio::test]
     async fn an_unidentified_caller_is_refused_when_enforced_and_let_through_when_off_or_shadowed()
     {
-        let client = scratch_db("rust_host_dispatch_test_enforce").await;
-        provision_lineage(&*client.lock().await, "Banking", 1, &["Customer"]).await;
-        let config = test_config("Banking", 1);
+        let client = crate::dispatch::tests::memory_store();
+        let config = crate::dispatch::tests::memory_config("Banking");
         let go = |mode: Enforcement, id: &'static str| {
             let client = &client;
             let config = &config;
@@ -1978,7 +1978,7 @@ pub(crate) mod tests {
             shadowed.result
         );
 
-        let steps = journal::load_steps(&*client.lock().await).await.unwrap();
+        let steps = client.journal_steps().await;
         assert_eq!(
             steps.len(),
             2,
@@ -1989,9 +1989,8 @@ pub(crate) mod tests {
     // Shadow may only let through what Off would: a caller that stated a wrong role is refused.
     #[tokio::test]
     async fn shadow_refuses_a_stated_wrong_role_and_still_lets_an_unidentified_caller_through() {
-        let client = scratch_db("rust_host_dispatch_test_shadow_stated").await;
-        provision_lineage(&*client.lock().await, "Banking", 1, &["Customer"]).await;
-        let config = test_config("Banking", 1);
+        let client = crate::dispatch::tests::memory_store();
+        let config = crate::dispatch::tests::memory_config("Banking");
         let go = |mode: Enforcement, origin: Origin, caller: Caller<'static>, id: &'static str| {
             let client = &client;
             let config = &config;
@@ -2044,7 +2043,7 @@ pub(crate) mod tests {
             nobody.result
         );
 
-        let steps = journal::load_steps(&*client.lock().await).await.unwrap();
+        let steps = client.journal_steps().await;
         assert_eq!(
             steps.len(),
             1,
@@ -2056,9 +2055,8 @@ pub(crate) mod tests {
     // unidentified caller is refused under enforce.
     #[tokio::test]
     async fn a_host_internal_dispatch_is_unchecked_under_enforce_but_an_external_one_is_refused() {
-        let client = scratch_db("rust_host_dispatch_test_internal").await;
-        provision_lineage(&*client.lock().await, "Banking", 1, &["Customer"]).await;
-        let config = test_config("Banking", 1);
+        let client = crate::dispatch::tests::memory_store();
+        let config = crate::dispatch::tests::memory_config("Banking");
         let go = |mode: Enforcement, origin: Origin, id: &'static str| {
             let client = &client;
             let config = &config;
@@ -2369,15 +2367,8 @@ pub(crate) mod tests {
     #[tokio::test]
     async fn a_cross_domain_delivery_that_exhausts_every_retry_dead_letters_and_still_fails_the_invocation(
     ) {
-        let client = scratch_db("rust_host_dispatch_test_8").await;
-        provision_lineage(
-            &*client.lock().await,
-            "Banking",
-            1,
-            &["Customer", "Account"],
-        )
-        .await;
-        let config = test_config("Banking", 1);
+        let client = crate::dispatch::tests::memory_store();
+        let config = crate::dispatch::tests::memory_config("Banking");
         let invoker = AlwaysFailingInvoker::new();
 
         handle(
@@ -2437,20 +2428,13 @@ pub(crate) mod tests {
         // The local command still committed: cross-domain delivery runs
         // strictly after commit, so a delivery failure never unwinds it.
         // The dead letter existing at all proves the match already ran.
-        let guard = client.lock().await;
-        let dead_letters = guard
-            .query("SELECT policy, target_domain, target_verb, attempts FROM hecks_cross_domain_dead_letters", &[])
-            .await
-            .unwrap();
+        let dead_letters = client.dead_letter_rows().await;
         assert_eq!(
             dead_letters.len(),
             1,
             "exactly one exhausted delivery should have been dead-lettered: {dead_letters:?}"
         );
-        let policy: String = dead_letters[0].get(0);
-        let target_domain: String = dead_letters[0].get(1);
-        let target_verb: String = dead_letters[0].get(2);
-        let attempts: i32 = dead_letters[0].get(3);
+        let (policy, target_domain, target_verb, attempts) = dead_letters[0].clone();
         assert_eq!(policy, "ReviewOnFreeze");
         assert_eq!(target_domain, "Compliance");
         assert_eq!(target_verb, "Compliance::AccountFreezeReview.Open");
@@ -2464,15 +2448,8 @@ pub(crate) mod tests {
     // from one command.
     #[tokio::test]
     async fn a_failed_cross_domain_delivery_does_not_drop_a_sibling_reaction_from_the_same_step() {
-        let client = scratch_db("rust_host_dispatch_test_11").await;
-        provision_lineage(
-            &*client.lock().await,
-            "Banking",
-            1,
-            &["Customer", "SafeDepositBox"],
-        )
-        .await;
-        let config = test_config("Banking", 1);
+        let client = crate::dispatch::tests::memory_store();
+        let config = crate::dispatch::tests::memory_config("Banking");
         let invoker = AlwaysFailingInvoker::new();
 
         handle(
@@ -2528,15 +2505,12 @@ pub(crate) mod tests {
              the fix under test is exactly this: a fresh Vec would only ever show one policy's worth"
         );
 
-        let guard = client.lock().await;
-        let dead_letters = guard
-            .query(
-                "SELECT policy FROM hecks_cross_domain_dead_letters ORDER BY policy",
-                &[],
-            )
+        let policies: Vec<String> = client
+            .dead_letter_rows()
             .await
-            .unwrap();
-        let policies: Vec<String> = dead_letters.iter().map(|row| row.get(0)).collect();
+            .into_iter()
+            .map(|row| row.0)
+            .collect();
         assert_eq!(
             policies,
             vec!["FlagKeyReturn".to_string(), "ReviewOnBoxSurrender".to_string()],
