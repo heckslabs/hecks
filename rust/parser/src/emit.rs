@@ -938,7 +938,10 @@ pub fn adapter_json(adapter: &ir::Adapter) -> JsonValue {
         unreachable!("an adapter is a JSON object")
     };
     if !adapter.provides.is_empty() {
-        keys.push(("provides".to_string(), JsonValue::strings(&adapter.provides)));
+        keys.push((
+            "provides".to_string(),
+            JsonValue::strings(&adapter.provides),
+        ));
     }
     if let Some(runs) = &adapter.runs {
         keys.push(("answers".to_string(), JsonValue::strings(&adapter.answers)));
