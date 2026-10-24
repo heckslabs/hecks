@@ -21,6 +21,7 @@ RSpec.describe Hecks::Adapters::Driving::Handle do
           transition "Freeze" => "frozen", from: "open"
           transition "Send"   => "sent",   from: "frozen"
           transition "Thaw"   => "open",   from: "frozen"
+          transition "Open"   => "open",   from: "sent"
         end
 
         command "Build" do
@@ -41,6 +42,26 @@ RSpec.describe Hecks::Adapters::Driving::Handle do
         command("Thaw") do
           reference_to Vault
           emits "VaultThawed"
+        end
+        command("Open") do
+          reference_to Vault
+          emits "VaultOpened"
+        end
+
+        # Each snake-cases onto a name the handle already answers: the lifecycle field's
+        # reader, and the handle's own `reload` and `run`. Those keep their names.
+        command("Status") do
+          reference_to Vault
+          emits "VaultStatusRead"
+        end
+        command("Reload") do
+          reference_to Vault
+          emits "VaultReloaded"
+        end
+        # The handle's private `run` is what every bang form dispatches through.
+        command("Run") do
+          reference_to Vault
+          emits "VaultRun"
         end
       end
     end
@@ -168,6 +189,54 @@ RSpec.describe Hecks::Adapters::Driving::Handle do
     vault.thaw!
 
     expect(vault.status).to eq("open")
+  end
+
+  describe "the bare verb name" do
+    it "answers the verb's IR command instead of Object#freeze", :aggregate_failures do
+      vault = vault_for("v3")
+
+      expect(vault.freeze).to equal(Collider::Vault.ir.commands.find { |command| command.hecks_name == "Freeze" })
+      expect(vault.frozen?).to be(false)
+    end
+
+    it "answers the verb's IR command instead of Kernel#send" do
+      expect(vault_for("v4").send.hecks_name).to eq("Send")
+    end
+
+    it "answers the verb's IR command instead of private Kernel#open" do
+      expect(vault_for("v5").open.hecks_name).to eq("Open")
+    end
+
+    it "dispatches nothing when inspected", :aggregate_failures do
+      vault = vault_for("v6")
+      vault.freeze
+
+      expect(vault.status).to eq("open")
+      expect(vault.events.map(&:name)).not_to include("VaultFrozen")
+    end
+
+    it "leaves a same-named field reader its name, and the bang form still dispatches", :aggregate_failures do
+      vault = vault_for("v7")
+      vault.status!
+
+      expect(vault.status).to eq("open")
+      expect(vault.events.map(&:name)).to include("VaultStatusRead")
+    end
+
+    it "leaves the handle's own method its name" do
+      vault = vault_for("v8")
+
+      expect(vault.reload).to equal(vault)
+    end
+
+    it "leaves the handle's private dispatch its name, so every bang form still runs", :aggregate_failures do
+      vault = vault_for("v9")
+      vault.run!
+      vault.freeze!
+
+      expect(vault.status).to eq("frozen")
+      expect(vault.events.map(&:name)).to include("VaultRun", "VaultFrozen")
+    end
   end
 
   # `identified_by` is nil for a composite identity, so addressing by it would build
