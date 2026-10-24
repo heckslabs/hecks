@@ -27,17 +27,22 @@ module Hecks
       # @param runtime [Runtime] a booted domain
       # @return [Integer] how many projections were caught up
       def call(runtime)
-        refreshed = 0
-        runtime.registry.bluebooks.each do |domain, bluebook|
-          bluebook.aggregates.each do |aggregate|
-            worker = Ports::Projection.worker(runtime.registry, domain, aggregate, policy: :refresh)
-            next unless worker
-
-            worker.catch_up!
-            refreshed += 1
-          end
+        registry = runtime.registry
+        registry.bluebooks.sum do |domain, bluebook|
+          bluebook.aggregates.sum { |aggregate| refresh(registry, domain, aggregate) }
         end
-        refreshed
+      end
+
+      # Catches one aggregate's projection up, when it declares one.
+      #
+      # @api private
+      # @return [Integer] 1 when a projection was caught up, else 0
+      def refresh(registry, domain, aggregate)
+        worker = Ports::Projection.worker(registry, domain, aggregate, policy: :refresh)
+        return 0 unless worker
+
+        worker.catch_up!
+        1
       end
     end
   end

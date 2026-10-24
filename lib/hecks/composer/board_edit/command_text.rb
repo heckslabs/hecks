@@ -5,6 +5,9 @@ module Hecks
       # the key the aggregate is known by; every later one acts on a record of it. A command with an
       # event says so on a line of its own.
       module CommandText
+        # An `identified_by :field` line, capturing the key field's name.
+        IDENTIFIED_BY = /\A\s*identified_by\s+:(\w+)\s*\z/
+
         module_function
 
         # @param block [Array<String>] the lines of the aggregate's block, after its declaration
@@ -27,7 +30,7 @@ module Hecks
         # The attribute and `sets` that give a new record its key.
         # @api private
         def creates(block, aggregate)
-          field = block.filter_map { |line| line[/\A\s*identified_by\s+:(\w+)\s*\z/, 1] }.first
+          field = block.filter_map { |line| line[IDENTIFIED_BY, 1] }.first
           type = field && block.filter_map { |line| line[/\A\s*attribute\s+:#{field},\s*([A-Za-z:]+)/, 1] }.first
           raise Refused, "#{aggregate} has no key the board can read; write its first command in the text" unless type
 

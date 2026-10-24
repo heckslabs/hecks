@@ -54,7 +54,8 @@ module Hecks
         end
 
         def sole_field_of(value)
-          sole = value.value_object.sole_attribute
+          definition = value.value_object
+          sole = definition.sole_attribute
           sole ? value[sole.name] : value
         end
 

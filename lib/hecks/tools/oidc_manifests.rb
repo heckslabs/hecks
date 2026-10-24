@@ -38,12 +38,9 @@ module Hecks
       # @return [Array<String>] the domain directories, relative to `root`, sorted
       def domains(root)
         folder = Hecks::Adapters::Folder.new
-        Dir.glob(File.join(root, "**/*.hecksagon"))
-           .map { |path| folder.domain_root(File.dirname(path)) }
-           .compact
-           .map { |path| path.delete_prefix("#{root}/") }
-           .grep_v(NOT_DOMAINS)
-           .uniq.sort
+        roots = Dir.glob(File.join(root, "**/*.hecksagon")).map { |path| folder.domain_root(File.dirname(path)) }
+        relative = roots.compact.map { |path| path.delete_prefix("#{root}/") }
+        relative.grep_v(NOT_DOMAINS).uniq.sort
       end
 
       # Projects one manifest for each chapter the directory holds.
@@ -57,7 +54,7 @@ module Hecks
 
         project_chapters(registry, root, path)
       rescue StandardError => e
-        warn "  #{path}: cannot project — #{e.message.lines.first.strip}"
+        warn "  #{path}: cannot project — #{Hecks::Text.first_line(e.message)}"
       end
 
       # The chapters a directory declares: those with a `.bluebook` file under it. A chapter it

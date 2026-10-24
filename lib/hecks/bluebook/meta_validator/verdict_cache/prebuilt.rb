@@ -5,11 +5,14 @@ module Hecks
         # The verdict file the process reads (its own, else the one a packaged gem ships) and the
         # Ruby series that file is valid for.
         module Prebuilt
+          # The major and minor parts of a version string: the "3.3" of "3.3.6".
+          MAJOR_MINOR = /\A\d+\.\d+/
+
           # The Ruby the judging code ran on, to the minor version: a patch release changes neither
           # a verdict nor the encoding of one, so a cache built on one patch serves the others.
           #
           # @return [String] such as `ruby-3.3`
-          def ruby_series = "#{RUBY_ENGINE}-#{RUBY_VERSION[/\A\d+\.\d+/]}"
+          def ruby_series = "#{RUBY_ENGINE}-#{RUBY_VERSION[MAJOR_MINOR]}"
 
           # The file the gem ships for the current code's verdicts, when it ships one.
           #

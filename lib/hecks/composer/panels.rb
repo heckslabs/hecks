@@ -110,7 +110,13 @@ module Hecks
       def with_live(body)
         @lock.synchronize { yield live_for(body.fetch("buffers", {})) }
       rescue StandardError, ScriptError => e
-        { error: e.message.lines.first.to_s.chomp }
+        { error: headline(e.message) }
+      end
+
+      # The first line of a message, without its line ending.
+      def headline(message)
+        line = message.lines.first
+        line.to_s.chomp
       end
 
       def live_for(buffers)

@@ -7,6 +7,11 @@ module Hecks
     module CommentStyle
       # The rewrites for the fixable categories: all-caps words, long bold headings, long lines.
       module Fixing
+        # A line that opens a method definition, after at most one modifier such as `private`.
+        DEF_LINE = /\A\s*(?:\w+\s+)?def\s/
+        # A comment line that opens with a doc tag such as `@param`.
+        TAG_LINE = /\A#+\s*@\w/
+
         private
 
         def fix_line(line, number, wanted)
@@ -79,14 +84,14 @@ module Hecks
         def documents_method?(comment)
           line = comment.line
           line += 1 while @by_line[line + 1]&.full_line
-          @lines[line].to_s.match?(/\A\s*(?:\w+\s+)?def\s/)
+          @lines[line].to_s.match?(DEF_LINE)
         end
 
         def paragraph_start?(comment, masked, offset)
-          return false if masked[0, offset].sub(/\A#+\s*/, "").match?(/[[:alnum:]#{FILLER}]/o)
+          return false if masked[0, offset].sub(COMMENT_MARKER, "").match?(/[[:alnum:]#{FILLER}]/o)
 
           above = comment.full_line ? @by_line[comment.line - 1] : nil
-          !above&.full_line || above.text.match?(/\A#+\s*\z/)
+          !above&.full_line || above.text.match?(EMPTY_COMMENT)
         end
 
         # Splits one over-long prose comment line in two. Lines with no safe
@@ -104,8 +109,8 @@ module Hecks
 
         # An `@tag` line continues, indented, under its tag.
         def wrap_lead(text)
-          lead = text[/\A#+\s*/]
-          text.match?(/\A#+\s*@\w/) ? "#{lead}  " : lead
+          lead = text[COMMENT_MARKER]
+          text.match?(TAG_LINE) ? "#{lead}  " : lead
         end
 
         # @return [Integer, nil] the offset to break at, nil when there is no safe one

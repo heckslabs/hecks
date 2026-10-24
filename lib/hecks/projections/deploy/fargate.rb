@@ -17,6 +17,11 @@ module Hecks
 
         projects_as :aws_fargate, needs_world: true, emits: :files
 
+        # The template line that marks where the database environment goes, capturing its indent.
+        DB_ENV_MARKER = /^([ \t]*)# TMPL:db_env\n/
+        # The template line that marks where cross-domain policies go, capturing its indent.
+        CROSS_DOMAIN_MARKER = /^([ \t]*)# TMPL:cross_domain_fargate_policies\n/
+
         module_function
 
         # Generates `template.yaml`, `Makefile`, `Dockerfile`, and — unless
@@ -68,12 +73,12 @@ module Hecks
         private_class_method :with_previews_and_scripts
 
         def splice_database_env(text, stack)
-          text.sub(/^([ \t]*)# TMPL:db_env\n/) { stack.db_env_yaml(Regexp.last_match(1)) }
+          text.sub(DB_ENV_MARKER) { stack.db_env_yaml(Regexp.last_match(1)) }
         end
         private_class_method :splice_database_env
 
         def splice_cross_domain_policies(text, stack)
-          text.sub(/^([ \t]*)# TMPL:cross_domain_fargate_policies\n/) do
+          text.sub(CROSS_DOMAIN_MARKER) do
             stack.cross_domain_targets.empty? ? "" : stack.cross_domain_policy_yaml(Regexp.last_match(1))
           end
         end

@@ -81,11 +81,12 @@ module Hecks
       # repository's write lock, and the rest get a striped in-process Mutex (ADR 0036).
       # A nil `lock_key_id` still locks correctly, just by aggregate type.
       def run_dispatch_order_with_isolation(order, ctx, lock_key_id:)
-        capabilities = ctx.repository.capabilities
+        repository = ctx.repository
+        capabilities = repository.capabilities
         if capabilities.include?(:optimistic_concurrency)
           run_dispatch_order(order, ctx)
         elsif capabilities.include?(:cross_process_lock)
-          ctx.repository.with_write_lock { run_dispatch_order(order, ctx) }
+          repository.with_write_lock { run_dispatch_order(order, ctx) }
         else
           AggregateLock.for(ctx.domain, ctx.aggregate, lock_key_id).synchronize { run_dispatch_order(order, ctx) }
         end

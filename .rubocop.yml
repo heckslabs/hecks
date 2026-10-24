@@ -17,6 +17,9 @@ require:
   - ./lib/rubocop/cop/hecks/swallowed_rescue
   - ./lib/rubocop/cop/hecks/symbol_string_key_mix
   - ./lib/rubocop/cop/hecks/sleep_in_spec
+  - ./lib/rubocop/cop/hecks/train_wreck
+  - ./lib/rubocop/cop/hecks/unnamed_pipeline
+  - ./lib/rubocop/cop/hecks/inline_regexp
 
 # `h[a] || h[b]` on one receiver drops a stored `false`; use `key?` first.
 Hecks/FallbackHashLookup:
@@ -135,6 +138,30 @@ Hecks/SleepInSpec:
   Enabled: true
   Include:
     - "spec/**/*.rb"
+
+# A caller asks the object it holds; it does not reach through it into a collaborator
+# (`runtime.registry.bluebooks`). Conversions and collection calls are not reaches.
+Hecks/TrainWreck:
+  Enabled: true
+  MaxReaches: 1
+  Include:
+    - "lib/**/*.rb"
+  # A cop walks one syntax tree; `node.parent.receiver` is navigation, not a reach into a collaborator.
+  Exclude:
+    - "lib/rubocop/**/*.rb"
+
+# A pipeline longer than three calls is extracted into a method named for what it makes.
+Hecks/UnnamedPipeline:
+  Enabled: true
+  MaxCalls: 3
+  Include:
+    - "lib/**/*.rb"
+
+# A regexp is a named constant, so it says what it matches and is written once.
+Hecks/InlineRegexp:
+  Enabled: true
+  Include:
+    - "lib/**/*.rb"
 
 AllCops:
   TargetRubyVersion: 3.3

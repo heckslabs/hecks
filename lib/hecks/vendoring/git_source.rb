@@ -1,5 +1,6 @@
 require "open3"
 require "tmpdir"
+require_relative "../text"
 require_relative "git_environment"
 
 module Hecks
@@ -63,7 +64,8 @@ module Hecks
         out, _err, status = git("ls-tree", "-r", "--name-only", ref, "--", subtree)
         return [] unless status.success?
 
-        out.lines.map(&:chomp).select do |file|
+        listed = out.lines.map(&:chomp)
+        listed.select do |file|
           File.dirname(file) == subtree && File.fnmatch(glob, File.basename(file), File::FNM_EXTGLOB)
         end.sort
       end
@@ -90,7 +92,7 @@ module Hecks
 
       def run!(label, *command)
         _out, err, status = Open3.capture3(GitEnvironment.clean, *command)
-        raise Error, "#{label} failed: #{err.lines.first.to_s.strip}" unless status.success?
+        raise Error, "#{label} failed: #{Text.first_line(err)}" unless status.success?
       end
     end
   end

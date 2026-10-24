@@ -17,6 +17,13 @@ module Hecks
           include Blocks
           include Recipes
 
+          # Any character a database name may not hold.
+          NOT_ALPHANUMERIC = /[^a-zA-Z0-9]/
+          # A `.env.local` line that sets a Google client id.
+          GOOGLE_CLIENT_ID_LINE = /^GOOGLE_CLIENT_ID=\S/
+          # The separators between the words of a stack name.
+          NAME_SEPARATOR = /[_-]/
+
           attr_reader :domain, :root, :world_file, :domain_name, :declared_domain_name, :deploy_settings, :infra_name,
                       :db_name, :region, :cpu, :memory, :port, :web, :aurora, :shared, :google_oauth_present,
                       :owner_domain_name, :owner_stack_name, :owner_db_name, :hecks_schema, :logical_id,
@@ -48,10 +55,8 @@ module Hecks
 
           def read_names(registry)
             @infra_name = deploy_settings[:stack_name] || domain_name
-            @db_name = infra_name.gsub(/[^a-zA-Z0-9]/, "")
-            @cross_domain_targets = registry.bluebooks.flat_map do |_name, chapter|
-              chapter.policies.select(&:target_domain).map(&:target_domain)
-            end.uniq.sort
+            @db_name = infra_name.gsub(NOT_ALPHANUMERIC, "")
+            @cross_domain_targets = Shared.cross_domain_targets(registry)
           end
 
           # Same tenant override `Lambda.call` applies; see that method's comment.
@@ -100,7 +105,7 @@ module Hecks
           def read_flags
             env_file = File.join(domain, ".env.local")
             @google_oauth_present = web == "Rust" && File.exist?(env_file) &&
-                                    File.read(env_file).match?(/^GOOGLE_CLIENT_ID=\S/)
+                                    File.read(env_file).match?(GOOGLE_CLIENT_ID_LINE)
           end
 
           # Same "Shared" borrowing `Lambda.call` supports. `owner`/`owner_stack` stay plain
@@ -120,7 +125,7 @@ module Hecks
           end
 
           def derive_names
-            @logical_id = "#{infra_name.split(/[_-]/).map(&:capitalize).join}Service"
+            @logical_id = "#{infra_name.split(NAME_SEPARATOR).map(&:capitalize).join}Service"
             @stack_prefix = deploy_settings[:stack_prefix] || "hecks"
             @stack_name = "#{stack_prefix}-#{infra_name}"
             @desired_count = deploy_settings.fetch(:desired_count, 1)

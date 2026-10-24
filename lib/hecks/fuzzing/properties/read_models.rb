@@ -48,7 +48,8 @@ module Hecks
         end
 
         def composable?(model)
-          !model.reducing? && model.group_by.empty? && !model.authorization&.tenant
+          authorization = model.authorization
+          !model.reducing? && model.group_by.empty? && !authorization&.tenant
         end
 
         def unexpected_heads(query, model, answer)

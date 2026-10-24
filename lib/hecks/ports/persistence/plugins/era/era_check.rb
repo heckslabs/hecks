@@ -134,7 +134,8 @@ module Hecks
       # @return [String, nil] the package name as written in `attaches ... from: :vendor`; nil
       #   when no vendored package matches `bluebook_name` by name or by declaration
       def vendored_bluebook_name_for(registry, bluebook_name, directory)
-        names = registry.hecksagons.each_value.flat_map(&:vendored_packages).uniq
+        hecksagons = registry.hecksagons.each_value
+        names = hecksagons.flat_map(&:vendored_packages).uniq
         names.find { |name| Naming.pascal(name) == bluebook_name } ||
           names.find { |name| declared_by_package?(directory, name, bluebook_name) }
       end

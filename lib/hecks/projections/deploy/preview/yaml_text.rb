@@ -38,7 +38,8 @@ module Hecks
           # @param name [String] the environment variable name
           # @return [String] the logical id, ending in `Secret`
           def secret_id(container, name)
-            stem = "#{container.logical}#{name.delete_suffix("_ARN").split("_").map(&:capitalize).join}"
+            words = name.delete_suffix("_ARN").split("_")
+            stem = "#{container.logical}#{words.map(&:capitalize).join}"
             stem.end_with?("Secret") ? stem : "#{stem}Secret"
           end
         end

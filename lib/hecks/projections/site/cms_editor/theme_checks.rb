@@ -16,6 +16,12 @@ module Hecks
           # The longest brand the header has room for.
           BRAND_LENGTH = 60
 
+          # A control character, such as a newline.
+          CONTROL = /[[:cntrl:]]/
+
+          # A backslash or a control character: what a safe relative path never holds.
+          BACKSLASH_OR_CONTROL = /[\\[:cntrl:]]/
+
           module_function
 
           # @param row [Hash{Symbol => String}] the row, defaults filled
@@ -40,7 +46,7 @@ module Hecks
 
           # @return [Array<String>] the problem with a brand that is long or has more than one line
           def brand_problems(brand)
-            return [] if brand.length <= BRAND_LENGTH && !brand.match?(/[[:cntrl:]]/)
+            return [] if brand.length <= BRAND_LENGTH && !brand.match?(CONTROL)
 
             ["brand must be one line of at most #{BRAND_LENGTH} characters"]
           end
@@ -48,7 +54,7 @@ module Hecks
           # @return [Boolean] whether `path` is relative, has no hidden part, and is a picture
           def safe_path?(path)
             LOGO_TYPES.include?(File.extname(path).delete_prefix(".").downcase) && !path.start_with?("/") &&
-              path.split("/", -1).none? { |part| part.empty? || part.start_with?(".") } && !path.match?(/[\\[:cntrl:]]/)
+              path.split("/", -1).none? { |part| part.empty? || part.start_with?(".") } && !path.match?(BACKSLASH_OR_CONTROL)
           end
         end
       end

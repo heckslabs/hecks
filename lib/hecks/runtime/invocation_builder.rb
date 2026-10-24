@@ -11,7 +11,10 @@ module Hecks
       include InvocationFacts
 
       # What one `from_call` was asked for, handed to the builder for its receiver shape.
-      Call = Struct.new(:verb, :to, :with, :flat, :entity_depth, :aggregate, :declaring)
+      Call = Struct.new(:verb, :to, :with, :flat, :entity_depth, :aggregate, :declaring) do
+        # @return [Object] the command or operation the call declares, by calling `declaring`
+        def declaration = declaring.call
+      end
       private_constant :Call
 
       # Builds an Invocation for one of three call shapes (:aggregate,
@@ -43,19 +46,19 @@ module Hecks
       private
 
       def aggregate_call(call)
-        command = call.declaring.call
+        command = call.declaration
         facts   = facts_for(command, with: call.with, flat: call.flat)
         new(verb: call.verb, target: route(call.to), facts: facts)
       end
 
       def entity_call(call)
         target  = route(call.to, entity_depth: call.entity_depth)
-        command = call.declaring.call
+        command = call.declaration
         new(verb: call.verb, target: target, facts: facts_for(command, with: call.with, flat: call.flat))
       end
 
       def port_call(call)
-        operation = call.declaring.call
+        operation = call.declaration
         flat      = call.flat.dup
         target    = route(port_receiver(operation, call.aggregate, call.to, flat))
         raise TypeMismatch, "#{operation.hecks_name} requires its receiving aggregate in to:" unless target

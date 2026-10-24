@@ -9,6 +9,8 @@ module Hecks
           "ports/persistence.port", "ports/extraction.port",
           "adapters/driven/memory.adapter", "adapters/driven/prism.adapter"
         ].freeze
+        # The `.bluebook` extension ending a source path.
+        BLUEBOOK_EXTENSION = /\.bluebook\z/
 
         # `root:` is the source's parent, so a member declaring
         # `attaches ... from: :vendor` can vendor from it.
@@ -40,7 +42,7 @@ module Hecks
         def hecksagons_of(source)
           return Dir.glob(File.join(source, "*.hecksagon")) if File.directory?(source)
 
-          [".hecksagon", ".ports.hecksagon"].map { |suffix| source.sub(/\.bluebook\z/, suffix) }
+          [".hecksagon", ".ports.hecksagon"].map { |suffix| source.sub(BLUEBOOK_EXTENSION, suffix) }
         end
 
         # The same rule `Corpus.bluebook_dir` applies.

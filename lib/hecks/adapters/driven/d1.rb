@@ -93,7 +93,8 @@ module Hecks
         results = @db.batch([status_statement(entry, insert_only),
                              entry_statement(entry, insert_only),
                              aggregate_statement(entry, insert_only)])
-        results.fetch(0).fetch(0).fetch("status").to_sym
+        status_row = results.fetch(0).fetch(0)
+        status_row.fetch("status").to_sym
       end
 
       private

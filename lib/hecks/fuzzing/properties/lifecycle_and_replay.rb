@@ -27,7 +27,8 @@ module Hecks
 
         # The message for one stored record holding an undeclared lifecycle state, or nil.
         def undeclared_state_offense(bluebook, declared, key, state)
-          aggregate_name = key.split("::").last.split("#").first
+          record = key.split("::").last
+          aggregate_name = record.split("#").first
           states = declared[aggregate_name]
           return unless states
 

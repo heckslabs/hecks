@@ -7,6 +7,9 @@ module Hecks
     module CommentStyle
       # Finds the all-caps words in a comment and decides how each should be written instead.
       module CapsWords
+        # A comment indented past its hash, as a code sample or continuation is.
+        INDENTED_COMMENT = /\A#\s{3,}/
+
         private
 
         # @return [Array<Array>] each shouted word as `[offset, word, replacement]`, in text order
@@ -75,17 +78,17 @@ module Hecks
         end
 
         def keep_capitals?(word)
-          bare = word.sub(/'[A-Z]{1,2}\z/, "")
+          bare = word.sub(SHOUTED_SUFFIX, "")
           return false if PROPER_NOUNS.key?(bare)
 
-          ACRONYMS.include?(bare) || @constants.include?(bare) || bare.match?(/\A[IVX]+\z/)
+          ACRONYMS.include?(bare) || @constants.include?(bare) || bare.match?(ROMAN_NUMERAL)
         end
 
         def sentence_start?(comment, masked, offset)
-          before = masked[0, offset].sub(/\A#+\s*/, "")
-          return before.match?(/[.!?]["')\]]*\s+\z/) if before.match?(/[[:alnum:]#{FILLER}]/o)
-          return true if before.match?(/\A\s*(?:[-*•]|─+|\d+[.)])\s+\z/)
-          return false if masked[0, offset].match?(/\A#\s{3,}/)
+          before = masked[0, offset].sub(COMMENT_MARKER, "")
+          return before.match?(SENTENCE_BREAK) if before.match?(/[[:alnum:]#{FILLER}]/o)
+          return true if before.match?(LIST_MARKER)
+          return false if masked[0, offset].match?(INDENTED_COMMENT)
 
           after_sentence_end?(comment)
         end
@@ -95,8 +98,8 @@ module Hecks
           previous = comment.full_line ? @by_line[comment.line - 1] : nil
           return true unless previous&.full_line
 
-          body = previous.text.sub(/\A#+\s*/, "").strip
-          body.empty? || body.match?(/[.!?]["')\]]*\z/)
+          body = previous.text.sub(COMMENT_MARKER, "").strip
+          body.empty? || body.match?(SENTENCE_END)
         end
       end
     end

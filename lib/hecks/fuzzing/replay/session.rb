@@ -114,7 +114,7 @@ module Hecks
         # anything a cross-aggregate given dereferences, and the entity element a mutation
         # step's args address is snapshotted so it can be diffed against its post-dispatch state.
         def take_marks(step, args)
-          Marks.new(@runtime.reactions.size, @runtime.sagas.size, @runtime.outbox.rows.map(&:delivery_id),
+          Marks.new(@runtime.reactions.size, @runtime.sagas.size, RefusalTrace.outbox_ids(@runtime.outbox),
                     fan_out_snapshot, GuardCheck.build(@runtime, step["verb"], args),
                     MutationTrace.build(@runtime, step["verb"], args), RoleCheck.build(@runtime, step),
                     RefusalTrace.snapshot(@runtime))
@@ -147,7 +147,8 @@ module Hecks
         end
 
         def outbox_rows_since(marks)
-          @runtime.outbox.rows.reject { |row| marks.outbox_ids.include?(row.delivery_id) }
+          outbox = @runtime.outbox
+          outbox.rows.reject { |row| marks.outbox_ids.include?(row.delivery_id) }
         end
 
         # After — only on success; a refused step mutated nothing, so there is no "after" to

@@ -5,20 +5,21 @@ module Hecks
     # HTML, URL-query and URL-path escaping for values that come from domain data.
     # Nothing that reaches `Escape.html` becomes a tag.
     module Escape
+      # A character HTML text content must not hold as itself.
+      HTML_SPECIAL = /[&<>"']/
+
+      # The entity each `HTML_SPECIAL` character is written as.
+      HTML_ENTITIES = { "&" => "&amp;", "<" => "&lt;", ">" => "&gt;", '"' => "&quot;", "'" => "&#39;" }.freeze
+
       # Escapes a value for HTML text content, replacing `&`, `<`, `>`, `"` and `'` with
       # entities so nothing in it becomes a tag.
       #
-      # `&` is replaced first so the entities written here are not escaped again.
+      # One pass over the text, so the entities written here are not escaped again.
       #
       # @param value [Object, nil] the value to show, rendered with `to_s`; nil renders as `""`
       # @return [String] the escaped text
       def self.html(value)
-        value.to_s
-             .gsub("&", "&amp;")
-             .gsub("<", "&lt;")
-             .gsub(">", "&gt;")
-             .gsub('"', "&quot;")
-             .gsub("'", "&#39;")
+        value.to_s.gsub(HTML_SPECIAL, HTML_ENTITIES)
       end
 
       # Escapes a value for use inside a quoted HTML attribute.

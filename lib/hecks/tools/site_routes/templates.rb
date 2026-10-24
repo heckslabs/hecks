@@ -25,7 +25,8 @@ module Hecks
           return missing_edge(template) unless edge
 
           regions = Projector.call(:site_cdn, bluebook: site.chapter, options: { table: site.table, edge: edge })
-          relative = template || edge.setting.template
+          setting = edge.setting
+          relative = template || setting.template
           source = template_source(root, template, relative)
           text = rewritten(File.read(source), regions, relative)
           { destination(source, out, template, relative) => text }

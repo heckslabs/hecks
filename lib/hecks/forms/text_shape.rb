@@ -17,6 +17,9 @@ module Hecks
         TEL_HINT      = HINTS.fetch("tel")
         TEXTAREA_HINT = HINTS.fetch("textarea")
 
+        # A web scheme anywhere in a pattern, any case: the pattern asks for a URL.
+        WEB_SCHEME = /https?/i
+
         # @param attribute [Bluebook::Attribute] a string-typed attribute
         # @param common [Hash] the field attributes every kind shares
         # @return [Forms::Field] a `:text` field, or a `:textarea` for a long-form name
@@ -29,7 +32,7 @@ module Hecks
 
         def self.html_type(name, pattern)
           return "email" if pattern.include?("@") || name.match?(EMAIL_HINT)
-          return "url" if pattern.match?(/https?/i) || name.match?(URL_HINT)
+          return "url" if pattern.match?(WEB_SCHEME) || name.match?(URL_HINT)
           return "tel" if name.match?(TEL_HINT)
 
           "text"

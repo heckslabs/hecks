@@ -6,6 +6,9 @@ module Hecks
           # Reads and checks the `cdn` setting into the options `Cdn.yaml` renders. Extended onto
           # `Cdn`, which supplies the constants and `Check`.
           module Options
+            # An HTTP header name.
+            HEADER_NAME = /\A[A-Za-z0-9-]+\z/
+
             private
 
             def base_options(given, default_origin_id)
@@ -57,7 +60,7 @@ module Hecks
               return nil if value.nil?
 
               secret = Check.hash!(value, "cdn origin_secret", allowed: [:header, :parameter], required: [:header, :parameter])
-              unless secret[:header].to_s.match?(/\A[A-Za-z0-9-]+\z/)
+              unless secret[:header].to_s.match?(HEADER_NAME)
                 raise ArgumentError,
                       "cdn origin_secret header must be an HTTP header name, got #{secret[:header].inspect}"
               end

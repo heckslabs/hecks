@@ -28,7 +28,7 @@ module Hecks
         # The text of a block's first line, without its `#`, is its key. A second block opened by
         # the same text in this file gets a `#2` suffix, and so on.
         def block_key(run, seen)
-          text = run.first.text.sub(/\A#+\s*/, "").strip[0, MAX_ANCHOR]
+          text = run.first.text.sub(COMMENT_MARKER, "").strip[0, MAX_ANCHOR]
           text = "(empty)" if text.empty?
           seen[text] += 1
           seen[text] == 1 ? text : "#{text} ##{seen[text]}"

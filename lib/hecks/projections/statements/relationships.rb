@@ -14,6 +14,9 @@ module Hecks
         # The built-in value types, which a list names by its field rather than its element.
         PRIMITIVES = %w[String Integer Float TrueClass FalseClass Boolean].freeze
 
+        # A past participle's ending, as a role's first word carries it: "disputed", "drawn".
+        PARTICIPLE = /(ed|en|wn)\z/
+
         module_function
 
         # @param holder [Bluebook::Aggregate, Bluebook::Entity] the construct the attribute is on
@@ -48,7 +51,8 @@ module Hecks
 
         # The verb phrase after "Each <holder>".
         def reference_phrase(attribute)
-          target_name = attribute.type.target_name
+          type = attribute.type
+          target_name = type.target_name
           target = PlainEnglish.noun(target_name)
           return own_name_phrase(attribute, target) if Naming.snake(target_name) == attribute.name.to_s
 
@@ -68,7 +72,7 @@ module Hecks
 
         # "can be disputed by one customer", "reports to at most one employee".
         def prepositional_phrase(role, target, optional)
-          if role.split.first.match?(/(ed|en|wn)\z/)
+          if role.split.first.match?(PARTICIPLE)
             optional ? "can be #{role} one #{target}" : "is #{role} one #{target}"
           else
             optional ? "#{role} at most one #{target}" : "#{role} one #{target}"

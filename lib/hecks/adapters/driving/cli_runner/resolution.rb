@@ -139,18 +139,26 @@ module Hecks
           # names a chapter its hecksagon attaches or uses as a framework member (`deploy`,
           # `governance`), that chapter, with the word dropped and added to the program name.
           def chapter_for(runtime, argv, program)
-            own    = runtime.registry.bluebooks.values.first
-            target = attached_chapters(runtime).find { |name| Naming.snake(name) == argv.first }
+            registry = runtime.registry
+            own      = own_bluebook(registry)
+            target   = attached_chapters(runtime).find { |name| Naming.snake(name) == argv.first }
             return [own, argv, program] unless target
 
-            [runtime.registry.bluebook(target), argv[1..], "#{program} #{argv.first}"]
+            [registry.bluebook(target), argv[1..], "#{program} #{argv.first}"]
           end
 
           # The chapters the booted domain's hecksagon attaches or uses as framework members.
           def attached_chapters(runtime)
-            own = runtime.registry.bluebooks.values.first
-            Array(runtime.registry.hecksagon(own.name)&.member_chapters)
+            registry = runtime.registry
+            own = own_bluebook(registry)
+            Array(registry.hecksagon(own.name)&.member_chapters)
           end
+
+          # The booted domain's own bluebook: the first one the registry holds.
+          #
+          # @param registry [Runtime::Registry] the booted registry
+          # @return [Bluebook::Domain, nil] its first bluebook
+          def own_bluebook(registry) = registry.bluebooks.values.first
         end
       end
     end

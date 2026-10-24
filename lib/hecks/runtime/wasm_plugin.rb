@@ -46,12 +46,18 @@ module Hecks
       def run(adapter, input)
         engine, wasm_module, linker = compiled(adapter)
         output = +""
-        config = Wasmtime::WasiConfig.new.add_determinism.set_stdin_string(input).set_stdout_buffer(output, STDOUT_CAP)
-        store  = Wasmtime::Store.new(engine, wasi_p1_config: config)
+        store  = Wasmtime::Store.new(engine, wasi_p1_config: wasi_config(input, output))
         start(linker.instantiate(store, wasm_module), adapter)
         JSON.parse(output)
       rescue JSON::ParserError => e
         raise WiringError, "#{adapter.name} answered with text that is not JSON: #{e.message}"
+      end
+
+      # The WASI setup a run gets: fixed clock and randomness, `input` on stdin, and stdout
+      # written into `output` up to the cap.
+      def wasi_config(input, output)
+        config = Wasmtime::WasiConfig.new.add_determinism
+        config.set_stdin_string(input).set_stdout_buffer(output, STDOUT_CAP)
       end
 
       # A command ends by returning from `_start` or by exiting; only exit code 0 is an answer.

@@ -16,7 +16,7 @@ module Hecks
         # both are validation, not persistence, and a real dispatch would
         # refuse on either before ever writing.
         def step_save(ctx)
-          step(:save) { @rules.resolve_state_references(ctx.domain, ctx.aggregate, ctx.instance.state) }
+          step(:save) { @rules.resolve_state_references(ctx.domain, ctx.aggregate, ctx.state) }
 
           if ctx.dry_run
             step(:save) { check_dry_run_creates_duplicate(ctx) }
@@ -36,9 +36,9 @@ module Hecks
         # deliberately defers this exact check to here.
         def check_dry_run_creates_duplicate(ctx)
           return unless ctx.strategy == DependencyPlanning::ATOMIC_PUT && ctx.command.creates?
-          return unless ctx.repository.find(ctx.instance.id)
+          return unless ctx.repository.find(ctx.instance_id)
 
-          raise_already_exists(ctx.command, ctx.aggregate, ctx.instance.id)
+          raise_already_exists(ctx.command, ctx.aggregate, ctx.instance_id)
         end
 
         def persist_instance(ctx)
@@ -52,14 +52,14 @@ module Hecks
             # `expected_version:` is nil for a brand-new record or a
             # non-CAS repository, either of which falls through to a
             # plain, unconditional save inside `AppendOnly#save`.
-            ctx.repository.save(ctx.instance, expected_version: ctx.instance.version)
+            ctx.repository.save(ctx.instance, expected_version: ctx.instance_version)
           end
         end
 
         def raise_for_persistence_outcome!(ctx)
-          case ctx.persistence_outcome.status
+          case ctx.outcome_status
           when :conflicted
-            raise_already_exists(ctx.command, ctx.aggregate, ctx.instance.id)
+            raise_already_exists(ctx.command, ctx.aggregate, ctx.instance_id)
           when :stale
             # Not a declared vocabulary refusal, just a plain, informative
             # message — caught by `#call`'s retry loop, re-raised only once
@@ -69,8 +69,8 @@ module Hecks
         end
 
         def lost_race_wording(ctx)
-          "#{ctx.command.hecks_name} on #{ctx.aggregate.hecks_name} " \
-            "(#{identity_reading(ctx.aggregate)}: #{Rendering.describe(ctx.instance.id)}) lost a race — " \
+          "#{ctx.command_hecks_name} on #{ctx.aggregate_hecks_name} " \
+            "(#{identity_reading(ctx.aggregate)}: #{Rendering.describe(ctx.instance_id)}) lost a race — " \
             "another write committed against this record after it was read"
         end
 
@@ -81,13 +81,14 @@ module Hecks
         # real reason. Uses the same `RebuildSweep.remote_value` a sweep
         # computes, and runs only at save time, never as a live read mid-dispatch.
         def seed_projected_fields(ctx)
-          return if ctx.aggregate.projected_fields.empty?
+          aggregate = ctx.aggregate
+          return if aggregate.projected_fields.empty?
 
-          ctx.aggregate.projected_fields.each do |field|
-            value = RebuildSweep.remote_value(@registry, ctx.domain, ctx.aggregate, ctx.instance.state, field)
+          aggregate.projected_fields.each do |field|
+            value = RebuildSweep.remote_value(@registry, ctx.domain, aggregate, ctx.state, field)
             next if value.nil?
 
-            ctx.instance.state[field.name] = value
+            ctx.state[field.name] = value
           end
         end
       end

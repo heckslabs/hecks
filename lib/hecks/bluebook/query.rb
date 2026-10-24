@@ -35,6 +35,9 @@ module Hecks
       }.freeze
 
       # The keywords the `Options` base takes; the rest belong to the query itself.
+      # A `list_of(Name)` spelling, capturing the `Name` inside.
+      LIST_OF = /\Alist_of\((.*)\)\z/
+
       OPTION_KEYS = [:wheres, :order_by, :limit, :offset, :cursor, :authorization, :null_semantics,
                      :inspection].freeze
 
@@ -55,7 +58,7 @@ module Hecks
       # The value object a `returns` names, without the `list_of(...)` wrapper.
       #
       # @return [String, nil] the value object's name, or `nil` when the query returns nothing
-      def returns_name = @returns&.sub(/\Alist_of\((.*)\)\z/, '\1')
+      def returns_name = @returns&.sub(LIST_OF, '\1')
 
       # Says whether the answer is many rows of the returned value object.
       #

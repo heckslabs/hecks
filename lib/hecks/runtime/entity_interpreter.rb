@@ -1,4 +1,5 @@
 require_relative "interpreting"
+require_relative "dispatch_context"
 require_relative "../naming"
 require_relative "../rendering"
 require_relative "errors"
@@ -51,7 +52,12 @@ module Hecks
       Context = Struct.new(:domain, :aggregate, :entity, :entity_name, :command, :command_name,
                            :args, :repository, :instance, :chain, :element, :view, :transition,
                            :old_element, :result, :route, :plan, :persistence_outcome, :dry_run, :outbox_rows,
-                           :correction_bindings, :invocation, keyword_init: true)
+                           :correction_bindings, :invocation, keyword_init: true) do
+        include DispatchContext
+
+        # @return [String] the located element's identity
+        def element_id = view.id
+      end
 
       # @param registry [Runtime::Registry] the booted registry this interpreter reads
       # @param rules [Runtime::CommandRules] the shared rules engine (admissibility,
@@ -149,13 +155,13 @@ module Hecks
       end
 
       def step_apply_mutations(ctx)
-        ctx.old_element = ctx.element.dup unless ctx.command.ensures.empty?
+        ctx.old_element = ctx.element.dup unless ctx.command_ensures.empty?
         step(:apply_mutations) { mutate_element(ctx) }
       end
 
       def mutate_element(ctx)
         pre = ctx.element.dup # the update set reads the element as it stood before mutation
-        ctx.command.mutations.each do |mutation|
+        ctx.command_mutations.each do |mutation|
           EntityElement.apply_to_element(@rules, ctx.aggregate, ctx.entity, ctx.element, mutation, ctx.args, pre)
         end
       end
@@ -163,7 +169,8 @@ module Hecks
       def step_advance_lifecycle(ctx)
         return unless ctx.transition
 
-        step(:advance_lifecycle) { ctx.element[ctx.entity.lifecycle.field] = ctx.transition.target }
+        entity = ctx.entity
+        step(:advance_lifecycle) { ctx.element[entity.lifecycle_field] = ctx.transition_target }
       end
 
       # Entity element helpers (`locate_chain`, `element_of`, `element_identity`,

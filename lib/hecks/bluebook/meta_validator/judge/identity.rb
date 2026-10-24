@@ -49,7 +49,8 @@ module Hecks
           def v_scalar(held)
             return held.to_s unless held.respond_to?(:to_h) && !held.is_a?(String)
 
-            held.to_h.values.first.to_s
+            values = held.to_h.values
+            values.first.to_s
           end
 
           # Each identity field comes from one of three places: the parent

@@ -57,7 +57,7 @@ module Hecks
         # cross-domain reference) is exempt, or the domain would starve.
         def satisfiable?(catalog, entry)
           entry[:command].attributes.select(&:reference?).all? do |attribute|
-            target = attribute.type.target_name.to_s
+            target = attribute.target_name.to_s
             !catalog[:creatable].include?(target) || @known_ids[target].any?
           end
         end

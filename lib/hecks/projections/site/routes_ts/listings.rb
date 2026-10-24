@@ -7,6 +7,12 @@ module Hecks
         # The lists `routes.ts` derives from the rows for search engines and the content system:
         # the sitemap and robots paths, and the content-system sources that name a page.
         module Listings
+          # A path segment that is a parameter or a wildcard, where a robots prefix stops.
+          PARAMETER_START = /\A[:*]/
+
+          # A source the content system holds: a `global:` or a `collection:`.
+          CMS_SOURCE = /\A(global|collection):/
+
           module_function
 
           def search(rows)
@@ -24,7 +30,8 @@ module Hecks
           end
 
           def sitemap_paths(rows)
-            RoutesTs.live(rows).select { |row| row.indexable && !row.path.match?(/[:*]/) }.map(&:path).sort
+            live = RoutesTs.live(rows)
+            live.select { |row| row.indexable && !row.path.match?(Table::PARAMETER_OR_WILDCARD) }.map(&:path).sort
           end
 
           def hidden_paths(rows)
@@ -39,7 +46,7 @@ module Hecks
           end
 
           def robots_prefix(path)
-            head = path.split("/").take_while { |part| !part.match?(/\A[:*]/) }.join("/")
+            head = path.split("/").take_while { |part| !part.match?(PARAMETER_START) }.join("/")
             head == path ? path : "#{head}/"
           end
 
@@ -60,13 +67,13 @@ module Hecks
           end
 
           def previews(rows)
-            rows.select { |row| row.source.match?(/\A(global|collection):/) }
-                .to_h { |row| [row.source, { path: row.path, draft: row.preview == "draft" }] }.sort.to_h
+            sourced = rows.select { |row| row.source.match?(CMS_SOURCE) }
+            sourced.to_h { |row| [row.source, { path: row.path, draft: row.preview == "draft" }] }.sort.to_h
           end
 
           def sourced(rows, prefix)
-            rows.select { |row| row.source.start_with?(prefix) }
-                .to_h { |row| [row.source.delete_prefix(prefix), yield(row)] }.sort.to_h
+            named = rows.select { |row| row.source.start_with?(prefix) }
+            named.to_h { |row| [row.source.delete_prefix(prefix), yield(row)] }.sort.to_h
           end
         end
       end

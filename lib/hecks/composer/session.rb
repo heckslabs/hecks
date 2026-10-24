@@ -12,6 +12,9 @@ module Hecks
       CHAPTER_DIR = File.expand_path("bluebook", __dir__).freeze
       VERB = "Composer::Draft".freeze
 
+      # A `Hecks.<construct> "Name"` header, capturing the chapter's name.
+      CHAPTER_DECLARATION = /Hecks\.\w+\s+"([A-Z][A-Za-z0-9]*)"/
+
       # @return [Runtime::Dispatcher] the booted Composer chapter
       attr_reader :runtime
 
@@ -99,7 +102,7 @@ module Hecks
       # @param slug [String] the draft's name
       # @return [Hash, nil] the draft as the chapter holds it, or nil when none is open
       def draft(slug)
-        @runtime.registry.repository("Composer", aggregate).find(slug)&.then { |row| plain(row) }
+        drafts.find(slug)&.then { |row| plain(row) }
       rescue StandardError
         nil
       end
@@ -116,7 +119,7 @@ module Hecks
       private
 
       # @api private
-      def chapter_name_in(text) = text[/Hecks\.\w+\s+"([A-Z][A-Za-z0-9]*)"/, 1] || "Workspace"
+      def chapter_name_in(text) = text[CHAPTER_DECLARATION, 1] || "Workspace"
 
       # @api private
       def revision(event, path)
@@ -126,6 +129,9 @@ module Hecks
       end
 
       def aggregate = @runtime.registry.bluebook("Composer").aggregate("Draft")
+
+      # @api private
+      def drafts = @runtime.registry.repository("Composer", aggregate)
 
       def dispatch(command, to: nil, **facts)
         @runtime.dispatch("#{VERB}.#{command}", to: to, with: facts)

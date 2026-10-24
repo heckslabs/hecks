@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "open3"
+require_relative "../../../text"
 
 module Hecks
   module QualityControlCli
@@ -8,6 +9,9 @@ module Hecks
       # Checking one candidate domain: written to disk, optionally built against Rust, then run in
       # its own child process.
       module Evaluation
+        # A compiler output line that reports an error.
+        COMPILER_ERROR = /error/
+
         private
 
         # `--check DIR`: one domain in this process, one result line.
@@ -43,7 +47,7 @@ module Hecks
           return JSON.parse(line.delete_prefix(RESULT_MARKER)) if line
 
           { "status" => "error",
-            "error"  => "child exited #{status.exitstatus} with no result: #{output.lines.last(5).join.strip}" }
+            "error"  => "child exited #{status.exitstatus} with no result: #{Text.last_lines(output, 5)}" }
         end
 
         def child_check_args(dir, binary, match, shrink_budget)
@@ -65,7 +69,7 @@ module Hecks
         def cargo_build
           cargo, status = Open3.capture2e("cargo", "build", "--no-default-features", "--features",
                                           Generator::DIRECTORY, chdir: @scratch)
-          return [nil, rust_failure("rust_build", cargo.lines.grep(/error/).first(12).join)] unless status.success?
+          return [nil, rust_failure("rust_build", compiler_errors(cargo))] unless status.success?
 
           binary = File.join(@scratch, "target/debug/rust-#{Generator::DIRECTORY}")
           FileUtils.cp(File.join(@scratch, "target/debug/rust"), binary)
@@ -73,6 +77,12 @@ module Hecks
         end
 
         def rust_failure(mode, detail) = { "mode" => mode, "detail" => detail }
+
+        # The first dozen error lines of a compiler's output, joined.
+        def compiler_errors(output)
+          errors = output.lines.grep(COMPILER_ERROR)
+          errors.first(12).join
+        end
 
         def sync_scratch!
           FileUtils.mkdir_p(@scratch)

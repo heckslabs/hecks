@@ -6,6 +6,15 @@ module Hecks
           # The optional service and build settings written onto a plan. Extended onto `Settings`,
           # which supplies the defaults.
           module Tuning
+            # An absolute path that does not end in a slash.
+            ABSOLUTE_DIR = %r{\A/[A-Za-z0-9_./-]*[A-Za-z0-9_.-]\z}
+            # An absolute directory path of path characters.
+            ABSOLUTE_PATH = %r{\A/[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*\z}
+            # A relative directory path of path characters.
+            RELATIVE_PATH = %r{\A[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*\z}
+            # A relative directory path that ends in a slash.
+            RELATIVE_DIR = %r{\A[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*/\z}
+
             private
 
             def check_alerts!(alerts, cdn)
@@ -58,7 +67,7 @@ module Hecks
 
             def install_dir(value)
               text = value.to_s
-              return text if text.match?(%r{\A/[A-Za-z0-9_./-]*[A-Za-z0-9_.-]\z})
+              return text if text.match?(ABSOLUTE_DIR)
 
               raise ArgumentError, "install_dir must be an absolute path without a trailing slash, got #{value.inspect}"
             end
@@ -69,8 +78,8 @@ module Hecks
             def host_dir(value)
               text = value.to_s
               return text if text == DEFAULT_HOST_DIR
-              return text if text.match?(%r{\A/[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*\z})
-              return "$(ROOT)/#{text}" if text.match?(%r{\A[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*\z})
+              return text if text.match?(ABSOLUTE_PATH)
+              return "$(ROOT)/#{text}" if text.match?(RELATIVE_PATH)
 
               raise ArgumentError,
                     "host_crate must be a directory path of letters, digits, . _ - and /, absolute or relative to the " \
@@ -79,7 +88,7 @@ module Hecks
 
             def build_context_dir(value)
               text = value.to_s
-              return text if text.empty? || text.match?(%r{\A[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*/\z})
+              return text if text.empty? || text.match?(RELATIVE_DIR)
 
               raise ArgumentError,
                     "build_context_dir must be a relative directory ending in /, such as \"build/\", got #{value.inspect}"

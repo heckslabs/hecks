@@ -44,9 +44,11 @@ module Hecks
       # Reads one closed-set value object's declared members off the Syntax
       # aggregate, as string-valued Hashes.
       def rows(name)
-        syntax.value_objects.find { |vo| vo.hecks_name == name }
-              .members.map { |row| row.to_h.transform_values(&:to_s) }
+        syntax_value_object(name).members.map { |row| row.to_h.transform_values(&:to_s) }
       end
+
+      # The Syntax aggregate's value object of that name.
+      def syntax_value_object(name) = syntax.value_objects.find { |vo| vo.hecks_name == name }
 
       # Delegates to SyntaxBoot.call's own cache instead of memoizing here —
       # a second cache could lock in a stale set with no way to invalidate (ADR 0026).

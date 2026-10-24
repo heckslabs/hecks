@@ -10,6 +10,9 @@ module Hecks
       DECLARATION = /\A\s*(#{KINDS.join("|")})\s+"([^"]+)"/
       SUMMARY = /\A\s*(?:goal|description)\s+"((?:[^"\\]|\\.)*)"/
 
+      # The path of a file that declares things: a bluebook, hecksagon, behaviors or world file.
+      DECLARING_FILE = /\.(bluebook|hecksagon|behaviors|world)\z/
+
       # How many lines below a declaration its `goal` or `description` may sit.
       REACH = 6
 
@@ -20,7 +23,7 @@ module Hecks
       # @return [Array<Hash>] `{file:, line:, kind:, name:, summary:}` for each declaration, in file
       #   then line order; `line` counts from 1 and `summary` is nil when none follows
       def call(stage, files)
-        files.grep(/\.(bluebook|hecksagon|behaviors|world)\z/).flat_map do |file|
+        files.grep(DECLARING_FILE).flat_map do |file|
           entries(file, File.readlines(File.join(stage, file), chomp: true))
         end
       end

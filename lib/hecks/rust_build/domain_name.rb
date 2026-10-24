@@ -14,11 +14,14 @@ module Hecks
       # vocabulary.
       CARGO_RESERVED = Hecks::Vocabulary.fetch("CargoReservedName")
 
+      # A plain lowercase identifier: a letter or underscore, then letters, digits, underscores.
+      IDENTIFIER = /\A[a-z_][a-z0-9_]*\z/
+
       # @param name [String] the domain's directory name
       # @return [Boolean] whether it is a plain lowercase identifier and no reserved word
       def self.valid?(name)
         text = name.to_s
-        text.match?(/\A[a-z_][a-z0-9_]*\z/) &&
+        text.match?(IDENTIFIER) &&
           Hecks::Bluebook::ModelCheck.rust_reserved_name_findings(domain_name: text).empty?
       end
     end

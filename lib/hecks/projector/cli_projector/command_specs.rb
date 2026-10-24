@@ -6,6 +6,9 @@ module Hecks
       # The spec hash of each command, port operation, query and report: what the runner parses
       # a call against and what `--help` describes.
       module CommandSpecs
+        # The last `.segment` of a dotted name.
+        LAST_SEGMENT = /\.[^.]+\z/
+
         # The options that name the record a command acts on, before its own arguments.
         # `nil` (a creating command) takes none: there is no record yet.
         # Ports always pass `:aggregate`, since a port is declared on an aggregate.
@@ -86,7 +89,7 @@ module Hecks
         # `Dispatcher#dispatch` looks the head up as a port, so the wire name is
         # `Aggregate.Port.Operation`; the launcher name hides the port.
         def port_wire_name(bluebook, aggregate, port, operation)
-          [fqn(bluebook, aggregate, operation).sub(/\.[^.]+\z/, ""), port.name, operation.hecks_name].join(".")
+          [fqn(bluebook, aggregate, operation).sub(LAST_SEGMENT, ""), port.name, operation.hecks_name].join(".")
         end
 
         # Who issues a port operation, in the direction it runs.
@@ -110,7 +113,7 @@ module Hecks
         # lifecycle state mismatch and a missing referenced record per `reference_to`.
         def refusals(command, holder)
           lifecycle_refusals(command, holder) +
-            command.attributes.select(&:reference?).map { |r| "no #{r.type.target_name} has that #{r.name}" }
+            command.attributes.select(&:reference?).map { |r| "no #{r.target_name} has that #{r.name}" }
         end
 
         # The refusal for a lifecycle state the command does not run from, or none.
@@ -118,9 +121,10 @@ module Hecks
           lifecycle = holder.lifecycle
           return [] unless lifecycle
 
-          froms = lifecycle.transitions.filter_map do |name, transition|
+          sources = lifecycle.transitions.filter_map do |name, transition|
             Array(transition.from) if name.to_s == command.hecks_name
-          end.flatten.uniq
+          end
+          froms = sources.flatten.uniq
           froms.empty? ? [] : ["#{lifecycle.field} is not #{froms.join(" or ")}"]
         end
 

@@ -144,7 +144,8 @@ module Hecks
       def buffers(body) = body.fetch("buffers", {})
 
       def body(request)
-        raw = request.body&.read.to_s
+        stream = request.body
+        raw = stream&.read.to_s
         raw.empty? ? {} : JSON.parse(raw)
       end
 

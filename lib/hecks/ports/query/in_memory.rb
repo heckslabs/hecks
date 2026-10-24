@@ -41,8 +41,9 @@ module Hecks
         end
 
         def order(matched, declared)
-          field = declared.order_by&.field
-          Ordering.apply(matched, declared.order_by, declared.null_semantics,
+          order_by = declared.order_by
+          field = order_by&.field
+          Ordering.apply(matched, order_by, declared.null_semantics,
                          identity: ->(record) { record.id.to_s }) { |record| comparable(FieldPath.dig(record, field)) }
         end
 

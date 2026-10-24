@@ -80,7 +80,13 @@ module Hecks
 
         lock = Lock.read(path)
         judge(name, dir, lock, problems)
-        lock.to_h.transform_keys(&:to_s).slice(*ENTRY).merge("shape" => Array(lock.shape))
+        entry_fields(lock)
+      end
+
+      # The lock's fields a manifest entry records, with its shape as a list.
+      def entry_fields(lock)
+        recorded = lock.to_h.transform_keys(&:to_s)
+        recorded.slice(*ENTRY).merge("shape" => Array(lock.shape))
       end
 
       def judge(name, dir, lock, problems)

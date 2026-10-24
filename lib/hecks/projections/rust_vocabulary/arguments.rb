@@ -35,7 +35,7 @@ module Hecks
         def site_specs(row, grouped)
           key   = site_key(row)
           specs = grouped.fetch(key, [])
-          wants = row.fetch("template").scan(/\{(\w+)\}/).flatten.uniq
+          wants = RustVocabulary.placeholders(row.fetch("template"))
           names = specs.map { |spec| spec.fetch("argument") }
           unless names == wants
             raise ArgumentError, "RefusalSiteArgument for #{key.join("/")} declares #{names.inspect}; " \

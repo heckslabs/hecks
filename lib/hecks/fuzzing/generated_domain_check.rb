@@ -4,6 +4,7 @@ require_relative "sequence_generator"
 require_relative "replay"
 require_relative "shrinker"
 require_relative "differential"
+require_relative "../text"
 
 module Hecks
   module Fuzzing
@@ -54,7 +55,7 @@ module Hecks
         IsolatedBoot.call(domain_path) { |copy| Hecks.boot(copy, environment: nil) }
         nil
       rescue StandardError, ScriptError => e
-        "#{e.class}: #{e.message.lines.first&.strip}"
+        "#{e.class}: #{Hecks::Text.first_line(e.message)}"
       end
 
       def check_seed(domain_path, seed, settings)

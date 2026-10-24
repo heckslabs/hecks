@@ -41,8 +41,14 @@ module Hecks
     def first_unfrozen_child(held, path)
       case held
       when Hash  then held.lazy.filter_map { |key, inner| unfrozen_within(inner, path + [key.to_s]) }.first
-      when Array then held.each_with_index.lazy.filter_map { |inner, i| unfrozen_within(inner, path + [i.to_s]) }.first
+      when Array then first_unfrozen_element(held, path)
       end
+    end
+
+    # @return [String, nil] the path to the first mutable value inside an Array, or nil
+    def first_unfrozen_element(held, path)
+      indexed = held.each_with_index.lazy
+      indexed.filter_map { |inner, i| unfrozen_within(inner, path + [i.to_s]) }.first
     end
 
     # @param path [Array<String>] the owner path walked so far

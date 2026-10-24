@@ -59,11 +59,13 @@ module Hecks
           def heading(agg) = "// ---- #{agg.noun} ----"
 
           def composites(agg)
-            agg.attrs.select { |attr| attr.shape == :composite }.map do |attr|
+            composite_attrs(agg).map do |attr|
               fields = attr.parts.map { |part| "  #{part.ts}: string;" }.join("\n")
               "export interface #{attr.type} {\n#{fields}\n}"
             end.join("\n\n")
           end
+
+          def composite_attrs(agg) = agg.attrs.select { |attr| attr.shape == :composite }
 
           def input_type(agg)
             fields = agg.attrs.map { |attr| "  #{attr.ts}: #{ts_type(attr)};" }.join("\n")
@@ -84,7 +86,7 @@ module Hecks
           end
 
           def composite_readers(agg)
-            agg.attrs.select { |attr| attr.shape == :composite }.map do |attr|
+            composite_attrs(agg).map do |attr|
               parts = attr.parts.map { |part| "#{part.ts}: text(s.#{part.name})" }.join(", ")
               <<~TS.chomp
                 const #{reader(agg, attr)} = (value: unknown): #{attr.type}[] =>

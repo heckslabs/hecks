@@ -40,7 +40,8 @@ module Hecks
           request = Rack::Request.new(env)
           return respond(405, error: "MethodNotAllowed", message: "POST only") unless request.post?
 
-          body = request.body.read
+          stream = request.body
+          body = stream.read
           verify_signature!(request, body)
           route(request.get_header(EVENT_HEADER), body)
         rescue InvalidSignature => e

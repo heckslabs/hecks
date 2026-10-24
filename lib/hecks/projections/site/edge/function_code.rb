@@ -15,6 +15,9 @@ module Hecks
         # CloudFormation expression. The checks refuse such a row when it is read, and `code`
         # refuses again, since it is the last step before the text is written.
         module FunctionCode
+          # A lower-case letter or digit followed by a capital: where two camel-case words meet.
+          WORD_BOUNDARY = /([a-z0-9])([A-Z])/
+
           # A lowercase hostname of at least two labels, as the host header is compared after
           # lowercasing.
           HOST = /\A([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}\z/
@@ -50,7 +53,7 @@ module Hecks
 
           # @param name [String] a function's logical id
           # @return [String] the hyphenated name the function carries, such as `host-redirect`
-          def kebab(name) = name.gsub(/([a-z0-9])([A-Z])/, '\1-\2').downcase
+          def kebab(name) = name.gsub(WORD_BOUNDARY, '\1-\2').downcase
 
           # @param function [Edge::Function] a `redirect_host` row
           # @return [String] the resource, from the left margin, ending in a newline

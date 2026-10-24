@@ -135,7 +135,8 @@ module Hecks
           context = mutation_context(bluebooks, entry)
           return [] unless context
 
-          recomputable = context.command.mutations.select { |m| RECOMPUTABLE_MUTATION_OPS.include?(m.op) }
+          command = context.command
+          recomputable = command.mutations.select { |m| RECOMPUTABLE_MUTATION_OPS.include?(m.op) }
           recomputable.filter_map { |mutation| mutation_offender(mutation, entry, context) }
         end
 

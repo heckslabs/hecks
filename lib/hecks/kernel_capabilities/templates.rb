@@ -85,7 +85,8 @@ module Hecks
       # @param name [String, Symbol] a snake_case capability name
       # @return [String] the PascalCase Rust variant
       def pascal(name)
-        name.to_s.split("_").map { |part| part[0].upcase + part[1..] }.join
+        parts = name.to_s.split("_")
+        parts.map { |part| part[0].upcase + part[1..] }.join
       end
     end
   end

@@ -8,6 +8,9 @@ module Hecks
         # Turns a canonical predicate string into an `Or`/`And`/`Not`/`Include`/`Compare`/`Resolve`
         # AST, trying the loosest-binding form first.
         module Parser
+          # A leading `!` and the whole remainder after it, captured.
+          NEGATION = /\A!(.+)\z/
+
           module_function
 
           # Parses `expr`'s boolean/comparison grammar into an AST; leaves go to `Resolver.parse`.
@@ -35,7 +38,7 @@ module Hecks
           #
           # @return [Not, nil] the negation of what follows a leading `!`, else `nil`
           def parse_not(expr)
-            negated = expr.match(/\A!(.+)\z/)
+            negated = expr.match(NEGATION)
             Not.new(node: parse(negated[1])) if negated
           end
 

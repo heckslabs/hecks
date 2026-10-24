@@ -22,6 +22,9 @@ module Hecks
         PREFIX = "hecks_rehearsal_"
         NAME = /\A#{PREFIX}[0-9a-f]{16}\z/
 
+        # A Postgres connection URL, by its scheme.
+        POSTGRES_URL = %r{\Apostgres(ql)?://}
+
         # @param declaration [Declaration] a `postgres` declaration
         # @param run [String] the rehearsal's key
         # @param protected_databases [Array<String>] databases the domain's own world names
@@ -85,7 +88,7 @@ module Hecks
 
         def server_url
           value = @declaration.connection
-          return value if value.match?(%r{\Apostgres(ql)?://})
+          return value if value.match?(POSTGRES_URL)
 
           raise Refused, "#{@declaration.connection_env} must hold a postgres:// URL"
         end

@@ -62,7 +62,8 @@ module Hecks
 
           coerce_entity_fields(aggregate, entity, fields)
           assign_entity_identity(aggregate, entity, current, fields)
-          fields[entity.lifecycle.field] ||= entity.lifecycle.default if entity.lifecycle
+          lifecycle = entity.lifecycle
+          fields[lifecycle.field] ||= lifecycle.default if lifecycle
           # Fill declared defaults for attributes the append mapping did not touch, shared with
           # EntityElement so both entity-creation paths agree on what "the default" means.
           EntityElement.fill_declared_defaults(aggregate, entity, fields)

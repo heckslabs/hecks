@@ -99,7 +99,7 @@ module Hecks
         def violate_reference!(args, command)
           reference = command.attributes.find(&:reference?) or return nil
 
-          args[reference.name.to_s] = "no-such-#{reference.type.target_name.to_s.downcase}"
+          args[reference.name.to_s] = "no-such-#{reference.target_name.to_s.downcase}"
           reference.name.to_s
         end
       end

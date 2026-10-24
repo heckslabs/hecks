@@ -61,9 +61,8 @@ module Hecks
       # @param registry [Runtime::Registry] a loaded registry
       # @return [String] one `<Domain> <label>` line per bluebook, sorted by name
       def labels(registry)
-        registry.bluebooks.sort_by { |name, _| name.to_s }
-                .map { |name, bluebook| "#{name} #{Runtime::StorageShape.mint_label(bluebook)}" }
-                .join("\n")
+        sorted = registry.bluebooks.sort_by { |name, _| name.to_s }
+        sorted.map { |name, bluebook| "#{name} #{Runtime::StorageShape.mint_label(bluebook)}" }.join("\n")
       end
     end
   end

@@ -19,6 +19,12 @@ module Hecks
       # The Cargo target the module is built for.
       TARGET = "wasm32-unknown-unknown"
 
+      # The exact wasm-bindgen pin in a Cargo manifest, capturing the version.
+      BINDGEN_PIN = /^wasm-bindgen = "=(.+)"/
+
+      # A dotted version number, as `wasm-bindgen --version` prints it.
+      VERSION_NUMBER = /[\d.]+/
+
       module_function
 
       # @param argv [Array<String>] the domain's directory
@@ -66,9 +72,9 @@ module Hecks
       # The wasm-bindgen CLI must match the crate version pinned in `rust/web/Cargo.toml`; a
       # mismatch fails only when the CLI runs, so the pin is read back, not hardcoded.
       def require_cli!(web_dir)
-        pinned = File.read(File.join(web_dir, "Cargo.toml"))[/^wasm-bindgen = "=(.+)"/, 1] or
+        pinned = File.read(File.join(web_dir, "Cargo.toml"))[BINDGEN_PIN, 1] or
           raise Failure, "rust/web/Cargo.toml: couldn't find a pinned (\"=x.y.z\") wasm-bindgen version"
-        installed = `wasm-bindgen --version 2>/dev/null`[/[\d.]+/]
+        installed = `wasm-bindgen --version 2>/dev/null`[VERSION_NUMBER]
         return if installed == pinned
 
         raise Failure, <<~MSG

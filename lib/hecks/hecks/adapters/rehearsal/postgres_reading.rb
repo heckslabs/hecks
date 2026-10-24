@@ -48,14 +48,14 @@ module Hecks
           return [[@declaration.schema, "world"]] if @declaration.schema
           return [[ENV.fetch("HECKS_SCHEMA"), "HECKS_SCHEMA"]] if ENV.fetch("HECKS_SCHEMA", "") != ""
 
-          [[Naming.snake(subject.bluebook.name), "derived"], %w[public default]]
+          [[Naming.snake(subject.bluebook_name), "derived"], %w[public default]]
         end
 
         def reading(subject)
           subject.held.read_from(url)
-          db = PostgresEra.connect_for(subject.bluebook.name, subject.held.settings)
+          db = PostgresEra.connect_for(subject.bluebook_name, subject.settings)
           db.exec("SET default_transaction_read_only = on") if @declaration.mode == "readonly_copy"
-          yield PostgresEra::Lineage.new(db, subject.bluebook.name)
+          yield PostgresEra::Lineage.new(db, subject.bluebook_name)
         ensure
           db&.close
         end

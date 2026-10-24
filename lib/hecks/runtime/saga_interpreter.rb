@@ -32,6 +32,25 @@ module Hecks
       # instance's correlation, the log record of the move, and — once a leg is taken under the
       # mutex — the instance, the leg's handler and the state it left.
       Leg = Struct.new(:process_manager, :event, :domain, :correlation, :record, :instance, :handler, :pre_state) do
+        # @return [String] the declared name of the saga this leg moves
+        def saga_name = process_manager.name
+
+        # @return [Symbol, String] the field the saga correlates its instances on
+        def correlation_head = process_manager.correlation_head
+
+        # @return [String] the name of the event that moves this leg
+        def event_name = event.name
+
+        # @return [Hash] the moving event's payload
+        def event_payload = event.payload
+
+        # @return [Hash{Symbol => Object}] the moving event's aggregate and identity, the
+        #   receiver a reentered command may fall back to
+        def event_source = { aggregate: event.aggregate, identity: event.id }
+
+        # @return [Array] the dispatches the taken handler declares
+        def dispatches = handler.dispatches
+
         # Moves the instance into the handler's state, remembering the state it left.
         #
         # @param leg_handler [Bluebook::ProcessManager::Handler] the leg being taken

@@ -51,7 +51,7 @@ module Hecks
             elsif paths.include?("/*") && paths.size > 1
               problem("EdgeRule #{rule.rule}", "carries /*, which every other path it lists is part of")
             end
-            limit = @edge.setting.secret_header ? VALUES - 1 : VALUES
+            limit = @edge.secret_header ? VALUES - 1 : VALUES
             return if paths.size <= limit
 
             problem("EdgeRule #{rule.rule}", "carries #{paths.size} paths; a rule holds at most #{limit} " \

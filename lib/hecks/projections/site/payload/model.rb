@@ -45,18 +45,22 @@ module Hecks
 
           private
 
+          def lifecycle = @agg.lifecycle
+
           def create
             command = @agg.commands.find(&:creates?)
             raise ArgumentError, "#{@agg.hecks_name} has no command that creates it" unless command
-            raise ArgumentError, "#{@agg.hecks_name}'s lifecycle has no default status" unless @agg.lifecycle.default
 
-            { verb: command.hecks_name, status: @agg.lifecycle.default }
+            status = lifecycle.default
+            raise ArgumentError, "#{@agg.hecks_name}'s lifecycle has no default status" unless status
+
+            { verb: command.hecks_name, status: status }
           end
 
           def edges
             creating = @agg.commands.select(&:creates?).map(&:hecks_name)
             map = Hash.new { |hash, key| hash[key] = {} }
-            @agg.lifecycle.transitions.each { |verb, move| add_edges(map, verb, move) unless creating.include?(verb) }
+            lifecycle.transitions.each { |verb, move| add_edges(map, verb, move) unless creating.include?(verb) }
             map.transform_values(&:dup)
           end
 
@@ -77,7 +81,7 @@ module Hecks
           end
 
           def attrs
-            @agg.attributes.reject { |attribute| attribute.name == @agg.lifecycle.field }.map { |attribute| attr(attribute) }
+            @agg.attributes.reject { |attribute| attribute.name == @agg.lifecycle_field }.map { |attribute| attr(attribute) }
           end
 
           def attr(attribute)

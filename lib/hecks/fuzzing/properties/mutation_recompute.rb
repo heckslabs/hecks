@@ -60,10 +60,11 @@ module Hecks
         # VO-declared `default:` field is left out of the recomputed element entirely,
         # disagreeing with real dispatch's fully-defaulted one.
         def fill_recompute_declared_defaults(context, target, fields)
-          element_type = target && context.owner&.attribute(target)&.type
+          owner = context.owner
+          element_type = target && owner&.attribute(target)&.type
           return fields unless element_type
 
-          entity = context.owner.entities.find { |piece| piece.hecks_name == element_type.to_s }
+          entity = owner.entities.find { |piece| piece.hecks_name == element_type.to_s }
           return fill_entity_defaults(context.aggregate, entity, fields) if entity
 
           fill_value_object_defaults(context.aggregate, element_type, fields)

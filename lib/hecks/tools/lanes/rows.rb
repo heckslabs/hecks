@@ -7,6 +7,12 @@ module Hecks
     module Lanes
       # The `Lane` rows of the Vocabulary chapter, checked against what the projection can express.
       module Rows
+        # Empty, or a trailer key of dash-joined words such as `Release-Approved-By`.
+        TRAILER_KEY = /\A([A-Za-z][A-Za-z0-9]*(-[A-Za-z0-9]+)*)?\z/
+
+        # Empty, or a whole number of hours.
+        WHOLE_HOURS = /\A\d*\z/
+
         module_function
 
         # @return [Array<Hash{String => String}>] the `Lane` rows
@@ -36,10 +42,10 @@ module Hecks
 
         # @return [Boolean] whether `release_trailer` is empty (nothing is released from the lane)
         #   or a git trailer key such as `Release-Approved-By`
-        def trailer?(lane) = lane["release_trailer"].to_s.match?(/\A([A-Za-z][A-Za-z0-9]*(-[A-Za-z0-9]+)*)?\z/)
+        def trailer?(lane) = lane["release_trailer"].to_s.match?(TRAILER_KEY)
 
         # @return [Boolean] whether `alert_after` is empty (never late) or whole hours
-        def hours?(lane) = lane["alert_after"].to_s.match?(/\A\d*\z/)
+        def hours?(lane) = lane["alert_after"].to_s.match?(WHOLE_HOURS)
 
         def follows_problem(lane, names)
           follows = lane["follows"].to_s

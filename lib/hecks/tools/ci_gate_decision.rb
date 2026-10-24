@@ -20,6 +20,9 @@ module Hecks
     module CiGateDecision
       NO_COMMIT = "0" * 40
 
+      # A `gate=<name>` argument, capturing the name.
+      GATE_ARG = /\Agate=(.+)\z/
+
       module_function
 
       # @param argv [Array<String>] `gate=<name>`, a `CiGate` row's name
@@ -28,7 +31,7 @@ module Hecks
       # @return [Integer] 0 once an answer is given
       # @raise [SystemExit] when no row has that name
       def main(argv, root: Tools::ROOT, env: ENV)
-        name = argv.filter_map { |arg| arg[/\Agate=(.+)\z/, 1] }.first
+        name = argv.filter_map { |arg| arg[GATE_ARG, 1] }.first
         abort "decide_ci_gate: name a gate, gate=<name>" unless name
         gate = CiGates.gates.find { |row| row["name"] == name }
         abort "decide_ci_gate: no CiGate row named #{name}" unless gate

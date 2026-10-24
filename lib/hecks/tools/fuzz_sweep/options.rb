@@ -30,10 +30,14 @@ module Hecks
         def apply_option(options, arg, rest)
           if (key = INTEGER_OPTIONS[arg]) then options[key] = Integer(rest.shift)
           elsif arg == "--persist-regressions" then options[:persist] = true
-          elsif arg == "--adapter" then options[:adapter] = rest.shift.to_s.downcase.to_sym
+          elsif arg == "--adapter" then options[:adapter] = adapter_name(rest.shift)
           else options[:domain] = arg
           end
         end
+
+        # @param word [String, nil] the word after `--adapter`
+        # @return [Symbol] the adapter it names, lowercased
+        def adapter_name(word) = word.to_s.downcase.to_sym
 
         # @return [Boolean] whether `adapter` is one a sweep can boot on; warns when it is not
         def adapter_known?(adapter)

@@ -193,7 +193,7 @@ module Hecks
 
       def refuse_unknown_order_field!(order_by)
         name = order_by.to_s.split(".").first
-        return if @aggregate.lifecycle&.field.to_s == name || @aggregate.attribute(name)
+        return if @aggregate.lifecycle_field.to_s == name || @aggregate.attribute(name)
 
         raise Runtime::WiringError,
               "#{@aggregate.name} has no attribute #{order_by.inspect} to order by"

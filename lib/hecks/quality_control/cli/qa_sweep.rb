@@ -45,6 +45,9 @@ module Hecks
       EXIT_ERROR = 1
       EXIT_FOUND_SOMETHING = 2
 
+      # A character a filename component may not carry.
+      UNSAFE_FILENAME_CHARACTER = /[^A-Za-z0-9_.-]/
+
       USAGE = "usage: hecks quality_control ask run [target=<reference>] arguments=\"[--seeds N] [--steps N] " \
               "[--adversarial FRACTION] [--role-draw FRACTION] [--dry-run FRACTION] " \
               "[--self-consistency true|false] [--modes a,b,c]\"\n       " \
@@ -156,7 +159,7 @@ module Hecks
       # what is stored as the
       # `Target`/`Sweep` reference itself.
       def filesystem_safe_component(reference)
-        reference.gsub(/[^A-Za-z0-9_.-]/, "-")
+        reference.gsub(UNSAFE_FILENAME_CHARACTER, "-")
       end
 
       # One target, start to finish.

@@ -42,7 +42,7 @@ module Hecks
               compute_id = ids[:compute_prefix]
               description = compute_description
               yaml = Shared.vpc_and_database_yaml(network, compute_logical_id: compute_id, compute_description: description)
-              yaml.each_line.with_index.map { |line, i| (i.zero? ? "" : "  ") + line }.join.rstrip
+              indented_after_first_line(yaml)
             end
 
             # Built outside the template so re-indenting it cannot shift this YAML out of sync with
@@ -63,6 +63,11 @@ module Hecks
             end
 
             private
+
+            def indented_after_first_line(yaml)
+              lines = yaml.each_line.with_index.map { |line, i| (i.zero? ? "" : "  ") + line }
+              lines.join.rstrip
+            end
 
             def compute_description
               "#{logical_id} - inbound from #{alb_sg_id} only, egress rules attached separately below"

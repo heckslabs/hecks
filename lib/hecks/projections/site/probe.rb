@@ -35,6 +35,15 @@ module Hecks
         # The redirect statuses.
         REDIRECTS = [301, 302, 303, 307, 308].freeze
 
+        # A Cache-Control value that lets a shared cache keep the response.
+        SHAREABLE = /public|max-age=[1-9]/
+
+        # A Cache-Control value that keeps the response out of a shared cache.
+        UNSHAREABLE = /no-store|private/
+
+        # A page's canonical link tag.
+        CANONICAL_LINK = /<link[^>]+rel=["']canonical["']/i
+
         # @param rows [Array<Table::Row>] the checked rows of a route table
         # @param run [String] the run's name, which makes the missing path unique to it
         def initialize(rows, run:)
@@ -64,7 +73,7 @@ module Hecks
 
         private
 
-        def askable?(row) = !row.path.empty? && !row.path.match?(/[:*]/)
+        def askable?(row) = !row.path.empty? && !row.path.match?(Table::PARAMETER_OR_WILDCARD)
 
         def for_row(row)
           return [off(row)] if row.off
@@ -105,14 +114,14 @@ module Hecks
           return nil if response.status >= 400
 
           control = response.headers["cache-control"].to_s
-          return nil unless control.match?(/public|max-age=[1-9]/) && !control.match?(/no-store|private/)
+          return nil unless control.match?(SHAREABLE) && !control.match?(UNSHAREABLE)
 
           "the redirect is cacheable (Cache-Control: #{control})"
         end
 
         def page(response)
           return "expected 200, got HTTP #{response.status}" unless response.status == 200
-          return nil if response.body.to_s.match?(/<link[^>]+rel=["']canonical["']/i)
+          return nil if response.body.to_s.match?(CANONICAL_LINK)
 
           "the page has no canonical link"
         end

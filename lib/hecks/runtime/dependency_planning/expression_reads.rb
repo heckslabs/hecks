@@ -64,8 +64,9 @@ module Hecks
 
         # The path a lookup reads, unless its root is a name an enclosing block bound.
         def collect_lookup(node, bound_names)
-          root = node.path.to_s.split(".", 2).first
-          bound_names.include?(root) ? [] : [node.path.to_s]
+          path = node.path.to_s
+          root = path.split(".", 2).first
+          bound_names.include?(root) ? [] : [path]
         end
       end
     end

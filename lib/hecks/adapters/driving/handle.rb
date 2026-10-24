@@ -157,7 +157,7 @@ module Hecks
         end
 
         def reader?(name)
-          !@ir.attribute(name).nil? || @ir.lifecycle&.field&.to_sym == name
+          !@ir.attribute(name).nil? || @ir.lifecycle_field&.to_sym == name
         end
 
         # Real singleton methods, not method_missing: a verb named `freeze` or
@@ -195,7 +195,8 @@ module Hecks
 
         # One lazy reader for a reference attribute.
         def define_reference_accessor(attribute)
-          target = attribute.type.resolve
+          reference = attribute.type
+          target = reference.resolve
           # Cross-domain, or otherwise unresolvable — no accessor rather than a guess.
           return unless target
 

@@ -6,6 +6,9 @@ module Hecks
       # `--promote`: turns a finding's minimal domain into a stress domain under
       # `qa/stress_domains`, with notes that carry the blueprint and the finding.
       module Promotion
+        # A lowercase identifier: what a Rust module and a Cargo feature may be named.
+        IDENTIFIER = /\A[a-z][a-z0-9_]*\z/
+
         private
 
         def camelize(name) = name.split("_").map(&:capitalize).join
@@ -23,7 +26,7 @@ module Hecks
 
         def promotion_name
           name = @options[:name] || abort("#{USAGE}\n--promote needs --name")
-          return name if name.match?(/\A[a-z][a-z0-9_]*\z/)
+          return name if name.match?(IDENTIFIER)
 
           abort "--name must be a lowercase identifier (it becomes a Rust module and Cargo feature)"
         end

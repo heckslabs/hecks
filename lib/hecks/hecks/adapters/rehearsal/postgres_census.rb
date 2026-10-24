@@ -59,17 +59,17 @@ module Hecks
                      counts: empty_counts, elsewhere: lineage)
         end
 
-        def empty_counts = @subject.bluebook.aggregates.map { |a| Census::Count.new(aggregate: a.name, head: 0, journal: 0) }
+        def empty_counts = @subject.aggregates.map { |a| Census::Count.new(aggregate: a.name, head: 0, journal: 0) }
 
         def counted(db, name, source, elsewhere)
-          lineage = PostgresEra::Lineage.new(db, @subject.bluebook.name)
+          lineage = PostgresEra::Lineage.new(db, @subject.bluebook_name)
           Census.new(schema: name, source: source, present: true, eras: eras(db), counts: counts(db, lineage),
                      journal_entries: rows(db, lineage.journal), elsewhere: elsewhere)
         end
 
         def counts(db, lineage)
           live = latest(db, lineage)
-          @subject.bluebook.aggregates.map do |aggregate|
+          @subject.aggregates.map do |aggregate|
             Census::Count.new(aggregate: aggregate.name, head: rows(db, lineage.head_view(aggregate.storage_name)),
                               journal: live.fetch(aggregate.storage_name, 0))
           end
@@ -78,7 +78,7 @@ module Hecks
         def eras(db)
           return 0 unless relation?(db, "hecks_eras")
 
-          db.exec_params("SELECT count(*) FROM hecks_eras WHERE domain = $1", [@subject.bluebook.name])[0]["count"].to_i
+          db.exec_params("SELECT count(*) FROM hecks_eras WHERE domain = $1", [@subject.bluebook_name])[0]["count"].to_i
         end
 
         def latest(db, lineage)

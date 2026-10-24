@@ -16,6 +16,9 @@ module Hecks
           # list everything, then the one that lists what is in use.
           LISTINGS = %w[all list listing active].freeze
 
+          # A lower-case letter or digit followed by a capital: where two camel-case words meet.
+          WORD_BOUNDARY = /([a-z0-9])([A-Z])/
+
           # @param aggregates [Array<Hash{String => Object}>] the aggregates as `Schema` shapes them
           # @param media [Hash{String => Object}, nil] the picture aggregate, as `Media` says
           def initialize(aggregates, media = nil)
@@ -78,7 +81,7 @@ module Hecks
             LISTINGS.filter_map { |word| named.find { |name| name.downcase == word } }.first
           end
 
-          def snake(name) = name.gsub(/([a-z0-9])([A-Z])/, "\\1_\\2").downcase
+          def snake(name) = name.gsub(WORD_BOUNDARY, "\\1_\\2").downcase
         end
       end
     end

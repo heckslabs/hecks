@@ -21,6 +21,18 @@ module Hecks
           PATH_PATTERN = Containers::PATH_PATTERN
           COOKIE_PATTERN = /\A[A-Za-z0-9_.-]+\z/
           RETENTION_DAYS = [1, 3, 5, 7, 14, 30, 60, 90].freeze
+          # An image reference the database-init task may pull.
+          DB_INIT_IMAGE_PATTERN = %r{\A[A-Za-z0-9./:_@-]+\z}
+          # A run of characters a stack prefix may not hold.
+          NOT_PREFIX_RUN = /[^a-z0-9-]+/
+          # Any character an ALB prefix may not hold.
+          NOT_ALPHANUMERIC = /[^a-z0-9]/
+          # A run of characters a database prefix may not hold.
+          NOT_ALPHANUMERIC_RUN = /[^a-z0-9]+/
+          # The characters before a name's first letter.
+          LEADING_NON_LETTERS = Containers::LEADING_NON_LETTERS
+          # The underscores a database prefix ends with.
+          TRAILING_UNDERSCORES = /_+\z/
 
           attr_reader(*KEYS, :region, :stack_name, :infra_name, :main)
 
@@ -52,12 +64,14 @@ module Hecks
 
           def default_container = containers.find(&:default)
 
+          def host_port = host.port
+
           private
 
           def assign_names(raw, main)
-            prefix_default = "#{main.fetch(:stack_prefix)}-#{infra_name}-preview".downcase.gsub(/[^a-z0-9-]+/, "-")
+            prefix_default = "#{main.fetch(:stack_prefix)}-#{infra_name}-preview".downcase.gsub(NOT_PREFIX_RUN, "-")
             @prefix = pick(raw, :prefix, prefix_default, PREFIX_PATTERN)
-            @alb_prefix = pick(raw, :alb_prefix, "#{infra_name.downcase.gsub(/[^a-z0-9]/, "")[0, 8]}pv", ALB_PREFIX_PATTERN)
+            @alb_prefix = pick(raw, :alb_prefix, "#{infra_name.downcase.gsub(NOT_ALPHANUMERIC, "")[0, 8]}pv", ALB_PREFIX_PATTERN)
             assign_stacks(raw, main)
           end
 
@@ -69,10 +83,14 @@ module Hecks
           end
 
           def assign_database(raw, main)
-            db_default = infra_name.downcase.gsub(/[^a-z0-9]+/, "_").sub(/\A[^a-z]+/, "")[0, 30].sub(/_+\z/, "")
-            @db_prefix = pick(raw, :db_prefix, db_default, DB_PREFIX_PATTERN)
+            @db_prefix = pick(raw, :db_prefix, default_db_prefix, DB_PREFIX_PATTERN)
             extra = Array(raw[:protected_databases]).map(&:to_s)
             @protected_databases = ([main.fetch(:db_name).to_s.downcase, "postgres", "template0", "template1"] + extra).uniq
+          end
+
+          def default_db_prefix
+            underscored = infra_name.downcase.gsub(NOT_ALPHANUMERIC_RUN, "_")
+            underscored.sub(LEADING_NON_LETTERS, "")[0, 30].sub(TRAILING_UNDERSCORES, "")
           end
 
           def assign_sizing(raw, main)
@@ -94,7 +112,7 @@ module Hecks
             @first_admin = raw.fetch(:first_admin, true) != false
             @signup_path = pick(raw, :signup_path, "/signups", PATH_PATTERN)
             @landing_path = pick(raw, :landing_path, "/", PATH_PATTERN)
-            @db_init_image = pick(raw, :db_init_image, DEFAULT_DB_INIT_IMAGE, %r{\A[A-Za-z0-9./:_@-]+\z})
+            @db_init_image = pick(raw, :db_init_image, DEFAULT_DB_INIT_IMAGE, DB_INIT_IMAGE_PATTERN)
           end
 
           def pick(raw, key, default, pattern)

@@ -17,7 +17,18 @@ module Hecks
     #   hecks audit_translation <domain>
     module TranslationAudit
       # What one audit run works on: the loaded domain and its open journal.
-      Session = Struct.new(:registry, :bluebook, :directory, :db, :lineage)
+      Session = Struct.new(:registry, :bluebook, :directory, :db, :lineage) do
+        # @return [Boolean] whether the journal holds no era yet
+        def no_era? = lineage.eras.empty?
+
+        # @return [String] the name of the bluebook being audited
+        def bluebook_name = bluebook.name
+
+        # Closes the journal's database.
+        #
+        # @return [void]
+        def close = db.close
+      end
 
       extend DomainLoading
       extend Edges
@@ -43,7 +54,7 @@ module Hecks
       # @param session [Session] the loaded domain and its open journal
       # @return [Integer] the exit status
       def audit(session)
-        return hold_first_era(session) if session.lineage.eras.empty?
+        return hold_first_era(session) if session.no_era?
 
         audit_edge(session, edge_chain(session.registry, session.bluebook, session.lineage))
       end
@@ -66,8 +77,8 @@ module Hecks
       def hold_first_era(session)
         session.lineage.hold_first!(Hecks::Runtime::EraCheck.source_text_for(session.bluebook, session.directory),
                                     projection: Hecks::Runtime::StorageShape.project(session.bluebook))
-        puts "#{session.bluebook.name} held era 1 just now — no edge to audit."
-        session.db.close
+        puts "#{session.bluebook_name} held era 1 just now — no edge to audit."
+        session.close
         0
       end
     end

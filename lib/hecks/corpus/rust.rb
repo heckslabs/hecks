@@ -35,6 +35,12 @@ module Hecks
     # `[features]` and the generated modules rather than typed out by hand. Extended onto
     # `Corpus`.
     module Rust
+      # A Cargo feature line with an empty dependency array, capturing the feature's name.
+      EMPTY_FEATURE = /^(\w+)\s*=\s*\[\]/
+
+      # Cargo's `default = ["name"]` line, capturing the default feature's name.
+      DEFAULT_FEATURE = /^default\s*=\s*\["(\w+)"\]/
+
       # Every place a Rust-facing domain's own `attaches` attachment could be declared.
       #
       # @param root [String] repository root to search under
@@ -57,7 +63,7 @@ module Hecks
       # @param root [String] repository root to search under
       # @return [Array<String>] feature names, in file order
       def cargo_features(root: ROOT)
-        cargo_features_table(root: root).scan(/^(\w+)\s*=\s*\[\]/).flatten
+        cargo_features_table(root: root).scan(EMPTY_FEATURE).flatten
       end
 
       # The feature `hecks project_rust` last wrote as Cargo's `default`.
@@ -66,7 +72,7 @@ module Hecks
       # @return [String, nil] the default feature's name, or nil when Cargo.toml
       #   declares none
       def cargo_default(root: ROOT)
-        cargo_features_table(root: root)[/^default\s*=\s*\["(\w+)"\]/, 1]
+        cargo_features_table(root: root)[DEFAULT_FEATURE, 1]
       end
 
       # Every in-repo domain directory whose name is a Cargo feature, sorted
@@ -76,12 +82,11 @@ module Hecks
       # @return [Array<RustDomain>] each Rust-facing domain, sorted by directory path
       def rust_domains(root: ROOT)
         features = cargo_features(root: root)
-        members(*RUST_DOMAIN_KINDS, root: root)
-          .map { |member| [domain_dir_of(member), member.kind] }
-          .uniq(&:first)
-          .select { |dir, _| rust_domain_dir?(dir, features, root) }
-          .sort_by(&:first)
-          .map { |dir, kind| RustDomain.new(File.basename(dir).downcase, dir, kind) }
+        candidates = members(*RUST_DOMAIN_KINDS, root: root).map { |member| [domain_dir_of(member), member.kind] }
+                                                            .uniq(&:first)
+        candidates.select { |dir, _| rust_domain_dir?(dir, features, root) }
+                  .sort_by(&:first)
+                  .map { |dir, kind| RustDomain.new(File.basename(dir).downcase, dir, kind) }
       end
 
       # Tells whether `dir` is the real source directory for its Cargo feature.
@@ -173,11 +178,10 @@ module Hecks
       # @return [Array<String>] generated module names with no merged.rs of their own
       def rust_sibling_chapters(root: ROOT)
         modules = generated_modules(root: root)
-        rust_domains(root: root)
-          .flat_map { |domain| Dir.glob(File.join(domain.dir, "bluebook", "*.bluebook")) }
-          .map { |path| Naming.pascal(File.basename(path, ".bluebook")).downcase }
-          .uniq
-          .select { |name| modules.include?(name) && !generated?(name, root: root) }
+        names = rust_domains(root: root)
+                .flat_map { |domain| Dir.glob(File.join(domain.dir, "bluebook", "*.bluebook")) }
+                .map { |path| Naming.pascal(File.basename(path, ".bluebook")).downcase }
+        names.uniq.select { |name| modules.include?(name) && !generated?(name, root: root) }
       end
 
       # The regeneration order the drift check runs, sorted by path — so which

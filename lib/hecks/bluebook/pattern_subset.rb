@@ -6,6 +6,15 @@ module Hecks
     # Which regexes a bluebook `pattern:` may say: only what every engine reads the same way.
     # Backtracking-only and ASCII/Unicode-dependent constructs are refused.
     module PatternSubset
+      # A digit from 1 to 9: what follows a backslash in a numbered backreference.
+      BACKREFERENCE_DIGIT = /[1-9]/
+
+      # One ASCII letter: a character of a POSIX class name such as `alpha`.
+      ASCII_LETTER = /[a-zA-Z]/
+
+      # One ASCII digit.
+      DIGIT = /[0-9]/
+
       module_function
 
       # Returns nil when the pattern is admitted, a Rejection when it is not.
@@ -43,7 +52,7 @@ module Hecks
       end
 
       def escape_refusal(nxt)
-        return :backreference if nxt&.match?(/[1-9]/)
+        return :backreference if nxt&.match?(BACKREFERENCE_DIGIT)
         return :named_backreference if %w[k g].include?(nxt)
 
         :perl_class if %w[d D w W s S].include?(nxt)
@@ -121,7 +130,7 @@ module Hecks
         return false unless chars[index] == "[" && chars[index + 1] == ":"
 
         cursor = index + 2
-        cursor += 1 while chars[cursor]&.match?(/[a-zA-Z]/)
+        cursor += 1 while chars[cursor]&.match?(ASCII_LETTER)
         chars[cursor] == ":" && chars[cursor + 1] == "]"
       end
 
@@ -146,7 +155,7 @@ module Hecks
       end
 
       def skip_digits(chars, cursor)
-        cursor += 1 while chars[cursor]&.match?(/[0-9]/)
+        cursor += 1 while chars[cursor]&.match?(DIGIT)
         cursor
       end
     end

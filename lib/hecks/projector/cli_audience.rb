@@ -5,6 +5,9 @@ module Hecks
     # `CliProjector` renders the help; the runner decides the audience
     # (`Adapters::Driving::LauncherOptions`).
     module CliAudience
+      # The partial word at the end of a cut line, with the space before it.
+      TRAILING_PARTIAL_WORD = /\s+\S*\z/
+
       module_function
 
       # The specs whose aggregate the audience does not run.
@@ -48,7 +51,7 @@ module Hecks
       def clipped(text, limit = 96)
         return text if text.length <= limit
 
-        "#{text[0, limit].sub(/\s+\S*\z/, "")}…"
+        "#{text[0, limit].sub(TRAILING_PARTIAL_WORD, "")}…"
       end
 
       # The line saying the commands for working on hecks itself were left out and how to list

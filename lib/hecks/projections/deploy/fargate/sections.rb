@@ -21,8 +21,9 @@ module Hecks
           end
 
           def task_sections(plan, context)
+            layout = plan.layout
             {
-              "domain_essential"          => domain_essential_yaml(plan.layout.domain),
+              "domain_essential"          => domain_essential_yaml(layout.domain),
               "session_secret_properties" => session_secret_yaml(plan.extras[:session_secret]),
               "execution_database_grant"  => execution_grant_yaml(plan, context),
               "extra_execution_policies"  => Extras.policies_yaml(plan.extras[:execution_policies]),
@@ -70,9 +71,10 @@ module Hecks
 
           def extra_resources_yaml(plan, context)
             alerts = plan.alerts
-            groups = plan.layout.balanced.to_h { |container| [container.name, container.target_group_id] }
+            layout = plan.layout
+            groups = layout.balanced.to_h { |container| [container.name, container.target_group_id] }
             monitoring = alerts ? Monitoring.yaml(alerts, monitoring_context(plan, context, groups)) : ""
-            blocks([Containers.repositories_yaml(plan.layout), Extras.resources_yaml(plan.extras),
+            blocks([Containers.repositories_yaml(layout), Extras.resources_yaml(plan.extras),
                     monitoring.rstrip].reject(&:empty?).join("\n\n"))
           end
           private_class_method :extra_resources_yaml
@@ -87,7 +89,8 @@ module Hecks
           private_class_method :outputs_yaml
 
           def container_outputs(plan)
-            repositories = plan.layout.all.map do |container|
+            layout = plan.layout
+            repositories = layout.all.map do |container|
               "#{Yaml.camel(container.name)}RepositoryUri:\n  Value: !GetAtt #{container.repository_id}.RepositoryUri\n"
             end
             cluster = "ClusterName:\n  Value: !Ref #{plan.ids[:cluster]}\n"

@@ -6,6 +6,11 @@ module Hecks
           # Reads a stack's facts from the options, the world and the files beside it. Included into
           # `Stack`; each step is one move of its constructor.
           module Reading
+            # Any character a database name may not hold.
+            NOT_ALPHANUMERIC = /[^a-zA-Z0-9]/
+            # The separators between the words of a stack name.
+            NAME_SEPARATOR = /[_-]/
+
             private
 
             def read_options(options)
@@ -52,16 +57,15 @@ module Hecks
               # RDS's own DBName/DatabaseName parameter refuses non-alphanumeric characters; every
               # downstream consumer (Environment vars, Makefile shell commands) has to read the same
               # sanitized spelling.
-              @db_name = infra_name.gsub(/[^a-zA-Z0-9]/, "")
+              @db_name = infra_name.gsub(NOT_ALPHANUMERIC, "")
             end
 
             def apply_tenant
               return unless @tenant_options[:tenant]
 
-              base_stack_name = deploy_settings[:stack_name] || domain_name
+              stack_name = "#{deploy_settings[:stack_name] || domain_name}-#{@tenant_options[:tenant]}"
               schema = @tenant_options.key?(:schema) ? @tenant_options[:schema] : @tenant_options[:tenant]
-              @deploy_settings = deploy_settings.merge(stack_name: "#{base_stack_name}-#{@tenant_options[:tenant]}",
-                                                       schema:     schema)
+              @deploy_settings = deploy_settings.merge(stack_name: stack_name, schema: schema)
             end
 
             # Dispatches into LambdaTarget.Declare's given/invariant machinery for named,
@@ -121,9 +125,7 @@ module Hecks
             # can itself declare a cross-domain policy, including one nested inside
             # `aggregate "X" do ... end`.
             def read_cross_domain_targets
-              @cross_domain_targets = @registry.bluebooks.flat_map do |_name, bluebook|
-                bluebook.policies.select(&:target_domain).map(&:target_domain)
-              end.uniq.sort
+              @cross_domain_targets = Shared.cross_domain_targets(@registry)
             end
 
             # Shared mode provisions no RDS/VPC of its own; it borrows another already-deployed
@@ -158,7 +160,7 @@ module Hecks
             # stack, samconfig) reads `stack_name`; `infra_name` (logical ids, DB name) is
             # untouched.
             def derive_ids
-              @logical_id = "#{infra_name.split(/[_-]/).map(&:capitalize).join}Function"
+              @logical_id = "#{infra_name.split(NAME_SEPARATOR).map(&:capitalize).join}Function"
               @stack_prefix = deploy_settings[:stack_prefix] || "hecks"
               @stack_name = "#{stack_prefix}-#{infra_name}"
             end

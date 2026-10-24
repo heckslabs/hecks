@@ -23,6 +23,12 @@ module Hecks
           # An absolute address: the origin, then whatever follows it.
           ABSOLUTE = %r{\A(?<origin>https?://[^/?#\s]+)(?<rest>.*)\z}m
 
+          # A placeholder: braces around anything but a brace, capturing the word inside.
+          PLACEHOLDER = /\{([^{}]*)\}/
+
+          # An opening or a closing brace.
+          BRACE = /[{}]/
+
           module_function
 
           # @param template [String] the row's `preview`, which may be empty
@@ -31,7 +37,7 @@ module Hecks
             return [] if template.empty?
 
             found = []
-            found << "must not hold whitespace" if template.match?(/\s/)
+            found << "must not hold whitespace" if template.match?(Hecks::Text::WHITESPACE)
             found.concat(shape_problems(template))
             found.concat(placeholder_problems(template))
             found.map { |problem| "preview #{template.inspect} #{problem}" }
@@ -67,7 +73,7 @@ module Hecks
             found = []
             found << "must not name credentials in the address" if origin.include?("@")
             found << "must not hold a placeholder in the scheme, host or port" if origin.include?("{")
-            found << "names no host" if !origin.include?("{") && URI.parse(origin).host.to_s.empty?
+            found << "names no host" if !origin.include?("{") && Hecks::Text.blank?(URI.parse(origin).host)
             found
           rescue URI::InvalidURIError
             ["is not a valid address"]
@@ -75,13 +81,13 @@ module Hecks
 
           # @return [Array<String>] a problem for each unknown placeholder and each stray brace
           def placeholder_problems(template)
-            unknown = template.scan(/\{([^{}]*)\}/).flatten.uniq - PLACEHOLDERS
+            unknown = template.scan(PLACEHOLDER).flatten.uniq - PLACEHOLDERS
             found = unknown.map do |name|
               "names the placeholder {#{name}}; the placeholders are #{PLACEHOLDERS.map do |word|
                 "{#{word}}"
               end.join(", ")}"
             end
-            found << "has a brace that is not part of a placeholder" if template.gsub(/\{[^{}]*\}/, "").match?(/[{}]/)
+            found << "has a brace that is not part of a placeholder" if template.gsub(PLACEHOLDER, "").match?(BRACE)
             found
           end
         end

@@ -28,7 +28,7 @@ module Hecks
         return proc { it("loads without a parse error") { raise parsed.parse_error } } if parsed.parse_error
 
         proc do
-          parsed.suite.tests.each do |test|
+          parsed.tests.each do |test|
             it(test.description) do
               run = Expectations.run_one(test, parsed.suite)
               raise run.message if run.status != :pass

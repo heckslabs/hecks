@@ -31,7 +31,10 @@ module Hecks
 
       # One read model run: where it runs, the model after tenant scoping, and what the heads
       # need to be read: the reference's id and the heads a `where` or `order` applies to.
-      Request = Struct.new(:domain, :bluebook, :model, :args, :rootless, :reference_id, :eligible)
+      Request = Struct.new(:domain, :bluebook, :model, :args, :rootless, :reference_id, :eligible) do
+        # @return [String, nil] the aggregate the model's reference points at, its root head
+        def reference_target = model.reference_target
+      end
 
       # @param registry [Runtime::Registry] the booted registry whose repositories
       #   this interpreter reads
@@ -112,7 +115,7 @@ module Hecks
       end
 
       def head_rows(request, head, projected)
-        if head[:aggregate] == request.model.reference_target
+        if head[:aggregate] == request.reference_target
           [fetch(request.bluebook, request.domain, head[:aggregate], request.reference_id)]
         elsif request.rootless
           # A rootless model has no root to FK-match against, so each head

@@ -1,3 +1,5 @@
+require_relative "../text"
+
 module Hecks
   module Bench
     # Decides whether the Postgres targets can run at all.
@@ -12,7 +14,7 @@ module Hecks
       rescue LoadError
         "the `pg` gem is not installed"
       rescue PG::Error => e
-        "no Postgres server is reachable (#{e.message.lines.first.to_s.strip}); start one, or point " \
+        "no Postgres server is reachable (#{Text.first_line(e.message)}); start one, or point " \
         "PGHOST, PGPORT and PGUSER at one"
       end
 

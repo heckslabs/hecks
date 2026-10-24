@@ -11,7 +11,8 @@ module Hecks
             def web_function
               return "" unless web_handler_present
 
-              TextTemplate.render_from("lambda/web_function.tmpl", self).each_line.map { |line| "  #{line}" }.join
+              function = TextTemplate.render_from("lambda/web_function.tmpl", self)
+              function.each_line.map { |line| "  #{line}" }.join
             end
 
             def web_schema_env

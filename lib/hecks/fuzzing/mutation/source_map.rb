@@ -9,6 +9,8 @@ module Hecks
         OPENER = /\A(\s*)(\w+)\b.*\bdo\s*(\|[^|]*\|)?\s*\z/
         TRANSITION = /\A(\s*)transition\s+"(\w+)"\s*=>\s*"([^"]+)"(.*?)\s*\z/
         EMITS = /\A(\s*)emits\s+(\w+)\s*\z/
+        # A line's leading whitespace.
+        INDENT = /\A\s*/
 
         attr_reader :file, :lines
 
@@ -37,7 +39,7 @@ module Hecks
         # @param index [Integer] the position of the line that opens a block
         # @return [Integer, nil] the lines from it to its `end`, nil when the block never closes
         def block_length(index)
-          indent = lines[index][/\A\s*/]
+          indent = lines[index][INDENT]
           close = ((index + 1)...lines.length).find { |at| lines[at].match?(/\A#{indent}end\b/) }
           close && ((close - index) + 1)
         end

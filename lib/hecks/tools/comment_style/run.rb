@@ -12,6 +12,9 @@ module Hecks
     module CommentStyle
       # Lints a set of paths and renders the result.
       class Run
+        # A shebang line that runs Ruby, matched as bytes.
+        RUBY_SHEBANG = /\A#!.*ruby/n
+
         # @param paths [Array<String>] files or directories
         # @param only [Array<String>, nil] categories to keep
         # @param baseline [Hash{String => Hash{String => Integer}}] the long blocks to tolerate
@@ -116,7 +119,7 @@ module Hecks
         # rather than refused for not being UTF-8.
         def ruby_files(dir)
           scripts = Dir[File.join(dir, "**", "*")].select do |path|
-            File.file?(path) && File.extname(path).empty? && File.open(path, "rb", &:gets).to_s.match?(/\A#!.*ruby/n)
+            File.file?(path) && File.extname(path).empty? && File.open(path, "rb", &:gets).to_s.match?(RUBY_SHEBANG)
           end
           Dir[File.join(dir, "**", "*.rb")] + scripts
         end

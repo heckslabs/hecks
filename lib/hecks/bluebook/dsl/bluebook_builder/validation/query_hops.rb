@@ -58,7 +58,7 @@ module Hecks
             def inferred_hop_leaf(name, plan)
               target = plan.hops.last.target
               head, *nested = plan.tail.to_s.split(".")
-              return Attribute.new(name: name, type: String) if nested.empty? && target.lifecycle&.field.to_s == head
+              return Attribute.new(name: name, type: String) if nested.empty? && target.lifecycle_field.to_s == head
 
               found = hop_leaf(target, head, nested)
               found && Attribute.new(name: name, type: found.type, list: found.list?)
@@ -92,7 +92,7 @@ module Hecks
             end
 
             def refuse_hop_plan!(site, plan)
-              asks = "#{site.label} asks about #{site.clause.field}"
+              asks = "#{site.label} asks about #{site.asked_field}"
               case plan.refusal
               when :unresolvable then refuse_unresolvable_hop!(asks, plan)
               when :too_deep     then refuse_too_deep_hop!(asks)

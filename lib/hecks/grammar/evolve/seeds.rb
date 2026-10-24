@@ -1,11 +1,37 @@
 module Hecks
   module Grammar
     module Evolve
+      # The line shapes of a seed value-object block, as the row edits find them.
+      module SeedLines
+        # A member row, capturing its cells.
+        MEMBER_ROW = /^\s*member (.+)$/
+
+        # The start of a member row.
+        MEMBER_LINE = /^\s*member /
+
+        # The start of a member row, capturing its indentation.
+        MEMBER_INDENT = /^(\s*)member /
+
+        # A line holding only `end`.
+        END_LINE = /^\s*end\s*$/
+
+        # A row's `status:` cell with the comma before it.
+        STATUS_CELL = /,\s*status: "[^"]*"/
+
+        # The newline that ends a row line.
+        TRAILING_NEWLINE = /\n\z/
+
+        # A newline.
+        NEWLINE = /\n/
+      end
+
       # Reading the KeywordSeed and ArgumentSeed value-object blocks out of the syntax tables as
       # text, and the row edits both kinds of row share. Extended onto `Hecks::Grammar::Evolve`.
       module Seeds
         # One `name: "value"` cell of a member row; the value may hold escaped quotes.
         CELL = /(\w+): "((?:[^"\\]|\\.)*)"/
+
+        include SeedLines
 
         # Parses the Keyword one_of's member rows leniently off the text.
         def keyword_rows(path = nil)
@@ -34,18 +60,18 @@ module Hecks
             blocks = seed_blocks(read_source(candidate), name)
             raise Refusal, "source declares no #{name} value object" if path && blocks.empty?
 
-            blocks.flat_map { |block| block.scan(/^\s*member (.+)$/).map { |(cells)| yield cells.scan(CELL).to_h } }
+            blocks.flat_map { |block| block.scan(MEMBER_ROW).map { |(cells)| yield cells.scan(CELL).to_h } }
           end
         end
 
         # Tells whether `line` is a KeywordSeed member row for (word, context).
         def member_row?(line, word, context)
-          line =~ /^\s*member / && line.include?(%(word: "#{word}")) && line.include?(%(context: "#{context}"))
+          line =~ MEMBER_LINE && line.include?(%(word: "#{word}")) && line.include?(%(context: "#{context}"))
         end
 
         # Tells whether `line` is an ArgumentSeed row for this (keyword, context, at, named) tuple.
         def argument_row?(line, keyword, context, at, named)
-          line =~ /^\s*member / &&
+          line =~ MEMBER_LINE &&
             line.include?(%(keyword: "#{keyword}")) && line.include?(%(context: "#{context}")) &&
             line.include?(%(at: "#{at}")) && line.include?(%(named: "#{named}"))
         end
@@ -104,8 +130,8 @@ module Hecks
           source = read_source(path)
           block = seed_blocks(source, seed).find { |candidate| candidate.include?(%(context: "#{context}")) } ||
                   seed_block(source, seed, required: true)
-          indent = block[/^(\s*)member /, 1] || "        "
-          closing = block.rindex(/^\s*end\s*$/)
+          indent = block[MEMBER_INDENT, 1] || "        "
+          closing = block.rindex(END_LINE)
           write_source(path, source.sub(block, block[0...closing] + yield(indent) + block[closing..]))
         end
 
@@ -127,8 +153,8 @@ module Hecks
 
         # Sets a row line's `status:` cell; admitted is the default and stays unspelled.
         def restatus(line, to)
-          stripped = line.sub(/,\s*status: "[^"]*"/, "")
-          to == "admitted" ? stripped : stripped.sub(/\n\z/, %(, status: "#{to}"\n))
+          stripped = line.sub(STATUS_CELL, "")
+          to == "admitted" ? stripped : stripped.sub(TRAILING_NEWLINE, %(, status: "#{to}"\n))
         end
 
         # Every value_object "<name>" block's full source text, opener to closing end.
@@ -138,7 +164,7 @@ module Hecks
             match = Regexp.last_match
             start = match.begin(0)
             closing = source.index(/^#{Regexp.escape(match[1])}end\s*$/, match.end(0))
-            closing = source.index(/\n/, closing) + 1
+            closing = source.index(NEWLINE, closing) + 1
             source[start...closing]
           end
         end

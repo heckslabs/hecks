@@ -4,6 +4,12 @@ module Hecks
       # README's own generated regions, keyed by region id instead of a word. Extended onto
       # `Reference`.
       module Readme
+        # The `#` that opens a Markdown heading, and the space after it.
+        HEADING_MARK = /\A#\s*/
+
+        # A `vision "..."` line, capturing the vision.
+        VISION = /vision\s+"([^"]*)"/
+
         # README's own generated regions, keyed by region id instead of a word.
         def readme_regions(root)
           {
@@ -20,7 +26,7 @@ module Hecks
                      .reject { |p| %w[AUTHORING.md].include?(File.basename(p)) }
           lines = paths.map do |path|
             heading = File.foreach(path).find { |line| line.start_with?("# ") }
-            title = heading ? heading.sub(/\A#\s*/, "").strip : File.basename(path)
+            title = heading ? heading.sub(HEADING_MARK, "").strip : File.basename(path)
             "- [#{title}](docs/implemented/guides/#{File.basename(path)})"
           end
           lines.join("\n")
@@ -59,7 +65,7 @@ module Hecks
           bluebooks = example_bluebooks(dir)
           return if bluebooks.empty?
 
-          vision = bluebooks.filter_map { |bluebook| File.read(bluebook)[/vision\s+"([^"]*)"/, 1] }.first
+          vision = bluebooks.filter_map { |bluebook| File.read(bluebook)[VISION, 1] }.first
           "- **#{File.basename(dir.chomp("/"))}** — #{vision}"
         end
 

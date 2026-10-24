@@ -92,7 +92,10 @@ module Hecks
         end
 
         # A rule's description as written, without a trailing period.
-        def text(rule) = rule.description.to_s.strip.delete_suffix(".")
+        def text(rule)
+          description = rule.description
+          description.to_s.strip.delete_suffix(".")
+        end
       end
     end
   end

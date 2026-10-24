@@ -38,7 +38,7 @@ module Hecks
         return nil unless instance
 
         state = instance.state
-        current = aggregate.lifecycle && state[aggregate.lifecycle.field]
+        current = aggregate.lifecycle && state[aggregate.lifecycle_field]
         <<~HTML
           <h1>#{Escape.html(Humanize.phrase(aggregate.hecks_name))} <span class="mono">#{Escape.html(id)}</span></h1>
           #{lifecycle_badge(aggregate, current)}
@@ -54,7 +54,7 @@ module Hecks
       def self.lifecycle_badge(aggregate, current)
         return unless current
 
-        %(<span class="badge role">#{Escape.html(aggregate.lifecycle.field)}: #{Escape.html(current)}</span>)
+        %(<span class="badge role">#{Escape.html(aggregate.lifecycle_field)}: #{Escape.html(current)}</span>)
       end
 
       def self.state_table(state)

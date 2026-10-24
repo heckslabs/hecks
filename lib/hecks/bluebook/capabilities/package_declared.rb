@@ -56,7 +56,7 @@ module Hecks
         def member_names(aggregate)
           { command:   aggregate.commands.map(&:hecks_name),
             query:     aggregate.queries.map { |query| query.name.to_s },
-            mark:      aggregate.lifecycle&.marks&.keys.to_a.map(&:to_s),
+            mark:      aggregate.mark_names,
             attribute: aggregate.attributes.map { |attribute| attribute.name.to_s } }
         end
       end

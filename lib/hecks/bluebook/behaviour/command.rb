@@ -59,7 +59,7 @@ module Hecks
         def addressing_key_for(aggregate_name)
           return Naming.reference_key(aggregate_name) if references.to_s == aggregate_name.to_s
 
-          attributes.find { |attribute| attribute.reference? && attribute.type.target_name.to_s == aggregate_name.to_s }
+          attributes.find { |attribute| attribute.reference? && attribute.target_name.to_s == aggregate_name.to_s }
                     &.name
         end
       end

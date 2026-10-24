@@ -55,7 +55,8 @@ module Hecks
         end
 
         def refuse_unadmitted_word!(keywords, context, word)
-          legal = keywords.select { |row| row[:context] == context }.map { |row| row[:word] }.uniq.sort
+          words = keywords.select { |row| row[:context] == context }.map { |row| row[:word] }
+          legal = words.uniq.sort
           raise Malformed,
                 "'#{word}' is not a word #{context} admits — legal words here: #{legal.join(", ")}"
         end

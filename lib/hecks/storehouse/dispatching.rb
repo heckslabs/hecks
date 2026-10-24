@@ -74,7 +74,10 @@ module Hecks
       def settled_record(runtime, spec, result)
         bluebook = bluebook_for(runtime)
         aggregate = top_level_aggregate(bluebook, spec[:command])
-        aggregate && runtime.registry.repository(bluebook.name, aggregate)&.find(result.id)&.to_h
+        return aggregate unless aggregate
+
+        repository = runtime.registry.repository(bluebook.name, aggregate)
+        repository&.find(result.id)&.to_h
       end
 
       # :nodoc:

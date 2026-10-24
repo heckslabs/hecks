@@ -35,9 +35,10 @@ module Hecks
         end
 
         def postgres_rows(instance)
-          adapter = Hecks::Adapters::Postgres.new(aggregate: instance.aggregate, settings: { database: SCRATCH[:postgres] })
+          aggregate = instance.aggregate
+          adapter = Hecks::Adapters::Postgres.new(aggregate: aggregate, settings: { database: SCRATCH[:postgres] })
           adapter.save(instance)
-          name = instance.aggregate.storage_name
+          name = aggregate.storage_name
           [name, stored_rows(adapter.instance_variable_get(:@db), name)]
         end
 
@@ -52,19 +53,19 @@ module Hecks
 
         def write_postgres_era(instances)
           reset_dir("postgres_era")
-          rows = instances.to_h { |instance| [instance.aggregate.storage_name, era_rows(instance)] }
+          rows = instances.to_h { |instance| [stored_as(instance.aggregate), era_rows(instance)] }
           write_json("postgres_era/rows.json", rows)
         end
 
         def era_rows(instance)
-          adapter = Hecks::Adapters::PostgresEra.new(aggregate: instance.aggregate,
-                                                     settings:  { database: SCRATCH[:postgres_era] })
+          aggregate = instance.aggregate
+          adapter = Hecks::Adapters::PostgresEra.new(aggregate: aggregate, settings: { database: SCRATCH[:postgres_era] })
           adapter.save(instance)
           db = adapter.instance_variable_get(:@db)
           snapshot = adapter.send(:quoted_head_snapshot)
           {
             "journal"       => journal_rows(db, adapter.instance_variable_get(:@lineage).quoted_journal,
-                                            instance.aggregate.storage_name),
+                                            aggregate.storage_name),
             "head_snapshot" => db.exec("SELECT id, ordinal, operation, state FROM #{snapshot} ORDER BY id").to_a
           }
         end

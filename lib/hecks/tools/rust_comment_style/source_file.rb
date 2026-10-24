@@ -12,6 +12,11 @@ module Hecks
     module RustCommentStyle
       # One parsed `.rs` file and the violations found in it.
       class SourceFile
+        # A `const` or `static` item, capturing its all-caps name.
+        CONSTANT_ITEM = /\b(?:const|static)\s+(?:mut\s+)?([A-Z][A-Z0-9_]*)\b/
+        # A string holding nothing but an all-caps name of three or more characters.
+        QUOTED_CONSTANT = /"([A-Z][A-Z0-9_]{2,})"/
+
         include Masking
         include CapsWords
         include TextChecks
@@ -61,8 +66,8 @@ module Hecks
           code_only = @source.dup
           Tokenizer.comments(@source).each { |c| code_only[c.line - 1] ||= "" }
           names = Set.new
-          code_only.scan(/\b(?:const|static)\s+(?:mut\s+)?([A-Z][A-Z0-9_]*)\b/) { |(n)| names << n }
-          code_only.scan(/"([A-Z][A-Z0-9_]{2,})"/) { |(n)| names << n }
+          code_only.scan(CONSTANT_ITEM) { |(n)| names << n }
+          code_only.scan(QUOTED_CONSTANT) { |(n)| names << n }
           names
         end
       end

@@ -17,6 +17,15 @@ module Hecks
         hash.key?(sym) ? hash[sym] : hash[key]
       end
 
+      # The attribute an identity path starts at: `:number` for `"number.value"`.
+      #
+      # @param path [String, Symbol] a dotted identity path
+      # @return [Symbol] the path's first segment
+      def head(path)
+        segments = path.to_s.split(".")
+        segments.first.to_sym
+      end
+
       # Digs the fields of `path` out of `held`, past the head the caller consumed.
       # A path with no fields past the head returns `held` unchanged.
       def scalar(path, held)

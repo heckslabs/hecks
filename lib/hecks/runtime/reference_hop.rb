@@ -29,7 +29,8 @@ module Hecks
         inner = QuerySpecification::Common::WhereClause.new(field: rest, op: clause.op, value: clause.value)
         ids   = matching_ids(domain, hop.target, [inner], args, registry: registry)
 
-        QuerySpecification::Common::WhereClause.new(field: hop.attribute.name, op: "in", value: ids)
+        attribute = hop.attribute
+        QuerySpecification::Common::WhereClause.new(field: attribute.name, op: "in", value: ids)
       end
 
       # BluebookBuilder#validate_query_hops! already checked this hop at boot; if it

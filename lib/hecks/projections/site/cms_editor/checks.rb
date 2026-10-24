@@ -15,6 +15,9 @@ module Hecks
           # A base path: one or more segments, starting with a slash and not ending with one.
           BASE_PATH = %r{\A(/[^/\s]+)+\z}
 
+          # A whole number from 1, of at most ten digits: an upload size cap in bytes.
+          BYTE_COUNT = /\A[1-9]\d{0,9}\z/
+
           # The largest upload size cap a row may name: 100 MiB.
           MAX_UPLOAD = 104_857_600
 
@@ -44,7 +47,7 @@ module Hecks
             found = []
             found << "media_dir must not be empty" if row[:media_dir].strip.empty?
             cap = row[:media_max_bytes]
-            unless cap.match?(/\A[1-9]\d{0,9}\z/) && cap.to_i <= MAX_UPLOAD
+            unless cap.match?(BYTE_COUNT) && cap.to_i <= MAX_UPLOAD
               found << "media_max_bytes #{cap.inspect} must be a whole number of bytes from 1 to #{MAX_UPLOAD}"
             end
             found

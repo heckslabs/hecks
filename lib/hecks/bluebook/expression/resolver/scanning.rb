@@ -10,6 +10,9 @@ module Hecks
         # Quote characters a leaf expression may open a string literal with.
         QUOTES = ['"', "'"].freeze
 
+        # A final character that ends an operand: a word character, a closing bracket or a quote.
+        OPERAND_END = /[[:alnum:]_)\]"']\z/
+
         # How each bracket moves the nesting depth for a split on `+` or `,`. `{`/`}` and
         # `[`/`]` count like parens, so a `+` inside a block body or an array element is not this
         # expression's own addition.
@@ -88,7 +91,7 @@ module Hecks
         def binary_position?(expr, index, char)
           return true unless char == "-"
 
-          expr[0...index].rstrip.match?(/[[:alnum:]_)\]"']\z/)
+          expr[0...index].rstrip.match?(OPERAND_END)
         end
 
         # Whether `expr` is one parenthesised group: its first `(` closes at its last character.

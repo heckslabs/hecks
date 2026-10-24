@@ -62,6 +62,19 @@ module Hecks
         def query(named)     = @queries_by_name[named.to_s]
       end
 
+      # A construct that may declare a lifecycle: an aggregate or an entity.
+      module Stateful
+        # The field the lifecycle keeps its state in.
+        #
+        # @return [Symbol, String, nil] the state field, or `nil` when no lifecycle is declared
+        def lifecycle_field = lifecycle&.field
+
+        # The names of the lifecycle's marks, the named groups of its states.
+        #
+        # @return [Array<String>] each mark's name, or `[]` when no lifecycle is declared
+        def mark_names = lifecycle ? lifecycle.marks.keys : []
+      end
+
       # A construct that owns what it declares.
       #
       # Owner links are read lazily (hecks_fqn, Reference#resolve), so stamping when the

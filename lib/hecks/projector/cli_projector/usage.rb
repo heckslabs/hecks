@@ -5,6 +5,9 @@ module Hecks
     module CliProjector
       # The usage text of a projection: the command and query tables, or one command's help.
       module Usage
+        # The space after a sentence's closing full stop.
+        SENTENCE_BREAK = /(?<=\.)\s/
+
         # Renders the full command/question table, or one command's `--help` text when
         # `options[:command]` names one.
         def usage(bluebook, commands, questions, options)
@@ -104,7 +107,8 @@ module Hecks
 
         # The command table wants a query description's first sentence; `--help` prints all.
         def first_sentence(text)
-          text.to_s.split(/(?<=\.)\s/).first.to_s
+          sentences = text.to_s.split(SENTENCE_BREAK)
+          sentences.first.to_s
         end
       end
     end

@@ -29,6 +29,9 @@ module Hecks
       # A Rust target triple: `<arch>-<vendor>-<os>`, with an optional `-<env>`.
       TRIPLE = /\A[a-z0-9_]+(-[a-z0-9_.]+){2,3}\z/
 
+      # The `host: <triple>` line of `rustc -vV`, capturing the triple.
+      HOST_LINE = /^host: (\S+)/
+
       module_function
 
       # @param argv [Array<String>] the domain's directory, then optional `--target=<triple>` and
@@ -62,7 +65,7 @@ module Hecks
       # @raise [Failure] when there is no Rust toolchain
       def host_triple
         require_rustup!
-        query("rustup", "run", TOOLCHAIN, "rustc", "-vV").to_s[/^host: (\S+)/, 1] or
+        query("rustup", "run", TOOLCHAIN, "rustc", "-vV").to_s[HOST_LINE, 1] or
           raise Failure, "rustup has no #{TOOLCHAIN} toolchain. Install it once with:\n\n    " \
                          "rustup toolchain install #{TOOLCHAIN}\n\nthen re-run the build."
       end

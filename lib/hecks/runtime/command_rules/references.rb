@@ -84,14 +84,15 @@ module Hecks
           raise TypeMismatch,
                 "#{construct.hecks_name}.#{attribute.name} is a required " \
                 "#{attribute.relationship} relationship — expected one " \
-                "#{attribute.type.target_name} identity, got nil"
+                "#{attribute.target_name} identity, got nil"
         end
 
         # Resolves the attribute's target through the chapter IR.
         #
         # @raise [Bluebook::DSL::Malformed] if the reference does not know its declaring aggregate
         def referenced_aggregate(attribute)
-          attribute.type.resolve
+          reference = attribute.type
+          reference.resolve
         end
 
         # Refuses a reference-typed value whose target identity does not exist.
@@ -156,7 +157,8 @@ module Hecks
         end
 
         def dereferenced_name(attribute)
-          attribute.name.to_s.delete_suffix("_id").to_sym
+          name = attribute.name.to_s
+          name.delete_suffix("_id").to_sym
         end
 
         # The target aggregate and stored record a reference argument names, or nil when it names

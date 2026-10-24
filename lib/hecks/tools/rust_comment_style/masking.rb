@@ -5,6 +5,9 @@ require_relative "../../tools"
 module Hecks
   module Tools
     module RustCommentStyle
+      # A comment line with nothing after its slashes: a paragraph break.
+      EMPTY_COMMENT = %r{\A/{2,3}!?\s*\z}
+
       # Blanks the spans of a Rust comment that must keep their capitals (code spans, quotes, SQL),
       # and decides which capitalised SQL keywords on a line to leave alone.
       module Masking
@@ -21,7 +24,7 @@ module Hecks
 
         def continues_paragraph?(comment)
           above = @by_line[comment.line - 1]
-          comment.full_line && above&.full_line && !above.text.match?(%r{\A/{2,3}!?\s*\z})
+          comment.full_line && above&.full_line && !above.text.match?(EMPTY_COMMENT)
         end
 
         def mask(comment)
@@ -52,8 +55,8 @@ module Hecks
         def quoted_heading?(span)
           return false unless span.start_with?('"') && !span.match?(CommentStyle::SQL_PHRASES)
 
-          capitals = span.scan(/\b[A-Z]{2,}\b/).size
-          capitals >= 3 || (capitals == 2 && !span.match?(/[a-z]/))
+          capitals = span.scan(CommentStyle::SHOUTED_WORD).size
+          capitals >= 3 || (capitals == 2 && !span.match?(CommentStyle::LOWERCASE))
         end
 
         def sql_keywords(comment, words)
@@ -65,7 +68,7 @@ module Hecks
         end
 
         def sql_classes(words)
-          bare = words.map { |w| w.sub(/'[A-Z]{1,2}\z/, "") } - ["A"]
+          bare = words.map { |w| w.sub(CommentStyle::SHOUTED_SUFFIX, "") } - ["A"]
           [bare, bare.select { |w| CommentStyle::SQL_STRONG.include?(w) }, bare.select { |w| CommentStyle::SQL_WEAK.include?(w) }]
         end
 

@@ -23,6 +23,9 @@ module Hecks
           # The states those commands move into.
           STATES = %w[withdrawn retired discarded deleted cancelled canceled removed].freeze
 
+          # One word of a CamelCase or snake_case name: a capital and its tail, or a lower-case run.
+          WORD = /[A-Z][a-z0-9]*|[a-z0-9]+/
+
           module_function
 
           # @param name [String] the command's name, such as `"DiscardDraft"`
@@ -53,7 +56,7 @@ module Hecks
           end
 
           # @return [Array<String>] the lower-case words of a CamelCase or snake_case name
-          def words(name) = name.to_s.scan(/[A-Z][a-z0-9]*|[a-z0-9]+/).map(&:downcase)
+          def words(name) = name.to_s.scan(WORD).map(&:downcase)
         end
       end
     end

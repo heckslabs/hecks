@@ -33,9 +33,15 @@ module Hecks
           private
 
           def resolve_era(context)
-            held = context.lineage.eras
+            lineage = context.lineage
+            held = lineage.eras
             return hold_first_era(context) if held.empty?
 
+            resolve_held(context, held)
+          end
+
+          # Some era is held: the latest, a superseded one, or none matches and a new one is minted.
+          def resolve_held(context, held)
             shapes = held_shapes(context.bluebook, held)
             latest, latest_shape = shapes.last
             current_shape = context.current_shape
@@ -73,13 +79,16 @@ module Hecks
           end
 
           def ensure_first_heads!(context)
-            context.bluebook.aggregates.each { |aggregate| context.lineage.ensure_first_head!(aggregate.storage_name) }
+            bluebook = context.bluebook
+            lineage = context.lineage
+            bluebook.aggregates.each { |aggregate| lineage.ensure_first_head!(aggregate.storage_name) }
           end
 
           def grant_role!(context, ordinal)
             return unless context.role
 
-            context.lineage.grant_role!(context.role, aggregates: context.bluebook.aggregates, era: ordinal)
+            bluebook = context.bluebook
+            context.lineage.grant_role!(context.role, aggregates: bluebook.aggregates, era: ordinal)
           end
 
           # Each held era with its storage shape. Held text is a frozen record and keeps the

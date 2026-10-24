@@ -62,8 +62,14 @@ module Hecks
       def samples_for(declared, before, after)
         return rekeyed_samples(before, after) if declared && !declared.rekeys.empty?
 
-        before.keys.sort.first(SAMPLE_SIZE).map { |id| { id: id, before: before[id], after: after[id] } }
+        first_ids(before).map { |id| { id: id, before: before[id], after: after[id] } }
       end
+
+      # The ids a sample shows: the first `SAMPLE_SIZE`, in sorted order.
+      #
+      # @param states [Hash{String => Hash}] state per record id
+      # @return [Array<String>] up to `SAMPLE_SIZE` ids
+      def first_ids(states) = states.keys.sort.first(SAMPLE_SIZE)
 
       # Samples both sides of a rekeying edge separately, each labelled by its own id.
       #
@@ -74,8 +80,8 @@ module Hecks
       #   `" (before)"` with `:after` nil, then up to `SAMPLE_SIZE` ending in `" (after)"` with
       #   `:before` nil
       def rekeyed_samples(before, after)
-        before.keys.sort.first(SAMPLE_SIZE).map { |id| { id: "#{id} (before)", before: before[id], after: nil } } +
-          after.keys.sort.first(SAMPLE_SIZE).map { |id| { id: "#{id} (after)", before: nil, after: after[id] } }
+        first_ids(before).map { |id| { id: "#{id} (before)", before: before[id], after: nil } } +
+          first_ids(after).map { |id| { id: "#{id} (after)", before: nil, after: after[id] } }
       end
     end
   end

@@ -142,15 +142,14 @@ module Hecks
         # @param region [String] the validated region
         # @return [Hash{String => String}] every generated file
         def render_all(plan, region)
-          {
+          files = {
             "box.yaml" => box_yaml(plan, region),
             "Caddyfile" => caddyfile(plan), "services.json" => services_json(plan),
             "render-compose.sh" => render_compose_sh(plan, region),
             "fetch-secrets.sh" => File.read(File.join(TEMPLATE_DIR, "fetch-secrets.sh")),
-            "deploy-box.sh" => deploy_box_sh(plan, region),
-            "Makefile" => makefile(plan, region)
-          }.merge(database_files(plan)).merge(migration_files(plan)).merge(edge_files(plan, region))
-            .then { |files| Hosting.extend_files(files, plan: plan, region: region) }
+            "deploy-box.sh" => deploy_box_sh(plan, region), "Makefile" => makefile(plan, region)
+          }.merge(database_files(plan), migration_files(plan), edge_files(plan, region))
+          Hosting.extend_files(files, plan: plan, region: region)
         end
 
         # @param plan [Settings::Plan] the resolved settings

@@ -24,7 +24,7 @@ module Hecks
         end
         scratch
       rescue StandardError, ScriptError => e
-        raise Vendoring::Error, "the bluebook files do not load: #{e.class}: #{e.message.lines.first.to_s.strip}"
+        raise Vendoring::Error, "the bluebook files do not load: #{e.class}: #{Text.first_line(e.message)}"
       end
     end
   end

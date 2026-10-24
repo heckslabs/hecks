@@ -29,6 +29,9 @@ module Hecks
           # An invariant that holds unless the kind is the named one: what the rest of it reads.
           GUARD = /\A(\w+)(?:\.value)? != "([^"]+)" \|\| (.*)\z/m
 
+          # A double-quoted string, capturing the text between the quotes.
+          QUOTED = /"([^"]+)"/
+
           # A limit written as a size comparison.
           LIMIT = /\A(\w+)\.size <= (\d+)\z/
 
@@ -72,7 +75,7 @@ module Hecks
           # @return [Array(String, Array<String>), nil] a text part restricted by a literal list
           def literal(item)
             found = literals(item).find { |match| item.attributes.any? { |part| part.name.to_s == match[2] && !part.list? } }
-            found && [found[2], found[1].scan(/"([^"]+)"/).flatten]
+            found && [found[2], found[1].scan(QUOTED).flatten]
           end
 
           # @return [Array<MatchData>] the invariants that restrict a part to a literal list
@@ -99,7 +102,7 @@ module Hecks
               object.members.all? { |row| kinds.include?(row[:kind].to_s) }
           end
 
-          def words(text) = text.to_s.split(",").map(&:strip).reject(&:empty?)
+          def words(text) = Hecks::Text.comma_list(text)
 
           # @return [Hash{String => Array<String>}] the slots each kind's guarded invariants read
           def mentions(item, name, kinds)

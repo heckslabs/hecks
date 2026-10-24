@@ -55,7 +55,13 @@ module Hecks
         def checked_out_in
           blocks = read("worktree", "list", "--porcelain").split("\n\n")
           held = blocks.find { |block| block.lines.map(&:chomp).include?("branch refs/heads/#{@branch}") }
-          held && held.lines.first.delete_prefix("worktree ").strip
+          held && worktree_path(held)
+        end
+
+        # The path a `git worktree list --porcelain` block opens with.
+        def worktree_path(block)
+          first = block.lines.first
+          first.delete_prefix("worktree ").strip
         end
       end
     end

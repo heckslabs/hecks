@@ -49,7 +49,7 @@ module Hecks
             row.admin_order ||= 0 if row.admin_key
           end
 
-          def list(text) = text.to_s.split(",").map(&:strip).reject(&:empty?)
+          def list(text) = Hecks::Text.comma_list(text)
 
           def default_cache(row)
             return "no_store" if row.auth != "public" || row.kind == "endpoint"

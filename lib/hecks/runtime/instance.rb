@@ -45,7 +45,8 @@ module Hecks
           # Frozen so pushing into an untouched list cannot write into the aggregate's state.
           [attr.name, attr.list? ? Freezer.deep([]) : default_for(aggregate, attr)]
         end
-        state[aggregate.lifecycle.field.to_sym] = aggregate.lifecycle.default if aggregate.lifecycle
+        lifecycle = aggregate.lifecycle
+        state[lifecycle.field.to_sym] = lifecycle.default if lifecycle
         state
       end
 
@@ -126,7 +127,7 @@ module Hecks
         return unless args
 
         @aggregate.identity_paths.each do |path|
-          head = path.to_s.split(".").first.to_sym
+          head = Identity.head(path)
           attribute = @aggregate.attribute(head)
           next unless attribute && @state[head].nil?
 

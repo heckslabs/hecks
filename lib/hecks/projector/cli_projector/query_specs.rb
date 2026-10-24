@@ -43,7 +43,7 @@ module Hecks
         # The fields that are the aggregate's own bookkeeping: its identity and its
         # lifecycle status.
         def own_fields(aggregate)
-          Array(aggregate.identified_by).map(&:to_s) + [aggregate.lifecycle&.field.to_s]
+          Array(aggregate.identified_by).map(&:to_s) + [aggregate.lifecycle_field&.to_s]
         end
 
         # The spec of one query of an aggregate or of one of its entities.

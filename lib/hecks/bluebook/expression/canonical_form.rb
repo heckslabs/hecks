@@ -11,10 +11,14 @@ module Hecks
 
         STRATEGIES = Hecks::Vocabulary.fetch("NormalisationStrategy")
 
-        # Normalisation rules projected from the grammar chapter by hecks project_expression_tables.
-        RULES = JSON.parse(
+        # The normalisation rows projected from the grammar chapter by hecks
+        # project_expression_tables, as plain Hashes.
+        NORMALISATION_ROWS = JSON.parse(
           File.read(File.join(__dir__, "projection.json")), symbolize_names: true
-        ).fetch(:normalisations).map { |row| Rule.new(**row) }.freeze
+        ).fetch(:normalisations)
+
+        # Normalisation rules projected from the grammar chapter by hecks project_expression_tables.
+        RULES = NORMALISATION_ROWS.map { |row| Rule.new(**row) }.freeze
 
         module_function
 
@@ -38,7 +42,7 @@ module Hecks
 
         def step(text, rule)
           case rule.strategy
-          when "collapse_whitespace" then map_outside_strings(text) { |segment| segment.gsub(/\s+/, " ") }
+          when "collapse_whitespace" then map_outside_strings(text) { |segment| segment.gsub(Text::WHITESPACE, " ") }
           when "replace"             then replace(text, rule)
           when "scale_call"          then scale_call(text, rule)
           else

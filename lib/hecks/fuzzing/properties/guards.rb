@@ -71,6 +71,9 @@ module Hecks
         # the other "X refused — Y" wordings.
         GUARD_REFUSAL_KINDS = %w[Hecks::Runtime::GivenNotMet Hecks::Runtime::EnsuresNotMet].freeze
 
+        # A guard refusal's message, `"<verb> refused — <description>"`, capturing both parts.
+        GUARD_REFUSAL_MESSAGE = /\A(.+) refused — (.+)\z/
+
         # Checks that every given/ensures refusal quotes a description its command declares.
         def guard_refusals_are_declared(history)
           bluebooks = history.fetch(:bluebooks)
@@ -82,7 +85,7 @@ module Hecks
         def guard_refusal_offense(bluebooks, refusal)
           return unless GUARD_REFUSAL_KINDS.include?(refusal[:kind])
 
-          match = refusal[:error].to_s.match(/\A(.+) refused — (.+)\z/)
+          match = refusal[:error].to_s.match(GUARD_REFUSAL_MESSAGE)
           return "#{refusal[:verb]} raised #{refusal[:kind]} with unparseable message #{refusal[:error].inspect}" unless match
 
           command = command_for_verb(bluebooks, refusal[:verb])

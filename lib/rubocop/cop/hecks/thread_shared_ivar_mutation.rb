@@ -81,7 +81,7 @@ module RuboCop
           return nil unless klass
 
           const_node = klass.identifier
-          const_node.const_name.to_s.split("::").last
+          const_node.short_name.to_s
         end
 
         # An ivar set in `initialize` cannot yet be shared with another thread.

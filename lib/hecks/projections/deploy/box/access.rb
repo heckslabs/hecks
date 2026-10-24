@@ -40,9 +40,10 @@ module Hecks
           # @param plan [Settings::Plan] the resolved settings
           # @return [String] YAML list items, one per prefix, ending in a newline
           def secret_resources(plan)
-            named = [plan.origin_secret, plan.tunnel_service&.token_secret].compact
+            tunnel = plan.tunnel_service
+            named = [plan.origin_secret, tunnel&.token_secret].compact
             arns = (plan.secret_prefixes + named).map { |name| name.end_with?("*") ? name : "#{name}-*" }
-            arns.uniq.map { |pattern| "#{" " * 18}- !Sub \"#{SECRET_ARN}#{pattern}\"\n" }.join.chomp
+            secret_items(arns.uniq, 18).chomp
           end
 
           # The statement that lets a production box overwrite the secrets named as writable.
@@ -53,8 +54,7 @@ module Hecks
             return "" if plan.writable_secrets.empty?
 
             arns = plan.writable_secrets.map { |name| name.end_with?("*") ? name : "#{name}-*" }.uniq
-            resources = arns.map { |pattern| "#{" " * 20}- !Sub \"#{SECRET_ARN}#{pattern}\"\n" }.join
-            template("writable-secrets.yaml.tmpl", "RESOURCES" => resources.chomp).chomp
+            template("writable-secrets.yaml.tmpl", "RESOURCES" => secret_items(arns, 20).chomp).chomp
           end
 
           private
@@ -63,6 +63,10 @@ module Hecks
             rows = s3_read_rows(buckets.flat_map { |b| [s3_arn(b.name), s3_arn("#{b.name}/*")] })
             writes = buckets.select(&:write).map { |b| s3_arn("#{b.name}/*") }
             writes.empty? ? rows : rows + s3_write_rows(writes)
+          end
+
+          def secret_items(patterns, indent)
+            patterns.map { |pattern| "#{" " * indent}- !Sub \"#{SECRET_ARN}#{pattern}\"\n" }.join
           end
 
           def s3_arn(path) = "arn:${AWS::Partition}:s3:::#{path}"

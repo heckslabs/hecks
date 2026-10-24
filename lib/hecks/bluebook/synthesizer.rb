@@ -21,7 +21,7 @@ module Hecks
       def args_for(chapter, aggregate, command, created = {})
         command.attributes.to_h do |attribute|
           if attribute.reference?
-            [attribute.name, created.fetch(attribute.type.target_name, "smoke-test-id")]
+            [attribute.name, created.fetch(attribute.target_name, "smoke-test-id")]
           else
             [attribute.name, value_for(chapter, aggregate, attribute.type)]
           end

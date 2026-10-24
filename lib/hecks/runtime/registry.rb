@@ -235,7 +235,10 @@ module Hecks
       # Every verb every loaded chapter declares, sorted.
       #
       # @return [Array<String>] every declared verb, across every loaded chapter
-      def verbs = @declared.bluebooks.values.flat_map(&:verbs).sort
+      def verbs
+        chapters = @declared.bluebooks.values
+        chapters.flat_map(&:verbs).sort
+      end
 
       # Resolves and memoizes `aggregate`'s authoritative repository.
       #
@@ -303,7 +306,7 @@ module Hecks
         @state.clear
         @repositories = {}
         @projection_repositories = {}
-        @outbox.log.clear
+        @outbox.clear_log
         rehydrate_sagas!
         self
       end

@@ -20,6 +20,9 @@ module Hecks
       USAGE = "usage: hecks check_conformance <domain> <script.json> " \
               "[rust_output.json | native | build | path/to/binary | path/to/module.wasm]"
 
+      # A compiled wasm module's path.
+      WASM_MODULE = /\.wasm\z/
+
       module_function
 
       # @param argv [Array<String>] the domain, the script and optionally the artifact
@@ -48,7 +51,7 @@ module Hecks
         case other
         when "native" then run_binary(native_binary || missing_native!, script)
         when "build" then run_binary(built_binary(domain), script)
-        when /\.wasm\z/ then run_wasm(domain, script, other)
+        when WASM_MODULE then run_wasm(domain, script, other)
         when method(:pinned_binary?) then run_binary(other, script)
         else File.read(other)
         end

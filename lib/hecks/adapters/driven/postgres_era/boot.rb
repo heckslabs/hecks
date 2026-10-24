@@ -11,8 +11,9 @@ module Hecks
         # Journal name: the owning bluebook's declared name, matching the key rust/host derives its
         # advisory lock from (ADR 0036). A bare aggregate with no owner falls back to its own name.
         def journal_domain(aggregate, settings)
+          owner = aggregate.hecks_owner
           self.class.setting(
-            settings, :domain, default: aggregate.hecks_owner&.name || aggregate.storage_name
+            settings, :domain, default: owner&.name || aggregate.storage_name
           ).to_s
         end
 

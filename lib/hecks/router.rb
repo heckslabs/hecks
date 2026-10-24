@@ -111,9 +111,10 @@ module Hecks
     private
 
     def local_verb(entry)
-      return "#{entry.fqn.domain}.#{entry.declared_verb}" unless entry.fqn.aggregate
+      fqn = entry.fqn
+      return "#{fqn.domain}.#{entry.declared_verb}" unless fqn.aggregate
 
-      "#{entry.fqn.domain}::#{entry.fqn.aggregate}.#{entry.declared_verb}"
+      "#{fqn.domain}::#{fqn.aggregate}.#{entry.declared_verb}"
     end
   end
 end

@@ -9,6 +9,11 @@ module Hecks
         # @return [Bluebook::Attribute, nil] the attribute, or `nil` if none is declared
         #   by that name
         def attribute(named) = @attributes.find { |a| a.name == named.to_sym }
+
+        # The field this query orders its answers by.
+        #
+        # @return [String, Symbol, nil] the `order_by` field, or `nil` when the query sets no order
+        def order_by_field = order_by&.field
       end
     end
   end

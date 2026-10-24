@@ -6,6 +6,9 @@ module Hecks
     #
     # Every target is checked before the first is written, so a refusal leaves nothing half-written.
     module DomainWriter
+      # A bluebook directly inside the domain's `bluebook/` directory.
+      TOP_LEVEL_BLUEBOOK = %r{\Abluebook/[^/]+\.bluebook\z}
+
       module_function
 
       # @param files [Hash{String => String}] each file's path under the target, and its text
@@ -29,7 +32,7 @@ module Hecks
       # @return [Array<String>] the paths in the way, relative to the target
       def taken(files, target)
         taken = files.keys.select { |path| File.exist?(File.join(target, path)) }
-        if files.keys.any? { |path| path.match?(%r{\Abluebook/[^/]+\.bluebook\z}) }
+        if files.keys.any? { |path| path.match?(TOP_LEVEL_BLUEBOOK) }
           taken |= Dir.glob(File.join(target, "bluebook", "*.bluebook")).map { |full| full.delete_prefix("#{target}/") }
         end
         taken

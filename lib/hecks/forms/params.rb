@@ -108,7 +108,8 @@ module Hecks
         return SKIP if text.nil? || text.strip.empty?
 
         item = field.children.first
-        text.each_line.map(&:strip).reject(&:empty?).map do |line|
+        lines = text.each_line.map(&:strip).reject(&:empty?)
+        lines.map do |line|
           item.leaf? ? cast_scalar(item, line) : JSON.parse(line, symbolize_names: true)
         end
       end

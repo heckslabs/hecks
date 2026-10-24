@@ -13,6 +13,9 @@ module Hecks
       # One attribute a command repeats.
       Candidate = Struct.new(:command_name, :field, :type, keyword_init: true)
 
+      # An `emits` line, which closes a command's block.
+      EMITS_LINE = /^\s*emits\s/
+
       module_function
 
       # Runs the codemod over every example domain and prints what it found.
@@ -86,7 +89,7 @@ module Hecks
         window_start = text.index(/^\s*command\s+"#{Regexp.escape(candidate.command_name)}"/)
         return [text, false] unless window_start
 
-        window_end = text.index(/^\s*emits\s/, window_start)
+        window_end = text.index(EMITS_LINE, window_start)
         return [text, false] unless window_end
 
         before = text[0...window_start]

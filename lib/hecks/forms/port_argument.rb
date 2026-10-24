@@ -3,6 +3,9 @@ module Hecks
     # Reads hecks present's `-p PORT` / `--port PORT` / `--port=PORT` argument.
     # Returns `[port, nil]` or `[nil, message]`; a non-numeric port is refused, not read as 0.
     module PortArgument
+      # A whole number written in digits alone.
+      WHOLE_NUMBER = /\A\d+\z/
+
       module_function
 
       # Reads the `-p`/`--port` argument out of an argv array.
@@ -29,7 +32,7 @@ module Hecks
       #   is a whole number between 1 and 65535, or `[nil, message]` otherwise
       def resolve(value)
         return [nil, "-p/--port requires a value"] if value.nil? || value.empty?
-        return [nil, "-p/--port must be a whole number, got #{value.inspect}"] unless value.match?(/\A\d+\z/)
+        return [nil, "-p/--port must be a whole number, got #{value.inspect}"] unless value.match?(WHOLE_NUMBER)
 
         port = value.to_i
         return [nil, "-p/--port must be between 1 and 65535, got #{port}"] unless (1..65_535).cover?(port)

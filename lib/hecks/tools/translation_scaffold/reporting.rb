@@ -7,10 +7,13 @@ module Hecks
     module TranslationScaffold
       # Says what the written edge file leaves to decide.
       module Reporting
+        # An `unresolved` line the scaffold leaves for a person to decide.
+        UNRESOLVED_LINE = /^\s*unresolved /
+
         # @return [void]
         def report(path, diffed)
           text = File.read(path)
-          unresolved = text.scan(/^\s*unresolved /).size
+          unresolved = text.scan(UNRESOLVED_LINE).size
           unclaimed = diffed ? diffed[:unclaimed] : []
           puts "wrote #{path}"
           unclaimed.each { |name| puts unclaimed_message(name) }

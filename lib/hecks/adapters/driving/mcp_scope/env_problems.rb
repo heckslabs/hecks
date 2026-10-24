@@ -1,3 +1,5 @@
+require_relative "../../../text"
+
 module Hecks
   module Adapters
     module Driving
@@ -61,7 +63,7 @@ module Hecks
 
           def split_paths(value) = value.to_s.split(File::PATH_SEPARATOR).reject(&:empty?)
 
-          def split_names(value) = value.to_s.split(",").map(&:strip).reject(&:empty?).uniq
+          def split_names(value) = Text.comma_list(value).uniq
         end
       end
     end

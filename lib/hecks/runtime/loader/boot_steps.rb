@@ -30,7 +30,8 @@ module Hecks
         # Each domain with a pending marking, with the attribute paths Privacy already marks for it.
         def already_marked_by_domain(dispatcher, registry, provider)
           verb = provider.provided_verb(Bluebook::Capabilities::PRIVACY, :markings_for)
-          registry.pending_privacy_markings.map { |marking| marking[:domain] }.uniq.to_h do |domain|
+          domains = registry.pending_privacy_markings.map { |marking| marking[:domain] }.uniq
+          domains.to_h do |domain|
             [domain, dispatcher.query(verb, domain: domain).map { |row| row[:attribute_path][:value] }]
           end
         end

@@ -50,7 +50,8 @@ module Hecks
 
           @out.print("#{question} [y/N] ")
           @out.flush
-          %w[y yes].include?(@input.gets.to_s.strip.downcase)
+          answer = @input.gets.to_s.strip
+          %w[y yes].include?(answer.downcase)
         end
       end
     end

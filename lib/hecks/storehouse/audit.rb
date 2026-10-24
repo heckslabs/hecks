@@ -6,6 +6,9 @@ module Hecks
       # The caller-supplied fields of an audit line, in the order the line spells them.
       AUDIT_FIELDS = %i[verb summary source role actor_id].freeze
 
+      # A character a log file's name may not carry.
+      UNSAFE_NAME_CHARACTER = /[^A-Za-z0-9_-]/
+
       # Kept under Hecks::CacheDir, not the domain directory (part of the domain's
       # own state) or the gem directory (read-only once installed).
       # :nodoc:
@@ -13,7 +16,7 @@ module Hecks
 
       # :nodoc:
       def log_path(domain_name)
-        File.join(log_root, "#{domain_name.to_s.gsub(/[^A-Za-z0-9_-]/, "_")}.jsonl")
+        File.join(log_root, "#{domain_name.to_s.gsub(UNSAFE_NAME_CHARACTER, "_")}.jsonl")
       end
 
       # Never fails a real call because its own audit log couldn't be written —

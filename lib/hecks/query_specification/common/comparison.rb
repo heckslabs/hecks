@@ -177,7 +177,7 @@ module Hecks
           return true unless record
 
           # The state lives on the target's lifecycle field, else on `:state`.
-          field = target_ir.lifecycle&.field || :state
+          field = target_ir.lifecycle_field || :state
           comparable(record.state[field]) != state
         end
 

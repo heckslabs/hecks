@@ -35,7 +35,7 @@ module Hecks
           # through a contained piece is refused like a direct aggregate-to-aggregate ring.
           # Command/query reference arguments are excluded: they are dispatch data, not state.
           def entity_reference_targets
-            @entities.flat_map { |entity| entity.attributes.select(&:reference?).map { |a| a.type.target_name.to_s } }
+            @entities.flat_map { |entity| entity.attributes.select(&:reference?).map { |a| a.target_name.to_s } }
           end
 
           def reference_bearing_attributes

@@ -18,6 +18,9 @@ module Hecks
     # domain only when it is a directory; otherwise the nearest enclosing one is
     # used.
     module Run
+      # Script text given inline: a JSON object, perhaps after some spaces.
+      INLINE_SCRIPT = /\A\s*\{/
+
       module_function
 
       # Runs `argv` as a verb invocation or a step list against a domain.
@@ -74,14 +77,14 @@ module Hecks
         exit 0
       end
 
-      def script_shaped?(arg) = arg == "-" || arg.match?(/\A\s*\{/) || File.file?(arg)
+      def script_shaped?(arg) = arg == "-" || arg.match?(INLINE_SCRIPT) || File.file?(arg)
 
       # Decided by looking, because a script beginning with `{` is not a filename
       # anybody meant.
       def read_source(script)
         case script
         when "-" then $stdin.read
-        when /\A\s*\{/ then script
+        when INLINE_SCRIPT then script
         else
           File.exist?(script) ? File.read(script) : abort("no such script: #{script}")
         end
@@ -92,7 +95,7 @@ module Hecks
       def parse(source)
         JSON.parse(source)
       rescue JSON::ParserError => e
-        abort "that is not JSON: #{e.message.lines.first.strip}"
+        abort "that is not JSON: #{Text.first_line(e.message)}"
       end
 
       def execute(runtime, steps)
@@ -131,9 +134,10 @@ module Hecks
 
       # @api private
       def instances(runtime)
-        runtime.registry.bluebooks.each_with_object({}) do |(domain_name, bluebook), all|
+        registry = runtime.registry
+        registry.bluebooks.each_with_object({}) do |(domain_name, bluebook), all|
           bluebook.aggregates.each do |aggregate|
-            runtime.registry.repository(domain_name, aggregate).all.each do |record|
+            registry.repository(domain_name, aggregate).all.each do |record|
               all["#{domain_name}::#{aggregate.name}##{record.id}"] = record.state
             end
           end

@@ -21,6 +21,9 @@ module Hecks
     module ReleaseOnly
       GREEN = %w[success skipped].freeze
 
+      # The `+` or `-` that opens an added or removed line of a diff.
+      CHANGE_MARK = /\A[+-]/
+
       module_function
 
       # @param changes [Hash{String => Array<String>}] each changed path to the lines it adds or
@@ -91,7 +94,7 @@ module Hecks
 
       # @return [Boolean] whether the line is an added or removed line, not a header
       def content_line?(line)
-        line.match?(/\A[+-]/) && !line.start_with?("+++ ", "--- ")
+        line.match?(CHANGE_MARK) && !line.start_with?("+++ ", "--- ")
       end
 
       # @param repository [String] `owner/name`

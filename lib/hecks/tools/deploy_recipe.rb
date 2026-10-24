@@ -33,7 +33,13 @@ module Hecks
 
       # What the generator resolved about a domain: its directory, the flags, the `.world` file and
       # its declaration, the `deployed_to` settings, the stack's name, the registry and the chapter.
-      Deployment = Struct.new(:domain, :options, :world_file, :world, :settings, :infra_name, :registry, :chapter)
+      Deployment = Struct.new(:domain, :options, :world_file, :world, :settings, :infra_name, :registry, :chapter) do
+        # @return [Hash{Symbol => String}] the `--tenant` and `--schema` flags
+        def tenant = options.tenant
+
+        # @return [String, nil] the `--out` directory, when one was given
+        def out = options.out
+      end
 
       extend Worlds
       extend Targets
@@ -133,7 +139,7 @@ module Hecks
 
       def projector_options(deployment, root)
         {
-          tenant:                deployment.options.tenant,
+          tenant:                deployment.tenant,
           domain_dir:            deployment.domain,
           root:                  root,
           world_file:            deployment.world_file,

@@ -10,6 +10,11 @@ module Hecks
       module Dictionary
         WORDS = "/usr/share/dict/words"
 
+        # An apostrophe and everything after it: the `'s` of a possessive.
+        APOSTROPHE_TAIL = /'.*\z/
+        # A word's last letter written twice, as in "stopp".
+        DOUBLED_LAST_LETTER = /(.)\1\z/
+
         # Technical vocabulary the system word list lacks.
         EXTRA = %w[
           adversarial allowlist anymore app apps arg args arity async backend backtrace baseline
@@ -46,12 +51,12 @@ module Hecks
         def english?(word)
           return true unless words
 
-          bare = word.downcase.delete_suffix("n't").sub(/'.*\z/, "")
+          bare = word.downcase.delete_suffix("n't").sub(APOSTROPHE_TAIL, "")
           SUFFIXES.any? do |suffix, replacement|
             next false unless bare.end_with?(suffix)
 
             stem = bare.delete_suffix(suffix) + replacement
-            words.include?(stem) || words.include?(stem.sub(/(.)\1\z/, '\1'))
+            words.include?(stem) || words.include?(stem.sub(DOUBLED_LAST_LETTER, '\1'))
           end
         end
       end

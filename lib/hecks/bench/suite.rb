@@ -10,7 +10,13 @@ module Hecks
 
       # What one domain's measuring holds across its rounds: the binaries built so far, and each
       # target's run summaries.
-      Round = Struct.new(:workload, :config, :log, :binaries, :summaries)
+      Round = Struct.new(:workload, :config, :log, :binaries, :summaries) do
+        # @return [Integer] how many runs each target gets
+        def runs = config.runs
+
+        # @return [String] the name of the domain being measured
+        def domain_name = workload.name
+      end
 
       module_function
 
@@ -82,8 +88,8 @@ module Hecks
       def measure_target(round, target, index)
         summary = measure_once(round.workload, target, round.config, round.binaries).summary
         round.summaries[target] << summary
-        position = "run #{index + 1}/#{round.config.runs}"
-        round.log.puts progress_line("#{round.workload.name} #{target}", position, summary)
+        position = "run #{index + 1}/#{round.runs}"
+        round.log.puts progress_line("#{round.domain_name} #{target}", position, summary)
       end
 
       def progress_line(label, position, summary)

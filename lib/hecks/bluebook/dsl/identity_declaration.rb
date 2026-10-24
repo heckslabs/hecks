@@ -4,6 +4,9 @@ module Hecks
       # `identified_by`, shared by AggregateBuilder and EntityBuilder (ADR 0025).
       # The includer must include AttributeCollector and define a private `identity_pool`.
       module IdentityDeclaration
+        # A name that starts with a capital letter: a value-object type, not an attribute name.
+        CAPITALISED = /\A[A-Z]/
+
         # Records which `identified_by` form a builder declared; resolution waits for build time.
         #
         #   identified_by AccountNumber, as: :number # one identity concept
@@ -41,7 +44,7 @@ module Hecks
           end
         end
 
-        def identity_type?(target) = target.to_s.match?(/\A[A-Z]/)
+        def identity_type?(target) = target.to_s.match?(CAPITALISED)
 
         def refuse_second_identity!
           # Transitional: a one-symbol declaration may still be replaced by a later one.
@@ -110,7 +113,8 @@ module Hecks
 
           raise Malformed, "#{@name}.identified_by names no field" unless path
 
-          paths = Ports::Extraction.canonical(path).to_s.split.reject(&:empty?)
+          canonical = Ports::Extraction.canonical(path).to_s
+          paths = canonical.split.reject(&:empty?)
           raise Malformed, "#{@name}.identified_by names no field" if paths.empty?
 
           @identity_paths = paths

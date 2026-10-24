@@ -29,6 +29,9 @@ module Hecks
         def ok? = status != :mismatch
       end
 
+      # A trailing ` # comment` on an allow-list line.
+      TRAILING_COMMENT = /\s+#.*\z/
+
       module_function
 
       # Reads the eras out of an allow-list file's text.
@@ -37,7 +40,7 @@ module Hecks
       # @return [Array<String>] the era ids in file order, without comments or blanks
       def parse(text)
         text.each_line.filter_map do |line|
-          entry = line.strip.sub(/\s+#.*\z/, "")
+          entry = line.strip.sub(TRAILING_COMMENT, "")
           entry unless entry.empty? || entry.start_with?("#")
         end
       end

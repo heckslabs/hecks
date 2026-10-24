@@ -2,6 +2,7 @@
 
 require "open3"
 require "shellwords"
+require_relative "../../text"
 require_relative "agent_profile"
 
 module Hecks
@@ -53,7 +54,7 @@ module Hecks
         File.open(log, "a") { |file| file.puts(output) } if log
         return output if status.success?
 
-        raise Failed, "agent exited #{status.exitstatus}: #{output.lines.last(5).join.strip}"
+        raise Failed, "agent exited #{status.exitstatus}: #{Text.last_lines(output, 5)}"
       rescue SystemCallError => e
         raise Failed, "agent could not start (#{words.first}): #{e.message}"
       end

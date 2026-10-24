@@ -13,7 +13,7 @@ module Hecks
         # @param root [String] the checkout
         # @return [String] `--out`, else `deploy/<name>` in the checkout
         def output_dir(deployment, root)
-          out = deployment.options.out
+          out = deployment.out
           out ? File.expand_path(out) : File.join(root, "deploy", deployment.infra_name)
         end
 

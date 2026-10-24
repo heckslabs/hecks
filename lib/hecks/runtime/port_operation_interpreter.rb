@@ -1,5 +1,6 @@
 require_relative "adapter_lookup"
 require_relative "interpreting"
+require_relative "dispatch_context"
 require_relative "command_interpreter/argument_gate"
 require_relative "event"
 require_relative "value"
@@ -13,7 +14,15 @@ module Hecks
       include Interpreting
       include CommandInterpreter::ArgumentGate
 
-      Context = Struct.new(:domain, :aggregate, :operation, :args, :route, :instance, :result, :invocation)
+      Context = Struct.new(:domain, :aggregate, :operation, :args, :route, :instance, :result, :invocation) do
+        include DispatchContext
+
+        # @return [String] the operation's declared name
+        def operation_hecks_name = operation.hecks_name
+
+        # @return [Object] the identity of the record the route names
+        def route_identity = route.aggregate
+      end
 
       DISPATCH_ORDER = %i[
         refuse_unknown_arguments refuse_absent_arguments normalize_args resolve_references resolve_route emit
@@ -67,8 +76,8 @@ module Hecks
 
       def step_resolve_route(ctx)
         ctx.instance = step(:resolve_route) do
-          @registry.repository(ctx.domain, ctx.aggregate).find(ctx.route.aggregate) ||
-            raise(NotFound, "#{ctx.aggregate.hecks_name} #{ctx.route.aggregate.inspect} does not exist")
+          @registry.repository(ctx.domain, ctx.aggregate).find(ctx.route_identity) ||
+            raise(NotFound, "#{ctx.aggregate_hecks_name} #{ctx.route_identity.inspect} does not exist")
         end
       end
 
@@ -84,14 +93,15 @@ module Hecks
       # needs data that lives on the record, and an event payload carries only arguments.
       # Arguments win over state.
       def ask(ctx)
-        announce(ctx, ctx.operation.answers, ctx.args.merge(spread(adapter_answer(ctx))))
+        operation = ctx.operation
+        announce(ctx, operation.answers, ctx.args.merge(spread(adapter_answer(ctx))))
       rescue StandardError => e
-        announce(ctx, ctx.operation.refuses, ctx.args.merge(refusal: { value: "#{e.class}: #{e.message}" }))
+        announce(ctx, operation.refuses, ctx.args.merge(refusal: { value: "#{e.class}: #{e.message}" }))
       end
 
       def adapter_answer(ctx)
         payload = held_state(ctx).merge(materialise(ctx.args))
-        adapter_for(ctx).public_send(Naming.snake(ctx.operation.hecks_name), **payload)
+        adapter_for(ctx).public_send(Naming.snake(ctx.operation_hecks_name), **payload)
       end
 
       # The answer is spread, not nested: a policy re-enters its target with the event
@@ -107,7 +117,7 @@ module Hecks
       # The record, if there is one. A missing record is not an error here: the ask still
       # goes with only its arguments, since `resolve_references` already checked existence.
       def held_state(ctx)
-        ctx.instance ? Value.materialize(ctx.instance.state) : {}
+        ctx.instance ? Value.materialize(ctx.state) : {}
       rescue StandardError
         {}
       end
@@ -115,13 +125,14 @@ module Hecks
       # The port this operation belongs to, found through the aggregate rather than
       # threaded through the call.
       def port_name_for(ctx)
-        owning = ctx.aggregate.ports.find { |port| port.operations.any? { |op| op.equal?(ctx.operation) } }
+        aggregate = ctx.aggregate
+        owning = aggregate.ports.find { |port| port.operations.any? { |op| op.equal?(ctx.operation) } }
         owning&.name or raise WiringError,
-                              "#{ctx.operation.hecks_name} belongs to no port on #{ctx.aggregate.hecks_name}"
+                              "#{ctx.operation_hecks_name} belongs to no port on #{aggregate.hecks_name}"
       end
 
       def adapter_for(ctx)
-        AdapterLookup.call(@registry, port_name_for(ctx), asked: ctx.operation.hecks_name)
+        AdapterLookup.call(@registry, port_name_for(ctx), asked: ctx.operation_hecks_name)
       end
 
       # Adapters are handed plain data, never a Value.
@@ -136,7 +147,8 @@ module Hecks
       # Unlike CommandRules::Emission there is no mutated instance to read an id off; the
       # event is stamped with the coerced reference to the owning aggregate (already a plain id).
       def emit(ctx)
-        ctx.operation.emits.map do |event_name|
+        operation = ctx.operation
+        operation.emits.map do |event_name|
           event = event_for(ctx, event_name, ctx.args)
           @registry.event_log << event.emit!
           event
@@ -146,8 +158,8 @@ module Hecks
       def event_for(ctx, event_name, payload)
         Event.new(
           name:        event_name,
-          aggregate:   "#{ctx.domain}::#{ctx.aggregate.hecks_name}",
-          id:          ctx.route.aggregate,
+          aggregate:   "#{ctx.domain}::#{ctx.aggregate_hecks_name}",
+          id:          ctx.route_identity,
           payload:     payload,
           occurred_at: Event.stamp
         )

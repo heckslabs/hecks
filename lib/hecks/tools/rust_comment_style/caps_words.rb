@@ -69,17 +69,17 @@ module Hecks
         end
 
         def keep_capitals?(word)
-          bare = word.sub(/'[A-Z]{1,2}\z/, "")
+          bare = word.sub(CommentStyle::SHOUTED_SUFFIX, "")
           return false if CommentStyle::PROPER_NOUNS.key?(bare) || RUST_PROPER_NOUNS.key?(bare)
 
           CommentStyle::ACRONYMS.include?(bare) || RUST_ACRONYMS.include?(bare) ||
-            @constants.include?(bare) || bare.match?(/\A[IVX]+\z/)
+            @constants.include?(bare) || bare.match?(CommentStyle::ROMAN_NUMERAL)
         end
 
         def sentence_start?(comment, masked, offset)
           before = masked[0, offset].sub(MARKER, "")
-          return before.match?(/[.!?]["')\]]*\s+\z/) if before.match?(/[[:alnum:]#{FILLER}]/o)
-          return true if before.match?(/\A\s*(?:[-*•]|─+|\d+[.)])\s+\z/)
+          return before.match?(CommentStyle::SENTENCE_BREAK) if before.match?(/[[:alnum:]#{FILLER}]/o)
+          return true if before.match?(CommentStyle::LIST_MARKER)
 
           after_sentence_end?(comment)
         end
@@ -90,7 +90,7 @@ module Hecks
           return true unless previous&.full_line
 
           body = previous.text.sub(MARKER, "").strip
-          body.empty? || body.match?(/[.!?]["')\]]*\z/)
+          body.empty? || body.match?(CommentStyle::SENTENCE_END)
         end
       end
     end

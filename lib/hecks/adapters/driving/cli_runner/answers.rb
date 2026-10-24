@@ -46,7 +46,8 @@ module Hecks
           # the
           # Hecks chapter, which a client's runtime never loads.
           def tool_refusal?(error)
-            error.class.ancestors.map(&:name).include?(CliRunner::TOOL_REFUSAL)
+            ancestor_names = error.class.ancestors.map(&:name)
+            ancestor_names.include?(CliRunner::TOOL_REFUSAL)
           end
 
           # Runs a command and answers its outcome, settled when `--wait` asks for it.

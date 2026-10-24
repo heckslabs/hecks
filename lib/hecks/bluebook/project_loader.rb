@@ -24,8 +24,9 @@ module Hecks
       # Errors raised by `ProjectRegister#register` propagate.
       def load
         discovery.bluebook_directories.each do |directory|
-          runtime = Runtime.boot(directory)
-          register.register(runtime.registry.bluebooks.values, runtime.registry, runtime, directory)
+          runtime  = Runtime.boot(directory)
+          registry = runtime.registry
+          register.register(registry.bluebooks.values, registry, runtime, directory)
         end
         self
       end

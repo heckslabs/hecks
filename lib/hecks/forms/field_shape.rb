@@ -24,10 +24,17 @@ module Hecks
 
     # Turns a wire-spelled field or path segment into a label or legend.
     module Humanize
+      # A leading run of two or more capitals: an acronym that keeps its case.
+      LEADING_ACRONYM = /\A[A-Z]{2,}\b/
+
+      # The first character of a phrase.
+      FIRST_CHARACTER = /\A./
+
       # "daily_limit" -> "Daily limit"; only the last segment of a dotted path is used.
       def self.label(text)
         # Split on "." alone: an underscore is a word break within a segment, not a path hop.
-        segment = text.to_s.split(".").last.to_s
+        segments = text.to_s.split(".")
+        segment = segments.last.to_s
         return segment if segment.empty?
 
         Naming.words(segment)
@@ -46,7 +53,7 @@ module Hecks
       # @return [String] the words, the first lowercased unless it is an acronym
       def self.noun(name)
         words = Naming.words(name)
-        words.match?(/\A[A-Z]{2,}\b/) ? words : words.sub(/\A./, &:downcase)
+        words.match?(LEADING_ACRONYM) ? words : words.sub(FIRST_CHARACTER, &:downcase)
       end
     end
 
@@ -90,7 +97,7 @@ module Hecks
       end
 
       def self.reference_field(attribute, common)
-        target = attribute.type.resolve
+        target = attribute.target_aggregate
         help = target ? "An existing #{Humanize.noun(target.hecks_name)}, by its id." : "A record in another domain, by its id."
         Field.new(**common, kind: :reference, html_type: "text", target_aggregate: target, help: help)
       end
@@ -148,7 +155,8 @@ module Hecks
       end
 
       def self.cross_aggregate_value_object(aggregate, type_name)
-        aggregate.hecks_owner&.aggregates&.each do |sibling|
+        owner = aggregate.hecks_owner
+        owner&.aggregates&.each do |sibling|
           found = sibling.value_object(type_name)
           return found if found
         end

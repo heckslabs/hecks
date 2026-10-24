@@ -52,7 +52,7 @@ module Hecks
       # @param name [String] an attribute name
       # @return [Boolean] true when `name` is the lifecycle field
       def lifecycle_field?(aggregate, name)
-        aggregate.lifecycle&.field.to_s == name
+        aggregate.lifecycle_field.to_s == name
       end
 
       # Picks the member of a value object that orders it.
@@ -63,8 +63,9 @@ module Hecks
       # @param shape [Bluebook::ValueObject] the value object type
       # @return [String] the member name
       def orderable_member(shape)
+        sole = shape.sole_attribute
         shape.attributes.find { |a| %w[Integer Float].include?(a.type) }&.name ||
-          shape.sole_attribute&.name || "value"
+          sole&.name || "value"
       end
 
       # Resolves the dotted path `FieldPath.dig` should read to compare a value object field.

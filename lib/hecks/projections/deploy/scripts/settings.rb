@@ -16,6 +16,8 @@ module Hecks
           EDGE      = "edge".freeze
           SOURCE    = %r{\A[\w.@:/~-]+\z}
           MAKE_PATH = /\A[^\s#]+\z/
+          # An http(s) URL with no whitespace or shell-quoting characters.
+          PUBLIC_URL = %r{\Ahttps?://[^\s'"$`\\]+\z}
 
           DEFAULT_SOURCE = "https://github.com/heckslabs/hecks.git".freeze
           DEFAULT_CACHE_DIR = "$(HOME)/.cache/hecks".freeze
@@ -32,7 +34,7 @@ module Hecks
             read_hecks
             read_smoke
             @expected_eras = list(:expected_eras, []).each { |era| check(:expected_eras, era, ERA) }
-            @public_url = optional(:public_url, %r{\Ahttps?://[^\s'"$`\\]+\z})
+            @public_url = optional(:public_url, PUBLIC_URL)
           end
 
           private
@@ -40,7 +42,8 @@ module Hecks
           def read_ecs(plan)
             @cluster = check(:ecs_cluster, fetch(:ecs_cluster, plan.names.fetch(:cluster)), RESOURCE)
             @service = check(:ecs_service, fetch(:ecs_service, plan.names.fetch(:service)), RESOURCE)
-            @containers = plan.layout.all
+            layout = plan.layout
+            @containers = layout.all
           end
 
           def read_hecks

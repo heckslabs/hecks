@@ -9,6 +9,11 @@ module Hecks
                                    .to_h { |row| [[row["refusal"], row["site"]].freeze, row["template"]] }
                                    .freeze
 
+      # A `{name}` placeholder in a template, captured so a split keeps it as its own piece.
+      PLACEHOLDER = /(\{\w+\})/
+      # A piece that is exactly one `{name}` placeholder, capturing the name.
+      PLACEHOLDER_NAME = /\A\{(\w+)\}\z/
+
       SHAPES   = %w[scalar list].freeze
       QUOTINGS = %w[none inspect].freeze
 
@@ -31,9 +36,9 @@ module Hecks
       # @return [Boolean]
       def already_exists?(reason, command: nil, aggregate: nil)
         given   = { "command" => command, "aggregate" => aggregate }
-        pieces  = TEMPLATES.fetch(%w[AlreadyExists creating_duplicate]).split(/(\{\w+\})/, -1)
+        pieces  = TEMPLATES.fetch(%w[AlreadyExists creating_duplicate]).split(PLACEHOLDER, -1)
         pattern = pieces.map do |piece|
-          name = piece[/\A\{(\w+)\}\z/, 1]
+          name = piece[PLACEHOLDER_NAME, 1]
           next Regexp.escape(piece) unless name
 
           given[name] ? Regexp.escape(given[name]) : ".*"
@@ -90,12 +95,16 @@ module Hecks
         end
       end
 
+      # Every RefusalSiteArgument row, grouped by its `[refusal, site]`.
+      def rows_by_site
+        Hecks::Vocabulary.rows("RefusalSiteArgument")
+                         .group_by { |row| [row["refusal"], row["site"]] }
+                         .transform_values(&:freeze)
+      end
+
       # Read lazily: hecks project_vocabulary boots this file before it writes these rows.
       def argument_rows(refusal, site)
-        @argument_rows ||= Hecks::Vocabulary.rows("RefusalSiteArgument")
-                                            .group_by { |row| [row["refusal"], row["site"]] }
-                                            .transform_values(&:freeze)
-                                            .freeze
+        @argument_rows ||= rows_by_site.freeze
         @argument_rows.fetch([refusal, site]) do
           raise KeyError, "no refusal arguments for #{refusal}/#{site} — declare them in " \
                           "Vocabulary::RefusalSiteArgument first"

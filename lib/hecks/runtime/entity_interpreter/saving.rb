@@ -13,7 +13,7 @@ module Hecks
         # `dry_run:` skips only the persist — the reference-existence check
         # above stays unconditional either way.
         def step_save(ctx)
-          step(:save) { @rules.resolve_state_references(ctx.domain, ctx.aggregate, ctx.instance.state) }
+          step(:save) { @rules.resolve_state_references(ctx.domain, ctx.aggregate, ctx.state) }
 
           return if ctx.dry_run
 
@@ -23,16 +23,16 @@ module Hecks
         def persist_parent(ctx)
           # `expected_version:` is nil for a non-CAS repository or an instance
           # never read from storage — either falls through to a plain save.
-          ctx.persistence_outcome = ctx.repository.save(ctx.instance, expected_version: ctx.instance.version)
-          raise_lost_race(ctx) if ctx.persistence_outcome.status == :stale
+          ctx.persistence_outcome = ctx.repository.save(ctx.instance, expected_version: ctx.instance_version)
+          raise_lost_race(ctx) if ctx.outcome_status == :stale
         end
 
         # Intentionally not a `RefusalWording.render` call — see `Runtime::StaleWrite`'s own
         # comment.
         def raise_lost_race(ctx)
           raise(StaleWrite,
-                "#{ctx.command.hecks_name} on #{ctx.aggregate.hecks_name} " \
-                "(#{Identity.reading(ctx.aggregate)}: #{Rendering.describe(ctx.instance.id)}) lost a race — " \
+                "#{ctx.command_hecks_name} on #{ctx.aggregate_hecks_name} " \
+                "(#{Identity.reading(ctx.aggregate)}: #{Rendering.describe(ctx.instance_id)}) lost a race — " \
                 "another write committed against this record after it was read")
         end
 

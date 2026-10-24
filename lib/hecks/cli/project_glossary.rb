@@ -45,7 +45,8 @@ module Hecks
       #
       # @api private
       def markings_for(runtime, chapter_name)
-        runtime.registry.pending_privacy_markings.select do |marking|
+        registry = runtime.registry
+        registry.pending_privacy_markings.select do |marking|
           marking[:domain].to_s.start_with?("#{chapter_name}::")
         end
       end

@@ -25,7 +25,7 @@ module Hecks
             unless row.verbs.include?("GET")
               problem(path, "sits in the navigation but answers #{row.verbs.join(",")}; a link is a GET")
             end
-            problem(path, "sits in the navigation and has a parameter") if path.match?(/[:*]/)
+            problem(path, "sits in the navigation and has a parameter") if path.match?(Table::PARAMETER_OR_WILDCARD)
             problem(path, "sits in the navigation and has no label") if row.label.to_s.empty?
             check_heading(row, path)
             check_menu_audience(row, path, slots)
@@ -45,7 +45,7 @@ module Hecks
           private
 
           def check_link_target(link, path)
-            problem(path, "has a parameter; a link is to one page") if link.path.to_s.match?(/[:*]/)
+            problem(path, "has a parameter; a link is to one page") if link.path.to_s.match?(Table::PARAMETER_OR_WILDCARD)
             problem(path, "has no label") if link.label.to_s.empty?
             return unless link.fragment && !link.fragment.match?(FRAGMENT)
 

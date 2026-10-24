@@ -26,7 +26,7 @@ module Hecks
           text = comment.text
           return ["", text] unless @open_spans[comment.line]
 
-          lead = text[/\A#+\s*/].length
+          lead = text[COMMENT_MARKER].length
           close = text.index("`", lead)
           cut = close ? close + 1 : text.length
           [text[0, lead] + (FILLER * (cut - lead)), text[cut..]]
@@ -50,7 +50,7 @@ module Hecks
 
         def continues_paragraph?(comment)
           above = @by_line[comment.line - 1]
-          comment.full_line && above&.full_line && !above.text.match?(/\A#+\s*\z/)
+          comment.full_line && above&.full_line && !above.text.match?(EMPTY_COMMENT)
         end
 
         # Capitalised SQL keywords to leave alone on this line. A keyword such as
@@ -64,7 +64,7 @@ module Hecks
         end
 
         def sql_classes(words)
-          bare = words.map { |word| word.sub(/'[A-Z]{1,2}\z/, "") } - ["A"]
+          bare = words.map { |word| word.sub(SHOUTED_SUFFIX, "") } - ["A"]
           [bare, bare.select { |word| SQL_STRONG.include?(word) }, bare.select { |word| SQL_WEAK.include?(word) }]
         end
 
@@ -85,8 +85,8 @@ module Hecks
         def quoted_heading?(span)
           return false unless span.start_with?('"') && !span.match?(SQL_PHRASES)
 
-          capitals = span.scan(/\b[A-Z]{2,}\b/).size
-          capitals >= 3 || (capitals == 2 && !span.match?(/[a-z]/))
+          capitals = span.scan(SHOUTED_WORD).size
+          capitals >= 3 || (capitals == 2 && !span.match?(LOWERCASE))
         end
       end
     end

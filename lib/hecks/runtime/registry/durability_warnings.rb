@@ -44,10 +44,11 @@ module Hecks
 
         # The name of every event the aggregates' commands and port operations announce.
         def emitted_event_names(bluebook_ir)
-          bluebook_ir.aggregates.flat_map do |aggregate|
+          names = bluebook_ir.aggregates.flat_map do |aggregate|
             aggregate.commands.flat_map(&:emits) +
               aggregate.ports.flat_map { |port| port.operations.flat_map { |op| [*op.emits, op.answers, op.refuses] } }
-          end.compact.map(&:to_s)
+          end
+          names.compact.map(&:to_s)
         end
 
         # A warning, not a refusal: running sagas on a store with no `save_saga` is

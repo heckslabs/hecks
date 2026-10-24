@@ -43,8 +43,8 @@ module Hecks
     # @return [Array<Symbol>] the attribute names the self-hosted meta-domain
     #   grammar declares for `name`
     def meta_declared(name)
-      Hecks::Bluebook::MetaValidator.grammar_registry
-                                    .bluebook("Bluebook").aggregate(name).attributes.map(&:name)
+      grammar = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
+      grammar.aggregate(name).attributes.map(&:name)
     end
 
     # The structural diff between what a Ruby IR class emits (`ir_spec.keys`) and what the

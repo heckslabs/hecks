@@ -5,6 +5,9 @@ module Hecks
         # The two CloudFormation stacks of a box deploy, and the pieces spliced into them. Mixed
         # into `Box`, which supplies `template`, the access statements and the constants.
         module StackYaml
+          # The family of an EC2 instance type built on Graviton (`t4g`, `m7gd`, `c6gn`).
+          GRAVITON_FAMILY = /\d+g[a-z]*\z/
+
           # @param plan [Settings::Plan] the resolved settings
           # @return [String] the database stack
           def rds_yaml(plan)
@@ -36,7 +39,7 @@ module Hecks
           # @param instance_type [String] an EC2 instance type
           # @return [String] the SSM parameter of the matching Amazon Linux image
           def ami_parameter(instance_type)
-            arch = instance_type.split(".").first.match?(/\d+g[a-z]*\z/) ? "arm64" : "x86_64"
+            arch = instance_type.split(".").first.match?(GRAVITON_FAMILY) ? "arm64" : "x86_64"
             "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-#{arch}"
           end
 
@@ -75,9 +78,10 @@ module Hecks
           def ecr_repositories(plan)
             return "" if plan.task_definition
 
-            plan.containers.map do |container|
+            repositories = plan.containers.map do |container|
               ecr_repository(container).lines.map { |line| line.strip.empty? ? line : "  #{line}" }.join
-            end.join.chomp
+            end
+            repositories.join.chomp
           end
 
           # @param plan [Settings::Plan] the resolved settings
@@ -85,10 +89,11 @@ module Hecks
           def ecr_outputs(plan)
             return "" if plan.task_definition
 
-            plan.containers.map do |container|
+            outputs = plan.containers.map do |container|
               id = logical(container.name)
               "  #{id}RepositoryUri:\n    Value: !GetAtt #{id}Repository.RepositoryUri\n"
-            end.join.chomp
+            end
+            outputs.join.chomp
           end
 
           # @param name [String] a container name such as `web-app`

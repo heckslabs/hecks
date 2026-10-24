@@ -75,11 +75,13 @@ module Hecks
 
       def covered_pairs(held)
         held.each_with_object(Hash.new { |h, k| h[k] = [] }) do |(name, shows), covered|
-          shows.select { |_, present| present }.keys.combination(2).each do |left, right|
+          present_forms(shows).combination(2).each do |left, right|
             covered[pair_key(left, right)] << name
           end
         end
       end
+
+      def present_forms(shows) = shows.select { |_, present| present }.keys
 
       def aggregates_in(chapter_ir)
         (chapter_ir["aggregates"] || []).map do |aggregate|

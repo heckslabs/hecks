@@ -6,6 +6,9 @@ module Hecks
       module CliRunner
         # The answer `--wait` gives once every reaction has run. Extended into `CliRunner`.
         module Settling
+          # The `Some::ErrorClass: ` an adapter's failure text opens with.
+          QUALIFIED_CLASS_PREFIX = /\A(\w+::)+\w+: /
+
           # The answer `--wait` gives: the record re-read after every reaction has run, with all its
           # events, and a status of 1 when its lifecycle ended in a failure state, a refused
           # reaction
@@ -55,7 +58,7 @@ module Hecks
           def failure_reasons(aggregate, state, launcher)
             return [] unless LauncherOptions.failed?(aggregate, state, launcher)
 
-            [failure_sentence(aggregate, state, aggregate.lifecycle.field)]
+            [failure_sentence(aggregate, state, aggregate.lifecycle_field)]
           end
 
           # The answer of a command the launcher prints as its report: the text it recorded, with
@@ -77,7 +80,7 @@ module Hecks
             refusal  = refusal[:value] if refusal.is_a?(Hash)
             return sentence if refusal.to_s.strip.empty?
 
-            "#{sentence}: #{refusal.to_s.strip.sub(/\A(\w+::)+\w+: /, "")}"
+            "#{sentence}: #{refusal.to_s.strip.sub(QUALIFIED_CLASS_PREFIX, "")}"
           end
 
           # The answer and its status: 0 when nothing failed, else 1 with the reasons joined.
@@ -111,7 +114,8 @@ module Hecks
           def reread(runtime, bluebook, aggregate, handle)
             return unless aggregate && runtime.respond_to?(:registry)
 
-            runtime.registry.repository(bluebook.name, aggregate)&.find(handle.id)&.to_h
+            repository = runtime.registry.repository(bluebook.name, aggregate)
+            repository&.find(handle.id)&.to_h
           end
         end
       end

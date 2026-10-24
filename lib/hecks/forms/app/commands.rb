@@ -78,7 +78,8 @@ module Hecks
         end
 
         def submitted_json(request, command)
-          raw = Adapters::Driving::Json.parse(request.body.read)
+          body = request.body
+          raw = Adapters::Driving::Json.parse(body.read)
           envelope = Adapters::Driving::Json.command_request(raw, receiver:        command_receiver(command),
                                                                   legacy_receiver: :id)
           [raw, envelope]

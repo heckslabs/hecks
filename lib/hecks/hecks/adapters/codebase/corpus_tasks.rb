@@ -209,7 +209,7 @@ module Hecks
 
         # @param list [String, nil] a comma-separated list
         # @return [Array<String>] its items
-        def words(list) = list.to_s.split(",").map(&:strip).reject(&:empty?)
+        def words(list) = Text.comma_list(list)
       end
     end
   end

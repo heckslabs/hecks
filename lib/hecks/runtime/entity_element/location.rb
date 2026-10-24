@@ -12,7 +12,16 @@ module Hecks
       module Location
         # One step down the chain: the owner holding the list, the entity whose elements it
         # holds, the container the list is read from, and how the element is named.
-        Hop = Struct.new(:root_aggregate, :owner, :entity, :command_name, :container, :args, :routed_identity)
+        Hop = Struct.new(:root_aggregate, :owner, :entity, :command_name, :container, :args, :routed_identity) do
+          # @return [String] the entity's declared name
+          def entity_name = entity.hecks_name
+
+          # @return [String] the declared name of the construct holding the list
+          def owner_name = owner.hecks_name
+
+          # @return [Array<String, Symbol>] the entity's declared identity paths
+          def identity_paths = entity.identity_paths
+        end
 
         # Walks `chain` one hop at a time and returns the located element (or `instance`
         # itself when `chain` is empty). `route`, when given, offers each hop's identity
@@ -33,8 +42,7 @@ module Hecks
         # stored Hash, not a dispatch payload).
         def element_identity(entity, element)
           parts = entity.identity_paths.map do |path|
-            head = path.to_s.split(".").first.to_sym
-            Identity.scalar(path, element[head])
+            Identity.scalar(path, element[Identity.head(path)])
           end
 
           Naming.identity(parts)
@@ -74,8 +82,8 @@ module Hecks
         # The `[head, path, wanted value, raw]` the dispatch's arguments name for each part of
         # the entity's identity.
         def identity_wants(hop)
-          hop.entity.identity_paths.map do |path|
-            head = path.to_s.split(".").first.to_sym
+          hop.identity_paths.map do |path|
+            head = Identity.head(path)
             raw  = hop.args[head] || refuse_no_identity(hop)
 
             [head, path, wanted_value(hop, head, raw), raw]
@@ -112,9 +120,9 @@ module Hecks
           container = hop.container
           raise NotFound, RefusalWording.render_site(
             "NotFound", "entity_element_missing",
-            entity: hop.entity.hecks_name, identity: Identity.reading(hop.entity),
+            entity: hop.entity_name, identity: Identity.reading(hop.entity),
             wants: wants&.map { |_h, path, _want, raw| Identity.scalar(path, raw) }&.join(", "),
-            aggregate: hop.owner.hecks_name,
+            aggregate: hop.owner_name,
             parent_id: container.respond_to?(:id) ? container.id.inspect : Rendering.describe(container)
           )
         end

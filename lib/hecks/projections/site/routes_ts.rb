@@ -35,6 +35,9 @@ module Hecks
         # The URL prefix under which a draft preview is served.
         PREVIEW_PREFIX = "/admin-preview"
 
+        # A key TypeScript takes bare: a JavaScript identifier.
+        IDENTIFIER = /\A[A-Za-z_$][\w$]*\z/
+
         module_function
 
         # Renders `routes.ts` for a route table.
@@ -151,7 +154,7 @@ module Hecks
         end
 
         def key_literal(key)
-          key.to_s.match?(/\A[A-Za-z_$][\w$]*\z/) ? key.to_s : JSON.generate(key.to_s)
+          key.to_s.match?(IDENTIFIER) ? key.to_s : JSON.generate(key.to_s)
         end
       end
     end

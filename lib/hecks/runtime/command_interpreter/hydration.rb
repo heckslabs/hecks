@@ -28,7 +28,7 @@ module Hecks
 
         # The record an acting command names, by route or by the identity its arguments carry.
         def hydrate_existing(ctx)
-          id = ctx.route ? ctx.route.aggregate : acting_identity(ctx)
+          id = ctx.route ? ctx.routed_identity : acting_identity(ctx)
           (ctx.repository.find(id) || raise_record_missing(ctx.aggregate, id)).dup
         end
 
@@ -40,7 +40,7 @@ module Hecks
             identity_from(aggregate, ctx.args, :id) ||
             identity_from(aggregate, ctx.args, reference_key(ctx.command)) ||
             raise(NotFound, RefusalWording.render_site("NotFound", "acting_no_identity",
-                                                       command: ctx.command.hecks_name, aggregate: aggregate.hecks_name,
+                                                       command: ctx.command_hecks_name, aggregate: aggregate.hecks_name,
                                                        identity: identity_reading(aggregate)))
         end
 
@@ -89,7 +89,7 @@ module Hecks
         def creation_identity(ctx)
           derived = identity_of(ctx.aggregate, ctx.args)
           refuse_route_mismatch(ctx.command, ctx.route, derived) if ctx.route && derived
-          ctx.route&.aggregate || derived || raise_creating_no_identity(ctx.command, ctx.aggregate)
+          ctx.routed_identity || derived || raise_creating_no_identity(ctx.command, ctx.aggregate)
         end
 
         def refuse_route_mismatch(command, route, derived)

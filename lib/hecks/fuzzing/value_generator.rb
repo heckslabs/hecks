@@ -31,6 +31,10 @@ module Hecks
       FLOAT_EDGE_CASES = [0.0, -0.0, -0.5, -100.25, 1.0e100, -1.0e100, 1.0e-100].freeze
       WORDS = %w[alpha bravo charlie delta echo foxtrot golf hotel india juliet].freeze
       CURRENCY_CODES = %w[USD EUR GBP JPY].freeze
+      # A name hint asking for an email-shaped string.
+      EMAIL_NAME = /email/i
+      # A name hint asking for a currency code.
+      CURRENCY_NAME = /currency/i
 
       # The value for one command/query/value-object attribute.
       #
@@ -93,7 +97,8 @@ module Hecks
       # member sent as its bare scalar is the one-field shorthand the list's own arguments draw.
       def list_members(field, aggregate, random)
         nested = Runtime::Value.value_object_for(aggregate, field.type.to_s)
-        sole = nested.attributes.first.name.to_s if nested && nested.attributes.size == 1
+        sole_field = nested&.sole_attribute
+        sole = sole_field&.name&.to_s
         Array.new(random.rand(0..3)) do
           member = yield
           sole && !member.is_a?(Hash) ? { sole => member } : member
@@ -133,7 +138,7 @@ module Hecks
       #   fabricated `"missing-..."` id when the pool is empty or the invalid-reference
       #   draw hits
       def reference_value(attribute, random:, known_ids:)
-        pool = known_ids[attribute.type.target_name.to_s] || []
+        pool = known_ids[attribute.target_name.to_s] || []
         return "missing-#{random.bytes(4).unpack1("H*")}" if pool.empty? || random.rand < INVALID_REFERENCE_PROBABILITY
 
         pool.sample(random: random)
@@ -168,8 +173,8 @@ module Hecks
       #   1-3 random words joined by spaces
       def string_value(random, name: nil)
         return STRING_EDGE_CASES.sample(random: random) if random.rand < EDGE_CASE_PROBABILITY
-        return email_value(random) if name&.match?(/email/i)
-        return CURRENCY_CODES.sample(random: random) if name&.match?(/currency/i)
+        return email_value(random) if name&.match?(EMAIL_NAME)
+        return CURRENCY_CODES.sample(random: random) if name&.match?(CURRENCY_NAME)
 
         Array.new(random.rand(1..3)) { WORDS.sample(random: random) }.join(" ")
       end

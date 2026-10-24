@@ -74,7 +74,7 @@ module Hecks
         end
 
         # @return [Array<String>] the roles that count as an admin
-        def roles = setting.roles.split(",").map(&:strip).reject(&:empty?)
+        def roles = Hecks::Text.comma_list(setting.roles)
 
         # @return [String] the path of the content system's sign-in endpoint inside its own API, the
         #   part of `sso_target` after `<cms_base>/api`

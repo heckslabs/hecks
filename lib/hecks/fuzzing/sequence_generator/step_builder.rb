@@ -106,7 +106,7 @@ module Hecks
           @last_outcome = "ok"
           result
         rescue *Hecks::Runtime::DOMAIN_REFUSALS, Hecks::Bluebook::Expression::EvaluationError => e
-          @last_outcome = e.class.name.split("::").last
+          @last_outcome = Naming.demodulise(e.class)
           nil
         end
 

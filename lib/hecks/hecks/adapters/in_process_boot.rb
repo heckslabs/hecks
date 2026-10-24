@@ -137,7 +137,8 @@ module Hecks
       def glossary(domain:, chapter:)
         runtime = boot(domain)
         name    = plain(chapter)
-        markings = runtime.registry.pending_privacy_markings.select do |marking|
+        registry = runtime.registry
+        markings = registry.pending_privacy_markings.select do |marking|
           marking[:domain].to_s.start_with?("#{name}::")
         end
 
@@ -201,7 +202,8 @@ module Hecks
 
       # The domain's own chapter, not a framework member it attached: insertion order.
       def document(projection, domain, aggregate)
-        bluebook = boot(domain).registry.bluebooks.values.first or raise Runtime::NotFound, "no bluebook loaded"
+        registry = boot(domain).registry
+        bluebook = registry.bluebooks.values.first or raise Runtime::NotFound, "no bluebook loaded"
         name = plain(aggregate)
 
         report(Projector.call(projection, bluebook: bluebook, options: name ? { aggregate: name } : {}))

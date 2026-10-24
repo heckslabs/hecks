@@ -14,6 +14,11 @@ module Hecks
 
         projects_as :aws_lambda, needs_world: true, emits: :files
 
+        # The template line that marks where cross-domain policies go, capturing its indent.
+        CROSS_DOMAIN_MARKER = /^([ \t]*)# TMPL:cross_domain_lambda_policies\n/
+        # The line that opens a template's `Outputs` section.
+        OUTPUTS_HEADING = /^Outputs:\n/
+
         module_function
 
         # Renders `template.yaml`, `Makefile`, `samconfig.toml`, and (unless
@@ -59,7 +64,7 @@ module Hecks
         # @return [String] the SAM template
         def template_yaml(stack)
           text = TextTemplate.render_from("lambda/template.yaml.tmpl", stack)
-          text = text.sub(/^([ \t]*)# TMPL:cross_domain_lambda_policies\n/) do
+          text = text.sub(CROSS_DOMAIN_MARKER) do
             Shared.cross_domain_invoke_policy_yaml(stack.cross_domain_targets, Regexp.last_match(1))
           end
           text = with_pii_distribution(text, stack) if stack.pii_detected
@@ -74,7 +79,7 @@ module Hecks
             use_oac: !stack.web_handler_present && !stack.rust_web,
             geo_restriction_type: stack.geo_restriction_type, geo_restriction_countries: stack.geo_restriction_countries
           )
-          text.sub(/^Outputs:\n/) do
+          text.sub(OUTPUTS_HEADING) do
             "#{resources}Outputs:\n  PiiDistributionDomainName:\n    Value: !GetAtt PiiDistribution.DomainName\n"
           end
         end

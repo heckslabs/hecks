@@ -36,11 +36,10 @@ module Hecks
         def unsafe_additions(aggregate, held_aggregate, lineage)
           held_names = held_aggregate.attributes.map(&:name)
 
-          aggregate.attributes
-                   .reject { |attribute| held_names.include?(attribute.name) }
-                   .select { |attribute| possibly_absent?(aggregate, attribute) }
-                   .reject { |attribute| lineage&.fills?(attribute.name.to_s) }
-                   .map(&:name)
+          added = aggregate.attributes.reject { |attribute| held_names.include?(attribute.name) }
+          added.select { |attribute| possibly_absent?(aggregate, attribute) }
+               .reject { |attribute| lineage&.fills?(attribute.name.to_s) }
+               .map(&:name)
         end
 
         # True when a new attribute could be genuinely absent from an existing record (ADR 0025).

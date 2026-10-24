@@ -106,7 +106,7 @@ module Hecks
         # The names of `aggregate`'s attributes referencing the read model's root.
         def foreign_key_fields(aggregate, model)
           aggregate.attributes.select do |attribute|
-            attribute.reference? && attribute.type.target_name == model.reference_target.to_s
+            attribute.reference? && attribute.target_name == model.reference_target.to_s
           end.map(&:name)
         end
 

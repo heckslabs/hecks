@@ -7,6 +7,9 @@ module Hecks
         QueryScope = Struct.new(:owner, :query, :fields, :lifecycle) do
           # @return [String] how a refusal names this query: `Owner.QueryName`
           def label = "#{owner}.#{query.hecks_name}"
+
+          # @return [Symbol, String, nil] the owner's lifecycle state field, or `nil` without one
+          def lifecycle_field = lifecycle&.field
         end
         private_constant :QueryScope
 
@@ -33,7 +36,7 @@ module Hecks
           end
 
           def resolvable_query_field?(scope, name, nested, attribute)
-            return scope.lifecycle&.field.to_s == name if nested.empty?
+            return scope.lifecycle_field.to_s == name if nested.empty?
 
             attribute && scalar_path?(attribute, nested)
           end

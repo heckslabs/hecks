@@ -10,7 +10,16 @@ module Hecks
         # One redelivery probe: the runtime and interpreter it runs on, the saga it re-advances,
         # and the event it redelivers.
         Redelivery = Struct.new(:runtime, :interpreter, :domain_name, :process_manager, :anchor,
-                                :correlation, :saga, :event)
+                                :correlation, :saga, :event) do
+          # @return [Runtime::Registry] the registry of the runtime the probe runs on
+          def registry = runtime.registry
+
+          # @return [String] the name of the process manager the probe re-advances
+          def process_manager_name = process_manager.name
+
+          # @return [String] the name of the event the probe redelivers
+          def event_name = event.name
+        end
 
         # A rehydrated saga checkpoint must not advance when its last event is redelivered.
         #
@@ -40,14 +49,17 @@ module Hecks
           entry = last_advance_entry(runtime, process_manager, correlation)
           return nil unless entry
 
-          runtime.events.reverse_each.find do |event|
+          events = runtime.events
+          events.reverse_each.find do |event|
             event.name == entry[:on] && interpreter.send(:saga_correlation, process_manager, event) == correlation
           end
         end
 
         # The newest saga-log row in which the correlation advanced on a real event.
         def last_advance_entry(runtime, process_manager, correlation)
-          runtime.registry.saga_log.reverse_each.find do |row|
+          registry = runtime.registry
+          saga_log = registry.saga_log
+          saga_log.reverse_each.find do |row|
             row[:process_manager] == process_manager.name && row[:instance] == correlation &&
               row[:advanced] && row[:on] != Runtime::SagaInterpreter::REFUSED
           end
@@ -67,7 +79,7 @@ module Hecks
         # compensations]`, or nil when the cold read does not find it.
         def cold_checkpoint(redelivery, tmp)
           saga = redelivery.saga
-          heki_for(redelivery, tmp).save_saga(process_manager: redelivery.process_manager.name,
+          heki_for(redelivery, tmp).save_saga(process_manager: redelivery.process_manager_name,
                                               correlation: redelivery.correlation.to_s, state: saga[:state],
                                               memory: saga[:memory], completed_compensations: [])
 
@@ -83,8 +95,8 @@ module Hecks
         def probe_redelivery(redelivery, checkpoint)
           state, memory, = checkpoint
           before = { state: state, memory: deep_stringify_keys(memory) }
-          registry = redelivery.runtime.registry
-          saga_instances = registry.saga_instances[redelivery.process_manager.name]
+          registry = redelivery.registry
+          saga_instances = registry.saga_instances[redelivery.process_manager_name]
 
           preserving_saga(saga_instances, redelivery.correlation, registry.saga_log) do
             redelivery_finding(redelivery, before, advanced_saga(redelivery, saga_instances, checkpoint))
@@ -107,8 +119,8 @@ module Hecks
           return if after_shape == before
 
           { field: "saga_redelivery_idempotency", domain: redelivery.domain_name,
-            process_manager: redelivery.process_manager.name, correlation: redelivery.correlation,
-            on: redelivery.event.name, before: before, after: after_shape }
+            process_manager: redelivery.process_manager_name, correlation: redelivery.correlation,
+            on: redelivery.event_name, before: before, after: after_shape }
         end
 
         # Runs the block, then puts the live saga slot back and slices off any `saga_log` rows the

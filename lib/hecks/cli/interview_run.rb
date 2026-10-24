@@ -51,7 +51,8 @@ module Hecks
         return expert unless expert.to_s.strip.empty?
 
         output.print("Who is the expert? ")
-        input.gets.to_s.strip.then { |text| text.empty? ? "the expert" : text }
+        answer = input.gets.to_s.strip
+        answer.empty? ? "the expert" : answer
       end
 
       # @api private

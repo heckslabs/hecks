@@ -29,10 +29,9 @@ module Hecks
 
           # The pool's names that share at least half of `name` (and three letters) as a prefix.
           def similar_names(pool, name)
-            pool.map { |candidate| [shared_prefix(candidate, name), candidate] }
-                .select { |shared, _| shared >= [name.length / 2, 3].max }
-                .sort_by { |shared, candidate| [-shared, candidate] }
-                .map(&:last)
+            scored = pool.map { |candidate| [shared_prefix(candidate, name), candidate] }
+            close = scored.select { |shared, _| shared >= [name.length / 2, 3].max }
+            close.sort_by { |shared, candidate| [-shared, candidate] }.map(&:last)
           end
 
           # The length of the prefix two words share.

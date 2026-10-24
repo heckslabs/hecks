@@ -97,6 +97,9 @@ module Hecks
 
       CRASH_FIELDS = %w[crash process generator_crash].freeze
 
+      # A leading constant path, as `Hecks::Runtime::GivenNotMet`: the class a crash detail names.
+      CONSTANT_PATH = /\A\w+(?:::\w+)*/
+
       # The identity a shrink candidate has to keep, as a set of stable strings.
       #
       # `field` alone is too loose for list comparisons: a candidate could show a different
@@ -119,7 +122,7 @@ module Hecks
         if LIST_FIELDS.include?(field) then list_keys(field, left, right)
         elsif field == "instances"     then instance_keys(left, right)
         elsif CRASH_FIELDS.include?(field) && divergence[:detail]
-          ["#{field}:#{divergence[:detail].to_s[/\A\w+(?:::\w+)*/]}"]
+          ["#{field}:#{divergence[:detail].to_s[CONSTANT_PATH]}"]
         else []
         end
       end

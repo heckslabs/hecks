@@ -137,9 +137,11 @@ module Hecks
         # @param node [Evaluator::Include] an `include` over a literal-array haystack
         # @return [Hash] an or of equalities over the elements, or `false` for none
         def emit_literal_include(node)
-          return { "op" => "bool", "value" => false } if node.haystack.elements.empty?
+          haystack = node.haystack
+          elements = haystack.elements
+          return { "op" => "bool", "value" => false } if elements.empty?
 
-          equalities = node.haystack.elements.map { |element| emit_equality(node.needle, element) }
+          equalities = elements.map { |element| emit_equality(node.needle, element) }
           equalities.reduce { |left, right| { "op" => "or", "left" => left, "right" => right } }
         end
 

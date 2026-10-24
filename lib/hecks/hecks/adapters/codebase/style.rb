@@ -85,7 +85,7 @@ module Hecks
         rescue Errno::ENOENT
           raise ConsoleCapture::Failure, "no such file #{path} (relative to #{Dir.pwd}, tree #{tree.root})"
         rescue JSON::ParserError => e
-          raise ConsoleCapture::Failure, "#{path} is not JSON: #{e.message.lines.first.strip}"
+          raise ConsoleCapture::Failure, "#{path} is not JSON: #{Text.first_line(e.message)}"
         end
 
         # @param operation [String] `check_comments` or `check_rust_comments`
@@ -152,7 +152,7 @@ module Hecks
 
         # @param args [Hash] the record's plain fields
         # @return [Array<String>] the paths, from a comma-separated list
-        def paths_of(args) = args[:paths].to_s.split(",").map(&:strip).reject(&:empty?)
+        def paths_of(args) = Text.comma_list(args[:paths])
 
         # Paths as the linter takes them: after `--`, so no path is read as a flag.
         #

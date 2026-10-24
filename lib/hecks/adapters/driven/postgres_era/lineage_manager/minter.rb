@@ -21,8 +21,9 @@ module Hecks
           # @return [Integer] the ordinal of the era minted
           # @raise [Runtime::WiringError] if the edge, its coverage or its audit refuses
           def mint!(context)
-            ensure_named!(context.lineage, context.latest)
-            context = context.with(latest: context.lineage.eras.last)
+            lineage = context.lineage
+            ensure_named!(lineage, context.latest)
+            context = context.with(latest: lineage.eras.last)
             edge = verified_edge!(context)
             chain = audited_chain!(context, edge)
             commit_era!(context, chain)
@@ -67,14 +68,17 @@ module Hecks
           private
 
           def edges_leaving(context)
-            context.registry.translations.select do |t|
-              t.domain == context.bluebook.name && t.from == context.latest[:label]
+            registry = context.registry
+            bluebook = context.bluebook
+            registry.translations.select do |t|
+              t.domain == bluebook.name && t.from == context.latest[:label]
             end
           end
 
           # The edge chain to the current shape, after its audit passes.
           def audited_chain!(context, edge)
-            chain = edge_chain(context.registry, context.bluebook, context.lineage.eras, context.label)
+            lineage = context.lineage
+            chain = edge_chain(context.registry, context.bluebook, lineage.eras, context.label)
             audit!(context.bluebook, context.lineage, chain, context.ordinal, edge)
             chain
           end
@@ -88,9 +92,10 @@ module Hecks
 
           def commit_era!(context, chain)
             hash = context.shape_hash
+            bluebook = context.bluebook
             context.lineage.mint_era!(
               ordinal: context.ordinal, hash: hash, label: hash[0, Runtime::StorageShape::LABEL_LENGTH],
-              held_text: context.current_text, aggregates: context.bluebook.aggregates, edges: chain,
+              held_text: context.current_text, aggregates: bluebook.aggregates, edges: chain,
               role: context.role, projection: Runtime::StorageShape.project(context.bluebook)
             )
             context.ordinal

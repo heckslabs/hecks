@@ -40,8 +40,9 @@ module Hecks
         # @return [String] the method name to `public_send` to the module
         # @raise [Runtime::NotFound] if the aggregate declares no creating command
         def creating_command(klass)
-          creating = klass.ir.commands.find(&:creates?)
-          raise Runtime::NotFound, "#{klass.ir.hecks_name} declares no creating command" unless creating
+          ir = klass.ir
+          creating = ir.commands.find(&:creates?)
+          raise Runtime::NotFound, "#{ir.hecks_name} declares no creating command" unless creating
 
           "#{Naming.snake(creating.hecks_name)}!"
         end
@@ -59,10 +60,11 @@ module Hecks
         # @raise [Runtime::NotFound] if no non-creating command has that method name
         def validate_command!(klass, name)
           wanted = name.to_s
-          dispatchable = klass.ir.commands.reject(&:creates?).map { |command| "#{Naming.snake(command.hecks_name)}!" }
+          ir = klass.ir
+          dispatchable = ir.commands.reject(&:creates?).map { |command| "#{Naming.snake(command.hecks_name)}!" }
           return wanted if dispatchable.include?(wanted)
 
-          raise Runtime::NotFound, "#{klass.ir.hecks_name} declares no command named #{wanted.inspect}"
+          raise Runtime::NotFound, "#{ir.hecks_name} declares no command named #{wanted.inspect}"
         end
 
         # Fetches one record by id, raising instead of answering nil on a miss.
@@ -72,7 +74,8 @@ module Hecks
         # @return [Adapters::Driving::Handle] the record in hand
         # @raise [Runtime::NotFound] if the repository holds no record with that id
         def find!(klass, id)
-          klass.find(id) or raise Runtime::NotFound, "no #{klass.ir.hecks_name} found for id #{id.inspect}"
+          ir = klass.ir
+          klass.find(id) or raise Runtime::NotFound, "no #{ir.hecks_name} found for id #{id.inspect}"
         end
 
         # Converts every Hash key to a Symbol, at every depth of a parsed JSON body.

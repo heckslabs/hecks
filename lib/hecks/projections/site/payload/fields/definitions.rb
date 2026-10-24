@@ -43,7 +43,7 @@ module Hecks
             end
 
             def options(text)
-              items = text.split(",").map(&:strip).reject(&:empty?).map do |item|
+              items = Hecks::Text.comma_list(text).map do |item|
                 value, label = item.split("=", 2)
                 label ? "{ label: #{label.to_json}, value: #{value.to_json} }" : value.to_json
               end

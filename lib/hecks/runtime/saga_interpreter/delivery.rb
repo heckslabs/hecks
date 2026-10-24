@@ -36,8 +36,8 @@ module Hecks
           process_manager = leg.process_manager
           @registry.saga_dispatch_log << { process_manager: process_manager.name, instance: leg.correlation,
                                            dispatch: spec.command_name,
-                                           on: leg.event.name, correlation_head: process_manager.correlation_head,
-                                           event_payload: leg.event.payload,
+                                           on: leg.event_name, correlation_head: process_manager.correlation_head,
+                                           event_payload: leg.event_payload,
                                            memory: Value.materialize(leg.instance[:memory]),
                                            with_spec: spec.with_spec, args: args }
         end
@@ -83,7 +83,7 @@ module Hecks
         def reenter_dispatch(leg, spec, args)
           reenter_command(leg, spec.command_name, args,
                           explicit:        ReactionInvocation.projection_declared?(spec),
-                          source_receiver: { aggregate: leg.event.aggregate, identity: leg.event.id })
+                          source_receiver: leg.event_source)
         end
 
         # A refusal by the target is a recorded outcome, and the leg
@@ -97,7 +97,7 @@ module Hecks
 
         # Dispatches `command_name` through the dispatcher, stamped with this saga's correlation.
         def reenter_command(leg, command_name, projected, explicit:, source_receiver:)
-          head = leg.process_manager.correlation_head
+          head = leg.correlation_head
           verb = qualified(command_name, leg.domain)
           invocation = ReactionInvocation.build(registry: @registry, verb: verb, projected: projected,
                                                 explicit: explicit, passthrough: [head],
@@ -117,7 +117,7 @@ module Hecks
         # `defect_compensated: true` tags an exhausted retry distinctly, so the log never
         # misrepresents a crash as a decision the domain made.
         def abandon_dispatch(leg, spec, record, error, attempt)
-          warn "[hecks] defect in saga #{leg.process_manager.name} — instance #{leg.correlation.inspect} " \
+          warn "[hecks] defect in saga #{leg.saga_name} — instance #{leg.correlation.inspect} " \
                "dispatching #{spec.command_name} after #{attempt} attempts: #{error.class}: #{error.message}"
           @registry.saga_log << record.merge(delivered: false, reason: error.message, defect: true,
                                              error_class: error.class.name, defect_compensated: true)

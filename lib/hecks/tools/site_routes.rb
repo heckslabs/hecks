@@ -40,6 +40,9 @@ module Hecks
       # The extensions the module may take; the first is the default.
       EXTENSIONS = %w[ts mts].freeze
 
+      # The `.ts` extension a generated file is written with, before the module's own is applied.
+      TS_EXTENSION = /\.ts\z/
+
       USAGE = "usage: hecks site site_projection.project_site [<project>] [--out=<dir>] " \
               "[--template=<file>] [--cms=<dir>] [--root=<dir>] [--editor=<dir>] " \
               "[--extension=#{EXTENSIONS.join("|")}] [--check]".freeze
@@ -134,7 +137,7 @@ module Hecks
       # @return [Hash{String => String}] `files` placed under `dir`, with the module extension
       #   applied
       def renamed(dir, files, extension)
-        files.to_h { |name, text| [File.join(dir, name.sub(/\.ts\z/, ".#{extension}")), text] }
+        files.to_h { |name, text| [File.join(dir, name.sub(TS_EXTENSION, ".#{extension}")), text] }
       end
 
       # @raise [SystemExit] when `extension` is not one the module may take

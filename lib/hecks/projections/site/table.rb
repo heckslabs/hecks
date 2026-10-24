@@ -22,6 +22,9 @@ module Hecks
         # The name of the value object a client declares its rows in.
         ROW_OBJECT = "Route"
 
+        # A parameter or a wildcard: what makes a route path stand for more than one page.
+        PARAMETER_OR_WILDCARD = /[:*]/
+
         # The name of the value object a client declares its extra navigation entries in.
         LINK_OBJECT = "NavLink"
 
@@ -37,8 +40,8 @@ module Hecks
         # @return [Bluebook::Chapter] the chapter holding the `Route` value object with member rows
         # @raise [Invalid] when no chapter, or more than one, declares one
         def self.chapter(registry)
-          holders = registry.bluebooks.values.reject { |chapter| chapter.name == "Site" }
-                            .select { |chapter| rows_of(chapter).any? }
+          chapters = registry.bluebooks.values
+          holders = chapters.reject { |chapter| chapter.name == "Site" }.select { |chapter| rows_of(chapter).any? }
           raise Invalid, "no chapter declares a value_object \"#{ROW_OBJECT}\" with member rows" if holders.empty?
           return holders.first if holders.one?
 
@@ -68,7 +71,8 @@ module Hecks
             raise Invalid, "the project does not attach the Site chapter (attaches \"Site\")"
           route = site.aggregate("Route")
           members = lambda do |name|
-            route.value_objects.find { |object| object.hecks_name == name }.members.map { |member| member.fetch(:value) }
+            closed_set = route.value_objects.find { |object| object.hecks_name == name }
+            closed_set.members.map { |member| member.fetch(:value) }
           end
           closed = RowBuilder::VOCABULARY.transform_values(&members)
           closed.merge(http_method: members.call("HttpMethod"), edge_function_kind: members.call("EdgeFunctionKind"))
@@ -78,8 +82,8 @@ module Hecks
         # @param object [String] the name of the value object whose rows are wanted
         # @return [Array<Hash{Symbol => Object}>] the member rows of its value objects of that name
         def self.rows_of(chapter, object = ROW_OBJECT)
-          chapter.aggregates.flat_map(&:value_objects)
-                 .select { |candidate| candidate.hecks_name == object }.flat_map(&:members)
+          objects = chapter.aggregates.flat_map(&:value_objects)
+          objects.select { |candidate| candidate.hecks_name == object }.flat_map(&:members)
         end
 
         # @param members [Array<Hash{Symbol => Object}>] the declared member rows

@@ -22,7 +22,8 @@ module Hecks
         # @return [Shell::Result] how the last program tried ended; 127 when none is installed
         def show(shell)
           shown = shell.capture(*notifier)
-          return shown unless shown.status.exitstatus == 127
+          status = shown.status
+          return shown unless status.exitstatus == 127
 
           shell.capture(*fallback)
         end

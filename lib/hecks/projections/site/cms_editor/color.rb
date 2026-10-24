@@ -12,6 +12,9 @@ module Hecks
           # A six-digit hex colour with its leading hash.
           HEX = /\A#[0-9a-fA-F]{6}\z/
 
+          # Two characters: one channel's hex digits.
+          HEX_PAIR = /../
+
           # The step by which `reach` moves a colour's lightness while it searches.
           STEP = 0.01
 
@@ -19,7 +22,7 @@ module Hecks
 
           # @param value [String] a colour such as `"#1f7a6d"`
           # @return [Array<Float>] its red, green and blue, each from 0.0 to 1.0
-          def rgb(value) = value.delete_prefix("#").scan(/../).map { |pair| pair.hex / 255.0 }
+          def rgb(value) = value.delete_prefix("#").scan(HEX_PAIR).map { |pair| pair.hex / 255.0 }
 
           # @param channels [Array<Float>] red, green and blue, each from 0.0 to 1.0
           # @return [String] the colour as lower-case hex

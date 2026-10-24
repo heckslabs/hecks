@@ -16,6 +16,18 @@ module Hecks
           [/\A(.+)\.set\?\z/, Assignment, { negated: false }], [/\A(.+)\.unset\?\z/, Assignment, { negated: true }]
         ].freeze
 
+        # A receiver followed by `.length`, capturing the receiver.
+        LENGTH_CALL = /\A(.+)\.length\z/
+
+        # An optionally negative whole-number literal.
+        INTEGER_LITERAL = /\A-?\d+\z/
+
+        # An optionally negative decimal literal; the digits before the point may be left out.
+        FLOAT_LITERAL = /\A-?\d*\.\d+\z/
+
+        # A `receiver.match?(/pattern/flags)` call, capturing the receiver, pattern and flags.
+        MATCHES_REGEX_CALL = %r{\A(.+)\.match\?\(/(.*)/([a-z]*)\)\z}m
+
         # The strip family, each matched as `<receiver>.<call>`, naming which ends it trims.
         STRIP_SUFFIXES = [
           [/\A(.+)\.strip\z/, :both], [/\A(.+)\.lstrip\z/, :left], [/\A(.+)\.rstrip\z/, :right]
@@ -52,7 +64,7 @@ module Hecks
         end
 
         def parse_length(expr)
-          length = expr.match(/\A(.+)\.length\z/)
+          length = expr.match(LENGTH_CALL)
           Size.new(receiver: parse(length[1])) if length
         end
 
@@ -60,10 +72,10 @@ module Hecks
           return StringLiteral.new(value: expr[1..-2]) if quoted?(expr)
 
           case expr
-          when /\A-?\d+\z/       then IntegerLiteral.new(value: Integer(expr, 10))
-          when /\A-?\d*\.\d+\z/  then FloatLiteral.new(value: Float(expr))
-          when "true", "false"   then BoolLiteral.new(value: expr == "true")
-          when "nil"             then NilLiteral.new
+          when INTEGER_LITERAL then IntegerLiteral.new(value: Integer(expr, 10))
+          when FLOAT_LITERAL   then FloatLiteral.new(value: Float(expr))
+          when "true", "false" then BoolLiteral.new(value: expr == "true")
+          when "nil"           then NilLiteral.new
           end
         end
 
@@ -73,19 +85,13 @@ module Hecks
         end
 
         # The additive level: the last top-level `+` or binary `-`, so `a - b + c` is `(a - b) + c`.
-        def parse_additive(expr)
-          parse_binary(expr, ADDITIVE)
-        end
+        def parse_additive(expr) = parse_binary(expr, ADDITIVE)
 
         # The multiplicative level, binding tighter than the additive one.
-        def parse_multiplicative(expr)
-          parse_binary(expr, MULTIPLICATIVE)
-        end
+        def parse_multiplicative(expr) = parse_binary(expr, MULTIPLICATIVE)
 
         # A parenthesised group reads as what it wraps.
-        def parse_group(expr)
-          parse(expr[1..-2]) if grouped?(expr)
-        end
+        def parse_group(expr) = (parse(expr[1..-2]) if grouped?(expr))
 
         def parse_binary(expr, table)
           operator, left, right = split_last_binary(expr, table.keys)
@@ -119,7 +125,7 @@ module Hecks
         end
 
         def parse_matches_regex(expr)
-          match = expr.match(%r{\A(.+)\.match\?\(/(.*)/([a-z]*)\)\z}m)
+          match = expr.match(MATCHES_REGEX_CALL)
           MatchesRegex.new(receiver: parse(match[1]), pattern: match[2], flags: match[3]) if match
         end
 

@@ -35,7 +35,7 @@ module Hecks
         # @return [Hash] `booted`, `host_version`, `store`, `mode`, `before`, `after`, `minting`,
         #   the schema and environment that were read, and what the copy holds
         def survey
-          shape.merge(environment_loaded: @subject.environment.facts, copy_note: plain(copy_note)).merge(copy_facts)
+          shape.merge(environment_loaded: @subject.environment_facts, copy_note: plain(copy_note)).merge(copy_facts)
         end
 
         # @return [Hash] the edge facts, every refused row and its total, what was read, the parity
@@ -53,8 +53,8 @@ module Hecks
         def plain(value) = { value: value }
 
         def shape
-          { booted: flag(true), host_version: plain(Rehearsal.host_version), store: plain(@subject.declaration.kind),
-            mode: plain(@subject.declaration.mode), before: plain(before), after: plain(@subject.label),
+          { booted: flag(true), host_version: plain(Rehearsal.host_version), store: plain(@subject.store_kind),
+            mode: plain(@subject.copy_mode), before: plain(before), after: plain(@subject.label),
             minting: plain(minting) }
         end
 
@@ -69,12 +69,12 @@ module Hecks
         def census = @census ||= @store.census(@subject)
 
         def copy_note
-          domain = @subject.bluebook.name
+          domain = @subject.bluebook_name
           copy_empty? ? census.refusal(domain) : census.summary(domain)
         end
 
         def copy_empty?
-          census.empty? && @subject.declaration.mode != "empty" && @subject.bluebook.aggregates.any?
+          census.empty? && @subject.copy_mode != "empty" && @subject.aggregates.any?
         end
 
         # The copy is empty when a dump or a readonly copy was asked for and it holds no row of a
@@ -118,7 +118,7 @@ module Hecks
         # The chapters loaded beside the domain's own (a vendored package): the host holds eras
         # for the domain's own aggregates only, so theirs can neither mint nor be refused.
         def attached_limits
-          names = @subject.held.registry.bluebooks.values.map(&:name) - [@subject.bluebook.name]
+          names = @subject.bluebook_names - [@subject.bluebook_name]
           return [] if names.empty?
 
           [{ what: "the shape of the attached chapters (#{names.sort.join(", ")})",
@@ -126,7 +126,7 @@ module Hecks
         end
 
         def binding_note
-          { what: "that a boot would mint", why: "the domain is bound to #{@subject.held.adapter_name}, which holds no eras " \
+          { what: "that a boot would mint", why: "the domain is bound to #{@subject.adapter_name}, which holds no eras " \
                                                  "in this environment" }
         end
       end

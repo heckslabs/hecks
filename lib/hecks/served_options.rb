@@ -1,4 +1,5 @@
 require "rack"
+require_relative "naming"
 
 module Hecks
   # What a domain's world file says it is served by: each `served_by("Adapter") { ... }` line
@@ -48,6 +49,6 @@ module Hecks
       env.fetch(name) { raise ArgumentError, "#{entry[:adapter]}: environment variable #{name} is not set" }
     end
 
-    def snake(name) = name.to_s.gsub(/([a-z\d])([A-Z])/, '\1_\2').downcase
+    def snake(name) = name.to_s.gsub(Naming::CAMEL_BOUNDARY, '\1_\2').downcase
   end
 end

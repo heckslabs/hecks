@@ -38,7 +38,7 @@ module Hecks
         # @param subject [Subject] the loaded domain
         # @return [Census] the counts
         def census(subject)
-          counts = subject.bluebook.aggregates.map do |aggregate|
+          counts = subject.aggregates.map do |aggregate|
             held = records(aggregate.name).size
             Census::Count.new(aggregate: aggregate.name, head: held, journal: held)
           end
@@ -54,7 +54,7 @@ module Hecks
         #   by aggregate name and id
         def audit(subject, edge)
           refusals = []
-          after = subject.bluebook.aggregates.to_h do |aggregate|
+          after = subject.aggregates.to_h do |aggregate|
             declared = edge.for_aggregate(aggregate.name)
             before = records(declared&.was || aggregate.name)
             translated = translate(aggregate, declared, before)

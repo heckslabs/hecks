@@ -61,8 +61,9 @@ module Hecks
       end
 
       def register_declarations(context)
-        context.bluebook.aggregates.each { |aggregate| register_aggregate!(aggregate, context) }
-        context.bluebook.read_models.each do |model|
+        bluebook = context.bluebook
+        bluebook.aggregates.each { |aggregate| register_aggregate!(aggregate, context) }
+        bluebook.read_models.each do |model|
           register_pair!(context, :query, model.query_name, model.query_name)
         end
       end
@@ -92,8 +93,9 @@ module Hecks
       end
 
       def register_fqn!(context, kind, name, declared_verb, **scope)
-        fqn = Fqn.public_send(kind, realm: context.realm, domain: context.bluebook.name, **scope, kind => name)
-        add(fqn, context.directory, context.dispatcher, declared_verb, context.bluebook.version)
+        bluebook = context.bluebook
+        fqn = Fqn.public_send(kind, realm: context.realm, domain: bluebook.name, **scope, kind => name)
+        add(fqn, context.directory, context.dispatcher, declared_verb, bluebook.version)
       end
 
       # A directory's first registration is never refused; only a second one (another tenant

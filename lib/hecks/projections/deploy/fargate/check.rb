@@ -9,6 +9,8 @@ module Hecks
 
           LOGICAL_ID = /\A[A-Za-z][A-Za-z0-9]*\z/
           RESOURCE_NAME = %r{\A[A-Za-z0-9][A-Za-z0-9_./-]*\z}
+          # An environment-variable style name: letters, digits and underscores.
+          ENV_NAME = /\A[A-Za-z_][A-Za-z0-9_]*\z/
 
           # Checks that a value is a hash with only known keys and returns it symbol-keyed.
           #
@@ -144,7 +146,7 @@ module Hecks
 
             value.to_h do |key, item|
               name = key.to_s
-              unless name.match?(/\A[A-Za-z_][A-Za-z0-9_]*\z/)
+              unless name.match?(ENV_NAME)
                 raise ArgumentError,
                       "#{where} key #{key.inspect} must be a name of letters, digits and underscores"
               end

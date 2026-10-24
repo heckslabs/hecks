@@ -9,6 +9,13 @@ module Hecks
         module Yaml
           module_function
 
+          # A word YAML reads as a plain string without quotes.
+          BARE_WORD = /\A[A-Za-z][A-Za-z0-9_.-]*\z/
+          # A run of characters a CloudFormation logical id may not hold.
+          NOT_ALPHANUMERIC_RUN = /[^a-zA-Z0-9]+/
+          # The words YAML would read as a boolean or null rather than a string.
+          YAML_KEYWORDS = %w[true false null yes no on off].freeze
+
           # Writes one value as a YAML scalar; a leading `!` marks a CloudFormation
           # intrinsic (`!Ref`, `!Sub`, `!GetAtt`) and is left unquoted.
           def scalar(value)
@@ -34,8 +41,7 @@ module Hecks
           end
 
           def plain_word?(value)
-            value.is_a?(String) && value.match?(/\A[A-Za-z][A-Za-z0-9_.-]*\z/) && !%w[true false null yes no on
-                                                                                      off].include?(value.downcase)
+            value.is_a?(String) && value.match?(BARE_WORD) && !YAML_KEYWORDS.include?(value.downcase)
           end
           private_class_method :plain_word?
 
@@ -55,7 +61,8 @@ module Hecks
           # Turns a name such as `mock-payments` into a CloudFormation-safe
           # logical id part: `MockPayments`.
           def camel(name)
-            name.to_s.split(/[^a-zA-Z0-9]+/).reject(&:empty?).map { |part| part[0].upcase + part[1..] }.join
+            parts = name.to_s.split(NOT_ALPHANUMERIC_RUN).reject(&:empty?)
+            parts.map { |part| part[0].upcase + part[1..] }.join
           end
 
           # Finds keys declared more than once at one indentation in a section, since

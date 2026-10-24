@@ -10,6 +10,9 @@ module Hecks
         FRAMEWORK_FILES = %w[ports/persistence.port ports/extraction.port adapters/driven/memory.adapter
                              adapters/driven/prism.adapter adapters/driven/postgres_era.adapter].freeze
 
+        # A `runs` line in an `.adapter` file: the adapter is a wasm plugin.
+        RUNS_LINE = /^\s*runs\s/
+
         # @return [Hecks::Runtime::Registry] the registry the domain was loaded into
         attr_reader :registry
 
@@ -63,7 +66,7 @@ module Hecks
         # the build does not have. A vendored package's plugins load with its chapter.
         def load_plugins
           Dir.glob(File.join(@bluebook_dir, "{,adapters/}*.adapter")).each do |file|
-            Kernel.load(file) if File.read(file).match?(/^\s*runs\s/)
+            Kernel.load(file) if File.read(file).match?(RUNS_LINE)
           end
         end
 

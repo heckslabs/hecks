@@ -81,7 +81,7 @@ module Hecks
       def self.error_banner(error)
         return "" unless error
 
-        kind = Escape.html(error.class.name.split("::").last)
+        kind = Escape.html(Naming.demodulise(error.class.name))
         %(<div class="error-banner" role="alert"><p><strong>Refused (#{kind}):</strong> ) \
           "#{Escape.html(error.message)}</p></div>"
       end

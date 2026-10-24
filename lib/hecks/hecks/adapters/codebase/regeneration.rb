@@ -21,6 +21,9 @@ module Hecks
         # How many lines of a script's output a refusal keeps.
         KEPT_LINES = 60
 
+        # The line the script prints before regenerating, capturing how many domains it covers.
+        REGENERATED_COUNT = /regenerating ([0-9]+) domain/
+
         module_function
 
         # Carries out the regeneration.
@@ -112,7 +115,7 @@ module Hecks
         # @param check [Boolean] whether it only compared
         # @return [String] the verdict, with how many domains it covered
         def summary(output, check)
-          count = output[/regenerating ([0-9]+) domain/, 1]
+          count = output[REGENERATED_COUNT, 1]
           return "regenerated #{count} corpus domains into the checkout" unless check
 
           "checked #{count} corpus domains against a scratch crate: no drift " \
@@ -122,7 +125,8 @@ module Hecks
         # @param result [Shell::Result] how the script ended
         # @return [String] the last lines it printed: the difference, or why it stopped
         def refusal(result)
-          lines = [result.out, result.err].join.lines.map(&:chomp).reject(&:empty?)
+          printed = [result.out, result.err].join
+          lines = printed.lines.map(&:chomp).reject(&:empty?)
           shown = lines.last(KEPT_LINES)
           note = lines.size > shown.size ? ["(the last #{shown.size} of #{lines.size} lines)"] : []
           [*note, *shown].join("\n")

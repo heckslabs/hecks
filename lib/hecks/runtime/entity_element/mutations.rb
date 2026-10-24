@@ -16,6 +16,9 @@ module Hecks
           def attribute = entity.attribute(target)
           def source_value = rules.resolve_source(mutation.source, args)
           def current = pre[target]
+
+          # @return [Symbol] the mutation's op (`:increment`, `:set`, ...)
+          def op = mutation.op
         end
 
         # The handler each mutation op dispatches to. `corrects` applies nothing here: the target
@@ -92,7 +95,7 @@ module Hecks
 
         def apply_arithmetic(app)
           apply_numeric(app) do |current, amount|
-            app.rules.arithmetic(current, amount, app.target, app.rules.sign_of(app.mutation.op))
+            app.rules.arithmetic(current, amount, app.target, app.rules.sign_of(app.op))
           end
         end
 

@@ -10,6 +10,15 @@ module Hecks
       module Answers
         include Statuses
 
+        # The `SCHEMAS=` line of a data-copy script, capturing its default schema list.
+        COPY_SCHEMAS = /^SCHEMAS=(?:\$\{SCHEMAS:-)?"([^"]*)"/
+
+        # The data-copy script's database defaults, capturing the source's and the target's.
+        COPY_DATABASES = /^SRC_DB=\$\{SRC_DB:-([^}]*)\}; DST_DB=\$\{DST_DB:-([^}]*)\}/
+
+        # The last line of a service roll, capturing the taskdef and the tag it rolled.
+        ROLLED_LINE = /^==> rolled taskdef=(\S*) tag=(\S+)$/
+
         private
 
         # Runs the confirmed restore and answers what it printed.
@@ -55,7 +64,7 @@ module Hecks
           report = BluebookReport.new(File.read(File.expand_path(old)), File.read(File.expand_path(new)))
           diff_answer(report.changed? ? "changed" : "unchanged", report.text)
         rescue SystemCallError, JSON::ParserError, TypeError, KeyError => e
-          diff_answer("unavailable", "bluebooks: could not compare #{old} and #{new} (#{e.message.lines.first.strip})")
+          diff_answer("unavailable", "bluebooks: could not compare #{old} and #{new} (#{Text.first_line(e.message)})")
         end
 
         # The script reads the registry and the local image; its report says what it found.
@@ -65,7 +74,7 @@ module Hecks
 
           diff_answer(text.include?("no bluebook changes.") ? "unchanged" : "changed", text)
         rescue ConsoleCapture::Failure => e
-          diff_answer("unavailable", "bluebooks: #{e.message.lines.first.strip}; nothing to compare.")
+          diff_answer("unavailable", "bluebooks: #{Text.first_line(e.message)}; nothing to compare.")
         end
 
         def diff_answer(outcome, text) = { outcome: { value: outcome }, report: { value: text } }
@@ -92,7 +101,7 @@ module Hecks
         # Its schemas are the default of the `SCHEMAS=${SCHEMAS:-"..."}` line (overridable).
         def copy_plan(script, held)
           text = File.read(script)
-          schemas = text[/^SCHEMAS=(?:\$\{SCHEMAS:-)?"([^"]*)"/, 1].to_s.split.join(", ")
+          schemas = text[COPY_SCHEMAS, 1].to_s.split.join(", ")
           source_db, target_db = copy_databases(text, held)
           drop = plain(held[:force]) == true ? "; force=true drops each target schema first" : ""
           "copy schemas #{schemas} from database #{source_db} on #{plain(held[:source])} into database " \
@@ -102,7 +111,7 @@ module Hecks
 
         # The source and target databases: the record's, else the script's defaults.
         def copy_databases(text, held)
-          databases = text.match(/^SRC_DB=\$\{SRC_DB:-([^}]*)\}; DST_DB=\$\{DST_DB:-([^}]*)\}/)
+          databases = text.match(COPY_DATABASES)
           [database(held[:source_db]) || databases&.[](1), database(held[:target_db]) || databases&.[](2)]
         end
 
@@ -133,7 +142,7 @@ module Hecks
 
         # The taskdef and tag a service roll's last line names.
         def rolled(text)
-          match = text.match(/^==> rolled taskdef=(\S*) tag=(\S+)$/)
+          match = text.match(ROLLED_LINE)
           { taskdef: wrapped(match&.[](1)), tag: wrapped(match&.[](2)) }
         end
       end

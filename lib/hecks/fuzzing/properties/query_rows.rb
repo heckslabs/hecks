@@ -56,10 +56,12 @@ module Hecks
 
         # The `in` clause over the ids of the hop target's rows that satisfy the rest of the path.
         def hop_in_clause(snapshot, hop, rest, clause, args)
-          inner = QuerySpecification::Common::WhereClause.new(field: rest, op: clause.op, value: clause.value)
-          ids   = query_eligible_rows(snapshot, hop.target.hecks_name, [inner], args).map { |row| row[:id].to_s }.uniq
+          inner     = QuerySpecification::Common::WhereClause.new(field: rest, op: clause.op, value: clause.value)
+          target    = hop.target
+          attribute = hop.attribute
+          ids       = query_eligible_rows(snapshot, target.hecks_name, [inner], args).map { |row| row[:id].to_s }.uniq
 
-          QuerySpecification::Common::WhereClause.new(field: hop.attribute.name, op: "in", value: ids)
+          QuerySpecification::Common::WhereClause.new(field: attribute.name, op: "in", value: ids)
         end
       end
     end

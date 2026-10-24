@@ -17,6 +17,9 @@ module Hecks
       # A package name is a directory name and a bluebook name stem.
       NAME = /\A[a-z][a-z0-9_]*\z/
 
+      # The `version:` line of a `bluebook.yml`, capturing the version.
+      VERSION_LINE = /^version: *(\S+)/
+
       # What a vendoring changed; previous_version/previous_shape are nil when
       # there was no earlier vendored copy.
       Result = Struct.new(:package, :commit, :version, :tag, :digest, :shape,
@@ -74,7 +77,7 @@ module Hecks
         return nil unless tag
 
         version = tag.delete_prefix("#{@name}-v")
-        tagged = @source.read(tag, "#{@name}/bluebook.yml")&.[](/^version: *(\S+)/, 1)
+        tagged = @source.read(tag, "#{@name}/bluebook.yml")&.[](VERSION_LINE, 1)
         unless tagged == version
           raise Vendoring::Error, "#{tag} points at a commit whose bluebook.yml says version #{tagged.inspect}"
         end

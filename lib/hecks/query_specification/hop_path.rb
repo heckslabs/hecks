@@ -9,7 +9,10 @@ module Hecks
     module HopPath
       module_function
 
-      Hop = Struct.new(:attribute, :target_name, :target, keyword_init: true)
+      Hop = Struct.new(:attribute, :target_name, :target, keyword_init: true) do
+        # @return [Array<Bluebook::Attribute>] the attributes of the aggregate the hop lands on
+        def target_attributes = target.attributes
+      end
 
       # `refusal` is nil when clean, `:unresolvable` when a hop's target is not found,
       # `:too_deep` when the chain exceeds MAX_HOPS.
@@ -62,7 +65,8 @@ module Hecks
         attribute = attributes.find { |candidate| candidate.reference? && hop_name(candidate) == head }
         return nil unless attribute
 
-        hop = Hop.new(attribute: attribute, target_name: attribute.type.target_name, target: attribute.type.resolve)
+        reference = attribute.type
+        hop = Hop.new(attribute: attribute, target_name: reference.target_name, target: reference.resolve)
         [hop, rest]
       end
 
@@ -95,7 +99,7 @@ module Hecks
         hops << hop
         return Plan.new(hops: hops, tail: nil, refusal: :unresolvable) unless hop.target
 
-        walk(rest, hop.target.attributes, hops)
+        walk(rest, hop.target_attributes, hops)
       end
     end
   end

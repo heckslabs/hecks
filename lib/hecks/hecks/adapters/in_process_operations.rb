@@ -164,7 +164,7 @@ module Hecks
       #
       # @raise [Runtime::NotFound] if one does not
       def named_domains(held)
-        argv = plain(held[:domains]).to_s.split(",").map(&:strip).reject(&:empty?)
+        argv = Text.comma_list(plain(held[:domains]))
         missing = argv.reject { |domain| File.exist?(domain) }
         raise Runtime::NotFound, "no such domain #{missing.first.inspect}" if missing.any?
 
@@ -197,7 +197,7 @@ module Hecks
 
       # Says whether `event` passes the aggregate filter: a bare name, case-insensitive, or exact.
       def followed?(event, filter)
-        filter.nil? || event.aggregate.to_s.split("::").last.casecmp?(filter) || event.aggregate == filter
+        filter.nil? || Naming.demodulise(event.aggregate).casecmp?(filter) || event.aggregate == filter
       end
     end
   end

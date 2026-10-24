@@ -34,6 +34,8 @@ module Hecks
         # @param eras [Array<Hash>] the held eras
         def initialize(held, lineage, eras)
           @held = held
+          @bluebook = held.bluebook
+          @registry = held.registry
           @lineage = lineage
           @eras = eras
           @manager = PostgresEra::LineageManager
@@ -55,16 +57,16 @@ module Hecks
 
         # The shape already minted: the edge that arrives at the latest era.
         def settled(latest)
-          chain = @manager.edge_chain(@held.registry, @held.bluebook, @eras[0..-2], latest[:label])
+          chain = @manager.edge_chain(@registry, @bluebook, @eras[0..-2], latest[:label])
           finding(chain, latest[:ordinal], 1)
         end
 
         # The shape not yet minted: the edge that leaves the latest era for the current shape.
         def pending(latest)
-          label = Runtime::StorageShape.mint_hash(@held.bluebook)[0, Runtime::StorageShape::LABEL_LENGTH]
+          label = Runtime::StorageShape.mint_hash(@bluebook)[0, Runtime::StorageShape::LABEL_LENGTH]
           leaving = leaving_edges(latest)
           edge = edge_to(leaving, latest, label)
-          chain = @manager.edge_chain(@held.registry, @held.bluebook, @eras[0..-2] + [latest], label)
+          chain = @manager.edge_chain(@registry, @bluebook, @eras[0..-2] + [latest], label)
           finding(chain, latest[:ordinal] + 1, leaving.size, edge)
         end
 
@@ -77,12 +79,12 @@ module Hecks
 
         # The registered translations that leave the latest era.
         def leaving_edges(latest)
-          domain = @held.bluebook.name
-          @held.registry.translations.select { |t| t.domain == domain && t.from == latest[:label] }
+          domain = @bluebook.name
+          @registry.translations.select { |t| t.domain == domain && t.from == latest[:label] }
         end
 
         def finding(chain, era, leaving, edge = chain.last[:translation])
-          audits = @held.bluebook.aggregates.map { |aggregate| [aggregate, *verdict_for(aggregate, edge, era, chain)] }
+          audits = @bluebook.aggregates.map { |aggregate| [aggregate, *verdict_for(aggregate, edge, era, chain)] }
           lines = audits.flat_map { |aggregate, verdict, records, _| describe(aggregate, edge, verdict, records) }
           refusals = audits.flat_map { |_, verdict, _, _| verdict.violations }
           Finding.new(edge: edge, leaving: leaving, ok: refusals.empty?, report: lines.join("\n"),
@@ -113,7 +115,7 @@ module Hecks
         end
 
         def heading_line(aggregate, edge, records)
-          "── #{@held.bluebook.name}::#{aggregate.name} (edge #{edge.from} → #{edge.to}, " \
+          "── #{@bluebook.name}::#{aggregate.name} (edge #{edge.from} → #{edge.to}, " \
             "#{records} record#{"s" unless records == 1})"
         end
 

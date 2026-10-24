@@ -7,6 +7,9 @@ module Hecks
     module DeployRecipe
       # Finds and loads the `.world` file a domain deploys from, and the registry it boots into.
       module Worlds
+        # A hecksagon's `Chapters.load!("Name")`, capturing the chapter's name.
+        CHAPTER_LOAD = /Chapters\.load!\(\s*"([^"]+)"\s*\)/
+
         # The `.world` file named after the directory; failing that, the sole `*.world` file under
         # `<domain>/bluebook/`; failing that, the one named after the chapter the domain's hecksagon
         # attaches by name (`qa/` attaches QualityControl and also holds a Governance `.world`).
@@ -33,9 +36,9 @@ module Hecks
         # @param domain [String] the domain directory
         # @return [Array<String>] such as `["quality_control"]`
         def attached_stems(domain)
-          Dir.glob(File.join(domain, "bluebook", "*.hecksagon"))
-             .flat_map { |path| File.read(path).scan(/Chapters\.load!\(\s*"([^"]+)"\s*\)/).flatten }
-             .map { |name| Hecks::Naming.snake(name) }.uniq
+          hecksagons = Dir.glob(File.join(domain, "bluebook", "*.hecksagon"))
+          names = hecksagons.flat_map { |path| File.read(path).scan(CHAPTER_LOAD).flatten }
+          names.map { |name| Hecks::Naming.snake(name) }.uniq
         end
 
         # @param world_file [String] the base `.world` file

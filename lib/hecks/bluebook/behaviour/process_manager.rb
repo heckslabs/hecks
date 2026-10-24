@@ -43,7 +43,10 @@ module Hecks
         # The payload field a triggering event's instances are correlated by.
         #
         # @return [Symbol] the part of `correlates_by` before the first `.`
-        def correlation_head = @correlates_by.to_s.split(".").first.to_sym
+        def correlation_head
+          head, = @correlates_by.to_s.split(".")
+          head.to_sym
+        end
 
         # The compensation half, read off the handler that answers `REFUSED`.
         #

@@ -21,6 +21,9 @@ module Hecks
       # A GitHub remote's owner and repository, over HTTPS or SSH.
       GITHUB = %r{github\.com[:/]([^/]+)/(.+?)(?:\.git)?/?\z}
 
+      # How many commits a push report says went out, captured.
+      COMMIT_COUNT = /(\d+) commit/
+
       # Accepts the arguments every driven adapter is built with and keeps none of them.
       #
       # @param aggregate [Object, nil] unused
@@ -60,15 +63,18 @@ module Hecks
       end
 
       def subtitle(held)
-        went_out = plain(held[:report]).to_s[/(\d+) commit/, 1]
+        went_out = plain(held[:report]).to_s[COMMIT_COUNT, 1]
         "#{plain(held[:remote])}/#{plain(held[:branch])} at #{plain(held[:pushed])[0, 7]}" \
           "#{" · #{went_out} new" if went_out}"
       end
 
       def body(held)
         listed = git(held, "log", "-#{SUBJECTS}", "--format=%s", plain(held[:pushed]))
-        listed.ok? ? listed.out.lines.map { |line| "• #{line.strip}" }.join("\n") : ""
+        listed.ok? ? bullets(listed.out) : ""
       end
+
+      # Each line of `text` as a bullet.
+      def bullets(text) = text.lines.map { |line| "• #{line.strip}" }.join("\n")
 
       # The branch's runs on GitHub, newest first, or nil for a remote that is not on GitHub.
       def runs(held)
@@ -79,7 +85,10 @@ module Hecks
       # The remote's GitHub owner and repository, or nil.
       def github(held)
         url = git(held, "remote", "get-url", plain(held[:remote]))
-        url.out.strip.match(GITHUB)&.captures if url.ok?
+        return unless url.ok?
+
+        remote = url.out.strip
+        remote.match(GITHUB)&.captures
       end
 
       def git(held, *) = @git.capture(*, chdir: plain(held[:checkout]))

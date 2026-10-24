@@ -22,7 +22,7 @@ module Hecks
         #   and `:arguments`, each an array of plain, string-valued row
         #   hashes (`status` included)
         def call
-          chapters = MetaValidator.grammar_registry.bluebooks.to_a
+          chapters = grammar_chapters.to_a
           return @call if @call && same_chapters?(@call_chapters, chapters)
 
           result = read_disk_cache(chapters) || begin
@@ -34,6 +34,14 @@ module Hecks
           @call = result
           @call_chapters = chapters
           result
+        end
+
+        # The chapters the grammar registry holds, in insertion order.
+        #
+        # @return [Hash{String => Bluebook::Chapter}] each chapter by name
+        def grammar_chapters
+          registry = MetaValidator.grammar_registry
+          registry.bluebooks
         end
 
         # Dispatches every seed row into a fresh "Bluebook" instance and
@@ -137,7 +145,7 @@ module Hecks
         # `bluebook` first, then registry insertion order, so the core
         # chapter is never read twice.
         def seed_chapters(bluebook)
-          [bluebook] + MetaValidator.grammar_registry.bluebooks.values.reject { |chapter| chapter.name == bluebook.name }
+          [bluebook] + grammar_chapters.values.reject { |chapter| chapter.name == bluebook.name }
         end
 
         def rows(bluebook, name)
@@ -163,9 +171,7 @@ module Hecks
         end
 
         def stringify(row)
-          row.to_h.transform_values do |cell|
-            scalar(cell).to_s
-          end
+          row.to_h.transform_values { |cell| scalar(cell).to_s }
         end
 
         # Unwraps a value-object-wrapped field back to its bare scalar.

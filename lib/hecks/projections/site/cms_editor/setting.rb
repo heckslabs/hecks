@@ -17,6 +17,9 @@ module Hecks
         # `docs/site-routes.md` lists the fields. A project that declares no row has no editor to
         # project.
         class Setting
+          # A lowercase letter followed by an uppercase one: where two camel-case words meet.
+          WORD_BOUNDARY = /([a-z])([A-Z])/
+
           # The `Editor` row: its fields, which are required and what the others default to.
           ROW = RootRows.new(
             "Editor",
@@ -65,15 +68,16 @@ module Hecks
 
           # @return [Array<String>] every chapter the editor edits, in the order the row names them:
           #   `chapter` is one name or several, comma separated
-          def chapters = row.fetch(:chapter).split(",").map(&:strip).reject(&:empty?)
+          def chapters = Hecks::Text.comma_list(row.fetch(:chapter))
 
           # @return [Hash{String => Array<String>}] the roles a chapter's aggregates are limited to,
           #   from `Chapter=Role,Role;Chapter=Role`; a chapter not named is open to every role the
           #   editor admits
           def chapter_roles
-            row.fetch(:chapter_roles).split(";").map(&:strip).reject(&:empty?).to_h do |entry|
+            entries = row.fetch(:chapter_roles).split(";")
+            entries.map(&:strip).reject(&:empty?).to_h do |entry|
               name, roles = entry.split("=", 2)
-              [name.to_s.strip, roles.to_s.split(",").map(&:strip).reject(&:empty?)]
+              [name.to_s.strip, Hecks::Text.comma_list(roles)]
             end
           end
 
@@ -94,13 +98,13 @@ module Hecks
           def accent = row.fetch(:accent).strip.then { |hex| hex.empty? ? nil : hex }
 
           # @return [Array<String>] the aggregates left out: `Name`, or `Chapter::Name`
-          def skip = row.fetch(:skip).split(",").map(&:strip).reject(&:empty?)
+          def skip = Hecks::Text.comma_list(row.fetch(:skip))
 
           # @return [Array<String>] the roles that count as an editor
-          def roles = row.fetch(:roles).split(",").map(&:strip).reject(&:empty?)
+          def roles = Hecks::Text.comma_list(row.fetch(:roles))
 
           # @return [String] the generated package's name
-          def package = "#{chapter.gsub(/([a-z])([A-Z])/, '\1-\2').tr("_", "-").downcase}-editor"
+          def package = "#{chapter.gsub(WORD_BOUNDARY, '\1-\2').tr("_", "-").downcase}-editor"
 
           # @return [Hash{String => String}] each placeholder to the text that replaces it
           def tokens

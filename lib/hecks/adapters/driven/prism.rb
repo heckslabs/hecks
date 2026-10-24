@@ -45,8 +45,8 @@ module Hecks
         file, line = block.source_location
         return nil unless file && File.readable?(file)
 
-        node = block_node_at(file, line)
-        node&.body&.slice
+        body = block_node_at(file, line)&.body
+        body&.slice
       end
 
       # Finds the parsed block node starting on a given line of a file.
@@ -72,7 +72,8 @@ module Hecks
         walk(tree) do |node|
           next unless node.is_a?(::Prism::BlockNode)
 
-          index[node.location.start_line] ||= node
+          location = node.location
+          index[location.start_line] ||= node
         end
         index
       end

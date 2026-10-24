@@ -24,11 +24,18 @@ module Hecks
 
       attr_reader :router
 
-      def current_entries = router.available.reject { |entry| entry.fqn.version }
+      def current_entries = router.available.reject { |entry| pinned?(entry.fqn) }
+
+      def aggregate_entries = current_entries.reject { |entry| domain_level?(entry.fqn) }
+
+      def pinned?(fqn) = !fqn.version.nil?
+
+      def domain_level?(fqn) = fqn.aggregate.nil?
 
       def install_namespace_entry(entry)
-        target = namespace_for(entry.fqn.realm, entry.fqn.domain, entry.fqn.aggregate)
-        define_options(target, entry.fqn)
+        fqn = entry.fqn
+        target = namespace_at(fqn)
+        define_options(target, fqn)
         define_verb(target, entry)
       end
 
@@ -42,24 +49,24 @@ module Hecks
 
       def define_verb(target, entry)
         active_router = router
-        address = entry.fqn.to_s
+        fqn = entry.fqn
+        address = fqn.to_s
         route = entry.command? ? :dispatch : :query
-        target.define_singleton_method(entry.fqn.verb) { |**args| active_router.public_send(route, address, **args) }
+        target.define_singleton_method(fqn.verb) { |**args| active_router.public_send(route, address, **args) }
       end
 
       # `.find`/`.all`/`.count`/`.events`/`.repository`, matching `Hecks.boot`'s
       # module; grouped by (realm, domain, aggregate) since the five don't vary by verb.
       def install_aggregate_modules!
-        current_entries.reject { |entry| entry.fqn.aggregate.nil? }
-                       .group_by { |entry| [entry.fqn.realm, entry.fqn.domain, entry.fqn.aggregate] }
-                       .each_value { |entries| install_aggregate_module(entries.first) }
+        aggregate_entries.group_by { |entry| aggregate_key(entry.fqn) }
+                         .each_value { |entries| install_aggregate_module(entries.first) }
       end
 
       def install_aggregate_module(entry)
         reader = AggregateReader.for(entry)
         return unless reader
 
-        define_module_methods(namespace_for(entry.fqn.realm, entry.fqn.domain, entry.fqn.aggregate), reader)
+        define_module_methods(namespace_at(entry.fqn), reader)
       end
 
       def define_module_methods(target, reader)
@@ -71,10 +78,13 @@ module Hecks
       end
 
       def install_shortcuts!
-        current_entries.reject { |entry| entry.fqn.aggregate.nil? }
-                       .group_by { |entry| [entry.fqn.aggregate, entry.fqn.verb] }
-                       .each { |(aggregate, verb), candidates| install_shortcut(aggregate, verb, candidates) }
+        aggregate_entries.group_by { |entry| shortcut_key(entry.fqn) }
+                         .each { |(aggregate, verb), candidates| install_shortcut(aggregate, verb, candidates) }
       end
+
+      def aggregate_key(fqn) = [fqn.realm, fqn.domain, fqn.aggregate]
+
+      def shortcut_key(fqn) = [fqn.aggregate, fqn.verb]
 
       def install_shortcut(aggregate, verb, candidates)
         # Bounded chapters wrap in their own module (`Domain::Aggregate`) so two
@@ -89,8 +99,10 @@ module Hecks
       end
 
       def bounded_chapter?(candidates)
-        candidates.any? { |entry| entry.dispatcher.registry.bounded?(entry.fqn.domain) }
+        candidates.any? { |entry| entry.dispatcher.bounded?(domain_of(entry.fqn)) }
       end
+
+      def domain_of(fqn) = fqn.domain
 
       def dispatch_short(candidates, **args)
         raise AmbiguousShortRoute, ambiguity_message(candidates) if candidates.length > 1
@@ -113,6 +125,8 @@ module Hecks
 
         constant || Object.const_set(aggregate, Module.new)
       end
+
+      def namespace_at(fqn) = namespace_for(fqn.realm, fqn.domain, fqn.aggregate)
 
       def namespace_for(realm, domain, aggregate)
         [realm, domain, aggregate].compact.reduce(Object) do |parent, name|

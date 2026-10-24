@@ -17,6 +17,13 @@ module Hecks
         # Raised when an automatic fix would change code rather than comments.
         class Error < RuntimeError; end
 
+        # A generator's banner: "generated", then "do not edit", in any case and across lines.
+        GENERATED_BANNER = /\bgenerated\b.*?\bdo not edit\b/im
+        # A whole token that is an all-caps name, such as `PATH` or `MAX_LINE`.
+        SHOUTED_NAME = /\A[A-Z][A-Z0-9_]+\z/
+        # An all-caps name anywhere in a token.
+        SHOUTED_NAME_IN = /[A-Z][A-Z0-9_]+/
+
         include LongBlocks
         include Masking
         include CapsWords
@@ -67,7 +74,7 @@ module Hecks
         # A generated file's comments belong to its generator, and its
         # `GENERATED ... DO NOT EDIT` banner is a convention tools recognise.
         def generated?
-          @lines.first(8).join.match?(/\bgenerated\b.*?\bdo not edit\b/im)
+          @lines.first(8).join.match?(GENERATED_BANNER)
         end
 
         # Helpers defined inside a spec are test scaffolding, not API, so the
@@ -97,8 +104,8 @@ module Hecks
         def code_words
           Ripper.lex(@source).each_with_object(Set.new) do |(_, type, text, _), words|
             case type
-            when :on_const, :on_tstring_content then words << text if text.match?(/\A[A-Z][A-Z0-9_]+\z/)
-            when :on_heredoc_beg, :on_heredoc_end then words.merge(text.scan(/[A-Z][A-Z0-9_]+/))
+            when :on_const, :on_tstring_content then words << text if text.match?(SHOUTED_NAME)
+            when :on_heredoc_beg, :on_heredoc_end then words.merge(text.scan(SHOUTED_NAME_IN))
             end
           end
         end

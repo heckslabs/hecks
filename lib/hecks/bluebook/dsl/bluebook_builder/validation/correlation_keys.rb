@@ -40,11 +40,9 @@ module Hecks
             end
 
             def reacted_events(process_manager)
-              ([process_manager.starts_on, process_manager.ends_on] + process_manager.handlers.map(&:event_type))
-                .compact
-                .reject { |event| event == ProcessManager::REFUSED }
-                .map { |event| event.to_s.split("::").last }
-                .uniq
+              events = [process_manager.starts_on, process_manager.ends_on] + process_manager.handlers.map(&:event_type)
+              answered = events.compact.reject { |event| event == ProcessManager::REFUSED }
+              answered.map { |event| Naming.demodulise(event) }.uniq
             end
 
             def emitting_commands(events, aggregates)

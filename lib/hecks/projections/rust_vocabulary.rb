@@ -22,6 +22,11 @@ module Hecks
       GENERATOR = "hecks project_rust_vocabulary".freeze
       SOURCE    = "lib/hecks/language/bluebook/vocabulary.bluebook".freeze
 
+      # A name Rust accepts as an enum variant: a capital, then letters and digits.
+      VARIANT_NAME = /\A[A-Z][A-Za-z0-9]*\z/
+      # A `{name}` placeholder in a refusal template, capturing the name.
+      PLACEHOLDER = /\{(\w+)\}/
+
       # Table name => enum name, variant-naming fields, file stem and kind.
       # `:order` adds `position`; `:templates` adds `render` and the typed `<Variant>Args`.
       TABLES = {
@@ -48,6 +53,10 @@ module Hecks
 
         Hecks::Vocabulary.fetch("RustReservedWord").include?(name) ? "r##{name}" : name
       end
+
+      # @param template [String] a refusal template
+      # @return [Array<String>] its placeholder names, each once, in first-appearance order
+      def placeholders(template) = template.scan(PLACEHOLDER).flatten.uniq
 
       def call(bluebook:, options: {}) = render(bluebook)
 
@@ -132,14 +141,15 @@ module Hecks
 
       def variant_name(row, fields)
         name = fields.map { |field| Naming.pascal(row.fetch(field)) }.join
-        raise ArgumentError, "#{name.inspect} is not a Rust variant name" unless name.match?(/\A[A-Z][A-Za-z0-9]*\z/)
+        raise ArgumentError, "#{name.inspect} is not a Rust variant name" unless name.match?(VARIANT_NAME)
 
         name
       end
 
       # Only `\`, `"` and newlines need escaping in the text a vocabulary row holds.
       def rust_string(text)
-        escaped = text.to_s.gsub("\\") { "\\\\" }.gsub('"') { "\\\"" }.gsub("\n") { "\\n" }
+        source = text.to_s
+        escaped = source.gsub("\\") { "\\\\" }.gsub('"') { "\\\"" }.gsub("\n") { "\\n" }
         "\"#{escaped}\""
       end
     end

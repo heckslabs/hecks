@@ -6,8 +6,9 @@ module Hecks
       module PieceInvariants
         # The message for one stored record that violates an invariant, or nil.
         def stored_record_offense(bluebooks, key, state)
-          domain_name    = key.split("::").first
-          aggregate_name = key.split("::").last.split("#").first
+          key_parts      = key.split("::")
+          domain_name    = key_parts.first
+          aggregate_name = key_parts.last.split("#").first
           aggregate      = bluebooks[domain_name]&.aggregate(aggregate_name)
           return unless aggregate
 

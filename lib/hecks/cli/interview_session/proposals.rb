@@ -4,6 +4,9 @@ module Hecks
       # Putting an agent's proposed finding to the developer: reading its fields, proposing it to
       # the SME chapter, describing it, and recording the decision.
       module Proposals
+        # The `Something refused — ` a refusal message opens with.
+        REFUSAL_LEAD = /\A[A-Z]\w* refused\s+[—-]\s+/
+
         private
 
         def review(proposal)
@@ -83,7 +86,7 @@ module Hecks
           "#{", taking #{fields["takes"]}" if fields["takes"]}#{", by #{fields["by"]}" if fields["by"]}"
         end
 
-        def reason(error) = error.message.sub(/\A[A-Z]\w* refused\s+[—-]\s+/, "").strip
+        def reason(error) = error.message.sub(REFUSAL_LEAD, "").strip
       end
     end
   end

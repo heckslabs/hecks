@@ -1,6 +1,7 @@
 require "json"
 require "open3"
 require_relative "form_census"
+require_relative "../text"
 
 module Hecks
   module Fuzzing
@@ -10,13 +11,14 @@ module Hecks
     module CombinationMiner
       PROMPT_TEMPLATE = "qa/combination_miner/prompt.md".freeze
       HYPOTHESIS_FILE = "HYPOTHESIS.md".freeze
+      # A `{{name}}` placeholder in the prompt template, capturing the name.
+      PLACEHOLDER = /\{\{(\w+)\}\}/
 
       module_function
 
       def corpus_paths(root)
-        Hecks::Corpus.members(:stress, :example, root: root).map(&:path)
-                     .select { |path| Hecks::Corpus.bluebook_files(path) }
-                     .sort
+        member_paths = Hecks::Corpus.members(:stress, :example, root: root).map(&:path)
+        member_paths.select { |path| Hecks::Corpus.bluebook_files(path) }.sort
       end
 
       def recent_bug_titles(root, limit: 60)
@@ -43,7 +45,7 @@ module Hecks
         [covered, skipped]
       end
 
-      def skip_note(path, error) = "#{path} (#{error.class}: #{error.message.lines.first&.strip})"
+      def skip_note(path, error) = "#{path} (#{error.class}: #{Hecks::Text.first_line(error.message)})"
 
       def single_carrier_pairs(covered)
         covered.select { |_, names| names.uniq.size == 1 }.map { |pair, names| "#{pair} (only #{names.first})" }.sort
@@ -51,7 +53,7 @@ module Hecks
 
       def prompt(root, brief, count:, out_dir:)
         substitutions = prompt_substitutions(brief, count, out_dir)
-        File.read(File.join(root, PROMPT_TEMPLATE)).gsub(/\{\{(\w+)\}\}/) { substitutions.fetch(Regexp.last_match(1)) }
+        File.read(File.join(root, PROMPT_TEMPLATE)).gsub(PLACEHOLDER) { substitutions.fetch(Regexp.last_match(1)) }
       end
 
       def prompt_substitutions(brief, count, out_dir)
@@ -86,7 +88,8 @@ module Hecks
 
       # Informational, never a gate: an agent may aim at a shape the census does not name yet.
       def new_pairs(candidate_dir, covered)
-        FormCensus.covered_pairs(FormCensus.census(candidate_dir)).keys.reject { |pair| covered.key?(pair) }.sort
+        candidate_pairs = FormCensus.covered_pairs(FormCensus.census(candidate_dir)).keys
+        candidate_pairs.reject { |pair| covered.key?(pair) }.sort
       end
 
       def relative(path, root) = path.delete_prefix("#{root}/")

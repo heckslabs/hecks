@@ -108,10 +108,10 @@ module Hecks
 
         def audit(held, lineage, path)
           eras = held.held_eras(lineage)
-          return Readings.no_era(held.bluebook.name, path) if eras.empty?
+          return Readings.no_era(domain_name(held), path) if eras.empty?
 
           finding = EdgeAudit.call(held, lineage, eras)
-          return "#{held.bluebook.name} stands at era 1 — no edge to audit." unless finding
+          return "#{domain_name(held)} stands at era 1 — no edge to audit." unless finding
           raise Runtime::NotFound, "#{finding.report}\nAUDIT REFUSED." unless finding.ok
 
           [finding.report, AUDIT_PASSED].join("\n")

@@ -65,13 +65,36 @@ module Hecks
       # needs no doc unless it carries a real why.
       PUBLIC_SURFACE = Set["Storehouse"].freeze
 
+      # The hashes that open a comment and the space after them.
+      COMMENT_MARKER = /\A#+\s*/
+      # A comment line with nothing after its hashes: a paragraph break.
+      EMPTY_COMMENT = /\A#+\s*\z/
+      # A shouted contraction or possessive ending: `'S`, `'LL`, `'RE`.
+      SHOUTED_SUFFIX = /'[A-Z]{1,2}\z/
+      # A Roman numeral, which stays in capitals.
+      ROMAN_NUMERAL = /\A[IVX]+\z/
+      # Sentence punctuation, any closing quotes or brackets, then the space before a new word.
+      SENTENCE_BREAK = /[.!?]["')\]]*\s+\z/
+      # Sentence punctuation and any closing quotes or brackets, ending the text.
+      SENTENCE_END = /[.!?]["')\]]*\z/
+      # A list marker alone before the word: a bullet, a rule, or a number.
+      LIST_MARKER = /\A\s*(?:[-*•]|─+|\d+[.)])\s+\z/
+      # A whole word of two or more capitals.
+      SHOUTED_WORD = /\b[A-Z]{2,}\b/
+      # Any lowercase letter.
+      LOWERCASE = /[a-z]/
+      # A backtick code span.
+      CODE_SPAN = /`[^`]*`/
+      # A `class` or `module` line, capturing the type's own name.
+      TYPE_DEFINITION = /^\s*(?:class|module)\s+([A-Z]\w*)/
+
       extend Cli
 
       # Class and module names defined under `lib/`, keyed by their shouted form.
       def self.class_names
         @class_names ||= Dir["lib/**/*.rb"].each_with_object({}) do |file, names|
-          File.read(file).scan(/^\s*(?:class|module)\s+([A-Z]\w*)/) do |(name)|
-            names[name.upcase] ||= name if name.match?(/[a-z]/)
+          File.read(file).scan(TYPE_DEFINITION) do |(name)|
+            names[name.upcase] ||= name if name.match?(LOWERCASE)
           end
         end
       end

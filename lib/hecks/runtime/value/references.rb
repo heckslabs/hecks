@@ -36,7 +36,9 @@ module Hecks
         # @return [Object, nil] the unwrapped scalar, or nil if it does not apply
         def sole_scalar_identity(value, paths)
           return nil unless value.is_a?(self) && paths.one?
-          return nil unless value.value_object.sole_attribute
+
+          shape = value.value_object
+          return nil unless shape.sole_attribute
 
           materialize_unwrapped(value)
         end
@@ -149,10 +151,12 @@ module Hecks
         # @return [String] `" (Target is known by head1, head2)"`, or `""` if the
         #   target or its identity heads cannot be resolved
         def known_by(attribute)
-          heads = Array(attribute.type.resolve&.identity_heads)
+          reference = attribute.type
+          target = reference.resolve
+          heads = Array(target&.identity_heads)
           return "" if heads.empty?
 
-          " (#{attribute.type.target_name} is known by #{heads.join(", ")})"
+          " (#{reference.target_name} is known by #{heads.join(", ")})"
         end
 
         private
@@ -161,7 +165,8 @@ module Hecks
         def reference_target(attribute, value)
           return nil unless value.is_a?(self) || value.is_a?(Hash)
 
-          target = attribute.type.resolve
+          reference = attribute.type
+          target = reference.resolve
           target if target && !target.identity_paths.empty?
         end
 

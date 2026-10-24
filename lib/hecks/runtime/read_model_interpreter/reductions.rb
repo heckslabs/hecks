@@ -48,8 +48,9 @@ module Hecks
           return if reduction_type_ok?(reduction.ivar, aggregate, attribute)
 
           kind = BOOLEAN_REDUCTIONS.include?(reduction.ivar) ? "boolean" : "numeric"
+          model = reduction.model
           raise ArgumentError,
-                "#{reduction.model.name}'s #{reduction.word} names #{reduction.field.inspect} on #{aggregate_name}, " \
+                "#{model.name}'s #{reduction.word} names #{reduction.field.inspect} on #{aggregate_name}, " \
                 "which is not #{kind} — #{reduction.word} needs a #{kind == "boolean" ? "true/false" : "numeric"} field"
         end
 

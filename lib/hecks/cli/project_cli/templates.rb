@@ -3,6 +3,9 @@ module Hecks
     module ProjectCli
       # The text of a launcher, as templates: each `{{name}}` is filled in by `render`.
       module Templates
+        # A `{{name}}` placeholder; the name is its first group.
+        PLACEHOLDER = /\{\{(\w+)\}\}/
+
         # The whole launcher: its header, the load path, the hand-offs, the entry and the ending.
         LAUNCHER = <<~RUBY.freeze
           #!/usr/bin/env ruby
@@ -98,7 +101,7 @@ module Hecks
         # @return [String] the text with every placeholder replaced
         # @raise [KeyError] if the template names a placeholder `values` lacks
         def render(template, values)
-          template.gsub(/\{\{(\w+)\}\}/) { values.fetch(Regexp.last_match(1).to_sym) }
+          template.gsub(PLACEHOLDER) { values.fetch(Regexp.last_match(1).to_sym) }
         end
       end
     end

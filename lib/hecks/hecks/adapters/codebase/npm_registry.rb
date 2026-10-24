@@ -47,7 +47,7 @@ module Hecks
           return false if result.stderr.include?("E404")
 
           raise Release::Runner::Refusal,
-                "could not check npm for #{PACKAGE}@#{version} (#{result.stderr.strip.lines.first}); " \
+                "could not check npm for #{PACKAGE}@#{version} (#{first_error_line(result)}); " \
                 "check the network and re-run"
         end
 
@@ -84,6 +84,12 @@ module Hecks
         end
 
         private
+
+        # The first line of what npm wrote to stderr, nil when it wrote nothing.
+        def first_error_line(result)
+          error = result.stderr.strip
+          error.lines.first
+        end
 
         def package_dir = File.join(@root, PACKAGE_DIR)
 

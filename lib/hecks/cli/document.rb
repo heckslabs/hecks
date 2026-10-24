@@ -46,10 +46,11 @@ module Hecks
         begin
           runtime = Hecks.boot(path, install_driving: false)
         rescue StandardError => e
-          abort "cannot read #{path}: #{e.message.lines.first.strip}"
+          abort "cannot read #{path}: #{Text.first_line(e.message)}"
         end
 
-        runtime.registry.bluebooks.values.first or abort "#{path} loaded no bluebook"
+        registry = runtime.registry
+        registry.bluebooks.values.first or abort "#{path} loaded no bluebook"
       end
 
       # Lists every directory under `root` that `Hecks.boot` would accept.
@@ -61,11 +62,16 @@ module Hecks
       # @return [Array<String>] domain directory paths relative to `root`,
       #   deduplicated and sorted
       def domains(root)
-        Dir.glob(File.join(root, "**/*.hecksagon"))
-           .map    { |path| File.basename(File.dirname(path)) == "bluebook" ? File.dirname(path, 2) : File.dirname(path) }
-           .map    { |path| path.delete_prefix("#{root}/") }
-           .grep_v(IGNORED)
-           .uniq.sort
+        wiring = Dir.glob(File.join(root, "**/*.hecksagon"))
+        relative = wiring.map { |path| domain_directory(path).delete_prefix("#{root}/") }
+        relative.grep_v(IGNORED).uniq.sort
+      end
+
+      # The domain directory a `.hecksagon` sits in: its parent, or the one above a `bluebook/`.
+      #
+      # @api private
+      def domain_directory(path)
+        File.basename(File.dirname(path)) == "bluebook" ? File.dirname(path, 2) : File.dirname(path)
       end
 
       # @api private

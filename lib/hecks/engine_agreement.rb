@@ -32,6 +32,9 @@ module Hecks
     #   @return [Array<String>] each disagreement, in words; empty when the engines agree
     Finding = Struct.new(:declared, :problems)
 
+    # An `it "..."` or `describe "..."` description that names `eq` as a word.
+    EQ_DESCRIPTION = /\b(?:it|describe)\s+"[^"]*\beq\b[^"]*"/i
+
     module_function
 
     # Checks the engines against the vocabulary.
@@ -140,7 +143,7 @@ module Hecks
       # counts; no other comparator gets that leniency.
       return false unless comparator == "eq"
 
-      /\b(?:it|describe)\s+"[^"]*\beq\b[^"]*"/i.match?(text) || false
+      EQ_DESCRIPTION.match?(text) || false
     end
 
     # @param finding [Finding] what a check found

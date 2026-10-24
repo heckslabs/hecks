@@ -92,11 +92,12 @@ module Hecks
       #   launcher could not be made
       def one(root, path, program, check, remove_stale_bin)
         runtime = Hecks.boot(File.join(root, path), install_driving: false)
-        name    = runtime.registry.bluebooks.keys.first or raise Error, "it loads no bluebook"
+        registry = runtime.registry
+        name    = registry.bluebooks.keys.first or raise Error, "it loads no bluebook"
         setting = Adapters::Driving::LauncherOptions.settings(runtime, name) || {}
         settle(launcher_target(name, path, setting, root, program), path, root, check, remove_stale_bin)
       rescue StandardError, LoadError => e
-        refuse(path, "cannot boot — #{e.message.lines.first.to_s.strip}")
+        refuse(path, "cannot boot — #{Text.first_line(e.message)}")
       end
 
       # Checks the launcher against its file, or writes it.
@@ -149,12 +150,10 @@ module Hecks
 
       def domains(root)
         folder = Adapters::Folder.new
-        Dir.glob(File.join(root, "**/*.hecksagon"))
-           .map { |path| folder.domain_root(File.dirname(path)) }
-           .compact
-           .map { |path| path.delete_prefix("#{root}/") }
-           .grep_v(IGNORED)
-           .uniq.sort
+        wiring = Dir.glob(File.join(root, "**/*.hecksagon"))
+        roots = wiring.map { |path| folder.domain_root(File.dirname(path)) }
+        relative = roots.compact.map { |path| path.delete_prefix("#{root}/") }
+        relative.grep_v(IGNORED).uniq.sort
       end
     end
   end
