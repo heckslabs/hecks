@@ -297,6 +297,23 @@ aggregate cannot be shared by two rows, so it is accepted from the
 declaration and never checked; `AccountsByKind` is one, since `number` is
 `Account`'s identity.
 
+### Grouped reductions
+
+`group_by` with one reduction (`count`, `sum`, `avg`, `min`, `max`,
+`median`, `percentile`, `any` or `all`) nests the rows the same way and
+answers each leaf with that reduction of the leaf's rows, in place of
+the row ([ADR 0121](../../decisions/0121-a-group-by-reduces-each-group-and-each-reducer-is-a-row.md)).
+A leaf is a value, so two rows sharing a key path are added up, never
+refused. What each reducer answers over no rows, and how two partial
+answers combine, are the `Reducer` rows of the Vocabulary chapter, which
+Ruby and the generated Rust both read. `CardPaymentTotalsByStatus`
+groups every card charge by its status and adds up the amounts:
+
+```ruby
+runtime.query("Banking.CardPaymentTotalsByStatus").first[:card_payments]  # => {"disputed" => 11700}
+runtime.query("Banking.CardPaymentCountsByStatus").first[:card_payments]  # => {"disputed" => 9}
+```
+
 ## count
 
 <!-- generated:begin word=count -->
@@ -308,9 +325,10 @@ rows to a single Integer — how many match, not which ones. A bare
 word, no argument: its presence in the read model IS the value. Held
 to the same "exactly one many-side head" rule `group_by`/`where`/etc
 already are (`ReadModelBuilder#seal_aggregation`), and refused
-together with `group_by` or with `median` — a read model reports one
-shape. See `Banking::DisputedPaymentCount` for the real corpus
-example.
+together with `median` or another reduction — a read model reports one
+shape. With `group_by` it counts each group instead (see "Grouped
+reductions" under `group_by`). See `Banking::DisputedPaymentCount` for
+the real corpus example.
 
 Two disputed charges on this account, and the answer is the number
 rather than the rows:
@@ -344,9 +362,9 @@ averaged to zero." Refused at DISPATCH time if the named field doesn't
 exist, or exists but isn't numeric — same timing as `group_by`'s own
 field check, for the same reason (the aggregate this read model
 targets isn't known until then). Same `seal_aggregation` rule `count`
-carries: exactly one many-side head, never combined with `group_by` or
-with `count`. See `Banking::DisputedPaymentMedian` for the real corpus
-example.
+carries: exactly one many-side head, never combined with `count`; with
+`group_by` it takes each group's median. See
+`Banking::DisputedPaymentMedian` for the real corpus example.
 
 The same two charges — 4,200 and 900 — reduced to the middle of them
 rather than counted:
@@ -376,7 +394,7 @@ cannot be made to agree, byte for byte, between Ruby and Rust, so
 collection answers `0`, not `nil` — "no disputes" means zero exposure,
 where `median` has no answer to give. Same `seal_aggregation` rule
 `median` carries: exactly one many-side head, never combined with
-`group_by` or with another reduction. See
+another reduction; with `group_by` it totals each group. See
 `Banking::DisputedPaymentTotal` for the real corpus example.
 
 The same two disputed charges — 4,200 and 900 — added together
