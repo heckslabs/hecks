@@ -97,7 +97,7 @@ RSpec.describe "the Rust parser's own coverage", :io do
     ["declared, and no parity corpus member exercises it", [
       %w[attaches_to Bluebook], %w[belongs_to Entity], %w[entity Entity], %w[formerly_known_as Bluebook],
       %w[has_many Aggregate], %w[has_many Entity], %w[has_one Aggregate], %w[has_one Entity],
-      %w[provenance Command], %w[reference_to Entity], %w[reference_to Query], %w[state Command],
+      %w[provenance Command], %w[reference_to Entity], %w[state Command],
       %w[then_set Command]
     ]]
   ].freeze

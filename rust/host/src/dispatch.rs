@@ -2529,7 +2529,7 @@ pub(crate) mod tests {
     }
 
     async fn ask_pluginned(
-        client: &Mutex<Client>,
+        client: &Store,
         question: &str,
         args: serde_json::Value,
     ) -> serde_json::Value {
