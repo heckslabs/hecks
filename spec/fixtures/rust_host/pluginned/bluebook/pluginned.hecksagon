@@ -1,0 +1,3 @@
+Hecks.hecksagon "Pluginned" do
+  Pluginned::Ledger.persisted_by("PostgresEra")
+end

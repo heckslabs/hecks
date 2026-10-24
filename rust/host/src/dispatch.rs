@@ -2516,4 +2516,93 @@ pub(crate) mod tests {
             "BOTH sibling reactions must be dead-lettered, not just whichever ran first: {policies:?}"
         );
     }
+    /// The wasm plugin fixture (spec/fixtures/rust_host/pluginned): its kernel and its IR, which
+    /// carries the doubler plugin that answers `Ledger.Doubled` and refuses `Ledger.Tripled`.
+    fn pluginned() -> (std::path::PathBuf, serde_json::Value) {
+        let dist = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../dist");
+        let ir = std::fs::read_to_string(dist.join("pluginned.ir.json"))
+            .expect("build the pluginned fixture");
+        (
+            dist.join("pluginned.wasm"),
+            serde_json::from_str(&ir).unwrap(),
+        )
+    }
+
+    async fn ask_pluginned(
+        client: &Mutex<Client>,
+        question: &str,
+        args: serde_json::Value,
+    ) -> serde_json::Value {
+        let (wasm, ir) = pluginned();
+        let asked = serde_json::json!({ "query": question, "args": args });
+        crate::query_step::answer(&asked, Some(&ir), "Pluginned", client, &wasm)
+            .await
+            .unwrap()
+    }
+
+    /// A query a wasm plugin answers, end to end: a command through the real kernel stores the
+    /// ledger, and the query step hands the plugin that record's state, read back from Postgres.
+    #[tokio::test]
+    async fn a_plugin_answers_with_the_referenced_record_as_stored() {
+        let client = scratch_db("rust_host_dispatch_test_plugin").await;
+        provision_lineage(&*client.lock().await, "Pluginned", 1, &["Ledger"]).await;
+        let (wasm, _) = pluginned();
+        let config = test_config("Pluginned", 1);
+        let opened = handle(
+            Host::new(&client, &wasm, &config, &lambda_client::NeverInvoker),
+            "Pluginned::Ledger.Open",
+            serde_json::json!({ "name": { "value": "house" }, "note": { "value": "rent" } }),
+            None,
+        )
+        .await
+        .unwrap();
+        assert!(
+            opened.accepted,
+            "opening the ledger: {}",
+            opened.result["refusals"]
+        );
+
+        let answer = ask_pluginned(
+            &client,
+            "Pluginned::Ledger.Doubled",
+            serde_json::json!({ "entry": "house", "amount": 21 }),
+        )
+        .await;
+
+        assert_eq!(
+            answer["queries"][0]["rows"],
+            serde_json::json!([{ "amount": 42, "note": "rent" }])
+        );
+    }
+
+    #[tokio::test]
+    async fn a_plugin_refusal_and_a_missing_record_come_back_as_refusals() {
+        let client = scratch_db("rust_host_dispatch_test_plugin_refusals").await;
+        provision_lineage(&*client.lock().await, "Pluginned", 1, &["Ledger"]).await;
+
+        let refused = ask_pluginned(
+            &client,
+            "Pluginned::Ledger.Tripled",
+            serde_json::json!({ "amount": 1 }),
+        )
+        .await;
+        let missing = ask_pluginned(
+            &client,
+            "Pluginned::Ledger.Doubled",
+            serde_json::json!({ "entry": "nowhere", "amount": 1 }),
+        )
+        .await;
+
+        assert_eq!(refused["refusals"][0]["kind"], "PluginRefusal");
+        let refusal = refused["refusals"][0]["error"].as_str().unwrap();
+        assert!(
+            refusal.contains("doubler does not answer Pluginned::Ledger.Tripled"),
+            "{refusal}"
+        );
+        assert_eq!(missing["refusals"][0]["kind"], "NotFound");
+        assert_eq!(
+            missing["refusals"][0]["error"],
+            "entry: no Ledger \"nowhere\""
+        );
+    }
 }

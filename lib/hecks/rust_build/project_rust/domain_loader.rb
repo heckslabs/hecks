@@ -35,6 +35,7 @@ module Hecks
             load_framework
             Hecks::Adapters::Folder.new.load_bluebooks(@bluebook_dir)
             load_siblings
+            load_plugins
             load_environment
           end
           @domain_name = @registry.bluebooks.keys.first
@@ -55,6 +56,15 @@ module Hecks
           Dir[File.join(@bluebook_dir, "translations", "*.bluebook")].each { |file| Kernel.load(file) }
           Dir.glob(File.join(@bluebook_dir, "*.hecksagon")).each { |file| Kernel.load(file) }
           Dir.glob(File.join(@bluebook_dir, "*.world")).each { |file| Kernel.load(file) }
+        end
+
+        # The domain's own wasm plugins, so the IR carries them to the host: only an `.adapter`
+        # that `runs` a module, since the build needs no Ruby adapter and its code may need gems
+        # the build does not have. A vendored package's plugins load with its chapter.
+        def load_plugins
+          Dir.glob(File.join(@bluebook_dir, "{,adapters/}*.adapter")).each do |file|
+            Kernel.load(file) if File.read(file).match?(/^\s*runs\s/)
+          end
         end
 
         # Production is the default environment when `environments/production.hecksagon` exists

@@ -1,0 +1,47 @@
+# rust/host's wasm plugin fixture (dispatch.rs, the plugin tests): a ledger whose Doubled query
+# the doubler plugin beside it answers, with the referenced entry handed over as its stored state.
+# Built into pluginned.wasm and pluginned.ir.json by hecks build_wasm.
+Hecks.bluebook "Pluginned" do
+  vision "A plugin doubles what it is asked."
+  core
+
+  aggregate "Ledger" do
+    description "A ledger with a note."
+
+    attribute :name, LedgerName
+    attribute :note, Note
+    identified_by :name
+
+    value_object "LedgerName" do
+      attribute :value, String
+    end
+
+    value_object "Note" do
+      attribute :value, String
+    end
+
+    value_object "Doubling" do
+      attribute :amount, Integer
+      attribute :note,   String
+    end
+
+    query "Doubled" do
+      reference_to Ledger, as: :entry
+      attribute :amount, Integer
+      returns list_of(Doubling)
+    end
+
+    query "Tripled" do
+      attribute :amount, Integer
+      returns list_of(Doubling)
+    end
+
+    command "Open" do
+      attribute :name, LedgerName
+      attribute :note, Note
+      sets :name
+      sets :note
+      emits "Opened"
+    end
+  end
+end
