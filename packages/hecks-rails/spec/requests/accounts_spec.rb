@@ -35,6 +35,12 @@ RSpec.describe "An account, through the fixture Rails app", type: :request do
     expect(Account.find(number).status).to eq("frozen")
   end
 
+  it "runs an action the app overrode by name, through super" do
+    open_account
+    freeze_account
+    expect(flash[:notice]).to eq("Account #{number} is frozen")
+  end
+
   it "answers 422 with the rule's wording when freezing is refused", :aggregate_failures do
     open_account
     freeze_account
