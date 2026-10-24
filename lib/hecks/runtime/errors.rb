@@ -38,15 +38,24 @@ module Hecks
     end
 
     # A command addressed a record that does not exist.
-    class NotFound < Hecks::Refused; end
+    class NotFound < Hecks::Refused
+      # @return [Symbol] `:not_found`
+      def kind = :not_found
+    end
+
     # A command is not admissible from the record's current lifecycle state.
     class LifecycleRefused < Hecks::Refused; end
     # An argument carries the wrong kind of value for its declared type.
     class TypeMismatch < Hecks::Refused; end
     # An argument the command does not declare.
     class UnknownArgument < Hecks::Refused; end
+
     # An argument the command declares but the call omitted.
-    class AbsentArgument < Hecks::Refused; end
+    class AbsentArgument < Hecks::Refused
+      # @return [Symbol] `:absent_argument`
+      def kind = :absent_argument
+    end
+
     # A creating command whose derived identity already names a record.
     class AlreadyExists < Hecks::Refused; end
     # A required attribute the stored record predates, with no default or translation to fill it.
@@ -55,8 +64,13 @@ module Hecks
     # A `projects` field the record predates or no rebuild sweep has populated yet.
     # Raised by `GuardState`.
     class ProjectionAbsent < Hecks::Refused; end
+
     # A query or read model declares `authorize policy, tenant: :field` and the caller omitted it.
-    class Unauthorized < Hecks::Refused; end
+    class Unauthorized < Hecks::Refused
+      # @return [Symbol] `:unauthorized`
+      def kind = :unauthorized
+    end
+
     # A `corrects` command whose target event this record never emitted.
     # Raised by `CommandRules::Admissibility#enforce_correction_target`.
     class NothingToCorrect < Hecks::Refused; end

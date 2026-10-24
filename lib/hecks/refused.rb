@@ -13,5 +13,11 @@ module Hecks
       super(message)
       @attribute = attribute&.to_sym
     end
+
+    # What sort of no this is, for an adapter that answers a missing record or a caller who lacks
+    # a role differently from a rule that did not hold.
+    #
+    # @return [Symbol] `:refused` unless a subclass names a narrower kind
+    def kind = :refused
   end
 end
