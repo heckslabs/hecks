@@ -12,6 +12,9 @@ Hecks.bluebook "Adapter" do
     attribute :secrets, list_of(AdapterField)
     attribute :answers, list_of(AnsweredQuery)
     attribute :runs,    PluginModule, optional: true
+    # What this adapter can do beyond its port's contract, such as `set_transform`. Absent is
+    # not empty: most adapters provide nothing more.
+    attribute :provides, list_of(AdapterCapability)
 
     # **A plugin answers named queries** — one that `runs` a wasm module says which queries it
     # answers, each qualified by chapter and aggregate, and the runtime binds them to it.
@@ -38,6 +41,11 @@ Hecks.bluebook "Adapter" do
     # A query a plugin answers, written in full: `Calendar::Event.Occurrences`.
     value_object "AnsweredQuery" do
       attribute :value, String, pattern: '^[A-Z][A-Za-z0-9]*::[A-Z][A-Za-z0-9]*\.[A-Z][A-Za-z0-9]*$'
+    end
+
+    # A capability an adapter provides, named in snake case: `set_transform`.
+    value_object "AdapterCapability" do
+      attribute :value, String, pattern: '^[a-z][a-z0-9_]*$'
     end
 
     # The wasm module a plugin runs: a file beside its `.adapter`, never a path out of it.
@@ -106,6 +114,18 @@ Hecks.bluebook "Adapter" do
       emits "AdapterQueryAnswered"
     end
 
+    command "Provide" do
+      role "Deployment"
+      goal "Name a capability this adapter provides, so the runtime can ask for it before relying on it"
+
+      reference_to Adapter
+      attribute :value, AdapterCapability
+
+      sets :provides, append: { value: :value }
+
+      emits "AdapterCapabilityProvided"
+    end
+
     # Grammar rows for the `adapter` keyword; SyntaxBoot discovers aggregate-local seed tables.
     value_object "KeywordSeed" do
       attribute :word,          String
@@ -126,6 +146,8 @@ Hecks.bluebook "Adapter" do
       member word: "answers_query",   context: "Adapter",   body: "none", inner: "", opens: "", fills: "answers"
       member word: "runs",            context: "Adapter",   body: "none", inner: "", opens: "", fills: "runs"
 
+
+      member word: "provides", context: "Adapter", body: "none", inner: "", opens: "", fills: "provides"
     end
 
     value_object "ArgumentSeed" do
@@ -153,6 +175,8 @@ Hecks.bluebook "Adapter" do
       member keyword: "answers_query",   context: "Adapter", at: "1", named: "", kind: "text",   required: "true", fills: "answers"
       member keyword: "runs",            context: "Adapter", at: "1", named: "", kind: "text",   required: "true", fills: "runs"
 
+
+      member keyword: "provides", context: "Adapter", at: "1", named: "", kind: "text", required: "true", fills: "provides"
     end
   end
 end
