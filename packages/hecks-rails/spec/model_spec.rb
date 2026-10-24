@@ -41,6 +41,11 @@ RSpec.describe Hecks::Rails::Model do
     expect(account.customer_record).to eq(Customer.find(customer))
   end
 
+  it "names a lookup for an aliased reference after the alias and its target", :aggregate_failures do
+    expect(Transfer.method_defined?(:source_account)).to be(true)
+    expect(Transfer.method_defined?(:destination_account)).to be(true)
+  end
+
   it "lists the verbs an actor holding a grant could run" do
     expect(account.available_commands(as: officer).map(&:hecks_name)).to include("FreezeAccount")
   end
