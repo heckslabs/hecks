@@ -11,6 +11,10 @@ gem "sqlite3", "~> 2.0"
 # Runs wasm adapter plugins (a query a package answers with its own .wasm); required lazily.
 gem "wasmtime", "~> 49.0"
 
+# Test-only: the Google authentication adapter, required lazily.
+gem "oauth2", "~> 2.0"
+gem "google-id-token", "~> 1.4"
+
 # Test-only: the Lambda adapter and remote dispatcher, required lazily.
 gem "aws-sdk-lambda", "~> 1.0"
 
