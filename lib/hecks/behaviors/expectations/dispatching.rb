@@ -9,10 +9,10 @@ module Hecks
         # Reads the aggregate back from the repository, not `Result#state` — a
         # policy's own reentrant dispatch can re-save the record afterward.
         #
-        # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the suite's
+        # @param runtime [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the suite's
         #   booted runtime
         # @param verb [String] the dispatched command's dotted FQN
-        # @param result [Runtime::Dispatcher::Result, Runtime::RemoteDispatcher::Result]
+        # @param result [Runtime::Dispatcher::Result, Adapters::Lambda::RemoteDispatcher::Result]
         #   the dispatch's own result
         # @return [Hash{Symbol => Object}] the settled record's current state, read
         #   back from the repository; `result.state` (or `{}`) when the result has no
@@ -41,11 +41,12 @@ module Hecks
         # Splits a mixed dispatch (receiver identity plus declared facts, e.g.
         # `to: { file: 2, rank: 2 }`) into the dispatcher's strict `to:`/`with:` envelope.
         #
-        # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the suite's booted runtime
+        # @param runtime [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the suite's
+        #   booted runtime
         # @param verb [String] the command's dotted FQN, or a port operation's
         # @param args [Hash{Symbol => Object}] the facts, mixing identity and declared arguments
-        # @return [Runtime::Dispatcher::Result, Runtime::RemoteDispatcher::Result] the dispatch
-        #   result
+        # @return [Runtime::Dispatcher::Result, Adapters::Lambda::RemoteDispatcher::Result] the
+        #   dispatch result
         # @raise [Runtime::UnknownVerb] if `verb` names an undeclared construct
         # @raise [StandardError] any `Runtime::DOMAIN_REFUSALS` class, when the domain refuses
         def dispatch_command(runtime, verb, args)
@@ -73,7 +74,7 @@ module Hecks
         # The same "Head.Rest" split `Dispatcher#dispatch` already uses — just a
         # domain/aggregate and port-name lookup, no command resolution needed.
         #
-        # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the suite's
+        # @param runtime [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the suite's
         #   booted runtime
         # @param verb [String] the verb to check, dotted FQN shaped
         # @return [Boolean] true if `verb` names a port operation on a declared aggregate

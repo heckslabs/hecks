@@ -438,16 +438,16 @@ RSpec.describe "hecks deploy project — Fargate hosting scripts", :io do
 
     it "lists the expected eras beside the roll procedure", :aggregate_failures do
       files = files_of(pinned_world)
-      require "hecks/ports/persistence/plugins/era/expected_era"
+      require "hecks/cli/expected_era"
 
-      expect(Hecks::Runtime::EraCheck::ExpectedEra.parse(files["expected-era"])).to eq(["aaa111", "bbb222"])
+      expect(Hecks::CLI::ExpectedEra.parse(files["expected-era"])).to eq(["aaa111", "bbb222"])
       expect(files["expected-era"]).to include("Changing the era on a roll")
     end
 
     it "lists no era when none is set, so a host is only checked to report one" do
-      require "hecks/ports/persistence/plugins/era/expected_era"
+      require "hecks/cli/expected_era"
 
-      expect(Hecks::Runtime::EraCheck::ExpectedEra.parse(files_of(opted_in)["expected-era"])).to eq([])
+      expect(Hecks::CLI::ExpectedEra.parse(files_of(opted_in)["expected-era"])).to eq([])
     end
   end
 end

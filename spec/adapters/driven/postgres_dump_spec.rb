@@ -1,12 +1,12 @@
 require "hecks"
 require "securerandom"
 require "tmpdir"
-require_relative "../support/postgres_probe"
+require_relative "../../support/postgres_probe"
 
-RSpec.describe Hecks::Ports::Persistence::PostgresDump do
+RSpec.describe Hecks::Adapters::PostgresDump do
   let(:error) { described_class::Error }
 
-  describe Hecks::Ports::Persistence::PostgresDump::Connection do
+  describe Hecks::Adapters::PostgresDump::Connection do
     it "splits a URL into the settings and environment libpq wants, decoding the password" do
       connection = described_class.new("postgres://app:p%40ss@db.example:5433/site?sslmode=require")
 
@@ -27,7 +27,7 @@ RSpec.describe Hecks::Ports::Persistence::PostgresDump do
 
     it "refuses anything that is not a postgres URL" do
       expect { described_class.new("mysql://x/y") }
-        .to raise_error(Hecks::Ports::Persistence::PostgresDump::Error, /not a postgres URL/)
+        .to raise_error(Hecks::Adapters::PostgresDump::Error, /not a postgres URL/)
     end
   end
 

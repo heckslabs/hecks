@@ -1,4 +1,5 @@
 require_relative "lambda/client"
+require_relative "lambda/remote_dispatcher"
 require_relative "../../ports/query/in_memory"
 require_relative "../../ports/persistence/remote_runtime"
 require_relative "in_memory_ordering"
@@ -6,12 +7,22 @@ require_relative "../../runtime/instance"
 
 module Hecks
   module Adapters
-    # Read-side adapter for `persisted_by("Lambda")`; writes go through Runtime::RemoteDispatcher.
+    # Read-side adapter for `persisted_by("Lambda")`; writes go through `RemoteDispatcher`.
     # Read-only: `append`/`project` raise, since a local write would bypass remote validation.
     class Lambda
       include Ports::Persistence::RemoteRuntime
 
       attr_reader :aggregate
+
+      # Builds the dispatcher for a world's `dispatched_by("Lambda")`: writes go to the routed
+      # function, reads stay local.
+      #
+      # @param registry [Runtime::Registry] the booted registry
+      # @param settings [Hash{Symbol => Object}] the binding's `region` and `function`
+      # @return [RemoteDispatcher] the dispatcher the boot hands back
+      def self.dispatcher(registry, settings)
+        RemoteDispatcher.new(registry, region: settings.fetch(:region, "us-east-1"), function: settings[:function])
+      end
 
       # Resolves which Lambda function's Store to read from and builds the client that
       # reads it.

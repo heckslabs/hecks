@@ -5,6 +5,7 @@ require_relative "../../cache_dir"
 require_relative "../../version"
 require_relative "verdict_cache/tagging"
 require_relative "verdict_cache/prebuilt"
+require_relative "../../switches"
 
 module Hecks
   module Bluebook
@@ -44,7 +45,7 @@ module Hecks
         # Whether the disk cache is on; `HECKS_VERDICT_CACHE=off` disables it.
         #
         # @return [Boolean]
-        def enabled? = ENV["HECKS_VERDICT_CACHE"] != "off"
+        def enabled? = Hecks::Switches.verdict_cache?
 
         # The directory the verdict files live in.
         #

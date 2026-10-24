@@ -1,5 +1,5 @@
-require_relative "../../era_tamper"
-require_relative "../../../../../../runtime/registry"
+require_relative "../../../../ports/persistence/plugins/era/era_tamper"
+require_relative "../../../../runtime/registry"
 
 module Hecks
   module Adapters

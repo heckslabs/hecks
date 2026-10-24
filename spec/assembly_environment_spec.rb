@@ -2,7 +2,7 @@ require "spec_helper"
 
 # The overlay a boot loads is a per-boot choice: an omitted keyword follows
 # `HECKS_ENVIRONMENT`, a named one wins, and an explicit nil loads none.
-RSpec.describe Hecks::Runtime::Loader, ".selected_environment" do
+RSpec.describe Hecks::Assembly, ".selected_environment" do
   around do |example|
     saved = ENV.fetch("HECKS_ENVIRONMENT", nil)
     ENV["HECKS_ENVIRONMENT"] = "memory"

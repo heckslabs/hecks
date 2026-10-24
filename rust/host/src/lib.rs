@@ -4,6 +4,7 @@
 pub mod api;
 pub mod arg_limits;
 pub mod auth;
+pub mod aws_lambda_invoker;
 mod b64;
 pub mod boot;
 pub mod checkout;
@@ -23,6 +24,8 @@ mod http;
 pub mod field_hints;
 #[cfg(test)]
 pub mod fuzz_support;
+#[cfg(test)]
+mod hecksagon_boundary_tests;
 pub mod host;
 // The one `Hecks::Naming` port, compiled from `hecks-codegen`'s source: the host and the codegen
 // are independent Cargo projects, so the file is shared by path rather than by dependency.

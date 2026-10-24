@@ -7,6 +7,12 @@ pub(crate) fn unix_now() -> i64 {
         .map_or(0, |elapsed| elapsed.as_secs() as i64)
 }
 
+/// The current instant in ISO 8601 UTC, matching Ruby's `Time.now.utc.iso8601`: the rendering
+/// a journal step's `occurred_at` and a role assignment's `starts_at` both carry.
+pub(crate) fn iso8601_now() -> String {
+    iso_utc(unix_now().max(0) as u64)
+}
+
 /// Epoch seconds as an ISO 8601 UTC instant, `YYYY-MM-DDTHH:MM:SSZ`.
 pub(crate) fn iso_utc(secs: u64) -> String {
     let days = secs / 86_400;

@@ -43,7 +43,7 @@ module Hecks
       #   `.bluebook` files into
       # @return [void]
       def isolate!(dir, scratch)
-        source = Adapters::Folder.new.bluebook_directory(dir)
+        source = Ports::Loading.bootstrap.bluebook_directory(dir)
         target = File.join(scratch, "bluebook")
         FileUtils.mkdir_p(target)
         Dir.glob(File.join(source, "*.bluebook")).each { |file| FileUtils.cp(file, target) }
@@ -51,7 +51,7 @@ module Hecks
 
       # Walks aggregates in declaration order so later ones can reference earlier `created` ids.
       #
-      # @param dispatcher [Runtime::Dispatcher, Runtime::RemoteDispatcher] the
+      # @param dispatcher [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the
       #   booted dispatcher to dispatch synthesized commands and queries through
       # @param domain [String] the domain name to smoke-test, a key of
       #   `dispatcher.registry.bluebooks`

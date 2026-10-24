@@ -35,7 +35,7 @@ module Hecks
       # The registry declarations are currently landing in, or nil outside a boot.
       attr_reader :current_registry
 
-      # Loads a bluebook directory and returns the Dispatcher bound to it. See Loader.boot.
+      # Loads a bluebook directory and returns the Dispatcher bound to it. See `Hecks.boot`.
       #
       #   Hecks::Runtime.boot("examples/pizzas/bluebook")
       #     .dispatch("Pizzas::Pizza.CreatePizza", name: "Margherita")
@@ -44,42 +44,42 @@ module Hecks
       # @param shared [String, nil] a shared-root override
       # @param install_driving [Boolean] whether to install the Ruby facade constants
       # @param environment [String, nil] the environment name for `Adapters::Folder#load_domain`
-      # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the dispatcher bound
+      # @return [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the dispatcher bound
       #   to the booted domain
-      def boot(path, shared: nil, install_driving: true, environment: Runtime::Loader::FROM_ENV)
-        Loader.boot(path, shared: shared, install_driving: install_driving, environment: environment)
+      def boot(path, shared: nil, install_driving: true, environment: Assembly::FROM_ENV)
+        Hecks.boot(path, shared: shared, install_driving: install_driving, environment: environment)
       end
 
-      # Loads a domain's declarations without binding any adapter. See Loader.describe.
+      # Loads a domain's declarations without binding any adapter. See `Hecks.describe`.
       #
       # @param path [String] path to a domain directory, or a file inside one
       # @param shared [String, nil] a shared-root override
       # @param environment [String, nil] the environment overlay; defaults to `HECKS_ENVIRONMENT`
       # @return [Runtime::Loader::Described] the loaded registry, answering `registry`
-      def describe(path, shared: nil, environment: Runtime::Loader::FROM_ENV)
-        Loader.describe(path, shared: shared, environment: environment)
+      def describe(path, shared: nil, environment: Assembly::FROM_ENV)
+        Hecks.describe(path, shared: shared, environment: environment)
       end
 
-      # Finishes a boot from declarations `describe` already loaded. See Loader.boot_described.
+      # Finishes a boot from declarations `describe` already loaded. See `Hecks.boot_described`.
       #
       # @param described [Runtime::Loader::Described] what `describe` answered
       # @param install_driving [Boolean] whether to install the Ruby facade constants
-      # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the dispatcher bound
+      # @return [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the dispatcher bound
       #   to the booted domain
       def boot_described(described, install_driving: true)
-        Loader.boot_described(described, install_driving: install_driving)
+        Hecks.boot_described(described, install_driving: install_driving)
       end
 
-      # Loads only the given files of a domain; otherwise like `boot`. See Loader.boot_files.
+      # Loads only the given files of a domain; otherwise like `boot`. See `Hecks.boot_files`.
       #
       # @param paths [String, Array<String>] one or more file paths within the domain
       # @param shared [String, nil] a shared-root override
       # @param install_driving [Boolean] whether to install the Ruby facade constants
       # @param environment [String, nil] the environment name for the selected-file loader
-      # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the dispatcher bound
+      # @return [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the dispatcher bound
       #   to the booted domain
-      def boot_files(paths, shared: nil, install_driving: true, environment: Runtime::Loader::FROM_ENV)
-        Loader.boot_files(paths, shared: shared, install_driving: install_driving, environment: environment)
+      def boot_files(paths, shared: nil, install_driving: true, environment: Assembly::FROM_ENV)
+        Hecks.boot_files(paths, shared: shared, install_driving: install_driving, environment: environment)
       end
 
       # Bind the ambient registry for the duration of the block, restoring

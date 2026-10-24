@@ -446,7 +446,7 @@ spec/runtime/registry/verification_answers_spec.rb:0.00
 spec/runtime/registry_saga_persistence_thread_safety_spec.rb:1.00
 spec/runtime/relationship_list_spec.rb:0.06
 spec/runtime/relationship_semantics_spec.rb:0.10
-spec/runtime/remote_dispatcher_refused_reactions_spec.rb:0.12
+spec/adapters/driven/lambda/remote_dispatcher_refused_reactions_spec.rb:0.12
 spec/runtime/rootless_read_model_group_by_spec.rb:1.53
 spec/runtime/routing_envelope_shape_spec.rb:0.07
 spec/runtime/routing_envelope_spec.rb:1.55

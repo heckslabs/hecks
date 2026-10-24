@@ -1,4 +1,4 @@
-# Declares the PostgresEra adapter's port and fields; the class lives in the era plugin.
+# Declares the PostgresEra adapter's port and fields; the class is `postgres_era.rb` beside it.
 # This file is loaded on every boot, so it stays metadata only.
 Hecks.adapter "PostgresEra" do
   port  "persistence"

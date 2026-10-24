@@ -3,7 +3,7 @@ require "spec_helper"
 # **Refused reactions cross the wire** — the newest step's ride the dispatch result, so the
 # launcher answers and `--wait` exit status match a local run. The transport is a fake; only
 # the wire shape is real.
-RSpec.describe Hecks::Runtime::RemoteDispatcher do
+RSpec.describe Hecks::Adapters::Lambda::RemoteDispatcher do
   let(:remote)    { Class.new { include Hecks::Ports::Persistence::RemoteRuntime } }
   let(:registry)  { boot_in_memory.registry }
   let(:fake_client) { instance_double(Hecks::Adapters::Lambda::Client) }

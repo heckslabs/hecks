@@ -21,6 +21,7 @@ require_relative "hecks/router"
 
 require_relative "hecks/runtime"
 require_relative "hecks/adapters"
+require_relative "hecks/assembly"
 require_relative "hecks/projector"
 # After the projector registry and its `Target` mixin are both real —
 # every target registers itself as it loads, so this require is the
@@ -62,9 +63,9 @@ module Hecks
     # @param install_driving [Boolean] install the `Widget::Item.Add`-style facade
     # @param environment [String, nil] env name; its `.hecksagon`/`.world` overlay,
     #   if present, loads after the domain's own. Defaults to `HECKS_ENVIRONMENT`; nil loads none
-    # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] dispatcher bound to the domain
-    def boot(path, shared: nil, install_driving: true, environment: Runtime::Loader::FROM_ENV)
-      Runtime.boot(path, shared: shared, install_driving: install_driving, environment: environment)
+    # @return [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the domain's dispatcher
+    def boot(path, shared: nil, install_driving: true, environment: Assembly::FROM_ENV)
+      Assembly.boot(path, shared: shared, install_driving: install_driving, environment: environment)
     end
 
     # Loads a domain's declarations without binding any adapter or opening any store.
@@ -73,8 +74,8 @@ module Hecks
     # @param shared [String, nil] a shared-root override; see `Runtime::Loader.describe`
     # @param environment [String, nil] env overlay; defaults to `HECKS_ENVIRONMENT`
     # @return [Runtime::Loader::Described] the loaded registry, answering `registry`
-    def describe(path, shared: nil, environment: Runtime::Loader::FROM_ENV)
-      Runtime.describe(path, shared: shared, environment: environment)
+    def describe(path, shared: nil, environment: Assembly::FROM_ENV)
+      Assembly.describe(path, shared: shared, environment: environment)
     end
 
     # Finishes a boot from declarations `describe` already loaded, so the domain's files are read
@@ -82,9 +83,9 @@ module Hecks
     #
     # @param described [Runtime::Loader::Described] what `describe` answered
     # @param install_driving [Boolean] install the `Widget::Item.Add`-style facade
-    # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] dispatcher bound to the domain
+    # @return [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the domain's dispatcher
     def boot_described(described, install_driving: true)
-      Runtime.boot_described(described, install_driving: install_driving)
+      Assembly.boot_described(described, install_driving: install_driving)
     end
 
     # Boots a domain from an explicit list of files (a `.bluebook`, its
@@ -94,10 +95,16 @@ module Hecks
     # @param shared [String, nil] a shared-root override; see `Runtime::Loader.boot_files`
     # @param install_driving [Boolean] install the `Widget::Item.Add`-style facade
     # @param environment [String, nil] environment name passed to the selected-file loader
-    # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] dispatcher bound to the domain
-    def boot_files(paths, shared: nil, install_driving: true, environment: Runtime::Loader::FROM_ENV)
-      Runtime.boot_files(paths, shared: shared, install_driving: install_driving, environment: environment)
+    # @return [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the domain's dispatcher
+    def boot_files(paths, shared: nil, install_driving: true, environment: Assembly::FROM_ENV)
+      Assembly.boot_files(paths, shared: shared, install_driving: install_driving, environment: environment)
     end
+
+    # Installs the Ruby driving adapter (`Widget::Item.Add(...)`) over a dispatcher built by hand.
+    #
+    # @param dispatcher [Runtime::Dispatcher] a dispatcher over a verified registry
+    # @return [Runtime::Dispatcher] the same dispatcher
+    def bind_runtime(dispatcher) = Assembly.bind_runtime(dispatcher)
 
     # Binds the ambient registry for the duration of the block.
     #

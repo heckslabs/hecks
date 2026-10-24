@@ -1,4 +1,4 @@
-require_relative "../../../../../indifferent_key"
+require_relative "../../../indifferent_key"
 
 module Hecks
   module Adapters

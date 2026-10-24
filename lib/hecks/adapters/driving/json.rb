@@ -19,7 +19,7 @@ module Hecks
         # The name is checked against the current boot's IR before Ruby's constant table, so
         # a stale same-named constant from an earlier boot is never returned.
         #
-        # @param dispatcher [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted dispatcher
+        # @param dispatcher [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the boot
         # @param domain [String, Symbol] the chapter name, such as `"Banking"`
         # @param name [String, Symbol] the aggregate's declared name, such as `"Customer"`
         # @return [Module] the aggregate module installed at `domain::name`

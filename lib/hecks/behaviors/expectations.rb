@@ -36,7 +36,7 @@ module Hecks
       #
       # @param test [Behaviors::TestCase] the test case to run
       # @param suite [Behaviors::BehaviorsSuite] the suite `test` belongs to
-      # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher, nil] an
+      # @param runtime [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher, nil] an
       #   already-booted runtime to reuse and reset; nil boots (or reuses the cached
       #   boot of) `suite.loads` via `runtime_for`
       # @return [Result] the test's pass, fail, or error outcome
@@ -70,7 +70,7 @@ module Hecks
       # domain refusal as the test's own outcome rather than an error.
       #
       # @param test [Behaviors::TestCase] the test case to run
-      # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the suite's
+      # @param runtime [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the suite's
       #   booted runtime
       # @param bluebooks [Array<Bluebook::Chapter>] every chapter the suite booted,
       #   searched to qualify a bare command/query name
@@ -90,7 +90,7 @@ module Hecks
       # Dispatches the command under test and checks its `expect`.
       #
       # @param test [Behaviors::TestCase] the test case to run
-      # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the suite's
+      # @param runtime [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the suite's
       #   booted runtime
       # @param verb [String] the command's dotted FQN
       # @return [Result] the test's pass or fail outcome
@@ -106,7 +106,7 @@ module Hecks
       # Runs the query under test and checks its `expect`.
       #
       # @param test [Behaviors::TestCase] the test case to run
-      # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the suite's
+      # @param runtime [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the suite's
       #   booted runtime
       # @param verb [String] the query's dotted FQN
       # @return [Result] the test's pass or fail outcome

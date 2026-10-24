@@ -40,6 +40,17 @@ pub struct Session {
     pub role: Option<String>,
 }
 
+/// The caller a signed-in session dispatches as: the role it carries and the identity
+/// Governance holds assignments for. No session is an unidentified caller.
+pub fn caller(session: Option<&Session>) -> crate::dispatch::Caller<'_> {
+    session.map_or_else(crate::dispatch::Caller::default, |session| {
+        crate::dispatch::Caller {
+            role: session.role.as_deref(),
+            actor_id: Some(session.identity_id.as_str()).filter(|id| !id.is_empty()),
+        }
+    })
+}
+
 /// Google's consent page for one sign-in: `signin`'s `state` comes back on the callback and its
 /// `nonce` inside the ID token, and both must match the cookie `/auth/google` set beside them.
 pub fn authorization_url(redirect_uri: &str, signin: &GoogleSignin) -> Result<String, String> {
@@ -640,7 +651,7 @@ pub async fn provision(
     };
     let assign_role = dispatch::handle(Host::new(store, wasm_path, config, invoker), &provider.grant, json!({
             "actor_id": {"value": identity_id}, "role_name": {"value": role}, "scope": {"value": config.domain.clone()},
-            "starts_at": {"value": httpdate_now()},
+            "starts_at": {"value": crate::clock::iso8601_now()},
         }), None).await?;
     if !assign_role.accepted {
         anyhow::bail!("{} refused: {}", provider.grant, assign_role.result);
@@ -1284,16 +1295,6 @@ fn now_secs() -> u64 {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs()
-}
-
-// `dispatch.rs`'s `occurred_at` stamping reuses this exact rendering
-// rather than re-deriving it -- see the body comment for the format
-// guarantee both call sites depend on.
-pub(crate) fn httpdate_now() -> String {
-    // ISO 8601 UTC, matching Ruby's Time.now.utc.iso8601 -- Governance::
-    // RoleAssignment.starts_at only needs to parse as a real instant,
-    // never re-derived from or compared against wall-clock time here.
-    crate::clock::iso_utc(now_secs())
 }
 
 #[allow(clippy::expect_used)] // reason: HMAC accepts a key of any length, so construction cannot fail
