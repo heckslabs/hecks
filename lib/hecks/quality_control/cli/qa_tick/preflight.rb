@@ -80,10 +80,18 @@ module Hecks
           banner "git fetch origin && git rebase origin/main"
           out, err, status = git("fetch", "origin")
           abort "refused: git fetch origin failed — #{err.empty? ? out : err}" unless status.success?
-          out, err, status = git("rebase", "origin/main")
-          abort_rebase(out, err) unless status.success?
+          rebase_unless_holding_origin_main
           head, = git("rev-parse", "--short", "HEAD")
           puts "at #{head}"
+        end
+
+        # A checkout that already holds `origin/main` is left as it is: a rebase would replay its
+        # merge commits flat and can stop on a conflict that nothing caused.
+        def rebase_unless_holding_origin_main
+          return if git("merge-base", "--is-ancestor", "origin/main", "HEAD").last.success?
+
+          out, err, status = git("rebase", "origin/main")
+          abort_rebase(out, err) unless status.success?
         end
 
         def abort_rebase(out, err)
