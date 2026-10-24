@@ -7,9 +7,9 @@
 use std::path::Path;
 use std::sync::Arc;
 
+use crate::store::Store;
 use serde_json::{json, Value};
-use tokio::sync::Mutex;
-use tokio_postgres::{Client, NoTls};
+use tokio_postgres::NoTls;
 
 use super::extension::PlatformSignin;
 use super::session::{map_member, HostMembers};
@@ -26,7 +26,7 @@ fn domain_ir() -> Value {
     })
 }
 
-async fn scratch(name: &str) -> Mutex<Client> {
+async fn scratch(name: &str) -> Store {
     let (admin, conn) = tokio_postgres::connect(&crate::test_pg::conninfo("postgres"), NoTls)
         .await
         .expect("postgres");
@@ -56,11 +56,11 @@ async fn scratch(name: &str) -> Mutex<Client> {
         )
         .await
         .unwrap();
-    Mutex::new(client)
+    Store::postgres(client)
 }
 
 async fn member(
-    db: &Mutex<Client>,
+    db: &Store,
     email: &str,
     role: Option<&str>,
     identity: Option<&str>,
@@ -73,7 +73,7 @@ async fn member(
     db.lock().await.execute("INSERT INTO acme_member_head_snapshot_1 (id, ordinal, state) VALUES ($1, 1, $2::jsonb)", &[&email, &state]).await.unwrap();
 }
 
-async fn known_identity(db: &Mutex<Client>, issuer: &str, subject: &str, identity: &str) {
+async fn known_identity(db: &Store, issuer: &str, subject: &str, identity: &str) {
     let state =
         json!({"issuer": {"value": issuer}, "subject": {"value": subject}, "identity": identity});
     let id = format!("{issuer}:{subject}");
@@ -81,7 +81,7 @@ async fn known_identity(db: &Mutex<Client>, issuer: &str, subject: &str, identit
 }
 
 struct World {
-    db: Mutex<Client>,
+    db: Store,
     ir: Value,
     config: LineageConfig,
 }
@@ -101,7 +101,7 @@ impl World {
 
     fn members(&self) -> HostMembers<'_> {
         HostMembers {
-            client: &self.db,
+            store: &self.db,
             domain_ir: &self.ir,
             wasm_path: Path::new("unused.wasm"),
             config: &self.config,

@@ -8,13 +8,12 @@
 //! the plugin; it is written once to a cache file named by its digest and compiled once, by
 //! `wasm_runner`'s per-path cache.
 
+use crate::store::Store;
 use crate::{dispatch, wasm_runner};
 use base64::Engine as _;
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
-use tokio::sync::Mutex;
-use tokio_postgres::Client;
 
 /// One question a plugin answers, and what the host needs to ask it.
 #[derive(Debug, PartialEq, Eq)]
@@ -59,13 +58,13 @@ pub async fn answer(
     plugin: &PluginQuery,
     domain_ir: &Value,
     args: Value,
-    client: &Mutex<Client>,
+    store: &Store,
     wasm_path: &Path,
 ) -> Result<Value, String> {
     let module = module_path(domain_ir, plugin)?;
     let mut asked_with = args.as_object().cloned().unwrap_or_default();
     if !plugin.references.is_empty() {
-        let current = dispatch::read(client, wasm_path)
+        let current = dispatch::read(store, wasm_path)
             .await
             .map_err(|e| format!("{e:#}"))?;
         if let Err(missing) =

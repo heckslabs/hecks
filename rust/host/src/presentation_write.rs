@@ -35,7 +35,7 @@ pub(crate) async fn save(
 ) -> Result<Value, SaveRefusal> {
     // Asked before validated: a host with no such chapter cannot honour this request at all,
     // regardless of which rule the submitted config would otherwise break.
-    let existing = match presentation::kernel_rows(host.client, host.wasm_path).await {
+    let existing = match presentation::kernel_rows(host.store, host.wasm_path).await {
         Ok(Some(rows)) => rows,
         Ok(None) => return Err(SaveRefusal::NoKernel),
         Err(e) => return Err(SaveRefusal::Internal(format!("{e:#}"))),
@@ -54,7 +54,7 @@ pub(crate) async fn save(
         .write_overview(section(submitted, "overview"), &existing)
         .await?;
 
-    presentation::load(host.client, host.wasm_path, host.config)
+    presentation::load(host.store, host.wasm_path, host.config)
         .await
         .map_err(|e| SaveRefusal::Internal(format!("{e:#}")))
 }

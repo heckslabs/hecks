@@ -159,7 +159,7 @@ impl PlatformSignin {
             return pages::refusal(Failure::Unavailable);
         };
         let members = HostMembers {
-            client: ctx.client,
+            store: ctx.store,
             domain_ir,
             wasm_path: ctx.wasm_path,
             config: ctx.config,

@@ -4,10 +4,9 @@
 use crate::host::Host;
 use crate::journal;
 use crate::lambda_client::{self};
+use crate::store::{Accepted, DeadLetter, LineageWrite, Store};
 use crate::wasm_runner;
 use std::path::Path;
-use tokio::sync::Mutex;
-use tokio_postgres::Client;
 
 pub struct Outcome {
     pub result: serde_json::Value,
@@ -213,9 +212,8 @@ pub async fn handle_facts_as(
     handle_as(host, verb, facts_invocation(facts)?, caller).await
 }
 
-// A Mutex, not a bare Arc<Client>: `handle` needs `Client::transaction`,
-// which takes `&mut Client`. Locking also means concurrent callers on
-// this connection can't interleave statements.
+// The store's unit of work holds the domain lock from the first load to the commit, so concurrent
+// callers on one store can't interleave their reads and writes.
 //
 // `config` is required, not optional: `main.rs` already refused to boot
 // unless the configured domain/era is provisioned and current, so by the
@@ -353,42 +351,22 @@ async fn run(
     caller: Caller<'_>,
 ) -> anyhow::Result<Outcome> {
     let Host {
-        client,
+        store,
         wasm_path,
         config,
         invoker,
         ..
     } = host;
     let role = caller.role;
-    let mut guard = client.lock().await;
-    let txn = guard.transaction().await?;
+    // Locks the whole read-then-append sequence, not just the append: two concurrent
+    // invocations could otherwise both rehydrate against the same prior steps and both pass a
+    // uniqueness check the domain thinks it is enforcing.
+    let unit = store.begin(&config.domain).await?;
 
-    // Locks the whole read-then-append sequence, not just the INSERT:
-    // two concurrent invocations could otherwise both rehydrate against
-    // the same prior steps and both pass a uniqueness check the domain
-    // thinks it's enforcing. Domain-scoped so unrelated domains sharing
-    // one Postgres instance don't serialize against each other.
-    txn.execute(
-        "SELECT pg_advisory_xact_lock(hashtext('hecks_lambda_journal.' || $1::text))",
-        &[&config.domain],
-    )
-    .await?;
-
-    // Reads the last snapshot plus only the journal rows after it,
-    // instead of replaying the whole history every time. `None` covers
-    // a brand-new domain and one with pre-snapshot history alike; both
+    // The last snapshot plus only the journal rows after it, instead of the whole history every
+    // time. No snapshot covers a brand-new domain and one with pre-snapshot history alike; both
     // fall back to one full replay, which then leaves a snapshot behind.
-    let snapshot = journal::load_snapshot(&txn).await?;
-    // `sagas_backfilled` is a latch, not a live check of whether
-    // `hecks_lambda_sagas` is empty (empty is the ordinary state, not a
-    // signal). Only matters for a domain with real history predating
-    // saga durability, where the snapshot cache would otherwise never
-    // re-derive sagas from the journal.
-    let needs_saga_backfill = snapshot.as_ref().is_some_and(|s| !s.sagas_backfilled);
-    let mut steps = match &snapshot {
-        Some(s) if !needs_saga_backfill => journal::load_steps_after(&txn, s.ordinal).await?,
-        _ => journal::load_steps(&txn).await?,
-    };
+    let state = unit.load().await?;
     // Role goes only on this outermost step; replayed history already
     // carries whatever role it was dispatched with. Built as a mutable
     // step, not inlined into the `json!` literal, so a roleless call
@@ -416,22 +394,17 @@ async fn run(
     // its own real timestamp, and re-stamping today's time onto a
     // replay would be wrong, not just redundant.
     step["occurred_at"] = serde_json::Value::String(crate::auth::httpdate_now());
+    // The seed matches the steps: a full replay needs an empty seed, or the kernel replays into a
+    // world that already has every record being created again, refusing each as a false
+    // AlreadyExists.
+    let seed = state.seed();
+    let mut steps = state.steps;
     steps.push(step);
-    // Must match `steps`' own choice above: a full replay needs an empty
-    // seed, or the kernel replays into a world that already has every
-    // record being created again, refusing each as a false AlreadyExists.
-    let seed = if needs_saga_backfill {
-        serde_json::json!({})
-    } else {
-        snapshot
-            .as_ref()
-            .map_or_else(|| serde_json::json!({}), |s| s.seed.clone())
-    };
 
-    // Read inside the same advisory-locked transaction: the lock covers
-    // saga state too, not just the aggregate journal/snapshot.
-    let saga_rows = journal::load_sagas(&txn).await?;
-    let sagas_seed = serde_json::json!(saga_rows
+    // Read inside the same locked scope: the lock covers saga state too, not just the aggregate
+    // journal and snapshot.
+    let sagas_seed = serde_json::json!(state
+        .sagas
         .iter()
         .map(|r| serde_json::json!({
             "process_manager": r.process_manager,
@@ -442,27 +415,15 @@ async fn run(
         }))
         .collect::<Vec<_>>());
 
-    let mut input = serde_json::json!({ "seed": seed, "steps": steps, "sagas": sagas_seed });
-    // Lets the kernel answer a reaction's command that needs a fact the same way (ADR 0081).
-    if let Some(domain_ir) = crate::ir::ir() {
-        let table = crate::needs::table(domain_ir);
-        if table.as_object().is_some_and(|t| !t.is_empty()) {
-            input["needs"] = table;
-        }
-        let defaults = crate::needs::defaults_table(domain_ir);
-        if defaults.as_object().is_some_and(|t| !t.is_empty()) {
-            input["defaults"] = defaults;
-        }
-    }
-    let input = input.to_string();
+    let input = kernel_input(&seed, &steps, &sagas_seed).to_string();
     // `wasm_runner::run` is sync, and wasmtime-wasi's sync bridge spins up
     // its own tokio runtime internally — fatal on a thread already
     // driving one. `spawn_blocking` moves it off this async runtime.
     let owned_wasm_path = wasm_path.to_path_buf();
     let output =
         tokio::task::spawn_blocking(move || wasm_runner::run(&owned_wasm_path, &input)).await??;
-    // A kernel failure returns here, before anything is written: dropping `txn`
-    // rolls it back, so no journal row, snapshot, saga or mutation is saved.
+    // A kernel failure returns here, before anything is written: dropping the unit rolls it
+    // back, so no journal row, snapshot, saga or mutation is saved.
     let mut result = parse_kernel_output(&output)?;
 
     // See journal.rs's own header: every prior step in this replay
@@ -472,128 +433,30 @@ async fn run(
     let accepted = classify(&result) == KernelAnswer::Accepted;
 
     if accepted {
-        let ordinal = journal::append(&txn, verb, &args).await?;
-
-        // The kernel's "instances" output is already the exact seed
-        // shape, so nothing here re-derives or filters it.
-        let new_seed = result
-            .get("instances")
-            .cloned()
-            .unwrap_or_else(|| serde_json::json!({}));
-        journal::save_snapshot(&txn, ordinal, &new_seed).await?;
-
-        // Persisted in the same transaction, so a saga checkpoint can
-        // never commit independently of the command that produced it.
-        // Reconciled against `saga_rows` (pre-run state): present now
-        // is upserted, present before but absent now is deleted.
-        if let Some(saga_snapshot) = result.get("saga_snapshot").and_then(|v| v.as_array()) {
-            let mut still_present: std::collections::HashSet<(String, String)> =
-                std::collections::HashSet::new();
-            for entry in saga_snapshot {
-                let process_manager = entry
-                    .get("process_manager")
-                    .and_then(|v| v.as_str())
-                    .ok_or_else(|| {
-                        anyhow::anyhow!("saga_snapshot entry missing \"process_manager\": {entry}")
-                    })?;
-                let correlation = entry
-                    .get("correlation")
-                    .and_then(|v| v.as_str())
-                    .ok_or_else(|| {
-                        anyhow::anyhow!("saga_snapshot entry missing \"correlation\": {entry}")
-                    })?;
-                let state = entry.get("state").and_then(|v| v.as_str()).ok_or_else(|| {
-                    anyhow::anyhow!("saga_snapshot entry missing \"state\": {entry}")
-                })?;
-                let memory = entry
-                    .get("memory")
-                    .cloned()
-                    .unwrap_or_else(|| serde_json::json!({}));
-                let completed_compensations = entry
-                    .get("completed_compensations")
-                    .cloned()
-                    .unwrap_or_else(|| serde_json::json!([]));
-
-                journal::save_saga(
-                    &txn,
-                    process_manager,
-                    correlation,
-                    state,
-                    &memory,
-                    &completed_compensations,
-                )
-                .await?;
-                still_present.insert((process_manager.to_string(), correlation.to_string()));
-            }
-            for row in &saga_rows {
-                let key = (row.process_manager.clone(), row.correlation.clone());
-                if !still_present.contains(&key) {
-                    journal::delete_saga(&txn, &row.process_manager, &row.correlation).await?;
-                }
-            }
-        }
-
-        // One entry per step in `steps`, so the last entry is this
-        // call's own new step. Skipped when `config.era` is `None`: a
-        // domain with nothing lineage-capable bound never provisions a
-        // head-snapshot table to write into (ADR 0034).
-        let step_mutations = if config.era.is_some() {
-            result
-                .get("mutations")
-                .and_then(|m| m.as_array())
-                .and_then(|steps| steps.last())
-                .and_then(|last| last.as_array())
+        let accepted_step = Accepted {
+            verb,
+            args: &args,
+            // The kernel's "instances" output is already the exact seed shape, so nothing here
+            // re-derives or filters it.
+            new_seed: result
+                .get("instances")
                 .cloned()
-                .unwrap_or_default()
-        } else {
-            Vec::new()
+                .unwrap_or_else(|| serde_json::json!({})),
+            saga_upserts: saga_upserts(&result)?,
+            saga_deletes: saga_deletes(&result, &state.sagas),
+            lineage: lineage_write(&result, config)?,
         };
-
-        for mutation in &step_mutations {
-            let aggregate = mutation
-                .get("aggregate")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| {
-                    anyhow::anyhow!("mutation record missing \"aggregate\": {mutation}")
-                })?;
-            // `era.is_some()` means the lineage subsystem exists, not that
-            // this aggregate has a mirror: `mint` only provisions head
-            // snapshots for the capable set, so mirroring anything else
-            // would upsert into a relation nobody created.
-            if !config.mirrors(aggregate) {
-                continue;
-            }
-            let id = mutation
-                .get("id")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| anyhow::anyhow!("mutation record missing \"id\": {mutation}"))?;
-            let operation = mutation
-                .get("operation")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| {
-                    anyhow::anyhow!("mutation record missing \"operation\": {mutation}")
-                })?;
-            let state = mutation
-                .get("state")
-                .ok_or_else(|| anyhow::anyhow!("mutation record missing \"state\": {mutation}"))?;
-
-            journal::append_lineage_mutation(
-                &txn,
-                config,
-                &journal::Mutation {
-                    aggregate,
-                    id,
-                    operation,
-                    state,
-                },
-            )
-            .await?;
-        }
+        // Persisted in one scope, so a saga checkpoint can never commit independently of the
+        // command that produced it.
+        unit.commit(accepted_step).await?;
+    } else {
+        // Nothing to persist; ending the scope releases the domain lock for the next invocation.
+        unit.rollback().await?;
     }
 
-    // Only this step's own matches, same reason as `step_mutations`
-    // above: replaying a prior step's reaction would re-invoke a sibling
-    // Lambda on every later replay. Captured before commit, delivered after.
+    // Only this step's own matches, same reason as the lineage mutations: replaying a prior
+    // step's reaction would re-invoke a sibling Lambda on every later replay. Captured before
+    // commit, delivered after.
     let pending_cross_domain = result
         .get("cross_domain_reactions")
         .and_then(|r| r.as_array())
@@ -601,11 +464,6 @@ async fn run(
         .and_then(|last| last.as_array())
         .cloned()
         .unwrap_or_default();
-
-    // Commits (and releases the advisory lock) whether or not anything
-    // was appended — a refused command still needs the lock released
-    // for the next invocation to proceed.
-    txn.commit().await?;
 
     // Delivered after commit, deliberately: the local command already
     // succeeded and is durable, so a cross-Lambda notification is
@@ -643,16 +501,16 @@ async fn run(
                         "target_verb": failure.target_verb, "attempts": failure.attempts, "error": error_text,
                     }),
                 );
-                journal::record_dead_letter(
-                    &*guard,
-                    &failure.policy,
-                    &failure.target_domain,
-                    &failure.target_verb,
-                    &failure.payload,
-                    &error_text,
-                    failure.attempts as i32,
-                )
-                .await?;
+                store
+                    .record_dead_letter(&DeadLetter {
+                        policy: &failure.policy,
+                        target_domain: &failure.target_domain,
+                        target_verb: &failure.target_verb,
+                        payload: &failure.payload,
+                        error: &error_text,
+                        attempts: failure.attempts as i32,
+                    })
+                    .await?;
                 if first_failure.is_none() {
                     first_failure = Some(failure.error);
                 }
@@ -671,6 +529,129 @@ async fn run(
 
     log_command(verb, role, accepted, &result);
     Ok(Outcome { result, accepted })
+}
+
+// The kernel's whole input: the seed, every step to replay on it, the saga rows, and the tables
+// that answer a command's `needs` and `defaults`, lest a reaction's command lack a fact (ADR 0081).
+fn kernel_input(
+    seed: &serde_json::Value,
+    steps: &[serde_json::Value],
+    sagas_seed: &serde_json::Value,
+) -> serde_json::Value {
+    let mut input = serde_json::json!({ "seed": seed, "steps": steps, "sagas": sagas_seed });
+    if let Some(domain_ir) = crate::ir::ir() {
+        let table = crate::needs::table(domain_ir);
+        if table.as_object().is_some_and(|t| !t.is_empty()) {
+            input["needs"] = table;
+        }
+        let defaults = crate::needs::defaults_table(domain_ir);
+        if defaults.as_object().is_some_and(|t| !t.is_empty()) {
+            input["defaults"] = defaults;
+        }
+    }
+    input
+}
+
+// A string field a saga entry must carry.
+fn saga_field<'a>(entry: &'a serde_json::Value, key: &str) -> anyhow::Result<&'a str> {
+    entry
+        .get(key)
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| anyhow::anyhow!("saga_snapshot entry missing \"{key}\": {entry}"))
+}
+
+// Every saga instance the kernel says is live after this step, to be upserted. A result with no
+// `saga_snapshot` says nothing about sagas, so nothing is upserted (or deleted).
+fn saga_upserts(result: &serde_json::Value) -> anyhow::Result<Vec<journal::SagaRow>> {
+    let Some(saga_snapshot) = result.get("saga_snapshot").and_then(|v| v.as_array()) else {
+        return Ok(Vec::new());
+    };
+    saga_snapshot
+        .iter()
+        .map(|entry| {
+            Ok(journal::SagaRow {
+                process_manager: saga_field(entry, "process_manager")?.to_string(),
+                correlation: saga_field(entry, "correlation")?.to_string(),
+                state: saga_field(entry, "state")?.to_string(),
+                memory: entry
+                    .get("memory")
+                    .cloned()
+                    .unwrap_or_else(|| serde_json::json!({})),
+                completed_compensations: entry
+                    .get("completed_compensations")
+                    .cloned()
+                    .unwrap_or_else(|| serde_json::json!([])),
+            })
+        })
+        .collect()
+}
+
+// The sagas present before this step (`before`) absent from the kernel's report now: they ended.
+fn saga_deletes(result: &serde_json::Value, before: &[journal::SagaRow]) -> Vec<(String, String)> {
+    let Some(saga_snapshot) = result.get("saga_snapshot").and_then(|v| v.as_array()) else {
+        return Vec::new();
+    };
+    let still_present: std::collections::HashSet<(&str, &str)> = saga_snapshot
+        .iter()
+        .filter_map(|entry| {
+            Some((
+                entry.get("process_manager")?.as_str()?,
+                entry.get("correlation")?.as_str()?,
+            ))
+        })
+        .collect();
+    before
+        .iter()
+        .filter(|row| {
+            !still_present.contains(&(row.process_manager.as_str(), row.correlation.as_str()))
+        })
+        .map(|row| (row.process_manager.clone(), row.correlation.clone()))
+        .collect()
+}
+
+// One entry per step in `steps`, so the last entry is this call's own new step. None when
+// `config.era` is `None`: a domain with nothing lineage-capable bound never provisions a
+// head-snapshot table to write into (ADR 0034).
+fn lineage_write<'a>(
+    result: &'a serde_json::Value,
+    config: &'a journal::LineageConfig,
+) -> anyhow::Result<Option<LineageWrite<'a>>> {
+    if config.era.is_none() {
+        return Ok(None);
+    }
+    let step_mutations = result
+        .get("mutations")
+        .and_then(|m| m.as_array())
+        .and_then(|steps| steps.last())
+        .and_then(|last| last.as_array())
+        .map_or(&[][..], Vec::as_slice);
+    let mut mutations = Vec::new();
+    for mutation in step_mutations {
+        let aggregate = mutation_field(mutation, "aggregate")?;
+        // `era.is_some()` means the lineage subsystem exists, not that this aggregate has a
+        // mirror: `mint` only provisions head snapshots for the capable set, so mirroring
+        // anything else would upsert into a relation nobody created.
+        if !config.mirrors(aggregate) {
+            continue;
+        }
+        mutations.push(journal::Mutation {
+            aggregate,
+            id: mutation_field(mutation, "id")?,
+            operation: mutation_field(mutation, "operation")?,
+            state: mutation
+                .get("state")
+                .ok_or_else(|| anyhow::anyhow!("mutation record missing \"state\": {mutation}"))?,
+        });
+    }
+    Ok(Some(LineageWrite { config, mutations }))
+}
+
+// A string field a mutation record must carry.
+fn mutation_field<'a>(mutation: &'a serde_json::Value, key: &str) -> anyhow::Result<&'a str> {
+    mutation
+        .get(key)
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| anyhow::anyhow!("mutation record missing \"{key}\": {mutation}"))
 }
 
 // Answers the facts the command needs and fills its declared defaults. A value the caller supplied
@@ -726,18 +707,14 @@ fn command_fields(
 }
 
 // Read-only: the same seed path `handle` uses, minus the new step and
-// any write. No advisory lock needed since nothing here writes.
+// any write. No domain lock needed since nothing here writes.
 // Returns the whole kernel result verbatim, not just `instances`, so a
 // caller can tell an empty `refusals` from one that was never checked.
-pub async fn read(client: &Mutex<Client>, wasm_path: &Path) -> anyhow::Result<serde_json::Value> {
-    let guard = client.lock().await;
-    let snapshot = journal::load_snapshot(&*guard).await?;
+pub async fn read(store: &Store, wasm_path: &Path) -> anyhow::Result<serde_json::Value> {
+    let state = store.read_state().await?;
 
-    if let Some(s) = &snapshot {
-        let steps_since = journal::load_steps_after(&*guard, s.ordinal).await?;
-        drop(guard);
-
-        if steps_since.is_empty() {
+    if let Some(s) = &state.snapshot {
+        if state.steps.is_empty() {
             // No wasm invocation needed: the snapshot's seed already is
             // this domain's current "instances" output. Empty
             // events/refusals is correct too — a read reports current
@@ -748,20 +725,21 @@ pub async fn read(client: &Mutex<Client>, wasm_path: &Path) -> anyhow::Result<se
         // Self-healing: if steps ever go unaccounted for after the last
         // snapshot, seeding from it and replaying just the gap is
         // still correct and cheap.
-        let input = serde_json::json!({ "seed": &s.seed, "steps": steps_since }).to_string();
-        let owned_wasm_path = wasm_path.to_path_buf();
-        let output =
-            tokio::task::spawn_blocking(move || wasm_runner::run(&owned_wasm_path, &input))
-                .await??;
-        return parse_kernel_output(&output);
+        let input = serde_json::json!({ "seed": &s.seed, "steps": state.steps }).to_string();
+        return run_read(wasm_path, input).await;
     }
 
     // No snapshot: either a brand-new domain, or one with history from
     // before this snapshot cache existed — either way, one full replay
     // catches it up.
-    let steps = journal::load_steps(&*guard).await?;
-    drop(guard);
-    let input = serde_json::json!({ "steps": steps }).to_string();
+    run_read(
+        wasm_path,
+        serde_json::json!({ "steps": state.steps }).to_string(),
+    )
+    .await
+}
+
+async fn run_read(wasm_path: &Path, input: String) -> anyhow::Result<serde_json::Value> {
     let owned_wasm_path = wasm_path.to_path_buf();
     let output =
         tokio::task::spawn_blocking(move || wasm_runner::run(&owned_wasm_path, &input)).await??;
@@ -772,7 +750,7 @@ pub async fn read(client: &Mutex<Client>, wasm_path: &Path) -> anyhow::Result<se
 // rather than replaying history itself, so it sees exactly the state a
 // read would report and pays at most one wasm invocation.
 pub async fn query(
-    client: &Mutex<Client>,
+    store: &Store,
     wasm_path: &Path,
     question: &str,
     args: serde_json::Value,
@@ -782,13 +760,13 @@ pub async fn query(
     if let Some(domain_ir) = crate::ir::ir() {
         crate::needs::fill_query_needs(domain_ir, question, &mut args, &crate::needs::ProcessClock);
     }
-    answer_query(client, wasm_path, question, args).await
+    answer_query(store, wasm_path, question, args).await
 }
 
 /// `query` for a request from outside the host: every fact the query needs is the host's answer,
 /// never the request's.
 pub async fn query_request(
-    client: &Mutex<Client>,
+    store: &Store,
     wasm_path: &Path,
     question: &str,
     args: serde_json::Value,
@@ -802,16 +780,16 @@ pub async fn query_request(
             &crate::needs::ProcessClock,
         );
     }
-    answer_query(client, wasm_path, question, args).await
+    answer_query(store, wasm_path, question, args).await
 }
 
 async fn answer_query(
-    client: &Mutex<Client>,
+    store: &Store,
     wasm_path: &Path,
     question: &str,
     args: serde_json::Value,
 ) -> anyhow::Result<serde_json::Value> {
-    let state = read(client, wasm_path).await?;
+    let state = read(store, wasm_path).await?;
     let seed = state
         .get("instances")
         .cloned()
@@ -867,12 +845,12 @@ pub(crate) mod tests {
     use super::*;
     use crate::journal::LineageConfig;
     use crate::lambda_client::LambdaInvoker;
-    use tokio_postgres::NoTls;
+    use tokio_postgres::{Client, NoTls};
 
     // A throwaway Postgres database per test, uniquely named so
     // `cargo test`'s default parallelism doesn't race two tests against
     // the same journal table.
-    pub(crate) async fn scratch_db(name: &str) -> Mutex<Client> {
+    pub(crate) async fn scratch_db(name: &str) -> Store {
         let (admin, conn) = tokio_postgres::connect(&crate::test_pg::conninfo("postgres"), NoTls)
             .await
             .expect("connect to postgres");
@@ -895,7 +873,7 @@ pub(crate) mod tests {
             let _ = conn.await;
         });
         journal::ensure_schema(&client).await.unwrap();
-        Mutex::new(client)
+        Store::postgres(client)
     }
 
     // Not Ruby's real provisioning — just enough structure for
@@ -1087,7 +1065,7 @@ pub(crate) mod tests {
         assert_eq!(mirrored, 1);
     }
 
-    fn test_config(domain: &str, era: i32) -> LineageConfig {
+    pub(crate) fn test_config(domain: &str, era: i32) -> LineageConfig {
         LineageConfig {
             domain: domain.to_string(),
             era: Some(era),
@@ -1123,7 +1101,7 @@ pub(crate) mod tests {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../dist/banking.wasm")
     }
 
-    fn register(reference: &str) -> serde_json::Value {
+    pub(crate) fn register(reference: &str) -> serde_json::Value {
         serde_json::json!({
             "reference": { "value": reference },
             "name": { "given": "Ada", "family": "Lovelace" },
@@ -1591,7 +1569,7 @@ pub(crate) mod tests {
     }
 
     // The snapshot's ordinal and exact seed text, and how many commands are journaled.
-    async fn snapshot_and_journal(client: &Mutex<Client>) -> (i64, String, i64) {
+    async fn snapshot_and_journal(client: &Store) -> (i64, String, i64) {
         let guard = client.lock().await;
         let snapshot = guard
             .query_one("SELECT ordinal, seed::text FROM hecks_lambda_snapshot", &[])
@@ -1690,12 +1668,12 @@ pub(crate) mod tests {
     // Records every call and answers with a canned "nothing refused"
     // body, proving a cross-domain policy reaches `lambda_client::deliver`
     // with the right name/payload end to end, short of a real AWS Lambda.
-    struct RecordingInvoker {
+    pub(crate) struct RecordingInvoker {
         calls: std::sync::Mutex<Vec<(String, String)>>,
     }
 
     impl RecordingInvoker {
-        fn new() -> Self {
+        pub(crate) fn new() -> Self {
             Self {
                 calls: std::sync::Mutex::new(Vec::new()),
             }

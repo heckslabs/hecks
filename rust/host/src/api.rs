@@ -7,14 +7,13 @@ use crate::host::Host;
 use crate::journal::LineageConfig;
 use crate::presentation;
 use crate::presentation_write;
+use crate::store::Store;
 use crate::ui_schema;
 use crate::web::{percent_decode, respond};
 use serde_json::{json, Map, Value};
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::path::Path;
-use tokio::sync::Mutex;
-use tokio_postgres::Client;
 
 /// Every `/api/...` request, answered. `session` is `None` only in tests —
 /// `web::route` runs `auth_gate` first in production — but it stays an
@@ -30,7 +29,7 @@ pub async fn route(
     host: Host<'_>,
 ) -> Value {
     let Host {
-        client,
+        store,
         wasm_path,
         config,
         ..
@@ -41,20 +40,20 @@ pub async fn route(
         // The whole UI, derived: nav, columns, field shapes, transitions,
         // create forms. Read fresh every call so a Settings-screen save is
         // visible on the app's very next request.
-        ("GET", "/api/ui-schema") => match presentation::load(client, wasm_path, config).await {
+        ("GET", "/api/ui-schema") => match presentation::load(store, wasm_path, config).await {
             Ok(presentation) => ok(&ui_schema::build(domain_ir, &presentation)),
             Err(e) => internal_error(&e.to_string()),
         },
 
         // Structural facts only, no presentation opinion: aggregates,
         // lifecycle states, queries.
-        ("GET", "/api/schema") => match presentation::load(client, wasm_path, config).await {
+        ("GET", "/api/schema") => match presentation::load(store, wasm_path, config).await {
             Ok(presentation) => ok(&ui_schema::schema(domain_ir, &presentation)),
             Err(e) => internal_error(&e.to_string()),
         },
 
         // Read fresh every call, never memoized, for the same reason.
-        ("GET", "/api/presentation") => match presentation::load(client, wasm_path, config).await {
+        ("GET", "/api/presentation") => match presentation::load(store, wasm_path, config).await {
             Ok(presentation) => ok(&presentation),
             Err(e) => internal_error(&e.to_string()),
         },
@@ -85,10 +84,10 @@ pub async fn route(
 
             match (method, segments.as_slice()) {
                 ("GET", [collection]) => {
-                    collection_index(domain_ir, collection, query, client, wasm_path, config).await
+                    collection_index(domain_ir, collection, query, store, wasm_path, config).await
                 }
                 ("GET", [collection, id]) => {
-                    record_show(domain_ir, collection, id, client, wasm_path, config).await
+                    record_show(domain_ir, collection, id, store, wasm_path, config).await
                 }
                 ("POST", [collection]) => {
                     let caller = dispatch::Caller::signed_in(session);
@@ -111,11 +110,11 @@ async fn collection_index(
     domain_ir: &Value,
     collection: &str,
     params: &HashMap<String, String>,
-    client: &Mutex<Client>,
+    store: &Store,
     wasm_path: &Path,
     lineage: &LineageConfig,
 ) -> Value {
-    let config = match presentation::load(client, wasm_path, lineage).await {
+    let config = match presentation::load(store, wasm_path, lineage).await {
         Ok(config) => config,
         Err(e) => return internal_error(&e.to_string()),
     };
@@ -131,11 +130,11 @@ async fn collection_index(
     let named = wanted.and_then(|name| find_query(aggregate, name));
     if let Some(named) = named {
         if let Some(args) = query_args_from_params(aggregate, named, params) {
-            return named_query_rows(domain_ir, aggregate, named, args, client, wasm_path).await;
+            return named_query_rows(domain_ir, aggregate, named, args, store, wasm_path).await;
         }
     }
 
-    let mut records = match read_records(domain_ir, aggregate, client, wasm_path).await {
+    let mut records = match read_records(domain_ir, aggregate, store, wasm_path).await {
         Ok(records) => records,
         Err(refusal) => return refusal,
     };
@@ -157,11 +156,11 @@ async fn record_show(
     domain_ir: &Value,
     collection: &str,
     id: &str,
-    client: &Mutex<Client>,
+    store: &Store,
     wasm_path: &Path,
     lineage: &LineageConfig,
 ) -> Value {
-    let config = match presentation::load(client, wasm_path, lineage).await {
+    let config = match presentation::load(store, wasm_path, lineage).await {
         Ok(config) => config,
         Err(e) => return internal_error(&e.to_string()),
     };
@@ -169,7 +168,7 @@ async fn record_show(
         Ok(aggregate) => aggregate,
         Err(refusal) => return refusal,
     };
-    let records = match read_records(domain_ir, aggregate, client, wasm_path).await {
+    let records = match read_records(domain_ir, aggregate, store, wasm_path).await {
         Ok(records) => records,
         Err(refusal) => return refusal,
     };
@@ -210,10 +209,10 @@ fn find_query<'a>(aggregate: &'a Value, name: &str) -> Option<&'a Value> {
 async fn read_records(
     domain_ir: &Value,
     aggregate: &Value,
-    client: &Mutex<Client>,
+    store: &Store,
     wasm_path: &Path,
 ) -> Result<Vec<(String, Value)>, Value> {
-    let result = dispatch::read(client, wasm_path)
+    let result = dispatch::read(store, wasm_path)
         .await
         .map_err(|e| internal_error(&format!("{e:#}")))?;
     let prefix = format!(
@@ -251,7 +250,7 @@ async fn named_query_rows(
     aggregate: &Value,
     named: &Value,
     args: Value,
-    client: &Mutex<Client>,
+    store: &Store,
     wasm_path: &Path,
 ) -> Value {
     let question = format!(
@@ -260,7 +259,7 @@ async fn named_query_rows(
         ui_schema::agg_name(aggregate),
         named.get("name").and_then(|v| v.as_str()).unwrap_or("")
     );
-    let result = match dispatch::query_request(client, wasm_path, &question, args).await {
+    let result = match dispatch::query_request(store, wasm_path, &question, args).await {
         Ok(result) => result,
         Err(e) => return internal_error(&format!("{e:#}")),
     };
@@ -344,12 +343,12 @@ async fn collection_create(
     host: Host<'_>,
 ) -> Value {
     let Host {
-        client,
+        store,
         wasm_path,
         config,
         ..
     } = host;
-    let presentation = match presentation::load(client, wasm_path, config).await {
+    let presentation = match presentation::load(store, wasm_path, config).await {
         Ok(presentation) => presentation,
         Err(e) => return internal_error(&e.to_string()),
     };
@@ -369,22 +368,15 @@ async fn collection_create(
         return not_found(&format!("{name} declares no creating command"));
     };
 
-    let records = match read_records(domain_ir, aggregate, client, wasm_path).await {
+    let records = match read_records(domain_ir, aggregate, store, wasm_path).await {
         Ok(records) => records,
         Err(refusal) => return refusal,
     };
     if let Err(refusal) = apply_identity(&presentation, aggregate, &mut args, records.len()) {
         return refusal;
     }
-    if let Err(refusal) = check_preconditions(
-        domain_ir,
-        &presentation,
-        aggregate,
-        &args,
-        client,
-        wasm_path,
-    )
-    .await
+    if let Err(refusal) =
+        check_preconditions(domain_ir, &presentation, aggregate, &args, store, wasm_path).await
     {
         return refusal;
     }
@@ -421,12 +413,12 @@ async fn command_route(
     host: Host<'_>,
 ) -> Value {
     let Host {
-        client,
+        store,
         wasm_path,
         config,
         ..
     } = host;
-    let presentation = match presentation::load(client, wasm_path, config).await {
+    let presentation = match presentation::load(store, wasm_path, config).await {
         Ok(presentation) => presentation,
         Err(e) => return internal_error(&e.to_string()),
     };
@@ -435,7 +427,7 @@ async fn command_route(
         Err(refusal) => return refusal,
     };
     let name = ui_schema::agg_name(aggregate);
-    let records = match read_records(domain_ir, aggregate, client, wasm_path).await {
+    let records = match read_records(domain_ir, aggregate, store, wasm_path).await {
         Ok(records) => records,
         Err(refusal) => return refusal,
     };
@@ -689,7 +681,7 @@ async fn check_preconditions(
     presentation: &Value,
     aggregate: &Value,
     args: &Value,
-    client: &Mutex<Client>,
+    store: &Store,
     wasm_path: &Path,
 ) -> Result<(), Value> {
     let name = ui_schema::agg_name(aggregate);
@@ -704,7 +696,7 @@ async fn check_preconditions(
         return Ok(());
     }
 
-    let instances = dispatch::read(client, wasm_path)
+    let instances = dispatch::read(store, wasm_path)
         .await
         .map_err(|e| internal_error(&format!("{e:#}")))?;
     let instances = instances

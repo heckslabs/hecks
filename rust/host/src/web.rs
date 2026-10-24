@@ -12,12 +12,11 @@ use crate::ir::ir;
 use crate::journal::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
 use crate::platform_signin::jti::JtiStore;
+use crate::store::Store;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::OnceLock;
-use tokio::sync::Mutex;
-use tokio_postgres::Client;
 
 mod commerce;
 mod newsletter;
@@ -77,7 +76,7 @@ pub async fn render(body: &Value, host: Host<'_>) -> Option<Value> {
         raw_body: &raw_body,
         cookies: &cookies,
         domain_ir: ir(),
-        client: host.client,
+        store: host.store,
         wasm_path: host.wasm_path,
         config: host.config,
         invoker: host.invoker,
@@ -193,7 +192,7 @@ async fn route(
     host: Host<'_>,
 ) -> Value {
     let Host {
-        client, wasm_path, ..
+        store, wasm_path, ..
     } = host;
     let domain_name = domain_ir.get("name").and_then(|v| v.as_str()).unwrap_or("");
     let secret = session_secret();
@@ -263,7 +262,7 @@ async fn route(
     };
 
     if segments.len() == 2 {
-        return aggregate_index(domain_name, aggregate, &format, client, wasm_path).await;
+        return aggregate_index(domain_name, aggregate, &format, store, wasm_path).await;
     }
 
     if segments.len() == 3 {
@@ -290,7 +289,7 @@ async fn route(
             aggregate,
             &verb_or_id,
             &format,
-            client,
+            store,
             wasm_path,
         )
         .await;
@@ -314,7 +313,7 @@ async fn auth_route(
     host: Host<'_>,
 ) -> Option<Value> {
     let Host {
-        client,
+        store,
         wasm_path,
         config,
         ..
@@ -327,7 +326,7 @@ async fn auth_route(
         raw_body,
         cookies,
         domain_ir: Some(domain_ir),
-        client: host.client,
+        store: host.store,
         wasm_path: host.wasm_path,
         config: host.config,
         invoker: host.invoker,
@@ -361,17 +360,15 @@ async fn auth_route(
             ),
         )),
 
-        ("GET", "/accounts/me") => {
-            Some(accounts_me_route(domain_ir, cookies, secret, client).await)
-        }
+        ("GET", "/accounts/me") => Some(accounts_me_route(domain_ir, cookies, secret, store).await),
 
         ("POST", "/accounts/google-handoff") => Some(google_handoff_route(raw_body, secret)),
 
-        ("GET", "/members") => Some(members_route(domain_ir, cookies, secret, client).await),
+        ("GET", "/members") => Some(members_route(domain_ir, cookies, secret, store).await),
 
         ("POST", "/members") => Some(
             add_member_route(
-                domain_ir, raw_body, cookies, secret, client, wasm_path, config,
+                domain_ir, raw_body, cookies, secret, store, wasm_path, config,
             )
             .await,
         ),
@@ -379,28 +376,28 @@ async fn auth_route(
         ("POST", "/signups") => Some(signup_route(raw_body, secret, host).await),
 
         ("POST", "/members/disable") => Some(
-            set_member_disabled_route(domain_ir, raw_body, cookies, secret, client, config, true)
+            set_member_disabled_route(domain_ir, raw_body, cookies, secret, store, config, true)
                 .await,
         ),
 
         ("POST", "/members/enable") => Some(
-            set_member_disabled_route(domain_ir, raw_body, cookies, secret, client, config, false)
+            set_member_disabled_route(domain_ir, raw_body, cookies, secret, store, config, false)
                 .await,
         ),
 
         ("POST", "/members/role") => {
-            Some(set_member_role_route(domain_ir, raw_body, cookies, secret, client, config).await)
+            Some(set_member_role_route(domain_ir, raw_body, cookies, secret, store, config).await)
         }
 
         ("POST", "/members/delete") => Some(
-            set_member_deleted_route(domain_ir, raw_body, cookies, secret, client, config).await,
+            set_member_deleted_route(domain_ir, raw_body, cookies, secret, store, config).await,
         ),
 
         // cms/src/endpoints/sso.ts verifies this with the same account_token
         // wire format; deploy-aws/platform/template.yaml shares SessionSecret
         // with the cms container as AUTH_SECRET so both sides agree on it.
         ("GET", "/accounts/sso-token") => {
-            Some(accounts_sso_token_route(domain_ir, cookies, secret, client).await)
+            Some(accounts_sso_token_route(domain_ir, cookies, secret, store).await)
         }
 
         ("GET", "/auth/google") => Some(google_start()),
@@ -422,7 +419,7 @@ async fn auth_route(
 
         ("GET" | "POST", "/admin/members") => Some(
             admin_members_route(
-                method, domain_ir, raw_body, cookies, session, secret, client, wasm_path, config,
+                method, domain_ir, raw_body, cookies, session, secret, store, wasm_path, config,
             )
             .await,
         ),
@@ -440,11 +437,11 @@ async fn members_page_caller(
     cookies: &HashMap<String, String>,
     session: Option<&Session>,
     secret: &str,
-    client: &Mutex<Client>,
+    store: &Store,
     wasm_path: &Path,
 ) -> Result<(), Value> {
     if let Some(session) = session {
-        if is_admin(client, wasm_path, domain_ir, &session.identity_id).await {
+        if is_admin(store, wasm_path, domain_ir, &session.identity_id).await {
             return Ok(());
         }
     }
@@ -452,7 +449,7 @@ async fn members_page_caller(
         .get(&auth::account_cookie_name())
         .and_then(|token| auth::verify_account_token(secret, token));
     if let Some(email) = &account {
-        if auth::caller_is_admin(client, domain_ir, email)
+        if auth::caller_is_admin(store, domain_ir, email)
             .await
             .unwrap_or(false)
         {
@@ -476,17 +473,17 @@ async fn admin_members_route(
     cookies: &HashMap<String, String>,
     session: Option<&Session>,
     secret: &str,
-    client: &Mutex<Client>,
+    store: &Store,
     wasm_path: &Path,
     config: &LineageConfig,
 ) -> Value {
     if let Err(response) =
-        members_page_caller(domain_ir, cookies, session, secret, client, wasm_path).await
+        members_page_caller(domain_ir, cookies, session, secret, store, wasm_path).await
     {
         return response;
     }
     if method == "GET" {
-        return html(200, &admin_members_page(client, domain_ir).await);
+        return html(200, &admin_members_page(store, domain_ir).await);
     }
 
     let form = parse_form(raw_body);
@@ -523,12 +520,12 @@ async fn admin_members_route(
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| email.split('@').next().unwrap_or_default().to_string());
     // Ok(false) is "already admitted": the grant below is then all there is to do.
-    if let Err(e) = auth::admit_person(client, config, domain_ir, &email, &name).await {
+    if let Err(e) = auth::admit_person(store, config, domain_ir, &email, &name).await {
         return html(500, &format!("<p>{}</p>", esc(&e.to_string())));
     }
     let until = days.map(auth::expiry_after_days);
     match auth::grant_access_until(
-        client,
+        store,
         wasm_path,
         config,
         domain_ir,
@@ -567,14 +564,9 @@ fn expiry_days(raw: Option<Value>) -> Result<Option<u32>, &'static str> {
         .ok_or(MESSAGE)
 }
 
-async fn is_admin(
-    client: &Mutex<Client>,
-    wasm_path: &Path,
-    domain_ir: &Value,
-    identity_id: &str,
-) -> bool {
+async fn is_admin(store: &Store, wasm_path: &Path, domain_ir: &Value, identity_id: &str) -> bool {
     let provider = crate::ir::authorization_provider(domain_ir);
-    dispatch::read(client, wasm_path).await.is_ok_and(|read| {
+    dispatch::read(store, wasm_path).await.is_ok_and(|read| {
         auth::holds_admin(
             read.get("instances").unwrap_or(&json!({})),
             identity_id,
@@ -589,7 +581,7 @@ async fn active_session_email(
     domain_ir: &Value,
     cookies: &HashMap<String, String>,
     secret: &str,
-    client: &Mutex<Client>,
+    store: &Store,
 ) -> Result<String, Value> {
     let not_logged_in = || {
         respond(
@@ -604,7 +596,7 @@ async fn active_session_email(
     else {
         return Err(not_logged_in());
     };
-    match auth::has_access(client, domain_ir, &email).await {
+    match auth::has_access(store, domain_ir, &email).await {
         Ok(true) => Ok(email),
         Ok(false) => Err(not_logged_in()),
         Err(e) => Err(respond(
@@ -619,10 +611,10 @@ async fn accounts_me_route(
     domain_ir: &Value,
     cookies: &HashMap<String, String>,
     secret: &str,
-    client: &Mutex<Client>,
+    store: &Store,
 ) -> Value {
-    match active_session_email(domain_ir, cookies, secret, client).await {
-        Ok(email) => match auth::member_identity_id(client, domain_ir, &email).await {
+    match active_session_email(domain_ir, cookies, secret, store).await {
+        Ok(email) => match auth::member_identity_id(store, domain_ir, &email).await {
             Ok(identity_id) => respond(
                 200,
                 "application/json",
@@ -645,13 +637,12 @@ async fn members_route(
     domain_ir: &Value,
     cookies: &HashMap<String, String>,
     secret: &str,
-    client: &Mutex<Client>,
+    store: &Store,
 ) -> Value {
-    if let Err(response) = newsletter_send::require_admin(domain_ir, cookies, secret, client).await
-    {
+    if let Err(response) = newsletter_send::require_admin(domain_ir, cookies, secret, store).await {
         return response;
     }
-    match auth::all_people(client, domain_ir).await {
+    match auth::all_people(store, domain_ir).await {
         Ok(people) => respond(
             200,
             "application/json",
@@ -672,7 +663,7 @@ pub(crate) async fn add_member_route(
     raw_body: &str,
     cookies: &HashMap<String, String>,
     secret: &str,
-    client: &Mutex<Client>,
+    store: &Store,
     wasm_path: &Path,
     config: &LineageConfig,
 ) -> Value {
@@ -682,7 +673,7 @@ pub(crate) async fn add_member_route(
     else {
         return json_error(401, "not logged in");
     };
-    match auth::caller_is_admin(client, domain_ir, &caller).await {
+    match auth::caller_is_admin(store, domain_ir, &caller).await {
         Ok(true) => {}
         Ok(false) => return json_error(403, "admins only"),
         Err(e) => return json_error(500, &format!("members lookup failed: {e}")),
@@ -721,7 +712,7 @@ pub(crate) async fn add_member_route(
         Err(message) => return json_error(400, message),
     };
 
-    match auth::admit_person(client, config, domain_ir, &email, &name).await {
+    match auth::admit_person(store, config, domain_ir, &email, &name).await {
         Ok(true) => {}
         Ok(false) => return json_error(409, "that email is already admitted"),
         Err(e) => return json_error(500, &format!("admit failed: {e}")),
@@ -729,7 +720,7 @@ pub(crate) async fn add_member_route(
     let email = email.to_lowercase();
     let until = days.map(auth::expiry_after_days);
     match auth::grant_access_until(
-        client,
+        store,
         wasm_path,
         config,
         domain_ir,
@@ -804,7 +795,7 @@ async fn set_member_disabled_route(
     raw_body: &str,
     cookies: &HashMap<String, String>,
     secret: &str,
-    client: &Mutex<Client>,
+    store: &Store,
     config: &LineageConfig,
     disable: bool,
 ) -> Value {
@@ -825,7 +816,7 @@ async fn set_member_disabled_route(
         return json_error(400, "an email is required");
     }
 
-    match auth::set_person_disabled(client, config, domain_ir, &caller, &email, disable).await {
+    match auth::set_person_disabled(store, config, domain_ir, &caller, &email, disable).await {
         Ok(auth::DisableOutcome::Done) => {
             let key = if disable { "disabled" } else { "enabled" };
             respond(
@@ -856,7 +847,7 @@ async fn set_member_deleted_route(
     raw_body: &str,
     cookies: &HashMap<String, String>,
     secret: &str,
-    client: &Mutex<Client>,
+    store: &Store,
     config: &LineageConfig,
 ) -> Value {
     let Some(caller) = cookies
@@ -876,7 +867,7 @@ async fn set_member_deleted_route(
         return json_error(400, "an email is required");
     }
 
-    match auth::set_person_deleted(client, config, domain_ir, &caller, &email).await {
+    match auth::set_person_deleted(store, config, domain_ir, &caller, &email).await {
         Ok(auth::DeleteOutcome::Done) => respond(
             200,
             "application/json",
@@ -896,7 +887,7 @@ async fn set_member_role_route(
     raw_body: &str,
     cookies: &HashMap<String, String>,
     secret: &str,
-    client: &Mutex<Client>,
+    store: &Store,
     config: &LineageConfig,
 ) -> Value {
     let Some(caller) = cookies
@@ -924,7 +915,7 @@ async fn set_member_role_route(
         );
     }
 
-    match auth::set_person_role(client, config, domain_ir, &caller, &email, &role).await {
+    match auth::set_person_role(store, config, domain_ir, &caller, &email, &role).await {
         Ok(auth::RoleOutcome::Done) => respond(
             200,
             "application/json",
@@ -946,7 +937,7 @@ async fn registrations_list_route(
     domain_ir: &Value,
     cookies: &HashMap<String, String>,
     secret: &str,
-    client: &Mutex<Client>,
+    store: &Store,
     wasm_path: &Path,
     config: &LineageConfig,
 ) -> Value {
@@ -956,13 +947,13 @@ async fn registrations_list_route(
     else {
         return json_error(401, "not logged in");
     };
-    match auth::caller_is_admin(client, domain_ir, &caller).await {
+    match auth::caller_is_admin(store, domain_ir, &caller).await {
         Ok(true) => {}
         Ok(false) => return json_error(403, "admins only"),
         Err(e) => return json_error(500, &format!("members lookup failed: {e}")),
     }
 
-    let read = match dispatch::read(client, wasm_path).await {
+    let read = match dispatch::read(store, wasm_path).await {
         Ok(read) => read,
         Err(e) => return json_error(500, &format!("registrations lookup failed: {e:#}")),
     };
@@ -1027,10 +1018,10 @@ async fn accounts_sso_token_route(
     domain_ir: &Value,
     cookies: &HashMap<String, String>,
     secret: &str,
-    client: &Mutex<Client>,
+    store: &Store,
 ) -> Value {
     const SSO_TOKEN_TTL_SECS: u64 = 60;
-    let email = match active_session_email(domain_ir, cookies, secret, client).await {
+    let email = match active_session_email(domain_ir, cookies, secret, store).await {
         Ok(email) => email,
         Err(response) => return response,
     };
@@ -1123,7 +1114,7 @@ async fn google_callback(
     host: Host<'_>,
 ) -> Value {
     let Host {
-        client,
+        store,
         wasm_path,
         config,
         invoker,
@@ -1142,7 +1133,7 @@ async fn google_callback(
         }
     };
 
-    let read = match dispatch::read(client, wasm_path).await {
+    let read = match dispatch::read(store, wasm_path).await {
         Ok(r) => r,
         Err(e) => {
             eprintln!("google_callback: read: {e:#}");
@@ -1154,7 +1145,7 @@ async fn google_callback(
     // PostgresEra head first — Identity is not in the WASM journal.
     // Journal `instances` is only a fallback for Lambda-era rows.
     let identity_id =
-        match auth::resolve_identity_from_head(client, domain_ir, &claims.issuer, &claims.subject)
+        match auth::resolve_identity_from_head(store, domain_ir, &claims.issuer, &claims.subject)
             .await
         {
             Ok(found) => found,
@@ -1168,7 +1159,7 @@ async fn google_callback(
 
     let session = match identity_id {
         Some(ref identity_id) => {
-            match auth::session_for_member_by_identity(client, domain_ir, identity_id).await {
+            match auth::session_for_member_by_identity(store, domain_ir, identity_id).await {
                 Ok(s) => s,
                 Err(e) => {
                     eprintln!("google_callback: member by identity: {e:#}");
@@ -1183,7 +1174,7 @@ async fn google_callback(
         None if claims.email_verified => {
             let email = claims.email.clone().unwrap_or_default();
             match auth::provision(
-                client,
+                store,
                 wasm_path,
                 config,
                 domain_ir,
@@ -1272,10 +1263,8 @@ fn login_page(error: Option<&str>) -> String {
     )
 }
 
-async fn admin_members_page(client: &Mutex<Client>, domain_ir: &Value) -> String {
-    let people = auth::all_people(client, domain_ir)
-        .await
-        .unwrap_or_default();
+async fn admin_members_page(store: &Store, domain_ir: &Value) -> String {
+    let people = auth::all_people(store, domain_ir).await.unwrap_or_default();
     let rows: String = people
         .iter()
         .map(|p| {
@@ -1902,12 +1891,12 @@ async fn aggregate_index(
     domain_name: &str,
     aggregate: &Value,
     format: &str,
-    client: &Mutex<Client>,
+    store: &Store,
     wasm_path: &Path,
 ) -> Value {
     let agg = agg_name(aggregate);
     let prefix = format!("{domain_name}::{agg}#");
-    let records = match dispatch::read(client, wasm_path).await {
+    let records = match dispatch::read(store, wasm_path).await {
         Ok(result) => instances_for(&result, &prefix),
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
@@ -1991,12 +1980,12 @@ async fn record_show(
     aggregate: &Value,
     id: &str,
     format: &str,
-    client: &Mutex<Client>,
+    store: &Store,
     wasm_path: &Path,
 ) -> Value {
     let agg = agg_name(aggregate);
     let prefix = format!("{domain_name}::{agg}#");
-    let result = match dispatch::read(client, wasm_path).await {
+    let result = match dispatch::read(store, wasm_path).await {
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
@@ -2077,7 +2066,7 @@ async fn command_route(
     host: Host<'_>,
 ) -> Value {
     let Host {
-        client,
+        store,
         wasm_path,
         config,
         invoker,
@@ -2097,7 +2086,7 @@ async fn command_route(
             command,
             &fields,
             &raw,
-            client,
+            store,
             wasm_path,
             config,
             true,
@@ -2132,7 +2121,7 @@ async fn command_route(
         command,
         &fields,
         &raw,
-        client,
+        store,
         wasm_path,
         config,
         false,
@@ -2148,7 +2137,7 @@ async fn submit(
     command: &Value,
     fields: &[Field],
     raw: &HashMap<String, String>,
-    client: &Mutex<Client>,
+    store: &Store,
     wasm_path: &Path,
     config: &LineageConfig,
     json_mode: bool,
@@ -2168,7 +2157,7 @@ async fn submit(
 
     // Dispatched as the signed-in caller, checked against the role the command declares.
     let outcome = match dispatch::handle_request(
-        Host::new(client, wasm_path, config, invoker),
+        Host::new(store, wasm_path, config, invoker),
         &verb,
         args,
         caller,
@@ -3167,9 +3156,9 @@ mod tests {
 
     // scratch_db provisions a real Postgres schema; only the Stripe hop
     // in payments.rs's own tests is faked, aimed at a local recording server.
-    use tokio_postgres::NoTls;
+    use tokio_postgres::{Client, NoTls};
 
-    pub(super) async fn scratch_db(name: &str) -> Mutex<Client> {
+    pub(super) async fn scratch_db(name: &str) -> Store {
         let (admin, conn) = tokio_postgres::connect(&crate::test_pg::conninfo("postgres"), NoTls)
             .await
             .expect("connect to postgres");
@@ -3192,7 +3181,7 @@ mod tests {
             let _ = conn.await;
         });
         crate::journal::ensure_schema(&client).await.unwrap();
-        Mutex::new(client)
+        Store::postgres(client)
     }
 
     // Duplicates dispatch.rs's own provision_lineage shape rather than
@@ -3340,7 +3329,7 @@ mod tests {
     // Same head-view shape auth.rs's own tests build for the Membership
     // aggregate, seeded with one granted, linked admin and one admitted
     // person with no access yet.
-    async fn scratch_members_db(name: &str) -> (Mutex<Client>, Value) {
+    async fn scratch_members_db(name: &str) -> (Store, Value) {
         let client = scratch_db(name).await;
         {
             let guard = client.lock().await;
@@ -3740,7 +3729,7 @@ mod tests {
         body: &str,
         cookies: &HashMap<String, String>,
         secret: &str,
-        client: &Mutex<Client>,
+        client: &Store,
         domain_ir: &Value,
     ) -> Value {
         admin_members_route(
@@ -3913,7 +3902,7 @@ mod tests {
 
     // The scratch members database with amy also granted Admin, so two
     // active admins exist and one can act on the other.
-    async fn scratch_two_admins(name: &str) -> (Mutex<Client>, Value) {
+    async fn scratch_two_admins(name: &str) -> (Store, Value) {
         let (client, domain_ir) = scratch_members_db(name).await;
         let granted = auth::grant_access(
             &client,
@@ -3930,7 +3919,7 @@ mod tests {
     }
 
     async fn switch_access(
-        client: &Mutex<Client>,
+        client: &Store,
         domain_ir: &Value,
         caller: &str,
         email: &str,
@@ -3955,7 +3944,7 @@ mod tests {
         body["error"].as_str().unwrap_or_default().to_string()
     }
 
-    async fn person(client: &Mutex<Client>, domain_ir: &Value, email: &str) -> Value {
+    async fn person(client: &Store, domain_ir: &Value, email: &str) -> Value {
         let people = auth::all_people(client, domain_ir).await.unwrap();
         people
             .into_iter()
@@ -3963,7 +3952,7 @@ mod tests {
             .unwrap_or_else(|| panic!("{email} is not listed"))
     }
 
-    async fn journal_rows(client: &Mutex<Client>, id: &str) -> i64 {
+    async fn journal_rows(client: &Store, id: &str) -> i64 {
         let guard = client.lock().await;
         guard
             .query_one(
@@ -4077,7 +4066,7 @@ mod tests {
     }
 
     async fn set_role(
-        client: &Mutex<Client>,
+        client: &Store,
         domain_ir: &Value,
         caller: &str,
         email: &str,
@@ -5123,7 +5112,7 @@ mod tests {
 
     // Writes `access_expires_at` straight onto a row, the way a window that
     // ran out (or was mangled) looks to the host, whatever wrote it.
-    async fn set_window(client: &Mutex<Client>, email: &str, window: Value) {
+    async fn set_window(client: &Store, email: &str, window: Value) {
         client
             .lock()
             .await
@@ -5143,7 +5132,7 @@ mod tests {
 
     // Posts a grant through the members form as `caller`; returns the status.
     async fn form_status(
-        client: &Mutex<Client>,
+        client: &Store,
         domain_ir: &Value,
         caller: &str,
         email: &str,
@@ -5162,7 +5151,7 @@ mod tests {
         .await
     }
 
-    async fn expires_of(client: &Mutex<Client>, domain_ir: &Value, email: &str) -> Value {
+    async fn expires_of(client: &Store, domain_ir: &Value, email: &str) -> Value {
         person(client, domain_ir, email).await["access_expires_at"].clone()
     }
 

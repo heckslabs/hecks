@@ -45,7 +45,7 @@ pub(super) async fn resend_webhook_route(
     host: Host<'_>,
 ) -> Option<Value> {
     let Host {
-        client, wasm_path, ..
+        store, wasm_path, ..
     } = host;
     if method != "POST" || path != "/webhooks/resend" {
         return None;
@@ -93,7 +93,7 @@ pub(super) async fn resend_webhook_route(
     else {
         return Some(respond(200, "text/plain", ""));
     };
-    let read = match dispatch::read(client, wasm_path).await {
+    let read = match dispatch::read(store, wasm_path).await {
         Ok(r) => r,
         Err(e) => return Some(respond(500, "text/plain", &format!("{e:#}"))),
     };
