@@ -1,0 +1,646 @@
+{
+  "name": "translation-rules",
+  "note": "The execution ledger: every translation rule kind, proposed by its own name, executed in each target that applies it (postgres and sqlite as SQL templates whose %{name} holes the compiler fills, in_process as the reference semantics Lineage's own rewrite holds to), then admitted. Translation::RuleCompiler reads its Postgres templates from this ledger replayed through the translation chapter, so a form changes here or nowhere.",
+  "steps": [
+    {
+      "verb": "Translation::Rule.Propose",
+      "args": {
+        "kind": {
+          "value": "rename"
+        },
+        "source": {
+          "value": "rename"
+        },
+        "destination": {
+          "value": ""
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Execute",
+      "args": {
+        "source": {
+          "value": "rename"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "hecks_tr_rename(%{expression}, %{from}, %{to})"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Execute",
+      "args": {
+        "source": {
+          "value": "rename"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "CASE WHEN json_type(%{expression}, %{from_path}) IS NULL THEN %{expression} ELSE json_set(json_remove(%{expression}, %{from_path}), %{to_path}, json_extract(%{expression}, %{from_path})) END"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Execute",
+      "args": {
+        "source": {
+          "value": "rename"
+        },
+        "target": {
+          "value": "in_process"
+        },
+        "form": {
+          "value": "every renamed key is read before any is written, so a swap is one permutation: state[to] = state.delete(from)"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Admit",
+      "args": {
+        "source": {
+          "value": "rename"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Propose",
+      "args": {
+        "kind": {
+          "value": "move"
+        },
+        "source": {
+          "value": "move"
+        },
+        "destination": {
+          "value": ""
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Execute",
+      "args": {
+        "source": {
+          "value": "move"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "hecks_tr_move(%{expression}, %{from}, %{to}, %{rule})"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Execute",
+      "args": {
+        "source": {
+          "value": "move"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "CASE WHEN json_type(%{expression}, %{from_path}) IS NULL THEN %{expression} ELSE json_set(json_remove(%{expression}, %{from_path}), %{to_path}, json_extract(%{expression}, %{from_path})) END"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Execute",
+      "args": {
+        "source": {
+          "value": "move"
+        },
+        "target": {
+          "value": "in_process"
+        },
+        "form": {
+          "value": "the value at the from path, when present, is taken out and inserted at the to path; inserting under a value that is not an object refuses"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Admit",
+      "args": {
+        "source": {
+          "value": "move"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Propose",
+      "args": {
+        "kind": {
+          "value": "convert"
+        },
+        "source": {
+          "value": "convert"
+        },
+        "destination": {
+          "value": ""
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Execute",
+      "args": {
+        "source": {
+          "value": "convert"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "hecks_tr_convert(%{expression}, %{from}, %{to}, %{values}::jsonb, %{source}, %{rule})"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Execute",
+      "args": {
+        "source": {
+          "value": "convert"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "CASE WHEN json_type(%{expression}, %{from_path}) IS NULL THEN %{expression} ELSE json_set(json_remove(%{expression}, %{from_path}), %{to_path}, (SELECT json_extract(pair.value, '$[1]') FROM json_each(%{values}) AS pair WHERE json_extract(pair.value, '$[0]') = json_extract(%{expression}, %{from_path}))) END"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Execute",
+      "args": {
+        "source": {
+          "value": "convert"
+        },
+        "target": {
+          "value": "in_process"
+        },
+        "form": {
+          "value": "a move whose value is looked up in the values table; a value the table does not hold refuses"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Admit",
+      "args": {
+        "source": {
+          "value": "convert"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Propose",
+      "args": {
+        "kind": {
+          "value": "drop"
+        },
+        "source": {
+          "value": "drop"
+        },
+        "destination": {
+          "value": ""
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Execute",
+      "args": {
+        "source": {
+          "value": "drop"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "hecks_tr_drop(%{expression}, %{path})"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Execute",
+      "args": {
+        "source": {
+          "value": "drop"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "json_remove(%{expression}, %{json_path})"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Execute",
+      "args": {
+        "source": {
+          "value": "drop"
+        },
+        "target": {
+          "value": "in_process"
+        },
+        "form": {
+          "value": "the path is deleted, and a nested object left empty is deleted with it"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Admit",
+      "args": {
+        "source": {
+          "value": "drop"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Propose",
+      "args": {
+        "kind": {
+          "value": "retype"
+        },
+        "source": {
+          "value": "retype"
+        },
+        "destination": {
+          "value": ""
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Execute",
+      "args": {
+        "source": {
+          "value": "retype"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "%{expression}"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Execute",
+      "args": {
+        "source": {
+          "value": "retype"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "%{expression}"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Execute",
+      "args": {
+        "source": {
+          "value": "retype"
+        },
+        "target": {
+          "value": "in_process"
+        },
+        "form": {
+          "value": "the stored state passes through unchanged; only the type name the shape audit reads moves"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Admit",
+      "args": {
+        "source": {
+          "value": "retype"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Propose",
+      "args": {
+        "kind": {
+          "value": "retired"
+        },
+        "source": {
+          "value": "retired"
+        },
+        "destination": {
+          "value": ""
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Execute",
+      "args": {
+        "source": {
+          "value": "retired"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "no head rows are carried for the retired aggregate"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Execute",
+      "args": {
+        "source": {
+          "value": "retired"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "no head rows are carried for the retired aggregate"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Execute",
+      "args": {
+        "source": {
+          "value": "retired"
+        },
+        "target": {
+          "value": "in_process"
+        },
+        "form": {
+          "value": "the aggregate is gone from the new era; its journal stays in the old one"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Admit",
+      "args": {
+        "source": {
+          "value": "retired"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Propose",
+      "args": {
+        "kind": {
+          "value": "derive"
+        },
+        "source": {
+          "value": "derive"
+        },
+        "destination": {
+          "value": ""
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Execute",
+      "args": {
+        "source": {
+          "value": "derive"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "(SELECT CASE WHEN __d IS NULL THEN __s ELSE hecks_tr_insert(__s, %{to}, to_jsonb(__d), %{rule}) END FROM (SELECT (%{expression}) AS __s) __outer, LATERAL (SELECT %{value} AS __d) __derived)"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Execute",
+      "args": {
+        "source": {
+          "value": "derive"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "(SELECT CASE WHEN __d IS NULL THEN __s ELSE json_set(__s, %{to_path}, __d) END FROM (SELECT (%{expression}) AS __s, %{value} AS __d))"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Execute",
+      "args": {
+        "source": {
+          "value": "derive"
+        },
+        "target": {
+          "value": "in_process"
+        },
+        "form": {
+          "value": "every derive reads the state as stored, all computed before the first is written; a derive with no value writes nothing"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Admit",
+      "args": {
+        "source": {
+          "value": "derive"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Propose",
+      "args": {
+        "kind": {
+          "value": "rekey_to"
+        },
+        "source": {
+          "value": "rekey_to"
+        },
+        "destination": {
+          "value": ""
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Execute",
+      "args": {
+        "source": {
+          "value": "rekey_to"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "COALESCE(%{value}, aggregate_id)"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Execute",
+      "args": {
+        "source": {
+          "value": "rekey_to"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "COALESCE(%{value}, aggregate_id)"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Execute",
+      "args": {
+        "source": {
+          "value": "rekey_to"
+        },
+        "target": {
+          "value": "in_process"
+        },
+        "form": {
+          "value": "the record's id becomes the value of the derive it names, read from the stored state, or stays where that derive has no value"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Admit",
+      "args": {
+        "source": {
+          "value": "rekey_to"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Propose",
+      "args": {
+        "kind": {
+          "value": "backfill"
+        },
+        "source": {
+          "value": "backfill"
+        },
+        "destination": {
+          "value": ""
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Execute",
+      "args": {
+        "source": {
+          "value": "backfill"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "(SELECT CASE WHEN (hecks_tr_extract(__s, %{path})).present THEN __s ELSE hecks_tr_insert(__s, %{path}, %{default}::jsonb, %{rule}) END FROM (SELECT (%{expression}) AS __s) __outer)"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Execute",
+      "args": {
+        "source": {
+          "value": "backfill"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "json_insert(%{expression}, %{json_path}, json(%{default}))"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Execute",
+      "args": {
+        "source": {
+          "value": "backfill"
+        },
+        "target": {
+          "value": "in_process"
+        },
+        "form": {
+          "value": "the default is written at the path only when nothing is there yet, after every other rule"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Admit",
+      "args": {
+        "source": {
+          "value": "backfill"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Propose",
+      "args": {
+        "kind": {
+          "value": "unresolved"
+        },
+        "source": {
+          "value": "unresolved"
+        },
+        "destination": {
+          "value": ""
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Execute",
+      "args": {
+        "source": {
+          "value": "unresolved"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "refused: an unresolved rule stops the mint until it is resolved"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Execute",
+      "args": {
+        "source": {
+          "value": "unresolved"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "refused: an unresolved rule stops the mint until it is resolved"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Execute",
+      "args": {
+        "source": {
+          "value": "unresolved"
+        },
+        "target": {
+          "value": "in_process"
+        },
+        "form": {
+          "value": "refused: an unresolved rule stops the boot until it is resolved"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Admit",
+      "args": {
+        "source": {
+          "value": "unresolved"
+        }
+      }
+    }
+  ]
+}
