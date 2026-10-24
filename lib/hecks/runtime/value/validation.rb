@@ -121,15 +121,18 @@ module Hecks
         end
 
         # Runs each value-object member of an input list through the same entry point a nested
-        # single
-        # value goes through, so a member's own invariants and nested lists refuse on dispatch
-        # exactly as they do when the list sits directly on a command. The members stay as offered.
+        # single value goes through, so a member's own invariants and nested lists refuse on
+        # dispatch exactly as they do when the list sits directly on a command. The members stay
+        # as offered.
+        #
+        # A bare member is judged too: it wraps into a one-field value object and is refused for
+        # any other, here, before the save, not when the saved record is read back.
         def validate_input_list(aggregate, attribute, fields)
           nested = value_object_for(aggregate, attribute.type)
           return unless nested
 
           Array(fields[attribute.name]).each do |member|
-            next unless member.is_a?(Hash)
+            next if member.is_a?(self)
 
             member_fields = apply_defaults(nested, fields_for(nested, attribute.name, member))
             validate!(nested, normalize_composite_fields(aggregate, nested, member_fields))

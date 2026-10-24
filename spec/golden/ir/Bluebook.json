@@ -32976,6 +32976,28 @@
                 "runner",
                 "ubuntu-24.04"
               ]
+            ],
+            [
+              [
+                "name",
+                "host-arm64"
+              ],
+              [
+                "crate",
+                "rust/host"
+              ],
+              [
+                "executable",
+                "bootstrap"
+              ],
+              [
+                "target",
+                "aarch64-unknown-linux-gnu"
+              ],
+              [
+                "runner",
+                "ubuntu-22.04-arm"
+              ]
             ]
           ],
           "name": "PrebuiltBinary"

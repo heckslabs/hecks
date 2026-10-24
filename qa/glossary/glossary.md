@@ -1811,6 +1811,12 @@ Ask an agent to mine the adversarial corpus for new domain combinations, then ch
 
 All targets.
 
+#### Mutate
+
+Mutation-test the Rust kernel: change one operator or return value at a time and run its tests; a mutant no test catches is a finding.
+
+All targets.
+
 #### Rotation
 
 Whose turn it is — waiting chapters, least recently swept first. The one reason this aggregate exists. Raw ordering only — see Hecks::Fuzzing::RotationPriority for the yield-weighted pick built on top of these same rows.
