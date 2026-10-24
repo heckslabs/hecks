@@ -7,17 +7,12 @@ module RuboCop
       #
       # A thin model stands for an aggregate whose rules the bluebook already holds. A `validates`
       # line, a `before_save` or a `has_many` beside it is a second author for one of those rules,
-      # and the two drift. Presentation methods are what belongs in the class.
-      #
-      # An app loads it with `require: hecks/rails/rubocop` in its `.rubocop.yml`.
+      # and the two drift. An app loads it with `require: hecks/rails/rubocop`.
       #
       # @example
       #   class Account < Hecks::Rails::Model
-      #     aggregate "Banking.Account"
       #     validates :number, presence: true          # bad
-      #     before_save :normalise                      # bad
       #     belongs_to :customer                        # bad
-      #
       #     def label = "#{number} (#{status})"         # good
       #   end
       class ThinModel < Base
@@ -27,7 +22,7 @@ module RuboCop
         # Association macros: a reference is read explicitly, never loaded behind a call.
         ASSOCIATIONS = %i[has_many has_one belongs_to has_and_belongs_to_many].freeze
 
-        # Validation macros other than the `validates_*_of` family, which `macro?` matches by prefix.
+        # Validation macros besides the `validates_*_of` family, which `macro?` matches by shape.
         VALIDATIONS = %i[validates validates! validate validates_with].freeze
 
         # @!method hecks_model?(node)

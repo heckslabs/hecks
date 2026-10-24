@@ -2,8 +2,8 @@ require "spec_helper"
 require "tmpdir"
 require "hecks/hecks/adapters/rails_app_files"
 
-# The `:rails_app` projection (ADR 0121) and the writer `launch.project_rails` runs: a thin model and
-# a controller per aggregate and a routes file, with every file an app already has left alone.
+# The `:rails_app` projection (ADR 0121) and the writer `launch.project_rails` runs: a thin model
+# and a controller per aggregate and a routes file, with every file an app already has left alone.
 RSpec.describe Hecks::Projections::RailsApp do
   # Banking's declarations, loaded without binding an adapter or opening a store.
   def banking

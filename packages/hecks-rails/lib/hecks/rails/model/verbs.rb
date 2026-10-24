@@ -65,7 +65,7 @@ module Hecks
           end
         end
 
-        # `<attribute>_<target>`, or `<attribute>_record` when the attribute is named for its target.
+        # `<attribute>_<target>`, or `<attribute>_record` for an attribute named for its target.
         def lookup_name(attribute, target)
           noun = Naming.snake(target.hecks_name)
           attribute.name.to_s == noun ? "#{noun}_record" : "#{attribute.name}_#{noun}"
@@ -102,7 +102,7 @@ module Hecks
         # @param record [Rails::Model] the record holding the reference
         # @param attribute [Bluebook::Attribute] the reference attribute
         # @param target [Bluebook::Aggregate] the aggregate it refers to
-        # @return [Rails::Model, Array<Rails::Model>, nil] the referenced record, or each of a list's;
+        # @return [Rails::Model, Array<Rails::Model>, nil] the referenced record, or a list's each;
         #   nil when the reference is unset
         # @raise [Rails::RecordNotFound] if a named record is not stored
         def call(record, attribute, target)

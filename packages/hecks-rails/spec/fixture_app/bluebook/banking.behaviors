@@ -1,21 +1,26 @@
 Hecks.behaviors "Banking" do
   vision "The account rules the app's request specs lean on, held by the domain itself."
 
+  loads "banking.bluebook", "customer_and_compliance_views.bluebook", "customer_relationships.bluebook",
+        "deposit_accounts.bluebook", "new_customer_onboarding.bluebook", "payment_cards.bluebook",
+        "safe_deposit_boxes.bluebook", "statements.bluebook", "transfers_and_payments.bluebook",
+        "banking.hecksagon", "banking.world"
+
   test "FreezeAccount stops an open account moving" do
     tests "FreezeAccount", on: "Account"
-    setup "Register", reference: { value: "c1" }, name: { given: "Ada", family: "Clerk" },
-                      email: { address: "ada@example.com" }
-    setup "Open", customer: "c1", number: { value: "a1" }, kind: { name: "current" }, daily_limit: { cents: 1000 }
+    setup "Banking::Customer.Register", reference: { value: "c1" }, name: { given: "Ada", family: "Clerk" },
+                                       email: { address: "ada@example.com" }
+    setup "Banking::Account.Open", customer: "c1", number: { value: "a1" }, kind: { name: "current" }, daily_limit: { cents: 1000 }
     input number: { value: "a1" }
     expect status: "frozen"
   end
 
   test "FreezeAccount refuses an account that is already frozen" do
     tests "FreezeAccount", on: "Account"
-    setup "Register", reference: { value: "c1" }, name: { given: "Ada", family: "Clerk" },
-                      email: { address: "ada@example.com" }
-    setup "Open", customer: "c1", number: { value: "a1" }, kind: { name: "current" }, daily_limit: { cents: 1000 }
-    setup "FreezeAccount", number: { value: "a1" }
+    setup "Banking::Customer.Register", reference: { value: "c1" }, name: { given: "Ada", family: "Clerk" },
+                                       email: { address: "ada@example.com" }
+    setup "Banking::Account.Open", customer: "c1", number: { value: "a1" }, kind: { name: "current" }, daily_limit: { cents: 1000 }
+    setup "Banking::Account.FreezeAccount", number: { value: "a1" }
     input number: { value: "a1" }
     expect refused: "FreezeAccount moves it only from \"open\""
   end

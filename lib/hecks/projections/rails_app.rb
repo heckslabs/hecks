@@ -25,8 +25,8 @@ module Hecks
       #
       # @param bluebook [Bluebook::Chapter] the chapter the app drives
       # @param options [Hash] the registry's call shape
-      # @option options [Array<String>] :route_chapters every chapter the routes file draws, when the
-      #   app drives more than this one; this chapter alone when absent
+      # @option options [Array<String>] :route_chapters every chapter the routes file draws, when
+      #   the app drives more than this one; this chapter alone when absent
       # @return [Hash{String => String}] each file's path in the app to its text
       def call(bluebook:, options: {})
         files = bluebook.aggregates.flat_map { |aggregate| aggregate_files(bluebook, aggregate) }.to_h
@@ -48,10 +48,9 @@ module Hecks
       # @return [String] the model's text
       def model(bluebook, aggregate, snake)
         <<~RUBY
-          # #{aggregate.description || "The #{aggregate.hecks_name} aggregate."}
-          #
-          # Its shape, rules and verbs are the #{bluebook.name} chapter's. Presentation methods may be
-          # added here; a validation, callback or association may not (HecksRails/ThinModel).
+          # The #{aggregate.hecks_name} aggregate of the #{bluebook.name} chapter, whose shape, rules and
+          # verbs the chapter declares. Presentation methods may be added here; a validation, callback
+          # or association may not (HecksRails/ThinModel).
           class #{Naming.pascal(snake)} < Hecks::Rails::Model
             aggregate "#{bluebook.name}.#{aggregate.hecks_name}"
           end
