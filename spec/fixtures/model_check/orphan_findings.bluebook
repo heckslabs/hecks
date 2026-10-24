@@ -1,0 +1,143 @@
+Hecks.bluebook "OrphanFindings" do
+  vision "Aggregates that reference one whose life ends, with and without a policy for their rows."
+  core
+
+  # Ends at "closed": the ending every holder below is checked against. "suspended" is left
+  # again, so it ends nothing.
+  aggregate "Member" do
+    identified_by :code
+
+    attribute :code, Code
+
+    value_object "Code" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "active" do
+      transition "Suspend"   => "suspended", from: "active"
+      transition "Reinstate" => "active",    from: "suspended"
+      transition "Close"     => "closed",    from: ["active", "suspended"]
+    end
+
+    command "Join" do
+      role "Tester"
+      goal "Bring a member into being"
+      attribute :code, Code
+      emits "MemberJoined"
+    end
+
+    command "Suspend" do
+      role "Tester"
+      goal "Pause the member"
+      reference_to Member
+      emits "MemberSuspended"
+    end
+
+    command "Reinstate" do
+      role "Tester"
+      goal "Lift the pause"
+      reference_to Member
+      emits "MemberReinstated"
+    end
+
+    command "Close" do
+      role "Tester"
+      goal "End the member's life"
+      reference_to Member
+      emits "MemberClosed"
+    end
+  end
+
+  # Can end, and no policy on MemberClosed acts on it: flagged.
+  aggregate "Loan" do
+    identified_by :number
+
+    reference_to Member
+    attribute :number, Number
+
+    value_object "Number" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "out" do
+      transition "Return" => "returned", from: "out"
+    end
+
+    command "Lend" do
+      role "Tester"
+      goal "Lend to a member"
+      reference_to Member
+      attribute :number, Number
+      emits "Lent"
+    end
+
+    command "Return" do
+      role "Tester"
+      goal "End the loan"
+      reference_to Loan
+      emits "Returned"
+    end
+  end
+
+  # Can end, and CancelHoldsOnClosure fans out over its rows: clean.
+  aggregate "Hold" do
+    identified_by :number
+
+    reference_to Member
+    attribute :number, Number
+
+    value_object "Number" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "waiting" do
+      transition "Cancel" => "cancelled", from: "waiting"
+    end
+
+    command "Place" do
+      role "Tester"
+      goal "Place a hold for a member"
+      reference_to Member
+      attribute :number, Number
+      emits "Placed"
+    end
+
+    command "Cancel" do
+      role "Tester"
+      goal "End the hold"
+      reference_to Hold
+      emits "Cancelled"
+    end
+
+    query "WaitingForMember" do
+      attribute :code, String
+      where(member: :code, status: "waiting")
+    end
+  end
+
+  # A record with no ending of its own outlives the member by design: clean.
+  aggregate "Receipt" do
+    identified_by :number
+
+    reference_to Member
+    attribute :number, Number
+
+    value_object "Number" do
+      attribute :value, String
+    end
+
+    command "Issue" do
+      role "Tester"
+      goal "Record a payment by a member"
+      reference_to Member
+      attribute :number, Number
+      emits "Issued"
+    end
+  end
+
+  policy "CancelHoldsOnClosure" do
+    on       Member::MemberClosed
+    for_each "Hold.WaitingForMember"
+    trigger  Hold::Cancel, with: { hold: :hold }
+  end
+end
