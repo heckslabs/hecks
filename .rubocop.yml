@@ -20,6 +20,14 @@ require:
   - ./lib/rubocop/cop/hecks/train_wreck
   - ./lib/rubocop/cop/hecks/unnamed_pipeline
   - ./lib/rubocop/cop/hecks/inline_regexp
+  - ./packages/hecks-rails/lib/rubocop/cop/hecks_rails/thin_model
+
+# A Hecks::Rails::Model holds no validation, callback or association (ADR 0121); the fixture
+# app's projected models are held to it as an app's would be.
+HecksRails/ThinModel:
+  Enabled: true
+  Include:
+    - "packages/hecks-rails/**/*.rb"
 
 # `h[a] || h[b]` on one receiver drops a stored `false`; use `key?` first.
 Hecks/FallbackHashLookup:
