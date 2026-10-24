@@ -205,6 +205,7 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("secret", "Adapter"),
     ("answers_query", "Adapter"),
     ("runs", "Adapter"),
+    ("provides", "Adapter"),
     ("world", "File"),
     ("realm", "World"),
     ("latest", "World"),

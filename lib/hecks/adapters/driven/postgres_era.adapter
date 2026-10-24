@@ -8,4 +8,6 @@ Hecks.adapter "PostgresEra" do
   # Opt-in to boot over a superuser or BYPASSRLS role, which the era write fence cannot
   # bite. Refused by default; see `Lineage#check_fence_applies!`.
   field :allow_superuser
+  # Rewrites every row of an aggregate in one statement, on the same SQL path as Postgres.
+  provides "set_transform"
 end

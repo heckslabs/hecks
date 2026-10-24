@@ -11,6 +11,8 @@ RSpec.describe "Rust adapter parity (hecks-parse adapter)" do
   ADAPTER_PARITY_KEYS  = %w[name port fields secrets defaults].freeze
   # A plugin adapter (`answers_query`, `runs`) adds the queries it answers and its module file.
   PLUGIN_PARITY_KEYS   = (ADAPTER_PARITY_KEYS + %w[answers runs]).freeze
+  # An adapter that `provides` a capability adds the capabilities it names, after the defaults.
+  PROVIDING_PARITY_KEYS = (ADAPTER_PARITY_KEYS + %w[provides]).freeze
 
   def exported(path) = Hecks::Projector::Exporter.adapters_in_files([path])
 
@@ -18,7 +20,9 @@ RSpec.describe "Rust adapter parity (hecks-parse adapter)" do
 
   def native_value?(value) = [true, false, nil].include?(value) || value.is_a?(String) || value.is_a?(Integer)
 
-  def string_lists?(adapter) = (adapter["fields"] + adapter["secrets"] + adapter.fetch("answers", [])).all?(String)
+  def string_lists?(adapter)
+    (adapter["fields"] + adapter["secrets"] + adapter.fetch("answers", []) + adapter.fetch("provides", [])).all?(String)
+  end
 
   def contract_shape(adapter)
     lists = string_lists?(adapter)
@@ -33,7 +37,8 @@ RSpec.describe "Rust adapter parity (hecks-parse adapter)" do
 
   it "exports every real adapter file in the contract's keys, order and types" do
     shapes = ADAPTER_PARITY_FILES.flat_map { |path| exported(path).map { |adapter| contract_shape(adapter) } }
-    expect(shapes.uniq - [[PLUGIN_PARITY_KEYS, true, true, true, true]]).to eq([[ADAPTER_PARITY_KEYS, true, true, true, true]])
+    extras = [PLUGIN_PARITY_KEYS, PROVIDING_PARITY_KEYS].map { |keys| [keys, true, true, true, true] }
+    expect(shapes.uniq - extras).to eq([[ADAPTER_PARITY_KEYS, true, true, true, true]])
   end
 
   it "exports heki as the contract's example" do

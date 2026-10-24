@@ -7,6 +7,7 @@ require_relative "registry/read_repository"
 require_relative "registry/verification"
 require_relative "registry/saga_persistence"
 require_relative "registry/world_defaults"
+require_relative "registry/adapter_capabilities"
 require_relative "outbox"
 require_relative "../naming"
 
@@ -24,6 +25,7 @@ module Hecks
       include Verification
       include SagaPersistence
       include WorldDefaults
+      include AdapterCapabilities
       include Providers
       include Merging
       include ReadRepository

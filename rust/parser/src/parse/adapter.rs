@@ -105,6 +105,15 @@ fn parse_body(
                     1,
                 )?);
             }
+            "provides" => {
+                adapter.provides.push(super::positional_text(
+                    file,
+                    number,
+                    "provides",
+                    &gated.args,
+                    1,
+                )?);
+            }
             // A repeat replaces the earlier value, as the Ruby builder's setter does.
             "runs" => {
                 adapter.runs = Some(super::positional_text(

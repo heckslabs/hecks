@@ -16,23 +16,33 @@ module Hecks
         end
 
         # Exports one adapter with string keys in the fixed order name, port, fields, secrets,
-        # defaults.
+        # defaults; an adapter that provides capabilities adds `provides`, and a plugin adds
+        # `answers` and `runs` after it.
         #
         # @param adapter [Bluebook::Hecksagon::Adapter] the adapter to export
         # @return [Hash{String => Object}] `"name"` (String), `"port"` (String, nil when never
         #   declared), `"fields"`/`"secrets"` (`Array<String>`), `"defaults"` (field name to its
         #   JSON-native default, in first-declaration order)
         def adapter_hash(adapter)
-          declared = {
+          {
             "name"     => adapter.name,
             "port"     => adapter.port,
             "fields"   => (adapter.fields || []).map(&:to_s),
             "secrets"  => (adapter.secrets || []).map(&:to_s),
             "defaults" => adapter.declared_defaults.to_h { |field, value| [field.to_s, value] }
-          }
-          return declared unless adapter.plugin?
+          }.merge(optional_adapter_keys(adapter))
+        end
 
-          declared.merge("answers" => adapter.answered_queries, "runs" => adapter.runs)
+        # The keys only some adapters carry: `provides` when it names a capability, and a
+        # plugin's `answers` and `runs`.
+        #
+        # @param adapter [Bluebook::Hecksagon::Adapter] the adapter to export
+        # @return [Hash{String => Object}] the keys it carries beyond the five every adapter has
+        def optional_adapter_keys(adapter)
+          keys = adapter.capabilities.empty? ? {} : { "provides" => adapter.capabilities }
+          return keys unless adapter.plugin?
+
+          keys.merge("answers" => adapter.answered_queries, "runs" => adapter.runs)
         end
 
         # Loads each `.adapter` file into its own fresh registry and exports what it declared,
