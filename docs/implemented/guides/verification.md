@@ -200,8 +200,8 @@ being named, never by being silenced.
 ### The `client` profile — refusing what answers wrongly without refusing
 
 A client domain must not reach a path that returns a wrong result
-without saying so. Two such paths are documented and still open, so
-`model_check` has an opt-in profile that turns each into an error:
+without saying so. `model_check` has an opt-in profile that turns each
+such documented, still-open path into an error:
 
 ```sh
 hecks model_check --profile client                 # the whole corpus
@@ -209,11 +209,11 @@ hecks model_check --profile client path/to/domain  # one domain
 ```
 
 Without `--profile`, nothing changes. The profile fixes nothing; it
-stops a domain reaching the bug unnoticed.
-
-| kind | catches | tracked in |
-|---|---|---|
-| `client_native_read_model` | a rooted read model over an aggregate `projected_by` an adapter that answers natively (only `SqliteProjection` today): SQL when the projection is current, the in-process loop when it is not, and nothing checks they agree | [known gap 2](../../1.0-readiness.md) |
+stops a domain reaching the bug unnoticed. No rule is open. A rooted
+read model over an aggregate `projected_by` a projection that answers it
+natively (`SqliteProjection`, `PostgresProjection`) is not refused: the
+`projected_read_models_agree_with_loop` check below compares the
+projection's answer with the in-process loop's.
 
 From Ruby, pass `profile: :client` beside the chapter's hecksagon:
 
@@ -292,6 +292,19 @@ Two implementations of the same comparator semantics have drifted
 before. An adapter that accepts what the reference interpreter refuses,
 or orders what it should not, shows up here — and no adapter spec that
 only asks the adapter about itself could ever have caught it.
+
+A projection is checked the same way, against the loop rather than
+against itself. On a SQLite or Postgres sweep (`hecks fuzz_run.fuzz
+adapter.value=sqlite`), `projected_read_models_agree_with_loop` boots the
+domain on Memory with every chapter `projected_by` that adapter's
+projection (`SqliteProjection` or `PostgresProjection`), replays the
+sequence, catches every projection up, and asks every rooted read model,
+reductions included, for every record its reference can name: once
+through the projection, once through the in-process loop over the
+authoritative records alone. Any difference, or a projection still stale
+after catch-up, is a finding (ADR 0121). From Ruby,
+`Hecks::Fuzzing::ProjectionAgreement.check(domain, steps, projection: :sqlite)`
+answers the disagreements, empty when there are none.
 
 `replay_is_deterministic` runs apart from the other three, and only
 once they have already passed — a property violation or a crash is
