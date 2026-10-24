@@ -1,3 +1,4 @@
+require_relative "../refused"
 require_relative "value/invariant_violation"
 require_relative "../vocabulary"
 
@@ -8,21 +9,22 @@ module Hecks
   # See `lib/hecks/runtime.rb` for the module's own facade and boot entry points.
   module Runtime
     # A dispatched verb names no aggregate, entity or command.
-    class UnknownVerb < StandardError; end
+    class UnknownVerb < Hecks::Refused; end
     # A settled record failed a command's `ensures`.
-    class EnsuresNotMet < StandardError; end
+    class EnsuresNotMet < Hecks::Refused; end
 
     # A command's `given` refused. `detail` holds the failing comparison's resolved operands
     # ("left: X, right: Y") when the given is a bare comparison, else nil.
     #
     # `detail` rides on `#detailed_message`; `#message` stays byte-for-byte, as specs pin it.
-    class GivenNotMet < StandardError
+    class GivenNotMet < Hecks::Refused
       attr_reader :detail
 
       # @param message [String, nil] the refusal text
       # @param detail [String, nil] the failing comparison's resolved operands, if any
-      def initialize(message = nil, detail: nil)
-        super(message)
+      # @param attribute [Symbol, String, nil] the attribute the refusal is about, if any
+      def initialize(message = nil, detail: nil, attribute: nil)
+        super(message, attribute: attribute)
         @detail = detail
       end
 
@@ -36,28 +38,28 @@ module Hecks
     end
 
     # A command addressed a record that does not exist.
-    class NotFound < StandardError; end
+    class NotFound < Hecks::Refused; end
     # A command is not admissible from the record's current lifecycle state.
-    class LifecycleRefused < StandardError; end
+    class LifecycleRefused < Hecks::Refused; end
     # An argument carries the wrong kind of value for its declared type.
-    class TypeMismatch < StandardError; end
+    class TypeMismatch < Hecks::Refused; end
     # An argument the command does not declare.
-    class UnknownArgument < StandardError; end
+    class UnknownArgument < Hecks::Refused; end
     # An argument the command declares but the call omitted.
-    class AbsentArgument < StandardError; end
+    class AbsentArgument < Hecks::Refused; end
     # A creating command whose derived identity already names a record.
-    class AlreadyExists < StandardError; end
+    class AlreadyExists < Hecks::Refused; end
     # A required attribute the stored record predates, with no default or translation to fill it.
     # Raised only by `GuardState`; an optional attribute reads nil instead (ADR 0025).
-    class AttributeAbsent < StandardError; end
+    class AttributeAbsent < Hecks::Refused; end
     # A `projects` field the record predates or no rebuild sweep has populated yet.
     # Raised by `GuardState`.
-    class ProjectionAbsent < StandardError; end
+    class ProjectionAbsent < Hecks::Refused; end
     # A query or read model declares `authorize policy, tenant: :field` and the caller omitted it.
-    class Unauthorized < StandardError; end
+    class Unauthorized < Hecks::Refused; end
     # A `corrects` command whose target event this record never emitted.
     # Raised by `CommandRules::Admissibility#enforce_correction_target`.
-    class NothingToCorrect < StandardError; end
+    class NothingToCorrect < Hecks::Refused; end
 
     # A CAS write (`expected_version:`) found the stored version moved since the read.
     # A runtime fault, not a domain refusal: the interpreters retry, so it escapes only under
@@ -67,7 +69,7 @@ module Hecks
     # A Lambda-routed domain's refusal (`Adapters::Lambda::RemoteDispatcher`), with Rust's text
     # verbatim.
     # It is not mapped back to a specific class such as GivenNotMet.
-    class RemoteRefusal < StandardError; end
+    class RemoteRefusal < Hecks::Refused; end
 
     # A wasm plugin's refusal of a question it was asked (`Runtime::WasmPlugin`), with its own
     # words: a time zone it does not know, a window it will not expand.
@@ -79,6 +81,7 @@ module Hecks
     # UnknownVerb is included on purpose: a cross-domain policy fires where its target domain is
     # not loaded. InvariantViolation is included too, so a value object's refusal is declined.
     # Names come from the language; resolving them here fails at load if one is undefined.
+    # Each is a `Hecks::Refused`, and nothing else is, so rescuing either catches the same set.
     DOMAIN_REFUSALS = Hecks::Vocabulary.fetch("DomainRefusal").map { |name| const_get(name) }.freeze
   end
 end

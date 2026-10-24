@@ -29,18 +29,18 @@ module Hecks
             attribute = @declared[name.to_sym]
             return nil if attribute.nil? || attribute.optional?
 
-            raise AttributeAbsent,
-                  RefusalWording.render_site("AttributeAbsent", "absent_read",
-                                             aggregate: @owner.hecks_name, field: name)
+            raise AttributeAbsent.new(RefusalWording.render_site("AttributeAbsent", "absent_read",
+                                                                 aggregate: @owner.hecks_name, field: name),
+                                      attribute: name)
           end
 
           private
 
           def raise_projection_absent(projected)
-            raise ProjectionAbsent,
-                  RefusalWording.render_site("ProjectionAbsent", "absent_read",
-                                             aggregate: @owner.hecks_name, field: projected.name,
-                                             reference: projected.reference, remote_field: projected.remote_field)
+            message = RefusalWording.render_site("ProjectionAbsent", "absent_read",
+                                                 aggregate: @owner.hecks_name, field: projected.name,
+                                                 reference: projected.reference, remote_field: projected.remote_field)
+            raise ProjectionAbsent.new(message, attribute: projected.name)
           end
         end
       end

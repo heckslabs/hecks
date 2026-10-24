@@ -30,9 +30,9 @@ module Hecks
         # The refusal every wrong-typed or missing field shares: `type_name`'s `field_name` was
         # offered `offered` where `expected` was declared.
         def numeric_field_mismatch!(type_name, field_name, expected, offered)
-          raise TypeMismatch,
-                RefusalWording.render_site("TypeMismatch", "numeric_field",
-                                           type: type_name, field: field_name, expected: expected, offered: offered)
+          message = RefusalWording.render_site("TypeMismatch", "numeric_field",
+                                               type: type_name, field: field_name, expected: expected, offered: offered)
+          raise TypeMismatch.new(message, attribute: field_name)
         end
 
         # C3.8 boundary check — refuses a mistyped argument before it breaks a predicate.
@@ -52,15 +52,15 @@ module Hecks
 
         def check_numeric_bounds(type_name, field_name, given)
           if given.is_a?(Integer) && !INT64_RANGE.cover?(given)
-            raise TypeMismatch,
-                  RefusalWording.render_site("TypeMismatch", "integer_range",
-                                             type: type_name, field: field_name, offered: Rendering.describe(given))
+            raise TypeMismatch.new(RefusalWording.render_site("TypeMismatch", "integer_range", type: type_name,
+                                                              field: field_name, offered: Rendering.describe(given)),
+                                   attribute: field_name)
           end
           return unless given.is_a?(Float) && !given.finite?
 
-          raise TypeMismatch,
-                RefusalWording.render_site("TypeMismatch", "non_finite_field",
-                                           type: type_name, field: field_name, offered: Rendering.describe(given))
+          raise TypeMismatch.new(RefusalWording.render_site("TypeMismatch", "non_finite_field", type: type_name,
+                                                            field: field_name, offered: Rendering.describe(given)),
+                                 attribute: field_name)
         end
 
         # A value object refuses an undeclared key the same way a command's own
@@ -71,10 +71,10 @@ module Hecks
           return if unknown.empty?
 
           declared = value_object.attributes.map(&:name)
-          raise UnknownArgument,
-                RefusalWording.render_site("UnknownArgument", "unknown_args",
-                                           command: value_object.hecks_name, unknown: unknown,
-                                           declared: declared)
+          raise UnknownArgument.new(RefusalWording.render_site("UnknownArgument", "unknown_args",
+                                                               command: value_object.hecks_name, unknown: unknown,
+                                                               declared: declared),
+                                    attribute: unknown.first)
         end
 
         # C3.7 — every non-optional, non-list field must arrive (or construction
