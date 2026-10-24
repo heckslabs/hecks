@@ -106,6 +106,10 @@ singleton method wins over an inherited `Kernel` method. The bug is specific to 
 `method_missing` to catch them. This should be fixed in the library itself before any
 of the rest of this document is built on top of it.
 
+**Built:** [ADR 0120](decisions/0120-a-refusal-has-one-parent-and-a-handle-names-every-verb.md)
+defines both names on every handle. A bare name that is already a field reader or one of
+the handle's own methods keeps that meaning; the bang form dispatches either way.
+
 ## Boot-time decoration (`WebHandle`)
 
 ```ruby

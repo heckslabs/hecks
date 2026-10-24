@@ -1,6 +1,7 @@
 require_relative "../../naming"
 require_relative "../../runtime/caller"
 require_relative "../../ports/authorization"
+require_relative "handle/verb_methods"
 
 module Hecks
   module Adapters
@@ -10,6 +11,8 @@ module Hecks
       #
       #     Pizza.create_pizza!(...).add_topping!(...).purchase!(...)
       class Handle
+        include VerbMethods
+
         attr_reader :id
 
         # @param dispatcher [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the booted
@@ -160,17 +163,6 @@ module Hecks
           !@ir.attribute(name).nil? || @ir.lifecycle_field&.to_sym == name
         end
 
-        # Real singleton methods, not method_missing: a verb named `freeze` or
-        # `send` (both real, e.g. Account::Freeze, ExternalTransfer::Send) would
-        # otherwise silently hit the Kernel method instead of dispatching.
-        def define_verb_methods
-          @ir.commands.reject(&:creates?).each do |command|
-            define_singleton_method("#{Naming.snake(command.hecks_name)}!") do |**args|
-              run(command, **args)
-            end
-          end
-        end
-
         # `@ir.identified_by` is only the single-head shorthand (nil for a
         # composite identity, e.g. SafeDepositBox's branch_code/box_number);
         # this reads every head through `identity_heads` instead.
@@ -183,8 +175,8 @@ module Hecks
         # when called; nothing loads until then, so chains like
         # `payment.disputed_by_customer.name` stay lazy at every step.
         #
-        # Defined before verb methods so a same-named verb wins the name on the
-        # rare collision; `initialize` calls this first for that reason.
+        # A verb of the same name leaves the accessor alone (`keeps_its_name?`); only the
+        # verb's bang form is defined.
         #
         # The accessor is named like the attribute itself, never `<name>_id`
         # (ADR 0025) — `piece.account` and `piece[:account]` (bracket access,
