@@ -46,14 +46,15 @@ module Hecks
     #
     # `source` is `:gem` for a chapter the gem carries (a framework member such as Governance,
     # or a language chapter such as Deploy) and `:vendor` for a package vendored into the
-    # consuming project, whose `name` is the package's directory name (`"membership"`).
-    Attachment = Struct.new(:name, :source, keyword_init: true) do
+    # consuming project, whose `name` is the package's directory name (`"membership"`) and whose
+    # `chapter` is the name its bluebook declares, which the directory name need not spell.
+    Attachment = Struct.new(:name, :source, :chapter, keyword_init: true) do
       # @return [Boolean] whether the chapter is a vendored package
       def vendor? = source == :vendor
 
       # @return [String] the chapter's name in the registry: a gem chapter's own name, a
-      #   vendored package's directory name in Pascal case
-      def chapter_name = vendor? ? Naming.pascal(name) : name
+      #   vendored package's declared chapter, else its directory name in Pascal case
+      def chapter_name = chapter || (vendor? ? Naming.pascal(name) : name)
 
       # @return [Hash{Symbol => String}] the attachment as plain data
       def to_h = { name: name.to_s, source: source.to_s }

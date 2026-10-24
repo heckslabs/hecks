@@ -136,12 +136,12 @@ module Hecks
         end
         private :attach_gem
 
-        # Loads a vendored package and records it as attached from `vendor/`. The directory name
-        # Pascal-cases to the chapter name (`"membership"` becomes `Membership`).
+        # Loads a vendored package and records it as attached from `vendor/`, under the chapter
+        # its bluebook declares: `"document"` attaches `Documents`.
         def attach_vendored(name)
-          @attachments << Attachment.new(name: name.to_s, source: :vendor)
-          Hecks::EmbryonautBluebook.load!(name)
-          Hecks.current_registry&.mark_bounded(Hecks::Naming.pascal(name.to_s))
+          chapter = Hecks::EmbryonautBluebook.load!(name)
+          @attachments << Attachment.new(name: name.to_s, source: :vendor, chapter: chapter)
+          Hecks.current_registry&.mark_bounded(chapter)
         end
         private :attach_vendored
 
