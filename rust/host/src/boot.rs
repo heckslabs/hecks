@@ -97,17 +97,15 @@ pub async fn run() -> Result<(), Error> {
         extension.boot_check(&domain)?;
     }
 
-    let (store, era) = match database_url {
-        Some(url) => {
-            let (store, era) =
-                boot_postgres(&url, schema.as_deref(), &domain, ir, &my_hash, &my_label).await?;
-            (Arc::new(store), era)
-        }
-        None => (
-            Arc::new(Store::memory(MemoryStore::open(&domain, schema.as_deref()))),
-            None,
-        ),
-    };
+    let (store, era) = open_store(
+        database_url.as_deref(),
+        schema.as_deref(),
+        &domain,
+        ir,
+        (&my_hash, &my_label),
+    )
+    .await?;
+    let store = Arc::new(store);
 
     // The mirrored set is the IR's own capable list, by qualified name
     // -- never "everything this kernel can mutate". A domain that binds
@@ -248,6 +246,21 @@ async fn database_url(secret_fetcher: &secrets::AwsSecretFetcher) -> Result<Stri
         Err(_) => std::env::var("DATABASE_URL")
             .map_err(|_| "either DB_SECRET_ARN (+ DB_HOST/DB_NAME) or DATABASE_URL is required")?,
     })
+}
+
+/// Opens the store the selected backend names: Postgres when a connection URL was resolved,
+/// otherwise the in-memory store, which has no era and skips every Postgres step.
+async fn open_store(
+    database_url: Option<&str>,
+    schema: Option<&str>,
+    domain: &str,
+    ir: &serde_json::Value,
+    (my_hash, my_label): (&str, &str),
+) -> Result<(Store, Option<i32>), Error> {
+    match database_url {
+        Some(url) => boot_postgres(url, schema, domain, ir, my_hash, my_label).await,
+        None => Ok((Store::memory(MemoryStore::open(domain, schema)), None)),
+    }
 }
 
 /// Connects to Postgres, provisions the journal tables and resolves the era this binary runs
@@ -527,6 +540,63 @@ async fn boot_postgres(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // Distinct domain names per test: the memory store is shared process-wide by domain and schema.
+    async fn open_memory(domain: &str, schema: Option<&str>) -> (Store, Option<i32>) {
+        let ir = serde_json::json!({});
+        open_store(None, schema, domain, &ir, ("hash", "label"))
+            .await
+            .expect("memory opens")
+    }
+
+    async fn journal_one_step(store: &Store, domain: &str) {
+        let args = serde_json::json!({});
+        let accepted = crate::store::Accepted {
+            verb: "OpenAccount",
+            args: &args,
+            new_seed: serde_json::json!({}),
+            saga_upserts: Vec::new(),
+            saga_deletes: Vec::new(),
+            lineage: None,
+        };
+        store
+            .begin(domain)
+            .await
+            .expect("unit")
+            .commit(accepted)
+            .await
+            .expect("commit");
+    }
+
+    #[tokio::test]
+    async fn without_a_database_url_the_store_is_memory_with_no_era_and_no_lineage() {
+        let (store, era) = open_memory("boot_memory_shape", None).await;
+
+        assert!(era.is_none());
+        assert!(store.lineage().is_none());
+    }
+
+    #[tokio::test]
+    async fn a_memory_store_reopens_with_what_the_domain_journaled() {
+        let (store, _) = open_memory("boot_memory_reopen", None).await;
+        journal_one_step(&store, "boot_memory_reopen").await;
+        let (again, _) = open_memory("boot_memory_reopen", None).await;
+
+        assert_eq!(again.journal_steps().await.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn memory_stores_of_other_domains_and_schemas_stay_apart() {
+        let (store, _) = open_memory("boot_memory_apart", Some("tenant_a")).await;
+        journal_one_step(&store, "boot_memory_apart").await;
+        let (other_schema, _) = open_memory("boot_memory_apart", Some("tenant_b")).await;
+        let (other_domain, _) = open_memory("boot_memory_apart_two", Some("tenant_a")).await;
+
+        assert_eq!(
+            other_schema.journal_steps().await.len() + other_domain.journal_steps().await.len(),
+            0
+        );
+    }
 
     #[test]
     fn parses_a_password_with_uri_reserved_characters() {
