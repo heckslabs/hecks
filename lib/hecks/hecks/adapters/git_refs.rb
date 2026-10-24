@@ -43,8 +43,7 @@ module Hecks
         result = capture("merge-base", "--is-ancestor", checked_ref(ancestor), checked_ref(descendant), chdir: chdir)
         return true if result.ok?
 
-        status = result.status
-        return false if status.exitstatus == 1
+        return false if result.exit_code == 1
 
         refuse("git merge-base failed", result)
       end

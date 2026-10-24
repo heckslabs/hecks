@@ -40,9 +40,15 @@ module Hecks
     # @return [String] the text after the last `::`, or the whole `to_s` if there
     #   is none
     def demodulise(type)
-      last_segment = type.to_s.split("::").last
-      last_segment.to_s
+      type.to_s.split("::").last.to_s
     end
+
+    # The last segment of a dotted path: `"Pizzas.Pizza.Created"` -> `"Created"`.
+    #
+    # @param dotted [String, Symbol, #to_s] a `.`-joined path
+    # @return [String, nil] the text after the last `.`, the whole text if there is none, or nil
+    #   for an empty path
+    def last_segment(dotted) = dotted.to_s.split(".").last
 
     # snake_case -> PascalCase. Names a closed-set value object synthesised from an
     # inline attribute; the derivation is part of the IR contract.
@@ -50,8 +56,7 @@ module Hecks
     # @param text [String, Symbol, #to_s] a snake_case (or already Pascal) name
     # @return [String] the PascalCase form
     def pascal(text)
-      parts = text.to_s.split("_")
-      parts.map { |part| part.sub(FIRST_CHARACTER) { Regexp.last_match(1).upcase } }.join
+      text.to_s.split("_").map { |part| part.sub(FIRST_CHARACTER) { Regexp.last_match(1).upcase } }.join
     end
 
     # PascalCase or camelCase -> snake_case.

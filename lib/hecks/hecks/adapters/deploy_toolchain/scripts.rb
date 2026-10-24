@@ -90,12 +90,7 @@ module Hecks
 
         def message_of(result)
           text = [result.err, result.out].map(&:strip).reject(&:empty?).join("\n")
-          text.empty? ? "the tool ended with status #{exit_code(result)}" : text
-        end
-
-        def exit_code(result)
-          status = result.status
-          status.exitstatus
+          text.empty? ? "the tool ended with status #{result.exit_code}" : text
         end
       end
     end

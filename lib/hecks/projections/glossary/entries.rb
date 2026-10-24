@@ -31,7 +31,7 @@ module Hecks
         end
 
         # The last segment of a dotted name.
-        def bare(qualified) = qualified.to_s.split(".").last
+        def bare(qualified) = Naming.last_segment(qualified)
 
         # Gathers every term the glossary carries, ungrouped and unordered.
         #

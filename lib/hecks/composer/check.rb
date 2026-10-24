@@ -42,14 +42,7 @@ module Hecks
       rescue Parse::ParserMissing
         raise
       rescue StandardError => e
-        base.merge(diagnostic: { file: nil, line: nil, message: headline(e.message), expected: [] })
-      end
-
-      # The first line of a message, without its line ending.
-      # @api private
-      def headline(message)
-        line = message.lines.first
-        line.to_s.chomp
+        base.merge(diagnostic: { file: nil, line: nil, message: Text.headline(e.message), expected: [] })
       end
 
       # @api private

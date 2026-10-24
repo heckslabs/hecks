@@ -90,10 +90,7 @@ module Hecks
         # Resolves the attribute's target through the chapter IR.
         #
         # @raise [Bluebook::DSL::Malformed] if the reference does not know its declaring aggregate
-        def referenced_aggregate(attribute)
-          reference = attribute.type
-          reference.resolve
-        end
+        def referenced_aggregate(attribute) = attribute.target_aggregate
 
         # Refuses a reference-typed value whose target identity does not exist.
         def validate_reference_values(domain, target, held, list:)

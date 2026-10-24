@@ -65,8 +65,7 @@ module Hecks
         attribute = attributes.find { |candidate| candidate.reference? && hop_name(candidate) == head }
         return nil unless attribute
 
-        reference = attribute.type
-        hop = Hop.new(attribute: attribute, target_name: reference.target_name, target: reference.resolve)
+        hop = Hop.new(attribute: attribute, target_name: attribute.target_name, target: attribute.target_aggregate)
         [hop, rest]
       end
 

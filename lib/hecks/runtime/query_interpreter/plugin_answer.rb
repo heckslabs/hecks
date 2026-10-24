@@ -43,8 +43,7 @@ module Hecks
         end
 
         def referenced_state(domain, aggregate, attribute, id)
-          reference = attribute.type
-          target = reference.resolve || aggregate
+          target = attribute.target_aggregate || aggregate
           record = @registry.repository(domain, target).find(id) or
             raise NotFound, "#{aggregate.hecks_name}.#{attribute.name}: no #{target.hecks_name} #{id.inspect}"
           Value.materialize(record.to_h)

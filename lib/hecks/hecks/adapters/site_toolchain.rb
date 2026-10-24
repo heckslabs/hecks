@@ -185,8 +185,7 @@ module Hecks
 
       def message_of(result)
         text = [result.err, result.out].map(&:strip).reject(&:empty?).join("\n")
-        status = result.status
-        text.empty? ? "the tool ended with status #{status.exitstatus}" : text
+        text.empty? ? "the tool ended with status #{result.exit_code}" : text
       end
 
       # The tool runs from the tool's own root, so a path the caller gave relative to where they

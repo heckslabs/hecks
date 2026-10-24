@@ -10,13 +10,11 @@ module Hecks
         #   query/command-only entry
         #   whose owner isn't a real aggregate root
         def self.for(entry)
-          fqn = entry.fqn
-          dispatcher = entry.dispatcher
-          aggregate = dispatcher.bluebook(fqn.domain)&.aggregate(fqn.aggregate)
-          new(dispatcher, fqn.domain, aggregate) if aggregate
+          aggregate = entry.aggregate
+          new(entry.dispatcher, entry.domain, aggregate) if aggregate
         end
 
-        def repository = dispatcher.registry.repository(domain, aggregate)
+        def repository = dispatcher.repository(domain, aggregate)
 
         def events
           fqn = "#{domain}::#{aggregate.hecks_name}"

@@ -44,7 +44,7 @@ module Hecks
 
           Finding.new(kind: :port_trigger, severity: :warning, subject: policy.name,
                       message: "trigger #{trigger.inspect} names a port operation — " \
-                               "write `ask :#{Naming.snake(trigger.to_s.split(".").last)}` and " \
+                               "write `ask :#{Naming.snake(Naming.last_segment(trigger))}` and " \
                                "let the hecksagon map the port")
         end
 

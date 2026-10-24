@@ -98,20 +98,13 @@ module Hecks
 
       # @api private
       def refused(error)
-        { ok: false, kind: short_class_name(error), error: headline(error.message) }
+        { ok: false, kind: short_class_name(error), error: Text.headline(error.message) }
       end
 
       # @api private
       def short_class_name(error)
         name = error.class.name.to_s
         name.split("::").last
-      end
-
-      # The first line of a message, without its line ending.
-      # @api private
-      def headline(message)
-        line = message.lines.first
-        line.to_s.chomp
       end
 
       # @api private

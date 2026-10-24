@@ -16,8 +16,8 @@ module Hecks
               known_writes << attribute.name if deterministic_initial_value?(attribute)
             end
 
-            lifecycle = aggregate.lifecycle
-            known_writes << lifecycle.field.to_sym if lifecycle
+            state_field = aggregate.lifecycle_field
+            known_writes << state_field.to_sym if state_field
           end
 
           def deterministic_initial_value?(attribute)

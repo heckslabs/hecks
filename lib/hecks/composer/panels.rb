@@ -1,3 +1,4 @@
+require_relative "../text"
 require "digest"
 require "json"
 require_relative "live"
@@ -110,13 +111,7 @@ module Hecks
       def with_live(body)
         @lock.synchronize { yield live_for(body.fetch("buffers", {})) }
       rescue StandardError, ScriptError => e
-        { error: headline(e.message) }
-      end
-
-      # The first line of a message, without its line ending.
-      def headline(message)
-        line = message.lines.first
-        line.to_s.chomp
+        { error: Text.headline(e.message) }
       end
 
       def live_for(buffers)

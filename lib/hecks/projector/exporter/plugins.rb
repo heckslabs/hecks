@@ -45,8 +45,7 @@ module Hecks
           return {} unless query
 
           query.attributes.select(&:reference?).to_h do |attribute|
-            reference = attribute.type
-            target = reference.resolve || aggregate
+            target = attribute.target_aggregate || aggregate
             [attribute.name.to_s, "#{chapter_name}::#{target.hecks_name}"]
           end
         end

@@ -21,6 +21,9 @@ module Hecks
       Result = Struct.new(:out, :err, :status) do
         # @return [Boolean] whether the program ended with status 0
         def ok? = status.success?
+
+        # @return [Integer, nil] the status the program ended with, or nil when a signal ended it
+        def exit_code = status.exitstatus
       end
 
       # Accepts the arguments every driven adapter is built with and keeps none of them.

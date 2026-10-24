@@ -21,9 +21,8 @@ module Hecks
           # @return [Integer] the ordinal of the era minted
           # @raise [Runtime::WiringError] if the edge, its coverage or its audit refuses
           def mint!(context)
-            lineage = context.lineage
-            ensure_named!(lineage, context.latest)
-            context = context.with(latest: lineage.eras.last)
+            ensure_named!(context.lineage, context.latest)
+            context = context.with(latest: context.held_eras.last)
             edge = verified_edge!(context)
             chain = audited_chain!(context, edge)
             commit_era!(context, chain)
@@ -69,16 +68,14 @@ module Hecks
 
           def edges_leaving(context)
             registry = context.registry
-            bluebook = context.bluebook
             registry.translations.select do |t|
-              t.domain == bluebook.name && t.from == context.latest[:label]
+              t.domain == context.domain_name && t.from == context.latest[:label]
             end
           end
 
           # The edge chain to the current shape, after its audit passes.
           def audited_chain!(context, edge)
-            lineage = context.lineage
-            chain = edge_chain(context.registry, context.bluebook, lineage.eras, context.label)
+            chain = edge_chain(context.registry, context.bluebook, context.held_eras, context.label)
             audit!(context.bluebook, context.lineage, chain, context.ordinal, edge)
             chain
           end

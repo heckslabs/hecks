@@ -61,17 +61,10 @@ module Hecks
         # @return [String] its output
         # @raise [ConsoleCapture::Failure] when it ended in a status that is not a report
         def report(operation, result)
-          code = exit_code(result)
+          code = result.exit_code
           return result.out if REPORTING.fetch(operation, [0]).include?(code)
 
           raise ConsoleCapture::Failure, "#{operation} ended with status #{code}: #{result.err}#{result.out}".strip
-        end
-
-        # @param result [Shell::Result] what the tool said
-        # @return [Integer, nil] the status it ended with
-        def exit_code(result)
-          status = result.status
-          status.exitstatus
         end
 
         # @param text [String] a report

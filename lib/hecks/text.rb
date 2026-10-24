@@ -15,20 +15,20 @@ module Hecks
     #
     # @param text [String, #to_s, nil] the text to read
     # @return [String] the first line without surrounding whitespace, or `""` for no text
-    def first_line(text)
-      line = text.to_s.lines.first
-      line.to_s.strip
-    end
+    def first_line(text) = text.to_s.lines.first.to_s.strip
+
+    # The first line of `text` with only its line ending removed: a message's headline.
+    #
+    # @param text [String, #to_s, nil] the text to read
+    # @return [String] the first line, its own spacing kept, or `""` for no text
+    def headline(text) = text.to_s.lines.first.to_s.chomp
 
     # The last `count` lines of `text`, joined and stripped: the tail of a command's output.
     #
     # @param text [String, #to_s, nil] the text to read
     # @param count [Integer] how many lines to keep
     # @return [String] the kept lines, joined, without surrounding whitespace
-    def last_lines(text, count)
-      tail = text.to_s.lines.last(count)
-      tail.join.strip
-    end
+    def last_lines(text, count) = text.to_s.lines.last(count).join.strip
 
     # Says whether `value` holds no text once whitespace is set aside.
     #
@@ -40,19 +40,13 @@ module Hecks
     #
     # @param value [String, #to_s, nil] a list such as `"a, b,,c"`
     # @return [Array<String>] the stripped, non-empty items, in order
-    def comma_list(value)
-      items = value.to_s.split(",")
-      items.map(&:strip).reject(&:empty?)
-    end
+    def comma_list(value) = value.to_s.split(",").map(&:strip).reject(&:empty?)
 
     # Joins the stripped, non-empty lines of `lines` back into one text.
     #
     # @param lines [Array<String>] the lines to keep
     # @return [String] the non-blank lines, stripped, one per line
-    def compact_lines(lines)
-      kept = lines.map(&:strip).reject(&:empty?)
-      kept.join("\n")
-    end
+    def compact_lines(lines) = lines.map(&:strip).reject(&:empty?).join("\n")
 
     # The names of `items`, sorted and comma-joined: how a refusal lists what it would accept.
     #
