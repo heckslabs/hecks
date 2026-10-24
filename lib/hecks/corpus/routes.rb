@@ -35,7 +35,11 @@ module Hecks
                 "a corpus-owned domain whose ports have no adapter, so an ask is refused; its frozen " \
                 "targets are held to the Ruby runtime there and to the Rust policy table in rust/codegen"),
       Route.new(%r{\Aspec/fixtures/rust_host/}, :named_in, "rust/host/src/web/commerce.rs", "checkout_fixture",
-                "the Rust host's checkout fixture, pinned by its web and /api tests")
+                "the Rust host's checkout fixture, pinned by its web and /api tests"),
+      Route.new(%r{\Apackages/hecks-rails/spec/fixture_app/}, :named_in, "packages/hecks-rails/spec/spec_helper.rb",
+                "fixture_app",
+                "links to the examples/banking chapters the sweep already boots, wired by a Rails app the " \
+                "package's own request specs boot (ADR 0121)")
     ].freeze
   end
 end
