@@ -3,11 +3,11 @@
 
 use crate::dispatch;
 use crate::journal::{self, LineageConfig};
+use crate::store::Store;
 use serde_json::{json, Map, Value};
 use std::collections::BTreeSet;
 use std::path::Path;
-use tokio::sync::Mutex;
-use tokio_postgres::{Client, GenericClient};
+use tokio_postgres::GenericClient;
 
 /// The chapter the console's config lives in, matching
 /// `presentation_config.rb`'s own `registry.bluebook("ConsoleSettings")`.
@@ -23,23 +23,20 @@ const OVERVIEW: &str = "overview";
 /// with no ConsoleSettings rows, or none of its relations, reads back
 /// an empty section rather than an error.
 pub async fn load(
-    client: &Mutex<Client>,
+    store: &Store,
     wasm_path: &Path,
     config: &LineageConfig,
 ) -> anyhow::Result<Value> {
-    if let Some(rows) = kernel_rows(client, wasm_path).await? {
+    if let Some(rows) = kernel_rows(store, wasm_path).await? {
         return Ok(reshape(&rows.states, &rows.collections, &rows.overview));
     }
-    load_from_relations(client, config).await
+    load_from_relations(store, config).await
 }
 
 /// The Ruby-written relations, split out so the kernel path above reads
 /// as the one decision it is, and so tests can drive this half directly.
-async fn load_from_relations(
-    client: &Mutex<Client>,
-    config: &LineageConfig,
-) -> anyhow::Result<Value> {
-    let guard = client.lock().await;
+async fn load_from_relations(store: &Store, config: &LineageConfig) -> anyhow::Result<Value> {
+    let guard = store.require_lineage()?.lock().await;
     let states = read_head_states(&*guard, &config.domain, STATE_STYLE).await?;
     let collections = read_head_states(&*guard, &config.domain, COLLECTION).await?;
     let overview = read_head_states(&*guard, &config.domain, OVERVIEW).await?;
@@ -57,10 +54,10 @@ async fn load_from_relations(
 /// snapshot) matters here: this runs on every first paint, alongside
 /// `/api/me` and `/api/ui-schema`.
 pub(crate) async fn kernel_rows(
-    client: &Mutex<Client>,
+    store: &Store,
     wasm_path: &Path,
 ) -> anyhow::Result<Option<KernelRows>> {
-    let state = dispatch::read(client, wasm_path).await?;
+    let state = dispatch::read(store, wasm_path).await?;
     let rows = bucket(state.get("instances"));
     if !rows.is_empty() {
         return Ok(Some(rows));
@@ -68,7 +65,7 @@ pub(crate) async fn kernel_rows(
 
     // Empty either way — ask the kernel which kind of empty this is.
     let probe = dispatch::query(
-        client,
+        store,
         wasm_path,
         &format!("{CONFIG_DOMAIN}.Styles"),
         json!({}),
@@ -162,15 +159,15 @@ pub fn reshape(states: &[Value], collections: &[Value], overview: &[Value]) -> V
 /// all answering the same `id`/`state` columns. First one that exists
 /// wins; a relation that exists but fails to read still errors.
 async fn read_head_states<C: GenericClient>(
-    client: &C,
+    store: &C,
     host_domain: &str,
     storage_name: &str,
 ) -> anyhow::Result<Vec<Value>> {
     for relation in head_view_candidates(host_domain, storage_name) {
-        if !relation_exists(client, &relation).await? {
+        if !relation_exists(store, &relation).await? {
             continue;
         }
-        let rows = client
+        let rows = store
             .query(
                 &format!("SELECT state FROM {}", journal::quote_ident(&relation)),
                 &[],
@@ -197,8 +194,8 @@ fn head_view_candidates(host_domain: &str, storage_name: &str) -> Vec<String> {
 /// `to_regclass` resolves through the connection's own `search_path`,
 /// same as the unqualified SELECT below — never a same-named relation
 /// in some other schema.
-async fn relation_exists<C: GenericClient>(client: &C, relation: &str) -> anyhow::Result<bool> {
-    let row = client
+async fn relation_exists<C: GenericClient>(store: &C, relation: &str) -> anyhow::Result<bool> {
+    let row = store
         .query_one("SELECT to_regclass($1) IS NOT NULL", &[&relation])
         .await?;
     Ok(row.get(0))
@@ -694,7 +691,7 @@ mod tests {
     // pattern as dispatch.rs's own tests, uniquely named per test so
     // `cargo test`'s parallelism doesn't race two against one table.
 
-    async fn scratch_db(name: &str) -> Mutex<Client> {
+    async fn scratch_db(name: &str) -> Store {
         let (admin, conn) =
             tokio_postgres::connect(&crate::test_pg::conninfo("postgres"), tokio_postgres::NoTls)
                 .await
@@ -718,7 +715,7 @@ mod tests {
         tokio::spawn(async move {
             let _ = conn.await;
         });
-        Mutex::new(client)
+        Store::postgres(client)
     }
 
     // A plain table, not a view — this module only ever SELECTs
@@ -733,7 +730,7 @@ mod tests {
         }
     }
 
-    async fn seed_head(client: &Mutex<Client>, relation: &str, id: &str, state: Value) {
+    async fn seed_head(client: &Store, relation: &str, id: &str, state: Value) {
         let guard = client.lock().await;
         guard
             .batch_execute(&format!(

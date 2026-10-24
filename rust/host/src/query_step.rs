@@ -8,10 +8,9 @@
 //! question rather than answer it from the aggregate's rows. None of these writes to the journal.
 
 use crate::dispatch;
+use crate::store::Store;
 use serde_json::{json, Value};
 use std::path::Path;
-use tokio::sync::Mutex;
-use tokio_postgres::Client;
 
 /// What the step should do with a question, decided from the domain's IR alone.
 #[derive(Debug, PartialEq, Eq)]
@@ -107,7 +106,7 @@ pub async fn answer(
     body: &Value,
     domain_ir: Option<&Value>,
     domain: &str,
-    client: &Mutex<Client>,
+    store: &Store,
     wasm_path: &Path,
 ) -> Result<Value, String> {
     let question = body
@@ -116,12 +115,12 @@ pub async fn answer(
         .ok_or("\"query\" must name a question")?;
     let args = body.get("args").cloned().unwrap_or_else(|| json!({}));
     match plan(domain_ir, domain, question) {
-        Plan::Kernel(qualified) => dispatch::query(client, wasm_path, &qualified, args)
+        Plan::Kernel(qualified) => dispatch::query(store, wasm_path, &qualified, args)
             .await
             .map_err(|e| format!("{e:#}")),
         Plan::Plugin(plugin) => {
             let domain_ir = domain_ir.ok_or("a plugin question needs the domain's IR")?;
-            crate::plugins::answer(&plugin, domain_ir, args, client, wasm_path).await
+            crate::plugins::answer(&plugin, domain_ir, args, store, wasm_path).await
         }
         Plan::Refuse { kind, message } => Ok(refusal_result(question, &args, kind, &message)),
     }

@@ -1,0 +1,92 @@
+require "hecks"
+
+RSpec.describe Hecks::Ports::Authentication do
+  def load_in_memory_ports
+    MemoryPorts.load!
+  end
+
+  def registry_with(*adapter_paths, &extra)
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
+      load_in_memory_ports
+      Kernel.load(File.expand_path("../../lib/hecks/ports/authentication.port", __dir__))
+      adapter_paths.each { |path| Kernel.load(path) }
+      extra&.call
+    end
+    registry
+  end
+
+  def google_authentication_adapter
+    File.expand_path("../../lib/hecks/adapters/driven/google_authentication.adapter", __dir__)
+  end
+
+  describe "adapter resolution" do
+    it "refuses when no adapter implements the port" do
+      registry = registry_with
+
+      expect { described_class.authorization_url(registry) }
+        .to raise_error(Hecks::Runtime::WiringError, /no adapter implements/)
+    end
+
+    it "refuses to choose between more than one bound adapter" do
+      registry = registry_with(google_authentication_adapter) { Hecks.adapter("AlwaysAuthenticate") { port "authentication" } }
+
+      expect { described_class.authorization_url(registry) }
+        .to raise_error(Hecks::Runtime::WiringError, /AlwaysAuthenticate, GoogleAuthentication/)
+    end
+  end
+
+  describe "GoogleAuthentication, the one real adapter" do
+    let(:registry) { registry_with(google_authentication_adapter) }
+
+    around do |example|
+      original = ENV.to_h.slice("GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REDIRECT_URI")
+      ENV["GOOGLE_CLIENT_ID"] = "test-client-id"
+      ENV["GOOGLE_CLIENT_SECRET"] = "test-client-secret"
+      ENV["GOOGLE_REDIRECT_URI"] = "http://localhost:4567/auth/google/callback"
+      example.run
+    ensure
+      %w[GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET GOOGLE_REDIRECT_URI].each { |key| ENV[key] = original[key] }
+    end
+
+    describe "builds a real Google authorization URL, carrying a fresh state" do
+      let(:authorization) { described_class.authorization_url(registry) }
+      let(:url)           { authorization.first }
+      let(:state)         { authorization.last }
+
+      it "points at Google's authorization endpoint" do
+        expect(url).to start_with("https://accounts.google.com/o/oauth2/v2/auth?")
+      end
+
+      it "names the client" do
+        expect(url).to include("client_id=test-client-id")
+      end
+
+      it "names the redirect URI" do
+        expect(url).to include("redirect_uri=#{ERB::Util.url_encode("http://localhost:4567/auth/google/callback")}")
+      end
+
+      it "asks for the openid, email and profile scopes" do
+        expect(url).to include("scope=openid%20email%20profile")
+      end
+
+      it "carries the state" do
+        expect(url).to include("state=#{state}")
+      end
+
+      it "mints the state as 48 hex characters" do
+        expect(state).to match(/\A[0-9a-f]{48}\z/)
+      end
+    end
+
+    it "refuses a state mismatch before ever reaching Google, with no network call" do
+      expect { described_class.verify(registry, code: "irrelevant", state: "wrong", expected_state: "right") }
+        .to raise_error(Hecks::Ports::Authentication::ValidationError, "state mismatch")
+    end
+
+    it "refuses with no code/state at all the same way" do
+      expect { described_class.verify(registry, code: "x", state: nil, expected_state: "right") }
+        .to raise_error(Hecks::Ports::Authentication::ValidationError, "state mismatch")
+    end
+  end
+end

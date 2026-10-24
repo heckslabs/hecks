@@ -7,13 +7,12 @@ use crate::ir::ir;
 use crate::journal::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
 use crate::secrets::AwsSecretFetcher;
+use crate::store::Store;
 use async_trait::async_trait;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::{Arc, OnceLock};
-use tokio::sync::Mutex;
-use tokio_postgres::Client;
 
 /// One request, as an extension sees it. `domain_ir` is `None` in the guest phase when this
 /// process has no IR loaded; `event` is the raw Function-URL event (guest phase only) for headers an extension needs.
@@ -25,7 +24,7 @@ pub struct Ctx<'a> {
     pub raw_body: &'a str,
     pub cookies: &'a HashMap<String, String>,
     pub domain_ir: Option<&'a Value>,
-    pub client: &'a Mutex<Client>,
+    pub store: &'a Store,
     pub wasm_path: &'a Path,
     pub config: &'a LineageConfig,
     pub invoker: &'a dyn LambdaInvoker,

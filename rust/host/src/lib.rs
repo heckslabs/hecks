@@ -48,6 +48,9 @@ pub mod resend;
 pub mod secrets;
 pub mod server;
 pub mod storage_shape;
+pub mod store;
+#[cfg(test)]
+mod store_conformance;
 #[cfg(test)]
 pub mod test_pg;
 pub mod ui_schema;

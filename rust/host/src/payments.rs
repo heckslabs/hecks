@@ -6,13 +6,12 @@ use crate::checkout::STRIPE_API_VERSION;
 use crate::dispatch;
 use crate::host::Host;
 use crate::journal::LineageConfig;
+use crate::store::Store;
 use crate::web::{instances_for, json_error, last_refusal, respond, site_url};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
-use tokio::sync::Mutex;
-use tokio_postgres::Client;
 
 mod keystore;
 /// Which member roles may manage payments (`HECKS_PAYMENTS_MANAGER_ROLES`).
@@ -354,7 +353,7 @@ async fn caller(
     domain_ir: &Value,
     cookies: &HashMap<String, String>,
     secret: &str,
-    client: &Mutex<Client>,
+    domain_store: &Store,
     platform: &PlatformConfig,
 ) -> Result<Caller, Value> {
     let not_logged_in = || json_error(401, "not logged in");
@@ -364,7 +363,7 @@ async fn caller(
     else {
         return Err(not_logged_in());
     };
-    match auth::active_role(client, domain_ir, &email).await {
+    match auth::active_role(domain_store, domain_ir, &email).await {
         Ok(Some(role)) => Ok(Caller {
             manager: roles::manages(&platform.manager_roles, &role),
             operator: platform.is_operator(&email),
@@ -429,11 +428,11 @@ fn connection_json(
 }
 
 async fn current_connection(
-    client: &Mutex<Client>,
+    domain_store: &Store,
     wasm_path: &Path,
     config: &LineageConfig,
 ) -> Result<Option<Connection>, Value> {
-    match dispatch::read(client, wasm_path).await {
+    match dispatch::read(domain_store, wasm_path).await {
         Ok(read) => Ok(connection(&read, &config.domain)),
         Err(e) => Err(json_error(
             500,
@@ -445,11 +444,11 @@ async fn current_connection(
 async fn connection_response(
     caller: &Caller,
     platform: &PlatformConfig,
-    client: &Mutex<Client>,
+    domain_store: &Store,
     wasm_path: &Path,
     config: &LineageConfig,
 ) -> Value {
-    match current_connection(client, wasm_path, config).await {
+    match current_connection(domain_store, wasm_path, config).await {
         Ok(connection) => respond(
             200,
             "application/json",
@@ -474,7 +473,7 @@ pub async fn route(
     host: Host<'_>,
 ) -> Option<Value> {
     let Host {
-        client,
+        store: domain_store,
         wasm_path,
         config,
         ..
@@ -482,12 +481,12 @@ pub async fn route(
     if !owns(method, path) {
         return None;
     }
-    let caller = match caller(domain_ir, cookies, secret, client, platform).await {
+    let caller = match caller(domain_ir, cookies, secret, domain_store, platform).await {
         Ok(caller) => caller,
         Err(response) => return Some(response),
     };
     Some(match path {
-        "/payments/connection" => show(&caller, platform, client, wasm_path, config).await,
+        "/payments/connection" => show(&caller, platform, domain_store, wasm_path, config).await,
         "/payments/connection/direct" => direct_route(&caller, raw_body, platform, host).await,
         "/payments/connection/disconnect" => disconnect_route(&caller, platform, host).await,
         "/payments/connection/enable" => {
@@ -515,14 +514,14 @@ pub async fn route(
 async fn show(
     caller: &Caller,
     platform: &PlatformConfig,
-    client: &Mutex<Client>,
+    domain_store: &Store,
     wasm_path: &Path,
     config: &LineageConfig,
 ) -> Value {
     if !caller.manager && !caller.operator {
         return json_error(403, "not permitted");
     }
-    connection_response(caller, platform, client, wasm_path, config).await
+    connection_response(caller, platform, domain_store, wasm_path, config).await
 }
 
 fn body_field(body: &Value, key: &str) -> Result<String, Value> {
@@ -546,12 +545,12 @@ async fn record_connection(
     host: Host<'_>,
 ) -> Value {
     let Host {
-        client,
+        store: domain_store,
         wasm_path,
         config,
         ..
     } = host;
-    let existing = match current_connection(client, wasm_path, config).await {
+    let existing = match current_connection(domain_store, wasm_path, config).await {
         Ok(existing) => existing,
         Err(response) => return response,
     };
@@ -577,7 +576,7 @@ async fn record_connection(
     };
     match outcome {
         Ok(outcome) if outcome.accepted => {
-            connection_response(caller, platform, client, wasm_path, config).await
+            connection_response(caller, platform, domain_store, wasm_path, config).await
         }
         Ok(outcome) => json_error(422, &refusal_message(&last_refusal(&outcome.result))),
         Err(e) => json_error(500, &format!("{e:#}")),
@@ -630,7 +629,7 @@ async fn direct_route(
 // also removes its webhook and deletes the saved keys.
 async fn disconnect_route(caller: &Caller, platform: &PlatformConfig, host: Host<'_>) -> Value {
     let Host {
-        client,
+        store: domain_store,
         wasm_path,
         config,
         ..
@@ -638,7 +637,7 @@ async fn disconnect_route(caller: &Caller, platform: &PlatformConfig, host: Host
     if let Err(response) = require_manager(caller) {
         return response;
     }
-    let existing = match current_connection(client, wasm_path, config).await {
+    let existing = match current_connection(domain_store, wasm_path, config).await {
         Ok(existing) => existing,
         Err(response) => return response,
     };
@@ -658,7 +657,7 @@ async fn disconnect_route(caller: &Caller, platform: &PlatformConfig, host: Host
                 forget_saved_keys(platform, &existing.mode).await;
             }
             let refreshed = refreshed(platform).await;
-            connection_response(caller, &refreshed, client, wasm_path, config).await
+            connection_response(caller, &refreshed, domain_store, wasm_path, config).await
         }
         Ok(outcome) => json_error(422, &refusal_message(&last_refusal(&outcome.result))),
         Err(e) => json_error(500, &format!("{e:#}")),
@@ -673,7 +672,7 @@ async fn switch_route(
     host: Host<'_>,
 ) -> Value {
     let Host {
-        client,
+        store: domain_store,
         wasm_path,
         config,
         ..
@@ -681,14 +680,14 @@ async fn switch_route(
     if let Err(response) = require_operator(caller) {
         return response;
     }
-    match current_connection(client, wasm_path, config).await {
+    match current_connection(domain_store, wasm_path, config).await {
         Ok(Some(_)) => {}
         Ok(None) => return json_error(409, "connect an account first"),
         Err(response) => return response,
     }
     match dispatch_on_connection(which, json!({}), host).await {
         Ok(outcome) if outcome.accepted => {
-            connection_response(caller, platform, client, wasm_path, config).await
+            connection_response(caller, platform, domain_store, wasm_path, config).await
         }
         Ok(outcome) => json_error(422, &refusal_message(&last_refusal(&outcome.result))),
         Err(e) => json_error(500, &format!("{e:#}")),
@@ -908,7 +907,7 @@ async fn save_keys_route(
     host: Host<'_>,
 ) -> Value {
     let Host {
-        client,
+        store: domain_store,
         wasm_path,
         config,
         ..
@@ -929,7 +928,7 @@ async fn save_keys_route(
         Ok(mode) => mode,
         Err(message) => return json_error(422, message),
     };
-    let existing = match current_connection(client, wasm_path, config).await {
+    let existing = match current_connection(domain_store, wasm_path, config).await {
         Ok(existing) => existing,
         Err(response) => return response,
     };
@@ -986,7 +985,7 @@ async fn save_keys_route(
 
     let fresh = refreshed(platform).await;
     if in_place {
-        return connection_response(caller, &fresh, client, wasm_path, config).await;
+        return connection_response(caller, &fresh, domain_store, wasm_path, config).await;
     }
     let facts = json!({
         "processor": {"value": PROCESSOR},

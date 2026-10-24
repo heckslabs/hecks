@@ -1,0 +1,3 @@
+Hecks.adapter "GoogleAuthentication" do
+  port "authentication"
+end

@@ -10,10 +10,9 @@ use crate::commerce_ir::{
 use crate::dispatch;
 use crate::host::Host;
 use crate::resend::{Email, Mailer};
+use crate::store::Store;
 use serde_json::{json, Value};
 use std::collections::HashMap;
-use tokio::sync::Mutex;
-use tokio_postgres::Client;
 
 // Sending a newsletter issue: POST .../send and .../send-test, gated to
 // Admin/Owner. `newsletter_issues` marks issues sent; `newsletter` holds subscribers.
@@ -61,12 +60,12 @@ pub(super) async fn issue_route(
     secret: &str,
     host: Host<'_>,
 ) -> Option<Value> {
-    let Host { client, .. } = host;
+    let Host { store, .. } = host;
     let (slug, action) = issue_action(method, path)?;
     let issues = newsletter_issues_provider(domain_ir)?;
     let subscribers = newsletter_provider(domain_ir)?;
 
-    let mailer = match authorize(domain_ir, cookies, secret, client).await {
+    let mailer = match authorize(domain_ir, cookies, secret, store).await {
         Ok(mailer) => mailer,
         Err(response) => return Some(response),
     };
@@ -93,10 +92,10 @@ pub(super) async fn require_admin(
     domain_ir: &Value,
     cookies: &HashMap<String, String>,
     secret: &str,
-    client: &Mutex<Client>,
+    store: &Store,
 ) -> Result<(), Value> {
-    let email = active_session_email(domain_ir, cookies, secret, client).await?;
-    match auth::caller_is_admin(client, domain_ir, &email).await {
+    let email = active_session_email(domain_ir, cookies, secret, store).await?;
+    match auth::caller_is_admin(store, domain_ir, &email).await {
         Ok(true) => Ok(()),
         Ok(false) => Err(json_error(403, "only an Admin or Owner can do this")),
         Err(e) => Err(json_error(500, &format!("members lookup failed: {e}"))),
@@ -109,9 +108,9 @@ async fn authorize(
     domain_ir: &Value,
     cookies: &HashMap<String, String>,
     secret: &str,
-    client: &Mutex<Client>,
+    store: &Store,
 ) -> Result<Mailer, Value> {
-    require_admin(domain_ir, cookies, secret, client).await?;
+    require_admin(domain_ir, cookies, secret, store).await?;
     require_signing_secret(secret)?;
     match Mailer::from_env() {
         Ok(Some(mailer)) => Ok(mailer),
@@ -189,9 +188,9 @@ async fn send_issue(
     host: Host<'_>,
 ) -> Value {
     let Host {
-        client, wasm_path, ..
+        store, wasm_path, ..
     } = host;
-    let read = match dispatch::read(client, wasm_path).await {
+    let read = match dispatch::read(store, wasm_path).await {
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };

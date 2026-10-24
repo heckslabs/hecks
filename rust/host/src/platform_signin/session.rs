@@ -12,12 +12,11 @@
 //! A member without a role is refused as well. The token's role is compared with the member's
 //! local role and a difference is logged, never written.
 
+use crate::store::Store;
 use std::path::Path;
 
 use async_trait::async_trait;
 use serde_json::Value;
-use tokio::sync::Mutex;
-use tokio_postgres::Client;
 
 use super::settings::SigninSettings;
 use super::verify::VerifiedClaims;
@@ -113,7 +112,7 @@ pub fn signed_in(settings: &SigninSettings, session: &Session) -> Value {
 
 /// The host's own member store, reached through the same functions the Google sign-in uses.
 pub struct HostMembers<'a> {
-    pub client: &'a Mutex<Client>,
+    pub store: &'a Store,
     pub domain_ir: &'a Value,
     pub wasm_path: &'a Path,
     pub config: &'a LineageConfig,
@@ -123,18 +122,12 @@ pub struct HostMembers<'a> {
 #[async_trait]
 impl MemberDirectory for HostMembers<'_> {
     async fn identity_for(&self, issuer: &str, subject: &str) -> anyhow::Result<Option<String>> {
-        auth::resolve_identity_anywhere(
-            self.client,
-            self.wasm_path,
-            self.domain_ir,
-            issuer,
-            subject,
-        )
-        .await
+        auth::resolve_identity_anywhere(self.store, self.wasm_path, self.domain_ir, issuer, subject)
+            .await
     }
 
     async fn session_for_identity(&self, identity_id: &str) -> anyhow::Result<Option<Session>> {
-        auth::session_for_member_by_identity(self.client, self.domain_ir, identity_id).await
+        auth::session_for_member_by_identity(self.store, self.domain_ir, identity_id).await
     }
 
     async fn provision(
@@ -144,7 +137,7 @@ impl MemberDirectory for HostMembers<'_> {
         subject: &str,
     ) -> anyhow::Result<Option<Session>> {
         auth::provision(
-            self.client,
+            self.store,
             self.wasm_path,
             self.config,
             self.domain_ir,
