@@ -21,10 +21,10 @@ module Hecks
           unknown = (args.keys.map(&:to_sym) - known).sort
           return if unknown.empty?
 
-          raise UnknownArgument,
-                RefusalWording.render_site("UnknownArgument", "unknown_args",
-                                           command: command.hecks_name, unknown: unknown,
-                                           declared: declared_names(command))
+          raise UnknownArgument.new(RefusalWording.render_site("UnknownArgument", "unknown_args",
+                                                               command: command.hecks_name, unknown: unknown,
+                                                               declared: declared_names(command)),
+                                    attribute: unknown.first)
         end
 
         # Every name a payload may carry: the declared attributes plus the addressing keys.
@@ -45,10 +45,10 @@ module Hecks
           absent = (required_argument_names(command, aggregate) - args.keys.map(&:to_sym)).sort
           return if absent.empty?
 
-          raise AbsentArgument,
-                RefusalWording.render_site("AbsentArgument", "absent_args",
-                                           command: command.hecks_name, absent: absent,
-                                           declared: declared_names(command))
+          raise AbsentArgument.new(RefusalWording.render_site("AbsentArgument", "absent_args",
+                                                              command: command.hecks_name, absent: absent,
+                                                              declared: declared_names(command)),
+                                   attribute: absent.first)
         end
 
         # The declared, non-optional argument names, less a port operation's promoted identity.

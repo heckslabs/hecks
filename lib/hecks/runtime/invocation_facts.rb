@@ -52,10 +52,10 @@ module Hecks
         unknown = (offered.keys - declared).sort
         return if unknown.empty?
 
-        raise UnknownArgument,
-              RefusalWording.render_site("UnknownArgument", "unknown_args",
-                                         command: declaring.hecks_name, unknown: unknown,
-                                         declared: declared)
+        raise UnknownArgument.new(RefusalWording.render_site("UnknownArgument", "unknown_args",
+                                                             command: declaring.hecks_name, unknown: unknown,
+                                                             declared: declared),
+                                  attribute: unknown.first)
       end
 
       # A fact the command `needs`, and an argument its attribute gives a default, are not absent:
@@ -64,10 +64,10 @@ module Hecks
         absent = required_fact_names(declaring) - offered.keys - filled_fact_names(declaring)
         return if absent.empty?
 
-        raise AbsentArgument,
-              RefusalWording.render_site("AbsentArgument", "absent_args",
-                                         command: declaring.hecks_name, absent: absent,
-                                         declared: declared)
+        raise AbsentArgument.new(RefusalWording.render_site("AbsentArgument", "absent_args",
+                                                            command: declaring.hecks_name, absent: absent,
+                                                            declared: declared),
+                                 attribute: absent.min)
       end
 
       def required_fact_names(declaring)
