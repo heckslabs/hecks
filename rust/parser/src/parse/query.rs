@@ -1,6 +1,6 @@
-//! The `Query` construct: `where`, `order_by`, `limit` and the open-map option words.
+//! The `Query` construct: `reference_to`, `where`, `order_by`, `limit` and the open-map option words.
 
-use crate::build::{query_derive, query_options};
+use crate::build::{naming, query_derive, query_options, references};
 use crate::diag::{Diagnostic, ParseResult};
 use crate::ir;
 use crate::lex::SourceLine;
@@ -44,6 +44,16 @@ pub fn parse_body(
             "attribute" => query
                 .attributes
                 .push(super::build_attribute(file, line, "attribute", &gated.args)?.0),
+            // A query has no root of its own, so a reference is always a parameter, as in Ruby.
+            "reference_to" => {
+                let target_raw =
+                    super::positional_constant(file, line, "reference_to", &gated.args, 1)?;
+                query.attributes.push(references::reference_attribute(
+                    &naming::demodulise(target_raw),
+                    super::named_symbol(&gated.args, "as").as_deref(),
+                    super::named_flag(&gated.args, "optional"),
+                ));
+            }
             "where" => {
                 query_derive::refuse_on_target(file, line, "where", &gated.args.named)?;
                 query

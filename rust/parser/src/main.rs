@@ -263,6 +263,7 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("mark", "Lifecycle"),
     ("description", "Query"),
     ("attribute", "Query"),
+    ("reference_to", "Query"),
     ("where", "Query"),
     ("order_by", "Query"),
     ("limit", "Query"),
