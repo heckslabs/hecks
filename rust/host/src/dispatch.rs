@@ -390,9 +390,8 @@ async fn run(
     if let Some(actor_id) = caller.actor_id {
         step["actor_id"] = serde_json::Value::String(actor_id.to_string());
     }
-    // Stamped only on this live step; replayed history already carries
-    // its own real timestamp, and re-stamping today's time onto a
-    // replay would be wrong, not just redundant.
+    // Stamped only on this live step. The journal keeps a command's verb and arguments alone, so a
+    // replayed step carries no role, actor or timestamp of its own.
     step["occurred_at"] = serde_json::Value::String(crate::auth::httpdate_now());
     // The seed matches the steps: a full replay needs an empty seed, or the kernel replays into a
     // world that already has every record being created again, refusing each as a false
