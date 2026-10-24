@@ -1,0 +1,4 @@
+# The test overlay, loaded when Rails runs in the test environment: nothing goes to a database.
+Hecks.world "Banking" do
+  default_adapter "Memory"
+end

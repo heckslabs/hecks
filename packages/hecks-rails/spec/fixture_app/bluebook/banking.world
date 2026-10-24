@@ -1,0 +1,5 @@
+# The values the app's Banking wiring reads. The chapter pins version v1, so the world names it.
+Hecks.world "Banking" do
+  realm "Examples"
+  latest "v1"
+end

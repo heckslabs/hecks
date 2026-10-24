@@ -1,0 +1,8 @@
+require "rspec/core/rake_task"
+
+# The package's specs, with the package's own bundle: `bundle exec rake` in packages/hecks-rails.
+RSpec::Core::RakeTask.new(:spec) do |task|
+  task.pattern = "spec/**/*_spec.rb"
+end
+
+task default: :spec

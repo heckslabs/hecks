@@ -1,0 +1,22 @@
+# The app's own wiring for the Banking chapters it links from examples/banking. Governance is
+# attached so a verb's role is checked against a real grant; everything stays in memory, as a
+# fixture keeps nothing between runs.
+Hecks.hecksagon "Banking" do
+  attaches "Governance"
+  attaches "Identity"
+
+  persisted_by "Memory"
+
+  subscribe "Compliance.AccountFreezeReviewOpened"
+end
+
+Hecks.hecksagon "Governance" do
+  Governance::RoleAssignment.persisted_by("Memory")
+  Governance::RoleTransition.persisted_by("Memory")
+end
+
+Hecks.hecksagon "Identity" do
+  attaches "Governance"
+  Identity::Identity.persisted_by("Memory")
+  Identity::ExternalIdentifier.persisted_by("Memory")
+end

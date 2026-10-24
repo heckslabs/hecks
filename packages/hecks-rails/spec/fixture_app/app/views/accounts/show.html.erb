@@ -1,0 +1,8 @@
+<h1>Account <%= @account.id %></h1>
+<p>Status: <%= @account.status %></p>
+
+<% @account.errors.full_messages.each do |message| %>
+  <p class="refusal"><%= message %></p>
+<% end %>
+
+<%= bluebook_form_for @account.freeze_account %>

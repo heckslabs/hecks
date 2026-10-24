@@ -1,0 +1,5 @@
+# The app's bluebook manifest: which domain bluebook/ holds and the packages vendored under vendor/.
+# The fixture links its chapters from examples/banking and vendors no package.
+name: banking
+version: 0.1.0
+packages: []
