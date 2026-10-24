@@ -1734,24 +1734,11 @@ mod tests {
 
     #[tokio::test]
     async fn the_presentation_config_is_saved_and_read_back_through_the_kernels_own_commands() {
-        let client = crate::dispatch::tests::scratch_db("rust_host_api_presentation_save").await;
-        crate::dispatch::tests::provision_lineage(
-            &*client.lock().await,
-            "CheckoutFixture",
-            1,
-            &[
-                "Event",
-                "Registration",
-                "StateStyle",
-                "Collection",
-                "Overview",
-            ],
-        )
-        .await;
+        let client = crate::dispatch::tests::memory_store();
         let (wasm, ir) = console_fixture();
         let lineage = LineageConfig {
             domain: "CheckoutFixture".to_string(),
-            era: Some(1),
+            era: None,
             mirrored: None,
         };
         let invoker = crate::lambda_client::NeverInvoker;
@@ -1850,25 +1837,11 @@ mod tests {
 
     #[tokio::test]
     async fn a_config_that_breaks_a_rule_refuses_422_malformed_and_writes_nothing() {
-        let client =
-            crate::dispatch::tests::scratch_db("rust_host_api_presentation_malformed").await;
-        crate::dispatch::tests::provision_lineage(
-            &*client.lock().await,
-            "CheckoutFixture",
-            1,
-            &[
-                "Event",
-                "Registration",
-                "StateStyle",
-                "Collection",
-                "Overview",
-            ],
-        )
-        .await;
+        let client = crate::dispatch::tests::memory_store();
         let (wasm, ir) = console_fixture();
         let lineage = LineageConfig {
             domain: "CheckoutFixture".to_string(),
-            era: Some(1),
+            era: None,
             mirrored: None,
         };
         let invoker = crate::lambda_client::NeverInvoker;
@@ -1901,19 +1874,11 @@ mod tests {
 
     #[tokio::test]
     async fn a_body_that_is_not_json_at_all_is_a_400_before_anything_is_validated() {
-        let client =
-            crate::dispatch::tests::scratch_db("rust_host_api_presentation_bad_body").await;
-        crate::dispatch::tests::provision_lineage(
-            &*client.lock().await,
-            "CheckoutFixture",
-            1,
-            &["Event"],
-        )
-        .await;
+        let client = crate::dispatch::tests::memory_store();
         let (wasm, ir) = console_fixture();
         let lineage = LineageConfig {
             domain: "CheckoutFixture".to_string(),
-            era: Some(1),
+            era: None,
             mirrored: None,
         };
 
@@ -1937,20 +1902,12 @@ mod tests {
     /// asks the kernel rather than inferring it from anything else.
     #[tokio::test]
     async fn a_host_whose_kernel_has_no_console_settings_chapter_still_refuses_501() {
-        let client =
-            crate::dispatch::tests::scratch_db("rust_host_api_presentation_no_chapter").await;
-        crate::dispatch::tests::provision_lineage(
-            &*client.lock().await,
-            "Banking",
-            1,
-            &["Customer"],
-        )
-        .await;
+        let client = crate::dispatch::tests::memory_store();
         let wasm = crate::dispatch::tests::wasm_path();
         let ir = banking_ir();
         let lineage = LineageConfig {
             domain: "Banking".to_string(),
-            era: Some(1),
+            era: None,
             mirrored: None,
         };
 
@@ -2159,18 +2116,11 @@ mod tests {
     // only an admin may save it.
     #[tokio::test]
     async fn only_an_admin_may_save_the_presentation_config() {
-        let client = crate::dispatch::tests::scratch_db("rust_host_api_presentation_admin").await;
-        crate::dispatch::tests::provision_lineage(
-            &*client.lock().await,
-            "CheckoutFixture",
-            1,
-            &["Event", "StateStyle", "Collection", "Overview"],
-        )
-        .await;
+        let client = crate::dispatch::tests::memory_store();
         let (wasm, ir) = console_fixture();
         let lineage = LineageConfig {
             domain: "CheckoutFixture".to_string(),
-            era: Some(1),
+            era: None,
             mirrored: None,
         };
         let invoker = crate::lambda_client::NeverInvoker;

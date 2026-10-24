@@ -16,8 +16,8 @@ use crate::dispatch::tests::{
 };
 use crate::dispatch::{self, Caller, Outcome};
 use crate::host::Host;
-use crate::journal;
-use crate::store::{Accepted, Store};
+use crate::journal::{self, LineageConfig};
+use crate::store::{Accepted, MemoryFault, MemoryStore, Store};
 use serde_json::{json, Value};
 use std::time::Duration;
 use tokio_postgres::{Client, NoTls};
@@ -793,6 +793,149 @@ mod postgres {
     use super::*;
 
     conformance_suite!(PostgresBackend;
+        an_accepted_command_appends_one_journal_row,
+        a_snapshot_and_a_gap_replay_to_the_state_of_a_full_replay,
+        the_journal_keeps_arguments_as_recorded_and_never_restamps,
+        a_refused_command_changes_nothing,
+        a_kernel_failure_is_an_error_and_changes_nothing,
+        a_snapshot_write_that_fails_leaves_the_append_invisible,
+        a_saga_is_stored_with_the_command_that_produced_it,
+        a_saga_write_rolls_back_with_a_command_that_fails,
+        a_missing_backfill_latch_forces_one_full_replay,
+        a_read_takes_no_lock_and_never_writes,
+        a_read_replays_the_gap_after_the_snapshot_without_persisting_it,
+        a_dispatch_waits_for_the_domain_lock_while_readers_proceed,
+        concurrent_dispatches_on_one_domain_never_interleave,
+        a_dropped_unit_writes_nothing_and_frees_the_lock,
+        a_unit_commits_a_saga_and_then_its_deletion,
+    );
+}
+
+struct MemoryBackend {
+    memory: MemoryStore,
+    store: Store,
+    invoker: RecordingInvoker,
+}
+
+impl MemoryBackend {
+    fn over(memory: MemoryStore) -> Self {
+        Self {
+            store: Store::memory(memory.clone()),
+            memory,
+            invoker: RecordingInvoker::new(),
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl Backend for MemoryBackend {
+    type Held = tokio::sync::OwnedMutexGuard<()>;
+
+    async fn fresh(_name: &str) -> Self {
+        Self::over(MemoryStore::new())
+    }
+
+    async fn sibling(&self) -> Self {
+        Self::over(self.memory.clone())
+    }
+
+    async fn dispatch_as(
+        &self,
+        verb: &str,
+        args: Value,
+        caller: Caller<'_>,
+    ) -> anyhow::Result<Outcome> {
+        let config = LineageConfig {
+            domain: DOMAIN.to_string(),
+            era: None,
+            mirrored: None,
+        };
+        let wasm = wasm_path();
+        let host = Host::new(&self.store, &wasm, &config, &self.invoker);
+        dispatch::handle_as(host, verb, args, caller).await
+    }
+
+    async fn read(&self) -> anyhow::Result<Value> {
+        dispatch::read(&self.store, &wasm_path()).await
+    }
+
+    fn store(&self) -> &Store {
+        &self.store
+    }
+
+    async fn observe(&self) -> Observed {
+        let (journal, snapshot, sagas) = self.memory.committed();
+        Observed {
+            journal: journal
+                .into_iter()
+                .map(|(ordinal, verb, args)| JournalRow {
+                    ordinal,
+                    verb,
+                    args,
+                })
+                .collect(),
+            snapshot: snapshot.map(|s| SnapshotRow {
+                ordinal: s.ordinal,
+                seed: s.seed,
+                sagas_backfilled: s.sagas_backfilled,
+            }),
+            sagas: sagas
+                .into_iter()
+                .map(|s| SagaRow {
+                    process_manager: s.process_manager,
+                    correlation: s.correlation,
+                    state: s.state,
+                })
+                .collect(),
+            lineage_rows: None,
+        }
+    }
+
+    async fn append_unsnapshotted(&self, verb: &str, args: &Value) {
+        self.memory.append_unsnapshotted(verb, args);
+    }
+
+    async fn damage_snapshot(&self) {
+        let mut seed = self
+            .observe()
+            .await
+            .snapshot
+            .expect("a snapshot to damage")
+            .seed;
+        let record = seed.as_object_mut().unwrap().values_mut().next().unwrap();
+        let removed = record.as_object_mut().unwrap().remove("status");
+        assert!(removed.is_some(), "{record}");
+        self.memory.replace_seed(seed);
+    }
+
+    async fn forget_saga_backfill(&self) {
+        self.memory.forget_saga_backfill();
+    }
+
+    async fn inject(&self, fault: Fault) {
+        self.memory.inject_fault(match fault {
+            Fault::SnapshotWrite => MemoryFault::Snapshot,
+            Fault::LineageWrite => MemoryFault::AfterSagas,
+        });
+    }
+
+    async fn clear_faults(&self) {
+        self.memory.clear_fault();
+    }
+
+    async fn hold_domain_lock(&self) -> Self::Held {
+        self.memory.hold_lock().await
+    }
+
+    async fn release_domain_lock(&self, held: Self::Held) {
+        drop(held);
+    }
+}
+
+mod memory {
+    use super::*;
+
+    conformance_suite!(MemoryBackend;
         an_accepted_command_appends_one_journal_row,
         a_snapshot_and_a_gap_replay_to_the_state_of_a_full_replay,
         the_journal_keeps_arguments_as_recorded_and_never_restamps,

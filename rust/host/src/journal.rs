@@ -152,6 +152,7 @@ pub async fn load_steps_after<C: GenericClient>(
 
 /// The kernel's cached "instances" output as of `ordinal`, used to skip a
 /// full replay from empty state.
+#[derive(Clone)]
 pub struct Snapshot {
     pub ordinal: i64,
     pub seed: serde_json::Value,
@@ -210,6 +211,7 @@ pub async fn save_snapshot<C: GenericClient>(
 }
 
 /// One live saga/process-manager instance, as stored in `hecks_lambda_sagas`.
+#[derive(Clone)]
 pub struct SagaRow {
     pub process_manager: String,
     pub correlation: String,

@@ -12,9 +12,11 @@
 //! Eras, lineage heads, minting and the member lookups over head views exist only on Postgres,
 //! so they are a capability ([`Store::lineage`]) a backend may lack, not a part of every store.
 
+mod memory;
 mod postgres;
 
 use crate::journal::{LineageConfig, Mutation, SagaRow, Snapshot};
+pub use memory::{DeadLetterRecord, Fault as MemoryFault, MemoryStore, MemoryUnit};
 pub use postgres::{LineageStore, PostgresStore, PostgresUnit};
 use tokio_postgres::Client;
 
@@ -141,6 +143,8 @@ pub struct DeadLetter<'a> {
 /// One domain's journal, snapshot and sagas, behind whichever backend the host booted with.
 pub enum Store {
     Postgres(PostgresStore),
+    /// Process memory, for local runs and tests; nothing survives a restart.
+    Memory(MemoryStore),
 }
 
 impl Store {
@@ -148,6 +152,12 @@ impl Store {
     #[must_use]
     pub fn postgres(client: Client) -> Self {
         Self::Postgres(PostgresStore::new(client))
+    }
+
+    /// A store over `memory`, which a sibling handle may share.
+    #[must_use]
+    pub const fn memory(memory: MemoryStore) -> Self {
+        Self::Memory(memory)
     }
 
     /// Takes the lock of `domain` and opens the atomic scope a dispatch writes in.
@@ -161,6 +171,7 @@ impl Store {
     pub async fn begin(&self, domain: &str) -> Result<Unit<'_>, StoreError> {
         match self {
             Self::Postgres(store) => store.begin(domain).await.map(Unit::Postgres),
+            Self::Memory(store) => Ok(Unit::Memory(store.begin().await)),
         }
     }
 
@@ -175,6 +186,7 @@ impl Store {
     pub async fn read_state(&self) -> Result<State, StoreError> {
         match self {
             Self::Postgres(store) => store.read_state().await,
+            Self::Memory(store) => Ok(store.read_state()),
         }
     }
 
@@ -187,6 +199,10 @@ impl Store {
     pub async fn record_dead_letter(&self, dead_letter: &DeadLetter<'_>) -> Result<(), StoreError> {
         match self {
             Self::Postgres(store) => store.record_dead_letter(dead_letter).await,
+            Self::Memory(store) => {
+                store.record_dead_letter(dead_letter);
+                Ok(())
+            }
         }
     }
 
@@ -195,6 +211,7 @@ impl Store {
     pub const fn lineage(&self) -> Option<&LineageStore> {
         match self {
             Self::Postgres(store) => Some(store.lineage()),
+            Self::Memory(_) => None,
         }
     }
 
@@ -207,11 +224,54 @@ impl Store {
         self.lineage().ok_or(StoreError::Unsupported("lineage"))
     }
 
+    /// Every journaled step in order, whichever backend holds them.
+    #[cfg(test)]
+    pub async fn journal_steps(&self) -> Vec<serde_json::Value> {
+        match self {
+            Self::Postgres(store) => {
+                let guard = store.lineage().lock().await;
+                crate::journal::load_steps(&*guard).await.unwrap()
+            }
+            Self::Memory(store) => store
+                .committed()
+                .0
+                .into_iter()
+                .map(|(_, verb, args)| serde_json::json!({ "verb": verb, "args": args }))
+                .collect(),
+        }
+    }
+
+    /// Every dead letter as `(policy, target_domain, target_verb, attempts)`, ordered by policy.
+    #[cfg(test)]
+    pub async fn dead_letter_rows(&self) -> Vec<(String, String, String, i32)> {
+        match self {
+            Self::Postgres(store) => {
+                let guard = store.lineage().lock().await;
+                let sql = "SELECT policy, target_domain, target_verb, attempts \
+                           FROM hecks_cross_domain_dead_letters ORDER BY policy";
+                let rows = guard.query(sql, &[]).await.unwrap();
+                rows.iter()
+                    .map(|r| (r.get(0), r.get(1), r.get(2), r.get(3)))
+                    .collect()
+            }
+            Self::Memory(store) => {
+                let mut rows: Vec<_> = store
+                    .dead_letters()
+                    .into_iter()
+                    .map(|d| (d.policy, d.target_domain, d.target_verb, d.attempts))
+                    .collect();
+                rows.sort();
+                rows
+            }
+        }
+    }
+
     /// The raw connection, for test fixtures and assertions that reach beneath the seam.
     #[cfg(test)]
     pub async fn lock(&self) -> tokio::sync::MutexGuard<'_, Client> {
         match self {
             Self::Postgres(store) => store.lineage().lock().await,
+            Self::Memory(_) => panic!("a memory store has no connection to lock"),
         }
     }
 }
@@ -219,6 +279,7 @@ impl Store {
 /// The atomic scope of one dispatch, holding the domain lock until it commits or drops.
 pub enum Unit<'a> {
     Postgres(PostgresUnit<'a>),
+    Memory(MemoryUnit),
 }
 
 impl Unit<'_> {
@@ -230,6 +291,7 @@ impl Unit<'_> {
     pub async fn load(&self) -> Result<State, StoreError> {
         match self {
             Self::Postgres(unit) => unit.load().await,
+            Self::Memory(unit) => Ok(unit.load()),
         }
     }
 
@@ -241,6 +303,7 @@ impl Unit<'_> {
     pub async fn commit(self, accepted: Accepted<'_>) -> Result<(), StoreError> {
         match self {
             Self::Postgres(unit) => unit.commit(accepted).await,
+            Self::Memory(unit) => unit.commit(&accepted),
         }
     }
 
@@ -252,6 +315,7 @@ impl Unit<'_> {
     pub async fn rollback(self) -> Result<(), StoreError> {
         match self {
             Self::Postgres(unit) => unit.rollback().await,
+            Self::Memory(_) => Ok(()),
         }
     }
 }
