@@ -1,6 +1,6 @@
 module Hecks
   module Runtime
-    # **What a booted or described domain declares**, asked of the thing that holds it.
+    # **A domain's declarations**, asked of the dispatcher or described domain that holds them.
     #
     # A caller holding a dispatcher (or a described domain) asks it for a chapter, a repository
     # or the translations, rather than reaching through its registry. The includer answers

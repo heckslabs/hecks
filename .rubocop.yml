@@ -146,16 +146,20 @@ Hecks/TrainWreck:
   MaxReaches: 1
   Include:
     - "lib/**/*.rb"
-  # A cop walks one syntax tree; `node.parent.receiver` is navigation, not a reach into a collaborator.
+  # A cop walks one syntax tree: `node.parent.receiver` is navigation, not a reach.
   Exclude:
     - "lib/rubocop/**/*.rb"
 
 # A pipeline longer than three calls is extracted into a method named for what it makes.
+# Naming and Text are where the shared pipelines get their names, so they hold them whole.
 Hecks/UnnamedPipeline:
   Enabled: true
   MaxCalls: 3
   Include:
     - "lib/**/*.rb"
+  Exclude:
+    - "lib/hecks/naming.rb"
+    - "lib/hecks/text.rb"
 
 # A regexp is a named constant, so it says what it matches and is written once.
 Hecks/InlineRegexp:

@@ -98,8 +98,7 @@ module Hecks
 
         # The fields a query filters on, then the one it orders by (nil when it orders by none).
         def query_fields(query)
-          order = query.order_by
-          query.wheres.map(&:field) + [order&.field]
+          query.wheres.map(&:field) + [query.order_by_field]
         end
 
         # A scalar or lifecycle field gets a btree index; a value-object path gets an expression

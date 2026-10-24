@@ -74,10 +74,7 @@ module Hecks
         end
 
         # How a run that failed ended, for a failure that printed nothing.
-        def ended(result)
-          status = result.status
-          "ended with status #{status.exitstatus}"
-        end
+        def ended(result) = "ended with status #{result.exit_code}"
 
         def printed(result, otherwise = "")
           text = [result.out, result.err].map(&:strip).reject(&:empty?).join("\n")

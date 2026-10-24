@@ -13,7 +13,7 @@ module Hecks
 
           def scaffold(held, lineage, path)
             eras = held.held_eras(lineage)
-            return Readings.no_era(domain_name(held), path) if eras.empty?
+            return Readings.no_era(held.domain_name, path) if eras.empty?
 
             scaffold_latest(held, held.named(eras.last))
           end
@@ -21,7 +21,7 @@ module Hecks
           # The edge text for the latest era, or why there is nothing to scaffold.
           def scaffold_latest(held, latest)
             shadow = PostgresEra::LineageManager.shadow(latest[:held_text])
-            return "#{domain_name(held)} matches era #{latest[:ordinal]} — nothing to scaffold." if
+            return "#{held.domain_name} matches era #{latest[:ordinal]} — nothing to scaffold." if
               Runtime::StorageShape.project(shadow) == held.shape
 
             edge_text(held, latest, Translation::Scaffold.diff(shadow, held.bluebook))
@@ -30,7 +30,7 @@ module Hecks
           def edge_text(held, latest, diffed)
             label = Runtime::StorageShape.mint_hash(held.bluebook)[0, Runtime::StorageShape::LABEL_LENGTH]
             edge = Translation::Scaffold::Edge.new(
-              domain: domain_name(held), from: latest[:label], to: label, ordinal: latest[:ordinal] + 1,
+              domain: held.domain_name, from: latest[:label], to: label, ordinal: latest[:ordinal] + 1,
               label: label, aggregates: diffed[:aggregates], retired: diffed[:retired]
             )
             text = Translation::Scaffold.render(edge)

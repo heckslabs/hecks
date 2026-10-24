@@ -135,7 +135,7 @@ module Hecks
           [holder, command]
         end
 
-        def bare(qualified) = qualified.to_s.split(".").last
+        def bare(qualified) = Naming.last_segment(qualified)
 
         def with_period(text) = text.to_s.strip.end_with?(".", "!", "?") ? text.to_s.strip : "#{text.to_s.strip}."
 

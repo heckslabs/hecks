@@ -195,8 +195,7 @@ module Hecks
 
         # One lazy reader for a reference attribute.
         def define_reference_accessor(attribute)
-          reference = attribute.type
-          target = reference.resolve
+          target = attribute.target_aggregate
           # Cross-domain, or otherwise unresolvable — no accessor rather than a guess.
           return unless target
 

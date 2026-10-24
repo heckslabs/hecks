@@ -86,7 +86,7 @@ module Hecks
       entry = resolve(address)
       raise WrongVerbKind, "#{address.inspect} names a query; use #query" unless entry.command?
 
-      entry.dispatcher.dispatch_flat(local_verb(entry), args)
+      entry.dispatcher.dispatch_flat(entry.local_verb, args)
     end
 
     # Queries a resolved aggregate, entity, or read model.
@@ -105,16 +105,7 @@ module Hecks
       entry = resolve(address)
       raise WrongVerbKind, "#{address.inspect} names a command; use #dispatch" unless entry.query?
 
-      entry.dispatcher.query(local_verb(entry), **args)
-    end
-
-    private
-
-    def local_verb(entry)
-      fqn = entry.fqn
-      return "#{fqn.domain}.#{entry.declared_verb}" unless fqn.aggregate
-
-      "#{fqn.domain}::#{fqn.aggregate}.#{entry.declared_verb}"
+      entry.dispatcher.query(entry.local_verb, **args)
     end
   end
 end

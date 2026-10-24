@@ -92,8 +92,8 @@ module Hecks
         # How many eras, before the latest, do not have exactly one edge leading to the next.
         def forks_in(domain, eras)
           eras.each_cons(2).count do |from, to|
-            leaving = translations_of(domain).select do |edge|
-              edge.domain == domain_name(domain) && edge.from == from[:label]
+            leaving = domain.translations.select do |edge|
+              edge.domain == domain.domain_name && edge.from == from[:label]
             end
             leaving.size != 1 || leaving.first.to != to[:label]
           end
@@ -103,7 +103,7 @@ module Hecks
         def unresolved_conflicts(domain, lineage, eras, named)
           latest = eras.last
           chain = PostgresEra::LineageManager.edge_chain(domain.registry, domain.bluebook, eras[0..-2], latest[:label])
-          conflicts = aggregates_of(domain).flat_map do |aggregate|
+          conflicts = domain.aggregates.flat_map do |aggregate|
             lineage.conflict_ids(aggregate, chain, latest[:ordinal], latest[:watermark].to_i)
           end
           conflicts.count { |_, id| !named.key?(id) }

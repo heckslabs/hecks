@@ -37,7 +37,7 @@ module Hecks
           %(    #{event_node(bare_event)} -->|#{label}| #{command_node(aggregate_name, command_name)})
         end
 
-        def last_segment(dotted) = dotted.to_s.split(".").last
+        def last_segment(dotted) = Naming.last_segment(dotted)
 
         # Qualified by aggregate since two aggregates may share a command name.
         #

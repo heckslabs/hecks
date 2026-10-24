@@ -33,8 +33,7 @@ module Hecks
           private
 
           def resolve_era(context)
-            lineage = context.lineage
-            held = lineage.eras
+            held = context.held_eras
             return hold_first_era(context) if held.empty?
 
             resolve_held(context, held)
@@ -79,16 +78,15 @@ module Hecks
           end
 
           def ensure_first_heads!(context)
-            bluebook = context.bluebook
             lineage = context.lineage
-            bluebook.aggregates.each { |aggregate| lineage.ensure_first_head!(aggregate.storage_name) }
+            context.aggregates.each { |aggregate| lineage.ensure_first_head!(aggregate.storage_name) }
           end
 
           def grant_role!(context, ordinal)
             return unless context.role
 
-            bluebook = context.bluebook
-            context.lineage.grant_role!(context.role, aggregates: bluebook.aggregates, era: ordinal)
+            lineage = context.lineage
+            lineage.grant_role!(context.role, aggregates: context.aggregates, era: ordinal)
           end
 
           # Each held era with its storage shape. Held text is a frozen record and keeps the

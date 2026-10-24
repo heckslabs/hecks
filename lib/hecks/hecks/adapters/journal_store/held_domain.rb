@@ -18,6 +18,15 @@ module Hecks
 
         attr_reader :registry, :bluebook, :directory, :adapter_name
 
+        # @return [String] the held domain's name
+        def domain_name = bluebook.name
+
+        # @return [Array<Bluebook::Aggregate>] the held domain's aggregates
+        def aggregates = bluebook.aggregates
+
+        # @return [Array<Bluebook::Translation>] the translation edges the domain loaded
+        def translations = registry.translations
+
         # Loads a domain and finds where its eras would be held.
         #
         # @param path [String] the domain directory, or the project holding its `bluebook/`

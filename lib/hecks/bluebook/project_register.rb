@@ -7,6 +7,20 @@ module Hecks
         def command? = fqn.command?
 
         def query?   = fqn.query?
+
+        # @return [String] the domain the entry's verb belongs to
+        def domain = fqn.domain
+
+        # @return [String, nil] the aggregate the verb belongs to; nil for a domain-level verb
+        def aggregate_name = fqn.aggregate
+
+        # @return [String] the verb as the entry's own dispatcher names it
+        def local_verb
+          aggregate_name ? "#{domain}::#{aggregate_name}.#{declared_verb}" : "#{domain}.#{declared_verb}"
+        end
+
+        # @return [Bluebook::Aggregate, nil] the verb's aggregate, when it is a real root
+        def aggregate = dispatcher.bluebook(domain)&.aggregate(aggregate_name)
       end
 
       class DuplicateFqn < StandardError; end

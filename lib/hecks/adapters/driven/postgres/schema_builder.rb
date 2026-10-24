@@ -82,8 +82,8 @@ module Hecks
 
         def index_query!(query)
           query.wheres.each { |clause| index_field!(clause.field) }
-          order = query.order_by
-          index_field!(order.field) if order
+          field = query.order_by_field
+          index_field!(field) if field
         end
 
         # A list attribute is never indexed: `contains` compiles to EXISTS over
