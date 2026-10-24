@@ -62,6 +62,9 @@ jobs:
             domain: examples/banking
           - module: checkout_fixture
             domain: spec/fixtures/rust_host/checkout_fixture
+          # The wasm plugin fixture: its IR carries the doubler plugin dispatch.rs asks.
+          - module: pluginned
+            domain: spec/fixtures/rust_host/pluginned
 
     needs: ci_attestation_rust_host
     if: always() && (needs.ci_attestation_rust_host.result != 'success' || needs.ci_attestation_rust_host.outputs.attested != 'true')
@@ -150,7 +153,7 @@ jobs:
           for _ in $(seq 1 90); do
             found=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" \
                     --jq '[.artifacts[] | select(.name | startswith("host-wasm-"))] | length')
-            [ "$found" = "2" ] && exit 0
+            [ "$found" = "3" ] && exit 0
             sleep 2
           done
           echo "the host-wasm artifacts were not uploaded within 180s" >&2

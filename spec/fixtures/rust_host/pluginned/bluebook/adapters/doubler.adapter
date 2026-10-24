@@ -1,0 +1,7 @@
+# The doubler test plugin (spec/fixtures/wasm_plugin/doubler), copied beside this fixture so the
+# build carries it into pluginned.ir.json the way a vendored package's plugin is carried.
+Hecks.adapter "Doubler" do
+  answers_query "Pluginned::Ledger.Doubled"
+  answers_query "Pluginned::Ledger.Tripled"
+  runs "doubler.wasm"
+end
