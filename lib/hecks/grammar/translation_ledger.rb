@@ -32,7 +32,8 @@ module Hecks
         end
       end
 
-      # @param dispatcher [Runtime::Dispatcher] a dispatcher bound to the replayed translation chapter
+      # @param dispatcher [Runtime::Dispatcher] a dispatcher bound to the replayed translation
+      #   chapter
       # @return [Array<Runtime::Instance>] every admitted `Rule`, in proposal order
       def admitted_rules(dispatcher)
         registry  = dispatcher.registry
