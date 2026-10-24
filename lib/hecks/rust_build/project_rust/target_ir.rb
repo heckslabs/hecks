@@ -9,9 +9,9 @@ module Hecks
       # facts, so `bluebook.to_h` never mentions them).
       class TargetIr
         # The optional attachments `rust/host` reads from `ir.json`, each omitted when nothing
-        # attached provides it: exporter method, then the key it is written under.
-        SEAMS = %i[authorization membership identity newsletter newsletter_issues payments
-                   registrations payment_connection checkout].freeze
+        # attached provides it: exporter method, then the key it is written under. `provides`
+        # holds every capability a package declares, by name.
+        SEAMS = %i[authorization membership identity provides].freeze
 
         # Round-trips a value through JSON so generators see the string-keyed shape a real
         # `ir.json` carries, never live Ruby symbols.

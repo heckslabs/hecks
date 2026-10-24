@@ -1,8 +1,8 @@
 require "spec_helper"
 require_relative "../../support/memory_ports"
 
-# A `provides` verb of kind `:port_operation` is spelled at build time and checked by verify!,
-# since the hecksagon attaches later. No real capability uses the kind, so it is stubbed.
+# A `provides` verb naming a port operation is spelled at build time and checked by verify!,
+# since the hecksagon attaches later. "settlement" is a capability the probe's package declares.
 RSpec.describe "a provides verb naming a port operation" do
   PROBE_PAYMENT_BODY = proc do
     identified_by :reference
@@ -15,11 +15,6 @@ RSpec.describe "a provides verb naming a port operation" do
       attribute :reference, Reference
       sets :reference
     end
-  end
-
-  before do
-    stub_const("Hecks::Bluebook::Capabilities::CONTRACTS",
-               { "settlement" => { settled: :port_operation }.freeze }.freeze)
   end
 
   def probe_chapter(verb)

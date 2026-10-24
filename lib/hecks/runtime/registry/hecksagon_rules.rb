@@ -78,7 +78,7 @@ module Hecks
         end
 
         # A hecksagon attaches after its chapter builds, so this is the first point a
-        # declared `:port_operation` capability can be checked against it.
+        # `provides` key that names a port operation can be checked against it.
         def refuse_unresolved_port_operations!
           @declared.bluebooks.each_value do |chapter|
             chapter.provides.each { |row| refuse_unresolved_port_operation!(chapter, row) }
@@ -86,7 +86,8 @@ module Hecks
         end
 
         def refuse_unresolved_port_operation!(chapter, row)
-          return unless Bluebook::Capabilities::CONTRACTS.dig(row.capability, row.key.to_sym) == :port_operation
+          return if Bluebook::Capabilities.language_defined?(row.capability)
+          return unless Bluebook::Capabilities.kinds_of(chapter, row.verb) == [:port_operation]
           return if port_operation_declared?(chapter, row.verb)
 
           raise WiringError,

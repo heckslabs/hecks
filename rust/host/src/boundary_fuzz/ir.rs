@@ -46,6 +46,9 @@ const KEYS: &[&str] = &[
     "registration_aggregate",
     "request",
     "payment_connection",
+    "checkout",
+    "provides",
+    "default",
     "commands",
     "attributes",
 ];

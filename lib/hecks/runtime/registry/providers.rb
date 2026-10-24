@@ -1,8 +1,8 @@
 module Hecks
   module Runtime
     class Registry
-      # Finds the loaded chapter that provides a capability for a domain: authorization, identity,
-      # membership, newsletters, registrations and payments.
+      # Finds the loaded chapter that provides a capability for a domain: authorization, identity
+      # and membership by name, any other capability through `vendored_provider_for`.
       module Providers
         # The chapter that answers a role check for `domain`: the domain's own chapter, or
         # a chapter its hecksagon attaches, that declares `provides "authorization"`.
@@ -57,71 +57,6 @@ module Hecks
           vendored_provider_for(domain, Bluebook::Capabilities::MEMBERSHIP)
         end
 
-        # The chapter that answers the guest newsletter signup for `domain`: the domain's
-        # own chapter, a framework member, or a vendored embryonaut bluebook it attaches,
-        # that declares `provides "newsletter"`.
-        #
-        # @param domain [String, Symbol] the domain whose newsletter chapter is being resolved
-        # @return [Bluebook::Chapter, nil] the chapter that answers `domain`'s newsletter
-        #   signup, or nil if none does
-        def newsletter_provider_for(domain)
-          vendored_provider_for(domain, Bluebook::Capabilities::NEWSLETTER)
-        end
-
-        # The chapter that answers sending a newsletter issue for `domain` —
-        # resolved the same way as `newsletter_provider_for`, by what it
-        # declares (`provides "newsletter_issues"`). Nil when none does.
-        #
-        # @param domain [String, Symbol] the domain whose issue-sending chapter is being resolved
-        # @return [Bluebook::Chapter, nil] the chapter that answers `domain`'s issue sending,
-        #   or nil if none does
-        def newsletter_issues_provider_for(domain)
-          vendored_provider_for(domain, Bluebook::Capabilities::NEWSLETTER_ISSUES)
-        end
-
-        # The chapter that answers scheduling sessions and registrations for `domain`,
-        # resolved the same way as `payments_provider_for`, by declaring `provides "registrations"`.
-        #
-        # @param domain [String, Symbol] the domain whose registrations chapter is being resolved
-        # @return [Bluebook::Chapter, nil] the chapter that answers `domain`'s registrations,
-        #   or nil if none does
-        def registrations_provider_for(domain)
-          vendored_provider_for(domain, Bluebook::Capabilities::REGISTRATIONS)
-        end
-
-        # The chapter that owns the business's payment-processor connection for
-        # `domain` — resolved by what it declares (`provides "payment_connection"`).
-        # Nil when none does.
-        #
-        # @param domain [String, Symbol] the domain whose payment-connection chapter is
-        #   being resolved
-        # @return [Bluebook::Chapter, nil] the chapter that owns `domain`'s payment connection,
-        #   or nil if none does
-        def payment_connection_provider_for(domain)
-          vendored_provider_for(domain, Bluebook::Capabilities::PAYMENT_CONNECTION)
-        end
-
-        # The chapter that owns the checkout boundary for `domain` — resolved by what it
-        # declares (`provides "checkout"`). Nil when none does.
-        #
-        # @param domain [String, Symbol] the domain whose checkout chapter is being resolved
-        # @return [Bluebook::Chapter, nil] the chapter that owns `domain`'s checkout windows,
-        #   or nil if none does
-        def checkout_provider_for(domain)
-          vendored_provider_for(domain, Bluebook::Capabilities::CHECKOUT)
-        end
-
-        # The chapter that takes payments for `domain`: the domain's own chapter, a
-        # framework member, or a vendored embryonaut bluebook it attaches, that
-        # declares `provides "payments"`.
-        #
-        # @param domain [String, Symbol] the domain whose payments chapter is being resolved
-        # @return [Bluebook::Chapter, nil] the chapter that takes `domain`'s payments, or nil
-        #   if none does
-        def payments_provider_for(domain)
-          vendored_provider_for(domain, Bluebook::Capabilities::PAYMENTS)
-        end
-
         # The first loaded chapter that declares `capability`, whichever domain asks.
         #
         # @param capability [String] a `Bluebook::Capabilities` name
@@ -137,8 +72,8 @@ module Hecks
         # `attaches ... from: :vendor`, so it's loaded but not listed on the consumer's hecksagon.
         #
         # @param domain [String, Symbol] the domain the provider is resolved for
-        # @param capability [String] the capability's name, such as
-        #   `Bluebook::Capabilities::MEMBERSHIP`
+        # @param capability [String] the capability's name: `Bluebook::Capabilities::MEMBERSHIP`,
+        #   or one a package declares
         # @return [Bluebook::Chapter, nil] the providing chapter, or nil if none loaded does
         def vendored_provider_for(domain, capability)
           hecksagon = hecksagon(domain)

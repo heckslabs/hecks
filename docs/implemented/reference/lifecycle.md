@@ -129,13 +129,12 @@ Hecks::Bluebook::DSL::LifecycleBuilder.build(:status, default: "pending") { mark
 ```
 
 
-A host reads a mark through a capability. The `payments` capability may add
-an optional `holds_seat: "Payment.holds_seat"` entry (spelled
-`Aggregate.mark_name`) to the chapter's `provides "payments"` row. It must name
-a mark declared on that aggregate's lifecycle, or the chapter is refused when it
-is built. The exported `ir.json` then carries the states in its `payments` fact
-as `holds_seat: ["pending", "succeeded"]`, and the Rust host counts seats from
-that list. A chapter that leaves the entry out exports exactly what it did
+A host reads a mark through a capability. A package's `provides "payments"` row
+may add a `holds_seat: "Payment.holds_seat"` entry (spelled
+`Aggregate.mark_name`). It must name something the chapter declares, or the
+chapter is refused when it is built. The exported `ir.json` then carries the
+states in its `provides.payments` fact as `holds_seat: ["pending", "succeeded"]`,
+and the Rust host counts seats from that list. A chapter that leaves the entry out exports exactly what it did
 before, and the host falls back to its built-in default list with one warning.
 
 The `registrations` capability takes one: `frees_seat: "Registration.frees_seat"`, over a

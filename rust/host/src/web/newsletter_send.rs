@@ -465,12 +465,12 @@ mod tests {
     fn provider_with(marks: &serde_json::Value) -> NewsletterProvider {
         let mut fact = json!({
             "provider": "Newsletter", "subscribe": "N::S.Subscribe", "add_name": "N::S.AddName",
-            "confirm": "N::S.Confirm", "unsubscribe": "N::S.Unsubscribe", "aggregate": "N::S"
+            "confirm": "N::S.Confirm", "unsubscribe": "N::S.Unsubscribe"
         });
         for (key, states) in marks.as_object().into_iter().flatten() {
             fact[key] = states.clone();
         }
-        newsletter_provider(&json!({ "newsletter": fact })).expect("newsletter")
+        newsletter_provider(&json!({ "provides": { "newsletter": fact } })).expect("newsletter")
     }
 
     fn rows() -> Vec<(String, Value)> {

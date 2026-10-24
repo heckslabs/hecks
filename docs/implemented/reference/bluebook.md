@@ -189,7 +189,7 @@ merged table and cannot tell a core row from an attached one.
 ## provides
 
 <!-- generated:begin word=provides -->
-`provides provides, assignments:, grant:, transitions:, admit:, people:, register:, link:, resolve:, subscribe:, add_name:, confirm:, unsubscribe:, awaiting_confirmation:, receives_issues:, left:, confirm_window:, unsubscribe_window:, webhook_tolerance:, session_hold:, initiate:, succeeded:, failed:, lapse_reason:, holds_seat:, send_issue:, record_delivery:, schedule:, request:, registered_at:, frees_seat:, connect:, reconnect:, disconnect:, suspend:, resume:, enable:, disable:, mark_sensitive:, markings_for:, key_for:, shred:` — fills `provides`
+`provides provides, assignments:, grant:, transitions:, admit:, people:, register:, link:, resolve:, mark_sensitive:, markings_for:, key_for:, shred:, key:` — fills `provides`
 
 | argument | kind | required | fills |
 |---|---|---|---|
@@ -202,45 +202,18 @@ merged table and cannot tell a core row from an attached one.
 | `register:` | text | false | provides |
 | `link:` | text | false | provides |
 | `resolve:` | text | false | provides |
-| `subscribe:` | text | false | provides |
-| `add_name:` | text | false | provides |
-| `confirm:` | text | false | provides |
-| `unsubscribe:` | text | false | provides |
-| `awaiting_confirmation:` | text | false | provides |
-| `receives_issues:` | text | false | provides |
-| `left:` | text | false | provides |
-| `confirm_window:` | text | false | provides |
-| `unsubscribe_window:` | text | false | provides |
-| `webhook_tolerance:` | text | false | provides |
-| `session_hold:` | text | false | provides |
-| `initiate:` | text | false | provides |
-| `succeeded:` | text | false | provides |
-| `failed:` | text | false | provides |
-| `lapse_reason:` | text | false | provides |
-| `holds_seat:` | text | false | provides |
-| `send_issue:` | text | false | provides |
-| `record_delivery:` | text | false | provides |
-| `schedule:` | text | false | provides |
-| `request:` | text | false | provides |
-| `registered_at:` | text | false | provides |
-| `frees_seat:` | text | false | provides |
-| `connect:` | text | false | provides |
-| `reconnect:` | text | false | provides |
-| `disconnect:` | text | false | provides |
-| `suspend:` | text | false | provides |
-| `resume:` | text | false | provides |
-| `enable:` | text | false | provides |
-| `disable:` | text | false | provides |
 | `mark_sensitive:` | text | false | provides |
 | `markings_for:` | text | false | provides |
 | `key_for:` | text | false | provides |
 | `shred:` | text | false | provides |
+| `key:` | pairs | false | provides |
 <!-- generated:end -->
 
 Declares a capability this chapter answers for every domain that attaches
 it, so nothing downstream has to recognise the chapter by its name. The
-one capability the language knows today is `authorization`, and it needs
-exactly three verbs, each one of this chapter's own:
+language defines a contract for the capabilities Hecks itself reads:
+`authorization`, `membership`, `identity`, `privacy` and `subject_keys`.
+`authorization` needs exactly three verbs, each one of this chapter's own:
 
 - `assignments:` — a query answering every role an actor holds
 - `grant:` — the command that grants an actor a role
@@ -250,10 +223,9 @@ The Governance framework member is the real use
 (`lib/hecks/framework/bluebook/governance.bluebook`). The role check at
 dispatch, boot's refusal of a `role` in a domain with no provider, the
 authorization adapter and the fuzzer all read these verbs. None of them
-looks for the name "Governance". A `provides` with an unknown capability,
-a missing or extra key, or a verb that names no command or query of the
-right kind is refused when the chapter is built. Each key becomes one
-row, in the order written:
+looks for the name "Governance". A missing or extra key, or a verb that
+names no command or query of the right kind, is refused when the chapter
+is built. Each key becomes one row, in the order written:
 
 ```ruby
 runtime.registry.bluebook("Governance").provision("authorization")[:grant]  # => "RoleAssignment.Assign"
@@ -262,12 +234,15 @@ runtime.registry.authorization_provider_for("Banking").name  # => "Governance"
 runtime.registry.bluebook("Ledgering").provides  # => []
 ```
 
-A capability can also name a quantity the host needs (ADR 0098). A `:duration`
-entry is spelled `Aggregate.attribute` and resolves to the whole-seconds
-`default:` of that attribute, so the number is declared once, in the bluebook.
-`provides "newsletter"` takes optional `confirm_window:` and `unsubscribe_window:`
-(the lifetimes of the emailed links), and `provides "checkout"` takes optional
-`webhook_tolerance:` and `session_hold:`:
+Any other capability belongs to the package that provides it: the language
+defines no contract for it, and whoever reads it checks the keys it needs. Each
+key must name exactly one thing the chapter declares, and that thing decides what
+`ir.json`'s `provides` map hands the reader:
+
+- `"Aggregate.Command"` or `"Aggregate.Query"`: the qualified verb
+- `"Aggregate.Port.Operation"`: the qualified verb, checked against the hecksagon at boot
+- `"Aggregate.mark_name"`: the states of that lifecycle mark
+- `"Aggregate.attribute"`: `{ attribute:, default: }`, the attribute's name and its `default:`
 
 ```text
 value_object "Seconds" do
@@ -276,17 +251,11 @@ end
 attribute :hold, Seconds, default: { value: 1800 }   # 30 minutes
 
 provides "checkout", session_hold: "CheckoutSession.hold"
+# ir.json: "provides": { "checkout": { "provider": "...", "session_hold": { "attribute": "hold", "default": 1800 } } }
 ```
 
-A chapter that names an attribute that does not exist, or whose default is not a
-positive whole number of seconds, is refused when it is built.
-
-Two more optional kinds name a word and a field (ADR 0099). A `:text` entry
-(`provides "payments", lapse_reason: "Payment.lapse_reason"`) resolves to the string
-`default:` of that attribute, and an `:attribute` entry
-(`provides "registrations", registered_at: "Registration.requested_at"`) resolves to the
-attribute's own name. Both are refused when the attribute is missing, and a `:text` entry
-when its default is not a non-empty string.
+A key that names nothing the chapter declares, or names two kinds at once (a mark
+and an attribute of one name), is refused when the chapter is built.
 
 The Privacy chapter declares two more, so the runtime never looks for its name:
 `provides "privacy"` (`mark_sensitive:` the command that flags an attribute, `markings_for:`
