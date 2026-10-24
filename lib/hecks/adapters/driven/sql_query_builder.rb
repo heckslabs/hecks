@@ -33,8 +33,7 @@ module Hecks
       # @param args [Hash{Symbol => Object}] values for the specification's symbolic operands
       # @param context [Hash] execution context from `Ports::Query.execute`; its `:registry` is
       #   read only for a query answered over `all`
-      # @return [Array<Runtime::Instance>] the matching records in declared order, then by
-      #   id; `[]` when none match
+      # @return [Array<Runtime::Instance>] the matches in declared order, then by id; `[]` if none
       # @raise [ArgumentError] if a where clause uses an operator this builder cannot compile,
       #   or `contains` targets a list of a value object with more than one field
       def query(declared, args = {}, context: {})
