@@ -16,9 +16,10 @@ use crate::dispatch::tests::{
 };
 use crate::dispatch::{self, Caller, Outcome};
 use crate::host::Host;
+use crate::journal;
+use crate::store::{Accepted, Store};
 use serde_json::{json, Value};
 use std::time::Duration;
-use tokio::sync::Mutex;
 use tokio_postgres::{Client, NoTls};
 
 const DOMAIN: &str = "Banking";
@@ -82,6 +83,8 @@ trait Backend: Sized + Sync {
     ) -> anyhow::Result<Outcome>;
     async fn read(&self) -> anyhow::Result<Value>;
     async fn observe(&self) -> Observed;
+    /// The store itself, for cases that drive a unit of work without the kernel.
+    fn store(&self) -> &Store;
     /// Appends a journal row the snapshot does not cover, leaving a gap after the snapshot.
     async fn append_unsnapshotted(&self, verb: &str, args: &Value);
     /// Rewrites the snapshot into a shape the kernel refuses to load.
@@ -502,6 +505,79 @@ mod cases {
             assert_eq!(first.observe().await.journal.len(), round + 1);
         }
     }
+
+    pub(super) async fn a_dropped_unit_writes_nothing_and_frees_the_lock<B: Backend>(db: &str) {
+        let backend = B::fresh(db).await;
+        let other = backend.sibling().await;
+        let before = backend.observe().await;
+
+        let unit = backend.store().begin(DOMAIN).await.unwrap();
+        unit.load().await.unwrap();
+        drop(unit);
+
+        assert_eq!(
+            backend.observe().await,
+            before,
+            "a unit never committed wrote nothing"
+        );
+        let next = other.dispatch_as(REGISTER, register("CUST-0040"), Caller::default());
+        let outcome = tokio::time::timeout(Duration::from_secs(10), next)
+            .await
+            .expect("the dropped unit must have released the domain lock")
+            .unwrap();
+        assert!(outcome.accepted, "{:?}", outcome.result);
+    }
+
+    pub(super) async fn a_unit_commits_a_saga_and_then_its_deletion<B: Backend>(db: &str) {
+        let backend = B::fresh(db).await;
+        let saga = |state: &str| journal::SagaRow {
+            process_manager: "Settlement".to_string(),
+            correlation: "tr-0041".to_string(),
+            state: state.to_string(),
+            memory: json!({}),
+            completed_compensations: json!([]),
+        };
+        let first = register("CUST-0041");
+        let accepted = Accepted {
+            verb: REGISTER,
+            args: &first,
+            new_seed: json!({}),
+            saga_upserts: vec![saga("requested")],
+            saga_deletes: Vec::new(),
+            lineage: None,
+        };
+        let unit = backend.store().begin(DOMAIN).await.unwrap();
+        unit.commit(accepted).await.unwrap();
+
+        let seen = backend.observe().await;
+        assert_eq!(seen.sagas, vec![settlement("0041", "requested")]);
+        let paired = seen.journal.last().map(|row| row.ordinal);
+        assert_eq!(seen.snapshot.map(|s| s.ordinal), paired);
+
+        let second = register("CUST-0042");
+        let ending = Accepted {
+            verb: REGISTER,
+            args: &second,
+            new_seed: json!({}),
+            saga_upserts: Vec::new(),
+            saga_deletes: vec![("Settlement".to_string(), "tr-0041".to_string())],
+            lineage: None,
+        };
+        let unit = backend.store().begin(DOMAIN).await.unwrap();
+        assert_eq!(
+            unit.load().await.unwrap().sagas.len(),
+            1,
+            "the unit loads the live saga"
+        );
+        unit.commit(ending).await.unwrap();
+
+        let seen = backend.observe().await;
+        assert!(
+            seen.sagas.is_empty(),
+            "the ended saga is deleted with the command that ended it"
+        );
+        assert_eq!(seen.journal.len(), 2);
+    }
 }
 
 /// Instantiates every case for one backend as its own test, each against a database of its own.
@@ -518,7 +594,7 @@ macro_rules! conformance_suite {
 
 struct PostgresBackend {
     db: String,
-    client: Mutex<Client>,
+    client: Store,
     invoker: RecordingInvoker,
 }
 
@@ -544,7 +620,7 @@ impl PostgresBackend {
     fn wrap(db: &str, client: Client) -> Self {
         Self {
             db: db.to_string(),
-            client: Mutex::new(client),
+            client: Store::postgres(client),
             invoker: RecordingInvoker::new(),
         }
     }
@@ -560,9 +636,19 @@ impl Backend for PostgresBackend {
 
     async fn fresh(name: &str) -> Self {
         // Each trait-level case name is the scratch database; `scratch_db` drops any leftover.
-        let client = scratch_db(name).await.into_inner();
-        provision_lineage(&client, DOMAIN, 1, &["Customer", "Account", "Transfer"]).await;
-        Self::wrap(name, client)
+        let client = scratch_db(name).await;
+        provision_lineage(
+            &*client.lock().await,
+            DOMAIN,
+            1,
+            &["Customer", "Account", "Transfer"],
+        )
+        .await;
+        Self {
+            db: name.to_string(),
+            client,
+            invoker: RecordingInvoker::new(),
+        }
     }
 
     async fn sibling(&self) -> Self {
@@ -582,6 +668,10 @@ impl Backend for PostgresBackend {
 
     async fn read(&self) -> anyhow::Result<Value> {
         dispatch::read(&self.client, &wasm_path()).await
+    }
+
+    fn store(&self) -> &Store {
+        &self.client
     }
 
     async fn observe(&self) -> Observed {
@@ -716,5 +806,7 @@ mod postgres {
         a_read_replays_the_gap_after_the_snapshot_without_persisting_it,
         a_dispatch_waits_for_the_domain_lock_while_readers_proceed,
         concurrent_dispatches_on_one_domain_never_interleave,
+        a_dropped_unit_writes_nothing_and_frees_the_lock,
+        a_unit_commits_a_saga_and_then_its_deletion,
     );
 }

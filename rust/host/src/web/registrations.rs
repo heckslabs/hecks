@@ -6,11 +6,10 @@ use crate::dispatch;
 use crate::host::Host;
 use crate::journal::LineageConfig;
 use crate::payments;
+use crate::store::Store;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::path::Path;
-use tokio::sync::Mutex;
-use tokio_postgres::Client;
 
 // Routes for /events, /registrations and /webhooks/stripe. Event and
 // Registration names are fixed here rather than read from the IR.
@@ -253,12 +252,12 @@ fn seats_path_slug(path: &str) -> Option<&str> {
 /// so a site never has to count registrations itself.
 async fn seats_route(
     path: &str,
-    client: &Mutex<Client>,
+    store: &Store,
     wasm_path: &Path,
     config: &LineageConfig,
     payments: &PaymentsProvider,
 ) -> Value {
-    let read = match dispatch::read(client, wasm_path).await {
+    let read = match dispatch::read(store, wasm_path).await {
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
@@ -312,7 +311,7 @@ pub(super) async fn checkout_route(
     payments: &PaymentsProvider,
 ) -> Option<Value> {
     let Host {
-        client,
+        store,
         wasm_path,
         config,
         ..
@@ -332,9 +331,7 @@ pub(super) async fn checkout_route(
         // query string.
         ("GET", path) if path.starts_with("/registrations/") && !path.ends_with("/complete") => {
             let registration_id = path.trim_start_matches("/registrations/");
-            Some(
-                registration_show_route(registration_id, client, wasm_path, config, payments).await,
-            )
+            Some(registration_show_route(registration_id, store, wasm_path, config, payments).await)
         }
         // POST /registrations/:id/complete: mock checkout's Pay/Cancel button,
         // refused unless checkout is the walkthrough and the Payment's own processor is
@@ -367,10 +364,10 @@ pub(super) async fn checkout_route(
             .await,
         ),
         ("GET", "/events/seats") => {
-            Some(seats_route(path, client, wasm_path, config, payments).await)
+            Some(seats_route(path, store, wasm_path, config, payments).await)
         }
         ("GET", path) if seats_path_slug(path).is_some() => {
-            Some(seats_route(path, client, wasm_path, config, payments).await)
+            Some(seats_route(path, store, wasm_path, config, payments).await)
         }
         // POST /events: an Admin or Owner schedules a new session by hand. The CMS schedules
         // through the internal dispatch protocol instead, so this route answers no guest.
@@ -395,7 +392,7 @@ async fn require_admin_caller(
     domain_ir: &Value,
     cookies: &HashMap<String, String>,
     secret: &str,
-    client: &Mutex<Client>,
+    store: &Store,
 ) -> Result<String, Value> {
     let Some(caller) = cookies
         .get(&crate::auth::account_cookie_name())
@@ -404,7 +401,7 @@ async fn require_admin_caller(
     else {
         return Err(super::json_error(401, "not logged in"));
     };
-    match crate::auth::caller_is_admin(client, domain_ir, &caller).await {
+    match crate::auth::caller_is_admin(store, domain_ir, &caller).await {
         Ok(true) => Ok(caller),
         Ok(false) => Err(super::json_error(403, "admins only")),
         Err(e) => Err(super::json_error(
@@ -475,12 +472,12 @@ async fn events_route(
     host: Host<'_>,
 ) -> Value {
     let Host {
-        client,
+        store,
         wasm_path,
         config,
         ..
     } = host;
-    if let Err(response) = require_admin_caller(domain_ir, cookies, secret, client).await {
+    if let Err(response) = require_admin_caller(domain_ir, cookies, secret, store).await {
         return response;
     }
     let body: Value = match serde_json::from_str(raw_body) {
@@ -502,7 +499,7 @@ async fn events_route(
         .unwrap_or_default()
         .to_string();
 
-    let read = match dispatch::read(client, wasm_path).await {
+    let read = match dispatch::read(store, wasm_path).await {
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
@@ -539,7 +536,7 @@ async fn events_route(
         );
     }
 
-    let read = match dispatch::read(client, wasm_path).await {
+    let read = match dispatch::read(store, wasm_path).await {
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
@@ -566,12 +563,12 @@ async fn events_route(
 /// confirmation URLs), so the answer carries no contact detail: no email, no phone.
 async fn registration_show_route(
     registration_id: &str,
-    client: &Mutex<Client>,
+    store: &Store,
     wasm_path: &Path,
     config: &LineageConfig,
     payments: &PaymentsProvider,
 ) -> Value {
-    let read = match dispatch::read(client, wasm_path).await {
+    let read = match dispatch::read(store, wasm_path).await {
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
@@ -633,7 +630,7 @@ pub(crate) async fn registration_complete_route(
     payments: &PaymentsProvider,
 ) -> Value {
     let Host {
-        client,
+        store,
         wasm_path,
         config,
         ..
@@ -663,7 +660,7 @@ pub(crate) async fn registration_complete_route(
         );
     }
 
-    let read = match dispatch::read(client, wasm_path).await {
+    let read = match dispatch::read(store, wasm_path).await {
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
@@ -749,7 +746,7 @@ pub(crate) async fn registration_complete_route(
         super::registration_receipt::deliver_receipt(registration_id, host, payments).await;
     }
 
-    let read = match dispatch::read(client, wasm_path).await {
+    let read = match dispatch::read(store, wasm_path).await {
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
@@ -814,7 +811,7 @@ pub(crate) async fn registrations_route_at(
     now_secs: i64,
 ) -> Value {
     let Host {
-        client,
+        store,
         wasm_path,
         config,
         ..
@@ -854,7 +851,7 @@ pub(crate) async fn registrations_route_at(
         );
     };
 
-    let read = match dispatch::read(client, wasm_path).await {
+    let read = match dispatch::read(store, wasm_path).await {
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
@@ -1044,7 +1041,7 @@ pub(crate) async fn registrations_route_at(
     // registrant who ticked the box gets the same signed confirm link as the
     // footer form. Best effort: the registration stands whatever mail does.
     if forwards_newsletter && news_signup {
-        super::newsletter::send_confirmation_if_pending(email, client, wasm_path).await;
+        super::newsletter::send_confirmation_if_pending(email, store, wasm_path).await;
     }
 
     if let Some(embedded) = embedded_checkout {
@@ -1111,12 +1108,12 @@ async fn give_back_an_oversold_seat(
     payments: &PaymentsProvider,
 ) -> Option<Value> {
     let Host {
-        client,
+        store,
         wasm_path,
         config,
         ..
     } = host;
-    let read = match dispatch::read(client, wasm_path).await {
+    let read = match dispatch::read(store, wasm_path).await {
         Ok(r) => r,
         Err(e) => return Some(respond(500, "text/plain", &format!("{e:#}"))),
     };
@@ -1247,7 +1244,7 @@ pub(crate) async fn webhook_route(
     payments: &PaymentsProvider,
 ) -> Value {
     let Host {
-        client, wasm_path, ..
+        store, wasm_path, ..
     } = host;
     let now = unix_now();
     // The environment's signing secret and any saved with the business's own
@@ -1280,7 +1277,7 @@ pub(crate) async fn webhook_route(
         Err(_) => return respond(400, "text/plain", "invalid JSON"),
     };
 
-    let read = match dispatch::read(client, wasm_path).await {
+    let read = match dispatch::read(store, wasm_path).await {
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
@@ -1378,7 +1375,7 @@ mod tests {
     }
 
     async fn schedule_event(
-        client: &Mutex<Client>,
+        client: &Store,
         wasm_path: &Path,
         config: &LineageConfig,
         slug: &str,
@@ -2187,7 +2184,7 @@ mod tests {
 
     // A scratch database with the fixture's lineage and a membership table holding one Admin
     // and one Member, and the domain IR that names that membership.
-    async fn events_db(name: &str) -> (Mutex<Client>, Value) {
+    async fn events_db(name: &str) -> (Store, Value) {
         let client = scratch_db(name).await;
         {
             let guard = client.lock().await;
@@ -2239,7 +2236,7 @@ mod tests {
 
     // POST /events as `email` (none: no account cookie).
     async fn post_event(
-        client: &Mutex<Client>,
+        client: &Store,
         domain_ir: &Value,
         email: Option<&str>,
         body: &str,
@@ -2513,7 +2510,7 @@ mod tests {
     // Schedules `slug` starting at `starts_at` with the optional cutoff set
     // (or absent), through the real Event.Schedule command.
     async fn schedule_timed_event(
-        client: &Mutex<Client>,
+        client: &Store,
         wasm_path: &Path,
         config: &LineageConfig,
         slug: &str,
@@ -3082,7 +3079,7 @@ mod tests {
     }
 
     // A scratch fixture with a scheduled event and a pending 4200-cent Stripe Payment `reference`.
-    async fn stripe_payment_db(name: &str, reference: &str) -> Mutex<Client> {
+    async fn stripe_payment_db(name: &str, reference: &str) -> Store {
         let client = scratch_db(name).await;
         provision_lineage(
             &*client.lock().await,
@@ -3111,7 +3108,7 @@ mod tests {
 
     // Delivers one signed Checkout Session event for `reference` and answers the Payment's status.
     async fn deliver_session_event(
-        client: &Mutex<Client>,
+        client: &Store,
         reference: &str,
         event_type: &str,
         session: Value,

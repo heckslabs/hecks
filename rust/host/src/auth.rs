@@ -9,11 +9,10 @@ use crate::journal;
 use crate::journal::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
 use crate::needs::{Clock, ProcessClock};
+use crate::store::{Store, StoreError};
 use serde_json::{json, Value};
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tokio::sync::Mutex;
-use tokio_postgres::Client;
 
 mod google_signin;
 
@@ -354,18 +353,18 @@ fn identity_id_from_state(state: &Value) -> Option<String> {
 /// head that cannot be read is logged and skipped, as the Google callback does, so the flat journal
 /// still gets its turn.
 pub async fn resolve_identity_anywhere(
-    client: &Mutex<Client>,
+    store: &Store,
     wasm_path: &Path,
     domain_ir: &Value,
     issuer: &str,
     subject: &str,
 ) -> anyhow::Result<Option<String>> {
-    match resolve_identity_from_head(client, domain_ir, issuer, subject).await {
+    match resolve_identity_from_head(store, domain_ir, issuer, subject).await {
         Ok(Some(found)) => return Ok(Some(found)),
         Ok(None) => {}
         Err(error) => eprintln!("resolve_identity: identity head: {error:#}"),
     }
-    let read = match dispatch::read(client, wasm_path).await {
+    let read = match dispatch::read(store, wasm_path).await {
         Ok(read) => read,
         Err(error) if flat_journal_is_absent(&error) => return Ok(None),
         Err(error) => return Err(error),
@@ -381,14 +380,14 @@ pub async fn resolve_identity_anywhere(
 fn flat_journal_is_absent(error: &anyhow::Error) -> bool {
     error
         .chain()
-        .filter_map(|cause| cause.downcast_ref::<tokio_postgres::Error>())
-        .any(|db| db.code() == Some(&tokio_postgres::error::SqlState::UNDEFINED_TABLE))
+        .filter_map(|cause| cause.downcast_ref::<StoreError>())
+        .any(StoreError::is_not_provisioned)
 }
 
 /// Identity lives in the PostgresEra head, not `dispatch::read`'s
 /// `instances` — tries both the domain-qualified and the bare relation name.
 pub async fn resolve_identity_from_head(
-    client: &Mutex<Client>,
+    store: &Store,
     domain_ir: &Value,
     issuer: &str,
     subject: &str,
@@ -403,7 +402,7 @@ pub async fn resolve_identity_from_head(
         "external_identifier_head".to_string(),
     ];
     names.dedup();
-    let guard = client.lock().await;
+    let guard = store.require_lineage()?.lock().await;
     for name in names {
         let sql = format!(
             "SELECT state FROM {} WHERE state->'issuer'->>'value' = $1 AND state->'subject'->>'value' = $2",
@@ -415,8 +414,12 @@ pub async fn resolve_identity_from_head(
                 return Ok(identity_id_from_state(&state));
             }
             Ok(None) => return Ok(None),
-            Err(e) if e.code() == Some(&tokio_postgres::error::SqlState::UNDEFINED_TABLE) => {}
-            Err(e) => return Err(e.into()),
+            Err(e) => {
+                let e = StoreError::from(e);
+                if !e.is_not_provisioned() {
+                    return Err(e.into());
+                }
+            }
         }
     }
     Ok(None)
@@ -426,7 +429,7 @@ pub async fn resolve_identity_from_head(
 // `instances` — reading `instances` for an already-linked member misses
 // it entirely, so this queries the head view directly instead.
 async fn member_row_by_email(
-    client: &Mutex<Client>,
+    store: &Store,
     domain_ir: &Value,
     email: &str,
 ) -> anyhow::Result<Option<Value>> {
@@ -434,17 +437,14 @@ async fn member_row_by_email(
     // docs/decisions/0059: `head_view` needs the domain name too, the
     // same one `ir.rs`/`web.rs` already extract this way.
     let domain = domain_ir.get("name").and_then(|v| v.as_str()).unwrap_or("");
-    let guard = client.lock().await;
+    let guard = store.require_lineage()?.lock().await;
     journal::read_lineage_head_by_id(&*guard, domain, &storage_name, email).await
 }
 
-async fn member_rows(
-    client: &Mutex<Client>,
-    domain_ir: &Value,
-) -> anyhow::Result<Vec<(String, Value)>> {
+async fn member_rows(store: &Store, domain_ir: &Value) -> anyhow::Result<Vec<(String, Value)>> {
     let (_, storage_name) = membership_aggregate(domain_ir)?;
     let domain = domain_ir.get("name").and_then(|v| v.as_str()).unwrap_or("");
-    let guard = client.lock().await;
+    let guard = store.require_lineage()?.lock().await;
     journal::read_lineage_head_all(&*guard, domain, &storage_name).await
 }
 
@@ -474,14 +474,14 @@ fn membership_names(aggregate: &str) -> (String, String) {
 // + snapshot-upsert transaction every Member write uses. The advisory
 // lock guards a concurrent domain rename, not ordinal uniqueness.
 async fn append_member_state(
-    client: &Mutex<Client>,
+    store: &Store,
     config: &LineageConfig,
     domain_ir: &Value,
     id: &str,
     state: &Value,
 ) -> anyhow::Result<()> {
     let (aggregate_name, _) = membership_aggregate(domain_ir)?;
-    let mut guard = client.lock().await;
+    let mut guard = store.require_lineage()?.lock().await;
     let txn = guard.transaction().await?;
 
     txn.execute(
@@ -507,14 +507,14 @@ async fn append_member_state(
 }
 
 pub async fn session_for_member_by_identity(
-    client: &Mutex<Client>,
+    store: &Store,
     domain_ir: &Value,
     identity_id: &str,
 ) -> anyhow::Result<Option<Session>> {
     let (_, storage_name) = membership_aggregate(domain_ir)?;
     // docs/decisions/0059 — same domain-qualification as above.
     let domain = domain_ir.get("name").and_then(|v| v.as_str()).unwrap_or("");
-    let guard = client.lock().await;
+    let guard = store.require_lineage()?.lock().await;
     let row = guard
         .query_opt(
             &format!(
@@ -547,7 +547,7 @@ pub async fn session_for_member_by_identity(
 /// never creates one; Admit is a separate, real cap-table event.
 #[allow(clippy::too_many_arguments)]
 pub async fn provision(
-    client: &Mutex<Client>,
+    store: &Store,
     wasm_path: &Path,
     config: &LineageConfig,
     domain_ir: &Value,
@@ -556,7 +556,7 @@ pub async fn provision(
     subject: &str,
     invoker: &dyn LambdaInvoker,
 ) -> anyhow::Result<Option<Session>> {
-    let Some(member) = member_row_by_email(client, domain_ir, email).await? else {
+    let Some(member) = member_row_by_email(store, domain_ir, email).await? else {
         return Ok(None);
     };
     if is_lapsed(&member) {
@@ -594,7 +594,7 @@ pub async fn provision(
     // first makes a retry converge onto the earlier attempt's identity
     // instead of accumulating another orphan.
     let identity_id = if let Some(existing) =
-        resolve_identity_from_head(client, domain_ir, issuer, subject).await?
+        resolve_identity_from_head(store, domain_ir, issuer, subject).await?
     {
         existing
     } else {
@@ -604,7 +604,7 @@ pub async fn provision(
         // provisioning, not a caller-submitted command, so there is no
         // caller role to assert.
         let register = dispatch::handle(
-            Host::new(client, wasm_path, config, invoker),
+            Host::new(store, wasm_path, config, invoker),
             &identity.register,
             json!({"identity_id": {"value": identity_id}}),
             None,
@@ -615,7 +615,7 @@ pub async fn provision(
         }
 
         let link_external = dispatch::handle(
-            Host::new(client, wasm_path, config, invoker),
+            Host::new(store, wasm_path, config, invoker),
             &identity.link,
             json!({
                 "identity": identity_id, "key": {"value": format!("{issuer}:{subject}")},
@@ -638,7 +638,7 @@ pub async fn provision(
             "this domain attaches no chapter that provides \"authorization\" — cannot grant a role"
         );
     };
-    let assign_role = dispatch::handle(Host::new(client, wasm_path, config, invoker), &provider.grant, json!({
+    let assign_role = dispatch::handle(Host::new(store, wasm_path, config, invoker), &provider.grant, json!({
             "actor_id": {"value": identity_id}, "role_name": {"value": role}, "scope": {"value": config.domain.clone()},
             "starts_at": {"value": httpdate_now()},
         }), None).await?;
@@ -651,7 +651,7 @@ pub async fn provision(
     // refuse. Writes through the same journal+snapshot append instead.
     let mut new_state = member.clone();
     new_state["identity_id"] = json!({"value": identity_id});
-    append_member_state(client, config, domain_ir, email, &new_state).await?;
+    append_member_state(store, config, domain_ir, email, &new_state).await?;
 
     let name = member
         .get("name")
@@ -668,7 +668,7 @@ pub async fn provision(
 }
 
 pub async fn grant_access(
-    client: &Mutex<Client>,
+    store: &Store,
     wasm_path: &Path,
     config: &LineageConfig,
     domain_ir: &Value,
@@ -676,7 +676,7 @@ pub async fn grant_access(
     role: &str,
 ) -> anyhow::Result<bool> {
     let outcome =
-        grant_access_until(client, wasm_path, config, domain_ir, email, role, None).await?;
+        grant_access_until(store, wasm_path, config, domain_ir, email, role, None).await?;
     Ok(outcome == GrantOutcome::Done)
 }
 
@@ -697,7 +697,7 @@ pub enum GrantOutcome {
 /// the access open-ended. Refused when it would take the site's last
 /// open-ended admin off that footing, locked with other membership writes.
 pub async fn grant_access_until(
-    client: &Mutex<Client>,
+    store: &Store,
     wasm_path: &Path,
     config: &LineageConfig,
     domain_ir: &Value,
@@ -710,7 +710,7 @@ pub async fn grant_access_until(
     let domain = domain_ir.get("name").and_then(|v| v.as_str()).unwrap_or("");
     let target = email.trim().to_lowercase();
 
-    let mut guard = client.lock().await;
+    let mut guard = store.require_lineage()?.lock().await;
     let txn = guard.transaction().await?;
     txn.execute(
         "SELECT pg_advisory_xact_lock(hashtext('hecks_ordinal:' || $1))",
@@ -756,14 +756,14 @@ pub async fn grant_access_until(
 /// Admits a new person (name + email), the same state `Admit` sets.
 /// Returns `false` without writing when that email already exists.
 pub async fn admit_person(
-    client: &Mutex<Client>,
+    store: &Store,
     config: &LineageConfig,
     domain_ir: &Value,
     email: &str,
     name: &str,
 ) -> anyhow::Result<bool> {
     let email = email.to_lowercase();
-    let exists = member_rows(client, domain_ir)
+    let exists = member_rows(store, domain_ir)
         .await?
         .into_iter()
         .any(|(id, _)| id.to_lowercase() == email);
@@ -771,7 +771,7 @@ pub async fn admit_person(
         return Ok(false);
     }
     let state = json!({"name": {"value": name}, "email": {"value": email}});
-    append_member_state(client, config, domain_ir, &email, &state).await?;
+    append_member_state(store, config, domain_ir, &email, &state).await?;
     Ok(true)
 }
 
@@ -925,12 +925,12 @@ fn strands_open_admin(rows: &[(String, Value)], id: &str, after: &Value) -> bool
 /// active admin: granted the "Admin" or "Owner" role, not disabled, and not
 /// past its access window.
 pub async fn caller_is_admin(
-    client: &Mutex<Client>,
+    store: &Store,
     domain_ir: &Value,
     email: &str,
 ) -> anyhow::Result<bool> {
     let email = email.to_lowercase();
-    Ok(member_rows(client, domain_ir)
+    Ok(member_rows(store, domain_ir)
         .await?
         .iter()
         .any(|(id, state)| id.to_lowercase() == email && is_active_admin(state)))
@@ -939,13 +939,9 @@ pub async fn caller_is_admin(
 /// Whether `email` may hold a session right now: admitted, granted a role,
 /// and neither disabled nor past its access window — a signature alone can't
 /// tell, since a cookie outlives a later disable or the end of the window.
-pub async fn has_access(
-    client: &Mutex<Client>,
-    domain_ir: &Value,
-    email: &str,
-) -> anyhow::Result<bool> {
+pub async fn has_access(store: &Store, domain_ir: &Value, email: &str) -> anyhow::Result<bool> {
     let email = email.to_lowercase();
-    Ok(member_rows(client, domain_ir)
+    Ok(member_rows(store, domain_ir)
         .await?
         .iter()
         .any(|(id, state)| {
@@ -957,12 +953,12 @@ pub async fn has_access(
 /// disabled or past its window — reads the live membership head, never the
 /// session cookie.
 pub async fn active_role(
-    client: &Mutex<Client>,
+    store: &Store,
     domain_ir: &Value,
     email: &str,
 ) -> anyhow::Result<Option<String>> {
     let email = email.to_lowercase();
-    Ok(member_rows(client, domain_ir)
+    Ok(member_rows(store, domain_ir)
         .await?
         .iter()
         .find(|(id, state)| id.to_lowercase() == email && !is_lapsed(state))
@@ -972,12 +968,12 @@ pub async fn active_role(
 /// The Governance identity id linked to the member with `email`, read from
 /// the live membership head. `None` when the member has not signed in yet.
 pub async fn member_identity_id(
-    client: &Mutex<Client>,
+    store: &Store,
     domain_ir: &Value,
     email: &str,
 ) -> anyhow::Result<Option<String>> {
     let email = email.to_lowercase();
-    Ok(member_rows(client, domain_ir)
+    Ok(member_rows(store, domain_ir)
         .await?
         .iter()
         .find(|(id, state)| id.to_lowercase() == email && !is_deleted(state))
@@ -998,9 +994,9 @@ fn linked_identity_id(state: &Value) -> Option<String> {
 /// `access_expires_at` (the end of a time-boxed window, `null` when open-ended),
 /// `expired` (the window has ended or is unreadable), and `identity_id`
 /// (the Governance identity id, `null` until the person has signed in).
-pub async fn all_people(client: &Mutex<Client>, domain_ir: &Value) -> anyhow::Result<Vec<Value>> {
+pub async fn all_people(store: &Store, domain_ir: &Value) -> anyhow::Result<Vec<Value>> {
     let now = ProcessClock.now_secs();
-    Ok(member_rows(client, domain_ir)
+    Ok(member_rows(store, domain_ir)
         .await?
         .into_iter()
         .filter(|(_, state)| !is_deleted(state))
@@ -1047,7 +1043,7 @@ pub enum DisableOutcome {
 /// Disables or enables `target` for `caller`, keeping role and identity
 /// link — locked with other membership writes so concurrent disables can't both win.
 pub async fn set_person_disabled(
-    client: &Mutex<Client>,
+    store: &Store,
     config: &LineageConfig,
     domain_ir: &Value,
     caller: &str,
@@ -1058,7 +1054,7 @@ pub async fn set_person_disabled(
     let domain = domain_ir.get("name").and_then(|v| v.as_str()).unwrap_or("");
     let (caller, target) = (caller.trim().to_lowercase(), target.trim().to_lowercase());
 
-    let mut guard = client.lock().await;
+    let mut guard = store.require_lineage()?.lock().await;
     let txn = guard.transaction().await?;
     txn.execute(
         "SELECT pg_advisory_xact_lock(hashtext('hecks_ordinal:' || $1))",
@@ -1128,7 +1124,7 @@ pub enum DeleteOutcome {
 /// stays in the journal (nothing here is ever erased) but `all_people` stops
 /// listing it. Locked with other membership writes the same as disable/role.
 pub async fn set_person_deleted(
-    client: &Mutex<Client>,
+    store: &Store,
     config: &LineageConfig,
     domain_ir: &Value,
     caller: &str,
@@ -1138,7 +1134,7 @@ pub async fn set_person_deleted(
     let domain = domain_ir.get("name").and_then(|v| v.as_str()).unwrap_or("");
     let (caller, target) = (caller.trim().to_lowercase(), target.trim().to_lowercase());
 
-    let mut guard = client.lock().await;
+    let mut guard = store.require_lineage()?.lock().await;
     let txn = guard.transaction().await?;
     txn.execute(
         "SELECT pg_advisory_xact_lock(hashtext('hecks_ordinal:' || $1))",
@@ -1198,7 +1194,7 @@ pub enum RoleOutcome {
 /// Sets `target`'s role on `caller`'s behalf; any active admin may
 /// grant any role, Owner included, locked against concurrent demotions.
 pub async fn set_person_role(
-    client: &Mutex<Client>,
+    store: &Store,
     config: &LineageConfig,
     domain_ir: &Value,
     caller: &str,
@@ -1209,7 +1205,7 @@ pub async fn set_person_role(
     let domain = domain_ir.get("name").and_then(|v| v.as_str()).unwrap_or("");
     let (caller, target) = (caller.trim().to_lowercase(), target.trim().to_lowercase());
 
-    let mut guard = client.lock().await;
+    let mut guard = store.require_lineage()?.lock().await;
     let txn = guard.transaction().await?;
     txn.execute(
         "SELECT pg_advisory_xact_lock(hashtext('hecks_ordinal:' || $1))",
@@ -1728,7 +1724,7 @@ mod tests {
     // A throwaway Postgres database per test, matching the real
     // `head_view` naming (`qualified_name(domain, "#{storage_name}_head")`,
     // docs/decisions/0059) that the functions under test query directly.
-    async fn scratch_member_db(name: &str) -> Mutex<tokio_postgres::Client> {
+    async fn scratch_member_db(name: &str) -> Store {
         use tokio_postgres::NoTls;
         let (admin, conn) = tokio_postgres::connect(&crate::test_pg::conninfo("postgres"), NoTls)
             .await
@@ -1765,7 +1761,7 @@ mod tests {
             )
             .await
             .unwrap();
-        Mutex::new(client)
+        Store::postgres(client)
     }
 
     // A minimal `ir.json`-shaped fixture: one lineage-capable aggregate

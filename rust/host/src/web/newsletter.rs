@@ -6,12 +6,11 @@ use crate::dispatch;
 use crate::host::Host;
 use crate::ir::ir;
 use crate::resend::{Email, Mailer};
+use crate::store::Store;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::OnceLock;
-use tokio::sync::Mutex;
-use tokio_postgres::Client;
 
 mod cooldown;
 mod naming;
@@ -29,7 +28,7 @@ pub(super) async fn newsletter_route(
     host: Host<'_>,
 ) -> Option<Value> {
     let Host {
-        client, wasm_path, ..
+        store, wasm_path, ..
     } = host;
     // The chapter that declares `provides "newsletter"` names the verbs
     // and the subscribing aggregate; a domain that attaches none serves
@@ -40,7 +39,7 @@ pub(super) async fn newsletter_route(
             Some(newsletter_subscribe_route(&provider, raw_body, host).await)
         }
         ("GET", "/newsletter/subscribers") => {
-            Some(newsletter_subscribers_list_route(&provider, client, wasm_path).await)
+            Some(newsletter_subscribers_list_route(&provider, store, wasm_path).await)
         }
         ("GET", "/newsletter/subscribers/confirm") => {
             Some(newsletter_confirm_route(&provider, query, host).await)
@@ -61,7 +60,7 @@ async fn newsletter_subscribe_route(
     host: Host<'_>,
 ) -> Value {
     let Host {
-        client, wasm_path, ..
+        store, wasm_path, ..
     } = host;
     let body: Value = match serde_json::from_str(raw_body) {
         Ok(v) => v,
@@ -89,7 +88,7 @@ async fn newsletter_subscribe_route(
         .and_then(|v| v.as_str())
         .filter(|s| !s.is_empty());
 
-    let read = match dispatch::read(client, wasm_path).await {
+    let read = match dispatch::read(store, wasm_path).await {
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
@@ -180,10 +179,10 @@ fn naming_window() -> &'static naming::NamingWindow {
 // question name would not resolve there.
 async fn newsletter_subscribers_list_route(
     provider: &NewsletterProvider,
-    client: &Mutex<Client>,
+    store: &Store,
     wasm_path: &Path,
 ) -> Value {
-    let read = match dispatch::read(client, wasm_path).await {
+    let read = match dispatch::read(store, wasm_path).await {
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
@@ -315,15 +314,11 @@ pub(super) async fn send_confirmation(email: &str) {
 
 // Only mails when the address is now `pending`; an already-confirmed or
 // unsubscribed registrant is left alone.
-pub(super) async fn send_confirmation_if_pending(
-    email: &str,
-    client: &Mutex<Client>,
-    wasm_path: &Path,
-) {
+pub(super) async fn send_confirmation_if_pending(email: &str, store: &Store, wasm_path: &Path) {
     let Some(provider) = ir().and_then(newsletter_provider) else {
         return;
     };
-    let Ok(read) = dispatch::read(client, wasm_path).await else {
+    let Ok(read) = dispatch::read(store, wasm_path).await else {
         return;
     };
     let pending = instances_for(&read, &provider.instance_prefix())
@@ -348,7 +343,7 @@ async fn newsletter_confirm_route(
     host: Host<'_>,
 ) -> Value {
     let Host {
-        client, wasm_path, ..
+        store, wasm_path, ..
     } = host;
     let Some(email) = query.get("email") else {
         return respond(
@@ -369,7 +364,7 @@ async fn newsletter_confirm_route(
         );
     }
 
-    let read = match dispatch::read(client, wasm_path).await {
+    let read = match dispatch::read(store, wasm_path).await {
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
@@ -390,7 +385,7 @@ async fn newsletter_confirm_route(
         }
     }
 
-    let read = match dispatch::read(client, wasm_path).await {
+    let read = match dispatch::read(store, wasm_path).await {
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
@@ -445,14 +440,14 @@ async fn newsletter_unsubscribe_route(
     host: Host<'_>,
 ) -> Value {
     let Host {
-        client, wasm_path, ..
+        store, wasm_path, ..
     } = host;
     let email = match unsubscribe_authorized(confirm_secret().as_deref(), query) {
         Ok(email) => email,
         Err(refusal) => return refusal,
     };
 
-    let read = match dispatch::read(client, wasm_path).await {
+    let read = match dispatch::read(store, wasm_path).await {
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
@@ -474,7 +469,7 @@ async fn newsletter_unsubscribe_route(
         }
     }
 
-    let read = match dispatch::read(client, wasm_path).await {
+    let read = match dispatch::read(store, wasm_path).await {
         Ok(r) => r,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
