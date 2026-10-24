@@ -14,13 +14,21 @@ module Hecks
       # Sends the run's command to every row.
       #
       # @param held [Hash{Symbol => Object}] the run's record: `verb`, `over`, `arguments`, `mode`
-      # @return [Hash{Symbol => Array<Hash>}] `results:` one `{ row:, delivered:, reason: }` per row
+      # @return [Hash{Symbol => Array<Hash>}] `results:` one `RowResult` per row: `row:`,
+      #   `outcome:` ("delivered" or "refused") and, when refused, `reason:`
       # @raise [Unbound] if no registry is asking
       # @raise [Bulk::Sweep::Declined] if the mode cannot run against the command's store
       def sweep(**held)
         registry = Runtime::Asking.registry or raise Unbound, "a bulk run is swept only when its BulkRun asks"
 
-        { results: Bulk::Sweep.new(registry, Bulk::Plan.from_record(held)).outcomes }
+        { results: Bulk::Sweep.new(registry, Bulk::Plan.from_record(held)).outcomes.map { |row| row_result(row) } }
+      end
+
+      private
+
+      # A row's outcome in the shape the chapter's `RowResult` holds.
+      def row_result(row)
+        { row: row[:row], outcome: row[:delivered] ? "delivered" : "refused", reason: row[:reason] }.compact
       end
     end
   end

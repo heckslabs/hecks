@@ -50,12 +50,12 @@ Hecks.bluebook "Bulk" do
       attribute :value, String, one_of: ["best_effort", "all_or_nothing"]
     end
 
-    # How one row came out: the row's identity, whether the command was delivered, and the
-    # refusal's message when it was not.
+    # How one row came out: the row's identity, whether the command was delivered or refused, and
+    # the refusal's message when it was refused.
     value_object "RowResult" do
-      attribute :row,       String
-      attribute :delivered, Boolean
-      attribute :reason,    String, optional: true
+      attribute :row,     String
+      attribute :outcome, String, pattern: '^(delivered|refused)$'
+      attribute :reason,  String, optional: true
     end
 
     value_object "Report" do

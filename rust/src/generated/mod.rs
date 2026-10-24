@@ -18,6 +18,7 @@ pub mod attribute_constraints_fixture;
 pub mod banking;
 #[cfg(feature = "bug28_existence_fixture")]
 pub mod bug28_existence_fixture;
+pub mod bulk;
 #[cfg(feature = "checkout_fixture")]
 pub mod checkout_fixture;
 #[cfg(feature = "chess")]
