@@ -17,7 +17,7 @@ module Hecks
       # @raise [ArgumentError] for any other keyword
       def dispatch(runtime:, command:, summary:, args: {}, **)
         request = Request.new(runtime: runtime, name: command, summary: summary, args: args, **)
-        request.bluebook = bluebook_for(runtime)
+        request.bluebook, request.name = chapter_and_name(runtime, command)
         audited(request, request.dry_run ? "dry_run" : "dispatch") { perform_dispatch(request) }
       end
 
@@ -72,7 +72,7 @@ module Hecks
 
       # :nodoc:
       def settled_record(runtime, spec, result)
-        bluebook = bluebook_for(runtime)
+        bluebook = runtime.bluebook(spec[:command].to_s.split("::", 2).first) || bluebook_for(runtime)
         aggregate = top_level_aggregate(bluebook, spec[:command])
         return aggregate unless aggregate
 

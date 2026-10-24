@@ -13,6 +13,7 @@ require_relative "storehouse/audit"
 require_relative "storehouse/dispatching"
 require_relative "storehouse/querying"
 require_relative "storehouse/introspection"
+require_relative "storehouse/chapter_words"
 
 module Hecks
   # Dispatch/query/state and introspection over one booted domain, pure
@@ -40,6 +41,7 @@ module Hecks
     extend Dispatching
     extend Querying
     extend Introspection
+    extend ChapterWords
 
     module_function
 

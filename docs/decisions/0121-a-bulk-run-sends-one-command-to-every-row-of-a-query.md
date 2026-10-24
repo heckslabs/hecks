@@ -46,9 +46,13 @@ that fan-out directly.
    so a command that moves a row out of the query cannot shift what is swept.
    Paging's `cursor` word parses, but no interpreter applies it yet; the step that
    compiles a bulk run to SQL replaces this single read with a cursor.
-6. **Every driving adapter reaches it with no new code.** The CLI and MCP dispatch
-   `Bulk::BulkRun.Request` like any other command and read `Bulk::BulkRun.Outcome`. The
-   Ruby facade gives each non-creating command a module method:
+6. **Every driving adapter reaches it.** The CLI already speaks to an attached chapter when
+   a line starts with its word: `banking bulk bulk_run.request! verb.value=… over.value=…
+   mode.value=best_effort`, then `banking bulk query outcome run.value=…`. MCP's `dispatch`
+   and `query` tools resolved names in the domain's own chapter only; the storehouse now
+   reads a name the same way the CLI does (`"bulk bulk_run.request"`), so MCP reaches any
+   attached chapter, Bulk included. That is the only driving-adapter change. The Ruby
+   facade gives each non-creating command a module method:
    `Account.freeze_account!(over: Account.open_for_customer(reference: "C-1"), mode: :best_effort)`
    requests the run and answers the `BulkRun` record. A query's module method answers
    its rows as `QueryRows`, an Array that remembers the query and its arguments, so `over:`
