@@ -1087,7 +1087,7 @@ pub(crate) mod tests {
         assert_eq!(mirrored, 1);
     }
 
-    fn test_config(domain: &str, era: i32) -> LineageConfig {
+    pub(crate) fn test_config(domain: &str, era: i32) -> LineageConfig {
         LineageConfig {
             domain: domain.to_string(),
             era: Some(era),
@@ -1123,7 +1123,7 @@ pub(crate) mod tests {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../dist/banking.wasm")
     }
 
-    fn register(reference: &str) -> serde_json::Value {
+    pub(crate) fn register(reference: &str) -> serde_json::Value {
         serde_json::json!({
             "reference": { "value": reference },
             "name": { "given": "Ada", "family": "Lovelace" },
@@ -1690,12 +1690,12 @@ pub(crate) mod tests {
     // Records every call and answers with a canned "nothing refused"
     // body, proving a cross-domain policy reaches `lambda_client::deliver`
     // with the right name/payload end to end, short of a real AWS Lambda.
-    struct RecordingInvoker {
+    pub(crate) struct RecordingInvoker {
         calls: std::sync::Mutex<Vec<(String, String)>>,
     }
 
     impl RecordingInvoker {
-        fn new() -> Self {
+        pub(crate) fn new() -> Self {
             Self {
                 calls: std::sync::Mutex::new(Vec::new()),
             }
