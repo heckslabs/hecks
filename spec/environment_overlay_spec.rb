@@ -110,7 +110,7 @@ RSpec.describe "environment overlays and vendored bluebooks" do
 
   CONSUMER_HECKSAGON = <<~HECKSAGON.freeze
     Hecks.hecksagon "Widgets" do
-      attaches "widgets", from: :vendor
+      attaches "PACKAGE", from: :vendor
       attaches "Governance"
       Widgets::Widget.persisted_by("Memory")
     end
@@ -133,10 +133,11 @@ RSpec.describe "environment overlays and vendored bluebooks" do
     write(dir, "environments/production.world", PRODUCTION_WORLD)
   end
 
-  # A vendored package's own bluebook plus a consumer hecksagon beside it.
-  def write_vendored_widgets
-    write(dir, "vendor/embryonaut_bluebooks/widgets/bluebook/widget.bluebook", OVERLAY_WIDGETS_BLUEBOOK)
-    write(dir, "bluebook/consumer.hecksagon", CONSUMER_HECKSAGON)
+  # A vendored package's own bluebook plus a consumer hecksagon beside it. The package directory
+  # need not be the chapter's name in snake case: `widget` may hold `Hecks.bluebook "Widgets"`.
+  def write_vendored_widgets(package: "widgets")
+    write(dir, "vendor/embryonaut_bluebooks/#{package}/bluebook/widget.bluebook", OVERLAY_WIDGETS_BLUEBOOK)
+    write(dir, "bluebook/consumer.hecksagon", CONSUMER_HECKSAGON.sub("PACKAGE", package))
     write(dir, "bluebook/context_map.hecksagon", InMemoryDomain::GOVERNANCE_MEMORY_HECKSAGON)
   end
 
@@ -198,6 +199,15 @@ RSpec.describe "environment overlays and vendored bluebooks" do
       expect(dispatcher.registry.bluebook("Widgets")).not_to be_nil
       expect(dispatcher.registry.hecksagon("Widgets").vendored_packages).to eq(["widgets"])
       expect(File.directory?(File.join(dir, "vendor", "embryonaut_bluebooks", "widgets", "bluebook"))).to be true
+    end
+
+    it "names the chapter after the bluebook the package declares, not after its directory", :aggregate_failures do
+      write_vendored_widgets(package: "widget")
+
+      registry = Hecks.boot(File.join(dir, "bluebook"), install_driving: false).registry
+
+      expect(registry.hecksagon("Widgets").attachments.find(&:vendor?).chapter_name).to eq("Widgets")
+      expect(registry.bounded?("Widgets")).to be true
     end
 
     it "refuses with a real registry that has no root to vendor from" do

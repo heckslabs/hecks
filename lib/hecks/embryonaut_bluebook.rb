@@ -20,20 +20,28 @@ module Hecks
     #   as `"payments"`
     # @param registry [Runtime::Registry, nil] the registry to vendor into and
     #   check for an existing load; defaults to the current boot registry
-    # @return [void]
+    # @return [String] the chapter the package's bluebook declares (`"Documents"` for the
+    #   `document` package), its directory name in Pascal case when no file declares one
     # @raise [Runtime::WiringError] if `registry` has no root, or no vendored
     #   package named `name` is checked out
     def self.load!(name, registry: Hecks.current_registry)
       check_loadable!(name, registry)
-      return if registry.bluebook(Naming.pascal(name.to_s))
-
       dir = File.join(registry.root, "vendor", "embryonaut_bluebooks", name.to_s, "bluebook")
       # Loaded in the glob's alphabetical order; a package with several
       # files that reopen the same bluebook is named to rely on that.
-      vendored_bluebooks(name, dir).each { |file| Kernel.load(file) }
-      # A package's plugin adapters, which answer its queries with the wasm modules beside them.
+      files = vendored_bluebooks(name, dir)
+      chapter = Chapters.chapter_name(files.first) || Naming.pascal(name.to_s)
+      load_package(files, dir) unless registry.bluebook(chapter)
+      chapter
+    end
+
+    # Loads the package's bluebooks, then its plugin adapters, which answer its queries with the
+    # wasm modules beside them.
+    def self.load_package(files, dir)
+      files.each { |file| Kernel.load(file) }
       Dir.glob(File.join(dir, "*.adapter")).each { |file| Kernel.load(file) }
     end
+    private_class_method :load_package
 
     # @return [Array<String>] the package's vendored `.bluebook` files
     # @raise [Runtime::WiringError] if there are none
