@@ -153,7 +153,14 @@ ci:
     - *check_rubocop
     - *check_comment_style
     - *check_comment_blocks
-    - *check_codegen_drift
+    # CI's job has already materialized rust/src/generated and rust/Cargo.toml with the
+    # generated-rust action: a fresh regeneration on a cache miss, or the saved output of one on
+    # identical inputs. Comparing that against the committed files is the same check as
+    # regenerating again, without the second regeneration.
+    - id: codegen_drift
+      title: codegen drift, the committed generated Rust must match the regeneration this job holds
+      run: [git, diff, --exit-code, --stat, --, rust/src/generated, rust/Cargo.toml]
+      blocked: regenerating hits a diff. Only pizzas, mod.rs and Cargo.toml are committed, so run `hecks regenerate_corpus --confirm` (it also materializes the rest on a fresh checkout) and commit what it changed.
     - *check_rust_fmt
     - id: rust_clippy
       title: clippy, every Rust crate with its warnings as errors
