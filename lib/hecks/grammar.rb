@@ -4,6 +4,7 @@ require "json"
 # requires this file back, so the require is acyclic.
 require_relative "../hecks"
 require_relative "grammar/operators"
+require_relative "grammar/dialects"
 
 module Hecks
   # The sublanguage grammar domains (grammar/*.bluebook) and the one boot path
@@ -22,6 +23,7 @@ module Hecks
                                lib/hecks/adapters/driven/prism.adapter].freeze
 
     extend Operators
+    extend Dialects
 
     module_function
 

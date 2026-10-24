@@ -2274,6 +2274,1028 @@
           "value": "/"
         }
       }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "||"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "a OR b"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "||"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "a OR b"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "&&"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "a AND b"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "&&"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "a AND b"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".include?"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "needle = ANY(haystack) for a list; strpos(haystack, needle) > 0 for text"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".include?"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "needle IN (SELECT value FROM json_each(haystack)) for a list; instr(haystack, needle) > 0 for text"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ">="
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "a >= b"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ">="
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "a >= b"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "<="
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "a <= b"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "<="
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "a <= b"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "<"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "a < b"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "<"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "a < b"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ">"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "a > b"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ">"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "a > b"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "=="
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "a IS NOT DISTINCT FROM b"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "=="
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "a IS b"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "!="
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "a IS DISTINCT FROM b"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "!="
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "a IS NOT b"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "!"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "NOT a"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "!"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "NOT a"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "+"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "a + b on numbers; a || b on text"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "+"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "a + b on numbers; a || b on text"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".modulo"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "((a % b) + b) % b"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".modulo"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "((a % b) + b) % b"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".positive?"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "a > 0"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".positive?"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "a > 0"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".negative?"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "a < 0"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".negative?"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "a < 0"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".zero?"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "a = 0"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".zero?"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "a = 0"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".empty?"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "char_length(a) = 0 for text; jsonb_array_length(a) = 0 for a list"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".empty?"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "length(a) = 0 for text; json_array_length(a) = 0 for a list"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".to_s"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "COALESCE(a::text, '')"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".to_s"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "COALESCE(CAST(a AS TEXT), '')"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".size"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "char_length(a) for text; jsonb_array_length(a) for a list"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".size"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "length(a) for text; json_array_length(a) for a list"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".any?"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "EXISTS (SELECT 1 FROM jsonb_array_elements(a) AS x WHERE p)"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".any?"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "EXISTS (SELECT 1 FROM json_each(a) AS x WHERE p)"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".none?"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "NOT EXISTS (SELECT 1 FROM jsonb_array_elements(a) AS x WHERE p)"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".none?"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "NOT EXISTS (SELECT 1 FROM json_each(a) AS x WHERE p)"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".all?"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "NOT EXISTS (SELECT 1 FROM jsonb_array_elements(a) AS x WHERE NOT (p))"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".all?"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "NOT EXISTS (SELECT 1 FROM json_each(a) AS x WHERE NOT (p))"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".find"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "(SELECT x FROM jsonb_array_elements(a) WITH ORDINALITY AS e(x, i) WHERE p ORDER BY i LIMIT 1)"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".find"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "(SELECT value FROM json_each(a) AS x WHERE p ORDER BY key LIMIT 1)"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".present?"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "a IS NOT NULL AND btrim(a) <> '' for text; a IS NOT NULL AND jsonb_array_length(a) > 0 for a list"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".present?"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "a IS NOT NULL AND trim(a) <> '' for text; a IS NOT NULL AND json_array_length(a) > 0 for a list"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".blank?"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "a IS NULL OR btrim(a) = '' for text; a IS NULL OR jsonb_array_length(a) = 0 for a list"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".blank?"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "a IS NULL OR trim(a) = '' for text; a IS NULL OR json_array_length(a) = 0 for a list"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".split"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "to_jsonb(string_to_array(a, 'SEP'))"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".start_with?"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "left(a, char_length('prefix')) = 'prefix'"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".start_with?"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "substr(a, 1, length('prefix')) = 'prefix'"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".end_with?"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "right(a, char_length('suffix')) = 'suffix'"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".end_with?"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "substr(a, length(a) - length('suffix') + 1) = 'suffix'"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".first"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "a -> 0"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".first"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "json_extract(a, '$[0]')"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".last"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "a -> -1"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".last"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "json_extract(a, '$[#-1]')"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".set?"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "a IS NOT NULL"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".set?"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "a IS NOT NULL"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".unset?"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "a IS NULL"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".unset?"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "a IS NULL"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".strip"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "btrim(a, E' \\t\\n\\v\\f\\r')"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".strip"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "trim(a, ' ' || char(9, 10, 11, 12, 13))"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".lstrip"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "ltrim(a, E' \\t\\n\\v\\f\\r')"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".lstrip"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "ltrim(a, ' ' || char(9, 10, 11, 12, 13))"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".rstrip"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "rtrim(a, E' \\t\\n\\v\\f\\r')"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".rstrip"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "rtrim(a, ' ' || char(9, 10, 11, 12, 13))"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "-"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "a - b, refusing on bigint overflow"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "-"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "a - b"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "*"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "a * b, refusing on bigint overflow"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "*"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "a * b"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "/"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "(a - ((a % b) + b) % b) / b, refusing a zero divisor"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": "/"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "(a - ((a % b) + b) % b) / b"
+        }
+      }
     }
   ]
 }
