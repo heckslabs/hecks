@@ -143,3 +143,5 @@ module Hecks
     end
   end
 end
+
+require_relative "postgres/projection"
