@@ -551,7 +551,6 @@ exercised in CI on every push, and what is experimental or partial.
 
 **Planned or research only — nothing below is built:**
 
-- Rails integration (`docs/rails-integration.md` — design only).
 - Inbound scheduling ("Drivers": interval/cron/clock triggers declared
   in the hecksagon).
 - A standalone outbox relay process / shared adapter-host protocol

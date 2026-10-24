@@ -189,7 +189,7 @@ Only the ADRs with genuine unbuilt content, per their own status marker — pure
 
 `docs/command-form-and-query-form-bluebook.md` (status: prototype) — largest cluster of still-open guide-level work: graduate it from an ordinary Ruby DSL into real syntax validated through `Hecks.*`; give `expose` per-command and per-query override instead of whole-chapter only; add field-level refusal attribution to the sticky re-render (today it's whole-banner only); wire up reports/read models (`report_form.bluebook` is a reserved name only so far); replace the one-JSON-object-per-line fallback for a multi-field `list_of` with a real repeatable add/remove fieldset; and eventually add styling, live sockets, and a real deploy target — all currently deferred to a wider web-framework idea, with `hecks present` staying dev-only until then.
 
-`docs/rails-integration.md` — status: design only, nothing built. Explicitly open, not designed here: the read side beyond one load-bearing `show` route; authorization enforcement; per-attribute labels/help text; file uploads; real-time updates via ActionCable; which driven adapters should be Rails-native vs. agnostic.
+`docs/rails-integration.md` — status: built as `packages/hecks-rails` (ADR 0121). Still open: index and query-backed views; entity-command routes; per-attribute labels/help text; file uploads; real-time updates via ActionCable; which driven adapters should be Rails-native vs. agnostic; a CI job for the package's Rails specs.
 
 `docs/resolution-rules/cross-entity-given.md` — the only one of the four resolution-rules docs not yet mirrored into the Rust parser (the other three moved to `docs/implemented/resolution-rules/` in the docs split).
 

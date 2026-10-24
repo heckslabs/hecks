@@ -81,7 +81,8 @@ you're not.
   **[1.0 readiness](../../1.0-readiness.md)**.
 - **[The query DSL](../../query-dsl.md)**,
   **[command/query form](../../command-form-and-query-form-bluebook.md)**,
-  **[Rails integration](../../rails-integration.md)** (design only).
+  **[Rails integration](../../rails-integration.md)** (built as `packages/hecks-rails`; its open
+  items are listed there).
 - **[`docs/HECKS_IMPLEMENTATION_PLAN.md`](../../HECKS_IMPLEMENTATION_PLAN.md)**
   — the full aspirational architecture in one document. Treat this as a
   roadmap, not a status report; [Project status](project-status.md) is

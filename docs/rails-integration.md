@@ -1,9 +1,105 @@
 # A Rails integration for hecks
 
-**Status: design only. Nothing in this document is built.** It records a session's
-worth of reasoning about how a Rails app should sit on top of hecks as a driving
-adapter — what to generate, what to hand-write, and several ideas that were
-considered and specifically rejected, kept here so they aren't re-litigated later.
+**Status: built, as the `hecks-rails` gem in `packages/hecks-rails`
+([ADR 0121](decisions/0121-a-rails-app-drives-hecks-through-thin-models.md)).** The first
+section says what was built and how an app uses it. The sections after it keep the reasoning
+that led there, including ideas that were considered and rejected, so they aren't
+re-litigated; where the build departed from the design, the section says so. The open items
+are at the end.
+
+## What was built
+
+A Rails app keeps its domain in a top-level `bluebook/` and drives it through three thin
+layers. Nothing in them authors a rule.
+
+```text
+my_app/
+  bluebook/                 chapters (*.bluebook), *.hecksagon, *.world, *.behaviors
+    environments/           test.world, production.hecksagon, ... (Rails.env picks one)
+    translations/           era translation edges
+  bluebook.yml              the app's bluebook manifest
+  vendor/                   vendored bluebook packages
+  app/models/account.rb     written by `hecks launch.project_rails!`
+  app/controllers/accounts_controller.rb
+  config/routes.rb
+```
+
+`gem "hecks-rails"` loads a Railtie that boots `bluebook/` once its initializers have run, with
+the `environments/<Rails.env>` overlay (`config.hecks.bluebook` and `config.hecks.environment`
+override both). It boots with `install_driving: false`, so no top-level `Account` module is
+installed beside the app's own `Account` class, and the app never names `Hecks::Runtime`.
+
+`hecks launch.project_rails! dir.value=<app>` writes one model and one controller per aggregate
+of the app's own chapters and the routes file (the `:rails_app` projection). A file already
+there is the app's own and is left alone.
+
+**Models.** A model is a thin subclass that names its aggregate:
+
+```ruby skip
+class Account < Hecks::Rails::Model
+  aggregate "Banking.Account"
+
+  def label = "#{number} (#{status})"   # presentation methods are allowed
+end
+
+Account.open                            # the IR command of the creating verb
+account = Account.open!(customer: "c1", number: { value: "a1" }, kind: { name: "current" })
+account.freeze_account                  # the IR command
+account.freeze_account!                 # dispatches; raises Hecks::Refused, kept in errors
+account.customer                        # the reference's identity, a value
+account.customer_record                 # the Customer record, looked up now
+account.available_commands(as: user)    # the verbs `user` could run now
+Account.find("a1")                      # raises Hecks::Rails::RecordNotFound (a 404)
+```
+
+A reference lookup is `<attribute>_<target>` (`transfer.source_account`), or
+`<attribute>_record` when the attribute is named for its target. `HecksRails/ThinModel`
+(`require: hecks/rails/rubocop`) refuses `validates`, every `before_*`/`after_*`/`around_*`
+callback and every association macro in a model.
+
+**Routes.** `hecks_routes "banking"` draws `resources :accounts, only: [:show]` per aggregate, a
+POST per command (a creating command on the collection, the rest on the member) and a GET per
+query on the collection. A query's action is its name with `_query` after it, because Account
+has both an `Open` command and an `Open` query. A Site chapter `Route` row whose `source` names
+a verb (`command:Banking.Account.FreezeAccount`) and gives a `path` places that verb there
+instead.
+
+**Controllers.** `include Hecks::Rails::Controller` (the projected controller adds `drives
+Account`) defines `show` and one action per verb in a module of the controller's own, so an app
+overrides one by name:
+
+```ruby skip
+class AccountsController < ApplicationController
+  include Hecks::Rails::Controller
+
+  drives Account
+
+  def freeze_account
+    super
+    flash[:notice] = "Account #{@account.id} is frozen"
+  end
+end
+```
+
+A refusal is rescued once (`rescue_from Hecks::Refused`), added to the record's errors under
+`refusal.attribute || :base`, and answered 422 with the refusal's own words, rendering the
+action's template, else `show`, else the words as text. Posted fields are cast by
+`Hecks::Forms::Params` against the verb's field tree.
+
+**Authorization.** Who is acting is the app's `hecks_actor_id` (else `current_user`'s id); the
+action runs inside `Hecks.as_caller` with that actor and no claimed role, so the dispatch checks
+a verb's `role` against the domain's Governance grants. An action with no actor is an anonymous
+caller, which any verb that declares a role refuses.
+
+**Forms and specs.** `bluebook_form_for(@account.freeze_account)` renders a verb's form through
+`Hecks::Forms`, with a refusal shown beside the field it names or above the form.
+`require "hecks/rails/rspec"` gives `be_refused_with("…")`, for a block that raises a refusal or
+a response that answered one.
+
+The fixture app in `packages/hecks-rails/spec/fixture_app` links the `examples/banking` chapters
+into its `bluebook/`, wires them to memory itself, and its request spec opens an account,
+freezes it, and gets a 422 with the lifecycle rule's wording when a second freeze is refused.
+The package's specs run with its own bundle: `bundle exec rake` in `packages/hecks-rails`.
 
 ## The motivation, stated precisely
 
@@ -112,6 +208,12 @@ the handle's own methods keeps that meaning; the bang form dispatches either way
 
 ## Boot-time decoration (`WebHandle`)
 
+**Built differently:** a Rails app wants a named class to hang presentation methods on and for
+Zeitwerk to load, which a decorator applied at boot gives neither. `Hecks::Rails::Model` is that
+class: a thin subclass per aggregate over the same core handle, with the `Naming`,
+`Conversion` and empty-`Errors` surface this section argues for. The reasoning below still
+holds for it.
+
 ```ruby
 class WebHandle < SimpleDelegator
   include ActiveModel::Conversion
@@ -212,6 +314,11 @@ is the only shape that's even possible — not a convention someone chose.
 
 ## Controllers: named actions, generated as the default, overridable by name
 
+**Built:** the actions are defined from the IR into a module of the controller's own rather
+than written out as below, so the controller file is three lines and an override calls `super`.
+The rescue is `rescue_from Hecks::Refused` once, not `*Hecks::Runtime::DOMAIN_REFUSALS` per
+action.
+
 Individually-named actions were chosen over a single generic `dispatch(params[:command])`
 action for a specific, non-aesthetic reason: **application-specific concerns need a
 polymorphic hook, and a generic action only has a `case`/`if` ladder to offer.**
@@ -258,6 +365,11 @@ plain method redefinition later in the same class body — no flag, no branch, n
 statement, and the other 43 generated actions stay exactly as uniform as before.
 
 ## Cross-references: values, hydration is explicit, composition is plain chaining
+
+**Built** on the model, not the core handle: `transfer.source` reads the identity and
+`transfer.source_account` looks the record up, as the target's own model when the app declares
+one. The core handle names its lazy accessor after the attribute (ADR 0025), so the
+`<name>_<target>` spelling lives in the Rails layer only.
 
 A `reference_to Account, as: :source` attribute carries the account's own identity
 value — never a hydrated record. Confirmed directly against `IR::Reference#resolve`,
@@ -336,7 +448,7 @@ Two enrichments to `.find` were considered and rejected:
   action name, and gives application-specific concerns nowhere to hang except a
   conditional. Superseded by named generated actions.
 
-## Explicitly open, not designed here
+## Explicitly open
 
 - **Batch reads across a reference are already built — as `read_model`, not `query`.**
   Corrected after checking: `read_model` is a real, separate construct
@@ -349,17 +461,33 @@ Two enrichments to `.find` were considered and rejected:
   `include`'s semantics on an absent match behave like an inner or a left join wasn't
   traced end to end here — worth confirming directly in `sqlite/projection.rb` before
   relying on it for a case where zero matches must not drop the root record.
-- **The read side, more broadly.** `query`/read-model declarations (`query "InGoodStanding"`, the
-  richer option vocabulary in `reflex.bluebook`) have no generated-route or
-  generated-view story yet. `show` is the one slice that's load-bearing today (nothing
-  else makes `redirect_to` work) — `index` and filtered/query-backed views are a
-  separate, larger, still-undesigned piece.
-- **Authorization.** `command.role` is descriptive only — verified directly, zero
-  references anywhere in `lib/hecks/runtime`. Whether/how a Rails app enforces
-  "only a Compliance officer may Freeze" is undecided. Per the hexagonal reading, this
-  almost certainly belongs on the driving-adapter side (Rails), not the domain — the
-  domain shouldn't need to know who's allowed to call it any more than it needs to
-  know how it was called.
+- **The read side, more broadly.** A query now has a GET route on its collection and an
+  action that answers its rows as JSON, and `read_model` declarations have nothing. `index`
+  and filtered or query-backed views are a separate, larger, still-undesigned piece.
+- **Authorization is built, through Governance.** A controller binds the actor and the dispatch
+  checks each verb's `role` against the domain's Governance grants (anonymous callers are
+  refused). Open: an app whose domain does not attach Governance has only the claimed-role
+  string check (`hecks_role`), and a refusal for a missing grant is a 422 like any other; an
+  app wanting a 403 overrides the action.
+- **Entity commands.** An entity command (`Order::LineItem.Remove`) needs a nested route
+  (`/orders/:order_id/line_items/:id/remove`); `hecks_routes` draws only aggregate verbs.
+- **`available_commands` for a verb that wants input.** Such a verb refuses for its missing
+  input before it reads its rules, so its availability is the actor's grant and the record's
+  lifecycle state, asked directly; its `given`s are not run until the form is posted.
+- **Booting again in a running app.** The domain boots once, in the Railtie, before the app's
+  autoloader is set up. A second `Hecks::Rails.boot!` after the app's models can autoload
+  makes a chapter's bare `Customer` resolve to the app's `Customer` class and the boot
+  refuses the chapter, so code reloading does not reboot the domain.
+- **Action names that are public `Object` methods.** A verb named `Freeze` or `Send` gets a
+  model method and a route, but Rails does not count a public `Object` method as an action,
+  so its controller action needs an explicit name. Banking's verbs (`FreezeAccount`) do not
+  meet it.
+- **Pluralization.** `hecks_routes` pluralizes with ActiveSupport and the projection with
+  `Naming.plural`; the two agree on every corpus aggregate, but an irregular plural would
+  give a controller file the routes do not name.
+- **CI.** The package's specs need Rails, which the repository's bundle does not carry, so they
+  run with the package's own bundle and no CI job runs them yet. The specs that need no Rails
+  (`spec/hecks_rails/`, `spec/projections/rails_app_spec.rb`, the cop's) run in the main suite.
 - **Labels/help text for individual attributes.** `goal`/`description`/`role` exist at
   the command/aggregate level; nothing per-attribute exists beyond a name and a type.
   A real form needs human-readable labels somewhere — either humanized mechanically or
