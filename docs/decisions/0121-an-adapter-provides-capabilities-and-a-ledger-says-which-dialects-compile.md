@@ -24,6 +24,8 @@ Hecks is asked to stand in for an object-relational mapper. Some of what that ne
 
 ## Consequences
 
+- The Adapter chapter's stored shape gains `provides`, so a database holding the launcher's eras needs the empty edge `lib/hecks/hecks/translations/2-75cc28.bluebook` (an added list explains itself).
+
 - A new SQL-capable adapter says so in its `.adapter` file; nothing in the runtime names it.
 - Admitting an operator now raises the question of its SQL forms. Leaving them out is allowed and means the operator keeps an expression out of the store.
 - A change to a Postgres translation form is a ledger row change, checked by the era specs that compare compiled SQL with the in-process rewrite.
