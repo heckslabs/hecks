@@ -154,8 +154,7 @@ module Hecks
         # @raise [Bluebook::DSL::Malformed] if neither `reference_to` nor any `include` is
         #   declared, if `where`/`order_by`/`limit`/`offset`/`group_by` or a reduction name an
         #   `on:` that isn't a many-side include or are left untargeted with more than one
-        #   many-side head, if more than one reduction is declared or one is combined with
-        #   `group_by`, or if `cursor` is declared
+        #   many-side head, if more than one reduction is declared, or if `cursor` is declared
         def build
           if !@reference_target && Array(@includes).empty?
             raise Malformed,

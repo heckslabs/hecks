@@ -34,6 +34,7 @@ module Hecks
                                       kind: :templates, arguments: "RefusalSiteArgument" },
         "QueryComparator"        => { enum: "QueryComparator", variant_from: %w[name], file: "query_comparator", kind: :set },
         "FieldHint"              => { enum: "FieldHint",       variant_from: %w[name], file: "field_hint", kind: :set },
+        "Reducer"                => { enum: "Reducer",         variant_from: %w[name], file: "reducer", kind: :set },
         "AggregateDispatchOrder" => { enum: "AggregateStep",   variant_from: %w[step], file: "aggregate_dispatch_order",
                                       kind: :order },
         "EntityDispatchOrder"    => { enum: "EntityStep",      variant_from: %w[step], file: "entity_dispatch_order",
@@ -130,8 +131,7 @@ module Hecks
         ["#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]",
          "pub enum #{enum} {",
          variants.map { |variant| "    #{variant}," },
-         "}",
-         ""]
+         "}", ""]
       end
 
       def name_field(kind) = kind == :order ? "step" : "name"

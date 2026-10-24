@@ -1,0 +1,546 @@
+{
+  "domain": "spec/fixtures/rust_project/grouped_reduction_fixture",
+  "note": "ADR 0121 — a read model that groups and reduces answers each group's reduction in place of its rows. Every reducer once over items grouped by aisle (an empty shelf answers no groups), and a sum nested by aisle then bay. Ruby and Rust must agree on every leaf, byte for byte.",
+  "steps": [
+    {
+      "query": "GroupedReductionFixture.UnitsByAisle"
+    },
+    {
+      "verb": "GroupedReductionFixture::Item.Shelve",
+      "args": {
+        "sku": {
+          "value": "i1"
+        },
+        "aisle": {
+          "label": "a"
+        },
+        "bay": {
+          "label": "1"
+        },
+        "units": {
+          "count": 4
+        },
+        "weight": {
+          "kilograms": 1.5
+        },
+        "fragile": {
+          "flag": false
+        }
+      }
+    },
+    {
+      "verb": "GroupedReductionFixture::Item.Shelve",
+      "args": {
+        "sku": {
+          "value": "i2"
+        },
+        "aisle": {
+          "label": "a"
+        },
+        "bay": {
+          "label": "1"
+        },
+        "units": {
+          "count": 6
+        },
+        "weight": {
+          "kilograms": 2.25
+        },
+        "fragile": {
+          "flag": true
+        }
+      }
+    },
+    {
+      "verb": "GroupedReductionFixture::Item.Shelve",
+      "args": {
+        "sku": {
+          "value": "i3"
+        },
+        "aisle": {
+          "label": "a"
+        },
+        "bay": {
+          "label": "2"
+        },
+        "units": {
+          "count": 5
+        },
+        "weight": {
+          "kilograms": 0.75
+        },
+        "fragile": {
+          "flag": false
+        }
+      }
+    },
+    {
+      "verb": "GroupedReductionFixture::Item.Shelve",
+      "args": {
+        "sku": {
+          "value": "i4"
+        },
+        "aisle": {
+          "label": "b"
+        },
+        "bay": {
+          "label": "1"
+        },
+        "units": {
+          "count": 7
+        },
+        "weight": {
+          "kilograms": 3.0
+        },
+        "fragile": {
+          "flag": true
+        }
+      }
+    },
+    {
+      "verb": "GroupedReductionFixture::Item.Shelve",
+      "args": {
+        "sku": {
+          "value": "i5"
+        },
+        "aisle": {
+          "label": "b"
+        },
+        "bay": {
+          "label": "2"
+        },
+        "units": {
+          "count": 9
+        },
+        "weight": {
+          "kilograms": 1.0
+        },
+        "fragile": {
+          "flag": true
+        }
+      }
+    },
+    {
+      "query": "GroupedReductionFixture.UnitsByAisle"
+    },
+    {
+      "query": "GroupedReductionFixture.LinesByAisle"
+    },
+    {
+      "query": "GroupedReductionFixture.MeanUnitsByAisle"
+    },
+    {
+      "query": "GroupedReductionFixture.LightestByAisle"
+    },
+    {
+      "query": "GroupedReductionFixture.HeaviestByAisle"
+    },
+    {
+      "query": "GroupedReductionFixture.MedianUnitsByAisle"
+    },
+    {
+      "query": "GroupedReductionFixture.UpperUnitsByAisle"
+    },
+    {
+      "query": "GroupedReductionFixture.AnyFragileByAisle"
+    },
+    {
+      "query": "GroupedReductionFixture.AllFragileByAisle"
+    },
+    {
+      "query": "GroupedReductionFixture.UnitsByAisleAndBay"
+    }
+  ],
+  "expect": {
+    "refusals": [
+
+    ],
+    "instances": {
+      "GroupedReductionFixture::Item#i1": {
+        "sku": {
+          "value": "i1"
+        },
+        "aisle": {
+          "label": "a"
+        },
+        "bay": {
+          "label": "1"
+        },
+        "units": {
+          "count": 4
+        },
+        "weight": {
+          "kilograms": 1.5
+        },
+        "fragile": {
+          "flag": false
+        }
+      },
+      "GroupedReductionFixture::Item#i2": {
+        "sku": {
+          "value": "i2"
+        },
+        "aisle": {
+          "label": "a"
+        },
+        "bay": {
+          "label": "1"
+        },
+        "units": {
+          "count": 6
+        },
+        "weight": {
+          "kilograms": 2.25
+        },
+        "fragile": {
+          "flag": true
+        }
+      },
+      "GroupedReductionFixture::Item#i3": {
+        "sku": {
+          "value": "i3"
+        },
+        "aisle": {
+          "label": "a"
+        },
+        "bay": {
+          "label": "2"
+        },
+        "units": {
+          "count": 5
+        },
+        "weight": {
+          "kilograms": 0.75
+        },
+        "fragile": {
+          "flag": false
+        }
+      },
+      "GroupedReductionFixture::Item#i4": {
+        "sku": {
+          "value": "i4"
+        },
+        "aisle": {
+          "label": "b"
+        },
+        "bay": {
+          "label": "1"
+        },
+        "units": {
+          "count": 7
+        },
+        "weight": {
+          "kilograms": 3.0
+        },
+        "fragile": {
+          "flag": true
+        }
+      },
+      "GroupedReductionFixture::Item#i5": {
+        "sku": {
+          "value": "i5"
+        },
+        "aisle": {
+          "label": "b"
+        },
+        "bay": {
+          "label": "2"
+        },
+        "units": {
+          "count": 9
+        },
+        "weight": {
+          "kilograms": 1.0
+        },
+        "fragile": {
+          "flag": true
+        }
+      }
+    },
+    "events": [
+      {
+        "name": "ItemShelved",
+        "aggregate": "GroupedReductionFixture::Item",
+        "id": "i1",
+        "payload": {
+          "sku": {
+            "value": "i1"
+          },
+          "aisle": {
+            "label": "a"
+          },
+          "bay": {
+            "label": "1"
+          },
+          "units": {
+            "count": 4
+          },
+          "weight": {
+            "kilograms": 1.5
+          },
+          "fragile": {
+            "flag": false
+          }
+        }
+      },
+      {
+        "name": "ItemShelved",
+        "aggregate": "GroupedReductionFixture::Item",
+        "id": "i2",
+        "payload": {
+          "sku": {
+            "value": "i2"
+          },
+          "aisle": {
+            "label": "a"
+          },
+          "bay": {
+            "label": "1"
+          },
+          "units": {
+            "count": 6
+          },
+          "weight": {
+            "kilograms": 2.25
+          },
+          "fragile": {
+            "flag": true
+          }
+        }
+      },
+      {
+        "name": "ItemShelved",
+        "aggregate": "GroupedReductionFixture::Item",
+        "id": "i3",
+        "payload": {
+          "sku": {
+            "value": "i3"
+          },
+          "aisle": {
+            "label": "a"
+          },
+          "bay": {
+            "label": "2"
+          },
+          "units": {
+            "count": 5
+          },
+          "weight": {
+            "kilograms": 0.75
+          },
+          "fragile": {
+            "flag": false
+          }
+        }
+      },
+      {
+        "name": "ItemShelved",
+        "aggregate": "GroupedReductionFixture::Item",
+        "id": "i4",
+        "payload": {
+          "sku": {
+            "value": "i4"
+          },
+          "aisle": {
+            "label": "b"
+          },
+          "bay": {
+            "label": "1"
+          },
+          "units": {
+            "count": 7
+          },
+          "weight": {
+            "kilograms": 3.0
+          },
+          "fragile": {
+            "flag": true
+          }
+        }
+      },
+      {
+        "name": "ItemShelved",
+        "aggregate": "GroupedReductionFixture::Item",
+        "id": "i5",
+        "payload": {
+          "sku": {
+            "value": "i5"
+          },
+          "aisle": {
+            "label": "b"
+          },
+          "bay": {
+            "label": "2"
+          },
+          "units": {
+            "count": 9
+          },
+          "weight": {
+            "kilograms": 1.0
+          },
+          "fragile": {
+            "flag": true
+          }
+        }
+      }
+    ],
+    "queries": [
+      {
+        "query": "GroupedReductionFixture.UnitsByAisle",
+        "args": {
+        },
+        "rows": [
+          {
+            "items": {
+            }
+          }
+        ]
+      },
+      {
+        "query": "GroupedReductionFixture.UnitsByAisle",
+        "args": {
+        },
+        "rows": [
+          {
+            "items": {
+              "a": 15,
+              "b": 16
+            }
+          }
+        ]
+      },
+      {
+        "query": "GroupedReductionFixture.LinesByAisle",
+        "args": {
+        },
+        "rows": [
+          {
+            "items": {
+              "a": 3,
+              "b": 2
+            }
+          }
+        ]
+      },
+      {
+        "query": "GroupedReductionFixture.MeanUnitsByAisle",
+        "args": {
+        },
+        "rows": [
+          {
+            "items": {
+              "a": 5.0,
+              "b": 8.0
+            }
+          }
+        ]
+      },
+      {
+        "query": "GroupedReductionFixture.LightestByAisle",
+        "args": {
+        },
+        "rows": [
+          {
+            "items": {
+              "a": 0.75,
+              "b": 1.0
+            }
+          }
+        ]
+      },
+      {
+        "query": "GroupedReductionFixture.HeaviestByAisle",
+        "args": {
+        },
+        "rows": [
+          {
+            "items": {
+              "a": 2.25,
+              "b": 3.0
+            }
+          }
+        ]
+      },
+      {
+        "query": "GroupedReductionFixture.MedianUnitsByAisle",
+        "args": {
+        },
+        "rows": [
+          {
+            "items": {
+              "a": 5,
+              "b": 8.0
+            }
+          }
+        ]
+      },
+      {
+        "query": "GroupedReductionFixture.UpperUnitsByAisle",
+        "args": {
+        },
+        "rows": [
+          {
+            "items": {
+              "a": 5.8,
+              "b": 8.8
+            }
+          }
+        ]
+      },
+      {
+        "query": "GroupedReductionFixture.AnyFragileByAisle",
+        "args": {
+        },
+        "rows": [
+          {
+            "items": {
+              "a": true,
+              "b": true
+            }
+          }
+        ]
+      },
+      {
+        "query": "GroupedReductionFixture.AllFragileByAisle",
+        "args": {
+        },
+        "rows": [
+          {
+            "items": {
+              "a": false,
+              "b": true
+            }
+          }
+        ]
+      },
+      {
+        "query": "GroupedReductionFixture.UnitsByAisleAndBay",
+        "args": {
+        },
+        "rows": [
+          {
+            "items": {
+              "a": {
+                "1": 10,
+                "2": 5
+              },
+              "b": {
+                "1": 7,
+                "2": 9
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "sagas": [
+
+    ],
+    "dry_runs": [
+
+    ],
+    "reactions": [
+
+    ]
+  }
+}

@@ -6,10 +6,13 @@ module Hecks
       module GroupByRecompute
         # Judges one `group_by` ask against the rows it was eligible to see:
         # refused exactly when two of them share a checked key path, and
-        # otherwise nested exactly as `nest_rows` nests them.
+        # otherwise nested exactly as `nest_rows` nests them. A grouped reduction
+        # has no collision to refuse; each leaf is checked as a reduction (ADR 0121).
         def group_by_offense(bluebook, asked, model, grouped_head)
           rows = eligible_rows(bluebook, asked.fetch(:instances_at), model, grouped_head, asked[:args] || {})
           materialized = rows.map { |state| Runtime::Value.materialize_unwrapped(state) }
+          return grouped_reduction_offense(asked, model, grouped_head, materialized) if model.reducing?
+
           shared = shared_key_paths(materialized, model.group_by_fields)
           return nesting_offense(asked, model, grouped_head, materialized) if shared.empty?
 

@@ -1893,6 +1893,14 @@ Responsible for [Log visit](#log-visit), [Issue key](#issue-key), [Annotate](#an
 
 Every account the bank holds, sorted into what kind it is, then by its own number.
 
+#### Card payment counts by status
+
+How many card charges stand in each status.
+
+#### Card payment totals by status
+
+The total amount of every card charge, added up for each status a charge can be in.
+
 #### Compliance dashboard
 
 One account, its own status, and any card charges disputed against it — the working set for a compliance review.
