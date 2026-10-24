@@ -16,11 +16,14 @@ module Hecks
       end
 
       # Builds a worker for the aggregate's first `projected_by` bind; nil when it has none.
+      #
+      # It reads the registry's own authoritative repository, so a projection of an in-process
+      # store (Memory) sees the records the registry holds, not a fresh empty store.
       def worker(registry, domain, aggregate, policy: :refresh)
         bind = binds_for(registry, domain, aggregate).first
         return unless bind
 
-        authoritative = Persistence.repository(registry, domain, aggregate)
+        authoritative = registry.repository(domain, aggregate)
         target = Persistence::RepositoryFactory.build(registry, domain, aggregate, bind,
                                                       recover: true, settings_verb: VERB)
         Worker.new(authoritative, target, policy: policy)

@@ -23,7 +23,7 @@ module Hecks
         # `projects` fields, all read back raw (see `decode_fields`).
         def fields_for(aggregate)
           fields = aggregate.attributes.map { |attribute| [attribute.name, attribute] }
-          # `projects` fields (ADR 0025) read back raw too, as the adapter's `persisted_fields` writes them.
+          # `projects` fields (ADR 0025) read back raw too, as `persisted_fields` writes them.
           lifecycle = aggregate.lifecycle
           raw_names = (lifecycle ? [lifecycle.field] : []) + aggregate.projected_fields.map(&:name)
           raw_names.each { |raw| fields << [raw, nil] unless fields.any? { |name, _| name == raw } }
