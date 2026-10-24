@@ -1,0 +1,64 @@
+Hecks.bluebook "Ledger" do
+  vision "Accounts that open with a balance and can be frozen while empty."
+  namespace "LedgerDomain"
+
+  aggregate "Account" do
+    identified_by :number
+
+    attribute :number,  AccountNumber
+    attribute :owner,   Owner
+    attribute :balance, Money
+
+    value_object "AccountNumber" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Owner" do
+      attribute :name, String, matches: :present
+    end
+
+    value_object "Money" do
+      attribute :cents,    Integer, default: 0
+      attribute :currency, String,  default: "USD"
+    end
+
+    lifecycle :status, default: "open" do
+      transition "FreezeAccount" => "frozen", from: "open"
+      transition "Unfreeze"      => "open",   from: "frozen"
+    end
+
+    command "OpenAccount" do
+      role "Teller"
+      goal "Open an account with its first balance"
+
+      attribute :number,  AccountNumber
+      attribute :owner,   Owner
+      attribute :balance, Money
+
+      sets :number
+      sets :owner
+      sets :balance
+
+      emits "AccountOpened"
+    end
+
+    command "FreezeAccount", from: "open" do
+      role "Compliance officer"
+      goal "Stop an account moving while something is investigated"
+
+      reference_to Account
+      given("the balance is zero") { balance.cents == 0 }
+
+      emits "AccountFrozen"
+    end
+
+    command "Unfreeze", from: "frozen" do
+      role "Compliance officer"
+      goal "Let a frozen account move again"
+
+      reference_to Account
+
+      emits "AccountUnfrozen"
+    end
+  end
+end

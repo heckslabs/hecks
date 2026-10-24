@@ -1,9 +1,29 @@
 # A Rails integration for hecks
 
-**Status: design only. Nothing in this document is built.** It records a session's
-worth of reasoning about how a Rails app should sit on top of hecks as a driving
-adapter — what to generate, what to hand-write, and several ideas that were
-considered and specifically rejected, kept here so they aren't re-litigated later.
+**Status: built in `packages/hecks-rails`, with the open items below still open.** This
+document records how a Rails app sits on top of hecks as a driving adapter — what is
+generated, what is hand-written, and several ideas that were considered and specifically
+rejected, kept here so they aren't re-litigated later.
+
+## What is built
+
+| Piece | Where | Notes |
+|---|---|---|
+| `Hecks::Refused` | `lib/hecks/refused.rb` | Parent of every domain refusal (ADR 0120); `#attribute` and `#kind` (`:not_found`, `:unauthorized`, `:absent_argument`) |
+| Bare verb | `lib/hecks/adapters/driving/handle/verb_methods.rb` | `freeze_account` answers the command's declaration; `freeze_account!` dispatches and raises |
+| `Hecks::Rails::Model` | `packages/hecks-rails` | `aggregate "Chapter.Aggregate"`; a creating command is a class method, any other an instance method |
+| `hecks_routes` | `packages/hecks-rails` | `show` per aggregate and a POST per command, from `Hecks::Rails::CommandRoutes` |
+| `Hecks::Rails::Controller` | `packages/hecks-rails` | A named action per command; refusals land in `errors` and answer 422, 403 or 404 by kind |
+| Per-request caller | the controller | Each request runs inside `Hecks.as_caller(role:, actor_id:)`; no actor runs as an anonymous caller that every role-gated command refuses |
+| `bluebook_form_for` | `packages/hecks-rails` | Fields from `Hecks::Forms`, named by the dotted paths `Forms::Params` reads |
+| `available_commands(as:)` | the model | The domain's own dry run, under the actor's Governance grants |
+| `be_refused_with` | `hecks/rails/rspec` | RSpec matcher for a refusal and its wording |
+| `Hecks/RailsModelRules` | `lib/rubocop/cop/hecks` | Refuses `validates`, callbacks and associations in a model |
+
+A chapter a Rails app boots declares a `namespace` (`namespace "LedgerDomain"`), so the Ruby
+driving adapter leaves the bare `Account` free for the model. The routes are computed from the
+booted chapter's IR rather than read from Site `Route` rows, which are a hand-declared website
+registry.
 
 ## The motivation, stated precisely
 
@@ -42,15 +62,14 @@ built on top of the core driving adapters, applied once at boot — never inside
 `lib/hecks/adapters/driving/`.
 
 ```ruby skip
-lib/hecks/adapters/driving/handle.rb       core, adapter-agnostic, used by hecks console too
-  ↓ decorated once, at boot, for Rails specifically
-WebHandle (Rails-only)               ActiveModel::Conversion + a real ActiveModel::Errors
-WebAdapter   (Rails-only)               wraps every Handle AggregateModule hands out
+lib/hecks/adapters/driving/handle.rb   core, adapter-agnostic, used by hecks console too
+  ↑ wrapped by
+Hecks::Rails::Model (packages/hecks-rails)   ActiveModel::Conversion + a real ActiveModel::Errors
 ```
 
-`hecks console`/`hecks run` boot through the plain `AggregateModule` and never load
-ActiveModel. A Rails app boots through `WebAdapter` instead. By the time a controller
-sees a record, the decoration already happened — the controller never performs it.
+`hecks console`/`hecks run` use the plain `Handle` and never load ActiveModel. A Rails
+app's model wraps the same `Handle`, so by the time a controller sees a record the
+wrapping already happened.
 
 ## The core convention: `command` vs `command!`
 
@@ -101,10 +120,9 @@ this project generally hunts for.
 singleton method wins over an inherited `Kernel` method. The bug is specific to the
 `method_missing` fallback path `Handle` currently uses for mutating verbs.
 
-**Fix, independent of anything Rails-shaped:** define real methods for every verb at
-`Handle` construction time (the `command`/`command!` pair above), rather than trusting
-`method_missing` to catch them. This should be fixed in the library itself before any
-of the rest of this document is built on top of it.
+**Fixed, independent of anything Rails-shaped:** `Handle` defines real methods for every
+verb at construction time (the `command`/`command!` pair above), and `method_missing`
+remains only for attribute and lifecycle readers.
 
 **Built:** [ADR 0120](decisions/0120-a-refusal-has-one-parent-and-a-handle-names-every-verb.md)
 defines both names on every handle. A bare name that is already a field reader or one of
@@ -354,12 +372,11 @@ Two enrichments to `.find` were considered and rejected:
   generated-view story yet. `show` is the one slice that's load-bearing today (nothing
   else makes `redirect_to` work) — `index` and filtered/query-backed views are a
   separate, larger, still-undesigned piece.
-- **Authorization.** `command.role` is descriptive only — verified directly, zero
-  references anywhere in `lib/hecks/runtime`. Whether/how a Rails app enforces
-  "only a Compliance officer may Freeze" is undecided. Per the hexagonal reading, this
-  almost certainly belongs on the driving-adapter side (Rails), not the domain — the
-  domain shouldn't need to know who's allowed to call it any more than it needs to
-  know how it was called.
+- **Authorization: built, with one gap.** The domain enforces `command.role` through
+  Governance grants (`Hecks.as_caller`), and the Rails controller binds each request's
+  caller. What is left is authentication itself: `hecks_actor` is an override the app
+  writes, and ADRs 0072 and 0076 describe a verified token replacing a caller-supplied
+  role.
 - **Labels/help text for individual attributes.** `goal`/`description`/`role` exist at
   the command/aggregate level; nothing per-attribute exists beyond a name and a type.
   A real form needs human-readable labels somewhere — either humanized mechanically or

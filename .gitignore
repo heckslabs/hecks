@@ -55,3 +55,4 @@ coverage/
 
 # What the release workflow builds into the gem (caches keyed by lib/); never committed.
 /prebuilt/
+packages/hecks-rails/Gemfile.lock

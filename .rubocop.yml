@@ -17,6 +17,7 @@ require:
   - ./lib/rubocop/cop/hecks/swallowed_rescue
   - ./lib/rubocop/cop/hecks/symbol_string_key_mix
   - ./lib/rubocop/cop/hecks/sleep_in_spec
+  - ./lib/rubocop/cop/hecks/rails_model_rules
   - ./lib/rubocop/cop/hecks/train_wreck
   - ./lib/rubocop/cop/hecks/unnamed_pipeline
   - ./lib/rubocop/cop/hecks/inline_regexp
@@ -104,6 +105,11 @@ Hecks/MonotonicDuration:
 # A command string with a value interpolated into it is re-parsed by the shell; the array form
 # passes each argument as-is. Shellwords.escape-wrapped values are left alone.
 Hecks/RawShellInterpolation:
+  Enabled: true
+
+# A Rails model over a Hecks aggregate is a skin: validations, callbacks and associations live in
+# the bluebook, where the domain states each rule once.
+Hecks/RailsModelRules:
   Enabled: true
 
 # Secrets stay out of strings and output (1Password-only rule): no printing the whole

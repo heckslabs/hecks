@@ -1,0 +1,10 @@
+source "https://rubygems.org"
+
+gemspec
+
+gem "hecks", path: "../.."
+
+group :test do
+  gem "rack-test"
+  gem "rspec", "~> 3.13"
+end
