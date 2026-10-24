@@ -753,8 +753,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_kernel_that_carries_the_chapter_but_holds_no_rows_answers_some_empty() {
-        let client =
-            crate::dispatch::tests::scratch_db("hecks_host_presentation_chapter_no_rows").await;
+        let client = crate::dispatch::tests::memory_store();
         let wasm = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../dist/checkout_fixture.wasm");
 
@@ -770,7 +769,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_kernel_without_the_chapter_answers_none_so_the_relations_are_read_instead() {
-        let client = crate::dispatch::tests::scratch_db("hecks_host_presentation_no_chapter").await;
+        let client = crate::dispatch::tests::memory_store();
         let wasm = crate::dispatch::tests::wasm_path();
 
         assert!(kernel_rows(&client, &wasm).await.expect("a read").is_none());

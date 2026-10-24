@@ -3011,14 +3011,7 @@ mod tests {
     // command does not declare is refused as it is over the internal protocol.
     #[tokio::test]
     async fn a_form_submit_dispatches_as_the_signed_in_caller() {
-        let client = crate::dispatch::tests::scratch_db("rust_host_web_submit_roles").await;
-        crate::dispatch::tests::provision_lineage(
-            &*client.lock().await,
-            "Banking",
-            1,
-            &["Customer"],
-        )
-        .await;
+        let client = crate::dispatch::tests::memory_store();
         let wasm = crate::dispatch::tests::wasm_path();
         let ir: Value = serde_json::from_str(
             &std::fs::read_to_string(
@@ -3030,7 +3023,7 @@ mod tests {
         .expect("valid IR");
         let lineage = LineageConfig {
             domain: "Banking".to_string(),
-            era: Some(1),
+            era: None,
             mirrored: None,
         };
         let invoker = crate::lambda_client::NeverInvoker;

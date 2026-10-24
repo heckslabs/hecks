@@ -1360,6 +1360,10 @@ mod tests {
         }
     }
 
+    fn checkout_memory_config() -> LineageConfig {
+        crate::dispatch::tests::memory_config("CheckoutFixture")
+    }
+
     // A request with no Stripe signature and no cookies.
     fn no_request() -> CheckoutRequest<'static> {
         static NO_COOKIES: std::sync::LazyLock<HashMap<String, String>> =
@@ -1879,15 +1883,8 @@ mod tests {
 
     #[tokio::test]
     async fn the_seat_routes_answer_from_a_real_read_and_404_an_unknown_event() {
-        let client = scratch_db("hecks_host_web_test_seat_routes").await;
-        provision_lineage(
-            &*client.lock().await,
-            "CheckoutFixture",
-            1,
-            &["Event", "Registration", "Payment"],
-        )
-        .await;
-        let config = checkout_config(1);
+        let client = crate::dispatch::tests::memory_store();
+        let config = checkout_memory_config();
         let wasm_path = checkout_wasm_path();
         schedule_event(&client, &wasm_path, &config, "yoga", 4200).await;
         let ir = crate::commerce_ir::fixture_ir();
@@ -2018,14 +2015,7 @@ mod tests {
 
     #[tokio::test]
     async fn registrations_route_refuses_a_body_missing_any_required_field() {
-        let client = scratch_db("hecks_host_web_test_registrations_missing_fields").await;
-        provision_lineage(
-            &*client.lock().await,
-            "CheckoutFixture",
-            1,
-            &["Event", "Registration", "Payment"],
-        )
-        .await;
+        let client = crate::dispatch::tests::memory_store();
 
         let response = registrations_route(
             r#"{"event_slug":"yoga-aug"}"#,
@@ -2033,7 +2023,7 @@ mod tests {
             Host::new(
                 &client,
                 &checkout_wasm_path(),
-                &checkout_config(1),
+                &checkout_memory_config(),
                 &lambda_client::NeverInvoker,
             ),
             &crate::commerce_ir::fixture_payments(),
@@ -2049,15 +2039,8 @@ mod tests {
     #[tokio::test]
     async fn registrations_route_forwards_a_new_shaped_attendee_verbatim_even_against_an_old_shaped_fixture(
     ) {
-        let client = scratch_db("hecks_host_web_test_registrations_new_shape").await;
-        provision_lineage(
-            &*client.lock().await,
-            "CheckoutFixture",
-            1,
-            &["Event", "Registration", "Payment"],
-        )
-        .await;
-        let config = checkout_config(1);
+        let client = crate::dispatch::tests::memory_store();
+        let config = checkout_memory_config();
         let wasm_path = checkout_wasm_path();
 
         schedule_event(&client, &wasm_path, &config, "happy-event", 4200).await;
@@ -2105,9 +2088,9 @@ mod tests {
     // (the fixture's own IR) shows the same call is answered when it does.
     #[tokio::test]
     async fn payments_routes_serve_nothing_without_a_payments_capability() {
-        let client = scratch_db("hecks_host_web_test_payments_gate").await;
+        let client = crate::dispatch::tests::memory_store();
         let wasm_path = checkout_wasm_path();
-        let config = checkout_config(1);
+        let config = checkout_memory_config();
         let no_payments = json!({"name": "Studio"});
 
         for (method, path) in [
@@ -2154,14 +2137,7 @@ mod tests {
 
     #[tokio::test]
     async fn registrations_route_refuses_invalid_json_outright() {
-        let client = scratch_db("hecks_host_web_test_registrations_bad_json").await;
-        provision_lineage(
-            &*client.lock().await,
-            "CheckoutFixture",
-            1,
-            &["Event", "Registration", "Payment"],
-        )
-        .await;
+        let client = crate::dispatch::tests::memory_store();
 
         let response = registrations_route(
             "not json",
@@ -2169,7 +2145,7 @@ mod tests {
             Host::new(
                 &client,
                 &checkout_wasm_path(),
-                &checkout_config(1),
+                &checkout_memory_config(),
                 &lambda_client::NeverInvoker,
             ),
             &crate::commerce_ir::fixture_payments(),
@@ -2386,15 +2362,8 @@ mod tests {
     // whoever holds it may read the registration back, but never the attendee's contact details.
     #[tokio::test]
     async fn the_registration_read_back_by_id_carries_no_email_or_phone() {
-        let client = scratch_db("hecks_host_web_test_registration_show").await;
-        provision_lineage(
-            &*client.lock().await,
-            "CheckoutFixture",
-            1,
-            &["Event", "Registration", "Payment"],
-        )
-        .await;
-        let (config, wasm_path) = (checkout_config(1), checkout_wasm_path());
+        let client = crate::dispatch::tests::memory_store();
+        let (config, wasm_path) = (checkout_memory_config(), checkout_wasm_path());
         schedule_event(&client, &wasm_path, &config, "show-event", 4200).await;
         let body =
             json!({"event_slug": "show-event", "name": "Ada Lovelace", "email": "ada@example.com"});
@@ -2440,14 +2409,7 @@ mod tests {
 
     #[tokio::test]
     async fn registrations_route_404s_an_unknown_event_slug() {
-        let client = scratch_db("hecks_host_web_test_registrations_no_event").await;
-        provision_lineage(
-            &*client.lock().await,
-            "CheckoutFixture",
-            1,
-            &["Event", "Registration", "Payment"],
-        )
-        .await;
+        let client = crate::dispatch::tests::memory_store();
 
         let body =
             json!({"event_slug": "nope", "name": "Ada", "email": "ada@example.com"}).to_string();
@@ -2457,7 +2419,7 @@ mod tests {
             Host::new(
                 &client,
                 &checkout_wasm_path(),
-                &checkout_config(1),
+                &checkout_memory_config(),
                 &lambda_client::NeverInvoker,
             ),
             &crate::commerce_ir::fixture_payments(),
@@ -2468,15 +2430,8 @@ mod tests {
 
     #[tokio::test]
     async fn registrations_route_refuses_a_closed_event() {
-        let client = scratch_db("hecks_host_web_test_registrations_closed_event").await;
-        provision_lineage(
-            &*client.lock().await,
-            "CheckoutFixture",
-            1,
-            &["Event", "Registration", "Payment"],
-        )
-        .await;
-        let config = checkout_config(1);
+        let client = crate::dispatch::tests::memory_store();
+        let config = checkout_memory_config();
         let wasm_path = checkout_wasm_path();
 
         schedule_event(&client, &wasm_path, &config, "closed-event", 4200).await;
@@ -2543,15 +2498,8 @@ mod tests {
     #[tokio::test]
     async fn registrations_route_refuses_a_session_inside_its_registration_cutoff_and_writes_nothing(
     ) {
-        let client = scratch_db("hecks_host_web_test_registrations_cutoff_passed").await;
-        provision_lineage(
-            &*client.lock().await,
-            "CheckoutFixture",
-            1,
-            &["Event", "Registration", "Payment"],
-        )
-        .await;
-        let config = checkout_config(1);
+        let client = crate::dispatch::tests::memory_store();
+        let config = checkout_memory_config();
         let wasm_path = checkout_wasm_path();
 
         // Starts in 5 hours with a 6 hour cutoff: registration closed an hour ago.
@@ -2595,15 +2543,8 @@ mod tests {
 
     #[tokio::test]
     async fn registrations_route_accepts_a_session_with_no_cutoff_even_when_it_has_a_start() {
-        let client = scratch_db("hecks_host_web_test_registrations_cutoff_absent").await;
-        provision_lineage(
-            &*client.lock().await,
-            "CheckoutFixture",
-            1,
-            &["Event", "Registration", "Payment"],
-        )
-        .await;
-        let config = checkout_config(1);
+        let client = crate::dispatch::tests::memory_store();
+        let config = checkout_memory_config();
         let wasm_path = checkout_wasm_path();
 
         // A start in the past and no cutoff field: nothing to enforce.
@@ -2711,15 +2652,8 @@ mod tests {
         // A zero-price event: PositiveMoney's invariant refuses
         // Payment.Initiate before Registration.Request is ever reached,
         // proving the refusal is the real domain rule.
-        let client = scratch_db("hecks_host_web_test_registrations_zero_price").await;
-        provision_lineage(
-            &*client.lock().await,
-            "CheckoutFixture",
-            1,
-            &["Event", "Registration", "Payment"],
-        )
-        .await;
-        let config = checkout_config(1);
+        let client = crate::dispatch::tests::memory_store();
+        let config = checkout_memory_config();
         let wasm_path = checkout_wasm_path();
 
         schedule_event(&client, &wasm_path, &config, "free-event", 0).await;
@@ -2752,15 +2686,8 @@ mod tests {
     #[tokio::test]
     async fn registrations_route_runs_the_whole_dispatch_chain_and_returns_a_real_mock_checkout_url(
     ) {
-        let client = scratch_db("hecks_host_web_test_registrations_happy_path").await;
-        provision_lineage(
-            &*client.lock().await,
-            "CheckoutFixture",
-            1,
-            &["Event", "Registration", "Payment"],
-        )
-        .await;
-        let config = checkout_config(1);
+        let client = crate::dispatch::tests::memory_store();
+        let config = checkout_memory_config();
         let wasm_path = checkout_wasm_path();
 
         schedule_event(&client, &wasm_path, &config, "happy-event", 4200).await;
@@ -2828,15 +2755,8 @@ mod tests {
     // 404ing every guest right after a successful, already-charged registration.
     #[tokio::test]
     async fn registrations_route_redirects_to_the_caller_s_own_return_to_not_the_event_slug() {
-        let client = scratch_db("hecks_host_web_test_registrations_return_to").await;
-        provision_lineage(
-            &*client.lock().await,
-            "CheckoutFixture",
-            1,
-            &["Event", "Registration", "Payment"],
-        )
-        .await;
-        let config = checkout_config(1);
+        let client = crate::dispatch::tests::memory_store();
+        let config = checkout_memory_config();
         let wasm_path = checkout_wasm_path();
 
         schedule_event(&client, &wasm_path, &config, "happy-event", 4200).await;
@@ -2870,15 +2790,8 @@ mod tests {
     // redirect; falls back to "/" exactly as if none had been sent.
     #[tokio::test]
     async fn registrations_route_refuses_an_absolute_or_protocol_relative_return_to() {
-        let client = scratch_db("hecks_host_web_test_registrations_return_to_unsafe").await;
-        provision_lineage(
-            &*client.lock().await,
-            "CheckoutFixture",
-            1,
-            &["Event", "Registration", "Payment"],
-        )
-        .await;
-        let config = checkout_config(1);
+        let client = crate::dispatch::tests::memory_store();
+        let config = checkout_memory_config();
         let wasm_path = checkout_wasm_path();
 
         schedule_event(&client, &wasm_path, &config, "happy-event", 4200).await;
@@ -2922,15 +2835,8 @@ mod tests {
         // The full loop, mock both ends: registrations_route's own
         // checkout_url, then a webhook signed against the same mock secret
         // webhook_route falls back to while STRIPE_WEBHOOK_SECRET is unset.
-        let client = scratch_db("hecks_host_web_test_mock_full_loop").await;
-        provision_lineage(
-            &*client.lock().await,
-            "CheckoutFixture",
-            1,
-            &["Event", "Registration", "Payment"],
-        )
-        .await;
-        let config = checkout_config(1);
+        let client = crate::dispatch::tests::memory_store();
+        let config = checkout_memory_config();
         let wasm_path = checkout_wasm_path();
 
         schedule_event(&client, &wasm_path, &config, "mock-loop-event", 4200).await;
@@ -2980,14 +2886,7 @@ mod tests {
 
     #[tokio::test]
     async fn webhook_route_rejects_a_bad_signature_before_touching_the_domain_at_all() {
-        let client = scratch_db("hecks_host_web_test_webhook_bad_sig").await;
-        provision_lineage(
-            &*client.lock().await,
-            "CheckoutFixture",
-            1,
-            &["Event", "Registration", "Payment"],
-        )
-        .await;
+        let client = crate::dispatch::tests::memory_store();
 
         let payload =
             json!({"type": "checkout.session.completed", "data": {"object": {}}}).to_string();
@@ -3000,7 +2899,7 @@ mod tests {
             Host::new(
                 &client,
                 &checkout_wasm_path(),
-                &checkout_config(1),
+                &checkout_memory_config(),
                 &lambda_client::NeverInvoker,
             ),
             &crate::commerce_ir::fixture_payments(),
@@ -3011,15 +2910,8 @@ mod tests {
 
     #[tokio::test]
     async fn webhook_route_settles_a_payment_on_checkout_session_completed() {
-        let client = scratch_db("hecks_host_web_test_webhook_completed").await;
-        provision_lineage(
-            &*client.lock().await,
-            "CheckoutFixture",
-            1,
-            &["Event", "Registration", "Payment"],
-        )
-        .await;
-        let config = checkout_config(1);
+        let client = crate::dispatch::tests::memory_store();
+        let config = checkout_memory_config();
         let wasm_path = checkout_wasm_path();
 
         schedule_event(&client, &wasm_path, &config, "webhook-event", 4200).await;
@@ -3183,15 +3075,8 @@ mod tests {
 
     #[tokio::test]
     async fn webhook_route_declines_a_payment_on_checkout_session_expired() {
-        let client = scratch_db("hecks_host_web_test_webhook_expired").await;
-        provision_lineage(
-            &*client.lock().await,
-            "CheckoutFixture",
-            1,
-            &["Event", "Registration", "Payment"],
-        )
-        .await;
-        let config = checkout_config(1);
+        let client = crate::dispatch::tests::memory_store();
+        let config = checkout_memory_config();
         let wasm_path = checkout_wasm_path();
 
         schedule_event(&client, &wasm_path, &config, "webhook-event-2", 4200).await;
@@ -3238,14 +3123,7 @@ mod tests {
 
     #[tokio::test]
     async fn webhook_route_ignores_an_event_type_it_does_not_handle_and_still_answers_200() {
-        let client = scratch_db("hecks_host_web_test_webhook_unhandled_type").await;
-        provision_lineage(
-            &*client.lock().await,
-            "CheckoutFixture",
-            1,
-            &["Event", "Registration", "Payment"],
-        )
-        .await;
+        let client = crate::dispatch::tests::memory_store();
 
         let secret = "whsec_test_unhandled";
         let payload = json!({"type": "charge.refunded", "data": {"object": {"metadata": {"registration_id": "whatever"}}}}).to_string();
@@ -3259,7 +3137,7 @@ mod tests {
             Host::new(
                 &client,
                 &checkout_wasm_path(),
-                &checkout_config(1),
+                &checkout_memory_config(),
                 &lambda_client::NeverInvoker,
             ),
             &crate::commerce_ir::fixture_payments(),
