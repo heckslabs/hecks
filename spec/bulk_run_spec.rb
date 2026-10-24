@@ -117,6 +117,32 @@ RSpec.describe "a bulk run" do
     expect(outcomes(record).map { |row| row[:reason] }.uniq).to eq([teller_refusal])
   end
 
+  describe "through the CLI" do
+    it "requests a run of the attached chapter by its word, as `banking bulk bulk_run.request!`" do
+      boot
+      argv = %w[bulk bulk_run.request! run.value=c1 verb.value=Banking::Account.FreezeAccount
+                over.value=Banking::Account.Open mode.value=best_effort]
+      Hecks::Adapters::Driving::CliRunner.call(runtime: @runtime, argv: argv, program: "banking")
+      expect(statuses.values.uniq).to eq(["frozen"])
+    end
+  end
+
+  describe "through MCP" do
+    # The storehouse call MCP's `dispatch` tool makes, naming the attached chapter by its word.
+    def mcp_request(run)
+      args = { run: { value: run }, verb: { value: "Banking::Account.FreezeAccount" },
+               over: { value: "Banking::Account.Open" }, mode: { value: "best_effort" } }
+      Hecks::Storehouse.dispatch(runtime: @runtime, command: "bulk bulk_run.request", summary: "spec", args: args)
+    end
+
+    it "requests a run of the attached chapter and answers it as every row left it", :aggregate_failures do
+      boot
+      answer = mcp_request("m1")
+      expect(answer[:state][:status]).to eq("swept")
+      expect(statuses.values.uniq).to eq(["frozen"])
+    end
+  end
+
   describe "from Ruby" do
     it "runs a non-creating command over what a query method answered", :aggregate_failures do
       boot
