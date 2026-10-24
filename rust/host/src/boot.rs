@@ -2,9 +2,11 @@
 //! HECKS_SERVE_MODE=1): boots Postgres/wasm state, then dispatches events.
 
 use crate::host::Host;
+use crate::ir::Backend;
 use crate::{
     auth, extension, ir, journal, lambda_client, log, mint, rate_limit, secrets, server,
-    storage_shape, store::Store,
+    storage_shape,
+    store::{MemoryStore, Store},
 };
 
 use lambda_runtime::{service_fn, Error, LambdaEvent};
@@ -28,6 +30,14 @@ pub async fn run() -> Result<(), Error> {
     // than falling back silently at request time.
     auth::resolve_account_cookie(std::env::var("HECKS_SESSION_COOKIE").ok().as_deref())?;
 
+    let ir = ir::ir().ok_or("HECKS_IR_PATH is not set or unreadable — this binary needs its own domain's ir.json sidecar")?;
+    let google_auth =
+        secrets::var("GOOGLE_CLIENT_ID").is_ok() || std::env::var("GOOGLE_OAUTH_SECRET_ID").is_ok();
+    let allow_memory = std::env::var(ir::ALLOW_MEMORY_STORE).as_deref() == Ok("1");
+    let backend = ir::select_backend(ir, allow_memory, google_auth)?;
+    let my_hash = storage_shape::mint_hash(ir);
+    let my_label = storage_shape::mint_label(ir);
+
     // DB_SECRET_ARN: the password is fetched from Secrets Manager here,
     // at cold start, rather than trusted from a plaintext
     // Environment.Variables value, which any principal with
@@ -39,23 +49,9 @@ pub async fn run() -> Result<(), Error> {
     // The fetcher built here is reused below for GOOGLE_OAUTH_SECRET_ID
     // and SESSION_SECRET_ARN too.
     let secret_fetcher = secrets::AwsSecretFetcher::from_env().await;
-    let database_url = match std::env::var("DB_SECRET_ARN") {
-        Ok(secret_arn) => {
-            let db_host = std::env::var("DB_HOST")
-                .map_err(|_| "DB_HOST is required when DB_SECRET_ARN is set")?;
-            let db_name = std::env::var("DB_NAME")
-                .map_err(|_| "DB_NAME is required when DB_SECRET_ARN is set")?;
-            let secret_json = secret_fetcher
-                .fetch_secret_string(&secret_arn)
-                .await
-                .map_err(|e| format!("fetching DB_SECRET_ARN from Secrets Manager: {e:#}"))?;
-            // The user and port come from the secret too (a client sharing an instance logs in as
-            // its own role); the password goes in literal, since parse_database_url below never
-            // percent-decodes it.
-            secrets::database_url(&secret_json, &db_host, &db_name)?
-        }
-        Err(_) => std::env::var("DATABASE_URL")
-            .map_err(|_| "either DB_SECRET_ARN (+ DB_HOST/DB_NAME) or DATABASE_URL is required")?,
+    let database_url = match backend {
+        Backend::TokioPostgres => Some(database_url(&secret_fetcher).await?),
+        Backend::Memory => None,
     };
 
     // GOOGLE_OAUTH_SECRET_ID/SESSION_SECRET_ARN: the same
@@ -101,270 +97,16 @@ pub async fn run() -> Result<(), Error> {
         extension.boot_check(&domain)?;
     }
 
-    // RDS refuses a plain NoTls connection by default and needs AWS's
-    // own RDS CA specifically, not a generic public bundle (see
-    // Cargo.toml).
-    let mut roots = rustls::RootCertStore::empty();
-    for cert in CertificateDer::pem_slice_iter(include_bytes!("../rds-ca-bundle.pem")) {
-        roots.add(cert.map_err(|e| format!("parsing rds-ca-bundle.pem: {e}"))?)?;
-    }
-    let tls_config = rustls::ClientConfig::builder()
-        .with_root_certificates(roots)
-        .with_no_client_auth();
-    let tls = tokio_postgres_rustls::MakeRustlsConnect::new(tls_config);
-    // Not tokio_postgres::connect(url, tls) -- that treats DATABASE_URL
-    // as a strict URI, and RDS-generated passwords can contain
-    // URI-reserved `?`/`#` that CloudFormation never percent-encodes.
-    let mut config = parse_database_url(&database_url)?;
-    // RDS requires TLS (rds-ca-bundle.pem); local Postgres over loopback
-    // can't be verified against the RDS CA, so localhost uses NoTls.
-    let local_postgres = database_url_is_local(&config);
-    if !local_postgres {
-        config.ssl_mode(tokio_postgres::config::SslMode::Require);
-    }
-    // NoTlsStream and RustlsStream can't unify in one branch, so the
-    // two paths are spawned separately.
-    let connect_phase =
-        log::phase_with("db_connect", serde_json::json!({ "tls": !local_postgres }));
-    let client = if local_postgres {
-        let (client, connection) = config
-            .connect(tokio_postgres::NoTls)
-            .await
-            .map_err(|e| format!("connecting to Postgres via DATABASE_URL: {e:?}"))?;
-        tokio::spawn(async move {
-            if let Err(e) = connection.await {
-                eprintln!("postgres connection error: {e:#}");
-            }
-        });
-        client
-    } else {
-        let (client, connection) = config
-            .connect(tls)
-            .await
-            .map_err(|e| format!("connecting to Postgres via DATABASE_URL: {e:?}"))?;
-        tokio::spawn(async move {
-            if let Err(e) = connection.await {
-                eprintln!("postgres connection error: {e:#}");
-            }
-        });
-        client
-    };
-
-    connect_phase.end();
-
-    // Every unqualified table/view reference this binary issues
-    // resolves through search_path, so this is what makes a shared
-    // instance's per-domain schemas transparent to the rest of the
-    // binary.
-    //
-    // CREATE SCHEMA before SET search_path: setting search_path to a
-    // schema that doesn't exist yet succeeds in Postgres, so a missing
-    // schema only surfaces later as a confusing "no schema has been
-    // selected to create in" error from `ensure_schema`. Idempotent: an
-    // existing schema is the ordinary case on every boot after the first.
-    if let Some(schema) = &schema {
-        client
-            .batch_execute(&format!(
-                "CREATE SCHEMA IF NOT EXISTS {}",
-                journal::quote_ident(schema)
-            ))
-            .await
-            .map_err(|e| format!("creating schema {schema:?}: {e:#}"))?;
-        client
-            .batch_execute(&format!(
-                "SET search_path TO {}",
-                journal::quote_ident(schema)
-            ))
-            .await
-            .map_err(|e| format!("setting search_path to {schema:?}: {e:#}"))?;
-    }
-
-    let phase = log::phase("ensure_schema");
-    journal::ensure_schema(&client)
-        .await
-        .map_err(|e| format!("provisioning hecks_lambda_journal: {e:#}"))?;
-    phase.end();
-
-    let ir = ir::ir().ok_or("HECKS_IR_PATH is not set or unreadable — this binary needs its own domain's ir.json sidecar")?;
-    ir::refuse_unsupported_persistence_adapters(ir)?;
-    let my_hash = storage_shape::mint_hash(ir);
-    let my_label = storage_shape::mint_label(ir);
-
-    let mut aggregates: Vec<mint::Aggregate> = ir::lineage_capable_aggregates(ir)
-        .into_iter()
-        .map(|(qualified, storage_name)| {
-            let name = qualified
-                .rsplit("::")
-                .next()
-                .unwrap_or(&qualified)
-                .to_string();
-            mint::Aggregate { name, storage_name }
-        })
-        .collect();
-    // A chapter that `provides "membership"` names who may sign in; that
-    // aggregate can be vendored, so it may be missing from this domain's
-    // lineage-capable list. Mint its head anyway for Google-auth to read.
-    if let Some(membership) = ir::membership_provider(ir) {
-        let name = membership
-            .aggregate
-            .rsplit("::")
-            .next()
-            .unwrap_or(&membership.aggregate)
-            .to_string();
-        let storage_name = journal::snake(&name);
-        if !aggregates.iter().any(|a| a.storage_name == storage_name) {
-            aggregates.push(mint::Aggregate { name, storage_name });
+    let (store, era) = match database_url {
+        Some(url) => {
+            let (store, era) =
+                boot_postgres(&url, schema.as_deref(), &domain, ir, &my_hash, &my_label).await?;
+            (Arc::new(store), era)
         }
-    }
-
-    // The era-partitioned lineage subsystem is provisioned only when
-    // something needs it: a lineage-capable aggregate, or Google auth
-    // configured (ADR 0034 requires it for Member sessions either way).
-    let needs_lineage = !aggregates.is_empty() || secrets::var("GOOGLE_CLIENT_ID").is_ok();
-
-    let era: Option<i32> = if needs_lineage {
-        // Idempotent (gated by `provisioner?`); must run before the
-        // first `journal::held_eras` call, since `hecks_eras` doesn't
-        // exist yet on a truly fresh Postgres instance.
-        let phase = log::phase("ensure_base");
-        mint::ensure_base(&client, &domain)
-            .await
-            .map_err(|e| format!("provisioning hecks_eras for {domain}: {e:#}"))?;
-        phase.end();
-
-        // Compares this binary's own shape hash (`storage_shape`, over
-        // `ir::ir()`) against held eras to decide the boot action: boot
-        // at a matching era, mint era 1 if the domain is new, or mint
-        // the next era if it has drifted -- refusing toward
-        // `hecks scaffold_translation` (no edge covers it) or
-        // `hecks audit_translation --approve` (needs review) otherwise.
-        let era_phase = log::phase("era_resolve");
-        let held = journal::held_eras(&client, &domain)
-            .await
-            .map_err(|e| format!("checking hecks_eras for {domain}: {e:#}"))?;
-
-        // The decision itself is a pure, unit-tested function
-        // (`mint::decide_boot_action`); everything below just carries
-        // out whichever of its four outcomes came back.
-        let decision = mint::decide_boot_action(&held, &my_label);
-        era_phase
-            .end_with(serde_json::json!({ "held_eras": held.len(), "decision": decision.name() }));
-        let ordinal: i32 = match decision {
-            // Adopting an existing era still provisions what this binary
-            // is about to write into, the same as minting does --
-            // skipping it would let a matched-era host write into
-            // head-snapshot tables that were never created.
-            mint::BootDecision::UseExisting { ordinal } => {
-                let phase = log::phase_with(
-                    "adopt_head_snapshots",
-                    serde_json::json!({ "era": ordinal }),
-                );
-                mint::adopt_head_snapshots(&client, &domain, &aggregates, ordinal)
-                    .await
-                    .map_err(|e| format!("adopting era {ordinal} of {domain}: {e:#}"))?;
-                phase.end();
-                ordinal
-            }
-            mint::BootDecision::HoldFirst => {
-                let source_text = ir
-                    .get("source_text")
-                    .and_then(serde_json::Value::as_str)
-                    .ok_or("ir.json is missing source_text — regenerate with hecks project_rust")?;
-                let phase = log::phase_with("hold_first", serde_json::json!({ "era": 1 }));
-                mint::hold_first(&client, &domain, source_text, ir, &aggregates, None)
-                    .await
-                    .map_err(|e| format!("minting era 1 of {domain}: {e:#}"))?;
-                phase.end();
-                1
-            }
-            mint::BootDecision::LatestUnnamed { ordinal } => {
-                return Err(format!(
-                    "cannot boot: {domain}'s latest held era (ordinal {ordinal}) has no name yet -- this crate can't \
-                     name it itself (no bluebook parser, ADR 0012's own boundary) -- boot Ruby once against this \
-                     database to name it (Runtime::EraCheck's own lazy-naming path), then redeploy",
-                )
-                .into());
-            }
-            mint::BootDecision::Mint {
-                ordinal,
-                from_ordinal,
-                from_label,
-            } => {
-                let mut labels: Vec<String> = held
-                    .iter()
-                    .map(|held_era| held_era.label.clone().unwrap_or_default())
-                    .collect();
-                labels.push(my_label.clone());
-                let edges = mint::parse_edges(ir, &domain);
-                let chain = mint::edge_chain(&edges, &labels).map_err(|e| {
-                    format!(
-                        "cannot boot: {domain} has drifted from era {from_ordinal} ({from_label}) to a shape \
-                         ({my_label}) no translation edge covers -- {e} -- run hecks scaffold_translation, review it \
-                         with hecks audit_translation, then redeploy",
-                    )
-                })?;
-
-                // The raw ir.json edges, matched to the chain by from/to pair for the audit.
-                let raw_edges = ir
-                    .get("translations")
-                    .and_then(serde_json::Value::as_array)
-                    .cloned()
-                    .unwrap_or_default();
-
-                // Runs before anything is minted, over the live compiled
-                // chain (plain SELECTs, never a persisted matview), so a
-                // refusal leaves no half-born era.
-                let watermarks: std::collections::HashMap<i32, Option<i64>> = held
-                    .iter()
-                    .map(|held_era| (held_era.ordinal, held_era.watermark))
-                    .collect();
-                let audit_phase = log::phase_with(
-                    "audit_before_mint",
-                    serde_json::json!({ "era": ordinal, "edges": chain.len() }),
-                );
-                mint::audit_before_mint(
-                    &client,
-                    &domain,
-                    ir,
-                    &aggregates,
-                    ordinal,
-                    &chain,
-                    &raw_edges,
-                    &watermarks,
-                )
-                .await
-                .map_err(|e| format!("{e:#}"))?;
-                audit_phase.end();
-
-                let held_text = ir
-                    .get("source_text")
-                    .and_then(serde_json::Value::as_str)
-                    .ok_or("ir.json is missing source_text — regenerate with hecks project_rust")?;
-                let mint_phase = log::phase_with(
-                    "mint_era",
-                    serde_json::json!({ "era": ordinal, "edges": chain.len() }),
-                );
-                mint::mint_era(
-                    &client,
-                    &domain,
-                    ordinal,
-                    &my_hash,
-                    &my_label,
-                    held_text,
-                    &aggregates,
-                    &chain,
-                    None,
-                    &mint::lifecycle_defaults(ir),
-                )
-                .await
-                .map_err(|e| format!("minting era {ordinal} of {domain}: {e:#}"))?;
-                mint_phase.end();
-                ordinal
-            }
-        };
-        Some(ordinal)
-    } else {
-        None
+        None => (
+            Arc::new(Store::memory(MemoryStore::open(&domain, schema.as_deref()))),
+            None,
+        ),
     };
 
     // The mirrored set is the IR's own capable list, by qualified name
@@ -377,9 +119,6 @@ pub async fn run() -> Result<(), Error> {
         mirrored: Some(mirrored),
     });
 
-    // The store serializes every use of the one connection: a dispatch holds it, and the
-    // domain's advisory lock, across the rehydrate-then-append sequence (see dispatch.rs).
-    let store = Arc::new(Store::postgres(client));
     let wasm_path = Arc::new(wasm_path);
     // One invoker for this process's lifetime -- credentials/region
     // resolve once at boot, not per invocation. See lambda_client.rs:
@@ -486,6 +225,303 @@ fn database_url_is_local(config: &tokio_postgres::Config) -> bool {
         Host::Tcp(name) => name == "localhost" || name == "127.0.0.1" || name == "::1",
         Host::Unix(_) => false,
     })
+}
+
+/// The Postgres connection string: fetched from Secrets Manager when `DB_SECRET_ARN` names a
+/// secret, else `DATABASE_URL` as given.
+async fn database_url(secret_fetcher: &secrets::AwsSecretFetcher) -> Result<String, Error> {
+    Ok(match std::env::var("DB_SECRET_ARN") {
+        Ok(secret_arn) => {
+            let db_host = std::env::var("DB_HOST")
+                .map_err(|_| "DB_HOST is required when DB_SECRET_ARN is set")?;
+            let db_name = std::env::var("DB_NAME")
+                .map_err(|_| "DB_NAME is required when DB_SECRET_ARN is set")?;
+            let secret_json = secret_fetcher
+                .fetch_secret_string(&secret_arn)
+                .await
+                .map_err(|e| format!("fetching DB_SECRET_ARN from Secrets Manager: {e:#}"))?;
+            // The user and port come from the secret too (a client sharing an instance logs in as
+            // its own role); the password goes in literal, since parse_database_url below never
+            // percent-decodes it.
+            secrets::database_url(&secret_json, &db_host, &db_name)?
+        }
+        Err(_) => std::env::var("DATABASE_URL")
+            .map_err(|_| "either DB_SECRET_ARN (+ DB_HOST/DB_NAME) or DATABASE_URL is required")?,
+    })
+}
+
+/// Connects to Postgres, provisions the journal tables and resolves the era this binary runs
+/// at, for a domain that binds a Postgres adapter.
+async fn boot_postgres(
+    database_url: &str,
+    schema: Option<&str>,
+    domain: &str,
+    ir: &serde_json::Value,
+    my_hash: &str,
+    my_label: &str,
+) -> Result<(Store, Option<i32>), Error> {
+    // RDS refuses a plain NoTls connection by default and needs AWS's
+    // own RDS CA specifically, not a generic public bundle (see
+    // Cargo.toml).
+    let mut roots = rustls::RootCertStore::empty();
+    for cert in CertificateDer::pem_slice_iter(include_bytes!("../rds-ca-bundle.pem")) {
+        roots.add(cert.map_err(|e| format!("parsing rds-ca-bundle.pem: {e}"))?)?;
+    }
+    let tls_config = rustls::ClientConfig::builder()
+        .with_root_certificates(roots)
+        .with_no_client_auth();
+    let tls = tokio_postgres_rustls::MakeRustlsConnect::new(tls_config);
+    // Not tokio_postgres::connect(url, tls) -- that treats DATABASE_URL
+    // as a strict URI, and RDS-generated passwords can contain
+    // URI-reserved `?`/`#` that CloudFormation never percent-encodes.
+    let mut config = parse_database_url(database_url)?;
+    // RDS requires TLS (rds-ca-bundle.pem); local Postgres over loopback
+    // can't be verified against the RDS CA, so localhost uses NoTls.
+    let local_postgres = database_url_is_local(&config);
+    if !local_postgres {
+        config.ssl_mode(tokio_postgres::config::SslMode::Require);
+    }
+    // NoTlsStream and RustlsStream can't unify in one branch, so the
+    // two paths are spawned separately.
+    let connect_phase =
+        log::phase_with("db_connect", serde_json::json!({ "tls": !local_postgres }));
+    let client = if local_postgres {
+        let (client, connection) = config
+            .connect(tokio_postgres::NoTls)
+            .await
+            .map_err(|e| format!("connecting to Postgres via DATABASE_URL: {e:?}"))?;
+        tokio::spawn(async move {
+            if let Err(e) = connection.await {
+                eprintln!("postgres connection error: {e:#}");
+            }
+        });
+        client
+    } else {
+        let (client, connection) = config
+            .connect(tls)
+            .await
+            .map_err(|e| format!("connecting to Postgres via DATABASE_URL: {e:?}"))?;
+        tokio::spawn(async move {
+            if let Err(e) = connection.await {
+                eprintln!("postgres connection error: {e:#}");
+            }
+        });
+        client
+    };
+
+    connect_phase.end();
+
+    // Every unqualified table/view reference this binary issues
+    // resolves through search_path, so this is what makes a shared
+    // instance's per-domain schemas transparent to the rest of the
+    // binary.
+    //
+    // CREATE SCHEMA before SET search_path: setting search_path to a
+    // schema that doesn't exist yet succeeds in Postgres, so a missing
+    // schema only surfaces later as a confusing "no schema has been
+    // selected to create in" error from `ensure_schema`. Idempotent: an
+    // existing schema is the ordinary case on every boot after the first.
+    if let Some(schema) = &schema {
+        client
+            .batch_execute(&format!(
+                "CREATE SCHEMA IF NOT EXISTS {}",
+                journal::quote_ident(schema)
+            ))
+            .await
+            .map_err(|e| format!("creating schema {schema:?}: {e:#}"))?;
+        client
+            .batch_execute(&format!(
+                "SET search_path TO {}",
+                journal::quote_ident(schema)
+            ))
+            .await
+            .map_err(|e| format!("setting search_path to {schema:?}: {e:#}"))?;
+    }
+
+    let phase = log::phase("ensure_schema");
+    journal::ensure_schema(&client)
+        .await
+        .map_err(|e| format!("provisioning hecks_lambda_journal: {e:#}"))?;
+    phase.end();
+
+    let mut aggregates: Vec<mint::Aggregate> = ir::lineage_capable_aggregates(ir)
+        .into_iter()
+        .map(|(qualified, storage_name)| {
+            let name = qualified
+                .rsplit("::")
+                .next()
+                .unwrap_or(&qualified)
+                .to_string();
+            mint::Aggregate { name, storage_name }
+        })
+        .collect();
+    // A chapter that `provides "membership"` names who may sign in; that
+    // aggregate can be vendored, so it may be missing from this domain's
+    // lineage-capable list. Mint its head anyway for Google-auth to read.
+    if let Some(membership) = ir::membership_provider(ir) {
+        let name = membership
+            .aggregate
+            .rsplit("::")
+            .next()
+            .unwrap_or(&membership.aggregate)
+            .to_string();
+        let storage_name = journal::snake(&name);
+        if !aggregates.iter().any(|a| a.storage_name == storage_name) {
+            aggregates.push(mint::Aggregate { name, storage_name });
+        }
+    }
+
+    // The era-partitioned lineage subsystem is provisioned only when
+    // something needs it: a lineage-capable aggregate, or Google auth
+    // configured (ADR 0034 requires it for Member sessions either way).
+    let needs_lineage = !aggregates.is_empty() || secrets::var("GOOGLE_CLIENT_ID").is_ok();
+
+    let era: Option<i32> = if needs_lineage {
+        // Idempotent (gated by `provisioner?`); must run before the
+        // first `journal::held_eras` call, since `hecks_eras` doesn't
+        // exist yet on a truly fresh Postgres instance.
+        let phase = log::phase("ensure_base");
+        mint::ensure_base(&client, domain)
+            .await
+            .map_err(|e| format!("provisioning hecks_eras for {domain}: {e:#}"))?;
+        phase.end();
+
+        // Compares this binary's own shape hash (`storage_shape`, over
+        // `ir::ir()`) against held eras to decide the boot action: boot
+        // at a matching era, mint era 1 if the domain is new, or mint
+        // the next era if it has drifted -- refusing toward
+        // `hecks scaffold_translation` (no edge covers it) or
+        // `hecks audit_translation --approve` (needs review) otherwise.
+        let era_phase = log::phase("era_resolve");
+        let held = journal::held_eras(&client, domain)
+            .await
+            .map_err(|e| format!("checking hecks_eras for {domain}: {e:#}"))?;
+
+        // The decision itself is a pure, unit-tested function
+        // (`mint::decide_boot_action`); everything below just carries
+        // out whichever of its four outcomes came back.
+        let decision = mint::decide_boot_action(&held, my_label);
+        era_phase
+            .end_with(serde_json::json!({ "held_eras": held.len(), "decision": decision.name() }));
+        let ordinal: i32 = match decision {
+            // Adopting an existing era still provisions what this binary
+            // is about to write into, the same as minting does --
+            // skipping it would let a matched-era host write into
+            // head-snapshot tables that were never created.
+            mint::BootDecision::UseExisting { ordinal } => {
+                let phase = log::phase_with(
+                    "adopt_head_snapshots",
+                    serde_json::json!({ "era": ordinal }),
+                );
+                mint::adopt_head_snapshots(&client, domain, &aggregates, ordinal)
+                    .await
+                    .map_err(|e| format!("adopting era {ordinal} of {domain}: {e:#}"))?;
+                phase.end();
+                ordinal
+            }
+            mint::BootDecision::HoldFirst => {
+                let source_text = ir
+                    .get("source_text")
+                    .and_then(serde_json::Value::as_str)
+                    .ok_or("ir.json is missing source_text — regenerate with hecks project_rust")?;
+                let phase = log::phase_with("hold_first", serde_json::json!({ "era": 1 }));
+                mint::hold_first(&client, domain, source_text, ir, &aggregates, None)
+                    .await
+                    .map_err(|e| format!("minting era 1 of {domain}: {e:#}"))?;
+                phase.end();
+                1
+            }
+            mint::BootDecision::LatestUnnamed { ordinal } => {
+                return Err(format!(
+                    "cannot boot: {domain}'s latest held era (ordinal {ordinal}) has no name yet -- this crate can't \
+                     name it itself (no bluebook parser, ADR 0012's own boundary) -- boot Ruby once against this \
+                     database to name it (Runtime::EraCheck's own lazy-naming path), then redeploy",
+                )
+                .into());
+            }
+            mint::BootDecision::Mint {
+                ordinal,
+                from_ordinal,
+                from_label,
+            } => {
+                let mut labels: Vec<String> = held
+                    .iter()
+                    .map(|held_era| held_era.label.clone().unwrap_or_default())
+                    .collect();
+                labels.push(my_label.to_string());
+                let edges = mint::parse_edges(ir, domain);
+                let chain = mint::edge_chain(&edges, &labels).map_err(|e| {
+                    format!(
+                        "cannot boot: {domain} has drifted from era {from_ordinal} ({from_label}) to a shape \
+                         ({my_label}) no translation edge covers -- {e} -- run hecks scaffold_translation, review it \
+                         with hecks audit_translation, then redeploy",
+                    )
+                })?;
+
+                // The raw ir.json edges, matched to the chain by from/to pair for the audit.
+                let raw_edges = ir
+                    .get("translations")
+                    .and_then(serde_json::Value::as_array)
+                    .cloned()
+                    .unwrap_or_default();
+
+                // Runs before anything is minted, over the live compiled
+                // chain (plain SELECTs, never a persisted matview), so a
+                // refusal leaves no half-born era.
+                let watermarks: std::collections::HashMap<i32, Option<i64>> = held
+                    .iter()
+                    .map(|held_era| (held_era.ordinal, held_era.watermark))
+                    .collect();
+                let audit_phase = log::phase_with(
+                    "audit_before_mint",
+                    serde_json::json!({ "era": ordinal, "edges": chain.len() }),
+                );
+                mint::audit_before_mint(
+                    &client,
+                    domain,
+                    ir,
+                    &aggregates,
+                    ordinal,
+                    &chain,
+                    &raw_edges,
+                    &watermarks,
+                )
+                .await
+                .map_err(|e| format!("{e:#}"))?;
+                audit_phase.end();
+
+                let held_text = ir
+                    .get("source_text")
+                    .and_then(serde_json::Value::as_str)
+                    .ok_or("ir.json is missing source_text — regenerate with hecks project_rust")?;
+                let mint_phase = log::phase_with(
+                    "mint_era",
+                    serde_json::json!({ "era": ordinal, "edges": chain.len() }),
+                );
+                mint::mint_era(
+                    &client,
+                    domain,
+                    ordinal,
+                    my_hash,
+                    my_label,
+                    held_text,
+                    &aggregates,
+                    &chain,
+                    None,
+                    &mint::lifecycle_defaults(ir),
+                )
+                .await
+                .map_err(|e| format!("minting era {ordinal} of {domain}: {e:#}"))?;
+                mint_phase.end();
+                ordinal
+            }
+        };
+        Some(ordinal)
+    } else {
+        None
+    };
+
+    Ok((Store::postgres(client), era))
 }
 
 #[cfg(test)]

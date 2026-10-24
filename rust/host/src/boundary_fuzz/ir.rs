@@ -149,11 +149,11 @@ fn refusal(ir: &Value) -> String {
 #[test]
 fn an_unsupported_persistence_adapter_is_always_refused_at_boot() {
     // No `adapters` key (every deployed IR today): the old behaviour, byte for byte.
-    for adapter in ["Heki", "Memory", "Sqlite", "", "postgres", "Postgres "] {
+    for adapter in ["Heki", "memory", "Sqlite", "", "postgres", "Postgres "] {
         let message = refusal(&ir_binding(adapter, None));
-        assert!(message.starts_with("rust/host only has a backend for [\"Postgres\", \"PostgresEra\"] today; this domain also binds: A (persisted_by "), "{adapter:?}");
+        assert!(message.starts_with("rust/host only has a backend for [\"Postgres\", \"PostgresEra\", \"Memory\"] today; this domain also binds: A (persisted_by "), "{adapter:?}");
     }
-    for adapter in ["Postgres", "PostgresEra"] {
+    for adapter in ["Postgres", "PostgresEra", "Memory"] {
         assert!(refuse_unsupported_persistence_adapters(&ir_binding(adapter, None)).is_ok());
     }
 }
@@ -178,7 +178,7 @@ fn declared_supported_adapters_boot() {
 
 #[test]
 fn declared_but_unsupported_adapters_hit_the_backend_rule() {
-    for adapter in ["Heki", "Memory"] {
+    for adapter in ["Heki", "Sqlite"] {
         let ir = ir_binding(
             adapter,
             Some(json!([{"name": adapter, "port": "persistence"}])),
