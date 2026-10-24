@@ -1,0 +1,17 @@
+Hecks.bluebook "Banking" do
+  # ADR 0121: `group_by` with one reduction reduces each group's rows in place of nesting them.
+  # Rootless, so every card charge the bank holds is counted, not one account's.
+  read_model "CardPaymentTotalsByStatus" do
+    description "The total amount of every card charge, added up for each status a charge can be in."
+    include CardPayment
+    group_by :status
+    sum :amount
+  end
+
+  read_model "CardPaymentCountsByStatus" do
+    description "How many card charges stand in each status."
+    include CardPayment
+    group_by :status
+    count
+  end
+end

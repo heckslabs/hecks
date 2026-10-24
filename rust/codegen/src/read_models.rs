@@ -443,7 +443,7 @@ fn aggregation_skip_reason(
 }
 
 // Mirrors the retired Ruby generator's `read_models.rb`'s `group_by_skip_reason`: the one
-// shape the corpus declares — a single rootless head, group_by alone.
+// shape the corpus declares — a single rootless head, group_by alone or with one reduction.
 fn group_by_skip_reason(
     read_model: &Json,
     aggregates_by_name: &HashMap<String, &Json>,
@@ -456,16 +456,6 @@ fn group_by_skip_reason(
     let reference_target = read_model.get("reference_target");
     if reference_target.is_some() && !matches!(reference_target, Some(Json::Null)) {
         return Some(skip("group_by", format!("declares group_by on a NON-rootless read model (reference_to {}) — not generated yet", reference_target.map(Json::to_s).unwrap_or_default())));
-    }
-    if read_model.get("count").is_some()
-        || AGGREGATION_FIELD_KEYS
-            .iter()
-            .any(|key| read_model.get(key).is_some())
-    {
-        return Some(skip(
-            "group_by",
-            "declares group_by alongside a reduction — not generated yet",
-        ));
     }
     let has_wheres = read_model
         .get("wheres")
@@ -515,7 +505,9 @@ fn group_by_skip_reason(
             return Some(skip("group_by", format!("group_by names {field:?}, but {aggregate_name} declares no such attribute — not generated yet")));
         }
     }
-    None
+    // A grouped reduction reduces each leaf (ADR 0121): its field is checked like an
+    // ungrouped one's.
+    aggregation_skip_reason(read_model, aggregates_by_name)
 }
 
 // Every entity name nested at any depth under a declared aggregate.
@@ -827,6 +819,7 @@ pub fn read_model_def(
                 &read_model_name,
                 aggregate,
                 &group_by_fields,
+                reduction_of(read_model).as_deref(),
             )),
         )
     };
@@ -934,11 +927,13 @@ fn emit_filtered_head(fh: &FilteredHeadDef) -> String {
 // Keeps this aggregate's declared attributes plus any `projects` field, id
 // and lifecycle field, excluding other capabilities' synthetic fields (like
 // `corrects`'s `emitted_*` flags), and unwraps value objects recursively.
+// With a reduction, each leaf is that reduction of its rows (ADR 0121).
 fn emit_group_by_transform(
     fn_name: &str,
     read_model_name: &str,
     aggregate: &Json,
     group_by_fields: &[String],
+    reduction: Option<&str>,
 ) -> String {
     let value_objects: Vec<&Json> = aggregate
         .get("value_objects")
@@ -996,10 +991,20 @@ fn emit_group_by_transform(
             .collect::<Vec<_>>()
             .join(", ")
     );
-    let leaf_check = group_by_leaf_check(read_model_name, aggregate, group_by_fields);
+    let nest_call = reduction.map_or_else(
+        || {
+            let leaf_check = group_by_leaf_check(read_model_name, aggregate, group_by_fields);
+            format!("crate::kernel::read_model::nest(unwrapped, {fields_literal}, {leaf_check})")
+        },
+        |r| {
+            format!(
+                "crate::kernel::read_model::nest_reduced(unwrapped, {fields_literal}, crate::kernel::read_model::Reduction::{r})"
+            )
+        },
+    );
 
     format!(
-        "pub fn {fn_name}(rows: Vec<(String, crate::kernel::Json)>) -> Result<crate::kernel::Json, crate::kernel::Refusal> {{\n    let unwrapped: Vec<crate::kernel::Json> = rows\n        .into_iter()\n        .map(|(id, record)| {{\n            let wrapped = crate::kernel::repository::row_json(id, record);\n            match wrapped {{\n                crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(\n                    fields\n                        .into_iter()\n                        .filter(|(k, _)| {keep_cond})\n                        .map(|(k, v)| {{\n                            let new_v = match k.as_str() {{\n            {arms}\n                                _ => v,\n                            }};\n                            (k, new_v)\n                        }})\n                        .collect(),\n                ),\n                other => other,\n            }}\n        }})\n        .collect();\n    crate::kernel::read_model::nest(unwrapped, {fields_literal}, {leaf_check})\n}}"
+        "pub fn {fn_name}(rows: Vec<(String, crate::kernel::Json)>) -> Result<crate::kernel::Json, crate::kernel::Refusal> {{\n    let unwrapped: Vec<crate::kernel::Json> = rows\n        .into_iter()\n        .map(|(id, record)| {{\n            let wrapped = crate::kernel::repository::row_json(id, record);\n            match wrapped {{\n                crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(\n                    fields\n                        .into_iter()\n                        .filter(|(k, _)| {keep_cond})\n                        .map(|(k, v)| {{\n                            let new_v = match k.as_str() {{\n            {arms}\n                                _ => v,\n                            }};\n                            (k, new_v)\n                        }})\n                        .collect(),\n                ),\n                other => other,\n            }}\n        }})\n        .collect();\n    {nest_call}\n}}"
     )
 }
 

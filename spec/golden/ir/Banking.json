@@ -10352,6 +10352,56 @@
       "wheres": [
 
       ]
+    },
+    {
+      "aggregate_heads": [
+        {
+          "aggregate": "CardPayment",
+          "as": "card_payments",
+          "many": true
+        }
+      ],
+      "description": "The total amount of every card charge, added up for each status a charge can be in.",
+      "group_by": [
+        {
+          "field": "status"
+        }
+      ],
+      "limit": null,
+      "name": "CardPaymentTotalsByStatus",
+      "order_by": null,
+      "query_name": "card_payment_totals_by_status",
+      "reference_name": null,
+      "reference_target": null,
+      "sum_field": "amount",
+      "wheres": [
+
+      ]
+    },
+    {
+      "aggregate_heads": [
+        {
+          "aggregate": "CardPayment",
+          "as": "card_payments",
+          "many": true
+        }
+      ],
+      "count": true,
+      "description": "How many card charges stand in each status.",
+      "group_by": [
+        {
+          "field": "status"
+        }
+      ],
+      "limit": null,
+      "name": "CardPaymentCountsByStatus",
+      "order_by": null,
+      "query_name": "card_payment_counts_by_status",
+      "reference_name": null,
+      "reference_target": null,
+      "wheres": [
+
+      ]
     }
   ],
   "version": "v1",

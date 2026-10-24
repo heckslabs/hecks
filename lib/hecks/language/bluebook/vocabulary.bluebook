@@ -112,6 +112,29 @@ Hecks.bluebook "Bluebook" do
       attribute :name, String, one_of: ["eq", "ne", "gt", "gte", "lt", "lte", "in", "contains", "none_in_state"]
     end
 
+    # A read model's reducers as algebra (ADR 0121): `identity` is the answer over no rows
+    # (JSON text), `combine` folds two partial answers into one, `inverse` takes one partial
+    # answer back out ("" where none exists). `collect` means partial answers do not combine:
+    # the whole must be recomputed from the rows. Ruby's ReadModelInterpreter::Reductions and
+    # Rust's kernel::read_model answer an empty collection from `identity`; the fuzzer folds a
+    # grouped answer's leaves by `combine` and compares it with the ungrouped reduction.
+    value_object "Reducer" do
+      attribute :name,     String
+      attribute :identity, String
+      attribute :combine,  String
+      attribute :inverse,  String
+
+      member name: "count",      identity: "0",     combine: "add",     inverse: "subtract"
+      member name: "sum",        identity: "0",     combine: "add",     inverse: "subtract"
+      member name: "avg",        identity: "null",  combine: "collect", inverse: ""
+      member name: "min",        identity: "null",  combine: "min",     inverse: ""
+      member name: "max",        identity: "null",  combine: "max",     inverse: ""
+      member name: "median",     identity: "null",  combine: "collect", inverse: ""
+      member name: "percentile", identity: "null",  combine: "collect", inverse: ""
+      member name: "any",        identity: "false", combine: "or",      inverse: ""
+      member name: "all",        identity: "true",  combine: "and",     inverse: ""
+    end
+
     # Adapters::Driven::Folder::DOMAIN_ORDER — declarations load in this order
     value_object "LoadOrder" do
       attribute :glob, String,

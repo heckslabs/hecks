@@ -1,0 +1,133 @@
+# The smallest domain whose read models group and reduce (ADR 0121): each reducer once over
+# one aisle-grouped shelf, and a sum nested two levels deep.
+Hecks.bluebook "GroupedReductionFixture" do
+  vision "Stock on shelves, added up by aisle and bay, the same in every runtime."
+
+  core
+
+  aggregate "Item" do
+    description "One stocked line, addressed by its own code, kept in one aisle and bay."
+
+    identified_by :sku
+    attribute :sku, Sku
+    attribute :aisle, Aisle
+    attribute :bay, Bay
+    attribute :units, Units
+    attribute :weight, Weight
+    attribute :fragile, Fragile
+
+    value_object "Sku" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Aisle" do
+      attribute :label, String, matches: :present
+    end
+
+    value_object "Bay" do
+      attribute :label, String, matches: :present
+    end
+
+    value_object "Units" do
+      attribute :count, Integer
+    end
+
+    value_object "Weight" do
+      attribute :kilograms, Float
+    end
+
+    value_object "Fragile" do
+      attribute :flag, TrueClass
+    end
+
+    command "Shelve" do
+      role "Clerk"
+      goal "Put a line of stock on a shelf"
+
+      attribute :sku, Sku
+      attribute :aisle, Aisle
+      attribute :bay, Bay
+      attribute :units, Units
+      attribute :weight, Weight
+      attribute :fragile, Fragile
+      sets :sku
+      sets :aisle
+      sets :bay
+      sets :units
+      sets :weight
+      sets :fragile
+
+      emits "ItemShelved"
+    end
+  end
+
+  read_model "UnitsByAisle" do
+    description "The units on each aisle, added up."
+    include Item
+    group_by :aisle
+    sum :units
+  end
+
+  read_model "LinesByAisle" do
+    description "How many lines stand on each aisle."
+    include Item
+    group_by :aisle
+    count
+  end
+
+  read_model "MeanUnitsByAisle" do
+    description "The mean units of a line on each aisle."
+    include Item
+    group_by :aisle
+    avg :units
+  end
+
+  read_model "LightestByAisle" do
+    description "The lightest line on each aisle."
+    include Item
+    group_by :aisle
+    min :weight
+  end
+
+  read_model "HeaviestByAisle" do
+    description "The heaviest line on each aisle."
+    include Item
+    group_by :aisle
+    max :weight
+  end
+
+  read_model "MedianUnitsByAisle" do
+    description "The median units of a line on each aisle."
+    include Item
+    group_by :aisle
+    median :units
+  end
+
+  read_model "UpperUnitsByAisle" do
+    description "The units at the 90th percentile of the lines on each aisle."
+    include Item
+    group_by :aisle
+    percentile :units, at: 0.9
+  end
+
+  read_model "AnyFragileByAisle" do
+    description "Whether any line on each aisle is fragile."
+    include Item
+    group_by :aisle
+    any :fragile
+  end
+
+  read_model "AllFragileByAisle" do
+    description "Whether every line on each aisle is fragile."
+    include Item
+    group_by :aisle
+    all :fragile
+  end
+
+  read_model "UnitsByAisleAndBay" do
+    description "The units in each bay of each aisle, added up."
+    include Item
+    group_by :aisle, :bay
+    sum :units
+  end
+end

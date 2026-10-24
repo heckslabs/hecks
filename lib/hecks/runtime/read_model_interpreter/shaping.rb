@@ -33,11 +33,18 @@ module Hecks
           value.is_a?(Array) ? value.map { |record| Value.materialize(row(record)) } : Value.materialize(row(value))
         end
 
+        # A grouped head nests its rows; with a reduction declared too, each leaf is that
+        # reduction of the leaf's rows rather than the row itself (ADR 0121).
         def grouped_rows(value, shape)
           model = shape.model
-          nest(value.map { |record| Value.materialize_unwrapped(row(record)) }, model.group_by_fields,
-               collision_check(model, shape.bluebook, shape.grouped))
+          rows = value.map { |record| Value.materialize_unwrapped(row(record)) }
+          leaf = shape.reduced ? reduced_leaf(model) : row_leaf(collision_check(model, shape.bluebook, shape.grouped))
+          nest(rows, model.group_by_fields, leaf)
         end
+
+        def reduced_leaf(model) = ->(rows, _path) { reduced_value(rows, model) }
+
+        def row_leaf(checked) = ->(rows, path) { leaf(rows, checked, path) }
 
         def reduced_value(value, model)
           model.count? ? value.length : reduce(model, value)
@@ -74,9 +81,8 @@ module Hecks
           model.groups_by_identity?(bluebook.aggregate(grouped_head[:aggregate])) ? nil : model
         end
 
-        # Nests one level per `group_by` field; a leaf holding more than one row
-        # is a `group_by` collision (ADR 0061 D1), refused rather than picking one.
-        def nest(rows, fields, checked, reached = [])
+        # Nests one level per `group_by` field, answering each leaf's rows through `leaf`.
+        def nest(rows, fields, leaf, reached = [])
           field, *rest = fields
           rows.group_by { |row| row[field] }.to_h do |key, group|
             # Strip only the field just grouped by, not the whole remaining
@@ -84,10 +90,12 @@ module Hecks
             # call below, or the next level groups by a key that's already gone.
             stripped = group.map { |row| row.reject { |name, _| name == field } }
             path = reached + [[field, key]]
-            [key, rest.empty? ? leaf(stripped, checked, path) : nest(stripped, rest, checked, path)]
+            [key, rest.empty? ? leaf.call(stripped, path) : nest(stripped, rest, leaf, path)]
           end
         end
 
+        # The one row a key path reached; more than one is a `group_by` collision
+        # (ADR 0061 D1), refused rather than picking one.
         def leaf(rows, checked, path)
           return rows.first unless checked && rows.size > 1
 

@@ -1,6 +1,7 @@
 require "json"
 require_relative "aggregation_recompute"
 require_relative "group_by_recompute"
+require_relative "grouped_reduction_recompute"
 require_relative "piece_invariants"
 
 module Hecks
@@ -11,6 +12,7 @@ module Hecks
       module InvariantsAndAggregation
         include AggregationRecompute
         include GroupByRecompute
+        include GroupedReductionRecompute
         include PieceInvariants
 
         # Every stored record — and every entity nested inside it — still
@@ -103,11 +105,19 @@ module Hecks
           return unless model&.reducing?
 
           reduced_head = many_head(model)
-          reduced_head && reduction_offense(bluebook, asked, model, reduced_head)
+          reduced_head && reducing_offense(bluebook, asked, model, reduced_head)
         end
 
-        def reduction_offense(bluebook, asked, model, reduced_head)
+        # A grouped reduction's leaves must fold by the reducer's `combine` to the ungrouped
+        # answer (ADR 0121); `group_by_matches_recompute` checks each leaf.
+        def reducing_offense(bluebook, asked, model, reduced_head)
           rows = eligible_rows(bluebook, asked.fetch(:instances_at), model, reduced_head, asked[:args] || {})
+          return grouped_fold_offense(asked, model, reduced_head, rows) if model.group_by.any?
+
+          reduction_offense(asked, model, reduced_head, rows)
+        end
+
+        def reduction_offense(asked, model, reduced_head, rows)
           expected = recompute_reduction(model, rows)
           actual = asked[:rows]&.first&.dig(reduced_head[:as])
           return if actual == expected
