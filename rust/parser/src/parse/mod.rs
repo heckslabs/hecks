@@ -572,6 +572,12 @@ fn rocket_key_name(file: &str, word: &str, key_text: &str, line: usize) -> Parse
     Ok(rest.to_string())
 }
 
+/// A `pairs` row with neither a position nor a name: it admits every named argument the
+/// keyword's specific rows do not.
+fn is_open_pairs_row(row: &ArgumentRow) -> bool {
+    row.kind == "pairs" && row.at.is_empty() && row.named.is_empty()
+}
+
 fn validate_named(
     file: &str,
     word: &str,
@@ -581,6 +587,20 @@ fn validate_named(
     line: usize,
 ) -> ParseResult<()> {
     let candidates: Vec<&&ArgumentRow> = rows.iter().filter(|r| r.named == name).collect();
+    // An open `pairs` row (no position, no name) takes any key the specific rows leave over, as
+    // `provides` does for a capability its package declares; each value is text.
+    if candidates.is_empty() && rows.iter().any(|r| is_open_pairs_row(r)) {
+        let kind = classify_lexical_kind(value);
+        if kind == "text" {
+            return Ok(());
+        }
+        return Err(Diagnostic::new(
+            file,
+            line,
+            format!("'{word}'s '{name}:' ('{value}') reads as {kind}"),
+        )
+        .with_expected(vec!["text".to_string()]));
+    }
     if candidates.is_empty() {
         let expected: Vec<String> = rows
             .iter()

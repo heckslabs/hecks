@@ -31,8 +31,7 @@ RSpec.describe "hecks-build (rust/build) pipeline parity", :io do
   # without them. `lineage` is not among them: `hecks-build` derives it from the hecksagon and
   # world text, and the two must agree on which aggregates are lineage-capable (compliance binds
   # three through its world).
-  HB_REGISTRY_ONLY_IR_KEYS = %w[persistence authorization membership identity newsletter newsletter_issues
-                                payments registrations payment_connection translations approvals
+  HB_REGISTRY_ONLY_IR_KEYS = %w[persistence authorization membership identity provides translations approvals
                                 source_text].freeze
 
   # [domain, dirs its run touches]: the target, `meta`, and any framework chapter it attaches.

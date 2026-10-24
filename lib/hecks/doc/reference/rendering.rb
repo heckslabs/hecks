@@ -111,10 +111,13 @@ module Hecks
               .map { |arg| arg[:fills].to_s.empty? ? arg[:kind] : arg[:fills] }
         end
 
-        # @return [Array<String>] the named arguments, as `name:`
+        # @return [Array<String>] the named arguments, as `name:`; an open row reads `key:`
         def named_parts(args)
-          args.select { |arg| arg[:at].to_s.empty? }.map { |arg| "#{arg[:named]}:" }
+          args.select { |arg| arg[:at].to_s.empty? }.map { |arg| "#{named_label(arg)}:" }
         end
+
+        # A named argument's name, or `key` for an open row that takes any name.
+        def named_label(arg) = arg[:named].to_s.empty? ? "key" : arg[:named]
 
         # Renders one word's arguments as a Markdown table, or "" if it declares none.
         def argument_table(row)
@@ -123,7 +126,7 @@ module Hecks
 
           lines = ["", "| argument | kind | required | fills |", "|---|---|---|---|"]
           args.each do |arg|
-            name = arg[:at].to_s.empty? ? "`#{arg[:named]}:`" : "positional #{arg[:at]}"
+            name = arg[:at].to_s.empty? ? "`#{named_label(arg)}:`" : "positional #{arg[:at]}"
             lines << "| #{name} | #{arg[:kind]} | #{arg[:required]} | #{arg[:fills]} |"
           end
           "#{lines.join("\n")}\n"

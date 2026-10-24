@@ -1,14 +1,11 @@
-require_relative "capability_values"
-
 module Hecks
   module Projector
     module Exporter
       # Which chapter of a registry answers each capability a domain attaches (authorization,
-      # membership, identity, newsletter, registrations, payments): a per-deployment binding fact,
-      # not part of the declared IR. Each answers `{}` when nothing the domain attaches provides it.
+      # membership, identity, and every capability a package declares): a per-deployment binding
+      # fact, not part of the declared IR. Each answers `{}` when nothing the domain attaches
+      # provides it.
       module Bindings
-        include CapabilityValues
-
         # Which chapter this domain's role checks resolve against
         # (`Registry#authorization_provider_for`); `{}` if none does.
         #
@@ -68,118 +65,24 @@ module Hecks
           }
         end
 
-        # Which chapter answers the guest newsletter signup
-        # (`Registry#newsletter_provider_for`); `{}` if none does.
+        # Every capability a package declares (one the language defines no contract for), as the
+        # chapter that provides it for this domain resolves each key: the qualified verb of a
+        # command, query or port operation, the states of a lifecycle mark, or an attribute's
+        # `{ attribute:, default: }`. The reader of a capability checks the keys it needs.
         #
         # @param registry [Runtime::Registry] the booted registry `domain_name` is loaded in
-        # @param domain_name [String] the domain to export the newsletter binding for
-        # @return [Hash{Symbol => String, nil}] `:provider` (name), `:subscribe`, `:add_name`,
-        #   `:confirm`, `:unsubscribe` (qualified verbs), `:aggregate` (`:subscribe`'s own
-        #   leading qualified aggregate name) and, when declared, `:awaiting_confirmation`,
-        #   `:receives_issues` and `:left` (the states of the lifecycle marks they name) and
-        #   `:confirm_window` and `:unsubscribe_window` (seconds); `{}` if nothing this domain
-        #   attaches provides newsletter
-        def newsletter(registry, domain_name)
-          provider = registry.newsletter_provider_for(domain_name)
-          return {} unless provider
-
-          verbs = verbs_of(provider, Bluebook::Capabilities::NEWSLETTER,
-                           :subscribe, :add_name, :confirm, :unsubscribe)
-          { provider: provider.name, **verbs, aggregate: aggregate_of(verbs[:subscribe]),
-            **all_marked_states(provider, Bluebook::Capabilities::NEWSLETTER),
-            **all_durations(provider, Bluebook::Capabilities::NEWSLETTER) }
-        end
-
-        # Which chapter answers sending a newsletter issue
-        # (`Registry#newsletter_issues_provider_for`); `{}` if none does.
-        #
-        # @param registry [Runtime::Registry] the booted registry `domain_name` is loaded in
-        # @param domain_name [String] the domain to export the issue-sending binding for
-        # @return [Hash{Symbol => String, nil}] `:provider` (name), `:send_issue`,
-        #   `:record_delivery` (qualified verbs), `:issue_aggregate` and `:delivery_aggregate`
-        #   (each verb's own leading qualified aggregate name); `{}` if nothing this domain
-        #   attaches provides newsletter_issues
-        def newsletter_issues(registry, domain_name)
-          provider = registry.newsletter_issues_provider_for(domain_name)
-          return {} unless provider
-
-          verbs = verbs_of(provider, Bluebook::Capabilities::NEWSLETTER_ISSUES, :send_issue, :record_delivery)
-          { provider: provider.name, **verbs,
-            **aggregates_of(verbs, issue_aggregate: :send_issue, delivery_aggregate: :record_delivery) }
-        end
-
-        # Which chapter answers scheduling sessions and taking registrations
-        # (`Registry#registrations_provider_for`); `{}` if none does.
-        #
-        # @param registry [Runtime::Registry] the booted registry `domain_name` is loaded in
-        # @param domain_name [String] the domain to export the registrations binding for
-        # @return [Hash{Symbol => String, nil}] `:provider` (name), `:schedule`, `:request`
-        #   (qualified verbs), `:event_aggregate` and `:registration_aggregate` (each verb's own
-        #   leading qualified aggregate name) and, when declared, `:frees_seat` (the states of the
-        #   lifecycle mark it names) and `:registered_at` (the attribute that stamps a request);
-        #   `{}` if nothing this domain attaches provides registrations
-        def registrations(registry, domain_name)
-          provider = registry.registrations_provider_for(domain_name)
-          return {} unless provider
-
-          verbs = verbs_of(provider, Bluebook::Capabilities::REGISTRATIONS, :schedule, :request)
-          { provider: provider.name, **verbs,
-            **aggregates_of(verbs, event_aggregate: :schedule, registration_aggregate: :request),
-            **all_marked_states(provider, Bluebook::Capabilities::REGISTRATIONS),
-            **all_words(provider, Bluebook::Capabilities::REGISTRATIONS) }
-        end
-
-        # Which chapter owns the payment-processor connection
-        # (`Registry#payment_connection_provider_for`); `{}` if none does.
-        #
-        # @param registry [Runtime::Registry] the booted registry `domain_name` is loaded in
-        # @param domain_name [String] the domain to export the payment-connection binding for
-        # @return [Hash{Symbol => String, nil}] `:provider` (name), one qualified verb per
-        #   contract key (`:connect`, `:reconnect`, `:disconnect`, `:suspend`, `:resume`,
-        #   `:enable`, `:disable`) and `:aggregate` (`:connect`'s own leading qualified
-        #   aggregate name); `{}` if nothing this domain attaches provides payment_connection
-        def payment_connection(registry, domain_name)
-          provider = registry.payment_connection_provider_for(domain_name)
-          return {} unless provider
-
-          capability = Bluebook::Capabilities::PAYMENT_CONNECTION
-          verbs = verbs_of(provider, capability, *Bluebook::Capabilities::CONTRACTS.fetch(capability).keys)
-          { provider: provider.name, **verbs, aggregate: aggregate_of(verbs[:connect]) }
-        end
-
-        # Which chapter takes payments (`Registry#payments_provider_for`);
-        # `{}` if none does.
-        #
-        # @param registry [Runtime::Registry] the booted registry `domain_name` is loaded in
-        # @param domain_name [String] the domain to export the payments binding for
-        # @return [Hash{Symbol => String, nil}] `:provider` (name), `:initiate`, `:succeeded`,
-        #   `:failed` (qualified verbs), `:aggregate` (`:initiate`'s own leading qualified
-        #   aggregate name) and, when declared, `:holds_seat` (the states of the lifecycle mark
-        #   it names) and `:lapse_reason` (the word a lapsed hold
-        #   records); `{}` if nothing this domain attaches provides payments
-        def payments(registry, domain_name)
-          provider = registry.payments_provider_for(domain_name)
-          return {} unless provider
-
-          verbs = verbs_of(provider, Bluebook::Capabilities::PAYMENTS, :initiate, :succeeded, :failed)
-          { provider: provider.name, **verbs, aggregate: aggregate_of(verbs[:initiate]),
-            **marked_states(provider, Bluebook::Capabilities::PAYMENTS, :holds_seat),
-            **all_words(provider, Bluebook::Capabilities::PAYMENTS) }
-        end
-
-        # Which chapter owns the checkout boundary (`Registry#checkout_provider_for`); `{}` if
-        # none does.
-        #
-        # @param registry [Runtime::Registry] the booted registry `domain_name` is loaded in
-        # @param domain_name [String] the domain to export the checkout binding for
-        # @return [Hash{Symbol => Object}] `:provider` (name) and, when declared,
-        #   `:webhook_tolerance` and `:session_hold` (whole seconds); `{}` if nothing this
-        #   domain attaches provides checkout
-        def checkout(registry, domain_name)
-          provider = registry.checkout_provider_for(domain_name)
-          return {} unless provider
-
-          { provider: provider.name, **all_durations(provider, Bluebook::Capabilities::CHECKOUT) }
+        # @param domain_name [String] the domain to export the capabilities for
+        # @return [Hash{String => Hash{Symbol => Object}}] each capability's name, mapped to
+        #   `:provider` (the chapter's name) and one resolved value per key; `{}` if nothing
+        #   loaded declares one
+        def provides(registry, domain_name)
+          package_capabilities(registry).to_h do |capability|
+            provider = registry.vendored_provider_for(domain_name, capability)
+            values = provider.provision(capability).transform_values do |verb|
+              Bluebook::Capabilities.resolved_value(provider, verb)
+            end
+            [capability, { provider: provider.name, **values }]
+          end
         end
 
         private
@@ -189,9 +92,10 @@ module Hecks
           keys.to_h { |key| [key, provider.provided_verb(capability, key)] }
         end
 
-        # Each name in `names` mapped to the leading aggregate of the verb its key names in `verbs`.
-        def aggregates_of(verbs, names)
-          names.transform_values { |key| aggregate_of(verbs[key]) }
+        # Every capability name a loaded chapter provides that the language defines no contract for.
+        def package_capabilities(registry)
+          registry.bluebooks.values.flat_map { |chapter| chapter.provides.map(&:capability) }.uniq.sort
+                  .reject { |capability| Bluebook::Capabilities.language_defined?(capability) }
         end
 
         # The leading aggregate name of a qualified verb, or `nil` when there is no verb.
