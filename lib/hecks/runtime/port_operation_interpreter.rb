@@ -1,4 +1,5 @@
 require_relative "adapter_lookup"
+require_relative "asking"
 require_relative "interpreting"
 require_relative "dispatch_context"
 require_relative "command_interpreter/argument_gate"
@@ -101,7 +102,8 @@ module Hecks
 
       def adapter_answer(ctx)
         payload = held_state(ctx).merge(materialise(ctx.args))
-        adapter_for(ctx).public_send(Naming.snake(ctx.operation_hecks_name), **payload)
+        adapter = adapter_for(ctx)
+        Asking.with(@registry) { adapter.public_send(Naming.snake(ctx.operation_hecks_name), **payload) }
       end
 
       # The answer is spread, not nested: a policy re-enters its target with the event

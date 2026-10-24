@@ -1,0 +1,141 @@
+# The Bulk chapter: one command sent to every row one query answers, and what each row did with it
+# (ADR 0121). A domain attaches it with `attaches "Bulk"`.
+#
+# The sweep itself is the Rows port's: the chapter says a run was asked for, what it ran over and
+# how each row came out, and never which store or adapter did the work. The adapter that answers
+# the port sends the command through the same row sweep a `for_each` policy uses, one row at a
+# time, under the authority of whoever asked for the run.
+Hecks.bluebook "Bulk" do
+  vision "Send one command to every row a query answers, and keep what each row did with it."
+  supporting
+
+  aggregate "BulkRun" do
+    description "One command sent to every row of one query, and the outcome of each row: delivered, or refused and why."
+
+    attribute :run,       RunKey
+    attribute :verb,      VerbName
+    attribute :over,      QueryName
+    attribute :arguments, list_of(Argument),  optional: true
+    attribute :mode,      Mode
+    attribute :results,   list_of(RowResult), optional: true
+    attribute :refusal,   Report,             optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, matches: :present
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    # The command each row receives, fully qualified: `Banking::Account.FreezeAccount`.
+    value_object "VerbName" do
+      attribute :value, String, pattern: '^[A-Z][A-Za-z0-9]*::[A-Z][A-Za-z0-9]*\.[A-Z][A-Za-z0-9]*$'
+    end
+
+    # The query whose rows the command is sent to, fully qualified: `Banking::Account.Open`.
+    value_object "QueryName" do
+      attribute :value, String, pattern: '^[A-Z][A-Za-z0-9]*::[A-Z][A-Za-z0-9]*\.[A-Z][A-Za-z0-9]*$'
+    end
+
+    # One argument of the query, spelled as text. A value for an argument not declared a String
+    # is read as JSON, so a value object is written as an object: `{"cents":100}`.
+    value_object "Argument" do
+      attribute :key,   String
+      attribute :value, String
+    end
+
+    # `best_effort` sends every row and keeps each outcome; `all_or_nothing` sends every row or
+    # none, inside one transaction of a store that can roll back.
+    value_object "Mode" do
+      attribute :value, String, one_of: ["best_effort", "all_or_nothing"]
+    end
+
+    # How one row came out: the row's identity, whether the command was delivered, and the
+    # refusal's message when it was not.
+    value_object "RowResult" do
+      attribute :row,       String
+      attribute :delivered, Boolean
+      attribute :reason,    String, optional: true
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      mark :failure, "declined"
+      transition "Record"  => "swept",    from: "requested"
+      transition "Decline" => "declined", from: "requested"
+    end
+
+    command "Request" do
+      goal "Send one command to every row a query answers, in one of the two modes"
+
+      attribute :run,       RunKey
+      attribute :verb,      VerbName
+      attribute :over,      QueryName
+      attribute :arguments, list_of(Argument), optional: true
+      attribute :mode,      Mode
+
+      sets :run
+      sets :verb
+      sets :over
+      sets :arguments
+      sets :mode
+
+      emits BulkRunRequested
+    end
+
+    command "Record" do
+      role "System"
+      goal "Keep how every row of the run came out"
+
+      reference_to BulkRun
+      attribute :results, list_of(RowResult)
+
+      sets :results
+
+      emits BulkRunRecorded
+    end
+
+    command "Decline" do
+      role "System"
+      goal "Keep why the run could not start, before any row was sent"
+
+      reference_to BulkRun
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits BulkRunDeclined
+    end
+
+    query "Outcome" do
+      description "How one run stands: its status, every row's outcome, or why it could not start."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "Declined" do
+      description "Every run that could not start, such as all_or_nothing on a store that cannot roll back."
+      where(status: "declined")
+      order_by :run
+    end
+  end
+
+  policy "SweepWhenRequested" do
+    on      "BulkRun.BulkRunRequested"
+    ask     :sweep, with: { run: :run }
+  end
+
+  policy "RecordTheSweep" do
+    on      "BulkRun.BulkRunSwept"
+    trigger BulkRun::Record, with: { results: :results }
+  end
+
+  policy "RecordTheRefusal" do
+    on      "BulkRun.BulkRunRefused"
+    trigger BulkRun::Decline, with: { refusal: :refusal }
+  end
+end

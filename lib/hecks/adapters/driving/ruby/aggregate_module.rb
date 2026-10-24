@@ -5,6 +5,8 @@ require_relative "../../../bluebook/dsl/const_shim"
 require_relative "../../../bluebook/dsl/binding_proxy"
 require_relative "../../../bluebook/hecksagon"
 require_relative "../handle"
+require_relative "bulk_verbs"
+require_relative "query_rows"
 require_relative "../../../naming"
 
 module Hecks
@@ -40,13 +42,11 @@ module Hecks
               end
             end
 
-            # A query is a bare module method (no `!`): it just reads and returns
-            # the same raw row array `dispatcher.query` itself answers.
-            aggregate.queries.each do |query|
-              mod.define_singleton_method(Naming.snake(query.hecks_name)) do |**args|
-                dispatcher.query("#{fqn}.#{query.hecks_name}", **args)
-              end
-            end
+            # Every other command's bang form sends it to every row a query answered (ADR 0121).
+            BulkVerbs.define(mod, dispatcher, domain, aggregate)
+            # A query is a bare module method (no `!`): it reads and returns the raw rows
+            # `dispatcher.query` answers, as `QueryRows` so a bulk run can name the query.
+            BulkVerbs.define_queries(mod, dispatcher, fqn, aggregate)
 
             mod.define_singleton_method(:fqn)        { fqn }
             mod.define_singleton_method(:ir)         { aggregate }
