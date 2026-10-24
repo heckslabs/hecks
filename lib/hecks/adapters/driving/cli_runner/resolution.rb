@@ -97,7 +97,7 @@ module Hecks
             names.filter_map do |name|
               next unless known.include?(name)
 
-              [Naming.snake(name), Projector::CliProjector.first_sentence(runtime.registry.bluebook(name).vision)]
+              [Naming.snake(name), Projector::CliProjector.first_sentence(runtime.bluebook(name).vision)]
             end
           end
 
@@ -139,26 +139,18 @@ module Hecks
           # names a chapter its hecksagon attaches or uses as a framework member (`deploy`,
           # `governance`), that chapter, with the word dropped and added to the program name.
           def chapter_for(runtime, argv, program)
-            registry = runtime.registry
-            own      = own_bluebook(registry)
-            target   = attached_chapters(runtime).find { |name| Naming.snake(name) == argv.first }
+            own    = runtime.first_bluebook
+            target = attached_chapters(runtime).find { |name| Naming.snake(name) == argv.first }
             return [own, argv, program] unless target
 
-            [registry.bluebook(target), argv[1..], "#{program} #{argv.first}"]
+            [runtime.bluebook(target), argv[1..], "#{program} #{argv.first}"]
           end
 
           # The chapters the booted domain's hecksagon attaches or uses as framework members.
           def attached_chapters(runtime)
-            registry = runtime.registry
-            own = own_bluebook(registry)
-            Array(registry.hecksagon(own.name)&.member_chapters)
+            own = runtime.first_bluebook
+            Array(runtime.hecksagon(own.name)&.member_chapters)
           end
-
-          # The booted domain's own bluebook: the first one the registry holds.
-          #
-          # @param registry [Runtime::Registry] the booted registry
-          # @return [Bluebook::Domain, nil] its first bluebook
-          def own_bluebook(registry) = registry.bluebooks.values.first
         end
       end
     end

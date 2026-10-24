@@ -62,7 +62,7 @@ module Hecks
       def perform_state(runtime, bluebook, aggregate, summary, id)
         require_summary!(summary)
         ir         = aggregate_ir!(bluebook, aggregate)
-        repository = runtime.registry.repository(bluebook.name, ir)
+        repository = runtime.repository(bluebook.name, ir)
         return ok(summary: summary, record: single_record(repository, ir, id)) if id
 
         records = repository.all.map { |instance| Adapters::Driving::Json.materialize(instance.to_h) }

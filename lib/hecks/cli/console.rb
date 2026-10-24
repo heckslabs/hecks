@@ -50,8 +50,7 @@ module Hecks
       # @param runtime [Runtime] a booted domain
       # @return [String] each chapter's vision, and its aggregates' descriptions and commands
       def overview(runtime)
-        registry = runtime.registry
-        chapters = registry.bluebooks.each_value.map { |bluebook| chapter_overview(bluebook) }
+        chapters = runtime.bluebooks.each_value.map { |bluebook| chapter_overview(bluebook) }
         chapters.join
       end
 

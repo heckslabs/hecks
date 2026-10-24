@@ -51,7 +51,7 @@ module Hecks
           loading.load_project(loading.shared_root(nil, directory))
           loading.load_each(directory, %w[*.port *.adapter *.bluebook *.hecksagon *.world])
         end
-        bluebook = registry.bluebooks.values.first or abort "no bluebook in #{directory}"
+        bluebook = registry.first_bluebook or abort "no bluebook in #{directory}"
         [registry, bluebook]
       end
 

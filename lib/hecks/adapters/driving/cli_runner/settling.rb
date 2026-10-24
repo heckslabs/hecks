@@ -114,7 +114,7 @@ module Hecks
           def reread(runtime, bluebook, aggregate, handle)
             return unless aggregate && runtime.respond_to?(:registry)
 
-            repository = runtime.registry.repository(bluebook.name, aggregate)
+            repository = runtime.repository(bluebook.name, aggregate)
             repository&.find(handle.id)&.to_h
           end
         end

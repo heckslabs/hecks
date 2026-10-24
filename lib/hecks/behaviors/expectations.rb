@@ -96,8 +96,7 @@ module Hecks
       # @param verb [String] the command's dotted FQN
       # @return [Result] the test's pass or fail outcome
       def run_command(test, runtime, verb)
-        registry = runtime.registry
-        before = registry.event_log.length
+        before = runtime.events.length
         result = dispatch_command(runtime, verb, test.input)
         failure = refused_but_succeeded(test, "dispatch") || unexpected_emits(test, runtime, before)
         return failure if failure

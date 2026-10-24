@@ -84,7 +84,7 @@ module Hecks
       end
 
       def membership_provider
-        bluebook = @registry.bluebooks.values.first
+        bluebook = @registry.first_bluebook
         domain = bluebook&.name
         @registry.membership_provider_for(domain) or
           raise Runtime::NotFound, NO_MEMBERSHIP

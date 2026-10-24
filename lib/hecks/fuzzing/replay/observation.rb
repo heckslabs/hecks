@@ -14,7 +14,7 @@ module Hecks
             refusal_traces: @refusal_traces,
             mutation_traces: @mutation_traces, outbox_traces: @outbox_traces,
             saga_dispatches: @runtime.saga_dispatches, policy_dispatches: @runtime.policy_dispatches,
-            bluebook: registry.bluebooks.values.first,
+            bluebook: registry.first_bluebook,
             bluebooks: registry.bluebooks.dup }
         end
 

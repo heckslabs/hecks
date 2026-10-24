@@ -55,7 +55,7 @@ module Hecks
         # aggregate a query filters on, as one row per distinct record shape.
         def harvest_written_rows(runtime, catalog)
           catalog[:query_bindings].each do |key, binding|
-            repository = runtime.registry.repository(binding[:domain], binding[:aggregate])
+            repository = runtime.repository(binding[:domain], binding[:aggregate])
             repository.all.each { |record| remember_row(key, written_row(binding, record)) }
           end
         end

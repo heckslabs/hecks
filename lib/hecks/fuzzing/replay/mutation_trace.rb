@@ -47,7 +47,7 @@ module Hecks
           domain_name, aggregate_name, command_name = Naming.split_verb(verb)
           return nil unless command_name&.include?(".")
 
-          aggregate = runtime.registry.bluebook(domain_name)&.aggregate(aggregate_name)
+          aggregate = runtime.bluebook(domain_name)&.aggregate(aggregate_name)
           return nil unless aggregate
 
           entity, command = entity_command(aggregate, command_name)
@@ -80,7 +80,7 @@ module Hecks
         # Finds the stored element the step's identity args address, or nil.
         def locate_element(runtime, target, args)
           parent_id = Replay.identity_for(target.aggregate, target.command, args)
-          record = parent_id && runtime.registry.repository(target.domain, target.aggregate).find(parent_id)
+          record = parent_id && runtime.repository(target.domain, target.aggregate).find(parent_id)
           list_attr = record && list_attribute(target)
           wants = list_attr && element_wants(target, args)
           element = wants && find_element(record.state[list_attr.name], wants)
@@ -121,8 +121,8 @@ module Hecks
         end
 
         def parent_record(runtime, trace)
-          aggregate = runtime.registry.bluebook(trace[:domain])&.aggregate(trace[:aggregate])
-          aggregate && runtime.registry.repository(trace[:domain], aggregate).find(trace[:parent_id])
+          aggregate = runtime.bluebook(trace[:domain])&.aggregate(trace[:aggregate])
+          aggregate && runtime.repository(trace[:domain], aggregate).find(trace[:parent_id])
         end
       end
     end

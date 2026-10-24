@@ -28,8 +28,7 @@ module Hecks
         # The `[domain, command]` an aggregate-level verb names; the command is nil when none does.
         def command_of(runtime, verb)
           domain, aggregate_name, command_name = Naming.split_verb(verb)
-          registry = runtime.registry
-          [domain, registry.bluebook(domain)&.aggregate(aggregate_name)&.command(command_name)]
+          [domain, runtime.bluebook(domain)&.aggregate(aggregate_name)&.command(command_name)]
         end
 
         # Whether the command declares a role and its domain has an authorization provider.

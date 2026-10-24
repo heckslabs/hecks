@@ -1,3 +1,5 @@
+require_relative "../declarations"
+
 module Hecks
   module Runtime
     class Loader
@@ -7,6 +9,8 @@ module Hecks
       # so a caller that can answer from `directory` alone (a launcher with its help already
       # remembered) never pays for the load. The directory is checked at once.
       class Described
+        include Declarations
+
         # @return [String] the domain directory that was described
         attr_reader :directory
 

@@ -42,7 +42,7 @@ module Hecks
         registry = load_files(files)
         return labels(registry) if directory
 
-        bluebook = registry.bluebooks.values.first or raise Runtime::NotFound, "#{target} declares no bluebook"
+        bluebook = registry.first_bluebook or raise Runtime::NotFound, "#{target} declares no bluebook"
         JSON.pretty_generate(Projector.call(:shape, bluebook: bluebook))
       end
 

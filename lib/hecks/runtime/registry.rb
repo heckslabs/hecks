@@ -232,6 +232,11 @@ module Hecks
       #   registered under `name`
       def world(name)     = @declared.worlds[name.to_s]
 
+      # The first chapter loaded: a one-domain boot's own bluebook.
+      #
+      # @return [Bluebook::Chapter, nil] the first loaded chapter, or nil when none loaded
+      def first_bluebook = @declared.bluebooks.values.first
+
       # Every verb every loaded chapter declares, sorted.
       #
       # @return [Array<String>] every declared verb, across every loaded chapter

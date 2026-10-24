@@ -79,8 +79,7 @@ module Hecks
       # :nodoc:
       def model_findings(runtime)
         require_relative "../bluebook/model_check"
-        registry = runtime.registry
-        findings = registry.bluebooks.values.flat_map { |bluebook| Bluebook::ModelCheck.call(bluebook) }
+        findings = runtime.bluebooks.values.flat_map { |bluebook| Bluebook::ModelCheck.call(bluebook) }
         findings.map { |f| { kind: f.kind, severity: f.severity, subject: f.subject, message: f.message } }
       end
 
@@ -93,7 +92,7 @@ module Hecks
       def history(runtime:)
         bluebook = bluebook_for(runtime)
         entries  = bluebook.aggregates.each_with_object({}) do |aggregate, all|
-          repository = runtime.registry.repository(bluebook.name, aggregate)
+          repository = runtime.repository(bluebook.name, aggregate)
           all[aggregate.storage_name] = journal_entries(repository)
         end
 

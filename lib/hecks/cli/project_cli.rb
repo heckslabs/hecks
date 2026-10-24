@@ -92,8 +92,7 @@ module Hecks
       #   launcher could not be made
       def one(root, path, program, check, remove_stale_bin)
         runtime = Hecks.boot(File.join(root, path), install_driving: false)
-        registry = runtime.registry
-        name    = registry.bluebooks.keys.first or raise Error, "it loads no bluebook"
+        name    = runtime.bluebooks.keys.first or raise Error, "it loads no bluebook"
         setting = Adapters::Driving::LauncherOptions.settings(runtime, name) || {}
         settle(launcher_target(name, path, setting, root, program), path, root, check, remove_stale_bin)
       rescue StandardError, LoadError => e

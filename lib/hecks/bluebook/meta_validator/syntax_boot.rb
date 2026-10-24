@@ -161,7 +161,7 @@ module Hecks
         # `rows` hands the seed data in as.
         def read_back(runtime, bluebook)
           syntax = bluebook.aggregate("Syntax")
-          repository = runtime.registry.repository("Bluebook", syntax)
+          repository = runtime.repository("Bluebook", syntax)
           instance   = repository.find(Naming.identity([syntax.hecks_name]))
 
           {

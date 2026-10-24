@@ -14,6 +14,7 @@ require_relative "outbox"
 require_relative "dispatcher/result"
 require_relative "dispatcher/routing"
 require_relative "dispatcher/queries"
+require_relative "declarations"
 require_relative "../naming"
 
 module Hecks
@@ -23,6 +24,7 @@ module Hecks
     class Dispatcher
       include Routing
       include Queries
+      include Declarations
 
       MAX_REACTION_DEPTH = 5
 
@@ -78,18 +80,6 @@ module Hecks
       #
       # @return [Array<String>] sorted
       def verbs = @registry.verbs
-
-      # Exposes one loaded domain's bluebook.
-      #
-      # @param domain [String, Symbol] the domain name
-      # @return [Bluebook::Bluebook, nil] the bluebook, or nil when no such domain is loaded
-      def bluebook(domain) = @registry.bluebook(domain)
-
-      # Answers whether a domain was loaded as a bounded chapter.
-      #
-      # @param domain [String, Symbol] the domain name
-      # @return [Boolean] whether the domain is a bounded chapter
-      def bounded?(domain) = @registry.bounded?(domain)
 
       # Runs one command, entity command or port operation, then the reactions its events owe.
       #

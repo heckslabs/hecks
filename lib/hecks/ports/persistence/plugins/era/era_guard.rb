@@ -158,7 +158,7 @@ module Hecks
         loading = Ports::Loading.bootstrap
         run = -> { evaluate_into(scratch, loading, source, path) }
         shadow ? Hecks::Bluebook::MetaValidator.while_shadow_parsing(&run) : run.call
-        scratch.bluebooks.values.first
+        scratch.first_bluebook
       end
 
       # Loads the library and evaluates the text with the scratch registry current.

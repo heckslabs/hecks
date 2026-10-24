@@ -91,10 +91,10 @@ module Hecks
         domain, aggregate_name, = Naming.split_verb(verb)
         return false unless domain && aggregate_name
 
-        aggregate = runtime.registry.bluebook(domain)&.aggregate(aggregate_name)
+        aggregate = runtime.bluebook(domain)&.aggregate(aggregate_name)
         return false unless aggregate
 
-        repository = runtime.registry.repository(domain, aggregate)
+        repository = runtime.repository(domain, aggregate)
         repository.capabilities.include?(:cross_process_lock)
       rescue StandardError => e
         # Still `false` — a verb this boot cannot resolve is not raced on a

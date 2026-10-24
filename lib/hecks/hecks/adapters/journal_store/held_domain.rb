@@ -71,7 +71,7 @@ module Hecks
         def initialize(registry, directory)
           @registry = registry
           @directory = directory
-          @bluebook = registry.bluebooks.values.first or raise Runtime::NotFound, "no bluebook in #{directory}"
+          @bluebook = registry.first_bluebook or raise Runtime::NotFound, "no bluebook in #{directory}"
           first = @bluebook.aggregates.first or raise Runtime::NotFound, "#{@bluebook.name} declares no aggregates"
           @adapter_name = Ports::Persistence::BindingPolicy.resolve(registry, @bluebook.name, first).adapter
         end

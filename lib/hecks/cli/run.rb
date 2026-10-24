@@ -134,10 +134,9 @@ module Hecks
 
       # @api private
       def instances(runtime)
-        registry = runtime.registry
-        registry.bluebooks.each_with_object({}) do |(domain_name, bluebook), all|
+        runtime.bluebooks.each_with_object({}) do |(domain_name, bluebook), all|
           bluebook.aggregates.each do |aggregate|
-            registry.repository(domain_name, aggregate).all.each do |record|
+            runtime.repository(domain_name, aggregate).all.each do |record|
               all["#{domain_name}::#{aggregate.name}##{record.id}"] = record.state
             end
           end

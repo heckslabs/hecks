@@ -59,8 +59,7 @@ module Hecks
     # the same one-bluebook-per-boot shape.
     # :nodoc:
     def bluebook_for(runtime)
-      registry = runtime.registry
-      registry.bluebooks.values.first or
+      runtime.first_bluebook or
         raise Runtime::NotFound, "this boot loaded no bluebook"
     end
 

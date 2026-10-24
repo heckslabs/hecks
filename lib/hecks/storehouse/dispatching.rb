@@ -76,7 +76,7 @@ module Hecks
         aggregate = top_level_aggregate(bluebook, spec[:command])
         return aggregate unless aggregate
 
-        repository = runtime.registry.repository(bluebook.name, aggregate)
+        repository = runtime.repository(bluebook.name, aggregate)
         repository&.find(result.id)&.to_h
       end
 
