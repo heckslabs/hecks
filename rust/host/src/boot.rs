@@ -4,8 +4,8 @@
 use crate::host::Host;
 use crate::ir::Backend;
 use crate::{
-    auth, extension, ir, journal, lambda_client, log, mint, rate_limit, secrets, server,
-    storage_shape,
+    auth, aws_lambda_invoker, dispatch, extension, ir, journal, log, mint, rate_limit, secrets,
+    server, storage_shape,
     store::{MemoryStore, Store},
 };
 
@@ -30,6 +30,10 @@ pub async fn run() -> Result<(), Error> {
     // than falling back silently at request time.
     auth::resolve_account_cookie(std::env::var("HECKS_SESSION_COOKIE").ok().as_deref())?;
 
+    ir::install(std::env::var("HECKS_IR_PATH").ok().as_deref());
+    dispatch::Enforcement::install(dispatch::Enforcement::parse(
+        std::env::var("HECKS_ROLE_ENFORCEMENT").ok().as_deref(),
+    ));
     let ir = ir::ir().ok_or("HECKS_IR_PATH is not set or unreadable — this binary needs its own domain's ir.json sidecar")?;
     let google_auth =
         secrets::var("GOOGLE_CLIENT_ID").is_ok() || std::env::var("GOOGLE_OAUTH_SECRET_ID").is_ok();
@@ -122,7 +126,7 @@ pub async fn run() -> Result<(), Error> {
     // resolve once at boot, not per invocation. See lambda_client.rs:
     // the compiled `.wasm` module can't dispatch this itself (no
     // network inside that sandbox).
-    let invoker = Arc::new(lambda_client::AwsLambdaInvoker::from_env().await);
+    let invoker = Arc::new(aws_lambda_invoker::AwsLambdaInvoker::from_env().await);
 
     // `role` is optional, mirroring `args`: an absent key means no
     // caller asserted a role, and `dispatch::handle`'s `check_role`

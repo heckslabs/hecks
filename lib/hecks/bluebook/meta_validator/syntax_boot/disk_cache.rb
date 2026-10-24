@@ -1,3 +1,5 @@
+require_relative "../../../switches"
+
 module Hecks
   module Bluebook
     module MetaValidator
@@ -24,7 +26,7 @@ module Hecks
           # cache rather than silently serving a stale table.
           def cache_dir = Hecks::CacheDir.path("hecks_syntax_boot_cache")
 
-          def disk_cache_enabled? = ENV["HECKS_SYNTAX_BOOT_CACHE"] != "off"
+          def disk_cache_enabled? = Hecks::Switches.syntax_boot_cache?
 
           # Fails toward a real boot, never toward a wrong table: a missing
           # file, a corrupt blob, or a permission error just misses the cache. A table

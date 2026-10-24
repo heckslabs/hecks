@@ -12,7 +12,7 @@ module Hecks
       class Handle
         attr_reader :id
 
-        # @param dispatcher [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted
+        # @param dispatcher [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the booted
         #   dispatcher this record's verbs, `events` and `reload` go through
         # @param domain [String] the owning chapter's name, the first half of `fqn`
         # @param aggregate [Bluebook::Aggregate] the IR of the aggregate this record is one of

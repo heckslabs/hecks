@@ -1,4 +1,4 @@
-require_relative "../../../../../runtime/errors"
+require_relative "../../../runtime/errors"
 
 module Hecks
   module Adapters

@@ -1,6 +1,7 @@
 require "json"
 require_relative "../../vocabulary"
 require_relative "evaluator/parser"
+require_relative "../../switches"
 
 module Hecks
   module Bluebook
@@ -69,7 +70,7 @@ module Hecks
         # @raise [EvaluationError] if `rule` resolves an unknown attribute/argument, or
         #   misapplies an operation
         def call_rule(rule, state, attrs = {})
-          return call(rule.canonical, state, attrs) if ENV["HECKS_EVAL"] == "string"
+          return call(rule.canonical, state, attrs) if Switches.string_evaluation?
 
           interpret(ast_cache[rule.canonical] ||= nodes_for(rule), state, attrs)
         end

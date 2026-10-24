@@ -1,8 +1,7 @@
-require_relative "../adapters/driving/ruby"
 require_relative "../ports/loading"
 require_relative "../ports/persistence"
+require_relative "../ports/dispatch"
 require_relative "dispatcher"
-require_relative "remote_dispatcher"
 require_relative "boot_gates"
 require_relative "registry"
 require_relative "loader/boot_steps"
@@ -11,45 +10,39 @@ require_relative "loader/described"
 module Hecks
   module Runtime
     # Boots a domain: loads its bluebook directory into a fresh Registry, runs
-    # every boot gate, and hands back the bound Dispatcher (or RemoteDispatcher).
+    # every boot gate, and hands back the dispatcher the domain's world names.
+    #
+    # It reads no environment variable and installs no driving adapter: `Hecks::Assembly`
+    # chooses the overlay and plugs the Ruby facade in.
     class Loader
       extend BootSteps
 
-      # Default for a boot's `environment:` keyword: read `HECKS_ENVIRONMENT`. An explicit
-      # `nil` means no overlay, whatever the variable holds.
-      FROM_ENV = :from_env
-
       # Boots `path`: loads its bluebook directory into a fresh Registry, runs
-      # every registered boot gate, and returns the bound dispatcher. Pass
-      # `install_driving: false` to skip the `Widget::Item.Add(...)` global
-      # facade sugar (only a caller dispatching by FQN string needs to).
+      # every registered boot gate, and returns the dispatcher.
       #
       # @param path [String] a domain directory to boot
       # @param shared [String, nil] shared ports/adapters root; nil walks up from `path`
-      # @param environment [String, nil] environment overlay loaded after the domain; defaults
-      #   to `HECKS_ENVIRONMENT`, and an explicit nil loads none
-      # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted dispatcher
+      # @param environment [String, nil] environment overlay loaded after the domain; nil loads none
+      # @return [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the booted dispatcher
       # @raise [Errno::ENOENT] if `path` names no domain directory
       # @raise [Runtime::WiringError] if a boot gate finds a wiring problem
-      def self.boot(path, shared: nil, install_driving: true, environment: FROM_ENV)
-        described = describe(path, shared: shared, environment: environment)
-        boot_described(described, install_driving: install_driving)
+      def self.boot(path, shared: nil, environment: nil)
+        boot_described(describe(path, shared: shared, environment: environment))
       end
 
-      # Finishes a boot from declarations `describe` already loaded: runs every boot gate and binds
+      # Finishes a boot from declarations `describe` already loaded: runs every boot gate and builds
       # the dispatcher, without reading the domain's files again.
       #
       # @param described [Described] what `describe` answered for the domain to boot
-      # @param install_driving [Boolean] install the `Widget::Item.Add(...)` global facade sugar
-      # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted dispatcher
+      # @return [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the booted dispatcher
       # @raise [Runtime::WiringError] if a boot gate finds a wiring problem
-      def self.boot_described(described, install_driving: true)
+      def self.boot_described(described)
         registry = described.registry
         run_boot_gates!(registry, described.directory)
         dispatcher = dispatcher_for(registry)
         redrive_outbox!(dispatcher)
         seed_privacy_markings!(dispatcher, registry)
-        install_driving ? bind_runtime(dispatcher) : dispatcher
+        dispatcher
       end
 
       # Loads `path`'s declarations into a fresh Registry and stops: no boot gate runs, no
@@ -63,12 +56,11 @@ module Hecks
       # @param environment [String, nil] environment overlay loaded after the domain
       # @return [Described] answers `registry` like a booted dispatcher does
       # @raise [Errno::ENOENT] if `path` names no domain directory
-      def self.describe(path, shared: nil, environment: FROM_ENV)
+      def self.describe(path, shared: nil, environment: nil)
         loading   = Ports::Loading.bootstrap
         directory = loading.bluebook_directory(path)
-        overlay   = selected_environment(environment)
 
-        Described.new(directory) { load_declarations(loading, directory, shared, overlay) }
+        Described.new(directory) { load_declarations(loading, directory, shared, environment) }
       end
 
       # Loads the directory's declarations into a fresh Registry, answering it.
@@ -82,19 +74,6 @@ module Hecks
           loading.load_domain(directory, environment: overlay)
         end
         registry
-      end
-
-      # The overlay a boot loads: the caller's own choice (nil meaning none), else the
-      # `HECKS_ENVIRONMENT` variable when the caller left the keyword at its default. A domain
-      # with no `environments/<name>.*` files ignores either.
-      #
-      # @param environment [String, nil, Symbol] the overlay a caller passed, or `FROM_ENV`
-      # @return [String, nil] the overlay name; nil for none
-      def self.selected_environment(environment)
-        return environment unless environment == FROM_ENV
-
-        named = ENV["HECKS_ENVIRONMENT"].to_s.strip
-        named.empty? ? nil : named
       end
 
       # Redrives pending outbox rows after the dispatcher and saga
@@ -114,19 +93,18 @@ module Hecks
       #
       # @param paths [Array<String>, String] the exact file paths to boot, in load order
       # @param shared [String, nil] shared ports/adapters root; nil walks up from the first path
-      # @param environment [String, nil] environment overlay loaded after the named files;
-      #   defaults to `HECKS_ENVIRONMENT`, and an explicit nil loads none
-      # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted dispatcher
+      # @param environment [String, nil] environment overlay loaded after the named files; nil
+      #   loads none
+      # @return [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the booted dispatcher
       # @raise [Runtime::WiringError] if a boot gate finds a wiring problem
-      def self.boot_files(paths, shared: nil, install_driving: true, environment: FROM_ENV)
+      def self.boot_files(paths, shared: nil, environment: nil)
         loading   = Ports::Loading.bootstrap
         files     = Array(paths).map { |path| File.expand_path(path) }
         directory = File.dirname(files.first)
-        registry  = load_files(loading, files, shared, selected_environment(environment))
+        registry  = load_files(loading, files, shared, environment)
 
         run_boot_gates!(registry, directory)
-        dispatcher = dispatcher_for(registry)
-        install_driving ? bind_runtime(dispatcher) : dispatcher
+        dispatcher_for(registry)
       end
 
       # Loads exactly `files` into a fresh Registry rooted beside their directory, answering it.
@@ -143,26 +121,26 @@ module Hecks
         registry
       end
 
-      # `RemoteDispatcher` for a domain declaring `dispatched_by("Lambda")`,
-      # `Dispatcher` otherwise. That's an explicit opt-in, never inferred from
-      # `deployed_to("AwsLambda")` alone — that verb only means a deploy
-      # target exists, and treating it as "dispatch via Lambda" would reroute
-      # every local boot of a domain that merely declares one.
+      # The local `Dispatcher`, unless the domain's world binds the dispatch port: then the bound
+      # adapter builds the dispatcher (`dispatched_by("Lambda")` routes writes to a Lambda). That
+      # is an explicit opt-in, never inferred from `deployed_to("AwsLambda")` alone, which only
+      # means a deploy target exists.
+      #
+      # @param registry [Runtime::Registry] the booted registry
+      # @return [Runtime::Dispatcher, Object] the dispatcher the boot hands back
+      # @raise [Runtime::WiringError] if the bound adapter cannot build a dispatcher
       def self.dispatcher_for(registry)
-        domain = registry.bluebooks.keys.first
-        settings = registry.world(domain)&.for_verb("dispatched_by") || {}
-        return Dispatcher.new(registry) unless settings[:adapter] == "Lambda"
+        settings = registry.world(registry.bluebooks.keys.first)&.for_verb(Ports::Dispatch::VERB) || {}
+        return Dispatcher.new(registry) unless settings[:adapter]
 
-        RemoteDispatcher.new(registry, region: settings.fetch(:region, "us-east-1"), function: settings[:function])
+        Ports::Dispatch.dispatcher(registry, settings)
       end
 
-      # Installs the facade sugar (`Widget::Item.Add(...)`) closed over
-      # `dispatcher`. The binding lives in the facade's own modules, not a
-      # class-level global, so two boots in one process don't share one name.
-      def self.bind_runtime(dispatcher)
-        Adapters::Driving::Ruby.install(dispatcher)
-        dispatcher
-      end
+      # Installs the Ruby facade over a dispatcher built by hand. See `Hecks.bind_runtime`.
+      #
+      # @param dispatcher [Runtime::Dispatcher] a dispatcher over a verified registry
+      # @return [Runtime::Dispatcher] the same dispatcher
+      def self.bind_runtime(dispatcher) = Hecks.bind_runtime(dispatcher)
     end
   end
 end

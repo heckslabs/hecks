@@ -7,10 +7,14 @@ end
 require_relative "driven/memory"
 require_relative "driven/sqlite"
 require_relative "driven/postgres"
-# PostgresEra lives in a persistence plugin, autoloaded so a domain that never binds
-# it loads no era code; the plugin entry point registers itself on load (ADR 0033).
-Hecks::Adapters.autoload(:PostgresEra, "hecks/ports/persistence/plugins/era")
+# PostgresEra is autoloaded so a domain that never binds it loads no era code; loading it
+# installs the era persistence plugin, which registers itself (ADR 0033).
+Hecks::Adapters.autoload(:PostgresEra, "hecks/adapters/driven/postgres_era")
 require_relative "driven/lambda"
+# Loaded on first mention: nothing about a domain's own boot needs the dump
+# tooling, and it wants the optional `pg` gem.
+Hecks::Adapters.autoload(:PostgresDump, File.join(__dir__, "driven/postgres_dump"))
+Hecks::Ports::Persistence.autoload(:PostgresDump, File.join(__dir__, "driven/postgres_dump"))
 require_relative "driven/heki"
 require_relative "driven/local_storage"
 require_relative "driven/prism"

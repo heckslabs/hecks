@@ -1,5 +1,5 @@
-require_relative "../../../../../../naming"
-require_relative "../../../../../../runtime/errors"
+require_relative "../../../../naming"
+require_relative "../../../../runtime/errors"
 
 module Hecks
   module Adapters

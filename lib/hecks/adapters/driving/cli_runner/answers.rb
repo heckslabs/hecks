@@ -130,8 +130,7 @@ module Hecks
           # without this the answer would say nothing of it. A defect (a crash) is shown apart, as
           # `reaction_defects:`, and fails `--wait`.
           #
-          # @param handle [Runtime::Dispatcher::Result, Runtime::RemoteDispatcher::Result] the
-          #   outcome
+          # @param handle [Runtime::Dispatcher::Result, Adapters::Lambda::RemoteDispatcher::Result]
           # @return [Hash] `refused_reactions:` each with the `policy`, its `trigger`, the `reason`;
           #   empty when every reaction was delivered (or a remote host sent no per-step log), plus
           #   `reaction_defects:` when one crashed

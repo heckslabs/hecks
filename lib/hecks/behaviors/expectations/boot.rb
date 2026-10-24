@@ -21,7 +21,7 @@ module Hecks
         #
         # @param suite [Behaviors::BehaviorsSuite] the suite whose `loads` files boot
         #   the runtime
-        # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the cached or
+        # @return [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the cached or
         #   freshly booted, Memory-only-guarded runtime
         # @raise [Malformed] if any aggregate the suite boots is not bound to the
         #   default (Memory) adapter
@@ -39,11 +39,11 @@ module Hecks
         #
         # @param files [Array<String>] absolute paths to the bluebook/hecksagon/world
         #   files to boot
-        # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted,
+        # @return [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the booted,
         #   Memory-only-guarded runtime
         # @raise [Malformed] if any aggregate is bound to a non-Memory adapter
         def boot_and_guard(files)
-          runtime = Hecks::Runtime::Loader.boot_files(files, install_driving: false)
+          runtime = Hecks.boot_files(files, install_driving: false)
           guard_memory_only!(runtime)
           runtime
         end
@@ -51,7 +51,7 @@ module Hecks
         # Refuses a runtime where any aggregate is bound to anything other than the
         # default (Memory) adapter, so tests can never leak state or touch a real store.
         #
-        # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted
+        # @param runtime [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the booted
         #   runtime to check
         # @return [void]
         # @raise [Malformed] if any aggregate is bound to a non-Memory adapter

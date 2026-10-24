@@ -4,7 +4,6 @@ require_relative "era/era_guard"
 require_relative "era/era_tamper"
 require_relative "era/storage_shape"
 require_relative "era/lineage"
-require_relative "era/postgres_era"
 require_relative "era/translation"
 
 module Hecks

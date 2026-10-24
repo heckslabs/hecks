@@ -9,11 +9,12 @@ module Hecks
         # Refuses every local write; `project` is an alias and refuses the same way.
         #
         # @return [void] never returns
-        # @raise [Runtime::WiringError] always, pointing the caller at `Runtime::RemoteDispatcher`
+        # @raise [Runtime::WiringError] always, pointing the caller at
+        #   `Adapters::Lambda::RemoteDispatcher`
         def append(*)
           raise Runtime::WiringError,
                 "#{self.class.name} is a remote-runtime delegate — dispatch through " \
-                "Runtime::RemoteDispatcher instead of writing through the repository directly"
+                "Adapters::Lambda::RemoteDispatcher instead of writing through the repository directly"
         end
         alias project append
 

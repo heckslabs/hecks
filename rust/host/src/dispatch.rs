@@ -21,17 +21,6 @@ pub struct Caller<'a> {
     pub actor_id: Option<&'a str>,
 }
 
-impl<'a> Caller<'a> {
-    /// The caller a signed-in session dispatches as: the role it carries and the identity
-    /// Governance holds assignments for. No session is an unidentified caller.
-    pub fn signed_in(session: Option<&'a crate::auth::Session>) -> Self {
-        session.map_or_else(Self::default, |session| Self {
-            role: session.role.as_deref(),
-            actor_id: Some(session.identity_id.as_str()).filter(|id| !id.is_empty()),
-        })
-    }
-}
-
 /// The role an unidentified caller is dispatched under when roles are enforced: no command declares
 /// it, so a command that declares any role refuses it.
 pub const ANONYMOUS_ROLE: &str = "Anonymous";
@@ -49,6 +38,8 @@ pub enum Enforcement {
     Enforce,
 }
 
+static ENFORCEMENT: std::sync::OnceLock<Enforcement> = std::sync::OnceLock::new();
+
 impl Enforcement {
     /// Reads `off` (the default), `shadow` or `enforce`; anything else is `Off`.
     pub fn parse(value: Option<&str>) -> Self {
@@ -59,9 +50,15 @@ impl Enforcement {
         }
     }
 
-    pub fn from_env() -> Self {
-        static MODE: std::sync::OnceLock<Enforcement> = std::sync::OnceLock::new();
-        *MODE.get_or_init(|| Self::parse(std::env::var("HECKS_ROLE_ENFORCEMENT").ok().as_deref()))
+    /// Fixes the mode for the life of the process; boot calls it with the parsed
+    /// `HECKS_ROLE_ENFORCEMENT`. Only the first call has an effect.
+    pub fn install(mode: Self) {
+        let _ = ENFORCEMENT.set(mode);
+    }
+
+    /// The mode boot installed, or `Off` when none was.
+    pub fn configured() -> Self {
+        ENFORCEMENT.get().copied().unwrap_or(Self::Off)
     }
 
     /// The caller the kernel is asked to check: an unidentified caller becomes the anonymous role
@@ -239,7 +236,7 @@ pub async fn handle(
         Origin::External
     };
     dispatch_in(
-        Enforcement::from_env(),
+        Enforcement::configured(),
         origin,
         host,
         verb,
@@ -260,7 +257,7 @@ pub async fn handle_request(
     caller: Caller<'_>,
 ) -> anyhow::Result<Outcome> {
     dispatch_in(
-        Enforcement::from_env(),
+        Enforcement::configured(),
         Origin::Request,
         host,
         verb,
@@ -300,7 +297,7 @@ pub async fn handle_as(
     caller: Caller<'_>,
 ) -> anyhow::Result<Outcome> {
     dispatch_in(
-        Enforcement::from_env(),
+        Enforcement::configured(),
         Origin::External,
         host,
         verb,
@@ -392,7 +389,7 @@ async fn run(
     }
     // Stamped only on this live step. The journal keeps a command's verb and arguments alone, so a
     // replayed step carries no role, actor or timestamp of its own.
-    step["occurred_at"] = serde_json::Value::String(crate::auth::httpdate_now());
+    step["occurred_at"] = serde_json::Value::String(crate::clock::iso8601_now());
     // The seed matches the steps: a full replay needs an empty seed, or the kernel replays into a
     // world that already has every record being created again, refusing each as a false
     // AlreadyExists.
@@ -1258,7 +1255,7 @@ pub(crate) mod tests {
     async fn occurred_at_is_stamped_onto_every_returned_event_with_this_crate_s_own_real_clock() {
         let client = crate::dispatch::tests::memory_store();
 
-        let before = crate::auth::httpdate_now();
+        let before = crate::clock::iso8601_now();
         let outcome = handle(
             Host::new(
                 &client,
@@ -1272,7 +1269,7 @@ pub(crate) mod tests {
         )
         .await
         .unwrap();
-        let after = crate::auth::httpdate_now();
+        let after = crate::clock::iso8601_now();
 
         assert!(outcome.accepted, "{:?}", outcome.result["refusals"]);
         let events = outcome.result["events"].as_array().unwrap();

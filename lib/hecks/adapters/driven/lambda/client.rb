@@ -4,7 +4,7 @@ module Hecks
   module Adapters
     class Lambda
       # The thin AWS client shared by this adapter's read methods and
-      # Runtime::RemoteDispatcher's writes: one Lambda invoke, one JSON round trip.
+      # Adapters::Lambda::RemoteDispatcher's writes: one Lambda invoke, one JSON round trip.
       #
       # The function name defaults to `"hecks-#{domain.downcase}"`, matching
       # `hecks deploy recipe.project`'s `stack_name` computation. A domain whose stack

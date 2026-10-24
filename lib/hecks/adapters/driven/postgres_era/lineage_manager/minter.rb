@@ -1,7 +1,7 @@
-require_relative "../../../../../../runtime/registry"
-require_relative "../../storage_shape"
-require_relative "../../translation/audit"
-require_relative "../../translation/scaffold"
+require_relative "../../../../runtime/registry"
+require_relative "../../../../ports/persistence/plugins/era/storage_shape"
+require_relative "../../../../ports/persistence/plugins/era/translation/audit"
+require_relative "../../../../ports/persistence/plugins/era/translation/scaffold"
 require_relative "context"
 require_relative "refusals"
 

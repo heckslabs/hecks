@@ -37,7 +37,7 @@ module Hecks
 
         # Reads a chapter's `launcher` setting.
         #
-        # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted domain
+        # @param runtime [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the booted domain
         # @param chapter [String] the chapter the command line speaks to
         # @return [Hash{Symbol => Object}, nil] the setting, or nil when the chapter did not opt in
         def settings(runtime, chapter)
@@ -224,7 +224,7 @@ module Hecks
         # record. When no identity adapter is bound the run is refused, saying to name a key,
         # rather than sent on without one.
         #
-        # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted domain
+        # @param runtime [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the booted domain
         # @param spec [Hash] the command's projected spec
         # @param args [Hash] the parsed arguments
         # @param settings [Hash, nil] the chapter's `launcher` setting

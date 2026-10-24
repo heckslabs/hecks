@@ -12,7 +12,7 @@ module Hecks
           # setting lists under `streams`, given `--stream`; `from_now` applies to the first ask
           # only.
           #
-          # @param runtime [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted domain
+          # @param runtime [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the domain
           # @param argv [Array<String>] as for `call`, with `--stream`
           # @param program [String] how the caller was invoked
           # @param out [IO] where each entry's line goes

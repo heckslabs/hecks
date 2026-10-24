@@ -1,4 +1,5 @@
 require_relative "errors"
+require_relative "adapter_namespace"
 
 module Hecks
   module Runtime
@@ -55,7 +56,7 @@ module Hecks
         implementations = registry.adapters.values.select { |adapter| adapter.port == port_name }
 
         case implementations.size
-        when 1 then Adapters.const_get(implementations.first.name)
+        when 1 then AdapterNamespace.resolve(implementations.first.name)
         when 0 then raise WiringError, "no adapter implements the #{port_name} port — nothing can answer #{asked}"
         else raise WiringError,
                    "#{implementations.size} adapters implement the #{port_name} port " \

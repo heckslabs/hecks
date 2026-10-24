@@ -27,9 +27,9 @@ module Hecks
         # An aggregate sharing its chapter's name gets no second constant. A name that user
         # code or the stdlib already owns is left alone with a warning (see `Namespace.install`).
         #
-        # @param dispatcher [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted
+        # @param dispatcher [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the booted
         #   dispatcher every installed module dispatches and queries through
-        # @return [Runtime::Dispatcher, Runtime::RemoteDispatcher] the same `dispatcher`
+        # @return [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the same `dispatcher`
         # @raise [NameError] if a chapter or aggregate name is not a valid constant name
         def install(dispatcher)
           Admission.admit!(dispatcher.registry, "Ruby")

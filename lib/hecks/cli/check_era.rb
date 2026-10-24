@@ -1,4 +1,4 @@
-require_relative "../ports/persistence/plugins/era/expected_era"
+require_relative "expected_era"
 
 module Hecks
   module CLI
@@ -8,7 +8,7 @@ module Hecks
       # What a check found.
       #
       # @!attribute [r] verdict
-      #   @return [Runtime::EraCheck::ExpectedEra::Verdict] the era compared with the list
+      #   @return [CLI::ExpectedEra::Verdict] the era compared with the list
       # @!attribute [r] version
       #   @return [String] the gem version the host reports, empty when it reports none
       # @!attribute [r] line
@@ -24,17 +24,17 @@ module Hecks
       # @param timeout [Numeric] seconds allowed for connecting and for reading
       # @return [Finding] the comparison, whether or not the era is listed
       # @raise [Errno::ENOENT, Errno::EACCES] if the file cannot be read
-      # @raise [Runtime::EraCheck::ExpectedEra::Unreachable] if the host cannot be reached
-      # @raise [Runtime::EraCheck::ExpectedEra::BadResponse] if it answers no era
+      # @raise [CLI::ExpectedEra::Unreachable] if the host cannot be reached
+      # @raise [CLI::ExpectedEra::BadResponse] if it answers no era
       def assess(url, file, timeout:)
-        expected = Runtime::EraCheck::ExpectedEra
+        expected = CLI::ExpectedEra
         allowed  = expected.parse(File.read(file))
         document = expected.fetch_version(url, timeout: timeout)
         verdict  = expected.verdict(document.fetch("era"), allowed)
         Finding.new(verdict, document.fetch("version"), sentence(verdict, file))
       end
 
-      # @param verdict [Runtime::EraCheck::ExpectedEra::Verdict] the comparison
+      # @param verdict [CLI::ExpectedEra::Verdict] the comparison
       # @param file [String] the allow-list file, named in the sentence
       # @return [String] the one line that says what the comparison found
       def sentence(verdict, file)

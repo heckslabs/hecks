@@ -72,10 +72,10 @@
   "lib/hecks/ports/persistence/plugins/era/era_guard.rb": {
     "Parses held source into its own IR, in a scratch registry so a past": 60
   },
-  "lib/hecks/ports/persistence/plugins/era/postgres_era/lineage.rb": {
+  "lib/hecks/adapters/driven/postgres_era/lineage.rb": {
     "The lineage topology inside one Postgres database: one journal": 80
   },
-  "lib/hecks/ports/persistence/plugins/era/postgres_era/lineage/head_compiler.rb": {
+  "lib/hecks/adapters/driven/postgres_era/lineage/head_compiler.rb": {
     "Builds one aggregate's head for a minted era: the ancestor matview, its": 51,
     "Builds the ancestor-tail SQL for era N by applying only the last edge to": 64
   },

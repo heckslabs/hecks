@@ -1,17 +1,24 @@
-// The IR sidecar, loaded once from `HECKS_IR_PATH`: this crate has no path
-// dependency on the kernel crate that embeds the same JSON as `IR_JSON`.
+// The IR sidecar, installed once by boot from the file `HECKS_IR_PATH` names: this crate has no
+// path dependency on the kernel crate that embeds the same JSON as `IR_JSON`.
 
 use serde_json::Value;
 use std::sync::OnceLock;
 
+static IR: OnceLock<Option<Value>> = OnceLock::new();
+
+/// The domain's IR, or `None` when nothing has been installed or the installed file was missing,
+/// unreadable or not JSON.
 pub fn ir() -> Option<&'static Value> {
-    static IR: OnceLock<Option<Value>> = OnceLock::new();
+    IR.get().and_then(Option::as_ref)
+}
+
+/// Reads and parses the IR file at `path` for [`ir`] to answer; `None` installs no IR. Only the
+/// first call has an effect, so the IR is fixed for the life of the process.
+pub fn install(path: Option<&str>) {
     IR.get_or_init(|| {
-        let path = std::env::var("HECKS_IR_PATH").ok()?;
-        let text = std::fs::read_to_string(path).ok()?;
+        let text = std::fs::read_to_string(path?).ok()?;
         serde_json::from_str(&text).ok()
-    })
-    .as_ref()
+    });
 }
 
 /// Aggregates bound to a lineage-capable adapter, as `(qualified_name,

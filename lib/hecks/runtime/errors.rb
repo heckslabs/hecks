@@ -64,7 +64,8 @@ module Hecks
     # sustained contention.
     class StaleWrite < StandardError; end
 
-    # A Lambda-routed domain's refusal (`Runtime::RemoteDispatcher`), with Rust's text verbatim.
+    # A Lambda-routed domain's refusal (`Adapters::Lambda::RemoteDispatcher`), with Rust's text
+    # verbatim.
     # It is not mapped back to a specific class such as GivenNotMet.
     class RemoteRefusal < StandardError; end
 

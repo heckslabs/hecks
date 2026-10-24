@@ -39,7 +39,8 @@ use std::collections::HashMap;
 use tokio_postgres::NoTls;
 
 // Usage: `mint_harness <db_name> <owner_role> <domain> <ir_json_path>`, as the schema owner.
-// `ir_json_path` is read like `ir::ir()` reads `HECKS_IR_PATH`, so two runs can boot two shapes.
+// `ir_json_path` is read the way boot reads `HECKS_IR_PATH` for `ir::install`, so two runs can
+// boot two shapes.
 // Prints `{"era": <ordinal>, "label": <label>}`; a refusal exits nonzero with the error on stderr.
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

@@ -1,4 +1,5 @@
 require_relative "../../bluebook/hecksagon"
+require_relative "../adapter_namespace"
 require_relative "hecksagon_rules"
 require_relative "ask_verification"
 require_relative "query_verification"
@@ -118,7 +119,7 @@ module Hecks
         end
 
         def adapter_class(name)
-          Adapters.const_get(name)
+          AdapterNamespace.resolve(name)
         rescue NameError
           raise WiringError, "no Ruby adapter implementation for #{name.inspect} " \
                              "(expected Hecks::Adapters::#{name})"

@@ -9,6 +9,7 @@ require:
   - ./lib/rubocop/cop/hecks/thread_shared_ivar_mutation
   - ./lib/rubocop/cop/hecks/sequential_hash_rename_in_loop
   - ./lib/rubocop/cop/hecks/no_wall_clock_in_runtime
+  - ./lib/rubocop/cop/hecks/no_transport_in_runtime
   - ./lib/rubocop/cop/hecks/monotonic_duration
   - ./lib/rubocop/cop/hecks/raw_shell_interpolation
   - ./lib/rubocop/cop/hecks/env_dump
@@ -78,6 +79,20 @@ Hecks/NoWallClockInRuntime:
     - "lib/hecks/runtime/**/*.rb"
   Exclude:
     - "lib/hecks/runtime/event.rb"
+
+# The hecksagon boundary: the runtime runs the domain and knows no transport. HTTP, Lambda, the
+# shell and the environment live in adapters, which call into the runtime and register with it.
+Hecks/NoTransportInRuntime:
+  Enabled: true
+  Include:
+    - "lib/hecks/runtime.rb"
+    - "lib/hecks/runtime/**/*.rb"
+    - "lib/hecks/ports.rb"
+    - "lib/hecks/ports/**/*.rb"
+    - "lib/hecks/bluebook.rb"
+    - "lib/hecks/bluebook/**/*.rb"
+  Exclude:
+    - "lib/hecks/runtime/adapter_namespace.rb"
 
 # Elapsed time is measured on the monotonic clock; `Time.now - File.mtime(f)` is left alone.
 Hecks/MonotonicDuration:

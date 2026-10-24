@@ -1,7 +1,7 @@
 require_relative "../lineage"
-require_relative "../../storage_shape"
+require_relative "../../../../ports/persistence/plugins/era/storage_shape"
 require_relative "context"
-require_relative "../../../../../../indifferent_key"
+require_relative "../../../../indifferent_key"
 
 module Hecks
   module Adapters

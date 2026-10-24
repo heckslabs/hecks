@@ -1,4 +1,5 @@
 require_relative "../../vocabulary"
+require_relative "../../ports/loading"
 
 module Hecks
   module Adapters
@@ -228,3 +229,5 @@ module Hecks
     end
   end
 end
+
+Hecks::Ports::Loading.bootstrap_with(Hecks::Adapters::Folder)

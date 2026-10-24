@@ -1,5 +1,5 @@
-require_relative "../../../../../../naming"
-require_relative "../../translation/rule_compiler"
+require_relative "../../../../naming"
+require_relative "../../../../ports/persistence/plugins/era/translation/rule_compiler"
 require_relative "sql_templates"
 
 module Hecks

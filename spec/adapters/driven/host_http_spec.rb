@@ -127,7 +127,7 @@ RSpec.describe Hecks::Adapters::HostHttp do
     it "refuses a host that cannot be reached" do
       eras("abc123\n") do |file|
         expect { adapter.fetch(host: { value: "http://127.0.0.1:1" }, expected: { value: file }, timeout: { value: 10 }) }
-          .to raise_error(Hecks::Runtime::EraCheck::ExpectedEra::Unreachable, /could not be reached/)
+          .to raise_error(Hecks::CLI::ExpectedEra::Unreachable, /could not be reached/)
       end
     end
 

@@ -34,6 +34,16 @@ Currently present:
   docs/audits/2026-08-11-bug-triage.md) that lost data on any rename swap
   or chain, because each rule's write became the next rule's read target
   against the SAME hash before the pass finished.
+- `lib/rubocop/cop/hecks/no_transport_in_runtime.rb` —
+  `Hecks::NoTransportInRuntime`. Holds the hecksagon boundary over
+  `lib/hecks/runtime`, `lib/hecks/ports` and `lib/hecks/bluebook`: no network,
+  shell or AWS library, no `require_relative` into `adapters/` or `cli/`, no
+  `Hecks::Adapters` constant, and no `ENV`, `ARGV`, `STDIN` or `$stdin`.
+  Adapters register with the runtime instead (`Ports::Loading.bootstrap_with`,
+  an adapter's `dispatcher` for `dispatched_by`), `Hecks::Assembly` reads the
+  boot's environment and installs the Ruby facade, and `Hecks::Switches` holds
+  the developer toggles. `lib/hecks/runtime/adapter_namespace.rb` is the one
+  excluded file: it turns a bound adapter name into its class.
 
 ## Wiring into the real `rubocop` run (done)
 

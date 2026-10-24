@@ -1,5 +1,5 @@
 require "spec_helper"
-require "hecks/ports/persistence/plugins/era/postgres_era/lineage"
+require "hecks/adapters/driven/postgres_era/lineage"
 
 # Hecks::Naming and Lineage#qualified_name have Rust twins: rust/codegen/src/hecks_naming.rs (the one
 # port of Naming, compiled into the parser, build, host and kernel crates) and the host's journal.rs.

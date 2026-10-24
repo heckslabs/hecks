@@ -279,7 +279,7 @@ async fn route(
                 method,
                 query,
                 raw_body,
-                dispatch::Caller::signed_in(session.as_ref()),
+                crate::auth::caller(session.as_ref()),
                 host,
             )
             .await;

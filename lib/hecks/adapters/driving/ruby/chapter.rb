@@ -13,7 +13,7 @@ module Hecks
           # `aggregates`, `docs`, `narrate` and `project` as singleton methods, plus one
           # nested constant per aggregate holding that aggregate module.
           #
-          # @param dispatcher [Runtime::Dispatcher, Runtime::RemoteDispatcher] the booted
+          # @param dispatcher [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the booted
           #   dispatcher each aggregate module closes over
           # @param bluebook [Bluebook::Chapter] the chapter to project into a module
           # @return [Module] a fresh, unnamed module; `Ruby.install` gives it its

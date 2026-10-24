@@ -90,11 +90,11 @@ pub async fn route(
                     record_show(domain_ir, collection, id, store, wasm_path, config).await
                 }
                 ("POST", [collection]) => {
-                    let caller = dispatch::Caller::signed_in(session);
+                    let caller = crate::auth::caller(session);
                     collection_create(domain_ir, collection, raw_body, caller, host).await
                 }
                 ("POST", [collection, id, command]) => {
-                    let caller = dispatch::Caller::signed_in(session);
+                    let caller = crate::auth::caller(session);
                     command_route(domain_ir, collection, id, command, raw_body, caller, host).await
                 }
                 _ => not_found(&format!("no API route for {method} {path}")),
