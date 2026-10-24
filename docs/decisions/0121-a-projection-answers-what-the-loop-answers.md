@@ -13,7 +13,8 @@ The `projection` port also had one adapter. A Postgres application had no read s
 1. **Agreement is a fuzz property, `projected_read_models_agree_with_loop`.** `Fuzzing::ProjectionAgreement.check(domain, steps, projection:)` boots a copy of the domain on Memory, binds every chapter `projected_by` the named projection adapter, replays the steps, catches every projection up with the `:strict` worker, and then, for every rooted read model and every record its reference can name, compares two answers as plain JSON: the registry's (the adapter's own path when it has one, otherwise the loop over the projection's rows) and the loop over the authoritative repositories alone. Reducing models (`count`, `median`, the 0078 reductions) are compared the same way, so a projection that loses a reduced field is caught. A projection still not current after catch-up is its own finding, because the comparison would otherwise silently test the loop against itself.
 2. **`hecks fuzz_run.fuzz! adapter.value=sqlite` runs it on `SqliteProjection`** beside the standard battery, and `adapter.value=postgres` runs it on the new Postgres projection. The Memory sweep does not: it has no projection adapter to compare.
 3. **`PostgresProjection` is a second adapter on the `projection` port.** It is `Postgres` storage with the same `query_read_model` as `SqliteProjection`. The dialect-free read-model walk (root first, each head joined against heads already read, a head's `where`/`order_by`/`limit`/`offset` applied in process) moves into one shared module; each adapter supplies only how it selects a row and decodes a column. It is wired exactly as `SqliteProjection` is: `projected_by "PostgresProjection"` in the hecksagon and `projected_by("PostgresProjection") { database ...; schema ... }` in the world.
-4. **The client profile refuses both.** `model_check`'s client profile already refuses a read model a native projection answers; `PostgresProjection` joins that list.
+4. **The client profile retires `client_native_read_model`.** That rule refused a read model a native projection answers because nothing checked it, and the profile deletes a rule once its bug is fixed. The profile stays as an entry point with no open rule.
+5. **A projection worker reads the registry's own authoritative repository.** A second authoritative repository built for the worker is, for an in-process store (Memory), a fresh empty one, so a Memory-backed projection would catch up to nothing. The worker catches up from `registry.repository`, the store the commands wrote.
 
 ## Alternatives considered
 
@@ -25,4 +26,5 @@ The `projection` port also had one adapter. A Postgres application had no read s
 
 - A projection that answers differently from the domain's records fails a SQLite fuzz sweep, and a Postgres one behind the usual reachability gate.
 - The Rust host has no projection adapter, so there is nothing on the Rust side to agree with; no grammar word is added.
-- A future `D1Projection` gets the agreement check for free once it is wired into `ProjectionAgreement::ADAPTERS`.
+- A future `D1Projection` gets the agreement check once it is added to `ProjectionAgreement::ADAPTERS`.
+- `docs/1.0-readiness.md` still lists known gap 2 until the closing step updates it.
