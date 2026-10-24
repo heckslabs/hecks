@@ -8,6 +8,7 @@ use crate::journal::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
 use crate::log;
 use crate::rate_limit::{self, RateLimits, Verdict};
+use crate::store::Store;
 use crate::wasm_runner;
 use crate::web;
 use axum::body::Bytes;
@@ -21,8 +22,6 @@ use serde_json::Value;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::sync::Mutex;
-use tokio_postgres::Client;
 
 /// The per-request dispatch decision, shared between the Lambda custom-runtime path and the
 /// axum fallback route below. `body` is already-parsed JSON in one of its recognized shapes.
@@ -114,7 +113,7 @@ fn wants_bare(body: &Value) -> bool {
 // The kernel's outcome for a read, query or command body, in the stored shape.
 async fn kernel_answer(body: &Value, host: Host<'_>) -> Result<Value, Error> {
     let Host {
-        client,
+        store,
         wasm_path,
         config,
         ..
@@ -123,7 +122,7 @@ async fn kernel_answer(body: &Value, host: Host<'_>) -> Result<Value, Error> {
     if body.get("read").and_then(serde_json::Value::as_bool) == Some(true) {
         // `{e:#}`: anyhow's alternate Display walks `source()` to the real message,
         // where a bare `tokio_postgres` error's Display is just "db error".
-        let result = dispatch::read(client, wasm_path)
+        let result = dispatch::read(store, wasm_path)
             .await
             .map_err(|e| format!("{e:#}"))?;
         return Ok(result);
@@ -135,7 +134,7 @@ async fn kernel_answer(body: &Value, host: Host<'_>) -> Result<Value, Error> {
             body,
             crate::ir::ir(),
             &config.domain,
-            client,
+            store,
             wasm_path,
         )
         .await?);
@@ -192,10 +191,10 @@ async fn kernel_answer(body: &Value, host: Host<'_>) -> Result<Value, Error> {
 }
 
 /// Everything `dispatch_body` needs, `Arc`-shared for axum's per-request handler cloning.
-/// `client`'s mutex serializes every write onto the one Postgres connection this process holds.
+/// The store serializes every write onto the one journal this process holds.
 #[derive(Clone)]
 pub struct ServerState {
-    pub client: Arc<Mutex<Client>>,
+    pub store: Arc<Store>,
     pub wasm_path: Arc<PathBuf>,
     pub lineage_config: Arc<LineageConfig>,
     pub invoker: Arc<dyn LambdaInvoker>,
@@ -206,7 +205,7 @@ impl ServerState {
     /// The shared pieces a dispatch needs, borrowed for one call.
     pub fn host(&self) -> Host<'_> {
         Host::shared(
-            &self.client,
+            &self.store,
             &self.wasm_path,
             &self.lineage_config,
             &self.invoker,
@@ -1155,7 +1154,7 @@ mod tests {
         .await;
         let wasm_path = Arc::new(crate::wasm_runner::tests::cold_copy_of_fixture(copy_name));
         let state = ServerState {
-            client: Arc::new(client),
+            store: Arc::new(client),
             wasm_path: Arc::clone(&wasm_path),
             lineage_config: Arc::new(LineageConfig {
                 domain: "CheckoutFixture".to_string(),

@@ -6,6 +6,7 @@ use super::*;
 use crate::dispatch::tests::{provision_lineage, scratch_db};
 use crate::host::Host;
 use crate::lambda_client::NeverInvoker;
+use crate::store::Store;
 use crate::web;
 use axum::extract::State;
 use axum::http::StatusCode;
@@ -199,7 +200,7 @@ async fn meet_the_other_sessions(state: &FakeState) {
 }
 
 struct Tenant {
-    client: Mutex<Client>,
+    client: Store,
     domain_ir: Value,
     config: LineageConfig,
     wasm: std::path::PathBuf,

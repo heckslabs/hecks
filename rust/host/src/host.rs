@@ -2,27 +2,26 @@
 
 use crate::journal::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
+use crate::store::Store;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use tokio::sync::Mutex;
-use tokio_postgres::Client;
 
 /// The server's own shared handles, when a host is built from them.
 #[derive(Clone, Copy)]
 struct Shared<'a> {
-    client: &'a Arc<Mutex<Client>>,
+    store: &'a Arc<Store>,
     wasm_path: &'a Arc<PathBuf>,
     config: &'a Arc<LineageConfig>,
     invoker: &'a Arc<dyn LambdaInvoker>,
 }
 
-/// The journal connection, the compiled domain module, the lineage it runs under, and the
+/// The journal store, the compiled domain module, the lineage it runs under, and the
 /// invoker that delivers a policy's cross-domain reactions. Borrowed from the server's state (or
 /// a test's fixtures) for the length of one call, so it is `Copy`.
 #[derive(Clone, Copy)]
 pub struct Host<'a> {
-    /// The one Postgres connection; its mutex serializes every write onto it.
-    pub client: &'a Mutex<Client>,
+    /// Where the domain's journal, snapshot and sagas live.
+    pub store: &'a Store,
     pub wasm_path: &'a Path,
     pub config: &'a LineageConfig,
     pub invoker: &'a dyn LambdaInvoker,
@@ -33,13 +32,13 @@ impl<'a> Host<'a> {
     /// A host over borrowed pieces. It cannot outlive the call, so work that must outlast the
     /// response stays inline.
     pub fn new(
-        client: &'a Mutex<Client>,
+        store: &'a Store,
         wasm_path: &'a Path,
         config: &'a LineageConfig,
         invoker: &'a dyn LambdaInvoker,
     ) -> Self {
         Self {
-            client,
+            store,
             wasm_path,
             config,
             invoker,
@@ -49,18 +48,18 @@ impl<'a> Host<'a> {
 
     /// A host over the server's own `Arc`s, from which `detach` can hand work an owned copy.
     pub fn shared(
-        client: &'a Arc<Mutex<Client>>,
+        store: &'a Arc<Store>,
         wasm_path: &'a Arc<PathBuf>,
         config: &'a Arc<LineageConfig>,
         invoker: &'a Arc<dyn LambdaInvoker>,
     ) -> Self {
         Self {
-            client,
+            store,
             wasm_path,
             config,
             invoker: invoker.as_ref(),
             shared: Some(Shared {
-                client,
+                store,
                 wasm_path,
                 config,
                 invoker,
@@ -72,7 +71,7 @@ impl<'a> Host<'a> {
     /// from borrows and so cannot be detached.
     pub fn detach(&self) -> Option<OwnedHost> {
         self.shared.map(|shared| OwnedHost {
-            client: Arc::clone(shared.client),
+            store: Arc::clone(shared.store),
             wasm_path: Arc::clone(shared.wasm_path),
             config: Arc::clone(shared.config),
             invoker: Arc::clone(shared.invoker),
@@ -82,7 +81,7 @@ impl<'a> Host<'a> {
 
 /// A `Host` that owns its handles, for work spawned past the end of a request.
 pub struct OwnedHost {
-    client: Arc<Mutex<Client>>,
+    store: Arc<Store>,
     wasm_path: Arc<PathBuf>,
     config: Arc<LineageConfig>,
     invoker: Arc<dyn LambdaInvoker>,
@@ -91,7 +90,7 @@ pub struct OwnedHost {
 impl OwnedHost {
     pub fn host(&self) -> Host<'_> {
         Host::new(
-            &self.client,
+            &self.store,
             &self.wasm_path,
             &self.config,
             self.invoker.as_ref(),

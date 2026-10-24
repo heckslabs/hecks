@@ -109,7 +109,7 @@ pub(super) async fn deliver_receipt(reference: &str, host: Host<'_>, payments: &
 /// mailer, registrant address or event is skipped quietly.
 async fn send_receipt(reference: &str, host: Host<'_>, payments: &PaymentsProvider) {
     let Host {
-        client,
+        store,
         wasm_path,
         config,
         ..
@@ -122,7 +122,7 @@ async fn send_receipt(reference: &str, host: Host<'_>, payments: &PaymentsProvid
             return;
         }
     };
-    let Ok(read) = dispatch::read(client, wasm_path).await else {
+    let Ok(read) = dispatch::read(store, wasm_path).await else {
         return;
     };
     let binding = crate::commerce_ir::registrations_binding(&config.domain);

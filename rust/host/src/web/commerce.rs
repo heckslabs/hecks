@@ -46,13 +46,9 @@ impl HostExtension for Commerce {
                     "HECKS_IR_PATH not set or unreadable — this domain has no web layer configured",
                 ));
             };
-            if let Err(response) = newsletter_send::require_admin(
-                domain_ir,
-                ctx.cookies,
-                &session_secret(),
-                ctx.client,
-            )
-            .await
+            if let Err(response) =
+                newsletter_send::require_admin(domain_ir, ctx.cookies, &session_secret(), ctx.store)
+                    .await
             {
                 return Some(response);
             }
@@ -111,7 +107,7 @@ impl HostExtension for Commerce {
                     domain_ir,
                     ctx.cookies,
                     &secret,
-                    ctx.client,
+                    ctx.store,
                     ctx.wasm_path,
                     ctx.config,
                 )

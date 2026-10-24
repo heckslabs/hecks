@@ -4,14 +4,13 @@
 use crate::host::Host;
 use crate::{
     auth, extension, ir, journal, lambda_client, log, mint, rate_limit, secrets, server,
-    storage_shape,
+    storage_shape, store::Store,
 };
 
 use lambda_runtime::{service_fn, Error, LambdaEvent};
 use rustls::pki_types::{pem::PemObject, CertificateDer};
 use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::sync::Mutex;
 
 /// Boots the host: secrets, Postgres, wasm, era minting, then the Lambda runtime loop (or the
 /// long-lived server under HECKS_SERVE_MODE=1). Extensions are read from `extension::installed()`,
@@ -378,10 +377,9 @@ pub async fn run() -> Result<(), Error> {
         mirrored: Some(mirrored),
     });
 
-    // Mutex, not a bare Arc<Client> -- dispatch::handle needs
-    // Client::transaction (&mut Client) to hold the advisory lock
-    // across the rehydrate-then-append sequence (see dispatch.rs).
-    let client = Arc::new(Mutex::new(client));
+    // The store serializes every use of the one connection: a dispatch holds it, and the
+    // domain's advisory lock, across the rehydrate-then-append sequence (see dispatch.rs).
+    let store = Arc::new(Store::postgres(client));
     let wasm_path = Arc::new(wasm_path);
     // One invoker for this process's lifetime -- credentials/region
     // resolve once at boot, not per invocation. See lambda_client.rs:
@@ -404,7 +402,7 @@ pub async fn run() -> Result<(), Error> {
             std::env::var("HECKS_BUILD").ok().as_deref(),
         );
         let state = server::ServerState {
-            client,
+            store,
             wasm_path,
             lineage_config,
             invoker,
@@ -414,7 +412,7 @@ pub async fn run() -> Result<(), Error> {
     }
 
     lambda_runtime::run(service_fn(move |event: LambdaEvent<serde_json::Value>| {
-        let client = Arc::clone(&client);
+        let store = Arc::clone(&store);
         let wasm_path = Arc::clone(&wasm_path);
         let lineage_config = Arc::clone(&lineage_config);
         let invoker = Arc::clone(&invoker);
@@ -426,7 +424,7 @@ pub async fn run() -> Result<(), Error> {
             }
             server::dispatch_body(
                 body,
-                Host::new(&client, &wasm_path, &lineage_config, invoker.as_ref()),
+                Host::new(&store, &wasm_path, &lineage_config, invoker.as_ref()),
             )
             .await
         }
