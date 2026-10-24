@@ -21,7 +21,7 @@ module RuboCop
           to_s to_sym to_str to_a to_h to_i to_f to_r to_proc to_json inspect freeze dup class
           first last keys values size count length strip chomp lstrip rstrip downcase upcase capitalize
           lines chars bytes sort uniq compact flatten reverse each each_value each_key each_line lazy
-          with_index each_with_index tally sum min max now utc iso8601 source value new
+          with_index each_with_index reverse_each tally sum min max now utc iso8601 source value new
         ].freeze
 
         # Flags the outermost call of a chain whose leading readers step past the first object.

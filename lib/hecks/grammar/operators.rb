@@ -55,7 +55,7 @@ module Hecks
         Dir[File.join(Grammar::DIR, "*.bluebook")].map do |chapter|
           registry = Runtime::Registry.new
           load_chapter(registry, chapter)
-          registry.bluebooks.values.first
+          registry.first_bluebook
         end
       end
 

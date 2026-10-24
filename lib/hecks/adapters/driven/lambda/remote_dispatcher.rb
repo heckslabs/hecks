@@ -1,4 +1,5 @@
 require_relative "../../../runtime/dispatcher"
+require_relative "../../../runtime/declarations"
 require_relative "../../../runtime/instance"
 require_relative "../../../runtime/event"
 require_relative "../../../runtime/errors"
@@ -43,6 +44,8 @@ module Hecks
           # @return [Hash{Symbol => Object}] `:id` merged in last
           def state = instance.to_h
         end
+
+        include Runtime::Declarations
 
         attr_reader :registry
 

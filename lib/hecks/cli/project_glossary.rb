@@ -33,7 +33,7 @@ module Hecks
       # @return [Array<String>] the files written under the domain's `glossary/` folder
       def write_glossary(domain, chapter_name)
         runtime = Hecks.boot(domain)
-        chapter = runtime.registry.bluebook(chapter_name)
+        chapter = runtime.bluebook(chapter_name)
 
         Projector.write(
           Projector.call(:glossary, bluebook: chapter, options: { markings: markings_for(runtime, chapter_name) }),
@@ -45,8 +45,7 @@ module Hecks
       #
       # @api private
       def markings_for(runtime, chapter_name)
-        registry = runtime.registry
-        registry.pending_privacy_markings.select do |marking|
+        runtime.pending_privacy_markings.select do |marking|
           marking[:domain].to_s.start_with?("#{chapter_name}::")
         end
       end

@@ -144,7 +144,7 @@ module Hecks
 
       # @api private
       def chapter
-        runtime.registry.bluebook("Hecks")
+        runtime.bluebook("Hecks")
       end
 
       # @api private

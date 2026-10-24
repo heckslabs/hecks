@@ -130,7 +130,7 @@ module Hecks
           aggregate = entry[:aggregate]
           symbolic  = symbolize(args)
           id = Runtime::Identity.of(aggregate, symbolic) || Runtime::Identity.from(aggregate, symbolic, :id)
-          id && runtime.registry.repository(entry[:verb].split("::").first, aggregate).find(id)
+          id && runtime.repository(entry[:verb].split("::").first, aggregate).find(id)
         end
       end
     end

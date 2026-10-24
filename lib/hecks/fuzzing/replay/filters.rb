@@ -20,7 +20,7 @@ module Hecks
 
           domain_name, aggregate = filter_aggregate(runtime, filter["aggregate"].to_s)
           clause  = filter_clause(filter)
-          records = runtime.registry.repository(domain_name, aggregate).all
+          records = runtime.repository(domain_name, aggregate).all
 
           rows_by_id(records.select { |record| clause_holds?(clause, record, {}) })
         end
@@ -46,7 +46,7 @@ module Hecks
         # @raise [Bluebook::Expression::EvaluationError] if no such aggregate is loaded
         def filter_aggregate(runtime, aggregate_ref)
           domain_name, aggregate_name = aggregate_ref.split("::", 2)
-          aggregate = runtime.registry.bluebook(domain_name)&.aggregate(aggregate_name)
+          aggregate = runtime.bluebook(domain_name)&.aggregate(aggregate_name)
           raise Bluebook::Expression::EvaluationError, "unknown aggregate #{aggregate_ref.inspect}" unless aggregate
 
           [domain_name, aggregate]

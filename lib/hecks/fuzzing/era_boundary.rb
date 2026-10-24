@@ -13,7 +13,7 @@ module Hecks
       # second as a finding, instead of treating both as a clean audit.
       def diverged_ancestor_writes(domain_path)
         registry, directory = load_registry(domain_path)
-        bluebook = registry.bluebooks.values.first
+        bluebook = registry.first_bluebook
         return failed("no bluebook in #{directory}") unless bluebook
 
         reason = unaudited_reason(registry, bluebook)

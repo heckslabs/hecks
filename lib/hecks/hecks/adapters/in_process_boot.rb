@@ -125,7 +125,7 @@ module Hecks
       def project_diagrams(domain:, chapter:)
         runtime = boot(domain)
         name    = plain(chapter)
-        options = { hecksagon: runtime.registry.hecksagon(name) }
+        options = { hecksagon: runtime.hecksagon(name) }
 
         projected_files(Projector.call(:diagrams, bluebook: chapter_in(runtime, name), options: options))
       end
@@ -137,8 +137,7 @@ module Hecks
       def glossary(domain:, chapter:)
         runtime = boot(domain)
         name    = plain(chapter)
-        registry = runtime.registry
-        markings = registry.pending_privacy_markings.select do |marking|
+        markings = runtime.pending_privacy_markings.select do |marking|
           marking[:domain].to_s.start_with?("#{name}::")
         end
 
@@ -197,13 +196,13 @@ module Hecks
       end
 
       def chapter_in(runtime, name)
-        runtime.registry.bluebook(name) or raise Runtime::NotFound, "no chapter named #{name}"
+        runtime.bluebook(name) or raise Runtime::NotFound, "no chapter named #{name}"
       end
 
       # The domain's own chapter, not a framework member it attached: insertion order.
       def document(projection, domain, aggregate)
         registry = boot(domain).registry
-        bluebook = registry.bluebooks.values.first or raise Runtime::NotFound, "no bluebook loaded"
+        bluebook = registry.first_bluebook or raise Runtime::NotFound, "no bluebook loaded"
         name = plain(aggregate)
 
         report(Projector.call(projection, bluebook: bluebook, options: name ? { aggregate: name } : {}))

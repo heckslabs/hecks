@@ -23,7 +23,7 @@ module Hecks
         abort USAGE unless domain_path && chapter_name
 
         runtime = Hecks.boot(File.expand_path(domain_path, cwd))
-        chapter = runtime.registry.bluebook(chapter_name)
+        chapter = runtime.bluebook(chapter_name)
         Hecks::Projector.call(:statements, bluebook: chapter).each { |statement| out.puts statement }
         0
       end

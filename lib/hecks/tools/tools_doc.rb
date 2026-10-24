@@ -203,7 +203,7 @@ module Hecks
           @projections[chapter] ||= begin
             launcher = Adapters::Driving::LauncherOptions.settings(@runtime, chapter)
             options = Adapters::Driving::LauncherOptions.projection(launcher, "hecks")
-            Projector.call(:cli, bluebook: @runtime.registry.bluebook(chapter), options: options)
+            Projector.call(:cli, bluebook: @runtime.bluebook(chapter), options: options)
           end
         end
 

@@ -17,7 +17,7 @@ module Hecks
             # two ways `PolicyInterpreter#policies_for` does.
             emitter = event.aggregate.to_s
             domain = emitter.split("::").first
-            bluebook = runtime.registry.bluebook(domain)
+            bluebook = runtime.bluebook(domain)
             next unless bluebook
 
             fanning_policies(bluebook, event).each do |policy|
@@ -71,8 +71,7 @@ module Hecks
 
         # The declared query a `for_each` policy names, or nil.
         def for_each_query(runtime, query_domain, aggregate_name, query_name)
-          registry = runtime.registry
-          registry.bluebook(query_domain)&.aggregate(aggregate_name)&.query(query_name)
+          runtime.bluebook(query_domain)&.aggregate(aggregate_name)&.query(query_name)
         end
       end
     end

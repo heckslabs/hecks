@@ -99,10 +99,9 @@ module Hecks
 
       # Every [domain, aggregate, repository, entries] tuple with at least one journal entry.
       def each_touched_repository(runtime)
-        registry = runtime.registry
-        registry.bluebooks.flat_map do |domain_name, bluebook|
+        runtime.bluebooks.flat_map do |domain_name, bluebook|
           bluebook.aggregates.filter_map do |aggregate|
-            repository = registry.repository(domain_name, aggregate)
+            repository = runtime.repository(domain_name, aggregate)
             entries    = repository.entries
             [domain_name, aggregate, repository, entries] unless entries.empty?
           end

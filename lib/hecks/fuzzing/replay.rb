@@ -69,10 +69,9 @@ module Hecks
       # rows" reads the state as that query actually saw it, not a shared final one.
       def snapshot_instances(runtime)
         instances = {}
-        registry = runtime.registry
-        registry.bluebooks.each do |domain_name, bluebook|
+        runtime.bluebooks.each do |domain_name, bluebook|
           bluebook.aggregates.each do |aggregate|
-            registry.repository(domain_name, aggregate).all.each do |record|
+            runtime.repository(domain_name, aggregate).all.each do |record|
               instances["#{domain_name}::#{aggregate.name}##{record.id}"] = record.state
             end
           end

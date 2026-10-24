@@ -28,14 +28,14 @@ module Hecks
           return unless result.respond_to?(:id) && result.id
 
           aggregate = verb_aggregate(runtime, verb)
-          aggregate && runtime.registry.repository(verb.split("::", 2).first, aggregate).find(result.id)
+          aggregate && runtime.repository(verb.split("::", 2).first, aggregate).find(result.id)
         end
 
         # @return [Bluebook::Aggregate, nil] the aggregate a dotted verb names, when it is declared
         def verb_aggregate(runtime, verb)
           domain, rest = verb.split("::", 2)
           aggregate_name = rest.to_s.split(".", 2).first
-          runtime.registry.bluebook(domain)&.aggregate(aggregate_name)
+          runtime.bluebook(domain)&.aggregate(aggregate_name)
         end
 
         # Splits a mixed dispatch (receiver identity plus declared facts, e.g.
@@ -82,7 +82,7 @@ module Hecks
           domain, aggregate_name, command_path = Naming.split_verb(verb)
           return false unless command_path
 
-          aggregate = runtime.registry.bluebook(domain)&.aggregate(aggregate_name)
+          aggregate = runtime.bluebook(domain)&.aggregate(aggregate_name)
           return false unless aggregate
 
           head, rest = command_path.split(".", 2)

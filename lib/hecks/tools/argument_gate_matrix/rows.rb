@@ -93,7 +93,7 @@ module Hecks
         end
 
         def candidates(runtime, chapter)
-          bluebook = runtime.registry.bluebook(chapter)
+          bluebook = runtime.bluebook(chapter)
           random = SteadyRandom.new(20_260_918)
           bluebook.aggregates.flat_map do |aggregate|
             aggregate_rows(aggregate, chapter, random) + entity_rows(aggregate, chapter, random)

@@ -128,10 +128,10 @@ module Hecks
         { name: event[:name], at: event[:occurred_at], text: Plain.call(event[:payload])&.dig(:text) }
       end
 
-      def aggregate = @runtime.registry.bluebook("Composer").aggregate("Draft")
+      def aggregate = @runtime.bluebook("Composer").aggregate("Draft")
 
       # @api private
-      def drafts = @runtime.registry.repository("Composer", aggregate)
+      def drafts = @runtime.repository("Composer", aggregate)
 
       def dispatch(command, to: nil, **facts)
         @runtime.dispatch("#{VERB}.#{command}", to: to, with: facts)

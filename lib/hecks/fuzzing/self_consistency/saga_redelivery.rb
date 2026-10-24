@@ -57,9 +57,7 @@ module Hecks
 
         # The newest saga-log row in which the correlation advanced on a real event.
         def last_advance_entry(runtime, process_manager, correlation)
-          registry = runtime.registry
-          saga_log = registry.saga_log
-          saga_log.reverse_each.find do |row|
+          runtime.sagas.reverse_each.find do |row|
             row[:process_manager] == process_manager.name && row[:instance] == correlation &&
               row[:advanced] && row[:on] != Runtime::SagaInterpreter::REFUSED
           end

@@ -49,9 +49,8 @@ module Hecks
       # @return [Object] the first repository that answers `:events`
       # @raise [SystemExit] when none does
       def event_repository(runtime, domain_name, program)
-        registry = runtime.registry
-        repositories = registry.bluebooks.flat_map do |bluebook_domain, bluebook|
-          bluebook.aggregates.map { |aggregate| registry.repository(bluebook_domain, aggregate) }
+        repositories = runtime.bluebooks.flat_map do |bluebook_domain, bluebook|
+          bluebook.aggregates.map { |aggregate| runtime.repository(bluebook_domain, aggregate) }
         end
         repositories.find { |repo| repo.respond_to?(:events) } or
           abort "#{program}: no adapter in #{domain_name} persists an event log"

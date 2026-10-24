@@ -64,7 +64,7 @@ module Hecks
         directory = loading.bluebook_directory(domain_path)
         registry = Hecks::Runtime::Registry.new(root: File.dirname(directory))
         load_chapters(loading, registry, directory)
-        bluebook = registry.bluebooks.values.first or abort "no bluebook in #{directory}"
+        bluebook = registry.first_bluebook or abort "no bluebook in #{directory}"
         [registry, bluebook]
       end
 

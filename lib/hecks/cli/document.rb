@@ -49,8 +49,7 @@ module Hecks
           abort "cannot read #{path}: #{Text.first_line(e.message)}"
         end
 
-        registry = runtime.registry
-        registry.bluebooks.values.first or abort "#{path} loaded no bluebook"
+        runtime.first_bluebook or abort "#{path} loaded no bluebook"
       end
 
       # Lists every directory under `root` that `Hecks.boot` would accept.

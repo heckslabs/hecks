@@ -67,7 +67,7 @@ module Hecks
       # @return [Hash{String => Array<Hash>}] each aggregate's name to its records as plain rows
       def records
         aggregates.to_h do |aggregate|
-          rows = @runtime.registry.repository(@chapter_name, aggregate).all
+          rows = @runtime.repository(@chapter_name, aggregate).all
           [aggregate.hecks_name, Plain.call(rows.to_a)]
         end
       end
@@ -88,7 +88,7 @@ module Hecks
       end
 
       # @api private
-      def aggregates = @runtime.registry.bluebook(@chapter_name).aggregates
+      def aggregates = @runtime.bluebook(@chapter_name).aggregates
 
       # @api private
       def accepted(result)

@@ -50,8 +50,7 @@ module Hecks
           expected = test.expect[:emits]
           return unless expected
 
-          registry = runtime.registry
-          actual = registry.event_log[before..].map(&:name)
+          actual = runtime.events[before..].map(&:name)
           return if actual == expected
 
           fail_result(test, "expected emits: #{expected.inspect}, got #{actual.inspect}")

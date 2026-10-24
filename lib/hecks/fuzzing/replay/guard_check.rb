@@ -17,7 +17,7 @@ module Hecks
           return nil unless target
 
           id = Replay.identity_for(target.aggregate, target.command, args)
-          record = id && runtime.registry.repository(target.domain, target.aggregate).find(id)
+          record = id && runtime.repository(target.domain, target.aggregate).find(id)
           return nil unless record
 
           { verb: verb, domain: target.domain, aggregate: target.aggregate_name, command: target.command_name,
@@ -31,7 +31,7 @@ module Hecks
           domain_name, aggregate_name, command_name = Naming.split_verb(verb)
           return nil unless command_name && !command_name.include?(".")
 
-          aggregate = runtime.registry.bluebook(domain_name)&.aggregate(aggregate_name)
+          aggregate = runtime.bluebook(domain_name)&.aggregate(aggregate_name)
           command   = aggregate&.command(command_name)
           return nil unless checkable?(aggregate, command)
 

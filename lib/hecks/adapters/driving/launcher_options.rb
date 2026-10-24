@@ -48,7 +48,7 @@ module Hecks
         def settings(runtime, chapter)
           return unless runtime.respond_to?(:registry)
 
-          found = runtime.registry.world(chapter)&.for_verb(SETTING)
+          found = runtime.world(chapter)&.for_verb(SETTING)
           found.nil? || found.empty? ? nil : found
         end
 
