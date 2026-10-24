@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative "../../../text"
 require_relative "parsing/validation"
 
 module Hecks
@@ -98,7 +99,7 @@ module Hecks
         end
 
         def parse_modes(value)
-          names = value.to_s.split(",").map(&:strip).reject(&:empty?).map(&:to_sym)
+          names = Text.comma_list(value).map(&:to_sym)
           abort "#{USAGE}\n--modes needs at least one mode name" if names.empty?
 
           known = Hecks::Fuzzing::TargetCapabilities::MODE_REQUIREMENTS.keys

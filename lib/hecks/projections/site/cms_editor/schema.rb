@@ -96,7 +96,7 @@ module Hecks
 
           private
 
-          def lifecycle_field = @agg.lifecycle&.field
+          def lifecycle_field = @agg.lifecycle_field
 
           # The aggregate's own attributes, bounded by the aggregate's invariants (see `Limits`).
           def aggregate_attributes

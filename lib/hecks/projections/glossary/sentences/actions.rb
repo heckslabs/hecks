@@ -15,6 +15,9 @@ module Hecks
             "delegate" => "passes on to", "corrects" => "corrects"
           }.freeze
 
+          # The `::` or `.` between the parts of a qualified event name.
+          NAME_SEPARATOR = /::|\./
+
           module_function
 
           # @param facts [Hash] the entry's facts: `:command`, `:holder` and `:value_objects`
@@ -57,7 +60,7 @@ module Hecks
 
           # "sets the name and the pizza"
           def change_phrase(verb, mutations)
-            fields = mutations.map { |mutation| "the #{PlainEnglish.noun(mutation.target.to_s.split(".").last)}" }
+            fields = mutations.map { |mutation| "the #{PlainEnglish.noun(Sentences.bare(mutation.target))}" }
             "#{verb} #{Naming.to_sentence_list(fields.uniq)}"
           end
 
@@ -78,7 +81,7 @@ module Hecks
 
           # "Records Topping added."
           def records(command, index)
-            events = command.emits.map { |event| index.link(:event, event.to_s.split(/::|\./).last) }
+            events = command.emits.map { |event| index.link(:event, event.to_s.split(NAME_SEPARATOR).last) }
             events.empty? ? nil : "Records #{Naming.to_sentence_list(events)}."
           end
         end

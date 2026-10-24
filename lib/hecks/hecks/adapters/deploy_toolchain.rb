@@ -70,7 +70,7 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when the tree is not a checkout, or the linter found a
       #   violation; the message is its report
       def scan(**held)
-        paths = plain(held[:makefiles]).to_s.split(",").map(&:strip).reject(&:empty?)
+        paths = Text.comma_list(plain(held[:makefiles]))
         { report: { value: child(:lint, paths).dig(:output, :value) } }
       end
 
@@ -83,7 +83,7 @@ module Hecks
       # @return [Hash{Symbol => Hash}] `output:` one line per manifest written or skipped
       # @raise [ConsoleCapture::Failure] when the tree is not a checkout
       def manifest(**held)
-        domains = plain(held[:domains]).to_s.split(",").map(&:strip).reject(&:empty?)
+        domains = Text.comma_list(plain(held[:domains]))
         child(:manifest, domains)
       end
 

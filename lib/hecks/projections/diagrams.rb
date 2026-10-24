@@ -88,9 +88,11 @@ module Hecks
 
       def framework_edges(bluebook, hecksagon)
         attached = hecksagon.member_chapters.map { |name| domain_edge(bluebook.name, "attaches", name, dotted: true) }
-        attached + bluebook.policies.filter_map(&:target_domain).uniq
-                           .map { |name| domain_edge(bluebook.name, "reaches across", name, dotted: false) }
+        attached + policy_target_domains(bluebook)
+                   .map { |name| domain_edge(bluebook.name, "reaches across", name, dotted: false) }
       end
+
+      def policy_target_domains(bluebook) = bluebook.policies.filter_map(&:target_domain).uniq
 
       def domain_edge(from, label, to, dotted:)
         arrow = dotted ? "-.->" : "-->"

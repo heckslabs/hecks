@@ -17,6 +17,12 @@ module Hecks
       # The roles that count as an administrator besides the one the grant command is gated to.
       OWNER_ROLES = %w[Owner].freeze
 
+      # An email address: one `@` with no whitespace on either side.
+      EMAIL = /\A[^\s@]+@[^\s@]+\z/
+
+      # The part of an email address before its `@`.
+      LOCAL_PART = /\A[^@]+/
+
       # What the refusal says when no chapter provides membership: the line to add to one.
       NO_MEMBERSHIP = "this domain attaches no chapter that provides \"membership\". Add a line like " \
                       "`provides \"membership\", admit: \"Person.Admit\", grant: \"Person.GrantAccess\", " \
@@ -58,14 +64,14 @@ module Hecks
         verbs, gate, people = check_unadministered(provider)
 
         admitted = people.none? { |person| person[:email] == email }
-        admit(provider, verbs.fetch(:admit), email, name || email[/\A[^@]+/]) if admitted
+        admit(provider, verbs.fetch(:admit), email, name || email[LOCAL_PART]) if admitted
         grant(provider, verbs.fetch(:grant), email, role || gate)
         Result.new(email: email, role: role || gate, admitted: admitted)
       end
 
       private
 
-      def email?(email) = email.to_s.match?(/\A[^\s@]+@[^\s@]+\z/)
+      def email?(email) = email.to_s.match?(EMAIL)
 
       # The membership verbs, the role the grant is gated to and the people held, once no
       # administrator is found among them.
@@ -78,7 +84,8 @@ module Hecks
       end
 
       def membership_provider
-        domain = @registry.bluebooks.values.first&.name
+        bluebook = @registry.bluebooks.values.first
+        domain = bluebook&.name
         @registry.membership_provider_for(domain) or
           raise Runtime::NotFound, NO_MEMBERSHIP
       end

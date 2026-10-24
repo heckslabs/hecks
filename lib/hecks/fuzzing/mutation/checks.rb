@@ -1,6 +1,7 @@
 require_relative "../../cli/run"
 require_relative "../../behaviors"
 require_relative "observation"
+require_relative "../../text"
 
 module Hecks
   module Fuzzing
@@ -35,7 +36,7 @@ module Hecks
           Replay.call(copy, [])
           nil
         rescue StandardError, ScriptError => e
-          "#{e.class}: #{e.message.lines.first.to_s.strip}"
+          "#{e.class}: #{Hecks::Text.first_line(e.message)}"
         end
 
         # @return [String, nil] the first property a history breaks, as `property: <name>`

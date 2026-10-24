@@ -9,7 +9,8 @@ module Hecks
             private
 
             def default_name(settings, layout)
-              name = settings.fetch(:default_container, layout.domain.name).to_s
+              domain = layout.domain
+              name = settings.fetch(:default_container, domain.name).to_s
               target = layout.all.find { |container| container.name == name }
               unless target
                 raise ArgumentError,

@@ -50,16 +50,22 @@ module Hecks
       # @param runtime [Runtime] a booted domain
       # @return [String] each chapter's vision, and its aggregates' descriptions and commands
       def overview(runtime)
-        runtime.registry.bluebooks.each_value.map do |bluebook|
-          aggregates = bluebook.aggregates.map { |aggregate| aggregate_overview(aggregate) }
+        registry = runtime.registry
+        chapters = registry.bluebooks.each_value.map { |bluebook| chapter_overview(bluebook) }
+        chapters.join
+      end
 
-          "\n    #{bluebook.name} — #{bluebook.vision}\n#{aggregates.join("\n")}\n"
-        end.join
+      # @api private
+      def chapter_overview(bluebook)
+        aggregates = bluebook.aggregates.map { |aggregate| aggregate_overview(aggregate) }
+
+        "\n    #{bluebook.name} — #{bluebook.vision}\n#{aggregates.join("\n")}\n"
       end
 
       # @api private
       def aggregate_overview(aggregate)
-        commands = aggregate.commands.map { |command| "#{Naming.snake(command.hecks_name)}!" }.sort.join(", ")
+        verbs = aggregate.commands.map { |command| "#{Naming.snake(command.hecks_name)}!" }
+        commands = verbs.sort.join(", ")
         description = aggregate.description.to_s.strip
         lines = ["    #{aggregate.name}: #{commands}"]
         lines << "      #{description}" unless description.empty?

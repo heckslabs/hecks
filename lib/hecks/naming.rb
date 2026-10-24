@@ -6,6 +6,24 @@ module Hecks
     # join the same way, or string-compared references resolve to nothing.
     IDENTITY_JOIN = ":".freeze
 
+    # An uppercase run followed by a capitalised word: the "M|C" in "ATMCard".
+    ACRONYM_BOUNDARY = /([A-Z]+)([A-Z][a-z])/
+
+    # A lowercase letter or digit followed by an uppercase letter: the "y|L" in "dailyLimit".
+    CAMEL_BOUNDARY = /([a-z\d])([A-Z])/
+
+    # The first character of a word, captured.
+    FIRST_CHARACTER = /\A(.)/
+
+    # A word of two or more capitals and nothing else: an acronym such as "ATM".
+    ACRONYM = /\A[A-Z]{2,}\z/
+
+    # A consonant followed by a final "y", as in "category".
+    CONSONANT_Y_ENDING = /[^aeiou]y\z/
+
+    # A final s, x, z, ch or sh: the endings whose plural takes "es".
+    SIBILANT_ENDING = /(s|x|z|ch|sh)\z/
+
     module_function
 
     # Joins the parts of an identity in declaration order.
@@ -22,7 +40,8 @@ module Hecks
     # @return [String] the text after the last `::`, or the whole `to_s` if there
     #   is none
     def demodulise(type)
-      type.to_s.split("::").last.to_s
+      last_segment = type.to_s.split("::").last
+      last_segment.to_s
     end
 
     # snake_case -> PascalCase. Names a closed-set value object synthesised from an
@@ -31,7 +50,8 @@ module Hecks
     # @param text [String, Symbol, #to_s] a snake_case (or already Pascal) name
     # @return [String] the PascalCase form
     def pascal(text)
-      text.to_s.split("_").map { |part| part.sub(/\A(.)/) { Regexp.last_match(1).upcase } }.join
+      parts = text.to_s.split("_")
+      parts.map { |part| part.sub(FIRST_CHARACTER) { Regexp.last_match(1).upcase } }.join
     end
 
     # PascalCase or camelCase -> snake_case.
@@ -39,10 +59,19 @@ module Hecks
     # @param text [String, Symbol, #to_s] a Pascal-, camel-, or already snake-case name
     # @return [String] the lowercase, underscore-separated form
     def snake(text)
-      text.to_s
-          .gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')
-          .gsub(/([a-z\d])([A-Z])/, '\1_\2')
-          .downcase
+      split_case(text, "_").downcase
+    end
+
+    # Puts `separator` at every case boundary of an identifier: before the capitalised word
+    # after an acronym, and between a lowercase letter or digit and the capital that follows.
+    #
+    # @param text [String, Symbol, #to_s] a Pascal- or camel-case name
+    # @param separator [String] what to put at each boundary, such as `"_"` or `" "`
+    # @return [String] the name with `separator` at each boundary, case unchanged
+    def split_case(text, separator)
+      replacement = "\\1#{separator}\\2"
+      acronyms_apart = text.to_s.gsub(ACRONYM_BOUNDARY, replacement)
+      acronyms_apart.gsub(CAMEL_BOUNDARY, replacement)
     end
 
     # An identifier as a sentence-cased phrase: `ATMCard` -> "ATM card",
@@ -51,13 +80,9 @@ module Hecks
     # @param text [String, Symbol, #to_s] a Pascal-, camel-, or snake-case identifier
     # @return [String] the space-separated, sentence-cased phrase
     def words(text)
-      parts = text.to_s
-                  .tr("_", " ")
-                  .gsub(/([A-Z]+)([A-Z][a-z])/, '\1 \2')
-                  .gsub(/([a-z\d])([A-Z])/, '\1 \2')
-                  .split
+      parts = split_case(text.to_s.tr("_", " "), " ").split
       parts.each_with_index.map do |part, index|
-        next part if part.match?(/\A[A-Z]{2,}\z/)
+        next part if part.match?(ACRONYM)
 
         index.zero? ? part.capitalize : part.downcase
       end.join(" ")
@@ -94,8 +119,8 @@ module Hecks
     # @return [String] the pluralised name
     def plural(text)
       word = text.to_s
-      return "#{word[0..-2]}ies" if word.match?(/[^aeiou]y\z/)
-      return "#{word}es"         if word.match?(/(s|x|z|ch|sh)\z/)
+      return "#{word[0..-2]}ies" if word.match?(CONSONANT_Y_ENDING)
+      return "#{word}es"         if word.match?(SIBILANT_ENDING)
 
       "#{word}s"
     end
@@ -122,7 +147,7 @@ module Hecks
     # @param word [String] a plural name
     # @return [Boolean] whether it is a sibilant stem plus `plural`'s "es"
     def sibilant_es?(word)
-      word.length > 3 && word.end_with?("es") && word[0..-3].match?(/(s|x|z|ch|sh)\z/)
+      word.length > 3 && word.end_with?("es") && word[0..-3].match?(SIBILANT_ENDING)
     end
 
     # Derives the attribute name a reference to `type` is stored under.

@@ -37,7 +37,8 @@ module Hecks
               return "" if shared
 
               bridge = TextTemplate.render_from("lambda/predeploy_bridge.tmpl", self)
-              bridge.each_line.map { |line| "\t#{line}" }.join.rstrip
+              lines = bridge.each_line.map { |line| "\t#{line}" }
+              lines.join.rstrip
             end
 
             # Google OAuth newly added to an existing stack would deadlock this bridge:

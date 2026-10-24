@@ -5,6 +5,15 @@ module Hecks
     # The plan a write to AWS prints when it is refused unconfirmed or run with `dry_run`: what the
     # project's script would do, read from the script's own text, so nothing is run to say it.
     module DeployPlans
+      # The CloudFormation output a companion script reads its box's instance id from.
+      INSTANCE_STACK = /out\s+(\S+)\s+InstanceId/
+
+      # The Compose project a companion script names.
+      COMPOSE_PROJECT = /compose -p (\w+)/
+
+      # The absolute directory a companion script makes on the box.
+      MADE_DIRECTORY = %r{mkdir -p (/\S+)}
+
       module_function
 
       # What `preview.sh <action>` would do for a branch.
@@ -33,9 +42,9 @@ module Hecks
       # @param taskdef [String] the task definition its image and settings are read from
       # @return [String]
       def companion(text, companion, taskdef)
-        stack = text[/out\s+(\S+)\s+InstanceId/, 1]
-        project = text[/compose -p (\w+)/, 1] || companion
-        directory = text[%r{mkdir -p (/\S+)}, 1]
+        stack = text[INSTANCE_STACK, 1]
+        project = text[COMPOSE_PROJECT, 1] || companion
+        directory = text[MADE_DIRECTORY, 1]
         place = directory ? " in #{directory}" : +""
         "roll #{companion} (Compose project #{project}#{place}) from task definition " \
           "#{taskdef} onto the box of stack #{stack || "<box stack>"} over SSM, beside the app's project, " \

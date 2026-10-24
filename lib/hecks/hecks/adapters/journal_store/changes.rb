@@ -42,11 +42,11 @@ module Hecks
         def apply_hold_first(held)
           domain = HeldDomain.open(plain(held[:domain]), mode: :bare)
           domain.writing do |lineage|
-            raise Runtime::WiringError, "#{domain.bluebook.name} already holds an era" unless lineage.eras.empty?
+            raise Runtime::WiringError, "#{domain_name(domain)} already holds an era" unless lineage.eras.empty?
 
             lineage.hold_first!(domain.source_text, projection: domain.shape)
           end
-          "#{domain.bluebook.name} holds era 1 now."
+          "#{domain_name(domain)} holds era 1 now."
         end
 
         def apply_merge_tail(held)
@@ -55,7 +55,7 @@ module Hecks
           diverged = domain.writing { |lineage| diverged_writes(domain, lineage) }
           PostgresEra::LineageManager.merge!(registry: domain.registry, bluebook: domain.bluebook,
                                              settings: domain.settings, winners: named)
-          ["#{domain.bluebook.name}: #{diverged} post-cut write#{"s" unless diverged == 1} in ancestor " \
+          ["#{domain_name(domain)}: #{diverged} post-cut write#{"s" unless diverged == 1} in ancestor " \
            "eras before the merge",
            "merged — the head now interleaves both worlds by their recorded ordinals",
            *named.map { |id, side| "  winner #{id}=#{side} appended as the newest row" }].join("\n")
@@ -73,7 +73,7 @@ module Hecks
         end
 
         def reattest(domain, lineage, ordinal)
-          lineage.raw_era(ordinal) or raise Runtime::NotFound, "#{domain.bluebook.name} holds no era #{ordinal}"
+          lineage.raw_era(ordinal) or raise Runtime::NotFound, "#{domain_name(domain)} holds no era #{ordinal}"
           fresh = lineage.reattest!(ordinal)
           "ATTESTED: era #{ordinal} re-frozen as #{fresh[0, 12]}… — the old and new digests are recorded."
         end
@@ -86,11 +86,11 @@ module Hecks
         def backfill(domain, lineage)
           missing = -> { missing_projections(lineage) }
           before = missing.call
-          return "#{domain.bluebook.name}: every held era already carries a projection — nothing to do." if before.zero?
+          return "#{domain_name(domain)}: every held era already carries a projection — nothing to do." if before.zero?
 
           require_legacy_rows!(domain, lineage)
           done = before - missing.call
-          "#{domain.bluebook.name}: backfilled #{done} era#{"s" unless done == 1} — every row now carries a projection."
+          "#{domain_name(domain)}: backfilled #{done} era#{"s" unless done == 1} — every row now carries a projection."
         end
 
         # Raises on the first row whose own digest check fails: a tampered row, not a merely
@@ -98,7 +98,7 @@ module Hecks
         def require_legacy_rows!(domain, lineage)
           lineage.eras
         rescue Runtime::WiringError => e
-          raise Runtime::WiringError, "#{domain.bluebook.name}: stopped at a row that isn't merely legacy — " \
+          raise Runtime::WiringError, "#{domain_name(domain)}: stopped at a row that isn't merely legacy — " \
                                       "it fails its own integrity check: #{e.message} — resolve that first " \
                                       "(`hecks reattest`), then run this again for the remaining rows."
         end

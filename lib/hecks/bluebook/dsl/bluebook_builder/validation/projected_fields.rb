@@ -43,7 +43,7 @@ module Hecks
             # `projected_fields` is separate from `attributes`, and a projected value is always a
             # scalar by construction, so a name match is enough there too.
             def implicit_projection_target?(target, tail)
-              target.lifecycle&.field.to_s == tail || target.projected_fields.any? { |f| f.name.to_s == tail }
+              target.lifecycle_field.to_s == tail || target.projected_fields.any? { |f| f.name.to_s == tail }
             end
 
             def refuse_unresolvable_projection!(aggregate, field, plan)

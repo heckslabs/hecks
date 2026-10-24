@@ -14,6 +14,13 @@ module Hecks
         FONTS   = "https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap".freeze
         MERMAID = "https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js".freeze
 
+        # A Markdown in-page link: `[text](#anchor)`.
+        ANCHOR_LINK = /\[([^\]]+)\]\(#([^)]+)\)/
+        # Markdown bold text: `**text**`.
+        BOLD = /\*\*(.+?)\*\*/
+        # Markdown italic text: `*text*`.
+        ITALIC = /\*(.+?)\*/
+
         module_function
 
         # Renders `glossary.md`'s Markdown source as a self-contained HTML page.
@@ -38,9 +45,9 @@ module Hecks
         # Escapes first so prose never becomes a tag, then converts links, bold and italic.
         def inline(text)
           escape(text)
-            .gsub(/\[([^\]]+)\]\(#([^)]+)\)/) { %(<a href="##{Regexp.last_match(2)}">#{Regexp.last_match(1)}</a>) }
-            .gsub(/\*\*(.+?)\*\*/) { "<strong>#{Regexp.last_match(1)}</strong>" }
-            .gsub(/\*(.+?)\*/) { "<em>#{Regexp.last_match(1)}</em>" }
+            .gsub(ANCHOR_LINK) { %(<a href="##{Regexp.last_match(2)}">#{Regexp.last_match(1)}</a>) }
+            .gsub(BOLD) { "<strong>#{Regexp.last_match(1)}</strong>" }
+            .gsub(ITALIC) { "<em>#{Regexp.last_match(1)}</em>" }
         end
 
         def asset(name) = File.read(File.join(__dir__, name))

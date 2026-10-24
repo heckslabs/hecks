@@ -29,7 +29,7 @@ module Hecks
           result = capture(script, *, env: env)
           return printed(result) if result.ok?
 
-          raise ConsoleCapture::Failure, printed(result, "ended with status #{result.status.exitstatus}")
+          raise ConsoleCapture::Failure, printed(result, ended(result))
         end
 
         # Runs the tool with the arguments and answers only what it printed to stdout, for a tool
@@ -45,7 +45,7 @@ module Hecks
           result = capture(script, *, env: env)
           return result.out.chomp if result.ok?
 
-          raise ConsoleCapture::Failure, printed(result, "ended with status #{result.status.exitstatus}")
+          raise ConsoleCapture::Failure, printed(result, ended(result))
         end
 
         # Runs the tool with the arguments and hands back how it ended.
@@ -71,6 +71,12 @@ module Hecks
         Status = Struct.new(:exitstatus) do
           # @return [Boolean] whether it ended with status 0
           def success? = exitstatus.zero?
+        end
+
+        # How a run that failed ended, for a failure that printed nothing.
+        def ended(result)
+          status = result.status
+          "ended with status #{status.exitstatus}"
         end
 
         def printed(result, otherwise = "")

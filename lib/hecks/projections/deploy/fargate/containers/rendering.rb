@@ -6,6 +6,9 @@ module Hecks
           # Renders the resources of the added containers: repositories, parameters, target groups,
           # listener rules and the service's load-balancer entries. Extended onto `Containers`.
           module Rendering
+            # The start of every line, where an indent goes.
+            LINE_START = /^/
+
             # Renders the ECR repository of every added container.
             def repositories_yaml(layout)
               layout.extras.map do |container|
@@ -39,9 +42,8 @@ module Hecks
 
             # Renders the target group of every added container.
             def target_groups_yaml(layout, vpc_ref, deregistration_delay)
-              layout.extras.select(&:port).map do |container|
-                target_group_yaml(container, vpc_ref, deregistration_delay)
-              end.join("\n\n")
+              routed = layout.extras.select(&:port)
+              routed.map { |container| target_group_yaml(container, vpc_ref, deregistration_delay) }.join("\n\n")
             end
 
             # Renders the `TargetGroupAttributes` property for a drain delay.
@@ -65,7 +67,8 @@ module Hecks
 
             # Renders the service's `LoadBalancers` entries for the added containers.
             def load_balancers_yaml(layout)
-              layout.extras.select(&:port).map do |container|
+              routed = layout.extras.select(&:port)
+              routed.map do |container|
                 <<~ENTRY
                   - ContainerName: #{container.name}
                     ContainerPort: #{container.port}
@@ -91,7 +94,7 @@ module Hecks
             private
 
             def target_group_yaml(container, vpc_ref, deregistration_delay)
-              attributes = target_group_attributes_yaml(deregistration_delay).gsub(/^/, "    ")
+              attributes = target_group_attributes_yaml(deregistration_delay).gsub(LINE_START, "    ")
               "#{target_group_head(container, vpc_ref)}#{attributes}".rstrip
             end
 

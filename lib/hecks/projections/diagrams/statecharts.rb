@@ -51,7 +51,12 @@ module Hecks
 
         # Listed in declaration order; at refusal the runtime fires them newest first.
         def derived_compensations(saga)
-          saga.handlers.flat_map { |handler| handler.dispatches.filter_map { |dispatch| dispatch.compensates&.command_name } }
+          saga.handlers.flat_map { |handler| handler.dispatches.filter_map { |dispatch| compensating_command(dispatch) } }
+        end
+
+        def compensating_command(dispatch)
+          compensation = dispatch.compensates
+          compensation&.command_name
         end
       end
     end

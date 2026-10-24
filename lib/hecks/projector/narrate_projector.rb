@@ -63,7 +63,7 @@ module Hecks
         refs = aggregate.attributes.select(&:reference?)
         return nil if refs.empty?
 
-        targets = refs.map { |r| "#{a_or_an(r.type.target_name)} #{r.type.target_name}" }
+        targets = refs.map { |r| "#{a_or_an(r.target_name)} #{r.target_name}" }
         "Each one is linked to #{to_sentence_list(targets)}."
       end
 

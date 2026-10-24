@@ -103,9 +103,10 @@ module Hecks
         end
 
         def ordered_rows(rows, declared)
+          order_by = declared.order_by
           Ports::Query::Ordering.apply(
-            rows, declared.order_by, declared.null_semantics, identity: ->(row) { row[:id].to_s }
-          ) { |row| Ports::Query::InMemory.comparable(QuerySpecification::FieldPath.dig(row, declared.order_by.field)) }
+            rows, order_by, declared.null_semantics, identity: ->(row) { row[:id].to_s }
+          ) { |row| Ports::Query::InMemory.comparable(QuerySpecification::FieldPath.dig(row, order_by.field)) }
         end
 
         # Real dispatch normalizes a query's own declared arguments

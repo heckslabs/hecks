@@ -77,6 +77,16 @@ module Hecks
           end
         end
 
+        # Every domain a cross-domain policy targets, across every loaded chapter, so an attached
+        # chapter's policies count as well as the domain's own.
+        #
+        # @param registry [Hecks::Runtime::Registry] the registry holding the loaded chapters
+        # @return [Array<String>] the target domain names, sorted and without repeats
+        def cross_domain_targets(registry)
+          targets = registry.bluebooks.flat_map { |_name, chapter| chapter.policies.filter_map(&:target_domain) }
+          targets.uniq.sort
+        end
+
         # Renders one `lambda:InvokeFunction` IAM statement per `across:` target,
         # to append to the compute role's `Policies:` list.
         # An ARN for a not-yet-deployed function is valid IAM; the call just fails until then.
@@ -159,7 +169,8 @@ module Hecks
         def bastion_public_subnet(network)
           name = network.google_oauth_present ? "bastion_reuse_public" : "bastion_own_public"
           text = TextTemplate.render("shared/#{name}.tmpl", db_id: network.db_id)
-          text.each_line.with_index.map { |line, i| (i.zero? ? "" : "  ") + line }.join.rstrip
+          lines = text.each_line.with_index.map { |line, i| (i.zero? ? "" : "  ") + line }
+          lines.join.rstrip
         end
         private_class_method :bastion_public_subnet
       end

@@ -12,7 +12,14 @@ module Hecks
       # the snapshot keeping the current state. The database-level guard, that the
       # `compacted_through` floor only moves forward, stays in the adapter that owns the journal.
       class Compaction
-        Candidate = Struct.new(:domain_name, :aggregate, :adapter, keyword_init: true)
+        # One aggregate whose journal can be compacted, with the adapter that holds it.
+        Candidate = Struct.new(:domain_name, :aggregate, :adapter, keyword_init: true) do
+          # @return [String] the aggregate's storage name, as the journal is named
+          def storage_name = aggregate.storage_name
+        end
+
+        # A preview line that refuses its candidate.
+        REFUSAL_LINE = /^REFUSED/
 
         KINDS = { entries: %i[compact_entries! checkpoint], heki: %i[compact!] }.freeze
 
@@ -57,7 +64,7 @@ module Hecks
         # @raise [Runtime::WiringError] if a projection reads a journal that would be emptied, or
         #   the journal's own floor refuses the compaction
         def apply!
-          raise Runtime::WiringError, preview.grep(/^REFUSED/).join("\n") if bound.any?
+          raise Runtime::WiringError, preview.grep(REFUSAL_LINE).join("\n") if bound.any?
 
           candidates.map { |candidate| kind_apply(candidate) }
         end
@@ -85,12 +92,12 @@ module Hecks
         end
 
         def refusal_line(candidate)
-          "REFUSED #{candidate.aggregate.storage_name}: a projected_by binding reads its full journal — " \
+          "REFUSED #{candidate.storage_name}: a projected_by binding reads its full journal — " \
             "compacting would break its catch-up. Not compacted."
         end
 
         def entries_dry(candidate)
-          name = candidate.aggregate.storage_name
+          name = candidate.storage_name
           adapter = candidate.adapter
           through = adapter.checkpoint
           if through <= adapter.compacted_through
@@ -102,7 +109,7 @@ module Hecks
         end
 
         def compact_entries(candidate)
-          name = candidate.aggregate.storage_name
+          name = candidate.storage_name
           adapter = candidate.adapter
           through = adapter.checkpoint
           if through <= adapter.compacted_through
@@ -115,7 +122,7 @@ module Hecks
         end
 
         def heki_dry(candidate)
-          name = candidate.aggregate.storage_name
+          name = candidate.storage_name
           adapter = candidate.adapter
           return "SKIP #{name}: journal already empty" if adapter.entries.empty?
 
@@ -124,7 +131,7 @@ module Hecks
         end
 
         def compact_heki(candidate)
-          name = candidate.aggregate.storage_name
+          name = candidate.storage_name
           adapter = candidate.adapter
           entries = adapter.entries.length
           return "SKIP #{name}: journal already empty" if entries.zero?

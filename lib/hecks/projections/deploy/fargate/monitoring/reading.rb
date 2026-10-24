@@ -6,6 +6,9 @@ module Hecks
           # Reads and checks the `alerts` setting of a world. Extended onto `Monitoring`, which
           # supplies the key lists and defaults.
           module Reading
+            # An EventBridge schedule expression: `rate(...)` or `cron(...)`.
+            SCHEDULE_EXPRESSION = /\A(rate|cron)\(.+\)\z/
+
             private
 
             def alarms(entries, containers)
@@ -62,7 +65,7 @@ module Hecks
 
             def warmer_rate(given)
               rate = given.fetch(:rate, "rate(1 minute)").to_s
-              return rate if rate.match?(/\A(rate|cron)\(.+\)\z/)
+              return rate if rate.match?(SCHEDULE_EXPRESSION)
 
               raise ArgumentError,
                     "alerts warmer rate must be a schedule expression such as rate(1 minute), got #{rate.inspect}"

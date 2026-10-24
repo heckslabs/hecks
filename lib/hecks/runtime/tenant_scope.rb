@@ -21,7 +21,8 @@ module Hecks
       # @raise [Runtime::Unauthorized] if `declared` declares a tenant boundary and `args`
       #   omits that field
       def apply(declared, args)
-        tenant = declared.authorization&.tenant
+        authorization = declared.authorization
+        tenant = authorization&.tenant
         return declared unless tenant
 
         tenant = tenant.to_sym

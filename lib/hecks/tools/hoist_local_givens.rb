@@ -104,10 +104,8 @@ module Hecks
       # @param registry [Object] the booted bluebooks
       # @return [Hash{String => Array}] each command's rules, by location
       def command_rule_map(registry)
-        Hecks::QueryIR.collect_rules(registry)
-                      .reject { |r| r.location.end_with?(" (declared)") }
-                      .group_by(&:location)
-                      .transform_values { |rules| rules.map { |r| [r.kind, r.description, r.canonical] }.sort }
+        local = Hecks::QueryIR.collect_rules(registry).reject { |r| r.location.end_with?(" (declared)") }
+        local.group_by(&:location).transform_values { |rules| rules.map { |r| [r.kind, r.description, r.canonical] }.sort }
       end
 
       # @param files [Array<String>] one example domain's bluebook files

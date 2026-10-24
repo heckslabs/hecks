@@ -67,7 +67,7 @@ module Hecks
         end
 
         def projected_only?(field)
-          @aggregate.lifecycle&.field&.to_sym != field[:name].to_sym &&
+          @aggregate.lifecycle_field&.to_sym != field[:name].to_sym &&
             @aggregate.projected_fields.any? { |projected| projected.name.to_sym == field[:name].to_sym }
         end
 

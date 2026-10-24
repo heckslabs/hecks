@@ -8,6 +8,8 @@ module Hecks
       module Observation
         PARTS = %i[instances events refusals reactions sagas queries].freeze
         PLAIN = [String, Numeric, true, false, nil].freeze
+        # An object address in an `inspect`/`to_s` text, as `0x000123ab`.
+        ADDRESS = /0x\h+/
 
         module_function
 
@@ -30,7 +32,7 @@ module Hecks
         # An object that is not plain data: its own hash form when it has one, else its text with
         # the address that would differ between runs taken out.
         def opaque(value)
-          value.respond_to?(:to_h) ? plain(value.to_h) : value.to_s.gsub(/0x\h+/, "0x")
+          value.respond_to?(:to_h) ? plain(value.to_h) : value.to_s.gsub(ADDRESS, "0x")
         end
       end
     end

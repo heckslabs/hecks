@@ -5,10 +5,22 @@ module Hecks
       # after, so the mutation can be diffed against an independent recomputation.
       module MutationTrace
         # The entity command a trace is about, and where it lives.
-        Target = Struct.new(:domain, :aggregate_name, :command_name, :aggregate, :entity, :command)
+        Target = Struct.new(:domain, :aggregate_name, :command_name, :aggregate, :entity, :command) do
+          # @return [Array<Bluebook::Attribute>] the owning aggregate's attributes
+          def aggregate_attributes = aggregate.attributes
+
+          # @return [String] the entity's declared name
+          def entity_name = entity.hecks_name
+
+          # @return [Array<String>] the entity's identity paths
+          def identity_paths = entity.identity_paths
+        end
 
         # The element a mutation step addresses, found in its parent's `list_of` attribute.
-        Located = Struct.new(:parent_id, :list_attr, :wants, :element)
+        Located = Struct.new(:parent_id, :list_attr, :wants, :element) do
+          # @return [Symbol, String] the name of the `list_of` attribute holding the element
+          def list_attr_name = list_attr.name
+        end
 
         module_function
 
@@ -24,7 +36,7 @@ module Hecks
           return nil unless located
 
           { verb: verb, domain: target.domain, aggregate: target.aggregate_name, command: target.command_name,
-            parent_id: located.parent_id, list_attr: located.list_attr.name, element_wants: located.wants,
+            parent_id: located.parent_id, list_attr: located.list_attr_name, element_wants: located.wants,
             before: Runtime::Value.materialize(located.element), args: args }
         rescue StandardError
           nil
@@ -76,14 +88,15 @@ module Hecks
         end
 
         def list_attribute(target)
-          target.aggregate.attributes.find { |a| a.list? && a.type.to_s == target.entity.hecks_name }
+          target.aggregate_attributes.find { |a| a.list? && a.type.to_s == target.entity_name }
         end
 
         # The `[head, value]` identity pairs the args give for the entity, or nil when an
         # identity argument is missing.
         def element_wants(target, args)
-          target.entity.identity_paths.map do |path|
-            head = path.to_s.split(".").first.to_sym
+          target.identity_paths.map do |path|
+            head_name = path.to_s.split(".").first
+            head = head_name.to_sym
             raw  = args[head]
             return nil if raw.nil?
 

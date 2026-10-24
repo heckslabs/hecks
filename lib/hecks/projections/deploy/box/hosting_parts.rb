@@ -7,11 +7,14 @@ module Hecks
         # The pieces `Hosting` splices into its scripts: the settings each script starts with, the
         # service case arms and the sentences that say what a roll does. Extended onto `Hosting`.
         module HostingParts
+          # The start of every line, where a comment marker goes.
+          LINE_START = /^/
+
           # @param plan [Settings::Plan] the resolved settings
           # @return [String] the sentence that says what the roll puts on the box
           def mode_summary(plan)
             file = plan.task_definition ? "mode-summary-taskdef.tmpl" : "mode-summary-services.tmpl"
-            Box.template(file, {}).gsub(/^/, "# ").chomp
+            Box.template(file, {}).gsub(LINE_START, "# ").chomp
           end
 
           private
@@ -19,8 +22,7 @@ module Hecks
           # @param plan [Settings::Plan] the resolved settings
           # @return [String] the comment lines that list what "settled" means
           def settle_checks(plan)
-            stacks = plan.hosting.stack ? "the box stack and the #{plan.hosting.stack} stack are" : "the box stack is"
-            checks = ["#{stacks} CREATE_COMPLETE or UPDATE_COMPLETE, never rolled back or failed;",
+            checks = ["#{settled_stacks(plan.hosting)} CREATE_COMPLETE or UPDATE_COMPLETE, never rolled back or failed;",
                       "every container and the proxy of the box's Compose project is up and has stayed up;"]
             if plan.task_definition
               checks << "each container runs the image of the task definition it was rolled from (the latest " \
@@ -29,17 +31,21 @@ module Hecks
             checks.map { |line| "#      - #{line}" }.join("\n")
           end
 
-          def deploy_constants(plan, region)
-            lines = { "REGION" => region }
-            if plan.task_definition
-              lines["FAMILY"] = plan.task_definition
-              lines["IMAGE_STACK"] = plan.hosting.stack
-            else
-              lines["BOX_STACK"] = plan.box_stack
-              lines["BOX_DIR"] = "/opt/#{plan.infra_name}"
-            end
-            constants(lines)
+          def settled_stacks(hosting)
+            hosting.stack ? "the box stack and the #{hosting.stack} stack are" : "the box stack is"
           end
+
+          def deploy_constants(plan, region)
+            lines = plan.task_definition ? taskdef_constants(plan) : box_constants(plan)
+            constants({ "REGION" => region }.merge(lines))
+          end
+
+          def taskdef_constants(plan)
+            hosting = plan.hosting
+            { "FAMILY" => plan.task_definition, "IMAGE_STACK" => hosting.stack }
+          end
+
+          def box_constants(plan) = { "BOX_STACK" => plan.box_stack, "BOX_DIR" => "/opt/#{plan.infra_name}" }
 
           def smoke_constants(plan, region)
             hosting = plan.hosting

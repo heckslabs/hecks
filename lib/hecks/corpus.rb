@@ -78,12 +78,16 @@ module Hecks
     end
 
     def directory_members(kind, root, glob)
-      Dir.glob(File.join(root, glob)).select { |path| File.directory?(path) }.sort
-         .map { |dir| Member.new(File.basename(dir), kind, dir) }
+      directories(root, glob).map { |dir| Member.new(File.basename(dir), kind, dir) }
     end
 
+    def directories(root, glob) = Dir.glob(File.join(root, glob)).select { |path| File.directory?(path) }.sort
+
+    # The part of a glob before its first wildcard.
+    GLOB_FIXED_PREFIX = /\A[^*]*/
+
     def file_members(kind, root, glob)
-      prefix = File.join(root, glob[/\A[^*]*/].chomp("/"))
+      prefix = File.join(root, glob[GLOB_FIXED_PREFIX].chomp("/"))
       Dir.glob(File.join(root, glob))
          .map { |file| Member.new(file.delete_prefix("#{prefix}/").delete_suffix(".bluebook"), kind, file) }
     end
@@ -143,14 +147,14 @@ module Hecks
     # @return [Array<String>] absolute paths of every sweepable domain directory
     def sweepable_domains(root = ROOT)
       Dir.chdir(root) do
-        Dir.glob("**/*.bluebook")
-           .reject { |path| route_for(path) }
-           .map { |path| File.dirname(path) }
-           .map { |dir| File.basename(dir) == "bluebook" ? File.dirname(dir) : dir }
-           .uniq.sort
-           .map { |dir| File.join(root, dir) }
+        swept = Dir.glob("**/*.bluebook").reject { |path| route_for(path) }
+        dirs = swept.map { |path| owning_dir(File.dirname(path)) }
+        dirs.uniq.sort.map { |dir| File.join(root, dir) }
       end
     end
+
+    # The domain directory a bluebook directory stands for: a `bluebook/` folder is its parent.
+    def owning_dir(dir) = File.basename(dir) == "bluebook" ? File.dirname(dir) : dir
 
     # Sweepable domains a fuzz cannot boot from its copy, by repo-relative directory, each with
     # the reason. A fuzz boots a tmpdir copy of a domain to isolate its state.
@@ -174,8 +178,11 @@ module Hecks
     # @return [String] the member's owning domain directory path
     def domain_dir_of(member)
       dir = File.directory?(member.path) ? member.path : File.dirname(member.path)
-      File.basename(dir) == "bluebook" ? File.dirname(dir) : dir
+      owning_dir(dir)
     end
+
+    # A `Hecks.bluebook "Name"` header line, capturing the chapter's name.
+    BLUEBOOK_HEADER = /\A\s*Hecks\.bluebook\s+"([^"]+)"/
 
     # The chapter a bluebook declares — `Hecks.bluebook "<Name>"` — read off
     # the file rather than guessed from its name, since the two can differ.
@@ -186,7 +193,7 @@ module Hecks
     #   declares one
     def chapter_name_of(bluebook_path)
       bluebook_path = Array(bluebook_path).first
-      header = File.foreach(bluebook_path).find { |line| line =~ /\A\s*Hecks\.bluebook\s+"([^"]+)"/ }
+      header = File.foreach(bluebook_path).find { |line| line =~ BLUEBOOK_HEADER }
       header && Regexp.last_match(1)
     end
   end

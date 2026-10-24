@@ -27,7 +27,8 @@ module Hecks
         listed = capture("ls-remote", remote, name, chdir: chdir)
         refuse("git ls-remote #{remote} #{name} failed", listed) unless listed.ok?
 
-        listed.out.lines.map { |line| line.split.first }.first
+        printed = listed.out
+        printed.lines.map { |line| line.split.first }.first
       end
 
       # Whether one commit is an ancestor of another, so that moving a ref from the first to the
@@ -41,7 +42,9 @@ module Hecks
       def ancestor?(ancestor, descendant, chdir: nil)
         result = capture("merge-base", "--is-ancestor", checked_ref(ancestor), checked_ref(descendant), chdir: chdir)
         return true if result.ok?
-        return false if result.status.exitstatus == 1
+
+        status = result.status
+        return false if status.exitstatus == 1
 
         refuse("git merge-base failed", result)
       end
@@ -63,7 +66,8 @@ module Hecks
         listed = capture("log", "--first-parent", "--reverse", "--format=%ct", range, chdir: chdir)
         refuse("git log #{range} failed", listed) unless listed.ok?
 
-        listed.out.lines.first&.to_i
+        printed = listed.out
+        printed.lines.first&.to_i
       end
 
       # The commits a lane may be moved onto, newest first: the first-parent chain of `newer` that
@@ -80,7 +84,8 @@ module Hecks
         listed = capture("rev-list", "--first-parent", "-n", Integer(limit).to_s, range, chdir: chdir)
         refuse("git rev-list #{range} failed", listed) unless listed.ok?
 
-        listed.out.split
+        printed = listed.out
+        printed.split
       end
 
       # Moves a remote branch to a commit, and only forward: the push is refused by the remote when

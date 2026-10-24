@@ -24,13 +24,13 @@ module Hecks
         # `@dispatcher.reenter` can recursively re-enter this interpreter on the
         # same thread, and `Mutex` is not reentrant.
         def remembered_leg_taken?(leg)
-          leg.instance = @registry.saga_instances[leg.process_manager.name][leg.correlation]
+          leg.instance = @registry.saga_instances[leg.saga_name][leg.correlation]
           unless leg.instance
             log_leg(leg, advanced: false, reason: "no conversation remembers #{leg.correlation.inspect}")
             return false
           end
 
-          leg_taken?(leg, leg.event.name)
+          leg_taken?(leg, leg.event_name)
         end
 
         # Leg chosen by (event, current state) — read under the mutex so
@@ -63,7 +63,7 @@ module Hecks
           log_leg(leg, advanced: true, from: leg.pre_state, to: leg.instance[:state])
 
           drain_derived_compensations(leg) if drain_compensations
-          leg.handler.dispatches.each do |spec|
+          leg.dispatches.each do |spec|
             deliver_saga_dispatch(leg.process_manager, spec, leg.event, leg.instance, leg.correlation, leg.domain)
           end
           clear_pending_marker(leg)
@@ -76,7 +76,7 @@ module Hecks
         # a reborn instance with a stale one's state.
         def clear_pending_marker(leg)
           @registry.saga_mutex.synchronize do
-            next unless @registry.saga_instances[leg.process_manager.name][leg.correlation].equal?(leg.instance)
+            next unless @registry.saga_instances[leg.saga_name][leg.correlation].equal?(leg.instance)
 
             checkpoint_leg(leg, pending: nil)
           end

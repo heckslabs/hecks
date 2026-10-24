@@ -21,11 +21,12 @@ module Hecks
         # least one live conversation.
         def saga_groups(runtime, history)
           saga_instances = history[:saga_instances] || {}
+          registry = runtime.registry
           each_domain_process_manager(runtime).filter_map do |domain_name, process_manager|
             persisted = saga_instances[process_manager.name]
             next if persisted.nil? || persisted.empty?
 
-            anchor = runtime.registry.bluebook(domain_name).aggregates.first
+            anchor = registry.bluebook(domain_name).aggregates.first
             [domain_name, process_manager, anchor, persisted] if anchor
           end
         end
@@ -55,7 +56,8 @@ module Hecks
         # Every [domain, process manager] pair any loaded bluebook declares.
         def each_domain_process_manager(runtime)
           found = []
-          runtime.registry.bluebooks.each do |domain_name, bluebook|
+          registry = runtime.registry
+          registry.bluebooks.each do |domain_name, bluebook|
             bluebook.process_managers.each { |pm| found << [domain_name, pm] }
           end
           found

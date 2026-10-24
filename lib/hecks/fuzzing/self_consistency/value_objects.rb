@@ -33,7 +33,13 @@ module Hecks
         end
 
         # The aggregate a stored-record key `Domain::Aggregate#id` belongs to, or nil.
-        def instance_owner(bluebooks, key) = owning_aggregate(bluebooks, key.to_s.split("#", 2).first.to_s)
+        def instance_owner(bluebooks, key) = owning_aggregate(bluebooks, record_aggregate(key))
+
+        # The `"Domain::Aggregate"` part of a stored-record key `Domain::Aggregate#id`.
+        def record_aggregate(key)
+          qualified_name, = key.to_s.split("#", 2)
+          qualified_name.to_s
+        end
 
         # The aggregate a `"Domain::Aggregate"` name refers to, or nil.
         def owning_aggregate(bluebooks, qualified_name)
@@ -77,7 +83,8 @@ module Hecks
 
           seen[node] = true
           found << [node, aggregate]
-          node.value_object.attributes.each do |attribute|
+          value_object = node.value_object
+          value_object.attributes.each do |attribute|
             walk_value_objects(node[attribute.name], found, seen, aggregate)
           end
         end

@@ -32,7 +32,8 @@ module Hecks
       private
 
       def adapters_for(port_name)
-        @registry.adapters.values.select { |adapter| adapter.port == port_name }.map(&:name)
+        serving = @registry.adapters.values.select { |adapter| adapter.port == port_name }
+        serving.map(&:name)
       end
     end
   end

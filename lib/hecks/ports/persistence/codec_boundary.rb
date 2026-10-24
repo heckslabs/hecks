@@ -59,11 +59,12 @@ module Hecks
         def check_entries!(adapter, entries)
           return entries unless entries.is_a?(Array)
 
+          aggregate = adapter.aggregate
           entries.each do |entry|
-            next unless entry.is_a?(Entry) && !StateCodec.decoded?(adapter.aggregate, entry.state)
+            next unless entry.is_a?(Entry) && !StateCodec.decoded?(aggregate, entry.state)
 
             raise Runtime::WiringError,
-                  "#{adapter.class} answered a #{adapter.aggregate.name} journal entry #{entry.id.inspect} with " \
+                  "#{adapter.class} answered a #{aggregate.name} journal entry #{entry.id.inspect} with " \
                   "undecoded state — decode it through Hecks::Ports::Persistence::StateCodec.decode"
           end
           entries

@@ -54,7 +54,7 @@ module Hecks
           rewrite_member_rows(path_holding_keyword(word, context, paths), "KeywordSeed",
                               ->(line) { member_row?(line, word, context) },
                               "#{context}.#{word} is not declared") do |line|
-            line.sub(%(word: "#{word}"), %(word: "#{to}")).sub(/\n\z/, %(, was: "#{word}"\n))
+            line.sub(%(word: "#{word}"), %(word: "#{to}")).sub(SeedLines::TRAILING_NEWLINE, %(, was: "#{word}"\n))
           end
           cascade_argument_rename(keyword: word, context: context, to: to, path: paths)
         end

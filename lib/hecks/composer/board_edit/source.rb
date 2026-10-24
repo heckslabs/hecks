@@ -9,6 +9,15 @@ module Hecks
       # it: where a declaration is, where its block ends (found by indentation, as the bluebooks
       # are laid out), and a way to put a patched file back as one result.
       class Source
+        # A bluebook file's path.
+        BLUEBOOK_FILE = /\.bluebook\z/
+
+        # The `Hecks.bluebook "Name"` line that declares a chapter.
+        CHAPTER_HEADER = /\A\s*Hecks\.bluebook\s+"/
+
+        # The spaces a line starts with.
+        LEADING_SPACES = /\A */
+
         # @return [Board::Places] where each aggregate, command and policy is declared
         attr_reader :places
 
@@ -16,7 +25,7 @@ module Hecks
         def initialize(stage)
           files = Workspace.files(stage)
           @places = Board::Places.new(Outline.call(stage, files))
-          @lines = files.grep(/\.bluebook\z/).to_h { |file| [file, File.read(File.join(stage, file)).lines.map(&:chomp)] }
+          @lines = files.grep(BLUEBOOK_FILE).to_h { |file| [file, File.read(File.join(stage, file)).lines.map(&:chomp)] }
         end
 
         # @param at [Hash] `{file:, line:}` of a declaration
@@ -38,10 +47,10 @@ module Hecks
         # @return [Hash] `{file:, line:}` of the chapter header
         # @raise [Refused] if no file declares the chapter
         def chapter
-          file = @lines.keys.sort.find { |path| @lines[path].any? { |line| line.match?(/\A\s*Hecks\.bluebook\s+"/) } }
+          file = @lines.keys.sort.find { |path| @lines[path].any? { |line| line.match?(CHAPTER_HEADER) } }
           raise Refused, "no file declares the chapter" unless file
 
-          { file: file, line: @lines[file].index { |line| line.match?(/\A\s*Hecks\.bluebook\s+"/) } + 1 }
+          { file: file, line: @lines[file].index { |line| line.match?(CHAPTER_HEADER) } + 1 }
         end
 
         # @param file [String] a bluebook path
@@ -70,7 +79,7 @@ module Hecks
 
         private
 
-        def indent_of(line) = line[/\A */].size
+        def indent_of(line) = line[LEADING_SPACES].size
 
         # The new lines, without their leading blank line when one is already above the spot.
         def spaced(lines, before, added)

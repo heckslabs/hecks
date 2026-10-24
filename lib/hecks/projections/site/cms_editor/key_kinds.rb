@@ -14,6 +14,9 @@ module Hecks
           # `^` then one word, or a group of words separated by `|`, then the `:`.
           LEAD = /\A\^(?:\((?:\?:)?(?<kinds>\w+(?:\|\w+)*)\)|(?<kinds>\w+)):/
 
+          # A kind: a lower-case word of letters, digits and underscores, starting with a letter.
+          KIND = /\A[a-z][a-z0-9_]*\z/
+
           module_function
 
           # @param pattern [String, nil] the attribute's declared pattern
@@ -22,7 +25,7 @@ module Hecks
             found = LEAD.match(pattern.to_s)
             return [] unless found
 
-            found[:kinds].split("|").grep(/\A[a-z][a-z0-9_]*\z/).uniq
+            found[:kinds].split("|").grep(KIND).uniq
           end
         end
       end

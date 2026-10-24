@@ -118,7 +118,7 @@ module Hecks
         # List fields are excluded: a one-value cache row cannot hold `contains` membership.
         def cacheable_field?(field)
           name = field.to_s.split(".").first
-          return true if @aggregate.lifecycle&.field.to_s == name
+          return true if @aggregate.lifecycle_field.to_s == name
 
           attribute = @aggregate.attribute(name)
           !attribute.nil? && !attribute.list?

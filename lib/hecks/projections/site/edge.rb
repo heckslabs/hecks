@@ -38,7 +38,7 @@ module Hecks
 
           private
 
-          def split(text) = text.to_s.split(",").map(&:strip).reject(&:empty?)
+          def split(text) = Hecks::Text.comma_list(text)
         end
 
         # The value objects a project declares its edge rows in, by the kind of record each holds.
@@ -140,6 +140,12 @@ module Hecks
         # @return [Boolean] whether the project has a load balancer, and so listener rules; true
         #   unless the `Edge` row says `alb: false`
         def alb? = setting.nil? || setting.alb != false
+
+        # @return [String, nil] the listener the `Edge` row names, or `nil` without an `Edge` row
+        def listener = setting&.listener
+
+        # @return [String, nil] the secret header the `Edge` row names
+        def secret_header = setting.secret_header
 
         # @param name [String] a logical id
         # @return [Function, nil] the function row of that name

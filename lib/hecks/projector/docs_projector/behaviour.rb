@@ -67,7 +67,7 @@ module Hecks
 
         def command_argument_rows(arguments, holder)
           arguments.map do |attribute|
-            shape = attribute.reference? ? "id of a `#{attribute.type.target_name}`" : Attributes.shape_of(attribute, holder)
+            shape = attribute.reference? ? "id of a `#{attribute.target_name}`" : Attributes.shape_of(attribute, holder)
             ["`#{attribute.name}`", shape, attribute.optional? ? "" : "required"]
           end
         end
@@ -82,9 +82,10 @@ module Hecks
         def lifecycle_refusals(command, lifecycle)
           return [] unless lifecycle
 
-          froms = lifecycle.transitions.filter_map do |name, transition|
+          sources = lifecycle.transitions.filter_map do |name, transition|
             Array(transition.from) if name.to_s == command.hecks_name
-          end.flatten.uniq
+          end
+          froms = sources.flatten.uniq
           return [] if froms.empty?
 
           ["`#{lifecycle.field}` is anything other than #{froms.map { |f| "`#{f}`" }.join(" or ")}"]
@@ -93,7 +94,7 @@ module Hecks
         # The refusal for each referenced record that may not exist.
         def reference_refusals(command)
           command.attributes.select(&:reference?).map do |reference|
-            "no `#{reference.type.target_name}` exists for the id given as `#{reference.name}`"
+            "no `#{reference.target_name}` exists for the id given as `#{reference.name}`"
           end
         end
 

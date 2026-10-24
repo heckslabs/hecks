@@ -43,7 +43,7 @@ module Hecks
 
         # Read from attributes, not commands: a command's self-references are not targets.
         def reference_targets(fields)
-          fields.select(&:reference?).map { |field| field.type.target_name }
+          fields.select(&:reference?).map(&:target_name)
         end
 
         # Recurses, so entities nest to any depth (ADR 0026).

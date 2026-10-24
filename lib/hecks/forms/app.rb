@@ -16,6 +16,9 @@ module Hecks
       include Commands
       include Queries
 
+      # A path segment ending in a format extension, capturing the rest and the format.
+      FORMAT_SUFFIX = /\A(.*)\.(html|json)\z/
+
       # Builds the Rack app for a configured app name, exposing exactly the chapters its
       # `Forms.configure` block declared.
       #
@@ -101,7 +104,7 @@ module Hecks
       # (an email, say). An identity ending in ".html" or ".json" stays ambiguous.
       def split_format(segment)
         segment = segment.to_s
-        return [Regexp.last_match(1), Regexp.last_match(2)] if segment =~ /\A(.*)\.(html|json)\z/
+        return [Regexp.last_match(1), Regexp.last_match(2)] if segment =~ FORMAT_SUFFIX
 
         [segment, "json"]
       end

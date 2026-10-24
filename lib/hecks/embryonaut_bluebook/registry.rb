@@ -25,6 +25,9 @@ module Hecks
       # A package name is a directory name.
       NAME = /\A[a-z][a-z0-9_]*\z/
 
+      # The `name:` line of a `bluebook.yml`, capturing the name.
+      NAME_LINE = /^name: *(.*)$/
+
       # What `check` found, in package order: a note for a package that has no release yet and a
       # sentence for each fault.
       class Report
@@ -133,12 +136,12 @@ module Hecks
       end
 
       def check_name(package, report)
-        name = File.read(File.join(@root, package, "bluebook.yml"))[/^name: *(.*)$/, 1]
+        name = File.read(File.join(@root, package, "bluebook.yml"))[NAME_LINE, 1]
         report.fault "#{package}: bluebook.yml name does not match the directory" unless name == package
       end
 
       def check_tag(package, tag, report)
-        tagged = @source.read(tag, "#{package}/bluebook.yml").to_s[/^version: *(.*)$/, 1].to_s
+        tagged = @source.read(tag, "#{package}/bluebook.yml").to_s[VERSION_LINE, 1].to_s
         return if tagged == tag.delete_prefix("#{package}-v")
 
         report.fault "#{package}: #{tag} points at a commit whose bluebook.yml says '#{tagged}'"

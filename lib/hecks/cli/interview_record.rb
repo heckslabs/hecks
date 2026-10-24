@@ -1,3 +1,5 @@
+require_relative "../text"
+
 module Hecks
   module CLI
     # The Markdown record of an interview, and the plain interview read out of a booted record.
@@ -11,6 +13,8 @@ module Hecks
         fields:      [:number, :thing, :name, :values, :source, :status],
         transitions: [:number, :thing, :action, :to, :from, :source, :status]
       }.freeze
+      # Any character a record's file name may not carry.
+      UNSAFE_FILE_CHARACTER = /[^A-Za-z0-9._-]/
 
       # The interview's record: every exchange in order, and every finding with how it was decided.
       #
@@ -51,7 +55,7 @@ module Hecks
       end
 
       # @api private
-      def file_stem(reference) = reference.to_s.gsub(/[^A-Za-z0-9._-]/, "_")
+      def file_stem(reference) = reference.to_s.gsub(UNSAFE_FILE_CHARACTER, "_")
 
       # @api private
       def exchange_lines(exchange, number)
@@ -113,7 +117,7 @@ module Hecks
       def clause(label, value) = value.to_s.strip.empty? ? "" : ", #{label} #{value}"
 
       # @api private
-      def one_line(text) = text.to_s.gsub(/\s+/, " ").strip
+      def one_line(text) = text.to_s.gsub(Text::WHITESPACE, " ").strip
 
       # @api private
       def plain(value)

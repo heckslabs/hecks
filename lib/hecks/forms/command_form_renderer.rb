@@ -147,7 +147,7 @@ module Hecks
 
         <<~HTML
           <div class="error-banner" role="alert">
-            <p><strong>Refused (#{Escape.html(error.class.name.split("::").last)}):</strong> #{Escape.html(error.message)}</p>
+            <p><strong>Refused (#{Escape.html(Naming.demodulise(error.class.name))}):</strong> #{Escape.html(error.message)}</p>
           </div>
         HTML
       end

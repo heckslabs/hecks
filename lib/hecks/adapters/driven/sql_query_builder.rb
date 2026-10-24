@@ -3,6 +3,7 @@ require_relative "../../ports/query/in_memory"
 require_relative "../../query_specification/common/null_policy"
 require_relative "../../query_specification/field_path"
 require_relative "../../runtime/errors"
+require_relative "../../text"
 require_relative "../../runtime/value"
 require_relative "sql_value_members"
 
@@ -123,7 +124,7 @@ module Hecks
       def in_members(value)
         return value.map(&:to_s).reject(&:empty?) if value.is_a?(Array)
 
-        value.to_s.split(",").map(&:strip).reject(&:empty?)
+        Text.comma_list(value)
       end
 
       # Compiles a declared field into an expression over the stored shape. A value-object
@@ -140,7 +141,7 @@ module Hecks
 
       # Whether a bare field name reads as one plain column: the lifecycle field, or a scalar.
       def plain_field?(name, attribute)
-        @aggregate.lifecycle&.field.to_s == name || (attribute && !value_object?(attribute))
+        @aggregate.lifecycle_field.to_s == name || (attribute && !value_object?(attribute))
       end
 
       def value_object?(attr)
@@ -158,7 +159,9 @@ module Hecks
 
         object = Runtime::Value.value_object_for(@aggregate, attribute.type)
         return "" unless object
-        return object.sole_attribute.name.to_s if object.sole_attribute
+
+        sole = object.sole_attribute
+        return sole.name.to_s if sole
 
         raise ArgumentError,
               "#{dialect_name} query adapter cannot compile contains on #{field} — " \

@@ -31,7 +31,7 @@ module Hecks
         # built once and read pre-mutation by enforce_givens.
         def step_enforce_ensures(ctx)
           step(:enforce_ensures) do
-            settled = Instance.new(aggregate: ctx.entity, id: ctx.view.id, state: ctx.element)
+            settled = Instance.new(aggregate: ctx.entity, id: ctx.element_id, state: ctx.element)
             # `correction:` reuses the `as:`-bound bindings `step_enforce_givens`
             # already located; `|| {}` covers a command with no `corrects`
             # mutation, where `ctx.correction_bindings` may be unset.

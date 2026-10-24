@@ -34,8 +34,9 @@ module Hecks
         end
 
         def grouped_rows(value, shape)
-          nest(value.map { |record| Value.materialize_unwrapped(row(record)) }, shape.model.group_by_fields,
-               collision_check(shape.model, shape.bluebook, shape.grouped))
+          model = shape.model
+          nest(value.map { |record| Value.materialize_unwrapped(row(record)) }, model.group_by_fields,
+               collision_check(model, shape.bluebook, shape.grouped))
         end
 
         def reduced_value(value, model)
@@ -55,10 +56,12 @@ module Hecks
 
         def check_group_field!(model, aggregate, target, field)
           return if aggregate.attribute(field)
+
           # A lifecycle field is a real field too — it's stored on the record like
           # any attribute, just declared via `lifecycle :status`, and it's usually
           # exactly the field a report wants to group by.
-          return if aggregate.lifecycle && aggregate.lifecycle.field.to_sym == field.to_sym
+          lifecycle_field = aggregate.lifecycle_field
+          return if lifecycle_field && lifecycle_field.to_sym == field.to_sym
 
           raise ArgumentError,
                 "#{model.name}'s group_by names #{field.inspect}, but #{target[:aggregate]} " \

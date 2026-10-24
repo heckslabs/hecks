@@ -76,7 +76,7 @@ module Hecks
           instances.each do |instance|
             Hecks::Adapters::Heki.new(aggregate: instance.aggregate, settings: { dir: "." }, root: tmp).save(instance)
             %w[heki heki.journal].each do |ext|
-              FileUtils.cp(File.join(tmp, "#{instance.aggregate.storage_name}.#{ext}"), out)
+              FileUtils.cp(File.join(tmp, "#{stored_as(instance.aggregate)}.#{ext}"), out)
             end
           end
         end
@@ -114,8 +114,12 @@ module Hecks
           Hecks::Adapters::D1.new(aggregate: instance.aggregate,
                                   settings:  { account_id: "acc", database_id: "db", api_token: "tok" }).save(instance)
         end
-        [instance.aggregate.storage_name, "#{instance.aggregate.storage_name}_entries"]
+        name = stored_as(instance.aggregate)
+        [name, "#{name}_entries"]
       end
+
+      # The table or file stem an aggregate's records are stored under.
+      def stored_as(aggregate) = aggregate.storage_name
     end
   end
 end

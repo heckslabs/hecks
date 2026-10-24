@@ -121,9 +121,9 @@ module Hecks
       def sync_cargo_features
         path = File.join(@rust_dir, "Cargo.toml")
         manifest = File.read(path)
-        manifest = manifest.sub(/\A/, FEATURES_HEADER) unless manifest.include?("[features]")
+        manifest = "#{FEATURES_HEADER}#{manifest}" unless manifest.include?("[features]")
         @domains.each { |name| manifest = add_feature(manifest, name) }
-        manifest = manifest.sub(/^default\s*=.*$/, "default = [#{@mod_name.inspect}]")
+        manifest = manifest.sub(DEFAULT_FEATURE, "default = [#{@mod_name.inspect}]")
         # An unchanged manifest is not rewritten: a new mtime makes Cargo rebuild the whole crate.
         if WriteIfChanged.call(path, manifest)
           puts "wrote #{path} (default feature: #{@mod_name})"
@@ -135,10 +135,10 @@ module Hecks
       # Checked against the `[features]` table only: `[package]`'s `name` or a `[[bin]]` path can
       # share a word with a domain name.
       def add_feature(manifest, name)
-        table = manifest[/^\[features\](?:\n(?!\[).*)*$/] || ""
+        table = manifest[FEATURES_TABLE] || ""
         return manifest if table =~ /^#{Regexp.escape(name)}\s*=/
 
-        manifest.sub(/^default\s*=.*$/) { "#{Regexp.last_match(0)}\n#{name} = []" }
+        manifest.sub(DEFAULT_FEATURE) { "#{Regexp.last_match(0)}\n#{name} = []" }
       end
 
       FEATURES_HEADER = <<~TOML
@@ -154,6 +154,12 @@ module Hecks
 
       TOML
       private_constant :FEATURES_HEADER
+
+      # The `default = [...]` line of a Cargo manifest's `[features]` table.
+      DEFAULT_FEATURE = /^default\s*=.*$/
+      # The `[features]` table of a Cargo manifest, up to the next table header.
+      FEATURES_TABLE = /^\[features\](?:\n(?!\[).*)*$/
+      private_constant :DEFAULT_FEATURE, :FEATURES_TABLE
     end
   end
 end

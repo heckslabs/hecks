@@ -2,6 +2,7 @@
 
 require_relative "../../tools"
 require_relative "walker"
+require "hecks/naming"
 
 module Hecks
   module Tools
@@ -9,6 +10,13 @@ module Hecks
       # The structural categories: the doc tags a public method carries and the shape of a long
       # class doc.
       module StructureChecks
+        # A doc that opts out of the tag checks: private, no-doc, or a closing "(see ...)" pointer.
+        TAGS_EXEMPT = /@api private|@private|:nodoc:|\(see (?:`[^`]+`|#\w)[^)]*\)\W*\z/m
+        # The indent, hashes and one space that open a doc line.
+        DOC_LINE_MARKER = /\A\s*#+\s?/
+        # A `##` section heading inside a class doc.
+        SECTION_HEADING = /\A#\s*##+ /
+
         private
 
         def structure_violations
@@ -37,11 +45,11 @@ module Hecks
 
         def method_violations(method)
           return [] unless method.visibility == :public
-          return [] unless CommentStyle.public_surface.include?(method.type_fqn.to_s.split("::").last)
+          return [] unless CommentStyle.public_surface.include?(Hecks::Naming.demodulise(method.type_fqn))
 
           doc = doc_above(method.line).join("\n")
           return undocumented_violation(method) if doc.empty?
-          return [] if doc.match?(/@api private|@private|:nodoc:|\(see (?:`[^`]+`|#\w)[^)]*\)\W*\z/m)
+          return [] if doc.match?(TAGS_EXEMPT)
 
           tag_violations(method, doc)
         end
@@ -94,7 +102,8 @@ module Hecks
         end
 
         def lead_line(doc)
-          doc.lines.map { |line| line.sub(/\A\s*#+\s?/, "").strip }.reject(&:empty?).first.to_s
+          lines = doc.lines.map { |line| line.sub(DOC_LINE_MARKER, "").strip }
+          lines.reject(&:empty?).first.to_s
         end
 
         def violation(method, category, detail)
@@ -103,7 +112,7 @@ module Hecks
 
         def long_doc_violations(type)
           doc = doc_above(type.line)
-          return [] if doc.length <= LONG_CLASS_DOC || doc.any? { |l| l.match?(/\A#\s*##+ /) }
+          return [] if doc.length <= LONG_CLASS_DOC || doc.any? { |l| l.match?(SECTION_HEADING) }
 
           [Violation.new(path, type.line, "unstructured_class_doc", "#{type.fqn} (#{doc.length} lines)")]
         end

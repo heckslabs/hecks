@@ -9,6 +9,15 @@ module Hecks
         NAME   = /[a-z_][a-z0-9_]*(?:\.[a-z_][a-z0-9_]*)*/
         STRING = /"(?:[^"\\]|\\.)*"/
 
+        # The double quote that opens a string literal.
+        QUOTE = /"/
+
+        # An opening parenthesis, after any whitespace: the start of a function's arguments.
+        OPEN_PAREN = /\s*\(/
+
+        # The comma between two list items.
+        LIST_COMMA = /,/
+
         # @param text [String] the expression's source text
         def initialize(text)
           @text = text.to_s
@@ -28,10 +37,10 @@ module Hecks
 
         def expression
           skip
-          return ["lit", string] if @scan.check(/"/)
+          return ["lit", string] if @scan.check(QUOTE)
 
           name = @scan.scan(NAME) || refuse("expected a field, a string or a function")
-          return function(name) if @scan.check(/\s*\(/)
+          return function(name) if @scan.check(OPEN_PAREN)
 
           name == "null" ? ["null"] : ["ref", name]
         end
@@ -57,7 +66,7 @@ module Hecks
           loop do
             items << yield(items.size)
             skip
-            break unless @scan.skip(/,/)
+            break unless @scan.skip(LIST_COMMA)
           end
           items
         end
@@ -90,7 +99,7 @@ module Hecks
           @scan.skip(Regexp.new(Regexp.escape(mark))) || refuse("expected #{mark.inspect}")
         end
 
-        def skip = @scan.skip(/\s+/)
+        def skip = @scan.skip(Text::WHITESPACE)
 
         def check_arguments(name, arguments)
           arity = FUNCTIONS.fetch(name)

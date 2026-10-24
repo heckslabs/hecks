@@ -40,7 +40,8 @@ module Hecks
           # Builds the refusal; a mint's own refusals say "cannot mint era N of X", the
           # edge-resolution ones say "cannot boot X".
           def era_refusal(context, text, minting: true)
-            name = context.bluebook.name
+            bluebook = context.bluebook
+            name = bluebook.name
             lead = minting ? "cannot mint era #{context.ordinal} of #{name}" : "cannot boot #{name}"
             Runtime::WiringError.new("#{lead}: #{text}")
           end

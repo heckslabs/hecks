@@ -15,7 +15,8 @@ module Hecks
           announced.each_with_object([]) do |event, findings|
             # `event.aggregate` is domain-qualified ("Banking::Account"); split the same
             # two ways `PolicyInterpreter#policies_for` does.
-            domain = event.aggregate.to_s.split("::").first
+            emitter = event.aggregate.to_s
+            domain = emitter.split("::").first
             bluebook = runtime.registry.bluebook(domain)
             next unless bluebook
 
@@ -70,7 +71,8 @@ module Hecks
 
         # The declared query a `for_each` policy names, or nil.
         def for_each_query(runtime, query_domain, aggregate_name, query_name)
-          runtime.registry.bluebook(query_domain)&.aggregate(aggregate_name)&.query(query_name)
+          registry = runtime.registry
+          registry.bluebook(query_domain)&.aggregate(aggregate_name)&.query(query_name)
         end
       end
     end

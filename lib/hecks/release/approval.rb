@@ -12,6 +12,9 @@ module Hecks
     # decision is read from git history alone, so it can be made again on any later run. It reads
     # only the Vocabulary table, so `release.yml` can run it with the runner's own Ruby.
     module Approval
+      # The key of a trailer line and the space after its colon: "Release-Approved-By: ".
+      TRAILER_KEY = /\A[^:]*:\s*/
+
       module_function
 
       # @return [String] the trailer key, read from the `Lane` row that feeds a tag
@@ -27,9 +30,13 @@ module Hecks
       # @param message [String] a commit message
       # @return [String, nil] who approved, from the first trailer line with a name, or nil
       def approver(message)
-        line = message.to_s.lines.map(&:strip).find { |text| text.match?(/\A#{Regexp.escape(trailer)}:\s*\S/) }
-        line&.sub(/\A[^:]*:\s*/, "")
+        line = stripped_lines(message).find { |text| text.match?(/\A#{Regexp.escape(trailer)}:\s*\S/) }
+        line&.sub(TRAILER_KEY, "")
       end
+
+      # @param message [String, nil] a commit message
+      # @return [Array<String>] its lines, each stripped
+      def stripped_lines(message) = message.to_s.lines.map(&:strip)
 
       # @param message [String] the message of the commit that set the version
       # @param tag_exists [Boolean] whether the release's tag already stands on origin: a release

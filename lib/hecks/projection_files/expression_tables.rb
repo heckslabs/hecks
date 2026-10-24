@@ -32,8 +32,8 @@ module Hecks
       # @return [Hash{String => Hash}] each comparison's declared algebra, by operator symbol
       def comparison_algebra
         vocabulary = chapter.aggregates.find { |aggregate| aggregate.name == "Vocabulary" }
-        vocabulary.value_objects.find { |value_object| value_object.hecks_name == "Comparison" }
-                  .members.to_h { |row| [row.to_h.values.first, row.to_h] }
+        comparison = vocabulary.value_objects.find { |value_object| value_object.hecks_name == "Comparison" }
+        comparison.members.to_h { |row| [row.to_h.values.first, row.to_h] }
       end
 
       # @param operator [Hash] one admitted operator

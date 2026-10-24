@@ -11,6 +11,9 @@ module Hecks
           # truth that the report prints verbatim, so scraping it here cannot disagree.
           RESOLVED_DEPTH_LINE = /^resolved depth: seeds=(\d+) steps=(\d+) \(clean_streak=(\d+)\)$/
 
+          # A `QA_SWEEP_TRACE` line a child printed.
+          TRACE_LINE = /^\[qa_sweep_trace /
+
           # Parsed from a child's `resolved modes:` line; wave-2 candidates come from the parent's
           # own inference, not from this.
           RESOLVED_MODES_LINE = /^resolved modes: (\S*) \(capabilities=([^;)]*)(?:; deferred=([^)]*))?\)$/
@@ -102,7 +105,7 @@ module Hecks
             puts
             puts "QA_SWEEP_TRACE output (by target, in sweep order):"
             results.each do |r|
-              trace_lines = r[:output].lines.grep(/^\[qa_sweep_trace /)
+              trace_lines = r[:output].lines.grep(TRACE_LINE)
               next if trace_lines.empty?
 
               puts "  #{r[:target]}:"

@@ -22,11 +22,16 @@ module Hecks
             end
 
             def refuse_repeated_provision_keys!(bluebook, capability, rows)
-              repeated = rows.map(&:key).tally.select { |_, count| count > 1 }.keys
+              repeated = repeated_keys(rows)
               return if repeated.empty?
 
               raise Malformed, "#{bluebook.name} provides #{capability.inspect} with #{repeated.join(", ")} " \
                                "more than once"
+            end
+
+            def repeated_keys(rows)
+              counts = rows.map(&:key).tally
+              counts.select { |_, count| count > 1 }.keys
             end
 
             def validate_defined_provision!(bluebook, capability, rows)

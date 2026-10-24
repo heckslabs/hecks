@@ -4,9 +4,16 @@ module Hecks
       # Reproduces GitHub's heading slugs, computed in document order, so links land the
       # same whether GitHub renders the `.md` or `Html` renders the page.
       module Slugs
+        # A character GitHub drops from a heading slug: anything but a word character,
+        # hyphen or space.
+        UNSLUGGED = /[^\p{Word}\- ]/
+
         module_function
 
-        def github(text) = text.to_s.downcase.gsub(/[^\p{Word}\- ]/, "").tr(" ", "-")
+        def github(text)
+          kept = text.to_s.downcase.gsub(UNSLUGGED, "")
+          kept.tr(" ", "-")
+        end
 
         # Assigns every section's and entry's slug, in document order.
         def assign!(bluebook, sections)

@@ -14,7 +14,10 @@ module Hecks
       # :facts, not :values — Struct.new already defines #values (every
       # member's own value, in order); naming this field :values would
       # silently shadow that with the single Hash it actually holds.
-      Scope = Struct.new(:name, :facts, keyword_init: true)
+      Scope = Struct.new(:name, :facts, keyword_init: true) do
+        # @return [String] the names of the facts this scope makes visible, sorted, comma-joined
+        def visible_fields = facts.keys.sort.join(", ")
+      end
 
       module_function
 
@@ -73,7 +76,7 @@ module Hecks
       def refuse_invisible!(source, scopes, label)
         names = scopes.map(&:name).join(" then ")
         # Names every visible option so a caller isn't left guessing at fields.
-        offered = scopes.map { |scope| "#{scope.name}: #{scope.facts.keys.sort.join(", ")}" }.join("; ")
+        offered = scopes.map { |scope| "#{scope.name}: #{scope.visible_fields}" }.join("; ")
         raise UnknownArgument,
               "#{label}'s with: reads :#{source}, which is not visible in #{names} (visible — #{offered})"
       end

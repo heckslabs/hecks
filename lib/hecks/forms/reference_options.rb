@@ -18,7 +18,8 @@ module Hecks
       end
 
       def self.options_for(registry, domain, aggregate)
-        registry.repository(domain, aggregate).all.first(200).map { |instance| [instance.id, instance.id] }
+        records = registry.repository(domain, aggregate).all.first(200)
+        records.map { |instance| [instance.id, instance.id] }
       rescue StandardError
         nil # a wiring gap (no repository bound) degrades to a plain text id input, not a 500
       end

@@ -58,8 +58,9 @@ module Hecks
         def section_opening(section, document)
           return ["> #{STANDING[section.name]}"] unless section.aggregate
 
-          marked = Sensitivity.for_aggregate(document.markings, document.bluebook.name, section.aggregate)
-          opening(section.aggregate, document.bluebook, marked)
+          bluebook = document.bluebook
+          marked = Sensitivity.for_aggregate(document.markings, bluebook.name, section.aggregate)
+          opening(section.aggregate, bluebook, marked)
         end
 
         # An aggregate's opening: what it is, how it fits and moves, what is always true.

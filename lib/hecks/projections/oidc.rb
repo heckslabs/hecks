@@ -15,6 +15,9 @@ module Hecks
 
       projects_as :oidc
 
+      # An empty JSON list spread over lines, `[\n\n]`, as some json releases print it.
+      SPREAD_EMPTY_LIST = /\[\n\s*\]/
+
       module_function
 
       # Projects the manifest; `audience:` overrides the domain name (an IdP audience is
@@ -32,8 +35,14 @@ module Hecks
         {
           "audience" => (options[:audience] || bluebook.name).to_s,
           "scopes"   => scopes,
-          "roles"    => scopes.map { |scope| scope["role"] }.compact.uniq.sort
+          "roles"    => declared_roles(scopes)
         }
+      end
+
+      # Every distinct role the scopes demand, sorted; a scope with no role adds none.
+      def declared_roles(scopes)
+        roles = scopes.map { |scope| scope["role"] }.compact
+        roles.uniq.sort
       end
 
       # The manifest as the text `oidc.json` holds: indented JSON ending in a newline, with an empty
@@ -44,7 +53,7 @@ module Hecks
       # @param manifest [Hash{String => Object}] what `call` returns
       # @return [String] the text of the manifest file
       def render(manifest)
-        "#{JSON.pretty_generate(manifest).gsub(/\[\n\s*\]/, "[]")}\n"
+        "#{JSON.pretty_generate(manifest).gsub(SPREAD_EMPTY_LIST, "[]")}\n"
       end
 
       # Every command's scope entry, entity commands included (they dispatch as `Entity.Command`).

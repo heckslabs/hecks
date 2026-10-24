@@ -26,6 +26,15 @@ module Hecks
         "login" => "logging in", "logout" => "logging out", "payout" => "paying out"
       }.freeze
 
+      # A word of two or more capitals, spoken as an acronym: "ATM".
+      ACRONYM = /\A[A-Z]{2,}\z/
+      # The lowercase letter a text opens with.
+      LEADING_LOWER = /\A[[:lower:]]/
+      # A verb ending in a silent "e" after a consonant: "purchase", "make".
+      SILENT_E = /[^aeiouy]e\z/
+      # A one-syllable verb closed by one plain consonant after one vowel: "log", "set".
+      SHORT_CLOSED = /\A[^aeiou]*[aeiou][bdgklmnprt]\z/
+
       module_function
 
       # A construct name as a lowercase noun phrase; acronyms keep their capitals.
@@ -33,7 +42,8 @@ module Hecks
       # @param name [String, Symbol] a construct or field name, such as `ATMCard` or `daily_limit`
       # @return [String] the spoken noun, such as "ATM card" or "daily limit"
       def noun(name)
-        Naming.words(name).split.map { |word| word.match?(/\A[A-Z]{2,}\z/) ? word : word.downcase }.join(" ")
+        words = Naming.words(name).split
+        words.map { |word| word.match?(ACRONYM) ? word : word.downcase }.join(" ")
       end
 
       # @param phrase [String] a spoken noun phrase
@@ -56,7 +66,7 @@ module Hecks
 
       # @param text [String] a sentence fragment
       # @return [String] the fragment with its first letter capitalised
-      def upper(text) = text.sub(/\A[[:lower:]]/, &:upcase)
+      def upper(text) = text.sub(LEADING_LOWER, &:upcase)
 
       # A command as the act of doing it. A one-word command takes its holder as the object;
       # a command named as a past state ("Debited") reads as marking the holder so.
@@ -84,14 +94,14 @@ module Hecks
       def gerund(verb)
         return PHRASAL[verb] if PHRASAL.key?(verb)
         return "#{verb[0..-3]}ying" if verb.end_with?("ie")
-        return "#{verb[0..-2]}ing" if verb.match?(/[^aeiouy]e\z/) || verb.end_with?("ue")
+        return "#{verb[0..-2]}ing" if verb.match?(SILENT_E) || verb.end_with?("ue")
         return "#{verb}#{verb[-1]}ing" if doubles?(verb)
 
         "#{verb}ing"
       end
 
       # One vowel then one plain consonant ("log", "set") doubles; so do the stressed `DOUBLED`.
-      def doubles?(verb) = DOUBLED.include?(verb) || verb.match?(/\A[^aeiou]*[aeiou][bdgklmnprt]\z/)
+      def doubles?(verb) = DOUBLED.include?(verb) || verb.match?(SHORT_CLOSED)
     end
   end
 end

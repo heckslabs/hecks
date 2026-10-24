@@ -27,6 +27,11 @@ module Hecks
 
         def attached? = !@policies.nil?
 
+        # Forgets every delivery the relay recorded, as a fresh boot starts with none.
+        #
+        # @return [void]
+        def clear_log = @log.clear
+
         # Called inside the save transaction for command/entity paths, and
         # outside one for port operations (which save nothing). Returns nil
         # when the repository has no outbox — callers then react directly.
@@ -35,7 +40,8 @@ module Hecks
           return [] if events.empty?
 
           rows = Fanout.rows_for(@registry, events, domain)
-          rows.each { |row| row.aggregate = repository.aggregate.storage_name }
+          aggregate = repository.aggregate
+          rows.each { |row| row.aggregate = aggregate.storage_name }
           repository.outbox_enqueue(rows)
         end
 

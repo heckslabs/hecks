@@ -28,7 +28,7 @@ module Hecks
       # @return [Hash{Symbol => Hash}] `output:` one line per launcher written
       # @raise [ConsoleCapture::Failure] when no launcher was written
       def write(**held)
-        domains = plain(held[:domains]).to_s.split(",").map(&:strip).reject(&:empty?)
+        domains = Text.comma_list(plain(held[:domains]))
         text = ConsoleCapture.answer do
           CLI::ProjectCli.call(domains, program: "hecks project_cli", root: Dir.pwd, remove_stale_bin: false)
         end

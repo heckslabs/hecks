@@ -39,7 +39,12 @@ module Hecks
         bluebook.aggregates.find { |aggregate| aggregate.hecks_name == only.to_s } ||
           raise(Runtime::NotFound,
                 "#{bluebook.name} declares no aggregate named #{only.to_s.inspect} — " \
-                "it declares #{bluebook.aggregates.map(&:hecks_name).sort.join(", ")}")
+                "it declares #{declared_aggregates(bluebook)}")
+      end
+
+      def declared_aggregates(bluebook)
+        names = bluebook.aggregates.map(&:hecks_name)
+        names.sort.join(", ")
       end
 
       def h(depth, text) = "#{"#" * depth} #{text}"
@@ -91,7 +96,7 @@ module Hecks
         out = []
         out << "Identified by `#{aggregate.identity_heads.join("`, `")}`." unless aggregate.identity_heads.empty?
         refs = aggregate.attributes.select(&:reference?)
-        out << "References #{refs.map { |r| "`#{r.type.target_name}`" }.join(", ")}." unless refs.empty?
+        out << "References #{refs.map { |r| "`#{r.target_name}`" }.join(", ")}." unless refs.empty?
         out
       end
 

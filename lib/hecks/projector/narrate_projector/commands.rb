@@ -61,7 +61,7 @@ module Hecks
           refs = command.attributes.select(&:reference?)
           return nil if refs.empty?
 
-          "It's aimed at one existing #{NarrateProjector.to_sentence_list(refs.map { |r| r.type.target_name })}, by id."
+          "It's aimed at one existing #{NarrateProjector.to_sentence_list(refs.map(&:target_name))}, by id."
         end
 
         def command_conditions_sentence(command, holder)
@@ -94,9 +94,10 @@ module Hecks
         def lifecycle_conditions(command, lifecycle)
           return [] unless lifecycle
 
-          froms = lifecycle.transitions.filter_map do |name, transition|
+          sources = lifecycle.transitions.filter_map do |name, transition|
             Array(transition.from) if name.to_s == command.hecks_name
-          end.flatten.uniq
+          end
+          froms = sources.flatten.uniq
           return [] if froms.empty?
 
           states = NarrateProjector.to_sentence_list(froms.map { |f| "`#{f}`" }, conj: "or")

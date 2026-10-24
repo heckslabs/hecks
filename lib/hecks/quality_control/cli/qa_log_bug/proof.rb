@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "open3"
+require_relative "../../../text"
 
 module Hecks
   module QualityControlCli
@@ -8,19 +9,31 @@ module Hecks
       # The proof `bug.log` demands before it writes anything: the demonstration must fail when run,
       # or, with `--reproduced no`, must at least look like runnable code.
       module Proof
+        # A command word that starts runnable code: a script path, an interpreter or a shell.
+        RUNNABLE_COMMAND = %r{\A(bundle|bin/|\./|rspec|ruby|sh|bash|zsh|python3?|node|cargo)\b}
+
+        # A source file name: Ruby, shell, Python, Rust or JavaScript.
+        SOURCE_FILE = /\.(rb|sh|py|rs|js)\b/
+
         private
 
         # Only used with `--reproduced no`, which never runs the string: a file path, an interpreter
         # or shell invocation, or a `Hecks::Fuzzing::Replay` snippet counts as code; prose does not.
         def looks_runnable?(str)
-          first = str.to_s.strip.split(/\s+/).first.to_s
+          first = first_word(str)
           return true if first.start_with?("/") && File.exist?(first)
           return true if File.exist?(File.expand_path(first, @root))
-          return true if first.match?(%r{\A(bundle|bin/|\./|rspec|ruby|sh|bash|zsh|python3?|node|cargo)\b})
-          return true if str.match?(/\.(rb|sh|py|rs|js)\b/)
+          return true if first.match?(RUNNABLE_COMMAND)
+          return true if str.match?(SOURCE_FILE)
           return true if str.include?("Hecks::Fuzzing::Replay")
 
           false
+        end
+
+        # The first whitespace-separated word of `str`, or `""` for none.
+        def first_word(str)
+          words = str.to_s.strip.split(Text::WHITESPACE)
+          words.first.to_s
         end
 
         # Runs through `sh -c` from the repository root; the output tail prints either way.

@@ -48,14 +48,15 @@ module Hecks
 
           # The default action goes to the default container.
           def listener(settings)
-            TextTemplate.render("preview/listener.tmpl", default_logical: settings.default_container.logical).chomp
+            default = settings.default_container
+            TextTemplate.render("preview/listener.tmpl", default_logical: default.logical).chomp
           end
 
           def rule_specs(settings)
-            settings.containers.reject(&:default).select(&:routed?).flat_map do |c|
-              c.paths.each_slice(PATHS_PER_RULE).with_index.map do |slice, n|
-                { container: c, paths: slice, id: rule_id(c, n) }
-              end
+            routed = settings.containers.reject(&:default).select(&:routed?)
+            routed.flat_map do |c|
+              slices = c.paths.each_slice(PATHS_PER_RULE)
+              slices.with_index.map { |slice, n| { container: c, paths: slice, id: rule_id(c, n) } }
             end
           end
 
@@ -81,7 +82,8 @@ module Hecks
           end
 
           def service_load_balancers(settings)
-            settings.containers.select(&:routed?).map do |c|
+            routed = settings.containers.select(&:routed?)
+            routed.map do |c|
               "- ContainerName: #{c.name}\n  ContainerPort: #{c.port}\n  TargetGroupArn: !Ref #{c.logical}TargetGroup"
             end.join("\n")
           end

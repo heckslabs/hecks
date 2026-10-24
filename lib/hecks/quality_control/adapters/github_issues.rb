@@ -11,6 +11,9 @@ module Hecks
       # Raised when `gh` cannot file the issue.
       class Error < RuntimeError; end
 
+      # The end of a GitHub issue URL, capturing the issue's number.
+      ISSUE_NUMBER = %r{/issues/(\d+)\z}
+
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] unused
       # @param root [String, nil] unused
@@ -39,8 +42,9 @@ module Hecks
       end
 
       def issue_url_and_number(out)
-        url = out.strip.lines.last.to_s.strip
-        number = url[%r{/issues/(\d+)\z}, 1]
+        last_line = out.strip.lines.last
+        url = last_line.to_s.strip
+        number = url[ISSUE_NUMBER, 1]
         raise Error, "gh issue create printed no issue URL: #{out.strip.inspect}" unless number
 
         [url, number]

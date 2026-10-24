@@ -7,6 +7,12 @@ module Hecks
       # is quoted so it stays a String. The Rust parser reads a cell the same way (`cell_value`
       # in `parse/value_object.rs`).
       module Scalars
+        # An optionally negative whole number, and nothing else.
+        INTEGER = /\A-?\d+\z/
+
+        # An optionally negative decimal with digits both sides of the point, and nothing else.
+        DECIMAL = /\A-?\d+\.\d+\z/
+
         module_function
 
         # @param value [Object] a cell as the builder holds it
@@ -28,8 +34,8 @@ module Hecks
           return Literal.unquote(text) if Literal.quoted?(text)
           return true       if text == "true"
           return false      if text == "false"
-          return text.to_i  if text.match?(/\A-?\d+\z/)
-          return text.to_f  if text.match?(/\A-?\d+\.\d+\z/)
+          return text.to_i  if text.match?(INTEGER)
+          return text.to_f  if text.match?(DECIMAL)
 
           text
         end

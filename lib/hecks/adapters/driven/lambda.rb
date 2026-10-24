@@ -91,7 +91,8 @@ module Hecks
       # Never memoized: the adapter outlives requests on a warm container, so a cached read
       # would hide every later write. Keyed by the bare id after "Domain::Aggregate#".
       def instances
-        @client.read.fetch("instances", {}).filter_map do |key, state|
+        stored = @client.read.fetch("instances", {})
+        stored.filter_map do |key, state|
           next unless key.start_with?(@prefix)
 
           [key.delete_prefix(@prefix), build_instance(key.delete_prefix(@prefix), state)]

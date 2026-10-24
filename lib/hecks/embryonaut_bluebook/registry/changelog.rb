@@ -4,6 +4,9 @@ module Hecks
       # A package's `CHANGELOG.md`: whether a version has an entry, and what it says. Included in
       # `Registry`.
       module Changelog
+        # The blank lines that end a section.
+        TRAILING_NEWLINES = /\n+\z/
+
         private
 
         def changelog_entry?(package, version)
@@ -18,7 +21,7 @@ module Hecks
             on = line.match?(/^## #{Regexp.escape(version)}( |$)/) if line.start_with?("## ")
             on && !line.start_with?("## ")
           end
-          lines.join("\n").sub(/\n+\z/, "")
+          lines.join("\n").sub(TRAILING_NEWLINES, "")
         end
       end
     end

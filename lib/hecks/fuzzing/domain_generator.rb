@@ -24,6 +24,11 @@ module Hecks
       REFERENCE_FORMS = %w[reference_attr revalued_reference].freeze
       CHAIN_FORMS     = %w[two_hop_given multi_hop_where].freeze
 
+      # A `Hecks.bluebook "Name"` opening, with or without parentheses, up to the closing quote.
+      BLUEBOOK_OPENING = /Hecks\.bluebook\s*\(?\s*(["'])[^"']+\1/
+      # A lowercase letter followed by an uppercase one: a camelCase word boundary.
+      CAMEL_BOUNDARY = /([a-z])([A-Z])/
+
       extend Rendering
       extend Pruning
 
@@ -53,10 +58,10 @@ module Hecks
 
       # Renamed to `QaGenerated` — the fixed name child processes expect.
       def adopt(source)
-        source.sub(/Hecks\.bluebook\s*\(?\s*(["'])[^"']+\1/) { "Hecks.bluebook #{DOMAIN_NAME.inspect}" }
+        source.sub(BLUEBOOK_OPENING) { "Hecks.bluebook #{DOMAIN_NAME.inspect}" }
       end
 
-      def snake(name) = name.gsub(/([a-z])([A-Z])/, '\1_\2').downcase
+      def snake(name) = name.gsub(CAMEL_BOUNDARY, '\1_\2').downcase
 
       # What this generator can build, not everything FormCensus knows about.
       # A form with no `Builder::FORM_STEPS` recipe is simply never

@@ -13,12 +13,24 @@ module Hecks
       module Delegation
         # What a `delegates_to` mutation resolved to: the entity, its command, the command's own
         # arguments, the located element, and a view of it for the givens.
-        Target = Struct.new(:entity, :command, :args, :element, :view)
+        Target = Struct.new(:entity, :command, :args, :element, :view) do
+          # @return [Array] the target command's ensures clauses
+          def ensures = command.ensures
+
+          # @return [Array] the target command's mutations, in declaration order
+          def mutations = command.mutations
+
+          # @return [String] the located element's identity
+          def element_id = view.id
+
+          # @return [Symbol, String, nil] the entity's state field, nil without a lifecycle
+          def lifecycle_field = entity.lifecycle_field
+        end
 
         private
 
         def step_delegate_to_entity(ctx)
-          delegation = ctx.command.mutations.find { |mutation| mutation.op == :delegate }
+          delegation = ctx.command_mutations.find { |mutation| mutation.op == :delegate }
           return unless delegation
 
           # Not emitted here — C7.2: a refused command records nothing, and the parent's own
@@ -32,14 +44,14 @@ module Hecks
         def run_delegation(ctx, delegation)
           target      = locate_delegate(ctx, delegation)
           transition  = check_delegate_givens(ctx, target)
-          old_element = target.command.ensures.empty? ? nil : target.element.dup
+          old_element = target.ensures.empty? ? nil : target.element.dup
           mutate_delegate(ctx, target, transition)
           enforce_delegate_ensures(ctx, target, old_element)
           [target.command, target.args]
         end
 
         def enforce_delegate_ensures(ctx, target, old_element)
-          settled = Instance.new(aggregate: target.entity, id: target.view.id, state: target.element)
+          settled = Instance.new(aggregate: target.entity, id: target.element_id, state: target.element)
           @rules.enforce_ensures(settled, target.command, target.args, old: old_element, domain: ctx.domain, parent: ctx.instance)
         end
 
@@ -60,10 +72,10 @@ module Hecks
 
         def mutate_delegate(ctx, target, transition)
           pre = target.element.dup # C4.2 — the update set reads the element as it was
-          target.command.mutations.each do |mutation|
+          target.mutations.each do |mutation|
             EntityElement.apply_to_element(@rules, ctx.aggregate, target.entity, target.element, mutation, target.args, pre)
           end
-          target.element[target.entity.lifecycle.field] = transition.target if transition
+          target.element[target.lifecycle_field] = transition.target if transition
         end
 
         # The entity and command a `delegates_to` mutation names, resolved once so
@@ -72,16 +84,17 @@ module Hecks
           entity_name, _dot, command_name = delegation.target.to_s.rpartition(".")
           entity = delegation_entity(ctx, entity_name, command_name)
           target_command = entity.command(command_name) ||
-                           raise(WiringError, "#{ctx.command.hecks_name} delegates_to " \
+                           raise(WiringError, "#{ctx.command_hecks_name} delegates_to " \
                                               "#{entity_name}.#{command_name}, which " \
                                               "#{entity_name} declares no such command")
           [entity, target_command, command_name]
         end
 
         def delegation_entity(ctx, entity_name, command_name)
-          ctx.aggregate.entities.find { |e| e.hecks_name == entity_name } ||
-            raise(WiringError, "#{ctx.command.hecks_name} delegates_to #{entity_name}." \
-                               "#{command_name}, but #{ctx.aggregate.hecks_name} has no " \
+          aggregate = ctx.aggregate
+          aggregate.entities.find { |e| e.hecks_name == entity_name } ||
+            raise(WiringError, "#{ctx.command_hecks_name} delegates_to #{entity_name}." \
+                               "#{command_name}, but #{aggregate.hecks_name} has no " \
                                "entity named #{entity_name.inspect}")
         end
 

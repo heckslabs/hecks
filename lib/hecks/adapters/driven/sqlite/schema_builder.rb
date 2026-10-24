@@ -5,6 +5,9 @@ module Hecks
     class Sqlite
       # DDL for one aggregate: head table, entry table, events, saga and outbox tables.
       module SchemaBuilder
+        # Any character an SQLite index name may not hold unquoted.
+        NON_IDENTIFIER_CHARACTER = /[^a-zA-Z0-9_]/
+
         private
 
         def create_aggregate_table!
@@ -89,8 +92,14 @@ module Hecks
 
         def declared_query_fields
           queries = @aggregate.queries + @aggregate.entities.flat_map(&:queries)
-          queries.flat_map { |query| query.wheres.map(&:field) + [query.order_by&.field] }
-                 .compact.map(&:to_s).uniq
+          fields = queries.flat_map { |query| query_fields(query) }
+          fields.compact.map(&:to_s).uniq
+        end
+
+        # The fields a query filters on, then the one it orders by (nil when it orders by none).
+        def query_fields(query)
+          order = query.order_by
+          query.wheres.map(&:field) + [order&.field]
         end
 
         # A scalar or lifecycle field gets a btree index; a value-object path gets an expression
@@ -100,7 +109,7 @@ module Hecks
         def ensure_index_for_field!(field)
           name, * = field.to_s.split(".")
           attribute = @aggregate.attribute(name)
-          lifecycle_field = @aggregate.lifecycle&.field.to_s == name
+          lifecycle_field = @aggregate.lifecycle_field.to_s == name
 
           return if !lifecycle_field && attribute.nil?
           return if attribute&.list?
@@ -114,7 +123,7 @@ module Hecks
         # Table-prefixed because SQLite index names are global to the database.
         # The field is sanitized (a dotted path's ".") to stay a valid identifier.
         def index_name(field)
-          sanitized = field.to_s.gsub(/[^a-zA-Z0-9_]/, "_")
+          sanitized = field.to_s.gsub(NON_IDENTIFIER_CHARACTER, "_")
           "idx_#{table}_#{sanitized}"
         end
       end

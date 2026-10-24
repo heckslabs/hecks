@@ -31,7 +31,7 @@ module Hecks
         def refusal_status(error) = error.is_a?(Runtime::NotFound) ? 404 : 422
 
         def refusal_json(error, status)
-          json(status, { error: error.class.name.split("::").last, message: error.message })
+          json(status, { error: Naming.demodulise(error.class.name), message: error.message })
         end
 
         def not_found(aggregate, id, format)

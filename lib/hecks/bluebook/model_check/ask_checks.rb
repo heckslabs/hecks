@@ -39,11 +39,12 @@ module Hecks
         private
 
         def port_trigger_finding(bluebook, policy)
-          return unless port_operation_verb?(bluebook, policy.trigger_command)
+          trigger = policy.trigger_command
+          return unless port_operation_verb?(bluebook, trigger)
 
           Finding.new(kind: :port_trigger, severity: :warning, subject: policy.name,
-                      message: "trigger #{policy.trigger_command.inspect} names a port operation — " \
-                               "write `ask :#{Naming.snake(policy.trigger_command.to_s.split(".").last)}` and " \
+                      message: "trigger #{trigger.inspect} names a port operation — " \
+                               "write `ask :#{Naming.snake(trigger.to_s.split(".").last)}` and " \
                                "let the hecksagon map the port")
         end
 

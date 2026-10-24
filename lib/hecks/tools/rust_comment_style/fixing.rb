@@ -75,7 +75,7 @@ module Hecks
           return false if masked[0, offset].sub(MARKER, "").match?(/[[:alnum:]#{FILLER}]/o)
 
           above = comment.full_line ? @by_line[comment.line - 1] : nil
-          !above&.full_line || above.text.match?(%r{\A/{2,3}!?\s*\z})
+          !above&.full_line || above.text.match?(EMPTY_COMMENT)
         end
 
         # Splits one over-long prose comment line in two. Lines with no safe

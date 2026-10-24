@@ -16,8 +16,9 @@ module Hecks
         def record_compensation(leg, spec, ledger)
           return unless spec.compensates && !ledger.recorded
 
-          resolved = dispatch_args(leg.process_manager, spec.compensates, leg.event, leg.instance, leg.correlation)
-          leg.instance[:completed_compensations] << { command_name: spec.compensates.command_name, args: resolved }
+          compensates = spec.compensates
+          resolved = dispatch_args(leg.process_manager, compensates, leg.event, leg.instance, leg.correlation)
+          leg.instance[:completed_compensations] << { command_name: compensates.command_name, args: resolved }
           checkpoint_leg(leg)
           ledger.recorded = true
         end
@@ -44,7 +45,7 @@ module Hecks
         # failure — `compensation_failed: true` tags a refused compensation
         # distinctly rather than as an ordinary failed delivery.
         def deliver_derived_compensation(leg, entry)
-          record = { process_manager: leg.process_manager.name, instance: leg.correlation,
+          record = { process_manager: leg.saga_name, instance: leg.correlation,
                      dispatch: entry[:command_name] }
           attempts = 0
           loop do
@@ -79,7 +80,7 @@ module Hecks
         end
 
         def abandon_compensation(leg, entry, record, error, attempt)
-          warn "[hecks] defect compensating saga #{leg.process_manager.name} — instance #{leg.correlation.inspect} " \
+          warn "[hecks] defect compensating saga #{leg.saga_name} — instance #{leg.correlation.inspect} " \
                "dispatching #{entry[:command_name]} after #{attempt} attempts: #{error.class}: #{error.message}"
           @registry.saga_log << record.merge(delivered: false, reason: error.message, compensation: true,
                                              defect: true, error_class: error.class.name, compensation_failed: true)

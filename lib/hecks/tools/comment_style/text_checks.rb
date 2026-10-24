@@ -48,7 +48,7 @@ module Hecks
         end
 
         def history_violations(comment)
-          masked = comment.text.gsub(/`[^`]*`/) { |span| " " * span.length }
+          masked = comment.text.gsub(CODE_SPAN) { |span| " " * span.length }
           pattern = HISTORY.find { |candidate| masked.match?(candidate) }
           return [] unless pattern
 

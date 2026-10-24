@@ -16,6 +16,9 @@ module Hecks
         style_run.check_comments style_run.check_rust_comments style_run.check_comments_unchanged
       ].freeze
 
+      # A carriage return or line feed.
+      LINE_BREAK = /[\r\n]/
+
       ERA_QUERIES = {
         shape: "introspection.shape", scaffold_translation: "era.scaffold_translation",
         audit_translation: "era.audit_translation", compaction: "era.compaction"
@@ -99,7 +102,7 @@ module Hecks
 
       # @api private
       def newline?(args)
-        args.any? { |name, value| [name, value].any? { |text| text.to_s.match?(/[\r\n]/) } }
+        args.any? { |name, value| [name, value].any? { |text| text.to_s.match?(LINE_BREAK) } }
       end
 
       # @api private

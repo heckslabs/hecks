@@ -41,14 +41,15 @@ module Hecks
 
         # The aggregate a stored-record key `Domain::Aggregate#id` belongs to, or nil.
         def aggregate_for_key(bluebooks, key)
-          bluebooks[key.split("::").first]&.aggregate(key.split("::").last.split("#").first)
+          key_parts = key.split("::")
+          bluebooks[key_parts.first]&.aggregate(key_parts.last.split("#").first)
         end
 
         # The message for one reference whose target carries a different tenant, or nil.
         def cross_tenant_offense(record, attribute)
           return unless attribute.type.is_a?(Bluebook::Reference)
 
-          target = record.aggregate_named(attribute.type.target_name)
+          target = record.aggregate_named(attribute.target_name)
           target_id = record.state[attribute.name]
           return unless target && target_id
 

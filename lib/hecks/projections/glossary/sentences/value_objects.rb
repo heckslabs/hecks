@@ -61,7 +61,7 @@ module Hecks
           # A plain type in words, a reference as a link to what it points at, otherwise a link
           # to the value's own term.
           def type_words(field, index, within)
-            inner = if field.reference? then index.link(:aggregate, field.type.target_name)
+            inner = if field.reference? then index.link(:aggregate, field.target_name)
                     else TYPE_WORDS[field.type.to_s] || index.link(:value_object, field.type.to_s, within: within)
                     end
             field.list? ? "a list of #{inner}" : inner

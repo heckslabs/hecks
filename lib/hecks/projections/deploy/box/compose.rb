@@ -7,6 +7,9 @@ module Hecks
         # What the box's Compose file is rendered from: the script that renders it and the
         # `services.json` it reads. Mixed into `Box`, which supplies `template`.
         module Compose
+          # An empty JSON object, however the json gem spaced it.
+          EMPTY_OBJECT = /\{\s*\}/
+
           # @param plan [Settings::Plan] the resolved settings
           # @param region [String] the validated region
           # @return [String] the script that renders the Compose file, from `services.json` or from
@@ -33,7 +36,7 @@ module Hecks
             document["task_definition"] = plan.task_definition if plan.task_definition
             document["tunnel"] = tunnel_entry(plan.tunnel_service) if plan.tunnel_service
             # An empty object prints as `{}` or `{` newline `}`, depending on the json gem.
-            "#{JSON.pretty_generate(document).gsub(/\{\s*\}/, "{}")}\n"
+            "#{JSON.pretty_generate(document).gsub(EMPTY_OBJECT, "{}")}\n"
           end
 
           # A container's entry. With a task definition the image, environment and secrets are read

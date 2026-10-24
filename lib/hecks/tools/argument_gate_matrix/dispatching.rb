@@ -55,7 +55,7 @@ module Hecks
           dispatch_row(runtime, row, args)
           [nil, nil, nil]
         rescue *Hecks::Runtime::DOMAIN_REFUSALS => e
-          [e.class.name.split("::").last, e.message, refused_step(kind)]
+          [Hecks::Naming.demodulise(e.class), e.message, refused_step(kind)]
         end
 
         def dispatch_row(runtime, row, args)

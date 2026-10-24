@@ -26,7 +26,7 @@ module Hecks
         # @return [Bluebook::Attribute, nil] the reference-typed attribute targeting
         #   `owner_name`, or `nil` if this operation declares none
         def identity_attribute(owner_name)
-          @attributes.find { |attribute| attribute.reference? && attribute.type.target_name == owner_name.to_s }
+          @attributes.find { |attribute| attribute.reference? && attribute.target_name == owner_name.to_s }
         end
 
         # Like `Command#addressing_key_for` without the self-addressing branch: the

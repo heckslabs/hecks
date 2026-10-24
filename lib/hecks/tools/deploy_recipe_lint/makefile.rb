@@ -10,6 +10,12 @@ module Hecks
         # A target line: a name, a colon, and nothing but prerequisites after it.
         TARGET_LINE = %r{\A([A-Za-z0-9_./$(){}-]+):(?:\s.*)?\z}
 
+        # The leading `@` that stops Make echoing a recipe line.
+        ECHO_OFF = /\A@/
+
+        # A statement's trailing `;` and any space after it.
+        TRAILING_SEMICOLON = /;\s*\z/
+
         # Maps each target name to its `[line_no, raw_text]` recipe lines, tabs and continuations
         # intact.
         def parse_targets(text)
@@ -35,7 +41,7 @@ module Hecks
 
         # Drops the leading Make `@` and trailing `;` so exit-code checks match the bare statement.
         def normalize_statement(text)
-          text.sub(/\A@/, "").strip.sub(/;\s*\z/, "")
+          text.sub(ECHO_OFF, "").strip.sub(TRAILING_SEMICOLON, "")
         end
 
         private

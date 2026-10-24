@@ -14,6 +14,9 @@ module Hecks
         class Checks
           SWITCH_ID = /\A[a-z][a-z0-9_]*\z/
 
+          # A `global:` source, which names one record.
+          GLOBAL_SOURCE = /\Aglobal:/
+
           # The navigation slots a row sits in.
           #
           # @param row [Row, Link] a row or link
@@ -40,7 +43,7 @@ module Hecks
             @rows.each { |row| check_row(row) }
             @links.each { |link| @navigation.check_link(link) }
             check_unique((@rows + @links).filter_map(&:admin_key), "admin key")
-            check_unique(@rows.map(&:source).grep(/\Aglobal:/), "source")
+            check_unique(@rows.map(&:source).grep(GLOBAL_SOURCE), "source")
           end
 
           private

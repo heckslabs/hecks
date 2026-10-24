@@ -85,7 +85,8 @@ module Hecks
 
       # Files each candidate row of one booted domain under `kept` or `dropped`.
       def sweep_domain(runtime, domain, kept, dropped)
-        chapters = runtime.registry.bluebooks.keys
+        registry = runtime.registry
+        chapters = registry.bluebooks.keys
         chapter = chapters.find { |name| candidates(runtime, name).any? } || chapters.first
         candidates(runtime, chapter).each do |row|
           verdict, judged = judge(runtime, row, domain)

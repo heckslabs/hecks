@@ -42,8 +42,9 @@ module Hecks
       # @return [Result] the test's pass, fail, or error outcome
       def run_one(test, suite, runtime: nil)
         runtime ||= runtime_for(suite)
-        runtime.registry.reset_runtime_state!
-        bluebooks = runtime.registry.bluebooks.values
+        registry = runtime.registry
+        registry.reset_runtime_state!
+        bluebooks = registry.bluebooks.values
         replay_setup(test, runtime, bluebooks) || run_tested(test, runtime, bluebooks)
       rescue StandardError => e
         error_result(test, "#{e.class}: #{e.message}")
@@ -95,7 +96,8 @@ module Hecks
       # @param verb [String] the command's dotted FQN
       # @return [Result] the test's pass or fail outcome
       def run_command(test, runtime, verb)
-        before = runtime.registry.event_log.length
+        registry = runtime.registry
+        before = registry.event_log.length
         result = dispatch_command(runtime, verb, test.input)
         failure = refused_but_succeeded(test, "dispatch") || unexpected_emits(test, runtime, before)
         return failure if failure

@@ -9,6 +9,9 @@ module Hecks
             "Always true:" => "rule", "Allowed only when:" => "rule", "Afterwards, always:" => "rule"
           }.freeze
 
+          # A paragraph that is all bold, `**Like this**`: the caption of the figure below it.
+          CAPTION = /\A\*\*[^*]+\*\*\z/
+
           module_function
 
           # GitHub's slugs for these headings, so links the Markdown carries land here too.
@@ -84,7 +87,7 @@ module Hecks
           end
 
           def paragraph(text, state)
-            if text.match?(/\A\*\*[^*]+\*\*\z/)
+            if text.match?(CAPTION)
               state[:caption] = text.delete("*")
             else
               klass = LEADS.find { |lead, _class| text.start_with?(lead) }&.last

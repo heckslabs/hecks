@@ -26,6 +26,9 @@ module Hecks
           extend CdnReaders
           extend LogReaders
 
+          # Any character a database name may not hold.
+          NOT_ALPHANUMERIC = /[^a-zA-Z0-9]/
+
           module_function
 
           # @param deploy_settings [Hash{Symbol => Object}] the world's `AwsBox` settings
@@ -152,7 +155,7 @@ module Hecks
           end
 
           def read_database_name(settings, infra_name)
-            check(:database_name, settings.fetch(:database_name, infra_name.gsub(/[^a-zA-Z0-9]/, "")), DB_NAME)
+            check(:database_name, settings.fetch(:database_name, infra_name.gsub(NOT_ALPHANUMERIC, "")), DB_NAME)
           end
 
           # With a task definition, the images, environment and secrets are read from it at deploy

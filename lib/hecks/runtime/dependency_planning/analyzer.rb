@@ -61,7 +61,8 @@ module Hecks
         # as a read; the interpreter reseeds it on save.
         def owner_field_names(construct)
           fields = construct.attributes.to_set(&:name)
-          fields << construct.lifecycle.field.to_sym if construct.lifecycle
+          lifecycle = construct.lifecycle
+          fields << lifecycle.field.to_sym if lifecycle
           construct.projected_fields.each { |field| fields << field.name } if construct.respond_to?(:projected_fields)
           fields
         end

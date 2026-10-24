@@ -56,9 +56,10 @@ module Hecks
         # @return [void]
         # @raise [Malformed] if any aggregate is bound to a non-Memory adapter
         def guard_memory_only!(runtime)
-          runtime.registry.bluebooks.each_value do |bluebook|
+          registry = runtime.registry
+          registry.bluebooks.each_value do |bluebook|
             bluebook.aggregates.each do |aggregate|
-              bind = Ports::Persistence::BindingPolicy.resolve(runtime.registry, bluebook.name, aggregate)
+              bind = Ports::Persistence::BindingPolicy.resolve(registry, bluebook.name, aggregate)
               next if bind.adapter == Ports::Persistence::DEFAULT_ADAPTER
 
               raise Malformed, non_memory_message(bluebook, aggregate, bind)

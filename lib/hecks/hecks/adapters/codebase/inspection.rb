@@ -61,10 +61,17 @@ module Hecks
         # @return [String] its output
         # @raise [ConsoleCapture::Failure] when it ended in a status that is not a report
         def report(operation, result)
-          return result.out if REPORTING.fetch(operation, [0]).include?(result.status.exitstatus)
+          code = exit_code(result)
+          return result.out if REPORTING.fetch(operation, [0]).include?(code)
 
-          raise ConsoleCapture::Failure,
-                "#{operation} ended with status #{result.status.exitstatus}: #{result.err}#{result.out}".strip
+          raise ConsoleCapture::Failure, "#{operation} ended with status #{code}: #{result.err}#{result.out}".strip
+        end
+
+        # @param result [Shell::Result] what the tool said
+        # @return [Integer, nil] the status it ended with
+        def exit_code(result)
+          status = result.status
+          status.exitstatus
         end
 
         # @param text [String] a report
@@ -81,7 +88,8 @@ module Hecks
         # @return [Array<String>] the files, relative to the root and sorted
         def ruby_files(tree, paths)
           excluded = exclusions(tree)
-          paths.split(",").flat_map { |path| listing(tree, path) }.uniq.sort.reject do |file|
+          listed = paths.split(",").flat_map { |path| listing(tree, path) }.uniq
+          listed.sort.reject do |file|
             excluded.any? { |glob| File.fnmatch?(glob, file, File::FNM_PATHNAME | File::FNM_EXTGLOB) }
           end
         end

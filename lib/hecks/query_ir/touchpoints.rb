@@ -7,6 +7,9 @@ module Hecks
       # `Assembly::Contracts`; `impact_preview` checks touchpoint 4 only for these.
       RECONSTRUCTION_METHODS = { "Aggregate" => :aggregate, "Entity" => :entity }.freeze
 
+      # The whitespace a line starts with.
+      LEADING_WHITESPACE = /\A\s*/
+
       # Checks the six touchpoints of `.claude/skills/bluebook-construct-creator/SKILL.md` for a
       # construct/field pair. Advisory, not a gate: a `false` can be a legitimate exemption
       # (`Deviations`, `GUARANTEED_BY_CONSTRUCTION`, or the spec-only `META_DOMAIN_KNOWN_GAPS`).
@@ -78,7 +81,7 @@ module Hecks
       def reconstruction_method_source(method_name)
         file, start_line = Hecks::Bluebook::MetaValidator::Reconstruction.instance_method(method_name).source_location
         lines = File.readlines(file)
-        indent = lines[start_line - 1][/\A\s*/]
+        indent = lines[start_line - 1][LEADING_WHITESPACE]
 
         lines[start_line..].take_while { |line| inside_method?(line, indent) }.join
       end
@@ -87,7 +90,7 @@ module Hecks
       # @return [Boolean] whether the line still belongs to the method: blank, indented deeper, or
       #   not the next `def`
       def inside_method?(line, indent)
-        line.strip.empty? || line[/\A\s*/].size > indent.size || !line.lstrip.start_with?("def ")
+        line.strip.empty? || line[LEADING_WHITESPACE].size > indent.size || !line.lstrip.start_with?("def ")
       end
 
       def fuzzer_claims?(name, field)

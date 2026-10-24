@@ -120,8 +120,8 @@ module Hecks
         def intrinsic?(value) = value.is_a?(String) && value.start_with?("!")
 
         def unresolved(entries)
-          entries.flat_map { |entry| entry.values_at(:cache, :request, :response) }
-                 .select { |value| intrinsic?(value) && !@refs.key?(value) }.uniq.sort
+          policy_ids = entries.flat_map { |entry| entry.values_at(:cache, :request, :response) }
+          policy_ids.select { |value| intrinsic?(value) && !@refs.key?(value) }.uniq.sort
         end
 
         def resolve(entry) = entry.transform_values { |value| intrinsic?(value) ? @refs.fetch(value, value) : value }

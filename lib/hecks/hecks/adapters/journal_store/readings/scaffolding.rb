@@ -6,11 +6,14 @@ module Hecks
       module Readings
         # The edge file that would lead the latest held era to the current shape.
         module Scaffolding
+          # A line of an edge file that still marks a field as unresolved.
+          UNRESOLVED_LINE = /^\s*unresolved /
+
           private
 
           def scaffold(held, lineage, path)
             eras = held.held_eras(lineage)
-            return Readings.no_era(held.bluebook.name, path) if eras.empty?
+            return Readings.no_era(domain_name(held), path) if eras.empty?
 
             scaffold_latest(held, held.named(eras.last))
           end
@@ -18,7 +21,7 @@ module Hecks
           # The edge text for the latest era, or why there is nothing to scaffold.
           def scaffold_latest(held, latest)
             shadow = PostgresEra::LineageManager.shadow(latest[:held_text])
-            return "#{held.bluebook.name} matches era #{latest[:ordinal]} — nothing to scaffold." if
+            return "#{domain_name(held)} matches era #{latest[:ordinal]} — nothing to scaffold." if
               Runtime::StorageShape.project(shadow) == held.shape
 
             edge_text(held, latest, Translation::Scaffold.diff(shadow, held.bluebook))
@@ -27,7 +30,7 @@ module Hecks
           def edge_text(held, latest, diffed)
             label = Runtime::StorageShape.mint_hash(held.bluebook)[0, Runtime::StorageShape::LABEL_LENGTH]
             edge = Translation::Scaffold::Edge.new(
-              domain: held.bluebook.name, from: latest[:label], to: label, ordinal: latest[:ordinal] + 1,
+              domain: domain_name(held), from: latest[:label], to: label, ordinal: latest[:ordinal] + 1,
               label: label, aggregates: diffed[:aggregates], retired: diffed[:retired]
             )
             text = Translation::Scaffold.render(edge)
@@ -35,7 +38,7 @@ module Hecks
           end
 
           def scaffold_notes(edge, text, unclaimed)
-            unresolved = text.scan(/^\s*unresolved /).size
+            unresolved = text.scan(UNRESOLVED_LINE).size
             notes = ["# Save as translations/#{edge.ordinal}-#{edge.label}.bluebook."]
             notes << "# #{unresolved} unresolved: decide what each became, then boot." if unresolved.positive?
             unclaimed.each do |name|

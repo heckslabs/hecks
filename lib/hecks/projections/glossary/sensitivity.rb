@@ -1,4 +1,5 @@
 require_relative "../../naming"
+require_relative "../plain_english"
 
 module Hecks
   module Projections
@@ -31,9 +32,15 @@ module Hecks
 
         # Renders one "Handled as sensitive" line: field, category, and who may read it unredacted.
         def sentence(marking)
-          path = marking[:attribute_path].to_s.split(".").map { |part| Naming.words(part).downcase }.join(" ")
+          path = spoken_path(marking[:attribute_path])
           reader = Naming.words(marking[:readable_by]).downcase
-          "#{path.sub(/\A[[:lower:]]/, &:upcase)}: #{tag(marking)}, read unredacted only by the #{reader}."
+          "#{PlainEnglish.upper(path)}: #{tag(marking)}, read unredacted only by the #{reader}."
+        end
+
+        # A dotted field path as lowercase words: `card.daily_limit` -> "card daily limit".
+        def spoken_path(dotted)
+          parts = dotted.to_s.split(".")
+          parts.map { |part| Naming.words(part).downcase }.join(" ")
         end
       end
     end

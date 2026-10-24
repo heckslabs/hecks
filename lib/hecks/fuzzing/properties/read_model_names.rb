@@ -3,6 +3,11 @@ module Hecks
     module Properties
       # Property: how each declared read model is addressed.
       module ReadModelNames
+        # An acronym run followed by a capitalised word, as `HTTPServer`, capturing both.
+        ACRONYM_BOUNDARY = /([A-Z]+)([A-Z][a-z])/
+        # A lowercase letter or digit followed by an uppercase one, capturing both.
+        CAMEL_BOUNDARY = /([a-z\d])([A-Z])/
+
         # Every read model resolves from either spelling of its name, to itself, and no two read
         # models of one chapter share a `query_name`.
         #
@@ -42,7 +47,8 @@ module Hecks
 
         # Written out here rather than called, so a drift in `Naming.snake` is a finding.
         def snake_of(text)
-          text.to_s.gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2').gsub(/([a-z\d])([A-Z])/, '\1_\2').downcase
+          acronyms_split = text.to_s.gsub(ACRONYM_BOUNDARY, '\1_\2')
+          acronyms_split.gsub(CAMEL_BOUNDARY, '\1_\2').downcase
         end
       end
     end

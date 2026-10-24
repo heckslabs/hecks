@@ -14,8 +14,14 @@ module Hecks
         def snapshot(runtime)
           { instances: Replay.snapshot_instances(runtime), journal: journal(runtime.registry),
             events: runtime.events.size, reactions: runtime.reactions.size, sagas: runtime.sagas.size,
-            outbox: runtime.outbox.rows.map(&:delivery_id) }
+            outbox: outbox_ids(runtime.outbox) }
         end
+
+        # The delivery ids of every row the outbox holds.
+        #
+        # @param outbox [#rows] the runtime's outbox
+        # @return [Array<String>] each row's `delivery_id`, in row order
+        def outbox_ids(outbox) = outbox.rows.map(&:delivery_id)
 
         # Each append-only repository's entries, keyed by `"Domain::Aggregate"`; a repository
         # that keeps no journal is left out.

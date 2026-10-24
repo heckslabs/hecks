@@ -40,7 +40,7 @@ module Hecks
 
         def reference_fields(aggregate, target)
           aggregate.attributes
-                   .select { |attribute| attribute.reference? && attribute.type.target_name == target.to_s }
+                   .select { |attribute| attribute.reference? && attribute.target_name == target.to_s }
                    .map(&:name)
         end
       end

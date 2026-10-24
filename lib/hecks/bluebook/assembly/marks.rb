@@ -4,13 +4,16 @@ module Hecks
       # Reads the leaf shapes of an assembly's `to_h` export back into IR objects.
       # Each method inverts one textual spelling, so types are recovered, not just strings.
       module Marks
+        # A reference type as `to_s` spells it, capturing the target: "Reference<Customer>".
+        REFERENCE_SPELLING = /\AReference<(.+)>\z/
+
         module_function
 
         # `Attribute#to_h` spells a type with `to_s`, so a reference arrives as
         # "Reference<Customer>" and has to become an edge again.
         def attribute(field)
           type = field[:type].to_s
-          target = type[/\AReference<(.+)>\z/, 1]
+          target = type[REFERENCE_SPELLING, 1]
 
           Attribute.new(name: field[:name], type: target ? Reference.new(target) : type, **attribute_options(field))
         end

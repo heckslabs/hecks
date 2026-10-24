@@ -24,8 +24,9 @@ module Hecks
         end
 
         def request(req)
-          options = { use_ssl: req.uri.scheme == "https", read_timeout: 8, open_timeout: 8 }
-          Net::HTTP.start(req.uri.host, req.uri.port, **options) { |http| http.request(req) }
+          uri = req.uri
+          options = { use_ssl: uri.scheme == "https", read_timeout: 8, open_timeout: 8 }
+          Net::HTTP.start(uri.host, uri.port, **options) { |http| http.request(req) }
         end
 
         def expect_status(res, code)

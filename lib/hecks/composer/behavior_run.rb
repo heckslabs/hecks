@@ -26,10 +26,16 @@ module Hecks
       # @api private
       def report(stage, file)
         {
-          path:        file.path.to_s.delete_prefix("#{File.realpath(stage)}/").delete_prefix("#{stage}/"),
+          path:        relative_path(stage, file.path),
           parse_error: file.parse_error,
           runs:        file.runs.map { |run| run_hash(run) }
         }
+      end
+
+      # The file's path inside the staged directory, whether given real or as staged.
+      # @api private
+      def relative_path(stage, path)
+        path.to_s.delete_prefix("#{File.realpath(stage)}/").delete_prefix("#{stage}/")
       end
 
       # @api private

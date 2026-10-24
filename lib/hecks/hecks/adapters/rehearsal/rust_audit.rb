@@ -68,7 +68,7 @@ module Hecks
           Result.new(ran: true, violations: refusals(out), note: "ran over #{rows} rows", rows: rows)
         end
 
-        def ir = Projector::Exporter.call(@subject.held.registry).fetch(@subject.bluebook.name)
+        def ir = Projector::Exporter.call(@subject.registry).fetch(@subject.bluebook_name)
 
         def case_for(name, id, state)
           { "aggregate" => name, "id" => id, "state" => JSON.parse(JSON.generate(state)) }

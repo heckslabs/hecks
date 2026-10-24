@@ -28,6 +28,9 @@ module Hecks
       EXIT_ERROR = 1
       EXIT_FOUND_SOMETHING = 2
 
+      # A sweep's `reclaimed stale hold:` line, capturing the hold's name.
+      RECLAIMED_HOLD = /^reclaimed stale hold: (\S+)/
+
       USAGE = "usage: hecks quality_control tick"
 
       # A target's own per-seed "seed N: held (...)" line is the only thing this command ever drops
@@ -147,7 +150,7 @@ module Hecks
       end
 
       def reclaimed_holds(sweep_output)
-        sweep_output.scan(/^reclaimed stale hold: (\S+)/).flatten
+        sweep_output.scan(RECLAIMED_HOLD).flatten
       end
     end
   end

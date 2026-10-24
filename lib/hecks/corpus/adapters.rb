@@ -13,7 +13,8 @@ module Hecks
       # @return [Array<String>] absolute paths, sorted, none under a vendored, `node_modules`,
       #   `target` or scratch directory
       def adapter_files(root: Corpus::ROOT)
-        ADAPTER_GLOBS.flat_map { |glob| Dir.glob(File.join(root, glob)) }.uniq.sort.reject do |path|
+        found = ADAPTER_GLOBS.flat_map { |glob| Dir.glob(File.join(root, glob)) }.uniq.sort
+        found.reject do |path|
           path.delete_prefix("#{root}/").split("/").intersect?(EXCLUDED_DIRS)
         end
       end

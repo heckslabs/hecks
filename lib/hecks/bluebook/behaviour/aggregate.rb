@@ -9,6 +9,7 @@ module Hecks
         include Identified
         include Indexed
         include Owns
+        include Stateful
 
         # An aggregate joins its chapter's namespace with "::" ("Pizzas::Pizza");
         # everything else joins its owner with ".".

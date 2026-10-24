@@ -12,6 +12,9 @@ module Hecks
           # The most instances a list may show to a page.
           MAX_PAGE = 1000
 
+          # A whole number from 1, of at most four digits: a page size.
+          PAGE_COUNT = /\A[1-9]\d{0,3}\z/
+
           # The first segments of the editor's own addresses, which no chapter may be named.
           RESERVED = %w[assets media logout api scheduled].freeze
 
@@ -44,7 +47,8 @@ module Hecks
 
           # @return [Array<String>] the problems with `Chapter=Role,Role;Chapter=Role` entries
           def role_problems(text, chapters)
-            text.split(";").map(&:strip).reject(&:empty?).flat_map do |entry|
+            entries = text.split(";")
+            entries.map(&:strip).reject(&:empty?).flat_map do |entry|
               name, roles = entry.split("=", 2)
               next ["chapter_roles #{entry.inspect} must read Chapter=Role,Role"] if roles.to_s.strip.empty?
               next [] if chapters.include?(name.strip)
@@ -55,7 +59,7 @@ module Hecks
 
           # @return [Array<String>] the problem with a page size that is not a whole 1 to 1000
           def page_size_problems(size)
-            return [] if size.match?(/\A[1-9]\d{0,3}\z/) && size.to_i <= MAX_PAGE
+            return [] if size.match?(PAGE_COUNT) && size.to_i <= MAX_PAGE
 
             ["page_size #{size.inspect} must be a whole number from 1 to #{MAX_PAGE}"]
           end

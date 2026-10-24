@@ -12,6 +12,7 @@ module Hecks
         include Identified
         include Indexed
         include Owns
+        include Stateful
 
         # The hook `absorb` calls once every declared field is assigned.
         #

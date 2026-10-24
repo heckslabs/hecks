@@ -18,6 +18,12 @@ module Hecks
           PATH_PATTERN = %r{\A/[A-Za-z0-9._~/*?%-]*\z}
           IMAGE_PATTERN = %r{\A[A-Za-z0-9._/:@-]+\z}
           ENV_NAME_PATTERN = /\A[A-Z_][A-Z0-9_]*\z/
+          # A run of characters a container name may not hold.
+          NOT_NAME_RUN = /[^a-z0-9]+/
+          # The characters before a name's first letter.
+          LEADING_NON_LETTERS = /\A[^a-z]+/
+          # The dashes a name ends with.
+          TRAILING_DASHES = /-+\z/
 
           module_function
 
@@ -35,8 +41,15 @@ module Hecks
           end
 
           def single(main)
-            name = main.fetch(:name).to_s.downcase.gsub(/[^a-z0-9]+/, "-").sub(/\A[^a-z]+/, "")[0, 30].sub(/-+\z/, "")
+            name = container_name(main.fetch(:name))
             { name: name, port: main.fetch(:port), host: true, default: true, image: main[:image] }
+          end
+
+          # @param raw [Object] the main stack's name
+          # @return [String] the name as a container name: lower-case, dashed, at most 30 characters
+          def container_name(raw)
+            dashed = raw.to_s.downcase.gsub(NOT_NAME_RUN, "-")
+            dashed.sub(LEADING_NON_LETTERS, "")[0, 30].sub(TRAILING_DASHES, "")
           end
 
           def normalize(item)

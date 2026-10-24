@@ -11,7 +11,7 @@ module Hecks
     module RecordTable
       # Identity, lifecycle state, then scalar attributes, capped at seven columns.
       def self.columns(aggregate)
-        lifecycle = aggregate.lifecycle&.field
+        lifecycle = aggregate.lifecycle_field
         scalars = aggregate.attributes.reject { |a| a.reference? || a.list? }.map(&:name)
         [*aggregate.identity_heads, lifecycle, *scalars].compact.uniq.first(7)
       end

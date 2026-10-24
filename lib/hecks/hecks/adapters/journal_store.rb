@@ -32,7 +32,25 @@ module Hecks
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
 
       # Aggregate names, from the comma-separated list a request carries.
-      def names(list) = plain(list).to_s.split(",").map(&:strip).reject(&:empty?)
+      def names(list) = Text.comma_list(plain(list))
+
+      # The name of the bluebook a held domain loaded.
+      def domain_name(domain)
+        bluebook = domain.bluebook
+        bluebook.name
+      end
+
+      # The aggregates a held domain's bluebook declares.
+      def aggregates_of(domain)
+        bluebook = domain.bluebook
+        bluebook.aggregates
+      end
+
+      # The translation edges a held domain's registry holds.
+      def translations_of(domain)
+        registry = domain.registry
+        registry.translations
+      end
 
       # `id:old,id:new` as the map the tail merge takes; the side is what follows the last colon.
       def winners(held)
@@ -46,7 +64,7 @@ module Hecks
       def raw_era(domain, lineage, ordinal)
         present = lineage.db.exec("SELECT to_regclass('hecks_eras') AS present")[0]["present"]
         (present && lineage.raw_era(ordinal)) or
-          raise Runtime::NotFound, "#{domain.bluebook.name} holds no era #{ordinal}"
+          raise Runtime::NotFound, "#{domain_name(domain)} holds no era #{ordinal}"
       end
     end
   end

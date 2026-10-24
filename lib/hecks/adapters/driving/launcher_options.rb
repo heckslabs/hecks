@@ -3,6 +3,7 @@ require "stringio"
 require_relative "../../ports/identity_generation"
 require_relative "../../runtime/errors"
 require_relative "cli"
+require_relative "../../text"
 
 module Hecks
   module Adapters
@@ -24,6 +25,10 @@ module Hecks
         WAIT    = "--wait".freeze
         STREAM  = "--stream".freeze
         RUN_KEY = "run.value".freeze
+        # The dots and colons between a question's chapter, aggregate and own name.
+        NAME_SEPARATORS = /[.:]+/
+        # A `GAP (n)` report heading whose count is above zero.
+        NONZERO_GAP_HEADING = /^GAP \((?!0\))\d+\)/
         # The lifecycle mark naming the states `--wait` reports as a failure (exit 1); the lifecycle
         # says so with `mark :failure, "flagged"` (ADR 0097), so no setting lists them.
         FAILURE_MARK = "failure".freeze
@@ -184,7 +189,7 @@ module Hecks
         def streams?(launcher, spec)
           return false unless launcher && spec[:kind] == :query
 
-          Array(launcher[:streams]).map(&:to_s).include?(spec[:command].to_s.split(/[.:]+/).last)
+          Array(launcher[:streams]).map(&:to_s).include?(spec[:command].to_s.split(NAME_SEPARATORS).last)
         end
 
         # Takes `--stream` out of a question's words.
@@ -215,7 +220,7 @@ module Hecks
         # @param text [String, nil] the question's text answer
         # @return [Boolean] whether a `GAP (n)` heading with n above zero is in the text
         def gap_reported?(text)
-          text.is_a?(String) && text.match?(/^GAP \((?!0\))\d+\)/)
+          text.is_a?(String) && text.match?(NONZERO_GAP_HEADING)
         end
 
         # Mints the `run` key a creating command was not given, when the domain opted in.
@@ -236,7 +241,7 @@ module Hecks
           key = Ports::IdentityGeneration.uuid(runtime.registry)
           [args.merge(run: { value: key }), key]
         rescue Runtime::WiringError => e
-          raise Runtime::NotFound, "cannot mint a run key (#{e.message.lines.first.strip}); name one with run=<key>"
+          raise Runtime::NotFound, "cannot mint a run key (#{Text.first_line(e.message)}); name one with run=<key>"
         end
 
         # Whether the command is a creating one of an opted-in chapter, takes a run key and was
@@ -256,7 +261,7 @@ module Hecks
         # @param settings [Hash, nil] the chapter's `launcher` setting
         # @return [Boolean] false when the aggregate has no lifecycle
         def failed?(aggregate, state, settings)
-          field = aggregate&.lifecycle&.field
+          field = aggregate&.lifecycle_field
           return false unless field && state && settings
 
           Array(aggregate.lifecycle.marked(FAILURE_MARK)).include?(state[field.to_sym].to_s)

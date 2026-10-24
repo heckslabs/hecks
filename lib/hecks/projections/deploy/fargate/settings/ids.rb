@@ -6,6 +6,9 @@ module Hecks
           # The logical ids and the AWS names of a stack's resources, derived from the stack and
           # overridable by the world. Extended onto `Settings`, which supplies the role lists.
           module Ids
+            # One to 255 printable ASCII characters, the only text EC2 takes as a description.
+            PRINTABLE_ASCII = /\A[\x20-\x7e]{1,255}\z/
+
             private
 
             def logical_ids(overrides, base)
@@ -42,7 +45,7 @@ module Hecks
               return Check.resource_name!(value, "names #{role}") unless role == :alb_security_group_description
 
               text = value.to_s
-              return text if text.match?(/\A[\x20-\x7e]{1,255}\z/)
+              return text if text.match?(PRINTABLE_ASCII)
 
               raise ArgumentError,
                     "names #{role} must be 1 to 255 printable ASCII characters (EC2 rejects anything else), got #{value.inspect}"

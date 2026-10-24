@@ -54,12 +54,16 @@ module Hecks
 
           def value_object_targets(args, entry)
             aggregate = entry[:aggregate]
-            entry[:command].attributes.reject { |attribute| attribute.list? || attribute.reference? }
-                           .select { |attribute| args.key?(attribute.name.to_s) }
-                           .filter_map do |attribute|
+            given_single_attributes(args, entry).filter_map do |attribute|
               value_object = Runtime::Value.value_object_for(aggregate, attribute.type.to_s)
               [attribute, value_object] if value_object&.sole_attribute
             end
+          end
+
+          # The command's single-valued, non-reference attributes the args give.
+          def given_single_attributes(args, entry)
+            singles = entry[:command].attributes.reject { |attribute| attribute.list? || attribute.reference? }
+            singles.select { |attribute| args.key?(attribute.name.to_s) }
           end
 
           def apply_null_value_object!(args, entry, _catalog)
@@ -99,8 +103,14 @@ module Hecks
 
           # The argument names the command's appends take their element fields from.
           def appended_sources(command)
-            command.mutations.select { |mutation| mutation.op == :append }
-                   .flat_map { |mutation| mutation.source.values.grep(Symbol).map(&:to_s) }
+            appends = command.mutations.select { |mutation| mutation.op == :append }
+            appends.flat_map { |mutation| sourced_argument_names(mutation) }
+          end
+
+          # The argument names one mutation's `source` takes its fields from.
+          def sourced_argument_names(mutation)
+            sources = mutation.source.values
+            sources.grep(Symbol).map(&:to_s)
           end
 
           def apply_omit_mapped_argument!(args, entry, _catalog)

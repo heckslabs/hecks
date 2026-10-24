@@ -4,6 +4,9 @@ module Hecks
       # The `default_database`/`default_adapter` a `.world` declares once for every chapter;
       # resolved most-specific-first (own bind, own world, project world) and never written back.
       module WorldDefaults
+        # A `{name}` or `{storage_name}` placeholder in a default, capturing the aggregate reader.
+        AGGREGATE_PLACEHOLDER = /\{(name|storage_name)\}/
+
         # The default database only reaches a persistence bind whose adapter declares a
         # `database` field; a `database` the chapter's own settings name always wins.
         def binding_settings(domain, verb, adapter)
@@ -56,7 +59,7 @@ module Hecks
         def fill_placeholders(value, aggregate)
           return value unless value.is_a?(String)
 
-          value.gsub(/\{(name|storage_name)\}/) { aggregate.public_send(Regexp.last_match(1)) }
+          value.gsub(AGGREGATE_PLACEHOLDER) { aggregate.public_send(Regexp.last_match(1)) }
         end
 
         # The chapter's own world answers first; the project's world fills the gap.

@@ -1,3 +1,4 @@
+require_relative "../text"
 require_relative "interview_draft"
 require_relative "interview_session/catalog"
 require_relative "interview_session/proposals"
@@ -104,7 +105,7 @@ module Hecks
       def ask_agent
         yield
       rescue Ports::Agent::Unavailable, Ports::Agent::ValidationError => e
-        say("The AI could not answer (#{e.message.lines.first.to_s.strip}). Using a plain prompt for this turn.")
+        say("The AI could not answer (#{Text.first_line(e.message)}). Using a plain prompt for this turn.")
         nil
       end
 

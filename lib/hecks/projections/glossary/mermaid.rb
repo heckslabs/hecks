@@ -6,6 +6,9 @@ module Hecks
       # The glossary's three diagrams: the map, one aggregate's context, and a lifecycle.
       # Value objects appear as words in the text, not as boxes, to keep diagrams small.
       module Mermaid
+        # A character a Mermaid node id may not hold.
+        NOT_ID_CHARACTER = /[^a-z0-9_]/
+
         module_function
 
         # Draws the whole chapter's aggregates and which points at which.
@@ -21,7 +24,7 @@ module Hecks
         # Adds a node for each reference target not yet drawn, and an edge for each reference.
         def add_references(lines, aggregate, names)
           references(aggregate).each do |attribute|
-            target = attribute.type.target_name
+            target = attribute.target_name
             lines << node(target) unless names.include?(target) || lines.include?(node(target))
             lines << edge(aggregate.hecks_name, attribute, target)
           end
@@ -43,7 +46,7 @@ module Hecks
         def neighbours(aggregate, bluebook)
           focus = aggregate.hecks_name
           entities(aggregate).flat_map { |attribute| link(focus, attribute, attribute.type.to_s) } +
-            references(aggregate).flat_map { |attribute| link(focus, attribute, attribute.type.target_name) } +
+            references(aggregate).flat_map { |attribute| link(focus, attribute, attribute.target_name) } +
             incoming(aggregate, bluebook)
         end
 
@@ -93,13 +96,13 @@ module Hecks
         # as `[holder, attribute]` pairs.
         def pointing_at(aggregate, bluebook)
           bluebook.aggregates.reject { |other| other.equal?(aggregate) }.flat_map do |other|
-            references(other).select { |attribute| attribute.type.target_name == aggregate.hecks_name }
+            references(other).select { |attribute| attribute.target_name == aggregate.hecks_name }
                              .map { |attribute| [other, attribute] }
           end
         end
 
         # A node id that carries no identifier: `n_atm_card`, never `n_ATMCard`.
-        def id(name) = "n_#{Naming.snake(name).gsub(/[^a-z0-9_]/, "_")}"
+        def id(name) = "n_#{Naming.snake(name).gsub(NOT_ID_CHARACTER, "_")}"
 
         # Renders one Mermaid node declaration, marked `focus` when asked.
         def node(name, focus: false)

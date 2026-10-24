@@ -94,7 +94,7 @@ module Hecks
       def operator_rules(evaluator)
         resolver = Bluebook::Expression::Resolver
         [[evaluator::Or, "||", %i[left right]], [evaluator::And, "&&", %i[left right]],
-         [evaluator::Not, "!", %i[node]], [evaluator::Compare, ->(node) { node.operator.symbol }, %i[left right]],
+         [evaluator::Not, "!", %i[node]], [evaluator::Compare, :operator_symbol.to_proc, %i[left right]],
          [evaluator::Include, ".include?", %i[haystack needle]], [evaluator::Resolve, nil, %i[expr]],
          [resolver::Addition, "+", %i[left right]], [resolver::Subtraction, "-", %i[left right]],
          [resolver::Multiplication, "*", %i[left right]], [resolver::Division, "/", %i[left right]],

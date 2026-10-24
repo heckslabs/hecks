@@ -16,7 +16,8 @@ module Hecks
         #   `"references"`, its `reference_to` arguments mapped to the qualified aggregate each
         #   names
         def plugins(registry)
-          registry.adapters.values.select(&:plugin?).sort_by(&:name).map { |adapter| plugin_hash(registry, adapter) }
+          found = registry.adapters.values.select(&:plugin?)
+          found.sort_by(&:name).map { |adapter| plugin_hash(registry, adapter) }
         end
 
         def plugin_hash(registry, adapter)
@@ -44,7 +45,8 @@ module Hecks
           return {} unless query
 
           query.attributes.select(&:reference?).to_h do |attribute|
-            target = attribute.type.resolve || aggregate
+            reference = attribute.type
+            target = reference.resolve || aggregate
             [attribute.name.to_s, "#{chapter_name}::#{target.hecks_name}"]
           end
         end

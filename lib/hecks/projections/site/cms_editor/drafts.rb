@@ -27,7 +27,8 @@ module Hecks
           # @return [Hash{String => String}, nil] `attribute` (the draft), `live`, `save`, and
           #   `publish` and `discard` when the aggregate has them; nil when it keeps no drafts
           def of(agg, attributes)
-            found = agg.commands.lazy.filter_map { |command| saving(command, agg, attributes) }.first
+            commands = agg.commands.lazy
+            found = commands.filter_map { |command| saving(command, agg, attributes) }.first
             return nil unless found
 
             found.merge("publish" => publishing(agg, found), "discard" => discarding(agg, found)).compact
@@ -58,9 +59,12 @@ module Hecks
 
           # @return [Boolean] whether the aggregate holds both attributes, of one type
           def same_type?(agg, draft, live)
-            types = [draft, live].map { |name| agg.attributes.find { |held| held.name.to_s == name }&.type.to_s }
+            types = [draft, live].map { |name| type_of(agg, name).to_s }
             types.none?(&:empty?) && types.uniq.size == 1
           end
+
+          # @return [Object, nil] the type of the aggregate's attribute `name`, or nil without one
+          def type_of(agg, name) = agg.attributes.find { |held| held.name.to_s == name }&.type
 
           # @return [Boolean] whether the named attribute is a rich-text body, a block list or a
           #   value object (a page's fixed slots), alone or in a list

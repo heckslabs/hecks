@@ -76,7 +76,8 @@ module Hecks
       # @return [Array<Hash>] the last `limit` events, oldest first, as plain Hashes with `name`,
       #   `aggregate`, `id`, `payload` and `occurred_at`
       def history(limit = 200)
-        @runtime.events.to_a.last(limit).map { |event| Plain.call(event.to_h) }
+        latest = @runtime.events.to_a.last(limit)
+        latest.map { |event| Plain.call(event.to_h) }
       end
 
       # Removes the staged copy of the workspace. Calling it again does nothing.
@@ -97,8 +98,20 @@ module Hecks
 
       # @api private
       def refused(error)
-        { ok: false, kind: error.class.name.to_s.split("::").last,
-          error: error.message.lines.first.to_s.chomp }
+        { ok: false, kind: short_class_name(error), error: headline(error.message) }
+      end
+
+      # @api private
+      def short_class_name(error)
+        name = error.class.name.to_s
+        name.split("::").last
+      end
+
+      # The first line of a message, without its line ending.
+      # @api private
+      def headline(message)
+        line = message.lines.first
+        line.to_s.chomp
       end
 
       # @api private

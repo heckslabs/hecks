@@ -56,7 +56,8 @@ module Hecks
       # @return [String] the sentence as comment lines inside the block, folded under 100 columns
       def self.comment(indent, note)
         width = 96 - indent.size
-        note.scan(/(.{1,#{width}})(?:\s+|\z)/).flatten.map { |line| "#{indent}  # #{line}\n" }.join
+        lines = note.scan(/(.{1,#{width}})(?:\s+|\z)/).flatten
+        lines.map { |line| "#{indent}  # #{line}\n" }.join
       end
 
       private_class_method :empty, :note, :comment

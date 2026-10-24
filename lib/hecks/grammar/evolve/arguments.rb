@@ -77,7 +77,7 @@ module Hecks
         # @return [String] `text`, with the rows of `block` that belong to `keyword` respelled
         def respell_argument_keyword(text, block, keyword, context, to)
           updated = block.lines.map do |line|
-            next line unless line =~ /^\s*member / &&
+            next line unless line =~ SeedLines::MEMBER_LINE &&
                              line.include?(%(keyword: "#{keyword}")) && line.include?(%(context: "#{context}"))
 
             line.sub(%(keyword: "#{keyword}"), %(keyword: "#{to}"))

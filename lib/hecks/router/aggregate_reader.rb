@@ -10,9 +10,10 @@ module Hecks
         #   query/command-only entry
         #   whose owner isn't a real aggregate root
         def self.for(entry)
-          domain = entry.fqn.domain
-          aggregate = entry.dispatcher.registry.bluebook(domain)&.aggregate(entry.fqn.aggregate)
-          new(entry.dispatcher, domain, aggregate) if aggregate
+          fqn = entry.fqn
+          dispatcher = entry.dispatcher
+          aggregate = dispatcher.bluebook(fqn.domain)&.aggregate(fqn.aggregate)
+          new(dispatcher, fqn.domain, aggregate) if aggregate
         end
 
         def repository = dispatcher.registry.repository(domain, aggregate)

@@ -8,6 +8,9 @@ module Hecks
         module Normalizer
           module_function
 
+          # A `!Sub` string that is one whole variable, `${Name}` or `${A.B}`, capturing its name.
+          WHOLE_VARIABLE = /\A\$\{([^}!]+)\}\z/
+
           # @param value [Object] a loaded template, or any node inside one
           # @return [Object] the same shape with every node in its canonical spelling
           def normalize(value)
@@ -40,7 +43,7 @@ module Hecks
             text = hash["Fn::Sub"]
             return text unless text.include?("${")
 
-            match = text.match(/\A\$\{([^}!]+)\}\z/)
+            match = text.match(WHOLE_VARIABLE)
             return hash unless match
 
             intrinsic_for(match[1])

@@ -58,8 +58,9 @@ module Hecks
         end
 
         def aggregate_aliases(target)
-          aliases = [:aggregate, Naming.reference_key(target.aggregate.name)]
-          aliases.unshift(target.command.addressing_key_for(target.aggregate.name)) if target.entities.empty?
+          aggregate = target.aggregate
+          aliases = [:aggregate, Naming.reference_key(aggregate.name)]
+          aliases.unshift(target.command.addressing_key_for(aggregate.name)) if target.entities.empty?
           aliases.compact.uniq
         end
 
@@ -80,7 +81,8 @@ module Hecks
         end
 
         def same_aggregate?(target, source_aggregate)
-          source_aggregate == (source_aggregate.include?("::") ? target.aggregate.hecks_fqn : target.aggregate.hecks_name)
+          aggregate = target.aggregate
+          source_aggregate == (source_aggregate.include?("::") ? aggregate.hecks_fqn : aggregate.hecks_name)
         end
       end
     end

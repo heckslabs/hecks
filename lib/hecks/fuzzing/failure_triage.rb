@@ -14,6 +14,17 @@ module Hecks
       # Directory, under the checkout, where minimized repros are kept.
       REGRESSION_DIR = "spec/corpus/regressions".freeze
 
+      # A UUID anywhere in a message.
+      UUID = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/i
+      # A `0x` hex literal or a run of sixteen or more hex digits.
+      HEX = /\b0x[0-9a-f]+\b|\b[0-9a-f]{16,}\b/i
+      # A single- or double-quoted literal.
+      QUOTED = /(["']).*?\1/
+      # An integer or decimal number, optionally negative.
+      NUMBER = /-?\d+(?:\.\d+)?/
+      # Each minted part of a message, in the order it is replaced, with its placeholder.
+      MINTED_PARTS = [[UUID, "<uuid>"], [HEX, "<hex>"], [QUOTED, "<str>"], [NUMBER, "<n>"]].freeze
+
       module_function
 
       # @param property [String] the property name or exception class the finding opens with
@@ -31,12 +42,8 @@ module Hecks
       # @param message [String, nil]
       # @return [String]
       def normalize(message)
-        message.to_s
-               .gsub(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/i, "<uuid>")
-               .gsub(/\b0x[0-9a-f]+\b|\b[0-9a-f]{16,}\b/i, "<hex>")
-               .gsub(/(["']).*?\1/, "<str>")
-               .gsub(/-?\d+(?:\.\d+)?/, "<n>")
-               .squeeze(" ").strip
+        normalized = MINTED_PARTS.reduce(message.to_s) { |text, (part, placeholder)| text.gsub(part, placeholder) }
+        normalized.squeeze(" ").strip
       end
 
       # Collapses findings to one per identity, keeping the smallest sequence of each.

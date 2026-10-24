@@ -46,7 +46,8 @@ module Hecks
         # Every full `group_by` key path more than one row reaches, found by
         # tallying each row's tuple of grouped values, with no nesting at all.
         def shared_key_paths(rows, fields)
-          rows.map { |row| fields.map { |field| row[field] } }.tally.select { |_, count| count > 1 }.keys
+          key_paths = rows.map { |row| fields.map { |field| row[field] } }
+          key_paths.tally.select { |_, count| count > 1 }.keys
         end
 
         # One level of nesting per `group_by` field in declared order; the leaf

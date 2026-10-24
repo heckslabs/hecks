@@ -32,7 +32,8 @@ module Hecks
         # @return [Object, nil] that attribute's `default:`, or `nil` when there is none
         def attribute_default(chapter, verb)
           aggregate_name, attribute_name = verb.split(".", 2)
-          chapter.aggregate(aggregate_name)&.attributes&.find { |a| a.name.to_s == attribute_name }&.default
+          aggregate = chapter.aggregate(aggregate_name)
+          aggregate&.attributes&.find { |a| a.name.to_s == attribute_name }&.default
         end
 
         # A default's value: the bare value, or the `{ value: x }` fill of a one-field value object.

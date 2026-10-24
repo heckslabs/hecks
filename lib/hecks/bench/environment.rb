@@ -6,6 +6,9 @@ module Hecks
     # Describes the machine and toolchain a benchmark ran on.
     # Each probe is best effort: a missing tool yields `"unknown"`, not an error.
     module Environment
+      # The total-memory line of `/proc/meminfo`, capturing its size in KiB.
+      MEMORY_TOTAL = /MemTotal:\s+(\d+)/
+
       module_function
 
       def describe
@@ -20,7 +23,8 @@ module Hecks
       # Read before and after a run to show whether something else was busy.
       def load_average
         text = RUBY_PLATFORM.include?("darwin") ? capture("sysctl", "-n", "vm.loadavg").delete("{}") : File.read("/proc/loadavg")
-        text.split.first.to_f.round(2)
+        one_minute = text.split.first
+        one_minute.to_f.round(2)
       rescue SystemCallError
         nil
       end
@@ -39,7 +43,7 @@ module Hecks
           if RUBY_PLATFORM.include?("darwin")
             capture("sysctl", "-n", "hw.memsize").to_i
           else
-            File.read("/proc/meminfo")[/MemTotal:\s+(\d+)/, 1].to_i * 1024
+            File.read("/proc/meminfo")[MEMORY_TOTAL, 1].to_i * 1024
           end
         bytes.zero? ? "unknown" : (bytes / (1024.0**3)).round(1)
       rescue SystemCallError

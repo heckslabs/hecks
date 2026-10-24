@@ -43,7 +43,7 @@ module Hecks
           end
 
           def check_listener
-            problem("EdgeRule", "rows need an Edge row with listener:") if @edge.rules.any? && !@edge.setting&.listener
+            problem("EdgeRule", "rows need an Edge row with listener:") if @edge.rules.any? && !@edge.listener
           end
 
           # With `alb: false` nothing routes by listener rule, so a rule row, or a route that names

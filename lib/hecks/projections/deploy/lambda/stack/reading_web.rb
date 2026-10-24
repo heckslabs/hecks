@@ -6,6 +6,11 @@ module Hecks
           # Reads the facts about the domain's own web function from the files beside the world.
           # Included into `Stack`; each step is one move of its constructor.
           module ReadingWeb
+            # The `pg` line of a Gemfile.lock, capturing its version.
+            PG_LOCK_LINE = /^\s+pg \(([\d.]+)\)/
+            # A `.env.local` line that sets a Google client id.
+            GOOGLE_CLIENT_ID_LINE = /^GOOGLE_CLIENT_ID=\S/
+
             private
 
             # Opt-in by file presence: a domain wanting its own web app on Lambda drops a
@@ -27,7 +32,7 @@ module Hecks
             def read_pg_version
               return nil unless web_handler_present
 
-              File.read(File.join(dispatch_none ? root : domain, "Gemfile.lock"))[/^\s+pg \(([\d.]+)\)/, 1]
+              File.read(File.join(dispatch_none ? root : domain, "Gemfile.lock"))[PG_LOCK_LINE, 1]
             end
 
             # `dispatch "None"` means the domain alone has no Gemfile/lib/hecks to zip, so CodeUri
@@ -43,7 +48,7 @@ module Hecks
             def read_google_oauth
               env_file = File.join(domain, ".env.local")
               @google_oauth_present = (web_handler_present || rust_web) && File.exist?(env_file) &&
-                                      File.read(env_file).match?(/^GOOGLE_CLIENT_ID=\S/)
+                                      File.read(env_file).match?(GOOGLE_CLIENT_ID_LINE)
             end
           end
         end

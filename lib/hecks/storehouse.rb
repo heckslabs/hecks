@@ -59,7 +59,8 @@ module Hecks
     # the same one-bluebook-per-boot shape.
     # :nodoc:
     def bluebook_for(runtime)
-      runtime.registry.bluebooks.values.first or
+      registry = runtime.registry
+      registry.bluebooks.values.first or
         raise Runtime::NotFound, "this boot loaded no bluebook"
     end
 
@@ -67,7 +68,13 @@ module Hecks
     def aggregate_ir!(bluebook, name)
       bluebook.aggregate(name) or
         raise Runtime::NotFound, "#{bluebook.name} declares no aggregate named #{name.inspect} — " \
-                                 "known: #{bluebook.aggregates.map(&:hecks_name).sort.join(", ")}"
+                                 "known: #{aggregate_names(bluebook)}"
+    end
+
+    # :nodoc:
+    def aggregate_names(bluebook)
+      names = bluebook.aggregates.map(&:hecks_name)
+      names.sort.join(", ")
     end
 
     # The alias table CliRunner resolves against, for one bluebook.
@@ -125,11 +132,13 @@ module Hecks
     # :nodoc:
     def audited(request, tool)
       outcome = yield
-      record!(request.bluebook.name, tool: tool, verb: outcome[:verb], outcome: outcome, **audit_fields(request))
+      bluebook = request.bluebook
+      record!(bluebook.name, tool: tool, verb: outcome[:verb], outcome: outcome, **audit_fields(request))
       outcome.except(:verb)
     rescue *refusal_classes => e
       outcome = refused(e, summary: request.summary)
-      record!(request.bluebook&.name, tool: tool, outcome: outcome, **audit_fields(request))
+      asked_of = request.bluebook
+      record!(asked_of&.name, tool: tool, outcome: outcome, **audit_fields(request))
       outcome
     end
 

@@ -5,6 +5,9 @@ module Hecks
     # Renders a `Suite.call` result as Markdown or JSON.
     # The Markdown carries machine, counts and skips so a pasted table is never a bare number.
     module Report
+      # A digit followed by whole groups of three digits to the end: where a thousands comma goes.
+      THOUSANDS_BOUNDARY = /(\d)(?=(\d{3})+\z)/
+
       module_function
 
       def markdown(result)
@@ -36,7 +39,7 @@ module Hecks
         return "n/a" if value.nil?
 
         whole, fraction = format("%.#{places}f", value).split(".")
-        [whole.gsub(/(\d)(?=(\d{3})+\z)/, '\1,'), fraction].compact.join(".")
+        [whole.gsub(THOUSANDS_BOUNDARY, '\1,'), fraction].compact.join(".")
       end
 
       def environment_block(environment)

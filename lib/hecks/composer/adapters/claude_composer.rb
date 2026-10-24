@@ -2,6 +2,7 @@ require "json"
 require "open3"
 require "timeout"
 
+require_relative "../../text"
 require_relative "../agent"
 require_relative "jev"
 
@@ -53,7 +54,7 @@ module Hecks
         stdout, status = run(root, message)
         raise Composer::Agent::Unavailable, "claude exited #{status.exitstatus}: #{stdout}" unless status.success?
 
-        { "note" => JSON.parse(stdout).fetch("result").to_s.lines.first.to_s.strip }
+        { "note" => Text.first_line(JSON.parse(stdout).fetch("result")) }
       rescue JSON::ParserError, KeyError => e
         raise Composer::Agent::ValidationError, "claude's reply was not the expected envelope: #{e.message}"
       end

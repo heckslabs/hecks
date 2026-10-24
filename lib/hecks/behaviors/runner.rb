@@ -8,7 +8,10 @@ module Hecks
   module Behaviors
     FileResult = Struct.new(:path, :parse_error, :runs, keyword_init: true)
     SweepResult = Struct.new(:root, :files_swept, :files, :summary, keyword_init: true)
-    ParseResult = Struct.new(:path, :suite, :parse_error, keyword_init: true)
+    ParseResult = Struct.new(:path, :suite, :parse_error, keyword_init: true) do
+      # @return [Array<Behaviors::TestCase>] the parsed suite's tests
+      def tests = suite.tests
+    end
 
     class LoadOutsideRunner < StandardError; end
 
@@ -48,7 +51,7 @@ module Hecks
         parsed = parse(path)
         return FileResult.new(path: parsed.path, parse_error: parsed.parse_error, runs: []) if parsed.parse_error
 
-        runs = parsed.suite.tests.map { |test| Expectations.run_one(test, parsed.suite) }
+        runs = parsed.tests.map { |test| Expectations.run_one(test, parsed.suite) }
         FileResult.new(path: parsed.path, parse_error: nil, runs: runs)
       end
 

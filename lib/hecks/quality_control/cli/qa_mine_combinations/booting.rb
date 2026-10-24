@@ -2,6 +2,7 @@
 
 require "json"
 require "open3"
+require_relative "../../../text"
 
 module Hecks
   module QualityControlCli
@@ -49,7 +50,7 @@ module Hecks
           output, = Open3.capture2e(*Child.argv(@root, "qa_generated_domains", "--check", dir, "--seeds", "0"),
                                     chdir: @root)
           line = output.lines.reverse.find { |candidate_line| candidate_line.start_with?(RESULT_MARKER) }
-          return "boot check produced no result: #{output.lines.last(5).join.strip}" unless line
+          return "boot check produced no result: #{Text.last_lines(output, 5)}" unless line
 
           result = JSON.parse(line.delete_prefix(RESULT_MARKER))
           result["status"] == "invalid" ? result["error"] : nil
@@ -82,7 +83,8 @@ module Hecks
         end
 
         def first_hypothesis_line(candidate)
-          candidate[:hypothesis].to_s.lines.map(&:strip).find { |line| !line.empty? && !line.start_with?("#") }
+          lines = candidate[:hypothesis].to_s.lines
+          lines.map(&:strip).find { |line| !line.empty? && !line.start_with?("#") }
         end
 
         def new_pairs_for(candidate)

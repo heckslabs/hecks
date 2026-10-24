@@ -72,7 +72,7 @@ module Hecks
         # The option of an attribute that references another record, which is given by its id.
         def reference_option(attribute)
           { path: attribute.name.to_s, type: "String", required: !attribute.optional?,
-            note: "id of a #{attribute.type.target_name}" }
+            note: "id of a #{attribute.target_name}" }
         end
 
         # A `list_of` scalar carries `list: true, words: true`: the launcher reads a comma-separated

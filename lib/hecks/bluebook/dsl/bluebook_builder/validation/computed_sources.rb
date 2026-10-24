@@ -27,7 +27,26 @@ module Hecks
 
             # Where a path is read: the aggregate and command it belongs to, the mutation, and the
             # chapter's value objects by name.
-            PathCheck = Struct.new(:aggregate, :command, :mutation, :value_objects)
+            PathCheck = Struct.new(:aggregate, :command, :mutation, :value_objects) do
+              # @param name [String] a path's first segment
+              # @return [Bluebook::Attribute, nil] the command's argument by that name, else the
+              #   owner's field, else `nil`
+              def operand_head(name)
+                command.attributes.find { |attr| attr.name.to_s == name } ||
+                  aggregate.attributes.find { |attr| attr.name.to_s == name }
+              end
+
+              # A lifecycle or projected field is a plain scalar of the record.
+              #
+              # @param name [String] a path's first segment
+              # @return [Boolean] whether `name` is the owner's lifecycle or a projected field
+              def stored_scalar?(name)
+                aggregate.lifecycle_field.to_s == name || aggregate.projected_fields.any? { |f| f.name.to_s == name }
+              end
+
+              # @return [String] how a refusal names the source: `Owner.Command's sets :target`
+              def site = "#{aggregate.hecks_name}.#{command.hecks_name}'s sets :#{mutation.target}"
+            end
             private_constant :PathCheck
 
             def operand_paths(node)
@@ -39,23 +58,12 @@ module Hecks
 
             def check_operand_path!(check, path)
               head, *segments = path.split(".")
-              attribute = operand_head(check, head)
-              return if attribute.nil? && segments.empty? && stored_scalar?(check, head)
+              attribute = check.operand_head(head)
+              return if attribute.nil? && segments.empty? && check.stored_scalar?(head)
 
-              refuse_operand!(check, path, "names no argument or field of #{check.aggregate.hecks_name}") unless attribute
+              owner = check.aggregate
+              refuse_operand!(check, path, "names no argument or field of #{owner.hecks_name}") unless attribute
               walk_operand_path!(check, path, attribute, segments)
-            end
-
-            # The command's argument, else the owner's field.
-            def operand_head(check, name)
-              check.command.attributes.find { |attr| attr.name.to_s == name } ||
-                check.aggregate.attributes.find { |attr| attr.name.to_s == name }
-            end
-
-            # A lifecycle or projected field is a plain scalar of the record, so a name that stops
-            # there needs no further check.
-            def stored_scalar?(check, name)
-              check.aggregate.lifecycle&.field.to_s == name || check.aggregate.projected_fields.any? { |f| f.name.to_s == name }
             end
 
             def walk_operand_path!(check, path, attribute, segments)
@@ -86,9 +94,7 @@ module Hecks
             end
 
             def refuse_operand!(check, path, reason)
-              raise Malformed,
-                    "#{check.aggregate.hecks_name}.#{check.command.hecks_name}'s sets :#{check.mutation.target} reads " \
-                    "#{path}, which #{reason}"
+              raise Malformed, "#{check.site} reads #{path}, which #{reason}"
             end
           end
         end

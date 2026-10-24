@@ -10,6 +10,9 @@ module Hecks
         # The limit a clean verdict carries when no stored row was read.
         UNAUDITED = "the stored rows"
 
+        # The record a refusal names: everything before its first colon.
+        REFUSED_RECORD = /\A[^:]+/
+
         # The wording that explains a Rust-only refusal: the Ruby audit's first layer does not hold
         # a stored value to a closed set, a required field or an undeclared value-object key.
         RUST_ONLY = "The Rust audit also holds a stored value to its closed set, a required field and an " \
@@ -82,7 +85,7 @@ module Hecks
 
         def rust_records = records(@rust.violations)
 
-        def records(refusals) = refusals.map { |text| text[/\A[^:]+/] }.uniq.sort
+        def records(refusals) = refusals.map { |text| text[REFUSED_RECORD] }.uniq.sort
 
         def agreed = "ruby refused #{ruby_records.size} records, rust #{rust_records.size}; rust read #{@rust.rows} rows"
 

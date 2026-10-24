@@ -18,14 +18,21 @@ module Hecks
                deploy/bluebook/*.bluebook site/bluebook/*.bluebook tickets/bluebook/*.bluebook
                composer/bluebook/*.bluebook quality_control/*.bluebook].freeze
 
+    # A `Hecks.bluebook "Name"` header line, capturing the chapter's name.
+    BLUEBOOK_HEADER = /\A\s*Hecks\.bluebook\s+"([^"]+)"/
+
     # Every attachable chapter, by name, with the files that declare it.
     #
     # @return [Hash{String => Array<String>}] chapter name to its files' absolute paths, sorted
     def self.index
-      @index ||= GLOBS.flat_map { |glob| Dir.glob(File.join(__dir__, glob)) }.sort
-                      .group_by { |path| chapter_name(path) }
-                      .reject { |name, _| name.nil? }
-                      .freeze
+      @index ||= chapter_files.group_by { |path| chapter_name(path) }
+                              .reject { |name, _| name.nil? }
+                              .freeze
+    end
+
+    # @return [Array<String>] every file the globs find, sorted
+    def self.chapter_files
+      GLOBS.flat_map { |glob| Dir.glob(File.join(__dir__, glob)) }.sort
     end
 
     # Every chapter the gem carries, whichever module loads it: the one lookup table `attaches`
@@ -109,7 +116,7 @@ module Hecks
       registry.ports.delete_if { |key, _| !before[:ports].include?(key) }
       registry.adapters.delete_if { |key, _| !before[:adapters].include?(key) }
     end
-    private_class_method :chapter_paths, :open_registry, :load_atomically, :roll_back
+    private_class_method :chapter_files, :chapter_paths, :open_registry, :load_atomically, :roll_back
 
     # Returns nil for a chapter this gem already loaded; raises for a chapter of the same name
     # that a user's own file declared, which `attaches` would otherwise silently take for the
@@ -140,7 +147,7 @@ module Hecks
 
     # The name a file's `Hecks.bluebook "Name"` header declares, or nil for a file without one.
     def self.chapter_name(path)
-      File.foreach(path) { |line| return Regexp.last_match(1) if line =~ /\A\s*Hecks\.bluebook\s+"([^"]+)"/ }
+      File.foreach(path) { |line| return Regexp.last_match(1) if line =~ BLUEBOOK_HEADER }
       nil
     end
   end

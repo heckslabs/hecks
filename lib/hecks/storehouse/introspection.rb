@@ -79,7 +79,8 @@ module Hecks
       # :nodoc:
       def model_findings(runtime)
         require_relative "../bluebook/model_check"
-        findings = runtime.registry.bluebooks.values.flat_map { |bluebook| Bluebook::ModelCheck.call(bluebook) }
+        registry = runtime.registry
+        findings = registry.bluebooks.values.flat_map { |bluebook| Bluebook::ModelCheck.call(bluebook) }
         findings.map { |f| { kind: f.kind, severity: f.severity, subject: f.subject, message: f.message } }
       end
 

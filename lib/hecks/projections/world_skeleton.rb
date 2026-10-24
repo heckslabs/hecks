@@ -34,10 +34,13 @@ module Hecks
 
       # @api private
       def sections_for(registry, hecksagon)
-        hecksagon.binds.map { |bind| [bind.verb, bind.adapter] }.uniq.filter_map do |verb, name|
+        verb_adapters(hecksagon).filter_map do |verb, name|
           section(hecksagon.domain.to_s, verb, registry.adapters[name])
         end
       end
+
+      # @api private
+      def verb_adapters(hecksagon) = hecksagon.binds.map { |bind| [bind.verb, bind.adapter] }.uniq
 
       # @api private
       def section(domain, verb, adapter)

@@ -22,6 +22,12 @@ module Hecks
           PATTERN = /,\s*pattern:\s*'[^']*'/
           CLOSED_SET = /,\s*one_of:\s*\[[^\]]*\]/
           BOUND = /\A\s*where\(.*\b(lt|gt):/
+          # The braced body of a `given`/`invariant`, outer braces included.
+          BRACED_BODY = /\{.*\}/
+          # A line declaring an attribute.
+          ATTRIBUTE_LINE = /\A\s*attribute\b/
+          # A query bound's `lt:` or `gt:` key, capturing which.
+          BOUND_KEY = /\b(lt|gt):/
 
           module_function
 
@@ -39,13 +45,13 @@ module Hecks
 
           # The first comparison inside the line's braces, moved one step.
           def flip_comparison(line)
-            body = line[/\{.*\}/]
+            body = line[BRACED_BODY]
             operator = COMPARISONS.keys.find { |candidate| body.include?(candidate) }
             operator && line.sub(body, body.sub(operator, COMPARISONS.fetch(operator)))
           end
 
           def attribute(line)
-            return [] unless line.match?(/\A\s*attribute\b/)
+            return [] unless line.match?(ATTRIBUTE_LINE)
 
             [[:drop_pattern, PATTERN], [:drop_one_of, CLOSED_SET]].filter_map do |operator, shape|
               (found = line[shape]) && Change.rewrite(operator, line.sub(found, ""))
@@ -55,13 +61,17 @@ module Hecks
           def query_bound(line)
             return [] unless line.match?(BOUND)
 
-            [Change.rewrite(:flip_query_bound, line.sub(/\b(lt|gt):/) { Regexp.last_match(1) == "lt" ? "gt:" : "lt:" })]
+            [Change.rewrite(:flip_query_bound, line.sub(BOUND_KEY) { Regexp.last_match(1) == "lt" ? "gt:" : "lt:" })]
           end
         end
 
         # The shape of the domain: `from:` guards, `sets`, lifecycle targets, emitted events.
         module Structure
           GUARD = /,\s*from:\s*"[^"]*"/
+          # A bare `sets :field` line.
+          SETS_LINE = /\A\s*sets\s+:\w+\s*\z/
+          # A line opening a `command` block.
+          COMMAND_OPENER = /\A\s*command\b.*\bdo\s*\z/
 
           module_function
 
@@ -72,12 +82,12 @@ module Hecks
           end
 
           def sets(line, scope)
-            line.match?(/\A\s*sets\s+:\w+\s*\z/) && scope == "command" ? [Change.removal(:drop_sets)] : []
+            line.match?(SETS_LINE) && scope == "command" ? [Change.removal(:drop_sets)] : []
           end
 
           def command_guard(line)
             guard = line[GUARD]
-            guard && line.match?(/\A\s*command\b.*\bdo\s*\z/) ? [Change.rewrite(:drop_from_guard, line.sub(guard, ""))] : []
+            guard && line.match?(COMMAND_OPENER) ? [Change.rewrite(:drop_from_guard, line.sub(guard, ""))] : []
           end
 
           def transition(map, line, scope)
@@ -106,6 +116,13 @@ module Hecks
 
         # Reactions: whole policies, and what a process manager does on each of its transitions.
         module Reactions
+          # A line opening a `policy "Name"` block.
+          POLICY_OPENER = /\A\s*policy\s+"/
+          # A line opening a process manager's `transition ... do` block.
+          TRANSITION_OPENER = /\A\s*transition\b.*\bdo\s*\z/
+          # A `dispatch` line naming what it dispatches.
+          DISPATCH_LINE = /\A\s*dispatch\s+\S/
+
           module_function
 
           def at(map, index)
@@ -115,17 +132,17 @@ module Hecks
           end
 
           def policy(map, index, line)
-            length = line.match?(/\A\s*policy\s+"/) && map.block_length(index)
+            length = line.match?(POLICY_OPENER) && map.block_length(index)
             length ? [Change.removal(:drop_policy, length)] : []
           end
 
           def saga_transition(map, index, line, scope)
-            length = scope == "process_manager" && line.match?(/\A\s*transition\b.*\bdo\s*\z/) && map.block_length(index)
+            length = scope == "process_manager" && line.match?(TRANSITION_OPENER) && map.block_length(index)
             length ? [Change.removal(:drop_saga_transition, length)] : []
           end
 
           def saga_dispatch(line, scope)
-            scope == "transition" && line.match?(/\A\s*dispatch\s+\S/) ? [Change.removal(:drop_saga_dispatch)] : []
+            scope == "transition" && line.match?(DISPATCH_LINE) ? [Change.removal(:drop_saga_dispatch)] : []
           end
         end
 

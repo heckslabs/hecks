@@ -108,7 +108,7 @@ module Hecks
           {
             name:           aggregate.hecks_name,
             declare:        declare&.hecks_name,
-            parent:         owner || parent&.type&.target_name,
+            parent:         owner || parent&.target_name,
             parent_key:     owner ? "aggregate" : parent&.name&.to_s,
             # Read from the language, not restated: a hand-written join here
             # could disagree with the runtime's own by even one separator.

@@ -27,7 +27,8 @@ module Hecks
           # @return [String] the `handle` blocks for each route, then the default
           def route_blocks(plan)
             routes = plan.routes.each_with_index.map { |route, i| route_block(plan, route, i + 1) }
-            "#{routes.join}handle {\n#{upstream(plan.default.port)}}\n"
+            default = plan.default
+            "#{routes.join}handle {\n#{upstream(default.port)}}\n"
           end
 
           # One upstream. A request that arrives while its container is being replaced

@@ -105,11 +105,12 @@ module Hecks
         # `seg` with each of the candidate's occurrences swapped for a bare reference.
         def bare_references(seg, pattern, candidate)
           seg.gsub(pattern) do
-            indent, predicate_src = Regexp.last_match.captures
+            match = Regexp.last_match
+            indent, predicate_src = match.captures
             if matching_occurrence?(predicate_src, candidate)
               "#{indent}given(#{candidate.description.inspect})\n"
             else
-              Regexp.last_match(0)
+              match[0]
             end
           end
         end

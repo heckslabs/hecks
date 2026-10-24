@@ -14,6 +14,7 @@ require_relative "instance"
 require_relative "refusal_wording"
 require_relative "entity_element"
 require_relative "rebuild_sweep"
+require_relative "dispatch_context"
 
 module Hecks
   module Runtime
@@ -44,7 +45,9 @@ module Hecks
       # the step that sets them runs.
       Context = Struct.new(:domain, :aggregate, :command, :args, :repository, :instance, :transition, :old_state,
                            :result, :correlation, :route, :plan, :strategy, :persistence_outcome, :pending_delegation,
-                           :dry_run, :correction_bindings, :outbox_rows, :invocation)
+                           :dry_run, :correction_bindings, :outbox_rows, :invocation) do
+        include DispatchContext
+      end
 
       # @param registry [Runtime::Registry] the booted registry this interpreter reads
       # @param rules [Runtime::CommandRules] the shared rules engine (admissibility,
@@ -131,7 +134,7 @@ module Hecks
       def step_hydrate(ctx)
         # `ctx.repository` is resolved once, in `#call`, before the
         # isolation decision (lock vs. CAS+retry) — not here.
-        ctx.strategy = ctx.plan.strategy_for(capabilities: ctx.repository.capabilities)
+        ctx.strategy = ctx.plan.strategy_for(capabilities: ctx.capabilities)
         ctx.instance = step(:hydrate) { hydrate_for(ctx) }
       end
 
@@ -146,7 +149,7 @@ module Hecks
         # ensures. A shallow dup suffices: mutations replace fields (set,
         # arithmetic via Value#with, append builds a new array), never
         # edit a held value in place.
-        ctx.old_state = ctx.instance.state.dup unless ctx.command.ensures.empty?
+        ctx.old_state = ctx.state.dup unless ctx.command_ensures.empty?
         step(:apply_mutations) { apply_all_mutations(ctx) }
       end
 
@@ -156,8 +159,8 @@ module Hecks
       # target is written to the candidate; declaration order carries
       # no meaning, and build refuses a field written twice.
       def apply_all_mutations(ctx)
-        pre = ctx.instance.state.dup
-        ctx.command.mutations.each do |mutation|
+        pre = ctx.state.dup
+        ctx.command_mutations.each do |mutation|
           apply(ctx.instance, ctx.aggregate, mutation, ctx.args, pre)
         end
       end
@@ -165,7 +168,8 @@ module Hecks
       def step_advance_lifecycle(ctx)
         return unless ctx.transition
 
-        step(:advance_lifecycle) { ctx.instance[ctx.aggregate.lifecycle.field] = ctx.transition.target }
+        aggregate = ctx.aggregate
+        step(:advance_lifecycle) { ctx.instance[aggregate.lifecycle_field] = ctx.transition_target }
       end
 
       # A delegating command emits nothing of its own; its result is the

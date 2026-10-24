@@ -17,6 +17,10 @@ module Hecks
     # turned into code from prose: it is a comment citing its source, to become a `given` by hand.
     module InterviewDraft
       ACCEPTED = "accepted".freeze
+      # A run of anything but letters and digits: the gaps between the words of a free-text name.
+      NAME_GAP = /[^A-Za-z0-9]+/
+      # The first character of a word.
+      INITIAL = /\A./
 
       extend InterviewRecord
       extend InterviewAggregate
@@ -96,7 +100,10 @@ module Hecks
 
       # A free-text name as a PascalCase word safe to write into Ruby: `lend a book` is `LendABook`.
       # @api private
-      def word(text) = text.to_s.split(/[^A-Za-z0-9]+/).reject(&:empty?).map { |part| part.sub(/\A./, &:upcase) }.join
+      def word(text)
+        parts = text.to_s.split(NAME_GAP).reject(&:empty?)
+        parts.map { |part| part.sub(INITIAL, &:upcase) }.join
+      end
 
       # @api private
       def cite(interview, finding) = "#{interview[:reference]} ##{finding[:source]}:"

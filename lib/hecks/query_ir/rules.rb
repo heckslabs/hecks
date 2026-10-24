@@ -51,10 +51,10 @@ module Hecks
       end
 
       def duplicate_groups(all_rules)
-        all_rules.group_by { |r| [r.kind, r.description, r.canonical] }
-                 .map { |key, rules| [key, rules, declaration_count(rules)] }
-                 .select { |_, _, count| count > 1 }
-                 .map do |(kind, description, canonical), rules, _|
+        counted = all_rules.group_by { |r| [r.kind, r.description, r.canonical] }
+                           .map { |key, rules| [key, rules, declaration_count(rules)] }
+        counted.select { |_, _, count| count > 1 }
+               .map do |(kind, description, canonical), rules, _|
           { kind: kind, description: description, canonical: canonical, locations: rules.map(&:location) }
         end
       end

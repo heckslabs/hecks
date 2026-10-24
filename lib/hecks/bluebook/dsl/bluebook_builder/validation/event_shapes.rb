@@ -108,7 +108,8 @@ module Hecks
             end
 
             def piece_named(aggregate, owner_name)
-              owner_name.to_s.split(".").drop(1).reduce(aggregate) do |owner, name|
+              path = owner_name.to_s.split(".")
+              path.drop(1).reduce(aggregate) do |owner, name|
                 owner&.entities&.find { |e| e.hecks_name == name }
               end
             end

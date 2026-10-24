@@ -80,7 +80,8 @@ module Hecks
         return if relative.start_with?("target/") || !File.file?(path)
 
         stat = File.stat(path)
-        digest << "#{relative}\0#{stat.size}\0#{stat.mtime.to_i}.#{stat.mtime.nsec}\n"
+        mtime = stat.mtime
+        digest << "#{relative}\0#{stat.size}\0#{mtime.to_i}.#{mtime.nsec}\n"
       end
 
       # Holds an exclusive flock from `cargo build` through the copy-out: parallel sweeps share

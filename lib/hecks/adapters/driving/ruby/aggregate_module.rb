@@ -85,7 +85,8 @@ module Hecks
             end
 
             mod.define_singleton_method(:all) do |**opts|
-              dispatcher.registry.repository(domain, aggregate).all(**opts).map do |instance|
+              repository = dispatcher.registry.repository(domain, aggregate)
+              repository.all(**opts).map do |instance|
                 Handle.new(dispatcher: dispatcher, domain: domain, aggregate: aggregate, instance: instance)
               end
             end

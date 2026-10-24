@@ -5,6 +5,9 @@ module Hecks
         # The page around the sections: the document shell, the navigation rail and the front
         # matter.
         module Page
+          # A `@@NAME@@` marker in `SHELL`, capturing the name.
+          MARKER = /@@(\w+)@@/
+
           # The document; `@@NAME@@` markers are filled in by `fill`.
           SHELL = <<~HTML.freeze
             <!doctype html>
@@ -66,7 +69,7 @@ module Hecks
           # Fills each `@@NAME@@` marker in one pass, so a value is never itself searched for
           # markers.
           def fill(template, values)
-            template.gsub(/@@(\w+)@@/) { values.fetch(Regexp.last_match(1)) }
+            template.gsub(MARKER) { values.fetch(Regexp.last_match(1)) }
           end
 
           def rail(title, sections, slugs)

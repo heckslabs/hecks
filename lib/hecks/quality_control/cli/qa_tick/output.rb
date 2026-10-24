@@ -8,6 +8,15 @@ module Hecks
       # What a tick prints and logs: the sweep output condensed for stdout, the unabridged log file
       # and the closing report with the tick's exit status.
       module Output
+        # The header of the sweep report's operational-errors block.
+        OPERATIONAL_ERRORS_HEADER = /^OPERATIONAL ERRORS \(/
+
+        # The header of the sweep report's findings block.
+        FOUND_SOMETHING_HEADER = /^FOUND SOMETHING \(/
+
+        # The header of the sweep report's trace block.
+        TRACE_HEADER = /^QA_SWEEP_TRACE output /
+
         private
 
         def collapse_held_lines(text)
@@ -25,12 +34,12 @@ module Hecks
         # `QA_SWEEP_TRACE` output, when present, is routine per-phase timing with no finding in it,
         # so it is left out of stdout (still in the log).
         def condense_sweep_output(raw)
-          errors_at = raw.index(/^OPERATIONAL ERRORS \(/)
-          found_at = raw.index(/^FOUND SOMETHING \(/)
+          errors_at = raw.index(OPERATIONAL_ERRORS_HEADER)
+          found_at = raw.index(FOUND_SOMETHING_HEADER)
           protect_from = [errors_at, found_at].compact.min
           return collapse_held_lines(raw) if protect_from.nil?
 
-          trace_at = raw.index(/^QA_SWEEP_TRACE output /)
+          trace_at = raw.index(TRACE_HEADER)
           protected_block = raw[protect_from...(trace_at || raw.length)]
           "#{collapse_held_lines(raw[0...protect_from])}#{protected_block}#{trace_note(trace_at)}"
         end

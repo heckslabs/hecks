@@ -16,6 +16,9 @@ module Hecks
           def initialize(name, label, statuses, args = [], answering = []) = super
         end
 
+        # A path inside installed or vendored code, or git's own directory.
+        VENDORED_PATH = %r{/(node_modules|vendor|\.git)/}
+
         private
 
         # Runs one generated script, found for the record's project, from its own directory. Answers
@@ -26,7 +29,7 @@ module Hecks
           report = printed(result)
           return { report: { value: report } } if result.ok?
 
-          answer_or_refuse(script, result.status.exitstatus, report)
+          answer_or_refuse(script, exit_code(result), report)
         end
 
         # What the script printed to either stream, trimmed.
@@ -47,7 +50,7 @@ module Hecks
           beside = File.join(root, name)
           return beside if File.file?(beside)
 
-          found = Dir.glob(File.join(root, "**", name)).grep_v(%r{/(node_modules|vendor|\.git)/})
+          found = Dir.glob(File.join(root, "**", name)).grep_v(VENDORED_PATH)
           return found.first if found.one?
 
           raise ConsoleCapture::Failure, ambiguity(name, root, found.sort)
@@ -87,7 +90,12 @@ module Hecks
 
         def message_of(result)
           text = [result.err, result.out].map(&:strip).reject(&:empty?).join("\n")
-          text.empty? ? "the tool ended with status #{result.status.exitstatus}" : text
+          text.empty? ? "the tool ended with status #{exit_code(result)}" : text
+        end
+
+        def exit_code(result)
+          status = result.status
+          status.exitstatus
         end
       end
     end

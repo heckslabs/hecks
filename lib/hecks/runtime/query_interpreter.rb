@@ -144,8 +144,9 @@ module Hecks
       end
 
       def hop_reference_ids(record, hop)
-        held = record[hop.attribute.name]
-        (hop.attribute.list? ? Array(held) : [held]).compact
+        attribute = hop.attribute
+        held = record[attribute.name]
+        (attribute.list? ? Array(held) : [held]).compact
       end
 
       def hop_holds?(inner, reference_id, args, domain, hop)

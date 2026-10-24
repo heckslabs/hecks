@@ -14,9 +14,11 @@ module Hecks
             refusal_traces: @refusal_traces,
             mutation_traces: @mutation_traces, outbox_traces: @outbox_traces,
             saga_dispatches: @runtime.saga_dispatches, policy_dispatches: @runtime.policy_dispatches,
-            bluebook: @runtime.registry.bluebooks.values.first,
-            bluebooks: @runtime.registry.bluebooks.dup }
+            bluebook: registry.bluebooks.values.first,
+            bluebooks: registry.bluebooks.dup }
         end
+
+        def registry = @runtime.registry
 
         def events
           @runtime.events.map { |event| { name: event.name, aggregate: event.aggregate, id: event.id, payload: event.payload } }
@@ -27,7 +29,7 @@ module Hecks
         # runtime goes out of scope with the boot and the Memory rebind leaves no
         # real saga store for Properties.sagas_rehydrate_cleanly to read otherwise.
         def saga_instances
-          @runtime.registry.saga_instances.each_with_object({}) do |(pm_name, conversations), out|
+          registry.saga_instances.each_with_object({}) do |(pm_name, conversations), out|
             out[pm_name] = conversations.each_with_object({}) do |(correlation, instance), rows|
               rows[correlation] = { state: instance[:state], memory: Runtime::Value.materialize(instance[:memory]) }
             end
@@ -39,10 +41,10 @@ module Hecks
         # domain declares `for_each`, so the snapshot taken before each dispatch costs
         # nothing until one does.
         def fan_out_targets
-          @runtime.registry.bluebooks.each_with_object({}) do |(domain, bluebook), targets|
+          registry.bluebooks.each_with_object({}) do |(domain, bluebook), targets|
             bluebook.policies.select(&:fans_out?).each do |policy|
               query_domain, aggregate_name, = policy.for_each_route(domain)
-              targets[[query_domain, aggregate_name]] ||= @runtime.registry.bluebook(query_domain)&.aggregate(aggregate_name)
+              targets[[query_domain, aggregate_name]] ||= registry.bluebook(query_domain)&.aggregate(aggregate_name)
             end
           end
         end
@@ -52,7 +54,7 @@ module Hecks
             next unless aggregate
 
             snap[[fdomain, faggregate_name]] =
-              @runtime.registry.repository(fdomain, aggregate).all.to_h { |record| [record.id, record.state.dup] }
+              registry.repository(fdomain, aggregate).all.to_h { |record| [record.id, record.state.dup] }
           end
         end
       end

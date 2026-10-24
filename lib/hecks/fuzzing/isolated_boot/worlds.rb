@@ -9,6 +9,13 @@ module Hecks
         # The name of a `Hecks.bluebook` block.
         BLUEBOOK_NAME = /Hecks\.bluebook[\s(]+"([^"]+)"/
 
+        # A `projected_by "Adapter"` bind, with or without parentheses.
+        PROJECTED_BY_BIND = /\bprojected_by\s*\(?\s*"/
+
+        # A `persisted_by` bind naming its adapter as a literal or a local, on one line only:
+        # a newline ends the statement, and the next one must stay.
+        PERSISTED_BY_BIND = /persisted_by[ \t]*\(?[ \t]*(?:"[^"]+"|[a-z_]\w*)[ \t]*\)?/
+
         # Replaces every `.world` in the copy with one that declares only `default_adapter`,
         # so an aggregate left unbound by its hecksagon still falls back to `adapter_name`.
         def write_default_worlds!(copy, adapter_name)
@@ -87,10 +94,8 @@ module Hecks
         # broken, since `Registry#read_repository` falls back to the authoritative repo).
         def rewrite_bindings!(copy, adapter_name)
           Dir.glob(File.join(copy, "**", "*.hecksagon")).each do |path|
-            lines = File.readlines(path).grep_v(/\bprojected_by\s*\(?\s*"/)
-            # Horizontal space only: a newline ends the statement, and the next one must stay.
-            bind = /persisted_by[ \t]*\(?[ \t]*(?:"[^"]+"|[a-z_]\w*)[ \t]*\)?/
-            File.write(path, lines.join.gsub(bind, "persisted_by(\"#{adapter_name}\")"))
+            lines = File.readlines(path).grep_v(PROJECTED_BY_BIND)
+            File.write(path, lines.join.gsub(PERSISTED_BY_BIND, "persisted_by(\"#{adapter_name}\")"))
           end
         end
       end

@@ -27,8 +27,8 @@ module Hecks
         # `{"Domain::Aggregate" => {domain:, aggregate:, fields: [String]}}`
         # for every aggregate some query filters on, where `fields` is the
         # union of the stored fields those queries compare.
-        def build_query_bindings(runtime)
-          runtime.registry.bluebooks.each_with_object({}) do |(domain_name, bluebook), bindings|
+        def build_query_bindings(registry)
+          registry.bluebooks.each_with_object({}) do |(domain_name, bluebook), bindings|
             bluebook.aggregates.each do |aggregate|
               fields = aggregate.queries.flat_map { |query| bound_fields(query).values }.uniq
               next if fields.empty?

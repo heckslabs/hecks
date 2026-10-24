@@ -107,8 +107,7 @@ module Hecks
         IsolatedBoot.call(@domain_path, adapter: @adapter) do |copy|
           runtime = Hecks.boot(copy, environment: nil)
           catalog = build_catalog(runtime)
-          @verbs  = catalog.values_at(:creating, :instance, :entity_commands, :queries, :entity_queries, :read_models)
-                           .flatten.map { |entry| entry[:verb] }.uniq
+          @verbs  = catalog_verbs(catalog)
           generate_steps(runtime, catalog)
         end
       end

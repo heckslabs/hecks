@@ -23,7 +23,8 @@ module Hecks
           # @param plan [Settings::Plan] the resolved settings, with a `cdn`
           # @return [String] the CloudFront stack
           def edge_yaml(plan)
-            values = { "STACK" => plan.infra_name, "ALIASES" => plan.cdn.aliases.join(","),
+            cdn = plan.cdn
+            values = { "STACK" => plan.infra_name, "ALIASES" => cdn.aliases.join(","),
                        "ORIGIN_HEADER" => plan.origin_header, "ORIGIN_SECRET" => plan.origin_secret }
             template("edge.yaml.tmpl", values)
           end

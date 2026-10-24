@@ -6,6 +6,12 @@ module Hecks
   class Fqn
     class Invalid < ArgumentError; end
 
+    # A PascalCase command verb.
+    COMMAND_VERB = /\A[A-Z][A-Za-z0-9]*\z/
+
+    # A snake_case query verb.
+    QUERY_VERB = /\A[a-z][a-z0-9_]*\z/
+
     attr_reader :realm, :domain, :version, :aggregate, :verb, :kind
 
     # Builds the FQN of one command on an aggregate.
@@ -100,13 +106,13 @@ module Hecks
     #
     # @param name [String, Symbol, #to_s] the candidate verb
     # @return [Boolean] true if `name` matches the PascalCase command shape
-    def self.command_name?(name) = /\A[A-Z][A-Za-z0-9]*\z/.match?(name.to_s)
+    def self.command_name?(name) = COMMAND_VERB.match?(name.to_s)
 
     # Whether `name` is a valid query verb: snake_case.
     #
     # @param name [String, Symbol, #to_s] the candidate verb
     # @return [Boolean] true if `name` matches the snake_case query shape
-    def self.query_name?(name)   = /\A[a-z][a-z0-9_]*\z/.match?(name.to_s)
+    def self.query_name?(name)   = QUERY_VERB.match?(name.to_s)
 
     # @param realm [String, nil] deployment identity from the world, or nil for an
     #   unrealmed address

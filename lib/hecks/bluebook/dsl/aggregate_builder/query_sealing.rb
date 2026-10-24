@@ -26,7 +26,7 @@ module Hecks
           def seal_query(scope)
             query = scope.query
             query.wheres.each { |clause| seal_where_clause(scope, clause) }
-            seal_query_field(scope, query.order_by.field, ordering: true) if query.order_by
+            seal_query_field(scope, query.order_by_field, ordering: true) if query.order_by
             seal_query_argument(scope, query.limit&.value)
             seal_query_argument(scope, query.offset&.value)
           end
@@ -94,17 +94,18 @@ module Hecks
           # are inferred later by BluebookBuilder, once the chapter is owner-stamped.
           def infer_local_query_argument(scope, clause)
             name = clause.value
+            query = scope.query
             return unless name.is_a?(Symbol)
-            return if scope.query.attribute(name)
+            return if query.attribute(name)
             return if clause.field.to_s.include?("/")
 
             leaf = inferred_argument(scope, name, clause.field)
-            scope.query.attributes << leaf if leaf
+            query.attributes << leaf if leaf
           end
 
           def inferred_argument(scope, name, field)
             head, *nested = field.to_s.split(".")
-            return Attribute.new(name: name, type: String) if nested.empty? && scope.lifecycle&.field.to_s == head
+            return Attribute.new(name: name, type: String) if nested.empty? && scope.lifecycle_field.to_s == head
 
             root = field_named(scope, head)
             found = root && leaf_of(root, nested)

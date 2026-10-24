@@ -68,11 +68,11 @@ module Hecks
       #   stringified, each reduction merged in only when declared, and
       #   `extra_options_to_h`'s own dynamic tail merged last
       def to_h
-        super
-          .merge(aggregate_heads: @aggregate_heads.map { |head| head.merge(as: head[:as].to_s) })
-          .merge(group_by: @group_by.map { |row| row.merge(field: row[:field].to_s) })
-          .merge(reduction_pairs)
-          .merge(extra_options_to_h)
+        rows = {
+          aggregate_heads: @aggregate_heads.map { |head| head.merge(as: head[:as].to_s) },
+          group_by:        @group_by.map { |row| row.merge(field: row[:field].to_s) }
+        }
+        super.merge(rows).merge(reduction_pairs).merge(extra_options_to_h)
       end
 
       private

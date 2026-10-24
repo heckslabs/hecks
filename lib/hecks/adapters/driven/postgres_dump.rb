@@ -1,6 +1,7 @@
 require "open3"
 require "securerandom"
 require_relative "postgres_dump/connection"
+require_relative "../../text"
 
 module Hecks
   module Adapters
@@ -13,9 +14,12 @@ module Hecks
       # What a verified dump holds: `tables` is each table's row count, by name.
       Result = Struct.new(:tables, keyword_init: true)
 
+      # A schema name that needs no quoting: a letter or underscore, then word characters.
+      PLAIN_IDENTIFIER = /\A[a-z_][a-z0-9_]*\z/i
+
       # Splits `url` and `verify_url` into connections and validates `schema`.
       def initialize(url:, schema:, verify_url: nil)
-        raise Error, "schema #{schema.inspect} is not a plain identifier" unless schema.to_s.match?(/\A[a-z_][a-z0-9_]*\z/i)
+        raise Error, "schema #{schema.inspect} is not a plain identifier" unless schema.to_s.match?(PLAIN_IDENTIFIER)
 
         @schema = schema
         @source = Connection.new(url)
@@ -32,10 +36,16 @@ module Hecks
         verify_restore(dest, expected)
         Result.new(tables: expected)
       rescue PG::Error => e
-        raise Error, "database error (#{e.class}): #{e.message.lines.first.to_s.strip}"
+        raise Error, "database error (#{e.class}): #{Text.first_line(e.message)}"
       end
 
       private
+
+      # The first few lines of a tool's stderr, enough to say why it failed.
+      def opening_lines(text)
+        head = text.lines.first(3)
+        head.join.strip
+      end
 
       def source_counts = counting(@source) { |db| counts(db) }
 
@@ -89,7 +99,7 @@ module Hecks
 
       def run(tool, connection, *)
         _out, err, status = Open3.capture3(connection.env, tool, *)
-        raise Error, "#{tool} failed: #{err.lines.first(3).join.strip}" unless status.success?
+        raise Error, "#{tool} failed: #{opening_lines(err)}" unless status.success?
       rescue Errno::ENOENT
         raise Error, "#{tool} is not on PATH"
       end

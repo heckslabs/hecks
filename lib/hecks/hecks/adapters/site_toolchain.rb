@@ -164,7 +164,7 @@ module Hecks
         text = file ? read_saved(file) : fetch(id)
         JSON.parse(text)
       rescue JSON::ParserError => e
-        raise ConsoleCapture::Failure, "the live configuration is not JSON: #{e.message.lines.first.strip}"
+        raise ConsoleCapture::Failure, "the live configuration is not JSON: #{Text.first_line(e.message)}"
       end
 
       def read_saved(path)
@@ -181,11 +181,12 @@ module Hecks
         raise ConsoleCapture::Failure, "aws cloudfront get-distribution-config failed: #{message_of(result)}"
       end
 
-      def words(argument) = plain(argument).to_s.split(",").map(&:strip).reject(&:empty?)
+      def words(argument) = Text.comma_list(plain(argument))
 
       def message_of(result)
         text = [result.err, result.out].map(&:strip).reject(&:empty?).join("\n")
-        text.empty? ? "the tool ended with status #{result.status.exitstatus}" : text
+        status = result.status
+        text.empty? ? "the tool ended with status #{status.exitstatus}" : text
       end
 
       # The tool runs from the tool's own root, so a path the caller gave relative to where they

@@ -9,6 +9,18 @@ module Hecks
       # The repository root, where the parser's build lands under `rust/parser/target/`.
       ROOT = File.expand_path("../../..", __dir__).freeze
 
+      # A bluebook file's path.
+      BLUEBOOK_FILE = /\.bluebook\z/
+
+      # A `Hecks.bluebook "Name"` header line, capturing the chapter's name.
+      CHAPTER_HEADER = /\A\s*Hecks\.bluebook\s+"([^"]+)"/
+
+      # A line number: digits and nothing else.
+      LINE_NUMBER = /\A\d+\z/
+
+      # A message ending in `(expected one of: a, b)`, capturing the message and the list.
+      EXPECTED_SUFFIX = /\A(.*) \(expected one of: (.*)\)\z/
+
       # Raised when no `hecks-parse` binary can be found.
       class ParserMissing < StandardError; end
 
@@ -32,14 +44,17 @@ module Hecks
       # @return [Hash{String => Array<String>}] relative bluebook paths by the chapter their
       #   header names
       def bluebooks(stage)
-        Workspace.files(stage).grep(/\.bluebook\z/).group_by { |relative| chapter_name(File.join(stage, relative)) }
-                 .reject { |name, _| name.nil? }
+        bluebook_files(stage).group_by { |relative| chapter_name(File.join(stage, relative)) }
+                             .reject { |name, _| name.nil? }
       end
+
+      # @api private
+      def bluebook_files(stage) = Workspace.files(stage).grep(BLUEBOOK_FILE)
 
       # @param path [String] a bluebook file
       # @return [String, nil] the name its `Hecks.bluebook "Name"` header declares
       def chapter_name(path)
-        File.foreach(path) { |line| return Regexp.last_match(1) if line =~ /\A\s*Hecks\.bluebook\s+"([^"]+)"/ }
+        File.foreach(path) { |line| return Regexp.last_match(1) if line =~ CHAPTER_HEADER }
         nil
       end
 
@@ -49,7 +64,8 @@ module Hecks
         _out, err, status = Open3.capture3(binary, "chapter", "--chapter", chapter, *paths)
         return nil if status.success?
 
-        diagnostic(err.lines.first.to_s.chomp, stage)
+        first_line = err.lines.first
+        diagnostic(first_line.to_s.chomp, stage)
       end
 
       # Reads `<file>:<line>: <message>` with an optional `(expected one of: a, b, c)` suffix.
@@ -57,11 +73,11 @@ module Hecks
       def diagnostic(line, stage)
         rest = line.delete_prefix("#{stage}/")
         file, number, message = rest.split(":", 3)
-        return { file: nil, line: nil, message: line, expected: [] } unless number.to_s.strip.match?(/\A\d+\z/)
+        return { file: nil, line: nil, message: line, expected: [] } unless number.to_s.strip.match?(LINE_NUMBER)
 
         message = message.to_s.strip
         expected = []
-        if (found = message.match(/\A(.*) \(expected one of: (.*)\)\z/))
+        if (found = message.match(EXPECTED_SUFFIX))
           message = found[1]
           expected = found[2].split(", ")
         end

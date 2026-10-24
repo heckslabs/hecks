@@ -6,6 +6,9 @@ module Hecks
       class LifecycleBuilder
         GRAMMAR_CONTEXT = "Lifecycle".freeze
 
+        # A lowercase word: a letter, then letters, digits and underscores (`holds_seat`).
+        LOWERCASE_WORD = /\A[a-z][a-z0-9_]*\z/
+
         include WordGate
 
         # @param field [Symbol, String] the attribute the state machine lives on, such as `:status`
@@ -29,7 +32,7 @@ module Hecks
         #   declared twice, no states, or a state named twice in one mark
         def mark_impl(name, *states)
           mark = name.to_s
-          unless mark.match?(/\A[a-z][a-z0-9_]*\z/)
+          unless mark.match?(LOWERCASE_WORD)
             raise Malformed, "lifecycle :#{@field} mark #{name.inspect} is not a lowercase word (such as :holds_seat)"
           end
           raise Malformed, "lifecycle :#{@field} declares mark :#{mark} twice" if @marks.key?(mark)

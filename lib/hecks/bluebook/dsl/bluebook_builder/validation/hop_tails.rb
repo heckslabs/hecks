@@ -8,6 +8,13 @@ module Hecks
           HopSite = Struct.new(:aggregate, :query, :clause, :target) do
             # @return [String] how a refusal names the asking query: `Aggregate.Query`
             def label = "#{aggregate.hecks_name}.#{query.hecks_name}"
+
+            # @return [String, Symbol] the hopped field the clause asks about, as written
+            def asked_field = clause.field
+
+            # @param name [String] an attribute name
+            # @return [Bluebook::Attribute, nil] the hop target's attribute by that name, or `nil`
+            def target_attribute(name) = target.attributes.find { |candidate| candidate.name.to_s == name }
           end
           private_constant :HopSite
 
@@ -20,21 +27,21 @@ module Hecks
             # nothing), asked of the hop's target.
             def validate_hop_tail!(site, tail)
               name, *nested = tail.to_s.split(".")
-              attribute = site.target.attributes.find { |candidate| candidate.name.to_s == name }
+              attribute = site.target_attribute(name)
               return validate_hop_comparator!(site, attribute, nested) if hop_tail_scalar?(site.target, attribute, name, nested)
 
               refuse_hop_tail!(site, attribute, tail, nested)
             end
 
             def hop_tail_scalar?(target, attribute, name, nested)
-              return attribute || target.lifecycle&.field.to_s == name if nested.empty?
+              return attribute || target.lifecycle_field.to_s == name if nested.empty?
 
               attribute && QuerySpecification::FieldPath.scalar_leaf?(attribute, nested) { |type| target.value_object(type) }
             end
 
             def refuse_hop_tail!(site, attribute, tail, nested)
               target = site.target
-              asks = "#{site.label} asks about #{site.clause.field}, which hops to #{target.hecks_name} " \
+              asks = "#{site.label} asks about #{site.asked_field}, which hops to #{target.hecks_name} " \
                      "and then asks about #{tail}, which"
               raise Malformed, "#{asks} #{hop_tail_fault(target, attribute, nested)}"
             end
@@ -57,13 +64,14 @@ module Hecks
             # `AggregateBuilder#seal_ordered_comparator` deferred.
             def validate_hop_comparator!(site, attribute, nested)
               clause = site.clause
+              target = site.target
               return unless AggregateBuilder::ORDERED_COMPARATORS.include?(clause.op.to_s.to_sym)
-              return if attribute && numeric_hop_leaf?(site.target, attribute, nested)
+              return if attribute && numeric_hop_leaf?(target, attribute, nested)
 
               held = attribute ? "holds no number" : "is the lifecycle field, which holds text"
               raise Malformed,
                     "#{site.label} compares #{clause.field} with " \
-                    "#{clause.op} after hopping to #{site.target.hecks_name}, but the field it lands " \
+                    "#{clause.op} after hopping to #{target.hecks_name}, but the field it lands " \
                     "on #{held} — an ordered comparison needs a numeric field, and over " \
                     "anything else the adapters answer differently or not at all"
             end

@@ -10,6 +10,9 @@ module Hecks
 
       projects_as :model, declares: "Bluebook", emits: :files
 
+      # One comment line's worth of prose: up to 62 characters ending at a space or the end.
+      COMMENT_LINE = /.{1,62}(?:\s|$)/
+
       # Per-construct Ruby facts the grammar does not state (defaults, coercion, class shape).
       HOST = {
         "Policy" => {
@@ -103,7 +106,8 @@ module Hecks
       #   `Deviations` marks as parent-ref, judge-only, off-the-wire, dynamic-tail,
       #   folded, or unpacked
       def emitted_fields(bluebook, name)
-        declared = bluebook.aggregate(name).attributes.map(&:name).reject { |f| Deviations.parent_ref?(f) }
+        attributes = bluebook.aggregate(name).attributes
+        declared = attributes.map(&:name).reject { |f| Deviations.parent_ref?(f) }
         declared - omitted_fields(name)
       end
 
@@ -165,7 +169,7 @@ module Hecks
       #
       # @param text [String] the prose to wrap
       # @return [String] the wrapped text, its lines joined by `"\n# "`
-      def wrap(text) = text.scan(/.{1,62}(?:\s|$)/).map(&:strip).join("\n# ")
+      def wrap(text) = text.scan(COMMENT_LINE).map(&:strip).join("\n# ")
     end
   end
 end

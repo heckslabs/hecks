@@ -18,10 +18,12 @@ module Hecks
           File.read(File.join(__dir__, "projection.json")), symbolize_names: true
         ).freeze
 
-        OPERATORS = PROJECTION.fetch(:operators)
-                              .select { |row| row[:category] == "comparison" }
-                              .map { |row| Operator.new(**row.slice(:symbol, :compares_less_than, :compares_equal, :negated)) }
-                              .freeze
+        # The projection's comparison-operator rows, as plain Hashes.
+        COMPARISON_ROWS = PROJECTION.fetch(:operators).select { |row| row[:category] == "comparison" }
+
+        OPERATORS = COMPARISON_ROWS
+                    .map { |row| Operator.new(**row.slice(:symbol, :compares_less_than, :compares_equal, :negated)) }
+                    .freeze
 
         COMPARISONS = OPERATORS.map(&:symbol).freeze
 
@@ -30,7 +32,10 @@ module Hecks
         Or      = Struct.new(:left, :right, keyword_init: true)
         And     = Struct.new(:left, :right, keyword_init: true)
         Not     = Struct.new(:node, keyword_init: true)
-        Compare = Struct.new(:operator, :left, :right, keyword_init: true)
+        Compare = Struct.new(:operator, :left, :right, keyword_init: true) do
+          # @return [String] the comparison's operator as written, such as `">="`
+          def operator_symbol = operator.symbol
+        end
         Include = Struct.new(:haystack, :needle, keyword_init: true)
         Resolve = Struct.new(:expr, keyword_init: true)
 

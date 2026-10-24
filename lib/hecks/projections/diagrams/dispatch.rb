@@ -31,11 +31,13 @@ module Hecks
 
         # `on_event` may be aggregate-qualified while `emits` never is, so match on the bare tail.
         def trigger_edge(policy)
-          bare_event = policy.on_event.to_s.split(".").last
+          bare_event = last_segment(policy.on_event)
           aggregate_name, command_name = policy.trigger_command.to_s.split(".", 2)
           label = policy.target_domain ? "triggers in #{policy.target_domain}" : "triggers"
           %(    #{event_node(bare_event)} -->|#{label}| #{command_node(aggregate_name, command_name)})
         end
+
+        def last_segment(dotted) = dotted.to_s.split(".").last
 
         # Qualified by aggregate since two aggregates may share a command name.
         #

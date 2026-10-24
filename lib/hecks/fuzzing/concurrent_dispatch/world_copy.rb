@@ -8,6 +8,8 @@ module Hecks
       # Copies a target domain, rebinds it to a shared `PostgresEra` schema and boots it there.
       module WorldCopy
         FUZZ_WORLD_FILE = "hecks_fuzz_postgres_era.world".freeze
+        # A `Hecks.hecksagon "Name"` declaration, capturing the name.
+        HECKSAGON_DECLARATION = /Hecks\.hecksagon\s+"([^"]+)"/
 
         # Same copy-and-rebind IsolatedBoot.call(..., adapter: :postgres_era) does,
         # minus the schema wipe — this schema already holds what setup wrote, and
@@ -43,7 +45,7 @@ module Hecks
         def hecksagon_names_by_dir(copy)
           worlds_by_dir = Hash.new { |h, k| h[k] = [] }
           Dir.glob(File.join(copy, "**", "*.hecksagon")).each do |hecksagon_path|
-            names = File.read(hecksagon_path).scan(/Hecks\.hecksagon\s+"([^"]+)"/).flatten
+            names = File.read(hecksagon_path).scan(HECKSAGON_DECLARATION).flatten
             worlds_by_dir[File.dirname(hecksagon_path)].concat(names)
           end
           worlds_by_dir

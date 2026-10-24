@@ -40,7 +40,8 @@ module Hecks
             def distribution_id = ids[:distribution]
             def session_secret_id = ids[:session_secret]
             def ingress_from_alb_id = ids[:ingress_from_alb]
-            def default_target_group_id = layout.default.target_group_id
+            def default_container = layout.default
+            def default_target_group_id = default_container.target_group_id
 
             def cluster_name = names[:cluster]
             def log_group_name = names[:log_group]

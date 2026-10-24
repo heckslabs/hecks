@@ -6,6 +6,9 @@ module Hecks
       module Structure
         module_function
 
+        # A run of characters a Mermaid node id may not hold.
+        NOT_ID_CHARACTERS = /[^A-Za-z0-9]+/
+
         # `has_many`/`has_one` read from the owning side; `belongs_to`/`reference_to` read
         # from the target's side, since a bare reference does not promise uniqueness.
         #
@@ -22,7 +25,7 @@ module Hecks
         end
 
         def relationship_edge(holder, attribute)
-          target = attribute.type.target_name
+          target = attribute.target_name
           case attribute.relationship
           when "has_many"
             %(    #{holder.hecks_name} ||--o{ #{target} : "#{attribute.name}")
@@ -52,7 +55,7 @@ module Hecks
 
         # A role is free text ("Back office"), so only its id is sanitized; the label keeps
         # the text.
-        def role_id(role_name) = "role_#{role_name.to_s.gsub(/[^A-Za-z0-9]+/, "_")}"
+        def role_id(role_name) = "role_#{role_name.to_s.gsub(NOT_ID_CHARACTERS, "_")}"
 
         # Walks `bluebook.aggregates`, not `holders`: an entity has no `ports` method.
         #

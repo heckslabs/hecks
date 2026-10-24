@@ -131,10 +131,16 @@ module Hecks
       def configured_databases
         named = CONFIGURED_DATABASES.filter_map { |variable| ENV.fetch(variable, nil) }
         url = ENV.fetch("DATABASE_URL", nil)
-        named << URI.parse(url).path.to_s.delete_prefix("/") if url && !url.empty?
+        named << database_name(url) if url && !url.empty?
         named.reject(&:empty?)
       rescue URI::InvalidURIError
         named
+      end
+
+      # The database a `postgres://` URL names: its path, without the leading slash.
+      def database_name(url)
+        path = URI.parse(url).path
+        path.to_s.delete_prefix("/")
       end
 
       def named(held)

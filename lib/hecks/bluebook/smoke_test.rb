@@ -28,7 +28,8 @@ module Hecks
         Dir.mktmpdir("hecks-smoke-") do |scratch|
           isolate!(dir, scratch)
           dispatcher = Hecks.boot(scratch, install_driving: false)
-          domain     = dispatcher.registry.bluebooks.keys.first
+          registry   = dispatcher.registry
+          domain     = registry.bluebooks.keys.first
           next [] unless domain
 
           smoke_domain(dispatcher, domain)
@@ -83,7 +84,8 @@ module Hecks
       # @return [Boolean] whether the creating command dispatched; a refusal is recorded instead
       def smoke_created?(run, aggregate, command, args)
         result = run.dispatcher.dispatch_flat("#{run.domain}::#{aggregate.name}.#{command.hecks_name}", args)
-        run.created[aggregate.name] = result.instance.id
+        created = result.instance
+        run.created[aggregate.name] = created.id
         true
       rescue StandardError => e
         record_failure(run, aggregate.name, command.hecks_name, e)

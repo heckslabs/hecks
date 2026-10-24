@@ -8,6 +8,10 @@ module Hecks
       GEM_LINE = /^\s*gem\s+["']hecks["'](?<rest>.*)$/
       SOURCE_OPTION = /\b(?:path|git|github|gitlab|bitbucket|branch|ref|tag):/
       LOCKED = /^    hecks \((?<version>[^)]+)\)/
+      # A quoted argument on a gem line, captured without its quotes.
+      QUOTED = /["']([^"']+)["']/
+      # A version constraint such as "~> 3.1" or "4.0.0", as opposed to an option value.
+      VERSION_CONSTRAINT = /\A\s*(?:[~><=!]+\s*)?\d/
 
       # What `resolve` found.
       #
@@ -43,8 +47,8 @@ module Hecks
       private
 
       def gemfiles(root)
-        Dir.glob("**/Gemfile", base: root).reject { |rel| rel.include?("node_modules/") }.sort
-           .map { |rel| File.join(root, rel) }
+        found = Dir.glob("**/Gemfile", base: root).reject { |rel| rel.include?("node_modules/") }
+        found.sort.map { |rel| File.join(root, rel) }
       end
 
       def pin_for(gemfile, root)
@@ -77,7 +81,7 @@ module Hecks
       end
 
       def newest_allowed(rest, rel)
-        constraints = rest.scan(/["']([^"']+)["']/).flatten.grep(/\A\s*(?:[~><=!]+\s*)?\d/)
+        constraints = rest.scan(QUOTED).flatten.grep(VERSION_CONSTRAINT)
         version = @published.newest_satisfying(Gem::Requirement.new(*constraints))
         raise Error, "no published hecks release satisfies the constraint in #{rel}" unless version
 

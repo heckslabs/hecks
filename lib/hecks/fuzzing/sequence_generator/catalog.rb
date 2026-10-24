@@ -14,18 +14,25 @@ module Hecks
         # declares, and the aggregates some creating command can make (`satisfiable?` only waits
         # on these).
         def build_catalog(runtime)
-          catalog = catalog_entries(runtime)
+          registry = runtime.registry
+          catalog = catalog_entries(registry)
 
-          catalog.merge(populators: populators(runtime), query_bindings: build_query_bindings(runtime),
-                        roles: command_roles(catalog), grant_verbs: grant_verbs(runtime),
+          catalog.merge(populators: populators(registry), query_bindings: build_query_bindings(registry),
+                        roles: command_roles(catalog), grant_verbs: grant_verbs(registry),
                         creatable: catalog[:creating].to_set { |entry| entry[:aggregate].hecks_name })
         end
 
+        # Every verb the catalog offers, once each.
+        def catalog_verbs(catalog)
+          entries = catalog.values_at(:creating, :instance, :entity_commands, :queries, :entity_queries, :read_models)
+          entries.flatten.map { |entry| entry[:verb] }.uniq
+        end
+
         # The creating, instance, entity, query and report entries of every loaded domain.
-        def catalog_entries(runtime)
+        def catalog_entries(registry)
           entries = { creating: [], instance: [], entity_commands: [], queries: [], entity_queries: [],
                       read_models: [] }
-          runtime.registry.bluebooks.each do |domain_name, bluebook|
+          registry.bluebooks.each do |domain_name, bluebook|
             bluebook.aggregates.each { |aggregate| catalog_aggregate(domain_name, aggregate, entries) }
 
             # Reports use the bare "Domain.report_name" form, which `Dispatcher#query`
@@ -52,15 +59,16 @@ module Hecks
         end
 
         def command_roles(catalog)
-          (catalog[:creating] + catalog[:instance] + catalog[:entity_commands])
-            .filter_map { |e| e[:command].role }.map(&:to_s).reject(&:empty?).uniq.sort
+          commands = catalog[:creating] + catalog[:instance] + catalog[:entity_commands]
+          roles = commands.filter_map { |e| e[:command].role }.map(&:to_s)
+          roles.reject(&:empty?).uniq.sort
         end
 
-        def grant_verbs(runtime)
-          runtime.registry.authorization_providers
-                 .filter_map { |chapter| chapter.provided_verb(Bluebook::Capabilities::AUTHORIZATION, :grant) }
-                 .sort
+        def grant_verbs(registry)
+          registry.authorization_providers.filter_map { |chapter| grant_verb(chapter) }.sort
         end
+
+        def grant_verb(chapter) = chapter.provided_verb(Bluebook::Capabilities::AUTHORIZATION, :grant)
 
         # Indexes every entity at every depth; `chain:` is the whole hop list
         # (`[Board, Card]`) and `entity:` its last hop.
@@ -102,8 +110,8 @@ module Hecks
         # path for an entity-level one. `identity_arguments:` lists every
         # identity head sourced from a command argument; `identity_argument:`
         # is the single-head reading the auto-mint prediction keys on.
-        def populators(runtime)
-          runtime.registry.bluebooks.each_value.flat_map do |bluebook|
+        def populators(registry)
+          registry.bluebooks.each_value.flat_map do |bluebook|
             bluebook.aggregates.flat_map do |aggregate|
               owners = [[aggregate, []]]
               each_entity_chain(aggregate) { |chain| owners << [chain.last, chain] }

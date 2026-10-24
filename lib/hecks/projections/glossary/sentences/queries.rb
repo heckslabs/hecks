@@ -70,7 +70,8 @@ module Hecks
           end
 
           def nulls(query, things, label)
-            mode = query.null_semantics&.mode.to_s
+            null_semantics = query.null_semantics
+            mode = null_semantics&.mode.to_s
             return "" unless %w[first last].include?(mode)
 
             ", with #{things} that have no #{label} #{mode}"

@@ -90,7 +90,8 @@ module Hecks
       end
 
       def head_rows(run, head, aggregate)
-        return select_related(aggregate, run.projected) unless head[:aggregate] == run.model.reference_target
+        model = run.model
+        return select_related(aggregate, run.projected) unless head[:aggregate] == model.reference_target
 
         [select_projected(aggregate, run.reference_id) || raise(Runtime::NotFound, missing_root_wording(run, head))]
       end
@@ -126,7 +127,7 @@ module Hecks
       # Every (reference attribute, id) pair by which `aggregate` points at one projected source.
       def reference_matches(aggregate, source)
         references = aggregate.attributes.select do |attribute|
-          attribute.reference? && attribute.type.target_name == source[:aggregate].to_s
+          attribute.target_name == source[:aggregate].to_s
         end
         return [] if references.empty?
 
@@ -167,7 +168,7 @@ module Hecks
 
       # A NULL column with no attribute reads back absent, except the lifecycle field.
       def unset_projected?(aggregate, name, attribute, raw)
-        attribute.nil? && raw.nil? && aggregate.lifecycle&.field&.to_sym != name.to_sym
+        attribute.nil? && raw.nil? && aggregate.lifecycle_field&.to_sym != name.to_sym
       end
 
       def decode_column(aggregate, attribute, raw)

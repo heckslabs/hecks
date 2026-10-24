@@ -25,6 +25,9 @@ module Hecks
 
         projects_as :site_cms_editor, emits: :files
 
+        # A `__NAME__` placeholder, captured with its newline when it stands alone on its line.
+        PLACEHOLDER = /^(__[A-Z_]+__)\n|__[A-Z_]+__/
+
         # Where the template files are.
         TEMPLATES = File.join(__dir__, "cms_editor", "templates")
 
@@ -114,7 +117,7 @@ module Hecks
         #   like a placeholder is left as it is; a placeholder alone on its line whose text is empty
         #   takes the line with it
         def fill(text, tokens)
-          text.gsub(/^(__[A-Z_]+__)\n|__[A-Z_]+__/) do
+          text.gsub(PLACEHOLDER) do
             line = Regexp.last_match(1)
             token = line || Regexp.last_match(0)
             replacement(tokens.fetch(token, token), alone: !line.nil?)

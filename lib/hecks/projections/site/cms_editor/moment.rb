@@ -17,13 +17,15 @@ module Hecks
           # `format`, `Season` and `Combat` do not.
           AT = /(?:_at|[a-z0-9]At)\z/
           ON = /(?:_on|[a-z0-9]On)\z/
+          # A name that says it counts from the epoch, in any case.
+          EPOCH = /epoch/i
 
           module_function
 
           # @param names [Array<String>] the names the integer goes by
           # @return [String, nil] `"datetime"`, `"date"`, or nil when the integer is not a moment
           def widget(names)
-            return "datetime" if names.any? { |name| AT.match?(name) || name.match?(/epoch/i) }
+            return "datetime" if names.any? { |name| AT.match?(name) || name.match?(EPOCH) }
 
             "date" if names.any? { |name| ON.match?(name) }
           end

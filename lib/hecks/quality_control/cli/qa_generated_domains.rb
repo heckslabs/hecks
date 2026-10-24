@@ -37,6 +37,9 @@ module Hecks
       include Reporting
       include Blueprints
 
+      # The `Hecks.bluebook` line that ends the dials preamble of the ledger's bluebook.
+      BLUEBOOK_DECLARATION = /^Hecks\.bluebook/
+
       EXIT_OK = 0
       EXIT_ERROR = 1
       EXIT_FOUND = 2
@@ -98,7 +101,7 @@ module Hecks
       # @return [Boolean] false when the dials turn the step off, true once they are applied
       def dials_on?
         dials_path = File.join(@root, "lib/hecks/quality_control/quality_control.bluebook")
-        eval(File.read(dials_path).split(/^Hecks\.bluebook/).first, TOPLEVEL_BINDING, dials_path)
+        eval(File.read(dials_path).split(BLUEBOOK_DECLARATION).first, TOPLEVEL_BINDING, dials_path)
         # rubocop:enable Security/Eval
         per_tick = Integer(@env.fetch("QA_GENERATED_DOMAINS_PER_TICK", dial(:GENERATED_DOMAINS_PER_TICK, 0)))
         if per_tick.zero?

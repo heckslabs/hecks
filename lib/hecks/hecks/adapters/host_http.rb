@@ -50,9 +50,10 @@ module Hecks
         file = required(held[:expected], "no allow-list file to compare the era with")
         timeout = required(held[:timeout], "no timeout to wait for the host with")
         finding = CLI::CheckEra.assess(plain(held[:host]), file, timeout: timeout.to_f)
+        verdict = finding.verdict
 
-        { era: { value: finding.verdict.era }, version: { value: finding.version },
-          verdict: { value: finding.verdict.status.to_s }, report: { value: finding.line } }
+        { era: { value: verdict.era }, version: { value: finding.version },
+          verdict: { value: verdict.status.to_s }, report: { value: finding.line } }
       end
 
       private

@@ -71,7 +71,7 @@ module Hecks
 
             # Built the same way an aggregate id itself is built (chapter +
             # name), because `repository.find` resolves against that same id.
-            Naming.identity([aggregate_id.split(Naming::IDENTITY_JOIN).first, row.type.target_name])
+            Naming.identity([aggregate_id.split(Naming::IDENTITY_JOIN).first, row.target_name])
           end
 
           # Self-describing so the type survives the round trip (bare `to_s`

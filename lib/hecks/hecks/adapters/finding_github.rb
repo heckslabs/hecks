@@ -19,6 +19,9 @@ module Hecks
       # The environment variable that names the repository when no setting does.
       REPOSITORY_VARIABLE = "HECKS_FINDINGS_REPO"
 
+      # The end of an issue's URL, capturing its number.
+      ISSUE_NUMBER = %r{/issues/(\d+)\z}
+
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] `repository:` names the `owner/name` to drive
       # @param root [String, nil] unused
@@ -35,7 +38,7 @@ module Hecks
       #   issue URL
       def open_issue(**held)
         out = gh("issue", "create", "--title", plain(held[:title]).to_s, "--body", plain(held[:body]).to_s)
-        number = out.lines.last.to_s.strip[%r{/issues/(\d+)\z}, 1]
+        number = Text.last_lines(out, 1)[ISSUE_NUMBER, 1]
         raise Error, "gh issue create printed no issue URL: #{out.strip.inspect}" unless number
 
         { issue_number: { value: number.to_i } }

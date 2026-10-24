@@ -94,8 +94,13 @@ module Hecks
 
         # Every capability name a loaded chapter provides that the language defines no contract for.
         def package_capabilities(registry)
-          registry.bluebooks.values.flat_map { |chapter| chapter.provides.map(&:capability) }.uniq.sort
-                  .reject { |capability| Bluebook::Capabilities.language_defined?(capability) }
+          provided_capabilities(registry).reject { |capability| Bluebook::Capabilities.language_defined?(capability) }
+        end
+
+        # Every capability name a loaded chapter provides, once each, sorted.
+        def provided_capabilities(registry)
+          chapters = registry.bluebooks.values
+          chapters.flat_map { |chapter| chapter.provides.map(&:capability) }.uniq.sort
         end
 
         # The leading aggregate name of a qualified verb, or `nil` when there is no verb.

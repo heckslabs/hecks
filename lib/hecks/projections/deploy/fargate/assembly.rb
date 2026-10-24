@@ -11,6 +11,11 @@ module Hecks
         module Assembly
           module_function
 
+          # The body of a template's `Resources` section, up to `Outputs`.
+          RESOURCES_SECTION = /^Resources:\n(.*?)^Outputs:/m
+          # The body of a template's `Parameters` section, up to `Resources`.
+          PARAMETERS_SECTION = /^Parameters:\n(.*?)^Resources:/m
+
           # Replaces every optional-section marker in a rendered template.
           def apply(template, plan, context)
             text = override_domain_env(template, plan.domain_env)
@@ -35,8 +40,8 @@ module Hecks
           private_class_method :without_default
 
           def check_duplicates!(template)
-            resources = template[/^Resources:\n(.*?)^Outputs:/m, 1].to_s
-            parameters = template[/^Parameters:\n(.*?)^Resources:/m, 1].to_s
+            resources = template[RESOURCES_SECTION, 1].to_s
+            parameters = template[PARAMETERS_SECTION, 1].to_s
             repeated = Yaml.duplicate_keys(resources) + Yaml.duplicate_keys(parameters)
             return if repeated.empty?
 

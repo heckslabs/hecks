@@ -4,6 +4,15 @@ module Hecks
       module Html
         # Reads the Markdown subset the glossary projector emits into `Html::Block`s.
         module Parser
+          # The line that opens a Mermaid code fence.
+          MERMAID_FENCE = /\A```mermaid/
+          # A heading line of level one to four: its hashes, then its text.
+          HEADING = /\A(\#{1,4}) (.+)\z/
+          # A block-quote line.
+          QUOTE = /\A> /
+          # A bulleted list item line.
+          LIST_ITEM = /\A- /
+
           module_function
 
           # Parses the Markdown subset the glossary projector emits into blocks.
@@ -24,10 +33,10 @@ module Hecks
             return [nil, index + 1] if line.strip.empty?
 
             case line
-            when /\A```mermaid/ then fence(lines, index)
-            when /\A(\#{1,4}) (.+)\z/ then [heading(Regexp.last_match), index + 1]
-            when /\A> / then [Block.new(type: :quote, text: line[2..]), index + 1]
-            when /\A- / then list(lines, index)
+            when MERMAID_FENCE then fence(lines, index)
+            when HEADING then [heading(Regexp.last_match), index + 1]
+            when QUOTE then [Block.new(type: :quote, text: line[2..]), index + 1]
+            when LIST_ITEM then list(lines, index)
             else paragraph(lines, index)
             end
           end

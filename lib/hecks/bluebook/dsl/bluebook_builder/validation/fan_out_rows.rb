@@ -17,7 +17,7 @@ module Hecks
             def fan_out_row_names(policy, aggregates, target)
               return nil if policy.for_each.to_s.empty? || policy.for_each.to_s.include?("::")
 
-              aggregate_name = policy.for_each.to_s.split(".", 2).first
+              aggregate_name = Naming.split_dotted(policy.for_each).first
               aggregate = aggregates.find { |candidate| candidate.hecks_name == aggregate_name }
               return nil unless aggregate
 
@@ -27,7 +27,7 @@ module Hecks
             def row_field_names(aggregate)
               names = aggregate.attributes.map(&:name) + aggregate.projected_fields.map(&:name)
               names += aggregate.identity_heads.map(&:to_sym)
-              aggregate.lifecycle ? names << aggregate.lifecycle.field.to_sym : names
+              aggregate.lifecycle ? names << aggregate.lifecycle_field.to_sym : names
             end
 
             def row_key_names(target, aggregate_name)

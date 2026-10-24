@@ -83,7 +83,7 @@ module Hecks
           def host_serving(settings, main)
             {
               "HECKS_DOMAIN" => scalar(main.fetch(:domain)), "HECKS_ERA" => scalar("1"),
-              "PORT" => scalar(settings.host.port.to_s), "BIND" => scalar("0.0.0.0"),
+              "PORT" => scalar(settings.host_port.to_s), "BIND" => scalar("0.0.0.0"),
               "HECKS_SERVE_MODE" => scalar("1"), "HECKS_WEB" => scalar(main.fetch(:web))
             }
           end

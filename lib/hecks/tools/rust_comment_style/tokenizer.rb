@@ -8,6 +8,9 @@ module Hecks
       # Finds Rust source's line comments, distinguishing them from `//` inside
       # code, strings, raw strings, and char literals. Block comments are not recognised.
       class Tokenizer
+        # A Rust char literal: one character or one escape between single quotes.
+        CHAR_LITERAL = /\A'(?:\\.|[^'\\\n]){1}'/
+
         # Lexes `source` for its line comments in one pass.
         def self.comments(source)
           new(source).run
@@ -67,7 +70,7 @@ module Hecks
         end
 
         def consume_quote(pos, col)
-          match = @src[pos..].match(/\A'(?:\\.|[^'\\\n]){1}'/)
+          match = @src[pos..].match(CHAR_LITERAL)
           match ? [pos + match[0].length, col + match[0].length] : [pos + 1, col + 1]
         end
 

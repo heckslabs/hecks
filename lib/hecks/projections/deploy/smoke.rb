@@ -27,6 +27,8 @@ module Hecks
           setup:        /\A[^\r\n]+\z/
         }.freeze
         REQUIRED = %i[role_arn secret_id site_url region].freeze
+        # The template line that holds the setup step.
+        SETUP_LINE = /^@@setup@@\n/
 
         module_function
 
@@ -82,7 +84,7 @@ module Hecks
 
         # A placeholder line that resolves to nothing disappears whole, not as a blank line.
         def render(template, values)
-          filled = template.gsub(/^@@setup@@\n/) { setup_step(values[:setup]) }
+          filled = template.gsub(SETUP_LINE) { setup_step(values[:setup]) }
           filled = filled.gsub("@@secret_field_pipe@@") { secret_field_pipe(values[:secret_field]) }
           values.except(:setup, :secret_field).each { |key, value| filled = filled.gsub("@@#{key}@@") { value.to_s } }
           raise ArgumentError, "unfilled placeholder in the smoke workflow" if filled.include?("@@")

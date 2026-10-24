@@ -60,7 +60,7 @@ module Hecks
 
         def invoke(payload)
           response = @client.invoke(function_name: @function_name, payload: JSON.generate(payload))
-          body = JSON.parse(response.payload.read)
+          body = parsed_body(response)
 
           if response.function_error
             raise Runtime::WiringError,
@@ -68,6 +68,12 @@ module Hecks
           end
 
           body
+        end
+
+        # The response payload is a stream of JSON text.
+        def parsed_body(response)
+          stream = response.payload
+          JSON.parse(stream.read)
         end
       end
     end

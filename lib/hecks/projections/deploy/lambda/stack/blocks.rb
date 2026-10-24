@@ -25,7 +25,8 @@ module Hecks
 
               # Indented 2: the blocks dedent to column 0, but these are Parameters: children, which
               # YAML requires indented under it.
-              "Parameters:\n#{blocks.join("\n").each_line.map { |line| "  #{line}" }.join}"
+              params = blocks.join("\n")
+              "Parameters:\n#{params.each_line.map { |line| "  #{line}" }.join}"
             end
 
             def network_resources
@@ -108,7 +109,8 @@ module Hecks
             # Prefixes every line after the first with `pad` (the first with `head`), then drops the
             # trailing blank lines: a multi-line value spliced into an indented line of a template.
             def tail_indent(text, pad, head = "")
-              text.each_line.with_index.map { |line, i| (i.zero? ? head : pad) + line }.join.rstrip
+              lines = text.each_line.with_index.map { |line, i| (i.zero? ? head : pad) + line }
+              lines.join.rstrip
             end
           end
         end

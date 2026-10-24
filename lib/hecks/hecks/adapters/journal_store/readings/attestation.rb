@@ -21,7 +21,7 @@ module Hecks
             mismatch(held, era, ordinal, computed)
           end
 
-          def era_name(held, ordinal) = "#{held.bluebook.name} era #{ordinal}"
+          def era_name(held, ordinal) = "#{domain_name(held)} era #{ordinal}"
 
           def mismatch(held, era, ordinal, computed)
             [
@@ -30,13 +30,13 @@ module Hecks
               shape_line(held, era, ordinal),
               "The held text AS IT NOW STANDS — the original is gone; this is what you would be attesting to:",
               "─" * 72, era[:held_text], "─" * 72,
-              "Read it, then `hecks reattest #{held.bluebook.name} era=#{ordinal} --confirm` accepts it."
+              "Read it, then `hecks reattest #{domain_name(held)} era=#{ordinal} --confirm` accepts it."
             ].join("\n")
           end
 
           def shape_line(held, era, ordinal)
             verdict = Translation::Reattest.shape_guard!(
-              domain: held.bluebook.name, ordinal: ordinal, text: era[:held_text], stored_hash: era[:hash],
+              domain: domain_name(held), ordinal: ordinal, text: era[:held_text], stored_hash: era[:hash],
               stored_projection: era[:held_projection] && JSON.parse(era[:held_projection])
             )
             if verdict == :cosmetic

@@ -89,8 +89,9 @@ module Hecks
           return [] if process_manager.saga?
 
           handler.dispatches.select(&:compensates).map do |dispatch|
+            compensated = dispatch.compensates
             Finding.new(kind: :unarmed_compensation, severity: :error, subject: process_manager.name,
-                        message: "#{dispatch.command_name} compensates #{dispatch.compensates.command_name}, " \
+                        message: "#{dispatch.command_name} compensates #{compensated.command_name}, " \
                                  "but no handler anywhere in this saga answers a refusal — the " \
                                  "compensation is declared and can never fire")
           end
@@ -98,10 +99,14 @@ module Hecks
 
         # Checks whether a saga's own compensation leaves an unreachable state.
         def dead_compensation_findings(process_manager, reached)
-          return [] unless process_manager.saga? && !reached.include?(process_manager.saga.from_state)
+          return [] unless process_manager.saga?
+
+          saga = process_manager.saga
+          left = saga.from_state
+          return [] if reached.include?(left)
 
           [Finding.new(kind: :dead_compensation, severity: :error, subject: process_manager.name,
-                       message: "the compensation leaves #{process_manager.saga.from_state.inspect}, which no " \
+                       message: "the compensation leaves #{left.inspect}, which no " \
                                 "handler chain ever reaches — a refusal here can never fire it")]
         end
 

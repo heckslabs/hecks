@@ -33,10 +33,18 @@ module Hecks
             [
               "#{indent}# BEGIN GENERATED site_cdn #{name} (hecks site site_projection.project_site; " \
               "edit the Route and Edge rows). Do not hand-edit.",
-              block.each_line.map { |line| line.strip.empty? ? line : "#{indent}#{line}" }.join.chomp,
+              indented(block, indent),
               "#{indent}# END GENERATED site_cdn #{name}"
             ].join("\n")
           end
+        end
+
+        # @param block [String] lines from the left margin
+        # @param indent [String] the indentation to put before each line that is not blank
+        # @return [String] the block indented, without its final newline
+        def indented(block, indent)
+          lines = block.each_line.map { |line| line.strip.empty? ? line : "#{indent}#{line}" }
+          lines.join.chomp
         end
       end
     end

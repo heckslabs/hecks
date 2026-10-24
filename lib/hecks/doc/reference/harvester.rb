@@ -8,6 +8,9 @@ module Hecks
       # still parses unchanged. A `## ` line inside a fence is not a heading: it is a comment in
       # the runnable example, not a section break.
       class Harvester
+        # A `## word` heading line, capturing the word.
+        SECTION_HEADING = /\A## (\S+)\s*\z/
+
         def initialize
           @prose = {}
           @current = PREAMBLE
@@ -29,7 +32,7 @@ module Hecks
 
         def consume(line)
           @in_fence = !@in_fence if line.start_with?("```")
-          heading = line.match(/\A## (\S+)\s*\z/) unless @in_fence
+          heading = line.match(SECTION_HEADING) unless @in_fence
           if heading
             start_section(heading[1])
           elsif line.include?(GENERATED_END)

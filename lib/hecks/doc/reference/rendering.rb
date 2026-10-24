@@ -132,10 +132,13 @@ module Hecks
           "#{lines.join("\n")}\n"
         end
 
+        # Every word row of a context, repeats included.
+        def context_words(context) = keywords.select { |row| row[:context] == context }.map { |row| row[:word] }
+
         # Renders the reference index page, one linked entry per context.
         def render_index
           listed = contexts.map do |context|
-            count = keywords.select { |row| row[:context] == context }.map { |row| row[:word] }.uniq.size
+            count = context_words(context).uniq.size
             "- [#{context}](#{page_name(context)}) — #{count} #{count == 1 ? "word" : "words"}"
           end
           <<~INDEX

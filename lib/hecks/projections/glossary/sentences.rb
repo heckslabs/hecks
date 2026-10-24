@@ -21,6 +21,9 @@ module Hecks
           read_model: ->(facts, _index) { facts[:read_model].description }
         }.freeze
 
+        # The capital letter a text opens with.
+        LEADING_UPPER = /\A[[:upper:]]/
+
         module_function
 
         def paragraphs(entry, index)
@@ -136,9 +139,9 @@ module Hecks
 
         def with_period(text) = text.to_s.strip.end_with?(".", "!", "?") ? text.to_s.strip : "#{text.to_s.strip}."
 
-        def lower_first(text) = text.sub(/\A[[:upper:]]/, &:downcase)
+        def lower_first(text) = text.sub(LEADING_UPPER, &:downcase)
 
-        def upper_first(text) = text.sub(/\A[[:lower:]]/, &:upcase)
+        def upper_first(text) = PlainEnglish.upper(text)
       end
     end
   end

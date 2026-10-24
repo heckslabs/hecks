@@ -16,6 +16,9 @@ module Hecks
         # Ignored build output, which the gem leaves out.
         BUILD_OUTPUT = %r{(\A|/)target/?\z}
 
+        # The status code and the space that open a porcelain status line.
+        STATUS_CODE = /\A\S+\s+/
+
         # @param git [#read] runs a git command in the checkout and answers its output
         def initialize(git:)
           @git = git
@@ -24,7 +27,7 @@ module Hecks
         # @return [Array<String>] each modified, untracked or ignored path under the packaged paths
         def stray
           lines = @git.read("status", "--porcelain", "--ignored", "--", *SHIPPED).lines.map(&:strip)
-          lines.reject(&:empty?).map { |line| line.sub(/\A\S+\s+/, "") }.grep_v(BUILD_OUTPUT)
+          lines.reject(&:empty?).map { |line| line.sub(STATUS_CODE, "") }.grep_v(BUILD_OUTPUT)
         end
 
         # @return [void]

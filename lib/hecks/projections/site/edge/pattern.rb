@@ -11,11 +11,14 @@ module Hecks
         # stands for `*`. Both services treat `*` as any run of characters, `/` included, and `?` as
         # one character, and match the whole path, so a pattern without either matches one path.
         module Pattern
+          # A route parameter: a colon, then an identifier, as in `:slug`.
+          PARAMETER = /:[A-Za-z_]\w*/
+
           module_function
 
           # @param path [String] a route path such as `/blog/:slug.html` or `/cms/*`
           # @return [String] the pattern the edge reads for it, `/blog/*.html` for the first
-          def edge(path) = path.gsub(/:[A-Za-z_]\w*/, "*")
+          def edge(path) = path.gsub(PARAMETER, "*")
 
           # @param pattern [String] an edge pattern
           # @return [Regexp] what it matches, from the start of a path to its end

@@ -36,8 +36,9 @@ module Hecks
           # @param plan [Settings::Plan] the resolved settings
           # @return [String] the Makefile fragment the box `Makefile` includes
           def hosting_mk(plan)
+            hosting = plan.hosting
             Box.template("hosting.mk.tmpl", "SERVICE"        => plan.containers.first.name,
-                                            "URL"            => plan.hosting.public_url.to_s,
+                                            "URL"            => hosting.public_url.to_s,
                                             "SMOKE_RECIPE"   => Box::SMOKE_RECIPE,
                                             "SERVICE_RECIPE" => service_recipe)
           end
@@ -66,7 +67,8 @@ module Hecks
           # @param region [String] the validated AWS region
           # @return [String] `smoke-after-deploy.sh`
           def smoke_after_deploy_sh(plan, region)
-            image_stack = plan.hosting.stack
+            hosting = plan.hosting
+            image_stack = hosting.stack
             Box.template("smoke-after-deploy.sh.tmpl",
                          "STACK" => plan.infra_name, "SETTINGS" => smoke_constants(plan, region),
                          "SETTLE_CHECKS" => settle_checks(plan),

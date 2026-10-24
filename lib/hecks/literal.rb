@@ -81,11 +81,17 @@ module Hecks
 
     ESCAPED = { '"' => '\\"', "\\" => "\\\\" }.freeze
 
+    # A double quote or a backslash: the characters `quote` escapes.
+    NEEDS_ESCAPE = /["\\]/
+
+    # A backslash escape, capturing the character it escapes.
+    ESCAPE_SEQUENCE = /\\(.)/
+
     # Wraps `text` in double quotes, escaping embedded quotes and backslashes.
     #
     # @param text [String] raw text to quote
     # @return [String] the quoted, escaped spelling
-    def quote(text) = "\"#{text.gsub(/["\\]/) { |char| ESCAPED[char] }}\""
+    def quote(text) = "\"#{text.gsub(NEEDS_ESCAPE) { |char| ESCAPED[char] }}\""
 
     # Tells whether `raw` is a double-quoted literal.
     #
@@ -97,7 +103,7 @@ module Hecks
     #
     # @param raw [String] a quoted literal, as `quoted?` would confirm
     # @return [String] the unescaped text inside the quotes
-    def unquote(raw) = raw[1..-2].gsub(/\\(.)/) { ::Regexp.last_match(1) }
+    def unquote(raw) = raw[1..-2].gsub(ESCAPE_SEQUENCE) { ::Regexp.last_match(1) }
 
     # Parses a `{key: value, ...}` wire literal.
     #

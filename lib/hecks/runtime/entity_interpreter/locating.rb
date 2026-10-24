@@ -49,7 +49,7 @@ module Hecks
 
         def parent_identity(ctx)
           aggregate = ctx.aggregate
-          ctx.route&.aggregate ||
+          ctx.routed_identity ||
             Identity.of(aggregate, ctx.args) ||
             Identity.from(aggregate, ctx.args, :id) ||
             raise(NotFound, RefusalWording.render_site("NotFound", "entity_parent_no_identity",
