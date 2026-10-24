@@ -13,12 +13,12 @@ module Hecks
       module Hydration
         private
 
-        # Picks the hydration the command's dependency plan allows.
+        # Picks the hydration the command's dependency plan allows. A command that declares a
+        # `reference_to` acts on a record that must already exist, however complete its payload,
+        # as the Rust kernel's `Hydrate::Act` does; only a creating command may build one.
         def hydrate_for(ctx)
-          if ctx.plan.complete_state? && ctx.plan.state_independent?
-            hydrate_complete_state(ctx)
-          elsif ctx.plan.complete_state?
-            hydrate_prior_or_initial(ctx)
+          if ctx.command.creates? && ctx.plan.complete_state?
+            ctx.plan.state_independent? ? hydrate_complete_state(ctx) : hydrate_prior_or_initial(ctx)
           elsif legacy_implicit_creation?(ctx)
             hydrate_legacy_creation(ctx)
           else
@@ -63,30 +63,26 @@ module Hecks
 
         def hydrate_complete_state(ctx)
           id = creation_identity(ctx)
-          # `creates?` on an occupied identity refuses (`AlreadyExists`), except
-          # under ATOMIC_PUT: that adapter enforces the same refusal itself,
-          # atomically, via `insert_only:` in `step_save` — reading here too
-          # would race the write for nothing.
-          if ctx.command.creates? && ctx.strategy != DependencyPlanning::ATOMIC_PUT && ctx.repository.find(id)
+          # An occupied identity refuses (`AlreadyExists`), except under ATOMIC_PUT: that adapter
+          # enforces the same refusal itself, atomically, via `insert_only:` in `step_save` —
+          # reading here too would race the write for nothing.
+          if ctx.strategy != DependencyPlanning::ATOMIC_PUT && ctx.repository.find(id)
             raise_already_exists(ctx.command, ctx.aggregate, id)
           end
 
           fresh_instance(ctx, id)
         end
 
-        # A complete command may still depend on prior state (lifecycle guards
-        # are the common case) — read once, so an existing record is checked
-        # against its real state rather than assumed defaults.
+        # A complete creating command that still reads prior state (lifecycle guards are the
+        # common case) — read once, so an occupied identity refuses before anything is built.
         def hydrate_prior_or_initial(ctx)
           id    = creation_identity(ctx)
           found = ctx.repository.find(id)
           # Same refusal as `hydrate_complete_state`, for a complete-but-state-
-          # dependent command (one with a `given` on its own prior state).
-          # Gated on `creates?`: a non-creating command's complete payload just
-          # means "act on whatever this identity already holds".
-          raise_already_exists(ctx.command, ctx.aggregate, id) if found && ctx.command.creates?
+          # dependent creating command (one with a `given` on its own prior state).
+          raise_already_exists(ctx.command, ctx.aggregate, id) if found
 
-          found ? found.dup : fresh_instance(ctx, id)
+          fresh_instance(ctx, id)
         end
 
         # The identity a complete command's facts derive, checked against its route.

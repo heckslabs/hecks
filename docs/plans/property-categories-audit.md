@@ -102,11 +102,12 @@ instances, journal".
   `spec/categories/write_atomicity_spec.rb`.
 - **The event log is not taken back on a crash.** On SQLite and Postgres the record, journal and
   outbox roll back, but `runtime.events` keeps the crashed write's event. Pending there too.
-- **SQLite has no `none_in_state`.** `sql_query_builder.rb` raises `ArgumentError` rather than
-  answering. Pending in `spec/categories/query_comparator_kinds_spec.rb`.
 
 ## Found along the way
 
+- **SQLite and Postgres had no `none_in_state`.** `sql_query_builder.rb` raised `ArgumentError`;
+  it now answers a query holding one over the aggregate's records, and
+  `spec/categories/query_comparator_kinds_spec.rb` holds SQLite to Memory on every comparator.
 - **A role-gated command with no caller.** MCP refuses it; the Ruby API runs it, since it checks
   a role only once a caller is bound, and the CLI runner and the forms app take no role at all.
   Pinned in `spec/doors/role_enforcement_spec.rb` so a change to either side is a decision.

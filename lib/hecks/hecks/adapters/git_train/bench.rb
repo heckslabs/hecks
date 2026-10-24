@@ -2,6 +2,7 @@
 
 require "tmpdir"
 require "fileutils"
+require_relative "reading"
 
 module Hecks
   module Adapters

@@ -1,4 +1,5 @@
 require_relative "../../forms/value_object_shape"
+require_relative "../../ports/query/in_memory"
 require_relative "../../query_specification/common/null_policy"
 require_relative "../../query_specification/field_path"
 require_relative "../../runtime/errors"
@@ -18,19 +19,27 @@ module Hecks
         "eq" => "=", "ne" => "<>", "gt" => ">", "gte" => ">=", "lt" => "<", "lte" => "<="
       }.freeze
 
+      # The operators answered from this store's records in Ruby, not compiled. `none_in_state`
+      # reads another aggregate's records through the registry, which one SQL statement over this
+      # aggregate's table cannot reach. Any other operator this builder cannot compile refuses.
+      IN_MEMORY_OPERATORS = %w[none_in_state].freeze
+
       # Compiles a declared query into one SQL statement and runs it through the dialect's
-      # own `execute_query`, so filtering, ordering and paging all happen in the database.
+      # own `execute_query`, so filtering, ordering and paging all happen in the database. A
+      # query with a where clause in `IN_MEMORY_OPERATORS` is answered over `all` instead.
       #
       # @param declared [QuerySpecification::Common::Options] the declared query: its
       #   `wheres`, `order_by`, `limit` and `offset` are compiled; nothing else is read
       # @param args [Hash{Symbol => Object}] values for the specification's symbolic operands
-      # @param context [Hash] execution context from `Ports::Query.execute`; accepted for the
-      #   port's call shape and not read
+      # @param context [Hash] execution context from `Ports::Query.execute`; its `:registry` is
+      #   read only for a query answered over `all`
       # @return [Array<Runtime::Instance>] the matching records in declared order, then by
       #   id; `[]` when none match
       # @raise [ArgumentError] if a where clause uses an operator this builder cannot compile,
       #   or `contains` targets a list of a value object with more than one field
       def query(declared, args = {}, context: {})
+        return in_memory_answer(declared, args, context) if in_memory?(declared)
+
         sql = "SELECT #{select_list} FROM #{from_relation}"
         binds = []
         clauses = where_clauses(declared, args, binds)
@@ -41,6 +50,12 @@ module Hecks
       end
 
       private
+
+      def in_memory?(declared) = declared.wheres.any? { |clause| IN_MEMORY_OPERATORS.include?(clause.op.to_s) }
+
+      def in_memory_answer(declared, args, context)
+        Ports::Query::InMemory.execute(all, declared, args, registry: context[:registry])
+      end
 
       # The LIMIT and OFFSET text, with their placeholders bound after the where binds.
       def paging_sql(declared, args, binds)

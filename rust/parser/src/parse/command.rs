@@ -530,7 +530,14 @@ fn build_mutation(
 
     let (op, raw) = named[0];
     if op == "append" {
-        let fields = parse_hash_literal_pairs(raw)
+        // A bare value (`append: :tag`) is the one-field shorthand for `append: { value: :tag }`,
+        // as Ruby's `normalize_append_source` reads it.
+        let pairs = if raw.trim_start().starts_with('{') {
+            parse_hash_literal_pairs(raw)
+        } else {
+            vec![("value".to_string(), raw.trim().to_string())]
+        };
+        let fields = pairs
             .into_iter()
             .map(|(k, v)| (k, ruby_value::render(&ruby_value::read(&v))))
             .collect();

@@ -31,8 +31,8 @@ module Hecks
         # switch to, or flips a command from a preview to a change of state.
         DENIED_ARGUMENTS = %w[
           adapter artifact confirm expected from gem_only header health_path host live no_wait npm_local
-          npm_only output path payload payload_file port rust_binary scheme stage_dir state_path stdio url
-          write
+          npm_only output path payload payload_file port remote rust_binary scheme stage_dir state_path
+          stdio url write
         ].freeze
 
         # Argument names whose values are paths (a comma-separated list for some). A restricted
@@ -40,11 +40,11 @@ module Hecks
         # passes them on only when each resolves, symlinks followed, inside `Storehouse::BOOT_ROOT`,
         # and holds no colon: `host:repo` and `https://host/x` would otherwise pass as relative
         # paths.
-        PATH_ARGUMENTS = %w[dir domain domains file fixture paths root script].freeze
+        PATH_ARGUMENTS = %w[checkout dir domain domains file fixture paths root script].freeze
 
         # Argument names whose values are git refs: plain names only, so a value cannot read as an
         # option to git.
-        REF_ARGUMENTS = %w[commit ref].freeze
+        REF_ARGUMENTS = %w[branch commit ref].freeze
 
         # What a plain git ref looks like: no leading dash, no `..`, no spaces.
         PLAIN_REF = %r{\A[A-Za-z0-9][A-Za-z0-9._/~^@-]*\z}

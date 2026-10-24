@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "reading"
+
 module Hecks
   module Adapters
     class GitTrain
