@@ -24,5 +24,6 @@ require_relative "driven/system_clock"
 # `identity_generation` adapter would make that port ambiguous for every boot.
 require_relative "driven/governance_authorization"
 require_relative "driven/identity_registry"
+require_relative "driven/google_authentication"
 require_relative "driven/claude_code"
 require_relative "driven/script_runner"

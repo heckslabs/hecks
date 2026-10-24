@@ -245,6 +245,7 @@ spec/port_operation_interpreter_spec.rb:0.25
 spec/port_shape_coverage_spec.rb:0.37
 spec/ports/access_control_spec.rb:0.00
 spec/ports/agent_spec.rb:0.01
+spec/ports/authentication_spec.rb:0.10
 spec/ports/authorization_spec.rb:0.00
 spec/ports/identity_generation_spec.rb:0.19
 spec/ports/identity_resolution_spec.rb:0.00
