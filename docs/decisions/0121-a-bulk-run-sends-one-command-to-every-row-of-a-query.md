@@ -22,7 +22,7 @@ that fan-out directly.
    declares `BulkRun`, shaped like the `*Run` aggregates of the Hecks chapter: `Request`
    records the verb, the query it runs over, the query's arguments and the mode;
    `SweepWhenRequested` asks the `Rows` port to sweep; `Record` keeps one `RowResult`
-   per row (the row's id, whether it was delivered, the refusal's reason when not);
+   per row (the row's id, an `outcome` of `delivered` or `refused`, and the refusal's reason);
    `Refuse` keeps why the whole run could not start. A domain attaches it with
    `attaches "Bulk"`. The chapter names no store and no adapter.
 2. **The sweep is the `for_each` path, shared.** `Runtime::RowSweep` holds what a
