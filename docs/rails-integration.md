@@ -251,7 +251,7 @@ because none of it needed to leak up for the controller to be legible.
 
 An app-specific concern (a Slack notification, a different redirect target) is a
 plain method redefinition later in the same class body — no flag, no branch, no case
-statement, and the other 43 generated actions stay exactly as uniform as before.
+statement, and every other generated action stays exactly as uniform as before.
 
 ## Cross-references: values, hydration is explicit, composition is plain chaining
 

@@ -198,7 +198,7 @@ end
 `$DOMAIN/bluebook/underwriting.hecksagon`, the wiring. `Governance` is
 attached because the commands declare roles, and a domain that declares a
 role with nothing to govern it is refused at boot. The aggregate is bound
-to `Postgres`, one of the two adapters the host can serve (see the note
+to `Postgres`, one of the adapters the host can serve (see the note
 after the files):
 
 ```ruby

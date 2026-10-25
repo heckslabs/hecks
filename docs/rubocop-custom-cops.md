@@ -37,7 +37,7 @@ Currently present:
 
 ## Wiring into the real `rubocop` run (done)
 
-All three cops above are wired into `.rubocop.yml`'s `require:` list and
+All the cops above are wired into `.rubocop.yml`'s `require:` list and
 each has an `Enabled: true` stanza, so they now run as part of the same
 `bundle exec rubocop -c .rubocop.yml` invocation `.githooks/pre-push`
 already runs on every push — no more ad hoc `--require`/`--only` needed
@@ -48,12 +48,12 @@ is scoped via `Include` to `Dispatcher`/`Registry` alone, matching its own
 stanza's comment in `.rubocop.yml`.
 
 A full-tree run (`bundle exec rubocop -c .rubocop.yml`) comes back clean
-across all three cops, and no file is excluded from them: there is no
+across all of the cops, and no file is excluded from them: there is no
 todo file, so an instance they find is fixed, not parked.
 
 `.github/workflows/ci.yml`'s `checks:` job also now runs
 `bundle exec rubocop -c .rubocop.yml` as its own step, in the same
-integration pass that wired these three cops in — not only
+integration pass that wired these cops in — not only
 `.githooks/pre-push`, which is opt-in per clone and bypassable with
 `--no-verify`. See that step's own comment in `ci.yml` for the reasoning.
 Nothing about that step is custom-cop-specific: it is the exact command
