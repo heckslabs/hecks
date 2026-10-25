@@ -524,6 +524,7 @@ policy "RecordTheEra" do
     attribute :branch,   Word,   optional: true
     attribute :remote,   Word,   optional: true
     attribute :checkout, Word,   optional: true
+    attribute :full_gate, Switch, optional: true
     attribute :boarded,  Word,   optional: true
     attribute :pushed,   Word,   optional: true
     attribute :report,   Report, optional: true
@@ -543,6 +544,10 @@ policy "RecordTheEra" do
       attribute :value, String
     end
 
+    value_object "Switch" do
+      attribute :value, Boolean
+    end
+
     lifecycle :status, default: "requested" do
       mark :failure, "faulted"
       transition "Push"  => "pushed",  from: "requested"
@@ -555,15 +560,19 @@ policy "RecordTheEra" do
       role "Operator"
       goal "Push this checkout's branch once the push ahead of it lands, unless that push already carried it"
 
-      attribute :run,      RunKey
-      attribute :branch,   Word, default: "main"
-      attribute :remote,   Word, default: "origin"
-      attribute :checkout, Word, optional: true
+      attribute :run,       RunKey
+      attribute :branch,    Word, default: "main"
+      attribute :remote,    Word, default: "origin"
+      attribute :checkout,  Word, optional: true
+      # Run the whole `pre_push` stage, the suite included, which also writes the CI attestation
+      # note; without it the push runs only the `unguarded_push` stage.
+      attribute :full_gate, Switch, optional: true
 
       sets :run
       sets :branch
       sets :remote
       sets :checkout
+      sets :full_gate
 
       emits BoardingRequested
     end
