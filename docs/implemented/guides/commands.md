@@ -582,7 +582,7 @@ Banking::Account.freeze_account!(over: Banking::Account.open, mode: :all_or_noth
 ```
 
 On a store that provides `set_transform` (Sqlite, Postgres) a run can
-go as one `UPDATE` instead of one dispatch per row (ADR 0128). It does
+go as one `UPDATE` instead of one dispatch per row (ADR 0129). It does
 when the command acts on its own aggregate, its writes are `sets` of
 one-field values or an `increment`/`decrement`, and every `given` can be
 said in that store's SQL; otherwise the run goes row by row. Either way

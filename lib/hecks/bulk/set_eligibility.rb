@@ -3,7 +3,7 @@ require_relative "../grammar"
 module Hecks
   module Bulk
     # The checks that say whether a bulk run's command and aggregate can be one statement
-    # (ADR 0128): what the statement cannot check per row rules a run out, and every expression
+    # (ADR 0129): what the statement cannot check per row rules a run out, and every expression
     # must compile for the store's dialect. Mixed into {SetPlanner}, which supplies `@command`,
     # `@aggregate`, `@repository` and the run's names.
     module SetEligibility

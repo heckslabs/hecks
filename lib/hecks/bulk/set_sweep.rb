@@ -4,7 +4,7 @@ require_relative "set_planner"
 
 module Hecks
   module Bulk
-    # A bulk run carried out as one statement (ADR 0128). Inside one transaction of the target's
+    # A bulk run carried out as one statement (ADR 0129). Inside one transaction of the target's
     # repository it reads the query's rows, runs the statement, and records one event per updated
     # row and `emits`, with that event's outbox rows; after the commit each row's reactions are
     # delivered in query order. A row the statement skipped is the caller's to dispatch by hand.

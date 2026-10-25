@@ -2,7 +2,7 @@ require "spec_helper"
 require "tmpdir"
 require "hecks/fuzzing"
 
-# A bulk run compiles to one update when its store provides `set_transform` (ADR 0128). Each
+# A bulk run compiles to one update when its store provides `set_transform` (ADR 0129). Each
 # example boots a fresh copy of the Lamps fixture on SQLite with three lamps: "a" too dim to dim
 # again, "b" and "c" bright enough.
 RSpec.describe "a bulk run as one statement" do

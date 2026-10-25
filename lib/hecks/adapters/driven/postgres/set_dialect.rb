@@ -1,7 +1,7 @@
 module Hecks
   module Adapters
     class Postgres
-      # Postgres's spellings for the shared {SetTransform} statement (ADR 0128).
+      # Postgres's spellings for the shared {SetTransform} statement (ADR 0129).
       module SetDialect
         # The type each placeholder is cast to, so Postgres never has to guess one.
         PLACEHOLDER_TYPES = { integer: "bigint", float: "double precision", string: "text", json: "jsonb" }.freeze

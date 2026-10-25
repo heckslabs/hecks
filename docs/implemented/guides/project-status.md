@@ -96,7 +96,7 @@ order.status   # => "sold"
   a run whose command and givens compile goes as one `UPDATE … RETURNING`
   with its events and outbox rows in the same transaction; anything else
   runs row by row, and the fuzzer holds the two equal on both stores
-  ([ADR 0128](../../decisions/0128-a-bulk-run-compiles-to-one-update-when-its-store-provides-set-transform.md)).
+  ([ADR 0129](../../decisions/0129-a-bulk-run-compiles-to-one-update-when-its-store-provides-set-transform.md)).
   PostgresEra and the Rust host run every bulk run row by row. On `main`,
   not yet in a release.
 - On `main`, not yet in a release: `model_check` reports a reference

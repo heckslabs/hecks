@@ -12,7 +12,7 @@ require_relative "set_arguments"
 module Hecks
   module Bulk
     # Says a bulk run as one {Ports::Persistence::SetStatement}, or answers nil when it must run
-    # row by row (ADR 0128). It reads only the bluebook and the run; whether each expression has
+    # row by row (ADR 0129). It reads only the bluebook and the run; whether each expression has
     # SQL is the store's to answer when it compiles.
     class SetPlanner
       include SetEligibility

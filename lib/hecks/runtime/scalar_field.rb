@@ -4,7 +4,7 @@ module Hecks
   module Runtime
     # A field of an aggregate's head that holds one String, Integer or Float: the lifecycle field,
     # or an attribute whose value object has a single field of one of those types. A store can
-    # read such a field as one SQL value, and a bulk run's one-statement form (ADR 0128) compiles
+    # read such a field as one SQL value, and a bulk run's one-statement form (ADR 0129) compiles
     # only reads and writes of these.
     class ScalarField
       # Each primitive a scalar field may hold, and the type a compiled operand carries for it.

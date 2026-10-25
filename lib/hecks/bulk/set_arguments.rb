@@ -4,7 +4,7 @@ require_relative "../runtime/value"
 module Hecks
   module Bulk
     # The arguments a bulk run's command carries for one row when it runs as one statement
-    # (ADR 0128): the row's key, then every declared default, each coerced as a dispatch coerces
+    # (ADR 0129): the row's key, then every declared default, each coerced as a dispatch coerces
     # it, so an event's payload is the one a row-by-row dispatch would emit.
     class SetArguments
       # Stands for the row's key among the scalars: its value differs per row, so no expression

@@ -58,7 +58,7 @@ module Hecks
       # @param registry [Runtime::Registry] the registry the run's domain is booted in
       # @param plan [Bulk::Plan] the run
       # @param set_transform [Boolean] whether the run may go as one statement when its store
-      #   provides `set_transform` (ADR 0128); false sends every row by hand
+      #   provides `set_transform` (ADR 0129); false sends every row by hand
       def initialize(registry, plan, set_transform: true)
         @registry   = registry
         @plan       = plan
@@ -98,7 +98,7 @@ module Hecks
         @plan.all_or_nothing? ? all_or_nothing(ids, key) : ids.map { |id| send_row(id, key) }
       end
 
-      # The run as one statement when it can be (ADR 0128), else nil.
+      # The run as one statement when it can be (ADR 0129), else nil.
       def compiled_outcomes(key, read_ids)
         return nil unless @set_transform
 

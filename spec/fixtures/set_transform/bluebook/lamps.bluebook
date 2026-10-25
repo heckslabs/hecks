@@ -1,4 +1,4 @@
-# A small domain whose commands a bulk run can compile to one UPDATE (ADR 0128), beside ones it
+# A small domain whose commands a bulk run can compile to one UPDATE (ADR 0129), beside ones it
 # cannot, so the set-transform property has both kinds of pair to compare.
 Hecks.bluebook "Lamps" do
   vision "Switch, dim and relabel the lamps of a building."
