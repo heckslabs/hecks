@@ -1,7 +1,7 @@
 module Hecks
   module Ports
     module Persistence
-      # One command applied to every row of a query, said without SQL (ADR 0128): the runtime
+      # One command applied to every row of a query, said without SQL (ADR 0129): the runtime
       # builds it from the bluebook, and a store that provides `set_transform` compiles it to one
       # statement in its own dialect. It names fields and parsed expressions, never columns.
       #

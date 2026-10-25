@@ -3,7 +3,7 @@ require_relative "set_statement"
 module Hecks
   module Ports
     module Persistence
-      # The repository's door to its adapter's one-statement rewrite (ADR 0128). Mixed into
+      # The repository's door to its adapter's one-statement rewrite (ADR 0129). Mixed into
       # `AppendOnly`, which supplies `@adapter`.
       module SetTransforming
         # Whether the adapter answers a {SetStatement} with one statement. The declared

@@ -4,7 +4,7 @@ require_relative "../../ports/persistence/append_only"
 
 module Hecks
   module Adapters
-    # A SQL store's `set_transform` (ADR 0128): one update statement, filtered by the query and the
+    # A SQL store's `set_transform` (ADR 0129): one update statement, filtered by the query and the
     # givens and returning every row it changed, for a {Ports::Persistence::SetStatement},
     # journalled row by row in the same transaction. Mixed into an adapter that includes
     # {SqlQueryBuilder}, whose filter clauses it reuses, and a

@@ -3,7 +3,7 @@ require "hecks/fuzzing"
 require_relative "../support/postgres_probe"
 
 # A bulk run carried out as one statement answers, leaves and emits what the same run sent row by
-# row does (ADR 0128). The property replays one generated Lamps history twice and compares the two
+# row does (ADR 0129). The property replays one generated Lamps history twice and compares the two
 # after every command-and-query pair, on SQLite and, when one answers, on Postgres.
 RSpec.describe "Fuzzing::Properties.set_transform_matches_row_by_row" do
   let(:lamps) { File.join(InMemoryDomain::ROOT, "spec/fixtures/set_transform") }

@@ -1,7 +1,7 @@
 module Hecks
   module Adapters
     class Sqlite
-      # SQLite's spellings for the shared {SetTransform} statement (ADR 0128).
+      # SQLite's spellings for the shared {SetTransform} statement (ADR 0129).
       module SetDialect
         # @return [String] the dialect the operator ledger's renderings name
         def set_transform_dialect = "sqlite"

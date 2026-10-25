@@ -4,7 +4,7 @@ require_relative "bulk_parity"
 module Hecks
   module Fuzzing
     module Properties
-      # Property: a bulk run carried out as one statement (ADR 0128) answers the same per-row
+      # Property: a bulk run carried out as one statement (ADR 0129) answers the same per-row
       # outcomes, leaves the same records and emits the same events as the same run sent row by
       # row. It boots twice itself, like {BulkParity}, and applies only to a SQL store.
       module SetTransformParity

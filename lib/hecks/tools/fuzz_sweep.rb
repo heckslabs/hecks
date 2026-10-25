@@ -179,7 +179,7 @@ module Hecks
       # @return [Array(Symbol, String)] the verdict, replaying a clean run once more to see that it
       #   repeats, and, for a domain that attaches Bulk, once more each way to see that a bulk run
       #   matches dispatching its rows by hand, and on a SQL store that one statement matches row by
-      #   row (ADR 0128); and its message
+      #   row (ADR 0129); and its message
       def verdict_for(domain, generated, adapter)
         verdict, message = outcome(domain, generated, adapter)
         return [verdict, message] unless verdict == :clean
