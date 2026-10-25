@@ -84,6 +84,26 @@ impl Parser<'_> {
     }
 }
 
+impl Parser<'_> {
+    /// The cells of a `Member kind "hero", requires "heading"` line: each a name and a literal.
+    pub(super) fn member_cells(&self, m: &Matched) -> ParseResult<Vec<(String, Value)>> {
+        let text = m.text_of("pairs");
+        let base = m.col_of("pairs");
+        let mut cells = Vec::new();
+        for item in ruby_value::split_items(&text) {
+            let item = item.trim();
+            let col = column(base, &text, text.find(item).unwrap_or(0));
+            let (name, value) = item.split_once(' ').map_or((item, ""), |(name, value)| (name, value.trim()));
+            let parsed = ruby_value::read(value);
+            if value.is_empty() || matches!(parsed, Value::Bare(_)) {
+                return Err(self.error(m.line, col, format!("'{item}' needs a name and a value, like `kind \"hero\"`")));
+            }
+            cells.push((name.to_string(), parsed));
+        }
+        Ok(cells)
+    }
+}
+
 /// The tail `, optional, default 0, matching "…"` that says `attribute`'s options, or nothing when
 /// it has none. Refuses what the options cannot say.
 pub(super) fn said(attribute: &ir::Attribute) -> Result<String, String> {

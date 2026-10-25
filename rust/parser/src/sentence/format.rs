@@ -13,6 +13,7 @@ use super::changes;
 use super::entity;
 use super::names::spoken;
 use super::options;
+use super::process;
 use super::queries;
 use super::report;
 use crate::ruby_value;
@@ -20,7 +21,6 @@ use crate::ir;
 
 /// The sentence-form text of `chapter`, or the name of the construct it has no phrase for.
 pub fn sentences(chapter: &ir::Bluebook) -> Result<String, String> {
-    refuse_unsaid(chapter)?;
     let mut out = format!("Domain: {}\n", spoken_title(&chapter.name));
     if let Some(vision) = &chapter.vision {
         out.push_str(&format!("  {vision}\n"));
@@ -51,6 +51,9 @@ pub fn sentences(chapter: &ir::Bluebook) -> Result<String, String> {
     }
     for model in &chapter.read_models {
         out.push_str(&report::said(model)?);
+    }
+    for pm in &chapter.process_managers {
+        out.push_str(&process::said(pm)?);
     }
     Ok(out)
 }
@@ -142,16 +145,6 @@ fn policy_text(out: &mut String, policy: &ir::Policy, chapter: &ir::Bluebook) ->
         _ => return Err(format!("policy {} must trigger a command or ask, and not both", policy.name)),
     }
     Ok(())
-}
-
-fn refuse_unsaid(chapter: &ir::Bluebook) -> Result<(), String> {
-    let held = [
-        (!chapter.process_managers.is_empty(), "process managers"),
-    ];
-    match held.iter().find(|(present, _)| *present) {
-        Some((_, what)) => Err(format!("the sentence form has no phrase for {what}")),
-        None => Ok(()),
-    }
 }
 
 fn aggregate_text(out: &mut String, aggregate: &ir::Aggregate) -> Result<(), String> {
@@ -316,12 +309,15 @@ fn type_words(type_name: &str) -> String {
 }
 
 fn value_object_text(out: &mut String, value_object: &ir::ValueObject) -> Result<(), String> {
-    if value_object.closed_set || !value_object.members.is_empty() {
-        return closed_set_text(out, value_object);
+    if value_object.closed_set == value_object.members.is_empty() {
+        return Err(format!("the sentence form has no phrase for the closed set {}", value_object.name));
+    }
+    if let Some((column, values)) = plain_set(value_object) {
+        return closed_set_text(out, value_object, &column, &values);
     }
     let noun = capitalised(&with_article(&spoken(&value_object.name)));
     match value_object.attributes.as_slice() {
-        [value] if value.name == "value" => {
+        [value] if value.name == "value" && !value_object.closed_set => {
             if value.relationship.is_some() {
                 return Err(format!(
                     "the sentence form has no phrase for the options on the value of {}",
@@ -341,6 +337,9 @@ fn value_object_text(out: &mut String, value_object: &ir::ValueObject) -> Result
             for attribute in attributes {
                 out.push_str(&format!("    {}\n", attribute_line(attribute)?));
             }
+            for member in &value_object.members {
+                out.push_str(&format!("    Member {}\n", member_said(&value_object.name, member)?));
+            }
         }
     }
     for rule in &value_object.invariants {
@@ -349,34 +348,66 @@ fn value_object_text(out: &mut String, value_object: &ir::ValueObject) -> Result
     Ok(())
 }
 
-/// `A band is one of: small, medium and large.` for a set of text values.
-fn closed_set_text(out: &mut String, value_object: &ir::ValueObject) -> Result<(), String> {
-    let refused = || format!("the sentence form has no phrase for the closed set {}", value_object.name);
-    let plain = matches!(
-        value_object.attributes.as_slice(),
-        [value] if value.name == "value" && value.type_name == "String" && !value.list && !value.optional
-            && value.default.is_none() && value.pattern.is_none() && value.admits.is_none()
-            && value.relationship.is_none()
-    );
-    if !plain || value_object.members.is_empty() {
-        return Err(refused());
+/// The column and values of a set of plain text values (`one_of: ["a", "b"]`), if it is one.
+fn plain_set(value_object: &ir::ValueObject) -> Option<(String, Vec<String>)> {
+    let [value] = value_object.attributes.as_slice() else { return None };
+    let plain = is_name(&value.name)
+        && value.type_name == "String"
+        && !value.list
+        && !value.optional
+        && value.default.is_none()
+        && value.pattern.is_none()
+        && value.admits.is_none()
+        && value.relationship.is_none();
+    if !plain || value_object.members.is_empty() || !value_object.closed_set {
+        return None;
     }
     let mut values: Vec<String> = Vec::new();
     for member in &value_object.members {
         match member.as_slice() {
-            [(column, ruby_value::Value::Str(text))] if column == "value" && is_listable(text) => values.push(text.clone()),
-            _ => return Err(refused()),
+            [(column, ruby_value::Value::Str(text))] if *column == value.name && is_listable(text) => values.push(text.clone()),
+            _ => return None,
         }
     }
-    out.push_str(&format!(
-        "\n  {} is one of: {}.\n",
-        capitalised(&with_article(&spoken(&value_object.name))),
-        join_and(&values)
-    ));
+    Some((value.name.clone(), values))
+}
+
+/// `A band is one of: small, medium and large.`, or `A band has a size that is one of: …`.
+fn closed_set_text(out: &mut String, value_object: &ir::ValueObject, column: &str, values: &[String]) -> Result<(), String> {
+    let noun = capitalised(&with_article(&spoken(&value_object.name)));
+    if column == "value" {
+        out.push_str(&format!("\n  {noun} is one of: {}.\n", join_and(values)));
+    } else {
+        out.push_str(&format!(
+            "\n  {noun} has {} that is one of: {}.\n",
+            with_article(&spoken(column)),
+            join_and(values)
+        ));
+    }
     for rule in &value_object.invariants {
         out.push_str(&format!("    {}\n", rule_sentence("Rule", rule)?));
     }
     Ok(())
+}
+
+/// `kind "hero", requires "heading"`: the cells one member of a closed set fills.
+fn member_said(owner: &str, member: &[(String, ruby_value::Value)]) -> Result<String, String> {
+    let refused = || format!("the sentence form cannot say a member of {owner}");
+    if member.is_empty() {
+        return Err(refused());
+    }
+    let mut cells: Vec<String> = Vec::new();
+    for (name, value) in member {
+        let rendered = ruby_value::render(value);
+        if !is_name(name) || rendered.contains('\n') || matches!(value, ruby_value::Value::Bare(_)) {
+            return Err(refused());
+        }
+        if matches!(value, ruby_value::Value::Str(text) if text.contains(['"', '\\'])) {
+            return Err(refused());
+        }
+        cells.push(format!("{name} {rendered}"));
+    }
+    Ok(cells.join(", "))
 }
 
 /// Whether `text` survives being one item of `a, b and c`: no quote, comma or colon, no inner

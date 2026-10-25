@@ -92,6 +92,18 @@ impl Parser<'_> {
         Ok(Some(vec![change]))
     }
 
+    /// The `key from the x` and `key as literal` items of a `with` slot, as the IR spells them.
+    pub(super) fn with_pairs(&self, m: &Matched) -> ParseResult<Vec<(String, String)>> {
+        Ok(self
+            .row_fields(m)?
+            .into_iter()
+            .map(|(key, origin)| match origin {
+                Origin::Argument(from) => (key, format!(":{}", from.name)),
+                Origin::Literal(text) => (key, text),
+            })
+            .collect())
+    }
+
     /// The `key from the argument` and `key as literal` items of a `with` slot.
     fn row_fields(&self, m: &Matched) -> ParseResult<Vec<(String, Origin)>> {
         let text = m.text_of("fields");
@@ -285,7 +297,7 @@ pub(super) fn said(command: &str, mutations: &[ir::Mutation]) -> Result<Vec<Stri
 }
 
 /// `key from the argument, key as literal` for the fields of a row, or nothing when one has no phrase.
-fn row_items(fields: &[(String, String)]) -> Option<String> {
+pub(super) fn row_items(fields: &[(String, String)]) -> Option<String> {
     if fields.is_empty() {
         return None;
     }

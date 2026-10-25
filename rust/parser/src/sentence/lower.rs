@@ -167,6 +167,10 @@ impl Parser<'_> {
                     chapter.aggregates.push(aggregate);
                 }
                 Step::Phrase(m) if m.id == "policy" => policies.push(self.policy(&m)?),
+                Step::Phrase(m) if m.id == "process" => {
+                    let pm = self.process(&m)?;
+                    chapter.process_managers.push(pm);
+                }
                 Step::Phrase(m) if m.id == "report" => {
                     let model = self.report(&m)?;
                     chapter.read_models.push(model);
@@ -372,7 +376,7 @@ impl Parser<'_> {
                     "identity" => self.identity(&m, &mut st)?,
                     "has" => self.has(&m, &mut st)?,
                     "value_object" | "value_object_with" => self.value_object(&m, &mut st)?,
-                    "closed_set" => self.closed_set(&m, &mut st)?,
+                    "closed_set" | "closed_set_named" => self.closed_set(&m, &mut st)?,
                     "value_fields" => self.value_fields(&m, &mut st)?,
                     "lifecycle" => self.lifecycle(&m, &mut st)?,
                     "command" => self.command(&m, &mut st)?,
@@ -532,6 +536,17 @@ impl Parser<'_> {
         let values = header.capture("values").items;
         let mut set = crate::build::closed_sets::synthesize("value", &values);
         set.name = camel(&header.text_of("name"));
+        if header.id == "closed_set_named" {
+            let column = snake(&header.text_of("attr"));
+            if let Some(attribute) = set.attributes.first_mut() {
+                attribute.name.clone_from(&column);
+            }
+            for member in &mut set.members {
+                for cell in member.iter_mut() {
+                    cell.0.clone_from(&column);
+                }
+            }
+        }
         st.agg.value_objects.push(set);
         self.value_rules(header, st, index)
     }
@@ -592,6 +607,13 @@ impl Parser<'_> {
                         },
                     ));
                     vo.attributes.push(attribute);
+                }
+                "field_member" => {
+                    let member = self.member_cells(&m)?;
+                    if let Some(vo) = st.agg.value_objects.get_mut(index) {
+                        vo.members.push(member);
+                        vo.closed_set = true;
+                    }
                 }
                 "field_rule" => {
                     let cond = self.condition(&m)?;

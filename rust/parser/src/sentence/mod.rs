@@ -17,6 +17,7 @@ mod lower;
 mod names;
 mod options;
 mod pattern;
+mod process;
 mod queries;
 mod report;
 mod token;
@@ -62,6 +63,7 @@ pub fn parse_chapter(
                 chapter.aggregates.extend(parsed.aggregates);
                 chapter.policies.extend(parsed.policies);
                 chapter.read_models.extend(parsed.read_models);
+                chapter.process_managers.extend(parsed.process_managers);
                 if chapter.vision.is_none() {
                     chapter.vision = parsed.vision;
                 }
@@ -236,6 +238,8 @@ fn context_label(context: &str) -> &'static str {
         "Policy" => "a policy",
         "Query" => "a query",
         "Report" => "a report",
+        "Process" => "a process",
+        "Handler" => "a step of a process",
         "Condition" => "a condition",
         "ExamplesFile" => "the top of an examples file",
         "Examples" => "an examples file",
