@@ -20,7 +20,7 @@ Hecks.bluebook "Composer" do
     identified_by :slug
 
     value_object "DraftSlug" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
+      attribute :value, String, matches: :present
 
       invariant("a draft is named") { !value.to_s.empty? }
     end
