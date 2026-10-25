@@ -76,4 +76,52 @@ RSpec.describe "a Rails request over the Ledger domain", type: :request do
 
     expect(last_response.status).to eq(404)
   end
+
+  describe "a dry run" do
+    def dry_run(path, params, actor: "teller-1", **headers)
+      post path, params, { "HTTP_X_ACTOR" => actor, "HTTP_ACCEPT" => "application/json" }.merge(headers)
+    end
+
+    def fields(number) = { "number.value" => number, "owner.name" => "Ada", "balance.cents" => "0" }
+
+    it "answers ok and saves nothing", :aggregate_failures do
+      dry_run("/accounts/open_account?dry_run=1", fields("D1"))
+
+      expect(JSON.parse(last_response.body)).to eq("ok" => true, "refusals" => [])
+      get "/accounts/D1", {}, { "HTTP_ACCEPT" => "application/json" }
+      expect(last_response.status).to eq(404)
+    end
+
+    it "answers every reason it would be refused, with 200", :aggregate_failures do
+      dry_run("/accounts/open_account?dry_run=1", fields("D2").except("number.value", "owner.name"))
+      refusals = JSON.parse(last_response.body).fetch("refusals")
+
+      expect(last_response.status).to eq(200)
+      expect(refusals.map { |refusal| refusal["attribute"] }).to contain_exactly("number", "owner")
+    end
+
+    it "takes the flag from the X-Dry-Run header" do
+      dry_run("/accounts/open_account", fields("D3"), "HTTP_X_DRY_RUN" => "1")
+
+      expect(JSON.parse(last_response.body)["ok"]).to be(true)
+    end
+  end
+
+  describe "a refused form" do
+    def html_post(path, params, actor: "teller-1") = post(path, params, { "HTTP_X_ACTOR" => actor })
+
+    it "comes back as it was filled in, with each reason beside its field", :aggregate_failures do
+      html_post("/accounts/open_account", { "owner.name" => "Ada", "balance.cents" => "5" })
+
+      expect(last_response.status).to eq(422)
+      expect(last_response.body).to include('value="Ada"')
+      expect(last_response.body).to include('role="alert"')
+    end
+
+    it "carries the command's JSON Schema for a script to check against" do
+      html_post("/accounts/open_account", { "owner.name" => "Ada", "balance.cents" => "5" })
+
+      expect(last_response.body).to include('type="application/schema+json"')
+    end
+  end
 end
