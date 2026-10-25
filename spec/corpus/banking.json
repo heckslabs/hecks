@@ -3110,6 +3110,109 @@
           "paper_fee_cents": 0
         }
       }
+    },
+    {
+      "verb": "Banking::Hold.Place",
+      "args": {
+        "reference": {
+          "value": "HOLD-1"
+        },
+        "subject": {
+          "type": "Account",
+          "id": "acct-1"
+        },
+        "reason": {
+          "value": "unusual activity"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Hold.Place",
+      "args": {
+        "reference": {
+          "value": "HOLD-2"
+        },
+        "subject": {
+          "type": "ATMCard",
+          "id": "CARD-GUARD-B"
+        },
+        "reason": {
+          "value": "card reported lost"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Hold.Place",
+      "args": {
+        "reference": {
+          "value": "HOLD-3"
+        },
+        "subject": {
+          "type": "Customer",
+          "id": "CUST-0001"
+        },
+        "reason": {
+          "value": "not a holdable subject"
+        }
+      },
+      "note": "refused: a Subject's type admits only the union's members"
+    },
+    {
+      "verb": "Banking::Hold.EscalateCardHold",
+      "args": {
+        "reference": {
+          "value": "HOLD-1"
+        }
+      },
+      "note": "refused: HOLD-1 is on an account, not a card"
+    },
+    {
+      "verb": "Banking::Hold.EscalateAccountHold",
+      "args": {
+        "reference": {
+          "value": "HOLD-1"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Hold.EscalateCardHold",
+      "args": {
+        "reference": {
+          "value": "HOLD-2"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Hold.Lift",
+      "args": {
+        "reference": {
+          "value": "HOLD-2"
+        }
+      },
+      "note": "refused: an escalated hold is lifted only from placed"
+    },
+    {
+      "verb": "Banking::Hold.Place",
+      "args": {
+        "reference": {
+          "value": "HOLD-4"
+        },
+        "subject": {
+          "type": "Account",
+          "id": "acct-1"
+        },
+        "reason": {
+          "value": "cheque under review"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Hold.Lift",
+      "args": {
+        "reference": {
+          "value": "HOLD-4"
+        }
+      }
     }
   ],
   "domain": "examples/banking",
@@ -4019,6 +4122,21 @@
         "verb": "Banking::Statement.Generate",
         "error": "Generate creates a Statement that already exists — account, period.value \"acct-guard-f:2026-08\"",
         "kind": "AlreadyExists"
+      },
+      {
+        "verb": "Banking::Hold.Place",
+        "error": "type admits Hold::SubjectType — \"Account\", \"ATMCard\" — got \"Customer\"",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "Banking::Hold.EscalateCardHold",
+        "error": "EscalateCardHold refused — the hold is on a card",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Banking::Hold.Lift",
+        "error": "Lift refused — status is \"escalated\", and Lift moves it only from \"placed\"",
+        "kind": "LifecycleRefused"
       }
     ],
     "instances": {
@@ -4610,6 +4728,45 @@
         },
         "status": "open",
         "customer_status": "active"
+      },
+      "Banking::Hold#HOLD-1": {
+        "reference": {
+          "value": "HOLD-1"
+        },
+        "subject": {
+          "type": "Account",
+          "id": "acct-1"
+        },
+        "reason": {
+          "value": "unusual activity"
+        },
+        "status": "escalated"
+      },
+      "Banking::Hold#HOLD-2": {
+        "reference": {
+          "value": "HOLD-2"
+        },
+        "subject": {
+          "type": "ATMCard",
+          "id": "CARD-GUARD-B"
+        },
+        "reason": {
+          "value": "card reported lost"
+        },
+        "status": "escalated"
+      },
+      "Banking::Hold#HOLD-4": {
+        "reference": {
+          "value": "HOLD-4"
+        },
+        "subject": {
+          "type": "Account",
+          "id": "acct-1"
+        },
+        "reason": {
+          "value": "cheque under review"
+        },
+        "status": "lifted"
       },
       "Banking::ATMCard#CARD-GUARD-B": {
         "account": "acct-guard-b",
@@ -5471,6 +5628,87 @@
             "cadence": "monthly",
             "retention_months": 84,
             "paper_fee_cents": 0
+          }
+        }
+      },
+      {
+        "name": "HoldPlaced",
+        "aggregate": "Banking::Hold",
+        "id": "HOLD-1",
+        "payload": {
+          "reference": {
+            "value": "HOLD-1"
+          },
+          "subject": {
+            "type": "Account",
+            "id": "acct-1"
+          },
+          "reason": {
+            "value": "unusual activity"
+          }
+        }
+      },
+      {
+        "name": "HoldPlaced",
+        "aggregate": "Banking::Hold",
+        "id": "HOLD-2",
+        "payload": {
+          "reference": {
+            "value": "HOLD-2"
+          },
+          "subject": {
+            "type": "ATMCard",
+            "id": "CARD-GUARD-B"
+          },
+          "reason": {
+            "value": "card reported lost"
+          }
+        }
+      },
+      {
+        "name": "AccountHoldEscalated",
+        "aggregate": "Banking::Hold",
+        "id": "HOLD-1",
+        "payload": {
+          "reference": {
+            "value": "HOLD-1"
+          }
+        }
+      },
+      {
+        "name": "CardHoldEscalated",
+        "aggregate": "Banking::Hold",
+        "id": "HOLD-2",
+        "payload": {
+          "reference": {
+            "value": "HOLD-2"
+          }
+        }
+      },
+      {
+        "name": "HoldPlaced",
+        "aggregate": "Banking::Hold",
+        "id": "HOLD-4",
+        "payload": {
+          "reference": {
+            "value": "HOLD-4"
+          },
+          "subject": {
+            "type": "Account",
+            "id": "acct-1"
+          },
+          "reason": {
+            "value": "cheque under review"
+          }
+        }
+      },
+      {
+        "name": "HoldLifted",
+        "aggregate": "Banking::Hold",
+        "id": "HOLD-4",
+        "payload": {
+          "reference": {
+            "value": "HOLD-4"
           }
         }
       }

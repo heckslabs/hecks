@@ -10,7 +10,7 @@ RSpec.describe "every role-gated command, at every door that takes a role", :agg
   UNGATED_BY_SYNTHESIS = %w[
     Banking::Customer.Register Banking::Account.Credit Banking::Account.Debit Banking::Account.ApplyFee
     Banking::Account.CorrectFee Banking::Account.AccrueInterest Banking::Account.CorrectInterest
-    Banking::ExternalTransfer.Request
+    Banking::ExternalTransfer.Request Banking::Hold.Place Bulk::BulkRun.Record
   ].freeze
 
   def self.domains = Hecks::Corpus.members(:example).map(&:path).sort
