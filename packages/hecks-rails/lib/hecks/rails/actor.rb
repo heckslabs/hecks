@@ -16,10 +16,25 @@ module Hecks
       # @return [Hash{Symbol => String}, nil] `{ actor_id: }`, or nil when nobody is signed in
       def actor_for(controller)
         id = @actor_from ? @actor_from.call(controller) : signed_in_id(controller)
+        id ||= picked_id(controller) if dev_actor?
         id && { actor_id: id.to_s }
       end
 
+      # Whether the pages offer an "acting as" picker, which signs in as a role with no password.
+      # Only a development server offers it unless the app says so.
+      #
+      # @return [Boolean] true on a development server, else whatever `dev_actor=` set
+      def dev_actor? = @dev_actor.nil? ? ::Rails.env.development? : @dev_actor
+
+      # @param value [Boolean, nil] true or false to decide, nil to follow the environment
+      # @return [void]
+      def dev_actor=(value)
+        @dev_actor = value
+      end
+
       private
+
+      def picked_id(controller) = controller.respond_to?(:session) ? controller.session[:hecks_actor] : nil
 
       def signed_in_id(controller)
         user = controller.respond_to?(:current_user, true) ? controller.send(:current_user) : nil

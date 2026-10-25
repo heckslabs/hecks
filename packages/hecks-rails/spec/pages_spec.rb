@@ -84,6 +84,48 @@ RSpec.describe "the pages a Rails app has with no view files of its own", type: 
     end
   end
 
+  describe "the acting-as picker" do
+    def act_as(role) = post("/hecks/actor", { "role" => role })
+
+    def post_note_unsigned = post("/notes/post_note", { "slug.value" => "picked", "text.value" => "Hi" })
+
+    around do |example|
+      Hecks::Rails.dev_actor = true
+      example.run
+    ensure
+      Hecks::Rails.dev_actor = nil
+    end
+
+    it "signs the session in as a role, so a command passes without a header" do
+      act_as("Teller")
+      post_note_unsigned
+
+      expect(last_response.status).to eq(302)
+    end
+
+    it "lists the roles the domain's commands name" do
+      html("/notes")
+
+      expect(last_response.body).to include('<option value="Teller">Teller</option>')
+    end
+
+    it "signs out when no role is picked", :aggregate_failures do
+      act_as("Teller")
+      act_as("")
+      post_note_unsigned
+
+      expect(last_response.status).to eq(403)
+    end
+
+    it "offers nothing when the picker is off", :aggregate_failures do
+      Hecks::Rails.dev_actor = false
+      act_as("Teller")
+
+      expect(last_response.status).to eq(404)
+      expect(html("/notes") && last_response.body).not_to include("Acting as")
+    end
+  end
+
   describe Hecks::Rails::App do
     it "names a place in the navigation for each aggregate that takes commands", :aggregate_failures do
       labels = described_class.entries.map(&:label)

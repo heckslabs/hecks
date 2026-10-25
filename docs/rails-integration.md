@@ -376,9 +376,11 @@ collection, like a left join; a one-side head with no match is `nil`.
   list and record pages are built (see Pages above); filtered and query-backed
   views are a separate, still-undesigned piece.
 - **Who is signed in.** The pages act as `current_user`, and a request with nobody signed in is
-  refused by every role-gated command, so a fresh app can read but not write until the app
-  names who is signed in and Governance holds a grant for them. A development stand-in that
-  picks an actor and a role is not built.
+  refused by every role-gated command. On a development server the layout adds an "Acting as"
+  picker of the roles the commands name: it signs the session in as `dev-<role>` and tells
+  Governance that actor holds the role, with no password, so it answers 404 anywhere else
+  (`Hecks::Rails.dev_actor = true` or `false` overrides the environment). Real authentication
+  is still the app's, and ADRs 0072 and 0076 describe a verified token replacing it.
 - **Authorization: built, with one gap.** The domain enforces `command.role` through
   Governance grants (`Hecks.as_caller`), and the Rails controller binds each request's
   caller. What is left is authentication itself: `hecks_actor` is an override the app

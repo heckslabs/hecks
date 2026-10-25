@@ -28,6 +28,11 @@ module Hecks
         home + rest
       end
 
+      # @return [Array<String>] every role a command of the app's aggregates names, in order seen
+      def roles
+        Booted.app_chapters.flat_map(&:aggregates).flat_map(&:commands).filter_map(&:role).map(&:to_s).uniq
+      end
+
       # @param model [Class] an aggregate's model
       # @return [Array<Symbol>] the attributes its list shows: the `Listing` row's, else identity,
       #   lifecycle state and the first scalars

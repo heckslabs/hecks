@@ -15,6 +15,7 @@ require_relative "rails/routes"
 require_relative "rails/app"
 require_relative "rails/pages"
 require_relative "rails/rendering"
+require_relative "rails/actors_controller"
 require_relative "rails/controller"
 require_relative "rails/form_helper"
 require_relative "rails/railtie" if defined?(Rails::Railtie)
