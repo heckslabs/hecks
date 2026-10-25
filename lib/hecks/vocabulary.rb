@@ -62,6 +62,17 @@ module Hecks
         {"symbol"=>"==", "compares_less_than"=>"false", "compares_equal"=>"true", "negated"=>"false"}.freeze,
         {"symbol"=>"!=", "compares_less_than"=>"false", "compares_equal"=>"true", "negated"=>"true"}.freeze
       ].freeze,
+      "DispatchStage" => [
+        {"name"=>"request"}.freeze,
+        {"name"=>"arguments"}.freeze,
+        {"name"=>"role"}.freeze,
+        {"name"=>"references"}.freeze,
+        {"name"=>"state"}.freeze,
+        {"name"=>"givens"}.freeze,
+        {"name"=>"ensures"}.freeze,
+        {"name"=>"invariants"}.freeze,
+        {"name"=>"remote"}.freeze
+      ].freeze,
       "DomainRefusal" => [
         {"name"=>"AbsentArgument"}.freeze,
         {"name"=>"AlreadyExists"}.freeze,
@@ -198,6 +209,29 @@ module Hecks
         {"name"=>"percentile", "identity"=>"null", "combine"=>"collect", "inverse"=>""}.freeze,
         {"name"=>"any", "identity"=>"false", "combine"=>"or", "inverse"=>""}.freeze,
         {"name"=>"all", "identity"=>"true", "combine"=>"and", "inverse"=>""}.freeze
+      ].freeze,
+      "RefusalClass" => [
+        {"refusal"=>"AbsentArgument", "kind"=>"absent_argument", "stage"=>"arguments"}.freeze,
+        {"refusal"=>"AlreadyExists", "kind"=>"refused", "stage"=>"state"}.freeze,
+        {"refusal"=>"AttributeAbsent", "kind"=>"refused", "stage"=>"state"}.freeze,
+        {"refusal"=>"EnsuresNotMet", "kind"=>"refused", "stage"=>"ensures"}.freeze,
+        {"refusal"=>"GivenNotMet", "kind"=>"refused", "stage"=>"givens"}.freeze,
+        {"refusal"=>"InvariantViolation", "kind"=>"refused", "stage"=>"invariants"}.freeze,
+        {"refusal"=>"LifecycleRefused", "kind"=>"refused", "stage"=>"state"}.freeze,
+        {"refusal"=>"NothingToCorrect", "kind"=>"refused", "stage"=>"state"}.freeze,
+        {"refusal"=>"NotFound", "kind"=>"not_found", "stage"=>"state"}.freeze,
+        {"refusal"=>"ProjectionAbsent", "kind"=>"refused", "stage"=>"state"}.freeze,
+        {"refusal"=>"RemoteRefusal", "kind"=>"refused", "stage"=>"remote"}.freeze,
+        {"refusal"=>"TypeMismatch", "kind"=>"refused", "stage"=>"arguments"}.freeze,
+        {"refusal"=>"Unauthorized", "kind"=>"unauthorized", "stage"=>"role"}.freeze,
+        {"refusal"=>"UnknownArgument", "kind"=>"refused", "stage"=>"arguments"}.freeze,
+        {"refusal"=>"UnknownVerb", "kind"=>"refused", "stage"=>"request"}.freeze
+      ].freeze,
+      "RefusalKind" => [
+        {"name"=>"refused"}.freeze,
+        {"name"=>"not_found"}.freeze,
+        {"name"=>"unauthorized"}.freeze,
+        {"name"=>"absent_argument"}.freeze
       ].freeze,
       "RefusalSiteArgument" => [
         {"refusal"=>"NotFound", "site"=>"creating_no_identity", "argument"=>"command", "shape"=>"scalar", "quoting"=>"none", "separator"=>"", "sorted"=>"false", "when_empty"=>""}.freeze,

@@ -181,6 +181,45 @@ Hecks.bluebook "Bluebook" do
                          "RemoteRefusal", "TypeMismatch", "Unauthorized", "UnknownArgument", "UnknownVerb"]
     end
 
+    # The sorts of no an adapter answers differently.
+    value_object "RefusalKind" do
+      attribute :name, String, one_of: ["refused", "not_found", "unauthorized", "absent_argument"]
+    end
+
+    # The points of a command's dispatch a refusal can come from, in the order they run.
+    value_object "DispatchStage" do
+      attribute :name, String,
+                one_of: ["request", "arguments", "role", "references", "state", "givens", "ensures", "invariants",
+                         "remote"]
+    end
+
+    # What sort of no each DomainRefusal is, and the dispatch stage it comes from. A driving
+    # adapter answers by `kind` (a missing record or a missing role differently from a rule that
+    # did not hold); a validation reports `stage` so a client knows how far the command got. A
+    # raise site may name a narrower stage (a reference that does not resolve is a NotFound
+    # in the `references` stage). Read through `Hecks::Refused#kind` and `#stage`.
+    value_object "RefusalClass" do
+      attribute :refusal, String, admits: "Vocabulary::DomainRefusal"
+      attribute :kind,    String, admits: "Vocabulary::RefusalKind"
+      attribute :stage,   String, admits: "Vocabulary::DispatchStage"
+
+      member refusal: "AbsentArgument", kind: "absent_argument", stage: "arguments"
+      member refusal: "AlreadyExists", kind: "refused", stage: "state"
+      member refusal: "AttributeAbsent", kind: "refused", stage: "state"
+      member refusal: "EnsuresNotMet", kind: "refused", stage: "ensures"
+      member refusal: "GivenNotMet", kind: "refused", stage: "givens"
+      member refusal: "InvariantViolation", kind: "refused", stage: "invariants"
+      member refusal: "LifecycleRefused", kind: "refused", stage: "state"
+      member refusal: "NothingToCorrect", kind: "refused", stage: "state"
+      member refusal: "NotFound", kind: "not_found", stage: "state"
+      member refusal: "ProjectionAbsent", kind: "refused", stage: "state"
+      member refusal: "RemoteRefusal", kind: "refused", stage: "remote"
+      member refusal: "TypeMismatch", kind: "refused", stage: "arguments"
+      member refusal: "Unauthorized", kind: "unauthorized", stage: "role"
+      member refusal: "UnknownArgument", kind: "refused", stage: "arguments"
+      member refusal: "UnknownVerb", kind: "refused", stage: "request"
+    end
+
     # The wording for every DomainRefusal site not already carried by data
     # (given/ensures/invariant already describe themselves). Language-level
     # and the same for every domain, so it is declared here and projected

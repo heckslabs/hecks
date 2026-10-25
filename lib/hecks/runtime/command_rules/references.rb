@@ -2,6 +2,7 @@ require_relative "../errors"
 require_relative "../refusal_wording"
 require_relative "../value"
 require_relative "../../rendering"
+require_relative "missing_reference"
 require_relative "tenant_boundary"
 
 module Hecks
@@ -45,7 +46,7 @@ module Hecks
           return if held.nil?
 
           target = referenced_aggregate(attribute)
-          validate_reference_values(domain, target, held, list: attribute.list?) if target
+          validate_reference_values(domain, target, held, list: attribute.list?, attribute: attribute.name) if target
         end
 
         # One reference-typed attribute of settled state: cardinality, target and tenant.
@@ -57,7 +58,7 @@ module Hecks
           target = referenced_aggregate(attribute)
           return unless target
 
-          validate_reference_values(domain, target, held, list: attribute.list?)
+          validate_reference_values(domain, target, held, list: attribute.list?, attribute: attribute.name)
           enforce_tenant_boundary(boundary, attribute, target, held)
         end
 
@@ -95,17 +96,14 @@ module Hecks
         def referenced_aggregate(attribute) = attribute.target_aggregate
 
         # Refuses a reference-typed value whose target identity does not exist.
-        def validate_reference_values(domain, target, held, list:)
+        def validate_reference_values(domain, target, held, list:, attribute:)
           values = list ? Array(held) : [held]
           values.each do |value|
             key = reference_key(value)
             next if key.empty?
             next if @registry.repository(domain, target).find(key)
 
-            raise NotFound,
-                  RefusalWording.render_site("NotFound", "reference_target_missing",
-                                             target: target.name, heads: target.identity_heads.join(", "),
-                                             key: key)
+            raise MissingReference.refusal(target, key, attribute)
           end
         end
 

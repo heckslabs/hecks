@@ -121,7 +121,7 @@ module Hecks
           command.ensures.each do |rule|
             next if Bluebook::Expression::Evaluator.call_rule(rule, state, attrs)
 
-            raise EnsuresNotMet, "#{command.hecks_name} refused — #{rule.description}"
+            raise EnsuresNotMet.new("#{command.hecks_name} refused — #{rule.description}", rule: rule.description)
           end
         end
 
@@ -161,7 +161,8 @@ module Hecks
 
             raise GivenNotMet.new(
               "#{command.hecks_name} refused — #{given.description}",
-              detail: Bluebook::Expression::Evaluator.comparison_detail(given.canonical, state, attrs)
+              detail: Bluebook::Expression::Evaluator.comparison_detail(given.canonical, state, attrs),
+              rule:   given.description
             )
           end
         end

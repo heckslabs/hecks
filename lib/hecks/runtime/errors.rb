@@ -22,9 +22,9 @@ module Hecks
 
       # @param message [String, nil] the refusal text
       # @param detail [String, nil] the failing comparison's resolved operands, if any
-      # @param attribute [Symbol, String, nil] the attribute the refusal is about, if any
-      def initialize(message = nil, detail: nil, attribute: nil)
-        super(message, attribute: attribute)
+      # @param options [Hash] `attribute:`, `rule:`, `stage:` and `path:`, as `Hecks::Refused` takes
+      def initialize(message = nil, detail: nil, **)
+        super(message, **)
         @detail = detail
       end
 
@@ -38,10 +38,7 @@ module Hecks
     end
 
     # A command addressed a record that does not exist.
-    class NotFound < Hecks::Refused
-      # @return [Symbol] `:not_found`
-      def kind = :not_found
-    end
+    class NotFound < Hecks::Refused; end
 
     # A command is not admissible from the record's current lifecycle state.
     class LifecycleRefused < Hecks::Refused; end
@@ -51,10 +48,7 @@ module Hecks
     class UnknownArgument < Hecks::Refused; end
 
     # An argument the command declares but the call omitted.
-    class AbsentArgument < Hecks::Refused
-      # @return [Symbol] `:absent_argument`
-      def kind = :absent_argument
-    end
+    class AbsentArgument < Hecks::Refused; end
 
     # A creating command whose derived identity already names a record.
     class AlreadyExists < Hecks::Refused; end
@@ -66,10 +60,7 @@ module Hecks
     class ProjectionAbsent < Hecks::Refused; end
 
     # A query or read model declares `authorize policy, tenant: :field` and the caller omitted it.
-    class Unauthorized < Hecks::Refused
-      # @return [Symbol] `:unauthorized`
-      def kind = :unauthorized
-    end
+    class Unauthorized < Hecks::Refused; end
 
     # A `corrects` command whose target event this record never emitted.
     # Raised by `CommandRules::Admissibility#enforce_correction_target`.
