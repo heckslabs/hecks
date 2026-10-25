@@ -136,6 +136,12 @@ Hecks.hecksagon "Hecks" do
       answers "LaunchAnswered"
       refuses "LaunchRefused"
     end
+
+    asks "WriteRails", to: Launch do
+      attribute :run, LaunchKey
+      answers "LaunchAnswered"
+      refuses "LaunchRefused"
+    end
   end
 
   Hecks::Launch.port "Terminal" do

@@ -21,6 +21,8 @@ ordinary Rails files.
 | Validations | `packages/hecks-rails` (`Validating`) | `record.valid_for?(:freeze_account, params)` asks the domain whether the command would be accepted (`Dispatcher#validate`, ADR 0128) and fills `errors` with every reason, each against its attribute; `?dry_run=1` or `X-Dry-Run: 1` on a command route answers the same as JSON with 200 |
 | `command_form_for` | `packages/hecks-rails` | Fields from `Hecks::Forms`, named by the dotted paths `Forms::Params` reads; a refused form comes back with the submitted values, each reason beside its field, reference options filled, and the command's JSON Schema (`CommandSchema`) embedded |
 | `available_commands(as:)` | the model | The domain's own validation, under the actor's Governance grants |
+| Reference lookups | `packages/hecks-rails` (`References`) | `transfer.source_account` for `reference_to Account, as: :source`, or `account_record` when the attribute is named for its target; the record loads only when the lookup is called |
+| `:rails_app` projection | `lib/hecks/projections/rails_app.rb` | A controller per aggregate and a routes file with a `resources` line each; `hecks launch.project_rails! run=rails dir=<app>` writes them where the app has none, and writes no model, since models are generated at boot |
 | `be_refused_with` | `hecks/rails/rspec` | RSpec matcher for a refusal and its wording |
 | `Hecks/RailsModelRules` | `lib/rubocop/cop/hecks` | Refuses `validates`, callbacks and associations in a model |
 
@@ -289,21 +291,16 @@ compare `source != destination` as plain values, never `.balance`-style access).
 
 Wanting the actual record is a deliberate, visible act — never automatic:
 
-```ruby
-class Handle
-  @ir.attributes.select { |a| a.type.is_a?(IR::Reference) }.each do |ref|
-    target = ref.type.target_name
-    define_singleton_method("#{ref.name}_#{Naming.snake(target)}") do
-      Adapters::Driving.const_get(target).find(self[ref.name])
-    end
-  end
-end
+```ruby skip
+transfer.source          # the raw identity, still what `given` compares
+transfer.source_account  # the Account record, looked up now
+account.customer_record  # a reference named for its target takes `_record`
 ```
 
-Purely additive — `transfer.source` (the raw value, still needed by `given`) is
-untouched; `transfer.source_account` is a new, separate, on-demand accessor. Belongs
-in *core*, not the Rails layer — it only reuses `AggregateModule#find`, already
-dependency-free.
+Purely additive — the raw reader is untouched and the lookup is a separate, on-demand
+accessor. It is built in `Hecks::Rails::References`, which defines one per reference
+attribute on the model, answering the target's own model (the app's class when it wrote
+one) through its `find`. Core handles do not have it.
 
 **Chaining composes for free and should stay that way.** `transfer.source_account.customer`
 is already a two-hop traversal, expressed as two ordinary calls, each individually
