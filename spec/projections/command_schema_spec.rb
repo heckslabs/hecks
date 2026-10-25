@@ -1,6 +1,6 @@
 require "spec_helper"
 require_relative "../support/booted_source"
-require_relative "../support/json_schema_subset"
+require "json_schemer"
 
 # The command schema describes what a command's payload may hold. Its check of a payload must agree
 # with what the runtime's argument stage says, or a client would be told one thing locally and
@@ -60,7 +60,7 @@ RSpec.describe Hecks::Projections::CommandSchema do
   let(:schema) { JSON.parse(files.fetch("Crating/Crate/Pack.schema.json")) }
   let(:good) { { tag: "c1", size: 2, price: { cents: 5 }, kind: "small", labels: ["a"] } }
 
-  def schema_accepts?(payload) = JsonSchemaSubset.valid?(schema, payload)
+  def schema_accepts?(payload) = JSONSchemer.schema(schema).valid?(JSON.parse(JSON.generate(payload)))
 
   def argument_refusals(payload)
     dispatcher.validate("Crating::Crate.Pack", payload).refusals.select { |refusal| refusal.stage == :arguments }
