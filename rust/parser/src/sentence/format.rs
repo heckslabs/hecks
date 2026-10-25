@@ -73,41 +73,49 @@ fn provides_text(out: &mut String, provides: &[ir::Provision]) -> Result<(), Str
 
 /// `Policy: …` with its `Whenever` and `Then` lines.
 fn policy_text(out: &mut String, policy: &ir::Policy, chapter: &ir::Bluebook) -> Result<(), String> {
-    if policy.target_domain.is_some()
-        || policy.expect_undelivered
-        || policy.where_clause.is_some()
-        || policy.for_each_query.is_some()
-    {
+    if policy.target_domain.is_some() || policy.expect_undelivered || policy.where_clause.is_some() {
         return Err(format!("the sentence form has no phrase for the options on policy {}", policy.name));
     }
     let on_event = policy
         .on_event
         .as_ref()
         .ok_or_else(|| format!("policy {} waits for no event", policy.name))?;
-    let (owner, event) = on_event
-        .split_once('.')
-        .ok_or_else(|| format!("policy {} waits for '{on_event}', which names no aggregate", policy.name))?;
     out.push_str(&format!("\nPolicy: {}\n", spoken_title(&policy.name)));
-    let announced_by_a_command = chapter
-        .aggregates
-        .iter()
-        .filter(|a| a.commands.iter().any(|c| c.emits.iter().any(|e| e == event)))
-        .count()
-        == 1;
-    if announced_by_a_command {
-        out.push_str(&format!("  Whenever {event} is announced\n"));
-    } else {
-        out.push_str(&format!("  Whenever {event} is announced by {}\n", with_article(&spoken(owner))));
+    match on_event.split_once('.') {
+        None => out.push_str(&format!("  Whenever the outside announces {on_event}\n")),
+        Some((owner, event)) => {
+            let announced_by_a_command = chapter
+                .aggregates
+                .iter()
+                .filter(|a| a.commands.iter().any(|c| c.emits.iter().any(|e| e == event)))
+                .count()
+                == 1;
+            if announced_by_a_command {
+                out.push_str(&format!("  Whenever {event} is announced\n"));
+            } else {
+                out.push_str(&format!("  Whenever {event} is announced by {}\n", with_article(&spoken(owner))));
+            }
+        }
+    }
+    if let Some(query) = &policy.for_each_query {
+        let (owner, name) = query.split_once('.').ok_or_else(|| {
+            format!("policy {} runs for each row of '{query}', which names no aggregate", policy.name)
+        })?;
+        out.push_str(&format!("  For each {} of the {}\n", spoken(name), spoken(owner)));
     }
     let mut fields = Vec::new();
     for (key, value) in &policy.with_spec {
-        if *value != format!(":{key}") {
+        let Some(from) = value.strip_prefix(':').filter(|from| is_name(from)) else {
             return Err(format!(
-                "the sentence form passes a field on by its own name; policy {} passes {key} as {value}",
+                "the sentence form passes a field on by name; policy {} passes {key} as {value}",
                 policy.name
             ));
+        };
+        if from == key {
+            fields.push(format!("the {}", spoken(key)));
+        } else {
+            fields.push(format!("the {} from the {}", spoken(key), spoken(from)));
         }
-        fields.push(format!("the {}", spoken(key)));
     }
     let with = if fields.is_empty() {
         String::new()

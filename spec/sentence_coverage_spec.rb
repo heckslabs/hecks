@@ -10,8 +10,8 @@ require "tmpdir"
 # deleting an entry is how the sentence form grows, and an entry nothing hits is itself a failure.
 RSpec.describe "the sentence form against the whole corpus", :io do
   BINARY = File.expand_path("../rust/parser/target/debug/hecks-parse", __dir__)
-  CORPUS = Dir[File.expand_path("../{examples,lib/hecks/framework,spec/corpus,spec/fixtures}/**/*.bluebook", __dir__)]
-           .reject { |path| path.end_with?("sentence_form.bluebook") }.sort.freeze
+  FILES = Dir[File.expand_path("../{examples,lib/hecks/framework,spec/corpus,spec/fixtures}/**/*.bluebook", __dir__)]
+          .reject { |path| path.end_with?("sentence_form.bluebook") }.sort.freeze
 
   # What the sentence form has no phrase for yet, as the regexp its refusal matches.
   UNSAID = [
@@ -22,24 +22,26 @@ RSpec.describe "the sentence form against the whole corpus", :io do
     /no phrase for the options on (policy|query)/,
     /triggers \S+, a command this chapter does not declare/,
     /no phrase for the paging and access options in query/,
-    /no phrase for that kind of mutation on command/,
-    /names no aggregate/,
+    /no phrase for this filter in query/,
     /names no command \w+ declares/
   ].freeze
 
   def self.name_of(path) = File.read(path)[/Hecks\.bluebook\s+"([^"]+)"/, 1]
 
+  # A chapter is the files of one directory that declare the same name, read together as the
+  # loader reads them.
+  CHAPTERS = FILES.group_by { |path| [File.dirname(path), name_of(path)] }.reject { |(_, name), _| name.nil? }.freeze
+
   def parse(*args)
     Open3.capture3(BINARY, *args)
   end
 
-  # Where the Ruby form reads, its IR and its sentences; nil where hecks-parse cannot read the file.
-  def sentences_of(path)
-    name = self.class.name_of(path)
-    ir, _, read = parse("chapter", "--chapter", name, path)
+  # Where the Ruby form reads, its IR and its sentences; nil where hecks-parse cannot read the chapter.
+  def sentences_of(name, paths)
+    ir, _, read = parse("chapter", "--chapter", name, *paths)
     return unless read.success?
 
-    text, refusal, said = parse("format", "--chapter", name, path)
+    text, refusal, said = parse("format", "--chapter", name, *paths)
     { name: name, ir: ir, text: text, refusal: said.success? ? nil : refusal }
   end
 
@@ -52,8 +54,8 @@ RSpec.describe "the sentence form against the whole corpus", :io do
   end
 
   def outcomes
-    @outcomes ||= CORPUS.filter_map { |path| [path, sentences_of(path)] if self.class.name_of(path) }
-                        .select { |_, found| found }
+    @outcomes ||= CHAPTERS.filter_map { |(dir, name), paths| ["#{dir}/#{name}", sentences_of(name, paths)] }
+                          .select { |_, found| found }
   end
 
   before { skip "build rust/parser first" unless File.exist?(BINARY) }
