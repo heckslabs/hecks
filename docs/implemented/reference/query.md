@@ -608,7 +608,7 @@ would answer a single row here, and nothing at all at `limit 10, offset
 | positional 1 | symbol | true | value |
 <!-- generated:end -->
 
-Pages the query by its order field and identity (ADR 0128). The field
+Pages the query by its order field and identity (ADR 0130). The field
 is the one `order_by` names, or `:id` when the query has no `order_by`;
 `limit` is the page size and is required; `offset` is refused beside it.
 Identity breaks ties in the order's own direction, and `nulls` places

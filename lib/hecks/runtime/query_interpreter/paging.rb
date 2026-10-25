@@ -3,7 +3,7 @@ require_relative "../../ports/query/cursor"
 module Hecks
   module Runtime
     class QueryInterpreter
-      # Answers a cursor query a page at a time (ADR 0128). Mixed into {QueryInterpreter}.
+      # Answers a cursor query a page at a time (ADR 0130). Mixed into {QueryInterpreter}.
       module Paging
         # Answers one page of a cursor query: the rows, and the token of the page after them.
         #

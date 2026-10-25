@@ -2,7 +2,7 @@ require "spec_helper"
 require "tmpdir"
 require "hecks/fuzzing"
 
-# `cursor` pages a query by its order field and identity (ADR 0128). Banking's `OpenPaged` orders
+# `cursor` pages a query by its order field and identity (ADR 0130). Banking's `OpenPaged` orders
 # open accounts by number with a page of 25, so twenty-seven accounts take two pages; each example
 # boots a fresh copy bound to Memory or to SQLite.
 RSpec.describe "a cursor query" do
