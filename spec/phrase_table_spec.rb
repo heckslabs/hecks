@@ -19,7 +19,8 @@ RSpec.describe "the generated sentence table" do
 
   it "declares each phrase once, in a context the parser knows", :aggregate_failures do
     rows = Hecks::Projections::PhraseTable.rows(chapter)
-    contexts = %w[File Domain Aggregate Has ValueObject Lifecycle Command Query Condition]
+    contexts = %w[File Domain Aggregate Has ValueObject Lifecycle Command Query Condition
+                  ExamplesFile Examples Background Example Table Step Outcome]
 
     expect(rows.map { |row| row[:id] }).to eq(rows.map { |row| row[:id] }.uniq)
     expect(rows.map { |row| row[:context] }.uniq - contexts).to be_empty

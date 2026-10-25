@@ -59,6 +59,7 @@ fn run(args: &[String]) -> Result<(), RunError> {
         Some("render") => run_render(&args[1..]),
         Some("complete") => run_complete(&args[1..]),
         Some("format") => run_format(&args[1..]),
+        Some("examples") => run_examples(&args[1..]),
         Some("resolve") => run_resolve(&args[1..]),
         Some("adapter") => run_adapter(&args[1..]),
         Some("world") => run_world(&args[1..]),
@@ -127,6 +128,37 @@ fn run_render(args: &[String]) -> Result<(), RunError> {
     let first = loaded.first().map_or("<none>", |(path, _)| path.as_str());
     let text = render_ruby::ruby_form(&bluebook)
         .map_err(|why| RunError::Parse(diag::Diagnostic::new(first, 1, why)))?;
+    print!("{text}");
+    Ok(())
+}
+
+/// `hecks-parse examples --chapter <Name> --examples <file> <chapter files...>`: prints the
+/// `.behaviors` text that runs the examples file against the chapter.
+fn run_examples(args: &[String]) -> Result<(), RunError> {
+    let mut examples_path: Option<String> = None;
+    let mut rest: Vec<String> = Vec::new();
+    let mut iter = args.iter();
+    while let Some(arg) = iter.next() {
+        if arg == "--examples" {
+            examples_path = iter.next().cloned();
+        } else {
+            rest.push(arg.clone());
+        }
+    }
+    let examples_path = examples_path.ok_or_else(|| {
+        RunError::Usage("hecks-parse examples --chapter <Name> --examples <file> <files...>".to_string())
+    })?;
+    let (chapter_name, loaded) = read_chapter_args("examples", &rest)?;
+    let source = fs::read_to_string(&examples_path)
+        .map_err(|e| RunError::Usage(format!("could not read '{examples_path}': {e}")))?;
+    let bluebook = parse::chapter::parse_chapter(&chapter_name, &loaded)?;
+    let absolute: Vec<String> = loaded
+        .iter()
+        .map(|(path, _)| {
+            fs::canonicalize(path).map_or_else(|_| path.clone(), |full| full.to_string_lossy().into_owned())
+        })
+        .collect();
+    let text = sentence::examples::compile(&bluebook, &absolute, &examples_path, &source)?;
     print!("{text}");
     Ok(())
 }

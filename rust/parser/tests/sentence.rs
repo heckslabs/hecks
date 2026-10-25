@@ -195,6 +195,148 @@ fn the_ruby_form_and_the_sentence_form_do_not_mix_in_one_chapter() {
     assert!(error.contains("written in the Ruby form"), "{error}");
 }
 
+const EXAMPLES: &str = "\
+Examples for: Cms
+
+Background:
+  Dana is an Editor
+  Sam is a Viewer
+
+Example: Publishing
+  Given Dana drafts a page with slug \"about\" and title \"About\"
+  When Dana publishes it
+  Then the page is published
+  And PagePublished is announced
+
+Example: Only an editor may publish
+  Given Dana drafts a page with slug \"about\" and title \"About\"
+  When <person> tries to publish it
+  Then it is refused because only an Editor may do it
+
+  Where:
+    | person |
+    | Sam    |
+";
+
+fn compile_examples(name: &str, examples: &str) -> Output {
+    let chapter = write(&format!("examples_{name}.bluebook"), GOOD);
+    let source = write(&format!("examples_{name}.examples"), examples);
+    Command::new(env!("CARGO_BIN_EXE_hecks-parse"))
+        .args([
+            "examples",
+            "--chapter",
+            "Cms",
+            "--examples",
+            source.to_str().unwrap(),
+            chapter.to_str().unwrap(),
+        ])
+        .output()
+        .expect("failed to run hecks-parse")
+}
+
+/// The refusal for `EXAMPLES` with `from` replaced by `to`.
+fn examples_refusal(name: &str, from: &str, to: &str) -> String {
+    assert!(EXAMPLES.contains(from), "the base examples have no line `{from}`");
+    let output = compile_examples(name, &EXAMPLES.replacen(from, to, 1));
+    assert!(
+        !output.status.success(),
+        "{name}: expected a refusal, got: {}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    String::from_utf8_lossy(&output.stderr).trim().to_string()
+}
+
+#[test]
+fn examples_compile_to_behaviors_text_with_roles_values_and_expectations() {
+    let output = compile_examples("examples_good", EXAMPLES);
+    let text = String::from_utf8_lossy(&output.stdout);
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    assert!(text.contains("test \"Publishing\" do"), "{text}");
+    assert!(text.contains("tests \"Publish\", on: \"Page\""), "{text}");
+    assert!(
+        text.contains("setup \"Cms::Page.Draft\", as: \"Editor\", slug: { value: \"about\" }, title: { value: \"About\" }"),
+        "{text}"
+    );
+    assert!(text.contains("input slug: { value: \"about\" }"), "{text}");
+    assert!(text.contains("expect status: \"published\", emits: [\"PagePublished\"]"), "{text}");
+    assert!(text.contains("test \"Only an editor may publish (Sam)\" do"), "{text}");
+    assert!(text.contains("as \"Viewer\""), "{text}");
+    assert!(text.contains("expect refused: \"role: Editor, and the caller stated Viewer\""), "{text}");
+}
+
+#[test]
+fn an_example_about_someone_unintroduced_lists_who_is_known() {
+    let error = examples_refusal("who", "Given Dana drafts", "Given Pat drafts");
+    assert!(error.contains("examples_who.examples:8:"), "{error}");
+    assert!(error.contains("I don't know who 'Pat' is"), "{error}");
+    assert!(error.contains("Known: Dana (Editor), Sam (Viewer)"), "{error}");
+}
+
+#[test]
+fn an_example_naming_no_command_lists_the_commands() {
+    let error = examples_refusal("verb", "When Dana publishes it", "When Dana renames it");
+    assert!(error.contains("'renames' is not a command here"), "{error}");
+    assert!(error.contains("The commands are: draft, publish"), "{error}");
+}
+
+#[test]
+fn an_example_giving_an_unknown_field_lists_the_fields_the_command_takes() {
+    let error = examples_refusal("field", "with slug \"about\"", "with slugg \"about\"");
+    assert!(error.contains("draft takes no 'slugg'. It takes: slug, title"), "{error}");
+    assert!(error.contains("examples_field.examples:8:39:"), "{error}");
+}
+
+#[test]
+fn an_example_leaving_out_a_required_value_says_which() {
+    let error = examples_refusal("missing", " and title \"About\"\n  When", "\n  When");
+    assert!(error.contains("draft needs a title"), "{error}");
+}
+
+#[test]
+fn an_example_expecting_a_state_the_page_never_has_lists_its_states() {
+    let error = examples_refusal("state", "the page is published", "the page is archived");
+    assert!(error.contains("a page is never archived. Its states are: draft, published"), "{error}");
+}
+
+#[test]
+fn an_example_announcing_an_event_the_command_does_not_is_refused() {
+    let error = examples_refusal("event", "And PagePublished is announced", "And PageDrafted is announced");
+    assert!(error.contains("publish announces PagePublished, not PageDrafted"), "{error}");
+}
+
+#[test]
+fn an_example_that_tries_something_must_say_why_it_is_refused() {
+    let error = examples_refusal("tries", "When Dana publishes it", "When Dana tries to publish it");
+    assert!(error.contains("this step tries to do something"), "{error}");
+}
+
+#[test]
+fn a_refusal_has_to_be_one_of_the_commands_own_rules() {
+    let error = examples_refusal(
+        "reason",
+        "Then it is refused because only an Editor may do it",
+        "Then it is refused because it is Tuesday",
+    );
+    assert!(error.contains("no rule of publish says \"it is Tuesday\""), "{error}");
+    assert!(error.contains("\"only a draft can be published\""), "{error}");
+}
+
+#[test]
+fn it_needs_something_made_earlier_in_the_example() {
+    let error = examples_refusal(
+        "early",
+        "Given Dana drafts a page with slug \"about\" and title \"About\"\n  When Dana publishes it",
+        "Given Dana publishes it\n  When Dana publishes it",
+    );
+    assert!(error.contains("there is no page yet for `it` to mean"), "{error}");
+}
+
+#[test]
+fn only_the_role_a_command_is_run_by_may_be_named_as_the_one_refused() {
+    let error = examples_refusal("role", "only an Editor may do it", "only a Viewer may do it");
+    assert!(error.contains("publish is run by Editor, not by a Viewer"), "{error}");
+}
+
 fn run_on(subcommand: &str, path: &str) -> Output {
     Command::new(env!("CARGO_BIN_EXE_hecks-parse"))
         .args([subcommand, "--chapter", "Cms", path])
@@ -285,6 +427,15 @@ fn a_mistyped_first_line_of_an_aggregate_is_caught_by_what_it_leaves_out() {
     let source = changed("  A page is identified by its slug.\n", "  A page is identifed by its slug.\n");
     let error = refusal("first_line.bluebook", &source);
     assert!(error.contains("does not say what identifies it"), "{error}");
+}
+
+#[test]
+fn a_command_run_by_several_roles_is_refused_until_the_language_allows_it() {
+    let source = changed("    Who: Editor\n    When a slug", "    Who: Editor or Sales Rep\n    When a slug");
+    let error = refusal("roles.bluebook", &source);
+    let line = line_of(&source, "Editor or Sales Rep");
+    assert!(error.contains(&format!("roles.bluebook:{line}:10:")), "{error}");
+    assert!(error.contains("names several. The language does not yet let a command be run by more than one role"), "{error}");
 }
 
 #[test]

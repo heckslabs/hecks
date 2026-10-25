@@ -247,7 +247,7 @@ fn query_text(out: &mut String, query: &ir::Query) -> Result<(), String> {
 }
 
 /// A Ruby double-quoted string literal for `text`.
-fn string(text: &str) -> String {
+pub fn string(text: &str) -> String {
     let mut out = String::from("\"");
     for c in text.chars() {
         match c {

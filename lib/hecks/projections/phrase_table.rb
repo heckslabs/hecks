@@ -75,7 +75,8 @@ module Hecks
               /// The phrase's name, which the sentence front end lowers by.
               pub id: &'static str,
               /// The block it is legal in: File, Domain, Aggregate, Has, ValueObject, Lifecycle,
-              /// Command, Query or Condition.
+              /// Command, Query or Condition for a domain; ExamplesFile, Examples, Background,
+              /// Example, Step or Outcome for an examples file.
               pub context: &'static str,
               /// Literal words, `(a|an)` alternatives and `{slot:kind}` fill-ins.
               pub pattern: &'static str,
