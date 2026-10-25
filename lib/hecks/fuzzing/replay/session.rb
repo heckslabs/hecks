@@ -26,10 +26,8 @@ module Hecks
         def initialize(runtime)
           @runtime         = runtime
           @refusals        = []
-          @queries         = []
-          @dry_runs        = []
-          @dry_run_traces  = []
           @fan_outs        = []
+          start_read_only_records
           start_checks
           @mutation_traces = []
           @outbox_traces   = []
@@ -63,6 +61,15 @@ module Hecks
 
         private
 
+        # What the steps that change nothing record: asked queries, dry runs and their traces, and
+        # validations.
+        def start_read_only_records
+          @queries        = []
+          @dry_runs       = []
+          @dry_run_traces = []
+          @validations    = []
+        end
+
         # The two checks recorded before a dispatch and compared with its outcome afterwards.
         def start_checks
           @guard_checks   = []
@@ -73,14 +80,11 @@ module Hecks
         def play_step(step)
           step = step.transform_keys(&:to_s)
           args = (step["args"] || {}).transform_keys(&:to_sym)
+          return ask(step["query"], args) if step["query"]
+          return dry_run(step, step["dry_run"], args) if step.key?("dry_run")
+          return validate_step(step, step["validate"], args) if step.key?("validate")
 
-          if (question = step["query"])
-            ask(question, args)
-          elsif (hypothetical = step["dry_run"])
-            dry_run(step, hypothetical, args)
-          else
-            dispatch(step, args)
-          end
+          dispatch(step, args)
         end
 
         def dispatch(step, args)

@@ -23,21 +23,29 @@ module Hecks
             "events"    => result[:events].map { |event| event_surface(event) },
             "refusals"  => result[:refusals].map { |refusal| refusal_surface(refusal) }
           }
+          surface.merge(read_only_surface(result))
+        end
+
+        # The dry runs and validations, each omitted when the script has none.
+        def read_only_surface(result)
           dry_runs = dry_run_surface(result[:dry_runs], result[:dry_run_traces])
-          surface["dry_runs"] = dry_runs unless dry_runs.empty?
-          surface
+          validations = JSON.parse(JSON.generate(result[:validations] || []))
+          { "dry_runs" => dry_runs, "validations" => validations }.reject { |_, entries| entries.empty? }
         end
 
         def refusal_surface(refusal)
           { "verb" => refusal[:verb], "error" => refusal[:error], "kind" => refusal[:kind]&.split("::")&.last }
         end
 
-        # The stages whose every refusal both engines list. An argument or reference refusal is
-        # raised at the JSON boundary in Rust, so a run stopped there is compared on `ok` alone.
+        # The stages whose every refusal both engines list.
         COLLECTED_STAGES = %w[givens ensures invariants].freeze
 
-        # `verb` and `ok`, as `Hecks::Fuzzing::Differential` compares, and for a run refused in a
-        # collected stage the kind and stage of each refusal; omitted when none.
+        # In the arguments stage Rust lists the unknown and absent names, one refusal each; a
+        # coercion mismatch it raises alone, so a run with one is compared on `ok` alone.
+        LISTED_ARGUMENT_CLASSES = %w[AbsentArgument UnknownArgument].freeze
+
+        # `verb` and `ok`, as `Hecks::Fuzzing::Differential` compares, and for a run refused where
+        # both engines list every refusal, each one's kind, stage, attribute, path and rule.
         def dry_run_surface(dry_runs, traces = [])
           dry_runs.zip(traces).map do |dry, trace|
             reasons = trace&.dig(:validation, :reasons) unless dry[:ok]
@@ -45,12 +53,19 @@ module Hecks
           end
         end
 
-        # @param reasons [Array<Array(String, String)>, nil] each refusal's `[kind, stage]`
-        # @return [Hash] `{"refusals" => reasons}` if the first is in a collected stage
+        # @param reasons [Array<Array>, nil] each as `[kind, stage, attribute, path, rule, class]`
+        # @return [Hash] `{"refusals" => reasons}` without the class, if both engines list them all
         def collected_refusals(reasons)
-          return {} unless reasons&.any? && COLLECTED_STAGES.include?(reasons.first.last)
+          return {} unless reasons&.any? && listed_in_full?(reasons)
 
-          { "refusals" => reasons }
+          { "refusals" => reasons.map { |reason| reason.first(5) } }
+        end
+
+        def listed_in_full?(reasons)
+          stage = reasons.first[1]
+          return true if COLLECTED_STAGES.include?(stage)
+
+          stage == "arguments" && reasons.all? { |reason| LISTED_ARGUMENT_CLASSES.include?(reason.last) }
         end
 
         def event_surface(event)
