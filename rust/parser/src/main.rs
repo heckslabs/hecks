@@ -58,6 +58,7 @@ fn run(args: &[String]) -> Result<(), RunError> {
         Some("chapter") => run_chapter(&args[1..]),
         Some("render") => run_render(&args[1..]),
         Some("complete") => run_complete(&args[1..]),
+        Some("format") => run_format(&args[1..]),
         Some("resolve") => run_resolve(&args[1..]),
         Some("adapter") => run_adapter(&args[1..]),
         Some("world") => run_world(&args[1..]),
@@ -125,6 +126,18 @@ fn run_render(args: &[String]) -> Result<(), RunError> {
     let bluebook = parse::chapter::parse_chapter(&chapter_name, &loaded)?;
     let first = loaded.first().map_or("<none>", |(path, _)| path.as_str());
     let text = render_ruby::ruby_form(&bluebook)
+        .map_err(|why| RunError::Parse(diag::Diagnostic::new(first, 1, why)))?;
+    print!("{text}");
+    Ok(())
+}
+
+/// `hecks-parse format --chapter <Name> <files...>`: prints the chapter, whichever form its files
+/// are written in, as canonical sentences.
+fn run_format(args: &[String]) -> Result<(), RunError> {
+    let (chapter_name, loaded) = read_chapter_args("format", args)?;
+    let bluebook = parse::chapter::parse_chapter(&chapter_name, &loaded)?;
+    let first = loaded.first().map_or("<none>", |(path, _)| path.as_str());
+    let text = sentence::format::sentences(&bluebook)
         .map_err(|why| RunError::Parse(diag::Diagnostic::new(first, 1, why)))?;
     print!("{text}");
     Ok(())
