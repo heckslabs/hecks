@@ -287,6 +287,21 @@ RSpec.describe Hecks::EmbryonautBluebook, ".vendor!" do
       expect(lock.version).to eq("1.0.0")
     end
 
+    it "finds the registry checkout beside the project when no source is named", :aggregate_failures, :process do
+      beside = File.join(File.dirname(root), "embryonaut_bluebooks")
+      File.symlink(repo.path, beside)
+
+      expect(described_class.default_source(root, {})).to eq(beside)
+      expect(run("widgets")).to eq(0)
+      expect(lock.version).to eq("1.0.0")
+    ensure
+      File.delete(beside) if beside && File.symlink?(beside)
+    end
+
+    it "has no default source when nothing is named and no registry sits beside the project" do
+      expect(described_class.default_source(root, {})).to be_nil
+    end
+
     it "reports an unchanged shape on a second run", :process do
       run("widgets@1.0.0", "--from", repo.path)
       run("widgets@1.0.0", "--from", repo.path)
