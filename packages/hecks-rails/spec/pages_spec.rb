@@ -84,6 +84,38 @@ RSpec.describe "the pages a Rails app has with no view files of its own", type: 
     end
   end
 
+  describe "with forgery protection on" do
+    around do |example|
+      ActionController::Base.allow_forgery_protection = true
+      example.run
+    ensure
+      ActionController::Base.allow_forgery_protection = false
+    end
+
+    def token_in(form_action)
+      html("/notes")
+      last_response.body[/<form action="#{form_action}".*?name="authenticity_token" value="([^"]+)"/m, 1]
+    end
+
+    it "puts a token in each command form" do
+      expect(token_in("/notes/post_note")).not_to be_nil
+    end
+
+    it "accepts the form with the token it was given" do
+      token = token_in("/notes/post_note")
+      post "/notes/post_note", { "slug.value" => "tokened", "text.value" => "Hi", "authenticity_token" => token },
+           { "HTTP_X_ACTOR" => "teller-1" }
+
+      expect(last_response.status).to eq(302)
+    end
+
+    it "refuses a post with no token" do
+      post_note("untokened")
+
+      expect(last_response.status).to eq(422)
+    end
+  end
+
   describe "the acting-as picker" do
     def act_as(role) = post("/hecks/actor", { "role" => role })
 
