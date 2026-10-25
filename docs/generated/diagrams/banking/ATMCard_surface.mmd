@@ -12,4 +12,5 @@ flowchart LR
     cmd_ATMCard_Rename(["ATMCard.Rename"]) -->|"sets: nickname"| attr_ATMCard_nickname[nickname]
     cmd_ATMCard_Withdraw(["ATMCard.Withdraw"]) -->|"appends: cents, narrative"| attr_ATMCard_withdrawals[withdrawals]
     ATMCard[(ATMCard)] -.->|asks| qry_ATMCard_Active{"ATMCard.Active"}
+    ATMCard[(ATMCard)] -.->|asks| qry_ATMCard_LiveForAccount{"ATMCard.LiveForAccount"}
     ATMCard[(ATMCard)] -.->|asks| qry_ATMCard_ByFee{"ATMCard.ByFee"}

@@ -3951,6 +3951,39 @@
         },
         {
           "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "number",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "description": "One account's cards that can still be used — the ones its closure retires.",
+          "limit": null,
+          "name": "LiveForAccount",
+          "order_by": {
+            "direction": "asc",
+            "field": "serial"
+          },
+          "wheres": [
+            {
+              "field": "account",
+              "op": "eq",
+              "value": ":number"
+            },
+            {
+              "field": "status",
+              "op": "in",
+              "value": "\"issued,active\""
+            }
+          ]
+        },
+        {
+          "attributes": [
 
           ],
           "description": "Live cards by what they cost to hold, cheapest first — a fee is a Float, so the order is numeric and not alphabetical.",
@@ -9700,6 +9733,22 @@
       "where_ast": null,
       "with_spec": [
 
+      ]
+    },
+    {
+      "expect_undelivered": false,
+      "for_each": "ATMCard.LiveForAccount",
+      "name": "RetireCardsOnAccountClosure",
+      "on_event": "Account.AccountClosed",
+      "target_domain": null,
+      "trigger_command": "ATMCard.Retire",
+      "where": null,
+      "where_ast": null,
+      "with_spec": [
+        [
+          "atm_card",
+          ":atm_card"
+        ]
       ]
     },
     {

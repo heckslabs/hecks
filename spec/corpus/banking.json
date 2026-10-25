@@ -1014,6 +1014,12 @@
       }
     },
     {
+      "query": "Banking::ATMCard.LiveForAccount",
+      "args": {
+        "number": "acct-1"
+      }
+    },
+    {
       "query": "Banking::ATMCard.Withdrawal.Recent",
       "args": {
       }
@@ -6095,6 +6101,18 @@
       {
         "query": "Banking::ATMCard.ByFee",
         "args": {
+        },
+        "rows": [
+
+        ],
+        "reference_rows": [
+
+        ]
+      },
+      {
+        "query": "Banking::ATMCard.LiveForAccount",
+        "args": {
+          "number": "acct-1"
         },
         "rows": [
 
