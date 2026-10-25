@@ -325,3 +325,32 @@ describe("validate", () => {
     await assert.rejects(() => clientFor(fetch).validate("Event.Close", {}, "yoga"), DomainUnavailable);
   });
 });
+
+describe("schema", () => {
+  const serving = (body, init = { status: 200 }) => {
+    const urls = [];
+    const fetch = async (url) => {
+      urls.push(String(url));
+      return new Response(JSON.stringify(body), init);
+    };
+    return { fetch, urls };
+  };
+
+  it("fetches the command's schema from its JSON route", async () => {
+    const { fetch, urls } = serving({ $schema: "https://json-schema.org/draft/2020-12/schema", type: "object" });
+    const schema = await clientFor(fetch).schema("Event.Close");
+    assert.deepEqual(urls, [`${URL_}/Shop/Event/Close.json?schema=1`]);
+    assert.equal(schema.type, "object");
+  });
+
+  it("takes a qualified verb as it is", async () => {
+    const { fetch, urls } = serving({});
+    await clientFor(fetch).schema("Other::Event.Close");
+    assert.deepEqual(urls, [`${URL_}/Other/Event/Close.json?schema=1`]);
+  });
+
+  it("is DomainUnavailable when the host has no schema for it", async () => {
+    const { fetch } = serving("none", { status: 404 });
+    await assert.rejects(() => clientFor(fetch).schema("Event.Nope"), DomainUnavailable);
+  });
+});
