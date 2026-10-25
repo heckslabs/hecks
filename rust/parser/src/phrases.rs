@@ -455,6 +455,14 @@ pub static PHRASES: &[PhraseRow] = &[
         status: "admitted",
     },
     PhraseRow {
+        id: "idempotent",
+        context: "Command",
+        pattern: "It is safe to deliver twice",
+        opens: "",
+        canonical: "yes",
+        status: "admitted",
+    },
+    PhraseRow {
         id: "command_provenance",
         context: "Command",
         pattern: "Its provenance is {value:rest}",

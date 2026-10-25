@@ -584,6 +584,9 @@ fn command_text(
     } else if let Some(role) = &command.role {
         out.push_str(&format!("    Who: {role}\n"));
     }
+    if command.idempotent {
+        out.push_str("    It is safe to deliver twice\n");
+    }
     if let Some(provenance) = &command.provenance {
         out.push_str(&format!("    Its provenance is {}\n", provenance_said(provenance)?));
     }

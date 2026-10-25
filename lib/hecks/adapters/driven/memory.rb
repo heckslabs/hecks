@@ -4,6 +4,7 @@ require_relative "in_memory_ordering"
 require_relative "../../runtime/instance"
 require_relative "memory/shared_elements"
 require_relative "memory/outbox_rows"
+require_relative "memory/dispatch_claims"
 
 module Hecks
   module Adapters
@@ -11,6 +12,7 @@ module Hecks
     # per aggregate, plus an append-only `@entries`/`@events` log.
     class Memory
       include OutboxRows
+      include DispatchClaims
 
       # Reports that two tenant boots of this adapter never share state.
       #
@@ -22,8 +24,8 @@ module Hecks
 
       # Names the optional persistence capabilities `Ports::Persistence::AppendOnly` may rely on.
       #
-      # @return [Array<Symbol>] `[:atomic_put]`
-      def persistence_capabilities = [:atomic_put]
+      # @return [Array<Symbol>] `[:atomic_put, :dispatch_claims]`
+      def persistence_capabilities = %i[atomic_put dispatch_claims]
 
       attr_reader :aggregate, :events
 
@@ -40,6 +42,7 @@ module Hecks
         @entries   = []
         @outbox    = []
         @outbox_deliveries = {}
+        @dispatch_claims = {}
       end
 
       # Looks up the current record for one aggregate identity.
@@ -169,6 +172,7 @@ module Hecks
         @entries = []
         @outbox  = []
         @outbox_deliveries = {}
+        @dispatch_claims = {}
         @elements.reset!
         self
       end
@@ -181,9 +185,16 @@ module Hecks
       # pending → claimed → delivered without a database (the same
       # reason Memory records `events`). See `Runtime::Outbox`.
       #
-      # @yield the writes to run together; an exception raised inside undoes nothing
+      # @yield the writes to run together; an exception raised inside undoes nothing but the
+      #   dispatch claims the block made, so a refused dispatch can be delivered again
       # @return [Object] the block's own result
-      def transaction = yield
+      def transaction
+        held = @dispatch_claims.keys
+        yield
+      rescue StandardError
+        (@dispatch_claims.keys - held).each { |key| @dispatch_claims.delete(key) }
+        raise
+      end
 
       private
 

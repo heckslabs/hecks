@@ -49,6 +49,9 @@ RSpec.describe "the Codebase rows of the ADR table" do
     AdrRow.new(script: "refresh_rspec_runtime_baseline", verbs: %w[refresh_runtime_baseline]),
     AdrRow.new(script: "spec_example", verbs: %w[run_spec_example]),
     AdrRow.new(script: "stress_concurrency_specs", verbs: %w[stress_concurrency]),
+    AdrRow.new(script: "clear_caches", verbs: %w[clear_caches],
+               note: "no bin script: it deletes the syntax-boot and verdict caches, which turning them off " \
+                     "with HECKS_SYNTAX_BOOT_CACHE=off or HECKS_VERDICT_CACHE=off used to rule out"),
     AdrRow.new(script: "regenerate_persistence_legacy_fixtures", verbs: %w[regenerate_legacy_fixtures]),
     AdrRow.new(script: "seed_semantics_corpus", verbs: %w[seed_semantics_corpus]),
     AdrRow.new(script: "pattern-cases", verbs: %w[record_pattern_cases],

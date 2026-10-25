@@ -145,6 +145,12 @@ Hecks.behaviors "Codebase" do
     expect refused: "a count is positive"
   end
 
+  test "ClearCaches is requested, examined and answered" do
+    tests "ClearCaches", on: "TestSuiteRun"
+    input run: { value: "clear" }
+    expect emits: %w[ClearCachesRequested TestSuiteExamined TestSuiteAccepted TestSuiteAnswered TestSuiteCompleted]
+  end
+
   test "RefreshRuntimeBaseline refuses a run that is not a number" do
     tests "RefreshRuntimeBaseline", on: "TestSuiteRun"
     input from_run: { value: "latest" }, run: { value: "baseline" }

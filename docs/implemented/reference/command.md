@@ -12,7 +12,7 @@ between them is hand-written and survives regeneration.*
 Most of these run against `examples/banking`, whose `Account` commands
 carry roles, goals, givens, ensures, multi-fact `emits`, and `sets`
 for real. A command-level `provenance` is written nowhere in the
-corpus, so it gets a chapter of its own:
+corpus, and so is `idempotent`, so they get a chapter of their own:
 
 ```ruby boot
 Hecks::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))
@@ -31,7 +31,7 @@ end
 
 ```ruby bluebook
 Hecks.bluebook "CommandReference" do
-  vision "The three command words the corpus does not yet write."
+  vision "The command words the corpus does not yet write."
 
   aggregate "Meter" do
     attribute :serial, Serial
@@ -45,6 +45,8 @@ Hecks.bluebook "CommandReference" do
     value_object("Mark")    { attribute :note,  String }
 
     command "Install" do
+      # Installing the same serial twice leaves the meter as installing it once.
+      idempotent
       sets :serial
       emits "MeterInstalled"
     end
@@ -217,6 +219,31 @@ it, so nothing can refuse it either:
 ```ruby
 advance.provenance[:source_version]  # => "1.0"
 ```
+
+## idempotent
+
+<!-- generated:begin word=idempotent -->
+`idempotent` — fills `idempotent`
+<!-- generated:end -->
+
+Declares that delivering the command twice leaves the same state as delivering it once.
+A command without it is assumed not to be. A saga redrive after a crash reads it: when a
+dispatch was started but its outcome was never recorded, the redrive delivers it again only
+if its command says `idempotent`, and otherwise reports the instance for a person to reconcile.
+
+```ruby
+install = runtime.registry.bluebook("CommandReference").aggregate("Meter").commands.find { |c| c.hecks_name == "Install" }
+install.idempotent?  # => true
+```
+
+A command that does not say it is not:
+
+```ruby
+advance.idempotent?  # => false
+```
+
+Say it only for a command whose second delivery is a no-op: setting a field to a value, not
+adding to one. It is carried on the IR as a boolean.
 
 ## reference_to
 

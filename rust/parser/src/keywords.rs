@@ -507,6 +507,18 @@ pub static KEYWORDS: &[KeywordRow] = &[
         disambiguator: "",
     },
     KeywordRow {
+        word: "idempotent",
+        context: "Command",
+        body: "none",
+        inner: "",
+        opens: "",
+        fills: "idempotent",
+        status: "admitted",
+        was: "",
+        resolves_via: "",
+        disambiguator: "",
+    },
+    KeywordRow {
         word: "reference_to",
         context: "Command",
         body: "none",

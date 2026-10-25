@@ -1,6 +1,7 @@
 require "digest"
 require "fileutils"
 require "json"
+require_relative "../../switches"
 
 module Hecks
   module Adapters
@@ -16,7 +17,8 @@ module Hecks
       # Only an answer that ended well is kept, and any trouble with the cache itself is ignored
       # and the help is worked out as if it did not exist.
       #
-      # `HECKS_NO_USAGE_CACHE=1` turns it off; `HECKS_CACHE_DIR` moves it.
+      # `hecks test_suite_run.clear_caches!` empties it; `HECKS_NO_USAGE_CACHE=1` still turns it off
+      # but is deprecated; `HECKS_CACHE_DIR` moves it.
       module UsageCache
         # The variable that turns the cache off when set to anything but empty or `0`.
         DISABLE_VARIABLE = "HECKS_NO_USAGE_CACHE".freeze
@@ -62,7 +64,20 @@ module Hecks
         # @return [Boolean] whether the cache is on
         def enabled?
           off = ENV[DISABLE_VARIABLE].to_s
-          off.empty? || off == "0"
+          return true if off.empty? || off == "0"
+
+          Hecks::Switches.deprecate(DISABLE_VARIABLE)
+          false
+        end
+
+        # Deletes every remembered help text, which `HECKS_NO_USAGE_CACHE` used to bypass. The
+        # directory is shared with other cache files, so only this cache's entries go.
+        #
+        # @return [Boolean] whether any entry was removed
+        def clear
+          Dir.glob(File.join(directory, "usage-*.json")).each { |entry| File.delete(entry) }.any?
+        rescue SystemCallError
+          false
         end
 
         # @return [String] the directory entries live in

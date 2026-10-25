@@ -45,7 +45,7 @@ module Hecks
       # the step that sets them runs.
       Context = Struct.new(:domain, :aggregate, :command, :args, :repository, :instance, :transition, :old_state,
                            :result, :correlation, :route, :plan, :strategy, :persistence_outcome, :pending_delegation,
-                           :dry_run, :correction_bindings, :outbox_rows, :invocation) do
+                           :dry_run, :correction_bindings, :outbox_rows, :invocation, :dispatch_key) do
         include DispatchContext
       end
 
@@ -65,13 +65,15 @@ module Hecks
       # @param invocation [Runtime::Invocation] the invocation built for this call
       # @param correlation [Hash, nil] saga correlation stamped on emitted events, if any
       # @param dry_run [Boolean] validate every step without saving, emitting or enqueueing
+      # @param dispatch_key [String, nil] a saga dispatch's identity; when the repository has already
+      #   applied it the command answers with no events and runs no step
       # @return [Array] the settled instance, events, plan, persistence outcome, and outbox rows
       # @raise [StandardError] a domain refusal (Runtime::DOMAIN_REFUSALS) when a rule refuses
       # @raise [Runtime::StaleWrite, Runtime::WiringError] every retry loses, or resolve fails
       # rubocop:disable-next Metrics/ParameterLists -- the public dispatch signature every entry point calls
-      def call(domain, aggregate, command, invocation, correlation = nil, dry_run: false)
+      def call(domain, aggregate, command, invocation, correlation = nil, dry_run: false, dispatch_key: nil)
         args     = invocation.to_args
-        settings = { invocation: invocation, route: invocation.target, correlation: correlation, dry_run: dry_run }
+        settings = { invocation:, route: invocation.target, correlation:, dry_run:, dispatch_key: }
         attempt  = 0
         begin
           dispatch_once(new_context(domain, aggregate, command, args, settings))
@@ -91,6 +93,7 @@ module Hecks
         ctx.correlation = settings[:correlation]
         ctx.route       = settings[:route]
         ctx.dry_run     = settings[:dry_run]
+        ctx.dispatch_key = settings[:dispatch_key]
         ctx.plan        = DependencyPlanning::Analyzer.call(aggregate: aggregate, command: command)
         # Resolved once here, before hydration: `Registry#repository` memoizes,
         # and the isolation decision needs its capabilities up front.
@@ -99,6 +102,8 @@ module Hecks
       end
 
       def dispatch_once(ctx)
+        return already_applied(ctx) if dispatch_applied?(ctx)
+
         lock_id = Identity.best_effort(ctx.aggregate, ctx.args, ctx.route, reference_key: reference_key(ctx.command))
         run_dispatch_order_with_isolation(DISPATCH_ORDER, ctx, lock_key_id: lock_id)
         [ctx.instance, ctx.result, ctx.plan, ctx.persistence_outcome, ctx.outbox_rows]
