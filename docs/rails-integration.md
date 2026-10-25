@@ -22,7 +22,7 @@ ordinary Rails files.
 | `command_form_for` | `packages/hecks-rails` | Fields from `Hecks::Forms`, named by the dotted paths `Forms::Params` reads; a refused form comes back with the submitted values, each reason beside its field, reference options filled, and the command's JSON Schema (`CommandSchema`) embedded |
 | `available_commands(as:)` | the model | The domain's own validation, under the actor's Governance grants |
 | Reference lookups | `packages/hecks-rails` (`References`) | `transfer.source_account` for `reference_to Account, as: :source`, or `account_record` when the attribute is named for its target; the record loads only when the lookup is called |
-| `:rails_app` projection | `lib/hecks/projections/rails_app.rb` | A controller per aggregate and a routes file with a `resources` line each; `hecks launch.project_rails! run=rails dir=<app>` writes them where the app has none, and writes no model, since models are generated at boot |
+| `:rails_app` projection | `lib/hecks/projections/rails_app.rb` | A controller per aggregate, a view per command (the form a refusal returns to), and a routes file with a `resources` line each; `hecks launch.project_rails! run=rails dir=<app>` writes them where the app has none, and writes no model, since models are generated at boot |
 | `be_refused_with` | `hecks/rails/rspec` | RSpec matcher for a refusal and its wording |
 | `Hecks/RailsModelRules` | `lib/rubocop/cop/hecks` | Refuses `validates`, callbacks and associations in a model |
 

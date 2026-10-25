@@ -17,6 +17,18 @@ RSpec.describe Hecks::Projections::RailsApp do
     expect(controller).to include("class SafeDepositBoxesController < ApplicationController")
   end
 
+  it "writes a view per command under its aggregate's resource" do
+    expect(files.keys).to include("app/views/accounts/open.html.erb", "app/views/atm_cards/issue.html.erb")
+  end
+
+  it "has a creating command's view form the model, since there is no record yet" do
+    expect(files["app/views/accounts/open.html.erb"]).to include("command_form_for :account, :open,")
+  end
+
+  it "has any other command's view post to its record" do
+    expect(files["app/views/accounts/close_account.html.erb"]).to include("/accounts/\#{@record.to_param}/close_account")
+  end
+
   it "writes no model, since hecks-rails generates one per aggregate" do
     expect(files.keys.grep(%r{app/models})).to be_empty
   end
@@ -48,7 +60,8 @@ RSpec.describe Hecks::Projections::RailsApp do
 
     it "writes the app's files and keeps one it already has", :aggregate_failures do
       report, routes = project_into_fresh_app
-      expect(report).to include("wrote app/controllers/orders_controller.rb", "kept config/routes.rb")
+      expect(report).to include("wrote app/controllers/orders_controller.rb", "wrote app/views/orders/purchase.html.erb",
+                                "kept config/routes.rb")
       expect(routes).to eq("# the app's own\n")
     end
 
