@@ -89,7 +89,8 @@ module Hecks
         #   entity's own attributes, matched against the block's own parameter names
         # @yield the query body, evaluated with the builder as `self`; may be omitted
         # @return [Bluebook::Query] the built query
-        # @raise [Bluebook::DSL::Malformed] if the body declares an unsound `cursor`, a duplicate attribute,
+        # @raise [Bluebook::DSL::Malformed] if the body declares an unsound `cursor`, a duplicate
+        #   attribute,
         #   or a filtering clause the query language refuses
         def self.build(name, owner_attributes: [], &block)
           builder = new(name)

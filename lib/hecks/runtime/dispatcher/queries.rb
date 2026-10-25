@@ -29,10 +29,7 @@ module Hecks
           @queries.call(domain, aggregate, query_name, args)
         end
 
-        # Answers one page of a cursor query: its rows and the position of the page after them.
-        #
-        # `query` answers the first `limit` rows after `after`; this also says where the next page
-        # starts, so a caller walks every row by passing each answer's `after` back in.
+        # Answers one page of a cursor query: its rows, and the `after` that asks for the next page.
         #
         # @param verb [String] `"Domain::Aggregate.Query"` of a query that declares `cursor`
         # @param after [String, nil] the position the previous page answered; nil asks page one
@@ -40,7 +37,7 @@ module Hecks
         # @param args [Hash{Symbol => Object}] the query's declared arguments
         # @return [Hash{Symbol => Object}] `rows`, one Hash per record, and `after`, the next
         #   position or nil when no row follows
-        # @raise [ArgumentError] if the query declares no cursor, or `after` is not one it handed out
+        # @raise [ArgumentError] if the query has no cursor, or `after` is not one it handed out
         # @raise [Runtime::UnknownVerb] if the verb is malformed or names something undeclared
         def query_page(verb, after: nil, page_size: nil, **args)
           domain, aggregate_name, query_name = parse(verb)

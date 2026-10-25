@@ -11,11 +11,11 @@ module Hecks
         # not answered.
         #
         # @param query_name [String] a declared aggregate query that declares `cursor`
-        # @param args [Hash] the query's arguments; `:after` is the position token, absent for page one
+        # @param args [Hash] the query's arguments; `:after` is the position, absent on page one
         # @return [Hash{Symbol => Object}] `rows` (frozen Hashes) and `after` (a String, nil on the
         #   last page)
         # @param page_size [Integer, nil] a page smaller than the query's own `limit`; never larger
-        # @raise [ArgumentError] if the query declares no cursor, or `after` is not a token it handed out
+        # @raise [ArgumentError] if the query has no cursor, or `after` is not a token it handed out
         def page(domain, aggregate, query_name, args, page_size: nil)
           declared = declared_query(aggregate, query_name)
           raise ArgumentError, "#{query_name} declares no cursor, so it has no pages" unless declared.cursor

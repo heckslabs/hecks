@@ -4,8 +4,8 @@ module Hecks
       # The property that holds a cursor query's pages to its unpaged answer (ADR 0128). Mixed into
       # {Querying}, whose recomputation helpers it reads.
       module CursorWalks
-        # Walks every cursor query's pages and holds the walk to the unpaged query: the same rows, in
-        # the same order, none twice, each page no longer than the page size and every page but the
+        # Walks every cursor query's pages and holds the walk to the unpaged query: the same rows,
+        # in the same order, none twice, each page within the page size and every page but the
         # last full.
         #
         # The unpaged answer is recomputed from `history[:instances]` through the shared ordering,

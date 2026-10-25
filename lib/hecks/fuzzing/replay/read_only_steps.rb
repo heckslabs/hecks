@@ -55,8 +55,8 @@ module Hecks
         end
 
         # Every page of a cursor query, walked at the query's own page size and again one row at
-        # a time (so a boundary falls between any two rows), as `{ page_size:, pages: }` per walk. A walk
-        # starts at the first page whatever `after` the ask itself carried.
+        # a time (so a boundary falls between any two rows), as `{ page_size:, pages: }` per
+        # walk. A walk starts at the first page whatever `after` the ask itself carried.
         def cursor_walks(question, args)
           from_start = args.except(:after)
           [nil, 1].map { |size| { page_size: size, pages: walk_pages(question, from_start, size) } }

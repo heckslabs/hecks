@@ -7,8 +7,8 @@ require_relative "../../query_specification/common/comparison"
 module Hecks
   module Ports
     module Query
-      # Applies wheres, order_by, a cursor's position, offset and limit to an Array of records, in the same order
-      # as `SqlQueryBuilder` so every adapter answers the same page.
+      # Applies wheres, order_by, a cursor's position, offset and limit to an Array of records, in
+      # the same order as `SqlQueryBuilder` so every adapter answers the same page.
       module InMemory
         FieldPath = QuerySpecification::FieldPath
         Comparison = QuerySpecification::Common::Comparison

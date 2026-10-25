@@ -14,7 +14,7 @@ module Hecks
           # @return [Boolean] whether the query declares `cursor`
           def cursor? = !query.cursor.nil?
 
-          # @return [Boolean] whether the owner is an entity (`Aggregate::Entity`), not the aggregate
+          # @return [Boolean] whether the owner is an entity (`Aggregate::Entity`), not an aggregate
           def entity? = owner.to_s.include?("::")
         end
         private_constant :QueryScope
