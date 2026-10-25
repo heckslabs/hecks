@@ -7,6 +7,7 @@ require_relative "model_check/policy_checks"
 require_relative "model_check/context_checks"
 require_relative "model_check/ask_checks"
 require_relative "model_check/reference_checks"
+require_relative "model_check/orphan_checks"
 require_relative "model_check/verbs"
 
 module Hecks
@@ -39,6 +40,7 @@ module Hecks
       extend ContextChecks
       extend AskChecks
       extend ReferenceChecks
+      extend OrphanChecks
       extend Verbs
 
       module_function
@@ -71,6 +73,7 @@ module Hecks
         [
           *bluebook.aggregates.flat_map { |aggregate| aggregate_lifecycle_findings(aggregate) },
           *key_by_value_findings(bluebook),
+          *orphan_findings(bluebook),
           *bluebook.process_managers.flat_map { |process_manager| saga_findings(bluebook, process_manager) },
           *reaction_findings(bluebook, options),
           *unused_ask_findings(bluebook)

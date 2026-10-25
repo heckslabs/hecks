@@ -253,6 +253,45 @@ RSpec.describe "the model checker" do
     end
   end
 
+  # The replacement for `dependent: :destroy`: a holder that can end, referencing an aggregate
+  # whose life ends, needs a policy on that ending which acts on its rows (ADR 0121).
+  describe "orphaned-reference findings" do
+    let(:findings) { findings_for("orphan_findings") }
+    let(:orphans) { findings.select { |f| f.kind == :orphaned_reference } }
+
+    # A one-aggregate chapter whose only ending command emits nothing.
+    def silent_ending_chapter
+      transition = Struct.new(:target, :from) { def constrained? = true }.new("gone", ["here"])
+      lifecycle = Struct.new(:default, :transitions).new("here", [["Vanish", transition]])
+      command = Struct.new(:hecks_name, :emits).new("Vanish", [])
+      Struct.new(:hecks_name, :lifecycle, :commands).new("Thing", lifecycle, [command])
+    end
+
+    it "warns on a holder no policy acts on when the referenced aggregate ends" do
+      expect(orphans.map { |f| [f.subject, f.severity] }).to eq([["Loan -> Member", :warning]])
+    end
+
+    it "names the holder, the referenced aggregate, the ending state and its event" do
+      expect(orphans.first.message).to include("Loan", "Member", '"closed"', "MemberClosed")
+    end
+
+    it "leaves a holder whose rows a policy on the ending fans out over alone" do
+      expect(orphans.map(&:subject)).not_to include("Hold -> Member")
+    end
+
+    it "leaves a record with no ending of its own alone" do
+      expect(orphans.map(&:subject)).not_to include("Receipt -> Member")
+    end
+
+    it "counts a state the lifecycle leaves again as no ending" do
+      expect(orphans.map(&:message).join).not_to include('"suspended"')
+    end
+
+    it "says when the ending command emits no event a policy could hear" do
+      expect(Hecks::Bluebook::ModelCheck.life_endings(silent_ending_chapter).first.events).to be_empty
+    end
+  end
+
   # A Rust keyword as a domain or aggregate name, or a reserved Cargo.toml key as a domain
   # module/feature key: a warning by default, an error with a Rust target or strict.
   describe "Rust reserved names" do

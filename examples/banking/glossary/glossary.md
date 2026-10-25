@@ -233,7 +233,7 @@ Records [Account unfrozen](#account-unfrozen).
 
 #### Account closed
 
-Recorded after [Close account](#close-account). Prompts [Notify on closure](#notify-on-closure).
+Recorded after [Close account](#close-account). Prompts [Retire cards on account closure](#retire-cards-on-account-closure) and [Notify on closure](#notify-on-closure).
 
 #### Account credited
 
@@ -284,6 +284,10 @@ Recorded after [Reverse](#reverse).
 #### Notify on closure
 
 When [Account closed](#account-closed) happens, Notifications is asked to send, in Notifications.
+
+#### Retire cards on account closure
+
+When [Account closed](#account-closed) happens, [ATM card](#atm-card) is asked to [Retire](#retire), once for each row of [Live for account](#live-for-account).
 
 #### Review on freeze
 
@@ -551,6 +555,12 @@ Live cards by what they cost to hold, cheapest first — a fee is a Float, so th
 ATM cards that are active, sorted by daily fee, lowest first.
 
 Shows at most 3.
+
+#### Live for account
+
+One account's cards that can still be used — the ones its closure retires.
+
+ATM cards whose account is the number you give and that are issued or active, sorted by card serial, A to Z.
 
 #### Recent
 
