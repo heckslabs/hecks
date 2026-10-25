@@ -409,10 +409,11 @@ A Rails controller, a webhook handler, a cron job — every one of them
 is a driving adapter in exactly this sense: they translate something
 that happened out there into a call shaped like this one, and nothing
 about the domain's own rules changes depending on who is calling.
-`examples/pizzas/adapters/payment_webhook.rb` is
-the worked example — a payment-processor webhook that tells `Order.PaymentGateway.Receive`
-(it boots the whole Pizzas example with `Hecks.boot`, a heavier path than this guide needs,
-so the call is quoted here rather than run):
+`examples/pizzas/adapters/payment_webhook.rb` (`PaymentWebhook`, named in
+`examples/pizzas/bluebook/pizzas.hecksagon`) is the worked example: a Rack app
+that verifies a signed delivery from a payment processor. Its dispatch is quoted
+here rather than run (it needs a signed request and a booted runtime, a heavier
+path than this guide needs):
 
 ```ruby skip
 # PaymentWebhook verifies the signature first, then restates the delivery in the
@@ -481,8 +482,9 @@ order.add_topping!(topping: "Basil", amount: 3)
 order.status  # => "available"
 ```
 
-And call it exactly the way the real
-`examples/pizzas/adapters/payment_webhook.rb` does for the same port — through the dispatcher's port path, never
+And call it the way the real
+`PaymentWebhook` does, through the runtime's port dispatch (`dispatch_port` is the
+flat-arguments form), never
 through the facade a command would use:
 
 ```ruby

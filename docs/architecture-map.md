@@ -18,7 +18,7 @@ lib/hecks/
   forms/                IR → HTML, content-negotiated against plain JSON.
   fuzzing/              generated sequences, checked against declared properties.
   doc/                  the generated DSL reference (hecks language_run.project_reference).
-  framework/            shared, domain-agnostic bluebooks.
+  framework/            shared, domain-agnostic bluebooks — e.g. Governance, Identity, Privacy.
   deploy/               the Deploy bluebook — what deployed_to means.
 ```
 

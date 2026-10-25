@@ -19,11 +19,27 @@ module Hecks
         # @return [Runtime::Validation] the answer
         # @raise [Runtime::WiringError] if the verb names a port operation
         def validate(verb, args = {})
-          call = flat_call(verb, args)
-          Validation.new(Collecting.collect { attempt_dry_run(call) })
+          validation_of(flat_call(verb, args))
+        end
+
+        # Answers `validate`'s question of the facts as `dry_run?` reads them.
+        #
+        # Every key is a fact, `to` and `with` included, never routing, so this asks exactly what
+        # `dry_run?` was asked of the same keywords and differs only in reporting every reason.
+        #
+        # @param verb [String] the fully qualified aggregate or entity command verb
+        # @param args [Hash{Symbol => Object}] the facts as flat keywords, as `dry_run?` takes them
+        # @return [Runtime::Validation] the answer
+        # @raise [Runtime::WiringError] if the verb names a port operation
+        def validate_facts(verb, **args)
+          validation_of(Routing::Call.new(verb: verb, flat: args))
         end
 
         private
+
+        def validation_of(call)
+          Validation.new(Collecting.collect { attempt_dry_run(call) })
+        end
 
         def attempt_dry_run(call)
           dry_run_call(call)

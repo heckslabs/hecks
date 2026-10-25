@@ -36,6 +36,23 @@ validation: { ok: accepted, first_stage: nil, first_message: error }.merge(valid
     expect(check(entry)).to be(true)
   end
 
+  it "holds a refusal validate split per offender to the dry run's class and first offender" do
+    offender = ["Hecks::Runtime::UnknownArgument", :note]
+    entry = trace(accepted: false, error: "Open does not declare note, rank", first_stage: :arguments,
+                  first_message: "Open does not declare note", first_offender: offender).merge(raised: offender)
+
+    expect(check(entry)).to be(true)
+  end
+
+  it "names a split refusal whose first offender is not the dry run's" do
+    entry = trace(accepted: false, error: "Open does not declare note, rank", first_stage: :arguments,
+                  first_message: "Open does not declare rank",
+                  first_offender: ["Hecks::Runtime::UnknownArgument", :rank])
+            .merge(raised: ["Hecks::Runtime::UnknownArgument", :note])
+
+    expect(check(entry)).to include("validate's first was \"Open does not declare rank\"")
+  end
+
   it "makes no claim about a step with no validation recorded" do
     expect(check({ verb: "A::B.C", ok: true })).to be(true)
   end
