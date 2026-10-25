@@ -131,7 +131,7 @@ impl Parser<'_> {
 /// A read model as a `Report:` block, or the name of what in it the sentence form cannot say.
 pub(super) fn said(model: &ir::ReadModel) -> Result<String, String> {
     let refused = |what: &str| format!("the sentence form has no phrase for {what} in report {}", model.name);
-    if model.options.cursor.is_some() || model.options.offset.as_ref().is_some_and(|offset| offset.target.is_some()) {
+    if model.options.offset.as_ref().is_some_and(|offset| offset.target.is_some()) {
         return Err(refused("this paging option"));
     }
     if model.wheres.iter().any(|clause| clause.target.is_some())
