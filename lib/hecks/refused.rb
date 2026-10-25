@@ -49,6 +49,17 @@ module Hecks
     # @return [Symbol] one of the `DispatchStage` vocabulary rows
     def stage = @stage || classification["stage"].to_sym
 
+    # The same refusal, placed in a stage: where it was found rather than where its class usually
+    # comes from. A stage the raise site already named is kept.
+    #
+    # @param stage [Symbol, String] a `DispatchStage`
+    # @return [Hecks::Refused] this refusal if it names a stage, else a copy that does
+    def in_stage(stage)
+      return self if @stage
+
+      dup.tap { |copy| copy.stage = stage.to_sym }
+    end
+
     # The same refusal, placed inside an attribute of the command: a field refused within a value
     # object is about the value object's attribute, at the path that leads to the field.
     #
@@ -76,7 +87,7 @@ module Hecks
 
     protected
 
-    attr_writer :attribute, :path
+    attr_writer :attribute, :path, :stage
 
     private
 

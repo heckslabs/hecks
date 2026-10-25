@@ -3,6 +3,7 @@ require_relative "../command_form_renderer"
 require_relative "../params"
 require_relative "../../adapters/driving/command_request"
 require_relative "../../adapters/driving/json"
+require_relative "../../projections/command_schema"
 
 module Hecks
   module Forms
@@ -48,13 +49,28 @@ module Hecks
         end
 
         def command_json(request, domain, aggregate, command)
-          return json(200, command.to_h) if request.get? && request.GET.except("format").empty?
+          return command_read_json(request, domain, aggregate, command) if request.get?
           return respond(405, "text/plain", "GET or POST only") unless request.post?
           return validated_json(request, domain, aggregate, command) if dry_run_requested?(request)
 
           created_json(request, domain, aggregate, command)
         rescue *Runtime::DOMAIN_REFUSALS, ArgumentError, TypeError, JSON::ParserError => e
           refusal_json(e, refusal_status(e))
+        end
+
+        # A GET of a command's JSON route: its descriptor, or with `?schema=1` its JSON Schema.
+        def command_read_json(request, domain, aggregate, command)
+          return command_schema(domain, aggregate, command) if request.GET["schema"] == "1"
+          return json(200, command.to_h) if request.GET.except("format").empty?
+
+          respond(405, "text/plain", "GET or POST only")
+        end
+
+        # The JSON Schema of the facts the command takes (`?schema=1`), with the rules a schema
+        # cannot hold as `x-` annotations.
+        def command_schema(domain, aggregate, command)
+          path = "#{aggregate.hecks_name}/#{command.hecks_name}"
+          json(200, Projections::CommandSchema.document(@registry.bluebook(domain), aggregate, path, command))
         end
 
         # Whether the request asks to be validated, not carried out: `?dry_run=1` or `X-Dry-Run: 1`.

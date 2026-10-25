@@ -110,9 +110,11 @@ module Hecks
       end
 
       def collect_step(name, ctx)
-        send(:"step_#{name}", ctx)
-      rescue Hecks::Refused => e
-        Collecting.refuse(e)
+        Collecting.at_stage(Collecting.stage_of(name)) do
+          send(:"step_#{name}", ctx)
+        rescue Hecks::Refused => e
+          Collecting.refuse(e)
+        end
       end
 
       # Enqueues outbox rows for the just-emitted events inside the save's transaction.

@@ -12,6 +12,7 @@ module Hecks
     # The collector is bound per thread, like the caller, so concurrent requests never share one.
     module Collecting
       KEY = :hecks_collector
+      STAGE_KEY = :hecks_collecting_stage
 
       # Which stage each dispatch step belongs to, by step name.
       STAGES = Hecks::Vocabulary.rows("StepStage").to_h { |row| [row["step"].to_sym, row["stage"].to_sym] }.freeze
@@ -37,6 +38,21 @@ module Hecks
       # @return [Array<Hecks::Refused>, nil] the refusals recorded so far, or nil when none is bound
       def refusals = Thread.current[KEY]
 
+      # Names the stage of the step running for the block, so a refusal recorded in it is placed
+      # where it was found, whatever its class would otherwise say (a closed set that refuses a
+      # value while an argument is built is an invariant by class and an argument by place).
+      #
+      # @param stage [Symbol] a `DispatchStage`
+      # @yield the step
+      # @return [Object] the block's result
+      def at_stage(stage)
+        previous = Thread.current[STAGE_KEY]
+        Thread.current[STAGE_KEY] = stage
+        yield
+      ensure
+        Thread.current[STAGE_KEY] = previous
+      end
+
       # Records a refusal when collecting, raises it otherwise.
       #
       # @param refusal [Hecks::Refused] what refused
@@ -45,7 +61,8 @@ module Hecks
       def refuse(refusal)
         raise refusal unless active?
 
-        refusals << refusal
+        stage = Thread.current[STAGE_KEY]
+        refusals << (stage ? refusal.in_stage(stage) : refusal)
         nil
       end
 
