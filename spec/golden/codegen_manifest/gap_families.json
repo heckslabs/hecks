@@ -677,6 +677,11 @@
   },
   {
     "kind": "query",
+    "id": "Banking::ATMCard.LiveForAccount",
+    "generated": true
+  },
+  {
+    "kind": "query",
     "id": "Banking::ATMCard.ByFee",
     "generated": true
   },
@@ -840,6 +845,12 @@
   {
     "kind": "policy",
     "id": "Banking::RetryOnPaymentFailure",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "policy",
+    "id": "Banking::RetireCardsOnAccountClosure",
     "generated": true,
     "routed": true
   },

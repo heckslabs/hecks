@@ -466,7 +466,7 @@ section.searching > p { display: none; }
 <div class="terms">
 <article class="term" id="account-closed">
 <h4>Account closed</h4>
-<p>Recorded after <a href="#close-account">Close account</a>. Prompts <a href="#notify-on-closure">Notify on closure</a>.</p>
+<p>Recorded after <a href="#close-account">Close account</a>. Prompts <a href="#retire-cards-on-account-closure">Retire cards on account closure</a> and <a href="#notify-on-closure">Notify on closure</a>.</p>
 </article>
 <article class="term" id="account-credited">
 <h4>Account credited</h4>
@@ -518,6 +518,10 @@ section.searching > p { display: none; }
 <article class="term" id="notify-on-closure">
 <h4>Notify on closure</h4>
 <p>When <a href="#account-closed">Account closed</a> happens, Notifications is asked to send, in Notifications.</p>
+</article>
+<article class="term" id="retire-cards-on-account-closure">
+<h4>Retire cards on account closure</h4>
+<p>When <a href="#account-closed">Account closed</a> happens, <a href="#atm-card">ATM card</a> is asked to <a href="#retire">Retire</a>, once for each row of <a href="#live-for-account">Live for account</a>.</p>
 </article>
 <article class="term" id="review-on-freeze">
 <h4>Review on freeze</h4>
@@ -733,6 +737,11 @@ section.searching > p { display: none; }
 <p>Live cards by what they cost to hold, cheapest first — a fee is a Float, so the order is numeric and not alphabetical.</p>
 <p>ATM cards that are active, sorted by daily fee, lowest first.</p>
 <p>Shows at most 3.</p>
+</article>
+<article class="term" id="live-for-account">
+<h4>Live for account</h4>
+<p>One account&#39;s cards that can still be used — the ones its closure retires.</p>
+<p>ATM cards whose account is the number you give and that are issued or active, sorted by card serial, A to Z.</p>
 </article>
 <article class="term" id="recent">
 <h4>Recent</h4>
