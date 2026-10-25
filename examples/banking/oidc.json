@@ -172,6 +172,26 @@
       "role": "System"
     },
     {
+      "scope": "banking:hold.escalate_account_hold",
+      "verb": "Banking::Hold.EscalateAccountHold",
+      "role": "System"
+    },
+    {
+      "scope": "banking:hold.escalate_card_hold",
+      "verb": "Banking::Hold.EscalateCardHold",
+      "role": "System"
+    },
+    {
+      "scope": "banking:hold.lift",
+      "verb": "Banking::Hold.Lift",
+      "role": "Teller"
+    },
+    {
+      "scope": "banking:hold.place",
+      "verb": "Banking::Hold.Place",
+      "role": "Teller"
+    },
+    {
       "scope": "banking:onboarding_case.clear",
       "verb": "Banking::OnboardingCase.Clear",
       "role": "Compliance officer"
