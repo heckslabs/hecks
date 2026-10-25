@@ -20,7 +20,8 @@ RSpec.describe "the sentence form against the whole corpus", :io do
     /no phrase for the options on attribute/,
     /no phrase for the paging and access options in report/,
     /no phrase for the options on (policy|query)/,
-    /no phrase for a \w+ comparison in query/,
+    /triggers \S+, a command this chapter does not declare/,
+    /no phrase for the paging and access options in query/,
     /no phrase for that kind of mutation on command/,
     /names no aggregate/,
     /names no command \w+ declares/

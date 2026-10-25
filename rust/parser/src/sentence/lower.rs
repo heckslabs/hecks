@@ -7,12 +7,12 @@
 use super::changes::Change;
 use super::names::{camel, scalar, snake, spoken, SCALARS};
 use super::{column, Matched, Parser, Scope, Step};
-use crate::build::{identity, query_derive};
+use crate::build::identity;
 use crate::diag::{Diagnostic, ParseResult};
 use crate::ir;
 
 /// A type phrase written in the file, resolved once the aggregate's value objects are known.
-struct TypeUse {
+pub(super) struct TypeUse {
     line: usize,
     col: usize,
     words: String,
@@ -91,15 +91,17 @@ struct PolicySpec {
 }
 
 /// Everything read of one aggregate before its names are resolved.
-struct AggState {
-    agg: ir::Aggregate,
+pub(super) struct AggState {
+    pub agg: ir::Aggregate,
     attr_types: Vec<TypeUse>,
+    /// The arguments each query (by index in `agg.queries`) wrote, to be typed once all is read.
+    pub query_args: Vec<(usize, Vec<(ir::Attribute, TypeUse)>)>,
     /// The type phrase of attribute `.1` of value object `.0`, resolved once all are read.
     vo_types: Vec<(usize, usize, TypeUse)>,
     identity: Option<Identity>,
     lifecycle: Option<LifecycleSpec>,
     commands: Vec<CommandSpec>,
-    checks: Vec<FieldUse>,
+    pub checks: Vec<FieldUse>,
 }
 
 impl Parser<'_> {
@@ -338,6 +340,7 @@ impl Parser<'_> {
             lifecycle: None,
             commands: Vec::new(),
             checks: Vec::new(),
+            query_args: Vec::new(),
         };
         let mut scope = Scope::inside(header.indent);
         let mut entities: Vec<(Matched, usize)> = Vec::new();
@@ -441,7 +444,7 @@ impl Parser<'_> {
     }
 
     /// The attributes an `It has:` or `It takes:` block lists, each with the type phrase it wrote.
-    fn attribute_lines(&mut self, header: &Matched) -> ParseResult<Vec<(ir::Attribute, TypeUse)>> {
+    pub(super) fn attribute_lines(&mut self, header: &Matched) -> ParseResult<Vec<(ir::Attribute, TypeUse)>> {
         let mut lines = Vec::new();
         let mut scope = Scope::inside(header.indent);
         while let Some(step) = self.step(&mut scope, "Has", false)? {
@@ -722,61 +725,6 @@ impl Parser<'_> {
         Ok(roles)
     }
 
-    fn query(&mut self, header: &Matched, st: &mut AggState) -> ParseResult<()> {
-        let mut query = ir::Query {
-            name: camel(&header.text_of("name")),
-            ..Default::default()
-        };
-        let mut scope = Scope::inside(header.indent);
-        while let Some(step) = self.step(&mut scope, "Query", true)? {
-            match step {
-                Step::Prose { text } => query.description = Some(text),
-                Step::Phrase(m) if m.id == "where" => {
-                    let cond = self.condition(&m)?;
-                    let Some(value) = cond.value else {
-                        return Err(self.error(
-                            m.line,
-                            m.col_of("condition"),
-                            "a Where compares a field with a value, like `Where the status is published`",
-                        ));
-                    };
-                    let Some(field) = cond.field else {
-                        return Err(self.error(m.line, m.col_of("condition"), "a Where compares a field with a value, not an expression"));
-                    };
-                    st.checks.push(FieldUse {
-                        name: field.name.clone(),
-                        line: field.line,
-                        col: field.col,
-                    });
-                    query
-                        .wheres
-                        .extend(query_derive::where_clauses(&[(field.name, format!("\"{value}\""))], None));
-                }
-                Step::Phrase(m) if m.id == "order" => {
-                    let direction = match m.text_of("direction").to_lowercase().as_str() {
-                        "ascending" | "asc" => "asc",
-                        "descending" | "desc" => "desc",
-                        other => {
-                            return Err(self.error(
-                                m.line,
-                                m.col_of("direction"),
-                                format!("'{other}' is not a direction; use ascending or descending"),
-                            ));
-                        }
-                    };
-                    query.order_by = Some(ir::OrderBy {
-                        field: m.text_of("path"),
-                        direction: direction.to_string(),
-                        target: None,
-                    });
-                }
-                Step::Phrase(m) => return Err(self.unmeant(&m)),
-            }
-        }
-        st.agg.queries.push(query);
-        Ok(())
-    }
-
     /// Reads the condition a rule, a given or a where carries in its `condition` slot.
     pub(super) fn condition(&self, m: &Matched) -> ParseResult<Cond> {
         let text = m.text_of("condition");
@@ -883,6 +831,16 @@ impl Parser<'_> {
                 )
                 .map_err(|refused| Diagnostic::new(self.file, found.line, refused.message).with_column(found.col))?;
                 st.agg.identified_by.extend(paths);
+            }
+        }
+        for (at, args) in std::mem::take(&mut st.query_args) {
+            let mut typed = Vec::new();
+            for (mut attribute, used) in args {
+                attribute.type_name = self.type_named(&used, &st.agg)?;
+                typed.push(attribute);
+            }
+            if let Some(query) = st.agg.queries.get_mut(at) {
+                query.attributes = typed;
             }
         }
         let commands = self.commands_of(&mut st)?;

@@ -17,6 +17,7 @@ mod lower;
 mod names;
 mod options;
 mod pattern;
+mod queries;
 mod report;
 mod token;
 
