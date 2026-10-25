@@ -1,134 +1,137 @@
 # A domain can be written in plain business sentences
 
-**Status:** Proposed. Not built. Date: 2026-10-25.
+**Status:** Accepted. Built on branch `worktree-bizbook`, not released. Date: 2026-10-25.
 
 ## Context
 
 A bluebook is Ruby-shaped (`Hecks.bluebook "X" do … end`, `attribute :name, Type`,
-`invariant("…") { … }`). The people who know the rules of a business (what may be sold,
-when an order is refused, what happens next) cannot write it, so they describe it and
-someone else transcribes it. `.behaviors` files are not the answer: they test a domain
-that already exists, in developer notation (`setup`, `input`, `expect` with hashes).
+`invariant("…") { … }`). The people who know the rules of a business (what may be sold, when an
+order is refused, what happens next) cannot write it, so they describe it and someone else
+transcribes it. `.behaviors` files do not answer this: they test a domain that already exists, in
+developer notation (`setup`, `input`, `expect` with hashes).
 
-Gherkin shows the shape business people will write: indented plain text, one sentence a
-line, `Given` / `When` / `Then`. Its weakness is also known: the sentences are bound to
-code by hand-written step definitions, so the readable file and the running system drift.
+Gherkin shows the shape business people write: indented plain text, one sentence a line,
+`Given` / `When` / `Then`. Its weakness is also known: the sentences are bound to code by
+hand-written step definitions, so the readable file and the running system drift.
 
 ## Decision
 
-1. **The bluebook accepts a second syntax, the bizbook form.** A `.bluebook` file is either
-   Ruby-shaped (`Hecks.bluebook "X" do`) or plain sentences (`Domain: X`); its first line
-   picks the grammar. `hecks-parse` reads both into the same `ir.json`, so every
-   projection, host, generator and conformance check cannot tell which wrote it. A file is
-   wholly one form; files in a project may differ; mixing forms inside a file is refused.
-   One extension means no new file kind for globs, `loads` or editors. "Bizbook" names the
-   sentence form. A construct with no phrase rows yet stays in Ruby form in another file,
-   so a project adopts the form file by file. Ruby is never embedded in a sentence file.
-2. **Bluebook side, not hecksagon.** A bizbook declares what the domain is and does. It
-   names no database, clock or network. Wiring stays in `.hecksagon`; persistence stays
-   memory by default.
-3. **There is no step-definition layer.** The sentences *are* the declaration. The
-   grammar is a closed controlled English held as rows in the Vocabulary (the way keyword
-   rows are), so adding a phrase is a `propose!` / `admit!` of a row and the parser,
-   reference and editor support are projected from it. A sentence that matches no row is
-   a parse error that names the nearest rows. No free-form language understanding.
-4. **Gherkin's words keep their meaning, mapped onto the IR:**
+1. **A `.bluebook` file may be written as sentences.** Its first line, `Domain: <name>`, picks the
+   grammar. Both forms lower to the same `ir.json`, so every projection, host, generator and check
+   works from the IR and cannot tell which wrote it. A file is wholly one form, and the
+   `.bluebook` files of one chapter must all be the same form (the parser refuses a mix). Files of
+   different chapters in one project may differ. The extension is unchanged, so no glob, `loads`
+   or editor association needed to learn a new file kind. This replaces the earlier idea of a
+   separate `bizbook` language and a project that uses one or the other.
+2. **Bluebook side, not hecksagon.** A sentence file declares what the domain is and does. It
+   names no database, clock or network. Wiring stays in `.hecksagon`, and persistence stays
+   memory by default. A `.hecksagon` beside a chapter written as sentences is not read by the
+   sentence parser yet (see Known gaps).
+3. **There is no step-definition layer: what an author may say is a table.** Each sentence is a
+   `PhraseSeed` row of the `Sentence` chapter (`lib/hecks/language/sentence/sentence.bluebook`),
+   projected into `rust/parser/src/phrases.rs` by `hecks language_run.project_phrase_table` and
+   guarded by `spec/phrase_table_spec.rb`. A pattern is literal words, `(a|an)` alternatives and
+   `{slot:kind}` fill-ins (`words`, `word`, `text`, `int`, `list`, `rest`, `path`, `event`); a row
+   names the block it is legal in and the block it opens. A sentence that matches no row is
+   refused with the line and column it stopped fitting at and the nearest rows, never skipped.
+   Phrases are admitted by editing rows (each carries a `status`, and `Phrase.Retire` retires
+   one); the keyword `propose!`/`admit!` lifecycle is not yet extended to them.
+4. **The words keep their Gherkin meaning, mapped onto the IR:**
 
-   | Bizbook | IR |
+   | Sentence | IR |
    |---|---|
-   | `Domain:` + paragraph | domain, `vision` |
-   | `Aggregate:` + paragraph | aggregate, `description` |
-   | `It has:` lines | attributes, value objects, `identified_by`, `optional` |
-   | `Rule:` sentence | invariant |
-   | `Lifecycle:` lines (`available → sold`) | lifecycle, transitions |
-   | `Command:` + `Given` | command, `from:` state and `given`s |
-   | `When` | the command's arguments (who supplies what) |
-   | `Then` | mutations, `ensures`, `emits` |
-   | `But refuse … because "…"` | a `given` with its refusal message |
-   | `Whenever <event> then <command>` | policy |
-   | `Whenever <event>, ask <outside> to …` | policy with `ask` |
-   | `Example:` tables | executable examples (below) |
+   | `Domain: X` and an indented paragraph | domain, `vision` |
+   | `Aggregate: X` and a paragraph | aggregate, `description` |
+   | `A page is identified by its slug.` | `identified_by` |
+   | `It has:` lines (`a slug: page slug`, `…, optional`) | attributes |
+   | `A page slug has a value: text.` | a single-value value object |
+   | `Rule "…" holds when the value is not empty` | invariant (`!value.to_s.empty?`) |
+   | `Lifecycle: status, starting as draft` and `Publish moves a page from draft to published` | lifecycle, transitions |
+   | `Command: X`, `Goal:`, `Who:`, `It acts on an existing page`, `When a slug is given`, `Given "…" holds when the status is draft`, `Then the slug is set`, `And PageDrafted is announced` | command, `role`, `goal`, `reference_to`, attributes, given, `sets`, `emits` |
+   | `Query: X`, `Where the status is draft`, `Ordered by slug.value, ascending` | query |
+   | `Policy: X`, `Whenever E is announced [by an order]`, `Then C runs [with the x]` or `Then N is asked [with the x]` | policy with `trigger` or `ask` |
 
-5. **Examples are the tests.** An example compiles to the
-   `.behaviors` tests of that command, so the readable file is also its own conformance
-   corpus and cannot drift from what runs. Authors write no `.behaviors` for bizbook projects.
-6. **Expressions are phrases over named things.** `Given the order has at least one
-   topping` resolves to the canonical expression the existing expression machinery
-   (`rust/parser/src/expr`) already emits; a phrase row names its expression template.
-   Field and type names come from the bizbook's own `It has:` lines, spelled as a person
-   would ("customer name" is `customer_name`).
-7. **IR to sentences is a projection.** Because both forms share the IR, any existing
-   bluebook can be rendered in sentence form (and back) by a formatter. Comments are not
-   in the IR and are lost; a construct with no phrase row renders in Ruby form.
-8. **Examples are their own file.** `orders.examples.bluebook` says `Examples for: Order`
-   and holds `Background:` (people bound to roles), `Example:` and `Where:` tables. An
-   actor on a `When` is the command's role. A refusal is matched by the rule's own
-   sentence, not a message string. An outside party (a credit check) is an `ask`: a policy
-   asks on an event, the outside answers with an event, and a policy triggers the next
-   command. The declaration holds the question, the answer events and any threshold the
-   business sets; the hecksagon picks the adapter; examples stub the answer
-   (`When Credit Check approves the order`). `needs` is not used: it supplies only `now`
-   and `today`.
-
-## Sketch
-
-```
-Domain: Pizzas
-  Put toppings on a pizza and sell it to a customer.
-
-Aggregate: Order
-  An order that gathers toppings on a pizza and is eventually sold.
-
-  It has:
-    a name, which identifies it
-    a pizza
-    toppings, a list of topping
-    a customer name, optional
-
-  Rule: a price is never negative
-  Lifecycle: an order is available, then sold
-
-  Command: Purchase
-    Given the order is available
-    And it has at least one topping
-    When a customer name and an amount are given
-    Then the customer name is recorded
-    And the order is sold
-    But refuse unless it has at least one topping because "at least one topping"
-
-    Example: a loaded pizza sells
-      | name   | toppings | customer name | result |
-      | Loaded | Basil    | Chris         | sold   |
-```
+   A rule or given is `Rule "<description>" holds when <condition>`, so the description (which a
+   refusal reports) and the checkable condition both survive. The conditions are phrase rows too
+   (`the F is not empty`, `the F is at least N`, `the F is V`) and lower to the canonical
+   expression text the expression machinery already turns into an AST.
+5. **One reader, in Rust; Ruby runs the rendered text.** `hecks-parse` is the only parser of the
+   sentences. `hecks-parse render` prints the Ruby-form text for the same IR, and
+   `Hecks::SentenceForm` writes it to the cache directory, loads it with `Kernel.load` (a
+   predicate's source is recovered from the file it was written in, so it has to be a real file)
+   and records the sentence file as the chapter's source. `Adapters::Folder#load_file` is the
+   one place a bluebook is loaded, so boot, `model_check`, the Composer and the corpus all take
+   sentence files without knowing. No Ruby parser of sentences exists, and no IR importer.
+6. **A formatter writes one wording.** `hecks-parse format` prints any chapter, in either form,
+   as canonical sentences. Formatting then parsing returns the same IR, formatting twice changes
+   nothing, and the Ruby form of `Cms::Page` formats to exactly its hand-written sentence file.
+   Comments are not in the IR and are not written; the paragraph under a header is kept as the
+   `description`.
+7. **Authoring is a requirement, not polish.** The authors work alone. Every refusal names its
+   line and column and what was in scope (the fields, types, commands or states that would have
+   worked), `hecks-parse complete` offers the sentences legal at a cursor from the same table,
+   and `hecks-lsp` starts a squiggle at the refusal's column and offers those sentences as
+   snippets with a tab stop per fill-in.
+8. **Examples are their own file, `*.examples`, and are executable.** A `.bluebook` extension
+   would have every `*.bluebook` glob load an examples file as a chapter, so examples have their
+   own. `Examples for: <chapter>` opens it; `Background:` introduces people and their roles
+   (`Dana is an Editor`); `Example:` steps are `Given`/`When`/`Then`/`And` in the domain's words
+   (`Dana drafts a page with slug "about"`, `Sam tries to publish it`, `Then the page is
+   published`, `And PagePublished is announced`, `Then it is refused because only a draft can be
+   published`); a `Where:` table runs an example once per row with `<column>` substituted.
+   `hecks-parse examples` compiles the file against its chapter to `.behaviors` text, and the
+   behaviors runner now runs an `.examples` file directly. Every name is checked against the
+   chapter (a person's role, a command and the fields it takes, a lifecycle state, an event, a
+   rule's own sentence), so an example can only mean something the domain declares.
+   `.behaviors` tests gained `as "<role>"` and `setup …, as: "<role>"`, binding a caller for the
+   dispatch (unchecked when absent, as before), so "only an Editor may publish" is provable.
+9. **An outside party is an `ask`, not an outside fact.** The domain says the question
+   (`Then check credit is asked`) and the events that can answer it
+   (`Whenever CreditCleared is announced by an order`); the hecksagon says who answers. `needs`
+   stays the clock's (`now`, `today`).
 
 ## Consequences
 
-- Business authors get a file they can read and edit without Ruby punctuation; the IR,
-  Rust kernel and conformance corpus are untouched.
-- The phrase table is the new surface to keep honest. It is generated into the reference
-  and editor grammar like every other table, and `measure_doc_coverage!` extends to it.
-- Two forms for one IR need a round-trip check: a sentence file and its Ruby-form
-  rendering must produce byte-equal `ir.json` (a `check_conformance` pair).
-- A project can end up holding both forms; the formatter keeps that tolerable.
+- Business authors get a file they can read, edit and run without Ruby punctuation; the IR, the
+  Rust kernel, the host and the conformance corpora are untouched.
+- The phrase table is the new surface to keep honest. It is generated like every other table, and
+  the shared parity corpus (`spec/parser_parity_spec.rb`) now compares sentence fixtures with
+  Ruby's IR byte for byte. `spec/fixtures/sentence/{cms_page,orders}` hold a sentence file and an
+  independently written Ruby twin each.
+- A chapter written as sentences needs `hecks-parse` at run time. The gem does not ship it
+  (`PrebuiltBinary` rows exist for the host only); `Hecks::SentenceForm.binary` looks at
+  `HECKS_PARSE_BIN`, `rust/parser/target/{release,debug}` and the `PATH`, and names the fix when
+  none is found.
+- Diagnostics gained an optional column (`file:line:column: message`); `Composer::Parse` and
+  `hecks-lsp` read it, and a Ruby-form refusal is unchanged.
 
-## Known gaps (the sentence form cannot yet say these)
+## Known gaps
 
-- `Command.role` is a single role (`rust/parser/src/ir.rs`); "a Customer or a Sales Rep
-  can cancel" needs several roles on a command.
-- A total over a list (quantity × price summed over line items) may be outside the
-  expression machinery; unverified.
-- `nothing is recorded` after a refusal is a test assertion, not a rule: `.behaviors` side.
+These are deliberate. Each is refused loudly rather than approximated.
 
-## Open questions
+- **A command is run by one role.** `Who: Customer or Sales Rep` is refused. `Command.role` is a
+  single string read by the Ruby runtime and the Rust kernel and host, so several roles change
+  the IR and every golden; it needs its own decision.
+- **No sum over a list.** The expression machinery has `size`, `first`, `last` and the
+  `all?`/`any?`/`none?` blocks, and no total, so "the order total is $105.00" cannot be said.
+  A new node must land in Ruby `Expression`, Rust `Resolver` and `ast_json`, and the kernel.
+- **Comments are not kept.** Prose under a header becomes the `description`; other comments are
+  dropped by a format, as the IR holds none.
+- **Examples cannot stub an outside answer.** A domain that asks the outside needs a port, so its
+  examples boot a Memory-bound `<name>_behaviors.hecksagon` beside them (found by
+  `Hecks::SentenceForm.behaviors_hecksagon`, passed to the compiler as `--also`); nothing then
+  answers the ask, and the Memory runtime refuses it, which shows in `expect emits:`. The
+  commands an answer would trigger are exercised directly. A verb in an example is one word
+  (`publishes`, not `requests refund`).
+- **A `.hecksagon` beside a sentence chapter** is refused ("not yet implemented"); queries are
+  limited to `Where the F is V` and an order; read models, process managers, ports, entities,
+  closed sets, list attributes, defaults and `from:` guards have no phrase yet. The formatter
+  names each one it cannot write.
+- **Generated Ruby text carries no line map.** A Ruby error inside rendered text names the
+  generated file; the parser has already checked the sentences, so this should be rare.
 
-- Whether examples use `.examples.bluebook` or their own extension.
-- How much of a command's `Then` can be inferred versus stated (mutation ops, `emits`).
-- Whether bizbook files get a formatter that normalises phrasing, so diffs stay quiet.
+## Verification
 
-## Next
-
-1. Admit the first phrase rows for `Domain`, `Aggregate`, `It has`, `Rule`, `Command`.
-2. Parse them in `rust/parser` into IR; check the Pizzas `Order` against the bluebook IR.
-3. Compile examples to `.behaviors`.
-4. Hand-write the Order domain (declaration and examples) as a `.bluebook`, run
-   `model_check`, and let it confirm or add to the gaps above.
+`cargo test` in `rust/parser` and `rust/lsp`; `spec/sentence_form_spec.rb`,
+`spec/sentence_examples_spec.rb`, `spec/phrase_table_spec.rb` and the shared
+`spec/parser_parity_spec.rb` (tagged `:io`, they build the parser).

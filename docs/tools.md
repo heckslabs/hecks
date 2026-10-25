@@ -109,6 +109,7 @@ still need a checkout.
 | `hecks language_run.project_refusal_wording --confirm` | `bin/project_refusal_wording` |
 | `hecks language_run.project_reserved_names --confirm` | `bin/project_reserved_names` |
 | `hecks language_run.project_parser_table --confirm` | `bin/project_parser_table` |
+| `hecks language_run.project_phrase_table --confirm` | `bin/project_phrase_table` |
 | `hecks language_run.project_bootstrap_table --confirm` | `bin/project_bootstrap_table` |
 | `hecks language_run.project_field_hints --confirm` | `bin/project_field_hints` |
 | `hecks language_run.project_expression_tables [--stdout] --confirm` | `bin/expression_projection` |
