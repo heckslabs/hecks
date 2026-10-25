@@ -15,7 +15,7 @@ module Hecks
     #
     #   ConformanceFuzz.call([domain, "native" | "path/to/module.wasm", seeds, steps])
     #
-    # `seeds` and `steps` default to `SEEDS` and `STEPS` in the environment, then to 10 and 25.
+    # `seeds` and `steps` default to 10 and 25.
     module ConformanceFuzz
       USAGE = "usage: hecks fuzz_conformance <domain> <native|path/to/module.wasm> [seeds] [steps]"
 
@@ -45,7 +45,7 @@ module Hecks
         domain, artifact, seeds, steps = argv
         raise Failure, USAGE unless domain && artifact
 
-        Run.new(domain, artifact, Integer(seeds || ENV["SEEDS"] || 10), Integer(steps || ENV["STEPS"] || 25),
+        Run.new(domain, artifact, Integer(seeds || 10), Integer(steps || 25),
                 scratch_dir(domain))
       end
 

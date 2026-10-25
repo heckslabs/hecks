@@ -18,8 +18,9 @@ module Hecks
         # were bound from, then runs the checkpoint/dispatch/compensation ledger protocol with the
         # retries a crash gets.
         # rubocop:disable-next Metrics/ParameterLists -- spec/runtime/reaction_invocation_spec.rb calls it by name
-        def deliver_saga_dispatch(process_manager, spec, event, instance, correlation, domain)
-          leg    = Leg.new(process_manager, event, domain, correlation, nil, instance)
+        def deliver_saga_dispatch(process_manager, spec, event, instance, correlation, domain, dispatch_key: nil)
+          leg = Leg.new(process_manager, event, domain, correlation, nil, instance)
+          leg.dispatch_key = dispatch_key
           args   = dispatch_args(process_manager, spec, event, instance, correlation)
           record = { process_manager: process_manager.name, instance: correlation, dispatch: spec.command_name }
 
@@ -95,14 +96,16 @@ module Hecks
           nil
         end
 
-        # Dispatches `command_name` through the dispatcher, stamped with this saga's correlation.
+        # Dispatches `command_name` through the dispatcher, stamped with this saga's correlation and,
+        # for a leg's own dispatch, its `dispatch_key`.
         def reenter_command(leg, command_name, projected, explicit:, source_receiver:)
           head = leg.correlation_head
           verb = qualified(command_name, leg.domain)
           invocation = ReactionInvocation.build(registry: @registry, verb: verb, projected: projected,
                                                 explicit: explicit, passthrough: [head],
                                                 source_receiver: source_receiver)
-          @dispatcher.reenter(verb, saga_correlation: { head.to_s => leg.correlation }, **invocation)
+          stamp = { head.to_s => leg.correlation }
+          @dispatcher.reenter(verb, saga_correlation: stamp, dispatch_key: leg.dispatch_key, **invocation)
         end
 
         # Unlike a refusal, a crash isn't a domain decision, so it

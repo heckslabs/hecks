@@ -327,6 +327,7 @@ fn command_json(c: &ir::Command) -> JsonValue {
                 .as_ref()
                 .map_or(JsonValue::Null, ruby_value_json),
         ),
+        ("idempotent".to_string(), JsonValue::Bool(c.idempotent)),
     ])
 }
 

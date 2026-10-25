@@ -49,8 +49,8 @@ module Hecks
       # the same transaction as the journal row, so replaying the journal through `project` on
       # boot has nothing left to fix up.
       #
-      # @return [Array<Symbol>] always `[:atomic_put, :cross_process_lock, :atomic_append]`
-      def persistence_capabilities = %i[atomic_put cross_process_lock atomic_append]
+      # @return [Array<Symbol>] always `[:atomic_put, :cross_process_lock, :atomic_append, :dispatch_claims]`
+      def persistence_capabilities = %i[atomic_put cross_process_lock atomic_append dispatch_claims]
 
       # Declares that this adapter can act on shape drift rather than only refuse.
       #

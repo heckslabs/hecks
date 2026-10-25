@@ -55,6 +55,9 @@ module Hecks
         # A flag held as text ("true"/"false"), emitted as a boolean.
         def expect_undelivered?(row) = text(row[:expect_undelivered]).to_s == "true"
 
+        # `idempotent` is held as text like `expect_undelivered`, and emitted as a boolean.
+        def idempotent?(row) = text(row[:idempotent]).to_s == "true"
+
         # Kept as raw text, not decoded: this feeds `Assembly::Marks#where_clause`,
         # which decodes it via `read` — decoding here first would strip a kwarg
         # reference's colon, indistinguishable after from a same-named literal.

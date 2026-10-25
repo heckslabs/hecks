@@ -228,6 +228,7 @@ pub fn parse_body(
             "needs" => {
                 super::needs::declare(file, line, &command.name, &gated.args, &mut command.needs)?;
             }
+            "idempotent" => command.idempotent = true,
             "provenance" => {
                 let raw = super::named_raw(&gated.args, "from")
                     .ok_or_else(|| Diagnostic::new(file, line, "'provenance' requires a from:"))?;
