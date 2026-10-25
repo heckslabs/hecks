@@ -1,0 +1,12 @@
+Hecks.bluebook "Banking" do
+  # What becomes of the records that reference an account when the account closes: the
+  # policies `model_check`'s orphaned-reference check asks for (ADR 0121).
+
+  # A closed account's cards are retired, so none outlives the balance it drew on.
+  policy "RetireCardsOnAccountClosure" do
+    on       Account::AccountClosed
+    for_each "ATMCard.LiveForAccount"
+    # `atm_card` is the key the fan-out merges per row, the one Retire is addressed by.
+    trigger  ATMCard::Retire, with: { atm_card: :atm_card }
+  end
+end

@@ -362,7 +362,7 @@ in the same place — where a policy was WRITTEN is a readability decision,
 not a structural one:
 
 ```ruby
-runtime.registry.bluebook("Banking").policies.map(&:name)  # => ["ReviewOnFreeze", "RetryOnPaymentFailure", "FreezeAccountsOnSuspension", "NotifyOnClosure", "ReviewOnBoxSurrender", "FlagKeyReturn"]
+runtime.registry.bluebook("Banking").policies.map(&:name)  # => ["ReviewOnFreeze", "RetryOnPaymentFailure", "RetireCardsOnAccountClosure", "FreezeAccountsOnSuspension", "NotifyOnClosure", "ReviewOnBoxSurrender", "FlagKeyReturn"]
 ```
 
 The first two of those are `Account`'s and `ScheduledPayment`'s own,
