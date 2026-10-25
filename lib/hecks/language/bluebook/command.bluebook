@@ -14,6 +14,8 @@ Hecks.bluebook "Bluebook" do
 
     attribute :name,       CommandName
     attribute :role,       Actor
+    # Every role that may run the command, when more than one may; `role` is then the first.
+    attribute :roles,      list_of(Permission)
     attribute :goal,       Goal
     attribute :emits,      list_of(Announcement)
     attribute :references, EventName, optional: true
@@ -47,6 +49,11 @@ Hecks.bluebook "Bluebook" do
     end
 
     value_object "Announcement" do
+      attribute :name, String
+    end
+
+    # One role that may run the command, as a row of `roles`.
+    value_object "Permission" do
       attribute :name, String
     end
 
@@ -260,6 +267,23 @@ Hecks.bluebook "Bluebook" do
       emits AnnouncementNamed
     end
 
+    command "Allow" do
+      role "Language"
+      goal "Name a role that may run this command, among several"
+
+      attribute :allowed, RoleName
+
+      given("a role is named") { !allowed.value.to_s.empty? }
+
+      sets :roles, append: { name: :allowed }
+
+      emits RoleAllowed
+    end
+
+    value_object "RoleName" do
+      attribute :value, String
+    end
+
     command "Need" do
       role "Language"
       goal "Name an outside fact the runtime supplies before any given runs"
@@ -331,7 +355,7 @@ Hecks.bluebook "Bluebook" do
       attribute :coerce,           String
       attribute :blank_message,    String
 
-      member keyword: "role",            context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "role"
+      member keyword: "role",            context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "role", variadic: "true"
       member keyword: "goal",            context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "goal", coerce: "false"
       member keyword: "provenance",      context: "Command", at: "",  named: "from",      kind: "literal",  required: "true",  fills: "provenance"
       member keyword: "reference_to",    context: "Command", at: "1", named: "",          kind: "constant", required: "true",  fills: "type"

@@ -34,6 +34,15 @@ fn node_name(node: &Json) -> &str {
     node.get("name").and_then(Json::as_str).unwrap_or("")
 }
 
+/// Every role that may run a command when its IR lists several under `roles`; empty otherwise,
+/// when `role` alone says it.
+fn roles_of(command: &Json) -> Vec<String> {
+    match command.get("roles") {
+        Some(Json::Array(roles)) => roles.iter().map(Json::to_s).collect(),
+        _ => Vec::new(),
+    }
+}
+
 fn reference_checks(
     command: &Json,
     aggregates_by_name: &HashMap<String, &Json>,
@@ -726,6 +735,7 @@ pub fn generate(
                             &value_objects_by_name,
                         ),
                         role: command.get("role").map(Json::to_s),
+                        roles: roles_of(command),
                         entity_name: entity_name_str.to_string(),
                         entity_identity_reading: entity
                             .get("identified_by")
@@ -845,6 +855,7 @@ pub fn generate(
                         &value_objects_by_name,
                     ),
                     role: command.get("role").map(Json::to_s),
+                    roles: roles_of(command),
                     entity_name: entity
                         .get("name")
                         .and_then(Json::as_str)
@@ -1042,6 +1053,7 @@ pub fn generate(
                     &value_objects_by_name,
                 ),
                 role: command.get("role").map(Json::to_s),
+                roles: roles_of(command),
             });
         }
 

@@ -42,20 +42,27 @@ module Hecks
           @from = normalize_from(from)
         end
 
-        # Sets the command's one responsibility role, refusing a second declaration.
+        # Sets the role that runs the command, or the several roles any one of which may,
+        # refusing a second declaration.
         #
-        # @param value [String, Symbol] the role's name
-        # @return [Object] `value` as stored
-        # @raise [Bluebook::DSL::Malformed] if a role is already declared
-        def role_impl(value)
+        # With several, `role` is the first and `roles` holds them all.
+        #
+        # @param values [Array<String, Symbol>] the role names
+        # @return [Object] the first role as stored
+        # @raise [Bluebook::DSL::Malformed] if a role is already declared, or one is named twice
+        def role_impl(*values)
           if @role
             raise Malformed,
-                  "#{@name} declares role twice — a command carries ONE " \
+                  "#{@name} declares role twice — a command carries one " \
                   "responsibility; the second would silently win and the " \
-                  "first would still look declared"
+                  "first would still look declared. Name every role in one: role \"A\", \"B\""
+          end
+          if values.map(&:to_s).uniq.size != values.size
+            raise Malformed, "#{@name} names a role twice in one role declaration"
           end
 
-          @role = value
+          @roles = values.map(&:to_s) if values.size > 1
+          @role = values.first
         end
 
         # Sets the human-readable description shown for this command.
@@ -190,7 +197,7 @@ module Hecks
         end
 
         def declared_rules
-          { name: @name, role: @role, goal: @goal, attributes: attributes, givens: @givens,
+          { name: @name, role: @role, roles: @roles || [], goal: @goal, attributes: attributes, givens: @givens,
             ensures: @ensures, needs: @needs }
         end
 

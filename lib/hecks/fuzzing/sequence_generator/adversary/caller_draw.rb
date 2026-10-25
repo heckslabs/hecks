@@ -17,10 +17,10 @@ module Hecks
           def caller_draw!(entry, catalog)
             return take_precedence_caller if @precedence_caller
 
-            role = entry[:command].role.to_s
-            return [nil, nil] if !role_draw? || role.empty? || @random.rand >= @role_draw
+            roles = entry[:command].role_set
+            return [nil, nil] if !role_draw? || roles.empty? || @random.rand >= @role_draw
 
-            drawn_caller(role, catalog)
+            drawn_caller(roles, catalog)
           end
 
           def take_precedence_caller
@@ -29,27 +29,31 @@ module Hecks
             [caller, nil]
           end
 
-          def drawn_caller(role, catalog)
+          # `roles` are the command's own: any one runs it, the first stands for the rest.
+          def drawn_caller(roles, catalog)
+            role = roles.first
             shapes = CALLER_SHAPES.dup
             shapes.delete("actor_known") if @granted[role].empty?
             shape  = shapes.sample(random: @random)
-            caller = caller_for_shape(shape, role, catalog)
+            caller = caller_for_shape(shape, roles, catalog)
             note   = { "mutation" => "caller_role", "angle" => "ANGLE-5", "shape" => shape, "gated_role" => role }
             [caller, caller ? note.merge(caller) : note]
           end
 
-          def caller_for_shape(shape, role, catalog)
+          def caller_for_shape(shape, roles, catalog)
+            role = roles.first
             case shape
             when "matching"      then { "role" => role }
-            when "mismatched"    then { "role" => other_role(role, catalog) }
+            when "mismatched"    then { "role" => other_role(roles, catalog) }
             when "actor_known"   then { "role" => role, "actor_id" => @granted[role].sample(random: @random) }
             when "actor_unknown" then { "role" => role, "actor_id" => ValueGenerator.random_id(@random) }
             end
           end
 
-          # Another declared role when there is one (a real wrong hat), else a role none names.
-          def other_role(role, catalog)
-            others = catalog[:roles] - [role]
+          # A declared role none of `roles` is, when there is one (a real wrong hat), else a role none
+          # names.
+          def other_role(roles, catalog)
+            others = catalog[:roles] - roles
             others.empty? ? UNKNOWN_ROLE : others.sample(random: @random)
           end
 

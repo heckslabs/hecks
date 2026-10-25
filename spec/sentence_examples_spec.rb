@@ -47,7 +47,8 @@ RSpec.describe "examples written as sentences", :io do
     expect(result.parse_error).to be_nil
     expect(result.runs.map(&:description)).to eq(
       ["A customer places an order and sends it off for its credit check",
-       "Only a customer can send an order off",
+       "A sales rep can send an order off for a customer",
+       "Only a customer or a sales rep can send an order off",
        "An order that was already sent off cannot be sent again"]
     )
     expect(result.runs.map(&:status)).to all(eq(:pass)), result.runs.map(&:message).compact.inspect

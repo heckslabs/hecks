@@ -47,6 +47,7 @@ struct FieldUse {
 struct CommandSpec {
     name: String,
     role: Option<String>,
+    roles: Vec<String>,
     goal: Option<String>,
     references: Option<String>,
     args: Vec<FieldUse>,
@@ -437,6 +438,7 @@ impl Parser<'_> {
         let mut spec = CommandSpec {
             name: camel(&header.text_of("name")),
             role: None,
+            roles: Vec::new(),
             goal: None,
             references: None,
             args: Vec::new(),
@@ -450,18 +452,11 @@ impl Parser<'_> {
             match m.id {
                 "goal" => spec.goal = Some(m.text_of("goal")),
                 "role" => {
-                    let role = m.text_of("role");
-                    if role.split_whitespace().any(|word| word.eq_ignore_ascii_case("or")) {
-                        return Err(self.error(
-                            m.line,
-                            m.col_of("role"),
-                            format!(
-                                "a command is run by one role, and '{role}' names several. The language does not yet \
-                                 let a command be run by more than one role; name the one role that runs it"
-                            ),
-                        ));
+                    let roles = self.roles_of(&m)?;
+                    spec.role = roles.first().cloned();
+                    if roles.len() > 1 {
+                        spec.roles = roles;
                     }
-                    spec.role = Some(role);
                 }
                 "acts_on" => {
                     self.same_owner(&m, "owner", st)?;
@@ -487,6 +482,34 @@ impl Parser<'_> {
         }
         st.commands.push(spec);
         Ok(())
+    }
+
+    /// The roles a `Who:` line names: `Editor`, or `Customer or Sales Rep` for any one of several.
+    fn roles_of(&self, m: &Matched) -> ParseResult<Vec<String>> {
+        let col = m.col_of("role");
+        let mut roles: Vec<String> = Vec::new();
+        let mut current: Vec<String> = Vec::new();
+        for word in m.text_of("role").split_whitespace() {
+            if !word.eq_ignore_ascii_case("or") {
+                current.push(word.to_string());
+            } else if current.is_empty() {
+                return Err(self.error(m.line, col, "an 'or' needs a role before it"));
+            } else {
+                roles.push(current.join(" "));
+                current.clear();
+            }
+        }
+        if current.is_empty() {
+            return Err(self.error(m.line, col, "an 'or' needs a role after it"));
+        }
+        roles.push(current.join(" "));
+        let mut distinct = roles.clone();
+        distinct.sort();
+        distinct.dedup();
+        if distinct.len() != roles.len() {
+            return Err(self.error(m.line, col, "a role is named twice; name each once"));
+        }
+        Ok(roles)
     }
 
     fn query(&mut self, header: &Matched, st: &mut AggState) -> ParseResult<()> {
@@ -681,6 +704,7 @@ impl Parser<'_> {
             let mut command = ir::Command {
                 name: spec.name.clone(),
                 role: spec.role,
+                roles: spec.roles,
                 goal: spec.goal,
                 references: spec.references,
                 givens: spec.givens,

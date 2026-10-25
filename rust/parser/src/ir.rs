@@ -95,6 +95,9 @@ pub enum Mutation {
 pub struct Command {
     pub name: String,
     pub role: Option<String>,
+    /// Every role that may run the command, when more than one may; `role` is then the first.
+    /// Empty otherwise, and then absent from the IR.
+    pub roles: Vec<String>,
     pub goal: Option<String>,
     pub references: Option<String>,
     pub attributes: Vec<Attribute>,

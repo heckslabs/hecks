@@ -40,7 +40,7 @@ Hecks.bluebook "Orders" do
     end
 
     command "Submit" do
-      role "Customer"
+      role "Customer", "Sales Rep"
       goal "Send a placed order off for its credit check"
       reference_to Order
       given("only a draft can be submitted") { status == "draft" }

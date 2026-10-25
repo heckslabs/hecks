@@ -33,7 +33,7 @@ Aggregate: Order
 
   Command: Submit
     Goal: Send a placed order off for its credit check
-    Who: Customer
+    Who: Customer or Sales Rep
     It acts on an existing order
     Given "only a draft can be submitted" holds when the status is draft
     Then OrderSubmitted is announced

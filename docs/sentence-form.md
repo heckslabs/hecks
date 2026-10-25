@@ -129,6 +129,8 @@ Example: Only an editor may take a page down
 ```
 
 - A person is a role, and each step runs as that role. `the Editor drafts …` names a role outright.
+  A command several roles may run is written `Who: Customer or Sales Rep`, and an example refuses
+  a caller with none of them: `Then it is refused because only a Customer or Sales Rep may do it`.
 - `drafts a page with …` makes one; `publishes it` acts on the page made earlier in the example.
 - `tries to` is how a step that should be refused reads, and the example then has to say why. The
   reason is the rule's own sentence, copied from the `Rule` or `Given`.
@@ -160,6 +162,6 @@ sentence file needs it to boot, found at `HECKS_PARSE_BIN`, in `rust/parser/targ
 
 ## What it cannot say yet
 
-A command run by more than one role, a total over a list, and a `.hecksagon` beside a chapter
-written as sentences are refused by name. So are read models, process managers, entities, closed
-sets, list attributes, defaults and `from:` guards; write that chapter in the Ruby form.
+A `.hecksagon` beside a chapter written as sentences is refused by name. So are read models,
+process managers, entities, closed sets, list attributes, defaults and `from:` guards; write that
+chapter in the Ruby form.

@@ -648,16 +648,29 @@ impl Parser<'_> {
                 expect.emits.push(event);
             }
             "outcome_refused_role" => {
-                let role = slot("role").value;
-                if tested.command.role.as_deref() != Some(role.as_str()) {
+                let named = slot("role").value;
+                let declared: Vec<String> = if tested.command.roles.is_empty() {
+                    tested.command.role.iter().cloned().collect()
+                } else {
+                    tested.command.roles.clone()
+                };
+                let mut said: Vec<&str> = named.split(" or ").map(str::trim).collect();
+                let mut held: Vec<&str> = declared.iter().map(String::as_str).collect();
+                said.sort_unstable();
+                held.sort_unstable();
+                if said != held {
                     return Err(self.error(
                         raw.line,
                         at("role"),
-                        format!("{} is run by {}, not by a {role}", spoken(&tested.command.name), tested.command.role.as_deref().unwrap_or("anyone")),
+                        format!(
+                            "{} is run by {}, not by {named}",
+                            spoken(&tested.command.name),
+                            if declared.is_empty() { "anyone".to_string() } else { declared.join(" or ") }
+                        ),
                     ));
                 }
                 let caller = tested.role.clone().unwrap_or_default();
-                expect.refused = Some(format!("role: {role}, and the caller stated {caller}"));
+                expect.refused = Some(format!("role: {}, and the caller stated {caller}", declared.join(" or ")));
             }
             "outcome_refused" => {
                 let reason = slot("reason").value;

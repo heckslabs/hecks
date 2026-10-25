@@ -2,6 +2,7 @@ Examples for: Orders
 
 Background:
   Cleo is a Customer
+  Rae is a Sales Rep
   Sam is a Viewer
 
 Example: A customer places an order and sends it off for its credit check
@@ -9,10 +10,15 @@ Example: A customer places an order and sends it off for its credit check
   When Cleo submits it
   Then the order is submitted
 
-Example: Only a customer can send an order off
+Example: A sales rep can send an order off for a customer
+  Given Cleo places an order with number "A-100" and customer "Cleo Ng"
+  When Rae submits it
+  Then the order is submitted
+
+Example: Only a customer or a sales rep can send an order off
   Given Cleo places an order with number "A-100" and customer "Cleo Ng"
   When Sam tries to submit it
-  Then it is refused because only a Customer may do it
+  Then it is refused because only a Customer or Sales Rep may do it
 
 Example: An order that was already sent off cannot be sent again
   Given Cleo places an order with number "A-100" and customer "Cleo Ng"

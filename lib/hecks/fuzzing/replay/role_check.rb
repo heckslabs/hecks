@@ -19,7 +19,7 @@ module Hecks
           domain, command = command_of(runtime, step["verb"])
           return nil unless command && governed?(runtime, domain, command)
 
-          { verb: step["verb"], role: command.role.to_s, actor_id: step["actor_id"].to_s,
+          { verb: step["verb"], role: command.role.to_s, roles: command.role_set, actor_id: step["actor_id"].to_s,
             grants: grants_for(runtime.registry, step["actor_id"]) }
         rescue StandardError
           nil
