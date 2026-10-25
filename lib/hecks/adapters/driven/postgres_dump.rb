@@ -2,6 +2,7 @@ require "open3"
 require "securerandom"
 require_relative "postgres_dump/connection"
 require_relative "../../text"
+require_relative "../../ports/persistence"
 
 module Hecks
   module Adapters
