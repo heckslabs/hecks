@@ -1,7 +1,7 @@
 module Hecks
   module Rails
-    # A controller over a `Hecks::Rails::Model`: `include Hecks::Rails::Controller`, then
-    # `hecks_model Account`, and `def hecks_actor = { actor_id: current_user.id }`.
+    # A controller over a model. `AccountsController` joins the domain by its name, with nothing
+    # to include or declare; who acts is the app's `current_user` (see `Actor`).
     #
     # `hecks_model` defines `show` and an action per command in a module the controller includes,
     # so redefining an action by name and calling `super` keeps the generated body. Every dispatch
@@ -19,6 +19,29 @@ module Hecks
       included do
         around_action :bind_hecks_caller
         rescue_from Hecks::Refused, with: :render_refusal
+        inferred = Controller.model_for(self)
+        hecks_model(inferred) if inferred
+      end
+
+      # @param klass [Class] a controller class
+      # @return [Class, nil] the model its name points at (`AccountsController` -> `Account`), if
+      #   the domain has one
+      def self.model_for(klass)
+        return unless Booted.booted?
+
+        model = klass.name.to_s.delete_suffix("Controller").singularize.safe_constantize
+        model if model.is_a?(Class) && model < Hecks::Rails::Model
+      end
+
+      # Mixed into every controller class so one whose name points at a model joins the domain with
+      # no line of its own.
+      module Inheritance
+        # @param subclass [Class] the controller class being defined
+        # @return [void]
+        def inherited(subclass)
+          super
+          subclass.include(Controller) if Controller.model_for(subclass)
+        end
       end
 
       class_methods do
@@ -38,7 +61,7 @@ module Hecks
       #
       # @return [Hash{Symbol => String}, nil] `{ actor_id:, role: }` (the role is informational),
       #   or nil for an anonymous request
-      def hecks_actor = nil
+      def hecks_actor = Hecks::Rails.actor_for(self)
 
       private
 

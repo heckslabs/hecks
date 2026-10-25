@@ -17,6 +17,13 @@ module Hecks
         # @raise [RuntimeError] if no domain has been booted
         def dispatcher = @dispatcher || raise("no Hecks domain booted; call Hecks::Rails::Booted.boot")
 
+        # @return [Array<Hecks::Bluebook::Chapter>] the booted chapters the app declared, without
+        #   the ones a hecksagon attached, such as Governance
+        def app_chapters = registry.bluebooks.values.reject { |chapter| registry.bounded?(chapter.name) }
+
+        # @return [Boolean] whether a domain has been booted
+        def booted? = !@dispatcher.nil?
+
         # @return [Object] the booted registry
         def registry = dispatcher.registry
 

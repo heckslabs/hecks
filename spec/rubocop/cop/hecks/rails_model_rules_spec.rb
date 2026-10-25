@@ -5,7 +5,7 @@ RSpec.describe RuboCop::Cop::Hecks::RailsModelRules do
   include_context "with a Hecks cop under test"
 
   def message(call)
-    "`#{call}` declares a rule or an association in a Hecks::Rails::Model. " \
+    "`#{call}` declares a rule or an association in a model. " \
       "State the rule in the bluebook instead; the model is a skin over the aggregate."
   end
 

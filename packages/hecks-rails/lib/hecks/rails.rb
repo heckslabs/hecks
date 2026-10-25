@@ -2,10 +2,12 @@ require "hecks"
 require "hecks/forms"
 require "active_model"
 require "action_controller"
+require_relative "rails/actor"
 require_relative "rails/booted"
 require_relative "rails/command_routes"
 require_relative "rails/available_commands"
 require_relative "rails/model"
+require_relative "rails/skins"
 require_relative "rails/routes"
 require_relative "rails/controller"
 require_relative "rails/form_helper"
@@ -21,5 +23,6 @@ module Hecks
   # Nothing here names the runtime's classes: a refusal is `Hecks::Refused`, a caller is bound
   # through `Hecks.as_caller`, and a booted domain is reached through `Hecks::Rails::Booted`.
   module Rails
+    extend Actor
   end
 end

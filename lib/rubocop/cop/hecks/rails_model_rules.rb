@@ -1,27 +1,27 @@
 module RuboCop
   module Cop
     module Hecks
-      # Flags a validation, callback or association declared in a `Hecks::Rails::Model`.
+      # Flags a validation, callback or association declared in a `Hecks::Rails::Model` or in a
+      # model inheriting the `ApplicationRecord` the railtie generates.
       #
       # Every rule of a Hecks domain is declared in its bluebook. A `validates` or `before_save`
       # in the Rails model would be a second author for a rule the domain already states, and the
       # two drift; an association would load records the domain keeps as plain identity values.
       #
       # @example
-      #   class Account < Hecks::Rails::Model
-      #     aggregate "Ledger.Account"
+      #   class Account < ApplicationRecord
       #     validates :owner, presence: true  # bad
       #     has_many :entries                 # bad
       #   end
       class RailsModelRules < Base
-        MSG = "`%<call>s` declares a rule or an association in a Hecks::Rails::Model. State the rule in the " \
+        MSG = "`%<call>s` declares a rule or an association in a model. State the rule in the " \
               "bluebook instead; the model is a skin over the aggregate.".freeze
 
         FORBIDDEN = /\A(validates?(_\w+)?|(before|after|around)_\w+|has_(many|one|and_belongs_to_many)|belongs_to)\z/
 
         # @!method model_parent?(node)
         def_node_matcher :model_parent?, <<~PATTERN
-          (class _ (const (const (const {nil? cbase} :Hecks) :Rails) :Model) ...)
+          (class _ {(const (const (const {nil? cbase} :Hecks) :Rails) :Model) (const {nil? cbase} :ApplicationRecord)} ...)
         PATTERN
 
         # Flags a forbidden declaration written directly in a model's body.
