@@ -107,6 +107,16 @@ module Hecks
 
         FileUtils.cp(sidecar, File.join(dist, "#{name}.ir.json"))
         puts "wrote #{File.join(dist, "#{name}.ir.json")}"
+        publish_schemas(scratch, dist, name)
+      end
+
+      # The command schemas beside the IR, which the host serves at a command's `?schema=1`.
+      def publish_schemas(scratch, dist, name)
+        schemas = File.join(scratch, "src", "generated", name, "schemas.json")
+        return unless File.exist?(schemas)
+
+        FileUtils.cp(schemas, File.join(dist, "#{name}.schemas.json"))
+        puts "wrote #{File.join(dist, "#{name}.schemas.json")}"
       end
     end
   end

@@ -2077,6 +2077,12 @@ async fn command_route(
 
     if format != "html" {
         if method == "GET" {
+            if query.get("schema").map(String::as_str) == Some("1") {
+                return crate::ir::command_schema(agg_name(aggregate), cname).map_or_else(
+                    || respond(404, "text/plain", &format!("no schema for {cname}")),
+                    |schema| respond(200, "application/json", &schema.to_string()),
+                );
+            }
             return respond(200, "application/json", &command.to_string());
         }
         let raw = parse_form(raw_body);
@@ -3155,6 +3161,64 @@ mod tests {
         // Kept nothing: the same registration, for real, is still accepted.
         let real = post("Branch clerk", "0").await;
         assert_eq!(real["statusCode"], 201, "{real}");
+    }
+
+    // `?schema=1` on a command's JSON route: the JSON Schema the build wrote beside the IR.
+    #[tokio::test]
+    async fn a_command_json_route_serves_its_schema_when_asked() {
+        let client = crate::dispatch::tests::memory_store();
+        let wasm = crate::dispatch::tests::wasm_path();
+        let ir_path =
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../dist/banking.ir.json");
+        let ir: Value =
+            serde_json::from_str(&std::fs::read_to_string(&ir_path).expect("banking.ir.json"))
+                .expect("valid IR");
+        crate::ir::install_schemas(ir_path.to_str());
+        let lineage = LineageConfig {
+            domain: "Banking".to_string(),
+            era: None,
+            mirrored: None,
+        };
+        let invoker = crate::lambda_client::NeverInvoker;
+        let host = Host::new(&client, &wasm, &lineage, &invoker);
+        let cookies = signed_in_cookies("Branch clerk");
+        let query = HashMap::from([("schema".to_string(), "1".to_string())]);
+
+        let found = route(
+            &ir,
+            "GET",
+            "/Banking/Customer/Register.json",
+            &query,
+            "",
+            &cookies,
+            host,
+        )
+        .await;
+        assert_eq!(found["statusCode"], 200, "{found}");
+        let schema: Value =
+            serde_json::from_str(found["body"].as_str().unwrap_or("{}")).expect("JSON");
+        assert_eq!(
+            schema["$schema"],
+            "https://json-schema.org/draft/2020-12/schema"
+        );
+        assert!(schema["properties"].get("reference").is_some(), "{schema}");
+
+        let host = Host::new(&client, &wasm, &lineage, &invoker);
+        let plain = route(
+            &ir,
+            "GET",
+            "/Banking/Customer/Register.json",
+            &HashMap::new(),
+            "",
+            &cookies,
+            host,
+        )
+        .await;
+        assert_eq!(plain["statusCode"], 200);
+        assert!(
+            plain["body"].as_str().unwrap_or("").contains("\"name\""),
+            "the descriptor is unchanged"
+        );
     }
 
     // A session cookie signed with the host's own secret, for a caller Governance knows nothing of.

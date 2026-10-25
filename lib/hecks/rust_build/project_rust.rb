@@ -6,6 +6,7 @@ require_relative "../../hecks"
 require_relative "../bluebook/meta_validator"
 require_relative "../ports/persistence/plugins/era"
 require_relative "domain_name"
+require_relative "command_schemas"
 require_relative "write_if_changed"
 
 module Hecks
@@ -66,6 +67,7 @@ module Hecks
         @ir = TargetIr.new(@registry, @domain_name, loader.bluebook_dir).call
         FileUtils.rm_rf(File.join(@out_root, "active"))
         generate_with_codegen
+        CommandSchemas.write(@registry.bluebook(@domain_name), File.join(@out_root, @mod_name))
         write_root_mod
         sync_cargo_features
       end

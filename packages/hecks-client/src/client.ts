@@ -152,6 +152,30 @@ export class HostClient {
     return { ok: answer.ok === true, refusals: (answer.refusals ?? []) as unknown as ValidationRefusal[] };
   }
 
+  /**
+   * The JSON Schema of the facts one command takes (`Aggregate.Command`, bare or qualified), for
+   * checking a payload before asking the host. A schema cannot hold a rule over stored state, so
+   * those ride along as `x-` annotations; `validate` stays the authority. Throws
+   * `DomainUnavailable` when the host cannot be reached or has no schema for the command.
+   */
+  async schema(verb: string): Promise<Record<string, unknown>> {
+    const [domain, rest] = this.qualify(verb).split("::");
+    const [aggregate, command] = rest.split(".");
+    const send = this.fetchImpl ?? globalThis.fetch;
+    let res: Response;
+    try {
+      res = await send(`${this.url}/${domain}/${aggregate}/${command}.json?schema=1`, { signal: AbortSignal.timeout(this.timeoutMs) });
+    } catch (err) {
+      throw new DomainUnavailable(`could not reach the domain at ${this.url}: ${err}`);
+    }
+    if (!res.ok) throw new DomainUnavailable(`the domain answered HTTP ${res.status} for the schema of ${verb}`);
+    try {
+      return (await res.json()) as Record<string, unknown>;
+    } catch {
+      throw new DomainUnavailable("the domain did not answer with JSON");
+    }
+  }
+
   private commandBody(verb: string, args: Record<string, unknown>, to?: string, role?: string, actorId?: string): Record<string, unknown> {
     const asRole = role ?? this.role;
     const asActor = actorId ?? this.actorId;

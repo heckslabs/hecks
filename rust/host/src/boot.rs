@@ -31,6 +31,7 @@ pub async fn run() -> Result<(), Error> {
     auth::resolve_account_cookie(std::env::var("HECKS_SESSION_COOKIE").ok().as_deref())?;
 
     ir::install(std::env::var("HECKS_IR_PATH").ok().as_deref());
+    ir::install_schemas(std::env::var("HECKS_IR_PATH").ok().as_deref());
     dispatch::Enforcement::install(dispatch::Enforcement::parse(
         std::env::var("HECKS_ROLE_ENFORCEMENT").ok().as_deref(),
     ));

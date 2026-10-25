@@ -5,6 +5,25 @@ use serde_json::Value;
 use std::sync::OnceLock;
 
 static IR: OnceLock<Option<Value>> = OnceLock::new();
+static SCHEMAS: OnceLock<Option<Value>> = OnceLock::new();
+
+/// The JSON Schema of the command `Aggregate/Command`, from the `schemas.json` the build writes
+/// beside the IR; `None` when no schemas were installed or the command has none.
+pub fn command_schema(aggregate: &str, command: &str) -> Option<&'static Value> {
+    SCHEMAS
+        .get()
+        .and_then(Option::as_ref)?
+        .get(format!("{aggregate}/{command}"))
+}
+
+/// Reads the schemas file beside the IR file at `ir_path` (`<name>.ir.json` -> `<name>.schemas.json`);
+/// a missing or unreadable file installs none, and a command then has no schema to serve.
+pub fn install_schemas(ir_path: Option<&str>) {
+    SCHEMAS.get_or_init(|| {
+        let path = ir_path?.strip_suffix(".ir.json")?.to_string() + ".schemas.json";
+        serde_json::from_str(&std::fs::read_to_string(path).ok()?).ok()
+    });
+}
 
 /// The domain's IR, or `None` when nothing has been installed or the installed file was missing,
 /// unreadable or not JSON.
