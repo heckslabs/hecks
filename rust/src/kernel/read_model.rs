@@ -908,6 +908,7 @@ mod reference_hop_tests {
             order_by: None,
             offset: None,
             limit: None,
+            cursor: false,
             authorization: None,
         };
 
@@ -1065,6 +1066,7 @@ mod reference_hop_tests {
             order_by: None,
             offset: None,
             limit: None,
+            cursor: false,
             authorization: None,
         };
 

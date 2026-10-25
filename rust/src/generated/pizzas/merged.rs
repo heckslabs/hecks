@@ -721,6 +721,7 @@ pub const QUERIES: &[crate::kernel::QueryDef] = &[
         }),
         offset: None,
         limit: None,
+        cursor: false,
         authorization: None,
     },
     crate::kernel::QueryDef {
@@ -731,6 +732,7 @@ pub const QUERIES: &[crate::kernel::QueryDef] = &[
         order_by: None,
         offset: None,
         limit: None,
+        cursor: false,
         authorization: None,
     },
     crate::kernel::QueryDef {
@@ -745,6 +747,7 @@ pub const QUERIES: &[crate::kernel::QueryDef] = &[
         }),
         offset: None,
         limit: None,
+        cursor: false,
         authorization: None,
     },
     crate::kernel::QueryDef {
@@ -759,6 +762,7 @@ pub const QUERIES: &[crate::kernel::QueryDef] = &[
         }),
         offset: None,
         limit: None,
+        cursor: false,
         authorization: None,
     },
     crate::kernel::QueryDef {
@@ -773,6 +777,7 @@ pub const QUERIES: &[crate::kernel::QueryDef] = &[
         }),
         offset: None,
         limit: None,
+        cursor: false,
         authorization: None,
     },
     crate::kernel::QueryDef {
@@ -787,6 +792,7 @@ pub const QUERIES: &[crate::kernel::QueryDef] = &[
         }),
         offset: None,
         limit: None,
+        cursor: false,
         authorization: None,
     },
     crate::kernel::QueryDef {
@@ -801,6 +807,7 @@ pub const QUERIES: &[crate::kernel::QueryDef] = &[
         }),
         offset: None,
         limit: None,
+        cursor: false,
         authorization: None,
     },
     crate::kernel::QueryDef {
@@ -819,6 +826,7 @@ pub const QUERIES: &[crate::kernel::QueryDef] = &[
         }),
         offset: None,
         limit: None,
+        cursor: false,
         authorization: None,
     },
     crate::kernel::QueryDef {
@@ -837,6 +845,7 @@ pub const QUERIES: &[crate::kernel::QueryDef] = &[
         }),
         offset: None,
         limit: None,
+        cursor: false,
         authorization: None,
     },
     crate::kernel::QueryDef {
@@ -851,6 +860,7 @@ pub const QUERIES: &[crate::kernel::QueryDef] = &[
         order_by: None,
         offset: None,
         limit: None,
+        cursor: false,
         authorization: None,
     },
     crate::kernel::QueryDef {
@@ -872,6 +882,7 @@ pub const QUERIES: &[crate::kernel::QueryDef] = &[
         order_by: None,
         offset: None,
         limit: None,
+        cursor: false,
         authorization: None,
     },
 ];
