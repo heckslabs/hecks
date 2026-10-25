@@ -43,13 +43,14 @@ module Hecks
         #
         # @param file [String] the spec file, relative to the checkout or absolute
         # @param example [String] part of the example's description
+        # @param env [Hash{String => String}] variables the specs read, set for this run only
         # @return [String] what the runner printed when every matching example passed
         # @raise [ConsoleCapture::Failure] when the file is not there, or an example failed
-        def run(file:, example:)
+        def run(file:, example:, env: {})
           path = File.expand_path(file, @tree.root)
           raise ConsoleCapture::Failure, "no such spec file #{file}" unless File.file?(path)
 
-          report = run_example(path, example)
+          report = with_env(env) { run_example(path, example) }
           raise ConsoleCapture::Failure, "the test runner printed nothing for #{file}" if report.empty?
 
           report
@@ -67,6 +68,15 @@ module Hecks
         end
 
         def at_reaction_depth_zero(&) = self.class.at_reaction_depth_zero(&)
+
+        # Sets the variables for the block and puts each back as it was.
+        def with_env(env)
+          before = env.keys.to_h { |name| [name, ENV.fetch(name, nil)] }
+          env.each { |name, value| ENV[name] = value }
+          yield
+        ensure
+          before.each { |name, value| value.nil? ? ENV.delete(name) : ENV[name] = value }
+        end
 
         def runner
           return self.class.runner if self.class.runner
