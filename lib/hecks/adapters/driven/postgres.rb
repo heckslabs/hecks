@@ -8,6 +8,8 @@ require_relative "postgres/events"
 require_relative "postgres/journal"
 require_relative "postgres/repository"
 require_relative "postgres/sagas"
+require_relative "postgres/set_dialect"
+require_relative "set_transform"
 require_relative "../../ports/persistence/append_only"
 require_relative "../../query_specification/common/null_policy"
 require_relative "../../query_specification/common/order_by"
@@ -35,6 +37,8 @@ module Hecks
       include PostgresOutbox
       include PostgresReconnect
       include Dialect
+      include SetTransform
+      include SetDialect
 
       SQL_TYPES = { "Integer" => "bigint", "Float" => "double precision" }.freeze
 
