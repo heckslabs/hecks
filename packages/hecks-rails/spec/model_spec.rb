@@ -85,11 +85,22 @@ RSpec.describe Hecks::Rails::Model do
     end
 
     it "lists nothing for an actor without the grant" do
-      expect(opened("M7", 0).available_commands(as: "teller-2")).to be_empty
+      expect(opened("M7", 0).available_commands(as: "stranger-2")).to be_empty
     end
 
     it "lists nothing while the rule would refuse" do
       expect(opened("M8", 9).available_commands(as: "officer-2")).to be_empty
+    end
+
+    it "lists a command that still takes arguments while the state admits it" do
+      expect(opened("M9", 0).available_commands(as: "teller-2")).to eq([:deposit])
+    end
+
+    it "lists no command that takes arguments once the state no longer admits it" do
+      account = opened("M10", 0)
+      Hecks.as_caller(role: "Compliance officer", actor_id: "officer-2") { account.freeze_account! }
+
+      expect(Account.find("M10").available_commands(as: "teller-2")).to be_empty
     end
   end
 end

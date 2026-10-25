@@ -7,6 +7,9 @@ module Hecks
       # The single controls a leaf field renders as: input, textarea, checkbox, radio group,
       # select and reference picker.
       module Controls
+        # A pattern that begins with its own start-of-value anchor, `^` or `\A`.
+        ANCHORED = /\A(\^|\\A)/
+
         # @return [String] an `<input>`, with a live preview beside a money amount in cents
         def self.input(field, value)
           money = field.kind == :number && field.help.to_s.include?("cents")
@@ -23,7 +26,19 @@ module Hecks
         end
 
         # A :reference input takes a record id, so the attribute's own pattern must not apply.
-        def self.leaf_pattern(field) = field.kind == :reference ? nil : field.pattern
+        def self.leaf_pattern(field) = field.kind == :reference ? nil : html_pattern(field.pattern)
+
+        # The domain finds its pattern anywhere in a value, but a browser holds a `pattern` to the
+        # whole value, so `[^ \t\n\r]` would accept one character. An unanchored pattern is
+        # wrapped to be found anywhere; one that anchors itself already says what it spans.
+        #
+        # @param pattern [String, nil] the attribute's pattern
+        # @return [String, nil] the pattern as the input should carry it
+        def self.html_pattern(pattern)
+          return pattern if pattern.nil? || pattern.match?(ANCHORED)
+
+          ".*(?:#{pattern}).*"
+        end
 
         def self.preview_target(field) = "##{FieldRenderer.dom_id(field.path)}-preview"
 

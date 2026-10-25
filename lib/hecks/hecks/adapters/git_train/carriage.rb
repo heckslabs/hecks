@@ -50,7 +50,7 @@ module Hecks
         def push(boarded, attempt = 1)
           before = read("rev-parse", tracking)
           pushed = Bench.new(@git, @checkout, branch: @branch, remote: @remote, hook_env: @hook_env)
-                       .push(local_head, tracking)
+                        .push(local_head, tracking)
           return retry_push(boarded, attempt) if pushed == :moved
 
           answer("pushed", boarded, pushed, pushed_report(before, pushed))

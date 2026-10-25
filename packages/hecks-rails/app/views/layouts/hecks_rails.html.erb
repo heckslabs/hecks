@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= Hecks::Rails::App.title %></title>
+  <%= csrf_meta_tags %>
+  <style><%= Hecks::Forms::Page::STYLE.html_safe %></style>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="/"><%= Hecks::Rails::App.title %></a>
+    <nav>
+      <% Hecks::Rails::App.entries.each do |entry| %>
+        <a href="<%= entry.path %>"><%= entry.label %></a>
+      <% end %>
+    </nav>
+    <% if Hecks::Rails.dev_actor? %>
+      <%= form_with url: hecks_actor_path, class: "acting-as" do %>
+        <label>Acting as
+          <select name="role" onchange="this.form.submit()">
+            <option value="">nobody</option>
+            <% hecks_roles.each do |role| %>
+              <option value="<%= role %>"<%= " selected".html_safe if role == hecks_picked_role %>><%= role %></option>
+            <% end %>
+          </select>
+        </label>
+        <noscript><button>Go</button></noscript>
+      <% end %>
+    <% end %>
+  </header>
+  <main>
+    <%= yield %>
+  </main>
+</body>
+</html>

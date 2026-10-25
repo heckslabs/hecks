@@ -85,12 +85,12 @@ module Hecks
         fuzz_in_pool(domains, workers) { |domain| fuzz_in_child(options, domain, root) }
       end
 
-      # Runs in a forked child. A Postgres child gets its own scratch schema, so children can fuzz
-      # one database at once.
+      # Runs in a forked child. A Postgres child fuzzes in its own scratch schema, which
+      # `IsolatedBoot.scratch_schema` names by the child's pid, so children can fuzz one database
+      # at once.
       #
       # @return [Boolean] whether the domain was clean
       def fuzz_in_child(options, domain, root)
-        ENV[Hecks::Fuzzing::IsolatedBoot::FUZZ_SCHEMA_ENV] = "hecks_fuzz_#{Process.pid}" if options[:adapter] == :postgres
         fuzz_with(options, domain, root)
       end
 

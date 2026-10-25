@@ -12,8 +12,7 @@ module Hecks
       # and reading those is most of what a launcher costs. The answer is kept in a file named for a
       # digest of everything it depends on (the domain's declaration files, the gem's judging code
       # and adapters, the hecks and Ruby versions, the environment overlay, the command line and
-      # the program name),
-      # so any edit to one of them is simply a different entry: nothing is ever stale, only unused.
+      # the program name), so any edit to one is a different entry: nothing is stale, only unused.
       # Only an answer that ended well is kept, and any trouble with the cache itself is ignored
       # and the help is worked out as if it did not exist.
       #
@@ -70,7 +69,7 @@ module Hecks
           false
         end
 
-        # Deletes every remembered help text, which `HECKS_NO_USAGE_CACHE` used to bypass. The
+        # Deletes every remembered help text, which the deprecated `HECKS_NO_USAGE_CACHE` skips. The
         # directory is shared with other cache files, so only this cache's entries go.
         #
         # @return [Boolean] whether any entry was removed

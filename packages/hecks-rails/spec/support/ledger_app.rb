@@ -12,6 +12,7 @@ end
 LedgerApp.initialize!
 
 require_relative "accounts_controller"
+require_relative "notes_controller"
 
 LedgerApp.routes.draw do
   resources :accounts

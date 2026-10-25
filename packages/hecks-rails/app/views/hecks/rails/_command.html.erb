@@ -1,0 +1,7 @@
+<%# One command as a form that opens on demand; open when it is the one just refused. %>
+<% verb = hecks_verb(command) %>
+<details class="hecks-command"<%= " open".html_safe if action_name == verb %>>
+  <summary><%= Hecks::Naming.words(command.hecks_name) %></summary>
+  <% if command.goal.present? %><p class="goal"><%= command.goal %></p><% end %>
+  <%= command_form_for subject, verb.to_sym, url: url, values: (action_name == verb ? nil : {}) %>
+</details>

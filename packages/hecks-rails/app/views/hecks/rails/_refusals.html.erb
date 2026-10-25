@@ -1,0 +1,6 @@
+<%# Why the last command was refused, in the domain's own words. %>
+<% if record && record.errors.any? %>
+  <div class="refusal" role="alert">
+    <% record.errors.full_messages.each do |message| %><p><%= message %></p><% end %>
+  </div>
+<% end %>

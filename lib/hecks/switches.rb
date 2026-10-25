@@ -3,7 +3,7 @@ module Hecks
   # runtime and the bluebook layer never read `ENV` themselves.
   #
   # A switch that turns a cache off is deprecated: `hecks test_suite_run.clear_caches!` empties the
-  # caches, which is how a cache is ruled out as the cause. Setting one still works and says so once.
+  # caches, which rules a cache out as the cause. Setting one still works and says so once.
   #
   # @example
   #   Hecks::Switches.verdict_cache?  # => false under HECKS_VERDICT_CACHE=off

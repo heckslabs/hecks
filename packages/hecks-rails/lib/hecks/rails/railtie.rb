@@ -20,6 +20,16 @@ module Hecks
         ActiveSupport.on_load(:action_controller) { extend Controller::Inheritance }
       end
 
+      initializer "hecks.actor_route" do |app|
+        app.routes.prepend { post "/hecks/actor", to: "hecks/rails/actors#create", as: :hecks_actor }
+      end
+
+      # The gem's pages sit behind the app's own views, so a view file the app writes wins.
+      initializer "hecks.views" do
+        views = File.expand_path("../../../app/views", __dir__)
+        ActiveSupport.on_load(:action_controller) { append_view_path(views) }
+      end
+
       # @param root [Pathname] the app's root
       # @return [String, nil] the `environment:` named in `bluebook.yml`, if the file exists
       def self.environment(root)
