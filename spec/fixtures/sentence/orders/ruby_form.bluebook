@@ -1,0 +1,81 @@
+Hecks.bluebook "Orders" do
+  vision "An order is placed and submitted, the outside checks the customer's credit, and the order is approved or declined."
+
+  aggregate "Order" do
+    description "An order a customer places."
+    identified_by :number
+
+    attribute :number,   OrderNumber
+    attribute :customer, CustomerName
+    attribute :reason,   Reason, optional: true
+
+    value_object "OrderNumber" do
+      attribute :value, String
+      invariant("an order has a number") { !value.to_s.empty? }
+    end
+
+    value_object "CustomerName" do
+      attribute :value, String
+      invariant("an order has a customer") { !value.to_s.empty? }
+    end
+
+    value_object "Reason" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "draft" do
+      transition "Submit" => "submitted", from: "draft"
+      transition "Approve" => "approved", from: "submitted"
+      transition "Decline" => "declined", from: "submitted"
+    end
+
+    command "Place" do
+      role "Customer"
+      goal "Start an order"
+      attribute :number, OrderNumber
+      attribute :customer, CustomerName
+      sets :number
+      sets :customer
+      emits "OrderPlaced"
+    end
+
+    command "Submit" do
+      role "Customer"
+      goal "Send a placed order off for its credit check"
+      reference_to Order
+      given("only a draft can be submitted") { status == "draft" }
+      emits "OrderSubmitted"
+    end
+
+    command "Approve" do
+      goal "Accept an order whose credit cleared"
+      reference_to Order
+      given("only a submitted order can be approved") { status == "submitted" }
+      emits "OrderApproved"
+    end
+
+    command "Decline" do
+      goal "Turn down an order whose credit was refused"
+      reference_to Order
+      attribute :reason, Reason
+      given("only a submitted order can be declined") { status == "submitted" }
+      sets :reason
+      emits "OrderDeclined"
+    end
+  end
+
+  policy "CheckCreditWhenSubmitted" do
+    on "Order.OrderSubmitted"
+    ask :check_credit
+  end
+
+  policy "ApproveWhenCreditClears" do
+    on "Order.CreditCleared"
+    trigger Order::Approve
+  end
+
+  policy "DeclineWhenCreditIsRefused" do
+    on "Order.CreditRefused"
+    trigger Order::Decline, with: { reason: :reason }
+  end
+end

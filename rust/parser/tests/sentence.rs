@@ -337,6 +337,95 @@ fn only_the_role_a_command_is_run_by_may_be_named_as_the_one_refused() {
     assert!(error.contains("publish is run by Editor, not by a Viewer"), "{error}");
 }
 
+/// `GOOD` with a policy that runs `Publish` when a page is drafted.
+fn with_policy(policy: &str) -> String {
+    format!("{GOOD}\nPolicy: Publish When Drafted\n{policy}")
+}
+
+#[test]
+fn a_policy_lowers_to_the_event_it_waits_for_and_the_command_it_runs() {
+    let source = with_policy("  Whenever PageDrafted is announced\n  Then Publish runs\n");
+    let output = parse("policy_good.bluebook", &source);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    assert!(stdout.contains("\"name\": \"PublishWhenDrafted\""), "{stdout}");
+    assert!(stdout.contains("\"on_event\": \"Page.PageDrafted\""), "{stdout}");
+    assert!(stdout.contains("\"trigger_command\": \"Page.Publish\""), "{stdout}");
+}
+
+#[test]
+fn a_policy_that_asks_the_outside_names_the_need_and_the_fields_it_passes() {
+    let source = with_policy("  Whenever PageDrafted is announced\n  Then review is asked with the slug and the title\n");
+    let output = parse("policy_ask.bluebook", &source);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    assert!(stdout.contains("\"ask\": \"review\""), "{stdout}");
+    assert!(stdout.contains("\":slug\""), "{stdout}");
+}
+
+#[test]
+fn a_policy_waiting_for_an_event_no_command_announces_says_how_to_name_an_outside_one() {
+    let source = with_policy("  Whenever PageArchived is announced\n  Then Publish runs\n");
+    let error = refusal("policy_event.bluebook", &source);
+    assert!(error.contains("no command announces PageArchived. The events announced are: PageDrafted, PagePublished"), "{error}");
+    assert!(error.contains("announced by an <aggregate>"), "{error}");
+}
+
+#[test]
+fn an_event_the_outside_announces_is_named_with_the_aggregate_it_belongs_to() {
+    let source = with_policy("  Whenever PageReviewed is announced by a page\n  Then Publish runs\n");
+    let output = parse("policy_outside.bluebook", &source);
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    assert!(String::from_utf8_lossy(&output.stdout).contains("\"on_event\": \"Page.PageReviewed\""));
+}
+
+#[test]
+fn a_policy_running_no_such_command_lists_the_commands() {
+    let source = with_policy("  Whenever PageDrafted is announced\n  Then Archive runs\n");
+    let error = refusal("policy_command.bluebook", &source);
+    assert!(error.contains("'archive' is not one command of this chapter. The commands are: draft, publish"), "{error}");
+}
+
+#[test]
+fn a_policy_passing_a_field_the_command_does_not_take_says_what_it_takes() {
+    let source = with_policy("  Whenever PageDrafted is announced\n  Then Publish runs with the slug\n");
+    let error = refusal("policy_field.bluebook", &source);
+    assert!(error.contains("publish takes no 'slug'. It takes: nothing"), "{error}");
+}
+
+#[test]
+fn a_policy_must_say_when_and_what() {
+    let error = refusal("policy_when.bluebook", &with_policy("  Then Publish runs\n"));
+    assert!(error.contains("has no `Whenever <event> is announced`"), "{error}");
+    let error = refusal("policy_then.bluebook", &with_policy("  Whenever PageDrafted is announced\n"));
+    assert!(error.contains("this policy does nothing"), "{error}");
+}
+
+#[test]
+fn policies_survive_the_formatter_and_the_ruby_form() {
+    let source = write(
+        "policy_trip.bluebook",
+        &with_policy("  Whenever PageReviewed is announced by a page\n  Then Publish runs\n"),
+    );
+    let before = run_on("chapter", source.to_str().unwrap());
+    let formatted = run_on("format", source.to_str().unwrap());
+    assert!(formatted.status.success(), "{}", String::from_utf8_lossy(&formatted.stderr));
+    let again = write("policy_trip_again.bluebook", &String::from_utf8_lossy(&formatted.stdout));
+    assert_eq!(
+        String::from_utf8_lossy(&before.stdout),
+        String::from_utf8_lossy(&run_on("chapter", again.to_str().unwrap()).stdout)
+    );
+
+    let rendered = run_on("render", source.to_str().unwrap());
+    let text = String::from_utf8_lossy(&rendered.stdout).into_owned();
+    assert!(text.contains("trigger Page::Publish"), "{text}");
+    let ruby = write("policy_trip_ruby.bluebook", &text);
+    assert_eq!(
+        String::from_utf8_lossy(&before.stdout),
+        String::from_utf8_lossy(&run_on("chapter", ruby.to_str().unwrap()).stdout)
+    );
+}
+
 fn run_on(subcommand: &str, path: &str) -> Output {
     Command::new(env!("CARGO_BIN_EXE_hecks-parse"))
         .args([subcommand, "--chapter", "Cms", path])

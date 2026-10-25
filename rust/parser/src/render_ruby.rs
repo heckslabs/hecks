@@ -22,14 +22,50 @@ pub fn ruby_form(chapter: &ir::Bluebook) -> Result<String, String> {
         out.push('\n');
         aggregate_text(&mut out, aggregate)?;
     }
+    for policy in &chapter.policies {
+        policy_text(&mut out, policy)?;
+    }
     out.push_str("end\n");
     Ok(out)
+}
+
+/// `policy "Name" do … end`: the event it waits for and the command it runs or the need it asks.
+fn policy_text(out: &mut String, policy: &ir::Policy) -> Result<(), String> {
+    if policy.target_domain.is_some()
+        || policy.expect_undelivered
+        || policy.where_clause.is_some()
+        || policy.for_each_query.is_some()
+    {
+        return Err(format!(
+            "the Ruby renderer has no spelling for the options on policy {}",
+            policy.name
+        ));
+    }
+    let on_event = policy
+        .on_event
+        .as_ref()
+        .ok_or_else(|| format!("policy {} waits for no event", policy.name))?;
+    out.push_str(&format!("\n  policy {} do\n    on {}\n", string(&policy.name), string(on_event)));
+    let with = if policy.with_spec.is_empty() {
+        String::new()
+    } else {
+        let pairs: Vec<String> = policy.with_spec.iter().map(|(key, value)| format!("{key}: {value}")).collect();
+        format!(", with: {{ {} }}", pairs.join(", "))
+    };
+    match (&policy.trigger_command, &policy.ask) {
+        (Some(command), None) => {
+            out.push_str(&format!("    trigger {}{with}\n", command.replace('.', "::")));
+        }
+        (None, Some(need)) => out.push_str(&format!("    ask :{need}{with}\n")),
+        _ => return Err(format!("policy {} must trigger a command or ask, and not both", policy.name)),
+    }
+    out.push_str("  end\n");
+    Ok(())
 }
 
 fn refuse_unspelt(chapter: &ir::Bluebook) -> Result<(), String> {
     let held = [
         (!chapter.read_models.is_empty(), "read models"),
-        (!chapter.policies.is_empty(), "policies"),
         (!chapter.process_managers.is_empty(), "process managers"),
         (!chapter.provides.is_empty(), "provided capabilities"),
         (!chapter.attaches_to.is_empty(), "attaches"),

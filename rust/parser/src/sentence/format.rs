@@ -23,13 +23,69 @@ pub fn sentences(chapter: &ir::Bluebook) -> Result<String, String> {
         out.push('\n');
         aggregate_text(&mut out, aggregate)?;
     }
+    for policy in &chapter.policies {
+        policy_text(&mut out, policy, chapter)?;
+    }
     Ok(out)
+}
+
+/// `Policy: …` with its `Whenever` and `Then` lines.
+fn policy_text(out: &mut String, policy: &ir::Policy, chapter: &ir::Bluebook) -> Result<(), String> {
+    if policy.target_domain.is_some()
+        || policy.expect_undelivered
+        || policy.where_clause.is_some()
+        || policy.for_each_query.is_some()
+    {
+        return Err(format!("the sentence form has no phrase for the options on policy {}", policy.name));
+    }
+    let on_event = policy
+        .on_event
+        .as_ref()
+        .ok_or_else(|| format!("policy {} waits for no event", policy.name))?;
+    let (owner, event) = on_event
+        .split_once('.')
+        .ok_or_else(|| format!("policy {} waits for '{on_event}', which names no aggregate", policy.name))?;
+    out.push_str(&format!("\nPolicy: {}\n", spoken_title(&policy.name)));
+    let announced_by_a_command = chapter
+        .aggregates
+        .iter()
+        .filter(|a| a.commands.iter().any(|c| c.emits.iter().any(|e| e == event)))
+        .count()
+        == 1;
+    if announced_by_a_command {
+        out.push_str(&format!("  Whenever {event} is announced\n"));
+    } else {
+        out.push_str(&format!("  Whenever {event} is announced by {}\n", with_article(&spoken(owner))));
+    }
+    let mut fields = Vec::new();
+    for (key, value) in &policy.with_spec {
+        if *value != format!(":{key}") {
+            return Err(format!(
+                "the sentence form passes a field on by its own name; policy {} passes {key} as {value}",
+                policy.name
+            ));
+        }
+        fields.push(format!("the {}", spoken(key)));
+    }
+    let with = if fields.is_empty() {
+        String::new()
+    } else {
+        format!(" with {}", join_and(&fields))
+    };
+    match (&policy.trigger_command, &policy.ask) {
+        (Some(command), None) => {
+            let name = command.split_once('.').map_or(command.as_str(), |(_, name)| name);
+            out.push_str(&format!("  Then {} runs{with}\n", spoken_title(name)));
+        }
+        (None, Some(need)) => out.push_str(&format!("  Then {} is asked{with}\n", spoken(need))),
+        _ => return Err(format!("policy {} must trigger a command or ask, and not both", policy.name)),
+    }
+    Ok(())
 }
 
 fn refuse_unsaid(chapter: &ir::Bluebook) -> Result<(), String> {
     let held = [
         (!chapter.read_models.is_empty(), "read models"),
-        (!chapter.policies.is_empty(), "policies"),
         (!chapter.process_managers.is_empty(), "process managers"),
         (!chapter.provides.is_empty(), "provided capabilities"),
         (!chapter.attaches_to.is_empty(), "attaches"),
@@ -67,7 +123,11 @@ fn aggregate_text(out: &mut String, aggregate: &ir::Aggregate) -> Result<(), Str
         let [field] = fields.as_slice() else {
             return Err("the sentence form identifies an aggregate by one field".to_string());
         };
-        out.push_str(&format!("\n  A {noun} is identified by its {}.\n", spoken(field)));
+        out.push_str(&format!(
+            "\n  {} is identified by its {}.\n",
+            capitalised(&with_article(&noun)),
+            spoken(field)
+        ));
     }
     if !aggregate.attributes.is_empty() {
         out.push_str("\n  It has:\n");
@@ -90,8 +150,9 @@ fn aggregate_text(out: &mut String, aggregate: &ir::Aggregate) -> Result<(), Str
                 .as_ref()
                 .ok_or_else(|| format!("{} moves from no state; the sentence form names one", t.command))?;
             out.push_str(&format!(
-                "    {} moves a {noun} from {from} to {}\n",
+                "    {} moves {} from {from} to {}\n",
                 spoken_title(&t.command),
+                with_article(&noun),
                 t.to_state
             ));
         }
@@ -103,6 +164,19 @@ fn aggregate_text(out: &mut String, aggregate: &ir::Aggregate) -> Result<(), Str
         query_text(out, query)?;
     }
     Ok(())
+}
+
+/// The noun with its indefinite article: `a page`, `an order`.
+fn with_article(noun: &str) -> String {
+    let vowel = noun.chars().next().is_some_and(|c| "aeiou".contains(c.to_ascii_lowercase()));
+    format!("{} {noun}", if vowel { "an" } else { "a" })
+}
+
+fn capitalised(text: &str) -> String {
+    let mut chars = text.chars();
+    chars.next().map_or_else(String::new, |first| {
+        first.to_uppercase().collect::<String>() + chars.as_str()
+    })
 }
 
 /// `RequestRefund` -> `Request Refund`: each word capitalised, so the parser joins them back.
@@ -133,8 +207,8 @@ fn attribute_line(attribute: &ir::Attribute) -> Result<String, String> {
     }
     let optional = if attribute.optional { ", optional" } else { "" };
     Ok(format!(
-        "a {}: {}{optional}",
-        spoken(&attribute.name),
+        "{}: {}{optional}",
+        with_article(&spoken(&attribute.name)),
         type_words(&attribute.type_name)
     ))
 }
@@ -169,8 +243,8 @@ fn value_object_text(out: &mut String, value_object: &ir::ValueObject) -> Result
         ));
     }
     out.push_str(&format!(
-        "\n  A {} has a value: {}.\n",
-        spoken(&value_object.name),
+        "\n  {} has a value: {}.\n",
+        capitalised(&with_article(&spoken(&value_object.name))),
         type_words(&value.type_name)
     ));
     for rule in &value_object.invariants {
@@ -255,7 +329,7 @@ fn command_text(out: &mut String, command: &ir::Command, noun: &str) -> Result<(
         let names: Vec<String> = command
             .attributes
             .iter()
-            .map(|a| format!("a {}", spoken(&a.name)))
+            .map(|a| with_article(&spoken(&a.name)))
             .collect();
         out.push_str(&format!(
             "    When {} {} given\n",

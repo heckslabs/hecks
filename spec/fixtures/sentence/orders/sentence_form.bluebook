@@ -1,0 +1,65 @@
+Domain: Orders
+  An order is placed and submitted, the outside checks the customer's credit, and the order is approved or declined.
+
+Aggregate: Order
+  An order a customer places.
+
+  An order is identified by its number.
+
+  It has:
+    a number: order number
+    a customer: customer name
+    a reason: reason, optional
+
+  An order number has a value: text.
+    Rule "an order has a number" holds when the value is not empty
+
+  A customer name has a value: text.
+    Rule "an order has a customer" holds when the value is not empty
+
+  A reason has a value: text.
+
+  Lifecycle: status, starting as draft
+    Submit moves an order from draft to submitted
+    Approve moves an order from submitted to approved
+    Decline moves an order from submitted to declined
+
+  Command: Place
+    Goal: Start an order
+    Who: Customer
+    When a number and a customer are given
+    Then the number and the customer are set
+    And OrderPlaced is announced
+
+  Command: Submit
+    Goal: Send a placed order off for its credit check
+    Who: Customer
+    It acts on an existing order
+    Given "only a draft can be submitted" holds when the status is draft
+    Then OrderSubmitted is announced
+
+  Command: Approve
+    Goal: Accept an order whose credit cleared
+    It acts on an existing order
+    Given "only a submitted order can be approved" holds when the status is submitted
+    Then OrderApproved is announced
+
+  Command: Decline
+    Goal: Turn down an order whose credit was refused
+    It acts on an existing order
+    When a reason is given
+    Given "only a submitted order can be declined" holds when the status is submitted
+    Then the reason is set
+    And OrderDeclined is announced
+
+Policy: Check Credit When Submitted
+  Whenever OrderSubmitted is announced
+  Then check credit is asked
+
+Policy: Approve When Credit Clears
+  Whenever CreditCleared is announced by an order
+  Then Approve runs
+
+Policy: Decline When Credit Is Refused
+  Whenever CreditRefused is announced by an order
+  Then Decline runs with the reason

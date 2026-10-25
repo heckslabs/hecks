@@ -104,7 +104,8 @@ RSpec.describe "a chapter written as sentences", :io do
             Hecks::Adapters::Folder.new.load_bluebooks(File.dirname(copy))
           end
 
-          expect(registry.bluebook(chapter).aggregates.map(&:hecks_name)).to eq(["Page"])
+          twin = JSON.parse(ruby_ir(ruby_file, chapter)).fetch("aggregates").map { |aggregate| aggregate.fetch("name") }
+          expect(registry.bluebook(chapter).aggregates.map(&:hecks_name)).to eq(twin)
           expect(registry.bluebook_sources[chapter]).to eq([copy])
         end
       end
