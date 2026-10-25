@@ -71,9 +71,16 @@ RSpec.describe "Rust conformance (native binary)", :io do
     %w[instances events refusals queries sagas dry_runs].each do |key|
       expect(rust_output[key]).to eq(expected[key]), "#{key} differs from the frozen expect"
     end
+    expect_validations_match(rust_output, expected)
     # Rust's kernel cannot yet resolve cross-domain policies, which the corpus records as delivered.
     cross_domain = cross_domain_policy_names(rust_output)
     expect(rust_output.fetch("reactions")).to eq(expected["reactions"].reject { |r| cross_domain.include?(r["policy"]) })
+  end
+
+  # Only a fixture with a `validate` step freezes the key.
+  def expect_validations_match(rust_output, expected)
+    expect(rust_output.fetch("validations", [])).to eq(expected.fetch("validations", [])),
+                                                    "validations differ from the frozen expect"
   end
 
   def banking_binary
@@ -98,28 +105,6 @@ RSpec.describe "Rust conformance (native binary)", :io do
 
       expect_fields_match(*comparable_pair(rust_output, fixture.fetch("expect"), fixture))
     end
-  end
-
-  # A dry run refused in the givens stage lists every unmet given. Ruby's `validate` and the kernel's
-  # collecting dry run must name the same refusals in the same order, and there must be more than one.
-  it "lists the same refusals for a dry run that breaks two givens at once", :aggregate_failures do
-    fixture = ConformanceCorpus.load(File.join(InMemoryDomain::ROOT, "spec/corpus/rust_conformance",
-                                               "roster_assign_dry_run_every_unmet_given.json"))
-
-    expect(ruby_dry_run_reasons(fixture).size).to be > 1
-    expect(rust_dry_run_reasons(fixture)).to eq(ruby_dry_run_reasons(fixture))
-  end
-
-  # The `[kind, stage]` of each refusal Ruby's `validate` gave the fixture's last dry run.
-  def ruby_dry_run_reasons(fixture)
-    domain = File.join(InMemoryDomain::ROOT, fixture.fetch("domain"))
-    Hecks::Fuzzing::Replay.call(domain, fixture.fetch("steps"))[:dry_run_traces].last.dig(:validation, :reasons)
-  end
-
-  # The same, as the kernel's last dry run lists them.
-  def rust_dry_run_reasons(fixture)
-    dry = JSON.parse(kernel_stdout(binary_for(fixture), fixture)).fetch("dry_runs").last
-    dry.fetch("refusals").map { |refusal| refusal.values_at("kind", "stage") }
   end
 
   # Rust refuses a query verb it never generated cleanly: TypeMismatch, exit 0, no panic.

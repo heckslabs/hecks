@@ -305,7 +305,11 @@ pub fn command_argument_allowlist(
 /// omits, sorted, refuses as `AbsentArgument` before any field is built.
 ///
 /// Goes through the site's `<Variant>Args` struct, so leaving an argument out does not compile.
-fn emit_absent_argument_check(command_name: &str, attributes: &[Json]) -> String {
+///
+/// `collect` is for the gate function a dry run reads: with a collector bound it keeps one
+/// refusal per absent name and goes on, for the stage to end; without one it raises, as inline
+/// code does.
+fn emit_absent_argument_check(command_name: &str, attributes: &[Json], collect: bool) -> String {
     let mut required: Vec<String> = attributes
         .iter()
         .filter(|a| !crate::attr::optional(a))
@@ -319,11 +323,24 @@ fn emit_absent_argument_check(command_name: &str, attributes: &[Json]) -> String
         .iter()
         .map(|a| crate::attr::name(a).to_string())
         .collect();
+    let refusal = |names: &str| {
+        format!(
+            "crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {{\n        command: {},\n        absent: {names},\n        declared: &[{}],\n    }}.render_args())",
+            naming::ruby_inspect_string(command_name),
+            declared.iter().map(|k| naming::ruby_inspect_string(k)).collect::<Vec<_>>().join(", "),
+        )
+    };
+    let outcome = if collect {
+        format!(
+            "crate::kernel::collecting::refuse_each(&absent, |names| {})?;",
+            refusal("names")
+        )
+    } else {
+        format!("return Err({});", refusal("&absent"))
+    };
     format!(
-        "let required: &[&str] = &[{}];\nlet absent: Vec<&str> = required.iter().copied().filter(|key| v.get(key).is_none()).collect();\nif !absent.is_empty() {{\n    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {{\n        command: {},\n        absent: &absent,\n        declared: &[{}],\n    }}.render_args()));\n}}\n",
+        "let required: &[&str] = &[{}];\nlet absent: Vec<&str> = required.iter().copied().filter(|key| v.get(key).is_none()).collect();\nif !absent.is_empty() {{\n    {outcome}\n}}\n",
         required.iter().map(|k| naming::ruby_inspect_string(k)).collect::<Vec<_>>().join(", "),
-        naming::ruby_inspect_string(command_name),
-        declared.iter().map(|k| naming::ruby_inspect_string(k)).collect::<Vec<_>>().join(", "),
     )
 }
 
@@ -333,12 +350,26 @@ fn emit_unknown_argument_check(
     command_name: &str,
     known_keys: &[String],
     declared_names: &[String],
+    collect: bool,
 ) -> String {
+    let refusal = |names: &str| {
+        format!(
+            "crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {{\n        command: {},\n        unknown: {names},\n        declared: &[{}],\n    }}.render_args())",
+            naming::ruby_inspect_string(command_name),
+            declared_names.iter().map(|k| naming::ruby_inspect_string(k)).collect::<Vec<_>>().join(", "),
+        )
+    };
+    let outcome = if collect {
+        format!(
+            "crate::kernel::collecting::refuse_each(&unknown, |names| {})?;",
+            refusal("names")
+        )
+    } else {
+        format!("return Err({});", refusal("&unknown"))
+    };
     format!(
-        "let unknown = v.unknown_keys(&[{}]);\nif !unknown.is_empty() {{\n    let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();\n    return Err(crate::kernel::Refusal::UnknownArgument(crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {{\n        command: {},\n        unknown: &unknown,\n        declared: &[{}],\n    }}.render_args()));\n}}\n",
+        "let unknown = v.unknown_keys(&[{}]);\nif !unknown.is_empty() {{\n    let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();\n    {outcome}\n}}\n",
         known_keys.iter().map(|k| naming::ruby_inspect_string(k)).collect::<Vec<_>>().join(", "),
-        naming::ruby_inspect_string(command_name),
-        declared_names.iter().map(|k| naming::ruby_inspect_string(k)).collect::<Vec<_>>().join(", "),
     )
 }
 
@@ -352,6 +383,7 @@ pub fn unknown_and_absent_argument_checks(
     attributes: &[Json],
     unknown_argument_allowlist: Option<&[String]>,
     absent_argument_check: bool,
+    collect: bool,
 ) -> String {
     let mut check = match unknown_argument_allowlist {
         Some(allowlist) => {
@@ -368,12 +400,16 @@ pub fn unknown_and_absent_argument_checks(
                 .iter()
                 .map(|a| crate::attr::name(a).to_string())
                 .collect();
-            emit_unknown_argument_check(command_name, &known_keys, &declared_names)
+            emit_unknown_argument_check(command_name, &known_keys, &declared_names, collect)
         }
         None => String::new(),
     };
     if absent_argument_check {
-        check.push_str(&emit_absent_argument_check(command_name, attributes));
+        check.push_str(&emit_absent_argument_check(
+            command_name,
+            attributes,
+            collect,
+        ));
     }
     check
 }
@@ -392,10 +428,11 @@ pub fn emit_argument_gates(
             attributes,
             unknown_argument_allowlist,
             false,
+            true,
         ),
         None => String::new(),
     };
-    let absent = emit_absent_argument_check(command_name, attributes);
+    let absent = emit_absent_argument_check(command_name, attributes, true);
 
     format!(
         "impl {struct_name} {{\n{}\n\n{}\n\n{}\n}}\n",
@@ -510,6 +547,7 @@ pub fn emit_from_json_flat(
         attributes,
         unknown_argument_allowlist,
         absent_argument_check,
+        false,
     );
 
     let shorthand_fields = if interleave_checks {
