@@ -89,7 +89,7 @@ payment.status  # => "authorized"
 Capture it, and the field moves on its own. There is no `sets
 :status` anywhere on `Capture` — the transition IS the assignment,
 applied after the command's other mutations, the step
-`command_interpreter.rb` calls `advance_lifecycle`:
+`command_interpreter.rb` calls `step_advance_lifecycle`:
 
 ```ruby
 payment.capture!

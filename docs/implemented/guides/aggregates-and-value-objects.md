@@ -12,8 +12,8 @@ The domain used throughout is the real one this project ships:
 accounts, cards, and transfers. It is large enough to carry a composite
 key, several closed vocabularies, a reference that is deliberately
 misused to demonstrate a refusal, and the `belongs_to` sugar — every
-construct this guide needs except one: banking's own value objects are
-all exactly one field deep, so the final section — a value object
+construct this guide needs except one: banking never nests one value
+object inside another, so the final section — a value object
 holding another value object — draws instead from
 `examples/pizzas/bluebook/pizzas.bluebook`'s `Order`, and says so where
 it happens.
@@ -611,12 +611,11 @@ disputed = payment.capture!.dispute!(disputed_by: customer.id)
 disputed[:disputed_by]   # => "CUST-1000"
 ```
 
-`has_one` and its alias `belongs_to` were sugar over the same
-`reference_to` — the only difference was the attribute name: no `_id`
-suffix, because the field already read as a relationship. They are
-GONE now (ADR 0025, "References") — `reference_to` mints that same
-bare name on its own, so the sugar had no work left. `OnboardingCase`
-was banking's only user, and reaches for `reference_to` directly now:
+`has_one` and its alias `belongs_to` are sugar over the same
+`reference_to`, and are still admitted words (`SafeDepositBox` writes
+`belongs_to Customer`). They add nothing: `reference_to` mints the same
+bare name — no `_id` suffix — on its own (ADR 0025, "References"), so
+prefer it. `OnboardingCase` reaches for `reference_to` directly:
 
 ```ruby skip
 # examples/banking/bluebook/
@@ -720,8 +719,7 @@ vault[:slips]   # => ["s-1", "s-2"]
 
 ## A value object holding a value object
 
-Every value object in banking is exactly one field deep — nothing here
-nests one value object inside another. For that shape, this one example
+No value object in banking nests another value object inside it. For that shape, this one example
 draws from pizzas instead, since it is real and banking's own value
 objects simply never need it:
 
