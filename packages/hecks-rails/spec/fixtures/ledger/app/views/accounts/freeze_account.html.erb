@@ -1,0 +1,2 @@
+<h1>Freeze account <%= @record.to_param %></h1>
+<%= command_form_for @record, :freeze_account, url: "/accounts/#{@record.to_param}/freeze_account" %>

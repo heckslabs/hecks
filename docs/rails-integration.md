@@ -18,8 +18,9 @@ ordinary Rails files.
 | Routes | `packages/hecks-rails` (`Routes`) | `resources :accounts` draws a `show` and a POST per command when `accounts` is an aggregate; a creating command routes to the collection, any other to the member |
 | Controllers | `packages/hecks-rails` (`Controller`) | `AccountsController` joins the domain by its name, with a named action per command; refusals land in `errors` and answer 422, 403 or 404 by kind |
 | Actor | `packages/hecks-rails` (`Actor`) | Each request runs inside `Hecks.as_caller` as `current_user`'s `actor_id` (or `id`); with nobody signed in, every role-gated command refuses; `Hecks::Rails.actor_from` overrides the lookup once |
-| `command_form_for` | `packages/hecks-rails` | Fields from `Hecks::Forms`, named by the dotted paths `Forms::Params` reads |
-| `available_commands(as:)` | the model | The domain's own dry run, under the actor's Governance grants |
+| Validations | `packages/hecks-rails` (`Validating`) | `record.valid_for?(:freeze_account, params)` asks the domain whether the command would be accepted (`Dispatcher#validate`, ADR 0128) and fills `errors` with every reason, each against its attribute; `?dry_run=1` or `X-Dry-Run: 1` on a command route answers the same as JSON with 200 |
+| `command_form_for` | `packages/hecks-rails` | Fields from `Hecks::Forms`, named by the dotted paths `Forms::Params` reads; a refused form comes back with the submitted values, each reason beside its field, reference options filled, and the command's JSON Schema (`CommandSchema`) embedded |
+| `available_commands(as:)` | the model | The domain's own validation, under the actor's Governance grants |
 | `be_refused_with` | `hecks/rails/rspec` | RSpec matcher for a refusal and its wording |
 | `Hecks/RailsModelRules` | `lib/rubocop/cop/hecks` | Refuses `validates`, callbacks and associations in a model |
 
