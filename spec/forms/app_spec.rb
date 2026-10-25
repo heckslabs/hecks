@@ -420,6 +420,15 @@ RSpec.describe Hecks::Forms::App do
       expect(json_body["ok"]).to be(true)
     end
 
+    it "serves the command's JSON Schema with the rules a schema cannot hold as annotations", :aggregate_failures do
+      get "/Banking/Customer/Register.json?schema=1"
+
+      expect(last_response.status).to eq(200)
+      expect(json_body).to include("$schema" => "https://json-schema.org/draft/2020-12/schema",
+                                   "title"   => "Banking::Customer.Register")
+      expect(json_body["properties"]).to include("reference", "name", "email")
+    end
+
     it "dispatches for real without the flag" do
       dry_post(ada, query: "")
 

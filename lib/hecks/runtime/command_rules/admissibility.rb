@@ -201,11 +201,12 @@ module Hecks
         # Routed through one "transition_blocked" template, so a lifecycle guard and a
         # transition raise identical wording.
         def raise_transition_blocked(command, lifecycle, current, allowed)
-          raise LifecycleRefused,
-                RefusalWording.render_site("LifecycleRefused", "transition_blocked",
-                                           command: command.hecks_name, field: lifecycle.field,
-                                           current: Rendering.describe(current),
-                                           allowed: allowed)
+          raise LifecycleRefused.new(
+            RefusalWording.render_site("LifecycleRefused", "transition_blocked",
+                                       command: command.hecks_name, field: lifecycle.field,
+                                       current: Rendering.describe(current), allowed: allowed),
+            attribute: lifecycle.field, stage: :state
+          )
         end
       end
     end
