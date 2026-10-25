@@ -35,6 +35,7 @@ module Hecks
         usage = "usage: #{program} [domain] <verb [name=value …] | script.json | - | '{\"steps\":[…]}'>"
         argv = argv.dup
         domain = resolve_domain(argv, usage)
+        warn_unmatched_environment(domain)
 
         # The command-line form answers unless the first argument is script-shaped,
         # in which case the step-list form takes over.
@@ -50,6 +51,23 @@ module Hecks
         abort "no bluebook here — #{Dir.pwd} is not inside a domain. #{usage}" unless domain
 
         domain
+      end
+
+      # A run saves what it dispatches through whatever the domain binds. `HECKS_ENVIRONMENT`
+      # only changes that for a domain with an `environments/<name>.*` overlay; for any other the
+      # boot ignores it, so `HECKS_ENVIRONMENT=memory hecks run …` would persist for real without
+      # a word. Says so on stderr, where a run's JSON report stays clean on stdout.
+      #
+      # @api private
+      def warn_unmatched_environment(domain)
+        name = ENV["HECKS_ENVIRONMENT"].to_s.strip
+        return if name.empty?
+
+        overlays = File.join(Adapters::Folder.new.bluebook_directory(domain), "environments", "#{name}.*")
+        return unless Dir[overlays].empty?
+
+        warn "[hecks] HECKS_ENVIRONMENT=#{name} has no overlay in #{File.dirname(overlays)}, " \
+             "so this run saves through the domain's own bindings"
       end
 
       # @api private
