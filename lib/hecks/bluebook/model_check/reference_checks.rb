@@ -7,6 +7,15 @@ module Hecks
         # Types that name no aggregate's identity, however many aggregates declare one of them.
         PRIMITIVE_TYPES = %w[String Integer Float Boolean Date DateTime Time Symbol JSON Hash Array].freeze
 
+        # Every check over how aggregates relate: a link copied by value, a reference that outlives
+        # the record it names (OrphanChecks), and a branch on a tagged reference (OneOfChecks).
+        #
+        # @param bluebook [Bluebook::Chapter] the assembled chapter to check
+        # @return [Array<Finding>] the three checks' findings, in that order
+        def reference_findings(bluebook)
+          [*key_by_value_findings(bluebook), *orphan_findings(bluebook), *one_of_branch_findings(bluebook)]
+        end
+
         # Flags each scalar attribute whose type is the identity type of another aggregate in
         # this domain and that is not itself a reference: the link exists only by convention.
         #
