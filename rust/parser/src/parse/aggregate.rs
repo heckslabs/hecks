@@ -271,6 +271,19 @@ pub fn parse_body(
             "reference_to" => {
                 let target_raw =
                     super::positional_constant(file, line, "reference_to", &gated.args, 1)?;
+                if super::type_context_call_word(target_raw) == Some("one_of") {
+                    let union = super::one_of_reference(
+                        file,
+                        line,
+                        &aggregate.name,
+                        target_raw,
+                        &gated.args,
+                    )?;
+                    closed_sets.push(union.type_set);
+                    closed_sets.push(union.tagged);
+                    aggregate.attributes.push(union.attribute);
+                    continue;
+                }
                 let target = naming::demodulise(target_raw);
                 let as_name = super::named_symbol(&gated.args, "as");
                 let optional = super::named_flag(&gated.args, "optional");

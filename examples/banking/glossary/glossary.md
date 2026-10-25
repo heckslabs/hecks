@@ -8,6 +8,7 @@ The terms Banking uses, written the way the people who work in it would say them
 flowchart LR
     n_customer["Customer"]
     n_account["Account"]
+    n_hold["Hold"]
     n_onboarding_case["Onboarding case"]
     n_atm_card["ATM card"]
     n_card_payment["Card payment"]
@@ -1109,6 +1110,114 @@ Always true: an external transfer amount is positive.
 
 Text.
 
+## Hold
+
+> A stop the bank puts on an account or on a card while something is looked into.
+
+Starts out placed. Can be placed, lifted, or escalated.
+
+**How it moves**
+
+```mermaid
+stateDiagram-v2
+    [*] --> placed
+    placed --> lifted: Lift
+    placed --> escalated: Escalate account hold
+    placed --> escalated: Escalate card hold
+```
+
+- Lifting a hold moves it from placed to lifted.
+- Escalating an account hold moves it from placed to escalated.
+- Escalating a card hold moves it from placed to escalated.
+
+**Always true**
+
+- Each hold points at its subject: one account or ATM card.
+- A hold reference is present.
+- A hold reason is present.
+
+### Actions
+
+#### Escalate account hold
+
+Send a hold on an account to the account review desk. Done by the system.
+
+Allowed only when: the hold is placed; the hold is on an account.
+
+Moves the hold from placed to escalated.
+
+Records [Account hold escalated](#account-hold-escalated).
+
+#### Escalate card hold
+
+Send a hold on a card to the card review desk. Done by the system.
+
+Allowed only when: the hold is placed; the hold is on a card.
+
+Moves the hold from placed to escalated.
+
+Records [Card hold escalated](#card-hold-escalated).
+
+#### Lift
+
+Take a hold off once the matter is settled. Done by the teller.
+
+Allowed only when: the hold is placed.
+
+Moves the hold from placed to lifted.
+
+Records [Hold lifted](#hold-lifted).
+
+#### Place
+
+Stop an account or a card while something is looked into. Done by the teller.
+
+Needs a reference ([Hold reference](#hold-reference)), a subject ([Subject](#subject)), and a reason ([Hold reason](#hold-reason)).
+
+Sets the reference, the subject, and the reason.
+
+Records [Hold placed](#hold-placed).
+
+### What it records
+
+#### Account hold escalated
+
+Recorded after [Escalate account hold](#escalate-account-hold).
+
+#### Card hold escalated
+
+Recorded after [Escalate card hold](#escalate-card-hold).
+
+#### Hold lifted
+
+Recorded after [Lift](#lift).
+
+#### Hold placed
+
+Recorded after [Place](#place).
+
+### What it is made of
+
+#### Hold reason
+
+Text that must not be blank.
+
+Always true: a hold reason is present.
+
+#### Hold reference
+
+Text that must not be blank.
+
+Always true: a hold reference is present.
+
+#### Subject
+
+Made up of type (text) and id (text).
+
+#### Subject type
+
+One of [Account](#account) or [ATM card](#atm-card).
+
 ## Onboarding case
 
 > The KYC check a newly registered customer clears before an account exists for them — screened once, and if it does not clear there is nothing to undo, because nothing was ever opened.
@@ -1875,11 +1984,11 @@ Responsible for [Rename](#rename), [Withdraw](#withdraw), [Activate](#activate),
 
 #### System
 
-Responsible for [Apply fee](#apply-fee), [Accrue interest](#accrue-interest), [Capture](#capture), [Void](#void), [Refund](#refund), [Reverse (card payment)](#reverse-1), [Generate](#generate), [Debited](#debited), [Settle](#settle), [Credited](#credited), [Reverse (transfer)](#reverse-2), [Reject](#reject), [Send transfer](#send-transfer), [Return](#return), [Execute](#execute), [Fail](#fail), and [Retry](#retry).
+Responsible for [Apply fee](#apply-fee), [Accrue interest](#accrue-interest), [Escalate account hold](#escalate-account-hold), [Escalate card hold](#escalate-card-hold), [Capture](#capture), [Void](#void), [Refund](#refund), [Reverse (card payment)](#reverse-1), [Generate](#generate), [Debited](#debited), [Settle](#settle), [Credited](#credited), [Reverse (transfer)](#reverse-2), [Reject](#reject), [Send transfer](#send-transfer), [Return](#return), [Execute](#execute), [Fail](#fail), and [Retry](#retry).
 
 #### Teller
 
-Responsible for [Credit](#credit) and [Debit](#debit).
+Responsible for [Credit](#credit), [Debit](#debit), [Place](#place), and [Lift](#lift).
 
 #### Vault officer
 
@@ -1936,3 +2045,7 @@ The smallest amount among an account's own disputed card charges.
 #### Disputed payment total
 
 The total amount of an account's own disputed card charges — the exposure a risk manager wants first.
+
+#### Holds on cards
+
+Every hold the bank has put on a card, rather than on an account.

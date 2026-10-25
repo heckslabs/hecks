@@ -1202,6 +1202,50 @@ pub(crate) fn build_attribute(
     ))
 }
 
+/// Reads `reference_to one_of(A, B), as: :subject` into its tagged-reference shapes (ADR 0122),
+/// refusing a union with no `as:` or fewer than two distinct aggregates, as Ruby does.
+pub(crate) fn one_of_reference(
+    file: &str,
+    line: usize,
+    aggregate: &str,
+    raw: &str,
+    args: &ArgumentGateResult,
+) -> ParseResult<crate::build::references::OneOfReference> {
+    let inner = raw
+        .find('(')
+        .map_or("", |open| &raw[open + 1..raw.len() - 1]);
+    let variants: Vec<String> = ruby_value::split_items(inner)
+        .into_iter()
+        .map(|segment| crate::build::naming::demodulise(segment.trim()))
+        .collect();
+    let listed = variants.join(", ");
+    let Some(as_name) = named_symbol(args, "as") else {
+        return Err(Diagnostic::new(
+            file,
+            line,
+            format!(
+                "{aggregate}'s reference_to one_of({listed}) needs as: — a union has no one name"
+            ),
+        ));
+    };
+    let mut distinct = variants.clone();
+    distinct.sort();
+    distinct.dedup();
+    if variants.len() < 2 || distinct.len() != variants.len() {
+        return Err(Diagnostic::new(
+            file,
+            line,
+            format!("{aggregate}.{as_name}'s one_of names {listed} — a union names two or more distinct aggregates"),
+        ));
+    }
+    Ok(crate::build::references::one_of_reference(
+        aggregate,
+        &variants,
+        &as_name,
+        named_flag(args, "optional"),
+    ))
+}
+
 /// Resolves an attribute's type: a bare constant, `list_of(T)`, or an inline `one_of(...)`.
 ///
 /// `list_of` unwraps to `(inner, true)`. `one_of` synthesizes a closed-set value object named
