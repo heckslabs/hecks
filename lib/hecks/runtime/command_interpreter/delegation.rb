@@ -1,3 +1,4 @@
+require_relative "../collecting"
 require_relative "../errors"
 require_relative "../instance"
 require_relative "../entity_element"
@@ -40,14 +41,31 @@ module Hecks
         end
 
         # Runs the target entity command's givens, transition, mutations and ensures against the
-        # element, answering the command and arguments `step_emit` will emit.
+        # element, answering the command and arguments `step_emit` will emit, or nil when a
+        # validation recorded a refusal in the target's givens or ensures.
         def run_delegation(ctx, delegation)
-          target      = locate_delegate(ctx, delegation)
-          transition  = check_delegate_givens(ctx, target)
+          target = locate_delegate(ctx, delegation)
+          return unless delegate_stage_held?(:givens) { enforce_delegate_givens(ctx, target) }
+
+          transition  = @rules.admissible_transition(target.entity, target.command, target.view)
           old_element = target.ensures.empty? ? nil : target.element.dup
           mutate_delegate(ctx, target, transition)
-          enforce_delegate_ensures(ctx, target, old_element)
+          return unless delegate_stage_held?(:ensures) { enforce_delegate_ensures(ctx, target, old_element) }
+
           [target.command, target.args]
+        end
+
+        # Runs one of the target's own rule stages. A refusal it records while validating is placed
+        # in that stage, as the same rule's refusal is in a direct dispatch of the entity command,
+        # and finishes the delegation there, as a refused stage finishes any validating run.
+        #
+        # @param stage [Symbol] the `DispatchStage` the target's rules belong to
+        # @yield the stage's rules
+        # @return [Boolean] whether the stage recorded no refusal
+        def delegate_stage_held?(stage, &)
+          recorded = Collecting.refusals&.size
+          Collecting.at_stage(stage, &)
+          Collecting.refusals&.size == recorded
         end
 
         def enforce_delegate_ensures(ctx, target, old_element)
@@ -63,11 +81,9 @@ module Hecks
           Target.new(entity, target_command, target_args, element, view)
         end
 
-        # @return [Object, nil] the transition the target command is admissible under, if any
-        def check_delegate_givens(ctx, target)
+        def enforce_delegate_givens(ctx, target)
           @rules.enforce_givens(target.view, target.command, target.args,
                                 domain: ctx.domain, declaring: target.entity, parent: ctx.instance)
-          @rules.admissible_transition(target.entity, target.command, target.view)
         end
 
         def mutate_delegate(ctx, target, transition)
