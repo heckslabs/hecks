@@ -59,6 +59,69 @@ module Hecks
       out
     end
 
+    # The extension of an examples file: sentences saying who does what to the domain and what
+    # follows, which the behaviors runner runs.
+    EXAMPLES_EXTENSION = ".examples".freeze
+
+    # The first line of an examples file, naming the chapter the examples are about.
+    EXAMPLES_LINE = /\A\s*Examples for:\s*(\S.*?)\s*\z/
+
+    # @param path [String] a file the behaviors runner was asked to run
+    # @return [Boolean] whether it is an examples file, not a `.behaviors` file
+    def examples?(path) = path.to_s.end_with?(EXAMPLES_EXTENSION)
+
+    # The `.behaviors` text that runs an examples file against its chapter.
+    #
+    # The chapter's files are the `.bluebook` beside the examples file with the same stem or, when
+    # there is none, every `.bluebook` there (or in a `bluebook/` folder there) that declares the
+    # chapter the examples are about.
+    #
+    # @param path [String] an examples file
+    # @return [String] `.behaviors` source
+    # @raise [ParserMissing] if `hecks-parse` is not built
+    # @raise [Refused] if no chapter file is found or the examples are not ones the parser accepts
+    def behaviors_text(path)
+      chapter = examples_chapter(path)
+      files = chapter_files(path, chapter)
+      raise Refused, "#{path}: no .bluebook beside it declares #{chapter}" if files.empty?
+
+      out, err, status = Open3.capture3(binary, "examples", "--chapter", chapter, "--examples", path, *files)
+      raise Refused, err.lines.first.to_s.chomp unless status.success?
+
+      out
+    end
+
+    # Writes the `.behaviors` text of an examples file where the runner can load it.
+    #
+    # @param path [String] an examples file
+    # @return [String] the generated `.behaviors` file's path
+    def write_behaviors(path)
+      text = behaviors_text(path)
+      dir = CacheDir.path("sentence_form")
+      FileUtils.mkdir_p(dir)
+      generated = File.join(dir, "#{File.basename(path, EXAMPLES_EXTENSION)}-#{Digest::SHA256.hexdigest(text)[0, 16]}.behaviors")
+      File.write(generated, text) unless File.exist?(generated)
+      generated
+    end
+
+    # @return [String] the chapter an examples file's first line names, capitalised and joined
+    def examples_chapter(path)
+      line = File.foreach(path).find { |text| text.match?(EXAMPLES_LINE) }
+      raise Refused, "#{path}: no `Examples for: <chapter>` line" unless line
+
+      line.match(EXAMPLES_LINE)[1].split.map { |word| word[0].upcase + word[1..] }.join
+    end
+
+    # @return [Array<String>] absolute paths of the `.bluebook` files the examples are about
+    def chapter_files(path, chapter)
+      dir = File.dirname(File.expand_path(path))
+      same_stem = File.join(dir, "#{File.basename(path, EXAMPLES_EXTENSION)}.bluebook")
+      return [same_stem] if File.file?(same_stem)
+
+      Dir.glob([File.join(dir, "*.bluebook"), File.join(dir, "bluebook", "*.bluebook")]).sort
+         .select { |file| chapter_name(file) == chapter }
+    end
+
     # Declares the chapter a sentence-form file holds, in the registry now current.
     #
     # The Ruby text is loaded from a file of its own, because a predicate's source is recovered

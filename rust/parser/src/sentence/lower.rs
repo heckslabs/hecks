@@ -115,7 +115,7 @@ impl Parser<'_> {
     }
 
     /// A phrase the table admits that this front end has no meaning for yet.
-    fn unmeant(&self, m: &Matched) -> Diagnostic {
+    pub(super) fn unmeant(&self, m: &Matched) -> Diagnostic {
         self.error(
             m.line,
             m.base_col,
@@ -286,7 +286,20 @@ impl Parser<'_> {
             let Step::Phrase(m) = step else { continue };
             match m.id {
                 "goal" => spec.goal = Some(m.text_of("goal")),
-                "role" => spec.role = Some(m.text_of("role")),
+                "role" => {
+                    let role = m.text_of("role");
+                    if role.split_whitespace().any(|word| word.eq_ignore_ascii_case("or")) {
+                        return Err(self.error(
+                            m.line,
+                            m.col_of("role"),
+                            format!(
+                                "a command is run by one role, and '{role}' names several. The language does not yet \
+                                 let a command be run by more than one role; name the one role that runs it"
+                            ),
+                        ));
+                    }
+                    spec.role = Some(role);
+                }
                 "acts_on" => {
                     self.same_owner(&m, "owner", st)?;
                     spec.references = Some(st.agg.name.clone());

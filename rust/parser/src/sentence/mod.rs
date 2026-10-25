@@ -7,6 +7,8 @@
 
 /// The sentences legal at a cursor, for editors.
 pub mod complete;
+/// An examples file compiled to the `.behaviors` text that runs it.
+pub mod examples;
 /// A parsed chapter written back out as canonical sentences.
 pub mod format;
 mod lower;
@@ -222,6 +224,12 @@ fn context_label(context: &str) -> &'static str {
         "Command" => "a command",
         "Query" => "a query",
         "Condition" => "a condition",
+        "ExamplesFile" => "the top of an examples file",
+        "Examples" => "an examples file",
+        "Background" => "a background",
+        "Example" => "an example",
+        "Step" => "a step",
+        "Outcome" => "an outcome",
         _ => "this place",
     }
 }

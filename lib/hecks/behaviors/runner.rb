@@ -1,4 +1,5 @@
 require_relative "expectations"
+require_relative "../sentence_form"
 
 # Hecks::Behaviors.run(path) / .run_all(dir)
 #
@@ -32,7 +33,10 @@ module Hecks
       #   a raised exception, or the file loading without calling `Hecks.behaviors`
       def parse(path)
         path = File.expand_path(path)
-        error = load_behaviors(path)
+        runnable = runnable(path)
+        return ParseResult.new(path: path, suite: nil, parse_error: runnable.fetch(:error)) if runnable.is_a?(Hash)
+
+        error = load_behaviors(runnable)
         return ParseResult.new(path: path, suite: nil, parse_error: error) if error
 
         suite = last_suite
@@ -62,7 +66,8 @@ module Hecks
       # @return [Behaviors::SweepResult] `files_swept` the count found, `files` one
       #   `FileResult` per file, and `summary` the aggregate counts `summarize` returns
       def run_all(dir)
-        files = Dir.glob(File.join(dir, "**", "*.behaviors"))
+        files = Dir.glob([File.join(dir, "**", "*.behaviors"),
+                          File.join(dir, "**", "*#{SentenceForm::EXAMPLES_EXTENSION}")])
         results = files.map { |path| run(path) }
         SweepResult.new(root: dir, files_swept: files.size, files: results, summary: summarize(results))
       end
@@ -86,6 +91,18 @@ module Hecks
       end
 
       private
+
+      # The `.behaviors` file to load for `path`: the file itself, or for an examples file the
+      # `.behaviors` text compiled from it.
+      #
+      # @param path [String] an absolute `.behaviors` or examples file path
+      # @return [String, Hash{Symbol => String}] the `.behaviors` file's path, or `{error:}`
+      #   naming why the examples could not be compiled
+      def runnable(path)
+        SentenceForm.examples?(path) ? SentenceForm.write_behaviors(path) : path
+      rescue SentenceForm::Refused, SentenceForm::ParserMissing => e
+        { error: "#{e.class.name.split('::').last}: #{e.message}" }
+      end
 
       # `Kernel.load`s the file with `loading_path` pointing at it.
       #
