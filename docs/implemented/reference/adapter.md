@@ -154,7 +154,10 @@ once per capability. A caller asks before relying on it: `registry.adapter_provi
 aggregate, "set_transform")` answers for the adapter that aggregate is bound to, and is false for
 an adapter that never says so. The Postgres, Sqlite and PostgresEra persistence adapters provide
 `set_transform`, rewriting every row of an aggregate in one statement; Memory and Heki provide
-nothing, so a caller works record by record there.
+nothing, so a caller works record by record there. A bulk run is the caller that asks: on Sqlite
+and Postgres it compiles to one `UPDATE … RETURNING` when its command allows it (ADR 0128).
+PostgresEra declares the capability but keeps its rows in one document, so its runs still go row
+by row.
 
 ```ruby
 runtime.registry.adapters["reference_sql"].capabilities  # => ["set_transform"]

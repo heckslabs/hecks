@@ -581,6 +581,15 @@ Postgres), so on Memory the run is declined before any row is sent:
 Banking::Account.freeze_account!(over: Banking::Account.open, mode: :all_or_nothing)  # ~> WiringError: all_or_nothing needs a store that can roll back
 ```
 
+On a store that provides `set_transform` (Sqlite, Postgres) a run can
+go as one `UPDATE` instead of one dispatch per row (ADR 0128). It does
+when the command acts on its own aggregate, its writes are `sets` of
+one-field values or an `increment`/`decrement`, and every `given` can be
+said in that store's SQL; otherwise the run goes row by row. Either way
+the outcomes, the records and the events are the same: a row the
+statement skipped is sent by hand, so its refusal reads as it would
+have, and the fuzzer compares the two paths on both stores.
+
 The CLI and MCP request the same run through the chapter's own
 command: `banking bulk bulk_run.request! run.value=r1
 verb.value=Banking::Account.FreezeAccount over.value=Banking::Account.Open
