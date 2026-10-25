@@ -1,5 +1,8 @@
 # Writing a domain in plain sentences
 
+**Status: built, not released.** Every example below is run by `spec/sentence_guide_spec.rb`, so
+what it shows is what the parser accepts today.
+
 A `.bluebook` can be written as sentences instead of Ruby. A file whose first line is
 `Domain: <name>` is read as sentences; everything else about the file, its name, its place on
 disk, how it boots and what it produces, is the same. This guide is for the person who knows the

@@ -7,7 +7,7 @@ module Hecks
     # what an author may write in plain sentences is a table rather than code typed a second time.
     module PhraseTable
       extend Projector::Target
-      projects_as :phrase_table
+      projects_as :phrase_table, declares: "Phrase"
 
       # The chapter the rows are declared in, read from the language's own tree.
       SENTENCE_FILE = File.expand_path("../language/sentence/sentence.bluebook", __dir__)
