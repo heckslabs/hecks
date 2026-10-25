@@ -46,12 +46,14 @@ pub fn scalar(words: &str) -> Option<&'static str> {
         "text" => Some("String"),
         "whole number" => Some("Integer"),
         "decimal number" => Some("Float"),
+        "yes or no" => Some("Boolean"),
+        "true or false" => Some("TrueClass"),
         _ => None,
     }
 }
 
 /// The scalar types, as an author says them.
-pub const SCALARS: &str = "text, whole number, decimal number";
+pub const SCALARS: &str = "text, whole number, decimal number, yes or no, true or false";
 
 #[cfg(test)]
 mod tests {

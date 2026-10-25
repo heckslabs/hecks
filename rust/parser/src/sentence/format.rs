@@ -10,8 +10,10 @@
 #![allow(clippy::format_push_string)]
 
 use super::changes;
+use super::entity;
 use super::names::spoken;
 use super::options;
+use super::report;
 use crate::ruby_value;
 use crate::ir;
 
@@ -28,6 +30,17 @@ pub fn sentences(chapter: &ir::Bluebook) -> Result<String, String> {
     if let Some(namespace) = &chapter.namespace {
         out.push_str(&format!("  Its module is {namespace}\n"));
     }
+    if let Some(version) = &chapter.version {
+        if !is_word(version) {
+            return Err(format!("the sentence form cannot say the version {version}"));
+        }
+        out.push_str(&format!("  Its version is {version}\n"));
+    }
+    if !chapter.attaches_to.is_empty() {
+        let contexts: Vec<String> = chapter.attaches_to.iter().map(|name| spoken(name)).collect();
+        out.push_str(&format!("  It attaches to {}\n", join_and(&contexts)));
+    }
+    provides_text(&mut out, &chapter.provides)?;
     for aggregate in &chapter.aggregates {
         out.push('\n');
         aggregate_text(&mut out, aggregate)?;
@@ -35,7 +48,26 @@ pub fn sentences(chapter: &ir::Bluebook) -> Result<String, String> {
     for policy in &chapter.policies {
         policy_text(&mut out, policy, chapter)?;
     }
+    for model in &chapter.read_models {
+        out.push_str(&report::said(model)?);
+    }
     Ok(out)
+}
+
+/// `It provides authorization:` and one `key is Verb` line for each capability row.
+fn provides_text(out: &mut String, provides: &[ir::Provision]) -> Result<(), String> {
+    let mut current: Option<&str> = None;
+    for row in provides {
+        if !is_word(&row.capability) || !is_word(&row.key) || row.verb.is_empty() {
+            return Err(format!("the sentence form cannot say the capability {}", row.capability));
+        }
+        if current != Some(row.capability.as_str()) {
+            out.push_str(&format!("  It provides {}:\n", row.capability));
+            current = Some(row.capability.as_str());
+        }
+        out.push_str(&format!("    {} is {}\n", row.key, row.verb));
+    }
+    Ok(())
 }
 
 /// `Policy: …` with its `Whenever` and `Then` lines.
@@ -94,11 +126,7 @@ fn policy_text(out: &mut String, policy: &ir::Policy, chapter: &ir::Bluebook) ->
 
 fn refuse_unsaid(chapter: &ir::Bluebook) -> Result<(), String> {
     let held = [
-        (!chapter.read_models.is_empty(), "read models"),
         (!chapter.process_managers.is_empty(), "process managers"),
-        (!chapter.provides.is_empty(), "provided capabilities"),
-        (!chapter.attaches_to.is_empty(), "attaches"),
-        (chapter.version.is_some(), "a version"),
     ];
     match held.iter().find(|(present, _)| *present) {
         Some((_, what)) => Err(format!("the sentence form has no phrase for {what}")),
@@ -107,18 +135,19 @@ fn refuse_unsaid(chapter: &ir::Bluebook) -> Result<(), String> {
 }
 
 fn aggregate_text(out: &mut String, aggregate: &ir::Aggregate) -> Result<(), String> {
+    block_text(out, aggregate, "Aggregate")
+}
+
+/// An aggregate, or an entity written as one, under the header `kind`.
+fn block_text(out: &mut String, aggregate: &ir::Aggregate, kind: &str) -> Result<(), String> {
     let held = [
-        (!aggregate.entities.is_empty(), "entities"),
         (!aggregate.ports.is_empty(), "ports"),
-        (!aggregate.invariants.is_empty(), "aggregate invariants"),
-        (!aggregate.preconditions.is_empty(), "preconditions"),
-        (!aggregate.projected_fields.is_empty(), "projected fields"),
     ];
     if let Some((_, what)) = held.iter().find(|(present, _)| *present) {
         return Err(format!("the sentence form has no phrase for {what}"));
     }
     let noun = spoken(&aggregate.name);
-    out.push_str(&format!("Aggregate: {}\n", spoken_title(&aggregate.name)));
+    out.push_str(&format!("{kind}: {}\n", spoken_title(&aggregate.name)));
     if let Some(description) = &aggregate.description {
         out.push_str(&format!("  {description}\n"));
     }
@@ -137,6 +166,20 @@ fn aggregate_text(out: &mut String, aggregate: &ir::Aggregate) -> Result<(), Str
             join_and(&spoken_fields)
         ));
     }
+    for rule in &aggregate.invariants {
+        out.push_str(&format!("\n  {}\n", rule_sentence("Rule", rule)?));
+    }
+    for precondition in &aggregate.preconditions {
+        out.push_str(&format!("\n  {}\n", rule_sentence("Precondition", precondition)?));
+    }
+    for field in &aggregate.projected_fields {
+        out.push_str(&format!(
+            "\n  It shows {} as the {} of the {}\n",
+            spoken(&field.name),
+            spoken(&field.remote_field),
+            spoken(&field.reference)
+        ));
+    }
     if !aggregate.attributes.is_empty() {
         out.push_str("\n  It has:\n");
         for attribute in &aggregate.attributes {
@@ -153,6 +196,9 @@ fn aggregate_text(out: &mut String, aggregate: &ir::Aggregate) -> Result<(), Str
             lifecycle.default
         ));
         for t in &lifecycle.transitions {
+            if !aggregate.commands.iter().any(|command| command.name == t.command) {
+                return Err(format!("transition {} names no command {} declares", t.command, aggregate.name));
+            }
             let from = t
                 .from_state
                 .as_ref()
@@ -164,6 +210,12 @@ fn aggregate_text(out: &mut String, aggregate: &ir::Aggregate) -> Result<(), Str
                 t.to_state
             ));
         }
+        for (mark, states) in &lifecycle.marks {
+            if !is_name(mark) || states.iter().any(|state| !is_listable(state) || state.contains(' ')) {
+                return Err(format!("the sentence form cannot say the mark {mark}"));
+            }
+            out.push_str(&format!("    Mark {mark}: {}\n", join_and(states)));
+        }
     }
     for command in &aggregate.commands {
         command_text(out, command, &noun, &aggregate.attributes)?;
@@ -171,11 +223,19 @@ fn aggregate_text(out: &mut String, aggregate: &ir::Aggregate) -> Result<(), Str
     for query in &aggregate.queries {
         query_text(out, query)?;
     }
+    for entity in &aggregate.entities {
+        let mut inner = String::new();
+        block_text(&mut inner, &entity::as_aggregate(entity), "Entity")?;
+        out.push('\n');
+        for line in inner.lines() {
+            out.push_str(&if line.is_empty() { String::new() } else { format!("  {line}\n") });
+        }
+    }
     Ok(())
 }
 
 /// The noun with its indefinite article: `a page`, `an order`.
-fn with_article(noun: &str) -> String {
+pub(super) fn with_article(noun: &str) -> String {
     let vowel = noun.chars().next().is_some_and(|c| "aeiou".contains(c.to_ascii_lowercase()));
     format!("{} {noun}", if vowel { "an" } else { "a" })
 }
@@ -188,7 +248,7 @@ fn capitalised(text: &str) -> String {
 }
 
 /// `RequestRefund` -> `Request Refund`: each word capitalised, so the parser joins them back.
-fn spoken_title(name: &str) -> String {
+pub(super) fn spoken_title(name: &str) -> String {
     spoken(name)
         .split(' ')
         .map(|word| {
@@ -229,6 +289,8 @@ fn type_words(type_name: &str) -> String {
         "String" => "text".to_string(),
         "Integer" => "whole number".to_string(),
         "Float" => "decimal number".to_string(),
+        "Boolean" => "yes or no".to_string(),
+        "TrueClass" => "true or false".to_string(),
         other => spoken(other),
     }
 }
@@ -347,11 +409,11 @@ fn condition_words(canonical: &str) -> Result<String, String> {
     Ok(format!("this is true: {canonical}"))
 }
 
-fn is_name(text: &str) -> bool {
+pub(super) fn is_name(text: &str) -> bool {
     !text.is_empty() && text.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
 }
 
-fn is_word(text: &str) -> bool {
+pub(super) fn is_word(text: &str) -> bool {
     !text.is_empty() && text.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
 }
 

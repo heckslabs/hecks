@@ -129,7 +129,7 @@ fn an_unknown_type_lists_the_types_that_exist() {
     let source = changed("a title: page title", "a title: pagee title");
     let error = refusal("type.bluebook", &source);
     assert!(error.contains("I don't know a type called 'pagee title'"), "{error}");
-    assert!(error.contains("text, whole number, decimal number, page slug, page title"), "{error}");
+    assert!(error.contains("text, whole number, decimal number, yes or no, true or false, page slug, page title"), "{error}");
 }
 
 #[test]
