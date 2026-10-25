@@ -113,8 +113,8 @@ guides do — with two rules the guides do not have.
   domain every section above it was written against. One boot per page;
   each section then carries a `​```ruby` fence proving its own word.
 - Prefer the real corpus. A page that loads `examples/banking` invents no
-  chapter name and installs no new constants, which is what keeps every
-  reference page and guide sharing one process safely. Declare a chapter of
+  chapter name and installs no new constants, which is what keeps the
+  reference pages and the guides sharing one process safely. Declare a chapter of
   your own only for a word nothing ships uses — and then say so in the
   preamble, because that absence is itself worth knowing.
 - Sections run top to bottom against one boot, so a section that changes
@@ -139,13 +139,9 @@ runnable example. Address the reader as "you" for instructions
 ("declare a value object"), never as a character speaking to them.
 Cut any sentence that exists for tone rather than information.
 
-## The quarantine
+## The vocabulary
 
-Some words are talked about but do not exist in this language:
-`Hecks.family` and `driving on cron` (inbound scheduling is unbuilt).
-**A word that does not exist may not appear in these guides**; check
-`hecks query language_run.word_status` before documenting one.
-Here the words are: `Hecks.port` (with `verb`), `Hecks.adapter` (with
+The words are: `Hecks.port` (with `verb`), `Hecks.adapter` (with
 `port`/`field`/`secret`), `persisted_by`, `.world` blocks, driving
 ports declared in the hecksagon (`port`/`operation`), and the
 era/translation system. The canonical example is THIS repo's pizzas —

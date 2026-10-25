@@ -81,13 +81,17 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
         target_files.push(path);
     }
 
-    let (gem_chapter_names, vendored_package_names) = match &hecksagon_path {
-        Some(p) => (
-            resolve::resolve_gem_chapters(&parser_bin, &target_chapter_name, p)?,
-            resolve::resolve_vendored_packages(&parser_bin, &target_chapter_name, p)?,
-        ),
-        None => (Vec::new(), Vec::new()),
-    };
+    // What the target attaches, read from every hecksagon beside its bluebooks, as the registry
+    // loads every one of them: a second file may attach a chapter (banking's `bulk.hecksagon`).
+    let mut gem_chapter_names: Vec<String> = Vec::new();
+    let mut vendored_package_names: Vec<String> = Vec::new();
+    for path in resolve::hecksagon_files(&bluebook_directory)? {
+        let gem = resolve::resolve_gem_chapters(&parser_bin, &target_chapter_name, &path)?;
+        let vendored =
+            resolve::resolve_vendored_packages(&parser_bin, &target_chapter_name, &path)?;
+        push_new(&mut gem_chapter_names, gem);
+        push_new(&mut vendored_package_names, vendored);
+    }
 
     let source_files = target_files.clone();
     if let Some(p) = &hecksagon_path {
@@ -127,8 +131,8 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
 
     // Every other chapter the gem supplies by `attaches "Name"`, resolved through the
     // same directory listing (`resolve::framework_members`) the Ruby
-    // pipeline itself calls. A gem chapter that is not a framework member (the language,
-    // Tenancy, Deploy) is loaded by the Ruby runtime alone, so it is checked and skipped.
+    // pipeline itself calls. A gem chapter that is not a framework member (Bulk, Tenancy, Deploy)
+    // is found by its files' headers, and is a chapter of the build as the registry loads it.
     let framework_members = resolve::framework_members(root)?;
     let other_gem_chapters = resolve::other_gem_chapter_names(root)?;
     let mut chapters: Vec<Chapter> = Vec::new();
@@ -136,6 +140,12 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
         if other_gem_chapters.contains(fw_name)
             && !framework_members.iter().any(|(name, _)| name == fw_name)
         {
+            let files = resolve::other_gem_chapter_files(root, fw_name)?;
+            chapters.push(Chapter {
+                mod_name: fw_name.to_lowercase(),
+                source_label: format!("{domain} (attaches {fw_name:?})"),
+                ir_text: parse_chapter(&parser_bin, fw_name, &files)?,
+            });
             continue;
         }
         let fw_path = framework_members
@@ -326,6 +336,15 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     }
 
     Ok(())
+}
+
+// Appends each of `names` that `into` does not hold yet, keeping first-seen order.
+fn push_new(into: &mut Vec<String>, names: Vec<String>) {
+    for name in names {
+        if !into.contains(&name) {
+            into.push(name);
+        }
+    }
 }
 
 // Parses via `hecks-parse chapter`. `hecks-codegen` marks the IR and writes its `ir.json` and

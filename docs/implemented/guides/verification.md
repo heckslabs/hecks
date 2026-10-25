@@ -35,7 +35,7 @@ real unreachable state into either of them would corrupt the fixture
 every other section on this page relies on. What follows is not a
 domain — it is the smallest fragment that still trips the finding, on
 the same footing as
-[`spec/fixtures/model_check/lifecycle_findings.bluebook`](../../spec/fixtures/model_check/lifecycle_findings.bluebook)
+[`spec/fixtures/model_check/lifecycle_findings.bluebook`](../../../spec/fixtures/model_check/lifecycle_findings.bluebook)
 in the test suite: one aggregate, one lifecycle, one hole, on purpose,
 because the hole is the whole demonstration:
 
@@ -202,8 +202,9 @@ being named, never by being silenced.
 ### The `client` profile — refusing what answers wrongly without refusing
 
 A client domain must not reach a path that returns a wrong result
-without saying so. `model_check` has an opt-in profile that turns each
-such documented, still-open path into an error:
+without saying so. The paths documented as still open are the rules of
+`Hecks::Bluebook::ModelCheck::ClientProfile`, so `model_check` has an opt-in profile
+that turns each into an error:
 
 ```sh
 hecks model_check --profile client                 # the whole corpus

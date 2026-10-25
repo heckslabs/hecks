@@ -3120,14 +3120,14 @@
       "verb": "Banking::Hold.Place",
       "args": {
         "reference": {
-          "value": "HOLD-1"
+          "value": "hold-1"
         },
         "subject": {
           "type": "Account",
           "id": "acct-1"
         },
         "reason": {
-          "value": "unusual activity"
+          "value": "under review"
         }
       }
     },
@@ -3135,14 +3135,14 @@
       "verb": "Banking::Hold.Place",
       "args": {
         "reference": {
-          "value": "HOLD-2"
+          "value": "hold-2"
         },
         "subject": {
           "type": "ATMCard",
           "id": "CARD-GUARD-B"
         },
         "reason": {
-          "value": "card reported lost"
+          "value": "under review"
         }
       }
     },
@@ -3150,32 +3150,48 @@
       "verb": "Banking::Hold.Place",
       "args": {
         "reference": {
-          "value": "HOLD-3"
+          "value": "hold-3"
+        },
+        "subject": {
+          "type": "Account",
+          "id": "acct-2"
+        },
+        "reason": {
+          "value": "under review"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Hold.Place",
+      "args": {
+        "reference": {
+          "value": "hold-4"
         },
         "subject": {
           "type": "Customer",
           "id": "CUST-0001"
         },
         "reason": {
-          "value": "not a holdable subject"
+          "value": "under review"
         }
-      },
-      "note": "refused: a Subject's type admits only the union's members"
+      }
+    },
+    {
+      "query": "Banking.HoldsOnCards"
     },
     {
       "verb": "Banking::Hold.EscalateCardHold",
       "args": {
         "reference": {
-          "value": "HOLD-1"
+          "value": "hold-1"
         }
-      },
-      "note": "refused: HOLD-1 is on an account, not a card"
+      }
     },
     {
       "verb": "Banking::Hold.EscalateAccountHold",
       "args": {
         "reference": {
-          "value": "HOLD-1"
+          "value": "hold-1"
         }
       }
     },
@@ -3183,7 +3199,7 @@
       "verb": "Banking::Hold.EscalateCardHold",
       "args": {
         "reference": {
-          "value": "HOLD-2"
+          "value": "hold-2"
         }
       }
     },
@@ -3191,23 +3207,7 @@
       "verb": "Banking::Hold.Lift",
       "args": {
         "reference": {
-          "value": "HOLD-2"
-        }
-      },
-      "note": "refused: an escalated hold is lifted only from placed"
-    },
-    {
-      "verb": "Banking::Hold.Place",
-      "args": {
-        "reference": {
-          "value": "HOLD-4"
-        },
-        "subject": {
-          "type": "Account",
-          "id": "acct-1"
-        },
-        "reason": {
-          "value": "cheque under review"
+          "value": "hold-3"
         }
       }
     },
@@ -3215,7 +3215,7 @@
       "verb": "Banking::Hold.Lift",
       "args": {
         "reference": {
-          "value": "HOLD-4"
+          "value": "hold-3"
         }
       }
     }
@@ -4140,7 +4140,7 @@
       },
       {
         "verb": "Banking::Hold.Lift",
-        "error": "Lift refused — status is \"escalated\", and Lift moves it only from \"placed\"",
+        "error": "Lift refused — status is \"lifted\", and Lift moves it only from \"placed\"",
         "kind": "LifecycleRefused"
       }
     ],
@@ -4734,42 +4734,42 @@
         "status": "open",
         "customer_status": "active"
       },
-      "Banking::Hold#HOLD-1": {
+      "Banking::Hold#hold-1": {
         "reference": {
-          "value": "HOLD-1"
+          "value": "hold-1"
         },
         "subject": {
           "type": "Account",
           "id": "acct-1"
         },
         "reason": {
-          "value": "unusual activity"
+          "value": "under review"
         },
         "status": "escalated"
       },
-      "Banking::Hold#HOLD-2": {
+      "Banking::Hold#hold-2": {
         "reference": {
-          "value": "HOLD-2"
+          "value": "hold-2"
         },
         "subject": {
           "type": "ATMCard",
           "id": "CARD-GUARD-B"
         },
         "reason": {
-          "value": "card reported lost"
+          "value": "under review"
         },
         "status": "escalated"
       },
-      "Banking::Hold#HOLD-4": {
+      "Banking::Hold#hold-3": {
         "reference": {
-          "value": "HOLD-4"
+          "value": "hold-3"
         },
         "subject": {
           "type": "Account",
-          "id": "acct-1"
+          "id": "acct-2"
         },
         "reason": {
-          "value": "cheque under review"
+          "value": "under review"
         },
         "status": "lifted"
       },
@@ -5639,81 +5639,81 @@
       {
         "name": "HoldPlaced",
         "aggregate": "Banking::Hold",
-        "id": "HOLD-1",
+        "id": "hold-1",
         "payload": {
           "reference": {
-            "value": "HOLD-1"
+            "value": "hold-1"
           },
           "subject": {
             "type": "Account",
             "id": "acct-1"
           },
           "reason": {
-            "value": "unusual activity"
+            "value": "under review"
           }
         }
       },
       {
         "name": "HoldPlaced",
         "aggregate": "Banking::Hold",
-        "id": "HOLD-2",
+        "id": "hold-2",
         "payload": {
           "reference": {
-            "value": "HOLD-2"
+            "value": "hold-2"
           },
           "subject": {
             "type": "ATMCard",
             "id": "CARD-GUARD-B"
           },
           "reason": {
-            "value": "card reported lost"
-          }
-        }
-      },
-      {
-        "name": "AccountHoldEscalated",
-        "aggregate": "Banking::Hold",
-        "id": "HOLD-1",
-        "payload": {
-          "reference": {
-            "value": "HOLD-1"
-          }
-        }
-      },
-      {
-        "name": "CardHoldEscalated",
-        "aggregate": "Banking::Hold",
-        "id": "HOLD-2",
-        "payload": {
-          "reference": {
-            "value": "HOLD-2"
+            "value": "under review"
           }
         }
       },
       {
         "name": "HoldPlaced",
         "aggregate": "Banking::Hold",
-        "id": "HOLD-4",
+        "id": "hold-3",
         "payload": {
           "reference": {
-            "value": "HOLD-4"
+            "value": "hold-3"
           },
           "subject": {
             "type": "Account",
-            "id": "acct-1"
+            "id": "acct-2"
           },
           "reason": {
-            "value": "cheque under review"
+            "value": "under review"
+          }
+        }
+      },
+      {
+        "name": "AccountHoldEscalated",
+        "aggregate": "Banking::Hold",
+        "id": "hold-1",
+        "payload": {
+          "reference": {
+            "value": "hold-1"
+          }
+        }
+      },
+      {
+        "name": "CardHoldEscalated",
+        "aggregate": "Banking::Hold",
+        "id": "hold-2",
+        "payload": {
+          "reference": {
+            "value": "hold-2"
           }
         }
       },
       {
         "name": "HoldLifted",
         "aggregate": "Banking::Hold",
-        "id": "HOLD-4",
+        "id": "hold-3",
         "payload": {
           "reference": {
-            "value": "HOLD-4"
+            "value": "hold-3"
           }
         }
       }
@@ -8142,6 +8142,31 @@
         },
         "rows": null,
         "error": "no Account with reference \"acct-onboard-1\""
+      },
+      {
+        "query": "Banking.HoldsOnCards",
+        "args": {
+        },
+        "rows": [
+          {
+            "holds": [
+              {
+                "reference": {
+                  "value": "hold-2"
+                },
+                "subject": {
+                  "type": "ATMCard",
+                  "id": "CARD-GUARD-B"
+                },
+                "reason": {
+                  "value": "under review"
+                },
+                "status": "placed",
+                "id": "hold-2"
+              }
+            ]
+          }
+        ]
       }
     ],
     "sagas": [

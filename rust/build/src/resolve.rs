@@ -107,38 +107,89 @@ const OTHER_GEM_CHAPTER_DIRS: &[&str] = &[
     "grammar",
     "tenancy/bluebook",
     "deploy/bluebook",
+    "site/bluebook",
+    "tickets/bluebook",
+    "composer/bluebook",
     "quality_control",
+    "bulk/bluebook",
 ];
 
-// The names of the chapters the gem carries beside the framework members, found by reading each
-// file's header. Only the Ruby runtime loads them, so the build uses this list to tell a real
-// gem chapter from a misspelt name.
-pub fn other_gem_chapter_names(root: &Path) -> Result<Vec<String>, String> {
-    fn walk(directory: &Path, names: &mut Vec<String>) -> Result<(), String> {
-        let Ok(entries) = std::fs::read_dir(directory) else {
+// Every bluebook the gem carries beside the framework members, with the chapter its header names.
+fn other_gem_chapter_entries(root: &Path) -> Result<Vec<(String, PathBuf)>, String> {
+    fn walk(directory: &Path, entries: &mut Vec<(String, PathBuf)>) -> Result<(), String> {
+        let Ok(listing) = std::fs::read_dir(directory) else {
             return Ok(());
         };
-        for entry in entries {
+        for entry in listing {
             let path = entry
                 .map_err(|e| format!("reading {}: {e}", directory.display()))?
                 .path();
             if path.is_dir() {
-                walk(&path, names)?;
+                walk(&path, entries)?;
             } else if path.extension().and_then(|e| e.to_str()) == Some("bluebook") {
                 if let Ok(name) = header_chapter_name(&path) {
-                    names.push(name);
+                    entries.push((name, path));
                 }
             }
         }
         Ok(())
     }
-    let mut names = Vec::new();
+    let mut entries = Vec::new();
     for directory in OTHER_GEM_CHAPTER_DIRS {
-        walk(&root.join("lib/hecks").join(directory), &mut names)?;
+        walk(&root.join("lib/hecks").join(directory), &mut entries)?;
     }
-    names.sort();
+    entries.sort();
+    Ok(entries)
+}
+
+// The names of the chapters the gem carries beside the framework members, found by reading each
+// file's header, so the build tells a real gem chapter from a misspelt name.
+pub fn other_gem_chapter_names(root: &Path) -> Result<Vec<String>, String> {
+    let mut names: Vec<String> = other_gem_chapter_entries(root)?
+        .into_iter()
+        .map(|(name, _)| name)
+        .collect();
     names.dedup();
     Ok(names)
+}
+
+// The files that declare one of the gem's other chapters, sorted, as `Hecks::Chapters` loads them,
+// then the `<snake_name>.ports.hecksagon` beside them that declares the chapter's ports.
+pub fn other_gem_chapter_files(root: &Path, chapter: &str) -> Result<Vec<PathBuf>, String> {
+    let mut files: Vec<PathBuf> = other_gem_chapter_entries(root)?
+        .into_iter()
+        .filter(|(name, _)| name == chapter)
+        .map(|(_, path)| path)
+        .collect();
+    let ports = files
+        .first()
+        .and_then(|first| first.parent())
+        .map(|directory| {
+            directory.join(format!(
+                "{}.ports.hecksagon",
+                crate::hecks_naming::snake(chapter)
+            ))
+        });
+    files.extend(ports.filter(|path| path.is_file()));
+    Ok(files)
+}
+
+// Every `.hecksagon` beside a domain's bluebooks, sorted, as the registry loads them.
+pub fn hecksagon_files(directory: &Path) -> Result<Vec<PathBuf>, String> {
+    let Ok(listing) = std::fs::read_dir(directory) else {
+        return Ok(Vec::new());
+    };
+    let mut files = Vec::new();
+    for entry in listing {
+        let path = entry
+            .map_err(|e| format!("reading {}: {e}", directory.display()))?
+            .path();
+        if path.extension().and_then(|extension| extension.to_str()) == Some("hecksagon") {
+            files.push(path);
+        }
+    }
+    files.sort();
+    Ok(files)
 }
 
 fn resolve_json(

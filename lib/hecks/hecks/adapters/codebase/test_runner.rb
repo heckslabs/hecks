@@ -17,6 +17,21 @@ module Hecks
           # @return [#call, nil] takes `(args, err, out)` and answers the exit status; the test
           #   runner when nil. A spec replaces it so no example has to run to test what is asked.
           attr_accessor :runner
+
+          # The runner is asked for from inside a command's own reaction cascade, and the
+          # dispatcher keeps that cascade's depth on the thread. A run starts at depth zero, as a
+          # plain run does, so work that cascades four deep is not cut off by the cascade that
+          # launched it.
+          #
+          # @yield the work to run at depth zero
+          # @return [Object] what the block answers
+          def at_reaction_depth_zero
+            depth = Thread.current[:hecks_reaction_depth]
+            Thread.current[:hecks_reaction_depth] = 0
+            yield
+          ensure
+            Thread.current[:hecks_reaction_depth] = depth
+          end
         end
 
         # @param tree [Tree] the checkout whose spec is run
@@ -51,16 +66,7 @@ module Hecks
           out.string.strip
         end
 
-        # The runner is asked for from inside a command's own reaction cascade, and the dispatcher
-        # keeps that cascade's depth on the thread. An example starts at depth zero, as a plain run
-        # does, so a spec that cascades four deep is not cut off by the cascade that launched it.
-        def at_reaction_depth_zero
-          depth = Thread.current[:hecks_reaction_depth]
-          Thread.current[:hecks_reaction_depth] = 0
-          yield
-        ensure
-          Thread.current[:hecks_reaction_depth] = depth
-        end
+        def at_reaction_depth_zero(&) = self.class.at_reaction_depth_zero(&)
 
         def runner
           return self.class.runner if self.class.runner

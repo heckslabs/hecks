@@ -1,6 +1,6 @@
 # `report` is the business-facing spelling of a read model
 
-**Status:** Accepted — implemented (`bluebook_builder.rb`, `syntax.bluebook` via `bin/evolve rename`, `docs/implemented/reference/`)
+**Status:** Superseded — the rename was reversed: `read_model` is the word again and `report` is refused in live source (`hecks query language_run.word_status` shows `Bluebook.read_model (was report)`). The `bin/` scripts named below are retired; `docs/tools.md` maps each to its `hecks` verb. Kept as the record of the first rename. Originally: Accepted — implemented (`bluebook_builder.rb`, `syntax.bluebook` via `bin/evolve rename`, `docs/implemented/reference/`)
 
 ## Context
 

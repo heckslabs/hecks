@@ -1,5 +1,7 @@
 # Rust compiles types ahead of time and interprets dispatch data at runtime
 
+**Historical:** the `rust/project/*.rb` generator and the `bin/project_*` scripts named below are gone; `docs/tools.md` maps each retired script to its `hecks` verb, and Rust generation now lives in `rust/codegen` (ADR 0086).
+
 **Status:** Accepted — implemented. `rust/` (Cargo crate + Ruby generator, `bin/project_rust` the driver), branch `feat/rust-projection`. Supersedes [0007](0007-rust-generates-code-not-ruby-source.md)'s central claim.
 
 ## Context

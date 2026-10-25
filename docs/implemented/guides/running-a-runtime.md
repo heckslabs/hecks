@@ -436,13 +436,13 @@ codegen has to fill in on its own, the same place Ruby fills it.
 
 ## Dispatch, in the order it actually runs
 
-The steps, read by `Runtime::CommandInterpreter::DISPATCH_ORDER`
+The steps are read by `Runtime::CommandInterpreter::DISPATCH_ORDER`
 off the language's own declared vocabulary (and projected into the Rust
 kernel as `AggregateStep::ORDER`, which `kernel/dispatch.rs`'s `dispatch()`
 loops over) — this is not a summary, it is the literal list:
 
 ```ruby skip
-decode_arguments           # raw facts into declared arguments — a no-op step in both engines today (routing/generated from_json still decode)
+decode_arguments           # raw facts into declared arguments — routing/generated from_json decode; in Ruby the step answers the command's `needs`
 refuse_unknown_arguments   # every arg key must be a declared attribute or an addressing key (id/identity/reference)
 refuse_absent_arguments    # every non-optional declared attribute must be present
 normalize_args             # coerce raw hashes into typed Values — invariant checks fire HERE
