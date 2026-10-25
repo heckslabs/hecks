@@ -9,10 +9,10 @@ stability promise's one-paragraph summary stay on the
 stability promise made at `1.0.0` covers — the DSL and runtime API in
 [the DSL reference](../reference/index.md) won't change in a breaking way
 without a major-version bump — and what it explicitly doesn't cover yet
-(query DSL aggregation beyond `count`/`median`/`group_by`, Rust codegen for
-`read_model` beyond its proven subset, Rails integration, Drivers, the
-outbox's standalone relay — see that doc's "Explicitly not covered"
-section). [ADR 0025](../../decisions/0025-the-dsl-names-one-idea-one-way-and-a-word-earns-its-place-by-being-used.md),
+(the read-model reductions and grouped reductions added after the tag,
+Rust codegen for `read_model` beyond its proven subset, the Rails driving
+adapter in `packages/hecks-rails`, Drivers, the outbox's standalone relay —
+see that doc's "Explicitly not covered" section). [ADR 0025](../../decisions/0025-the-dsl-names-one-idea-one-way-and-a-word-earns-its-place-by-being-used.md),
 the breaking DSL redesign the `1.0.0` release was blocked on, is fully
 landed — the [README's quickstart](../../../README.md#quickstart) shows the
 current syntax.
@@ -73,12 +73,41 @@ order.status   # => "sold"
   just indexed, on every SQL adapter: the hop folds into a local `in:`
   clause before any adapter sees it
   (`spec/adapters/query_hop_agreement_spec.rb`).
-- Query aggregation is partial. A `read_model` can declare `count`,
-  `median` and `group_by`, on Ruby and on the generated Rust runtime;
-  there is no `sum`, `avg`, `min` or `max`, and a plain `query` reduces
-  nothing. A `group_by` leaf holds one row: when several rows share a key
-  path the ask refuses, on every adapter and in Rust, rather than keeping
-  the first ([ADR 0061](../../decisions/0061-query-dsl-aggregation-count-sum-group-by.md)).
+- Query aggregation lives on `read_model`, and a plain `query` reduces
+  nothing. A read model reduces its rows with `count`, `sum`, `avg`, `min`,
+  `max`, `median`, `percentile`, `any` or `all`, on Ruby and on the
+  generated Rust runtime ([ADR 0078](../../decisions/0078-read-model-completes-its-reduction-vocabulary-sum-avg-min-max-percentile-any-all.md)).
+  With `group_by` and one reduction, each leaf is the reduction of that
+  group's rows; each reducer's empty answer and how two partial answers
+  combine are rows of the Vocabulary chapter that both runtimes read
+  ([ADR 0126](../../decisions/0126-a-group-by-reduces-each-group-and-each-reducer-is-a-row.md)).
+  A `group_by` with no reduction still holds one row per leaf and refuses
+  when several rows share a key path. Reductions run in process, not in
+  SQL. Grouped reductions are on `main` and not yet in a release.
+- A projected read model (`SqliteProjection`, and the new
+  `PostgresProjection`) is checked against the in-process loop by the fuzz
+  property `projected_read_models_agree_with_loop` on every Sqlite or
+  Postgres sweep ([ADR 0122](../../decisions/0122-a-projection-answers-what-the-loop-answers.md)).
+- Bulk runs: attaching the `Bulk` chapter lets a caller send one command
+  to every row of a query, with one outcome kept per row
+  ([ADR 0125](../../decisions/0125-a-bulk-run-sends-one-command-to-every-row-of-a-query.md)).
+  On Sqlite and Postgres, which declare `provides "set_transform"`
+  ([ADR 0123](../../decisions/0123-an-adapter-provides-capabilities-and-a-ledger-says-which-dialects-compile.md)),
+  a run whose command and givens compile goes as one `UPDATE … RETURNING`
+  with its events and outbox rows in the same transaction; anything else
+  runs row by row, and the fuzzer holds the two equal on both stores
+  ([ADR 0128](../../decisions/0128-a-bulk-run-compiles-to-one-update-when-its-store-provides-set-transform.md)).
+  PostgresEra and the Rust host run every bulk run row by row. On `main`,
+  not yet in a release.
+- On `main`, not yet in a release: `model_check` reports a reference
+  whose target can end with no policy for its holders
+  ([ADR 0121](../../decisions/0121-a-reference-to-a-record-that-ends-needs-a-policy-for-its-holders.md)),
+  and `reference_to one_of(A, B), as:` declares a tagged reference to a
+  closed union of aggregates
+  ([ADR 0127](../../decisions/0127-reference-to-one-of-is-a-tagged-reference-to-a-closed-union.md)).
+- Rails: `packages/hecks-rails` is a driving adapter that gives a Rails
+  app generated models, routes and controllers over a domain; its open
+  items are listed in [`docs/rails-integration.md`](../../rails-integration.md).
 - `PostgresEra`'s schema-evolution/translation system works and is
   exercised in CI; the migration/rekey data-loss findings tracked
   against it (era-migrated deletes resurrecting, rekey SQL invisible
