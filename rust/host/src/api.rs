@@ -91,11 +91,16 @@ pub async fn route(
                 }
                 ("POST", [collection]) => {
                     let caller = crate::auth::caller(session);
-                    collection_create(domain_ir, collection, raw_body, caller, host).await
+                    let preview = crate::validation::requested(query);
+                    collection_create(domain_ir, collection, raw_body, caller, preview, host).await
                 }
                 ("POST", [collection, id, command]) => {
                     let caller = crate::auth::caller(session);
-                    command_route(domain_ir, collection, id, command, raw_body, caller, host).await
+                    let preview = crate::validation::requested(query);
+                    command_route(
+                        domain_ir, collection, id, command, raw_body, caller, preview, host,
+                    )
+                    .await
                 }
                 _ => not_found(&format!("no API route for {method} {path}")),
             }
@@ -340,6 +345,7 @@ async fn collection_create(
     collection: &str,
     raw_body: &str,
     caller: dispatch::Caller<'_>,
+    preview: bool,
     host: Host<'_>,
 ) -> Value {
     let Host {
@@ -386,6 +392,9 @@ async fn collection_create(
         domain_name(domain_ir),
         command_name(creating)
     );
+    if preview {
+        return preview_answer(host, &verb, dispatch::facts_invocation(args), caller).await;
+    }
     let outcome = match dispatch::handle_facts_request(host, &verb, args, caller).await {
         Ok(outcome) => outcome,
         Err(e) => return internal_error(&format!("{e:#}")),
@@ -403,6 +412,7 @@ async fn collection_create(
 /// `POST /api/:coll/:id/:command` — a command against an existing record.
 /// Order matters: find the record first (404), then the command (404),
 /// then dispatch — the Ruby engine's own order.
+#[allow(clippy::too_many_arguments)]
 async fn command_route(
     domain_ir: &Value,
     collection: &str,
@@ -410,6 +420,7 @@ async fn command_route(
     command: &str,
     raw_body: &str,
     caller: dispatch::Caller<'_>,
+    preview: bool,
     host: Host<'_>,
 ) -> Value {
     let Host {
@@ -447,6 +458,10 @@ async fn command_route(
         domain_name(domain_ir),
         command_name(declared)
     );
+    if preview {
+        let invocation = dispatch::routed_invocation(json!(id), args);
+        return preview_answer(host, &verb, invocation, caller).await;
+    }
     let outcome = match dispatch::handle_routed_request(host, &verb, json!(id), args, caller).await
     {
         Ok(outcome) => outcome,
@@ -456,6 +471,24 @@ async fn command_route(
         return domain_refusal(&outcome.result);
     }
     created_record(domain_ir, aggregate, &outcome.result, id)
+}
+
+/// What a preview of `verb` answers: the client envelope, with 200 whether or not the command would
+/// be refused. A malformed invocation or a failure to run is a `500`, as a real dispatch's is.
+async fn preview_answer(
+    host: Host<'_>,
+    verb: &str,
+    invocation: anyhow::Result<Value>,
+    caller: dispatch::Caller<'_>,
+) -> Value {
+    let invocation = match invocation {
+        Ok(invocation) => invocation,
+        Err(e) => return internal_error(&format!("{e:#}")),
+    };
+    match dispatch::preview_request(host, verb, invocation, caller).await {
+        Ok(outcome) => ok(&crate::validation::answer(&outcome.result)),
+        Err(e) => internal_error(&format!("{e:#}")),
+    }
 }
 
 /// Every command except the creating one, which is reached only through
@@ -1953,7 +1986,7 @@ mod tests {
         };
         let invoker = crate::lambda_client::NeverInvoker;
 
-        let created = collection_create(&ir, "customers", r#"{"reference":{"value":"CUST-9001"},"name":{"given":"Ada","family":"Lovelace"},"email":{"address":"ada@example.com"}}"#, dispatch::Caller::default(), Host::new(&client, &wasm, &lineage, &invoker))
+        let created = collection_create(&ir, "customers", r#"{"reference":{"value":"CUST-9001"},"name":{"given":"Ada","family":"Lovelace"},"email":{"address":"ada@example.com"}}"#, dispatch::Caller::default(), false, Host::new(&client, &wasm, &lineage, &invoker))
         .await;
 
         assert_eq!(created["statusCode"], 200, "{created}");
@@ -1977,6 +2010,7 @@ mod tests {
             "suspend",
             r#"{"standing":{"value":"watch"}}"#,
             dispatch::Caller::default(),
+            false,
             Host::new(&client, &wasm, &lineage, &invoker),
         )
         .await;
@@ -1994,6 +2028,7 @@ mod tests {
             "suspend",
             r#"{"standing":{"value":"watch"}}"#,
             dispatch::Caller::default(),
+            false,
             Host::new(&client, &wasm, &lineage, &invoker),
         )
         .await;
@@ -2021,6 +2056,7 @@ mod tests {
             "nope",
             "",
             dispatch::Caller::default(),
+            false,
             Host::new(&client, &wasm, &lineage, &invoker),
         )
         .await;
@@ -2037,6 +2073,7 @@ mod tests {
             "suspend",
             "",
             dispatch::Caller::default(),
+            false,
             Host::new(&client, &wasm, &lineage, &invoker),
         )
         .await;
@@ -2184,6 +2221,76 @@ mod tests {
                 .expect("a message")
                 .contains("ConsoleSettings"),
             "the refusal has to name what is missing: {response}"
+        );
+    }
+
+    // `?dry_run=1`: the same routes answer whether the command would be accepted, and keep nothing.
+    #[tokio::test]
+    async fn a_preview_through_the_api_routes_answers_the_envelope_and_keeps_nothing() {
+        let client = crate::dispatch::tests::scratch_db("rust_host_api_preview_routes").await;
+        crate::dispatch::tests::provision_lineage(
+            &*client.lock().await,
+            "Banking",
+            1,
+            &["Customer"],
+        )
+        .await;
+        let wasm = crate::dispatch::tests::wasm_path();
+        let ir = banking_ir();
+        let lineage = LineageConfig {
+            domain: "Banking".to_string(),
+            era: Some(1),
+            mirrored: None,
+        };
+        let invoker = crate::lambda_client::NeverInvoker;
+        let host = || Host::new(&client, &wasm, &lineage, &invoker);
+        let ada = |reference: &str| {
+            format!(
+                r#"{{"reference":{{"value":"{reference}"}},"name":{{"given":"Ada","family":"Lovelace"}},"email":{{"address":"ada@example.com"}}}}"#
+            )
+        };
+        let caller = dispatch::Caller::default;
+
+        collection_create(&ir, "customers", &ada("CUST-9101"), caller(), false, host()).await;
+
+        let accepted =
+            collection_create(&ir, "customers", &ada("CUST-9102"), caller(), true, host()).await;
+        assert_eq!(accepted["statusCode"], 200, "{accepted}");
+        assert_eq!(body(&accepted), json!({ "ok": true, "refusals": [] }));
+        let absent = record_show(&ir, "customers", "CUST-9102", &client, &wasm, &lineage).await;
+        assert_eq!(
+            absent["statusCode"], 404,
+            "the preview kept a record: {absent}"
+        );
+
+        let duplicate =
+            collection_create(&ir, "customers", &ada("CUST-9101"), caller(), true, host()).await;
+        assert_eq!(duplicate["statusCode"], 200, "{duplicate}");
+        assert_eq!(body(&duplicate)["ok"], false);
+        assert_eq!(body(&duplicate)["refusals"][0]["refusal"], "AlreadyExists");
+
+        let suspend = r#"{"standing":{"value":"watch"}}"#;
+        let routed = command_route(
+            &ir,
+            "customers",
+            "CUST-9101",
+            "suspend",
+            suspend,
+            caller(),
+            true,
+            host(),
+        )
+        .await;
+        assert_eq!(
+            body(&routed),
+            json!({ "ok": true, "refusals": [] }),
+            "{routed}"
+        );
+        let shown = record_show(&ir, "customers", "CUST-9101", &client, &wasm, &lineage).await;
+        assert_ne!(
+            body(&shown)["status"],
+            "suspended",
+            "the preview suspended the customer"
         );
     }
 }
