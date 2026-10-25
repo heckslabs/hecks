@@ -95,14 +95,14 @@ module Hecks
 
           def many_side_count = Array(@aggregate_heads).count { |head| head[:many] }
 
-          # `cursor` is parsed but no interpreter applies it, so it is refused rather than
-          # letting an author believe cursor pagination happens.
+          # A cursor pages a query (ADR 0128); a read model's many-side head does not page yet, so it
+          # is refused rather than letting an author believe it does.
           def seal_cursor
             return unless @cursor
 
             raise Malformed,
-                  "#{@name} declares cursor, but no interpreter implements cursor " \
-                  "pagination — use limit/offset instead"
+                  "#{@name} declares cursor, but a read model does not page by cursor yet — " \
+                  "cursor pages a query; use limit/offset here"
           end
         end
       end

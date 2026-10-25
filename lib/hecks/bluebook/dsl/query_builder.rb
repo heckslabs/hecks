@@ -74,8 +74,8 @@ module Hecks
         # Assembles the declared parameters and filtering into a `Query`.
         #
         # @return [Bluebook::Query] the built query
-        # @raise [Bluebook::DSL::Malformed] if the body declares `cursor`, which no interpreter
-        #   implements
+        # @raise [Bluebook::DSL::Malformed] if `cursor` is declared without a `limit` and a matching
+        #   order, or beside an `offset`
         def build
           seal_cursor
           refuse_undeclared_needs!
@@ -89,7 +89,7 @@ module Hecks
         #   entity's own attributes, matched against the block's own parameter names
         # @yield the query body, evaluated with the builder as `self`; may be omitted
         # @return [Bluebook::Query] the built query
-        # @raise [Bluebook::DSL::Malformed] if the body declares `cursor`, a duplicate attribute,
+        # @raise [Bluebook::DSL::Malformed] if the body declares an unsound `cursor`, a duplicate attribute,
         #   or a filtering clause the query language refuses
         def self.build(name, owner_attributes: [], &block)
           builder = new(name)
@@ -130,15 +130,20 @@ module Hecks
           end
         end
 
-        # `cursor` parses and round-trips but no interpreter applies it; refuse it so an author
-        # does not believe cursor pagination happens.
+        # `cursor :field` pages the query by its order field and identity (ADR 0128), so it needs
+        # the page size (`limit`), an order it can key on, and no `offset` beside it.
         def seal_cursor
           return unless @cursor
 
-          raise Malformed,
-                "#{@name} declares cursor, but no interpreter implements cursor " \
-                "pagination — use limit/offset instead"
+          refuse_cursor!("a cursor pages by a page size — add `limit N`") unless @limit
+          refuse_cursor!("a cursor and an offset both position the page — drop `offset`") if @offset
+          return if @cursor.value.to_s == (@order_by ? @order_by.field.to_s : "id")
+
+          refuse_cursor!("the cursor must name the field the query orders by " \
+                         "(`cursor :#{@order_by ? @order_by.field : "id"}`)")
         end
+
+        def refuse_cursor!(fix) = raise(Malformed, "#{@name} declares cursor, but #{fix}")
       end
     end
   end

@@ -38,11 +38,12 @@ module Hecks
       # @raise [Runtime::UnknownVerb] if `query_name` names no declared query
       # @raise [Runtime::TypeMismatch] if an argument cannot be coerced to its type
       # @raise [Runtime::WiringError] if the aggregate's repository cannot be resolved
-      def call(domain, aggregate, query_name, args)
+      def call(domain, aggregate, query_name, args, widen: false)
         return entity_rows(domain, aggregate, query_name, args) if query_name.include?(".")
 
         declared = declared_query(aggregate, query_name)
         args = normalize_args(aggregate, declared, args)
+        declared = Ports::Query::Cursor::Widened.new(declared, page_size(declared, args)) if widen
         port = aggregate.query_binding(declared.name)
         return answered_from_outside(aggregate, declared, args, port) if port
 
@@ -50,6 +51,25 @@ module Hecks
         return answered_by_plugin(domain, aggregate, declared, args, plugin) if plugin
 
         Freezer.deep(local_answer(domain, aggregate, declared, args))
+      end
+
+      # Answers one page of a cursor query: the rows, and the token of the page after them.
+      #
+      # The query is asked for one row past its page; that row proves a next page exists and is
+      # not answered.
+      #
+      # @param query_name [String] a declared aggregate query that declares `cursor`
+      # @param args [Hash] the query's arguments; `:after` is the position token, absent for page one
+      # @return [Hash{Symbol => Object}] `rows` (frozen Hashes) and `after` (a String, nil on the
+      #   last page)
+      # @raise [ArgumentError] if the query declares no cursor, or `after` is not a token it handed out
+      def page(domain, aggregate, query_name, args)
+        declared = declared_query(aggregate, query_name)
+        raise ArgumentError, "#{query_name} declares no cursor, so it has no pages" unless declared.cursor
+
+        size = page_size(declared, normalize_args(aggregate, declared, args))
+        rows, after = Ports::Query::Cursor.split(call(domain, aggregate, query_name, args, widen: true), declared, size)
+        { rows: rows, after: after }
       end
 
       # The reference answer: this interpreter's own evaluation, never a native hook.
@@ -80,6 +100,8 @@ module Hecks
       end
 
       private
+
+      def page_size(declared, args) = resolve_query_value(declared.limit.value, args).to_i
 
       # The rows of a query answered from the aggregate's own records: the adapter's native hook
       # when the store has one, this interpreter's evaluation otherwise.
@@ -127,6 +149,7 @@ module Hecks
 
       # Offset before limit, as SQL's `LIMIT n OFFSET m` and Ports::Query::InMemory do.
       def paginate(ordered, declared, args)
+        ordered = Ports::Query::Cursor.after(ordered, declared, args) if declared.cursor
         skipped = declared.offset ? ordered.drop(resolve_query_value(declared.offset.value, args).to_i) : ordered
         declared.limit ? skipped.first(resolve_query_value(declared.limit.value, args).to_i) : skipped
       end
