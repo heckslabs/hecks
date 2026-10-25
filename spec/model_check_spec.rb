@@ -253,6 +253,30 @@ RSpec.describe "the model checker" do
     end
   end
 
+  # ADR 0122: once a construct branches on a tagged reference's type, every variant of the
+  # union must be handled, by a command's given or a read model's where on the owning aggregate.
+  describe "one_of branch findings" do
+    let(:findings) { findings_for("one_of_findings").select { |f| f.kind == :one_of_branch_unhandled } }
+
+    def message_for(subject) = findings.find { |f| f.subject == subject }&.message
+
+    it "names the variant a branching command leaves unhandled" do
+      expect(message_for("Comment.subject")).to include("no branch handles Photo")
+    end
+
+    it "names a branch on a type the union does not hold" do
+      expect(message_for("Like.subject")).to include("a branch names Video, which the union does not hold")
+    end
+
+    it "counts a read model's where as a branch, and leaves a union nothing branches on alone" do
+      expect(findings.map(&:subject)).to contain_exactly("Comment.subject", "Like.subject")
+    end
+
+    it "reports it as an error" do
+      expect(findings.map(&:severity).uniq).to eq([:error])
+    end
+  end
+
   # A Rust keyword as a domain or aggregate name, or a reserved Cargo.toml key as a domain
   # module/feature key: a warning by default, an error with a Rust target or strict.
   describe "Rust reserved names" do
