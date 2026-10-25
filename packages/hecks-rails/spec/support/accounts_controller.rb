@@ -1,11 +1,9 @@
-# Names the signed-in actor from a header, standing in for an app's own authentication.
+# Joins the domain by its name. The app's only code is who is signed in, here read from a header.
 class AccountsController < ActionController::Base
-  include Hecks::Rails::Controller
+  Person = Struct.new(:id)
 
-  hecks_model Account
-
-  def hecks_actor
-    actor = request.headers["X-Actor"]
-    actor && { actor_id: actor }
+  def current_user
+    id = request.headers["X-Actor"]
+    id && Person.new(id)
   end
 end

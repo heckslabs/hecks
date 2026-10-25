@@ -2,6 +2,7 @@ Hecks.hecksagon "Ledger" do
   attaches "Governance"
 
   Ledger::Account.persisted_by("Memory")
+  Ledger::Note.persisted_by("Memory")
 end
 
 Hecks.hecksagon "Governance" do

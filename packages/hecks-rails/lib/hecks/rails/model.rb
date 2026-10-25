@@ -1,14 +1,9 @@
 module Hecks
   module Rails
-    # A Rails model over a Hecks aggregate:
-    #
-    #     class Account < Hecks::Rails::Model
-    #       aggregate "Ledger.Account"
-    #     end
-    #
-    # The chapter declares a `namespace` (`namespace "LedgerDomain"`), so the Ruby driving adapter
-    # leaves the bare `Account` free. The class is a thin skin that holds no rules: `validates`,
-    # callbacks and associations belong in the bluebook, and `Hecks/RailsModelRules` refuses them.
+    # A Rails model over a domain aggregate. The railtie generates one per aggregate, so write
+    # `class Account < ApplicationRecord` only to hold presentation methods; the aggregate is
+    # found by the class name. It is a thin skin with no rules: `validates`, callbacks and
+    # associations belong in the bluebook, and `Hecks/RailsModelRules` refuses them.
     #
     # A creating command is a class method (`Account.open_account!`), any other an instance
     # method (`account.freeze_account!`), and the bare name answers the command's declaration.
@@ -27,6 +22,16 @@ module Hecks
       attr_reader :errors
 
       class << self
+        # Binds a named subclass to the aggregate of the same name, so `class Account <
+        # ApplicationRecord` needs no declaration.
+        #
+        # @param subclass [Class] the model class being defined
+        # @return [void]
+        def inherited(subclass)
+          super
+          subclass.send(:bind_by_name)
+        end
+
         # Binds this model to an aggregate and defines a method per command.
         #
         # @param name [String] `"Chapter.Aggregate"` or `"Chapter::Aggregate"`
@@ -51,6 +56,13 @@ module Hecks
         def unsaved = new(nil)
 
         private
+
+        def bind_by_name
+          return unless name && Booted.booted?
+
+          chapter = Booted.app_chapters.find { |candidate| candidate.aggregates.any? { |a| a.hecks_name == name } }
+          aggregate("#{chapter.name}.#{name}") if chapter
+        end
 
         def define_command(command)
           name = Naming.snake(command.hecks_name).to_s

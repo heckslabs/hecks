@@ -1,30 +1,39 @@
 module Hecks
   module Rails
-    # The `hecks_routes` word for a Rails routes file:
-    #
-    #     Rails.application.routes.draw { hecks_routes "ledger" }
-    #
-    # Each aggregate gets `only: [:show]`, which every write's redirect resolves through, and a
-    # POST per command from `CommandRoutes`.
+    # Makes `resources :accounts` draw an aggregate's command routes when `accounts` is one:
+    # a `show`, then a POST per command. A creating command routes to the collection and any
+    # other to the member, because it already knows its subject. Nothing in the language maps to
+    # REST's update or destroy, so a write is always a POST. Any other resource draws as usual.
     module Routes
-      # @param chapter_name [String, Symbol] a booted chapter's name, in any case
+      RESOURCES = ActionDispatch::Routing::Mapper::Resources.instance_method(:resources)
+
+      # @param names [Array<Symbol>] the resources to draw
       # @return [void]
-      def hecks_routes(chapter_name)
-        routes = CommandRoutes.for_chapter(Booted.chapter(chapter_name))
-        routes.group_by(&:resource).each do |resource, resource_routes|
-          resources(resource.pluralize.to_sym, only: [:show]) do
-            resource_routes.reject(&:show?).each { |route| hecks_command_route(route) }
-          end
-        end
+      def resources(*names, **options, &block)
+        aggregates = names.map { |name| domain_aggregate(name) }
+        return super unless aggregates.all?
+
+        names.zip(aggregates) { |name, aggregate| domain_resource(name, aggregate, options, block) }
       end
 
-      # @param route [CommandRoutes::Route] one command's POST
-      # @return [void]
-      def hecks_command_route(route)
-        public_send(route.scope) { post route.action }
+      private
+
+      def domain_aggregate(name)
+        return unless Booted.booted?
+
+        singular = name.to_s.singularize
+        Booted.app_chapters.flat_map(&:aggregates).find { |a| Naming.snake(a.hecks_name).to_s == singular }
+      end
+
+      def domain_resource(name, aggregate, options, block)
+        routes = CommandRoutes.for_aggregate(aggregate).reject(&:show?)
+        RESOURCES.bind_call(self, name, only: [:show], **options) do
+          instance_exec(&block) if block
+          routes.each { |route| public_send(route.scope) { post route.action } }
+        end
       end
     end
   end
 end
 
-ActionDispatch::Routing::Mapper.include(Hecks::Rails::Routes)
+ActionDispatch::Routing::Mapper.prepend(Hecks::Rails::Routes)

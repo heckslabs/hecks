@@ -1,6 +1,5 @@
 Hecks.bluebook "Ledger" do
   vision "Accounts that open with a balance and can be frozen while empty."
-  namespace "LedgerDomain"
 
   aggregate "Account" do
     identified_by :number
@@ -59,6 +58,34 @@ Hecks.bluebook "Ledger" do
       reference_to Account
 
       emits "AccountUnfrozen"
+    end
+  end
+
+  aggregate "Note" do
+    identified_by :slug
+
+    attribute :slug, Slug
+    attribute :text, Body
+
+    value_object "Slug" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Body" do
+      attribute :value, String, matches: :present
+    end
+
+    command "PostNote" do
+      role "Teller"
+      goal "Leave a note on the ledger"
+
+      attribute :slug, Slug
+      attribute :text, Body
+
+      sets :slug
+      sets :text
+
+      emits "NotePosted"
     end
   end
 end

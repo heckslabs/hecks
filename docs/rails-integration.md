@@ -7,23 +7,26 @@ rejected, kept here so they aren't re-litigated later.
 
 ## What is built
 
+An app's own code never names Hecks: it has a `bluebook/` directory, `gem "hecks-rails"`, and
+ordinary Rails files.
+
 | Piece | Where | Notes |
 |---|---|---|
 | `Hecks::Refused` | `lib/hecks/refused.rb` | Parent of every domain refusal (ADR 0120); `#attribute` and `#kind` (`:not_found`, `:unauthorized`, `:absent_argument`) |
 | Bare verb | `lib/hecks/adapters/driving/handle/verb_methods.rb` | `freeze_account` answers the command's declaration; `freeze_account!` dispatches and raises |
-| `Hecks::Rails::Model` | `packages/hecks-rails` | `aggregate "Chapter.Aggregate"`; a creating command is a class method, any other an instance method |
-| `hecks_routes` | `packages/hecks-rails` | `show` per aggregate and a POST per command, from `Hecks::Rails::CommandRoutes` |
-| `Hecks::Rails::Controller` | `packages/hecks-rails` | A named action per command; refusals land in `errors` and answer 422, 403 or 404 by kind |
-| Per-request caller | the controller | Each request runs inside `Hecks.as_caller(role:, actor_id:)`; no actor runs as an anonymous caller that every role-gated command refuses |
-| `bluebook_form_for` | `packages/hecks-rails` | Fields from `Hecks::Forms`, named by the dotted paths `Forms::Params` reads |
+| Models | `packages/hecks-rails` (`Skins`, `Model`) | One generated per aggregate, inheriting a generated `ApplicationRecord`; write `class Account < ApplicationRecord` only to add presentation methods, and the aggregate is found by the class name |
+| Routes | `packages/hecks-rails` (`Routes`) | `resources :accounts` draws a `show` and a POST per command when `accounts` is an aggregate; a creating command routes to the collection, any other to the member |
+| Controllers | `packages/hecks-rails` (`Controller`) | `AccountsController` joins the domain by its name, with a named action per command; refusals land in `errors` and answer 422, 403 or 404 by kind |
+| Actor | `packages/hecks-rails` (`Actor`) | Each request runs inside `Hecks.as_caller` as `current_user`'s `actor_id` (or `id`); with nobody signed in, every role-gated command refuses; `Hecks::Rails.actor_from` overrides the lookup once |
+| `command_form_for` | `packages/hecks-rails` | Fields from `Hecks::Forms`, named by the dotted paths `Forms::Params` reads |
 | `available_commands(as:)` | the model | The domain's own dry run, under the actor's Governance grants |
 | `be_refused_with` | `hecks/rails/rspec` | RSpec matcher for a refusal and its wording |
 | `Hecks/RailsModelRules` | `lib/rubocop/cop/hecks` | Refuses `validates`, callbacks and associations in a model |
 
-A chapter a Rails app boots declares a `namespace` (`namespace "LedgerDomain"`), so the Ruby
-driving adapter leaves the bare `Account` free for the model. The routes are computed from the
-booted chapter's IR rather than read from Site `Route` rows, which are a hand-declared website
-registry.
+The routes are computed from the booted chapters' IR rather than read from Site `Route` rows, which
+are a hand-declared website registry. The railtie removes the top-level modules the Ruby driving
+adapter installs for each aggregate, before Zeitwerk registers the app's own model files, so
+`Account` is the app's model and the aggregate stays reachable through its chapter.
 
 ## The motivation, stated precisely
 

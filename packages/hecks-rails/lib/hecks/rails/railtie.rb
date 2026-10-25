@@ -3,11 +3,21 @@ require "yaml"
 module Hecks
   module Rails
     # Boots the app's domain before routes are drawn, from the `bluebook/` directory at the app's
-    # root. An optional `bluebook.yml` beside it sets `environment:`.
+    # root, and defines a model for each aggregate the app has not written one for. An optional
+    # `bluebook.yml` beside it sets `environment:`.
     class Railtie < ::Rails::Railtie
-      initializer "hecks.boot", before: :set_routes_reloader_hook do |app|
+      initializer "hecks.boot", before: :setup_main_autoloader do |app|
         directory = app.root.join("bluebook")
-        Booted.boot(directory.to_s, environment: Railtie.environment(app.root)) if directory.directory?
+        if directory.directory?
+          Booted.boot(directory.to_s, environment: Railtie.environment(app.root))
+          Skins.discard_facades!
+        end
+      end
+
+      config.to_prepare { Skins.generate! if Booted.booted? }
+
+      initializer "hecks.controllers" do
+        ActiveSupport.on_load(:action_controller) { extend Controller::Inheritance }
       end
 
       # @param root [Pathname] the app's root
