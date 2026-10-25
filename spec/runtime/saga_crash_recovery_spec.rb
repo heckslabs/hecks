@@ -8,8 +8,8 @@ RSpec.describe "saga durability across a process death mid-leg" do
   SQLITE_ADAPTER = File.join(InMemoryDomain::ROOT, "lib/hecks/adapters/driven/sqlite.adapter") unless defined?(SQLITE_ADAPTER)
 
   SAGA_STALL_WARNING = /
-    Wire\ rehydrated\ Carry\ instance\ "wire-1"\ in\ state\ "asked"\ with\ a\ dispatch\ left\ pending.*
-    Take.*reconcile\ this\ instance\ by\ hand
+    Wire\ Carry\ instance\ "wire-1"\ stalled\ before\ Drawer\.Take\ settled.*
+    not\ declared\ idempotent.*reconcile\ this\ instance\ by\ hand
   /x
 
   around do |example|
@@ -49,7 +49,7 @@ RSpec.describe "saga durability across a process death mid-leg" do
 
     registry.verify!
     registry.rehydrate_sagas!
-    Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
+    Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry)).tap(&:redrive_sagas!)
   end
 
   class SimulatedCrash < Exception; end # rubocop:disable Lint/InheritException
@@ -142,13 +142,69 @@ RSpec.describe "saga durability across a process death mid-leg" do
       expect(memory).not_to have_key(:__hecks_saga_pending_dispatch__)
     end
 
-    # Not auto-redriven: redelivering a dispatch with an unknown outcome is unsafe without
-    # idempotent delivery (see saga_pending_dispatch.rb).
-    it "does NOT auto-redrive the leg", :aggregate_failures do
+    # The dispatch was started, so it may have run; a command not declared idempotent is not
+    # redelivered (see saga_pending_dispatch.rb).
+    it "does NOT redrive a started dispatch that is not declared idempotent", :aggregate_failures do
       reopened_after_crash
 
       expect(Wire::Drawer.find("left").cents.to_h).to eq(cents: 10_000)
       expect(Wire::Drawer.find("right").cents.to_h).to eq(cents: 0)
+    end
+  end
+
+  describe "redriving the stalled leg" do
+    # The crash is moved back to just after the checkpoint: no dispatch of the leg had begun.
+    def rewind_to_unstarted
+      process_manager, correlation, state, memory, compensations = carry_row
+      memory[:__hecks_saga_pending_dispatch__].merge!(settled: 0, attempting: false)
+      runtime.registry.saga_persistence("Wire").save_saga(
+        process_manager: process_manager, correlation: correlation, state: state, memory: memory,
+        completed_compensations: compensations
+      )
+    end
+
+    def declare_every_command_idempotent
+      allow(Hecks::Runtime::SagaInterpreter).to receive(:new).and_wrap_original do |original, *args, **kwargs|
+        original.call(*args, **kwargs).tap { |saga| allow(saga).to receive(:command_idempotent?).and_return(true) }
+      end
+    end
+
+    def crash_then_reboot
+      fund_left_drawer
+      crash_on_take
+      ask_and_die
+      yield if block_given?
+      boot_wire
+    end
+
+    it "delivers every dispatch of a leg that never began", :aggregate_failures do
+      reopened = crash_then_reboot { rewind_to_unstarted }
+
+      expect(Wire::Drawer.find("left").cents.to_h).to eq(cents: 7_500)
+      expect(Wire::Drawer.find("right").cents.to_h).to eq(cents: 2_500)
+      expect(reopened.registry.saga_log).to include(hash_including(process_manager: "Carry", redriven: true))
+    end
+
+    it "clears the marker once the leg is finished" do
+      crash_then_reboot { rewind_to_unstarted }
+
+      expect(Array(carry_row)[3].to_h).not_to have_key(:__hecks_saga_pending_dispatch__)
+    end
+
+    it "does not deliver twice when the store is reopened again", :aggregate_failures do
+      crash_then_reboot { rewind_to_unstarted }
+      boot_wire
+
+      expect(Wire::Drawer.find("left").cents.to_h).to eq(cents: 7_500)
+      expect(Wire::Drawer.find("right").cents.to_h).to eq(cents: 2_500)
+    end
+
+    it "redelivers a started dispatch whose command is declared idempotent", :aggregate_failures do
+      declare_every_command_idempotent
+      crash_then_reboot
+
+      expect(Wire::Drawer.find("left").cents.to_h).to eq(cents: 7_500)
+      expect(Wire::Drawer.find("right").cents.to_h).to eq(cents: 2_500)
     end
   end
 end

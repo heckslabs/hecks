@@ -174,6 +174,13 @@ module Hecks
         Thread.current[:hecks_reaction_depth] = depth
       end
 
+      # Finishes the saga legs a crash cut short in every domain whose sagas persist.
+      #
+      # @return [void]
+      def redrive_sagas!
+        @registry.saga_domains.each { |domain| @sagas.redrive_stalled(domain) }
+      end
+
       # Answers whether the calling thread's reaction cascade is as deep as it may go.
       #
       # @return [Boolean] true once nested `reenter` calls on this thread reach the limit
