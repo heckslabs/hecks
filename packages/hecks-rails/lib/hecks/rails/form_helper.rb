@@ -76,7 +76,9 @@ module Hecks
       end
 
       def command_token(url)
-        respond_to?(:token_tag) ? token_tag(nil, form_options: { action: url, method: "post" }) : "".html_safe
+        return "".html_safe unless respond_to?(:protect_against_forgery?) && protect_against_forgery?
+
+        token_tag(nil, form_options: { action: url, method: "post" })
       end
     end
   end
