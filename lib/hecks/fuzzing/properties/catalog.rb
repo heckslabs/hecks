@@ -13,13 +13,13 @@ module Hecks
         :stored_records_satisfy_declared_invariants,
         :group_by_matches_recompute,
         :paging_offset_partitions_correctly,
-        :cursor_walk_yields_the_unpaged_rows,
         :lifecycle_guard_and_given_violations_are_refused,
         :authorize_scopes_or_refuses,
         :commands_respect_tenant_scope,
         :dispatch_binding_fidelity,
         :mutations_match_recompute,
         :dry_runs_leave_no_trace,
+        :validation_agrees_with_dry_run,
         :refusals_leave_no_trace,
         :corrections_reference_an_emitted_event,
         :outbox_rows_match_reactions,
@@ -39,7 +39,6 @@ module Hecks
         saga_advances_follow_declared_handlers:           %w[Handler#from_state Handler#to_state Handler#event_type],
         query_answers_match_reference:                    %w[Query#wheres Query#order_field Query#order_way Query#limit],
         paging_offset_partitions_correctly:               %w[Query#options],
-        cursor_walk_yields_the_unpaged_rows:              %w[Query#options],
         authorize_scopes_or_refuses:                      %w[Query#options],
         guard_refusals_are_declared:                      %w[Command#givens Command#ensures Command#needs],
         lifecycle_guard_and_given_violations_are_refused: %w[Command#from Aggregate#preconditions Entity#preconditions],
@@ -62,6 +61,9 @@ module Hecks
         # a word a bluebook declares. Listed empty rather than omitted, so every
         # property still names what it is answerable for.
         dry_runs_leave_no_trace:                          [],
+        # `Dispatcher#validate` against `Dispatcher#dry_run?`: two runtime entry points, no grammar
+        # word.
+        validation_agrees_with_dry_run:                   [],
         # Every refusal kind, whichever rule raised it, so no one construct answers for it.
         refusals_leave_no_trace:                          [],
         # Another runtime entry point, not a grammar construct — same reasoning as
