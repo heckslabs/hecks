@@ -555,6 +555,11 @@
       }
     },
     {
+      "query": "Banking::Account.OpenPaged",
+      "args": {
+      }
+    },
+    {
       "query": "Banking::Account.OpenForCustomer",
       "args": {
         "reference": {
@@ -5770,6 +5775,17 @@
       },
       {
         "query": "Banking::Account.OpenForSuspendedCustomers",
+        "args": {
+        },
+        "rows": [
+
+        ],
+        "reference_rows": [
+
+        ]
+      },
+      {
+        "query": "Banking::Account.OpenPaged",
         "args": {
         },
         "rows": [
