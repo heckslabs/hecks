@@ -53,7 +53,7 @@ is setup + roadmap.
   line, so every diagnostic underlines the whole line. Real squiggle
   precision needs `rust/parser` to track columns first — nothing to fix
   here until then.
-- **No completion, hover, or go-to-definition.** The parser's four gates
+- **No completion, hover, or go-to-definition.** The parser's gates
   (`rust/parser/src/parse/mod.rs`: shape → word → body → argument)
   already encode "what's legal at this point in the grammar" — that's
   exactly what a completion engine needs, but it's not exposed as
