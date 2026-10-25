@@ -1,7 +1,5 @@
 require "spec_helper"
 require "hecks/bluebook/model_check"
-require "open3"
-require "tmpdir"
 
 # The opt-in `client` profile of the model checker: refuses a construct that
 # would answer wrong, changing nothing when the profile isn't requested.
@@ -59,19 +57,6 @@ RSpec.describe "the model checker's client profile" do
     end
   BLUEBOOK
 
-  SHOP_BINDS_HECKSAGON = <<~RUBY.freeze
-    Hecks.hecksagon "ClientProfileShop" do
-      ClientProfileShop::Owner.persisted_by("Memory")
-      ClientProfileShop::Widget.persisted_by("Memory")
-    end
-  RUBY
-
-  SHOP_PROJECTION_HECKSAGON = <<~RUBY.freeze
-    Hecks.hecksagon "ClientProfileShop" do
-      projected_by "SqliteProjection"
-    end
-  RUBY
-
   def shop_wiring(projection)
     proc do
       ClientProfileShop::Owner.persisted_by("Memory")
@@ -91,24 +76,6 @@ RSpec.describe "the model checker's client profile" do
     registry
   end
 
-  def write_shop_project(root)
-    chapters = File.join(root, "shop", "bluebook")
-    FileUtils.mkdir_p(chapters)
-    File.write(File.join(chapters, "shop.bluebook"), SHOP)
-    File.write(File.join(chapters, "a_wiring.hecksagon"), SHOP_BINDS_HECKSAGON)
-    File.write(File.join(chapters, "shop.hecksagon"), SHOP_PROJECTION_HECKSAGON)
-  end
-
-  # Runs `hecks model_check --profile client` over a project whose projected_by sits in the
-  # alphabetically later of two hecksagon files.
-  def model_check_later_hecksagon
-    Dir.mktmpdir do |root|
-      write_shop_project(root)
-      Open3.capture2e("bundle", "exec", "ruby", "exe/hecks", "model_check", "--profile", "client",
-                      File.join(root, "shop"), chdir: InMemoryDomain::ROOT)
-    end
-  end
-
   def unprofiled(registry)
     chapter = registry.bluebooks.values.first
     Hecks::Bluebook::ModelCheck.call(chapter, hecksagon: registry.hecksagon(chapter.name))
@@ -118,8 +85,6 @@ RSpec.describe "the model checker's client profile" do
     chapter = registry.bluebooks.values.first
     Hecks::Bluebook::ModelCheck.call(chapter, hecksagon: registry.hecksagon(chapter.name), profile: profile)
   end
-
-  def subjects_for(findings, kind) = findings.select { |finding| finding.kind == kind }.map(&:subject)
 
   describe "without the profile" do
     it "adds no finding and leaves the others as they were", :aggregate_failures do
@@ -135,57 +100,11 @@ RSpec.describe "the model checker's client profile" do
     end
   end
 
-  describe "native read model pushdown (docs/1.0-readiness.md, known gap 2)" do
-    it "refuses a rooted read model over an aggregate projected_by an adapter that answers natively", :aggregate_failures do
-      findings = profiled(build(projection: "SqliteProjection"))
-
-      expect(subjects_for(findings, :client_native_read_model)).to eq(["OwnerWidgets"])
-      expect(findings.find { |f| f.kind == :client_native_read_model }.message).to include("docs/1.0-readiness.md")
-    end
-
-    it "is silent when the aggregate has no projection bind" do
-      expect(subjects_for(profiled(build), :client_native_read_model)).to be_empty
-    end
-
-    it "is silent for a projection adapter that has no native path" do
-      expect(subjects_for(profiled(build(projection: "SomethingElse")), :client_native_read_model)).to be_empty
-    end
-
-    it "is silent for a model the interpreter never pushes down" do
-      findings = profiled(build(projection: "SqliteProjection"))
-
-      expect(subjects_for(findings, :client_native_read_model)).not_to include("OwnerWidgetCount", "WidgetsByGroup")
-    end
-
-    # Pins hecks model_check reading every *.hecksagon in a directory, not just the
-    # alphabetically first, so a later file's projected_by is not invisible to this rule.
-    it "is reached from hecks model_check when the projected_by is in a later hecksagon file", :aggregate_failures, :process do
-      output, status = model_check_later_hecksagon
-
-      expect(output).to include("client_native_read_model", "OwnerWidgets")
-      expect(status.exitstatus).to eq(1)
-    end
-
-    it "lists exactly the adapters whose Ruby class implements query_read_model" do
-      defining = Dir[File.join(InMemoryDomain::ROOT, "lib/hecks/adapters/**/*.rb")].select do |path|
-        File.read(path).match?(/^\s*def query_read_model\b/)
-      end
-      implementers = defining.flat_map { |path| File.read(path).scan(/^\s*class (\w+)/).flatten }
-
-      expect(Hecks::Bluebook::ModelCheck::ClientProfile::NATIVE_READ_MODEL_ADAPTERS).to match_array(implementers)
-    end
-  end
-
-  # Each example here runs the buggy code a rule guards and expects it to still
-  # misbehave. When one fails, delete the rule it names, its examples above, and this probe.
-  describe "rules that retire with their bug" do
-    it "client_native_read_model: the readiness doc still lists the missing agreement gate" do
-      readiness = File.read(File.join(InMemoryDomain::ROOT, "docs/1.0-readiness.md"))
-
-      expect(readiness).to match(/^2\. \*\*Read models have no cross-engine agreement gate\./),
-                           "docs/1.0-readiness.md no longer lists known gap 2 as open. If native and in-process " \
-                           "read models are now checked for agreement, delete ClientProfile#native_read_model_findings, " \
-                           "its examples, and this probe."
+  # A projected rooted read model is not refused: `Fuzzing::ProjectionAgreement` checks its
+  # projection's answer against the in-process loop (ADR 0122).
+  describe "projected read models" do
+    it "refuses none, since the projection's answer is checked against the loop's" do
+      expect(profiled(build(projection: "SqliteProjection")).map(&:kind).grep(/\Aclient_/)).to be_empty
     end
   end
 end
