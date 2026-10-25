@@ -12,6 +12,7 @@ require_relative "query_interpreter/arguments"
 require_relative "query_interpreter/entity_rows"
 require_relative "query_interpreter/outside_answer"
 require_relative "query_interpreter/plugin_answer"
+require_relative "query_interpreter/store_specification"
 
 module Hecks
   module Runtime

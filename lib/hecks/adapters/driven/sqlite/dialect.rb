@@ -10,9 +10,10 @@ module Hecks
         def dialect_name = "SQLite"
         def empty_in_clause = "0"
 
+        # Numbered, so a statement may place its binds' text in any order (ADR 0128).
         def placeholder(binds, value)
           binds << value
-          "?"
+          "?#{binds.size}"
         end
 
         def contains_clause(expression, placeholder)
