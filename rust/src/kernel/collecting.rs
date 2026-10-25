@@ -140,7 +140,7 @@ mod tests {
 
     #[test]
     fn a_refusal_keeps_the_rule_or_attribute_it_was_about() {
-        let (_, collected) = collecting(|| {
+        let ((), collected) = collecting(|| {
             let _ = refuse_with(given("a"), Detail::rule("the flow is positive"));
             let _ = refuse_with(given("b"), Detail::attribute("amount"));
         });
