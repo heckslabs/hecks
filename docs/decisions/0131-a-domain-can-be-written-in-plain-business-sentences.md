@@ -119,9 +119,10 @@ hand-written step definitions, so the readable file and the running system drift
 
 These are deliberate. Each is refused loudly rather than approximated.
 
-- **No sum over a list.** The expression machinery has `size`, `first`, `last` and the
-  `all?`/`any?`/`none?` blocks, and no total, so "the order total is $105.00" cannot be said.
-  A new node must land in Ruby `Expression`, Rust `Resolver` and `ast_json`, and the kernel.
+- **A total is written as an expression, not a sentence.** The expression language gained
+  `list.sum { |x| expression }` (Ruby `Expression`, Rust `Resolver`, `ast_json`, the kernel and
+  the generator), so a rule can say `lines.sum { |l| l.quantity * l.price } <= 1000`. No phrase
+  row says it in words yet.
 - **Comments are not kept.** Prose under a header becomes the `description`; other comments are
   dropped by a format, as the IR holds none.
 - **Examples cannot stub an outside answer.** A domain that asks the outside needs a port, so its

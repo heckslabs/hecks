@@ -58,6 +58,12 @@ pub fn emit_ast(node: &Json) -> String {
             boxed("predicate"),
             path_of(node, op).iter().map(|segment| ruby_inspect_string(segment)).collect::<Vec<_>>().join(", ")
         ),
+        "sum" => format!(
+            "Expr::Sum {{ receiver: {}, param: {}, predicate: {} }}",
+            boxed("receiver"),
+            text("param"),
+            boxed("predicate")
+        ),
         "array" => format!(
             "Expr::Array(vec![{}])",
             field(node, op, "elements").each().iter().map(emit_ast).collect::<Vec<_>>().join(", ")

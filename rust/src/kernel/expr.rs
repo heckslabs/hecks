@@ -275,6 +275,13 @@ pub enum Expr {
         predicate: Box<Self>,
         path: &'static [&'static str],
     },
+    /// `receiver.sum { |param| expression }` — the number the block works out for each element,
+    /// added up as `+` adds; 0 for an empty list.
+    Sum {
+        receiver: Box<Self>,
+        param: &'static str,
+        predicate: Box<Self>,
+    },
     /// `[a, b, c]` — a leaf like `Int`/`Str`/`Nil` above, not an
     /// operator, so `interpret` handles it directly, not via
     /// `dispatch_operator`.
@@ -386,7 +393,7 @@ fn category_of(expr: &Expr) -> OperatorCategory {
     use Expr::{
         Add, And, Array, Assignment, BlockPredicate, Bool, Compare, Div, Empty, EndsWith, Find,
         First, Float, Include, Int, Last, Lookup, MatchesRegex, Modulo, Mul, Nil, Not, Or,
-        Presence, SignTest, Size, Split, StartsWith, Str, Strip, Sub, ToS,
+        Presence, SignTest, Size, Split, StartsWith, Str, Strip, Sub, Sum, ToS,
     };
     match expr {
         Or(..) | And(..) | Not(..) => OperatorCategory::Logical,
@@ -396,7 +403,7 @@ fn category_of(expr: &Expr) -> OperatorCategory {
         SignTest { .. } => OperatorCategory::SignTest,
         Empty(..) | Size(..) => OperatorCategory::Sized,
         ToS(..) => OperatorCategory::ToString,
-        BlockPredicate { .. } | Find { .. } => OperatorCategory::Enumeration,
+        BlockPredicate { .. } | Find { .. } | Sum { .. } => OperatorCategory::Enumeration,
         MatchesRegex { .. } => OperatorCategory::PatternMatch,
         Presence { .. } | Assignment { .. } => OperatorCategory::Presence,
         Split { .. } | Strip { .. } | StartsWith { .. } | EndsWith { .. } => OperatorCategory::Text,

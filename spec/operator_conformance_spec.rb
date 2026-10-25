@@ -103,7 +103,7 @@ RSpec.describe "the operator domain" do
     expect(symbols(by_grammar("inner"))).to eq(
       ["+", ".positive?", ".negative?", ".zero?", ".empty?", ".to_s", ".modulo", ".size", ".any?", ".none?", ".all?", ".find",
        ".match?", ".present?", ".blank?", ".split", ".start_with?", ".end_with?", ".first", ".last", ".set?", ".unset?",
-       ".strip", ".lstrip", ".rstrip", "-", "*", "/"]
+       ".strip", ".lstrip", ".rstrip", "-", "*", "/", ".sum"]
     )
   end
 
@@ -148,6 +148,7 @@ RSpec.describe "the operator domain" do
     },
     ".all?"        => -> { Resolver.parse("a.all? { |x| x }").then { |n| n.is_a?(Resolver::BlockPredicate) && n.mode == :all } },
     ".find"        => -> { Resolver.parse("a.find { |x| x }.b").is_a?(Resolver::Find) },
+    ".sum"         => -> { Resolver.parse("a.sum { |x| x.b }").is_a?(Resolver::Sum) },
     ".match?"      => -> { Resolver.parse("a.match?(/x/)").is_a?(Resolver::MatchesRegex) },
     ".present?"    => -> { Resolver.parse("a.present?").is_a?(Resolver::Presence) && !Resolver.parse("a.present?").negated },
     ".blank?"      => -> { Resolver.parse("a.blank?").is_a?(Resolver::Presence) && Resolver.parse("a.blank?").negated },
@@ -185,6 +186,7 @@ RSpec.describe "the operator domain" do
     ".empty?" => Resolver::Empty, ".to_s" => Resolver::ToS, ".size" => Resolver::Size,
     ".any?" => Resolver::BlockPredicate, ".none?" => Resolver::BlockPredicate, ".all?" => Resolver::BlockPredicate,
     ".find" => Resolver::Find,
+    ".sum" => Resolver::Sum,
     ".match?" => Resolver::MatchesRegex, ".present?" => Resolver::Presence, ".blank?" => Resolver::Presence,
     ".split" => Resolver::Split, ".start_with?" => Resolver::StartsWith, ".end_with?" => Resolver::EndsWith,
     ".first" => Resolver::First, ".last" => Resolver::Last,

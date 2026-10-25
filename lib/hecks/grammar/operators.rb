@@ -108,7 +108,7 @@ module Hecks
         { Empty: ".empty?", ToS: ".to_s", Size: ".size", MatchesRegex: ".match?", Split: ".split", First: ".first",
           Last: ".last", StartsWith: ".start_with?", EndsWith: ".end_with?" }
           .map { |type, symbol| [resolver.const_get(type), symbol, %i[receiver]] } +
-          [[resolver::Find, ".find", %i[receiver predicate]]]
+          [[resolver::Find, ".find", %i[receiver predicate]], [resolver::Sum, ".sum", %i[receiver predicate]]]
       end
 
       # The operators that share a node type, told apart by a field of the node.

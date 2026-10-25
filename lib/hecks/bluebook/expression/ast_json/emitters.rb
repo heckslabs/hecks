@@ -77,6 +77,10 @@ module Hecks
               { "op" => "find", "receiver" => AstJson.emit_resolver(node.receiver), "param" => node.param.to_s,
                 "predicate" => AstJson.emit_bool(node.predicate), "path" => node.path.map(&:to_s) }
             },
+            Resolver::Sum            => lambda { |node|
+              { "op" => "sum", "receiver" => AstJson.emit_resolver(node.receiver), "param" => node.param.to_s,
+                "predicate" => AstJson.emit_bool(node.predicate) }
+            },
             Resolver::ArrayLiteral   => lambda { |node|
               { "op" => "array", "elements" => node.elements.map { |element| AstJson.emit_resolver(element) } }
             },

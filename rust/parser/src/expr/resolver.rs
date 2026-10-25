@@ -103,6 +103,12 @@ pub enum Resolver {
         predicate: Box<Evaluator>,
         path: Vec<String>,
     },
+    /// `receiver.sum { |param| expression }`: the total of a number worked out for each element.
+    Sum {
+        receiver: Box<Self>,
+        param: String,
+        predicate: Box<Evaluator>,
+    },
 }
 
 const SIGN_TESTS: [(&str, &str); 3] = [("positive?", ">"), ("negative?", "<"), ("zero?", "==")];
@@ -267,19 +273,31 @@ pub fn parse(expr: &str) -> Resolver {
     Resolver::Lookup(expr.to_string())
 }
 
+/// What a block-opening suffix builds.
+#[derive(Clone, Copy)]
+enum Opener {
+    /// `all?`, `any?` or `none?`: a test aggregated over the elements.
+    Block(BlockMode),
+    /// `find`: the first element a test accepts, which may trail a dotted path.
+    Find,
+    /// `sum`: the total of a number worked out for every element.
+    Sum,
+}
+
 /// Block-opener suffixes, in the order Ruby's pattern alternates them.
-const BLOCK_OPENERS: [(&str, Option<BlockMode>); 4] = [
-    ("all?", Some(BlockMode::All)),
-    ("any?", Some(BlockMode::Any)),
-    ("none?", Some(BlockMode::None)),
-    ("find", None),
+const BLOCK_OPENERS: [(&str, Opener); 5] = [
+    ("all?", Opener::Block(BlockMode::All)),
+    ("any?", Opener::Block(BlockMode::Any)),
+    ("none?", Opener::Block(BlockMode::None)),
+    ("find", Opener::Find),
+    ("sum", Opener::Sum),
 ];
 
-/// Hand-matched `/\A(.+?)\.(all?|any?|none?|find)\s*\{\s*\|(\w+)\|\s*/m`: the earliest
+/// Hand-matched `/\A(.+?)\.(all?|any?|none?|find|sum)\s*\{\s*\|(\w+)\|\s*/m`: the earliest
 /// `.suffix { |param|`, then a brace-balanced body. Only `find` may trail a dotted path.
 fn parse_block_opener(expr: &str) -> Option<Resolver> {
     let bytes = expr.as_bytes();
-    let mut best: Option<(usize, Option<BlockMode>, usize, String)> = None;
+    let mut best: Option<(usize, Opener, usize, String)> = None;
 
     for (suffix, mode) in BLOCK_OPENERS {
         let marker = format!(".{suffix}");
@@ -330,7 +348,17 @@ fn parse_block_opener(expr: &str) -> Option<Resolver> {
     let trailing = expr[body_end + 1..].trim();
 
     match mode {
-        None => {
+        Opener::Sum => {
+            if !trailing.is_empty() {
+                return None;
+            }
+            Some(Resolver::Sum {
+                receiver,
+                param,
+                predicate,
+            })
+        }
+        Opener::Find => {
             if !(trailing.is_empty() || trailing.starts_with('.')) {
                 return None;
             }
@@ -346,7 +374,7 @@ fn parse_block_opener(expr: &str) -> Option<Resolver> {
                 path,
             })
         }
-        Some(mode) => {
+        Opener::Block(mode) => {
             if !trailing.is_empty() {
                 return None;
             }
@@ -675,6 +703,18 @@ mod tests {
             } => (*receiver, pattern, flags),
             other => panic!("expected MatchesRegex, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn parses_a_sum_over_a_list_and_refuses_a_trailing_path() {
+        assert!(matches!(
+            parse("items.sum { |i| i.quantity * i.price }"),
+            Resolver::Sum { ref param, .. } if param == "i"
+        ));
+        assert!(matches!(
+            parse("items.sum { |i| i.price }.total"),
+            Resolver::Lookup(_)
+        ));
     }
 
     #[test]

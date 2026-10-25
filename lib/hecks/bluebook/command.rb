@@ -72,14 +72,16 @@ module Hecks
       }.freeze
 
       class << self
-        attr_reader :role, :roles, :goal, :attributes, :givens, :ensures, :needs, :mutations, :emits, :references,
+        attr_reader :role, :goal, :attributes, :givens, :ensures, :needs, :mutations, :emits, :references,
                     :from, :provenance
+
+        # @return [Array<String>] every role that may run it when more than one may, else empty
+        def roles = @roles || []
 
         # Mints one command as its own anonymous subclass of the class `declare` is called on.
         #
         # @param name [String, Symbol] the command's declared name
-        # @param role [String, nil] the declared role text; `goal` is the goal text
-        # @param roles [Array<String>] every role that may run it, when more than one may
+        # @param role [String, nil] the declared role; `roles` all of them when several may run it
         # @param attributes [Array<Bluebook::Attribute>] the declared arguments
         # @param givens [Array<Bluebook::Given>] the declared preconditions
         # @param ensures [Array<Bluebook::Given>] the postconditions; `needs` the facts it supplies
