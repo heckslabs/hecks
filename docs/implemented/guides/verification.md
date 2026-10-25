@@ -35,7 +35,7 @@ real unreachable state into either of them would corrupt the fixture
 every other section on this page relies on. What follows is not a
 domain — it is the smallest fragment that still trips the finding, on
 the same footing as
-[`spec/fixtures/model_check/lifecycle_findings.bluebook`](../../spec/fixtures/model_check/lifecycle_findings.bluebook)
+[`spec/fixtures/model_check/lifecycle_findings.bluebook`](../../../spec/fixtures/model_check/lifecycle_findings.bluebook)
 in the test suite: one aggregate, one lifecycle, one hole, on purpose,
 because the hole is the whole demonstration:
 
@@ -202,8 +202,9 @@ being named, never by being silenced.
 ### The `client` profile — refusing what answers wrongly without refusing
 
 A client domain must not reach a path that returns a wrong result
-without saying so. `model_check` has an opt-in profile that turns each
-such documented, still-open path into an error:
+without saying so. The paths documented as still open are the rules of
+`Hecks::Bluebook::ModelCheck::ClientProfile`, so `model_check` has an opt-in profile
+that turns each into an error:
 
 ```sh
 hecks model_check --profile client                 # the whole corpus
@@ -249,14 +250,13 @@ the domain declining), whether every declared property still holds,
 and — separately, because it costs a second full replay — whether two
 runs of the identical steps produced byte-identical histories.
 
-Four declared properties, in `Hecks::Fuzzing::Properties`:
-`lifecycle_values_are_declared` (every lifecycle field a replay leaves
-an instance holding is one of that aggregate's own declared states),
+The declared properties are listed in `Hecks::Fuzzing::Properties::PROPERTY_NAMES`.
+Two examples: `lifecycle_values_are_declared` (every lifecycle field a replay leaves
+an instance holding is one of that aggregate's own declared states) and
 `saga_advances_follow_declared_handlers` (every saga advance a replay
-logged moved along an edge some handler actually names),
-`query_answers_match_reference`, and `replay_is_deterministic`, kept
-apart from the other three because it needs a second boot to check at
-all. This is the canonical example domain for the rest of this
+logged moved along an edge some handler actually names).
+`replay_is_deterministic` is kept apart from that list because it needs a
+second boot to check at all. This is the canonical example domain for the rest of this
 section — pizzas, era 2, the one `docs/implemented/guides/AUTHORING.md` points to
 whenever a guide needs a real domain rather than an invented one:
 
@@ -349,7 +349,7 @@ After steps and arguments, the shrinker also offers each surviving argument a si
 (empty, zero, the first element) and keeps it while the finding reproduces, so the saved script
 reads as small as it is.
 
-Add `persist_regressions=true` (the `hecks fuzz` tool's `--persist-regressions`) to also keep each
+Add `persist_regressions=true` (the `hecks fuzz_run.fuzz` tool's `--persist-regressions`) to also keep each
 distinct finding's minimized repro under `spec/corpus/regressions/<domain>/<id>.json`. The id comes
 from the property, the message with its minted parts (ids, numbers, quoted literals) normalized
 away, and the verbs of the shrunk steps, so two seeds that break the same property the same way

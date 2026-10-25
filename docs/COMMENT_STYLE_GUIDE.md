@@ -4,7 +4,8 @@ The standard for comments in this repository's Ruby: `lib/`, `spec/`
 and `examples/`. `hecks style_run.check_comments` checks the parts of it a machine
 can check. The rest is a checklist for whoever reads the diff.
 
-CI runs `hecks style_run.check_comments paths=lib/hecks` as a gate, so a comment that breaks a
+CI runs this check as the `comment_style` and `comment_blocks` gates of
+`lib/hecks/gate/stages.yml` (`hecks gate_run.gate`), so a comment that breaks a
 rule the linter checks fails the build. The parts of this guide the linter cannot check are
 still the reviewer's.
 
@@ -199,9 +200,9 @@ hecks style_run.write_comment_baseline --confirm            # rewrite the long-b
 hecks style_run.check_comments_unchanged ref=main           # prove an edit was comment-only
 ```
 
-`--fix` rewrites only the two mechanical categories. Do not run it over doc
+`fix_comments` rewrites only the two mechanical categories. Do not run it over doc
 comments written by hand without reading the result. Everything else needs
-someone to read the code. `--code-unchanged REF` compares each file's
+someone to read the code. `check_comments_unchanged ref=REF` compares each file's
 non-comment tokens with `REF` and fails if any differ, which is how a
 comment-only change is shown to be one.
 

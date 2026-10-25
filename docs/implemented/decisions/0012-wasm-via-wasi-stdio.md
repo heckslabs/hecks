@@ -1,6 +1,8 @@
 # WASM ships via WASI stdio, not a browser JS binding
 
-**Status:** Accepted — implemented. `rust/src/kernel/{json,cli}.rs`, `rust/project/{json_codec,registry}.rb`, `bin/project_wasm`, branch `feat/rust-projection`. Narrows [§9 "WASM embedded Bluebook"](../HECKS_IMPLEMENTATION_PLAN.md) — see that section's own status note.
+**Historical:** the `rust/project/*.rb` generator and the `bin/project_*` scripts named below are gone; `docs/tools.md` maps each retired script to its `hecks` verb, and Rust generation now lives in `rust/codegen` (ADR 0086).
+
+**Status:** Accepted — implemented. `rust/src/kernel/{json,cli}.rs`, `rust/project/{json_codec,registry}.rb`, `bin/project_wasm`, branch `feat/rust-projection`. Narrows [§9 "WASM embedded Bluebook"](../../HECKS_IMPLEMENTATION_PLAN.md) — see that section's own status note.
 
 ## Context
 

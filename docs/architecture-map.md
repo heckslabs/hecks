@@ -6,11 +6,8 @@ lib/hecks/
   grammar/      the expression and translation sublanguages, and the Admit gate.
   bluebook/     dsl → ir → expression.  READING ONE.
   runtime/      dispatch, instances, the registry.  RUNNING IT.
-  adapters/     driven: memory, sqlite, heki, postgres, folder, prism.
-  translation/  domain-version translation — eras and lineage.
+  adapters/     driven and driving adapters (adapters/driving: Ruby, CLI, MCP, JSON).
   projector/    IR serialization — the translation-edge digest reads it.
-
-  adapters/driving/   the driving adapters (Ruby, CLI, MCP, JSON).  Class-free, per boot.
   router/               project-wide dispatch; installs each chapter's namespace at boot.
   ports/                domain ports — auth, identity, persistence, query.
   query_specification/  a query's shape, held apart from any engine that answers it.
@@ -18,9 +15,12 @@ lib/hecks/
   forms/                IR → HTML, content-negotiated against plain JSON.
   fuzzing/              generated sequences, checked against declared properties.
   doc/                  the generated DSL reference (hecks language_run.project_reference).
-  framework/            shared, domain-agnostic bluebooks — Governance, Identity, ConsoleSettings.
+  framework/            shared, domain-agnostic bluebooks.
   deploy/               the Deploy bluebook — what deployed_to means.
 ```
+
+Domain-version translation (eras and lineage) lives under `language/translation/`. This
+map names the main layers only; `ls lib/hecks` is the full list.
 
 The split follows the dependency direction, not the topic: the
 expression evaluator lives in the semantic core, not `projector/`,
@@ -40,9 +40,8 @@ rust/
   web/            the wasm-bindgen crate hecks build.build_browser_wasm builds — a separate cdylib from the WASI binary.
 ```
 
-`rust/src/kernel/{expr,dispatch}.rs` is the one part of this tree
-someone still writes by hand — everything else (`generated/`, the
-parser tables, the type shapes) is projected from the same canonical
+`rust/src/kernel/` is hand-written; `generated/`, the
+parser tables and the type shapes are projected from the same canonical
 IR the Ruby runtime reads. See [Projections: Rust and
 WebAssembly](implemented/guides/projections.md) for what
 that buys, and [Running a

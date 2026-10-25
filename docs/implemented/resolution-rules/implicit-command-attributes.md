@@ -15,7 +15,7 @@ declared `attribute :number, AccountNumber` / `attribute :kind, AccountKind`
 aggregate's own declaration a few lines above, each immediately followed by
 a matching bare `sets`.
 
-Mirrors [S10](../dsl-work-slices.md)'s `given`-reference pattern one level
+Mirrors [S10](../../dsl-work-slices.md)'s `given`-reference pattern one level
 down: "a precondition shared across commands is declared once... a command
 references it by name," now for attributes instead of preconditions.
 

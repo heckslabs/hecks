@@ -9,7 +9,7 @@ stability promise's one-paragraph summary stay on the
 stability promise made at `1.0.0` covers — the DSL and runtime API in
 [the DSL reference](../reference/index.md) won't change in a breaking way
 without a major-version bump — and what it explicitly doesn't cover yet
-(query DSL aggregation beyond `count`/`median`/`group_by`, Rust codegen for
+(query DSL aggregation beyond the `ReadModel` reducer words, Rust codegen for
 `read_model` beyond its proven subset, Rails integration, Drivers, the
 outbox's standalone relay — see that doc's "Explicitly not covered"
 section). [ADR 0025](../../decisions/0025-the-dsl-names-one-idea-one-way-and-a-word-earns-its-place-by-being-used.md),
@@ -73,10 +73,11 @@ order.status   # => "sold"
   just indexed, on every SQL adapter: the hop folds into a local `in:`
   clause before any adapter sees it
   (`spec/adapters/query_hop_agreement_spec.rb`).
-- Query aggregation is partial. A `read_model` can declare `count`,
-  `median` and `group_by`, on Ruby and on the generated Rust runtime;
-  there is no `sum`, `avg`, `min` or `max`, and a plain `query` reduces
-  nothing. A `group_by` leaf holds one row: when several rows share a key
+- Query aggregation is partial. A `read_model` can declare the reducers
+  and `group_by` that the `ReadModel` words of
+  `lib/hecks/language/bluebook/projection.bluebook` admit (`count`,
+  `median`, `sum`, `avg`, `min`, `max`), on Ruby and on the generated
+  Rust runtime; a plain `query` reduces nothing. A `group_by` leaf holds one row: when several rows share a key
   path the ask refuses, on every adapter and in Rust, rather than keeping
   the first ([ADR 0061](../../decisions/0061-query-dsl-aggregation-count-sum-group-by.md)).
 - `PostgresEra`'s schema-evolution/translation system works and is

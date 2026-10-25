@@ -408,10 +408,10 @@ A Rails controller, a webhook handler, a cron job — every one of them
 is a driving adapter in exactly this sense: they translate something
 that happened out there into a call shaped like this one, and nothing
 about the domain's own rules changes depending on who is calling.
-`examples/pizzas/bluebook/hecksagon/mock_stripe_payment_adapter.rb` is
-the worked example — a stand-in for a real Stripe webhook, quoted here
-rather than run (it boots the whole Pizzas example with `Hecks.boot`,
-a heavier path than this guide needs):
+`examples/pizzas/adapters/payment_webhook.rb` is
+the worked example — a payment-processor webhook that tells `Order.PaymentGateway.Receive`
+(it boots the whole Pizzas example with `Hecks.boot`, a heavier path than this guide needs,
+so the call is quoted here rather than run):
 
 ```ruby skip
 # A real handler would verify a Stripe signature here and pull these
@@ -487,7 +487,7 @@ order.status  # => "available"
 ```
 
 And call it exactly the way the real
-`mock_stripe_payment_adapter.rb` does — through `dispatch_port`, never
+`examples/pizzas/adapters/payment_webhook.rb` does for the same port — through the dispatcher's port path, never
 through the facade a command would use:
 
 ```ruby
