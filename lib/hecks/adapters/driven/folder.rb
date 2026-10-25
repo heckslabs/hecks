@@ -42,8 +42,8 @@ module Hecks
       # else in `DOMAIN_ORDER`. Deferring keeps a chapter split across files from being
       # judged before its later files exist (see MetaValidator.defer).
       #
-      # An `environment:` overlay (`environments/<name>.hecksagon` and `.world`) loads
-      # last and merges into the base hecksagon/world; a missing overlay file is skipped.
+      # Then the overlays merge into the base hecksagon/world: the copy's own, then the named
+      # `environment:` one (see `load_overlay`); a missing overlay file is skipped.
       #
       # @param directory [String] the domain's bluebook directory to load, as
       #   `bluebook_directory` resolves it
@@ -62,16 +62,21 @@ module Hecks
         load_overlay(directory, environment)
       end
 
-      # Loads an environment's `.hecksagon` then `.world` overlay files, when present.
+      # The overlay one copy of a domain keeps for itself, such as the database its own runs
+      # record to. `.gitignore` keeps it out of the repository, so no other copy ever reads it.
+      LOCAL_OVERLAY = "local".freeze
+
+      # Loads the copy's own overlay, then an environment's, each `.hecksagon` then `.world`,
+      # when present. The environment loads last, so `memory` still wins over a local database.
       #
       # @param directory [String] the directory holding the `environments/` folder
-      # @param environment [String, nil] the environment name; nil loads nothing
+      # @param environment [String, nil] the environment name; nil loads only the local overlay
       # @return [void]
       def load_overlay(directory, environment)
-        return unless environment
-
-        load_each(directory, [File.join("environments", "#{environment}.hecksagon")])
-        load_each(directory, [File.join("environments", "#{environment}.world")])
+        [LOCAL_OVERLAY, environment].compact.uniq.each do |name|
+          load_each(directory, [File.join("environments", "#{name}.hecksagon")])
+          load_each(directory, [File.join("environments", "#{name}.world")])
+        end
       end
 
       # Loads every bluebook in a folder as one declaration set, judged after all are loaded

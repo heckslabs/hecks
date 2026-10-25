@@ -1,6 +1,6 @@
 # PRD 01 — Fix the `@reaction_depth` race, and prove it with a concurrent-dispatch test
 
-**Status:** Not started. Confirmed live, self-documented, unfixed.
+**Status:** Done, differently than proposed: `reenter` in `dispatcher.rb` keeps the depth in `Thread.current[:hecks_reaction_depth]` rather than behind a mutex, which a same-thread reaction cascade would deadlock on. The text below is the original proposal.
 
 ## The problem
 

@@ -1230,6 +1230,7 @@ pub fn generate(
                     .map(|ob| queries::emit_query_order_by(ob, query.get("null_semantics"))),
                 offset: query.get("offset").map(queries::emit_query_offset),
                 limit: query.get("limit").map(queries::emit_query_limit),
+                cursor: query.get("cursor").is_some(),
                 authorization: queries::emit_query_authorization(
                     query_name,
                     query.get("authorization"),
@@ -1279,6 +1280,7 @@ pub fn generate(
                         .map(|ob| queries::emit_query_order_by(ob, query.get("null_semantics"))),
                     offset: query.get("offset").map(queries::emit_query_offset),
                     limit: query.get("limit").map(queries::emit_query_limit),
+                    cursor: false,
                     authorization: None,
                     assignments: false,
                     entity: Some(queries::EntityScope {

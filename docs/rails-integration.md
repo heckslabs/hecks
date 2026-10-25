@@ -18,8 +18,11 @@ ordinary Rails files.
 | Routes | `packages/hecks-rails` (`Routes`) | `resources :accounts` draws a `show` and a POST per command when `accounts` is an aggregate; a creating command routes to the collection, any other to the member |
 | Controllers | `packages/hecks-rails` (`Controller`) | `AccountsController` joins the domain by its name, with a named action per command; refusals land in `errors` and answer 422, 403 or 404 by kind |
 | Actor | `packages/hecks-rails` (`Actor`) | Each request runs inside `Hecks.as_caller` as `current_user`'s `actor_id` (or `id`); with nobody signed in, every role-gated command refuses; `Hecks::Rails.actor_from` overrides the lookup once |
-| `command_form_for` | `packages/hecks-rails` | Fields from `Hecks::Forms`, named by the dotted paths `Forms::Params` reads |
-| `available_commands(as:)` | the model | The domain's own dry run, under the actor's Governance grants |
+| Validations | `packages/hecks-rails` (`Validating`) | `record.valid_for?(:freeze_account, params)` asks the domain whether the command would be accepted (`Dispatcher#validate`, ADR 0128) and fills `errors` with every reason, each against its attribute; `?dry_run=1` or `X-Dry-Run: 1` on a command route answers the same as JSON with 200 |
+| `command_form_for` | `packages/hecks-rails` | Fields from `Hecks::Forms`, named by the dotted paths `Forms::Params` reads; a refused form comes back with the submitted values, each reason beside its field, reference options filled, and the command's JSON Schema (`CommandSchema`) embedded |
+| `available_commands(as:)` | the model | The domain's own validation, under the actor's Governance grants |
+| Reference lookups | `packages/hecks-rails` (`References`) | `transfer.source_account` for `reference_to Account, as: :source`, or `account_record` when the attribute is named for its target; the record loads only when the lookup is called |
+| `:rails_app` projection | `lib/hecks/projections/rails_app.rb` | A controller per aggregate and a routes file with a `resources` line each; `hecks launch.project_rails! run=rails dir=<app>` writes them where the app has none, and writes no model, since models are generated at boot |
 | `be_refused_with` | `hecks/rails/rspec` | RSpec matcher for a refusal and its wording |
 | `Hecks/RailsModelRules` | `lib/rubocop/cop/hecks` | Refuses `validates`, callbacks and associations in a model |
 
@@ -101,7 +104,7 @@ This convention deliberately gives up a boolean-returning `if @account.freeze` i
 judged worth the trade for a name every command can use for both purposes with zero
 redundant declaration.
 
-## A real bug found along the way, independent of Rails
+## A bug found along the way, independent of Rails (fixed)
 
 `Handle#method_missing`-based dispatch collides with real `Kernel`/`Object` methods.
 Verified directly, not assumed:
@@ -120,12 +123,12 @@ this project generally hunts for.
 
 `Account.open` is unaffected — it's a creating command, dispatched through
 `AggregateModule#define_singleton_method` on the module, and a directly defined
-singleton method wins over an inherited `Kernel` method. The bug is specific to the
-`method_missing` fallback path `Handle` currently uses for mutating verbs.
+singleton method wins over an inherited `Kernel` method. The bug was specific to the
+`method_missing` fallback path `Handle` used for mutating verbs.
 
 **Fixed, independent of anything Rails-shaped:** `Handle` defines real methods for every
-verb at construction time (the `command`/`command!` pair above), and `method_missing`
-remains only for attribute and lifecycle readers.
+verb at construction time (`lib/hecks/adapters/driving/handle/verb_methods.rb`, whose
+comment names this bug), and `method_missing` answers only field readers.
 
 **Built:** [ADR 0120](decisions/0120-a-refusal-has-one-parent-and-a-handle-names-every-verb.md)
 defines both names on every handle. A bare name that is already a field reader or one of
@@ -175,7 +178,7 @@ end
 
 `transform_keys(&:to_sym)`, not `symbolize_keys` — the latter is ActiveSupport-only
 (`{}.respond_to?(:symbolize_keys)` is `false` without it loaded); the former is the
-plain-Ruby idiom this codebase already uses in nine places (`policy_interpreter.rb`,
+plain-Ruby idiom this codebase already uses (`policy_interpreter.rb`,
 `value/coercion.rb`, every persistence adapter). Baking `symbolize_keys` into core
 would repeat the exact "core gains a driving-adapter dependency" mistake ActiveModel
 was kept out for.
@@ -286,25 +289,21 @@ which returns the target's *declaration* (`IR::Aggregate`) for structural checks
 a runtime instance, and against real usage in the corpus (`Transfer`'s own `given`s
 compare `source != destination` as plain values, never `.balance`-style access).
 
-Wanting the actual record is a deliberate, visible act — never automatic:
+Wanting the actual record is a deliberate, visible act — never automatic. **Built in core**
+(`define_reference_accessors` in `lib/hecks/adapters/driving/handle.rb`, ADR 0025): each
+reference attribute gets a lazy reader named like the attribute itself, so
+`transfer.source` answers the account and `transfer[:source]` is the raw identity value
+that `given` compares. A list reference answers an array. The accessor reuses
+`AggregateModule#find`, already dependency-free, so it belongs in core, not the Rails layer.
+An earlier sketch named it `#{ref.name}_#{target}` (`transfer.source_account`); that name
+was dropped for the attribute's own name.
 
-```ruby
-class Handle
-  @ir.attributes.select { |a| a.type.is_a?(IR::Reference) }.each do |ref|
-    target = ref.type.target_name
-    define_singleton_method("#{ref.name}_#{Naming.snake(target)}") do
-      Adapters::Driving.const_get(target).find(self[ref.name])
-    end
-  end
-end
-```
+On a Rails model, `Hecks::Rails::References` adds one more lookup per reference attribute, named
+`<attribute>_<target>` (`transfer.source_account`), or `<target>_record` when the attribute is named
+for its target (`account.customer_record`). It answers the target's own model (the app's class when it
+wrote one) through its `find`, and loads only when called.
 
-Purely additive — `transfer.source` (the raw value, still needed by `given`) is
-untouched; `transfer.source_account` is a new, separate, on-demand accessor. Belongs
-in *core*, not the Rails layer — it only reuses `AggregateModule#find`, already
-dependency-free.
-
-**Chaining composes for free and should stay that way.** `transfer.source_account.customer`
+**Chaining composes for free and should stay that way.** `transfer.source.customer`
 is already a two-hop traversal, expressed as two ordinary calls, each individually
 visible and individually lazy — nothing fires until called, and the first hop never
 silently triggers the second. This is the deliberate opposite of `has_many ... through:`,
@@ -366,13 +365,13 @@ Two enrichments to `.find` were considered and rejected:
   Account`/`include ATMCard`/`include Transfer`; `ComplianceDashboard`: `reference_to
   Account`, `include CardPayment`). `.find`/plain chaining (above) is still the right
   tool for one record, on demand; `read_model` is the already-built tool for the batch
-  case a raw `JOIN` would otherwise solve. Genuinely open, not fabricated: whether
-  `include`'s semantics on an absent match behave like an inner or a left join wasn't
-  traced end to end here — worth confirming directly in `sqlite/projection.rb` before
-  relying on it for a case where zero matches must not drop the root record.
+  case a raw `JOIN` would otherwise solve. Traced in `lib/hecks/runtime/read_model_interpreter.rb`: a rooted model fetches its root
+(or refuses `NotFound`); a many-side head with no match keeps the root with an empty
+collection, like a left join; a one-side head with no match is `nil`.
 - **The read side, more broadly.** `query`/read-model declarations (`query "InGoodStanding"`, the
-  richer option vocabulary in `reflex.bluebook`) have no generated-route or
-  generated-view story yet. `show` is the one slice that's load-bearing today (nothing
+  richer option vocabulary in `reflex.bluebook`) have no *Rails* route or view
+  story yet; Hecks' own `lib/hecks/forms/` renders generated HTML for queries, indexes
+  and records. `show` is the one slice that's load-bearing today (nothing
   else makes `redirect_to` work) — `index` and filtered/query-backed views are a
   separate, larger, still-undesigned piece.
 - **Authorization: built, with one gap.** The domain enforces `command.role` through
@@ -381,9 +380,9 @@ Two enrichments to `.find` were considered and rejected:
   writes, and ADRs 0072 and 0076 describe a verified token replacing a caller-supplied
   role.
 - **Labels/help text for individual attributes.** `goal`/`description`/`role` exist at
-  the command/aggregate level; nothing per-attribute exists beyond a name and a type.
-  A real form needs human-readable labels somewhere — either humanized mechanically or
-  the language grows a small, additive (non-semantic, no parity concern) annotation.
+  the command/aggregate level. `Hecks::Forms` humanizes attribute names mechanically
+  (`Humanize.phrase`) and the host projects field hints
+  (`hecks language_run.project_field_hints!`); authored per-attribute prose labels remain open.
 - **File uploads or any attribute type with no natural HTML representation.** Not
   encountered in the corpus; not designed for.
 - **Real-time updates** (ActionCable as a driven adapter, pushing domain events to a

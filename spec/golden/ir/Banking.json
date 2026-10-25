@@ -2366,6 +2366,30 @@
               "value": "\"open\""
             }
           ]
+        },
+        {
+          "attributes": [
+
+          ],
+          "cursor": {
+            "value": ":number"
+          },
+          "description": "Open accounts by number, one page at a time — the account list a screen pages through.",
+          "limit": {
+            "value": "25"
+          },
+          "name": "OpenPaged",
+          "order_by": {
+            "direction": "asc",
+            "field": "number"
+          },
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "\"open\""
+            }
+          ]
         }
       ],
       "value_objects": [

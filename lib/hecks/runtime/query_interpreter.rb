@@ -11,7 +11,9 @@ require_relative "value"
 require_relative "query_interpreter/arguments"
 require_relative "query_interpreter/entity_rows"
 require_relative "query_interpreter/outside_answer"
+require_relative "query_interpreter/paging"
 require_relative "query_interpreter/plugin_answer"
+require_relative "query_interpreter/store_specification"
 
 module Hecks
   module Runtime
@@ -22,6 +24,7 @@ module Hecks
       include EntityRows
       include OutsideAnswer
       include PluginAnswer
+      include Paging
 
       attr_reader :registry
 
@@ -37,11 +40,12 @@ module Hecks
       # @raise [Runtime::UnknownVerb] if `query_name` names no declared query
       # @raise [Runtime::TypeMismatch] if an argument cannot be coerced to its type
       # @raise [Runtime::WiringError] if the aggregate's repository cannot be resolved
-      def call(domain, aggregate, query_name, args)
+      def call(domain, aggregate, query_name, args, widen: nil)
         return entity_rows(domain, aggregate, query_name, args) if query_name.include?(".")
 
         declared = declared_query(aggregate, query_name)
         args = normalize_args(aggregate, declared, args)
+        declared = Ports::Query::Cursor::Widened.new(declared, widen) if widen
         port = aggregate.query_binding(declared.name)
         return answered_from_outside(aggregate, declared, args, port) if port
 
@@ -122,12 +126,6 @@ module Hecks
           end
         end
         rows_of(paginate(ordered(matched, declared.order_by, declared.null_semantics), declared, args))
-      end
-
-      # Offset before limit, as SQL's `LIMIT n OFFSET m` and Ports::Query::InMemory do.
-      def paginate(ordered, declared, args)
-        skipped = declared.offset ? ordered.drop(resolve_query_value(declared.offset.value, args).to_i) : ordered
-        declared.limit ? skipped.first(resolve_query_value(declared.limit.value, args).to_i) : skipped
       end
 
       # Walks each reference by hand. A nil or dangling reference makes the whole clause

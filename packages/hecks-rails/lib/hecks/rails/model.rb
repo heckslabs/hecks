@@ -17,6 +17,7 @@ module Hecks
       extend ActiveModel::Naming
       extend ActiveModel::Translation
       include ActiveModel::Conversion
+      include Validating
 
       # @return [ActiveModel::Errors] a container refusals are poured into, never a rule's author
       attr_reader :errors
@@ -39,6 +40,7 @@ module Hecks
         def aggregate(name)
           @door = Booted.door(*name.to_s.split(/\.|::/, 2))
           @door.ir.commands.each { |command| define_command(command) }
+          References.define(self, @door.ir)
         end
 
         # @return [Module] the aggregate's module in the booted domain
@@ -54,6 +56,14 @@ module Hecks
 
         # @return [Model] a record that is not saved, to carry the refusal of a creating command
         def unsaved = new(nil)
+
+        # @param verb [Symbol, String] a command's bare verb
+        # @return [Hecks::Bluebook::Command] the aggregate's command of that name
+        # @raise [ArgumentError] when the aggregate declares no such command
+        def command_named(verb)
+          door.ir.commands.find { |command| Naming.snake(command.hecks_name).to_s == verb.to_s } ||
+            raise(ArgumentError, "#{name} has no command #{verb}")
+        end
 
         private
 

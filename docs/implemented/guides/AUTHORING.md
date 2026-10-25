@@ -68,7 +68,7 @@ Claims:
 Rules that keep the suite honest:
 
 - **Use the real corpus — do not invent a domain.** `examples/pizzas`
-  and `examples/banking` are what every guide teaches from now:
+  and `examples/banking` are what nearly every guide teaches from (`behaviors.md` teaches from chess):
   `Kernel.load` the real bluebook file the same way
   `docs/implemented/guides/verification.md` or `docs/implemented/guides/schema-evolution.md`
   does, and dispatch/query real constructs. If neither domain currently
@@ -141,7 +141,11 @@ Cut any sentence that exists for tone rather than information.
 
 ## The vocabulary
 
-The words are: `Hecks.port` (with `verb`), `Hecks.adapter` (with
+Some words are talked about but do not exist in this language:
+`Hecks.family` and `driving on cron` (inbound scheduling is unbuilt).
+**A word that does not exist may not appear in these guides**; check
+`hecks query language_run.word_status` before documenting one.
+Here the words are: `Hecks.port` (with `verb`), `Hecks.adapter` (with
 `port`/`field`/`secret`), `persisted_by`, `.world` blocks, driving
 ports declared in the hecksagon (`port`/`operation`), and the
 era/translation system. The canonical example is THIS repo's pizzas —

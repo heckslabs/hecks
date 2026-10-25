@@ -35,10 +35,42 @@ module Hecks
 
           entry = { query: question, args: args, rows: native_rows, instances_at: Replay.snapshot_instances(@runtime) }
           entry[:error] = native_error.message if native_error
+          add_pages(entry, question, args) unless native_error
           add_reference(entry, reference_rows, reference_error) if has_reference
           @queries << entry
 
           @refusals << { verb: question, error: native_error.message, kind: Replay.refusal_kind(native_error) } if native_error
+        end
+
+        # A cursor query's walks, taken for `Properties` to hold to the unpaged rows.
+        def add_pages(entry, question, args)
+          entry[:pages] = cursor_walks(question, args) if cursor_query?(question)
+        end
+
+        # Whether `question` names a declared aggregate query that pages by cursor.
+        def cursor_query?(question)
+          domain, aggregate_name, query_name = Naming.split_verb(question)
+          declared = @runtime.bluebooks[domain]&.aggregate(aggregate_name)
+          !declared&.query(query_name.to_s)&.cursor.nil?
+        end
+
+        # Every page of a cursor query, walked at the query's own page size and again one row at
+        # a time (so a boundary falls between any two rows), as `{ page_size:, pages: }` per
+        # walk. A walk starts at the first page whatever `after` the ask itself carried.
+        def cursor_walks(question, args)
+          from_start = args.except(:after)
+          [nil, 1].map { |size| { page_size: size, pages: walk_pages(question, from_start, size) } }
+        end
+
+        def walk_pages(question, args, size)
+          pages = []
+          after = nil
+          loop do
+            page = @runtime.query_page(question, after: after, page_size: size, **args)
+            pages << page.fetch(:rows)
+            break unless (after = page[:after])
+          end
+          pages
         end
 
         def add_reference(entry, reference_rows, reference_error)
@@ -64,19 +96,24 @@ module Hecks
         def dry_run(step, hypothetical, args)
           before = state_snapshot
           entry  = { verb: hypothetical }
-          attempt_dry_run(entry, step, hypothetical, args)
+          raised = attempt_dry_run(entry, step, hypothetical, args)
           after = state_snapshot
           @dry_runs << entry
-          @dry_run_traces << entry.merge(before: before, after: after)
+          @dry_run_traces << entry.merge(before: before, after: after, raised: raised,
+                                         validation: validation_of(step, hypothetical, args))
         end
 
         def state_snapshot = { instances: Replay.snapshot_instances(@runtime), events: @runtime.events.size }
 
+        # Runs the dry run into `entry`, and answers the offender of what it raised, if anything.
         def attempt_dry_run(entry, step, hypothetical, args)
           Replay.as_step_caller(step) { @runtime.dry_run?(hypothetical, **args) }
           entry[:ok] = true
+          nil
         rescue *Runtime::DOMAIN_REFUSALS, Bluebook::Expression::EvaluationError => e
-          entry.merge!(ok: false, error: e.message)
+          entry[:ok] = false
+          entry[:error] = e.message
+          offender_of(e)
         end
       end
     end

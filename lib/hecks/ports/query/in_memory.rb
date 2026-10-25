@@ -1,4 +1,5 @@
 require_relative "ordering"
+require_relative "cursor"
 require_relative "../../runtime/value"
 require_relative "../../query_specification/field_path"
 require_relative "../../query_specification/common/comparison"
@@ -6,8 +7,8 @@ require_relative "../../query_specification/common/comparison"
 module Hecks
   module Ports
     module Query
-      # Applies wheres, order_by, offset and limit to an Array of records, in the same order
-      # as `SqlQueryBuilder` so every adapter answers the same page.
+      # Applies wheres, order_by, a cursor's position, offset and limit to an Array of records, in
+      # the same order as `SqlQueryBuilder` so every adapter answers the same page.
       module InMemory
         FieldPath = QuerySpecification::FieldPath
         Comparison = QuerySpecification::Common::Comparison
@@ -24,12 +25,17 @@ module Hecks
         # @return [Array<Runtime::Instance, Hash>] the matching records, ordered and paged
         def execute(records, declared, args = {}, registry: nil)
           matched = filter(records, declared, args, registry)
-          matched = order(matched, declared)
-          # Offset before limit, as SQL means `LIMIT n OFFSET m`; the reverse order returns a short
-          # or empty page (`limit 10, offset 10` would drop everything).
-          matched = matched.drop(resolve(declared.offset.value, args).to_i) if declared.offset
-          matched = matched.first(resolve(declared.limit.value, args).to_i) if declared.limit
-          matched
+          page(order(matched, declared), declared, args)
+        end
+
+        # The cursor's position, then the offset, then the limit.
+        #
+        # Offset before limit, as SQL means `LIMIT n OFFSET m`; the reverse order returns a short
+        # or empty page (`limit 10, offset 10` would drop everything).
+        def page(ordered, declared, args)
+          ordered = Cursor.after(ordered, declared, args) if declared.cursor
+          ordered = ordered.drop(resolve(declared.offset.value, args).to_i) if declared.offset
+          declared.limit ? ordered.first(resolve(declared.limit.value, args).to_i) : ordered
         end
 
         def filter(records, declared, args, registry)

@@ -610,6 +610,23 @@ Hecks.bluebook "Hecks" do
       emits StubRequested
     end
 
+    # Writes the files a Rails app needs to drive its domain through hecks-rails: a controller per
+    # aggregate and the routes file, read from the `bluebook/` under `dir` (the current directory
+    # when absent). Models are generated at boot and need no file. A file already there is the
+    # app's own and is left alone, so it runs without `confirm`.
+    command "ProjectRails" do
+      role "Operator"
+      goal "Write the controllers and routes a Rails app drives its domain through"
+
+      attribute :run, LaunchKey
+      attribute :dir, TargetDir, optional: true
+
+      sets :run
+      sets :dir
+
+      emits RailsRequested
+    end
+
     # Holds an interview with a subject matter expert and drafts a first domain from it (ADR 0088).
     # The Terminal adapter runs the conversation, as it runs a console; the journal records that one
     # was held and how it ended, not what was said. `--no-ai` leaves the model out.
@@ -698,6 +715,11 @@ Hecks.bluebook "Hecks" do
   policy "ScaffoldWhenRequested" do
     on      "Launch.StubRequested"
     ask     :scaffold, with: { run: :run }
+  end
+
+  policy "ProjectRailsWhenRequested" do
+    on      "Launch.RailsRequested"
+    ask     :write_rails, with: { run: :run }
   end
 
   policy "ConverseWhenRequested" do

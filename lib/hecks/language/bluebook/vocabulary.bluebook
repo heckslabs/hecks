@@ -181,6 +181,74 @@ Hecks.bluebook "Bluebook" do
                          "RemoteRefusal", "TypeMismatch", "Unauthorized", "UnknownArgument", "UnknownVerb"]
     end
 
+    # The sorts of no an adapter answers differently.
+    value_object "RefusalKind" do
+      attribute :name, String, one_of: ["refused", "not_found", "unauthorized", "absent_argument"]
+    end
+
+    # The points of a command's dispatch a refusal can come from, in the order they run.
+    value_object "DispatchStage" do
+      attribute :name, String,
+                one_of: ["request", "arguments", "role", "references", "state", "givens", "ensures", "invariants",
+                         "remote"]
+    end
+
+    # Which stage each dispatch step belongs to, for the aggregate and entity orders alike. A
+    # validation runs the steps in order and, once a step of one stage has refused, finishes that
+    # stage and goes no further: a later stage reads what an earlier one settled, so its answer
+    # would mean nothing.
+    value_object "StepStage" do
+      attribute :step,  String
+      attribute :stage, String, admits: "Vocabulary::DispatchStage"
+
+      member step: "decode_arguments", stage: "arguments"
+      member step: "refuse_unknown_arguments", stage: "arguments"
+      member step: "refuse_absent_arguments", stage: "arguments"
+      member step: "normalize_args", stage: "arguments"
+      member step: "refuse_role_mismatch", stage: "role"
+      member step: "resolve_references", stage: "references"
+      member step: "hydrate", stage: "state"
+      member step: "hydrate_parent", stage: "state"
+      member step: "locate_element", stage: "state"
+      member step: "enforce_givens", stage: "givens"
+      member step: "admissible_transition", stage: "state"
+      member step: "assign_creation_attributes", stage: "state"
+      member step: "apply_mutations", stage: "state"
+      member step: "advance_lifecycle", stage: "state"
+      member step: "delegate_to_entity", stage: "state"
+      member step: "enforce_ensures", stage: "ensures"
+      member step: "enforce_invariants", stage: "invariants"
+      member step: "save", stage: "state"
+      member step: "emit", stage: "state"
+    end
+
+    # What sort of no each DomainRefusal is, and the dispatch stage it comes from. A driving
+    # adapter answers by `kind` (a missing record or a missing role differently from a rule that
+    # did not hold); a validation reports `stage` so a client knows how far the command got. A
+    # raise site may name a narrower stage (a reference that does not resolve is a NotFound
+    # in the `references` stage). Read through `Hecks::Refused#kind` and `#stage`.
+    value_object "RefusalClass" do
+      attribute :name,    String, admits: "Vocabulary::DomainRefusal"
+      attribute :kind,    String, admits: "Vocabulary::RefusalKind"
+      attribute :stage,   String, admits: "Vocabulary::DispatchStage"
+
+      member name: "AbsentArgument", kind: "absent_argument", stage: "arguments"
+      member name: "AlreadyExists", kind: "refused", stage: "state"
+      member name: "AttributeAbsent", kind: "refused", stage: "state"
+      member name: "EnsuresNotMet", kind: "refused", stage: "ensures"
+      member name: "GivenNotMet", kind: "refused", stage: "givens"
+      member name: "InvariantViolation", kind: "refused", stage: "invariants"
+      member name: "LifecycleRefused", kind: "refused", stage: "state"
+      member name: "NothingToCorrect", kind: "refused", stage: "state"
+      member name: "NotFound", kind: "not_found", stage: "state"
+      member name: "ProjectionAbsent", kind: "refused", stage: "state"
+      member name: "RemoteRefusal", kind: "refused", stage: "remote"
+      member name: "TypeMismatch", kind: "refused", stage: "arguments"
+      member name: "Unauthorized", kind: "unauthorized", stage: "role"
+      member name: "UnknownArgument", kind: "refused", stage: "arguments"
+      member name: "UnknownVerb", kind: "refused", stage: "request"
+    end
+
     # The wording for every DomainRefusal site not already carried by data
     # (given/ensures/invariant already describe themselves). Language-level
     # and the same for every domain, so it is declared here and projected

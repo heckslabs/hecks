@@ -563,14 +563,6 @@
   },
   {
     "kind": "query",
-    "id": "Banking::Customer.GapCursor",
-    "generated": false,
-    "gap_class": "per_instance",
-    "construct": "cursor",
-    "reason": "declares cursor — out of scope for this generator (rust/codegen/src/queries.rs's own header has the full argument)"
-  },
-  {
-    "kind": "query",
     "id": "Banking::Customer.GapIndexHints",
     "generated": false,
     "gap_class": "per_instance",
@@ -687,6 +679,11 @@
   {
     "kind": "query",
     "id": "Banking::Account.OpenForCustomer",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Account.OpenPaged",
     "generated": true
   },
   {

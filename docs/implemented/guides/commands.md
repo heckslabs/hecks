@@ -20,7 +20,9 @@ declared in that file, executed against a real boot of it.
 A command is `role`, `goal`, an optional `from:` lifecycle guard, one
 or more `attribute`s, an optional `reference_to`, zero or more
 `given`s, zero or more `ensures`, zero or more `sets`s, and one or more
-`emits` — nothing else, no handler body to smuggle a side effect into.
+`emits` — plus a few rarer words (`needs`, `delegates_to`, `corrects`;
+[the command reference](../reference/command.md) is the full list). There
+is no handler body to smuggle a side effect into.
 `Account`'s own commands carry every piece of that inventory at least
 once, quoted here directly from the bluebook (never run as shown — the
 boot below loads the real file instead of retyping it), alongside the
@@ -141,9 +143,9 @@ end
 
 Every command you write can fail in a fixed set of ways, and your
 caller — a controller action, a saga step, a test — has to be ready for
-whichever ones apply to it. This is the complete roster for a command
-dispatch; the rest of this page proves each row once, live, against
-`Banking`:
+whichever ones apply to it. These are the common ones for a command
+dispatch (`Runtime::DOMAIN_REFUSALS` is the full list); the rest of this
+page proves each row once, live, against `Banking`:
 
 | raises | when | shown |
 |---|---|---|
@@ -156,9 +158,12 @@ dispatch; the rest of this page proves each row once, live, against
 | `AbsentArgument` | a required attribute never arrived | opening an account with no `kind` |
 | `UnknownArgument` | an argument arrived that the command never declared | crediting with a stray `memo:` |
 | `TypeMismatch` | an argument arrived in the wrong shape — a reference handed as an object is the case that costs the most in practice | a customer passed as an object instead of an id |
+| `Unauthorized` | the command declares a `role` and the ambient `Hecks.as_caller` does not hold it (by live Governance grants for an identified caller when an authorization provider is attached, otherwise by role string) | dispatching a role-gated command as a caller with another role |
+| `NothingToCorrect` | a `corrects` command names an event the record never emitted | correcting an event that never happened |
 
-Every one of these is a `StandardError` subclass under
-`Hecks::Runtime`, and every one is the domain answering, not the
+Every one of these is a `Hecks::Refused` (a `StandardError`) under
+`Hecks::Runtime`, so a caller can `rescue Hecks::Refused` instead of
+listing them, and every one is the domain answering, not the
 runtime breaking. A refusal is a response, not a malfunction.
 
 ## Creating vs. acting
@@ -217,7 +222,7 @@ way; `FreezeAccount` and `CloseAccount` read its other one,
 `given("customer is not closed")`. One description and one predicate,
 declared once, is one refusal message no matter which command a caller
 hits — the alternative, typed out fresh on every command, is how the
-same rule ends up worded three different ways across a corpus without
+same rule ends up worded differently across a corpus without
 anyone deciding that on purpose.
 
 `FreezeAccount` carries exactly one `given` — the referenced
@@ -373,8 +378,8 @@ neither is a trap waiting to be tripped by THIS domain's own commands
 rule it is quietly protecting.
 
 What is NOT here anymore is "no debit leaves the balance negative" —
-that used to be `Debit`'s own third `ensures`, and it was worded three
-different ways across the six commands on `Account` that can move
+that used to be `Debit`'s own third `ensures`, and it was worded
+differently across the commands on `Account` that can move
 `:balance` (`Debit` as both a `given` and an `ensures`,
 `ApplyFee`/`CorrectInterest` as differently-worded `given`s, and the
 commands that only ever increase it saying nothing at all).
@@ -393,9 +398,10 @@ itself.
 
 ## `sets` — one op per field, and the op is a real decision
 
-Four operations, and which one you reach for is not stylistic — it is
+Which operation you reach for is not stylistic — it is
 the difference between overwriting a field, growing a list, and doing
-arithmetic on one.
+arithmetic on one. The common ones are below; `multiply:`, `clamp:` and
+`remove:` are also admitted (see [the command reference](../reference/command.md)).
 
 **`to:`** replaces the field outright, from an argument or a literal —
 and is omittable when it would only repeat the target, which is why
@@ -470,7 +476,7 @@ Banking::SafeDepositBox.find("DT:12").events.last(2).map(&:name)  # => ["BoxSurr
 ## The argument gate
 
 Before any rule runs, before the record is even hydrated, a command's
-arguments are checked for shape. Five things to know before you wire a
+arguments are checked for shape. Things to know before you wire a
 caller to one of these:
 
 A required attribute that never arrives refuses before anything else
@@ -580,6 +586,15 @@ Postgres), so on Memory the run is declined before any row is sent:
 ```ruby
 Banking::Account.freeze_account!(over: Banking::Account.open, mode: :all_or_nothing)  # ~> WiringError: all_or_nothing needs a store that can roll back
 ```
+
+On a store that provides `set_transform` (Sqlite, Postgres) a run can
+go as one `UPDATE` instead of one dispatch per row (ADR 0129). It does
+when the command acts on its own aggregate, its writes are `sets` of
+one-field values or an `increment`/`decrement`, and every `given` can be
+said in that store's SQL; otherwise the run goes row by row. Either way
+the outcomes, the records and the events are the same: a row the
+statement skipped is sent by hand, so its refusal reads as it would
+have, and the fuzzer compares the two paths on both stores.
 
 The CLI and MCP request the same run through the chapter's own
 command: `banking bulk bulk_run.request! run.value=r1

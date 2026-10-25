@@ -117,6 +117,7 @@ RSpec.describe "adapter agreement — declared queries answer identically across
       declare_nested_path_queries(builder)
       declare_contains_queries(builder)
       declare_null_queries(builder)
+      declare_cursor_queries(builder)
     end.build
   end
 
@@ -236,6 +237,39 @@ RSpec.describe "adapter agreement — declared queries answer identically across
     builder.query("ByRatingNullsLast") do
       order_by :"rating.value"
       nulls :last
+    end
+  end
+
+  # Each cursor query pages a filter and order that a walk of its pages must reproduce.
+  def declare_cursor_queries(builder)
+    builder.query("PagedByRatingFirst") do
+      order_by :"rating.value"
+      nulls :first
+      limit 2
+      cursor :"rating.value"
+    end
+    declare_descending_cursor_query(builder)
+    declare_filtered_cursor_queries(builder)
+  end
+
+  def declare_descending_cursor_query(builder)
+    builder.query("PagedByRatingDesc") do
+      order_by :"rating.value", :desc
+      limit 2
+      cursor :"rating.value"
+    end
+  end
+
+  def declare_filtered_cursor_queries(builder)
+    builder.query("PagedByNameLast") do
+      where(status: { ne: "none" })
+      order_by :name
+      limit 2
+      cursor :name
+    end
+    builder.query("PagedById") do
+      limit 2
+      cursor :id
     end
   end
 
@@ -402,5 +436,51 @@ tags: [{ name: "blue" }],  note: { value: "low risk" }, rating: { value: 500 }, 
 
   it "places nulls last when asked, the same everywhere" do
     expect(answers("ByRatingNullsLast")).to eq(everywhere(%w[r1 r3 r5 r2 r4]))
+  end
+
+  # A sixth record ties r3 on rating, so a page boundary can fall between equal values.
+  def seed_tie
+    engines.each_value { |engine| engine.save(instance("r6", **RECORDS["r3"], status: "open")) }
+  end
+
+  # Every page of a cursor query, walked by handing each last row's position back as `after`.
+  def pages_of(engine, query_name)
+    declared = aggregate.query(query_name)
+    walked = []
+    after = nil
+    loop do
+      page = engine.query(declared, after ? { after: after } : {})
+      break if page.empty?
+
+      walked << page.map(&:id)
+      after = Hecks::Ports::Query::Cursor.token_for(page.last, declared)
+    end
+    walked
+  end
+
+  def walked(query_name) = engines.transform_values { |engine| pages_of(engine, query_name) }
+
+  it "pages nulls-first ascending ties by cursor the same everywhere" do
+    seed_tie
+    expect(walked("PagedByRatingFirst")).to eq(everywhere([%w[r2 r4], %w[r1 r3], %w[r6 r5]]))
+  end
+
+  it "pages descending (nulls last) ties by cursor the same everywhere" do
+    seed_tie
+    expect(walked("PagedByRatingDesc")).to eq(everywhere([%w[r5 r6], %w[r3 r1], %w[r4 r2]]))
+  end
+
+  it "pages by a value-object field ascending the same everywhere" do
+    expect(walked("PagedByNameLast")).to eq(everywhere([%w[r3 r5], %w[r2 r4], %w[r1]]))
+  end
+
+  it "pages by identity alone the same everywhere" do
+    expect(walked("PagedById")).to eq(everywhere([%w[r1 r2], %w[r3 r4], %w[r5]]))
+  end
+
+  it "answers nothing after the last row, the same everywhere" do
+    token = Hecks::Ports::Query::Cursor.encode(500, "r5")
+    asked = engines.transform_values { |engine| engine.query(aggregate.query("PagedByRatingFirst"), { after: token }) }
+    expect(asked).to eq(everywhere([]))
   end
 end

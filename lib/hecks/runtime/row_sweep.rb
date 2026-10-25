@@ -20,9 +20,27 @@ module Hecks
       # @param aggregate [Bluebook::Aggregate] the aggregate declaring the query
       # @param query_name [String] the query's name
       # @param args [Hash{Symbol => Object}] the query's arguments
+      # A query that declares `cursor` answers one page per ask, so every page is read: a sweep
+      # reaches every row the query selects, not only its first `limit`.
+      #
       # @return [Array<Hash{Symbol => Object}>] each row's state with `:id` merged in
       def rows(domain, aggregate, query_name, args)
-        Array(QueryInterpreter.new(@registry).call(domain, aggregate, query_name, args))
+        interpreter = QueryInterpreter.new(@registry)
+        return Array(interpreter.call(domain, aggregate, query_name, args)) unless aggregate.query(query_name)&.cursor
+
+        every_page(interpreter, domain, aggregate, query_name, args)
+      end
+
+      # The rows of every page of a cursor query, in query order.
+      def every_page(interpreter, domain, aggregate, query_name, args)
+        rows = []
+        after = args[:after]
+        loop do
+          page = interpreter.page(domain, aggregate, query_name, args.merge(after: after))
+          rows.concat(page[:rows])
+          after = page[:after]
+          return rows unless after
+        end
       end
 
       # The loaded aggregate a query belongs to.

@@ -50,7 +50,7 @@ module Hecks
                 env ["SESSION_SECRET"]
               end
 
-          then re-run hecks deploy project __DOMAIN__.
+          then re-run hecks deploy recipe.project __DOMAIN__.
         MSG
 
         # A world view whose `deployed_to` answers for one declared target, so a projector that

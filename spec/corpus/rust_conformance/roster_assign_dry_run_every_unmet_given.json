@@ -1,0 +1,93 @@
+{
+  "domain": "examples/roster",
+  "note": "A validate step answers every refusal of the stage a command stops in, not only the first. Assigning a member who was never enlisted to a seat that does not exist breaks two givens of Assign at once; each refusal names the rule that did not hold. Ruby's Dispatcher#validate and the kernel's collecting dry run must list the same refusals, in the same order, with the same text.",
+  "steps": [
+    {
+      "verb": "Roster::Roster.Open",
+      "args": {
+        "name": {
+          "value": "crew-x"
+        }
+      }
+    },
+    {
+      "validate": "Roster::Roster.Assign",
+      "args": {
+        "name": {
+          "value": "crew-x"
+        },
+        "member": {
+          "value": "zed"
+        },
+        "number": {
+          "value": 9
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [],
+    "instances": {
+      "Roster::Roster#crew-x": {
+        "name": {
+          "value": "crew-x"
+        },
+        "motto": {
+          "value": "all hands"
+        },
+        "mood": {
+          "value": "open"
+        },
+        "standing": {
+          "value": "none"
+        },
+        "last_marked": null,
+        "seats": [],
+        "crew": [],
+        "assignments": []
+      }
+    },
+    "events": [
+      {
+        "name": "RosterOpened",
+        "aggregate": "Roster::Roster",
+        "id": "crew-x",
+        "payload": {
+          "name": {
+            "value": "crew-x"
+          }
+        }
+      }
+    ],
+    "queries": [],
+    "sagas": [],
+    "dry_runs": [],
+    "reactions": [],
+    "validations": [
+      {
+        "verb": "Roster::Roster.Assign",
+        "ok": false,
+        "refusals": [
+          {
+            "kind": "refused",
+            "stage": "givens",
+            "refusal": "GivenNotMet",
+            "attribute": null,
+            "path": null,
+            "rule": "the member is enlisted",
+            "message": "Assign refused — the member is enlisted"
+          },
+          {
+            "kind": "refused",
+            "stage": "givens",
+            "refusal": "GivenNotMet",
+            "attribute": null,
+            "path": null,
+            "rule": "the seat exists",
+            "message": "Assign refused — the seat exists"
+          }
+        ]
+      }
+    ]
+  }
+}

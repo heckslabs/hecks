@@ -3,6 +3,7 @@
 require "fileutils"
 require_relative "../rust_build"
 require_relative "project_rust"
+require_relative "command_schemas"
 
 module Hecks
   module RustBuild
@@ -45,6 +46,16 @@ module Hecks
         puts "== regenerating #{scratch}/src/generated/ for #{domain} =="
         status = RustBuild.with_env("HECKS_RUST_DIR" => scratch) { ProjectRust.call([domain]) }
         raise Failure, "project_rust failed for #{domain}" unless status.zero?
+
+        write_schemas(scratch, domain)
+      end
+
+      # The command schemas go into the scratch copy only: they are a build output for the host to
+      # serve, not part of the generated corpus the drift check holds to the tree.
+      def write_schemas(scratch, domain)
+        loader = ProjectRust::DomainLoader.new(domain).call
+        CommandSchemas.write(loader.registry.bluebook(loader.domain_name),
+                             File.join(scratch, "src", "generated", File.basename(domain)))
       end
 
       def require_target!
@@ -107,6 +118,16 @@ module Hecks
 
         FileUtils.cp(sidecar, File.join(dist, "#{name}.ir.json"))
         puts "wrote #{File.join(dist, "#{name}.ir.json")}"
+        publish_schemas(scratch, dist, name)
+      end
+
+      # The command schemas beside the IR, which the host serves at a command's `?schema=1`.
+      def publish_schemas(scratch, dist, name)
+        schemas = File.join(scratch, "src", "generated", name, "schemas.json")
+        return unless File.exist?(schemas)
+
+        FileUtils.cp(schemas, File.join(dist, "#{name}.schemas.json"))
+        puts "wrote #{File.join(dist, "#{name}.schemas.json")}"
       end
     end
   end

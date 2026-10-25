@@ -16,6 +16,9 @@ module Hecks
       # How a refusal's kind is answered; any other kind is an unprocessable request.
       STATUSES = { not_found: :not_found, unauthorized: :forbidden }.freeze
 
+      # The values of `dry_run` / `X-Dry-Run` that ask for a validation instead of the command.
+      DRY_RUN_FLAGS = %w[1 true].freeze
+
       included do
         around_action :bind_hecks_caller
         rescue_from Hecks::Refused, with: :render_refusal
@@ -83,23 +86,29 @@ module Hecks
       end
 
       def perform(command, action)
-        @record = command.creates? ? nil : model.find(params[:id])
-        arguments = hecks_arguments(command)
+        @record = command.creates? ? model.unsaved : model.find(params[:id])
+        return render_validation(action) if dry_run_requested?
+
+        arguments = Arguments.for(model, command, params)
         target = command.creates? ? model : @record
         redirect_to target.public_send("#{action}!", **arguments)
       end
 
-      def hecks_arguments(command)
-        aggregate = model.door.ir
-        fields = command.attributes.map { |attribute| Hecks::Forms::FieldShape.resolve(attribute, aggregate: aggregate) }
-        Hecks::Forms::Params.extract(fields, params.to_unsafe_h.transform_keys(&:to_s))
-      rescue ArgumentError, TypeError, JSON::ParserError => e
-        raise Hecks::Refused, e.message
+      # Whether the request asks to be checked, not carried out: `?dry_run=1` or `X-Dry-Run: 1`.
+      def dry_run_requested?
+        DRY_RUN_FLAGS.include?(params[:dry_run].to_s) || DRY_RUN_FLAGS.include?(request.headers["X-Dry-Run"].to_s)
+      end
+
+      # Answers every reason the command would be refused, as the domain gives them, with 200
+      # whether or not it would be.
+      def render_validation(action)
+        refusals = @record.validate_command(action, params)
+        render json: { ok: refusals.empty?, refusals: refusals.map(&:to_h) }
       end
 
       def render_refusal(refusal)
         @record ||= model.unsaved
-        @record.errors.add(refusal.attribute || :base, refusal.message)
+        @record.refuse(refusal)
         status = STATUSES.fetch(refusal.kind, :unprocessable_entity)
         respond_to do |format|
           format.html { render_html_refusal(status) }

@@ -54,6 +54,26 @@ RSpec.describe Hecks::Rails::Model do
     expect(Account).not_to respond_to(:has_many)
   end
 
+  describe "reference lookups" do
+    def requested(reference, source, destination)
+      Hecks.as_caller(role: "Teller") do
+        Transfer.request_transfer!(reference: { value: reference }, source: source, destination: destination)
+      end
+    end
+
+    it "names a lookup after the alias and its target", :aggregate_failures do
+      expect(Transfer.method_defined?(:source_account)).to be(true)
+      expect(Transfer.method_defined?(:destination_account)).to be(true)
+    end
+
+    it "looks the referenced record up only when called" do
+      from = opened("R1", 5)
+      transfer = requested("T1", from.id, opened("R2", 0).id)
+
+      expect(transfer.source_account.to_param).to eq("R1")
+    end
+  end
+
   describe "#available_commands" do
     before do
       grant("officer-2", "Compliance officer")

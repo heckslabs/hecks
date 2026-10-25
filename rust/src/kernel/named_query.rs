@@ -3,7 +3,8 @@
 
 use super::refusal_wording::UnauthorizedTenantRequiredArgs;
 use super::{
-    query_comparators::QueryComparator, query_ordering, repository, AggregateScan, Json, Refusal,
+    query_comparators::QueryComparator, query_cursor, query_ordering, repository, AggregateScan,
+    Json, Refusal,
 };
 
 /// One declared query, compiled.
@@ -20,6 +21,8 @@ pub struct QueryDef {
     pub order_by: Option<query_ordering::OrderBy>,
     pub offset: Option<query_ordering::Offset>,
     pub limit: Option<query_ordering::Limit>,
+    /// `cursor` is declared: `limit` is the page size and the call's `after` names the position.
+    pub cursor: bool,
     /// `None` when no `authorize` is declared, or it declares no `tenant:`.
     pub authorization: Option<TenantAuth>,
 }
@@ -133,6 +136,10 @@ pub fn run_cross_domain(
         store,
     )?;
 
+    if def.cursor {
+        return cursor_rows(entries, def, args);
+    }
+
     Ok(query_ordering::apply(
         entries,
         def.order_by.as_ref(),
@@ -140,6 +147,49 @@ pub fn run_cross_domain(
         def.limit.as_ref(),
         args,
     ))
+}
+
+/// The ordered rows after the call's `after`, capped at the page size.
+fn cursor_rows(
+    entries: Vec<(String, Json)>,
+    def: &QueryDef,
+    args: &Json,
+) -> Result<Vec<(String, Json)>, Refusal> {
+    let ordered = query_ordering::apply(entries, def.order_by.as_ref(), None, None, args);
+    let after = args.get("after").and_then(Json::as_str);
+    let mut rows = query_cursor::rows_after(ordered, def.order_by.as_ref(), after)?;
+    if let Some(limit) = def.limit.as_ref() {
+        rows.truncate(query_ordering::resolve_limit(limit, args));
+    }
+    Ok(rows)
+}
+
+/// One page of a cursor query: its rows, and the token of the page after them.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Page {
+    pub rows: Vec<(String, Json)>,
+    /// `None` on the last page.
+    pub after: Option<String>,
+}
+
+/// `run`, asked for one row past the page: that row proves a next page exists and is not answered.
+pub fn run_page(
+    store: &impl AggregateScan,
+    def: &QueryDef,
+    args: &Json,
+    caller_role: Option<&str>,
+) -> Result<Page, Refusal> {
+    let size = def
+        .limit
+        .as_ref()
+        .map_or(0, |limit| query_ordering::resolve_limit(limit, args));
+    let widened = QueryDef {
+        limit: Some(query_ordering::Limit::Literal(size as i64 + 1)),
+        ..*def
+    };
+    let rows = run(store, &widened, args, caller_role)?;
+    let (rows, after) = query_cursor::split_page(rows, def.order_by.as_ref(), size);
+    Ok(Page { rows, after })
 }
 
 /// Finds a query by verb; a linear scan is enough for the small generated `QUERIES` table.
@@ -264,4 +314,91 @@ fn row_under_parent(parent_key: &str, parent_id: String, element: Json) -> Json 
         }
     }
     Json::Object(fields)
+}
+
+#[cfg(test)]
+mod cursor_tests {
+    use super::*;
+    use crate::kernel::query_ordering::{Limit, NullsMode, OrderBy};
+
+    struct Rows(Vec<(String, Json)>);
+
+    impl AggregateScan for Rows {
+        fn scan(&self, aggregate: &str) -> Option<Vec<(String, Json)>> {
+            (aggregate == "Shop::Item").then(|| self.0.clone())
+        }
+    }
+
+    fn item(id: &str, rank: i64) -> (String, Json) {
+        (id.to_string(), Json::obj(vec![("rank", Json::int(rank))]))
+    }
+
+    fn paged() -> QueryDef {
+        QueryDef {
+            verb: "Shop::Item.Paged",
+            aggregate: "Shop::Item",
+            conditions: &[],
+            reference_hop_conditions: &[],
+            order_by: Some(OrderBy {
+                field: "rank",
+                descending: false,
+                nulls: NullsMode::Native,
+            }),
+            offset: None,
+            limit: Some(Limit::Literal(2)),
+            cursor: true,
+            authorization: None,
+        }
+    }
+
+    fn walk(store: &Rows) -> Vec<Vec<String>> {
+        let (mut pages, mut after) = (Vec::new(), None::<String>);
+        loop {
+            let args = after.as_deref().map_or_else(
+                || Json::obj(vec![]),
+                |a| Json::obj(vec![("after", Json::str(a))]),
+            );
+            let page = run_page(store, &paged(), &args, None).unwrap();
+            pages.push(page.rows.iter().map(|(id, _)| id.clone()).collect());
+            match page.after {
+                Some(next) => after = Some(next),
+                None => return pages,
+            }
+        }
+    }
+
+    #[test]
+    fn walking_pages_yields_every_row_in_order_with_ties_by_identity() {
+        let store = Rows(vec![
+            item("b", 1),
+            item("a", 2),
+            item("d", 2),
+            item("c", 2),
+            item("e", 3),
+        ]);
+        assert_eq!(
+            walk(&store),
+            vec![vec!["b", "a"], vec!["c", "d"], vec!["e"]]
+        );
+    }
+
+    #[test]
+    fn a_page_after_the_last_row_is_empty_with_no_next_position() {
+        let store = Rows(vec![item("a", 1)]);
+        let token = query_cursor::encode(&Json::int(1), "a");
+        let page = run_page(
+            &store,
+            &paged(),
+            &Json::obj(vec![("after", Json::str(token))]),
+            None,
+        )
+        .unwrap();
+        assert_eq!(
+            page,
+            Page {
+                rows: vec![],
+                after: None
+            }
+        );
+    }
 }

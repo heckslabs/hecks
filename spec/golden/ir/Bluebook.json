@@ -26582,6 +26582,598 @@
         {
           "attributes": [
             {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "name",
+                "refused"
+              ]
+            ],
+            [
+              [
+                "name",
+                "not_found"
+              ]
+            ],
+            [
+              [
+                "name",
+                "unauthorized"
+              ]
+            ],
+            [
+              [
+                "name",
+                "absent_argument"
+              ]
+            ]
+          ],
+          "name": "RefusalKind"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "name",
+                "request"
+              ]
+            ],
+            [
+              [
+                "name",
+                "arguments"
+              ]
+            ],
+            [
+              [
+                "name",
+                "role"
+              ]
+            ],
+            [
+              [
+                "name",
+                "references"
+              ]
+            ],
+            [
+              [
+                "name",
+                "state"
+              ]
+            ],
+            [
+              [
+                "name",
+                "givens"
+              ]
+            ],
+            [
+              [
+                "name",
+                "ensures"
+              ]
+            ],
+            [
+              [
+                "name",
+                "invariants"
+              ]
+            ],
+            [
+              [
+                "name",
+                "remote"
+              ]
+            ]
+          ],
+          "name": "DispatchStage"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "step",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Vocabulary::DispatchStage",
+              "default": null,
+              "list": false,
+              "name": "stage",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "step",
+                "decode_arguments"
+              ],
+              [
+                "stage",
+                "arguments"
+              ]
+            ],
+            [
+              [
+                "step",
+                "refuse_unknown_arguments"
+              ],
+              [
+                "stage",
+                "arguments"
+              ]
+            ],
+            [
+              [
+                "step",
+                "refuse_absent_arguments"
+              ],
+              [
+                "stage",
+                "arguments"
+              ]
+            ],
+            [
+              [
+                "step",
+                "normalize_args"
+              ],
+              [
+                "stage",
+                "arguments"
+              ]
+            ],
+            [
+              [
+                "step",
+                "refuse_role_mismatch"
+              ],
+              [
+                "stage",
+                "role"
+              ]
+            ],
+            [
+              [
+                "step",
+                "resolve_references"
+              ],
+              [
+                "stage",
+                "references"
+              ]
+            ],
+            [
+              [
+                "step",
+                "hydrate"
+              ],
+              [
+                "stage",
+                "state"
+              ]
+            ],
+            [
+              [
+                "step",
+                "hydrate_parent"
+              ],
+              [
+                "stage",
+                "state"
+              ]
+            ],
+            [
+              [
+                "step",
+                "locate_element"
+              ],
+              [
+                "stage",
+                "state"
+              ]
+            ],
+            [
+              [
+                "step",
+                "enforce_givens"
+              ],
+              [
+                "stage",
+                "givens"
+              ]
+            ],
+            [
+              [
+                "step",
+                "admissible_transition"
+              ],
+              [
+                "stage",
+                "state"
+              ]
+            ],
+            [
+              [
+                "step",
+                "assign_creation_attributes"
+              ],
+              [
+                "stage",
+                "state"
+              ]
+            ],
+            [
+              [
+                "step",
+                "apply_mutations"
+              ],
+              [
+                "stage",
+                "state"
+              ]
+            ],
+            [
+              [
+                "step",
+                "advance_lifecycle"
+              ],
+              [
+                "stage",
+                "state"
+              ]
+            ],
+            [
+              [
+                "step",
+                "delegate_to_entity"
+              ],
+              [
+                "stage",
+                "state"
+              ]
+            ],
+            [
+              [
+                "step",
+                "enforce_ensures"
+              ],
+              [
+                "stage",
+                "ensures"
+              ]
+            ],
+            [
+              [
+                "step",
+                "enforce_invariants"
+              ],
+              [
+                "stage",
+                "invariants"
+              ]
+            ],
+            [
+              [
+                "step",
+                "save"
+              ],
+              [
+                "stage",
+                "state"
+              ]
+            ],
+            [
+              [
+                "step",
+                "emit"
+              ],
+              [
+                "stage",
+                "state"
+              ]
+            ]
+          ],
+          "name": "StepStage"
+        },
+        {
+          "attributes": [
+            {
+              "admits": "Vocabulary::DomainRefusal",
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Vocabulary::RefusalKind",
+              "default": null,
+              "list": false,
+              "name": "kind",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Vocabulary::DispatchStage",
+              "default": null,
+              "list": false,
+              "name": "stage",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "name",
+                "AbsentArgument"
+              ],
+              [
+                "kind",
+                "absent_argument"
+              ],
+              [
+                "stage",
+                "arguments"
+              ]
+            ],
+            [
+              [
+                "name",
+                "AlreadyExists"
+              ],
+              [
+                "kind",
+                "refused"
+              ],
+              [
+                "stage",
+                "state"
+              ]
+            ],
+            [
+              [
+                "name",
+                "AttributeAbsent"
+              ],
+              [
+                "kind",
+                "refused"
+              ],
+              [
+                "stage",
+                "state"
+              ]
+            ],
+            [
+              [
+                "name",
+                "EnsuresNotMet"
+              ],
+              [
+                "kind",
+                "refused"
+              ],
+              [
+                "stage",
+                "ensures"
+              ]
+            ],
+            [
+              [
+                "name",
+                "GivenNotMet"
+              ],
+              [
+                "kind",
+                "refused"
+              ],
+              [
+                "stage",
+                "givens"
+              ]
+            ],
+            [
+              [
+                "name",
+                "InvariantViolation"
+              ],
+              [
+                "kind",
+                "refused"
+              ],
+              [
+                "stage",
+                "invariants"
+              ]
+            ],
+            [
+              [
+                "name",
+                "LifecycleRefused"
+              ],
+              [
+                "kind",
+                "refused"
+              ],
+              [
+                "stage",
+                "state"
+              ]
+            ],
+            [
+              [
+                "name",
+                "NothingToCorrect"
+              ],
+              [
+                "kind",
+                "refused"
+              ],
+              [
+                "stage",
+                "state"
+              ]
+            ],
+            [
+              [
+                "name",
+                "NotFound"
+              ],
+              [
+                "kind",
+                "not_found"
+              ],
+              [
+                "stage",
+                "state"
+              ]
+            ],
+            [
+              [
+                "name",
+                "ProjectionAbsent"
+              ],
+              [
+                "kind",
+                "refused"
+              ],
+              [
+                "stage",
+                "state"
+              ]
+            ],
+            [
+              [
+                "name",
+                "RemoteRefusal"
+              ],
+              [
+                "kind",
+                "refused"
+              ],
+              [
+                "stage",
+                "remote"
+              ]
+            ],
+            [
+              [
+                "name",
+                "TypeMismatch"
+              ],
+              [
+                "kind",
+                "refused"
+              ],
+              [
+                "stage",
+                "arguments"
+              ]
+            ],
+            [
+              [
+                "name",
+                "Unauthorized"
+              ],
+              [
+                "kind",
+                "unauthorized"
+              ],
+              [
+                "stage",
+                "role"
+              ]
+            ],
+            [
+              [
+                "name",
+                "UnknownArgument"
+              ],
+              [
+                "kind",
+                "refused"
+              ],
+              [
+                "stage",
+                "arguments"
+              ]
+            ],
+            [
+              [
+                "name",
+                "UnknownVerb"
+              ],
+              [
+                "kind",
+                "refused"
+              ],
+              [
+                "stage",
+                "request"
+              ]
+            ]
+          ],
+          "name": "RefusalClass"
+        },
+        {
+          "attributes": [
+            {
               "admits": "Vocabulary::DomainRefusal",
               "default": null,
               "list": false,

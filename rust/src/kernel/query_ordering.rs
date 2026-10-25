@@ -85,13 +85,13 @@ fn apply_declared_order(rows: Rows, order_by: &OrderBy) -> Rows {
     }
 }
 
-// Reduced like a where clause's held value; a missing field reads as `Json::Null`.
-fn order_key(record: &Json, field: &str) -> Json {
+/// Reduced like a where clause's held value; a missing field reads as `Json::Null`.
+pub(super) fn order_key(record: &Json, field: &str) -> Json {
     query_comparators::comparable(&record.dig(field).cloned().unwrap_or(Json::Null))
 }
 
-// Codegen only lets a declared field resolve to a number or a string, homogeneous per field.
-fn compare_comparable(a: &Json, b: &Json) -> std::cmp::Ordering {
+/// Codegen only lets a declared field resolve to a number or a string, homogeneous per field.
+pub(super) fn compare_comparable(a: &Json, b: &Json) -> std::cmp::Ordering {
     match (a, b) {
         (Json::Num(x, _) | Json::Float(x), Json::Num(y, _) | Json::Float(y)) => {
             x.partial_cmp(y).unwrap_or(std::cmp::Ordering::Equal)
@@ -101,8 +101,8 @@ fn compare_comparable(a: &Json, b: &Json) -> std::cmp::Ordering {
     }
 }
 
-// A missing or non-numeric arg reads as 0 (Ruby's `nil.to_i`); negatives floor to 0.
-fn resolve_limit(limit: &Limit, args: &Json) -> usize {
+/// A missing or non-numeric arg reads as 0 (Ruby's `nil.to_i`); negatives floor to 0.
+pub(super) fn resolve_limit(limit: &Limit, args: &Json) -> usize {
     let raw = match limit {
         Limit::Literal(n) => *n,
         Limit::Arg(name) => args.get(name).and_then(Json::as_i64).unwrap_or(0),

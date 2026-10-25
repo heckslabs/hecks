@@ -6,6 +6,7 @@ require_relative "git_train/reading"
 require_relative "git_train/bench"
 require_relative "git_train/local_branch"
 require_relative "git_train/carriage"
+require_relative "git_train/survey"
 
 module Hecks
   module Adapters
@@ -43,6 +44,20 @@ module Hecks
                                                  remote: plain(held[:remote]) || "origin")
         boarded = carriage.local_head
         in_turn { carriage.carry(boarded) }
+      end
+
+      # Lists every checkout under a directory whose default branch has commits its remote does
+      # not, fetching each first.
+      #
+      # @param held [Hash] the `PushTrain` record: `checkout` (the directory whose children are
+      #   surveyed; the current directory when none is named) and `remote`
+      # @return [Hash{Symbol => Hash}] `report:` one line per checkout with unpushed commits
+      # @raise [ConsoleCapture::Failure] when the directory does not exist
+      def tally(**held)
+        root = plain(held[:checkout]) || Dir.pwd
+        raise ConsoleCapture::Failure, "#{root} is not a directory" unless File.directory?(root)
+
+        { report: { value: Survey.new(@git, root, remote: plain(held[:remote]) || "origin").report } }
       end
 
       private

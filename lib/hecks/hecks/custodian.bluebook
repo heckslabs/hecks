@@ -548,6 +548,7 @@ policy "RecordTheEra" do
       transition "Push"  => "pushed",  from: "requested"
       transition "Ride"  => "carried", from: "requested"
       transition "Fault" => "faulted", from: "requested"
+      transition "Summarize" => "surveyed", from: "requested"
     end
 
     command "Board" do
@@ -565,6 +566,35 @@ policy "RecordTheEra" do
       sets :checkout
 
       emits BoardingRequested
+    end
+
+    # A survey pushes nothing: it lists every checkout under a directory (`checkout`) whose branch
+    # has commits its remote does not, so what waits to board is known before anything boards.
+    command "Survey" do
+      role "Operator"
+      goal "List every checkout under a directory whose branch has commits its remote does not"
+
+      attribute :run,      RunKey
+      attribute :remote,   Word, default: "origin"
+      attribute :checkout, Word, optional: true
+
+      sets :run
+      sets :remote
+      sets :checkout
+
+      emits SurveyRequested
+    end
+
+    command "Summarize" do
+      role "System"
+      goal "Record what a survey found waiting to push"
+
+      reference_to PushTrain
+      attribute :report, Report
+
+      sets :report
+
+      emits CheckoutsSurveyed
     end
 
     # The branch was pushed: every commit on it reached the remote, what this boarding carried and
@@ -646,10 +676,243 @@ policy "RecordTheEra" do
     trigger PushTrain::Fault, with: { refusal: :refusal }
   end
 
+  policy "SurveyWhenAsked" do
+    on      "PushTrain.SurveyRequested"
+    trigger PushTrain::Train::Tally, with: { run: :run }
+  end
+
+  policy "RecordTheSurvey" do
+    on      "PushTrain.SurveyAnswered"
+    trigger PushTrain::Summarize, with: { report: :report }
+  end
+
+  policy "RecordTheRefusedSurvey" do
+    on      "PushTrain.SurveyRefused"
+    trigger PushTrain::Fault, with: { refusal: :refusal }
+  end
+
   # Deploys stay by hand: a push that reached the remote says a deploy is ready, and nothing more.
   policy "AnnounceWhenPushed" do
     on      "PushTrain.BranchPushed"
     trigger PushTrain::Alerts::Announce, with: { run: :run }
+  end
+
+  # A checkout's state, read and never written: nothing needs a raw `git status`, `git diff` or
+  # `git log`. The `Reading` port's adapter answers each query; the aggregate keeps no record.
+  aggregate "Checkout" do
+    description "A look at a checkout: its branch, what it changed and what it committed."
+
+    attribute :checkout, Place
+    identified_by :checkout
+
+    # A directory inside the repository; the current directory when a query names none.
+    value_object "Place" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Word" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Document" do
+      attribute :text, String
+    end
+
+    query "Status" do
+      description "The checkout's branch, whether it is a linked worktree, where it stands against main and origin/main, and what is changed or untracked."
+      attribute :checkout, Place, optional: true
+      returns Document
+    end
+
+    query "Changes" do
+      description "What the checkout changed since a ref (main by default): the diffstat, or the paths alone."
+      attribute :checkout,   Place,   optional: true
+      attribute :since,      Word,    optional: true
+      attribute :names_only, Boolean, optional: true
+      returns Document
+    end
+
+    query "Log" do
+      description "The commits in a range, newest first (the last 20 when none is named)."
+      attribute :checkout, Place, optional: true
+      attribute :range,    Word,  optional: true
+      returns Document
+    end
+  end
+
+  # Agents merge straight to local main and clean up what they merged. A landing merges a worktree's
+  # branch onto main, fast-forward first and as a merge commit when main moved; a conflict is
+  # reported and never settled, and nothing is forced or pushed. A retirement removes the worktree
+  # and its branch once the branch is on main, and refuses while it holds uncommitted work or
+  # commits main lacks, so no unpushed work is deleted.
+  aggregate "Landing" do
+    description "One branch landed on local main, or one worktree retired: done, or refused with the reason."
+
+    attribute :run,      RunKey
+    attribute :checkout, Word,   optional: true
+    attribute :branch,   Word,   optional: true
+    attribute :onto,     Word,   optional: true
+    attribute :landed,   Word,   optional: true
+    attribute :report,   Report, optional: true
+    attribute :refusal,  Report, optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, matches: :present
+    end
+
+    # A branch, a directory or a commit.
+    value_object "Word" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    value_object "Document" do
+      attribute :text, String
+    end
+
+    lifecycle :status, default: "requested" do
+      mark :failure, "refused"
+      transition "Record"  => "landed",  from: "requested"
+      transition "Clear"   => "retired", from: "requested"
+      transition "Refuse"  => "refused", from: "requested"
+      transition "Decline" => "refused", from: "requested"
+    end
+
+    command "Land" do
+      role "Operator"
+      goal "Merge a worktree's branch onto local main: fast-forward when it can be, a merge commit when main moved, never forced, never pushed"
+
+      attribute :run,      RunKey
+      attribute :checkout, Word, optional: true
+      attribute :branch,   Word, optional: true
+      attribute :onto,     Word, default: "main"
+
+      sets :run
+      sets :checkout
+      sets :branch
+      sets :onto
+
+      emits LandingRequested
+    end
+
+    command "Record" do
+      role "System"
+      goal "Record the commit main names once the branch is on it"
+
+      reference_to Landing
+      attribute :branch, Word
+      attribute :landed, Word
+      attribute :report, Report
+
+      sets :branch
+      sets :landed
+      sets :report
+
+      emits BranchLanded
+    end
+
+    command "Refuse" do
+      role "System"
+      goal "Record why a branch could not be landed"
+
+      reference_to Landing
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits LandingRefused
+    end
+
+    command "Retire" do
+      role "Operator"
+      goal "Remove a merged worktree and delete its branch, unless it holds uncommitted work or commits main lacks"
+
+      attribute :run,      RunKey
+      attribute :checkout, Word, optional: true
+      attribute :branch,   Word, optional: true
+      attribute :onto,     Word, default: "main"
+
+      sets :run
+      sets :checkout
+      sets :branch
+      sets :onto
+
+      emits RetirementRequested
+    end
+
+    command "Clear" do
+      role "System"
+      goal "Record that the worktree and its branch are gone"
+
+      reference_to Landing
+      attribute :branch, Word
+      attribute :report, Report
+
+      sets :branch
+      sets :report
+
+      emits WorktreeRetired
+    end
+
+    command "Decline" do
+      role "System"
+      goal "Record why a worktree was kept"
+
+      reference_to Landing
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits RetirementDeclined
+    end
+
+    query "Outcome" do
+      description "How one landing or retirement ended: the commit main names, or why it was refused."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "Unlanded" do
+      description "Every branch with commits that are not on main, or with uncommitted work, and where its worktree is."
+      attribute :checkout, Word, optional: true
+      attribute :onto,     Word, optional: true
+      returns Document
+    end
+  end
+
+  policy "MergeWhenLanding" do
+    on      "Landing.LandingRequested"
+    trigger Landing::Worktrees::Merge, with: { run: :run }
+  end
+
+  policy "RecordTheLanding" do
+    on      "Landing.MergeAnswered"
+    trigger Landing::Record, with: { branch: :branch, landed: :landed, report: :report }
+  end
+
+  policy "RecordTheRefusedLanding" do
+    on      "Landing.MergeRefused"
+    trigger Landing::Refuse, with: { refusal: :refusal }
+  end
+
+  policy "RemoveWhenRetiring" do
+    on      "Landing.RetirementRequested"
+    trigger Landing::Worktrees::Remove, with: { run: :run }
+  end
+
+  policy "RecordTheRetirement" do
+    on      "Landing.RemovalAnswered"
+    trigger Landing::Clear, with: { branch: :branch, report: :report }
+  end
+
+  policy "RecordTheKeptWorktree" do
+    on      "Landing.RemovalRefused"
+    trigger Landing::Decline, with: { refusal: :refusal }
   end
 
   # The copy of Hecks that runs the train follows what it pushed, so the next boarding and the

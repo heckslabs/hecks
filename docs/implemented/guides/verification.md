@@ -11,7 +11,7 @@ instead. Those are not bugs your tests catch, because a test only
 walks the path you thought to write. This page is the toolbox for the
 paths you didn't.
 
-Four checks, each answering a narrower question than "is the suite
+These checks each answer a narrower question than "is the suite
 green." `hecks model_check` reads your domain's own declared shape and
 proves facts about every path through it, not just the ones you
 tested. `hecks fuzz_run.fuzz` walks random-but-valid histories through the real
@@ -250,13 +250,17 @@ the domain declining), whether every declared property still holds,
 and — separately, because it costs a second full replay — whether two
 runs of the identical steps produced byte-identical histories.
 
-The declared properties are listed in `Hecks::Fuzzing::Properties::PROPERTY_NAMES`.
-Two examples: `lifecycle_values_are_declared` (every lifecycle field a replay leaves
-an instance holding is one of that aggregate's own declared states) and
+The declared properties live in `Hecks::Fuzzing::Properties`; the list is
+`PROPERTY_NAMES` in `lib/hecks/fuzzing/properties/catalog.rb`, with
+`FEATURE_COVERAGE` saying which language feature each one holds. A few of
+them: `lifecycle_values_are_declared` (every lifecycle field a replay leaves
+an instance holding is one of that aggregate's own declared states),
 `saga_advances_follow_declared_handlers` (every saga advance a replay
-logged moved along an edge some handler actually names).
-`replay_is_deterministic` is kept apart from that list because it needs a
-second boot to check at all. This is the canonical example domain for the rest of this
+logged moved along an edge some handler actually names),
+`query_answers_match_reference`, `role_checks_agree_with_grants` and
+`aggregation_matches_recompute`. `replay_is_deterministic` is kept
+apart from the rest of the battery because it needs a second boot to check at
+all. This is the canonical example domain for the rest of this
 section — pizzas, era 2, the one `docs/implemented/guides/AUTHORING.md` points to
 whenever a guide needs a real domain rather than an invented one:
 
@@ -274,12 +278,12 @@ steps = [
 
 history = Hecks::Fuzzing::Replay.call("examples/pizzas", steps)
 
-Hecks::Fuzzing::Properties.check(history)
+Hecks::Fuzzing::Properties.check(history).slice(:lifecycle_values_are_declared, :saga_advances_follow_declared_handlers, :query_answers_match_reference)
   # => { lifecycle_values_are_declared: true, saga_advances_follow_declared_handlers: true, query_answers_match_reference: true }
 ```
 
-`query_answers_match_reference` is the newest property, and it is a
-genuinely different kind of check from the other two: `"Available"`
+`query_answers_match_reference` is a
+genuinely different kind of check from the invariant-style properties: `"Available"`
 above was answered TWICE at the same instant — once through whatever
 `Order` is actually bound to (Memory's own query hook, here), once
 through the reference interpreter, a second, independent evaluation of
@@ -308,7 +312,7 @@ after catch-up, is a finding (ADR 0122). From Ruby,
 `Hecks::Fuzzing::ProjectionAgreement.check(domain, steps, projection: :sqlite)`
 answers the disagreements, empty when there are none.
 
-`replay_is_deterministic` runs apart from the other three, and only
+`replay_is_deterministic` runs apart from the rest of the battery, and only
 once they have already passed — a property violation or a crash is
 cheap to find; proving determinism means replaying the SAME steps
 against a SECOND fresh boot and diffing two full histories, which is

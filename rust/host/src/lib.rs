@@ -57,5 +57,6 @@ mod store_conformance;
 #[cfg(test)]
 pub mod test_pg;
 pub mod ui_schema;
+pub mod validation;
 pub mod wasm_runner;
 pub mod web;

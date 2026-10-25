@@ -73,7 +73,24 @@ export function fakeHost() {
     return { instances: {}, events: [], refusals: [], queries: [{ query: question, rows }] };
   };
 
+  // What a real host's preview reports: the run's first refusal as a kind, a stage and the domain's
+  // words, and nothing kept.
+  const KINDS = { NotFound: ["not_found", "state"], GivenNotMet: ["refused", "givens"] };
+  const preview = (body) => {
+    const before = structuredClone(instances);
+    const reply = handle({ ...body, dry_run: undefined });
+    for (const key of Object.keys(instances)) delete instances[key];
+    Object.assign(instances, before);
+    const [first] = reply.refusals ?? [];
+    const [kind, stage] = KINDS[first?.kind] ?? ["refused", "arguments"];
+    return {
+      ok: !first && !reply.error,
+      refusals: first ? [{ kind, stage, refusal: first.kind, message: first.error }] : [],
+    };
+  };
+
   const handle = (body) => {
+    if (body.dry_run === true) return preview(body);
     if (typeof body.query === "string") return ask(body.query);
     if (body.read === true) return outcome();
     if (typeof body.verb !== "string") return { error: 'event missing "verb"' };

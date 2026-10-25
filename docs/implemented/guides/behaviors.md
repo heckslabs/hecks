@@ -61,7 +61,7 @@ end
 
 ## `expect`
 
-Five things, and only these:
+These, and only these:
 
 | key | checks |
 |---|---|
@@ -71,7 +71,7 @@ Five things, and only these:
 | `count: N` | a query returned this many rows (queries only) |
 | `<field>: value` | an aggregate-level field equals this, value-object-aware — bare (`kind: "bishop"`) and wrapped (`kind: { value: "bishop" }`) both compare equal |
 
-Any other key names none of these five and fails, naming them.
+Any other key names none of these and fails, naming them.
 
 ```ruby skip
 test "a move cascades into PlyAdvanced" do
@@ -128,7 +128,7 @@ end
 ```
 
 If the domain has no query that can answer what a test wants to check,
-that is a missing word in the bluebook, not a reason to add a sixth
+that is a missing word in the bluebook, not a reason to add another
 `expect` key.
 
 ## Running it
@@ -137,8 +137,7 @@ that is a missing word in the bluebook, not a reason to add a sixth
 per test — `:pass`, `:fail`, or `:error`, each with a message.
 `Hecks::Behaviors.run_all(dir)` sweeps every `.behaviors` file under
 a directory. Boot is ONE `Hecks.boot_files` call per SUITE, not per
-test — a real boot is expensive enough (chess: 76 tests, 155s of pure
-boot time) that per-test booting doesn't scale — and the runtime is
+test — a real boot is expensive enough that per-test booting doesn't scale — and the runtime is
 reset between tests instead (`Registry#reset_runtime_state!`).
 Isolation from that reset is real for `Memory`-bound aggregates, which
 is why a behaviors suite's `loads` is required to resolve every

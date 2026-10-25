@@ -345,6 +345,16 @@ Hecks.bluebook "Banking" do
       order_by :number
     end
 
+    # `limit` is the page size and `cursor` names the order field, so a caller walks the open
+    # accounts a page at a time: each answer's `after` is the next ask's. Identity breaks ties.
+    query "OpenPaged" do
+      description "Open accounts by number, one page at a time — the account list a screen pages through."
+      where(status: "open")
+      order_by :number
+      limit 25
+      cursor :number
+    end
+
     policy "ReviewOnFreeze" do
       # Bare event constant, matching FreezeAccount's `emits AccountFrozen`.
       on      Account::AccountFrozen
