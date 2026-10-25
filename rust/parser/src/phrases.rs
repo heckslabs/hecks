@@ -39,6 +39,22 @@ pub static PHRASES: &[PhraseRow] = &[
         status: "admitted",
     },
     PhraseRow {
+        id: "classification",
+        context: "Vision",
+        pattern: "This is a {kind:word} domain",
+        opens: "",
+        canonical: "yes",
+        status: "admitted",
+    },
+    PhraseRow {
+        id: "namespace",
+        context: "Vision",
+        pattern: "Its module is {name:rest}",
+        opens: "",
+        canonical: "yes",
+        status: "admitted",
+    },
+    PhraseRow {
         id: "aggregate",
         context: "Domain",
         pattern: "Aggregate: {name:words}",
