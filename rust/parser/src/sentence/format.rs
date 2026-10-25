@@ -10,6 +10,8 @@
 #![allow(clippy::format_push_string)]
 
 use super::names::spoken;
+use super::options;
+use crate::ruby_value;
 use crate::ir;
 
 /// The sentence-form text of `chapter`, or the name of the construct it has no phrase for.
@@ -164,7 +166,7 @@ fn aggregate_text(out: &mut String, aggregate: &ir::Aggregate) -> Result<(), Str
         }
     }
     for command in &aggregate.commands {
-        command_text(out, command, &noun)?;
+        command_text(out, command, &noun, &aggregate.attributes)?;
     }
     for query in &aggregate.queries {
         query_text(out, query)?;
@@ -200,22 +202,25 @@ fn spoken_title(name: &str) -> String {
 }
 
 fn attribute_line(attribute: &ir::Attribute) -> Result<String, String> {
-    if attribute.list
-        || attribute.default.is_some()
-        || attribute.pattern.is_some()
-        || attribute.admits.is_some()
-        || attribute.relationship.is_some()
-    {
-        return Err(format!(
+    let refused = || {
+        format!(
             "the sentence form has no phrase for the options on attribute {}",
             attribute.name
-        ));
-    }
-    let optional = if attribute.optional { ", optional" } else { "" };
+        )
+    };
+    let target = attribute.reference_target();
+    let form = match (attribute.relationship.as_deref(), target, attribute.list) {
+        (None, None, true) => "list of ".to_string(),
+        (None, None, false) => String::new(),
+        (Some("reference_to"), Some(_), false) => "reference to ".to_string(),
+        (Some("has_many"), Some(_), true) => "has many ".to_string(),
+        _ => return Err(refused()),
+    };
+    let named = target.map_or_else(|| type_words(&attribute.type_name), spoken);
     Ok(format!(
-        "{}: {}{optional}",
+        "{}: {form}{named}{}",
         with_article(&spoken(&attribute.name)),
-        type_words(&attribute.type_name)
+        options::said(attribute)?
     ))
 }
 
@@ -230,45 +235,77 @@ fn type_words(type_name: &str) -> String {
 
 fn value_object_text(out: &mut String, value_object: &ir::ValueObject) -> Result<(), String> {
     if value_object.closed_set || !value_object.members.is_empty() {
-        return Err(format!(
-            "the sentence form has no phrase for the closed set {}",
-            value_object.name
-        ));
+        return closed_set_text(out, value_object);
     }
-    let [value] = value_object.attributes.as_slice() else {
-        return Err(format!(
-            "the sentence form describes {} by one value; it holds {} attributes",
-            value_object.name,
-            value_object.attributes.len()
-        ));
-    };
-    if value.name != "value" {
-        return Err(format!(
-            "the sentence form describes {} by `a value`; its attribute is {}",
-            value_object.name, value.name
-        ));
+    let noun = capitalised(&with_article(&spoken(&value_object.name)));
+    match value_object.attributes.as_slice() {
+        [value] if value.name == "value" => {
+            if value.relationship.is_some() {
+                return Err(format!(
+                    "the sentence form has no phrase for the options on the value of {}",
+                    value_object.name
+                ));
+            }
+            let list = if value.list { "list of " } else { "" };
+            out.push_str(&format!(
+                "\n  {noun} has a value: {list}{}{}.\n",
+                type_words(&value.type_name),
+                options::said(value)?
+            ));
+        }
+        [] => return Err(format!("the sentence form describes {} by no attribute", value_object.name)),
+        attributes => {
+            out.push_str(&format!("\n  {noun} has:\n"));
+            for attribute in attributes {
+                out.push_str(&format!("    {}\n", attribute_line(attribute)?));
+            }
+        }
     }
-    if value.list
-        || value.optional
-        || value.default.is_some()
-        || value.pattern.is_some()
-        || value.admits.is_some()
-        || value.relationship.is_some()
-    {
-        return Err(format!(
-            "the sentence form has no phrase for the options on the value of {}",
-            value_object.name
-        ));
+    for rule in &value_object.invariants {
+        out.push_str(&format!("    {}\n", rule_sentence("Rule", rule)?));
+    }
+    Ok(())
+}
+
+/// `A band is one of: small, medium and large.` for a set of text values.
+fn closed_set_text(out: &mut String, value_object: &ir::ValueObject) -> Result<(), String> {
+    let refused = || format!("the sentence form has no phrase for the closed set {}", value_object.name);
+    let plain = matches!(
+        value_object.attributes.as_slice(),
+        [value] if value.name == "value" && value.type_name == "String" && !value.list && !value.optional
+            && value.default.is_none() && value.pattern.is_none() && value.admits.is_none()
+            && value.relationship.is_none()
+    );
+    if !plain || value_object.members.is_empty() {
+        return Err(refused());
+    }
+    let mut values: Vec<String> = Vec::new();
+    for member in &value_object.members {
+        match member.as_slice() {
+            [(column, ruby_value::Value::Str(text))] if column == "value" && is_listable(text) => values.push(text.clone()),
+            _ => return Err(refused()),
+        }
     }
     out.push_str(&format!(
-        "\n  {} has a value: {}.\n",
+        "\n  {} is one of: {}.\n",
         capitalised(&with_article(&spoken(&value_object.name))),
-        type_words(&value.type_name)
+        join_and(&values)
     ));
     for rule in &value_object.invariants {
         out.push_str(&format!("    {}\n", rule_sentence("Rule", rule)?));
     }
     Ok(())
+}
+
+/// Whether `text` survives being one item of `a, b and c`: no quote, comma or colon, no inner
+/// ` and `, and no leading article the reader would drop.
+fn is_listable(text: &str) -> bool {
+    let first = text.split(' ').next().unwrap_or_default().to_lowercase();
+    !text.is_empty()
+        && text.trim() == text
+        && !text.contains(['"', ',', ':'])
+        && !text.split(' ').any(|word| word.eq_ignore_ascii_case("and"))
+        && !matches!(first.as_str(), "a" | "an" | "the")
 }
 
 /// `Rule "…" holds when …` or `Given "…" holds when …`.
@@ -280,9 +317,9 @@ fn rule_sentence(word: &str, rule: &ir::Given) -> Result<String, String> {
     ))
 }
 
-/// The condition a canonical predicate says, in the words the Condition phrases read.
+/// The condition a canonical predicate says: in the words the Condition phrases read where one fits,
+/// else as `this is true: <expression>`.
 fn condition_words(canonical: &str) -> Result<String, String> {
-    let refused = || format!("the sentence form has no phrase for the rule `{canonical}`");
     if let Some(field) = canonical
         .strip_prefix('!')
         .and_then(|rest| rest.strip_suffix(".to_s.empty?"))
@@ -303,7 +340,11 @@ fn condition_words(canonical: &str) -> Result<String, String> {
             }
         }
     }
-    Err(refused())
+    // Anything the friendly phrases do not cover is said as the expression itself.
+    if canonical.contains('\n') {
+        return Err(format!("the sentence form cannot say a rule over several lines: `{canonical}`"));
+    }
+    Ok(format!("this is true: {canonical}"))
 }
 
 fn is_name(text: &str) -> bool {
@@ -314,7 +355,12 @@ fn is_word(text: &str) -> bool {
     !text.is_empty() && text.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
 }
 
-fn command_text(out: &mut String, command: &ir::Command, noun: &str) -> Result<(), String> {
+fn command_text(
+    out: &mut String,
+    command: &ir::Command,
+    noun: &str,
+    fields: &[ir::Attribute],
+) -> Result<(), String> {
     let held = [
         (!command.ensures.is_empty(), "ensures"),
         (!command.needs.is_empty(), "needs"),
@@ -349,8 +395,8 @@ fn command_text(out: &mut String, command: &ir::Command, noun: &str) -> Result<(
         let names: Vec<String> = command
             .attributes
             .iter()
-            .map(|a| with_article(&spoken(&a.name)))
-            .collect();
+            .map(|a| argument_name(&command.name, a, fields))
+            .collect::<Result<_, _>>()?;
         out.push_str(&format!(
             "    When {} {} given\n",
             join_and(&names),
@@ -379,6 +425,32 @@ fn command_text(out: &mut String, command: &ir::Command, noun: &str) -> Result<(
         outcome = "And";
     }
     Ok(())
+}
+
+/// `a title`, or `an optional description`: an argument is the field of its name, optional or not.
+/// Anything else about it (another type, a default, a pattern) has no phrase and is refused.
+fn argument_name(command: &str, argument: &ir::Attribute, fields: &[ir::Attribute]) -> Result<String, String> {
+    let field = fields.iter().find(|field| field.name == argument.name);
+    let same = field.is_some_and(|field| {
+        field.type_name == argument.type_name
+            && field.list == argument.list
+            && argument.default.is_none()
+            && argument.pattern.is_none()
+            && argument.admits.is_none()
+            && argument.relationship.is_none()
+    });
+    if !same {
+        return Err(format!(
+            "the sentence form has no phrase for argument {} of command {command}, which differs from the field it names",
+            argument.name
+        ));
+    }
+    let spoken_name = spoken(&argument.name);
+    if argument.optional {
+        Ok(format!("an optional {spoken_name}"))
+    } else {
+        Ok(with_article(&spoken_name))
+    }
 }
 
 fn set_name(command: &str, mutation: &ir::Mutation) -> Result<String, String> {
@@ -424,7 +496,7 @@ fn query_text(out: &mut String, query: &ir::Query) -> Result<(), String> {
             .value
             .strip_prefix('"')
             .and_then(|rest| rest.strip_suffix('"'))
-            .filter(|value| clause.op == "eq" && clause.target.is_none() && is_word(value))
+            .filter(|value| clause.op == "eq" && clause.target.is_none() && is_word(value) && is_name(&clause.field))
             .ok_or_else(|| {
                 format!(
                     "the sentence form has no phrase for a {} comparison in query {}",

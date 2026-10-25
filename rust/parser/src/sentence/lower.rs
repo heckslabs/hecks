@@ -15,6 +15,8 @@ struct TypeUse {
     line: usize,
     col: usize,
     words: String,
+    /// Names an aggregate (`reference to …`, `has many …`), not a scalar or a value object.
+    reference: bool,
 }
 
 struct Identity {
@@ -59,7 +61,8 @@ struct CommandSpec {
 /// A condition read from a rule, a given or a where.
 struct Cond {
     canonical: String,
-    field: FieldUse,
+    /// The field the condition is about; none for a condition written as an expression.
+    field: Option<FieldUse>,
     value: Option<String>,
 }
 
@@ -85,7 +88,8 @@ struct PolicySpec {
 struct AggState {
     agg: ir::Aggregate,
     attr_types: Vec<TypeUse>,
-    vo_types: Vec<(usize, TypeUse)>,
+    /// The type phrase of attribute `.1` of value object `.0`, resolved once all are read.
+    vo_types: Vec<(usize, usize, TypeUse)>,
     identity: Option<Identity>,
     lifecycle: Option<LifecycleSpec>,
     commands: Vec<CommandSpec>,
@@ -320,7 +324,9 @@ impl Parser<'_> {
                 Step::Phrase(m) => match m.id {
                     "identity" => self.identity(&m, &mut st)?,
                     "has" => self.has(&m, &mut st)?,
-                    "value_object" => self.value_object(&m, &mut st)?,
+                    "value_object" | "value_object_with" => self.value_object(&m, &mut st)?,
+                    "closed_set" => self.closed_set(&m, &mut st)?,
+                    "value_fields" => self.value_fields(&m, &mut st)?,
                     "lifecycle" => self.lifecycle(&m, &mut st)?,
                     "command" => self.command(&m, &mut st)?,
                     "query" => self.query(&m, &mut st)?,
@@ -364,18 +370,24 @@ impl Parser<'_> {
         let mut scope = Scope::inside(header.indent);
         while let Some(step) = self.step(&mut scope, "Has", false)? {
             let Step::Phrase(m) = step else { continue };
-            if !matches!(m.id, "attribute" | "attribute_optional") {
+            if !matches!(m.id, "attribute" | "attribute_with") {
                 return Err(self.unmeant(&m));
             }
-            st.agg.attributes.push(ir::Attribute {
+            let mut attribute = ir::Attribute {
                 name: snake(&m.text_of("name")),
-                optional: m.id == "attribute_optional",
                 ..Default::default()
-            });
+            };
+            if m.id == "attribute_with" {
+                self.attribute_options(&m)?.onto(&mut attribute);
+            }
+            let shape = shape_of(&m.text_of("type"));
+            shape.apply(&mut attribute);
+            st.agg.attributes.push(attribute);
             st.attr_types.push(TypeUse {
                 line: m.line,
                 col: m.col_of("type"),
-                words: m.text_of("type"),
+                words: shape.words,
+                reference: shape.relationship.is_some(),
             });
         }
         Ok(())
@@ -391,14 +403,41 @@ impl Parser<'_> {
             }],
             ..Default::default()
         });
+        if header.id == "value_object_with" {
+            let options = self.attribute_options(header)?;
+            if let Some(attribute) = st.agg.value_objects.get_mut(index).and_then(|vo| vo.attributes.first_mut()) {
+                options.onto(attribute);
+            }
+        }
+        let shape = shape_of(&header.text_of("type"));
+        if let Some(attribute) = st.agg.value_objects.get_mut(index).and_then(|vo| vo.attributes.first_mut()) {
+            shape.apply(attribute);
+        }
         st.vo_types.push((
             index,
+            0,
             TypeUse {
                 line: header.line,
                 col: header.col_of("type"),
-                words: header.text_of("type"),
+                reference: shape.relationship.is_some(),
+                words: shape.words,
             },
         ));
+        self.value_rules(header, st, index)
+    }
+
+    /// `A band is one of: small, medium and large.`, with any rules under it.
+    fn closed_set(&mut self, header: &Matched, st: &mut AggState) -> ParseResult<()> {
+        let index = st.agg.value_objects.len();
+        let values = header.capture("values").items;
+        let mut set = crate::build::closed_sets::synthesize("value", &values);
+        set.name = camel(&header.text_of("name"));
+        st.agg.value_objects.push(set);
+        self.value_rules(header, st, index)
+    }
+
+    /// The rules under a one-value block, each about `value`.
+    fn value_rules(&mut self, header: &Matched, st: &mut AggState, index: usize) -> ParseResult<()> {
         let mut scope = Scope::inside(header.indent);
         while let Some(step) = self.step(&mut scope, "ValueObject", false)? {
             let Step::Phrase(m) = step else { continue };
@@ -406,8 +445,8 @@ impl Parser<'_> {
                 return Err(self.unmeant(&m));
             }
             let cond = self.condition(&m)?;
-            if cond.field.name != "value" {
-                return Err(self.unknown_field(&cond.field, &["value".to_string()]));
+            if let Some(field) = cond.field.as_ref().filter(|field| field.name != "value") {
+                return Err(self.unknown_field(field, &["value".to_string()]));
             }
             if let Some(vo) = st.agg.value_objects.get_mut(index) {
                 vo.invariants.push(ir::Given {
@@ -417,6 +456,66 @@ impl Parser<'_> {
             }
         }
         Ok(())
+    }
+
+    /// `A money has:` with one attribute per line and the rules about them.
+    fn value_fields(&mut self, header: &Matched, st: &mut AggState) -> ParseResult<()> {
+        let index = st.agg.value_objects.len();
+        st.agg.value_objects.push(ir::ValueObject {
+            name: camel(&header.text_of("name")),
+            ..Default::default()
+        });
+        let mut checks: Vec<FieldUse> = Vec::new();
+        let mut scope = Scope::inside(header.indent);
+        while let Some(step) = self.step(&mut scope, "Fields", false)? {
+            let Step::Phrase(m) = step else { continue };
+            match m.id {
+                "field" | "field_with" => {
+                    let mut attribute = ir::Attribute {
+                        name: snake(&m.text_of("name")),
+                        ..Default::default()
+                    };
+                    if m.id == "field_with" {
+                        self.attribute_options(&m)?.onto(&mut attribute);
+                    }
+                    let shape = shape_of(&m.text_of("type"));
+                    shape.apply(&mut attribute);
+                    let Some(vo) = st.agg.value_objects.get_mut(index) else { continue };
+                    st.vo_types.push((
+                        index,
+                        vo.attributes.len(),
+                        TypeUse {
+                            line: m.line,
+                            col: m.col_of("type"),
+                            reference: shape.relationship.is_some(),
+                            words: shape.words,
+                        },
+                    ));
+                    vo.attributes.push(attribute);
+                }
+                "field_rule" => {
+                    let cond = self.condition(&m)?;
+                    checks.extend(cond.field);
+                    if let Some(vo) = st.agg.value_objects.get_mut(index) {
+                        vo.invariants.push(ir::Given {
+                            description: Some(m.text_of("description")),
+                            canonical: cond.canonical,
+                        });
+                    }
+                }
+                _ => return Err(self.unmeant(&m)),
+            }
+        }
+        let names: Vec<String> = st
+            .agg
+            .value_objects
+            .get(index)
+            .map(|vo| vo.attributes.iter().map(|a| a.name.clone()).collect())
+            .unwrap_or_default();
+        checks
+            .iter()
+            .find(|check| !names.contains(&check.name))
+            .map_or(Ok(()), |unknown| Err(self.unknown_field(unknown, &names)))
     }
 
     fn lifecycle(&mut self, header: &Matched, st: &mut AggState) -> ParseResult<()> {
@@ -480,11 +579,7 @@ impl Parser<'_> {
                 "announces" => spec.emits.push(m.text_of("event")),
                 "given" => {
                     let cond = self.condition(&m)?;
-                    st.checks.push(FieldUse {
-                        name: cond.field.name.clone(),
-                        line: cond.field.line,
-                        col: cond.field.col,
-                    });
+                    st.checks.extend(cond.field);
                     spec.givens.push(ir::Given {
                         description: Some(m.text_of("description")),
                         canonical: cond.canonical,
@@ -543,14 +638,17 @@ impl Parser<'_> {
                             "a Where compares a field with a value, like `Where the status is published`",
                         ));
                     };
+                    let Some(field) = cond.field else {
+                        return Err(self.error(m.line, m.col_of("condition"), "a Where compares a field with a value, not an expression"));
+                    };
                     st.checks.push(FieldUse {
-                        name: cond.field.name.clone(),
-                        line: cond.field.line,
-                        col: cond.field.col,
+                        name: field.name.clone(),
+                        line: field.line,
+                        col: field.col,
                     });
                     query
                         .wheres
-                        .extend(query_derive::where_clauses(&[(cond.field.name, format!("\"{value}\""))], None));
+                        .extend(query_derive::where_clauses(&[(field.name, format!("\"{value}\""))], None));
                 }
                 Step::Phrase(m) if m.id == "order" => {
                     let direction = match m.text_of("direction").to_lowercase().as_str() {
@@ -584,6 +682,13 @@ impl Parser<'_> {
         match self.match_text("Condition", &text, base) {
             Ok((phrase, found)) => {
                 let slot = |name: &str| found.get(name).cloned().unwrap_or_default();
+                if phrase.row.id == "expression" {
+                    return Ok(Cond {
+                        canonical: crate::canonical::apply(&slot("code").value),
+                        field: None,
+                        value: None,
+                    });
+                }
                 let field = FieldUse {
                     name: snake(&slot("field").value),
                     line: m.line,
@@ -606,7 +711,7 @@ impl Parser<'_> {
                 };
                 Ok(Cond {
                     canonical: crate::canonical::apply(&canonical),
-                    field,
+                    field: Some(field),
                     value,
                 })
             }
@@ -653,13 +758,13 @@ impl Parser<'_> {
         for (attribute, resolved) in st.agg.attributes.iter_mut().zip(types) {
             attribute.type_name = resolved;
         }
-        for (index, used) in &st.vo_types {
+        for (index, at, used) in &st.vo_types {
             let resolved = self.type_named(used, &st.agg)?;
             if let Some(attribute) = st
                 .agg
                 .value_objects
                 .get_mut(*index)
-                .and_then(|vo| vo.attributes.first_mut())
+                .and_then(|vo| vo.attributes.get_mut(*at))
             {
                 attribute.type_name = resolved;
             }
@@ -691,6 +796,9 @@ impl Parser<'_> {
     }
 
     fn type_named(&self, used: &TypeUse, agg: &ir::Aggregate) -> ParseResult<String> {
+        if used.reference {
+            return Ok(format!("Reference<{}>", camel(&used.words)));
+        }
         if let Some(found) = scalar(&used.words) {
             return Ok(found.to_string());
         }
@@ -725,18 +833,21 @@ impl Parser<'_> {
                 ..Default::default()
             };
             let fields: Vec<String> = st.agg.attributes.iter().map(|a| a.name.clone()).collect();
+            let mut given: Vec<String> = Vec::new();
             for arg in &spec.args {
-                let Some(attribute) = st.agg.attributes.iter().find(|a| a.name == arg.name) else {
+                let (name, optional) = optional_argument(&arg.name, &fields);
+                let Some(attribute) = st.agg.attributes.iter().find(|a| a.name == name) else {
                     return Err(self.unknown_field(arg, &fields));
                 };
                 command.attributes.push(ir::Attribute {
                     name: attribute.name.clone(),
                     type_name: attribute.type_name.clone(),
                     list: attribute.list,
+                    optional,
                     ..Default::default()
                 });
+                given.push(name);
             }
-            let given: Vec<String> = spec.args.iter().map(|a| a.name.clone()).collect();
             for set in &spec.sets {
                 if !given.contains(&set.name) {
                     return Err(self.error(
@@ -793,6 +904,48 @@ impl Parser<'_> {
         st.agg.lifecycle = Some(lifecycle);
         Ok(())
     }
+}
+
+/// An argument as written (`optional description` -> `description`, optional) unless a field of the
+/// whole name exists.
+fn optional_argument(written: &str, fields: &[String]) -> (String, bool) {
+    if fields.iter().any(|field| field == written) {
+        return (written.to_string(), false);
+    }
+    written
+        .strip_prefix("optional_")
+        .map_or_else(|| (written.to_string(), false), |name| (name.to_string(), true))
+}
+
+/// What the words of a type say beyond the type: a list, or a link to another aggregate.
+struct Shape {
+    /// The words once the form is taken off: `list of tag` -> `tag`.
+    words: String,
+    list: bool,
+    /// `reference_to` for `reference to …` and `has_many` for `has many …`.
+    relationship: Option<&'static str>,
+}
+
+impl Shape {
+    fn apply(&self, attribute: &mut ir::Attribute) {
+        attribute.list = self.list;
+        attribute.relationship = self.relationship.map(str::to_string);
+    }
+}
+
+/// Reads `list of …`, `reference to …` and `has many …` off the front of a type phrase.
+fn shape_of(words: &str) -> Shape {
+    let forms: [(&str, bool, Option<&'static str>); 3] = [
+        ("list of ", true, None),
+        ("reference to ", false, Some("reference_to")),
+        ("has many ", true, Some("has_many")),
+    ];
+    for (prefix, list, relationship) in forms {
+        if let Some(inner) = words.strip_prefix(prefix) {
+            return Shape { words: inner.trim().to_string(), list, relationship };
+        }
+    }
+    Shape { words: words.to_string(), list: false, relationship: None }
 }
 
 fn field_uses(m: &Matched, slot: &str) -> Vec<FieldUse> {
