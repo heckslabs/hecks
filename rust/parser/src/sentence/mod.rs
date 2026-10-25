@@ -13,6 +13,7 @@ pub mod examples;
 pub mod format;
 mod lower;
 mod names;
+mod options;
 mod pattern;
 mod token;
 

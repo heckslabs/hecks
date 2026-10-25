@@ -17,19 +17,18 @@ RSpec.describe "the sentence form against the whole corpus", :io do
   UNSAID = [
     /no phrase for entities/,
     /no phrase for read models/,
-    /no phrase for the options on attribute/,
-    /no phrase for the options on the value of/,
     /no phrase for the closed set/,
     /no phrase for provided capabilities/,
     /no phrase for process managers/,
     /no phrase for projected fields/,
     /no phrase for a version/,
     /no phrase for aggregate invariants/,
-    /no phrase for the rule/,
     /no phrase for the options on (policy|query)/,
     /no phrase for from on command/,
     /identifies an aggregate by one field/,
-    /describes \w+ by (one value|`a value`)/,
+    /no phrase for argument \w+ of command \w+, which differs/,
+    /no phrase for a \w+ comparison in query/,
+    /no phrase for that kind of mutation on command/,
     /names no aggregate/
   ].freeze
 

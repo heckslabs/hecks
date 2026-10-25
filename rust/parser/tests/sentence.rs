@@ -472,15 +472,19 @@ fn the_formatter_is_the_reverse_of_the_parser_and_settles_on_one_wording() {
 }
 
 #[test]
-fn a_rule_the_sentence_form_has_no_phrase_for_is_refused_by_name() {
+fn a_rule_without_a_friendly_phrase_is_said_as_an_expression_and_reads_back() {
     let ruby = write(
         "unsaid.bluebook",
         "Hecks.bluebook \"Cms\" do\n  aggregate \"Page\" do\n    identified_by :slug\n    attribute :slug, Slug\n    value_object \"Slug\" do\n      attribute :value, String\n      invariant(\"short\") { value.length < 9 }\n    end\n  end\nend\n",
     );
-    let output = run_on("format", ruby.to_str().unwrap());
-    let error = String::from_utf8_lossy(&output.stderr);
-    assert!(!output.status.success());
-    assert!(error.contains("no phrase for the rule `value.size < 9`"), "{error}");
+    let said = run_on("format", ruby.to_str().unwrap());
+    assert!(said.status.success(), "{}", String::from_utf8_lossy(&said.stderr));
+    let text = String::from_utf8_lossy(&said.stdout).to_string();
+    assert!(text.contains("Rule \"short\" holds when this is true: value.size < 9"), "{text}");
+    let again = write("unsaid_again.bluebook", &text);
+    let read = run_on("chapter", again.to_str().unwrap());
+    assert!(read.status.success(), "{}", String::from_utf8_lossy(&read.stderr));
+    assert!(String::from_utf8_lossy(&read.stdout).contains("value.size < 9"));
 }
 
 #[test]
