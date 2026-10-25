@@ -33,7 +33,7 @@ module Hecks
 
         # Creates `database` once per process (memoized) and drops/recreates `schema`
         # inside it on every call — that's what isolates one ephemeral boot from the next.
-        def ensure_fuzz_schema!(database = FUZZ_POSTGRES_DATABASE, schema = FUZZ_POSTGRES_SCHEMA)
+        def ensure_fuzz_schema!(database = FUZZ_POSTGRES_DATABASE, schema = scratch_schema(database))
           # PG::Connection only closes its socket when GC finalizes it, and a tight fuzz
           # loop opens connections faster than GC reclaims them — without this, a run
           # exhausts Postgres's max_connections after a few dozen ephemeral boots.
@@ -76,7 +76,7 @@ module Hecks
         # The world text for one chapter on `PostgresEra`.
         #
         # `schema:` isolates one ephemeral boot from the next, the same job
-        # `FUZZ_POSTGRES_SCHEMA` does for `:postgres` (`connect_for` idempotently
+        # `ScratchSchema#scratch_schema` does for `:postgres` (`connect_for` idempotently
         # creates it; `ensure_postgres_era_schema!` only needs to drop it first).
         #
         # `allow_superuser true` is deliberate: PostgresEra normally refuses to boot as
