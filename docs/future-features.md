@@ -14,8 +14,8 @@ Every planned, proposed, and not-yet-built feature collected across hecks's impl
 
 The clearest signal in the whole tree is the survey's own closing pick — an explicit "if we build three." Everything else here ranks by how concretely it's scoped and how much else depends on it.
 
-1. **A universal dispatch MCP server** — `dispatch / query / state / catalog / describe / validate`, every call carrying a required `summary`. `hecks run` and the `Facade` already exist to project it from.
-2. **`follow` + `SourceTag`** — persist the dispatch stream already emitted (event log plus caller kind: process-manager / operator / hook / sidequest-agent / cascade / daemon), add a JSONL tail and a `hecks follow`.
+1. ~~**A universal dispatch MCP server**~~ — **Shipped.** `lib/hecks/adapters/driving/mcp/tool_definitions/{calling,reading,auditing}.rb` define dispatch, query, state, catalog, describe, validate and follow; `hecks launch.serve_mcp!` serves the storehouse bus.
+2. ~~**`follow`**~~ **shipped** (`hecks query operation.follow`, a persisted event log past a cursor, and an MCP `follow` tool); **`SourceTag`** (the caller kind on each persisted dispatch) is still open.
 3. **Drivers** — `driving on interval | cron | clock` in the hecksagon DSL, projected to a Makefile/Procfile target. An older, separate project that is also called hecks (see the editor's note in the survey linked below) was blocked on this.
 
 ### Highest-signal items from the rest of the corpus
@@ -25,7 +25,7 @@ The clearest signal in the whole tree is the survey's own closing pick — an ex
 - ~~**Audit Tier 1, findings H3–H5**~~ — **Fixed**, verified live/against real Postgres 2026-08-27 (era-migrated-delete tombstoning, rekey SQL folded into the approval digest, dotted-compute no longer exempting its whole parent attribute from the Layer-2 gate).
 - **Drivers / Gates / mailboxes / OutboundEvent / derivability gauge** — a coherent "operational surface around the bus" that `hecks` has built and hecks lacks entirely (survey items 3, 5, 6, 7, 8).
 - **ADR 0025's DSL cleanup** — a fully sequenced 15-step plan; the single largest concretely-scoped item among the decision records.
-- **Query-DSL aggregation** — `count / sum / avg / min / max` plus `group_by`. Flagged as the sharpest, most requested gap in the query language. **Partly shipped:** `read_model` already has `count`, `median` and `group_by` (ADRs 0050, 0052); `sum`/`avg`/`min`/`max` followed (ADR 0078), and a `group_by` that reduces each group (ADR 0126). Design and recommendation (draft): [ADR 0061](decisions/0061-query-dsl-aggregation-count-sum-group-by.md).
+- ~~**Query-DSL aggregation**~~ — **Shipped** in `read_model`: the reducers in [ADR 0078](decisions/0078-read-model-completes-its-reduction-vocabulary-sum-avg-min-max-percentile-any-all.md), a `group_by` that reduces each group ([ADR 0126](decisions/0126-a-group-by-reduces-each-group-and-each-reducer-is-a-row.md)), and a refused `group_by` key collision ([ADR 0061](decisions/0061-query-dsl-aggregation-count-sum-group-by.md) D1). The fuzz property `aggregation_matches_recompute` holds it.
 
 ---
 
@@ -35,8 +35,8 @@ The clearest signal in the whole tree is the survey's own closing pick — an ex
 
 ### Storehouse, ranked
 
-1. **Universal MCP server, three zoom levels.** Ten tools (`dispatch, query, state, catalog, describe_aggregate, list_aggregates, validate, macrophage_check, behaviors, conceive_behaviors`), no per-command wrappers. hecks has only a 3-tool query-IR MCP.
-2. **`follow`.** A live, cross-process tail of every dispatch, feeding both an MCP resource and a queryable `StorehouseEntry` domain. hecks has only after-the-fact `hecks history`.
+1. **Universal MCP server, three zoom levels.** Ten tools (`dispatch, query, state, catalog, describe_aggregate, list_aggregates, validate, macrophage_check, behaviors, conceive_behaviors`), no per-command wrappers. **Shipped:** the storehouse MCP now serves dispatch, query, state, catalog, describe, validate and follow (see Top priorities).
+2. **`follow`.** A live, cross-process tail of every dispatch, feeding both an MCP resource and a queryable `StorehouseEntry` domain. **Shipped as `hecks query operation.follow` and the MCP `follow` tool;** the queryable `StorehouseEntry` domain is not built.
 3. **Drivers.** Inbound clocks (`interval | cron | clock`) declared in the hecksagon, projected to a Procfile — out-of-process by construction, so a dead clock stalls only its own task. hecks's DSL has no inbound-scheduling concept at all.
 4. **`SourceTag`.** A closed enum of dispatcher provenance. Cheap to add.
 5. **Gates.** Inbound middleware as bluebook records — `before/after` phase, a check that can be any bluebook query run read-only as a veto, ordered, hydrated at boot. hecks's authz today is one hardcoded file with no query-as-veto, ordering, or after-phase observers.
@@ -53,7 +53,7 @@ The clearest signal in the whole tree is the survey's own closing pick — an ex
 - An antibody + lines-of-code ratchet with signed, retirement-conditioned exemptions and longest-prefix classification.
 - `ProducedField` — the typed *output* half of an adapter contract; hecks's `.port` files type inputs only.
 - Family-owned `.world` schema validation that rejects unknown or missing keys and infers a field's source (`direct | env | secret`) from its declaration form.
-- Generated `.behaviors` tests from the IR, with a closed precondition taxonomy that fails loudly on any unhandled `given`. The authoring DSL exists on the hecks side; there's no interpreter under it yet.
+- Generated `.behaviors` tests from the IR, with a closed precondition taxonomy that fails loudly on any unhandled `given`. **The interpreter now exists** (`lib/hecks/behaviors/runner.rb`, `hecks operation.run_behaviors!`); generating the tests from the IR is the part still open.
 - A morphology promotion loop — a static fast path plus a dynamic learning path, promoting a candidate word at three rejections.
 - A tool-cache built from transcript JSONL, catalogued at session start.
 - Decentralized, opt-in registries via dropped descriptor files.
@@ -74,7 +74,7 @@ The clearest signal in the whole tree is the survey's own closing pick — an ex
 - A **Constraint Engine** that models rules as constraints and can explain blocked work by walking the dependency chain.
 - Explainability — a rendered explanation tree for every runtime decision, adjustable by audience.
 - Extend `hecks verify` past reachability/consistency to dead-command/event/policy detection, cycle detection, impossible transitions, conflicting invariants, duplicate rules, unreachable states, unused roles and value objects.
-- Diagram generation straight from canonical IR, no hand-maintained diagrams.
+- ~~Diagram generation straight from canonical IR, no hand-maintained diagrams.~~ **Shipped** (`hecks query introspection.project_diagrams`, `lib/hecks/projections/diagrams/`).
 - An AI-assistant layer for ontology discovery, corpus evolution, role mapping, upgrade suggestions, and drift explanation.
 - Capture every architectural invariant as an ADR.
 
@@ -86,8 +86,8 @@ The clearest signal in the whole tree is the survey's own closing pick — an ex
 - **§4 identities** — OIDC verification (feeds §11); retrofit Governance's `actor_id` to reference Identity.
 - **§5 UUID adapter** — facade-level auto-enrichment of identity args, retrofitted across the existing corpus.
 - **§6 `report`** — a permanent SME-facing alias for `read_model`, with builder dispatch, vocabulary docs, and golden round-trip tests.
-- **§8 Rust projection** — WASM target; era-minting and shape-drift detection in Rust; SQL translation from Rust; era-partitioned read-back; a Rust `LineageManager` equivalent; refusal-wording parity; wiring `hecks check_conformance` into an automated gate.
-- **§9 WASM embedded bluebook** — era selection, a browser JS API (`Hecks.load/dispatch/report`), a host-adapter import boundary, and state externalization/hot-reload.
+- **§8 Rust projection** — the WASM target (`hecks build.build_wasm!`) and the conformance bridge (`build.check_conformance!`, `build.fuzz_conformance!`) have shipped, and `rust/host/src/mint.rs` ports era minting. Still open: shape-drift detection in Rust; SQL translation from Rust; era-partitioned read-back; a Rust `LineageManager` equivalent; refusal-wording parity; wiring conformance into an automated gate.
+- **§9 WASM embedded bluebook** — a browser build exists (`hecks build.build_browser_wasm!`). Still open: era selection, a browser JS API (`Hecks.load/dispatch/report`), a host-adapter import boundary, and state externalization/hot-reload.
 - **§10 SQL projection** — generating Postgres/SQLite DDL from IR, and compiling command semantics into stored procs/triggers/views (research spike).
 - **§11–§12 OIDC** — a real client-facing flow (redirect, code exchange, JWKS verification) and, further out, a full OIDC provider (endpoints, key rotation, conformance testing).
 - **§13 email OTP adapter** — `RequestLoginCode`, code generation/send adapters, rate limiting.
@@ -116,14 +116,16 @@ Five smaller, more mechanical planning docs — each scoped to a concrete engine
 
 ### Fuzzer property expansion (`docs/fuzzer-property-expansion-plan.md`)
 
+**Shipped:** every new property below is in `PROPERTY_NAMES` (`lib/hecks/fuzzing/properties/catalog.rb`), which is the source of truth for the battery. The secondary fixes and deferred items are not re-verified here.
+
 - Fix and prove an entity-identity collision in `MutationApplier#entity_element`.
-- New property: stored records satisfy their declared invariants (catches invariant-violating writes that are never refused).
-- New property: `group_by` results match a from-scratch recompute.
-- Fix: the query interpreter never applies `offset` — then add a paging property to prove it once fixed.
-- New property: lifecycle guard and given violations are always refused (needs a new replay snapshot hook).
-- New property: scope authorization actually refuses (currently unreachable — the generator never supplies `tenant:` args).
-- New property: dispatch-binding fidelity, backed by an additive saga dispatch log.
-- New property (the largest item): mutations match an independent recompute — needs a real bootable entity-mutation domain and per-operation recompute functions.
+- ~~New property: stored records satisfy their declared invariants~~ (`stored_records_satisfy_declared_invariants`).
+- ~~New property: `group_by` results match a from-scratch recompute~~ (`group_by_matches_recompute`).
+- ~~Fix: the query interpreter never applies `offset`, then a paging property~~ (`paging_offset_partitions_correctly`).
+- ~~New property: lifecycle guard and given violations are always refused~~ (`lifecycle_guard_and_given_violations_are_refused`).
+- ~~New property: scope authorization actually refuses~~ (`authorize_scopes_or_refuses`).
+- ~~New property: dispatch-binding fidelity~~ (`dispatch_binding_fidelity`).
+- ~~New property: mutations match an independent recompute~~ (`mutations_match_recompute`).
 - Secondary fixes: an unenforced entity-identity/remove interaction; a lifecycle guard bypassing shared refusal wording; `clamp` missing the zero-fallback that `multiply`/`increment` already have.
 - Explicitly deferred, no properties yet: `cursor`, `consistency`, `freshness`, `use_index`.
 
@@ -143,27 +145,27 @@ Five smaller, more mechanical planning docs — each scoped to a concrete engine
 
 ## PRDs
 
-`docs/prds/` — eight proposals, in the priority order the README itself gives.
+`docs/prds/` — the proposals, in the priority order the README itself gives. Each PRD's own status line is the current word.
 
 - ~~**01 · Reaction-depth race.**~~ **Done**, differently than proposed: `Thread.current[:hecks_reaction_depth]` rather than a mutex — a reaction cascade re-enters `reenter` on the SAME thread, which a non-reentrant `Mutex` can't guard (see that method's own comment in `dispatcher.rb`), so per-thread ambient state (the same idiom `Runtime::Caller` already uses) fits better than the PRD's original mutex proposal.
 - ~~**02 · Fuzzer against real adapters.**~~ **Done**: `hecks fuzz adapter=memory|sqlite|postgres` (`memory` default, unchanged). Postgres is a real CLI flag with its own reachability check, rather than an RSpec `io: true` tag — `hecks fuzz` is a script, not a spec suite, so it has no tag mechanism to gate on; the flag is the equivalent decision (nothing runs Postgres mode without asking for it by name).
-- **03 · Mutation application agreement.** A differential gate across adapters for `append/remove/multiply/clamp/increment/decrement/set`, mirroring the query-agreement spec that already found four real bugs.
-- **04 · Rust conformance fuzzing.** Bridge randomized sequences into the existing Ruby-vs-Rust byte-for-byte conformance spec; run any divergence through the existing shrinker.
-- **05 · Numeric boundary coverage.** Widen integer and float edge cases (Int64/Bignum, NaN/Infinity/-0.0) and trace each through coercion, `multiply`, and `clamp` for silent corruption.
-- **06 · Parser adversarial fuzzing.** A `cargo-fuzz` target seeded from the real corpus, checking only "never panics, always a clean error."
-- **07 · Ruby mutation testing.** Evaluate the `mutant` gem, scoped narrowly to `command_interpreter.rb`, `mutation_applier.rb`, and `argument_gate.rb`; triage every surviving mutant. Deliberately scheduled late.
-- **08 · Coverage-guided fuzzing.** Instrument `hecks fuzz`'s generation loop with real coverage feedback via Ruby's `coverage` stdlib. Deliberately last — most valuable once 02 and 04 have landed.
+- **03 · Mutation application agreement.** Possibly covered by `lib/hecks/fuzzing/persistence_parity.rb` (a state differential across two persistences); not confirmed as a per-operation gate. A differential gate across adapters for `append/remove/multiply/clamp/increment/decrement/set`, mirroring the query-agreement spec that already found four real bugs.
+- ~~**04 · Rust conformance fuzzing.**~~ **Shipped** as `hecks build.fuzz_conformance!`. Bridge randomized sequences into the existing Ruby-vs-Rust byte-for-byte conformance spec; run any divergence through the existing shrinker.
+- ~~**05 · Numeric boundary coverage.**~~ **Done** (see the PRD). Widen integer and float edge cases (Int64/Bignum, NaN/Infinity/-0.0) and trace each through coercion, `multiply`, and `clamp` for silent corruption.
+- ~~**06 · Parser adversarial fuzzing.**~~ **Shipped:** targets in `rust/parser/fuzz/fuzz_targets/`. A `cargo-fuzz` target seeded from the real corpus, checking only "never panics, always a clean error."
+- **07 · Ruby mutation testing.** Partly shipped: `hecks fuzz_run.mutate!`, and the Rust kernel pass is done (see the PRD). Evaluate the `mutant` gem, scoped narrowly to `command_interpreter.rb`, `mutation_applier.rb`, and `argument_gate.rb`; triage every surviving mutant. Deliberately scheduled late.
+- ~~**08 · Coverage-guided fuzzing.**~~ **Shipped** (`lib/hecks/fuzzing/runtime_coverage.rb`, `coverage_campaign.rb`). Instrument `hecks fuzz`'s generation loop with real coverage feedback via Ruby's `coverage` stdlib. Deliberately last — most valuable once 02 and 04 have landed.
 
 ---
 
 ## Query DSL & policies
 
-### Query DSL (`docs/query-dsl.md`) — proposed additions, none implemented
+### Query DSL (`docs/query-dsl.md`) — proposed additions, aggregation since shipped
 
-- **Aggregation** — `count / sum / avg / min / max` plus `group_by`. `read_model` already computes `count`, `median` and `group_by` (ADRs 0050, 0052); `sum`/`avg`/`min`/`max` followed (ADR 0078), and `group_by` with one reduction reduces each group (ADR 0126). See [ADR 0061](decisions/0061-query-dsl-aggregation-count-sum-group-by.md) (Proposed).
+- ~~**Aggregation**~~ — **Shipped** in `read_model` (ADRs 0050, 0052, 0078, 0126); see [ADR 0061](decisions/0061-query-dsl-aggregation-count-sum-group-by.md).
 - **`having`** — filtering on a computed value, paired with aggregation.
 - **`distinct`** — a common primitive with no equivalent today.
-- **Explicit `include` optionality control** — no lever today for "drop the row if the include is absent" vs. "keep it with an empty collection"; inner-vs-left-join behavior on a zero-match has never been traced.
+- **Explicit `include` optionality control** — no lever today for "drop the row if the include is absent" vs. "keep it with an empty collection". The zero-match behavior is traced: a many-side head keeps the root with an empty collection, a one-side head is `nil` (`lib/hecks/runtime/read_model_interpreter.rb`).
 - Compiling a hop into a real SQL `JOIN` instead of two round trips — worth doing only if measured to matter.
 - Era/time-aware reads ("as of") — the most speculative item; may already be solved elsewhere under a different name.
 
@@ -177,11 +179,11 @@ Five smaller, more mechanical planning docs — each scoped to a concrete engine
 
 Only the ADRs with genuine unbuilt content, per their own status marker — pure rationale-only or fully-shipped records moved to `docs/implemented/decisions/` in the 2026-08-18 docs split and are left out here.
 
-- **0010 — Ruby as reference implementation.** Accepted, not implemented: a differential test harness that dispatches the same command sequences into Ruby and a second runtime, diffing outcomes, refusal wording, events, and state — the real gate for ever shipping a second runtime.
-- **0022 — self-host the expression grammar.** Proposed, not implemented: describe the expression-node grammar in the bluebook meta-language so Ruby's evaluator and Rust's `kernel/expr.rs` can be checked against one shared description. A prerequisite corpus audit hasn't happened, and whether it's worth building at all is still open.
+- ~~**0010 — Ruby as reference implementation.**~~ **Shipped** (`hecks build.check_conformance!`): a differential test harness that dispatches the same command sequences into Ruby and a second runtime, diffing outcomes, refusal wording, events, and state — the real gate for ever shipping a second runtime.
+- ~~**0022 — self-host the expression grammar.**~~ **Shipped** (`lib/hecks/grammar/expression.bluebook`, generated `rust/src/kernel/expression_operators/`): describe the expression-node grammar in the bluebook meta-language so Ruby's evaluator and Rust's `kernel/expr.rs` can be checked against one shared description. A prerequisite corpus audit hasn't happened, and whether it's worth building at all is still open.
 - **0023 — Rust parses and compiles directly.** The parsing half is implemented and verified; the codegen half shipped too: `rust/codegen` ported the Ruby generator, so `cargo build` needs no Ruby, and it is now the only generator (ADR 0086).
-- **0025 — one idea, one way.** Accepted, not implemented — a fully sequenced fifteen-step plan: collapse duplicate `identified_by` spellings; retire `_id` minting in favor of `/` traversal; delete `has_many`/`has_one`/`belongs_to`; require a single bare-constant attribute type; delete `consistency`/`freshness`/`use_index`; revert `report` back to `read_model`; rename `then_set` to `sets` (143 corpus uses already match); make `role` real RBAC or refuse it; make events and command references first-class; unify saga and lifecycle vocabulary; add an aggregate-level `invariant`; make lifecycle state a real command guard; add a `projects` construct with a `ProjectionAbsent` refusal; require `EraGuard` translation for newly-optional attributes.
-- **0026 — the language uses everything it declares.** Accepted, not implemented: a self-use gate that will fail on day one against the language's own chapters; demoting `limit`/`offset`/`cursor`/`nulls` into a `Paging` sub-language; turning the language's own `Status` field into a real `lifecycle`; promoting `Member`/`Dispatch`/`Handler` to real entities.
+- ~~**0025 — one idea, one way.**~~ **Shipped** (role is enforced through Governance grants; `has_many`/`has_one`/`belongs_to` survive as admitted words). The fully sequenced fifteen-step plan: collapse duplicate `identified_by` spellings; retire `_id` minting in favor of `/` traversal; delete `has_many`/`has_one`/`belongs_to`; require a single bare-constant attribute type; delete `consistency`/`freshness`/`use_index`; revert `report` back to `read_model`; rename `then_set` to `sets` (143 corpus uses already match); make `role` real RBAC or refuse it; make events and command references first-class; unify saga and lifecycle vocabulary; add an aggregate-level `invariant`; make lifecycle state a real command guard; add a `projects` construct with a `ProjectionAbsent` refusal; require `EraGuard` translation for newly-optional attributes.
+- ~~**0026 — the language uses everything it declares.**~~ **Shipped** (`spec/self_use_spec.rb`, `attaches/paging.bluebook`): a self-use gate that will fail on day one against the language's own chapters; demoting `limit`/`offset`/`cursor`/`nulls` into a `Paging` sub-language; turning the language's own `Status` field into a real `lifecycle`; promoting `Member`/`Dispatch`/`Handler` to real entities.
 
 ---
 
@@ -189,9 +191,9 @@ Only the ADRs with genuine unbuilt content, per their own status marker — pure
 
 `docs/command-form-and-query-form-bluebook.md` (status: prototype) — largest cluster of still-open guide-level work: graduate it from an ordinary Ruby DSL into real syntax validated through `Hecks.*`; give `expose` per-command and per-query override instead of whole-chapter only; add field-level refusal attribution to the sticky re-render (today it's whole-banner only); wire up reports/read models (`report_form.bluebook` is a reserved name only so far); replace the one-JSON-object-per-line fallback for a multi-field `list_of` with a real repeatable add/remove fieldset; and eventually add styling, live sockets, and a real deploy target — all currently deferred to a wider web-framework idea, with `hecks present` staying dev-only until then.
 
-`docs/rails-integration.md` — status: design only, nothing built. Explicitly open, not designed here: the read side beyond one load-bearing `show` route; authorization enforcement; per-attribute labels/help text; file uploads; real-time updates via ActionCable; which driven adapters should be Rails-native vs. agnostic.
+`docs/rails-integration.md` — built in `packages/hecks-rails`; authorization enforcement is built in the core (`command.role` is enforced through Governance grants). Still open: the read side beyond one load-bearing `show` route; authored per-attribute labels/help text; file uploads; real-time updates via ActionCable; which driven adapters should be Rails-native vs. agnostic.
 
-`docs/resolution-rules/cross-entity-given.md` — the only one of the four resolution-rules docs not yet mirrored into the Rust parser (the other three moved to `docs/implemented/resolution-rules/` in the docs split).
+~~`docs/resolution-rules/cross-entity-given.md`~~ — mirrored into the Rust parser; it moved to `docs/implemented/resolution-rules/` with the rest.
 
 ---
 
