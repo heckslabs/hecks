@@ -2,6 +2,7 @@
 
 require "fileutils"
 require_relative "../../../cache_dir"
+require_relative "../../../adapters/driving/usage_cache"
 require_relative "tree"
 require_relative "test_runner"
 require_relative "sqlite_fixture"
@@ -81,6 +82,7 @@ module Hecks
             path = Hecks::CacheDir.path(name)
             File.directory?(path) && FileUtils.rm_rf(path)
           end
+          cleared << "usage" if Hecks::Adapters::Driving::UsageCache.clear
           cleared.empty? ? "no cache to clear" : "cleared #{cleared.join(", ")}"
         end
 
