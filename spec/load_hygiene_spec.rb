@@ -10,16 +10,19 @@ RSpec.describe "load hygiene", :io do
   def capture_ruby(script) = Open3.capture3("ruby", "-I", LIB, "-e", script)
 
   # A constant assigned inside RSpec.describe lands on Object at any nesting depth, so two spec
-  # files using one name share it and the last-loaded wins. Scanned at any indentation.
+  # files using one name share it and the last-loaded wins. Scanned at any indentation, outside
+  # a top-level module body: a constant there is the module's own and lands on no one else.
   def constant_definitions
     definitions = Hash.new { |h, k| h[k] = [] }
     Dir[File.join(ROOT_DIR, "spec", "**", "*_spec.rb")].each do |file|
-      File.read(file).scan(/^\s+([A-Z][A-Z_0-9]*) *=[^=]/) do |(name)|
+      outside_modules(File.read(file)).scan(/^\s+([A-Z][A-Z_0-9]*) *=[^=]/) do |(name)|
         definitions[name] << File.basename(file)
       end
     end
     definitions
   end
+
+  def outside_modules(source) = source.gsub(/^module .*?^end$/m, "")
 
   # Same name with the same value is allowed.
   def shared_constant_names = ["BANKING_BLUEBOOK", "ROOT_DIR", "WIRE_BLUEBOOK", "SQLITE_ADAPTER"]
