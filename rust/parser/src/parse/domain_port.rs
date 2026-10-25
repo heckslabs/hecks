@@ -11,8 +11,8 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
     Diagnostic::not_yet_implemented(file, line, format!("DomainPort.{word}"))
 }
 
-/// Parses a `port "Name" do ... end` body: `operation` entries only.
-/// Any other word, including `verb`, falls through to `not_built_yet`.
+/// Parses a `port "Name" do ... end` body: `operation`/`tells` (inbound) and `asks` (outbound)
+/// entries. Any other word, including `verb`, falls through to `not_built_yet`.
 pub fn parse_body(
     file: &str,
     lines: &[SourceLine],
@@ -32,11 +32,12 @@ pub fn parse_body(
         let line = gated.line.number;
 
         match gated.row.word {
-            "operation" => {
-                let op_name = super::positional_text(file, line, "operation", &gated.args, 1)?;
+            word @ ("operation" | "tells" | "asks") => {
+                let op_name = super::positional_text(file, line, word, &gated.args, 1)?;
                 let to = super::named_constant(&gated.args, "to").map(naming::demodulise);
-                port.operations
-                    .push(parse_operation_body(file, lines, pos, &op_name, to)?);
+                let operation =
+                    parse_operation_body(file, lines, pos, &op_name, to, word == "asks")?;
+                port.operations.push(operation);
             }
             _ => {
                 return Err(super::not_built_yet(
@@ -58,11 +59,15 @@ fn parse_operation_body(
     pos: &mut usize,
     name: &str,
     to: Option<String>,
+    outbound: bool,
 ) -> ParseResult<ir::PortOperation> {
     let mut operation = ir::PortOperation {
         name: name.to_string(),
         attributes: Vec::new(),
         emits: Vec::new(),
+        outbound,
+        answers: None,
+        refuses: None,
         to,
     };
 
@@ -83,6 +88,24 @@ fn parse_operation_body(
                 operation
                     .emits
                     .push(super::positional_text(file, line, "emits", &gated.args, 1)?);
+            }
+            "answers" => {
+                operation.answers = Some(super::positional_text(
+                    file,
+                    line,
+                    "answers",
+                    &gated.args,
+                    1,
+                )?);
+            }
+            "refuses" => {
+                operation.refuses = Some(super::positional_text(
+                    file,
+                    line,
+                    "refuses",
+                    &gated.args,
+                    1,
+                )?);
             }
             "reference_to" => {
                 let target_raw =
@@ -113,11 +136,39 @@ fn pos_line(lines: &[SourceLine], pos: usize) -> usize {
     lines.get(pos.saturating_sub(1)).map_or(0, |l| l.number)
 }
 
-/// An inbound operation must emit something. The receiver comes from the routing envelope,
-/// so it is not validated as an attribute.
+/// An inbound operation must emit something and name no return channel; an outbound one names
+/// both endings and emits nothing, as `PortOperationBuilder#build` refuses. The receiver comes
+/// from the routing envelope, so it is not validated as an attribute.
 fn validate_operation(file: &str, line: usize, operation: &ir::PortOperation) -> ParseResult<()> {
+    let name = &operation.name;
+    if operation.outbound {
+        return validate_outbound(file, line, operation);
+    }
     if operation.emits.is_empty() {
-        return Err(Diagnostic::new(file, line, format!("'{}' declares no emits — an operation with nothing to say afterward is a call into nothing", operation.name)));
+        return Err(Diagnostic::new(file, line, format!("'{name}' declares no emits — an operation with nothing to say afterward is a call into nothing")));
+    }
+    if operation.answers.is_some() || operation.refuses.is_some() {
+        let word = if operation.answers.is_some() {
+            "answers"
+        } else {
+            "refuses"
+        };
+        return Err(Diagnostic::new(file, line, format!("{name} is a tells and declares {word} — an inbound fact has no channel back to whoever sent it")));
+    }
+
+    Ok(())
+}
+
+fn validate_outbound(file: &str, line: usize, operation: &ir::PortOperation) -> ParseResult<()> {
+    let name = &operation.name;
+    if !operation.emits.is_empty() {
+        return Err(Diagnostic::new(file, line, format!("{name} is an asks and declares emits — name its two endings with answers and refuses instead")));
+    }
+    if operation.answers.is_none() {
+        return Err(Diagnostic::new(file, line, format!("{name} declares no answers — an ask with no word for what came back cannot be reacted to")));
+    }
+    if operation.refuses.is_none() {
+        return Err(Diagnostic::new(file, line, format!("{name} declares no refuses — an ask that cannot fail is a call into a system you do not control, pretending otherwise")));
     }
 
     Ok(())
