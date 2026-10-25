@@ -62,18 +62,23 @@ module Hecks
         emits:      :emits,
         # The lifecycle state this command is admissible from: a guard, not a transition.
         from:       -> { from },
-        provenance: :provenance
+        provenance: :provenance,
+        # Safe to deliver twice; a saga redrive reads it to decide whether an unsettled dispatch may run again.
+        idempotent: -> { idempotent? }
       )
 
       # Every optional declared field and what it holds when the declaration omits it.
       FIELD_DEFAULTS = {
         role: nil, roles: [], goal: nil, attributes: [], givens: [], ensures: [], needs: [],
-        mutations: [], emits: [], references: nil, from: nil, provenance: nil
+        mutations: [], emits: [], references: nil, from: nil, provenance: nil, idempotent: false
       }.freeze
 
       class << self
         attr_reader :role, :goal, :attributes, :givens, :ensures, :needs, :mutations, :emits, :references,
-                    :from, :provenance
+                    :from, :provenance, :idempotent
+
+        # @return [Boolean] whether delivering the command twice leaves the state delivering it once does
+        def idempotent? = @idempotent ? true : false
 
         # @return [Array<String>] every role that may run it when more than one may, else empty
         def roles = @roles || []
@@ -90,6 +95,7 @@ module Hecks
         # @param references [String, Symbol, nil] the aggregate its `reference_to` addresses
         # @param from [String, Array<String>, nil] the lifecycle states it is admissible from
         # @param provenance [Object, nil] the declared canonical source, as written
+        # @param idempotent [Boolean] whether delivering it twice leaves the state delivering it once does
         def declare(name:, **given)
           fields = KeywordFields.fill(given, FIELD_DEFAULTS)
           verb = Class.new(self)

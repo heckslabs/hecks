@@ -104,6 +104,7 @@ Hecks.bluebook "Sentence" do
       member id: "corrects",          context: "Command",   pattern: "(Then|And) {event:event} is corrected with {fields:rest}",               opens: ""
       member id: "clamp",             context: "Command",   pattern: "(Then|And) the {target:words} is kept between {low:int} and {high:int}", opens: ""
       member id: "from_states",       context: "Command",   pattern: "It can only happen from {states:list}",                                  opens: ""
+      member id: "idempotent",        context: "Command",   pattern: "It is safe to deliver twice",                                           opens: ""
       member id: "command_provenance", context: "Command", pattern: "Its provenance is {value:rest}",                                        opens: ""
       member id: "ensures",           context: "Command",   pattern: "Afterwards {description:text} holds when {condition:rest}",              opens: ""
       member id: "takes",             context: "Command",   pattern: "It takes:",                                                              opens: "Has"

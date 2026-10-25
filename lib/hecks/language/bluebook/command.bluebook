@@ -27,6 +27,9 @@ Hecks.bluebook "Bluebook" do
     attribute :needs,      list_of(Need)
     attribute :mutations,  list_of(Change)
     attribute :provenance, CommandText
+    # `idempotent`: delivering the command twice leaves the same state as delivering it once, so a
+    # saga redrive may deliver it again after a crash that left its outcome unknown.
+    attribute :idempotent, CommandText, optional: true
     # Lifecycle guard as a literal (`from: "open"` or `from: ["open", "frozen"]`); ADR 0025.
     attribute :from,       CommandText, optional: true
 
@@ -114,6 +117,7 @@ Hecks.bluebook "Bluebook" do
       attribute :role,  Actor, optional: true
       attribute :goal,  Goal, optional: true
       attribute :provenance, CommandText, optional: true
+      attribute :idempotent, CommandText, optional: true
       attribute :from,       CommandText, optional: true
 
       attribute :position, Position, optional: true
@@ -123,6 +127,7 @@ Hecks.bluebook "Bluebook" do
       sets :role
       sets :goal
       sets :provenance
+      sets :idempotent
       sets :from
       sets :position
       emits VerbDeclared
@@ -317,6 +322,8 @@ Hecks.bluebook "Bluebook" do
       member word: "role",            context: "Command", body: "none",   inner: "", opens: "", fills: "role", calls: "role_impl"
       member word: "goal",            context: "Command", body: "none",   inner: "", opens: "", fills: "goal"
       member word: "provenance",      context: "Command", body: "none",   inner: "", opens: "", fills: "provenance", calls: "provenance_impl"
+      # Declares the command safe to deliver twice (CommandBuilder#idempotent_impl).
+      member word: "idempotent",      context: "Command", body: "none",   inner: "", opens: "", fills: "idempotent", calls: "idempotent_impl"
       member word: "reference_to",    context: "Command", body: "none",   inner: "", opens: "", fills: "references", calls: "reference_to_impl"
       member word: "given",           context: "Command", body: "source", inner: "", opens: "", fills: "givens", resolves_via: "hash_chain", calls: "given_impl"
       member word: "sets",            context: "Command", body: "none",   inner: "", opens: "", fills: "mutations", calls: "sets_impl"

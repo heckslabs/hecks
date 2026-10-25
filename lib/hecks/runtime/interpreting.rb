@@ -2,11 +2,14 @@ require_relative "collecting"
 require_relative "value"
 require_relative "aggregate_lock"
 require_relative "needs"
+require_relative "dispatch_claim"
 
 module Hecks
   module Runtime
     # Shared by the stepwise interpreters: the traced step and coercion of declared arguments.
     module Interpreting
+      include DispatchClaim::Claiming
+
       # Gives each including interpreter its own `trace`, set by specs to observe dispatch order.
       # @param interpreter [Class] the class (`CommandInterpreter`, `EntityInterpreter`)
       #   including this module
@@ -70,10 +73,7 @@ module Hecks
         return order.each { |name| send(:"step_#{name}", ctx) } unless split && ctx.respond_to?(:repository) && ctx.repository
 
         order[0...split].each { |name| send(:"step_#{name}", ctx) }
-        ctx.repository.transaction do
-          order[split..].each { |name| send(:"step_#{name}", ctx) }
-          enqueue_outbox(ctx)
-        end
+        ctx.repository.transaction { run_transactional_steps(order[split..], ctx) }
       end
 
       # The validating run: every step, in order, with a refusal recorded and not raised. A stage

@@ -107,6 +107,7 @@ RSpec.describe Hecks::Adapters::PostgresEra, :io do
 
   it_behaves_like "a journalled record adapter"
   it_behaves_like "a saga-persisting adapter"
+  it_behaves_like "a dispatch-claiming adapter"
 
   describe "the `schema` setting — shared-instance isolation" do
     before do

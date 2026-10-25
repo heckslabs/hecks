@@ -326,6 +326,20 @@ module Hecks
         # @return [Array<Runtime::Outbox::Row>] copies of the stored rows; `[]` when none match
         def outbox_rows(status: nil) = @adapter.outbox_rows(status: status)
 
+        # Whether a saga dispatch with this key has been applied. Call only when `capabilities`
+        # lists `:dispatch_claims`.
+        #
+        # @param key [String] the dispatch key a saga leg stamped on the command
+        # @return [Boolean] true once `dispatch_claim` has accepted the key
+        def dispatch_applied?(key) = @adapter.dispatch_applied?(key)
+
+        # Records that a saga dispatch is being applied, inside the save's transaction. Call only
+        # when `capabilities` lists `:dispatch_claims`.
+        #
+        # @param key [String] the dispatch key a saga leg stamped on the command
+        # @return [Boolean] true when the key was new and is now held; false when already held
+        def dispatch_claim(key) = @adapter.dispatch_claim(key)
+
         # Answers a read model from the adapter's own projected tables, when it can.
         #
         # @param domain [String, Symbol] name of the domain declaring the read model

@@ -252,4 +252,5 @@ RSpec.describe Hecks::Adapters::Postgres, :io do
   end
 
   it_behaves_like "a saga-persisting adapter"
+  it_behaves_like "a dispatch-claiming adapter"
 end

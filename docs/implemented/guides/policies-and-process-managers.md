@@ -521,13 +521,32 @@ defect than the stall. **Between a saga's checkpoint and its own leg's
 dispatch:** the checkpoint commits the new state before that leg's
 dispatch runs (the mutex guarding the checkpoint can't be held across
 a dispatch that might re-enter it), so a crash there leaves a state on
-record with no proof its leg ran. Booting against the same durable
-adapter surfaces it — a loud `[hecks] ... rehydrated ... with a
-dispatch left pending ...` warning and a `rehydrated_stalled: true`
-entry in `runtime.sagas` — and, for the same reason as a `claimed`
-outbox row, does not auto-redrive it. Both windows are now visible
-across a restart; the second, like a `claimed` row, still needs a
-human to look and decide.
+record before its leg has finished. The checkpoint carries the moving
+event and how many of the leg's dispatches settled, written before and
+after each one. Booting against the same durable adapter redrives the
+leg: dispatches that never began are delivered, and `redriven: true`
+lands in `runtime.sagas`. The one dispatch that was started but not
+settled may already have run. Every dispatch a leg makes carries a
+key built from the saga, its instance, the event that moved the leg and
+the dispatch's position, and a store that dedupes by key (Memory, Sqlite,
+Postgres and PostgresEra; they report `:dispatch_claims`) records the key
+in the same transaction as the command's write. A second delivery finds
+the key, applies nothing, emits no event and counts as delivered, so the
+redrive delivers the ambiguous dispatch again whatever the command does,
+money movement included. On a store without claims it is delivered again
+only when its command says `idempotent` in its body. Otherwise the boot
+warns (`[hecks] ... stalled before ... settled ...`), records
+`rehydrated_stalled: true` with the command in `ambiguous`, and leaves
+the instance for a human to reconcile — redelivering it could
+double-apply it, the same reason a `claimed` outbox row is never retried
+automatically. Entity-owned commands carry no key yet. A leg that was
+unwinding with compensations still on the ledger is reported the same
+way, since some of them may already have run. The Rust host has no such
+window to redrive: it runs a command's whole in-domain cascade, saga legs
+included, inside the kernel and commits the journal row and every saga
+checkpoint in one transaction, so a crash leaves the previous state whole.
+Only a reaction into another domain is delivered after that commit, and a
+failed one is dead-lettered.
 
 ## When there is nothing to compensate
 

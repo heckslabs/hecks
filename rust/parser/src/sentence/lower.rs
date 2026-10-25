@@ -64,6 +64,7 @@ struct CommandSpec {
     ensures: Vec<ir::Given>,
     from: Option<ir::CommandFrom>,
     provenance: Option<crate::ruby_value::Value>,
+    idempotent: bool,
     changes: Vec<Change>,
     emits: Vec<String>,
 }
@@ -748,6 +749,7 @@ impl Parser<'_> {
             ensures: Vec::new(),
             from: None,
             provenance: None,
+            idempotent: false,
             changes: Vec::new(),
             emits: Vec::new(),
         };
@@ -777,6 +779,7 @@ impl Parser<'_> {
                         ir::CommandFrom::Multiple(states)
                     });
                 }
+                "idempotent" => spec.idempotent = true,
                 "command_provenance" => spec.provenance = Some(self.literal(&m, "value")?),
                 "ensures" => {
                     let cond = self.condition(&m)?;
@@ -1018,6 +1021,7 @@ impl Parser<'_> {
                 ensures: spec.ensures,
                 from: spec.from,
                 provenance: spec.provenance,
+                idempotent: spec.idempotent,
                 emits: spec.emits,
                 ..Default::default()
             };

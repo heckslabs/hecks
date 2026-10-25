@@ -440,7 +440,8 @@
             "PizzaCreated"
           ],
           "from": null,
-          "provenance": null
+          "provenance": null,
+          "idempotent": false
         },
         {
           "name": "AddTopping",
@@ -517,7 +518,8 @@
             "ToppingAdded"
           ],
           "from": "available",
-          "provenance": null
+          "provenance": null,
+          "idempotent": false
         },
         {
           "name": "Purchase",
@@ -636,7 +638,8 @@
             "PizzaPurchased"
           ],
           "from": "available",
-          "provenance": null
+          "provenance": null,
+          "idempotent": false
         }
       ],
       "invariants": [

@@ -41,6 +41,7 @@ module Hecks
         run_boot_gates!(registry, described.directory)
         dispatcher = dispatcher_for(registry)
         redrive_outbox!(dispatcher)
+        redrive_sagas!(dispatcher)
         seed_privacy_markings!(dispatcher, registry)
         dispatcher
       end
@@ -84,6 +85,14 @@ module Hecks
         return unless dispatcher.respond_to?(:outbox)
 
         dispatcher.outbox.redrive!
+      end
+
+      # Finishes the saga legs a crash cut short, once the dispatcher and the rehydrated instances
+      # both exist. A no-op for a remote dispatcher.
+      def self.redrive_sagas!(dispatcher)
+        return unless dispatcher.respond_to?(:redrive_sagas!)
+
+        dispatcher.redrive_sagas!
       end
 
       # Boots the exact bluebook/hecksagon/world files in `paths`, in place —

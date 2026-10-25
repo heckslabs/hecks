@@ -140,4 +140,5 @@ RSpec.describe Hecks::Adapters::Sqlite do
   it_behaves_like "a journalled record adapter"
   it_behaves_like "a checkpointed journal adapter"
   it_behaves_like "a saga-persisting adapter"
+  it_behaves_like "a dispatch-claiming adapter"
 end

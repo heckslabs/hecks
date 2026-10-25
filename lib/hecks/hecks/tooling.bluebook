@@ -751,6 +751,8 @@ Hecks.bluebook "Hecks" do
     attribute :artifact, Artifact,   optional: true
     attribute :target,   TargetTriple, optional: true
     attribute :stage_dir, StagePath, optional: true
+    attribute :profile,  WasmProfile, optional: true
+    attribute :prebuilt, Switch,     optional: true
     attribute :seeds,    Count,      optional: true
     attribute :steps,    Count,      optional: true
     attribute :output,   Report,     optional: true
@@ -802,6 +804,17 @@ Hecks.bluebook "Hecks" do
       invariant("a count is positive") { value > 0 }
     end
 
+    # The Cargo profile a wasm module is built with: `dev` compiles much faster, for tests that only
+    # run the module, not for one that ships.
+    value_object "WasmProfile" do
+      attribute :value, String, pattern: '^(release|dev)$'
+    end
+
+    # Whether the host build may download a published binary instead of compiling it.
+    value_object "Switch" do
+      attribute :value, Boolean
+    end
+
     value_object "CodegenName" do
       attribute :value, String, pattern: '^(ruby|rust)$'
     end
@@ -836,11 +849,13 @@ Hecks.bluebook "Hecks" do
       role "Operator"
       goal "Compile a domain to a WASI module a runtime such as wasmtime can run"
 
-      attribute :domain, DomainPath
-      attribute :run,    BuildKey
+      attribute :domain,  DomainPath
+      attribute :run,     BuildKey
+      attribute :profile, WasmProfile, default: "release"
 
       sets :domain
       sets :run
+      sets :profile
 
       emits WasmBuildRequested
     end
@@ -856,11 +871,13 @@ Hecks.bluebook "Hecks" do
       attribute :run,    BuildKey
       attribute :target, TargetTriple, optional: true
       attribute :stage_dir, StagePath, optional: true
+      attribute :prebuilt, Switch, default: true
 
       sets :domain
       sets :run
       sets :target
       sets :stage_dir
+      sets :prebuilt
 
       emits HostBuildRequested
     end
