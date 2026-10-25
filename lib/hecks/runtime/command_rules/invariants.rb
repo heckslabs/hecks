@@ -1,3 +1,4 @@
+require_relative "../collecting"
 require_relative "../../bluebook/expression/evaluator"
 require_relative "../errors"
 require_relative "../instance"
@@ -64,8 +65,8 @@ module Hecks
             construct.invariants.each do |invariant|
               next if Bluebook::Expression::Evaluator.call_rule(invariant, state, attrs)
 
-              raise InvariantViolation.new("#{construct.hecks_name} refused — #{invariant.description}",
-                                           rule: invariant.description)
+              Collecting.refuse(InvariantViolation.new("#{construct.hecks_name} refused — #{invariant.description}",
+                                                       rule: invariant.description))
             end
           end
 

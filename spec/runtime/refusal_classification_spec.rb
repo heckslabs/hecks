@@ -1,6 +1,5 @@
 require "spec_helper"
-require "tempfile"
-require_relative "../support/memory_ports"
+require_relative "../support/booted_source"
 
 # Which sort of no a refusal is, where in dispatch it came from, and which rule said it: rows of the
 # language's RefusalClass table plus what a raise site names, so a client can act on it as data.
@@ -33,24 +32,7 @@ RSpec.describe Hecks::Refused, "#stage" do
   BLUEBOOK
 
   def boot_gated
-    file = Tempfile.new(["gated-", ".bluebook"])
-    file.write(GATED_SOURCE)
-    file.flush
-    registry = declare_gated(file.path)
-    registry.verify!
-    Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
-  ensure
-    file&.close!
-  end
-
-  def declare_gated(path)
-    Hecks::Runtime::Registry.new.tap do |registry|
-      Hecks.with_registry(registry) do
-        MemoryPorts.load!
-        Kernel.eval(GATED_SOURCE, TOPLEVEL_BINDING, path, 1)
-        Hecks.hecksagon("Gated") { Gated::Tap.persisted_by("Memory") }
-      end
-    end
+    BootedSource.boot(GATED_SOURCE) { Hecks.hecksagon("Gated") { Gated::Tap.persisted_by("Memory") } }
   end
 
   def refusal_from

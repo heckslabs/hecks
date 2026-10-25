@@ -1,4 +1,5 @@
 require_relative "../errors"
+require_relative "../collecting"
 require_relative "../refusal_wording"
 require_relative "../value"
 require_relative "../../rendering"
@@ -103,7 +104,7 @@ module Hecks
             next if key.empty?
             next if @registry.repository(domain, target).find(key)
 
-            raise MissingReference.refusal(target, key, attribute)
+            Collecting.refuse(MissingReference.refusal(target, key, attribute))
           end
         end
 
