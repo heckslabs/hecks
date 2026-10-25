@@ -44,4 +44,5 @@ module Hecks
 end
 
 require_relative "query/ordering"
+require_relative "query/cursor"
 require_relative "query/in_memory"

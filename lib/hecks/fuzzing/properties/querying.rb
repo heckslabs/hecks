@@ -1,4 +1,5 @@
 require_relative "query_rows"
+require_relative "cursor_walks"
 
 module Hecks
   module Fuzzing
@@ -6,6 +7,7 @@ module Hecks
       # Properties that check a query's answer against an independent recomputation.
       module Querying
         include QueryRows
+        include CursorWalks
 
         # Differential oracle: each replayed ask is answered natively and by the reference
         # interpreter, and the two must agree.
@@ -106,7 +108,7 @@ module Hecks
           order_by = declared.order_by
           Ports::Query::Ordering.apply(
             rows, order_by, declared.null_semantics, identity: ->(row) { row[:id].to_s }
-          ) { |row| Ports::Query::InMemory.comparable(QuerySpecification::FieldPath.dig(row, order_by.field)) }
+          ) { |row| Ports::Query::InMemory.comparable(QuerySpecification::FieldPath.dig(row, order_by&.field)) }
         end
 
         # Real dispatch normalizes a query's own declared arguments
