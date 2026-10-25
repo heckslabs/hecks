@@ -20,6 +20,10 @@ module Hecks
         ActiveSupport.on_load(:action_controller) { extend Controller::Inheritance }
       end
 
+      initializer "hecks.actor_route" do |app|
+        app.routes.prepend { post "/hecks/actor", to: "hecks/rails/actors#create", as: :hecks_actor }
+      end
+
       # The gem's pages sit behind the app's own views, so a view file the app writes wins.
       initializer "hecks.views" do
         views = File.expand_path("../../../app/views", __dir__)

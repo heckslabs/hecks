@@ -37,6 +37,12 @@ module Hecks
       # @return [String] who the pages act as; "anonymous" when nobody is signed in
       def hecks_actor_id = (controller.hecks_actor || {}).fetch(:actor_id, Controller::ANONYMOUS)
 
+      # @return [Array<String>] the roles the domain's commands name, for the "acting as" picker
+      def hecks_roles = App.roles
+
+      # @return [String, nil] the role the session picked in the "acting as" picker
+      def hecks_picked_role = session[:hecks_role]
+
       # @param command [Hecks::Bluebook::Command] a command
       # @return [String] its bare verb, as the route and the form helper name it
       def hecks_verb(command) = Naming.snake(command.hecks_name).to_s
