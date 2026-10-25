@@ -25,6 +25,7 @@ module Hecks
           "project_rust_vocabulary"   => :rust_vocabulary,
           "project_reserved_names"    => :reserved_names,
           "project_parser_table"      => :parser_table,
+          "project_phrase_table"      => :phrase_table,
           "project_bootstrap_table"   => :bootstrap_table,
           "project_field_hints"       => :field_hints,
           "project_expression_tables" => :expression_tables,

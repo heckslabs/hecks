@@ -18,6 +18,8 @@ RSpec.describe "the Codebase rows of the ADR table" do
                note: "a second command that carries out the same operation, since a verb has one name"),
     AdrRow.new(script: "project_reserved_names", verbs: %w[project_reserved_names]),
     AdrRow.new(script: "project_parser_table", verbs: %w[project_parser_table]),
+    AdrRow.new(script: "project_phrase_table", verbs: %w[project_phrase_table],
+               note: "added by ADR 0131; not a row of ADR 0080's table"),
     AdrRow.new(script: "project_bootstrap_table", verbs: %w[project_bootstrap_table]),
     AdrRow.new(script: "project_field_hints", verbs: %w[project_field_hints]),
     AdrRow.new(script: "expression_projection", verbs: %w[project_expression_tables]),

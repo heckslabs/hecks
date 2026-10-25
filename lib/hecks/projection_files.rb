@@ -38,7 +38,7 @@ module Hecks
     }.freeze
 
     # Names of the projections, in the order a full regeneration runs them.
-    NAMES = %i[model vocabulary rust_vocabulary reserved_names parser_table bootstrap_table
+    NAMES = %i[model vocabulary rust_vocabulary reserved_names parser_table phrase_table bootstrap_table
                field_hints expression_tables reference].freeze
 
     extend Texts
@@ -154,6 +154,14 @@ module Hecks
     def parser_table(root)
       require "hecks"
       Result.new({ File.join(root, "rust/parser/src/keywords.rs") => artifact_text(:parser_table) }, [])
+    end
+
+    # @param root [String] the checkout
+    # @return [Result] the Rust parser's sentence table, from the Sentence chapter
+    def phrase_table(root)
+      require "hecks"
+      text = Projector.call(:phrase_table, bluebook: Projections::PhraseTable.chapter)
+      Result.new({ File.join(root, "rust/parser/src/phrases.rs") => text }, [])
     end
 
     # @param root [String] the checkout

@@ -28,6 +28,7 @@ RSpec.describe "the Codebase rows of the ADR command table" do
                 "that carries out the same operation, since a verb has one name" }],
     ["project_reserved_names", "LanguageRun", "ProjectReservedNames", "project_reserved_names"],
     ["project_parser_table", "LanguageRun", "ProjectParserTable", "project_parser_table"],
+    ["project_phrase_table", "LanguageRun", "ProjectPhraseTable", "project_phrase_table"],
     ["project_bootstrap_table", "LanguageRun", "ProjectBootstrapTable", "project_bootstrap_table"],
     ["project_field_hints", "LanguageRun", "ProjectFieldHints", "project_field_hints"],
     ["expression_projection", "LanguageRun", "ProjectExpressionTables", "project_expression_tables"],
