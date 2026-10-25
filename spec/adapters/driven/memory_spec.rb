@@ -1,4 +1,5 @@
 require "hecks"
+require_relative "../../support/persistence_adapter_examples"
 
 # `Memory#reset!` returns the adapter to the clean slate a fresh `Hecks.boot` gives, so a caller
 # can reuse one booted runtime across cases.
@@ -12,6 +13,12 @@ RSpec.describe Hecks::Adapters::Memory do
   def create(name: "Margherita")
     runtime.dispatch_flat("Pizzas::Order.CreatePizza",
                           name: { value: name }, pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
+  end
+
+  describe "dispatch claims" do
+    let(:adapter) { repository.instance_variable_get(:@adapter) }
+
+    it_behaves_like "a dispatch-claiming adapter"
   end
 
   context "with two pizzas saved" do

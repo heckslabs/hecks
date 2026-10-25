@@ -526,12 +526,20 @@ event and how many of the leg's dispatches settled, written before and
 after each one. Booting against the same durable adapter redrives the
 leg: dispatches that never began are delivered, and `redriven: true`
 lands in `runtime.sagas`. The one dispatch that was started but not
-settled may already have run, so it is delivered again only when its
-command says `idempotent` in its body. Otherwise the boot warns (`[hecks] ...
-stalled before ... settled ...`), records `rehydrated_stalled: true`
-with the command in `ambiguous`, and leaves the instance for a human
-to reconcile — redelivering it could double-apply it, the same reason
-a `claimed` outbox row is never retried automatically. A leg that was
+settled may already have run. Every dispatch a leg makes carries a
+key built from the saga, its instance, the event that moved the leg and
+the dispatch's position, and a store that dedupes by key (Memory, Sqlite,
+Postgres and PostgresEra; they report `:dispatch_claims`) records the key
+in the same transaction as the command's write. A second delivery finds
+the key, applies nothing, emits no event and counts as delivered, so the
+redrive delivers the ambiguous dispatch again whatever the command does,
+money movement included. On a store without claims it is delivered again
+only when its command says `idempotent` in its body. Otherwise the boot
+warns (`[hecks] ... stalled before ... settled ...`), records
+`rehydrated_stalled: true` with the command in `ambiguous`, and leaves
+the instance for a human to reconcile — redelivering it could
+double-apply it, the same reason a `claimed` outbox row is never retried
+automatically. Entity-owned commands carry no key yet. A leg that was
 unwinding with compensations still on the ledger is reported the same
 way, since some of them may already have run. The Rust host has no such
 window to redrive: it runs a command's whole in-domain cascade, saga legs
