@@ -244,6 +244,7 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("given", "Command"),
     ("ensures", "Command"),
     ("needs", "Command"),
+    ("idempotent", "Command"),
     ("sets", "Command"),
     ("corrects", "Command"),
     ("delegates_to", "Command"),

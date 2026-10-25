@@ -70,6 +70,12 @@ module Hecks
         # @return [Object] `from` as stored
         def provenance_impl(from:) = @provenance = from
 
+        # Declares the command safe to deliver twice: it leaves the same state delivered once or
+        # many times, so a saga redrive may run it again when a crash left its outcome unknown.
+        #
+        # @return [true]
+        def idempotent_impl = @idempotent = true
+
         # Declares the aggregate this command acts on (with no `as:`), or a cross-reference to
         # another aggregate (with `as:`).
         #
@@ -196,7 +202,7 @@ module Hecks
 
         def declared_effects
           { mutations: @mutations, emits: @emits, references: @references, from: @from,
-            provenance: @provenance }
+            provenance: @provenance, idempotent: @idempotent || false }
         end
       end
     end

@@ -108,6 +108,9 @@ pub struct Command {
     pub from: Option<CommandFrom>,
     // The raw captured `provenance from: { ... }` Hash, emitted without `Literal.render`.
     pub provenance: Literal,
+    // `idempotent`: delivering the command twice leaves the state delivering it once does, so a saga
+    // redrive may run it again after a crash left its outcome unknown. Emitted as a boolean.
+    pub idempotent: bool,
 }
 
 #[derive(Debug, Clone, Default)]
