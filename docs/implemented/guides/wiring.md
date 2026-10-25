@@ -298,6 +298,17 @@ Hecks.world "Banking" do
 end
 ```
 
+`projected_by` names the read store the domain's rooted read models are
+answered from once a projection worker has caught it up. `SqliteProjection`
+projects into one SQLite file; `PostgresProjection` projects into a
+Postgres database and schema of its own, apart from the authoritative
+store's: the world says `projected_by("PostgresProjection") { database
+"banking"; schema "banking_read" }` and the hecksagon says
+`projected_by "PostgresProjection"`.
+Either adapter answers what the in-process loop answers from the
+authoritative records; `hecks fuzz_run.fuzz` checks that on every SQLite
+or Postgres sweep (ADR 0122).
+
 `deployed_to("AwsLambda")` is read by `hecks deploy recipe.project` (see
 [Projections: Rust and
 WebAssembly](projections.md), and [architecture-map.md](../../architecture-map.md) for

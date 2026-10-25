@@ -8,7 +8,8 @@ module Hecks
       # Replays a generated sequence and judges, groups and shrinks what it finds.
       module Findings
         # An exception escaping Replay's per-step isolation is an interpreter defect, not a domain
-        # refusal.
+        # refusal. A sweep on SQLite or Postgres also checks that adapter's projection answers
+        # each rooted read model as the in-process loop does (ADR 0122).
         #
         # @param domain [String] the domain directory
         # @param steps [Array<Hash>] the sequence to replay
@@ -17,12 +18,27 @@ module Hecks
         #   `:crash`) and its message
         def outcome(domain, steps, adapter = :memory)
           history = Hecks::Fuzzing::Replay.call(domain, steps, adapter: adapter)
-          violations = Hecks::Fuzzing::Properties.check(history).reject { |_, result| result == true }
+          violations = property_results(domain, steps, adapter, history).reject { |_, result| result == true }
           return [:clean, nil] if violations.empty?
 
           [:property_violation, violations.map { |name, message| "#{name}: #{message}" }.join("; ")]
         rescue StandardError => e
           [:crash, "#{e.class}: #{e.message}"]
+        end
+
+        # The standard battery's results, and the projection agreement's when `adapter` has one.
+        #
+        # @param domain [String] the domain directory
+        # @param steps [Array<Hash>] the sequence replayed
+        # @param adapter [Symbol] the persistence it was replayed on
+        # @param history [Hash] the replayed history
+        # @return [Hash{Symbol => true, String}] each property name mapped to its result
+        def property_results(domain, steps, adapter, history)
+          results = Hecks::Fuzzing::Properties.check(history)
+          agreement = Hecks::Fuzzing::ProjectionAgreement
+          return results unless agreement.checks?(adapter)
+
+          results.merge(agreement::PROPERTY => agreement.property(domain, steps, adapter))
         end
 
         # Groups findings by property name or exception class, stable across shrink candidates.

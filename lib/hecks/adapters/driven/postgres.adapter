@@ -3,3 +3,9 @@ Hecks.adapter "Postgres" do
   field :database
   field :schema
 end
+
+Hecks.adapter "PostgresProjection" do
+  port  "projection"
+  field :database
+  field :schema
+end

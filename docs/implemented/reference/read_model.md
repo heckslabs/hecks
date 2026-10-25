@@ -543,8 +543,8 @@ runtime.query("ReadModelReference.DepotAllParcelsFragile", depot: "dp-1").first[
 Same eight comparators as a query's `where` (`eq`, `ne`, `gt`, `gte`,
 `lt`, `lte`, `in`, `contains`), including the same real-membership-vs-
 substring split on `contains` (see query.md's `where`). Applied for
-real (`ReadModelInterpreter#project` and `SqliteProjection#query_read_model`
-both run `Ports::Query::InMemory.execute` against it) — but only
+real (`ReadModelInterpreter#project` and the projection adapters'
+`query_read_model`, `SqliteProjection` and `PostgresProjection` alike, all run `Ports::Query::InMemory.execute` against it) — but only
 against ONE collection: `ReadModelBuilder#seal_query_options` refuses
 at build unless the read model includes exactly one many-side
 aggregate, since `where`/`order_by`/`limit`/`offset`/`authorize`'s
