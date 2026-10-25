@@ -14,17 +14,19 @@ module Hecks
         # only that, and nothing the other rules would reveal.
         #
         # @param verb [String] the fully qualified aggregate or entity command verb
-        # @param args [Hash{Symbol => Object}] the facts as flat keywords
+        # @param args [Hash] the receiver and facts in one flat Hash, as `dispatch_flat` takes them:
+        #   Symbol keys `:to` and `:with` route, every other key is a fact
         # @return [Runtime::Validation] the answer
         # @raise [Runtime::WiringError] if the verb names a port operation
-        def validate(verb, **args)
-          Validation.new(Collecting.collect { attempt_dry_run(verb, args) })
+        def validate(verb, args = {})
+          call = flat_call(verb, args)
+          Validation.new(Collecting.collect { attempt_dry_run(call) })
         end
 
         private
 
-        def attempt_dry_run(verb, args)
-          dry_run?(verb, **args)
+        def attempt_dry_run(call)
+          dry_run_call(call)
         rescue Hecks::Refused => e
           Collecting.refuse(e)
         end
