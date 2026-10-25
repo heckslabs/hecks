@@ -15,8 +15,6 @@ RSpec.describe "the sentence form against the whole corpus", :io do
 
   # What the sentence form has no phrase for yet, as the regexp its refusal matches.
   UNSAID = [
-    /no phrase for the closed set/,
-    /no phrase for process managers/,
     /no phrase for the options on attribute/,
     /no phrase for the paging and access options in report/,
     /no phrase for the options on (policy|query)/,
