@@ -1,6 +1,7 @@
 require_relative "../../naming"
 require_relative "../errors"
 require_relative "../refusal_wording"
+require_relative "../collecting"
 
 module Hecks
   module Runtime
@@ -21,10 +22,19 @@ module Hecks
           unknown = (args.keys.map(&:to_sym) - known).sort
           return if unknown.empty?
 
-          raise UnknownArgument.new(RefusalWording.render_site("UnknownArgument", "unknown_args",
-                                                               command: command.hecks_name, unknown: unknown,
-                                                               declared: declared_names(command)),
-                                    attribute: unknown.first)
+          refuse_each(unknown) do |names|
+            UnknownArgument.new(RefusalWording.render_site("UnknownArgument", "unknown_args",
+                                                           command: command.hecks_name, unknown: names,
+                                                           declared: declared_names(command)),
+                                attribute: names.first)
+          end
+        end
+
+        # Refuses the offenders together, in one refusal that names them all; when validating, one
+        # refusal each, so every offender can be shown against its own field.
+        def refuse_each(names, &)
+          groups = Collecting.active? ? names.zip : [names]
+          groups.each { |group| Collecting.refuse(yield(group)) }
         end
 
         # Every name a payload may carry: the declared attributes plus the addressing keys.
@@ -45,10 +55,12 @@ module Hecks
           absent = (required_argument_names(command, aggregate) - args.keys.map(&:to_sym)).sort
           return if absent.empty?
 
-          raise AbsentArgument.new(RefusalWording.render_site("AbsentArgument", "absent_args",
-                                                              command: command.hecks_name, absent: absent,
-                                                              declared: declared_names(command)),
-                                   attribute: absent.first)
+          refuse_each(absent) do |names|
+            AbsentArgument.new(RefusalWording.render_site("AbsentArgument", "absent_args",
+                                                          command: command.hecks_name, absent: names,
+                                                          declared: declared_names(command)),
+                               attribute: names.first)
+          end
         end
 
         # The declared, non-optional argument names, less a port operation's promoted identity.

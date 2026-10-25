@@ -623,6 +623,27 @@ module Hecks
         {"type"=>"String"}.freeze,
         {"type"=>"Hash"}.freeze
       ].freeze,
+      "StepStage" => [
+        {"step"=>"decode_arguments", "stage"=>"arguments"}.freeze,
+        {"step"=>"refuse_unknown_arguments", "stage"=>"arguments"}.freeze,
+        {"step"=>"refuse_absent_arguments", "stage"=>"arguments"}.freeze,
+        {"step"=>"normalize_args", "stage"=>"arguments"}.freeze,
+        {"step"=>"refuse_role_mismatch", "stage"=>"role"}.freeze,
+        {"step"=>"resolve_references", "stage"=>"references"}.freeze,
+        {"step"=>"hydrate", "stage"=>"state"}.freeze,
+        {"step"=>"hydrate_parent", "stage"=>"state"}.freeze,
+        {"step"=>"locate_element", "stage"=>"state"}.freeze,
+        {"step"=>"enforce_givens", "stage"=>"givens"}.freeze,
+        {"step"=>"admissible_transition", "stage"=>"state"}.freeze,
+        {"step"=>"assign_creation_attributes", "stage"=>"state"}.freeze,
+        {"step"=>"apply_mutations", "stage"=>"state"}.freeze,
+        {"step"=>"advance_lifecycle", "stage"=>"state"}.freeze,
+        {"step"=>"delegate_to_entity", "stage"=>"state"}.freeze,
+        {"step"=>"enforce_ensures", "stage"=>"ensures"}.freeze,
+        {"step"=>"enforce_invariants", "stage"=>"invariants"}.freeze,
+        {"step"=>"save", "stage"=>"state"}.freeze,
+        {"step"=>"emit", "stage"=>"state"}.freeze
+      ].freeze,
       "ToStringType" => [
         {"type"=>"String"}.freeze,
         {"type"=>"Integer"}.freeze,

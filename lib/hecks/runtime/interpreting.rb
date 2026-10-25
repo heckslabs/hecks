@@ -1,3 +1,4 @@
+require_relative "collecting"
 require_relative "value"
 require_relative "aggregate_lock"
 require_relative "needs"
@@ -60,6 +61,11 @@ module Hecks
       # Runs `order` by sending each `step_<name>` handler; `save` onward shares one transaction.
       # The outbox enqueue rides on `emit`; the vocabulary's step list is a pinned contract.
       def run_dispatch_order(order, ctx)
+        Collecting.active? ? run_collecting(order, ctx) : run_committing(order, ctx)
+      end
+
+      # The ordinary run: every step raises its first refusal, and `save` onward is one transaction.
+      def run_committing(order, ctx)
         split = order.index(:save)
         return order.each { |name| send(:"step_#{name}", ctx) } unless split && ctx.respond_to?(:repository) && ctx.repository
 
@@ -68,6 +74,45 @@ module Hecks
           order[split..].each { |name| send(:"step_#{name}", ctx) }
           enqueue_outbox(ctx)
         end
+      end
+
+      # The validating run: every step, in order, with a refusal recorded and not raised. A stage
+      # that recorded one is finished and the run stops there, since a later stage reads what an
+      # earlier one settled. The role is checked first and alone, so a caller who may not run the
+      # command learns only that.
+      def run_collecting(order, ctx)
+        return if role_refused?(ctx)
+
+        split = order.index(:save)
+        before = split ? order[0...split] : order
+        stage = collect_steps(before, ctx, nil)
+        return if Collecting.refusals.any? || !split || !ctx.respond_to?(:repository) || !ctx.repository
+
+        ctx.repository.transaction { collect_steps(order[split..], ctx, stage) }
+      end
+
+      # Whether the role step refused the caller, which it records.
+      def role_refused?(ctx)
+        collect_step(:refuse_role_mismatch, ctx)
+        Collecting.refusals.any?
+      end
+
+      # Runs `names` as a validation does; returns the stage it stopped in, or the last it ran.
+      def collect_steps(names, ctx, stage)
+        names.each do |name|
+          next_stage = Collecting.stage_of(name)
+          break if Collecting.refusals.any? && next_stage != stage
+
+          stage = next_stage
+          collect_step(name, ctx)
+        end
+        stage
+      end
+
+      def collect_step(name, ctx)
+        send(:"step_#{name}", ctx)
+      rescue Hecks::Refused => e
+        Collecting.refuse(e)
       end
 
       # Enqueues outbox rows for the just-emitted events inside the save's transaction.
@@ -97,8 +142,17 @@ module Hecks
         command.attributes.each_with_object(args.dup) do |attribute, normalized|
           next unless normalized.key?(attribute.name)
 
-          normalized[attribute.name] = coerce_argument(aggregate, command, attribute, normalized[attribute.name])
+          normalized[attribute.name] = coerce_collecting(aggregate, command, attribute, normalized[attribute.name])
         end
+      end
+
+      # One argument through `coerce_argument`; when collecting, a refusal is recorded against the
+      # attribute and the value is left as it came, so the next attribute is still checked.
+      def coerce_collecting(aggregate, command, attribute, value)
+        coerce_argument(aggregate, command, attribute, value)
+      rescue Hecks::Refused => e
+        Collecting.refuse(e.within(attribute.name))
+        value
       end
 
       # One declared argument through the reference gate, the list gate, then coercion.

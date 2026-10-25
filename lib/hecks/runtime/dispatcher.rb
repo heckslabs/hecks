@@ -13,6 +13,7 @@ require_relative "saga_interpreter"
 require_relative "outbox"
 require_relative "dispatcher/result"
 require_relative "dispatcher/routing"
+require_relative "dispatcher/validating"
 require_relative "dispatcher/queries"
 require_relative "declarations"
 require_relative "../naming"
@@ -23,6 +24,7 @@ module Hecks
     # and saga reactions its events trigger; tracks reaction depth to bound cascades.
     class Dispatcher
       include Routing
+      include Validating
       include Queries
       include Declarations
 

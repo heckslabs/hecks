@@ -1,6 +1,7 @@
 require_relative "../../bluebook/expression/evaluator"
 require_relative "../../rendering"
 require_relative "../errors"
+require_relative "../collecting"
 require_relative "../refusal_wording"
 require_relative "../value"
 require_relative "../instance"
@@ -121,7 +122,8 @@ module Hecks
           command.ensures.each do |rule|
             next if Bluebook::Expression::Evaluator.call_rule(rule, state, attrs)
 
-            raise EnsuresNotMet.new("#{command.hecks_name} refused — #{rule.description}", rule: rule.description)
+            Collecting.refuse(EnsuresNotMet.new("#{command.hecks_name} refused — #{rule.description}",
+                                                rule: rule.description))
           end
         end
 
@@ -159,12 +161,15 @@ module Hecks
           command.givens.each do |given|
             next if Bluebook::Expression::Evaluator.call_rule(given, state, attrs)
 
-            raise GivenNotMet.new(
-              "#{command.hecks_name} refused — #{given.description}",
-              detail: Bluebook::Expression::Evaluator.comparison_detail(given.canonical, state, attrs),
-              rule:   given.description
-            )
+            Collecting.refuse(unmet_given(command, given, state, attrs))
           end
+        end
+
+        # The refusal for one given that did not hold.
+        def unmet_given(command, given, state, attrs)
+          GivenNotMet.new("#{command.hecks_name} refused — #{given.description}",
+                          detail: Bluebook::Expression::Evaluator.comparison_detail(given.canonical, state, attrs),
+                          rule:   given.description)
         end
 
         # The most recent emission of the event a `corrects` mutation names. Most recent match wins

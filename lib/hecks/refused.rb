@@ -49,6 +49,21 @@ module Hecks
     # @return [Symbol] one of the `DispatchStage` vocabulary rows
     def stage = @stage || classification["stage"].to_sym
 
+    # The same refusal, placed inside an attribute of the command: a field refused within a value
+    # object is about the value object's attribute, at the path that leads to the field.
+    #
+    # @param name [Symbol, String] the command attribute the refusal came from
+    # @return [Hecks::Refused] this refusal if it is already about `name`, else a re-rooted copy
+    def within(name)
+      return self if @attribute == name.to_sym
+
+      inner = path
+      dup.tap do |copy|
+        copy.attribute = name.to_sym
+        copy.path = "/#{name}#{inner}"
+      end
+    end
+
     # @return [String, nil] a JSON Pointer to the offending value, such as `/balance/cents`
     def path = @path || (@attribute && "/#{@attribute}")
 
@@ -58,6 +73,10 @@ module Hecks
     def to_h
       { kind: kind, stage: stage, attribute: attribute, path: path, rule: rule, message: message }
     end
+
+    protected
+
+    attr_writer :attribute, :path
 
     private
 
