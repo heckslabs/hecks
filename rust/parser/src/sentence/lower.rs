@@ -62,6 +62,24 @@ struct Cond {
     value: Option<String>,
 }
 
+/// What a policy does when its event is announced.
+enum Reaction {
+    /// Runs a command of the chapter.
+    Run(String),
+    /// Asks the outside for something, by the need's name in the domain's words.
+    Ask(String),
+}
+
+/// A policy as written, before its event and command are looked up in the chapter.
+struct PolicySpec {
+    name: String,
+    line: usize,
+    col: usize,
+    /// The event announced, the aggregate it is said to come from, and where it was written.
+    event: Option<(String, Option<String>, usize, usize)>,
+    reaction: Option<(Reaction, Vec<FieldUse>, usize, usize)>,
+}
+
 /// Everything read of one aggregate before its names are resolved.
 struct AggState {
     agg: ir::Aggregate,
@@ -94,16 +112,19 @@ impl Parser<'_> {
         // The aggregates follow at the top level, as flat as the `Domain:` line.
         let mut aggregates = Scope::top();
         aggregates.first = false;
+        let mut policies: Vec<PolicySpec> = Vec::new();
         while let Some(step) = self.step(&mut aggregates, "Domain", false)? {
             match step {
                 Step::Phrase(m) if m.id == "aggregate" => {
                     let aggregate = self.aggregate(&m)?;
                     chapter.aggregates.push(aggregate);
                 }
+                Step::Phrase(m) if m.id == "policy" => policies.push(self.policy(&m)?),
                 Step::Phrase(m) => return Err(self.unmeant(&m)),
                 Step::Prose { .. } => {}
             }
         }
+        chapter.policies = self.policies_of(&chapter, policies)?;
         if let Some(line) = self.lines.get(self.pos) {
             return Err(self.error(
                 line.number,
@@ -112,6 +133,148 @@ impl Parser<'_> {
             ));
         }
         Ok(chapter)
+    }
+
+    /// Reads one `Policy:` block: the event it waits for and what it does then.
+    fn policy(&mut self, header: &Matched) -> ParseResult<PolicySpec> {
+        let mut spec = PolicySpec {
+            name: camel(&header.text_of("name")),
+            line: header.line,
+            col: header.base_col,
+            event: None,
+            reaction: None,
+        };
+        let mut scope = Scope::inside(header.indent);
+        while let Some(step) = self.step(&mut scope, "Policy", false)? {
+            let Step::Phrase(m) = step else { continue };
+            match m.id {
+                "whenever" | "whenever_by" => {
+                    if spec.event.is_some() {
+                        return Err(self.error(m.line, m.base_col, "a policy waits for one event; this is a second `Whenever`"));
+                    }
+                    let owner = (m.id == "whenever_by").then(|| m.text_of("owner"));
+                    spec.event = Some((m.text_of("event"), owner, m.line, m.col_of("event")));
+                }
+                "runs" | "runs_with" | "asked" | "asked_with" => {
+                    if spec.reaction.is_some() {
+                        return Err(self.error(m.line, m.base_col, "a policy does one thing; this is a second `Then`"));
+                    }
+                    let fields = if m.id.ends_with("with") { field_uses(&m, "fields") } else { Vec::new() };
+                    let (reaction, slot) = if m.id.starts_with("runs") {
+                        (Reaction::Run(camel(&m.text_of("command"))), "command")
+                    } else {
+                        (Reaction::Ask(snake(&m.text_of("need"))), "need")
+                    };
+                    spec.reaction = Some((reaction, fields, m.line, m.col_of(slot)));
+                }
+                _ => return Err(self.unmeant(&m)),
+            }
+        }
+        Ok(spec)
+    }
+
+    /// Looks up the events and commands the policies name, now that every aggregate is read.
+    fn policies_of(&self, chapter: &ir::Bluebook, specs: Vec<PolicySpec>) -> ParseResult<Vec<ir::Policy>> {
+        let mut policies = Vec::new();
+        for spec in specs {
+            let Some((event, owner, event_line, event_col)) = spec.event else {
+                return Err(self.error(spec.line, spec.col, "this policy has no `Whenever <event> is announced`"));
+            };
+            let Some((reaction, fields, then_line, then_col)) = spec.reaction else {
+                return Err(self.error(spec.line, spec.col, "this policy does nothing; add `Then <command> runs` or `Then <need> is asked`"));
+            };
+            let source = self.event_source(chapter, &event, owner.as_deref(), event_line, event_col)?;
+            let mut policy = ir::Policy {
+                name: spec.name,
+                on_event: Some(format!("{source}.{event}")),
+                with_spec: fields.iter().map(|f| (f.name.clone(), format!(":{}", f.name))).collect(),
+                ..Default::default()
+            };
+            match reaction {
+                Reaction::Ask(need) => policy.ask = Some(need),
+                Reaction::Run(command) => {
+                    let found: Vec<(&ir::Aggregate, &ir::Command)> = chapter
+                        .aggregates
+                        .iter()
+                        .flat_map(|a| a.commands.iter().map(move |c| (a, c)))
+                        .filter(|(_, c)| c.name == command)
+                        .collect();
+                    let [(aggregate, target)] = found.as_slice() else {
+                        let all: Vec<String> = chapter
+                            .aggregates
+                            .iter()
+                            .flat_map(|a| a.commands.iter().map(|c| spoken(&c.name)))
+                            .collect();
+                        return Err(self.error(
+                            then_line,
+                            then_col,
+                            format!("'{}' is not one command of this chapter. The commands are: {}", spoken(&command), all.join(", ")),
+                        ));
+                    };
+                    for field in &fields {
+                        if !target.attributes.iter().any(|a| a.name == field.name) {
+                            let takes: Vec<String> = target.attributes.iter().map(|a| spoken(&a.name)).collect();
+                            let takes = if takes.is_empty() { "nothing".to_string() } else { takes.join(", ") };
+                            return Err(self.error(
+                                field.line,
+                                field.col,
+                                format!("{} takes no '{}'. It takes: {takes}", spoken(&target.name), spoken(&field.name)),
+                            ));
+                        }
+                    }
+                    policy.trigger_command = Some(format!("{}.{}", aggregate.name, target.name));
+                }
+            }
+            policies.push(policy);
+        }
+        Ok(policies)
+    }
+
+    /// The aggregate an announced event comes from: the one whose command announces it, or the
+    /// one named outright for an event the outside announces.
+    fn event_source(
+        &self,
+        chapter: &ir::Bluebook,
+        event: &str,
+        owner: Option<&str>,
+        line: usize,
+        col: usize,
+    ) -> ParseResult<String> {
+        if let Some(noun) = owner {
+            return chapter
+                .aggregates
+                .iter()
+                .find(|a| spoken(&a.name) == noun.to_lowercase())
+                .map(|a| a.name.clone())
+                .ok_or_else(|| {
+                    let known: Vec<String> = chapter.aggregates.iter().map(|a| spoken(&a.name)).collect();
+                    self.error(line, col, format!("there is no '{noun}' here. The aggregates are: {}", known.join(", ")))
+                });
+        }
+        let sources: Vec<&ir::Aggregate> = chapter
+            .aggregates
+            .iter()
+            .filter(|a| a.commands.iter().any(|c| c.emits.iter().any(|e| e == event)))
+            .collect();
+        match sources.as_slice() {
+            [one] => Ok(one.name.clone()),
+            [] => {
+                let announced: Vec<String> = chapter
+                    .aggregates
+                    .iter()
+                    .flat_map(|a| a.commands.iter().flat_map(|c| c.emits.iter().cloned()))
+                    .collect();
+                Err(self.error(
+                    line,
+                    col,
+                    format!(
+                        "no command announces {event}. The events announced are: {}. If the outside announces it, say `… is announced by an <aggregate>`",
+                        announced.join(", ")
+                    ),
+                ))
+            }
+            _ => Err(self.error(line, col, format!("more than one aggregate announces {event}; say which with `… is announced by an <aggregate>`"))),
+        }
     }
 
     /// A phrase the table admits that this front end has no meaning for yet.

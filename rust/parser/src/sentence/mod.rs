@@ -222,6 +222,7 @@ fn context_label(context: &str) -> &'static str {
         "ValueObject" => "a value object",
         "Lifecycle" => "a lifecycle",
         "Command" => "a command",
+        "Policy" => "a policy",
         "Query" => "a query",
         "Condition" => "a condition",
         "ExamplesFile" => "the top of an examples file",

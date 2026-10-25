@@ -301,7 +301,7 @@ impl Parser<'_> {
         };
         let mut expect = Expect::default();
         for raw in outcomes {
-            self.outcome(raw, &tested, &mut expect)?;
+            self.outcome(chapter, raw, &tested, &mut expect)?;
         }
         self.consistent(&tested, &expect)?;
         let input: Vec<(String, String)> = tested.identity.iter().chain(tested.args.iter()).cloned().collect();
@@ -600,7 +600,13 @@ impl Parser<'_> {
     }
 
     /// Reads one `Then` or `And` line after the tested step.
-    fn outcome(&self, raw: &Raw, tested: &Dispatch<'_>, expect: &mut Expect) -> ParseResult<()> {
+    fn outcome(
+        &self,
+        chapter: &ir::Bluebook,
+        raw: &Raw,
+        tested: &Dispatch<'_>,
+        expect: &mut Expect,
+    ) -> ParseResult<()> {
         let text = raw.text.strip_suffix('.').unwrap_or(&raw.text);
         let (phrase, found) = self.match_text("Outcome", text, raw.col).map_err(|unmatched| {
             self.error(raw.line, unmatched.column, format!("this is not an outcome I know: \"{}\"", raw.text))
@@ -631,11 +637,12 @@ impl Parser<'_> {
             }
             "outcome_announced" => {
                 let event = slot("event").value;
-                if !tested.command.emits.contains(&event) {
+                let announced = announced_by(chapter, tested.command);
+                if !announced.contains(&event) {
                     return Err(self.error(
                         raw.line,
                         at("event"),
-                        format!("{} announces {}, not {event}", spoken(&tested.command.name), tested.command.emits.join(", ")),
+                        format!("{} announces {}, not {event}", spoken(&tested.command.name), announced.join(", ")),
                     ));
                 }
                 expect.emits.push(event);
@@ -692,6 +699,35 @@ impl Parser<'_> {
         }
         Ok(())
     }
+}
+
+/// Every event a command announces, including those announced by commands that policies run in
+/// answer to its events, and so on until nothing new follows.
+fn announced_by(chapter: &ir::Bluebook, command: &ir::Command) -> Vec<String> {
+    let mut events: Vec<String> = command.emits.clone();
+    let mut grew = true;
+    while grew {
+        grew = false;
+        for policy in &chapter.policies {
+            let Some(on) = policy.on_event.as_deref() else { continue };
+            let event = on.split_once('.').map_or(on, |(_, name)| name);
+            let Some(trigger) = policy.trigger_command.as_deref() else { continue };
+            if !events.iter().any(|known| known == event) {
+                continue;
+            }
+            for aggregate in &chapter.aggregates {
+                for next in aggregate.commands.iter().filter(|c| format!("{}.{}", aggregate.name, c.name) == trigger) {
+                    for emitted in &next.emits {
+                        if !events.contains(emitted) {
+                            events.push(emitted.clone());
+                            grew = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    events
 }
 
 /// Every sentence a refusal of this step may give: the command's rules and the value objects'.
@@ -819,4 +855,51 @@ fn expect_text(expect: &Expect) -> String {
         parts.push(format!("refused: {}", ruby_string(reason)));
     }
     parts.join(", ")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn command(name: &str, emits: &[&str]) -> ir::Command {
+        ir::Command {
+            name: name.to_string(),
+            emits: emits.iter().map(|event| (*event).to_string()).collect(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn announced_events_follow_the_policies_that_run_other_commands() {
+        let chapter = ir::Bluebook {
+            aggregates: vec![ir::Aggregate {
+                name: "Order".to_string(),
+                commands: vec![command("Place", &["OrderPlaced"]), command("Pack", &["OrderPacked"]), command("Ship", &["OrderShipped"])],
+                ..Default::default()
+            }],
+            policies: vec![
+                ir::Policy {
+                    on_event: Some("Order.OrderPlaced".to_string()),
+                    trigger_command: Some("Order.Pack".to_string()),
+                    ..Default::default()
+                },
+                ir::Policy {
+                    on_event: Some("Order.OrderPacked".to_string()),
+                    trigger_command: Some("Order.Ship".to_string()),
+                    ..Default::default()
+                },
+            ],
+            ..Default::default()
+        };
+        let place = chapter.aggregates[0].commands[0].clone();
+        assert_eq!(announced_by(&chapter, &place), ["OrderPlaced", "OrderPacked", "OrderShipped"]);
+        let ship = chapter.aggregates[0].commands[2].clone();
+        assert_eq!(announced_by(&chapter, &ship), ["OrderShipped"]);
+    }
+
+    #[test]
+    fn a_decimal_and_a_whole_number_are_told_apart() {
+        assert!(is_whole("1700000000") && !is_whole("1.5") && !is_whole(""));
+        assert!(is_decimal("1.5") && !is_decimal("15") && !is_decimal("1."));
+    }
 }
