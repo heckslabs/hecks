@@ -55,8 +55,11 @@ of a closed account. Nothing reported it.
 ## Consequences
 
 - `hecks model_check` over the corpus reports orphaned references in banking, the
-  quality-control chapters and two QA fixtures. Banking's real gaps are closed by new
-  policies in `examples/banking/bluebook/closures.bluebook`; the rest are listed as
-  probable false positives in the lane report.
+  quality-control chapters and two QA fixtures. Banking's cards are retired when their
+  account closes (`examples/banking/bluebook/closures.bluebook`). Several other banking
+  findings are real but a policy alone cannot close them: the command that would end the
+  holder refuses once its parent has ended (`Cancel`, `Void` and `Reject` need an open
+  account, `FreezeAccount` and `Decline` a customer who is not closed). Those need a
+  modelling decision, not a policy, and stay as warnings.
 - A future delete verb, if one arrives, is a second kind of ending and joins the same
   check.
