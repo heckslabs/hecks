@@ -93,8 +93,12 @@ module DocReferences
     )
   end
 
+  # `hecks <chapter> query <name>` reads through a chapter's own launcher, so a claim that stops at
+  # `query` resolves when the chapter has one.
   def resolves?(argv)
-    launcher = argv.size == 2 && !%w[query ask].include?(argv.first) ? [argv.first] : []
+    return true if argv.size == 2 && argv.last == "query" && known_verbs.key?([argv.first])
+
+    launcher =argv.size == 2 && !%w[query ask].include?(argv.first) ? [argv.first] : []
     known_verbs.fetch(launcher, []).include?(argv.last) ||
       (argv.first == "query" && known_verbs[[]].include?(argv.last))
   end
