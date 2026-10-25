@@ -119,7 +119,7 @@ RSpec.describe "the pages a Rails app has with no view files of its own", type: 
   describe "the acting-as picker" do
     def act_as(role) = post("/hecks/actor", { "role" => role })
 
-    def post_note_unsigned = post("/notes/post_note", { "slug.value" => "picked", "text.value" => "Hi" })
+    def post_note_unsigned(slug = "picked") = post("/notes/post_note", { "slug.value" => slug, "text.value" => "Hi" })
 
     around do |example|
       Hecks::Rails.dev_actor = true
@@ -133,6 +133,20 @@ RSpec.describe "the pages a Rails app has with no view files of its own", type: 
       post_note_unsigned
 
       expect(last_response.status).to eq(302)
+    end
+
+    # A session signed in before the process forgot its grants, as after a restart.
+    def sign_in_then_forget(role)
+      act_as(role)
+      Hecks::Rails::DevActor.reset!
+      allow(Hecks::Rails::DevActor).to receive(:grant).and_call_original
+    end
+
+    it "grants a session's role again when this process has not seen it" do
+      sign_in_then_forget("Teller")
+      post_note_unsigned("regranted")
+
+      expect(Hecks::Rails::DevActor).to have_received(:grant).with("dev-teller", "Teller")
     end
 
     it "lists the roles the domain's commands name" do
