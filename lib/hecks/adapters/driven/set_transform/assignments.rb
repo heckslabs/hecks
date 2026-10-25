@@ -7,7 +7,7 @@ module Hecks
       module Assignments
         private
 
-        # @return [Array(Array<String>, Array<String>)] the SET items and the WHERE conditions
+        # @return [Array(Array<String>, Array<String>)] the assignments and the filter conditions
         #   the lifecycle adds
         def set_list(statement, build)
           sets = statement.assignments.map { |assignment| assignment_sql(assignment, build) }
@@ -15,7 +15,7 @@ module Hecks
           [sets + lifecycle_sets + version_bump, conditions]
         end
 
-        # The lifecycle's SET item and the WHERE conditions its transition and `from:` guard add.
+        # The lifecycle's assignment and the filter conditions its transition and `from:` guard add.
         def lifecycle_moves(statement, build)
           sets = []
           conditions = []

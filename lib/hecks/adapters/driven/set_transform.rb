@@ -4,9 +4,10 @@ require_relative "../../ports/persistence/append_only"
 
 module Hecks
   module Adapters
-    # A SQL store's `set_transform` (ADR 0128): one `UPDATE … WHERE <query> AND <givens> RETURNING *`
-    # for a {Ports::Persistence::SetStatement}, journalled row by row in the same transaction.
-    # Mixed into an adapter that includes {SqlQueryBuilder}, whose WHERE clauses it reuses, and a
+    # A SQL store's `set_transform` (ADR 0128): one update statement, filtered by the query and the
+    # givens and returning every row it changed, for a {Ports::Persistence::SetStatement},
+    # journalled row by row in the same transaction. Mixed into an adapter that includes
+    # {SqlQueryBuilder}, whose filter clauses it reuses, and a
     # set dialect that supplies the SQL spellings: `typed_placeholder`, `null_safe_equality`,
     # `text_ordering`, `integer_guard`, `scalar_read`, `scalar_write`, `version_bump`,
     # `run_set_transform` and `set_transform_dialect`.
@@ -21,7 +22,7 @@ module Hecks
       # Compiles a statement to SQL without running it.
       #
       # @param statement [Ports::Persistence::SetStatement] the command over the query
-      # @return [Array(String, Array)] the UPDATE statement and its binds in placeholder order
+      # @return [Array(String, Array)] the update statement and its binds in placeholder order
       # @raise [SetTransform::Uncompilable] if part of the statement has no form in this dialect
       def compile_set_transform(statement)
         build = Build.new([], [], statement.arguments || {})
