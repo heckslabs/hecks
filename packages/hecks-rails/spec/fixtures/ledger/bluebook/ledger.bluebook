@@ -51,6 +51,16 @@ Hecks.bluebook "Ledger" do
       emits "AccountFrozen"
     end
 
+    command "Deposit", from: "open" do
+      role "Teller"
+      goal "Add money to an open account"
+
+      reference_to Account
+      attribute :amount, Money
+
+      emits "MoneyDeposited"
+    end
+
     command "Unfreeze", from: "frozen" do
       role "Compliance officer"
       goal "Let a frozen account move again"

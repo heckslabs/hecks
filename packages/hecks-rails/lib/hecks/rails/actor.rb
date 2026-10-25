@@ -34,7 +34,15 @@ module Hecks
 
       private
 
-      def picked_id(controller) = controller.respond_to?(:session) ? controller.session[:hecks_actor] : nil
+      # The id the picker signed the session in as, granted again when this process has not seen it.
+      def picked_id(controller)
+        return unless controller.respond_to?(:session)
+
+        actor = controller.session[:hecks_actor]
+        role = controller.session[:hecks_role]
+        DevActor.grant(actor, role) if actor && role
+        actor
+      end
 
       def signed_in_id(controller)
         user = controller.respond_to?(:current_user, true) ? controller.send(:current_user) : nil

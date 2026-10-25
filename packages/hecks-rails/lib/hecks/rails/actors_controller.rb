@@ -21,17 +21,9 @@ module Hecks
 
       def sign_in_as(role)
         actor = "dev-#{Naming.snake(role)}"
-        grant(actor, role)
+        DevActor.grant(actor, role)
         session[:hecks_actor] = actor
         session[:hecks_role] = role
-      end
-
-      def grant(actor, role)
-        Booted.dispatcher.dispatch_flat("Governance::RoleAssignment.Assign",
-                                        actor_id: { value: actor }, role_name: { value: role },
-                                        scope: { value: "Main" }, starts_at: { value: Date.current.iso8601 })
-      rescue Hecks::Refused
-        nil # already held: the grant outlives the session
       end
     end
   end
