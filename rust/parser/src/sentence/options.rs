@@ -58,10 +58,10 @@ impl Parser<'_> {
 
     fn default_value(&self, m: &Matched, col: usize, text: &str) -> ParseResult<Value> {
         match ruby_value::read(text) {
-            Value::Bare(_) | Value::Hash(_) | Value::Array(_) => Err(self.error(
+            Value::Bare(_) => Err(self.error(
                 m.line,
                 col,
-                format!("a default is a number, quoted text, true, false or nothing; '{text}' is none of those"),
+                format!("a default is a number, quoted text, true, false, nothing or a {{value: …}}; '{text}' is none of those"),
             )),
             value => Ok(value),
         }
