@@ -87,7 +87,7 @@ the real, settled record — a different and larger kind of dishonesty
 than a small, clearly-labelled scratch fixture. So this one section
 uses a throwaway domain, built and torn down inside the walkthrough
 itself, exactly the way `spec/fixtures/eras/` and
-`spec/adapters/driven/postgres/lineage_spec.rb`'s own era fixtures do
+`spec/adapters/driven/postgres_era/lineage_spec.rb`'s own era fixtures do
 for the same reason — the one deliberate exception in an otherwise
 real-corpus guide.
 
@@ -434,7 +434,7 @@ was minted under, forever, the same immutability every other rule here
 already holds itself to. What changes is what the *next* era's
 compiled view resolves that row as, and what a fresh dispatch mints for
 a brand-new record going forward. One known gap: `hecks era.merge_tail`'s own
-conflict detection (`tail_merge.rb#conflict_ids`) does not yet
+conflict detection (`merge_writes.rb#conflict_ids`) does not yet
 recognize a pre-rekey and post-rekey row as the same entity — merging a
 domain whose history includes a rekey may leave both surviving as
 separate, undetected duplicate heads. Resolve manually if you hit this;
@@ -470,7 +470,7 @@ BYPASSRLS connection, naming the role and the two ways out:
   database still provisions and mints (owner-only DDL), and is held to
   the fence like everyone else. This is the real fix, and what a
   deployment does; `qa/bluebook/quality_control.world` in this
-  repository is the worked example, with `bin/qa_postgres_role` as its
+  repository is the worked example, with `hecks quality_control sweep.create_ledger_role <database>` as its
   one-time operator step.
 - **`allow_superuser true`**, in the same `persisted_by` block — boots
   anyway, on the record, and says so on stderr on every boot. The
