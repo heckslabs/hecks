@@ -20,7 +20,7 @@ RSpec.describe Hecks::Rails::Skins do
   end
 
   it "generates the base model and none for a framework chapter such as Governance" do
-    expect(described_class.generated.keys).to contain_exactly("ApplicationRecord", "Account")
+    expect(described_class.generated.keys).to contain_exactly("ApplicationRecord", "Account", "Transfer")
   end
 
   it "reaches the aggregate through its chapter, not a top-level module" do

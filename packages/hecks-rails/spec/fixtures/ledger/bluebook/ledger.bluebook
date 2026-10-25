@@ -88,4 +88,30 @@ Hecks.bluebook "Ledger" do
       emits "NotePosted"
     end
   end
+
+  aggregate "Transfer" do
+    identified_by :reference
+
+    attribute :reference, TransferReference
+
+    reference_to Account, as: :source
+    reference_to Account, as: :destination
+
+    value_object "TransferReference" do
+      attribute :value, String, matches: :present
+    end
+
+    command "RequestTransfer" do
+      role "Teller"
+      goal "Ask for money to move from one account to another"
+
+      attribute :reference, TransferReference
+
+      sets :reference
+      sets :source
+      sets :destination
+
+      emits "TransferRequested"
+    end
+  end
 end

@@ -40,6 +40,7 @@ module Hecks
         def aggregate(name)
           @door = Booted.door(*name.to_s.split(/\.|::/, 2))
           @door.ir.commands.each { |command| define_command(command) }
+          References.define(self, @door.ir)
         end
 
         # @return [Module] the aggregate's module in the booted domain
