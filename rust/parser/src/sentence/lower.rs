@@ -87,8 +87,17 @@ struct PolicySpec {
     col: usize,
     /// The event announced, the aggregate it is said to come from, and where it was written.
     event: Option<(String, Option<String>, usize, usize)>,
-    reaction: Option<(Reaction, Vec<FieldUse>, usize, usize)>,
+    /// The outside announces the event, so no aggregate of the chapter is its source.
+    outside: bool,
+    /// `Aggregate.Query` when the policy runs once for each row a query answers.
+    for_each: Option<String>,
+    /// What it does, the fields it passes (the command's name for each, and where it takes it
+    /// from), and where it was written.
+    reaction: Option<(Reaction, Vec<PassedField>, usize, usize)>,
 }
+
+/// A field a policy passes on: the command's name for it, and the name it takes the value from.
+type PassedField = (FieldUse, String);
 
 /// Everything read of one aggregate before its names are resolved.
 pub(super) struct AggState {
@@ -184,24 +193,30 @@ impl Parser<'_> {
             line: header.line,
             col: header.base_col,
             event: None,
+            outside: false,
+            for_each: None,
             reaction: None,
         };
         let mut scope = Scope::inside(header.indent);
         while let Some(step) = self.step(&mut scope, "Policy", false)? {
             let Step::Phrase(m) = step else { continue };
             match m.id {
-                "whenever" | "whenever_by" => {
+                "for_each" => {
+                    spec.for_each = Some(format!("{}.{}", camel(&m.text_of("owner")), camel(&m.text_of("query"))));
+                }
+                "whenever" | "whenever_by" | "whenever_outside" => {
                     if spec.event.is_some() {
                         return Err(self.error(m.line, m.base_col, "a policy waits for one event; this is a second `Whenever`"));
                     }
                     let owner = (m.id == "whenever_by").then(|| m.text_of("owner"));
+                    spec.outside = m.id == "whenever_outside";
                     spec.event = Some((m.text_of("event"), owner, m.line, m.col_of("event")));
                 }
                 "runs" | "runs_with" | "asked" | "asked_with" => {
                     if spec.reaction.is_some() {
                         return Err(self.error(m.line, m.base_col, "a policy does one thing; this is a second `Then`"));
                     }
-                    let fields = if m.id.ends_with("with") { field_uses(&m, "fields") } else { Vec::new() };
+                    let fields = if m.id.ends_with("with") { passed_fields(&m) } else { Vec::new() };
                     let (reaction, slot) = if m.id.starts_with("runs") {
                         (Reaction::Run(camel(&m.text_of("command"))), "command")
                     } else {
@@ -225,11 +240,16 @@ impl Parser<'_> {
             let Some((reaction, fields, then_line, then_col)) = spec.reaction else {
                 return Err(self.error(spec.line, spec.col, "this policy does nothing; add `Then <command> runs` or `Then <need> is asked`"));
             };
-            let source = self.event_source(chapter, &event, owner.as_deref(), event_line, event_col)?;
+            let on_event = if spec.outside {
+                event
+            } else {
+                format!("{}.{event}", self.event_source(chapter, &event, owner.as_deref(), event_line, event_col)?)
+            };
             let mut policy = ir::Policy {
                 name: spec.name,
-                on_event: Some(format!("{source}.{event}")),
-                with_spec: fields.iter().map(|f| (f.name.clone(), format!(":{}", f.name))).collect(),
+                on_event: Some(on_event),
+                with_spec: fields.iter().map(|(key, from)| (key.name.clone(), format!(":{from}"))).collect(),
+                for_each_query: spec.for_each,
                 ..Default::default()
             };
             match reaction {
@@ -253,7 +273,8 @@ impl Parser<'_> {
                             format!("'{}' is not one command of this chapter. The commands are: {}", spoken(&command), all.join(", ")),
                         ));
                     };
-                    for field in &fields {
+                    // Each row of a fan-out also supplies the key the command is addressed by.
+                    for (field, _) in fields.iter().filter(|_| policy.for_each_query.is_none()) {
                         if !target.attributes.iter().any(|a| a.name == field.name) {
                             let takes: Vec<String> = target.attributes.iter().map(|a| spoken(&a.name)).collect();
                             let takes = if takes.is_empty() { "nothing".to_string() } else { takes.join(", ") };
@@ -1013,6 +1034,25 @@ fn shape_of(words: &str) -> Shape {
         }
     }
     Shape { words: words.to_string(), list: false, relationship: None }
+}
+
+/// The fields a `runs with` line passes: `the permit` as itself, `the cap from the limit` under
+/// the command's name for it.
+fn passed_fields(m: &Matched) -> Vec<PassedField> {
+    let col = m.col_of("fields");
+    m.capture("fields")
+        .items
+        .iter()
+        .map(|item| {
+            let (key, from) = item.split_once(" from the ").unwrap_or((item.as_str(), item.as_str()));
+            let field = FieldUse {
+                name: snake(key),
+                line: m.line,
+                col,
+            };
+            (field, snake(from))
+        })
+        .collect()
 }
 
 pub(super) fn field_uses(m: &Matched, slot: &str) -> Vec<FieldUse> {

@@ -3,7 +3,7 @@
 //! changes, resolved against the command's arguments, and written back from the IR's mutations.
 
 use super::lower::FieldUse;
-use super::names::{snake, spoken};
+use super::names::{camel, snake, spoken};
 use super::{Matched, Parser};
 use crate::diag::ParseResult;
 use crate::ir;
@@ -18,8 +18,20 @@ pub(super) enum Source {
     Expression(String),
 }
 
+/// Where one field of a row gets its value: an argument, or a literal as the IR spells it.
+pub(super) enum Origin {
+    Argument(FieldUse),
+    Literal(String),
+}
+
 /// One change a command makes, before its names are resolved.
 pub(super) enum Change {
+    /// A row added to a list field, each of its fields given by name.
+    Append { target: FieldUse, fields: Vec<(String, Origin)> },
+    /// The work handed to a command of an entity (`Entity.Command`).
+    Delegate { target: String, fields: Vec<(String, Origin)> },
+    /// An earlier event corrected.
+    Correction { target: String, fields: Vec<(String, Origin)> },
     /// The field takes the argument of the same name.
     SetSame(FieldUse),
     Op {
@@ -51,6 +63,16 @@ impl Parser<'_> {
             "sets" => {
                 return Ok(Some(super::lower::field_uses(m, "names").into_iter().map(Change::SetSame).collect()));
             }
+            "add_row" => {
+                return Ok(Some(vec![Change::Append { target: field(m, "target"), fields: self.row_fields(m)? }]));
+            }
+            "delegates" => {
+                let target = format!("{}.{}", camel(&m.text_of("entity")), camel(&m.text_of("command")));
+                return Ok(Some(vec![Change::Delegate { target, fields: self.row_fields(m)? }]));
+            }
+            "corrects" => {
+                return Ok(Some(vec![Change::Correction { target: m.text_of("event"), fields: self.row_fields(m)? }]));
+            }
             "set_to" => op("set", "", Source::Argument(field(m, "source"))),
             "set_to_literal" => op("set", "", Source::Literal(self.literal(m, "value")?)),
             "set_to_state" => op("set", "", Source::State(field(m, "source"))),
@@ -68,6 +90,44 @@ impl Parser<'_> {
             _ => return Ok(None),
         };
         Ok(Some(vec![change]))
+    }
+
+    /// The `key from the argument` and `key as literal` items of a `with` slot.
+    fn row_fields(&self, m: &Matched) -> ParseResult<Vec<(String, Origin)>> {
+        let text = m.text_of("fields");
+        let col = m.col_of("fields");
+        let mut fields = Vec::new();
+        for item in ruby_value::split_items(&text) {
+            let item = item.trim();
+            let from = item.find(" from the ");
+            let as_literal = item.find(" as ");
+            let (key, origin) = match (from, as_literal) {
+                (Some(at), other) if other.is_none_or(|later| at < later) => {
+                    let name = FieldUse {
+                        name: snake(&item[at + " from the ".len()..]),
+                        line: m.line,
+                        col,
+                    };
+                    (&item[..at], Origin::Argument(name))
+                }
+                (_, Some(at)) => {
+                    let literal = &item[at + " as ".len()..];
+                    if matches!(ruby_value::read(literal), Value::Bare(_)) {
+                        return Err(self.error(m.line, col, format!("'{literal}' is not a value: write a number, quoted text, true, false, nothing or a {{value: …}}")));
+                    }
+                    (&item[..at], Origin::Literal(ruby_value::render(&ruby_value::read(literal))))
+                }
+                _ => {
+                    return Err(self.error(
+                        m.line,
+                        col,
+                        format!("'{item}' needs a source: write `{item} from the <argument>` or `{item} as <value>`"),
+                    ));
+                }
+            };
+            fields.push((snake(key), origin));
+        }
+        Ok(fields)
     }
 
     /// The Ruby literal a `rest` slot holds: a number, quoted text, true, false, nothing or a hash.
@@ -110,9 +170,30 @@ impl Parser<'_> {
             };
             Err(self.error(name.line, name.col, message))
         };
+        let rows = |fields: Vec<(String, Origin)>| -> ParseResult<Vec<(String, String)>> {
+            fields
+                .into_iter()
+                .map(|(key, origin)| match origin {
+                    Origin::Argument(arg) => known(&arg, given, true).map(|()| (key, format!(":{}", arg.name))),
+                    Origin::Literal(text) => Ok((key, text)),
+                })
+                .collect()
+        };
         let mut mutations = Vec::new();
         for change in changes {
             let (target, op, sign, source) = match change {
+                Change::Append { target, fields } => {
+                    mutations.push(ir::Mutation::Append { target: target.name, fields: rows(fields)? });
+                    continue;
+                }
+                Change::Delegate { target, fields } => {
+                    mutations.push(ir::Mutation::Delegate { target, fields: rows(fields)? });
+                    continue;
+                }
+                Change::Correction { target, fields } => {
+                    mutations.push(ir::Mutation::Correction { target, fields: rows(fields)? });
+                    continue;
+                }
                 Change::SetSame(target) => {
                     known(&target, given, true)?;
                     let source = ir::MutationSource::Argument(target.name.clone());
@@ -148,7 +229,14 @@ impl Parser<'_> {
 /// The sentences (without their `Then`/`And`) that say a command's mutations, a run of plain sets
 /// sharing one.
 pub(super) fn said(command: &str, mutations: &[ir::Mutation]) -> Result<Vec<String>, String> {
-    let refused = || format!("the sentence form has no phrase for that kind of mutation on command {command}");
+    let refused_for = |mutation: &ir::Mutation| match mutation {
+        ir::Mutation::Append { target, .. } => format!("the sentence form has no phrase for adding a row to {target} on command {command}"),
+        ir::Mutation::Delegate { target, .. } => format!("the sentence form has no phrase for handing the work to {target} on command {command}"),
+        ir::Mutation::Correction { target, .. } => format!("the sentence form has no phrase for correcting {target} on command {command}"),
+        ir::Mutation::Other { target, op, .. } => {
+            format!("the sentence form has no phrase for {op} of {target} like this on command {command}")
+        }
+    };
     let mut lines: Vec<String> = Vec::new();
     let mut plain: Vec<String> = Vec::new();
     let flush = |plain: &mut Vec<String>, lines: &mut Vec<String>| {
@@ -159,8 +247,28 @@ pub(super) fn said(command: &str, mutations: &[ir::Mutation]) -> Result<Vec<Stri
         }
     };
     for mutation in mutations {
-        let ir::Mutation::Other { target, op, source: Some(source), .. } = mutation else {
-            return Err(refused());
+        let (target, op, source) = match mutation {
+            ir::Mutation::Other { target, op, source: Some(source), .. } => (target, op, source),
+            ir::Mutation::Append { target, fields } => {
+                flush(&mut plain, &mut lines);
+                let items = row_items(fields).ok_or_else(|| refused_for(mutation))?;
+                lines.push(format!("a row is added to the {} with {items}", spoken(target)));
+                continue;
+            }
+            ir::Mutation::Delegate { target, fields } => {
+                flush(&mut plain, &mut lines);
+                let (entity, command) = target.split_once('.').ok_or_else(|| refused_for(mutation))?;
+                let items = row_items(fields).ok_or_else(|| refused_for(mutation))?;
+                lines.push(format!("the {} is told to {} with {items}", spoken(entity), spoken(command)));
+                continue;
+            }
+            ir::Mutation::Correction { target, fields } => {
+                flush(&mut plain, &mut lines);
+                let items = row_items(fields).ok_or_else(|| refused_for(mutation))?;
+                lines.push(format!("{target} is corrected with {items}"));
+                continue;
+            }
+            ir::Mutation::Other { .. } => return Err(refused_for(mutation)),
         };
         let name = spoken(target);
         if let (true, ir::MutationSource::Argument(argument)) = (op == "set", source) {
@@ -170,10 +278,29 @@ pub(super) fn said(command: &str, mutations: &[ir::Mutation]) -> Result<Vec<Stri
             }
         }
         flush(&mut plain, &mut lines);
-        lines.push(change_line(&name, op, source).ok_or_else(refused)?);
+        lines.push(change_line(&name, op, source).ok_or_else(|| refused_for(mutation))?);
     }
     flush(&mut plain, &mut lines);
     Ok(lines)
+}
+
+/// `key from the argument, key as literal` for the fields of a row, or nothing when one has no phrase.
+fn row_items(fields: &[(String, String)]) -> Option<String> {
+    if fields.is_empty() {
+        return None;
+    }
+    let items: Option<Vec<String>> = fields
+        .iter()
+        .map(|(key, value)| {
+            let key = spoken(key);
+            match value.strip_prefix(':').filter(|name| !name.is_empty() && name.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')) {
+                Some(name) => Some(format!("{key} from the {}", spoken(name))),
+                None if matches!(ruby_value::read(value), Value::Bare(_)) => None,
+                None => Some(format!("{key} as {value}")),
+            }
+        })
+        .collect();
+    Some(items?.join(", "))
 }
 
 /// One non-plain change as a sentence, or nothing when no phrase says that op over that source.
