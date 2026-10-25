@@ -74,9 +74,7 @@ module Hecks
       def modelled_findings(bluebook, options)
         [
           *bluebook.aggregates.flat_map { |aggregate| aggregate_lifecycle_findings(aggregate) },
-          *key_by_value_findings(bluebook),
-          *orphan_findings(bluebook),
-          *one_of_branch_findings(bluebook),
+          *reference_findings(bluebook),
           *bluebook.process_managers.flat_map { |process_manager| saga_findings(bluebook, process_manager) },
           *reaction_findings(bluebook, options),
           *unused_ask_findings(bluebook)
