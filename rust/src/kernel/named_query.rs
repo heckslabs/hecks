@@ -354,9 +354,10 @@ mod cursor_tests {
     fn walk(store: &Rows) -> Vec<Vec<String>> {
         let (mut pages, mut after) = (Vec::new(), None::<String>);
         loop {
-            let args = after.as_deref().map_or(Json::obj(vec![]), |a| {
-                Json::obj(vec![("after", Json::str(a))])
-            });
+            let args = after.as_deref().map_or_else(
+                || Json::obj(vec![]),
+                |a| Json::obj(vec![("after", Json::str(a))]),
+            );
             let page = run_page(store, &paged(), &args, None).unwrap();
             pages.push(page.rows.iter().map(|(id, _)| id.clone()).collect());
             match page.after {

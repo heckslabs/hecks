@@ -72,6 +72,16 @@ RSpec.describe "an aggregate command that delegates_to one nested entity command
       .to raise_error(Hecks::Runtime::GivenNotMet, /destination differs from current square/)
   end
 
+  # The Rust kernel classes the same refusal by its rule, and `check_conformance` compares the two.
+  it "validates the target's own unmet given in the givens stage, not the delegation step's" do
+    runtime = board_with_piece("b6")
+
+    result = runtime.validate("DelegatesTo::Board.MovePiece", to: "b6", with: { id: { value: "p1" }, to: { file: 3, rank: 3 } })
+
+    expect(result.refusals.map { |refusal| [refusal.rule, refusal.stage] })
+      .to eq([["destination differs from current square", :givens]])
+  end
+
   it "persists nothing from a refused delegation — the failed attempt leaves the piece exactly where it was",
      :aggregate_failures do
     runtime = board_with_piece("b3")

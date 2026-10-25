@@ -141,7 +141,11 @@ Cut any sentence that exists for tone rather than information.
 
 ## The vocabulary
 
-The words are: `Hecks.port` (with `verb`), `Hecks.adapter` (with
+Some words are talked about but do not exist in this language:
+`Hecks.family` and `driving on cron` (inbound scheduling is unbuilt).
+**A word that does not exist may not appear in these guides**; check
+`hecks query language_run.word_status` before documenting one.
+Here the words are: `Hecks.port` (with `verb`), `Hecks.adapter` (with
 `port`/`field`/`secret`), `persisted_by`, `.world` blocks, driving
 ports declared in the hecksagon (`port`/`operation`), and the
 era/translation system. The canonical example is THIS repo's pizzas —
