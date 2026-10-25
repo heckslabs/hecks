@@ -1,0 +1,73 @@
+{
+  "domain": "examples/roster",
+  "note": "A dry run lists every refusal of the stage it stops in, not only the first (Dispatcher#validate in Ruby, the kernel's collecting dry run in Rust). Assigning a member who was never enlisted to a seat that does not exist breaks two givens of Assign at once; both engines must refuse the dry run, in the givens stage, and name the same refusals. The frozen expect holds the verdict and the first reason; spec/rust_conformance_spec.rb holds the full list to the Ruby run.",
+  "steps": [
+    {
+      "verb": "Roster::Roster.Open",
+      "args": {
+        "name": {
+          "value": "crew-x"
+        }
+      }
+    },
+    {
+      "dry_run": "Roster::Roster.Assign",
+      "args": {
+        "name": {
+          "value": "crew-x"
+        },
+        "member": {
+          "value": "zed"
+        },
+        "number": {
+          "value": 9
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [],
+    "instances": {
+      "Roster::Roster#crew-x": {
+        "name": {
+          "value": "crew-x"
+        },
+        "motto": {
+          "value": "all hands"
+        },
+        "mood": {
+          "value": "open"
+        },
+        "standing": {
+          "value": "none"
+        },
+        "last_marked": null,
+        "seats": [],
+        "crew": [],
+        "assignments": []
+      }
+    },
+    "events": [
+      {
+        "name": "RosterOpened",
+        "aggregate": "Roster::Roster",
+        "id": "crew-x",
+        "payload": {
+          "name": {
+            "value": "crew-x"
+          }
+        }
+      }
+    ],
+    "queries": [],
+    "sagas": [],
+    "dry_runs": [
+      {
+        "verb": "Roster::Roster.Assign",
+        "ok": false,
+        "error": "Assign refused — the member is enlisted"
+      }
+    ],
+    "reactions": []
+  }
+}

@@ -215,7 +215,9 @@ RSpec.describe Hecks::Fuzzing::SequenceGenerator, :aggregate_failures do
     def precedence_pairs(seeds) = notes_over(ROLE_BANKING, seeds: seeds, mutation: "refusal_precedence", adversarial: 1.0)
 
     it "produces nonexistent and role pairings on banking, never an empty shape" do
-      shapes = precedence_pairs(24).map { |_, note| note["shape"] }.uniq
+      # Most record-acting banking commands are addressed with `to`, which the `nonexistent` part
+      # leaves alone, so a mismatch beside a nonexistent record turns up once in some forty seeds.
+      shapes = precedence_pairs(200).map { |_, note| note["shape"] }.uniq
 
       expect(shapes).to include("nonexistent+unknown", "mismatch+nonexistent")
       expect(shapes.any? { |s| s.include?("role") }).to be(true)

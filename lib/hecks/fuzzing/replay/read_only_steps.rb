@@ -103,11 +103,12 @@ module Hecks
         end
 
         # What `validate` says of the same hypothetical, kept beside the trace: whether it would be
-        # accepted, and the stage and text of its first refusal.
+        # accepted, the stage and text of its first refusal, and every refusal's kind and stage.
         def validation_of(step, hypothetical, args)
           result = Replay.as_step_caller(step) { @runtime.validate(hypothetical, args) }
           first = result.refusals.first
-          { ok: result.ok?, first_stage: first&.stage, first_message: first&.message }
+          { ok: result.ok?, first_stage: first&.stage, first_message: first&.message,
+            reasons: result.refusals.map { |refusal| [refusal.kind.to_s, refusal.stage.to_s] } }
         rescue Runtime::WiringError
           nil
         end

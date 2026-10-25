@@ -1,6 +1,7 @@
 //! Generic dispatch loops over the declared `AggregateStep`/`EntityStep` order.
 //! Argument gates run in `decode_*_arguments`, before the router resolves identity.
 
+use super::collecting;
 use super::expr::{
     interpret, EvalContext, Expr, Field, Fielded, NoFields, StateFirst, Value, WithOld, WithParent,
 };
@@ -49,22 +50,23 @@ pub fn enforce_invariants(
     aggregate_name: &str,
     set: &InvariantSet,
 ) -> Result<(), Refusal> {
+    let stage = collecting::mark();
     for rule in &set.aggregate {
         let ctx = EvalContext {
             args: &NoFields,
             instance: record,
         };
         if !interpret(&rule.expr, &ctx)?.truthy() {
-            return Err(Refusal::InvariantViolation(format!(
+            collecting::refuse(Refusal::InvariantViolation(format!(
                 "{aggregate_name} refused — {}",
                 rule.description
-            )));
+            )))?;
         }
     }
     for entity in &set.entities {
         enforce_entity_invariants(record, entity)?;
     }
-    Ok(())
+    collecting::settle(stage)
 }
 
 fn enforce_entity_invariants(
@@ -88,10 +90,10 @@ fn enforce_entity_invariants(
                 instance: element,
             };
             if !interpret(&rule.expr, &ctx)?.truthy() {
-                return Err(Refusal::InvariantViolation(format!(
+                collecting::refuse(Refusal::InvariantViolation(format!(
                     "{} refused — {}",
                     entity.name, rule.description
-                )));
+                )))?;
             }
         }
         for nested in &entity.nested {
@@ -348,6 +350,7 @@ fn enforce_givens(
     aggregate_qualified_name: &str,
     id: &str,
 ) -> Result<(), Refusal> {
+    let stage = collecting::mark();
     for given in givens {
         let ctx = EvalContext {
             args,
@@ -357,17 +360,18 @@ fn enforce_givens(
             // The `corrects` wording interpolates the record id, so it is built here.
             if let Some(event_name) = given.corrects_event {
                 // `NothingToCorrect`, not `GivenNotMet`: the conformance corpus compares kinds.
-                return Err(Refusal::NothingToCorrect(format!(
+                collecting::refuse(Refusal::NothingToCorrect(format!(
                     "{command_name} refused — corrects {event_name}, but {aggregate_qualified_name} #{id} has never emitted it"
-                )));
+                )))?;
+                continue;
             }
-            return Err(Refusal::GivenNotMet(format!(
+            collecting::refuse(Refusal::GivenNotMet(format!(
                 "{command_name} refused — {}",
                 given.description
-            )));
+            )))?;
         }
     }
-    Ok(())
+    collecting::settle(stage)
 }
 
 /// `admissible_transition` — shared by the aggregate record and an entity
@@ -420,19 +424,20 @@ fn enforce_ensures(
         args: &state_first,
         old,
     };
+    let stage = collecting::mark();
     for rule in ensures {
         let ctx = EvalContext {
             args: &with_old,
             instance: settled,
         };
         if !interpret(&rule.expr, &ctx)?.truthy() {
-            return Err(Refusal::EnsuresNotMet(format!(
+            collecting::refuse(Refusal::EnsuresNotMet(format!(
                 "{command_name} refused — {}",
                 rule.description
-            )));
+            )))?;
         }
     }
-    Ok(())
+    collecting::settle(stage)
 }
 
 /// The write half of `save`: the repository write and its mutation record.
@@ -657,6 +662,7 @@ where
         } else {
             self.args
         };
+        let stage = collecting::mark();
         for given in self.givens {
             // Handled above; the `corrects` flag field lives on the parent, not the element.
             if given.corrects_event.is_some() {
@@ -667,13 +673,13 @@ where
                 instance: element,
             };
             if !interpret(&given.expr, &ctx)?.truthy() {
-                return Err(Refusal::GivenNotMet(format!(
+                collecting::refuse(Refusal::GivenNotMet(format!(
                     "{} refused — {}",
                     self.command_name, given.description
-                )));
+                )))?;
             }
         }
-        Ok(())
+        collecting::settle(stage)
     }
 
     fn apply_mutations(&mut self, record: &mut T) -> Result<(), Refusal> {

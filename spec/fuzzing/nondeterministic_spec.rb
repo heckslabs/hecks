@@ -65,7 +65,8 @@ RSpec.describe Hecks::Fuzzing::Nondeterministic, :aggregate_failures do
                     "email" => { "address" => "ada@example.com" } } },
       { "verb" => "Banking::Account.Open",
         "args" => { "number" => { "value" => "NDT-ACCT" }, "kind" => { "name" => "current" },
-                    "daily_limit" => { "cents" => 50_000 }, "customer" => "NDT-CUST" } }
+                    "daily_limit" => { "cents" => 50_000 }, "customer" => "NDT-CUST" } },
+      { "query" => "Banking::Account.OpenPaged", "args" => {} }
     ]
   end
 

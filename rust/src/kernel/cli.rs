@@ -2,6 +2,7 @@
 //! `run` reads `{"steps": [...]}` and hands each step to `kernel::orchestrate` (ADR 0012), or
 //! `{"present": answer}` and answers that answer bare (`kernel::present`).
 
+use super::collecting;
 use super::vocab::RefusalClass;
 use super::{
     named_query, orchestrate, query_comparators, read_model, repository, AggregateScan,
@@ -373,28 +374,38 @@ fn dry_run(
     caller_actor_id: Option<&str>,
 ) -> Json {
     let mut scratch = store.clone();
-    match dispatch_by_name(
-        &mut scratch,
-        verb,
-        command_input,
-        caller_role,
-        caller_actor_id,
-        &mut Vec::new(),
-    ) {
+    let (outcome, collected) = collecting::collecting(|| {
+        dispatch_by_name(
+            &mut scratch,
+            verb,
+            command_input,
+            caller_role,
+            caller_actor_id,
+            &mut Vec::new(),
+        )
+    });
+    match outcome {
         Ok(_) => Json::obj(vec![
             ("verb", Json::str(verb.to_string())),
             ("ok", Json::Bool(true)),
         ]),
-        Err(refusal) => refused_dry_run(verb, &refusal),
+        Err(refusal) => refused_dry_run(verb, &refusal, &collected),
     }
 }
 
 /// A refused dry run: the refusal's text, its class name, and the `kind` and `stage` the language's
 /// `RefusalClass` table gives that class. A refusal the table does not class (`Fault`) is a plain
 /// refusal in the `state` stage, as `Hecks::Refused` classes one in Ruby.
-fn refused_dry_run(verb: &str, refusal: &Refusal) -> Json {
-    let (kind, stage) = RefusalClass::from_name(refusal.kind())
-        .map_or(("refused", "state"), |class| (class.kind(), class.stage()));
+///
+/// `reasons` holds every refusal the failing stage collected; `refusals` lists them all, or just
+/// `refusal` when the stage raised without collecting (a role, argument or lifecycle refusal).
+fn refused_dry_run(verb: &str, refusal: &Refusal, reasons: &[Refusal]) -> Json {
+    let all: Vec<Json> = if reasons.is_empty() {
+        vec![refusal_entry(refusal)]
+    } else {
+        reasons.iter().map(refusal_entry).collect()
+    };
+    let (kind, stage) = refusal_class(refusal);
     Json::obj(vec![
         ("verb", Json::str(verb.to_string())),
         ("ok", Json::Bool(false)),
@@ -402,6 +413,22 @@ fn refused_dry_run(verb: &str, refusal: &Refusal) -> Json {
         ("refusal", Json::str(refusal.kind().to_string())),
         ("kind", Json::str(kind.to_string())),
         ("stage", Json::str(stage.to_string())),
+        ("refusals", Json::Array(all)),
+    ])
+}
+
+fn refusal_class(refusal: &Refusal) -> (&'static str, &'static str) {
+    RefusalClass::from_name(refusal.kind())
+        .map_or(("refused", "state"), |class| (class.kind(), class.stage()))
+}
+
+fn refusal_entry(refusal: &Refusal) -> Json {
+    let (kind, stage) = refusal_class(refusal);
+    Json::obj(vec![
+        ("kind", Json::str(kind.to_string())),
+        ("stage", Json::str(stage.to_string())),
+        ("refusal", Json::str(refusal.kind().to_string())),
+        ("message", Json::str(refusal.to_string())),
     ])
 }
 
@@ -759,7 +786,28 @@ mod refused_dry_run_tests {
     use super::*;
 
     fn answer(refusal: &Refusal) -> String {
-        refused_dry_run("A::B.C", refusal).to_json_string()
+        refused_dry_run("A::B.C", refusal, &[]).to_json_string()
+    }
+
+    #[test]
+    fn a_stage_that_collected_lists_every_refusal_and_one_that_did_not_lists_its_own() {
+        let first = Refusal::GivenNotMet("C refused — one".to_string());
+        let second = Refusal::GivenNotMet("C refused — two".to_string());
+
+        let collected =
+            refused_dry_run("A::B.C", &first, &[first.clone(), second]).to_json_string();
+        let alone = answer(&first);
+
+        assert!(
+            collected.contains("C refused — one") && collected.contains("C refused — two"),
+            "{collected}"
+        );
+        assert_eq!(
+            alone.matches(r#""refusal":"GivenNotMet""#).count(),
+            2,
+            "{alone}"
+        );
+        assert!(!alone.contains("two"), "{alone}");
     }
 
     #[test]

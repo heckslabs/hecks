@@ -1,3 +1,4 @@
+require "fileutils"
 require "json"
 require_relative "../projections/command_schema"
 
@@ -18,6 +19,7 @@ module Hecks
         schemas = files.to_h do |path, text|
           [path.delete_prefix("#{bluebook.name}/").delete_suffix(".schema.json"), JSON.parse(text)]
         end
+        FileUtils.mkdir_p(dir)
         File.join(dir, FILE).tap { |path| File.write(path, "#{JSON.pretty_generate(schemas)}\n") }
       end
     end

@@ -23,7 +23,7 @@ module Hecks
             "events"    => result[:events].map { |event| event_surface(event) },
             "refusals"  => result[:refusals].map { |refusal| refusal_surface(refusal) }
           }
-          dry_runs = dry_run_surface(result[:dry_runs])
+          dry_runs = dry_run_surface(result[:dry_runs], result[:dry_run_traces])
           surface["dry_runs"] = dry_runs unless dry_runs.empty?
           surface
         end
@@ -32,9 +32,25 @@ module Hecks
           { "verb" => refusal[:verb], "error" => refusal[:error], "kind" => refusal[:kind]&.split("::")&.last }
         end
 
-        # `verb` and `ok` only, as `Hecks::Fuzzing::Differential` compares; omitted when none.
-        def dry_run_surface(dry_runs)
-          dry_runs.map { |dry| { "verb" => dry[:verb].to_s, "ok" => dry[:ok] } }
+        # The stages whose every refusal both engines list. An argument or reference refusal is
+        # raised at the JSON boundary in Rust, so a run stopped there is compared on `ok` alone.
+        COLLECTED_STAGES = %w[givens ensures invariants].freeze
+
+        # `verb` and `ok`, as `Hecks::Fuzzing::Differential` compares, and for a run refused in a
+        # collected stage the kind and stage of each refusal; omitted when none.
+        def dry_run_surface(dry_runs, traces = [])
+          dry_runs.zip(traces).map do |dry, trace|
+            reasons = trace&.dig(:validation, :reasons) unless dry[:ok]
+            { "verb" => dry[:verb].to_s, "ok" => dry[:ok] }.merge(collected_refusals(reasons))
+          end
+        end
+
+        # @param reasons [Array<Array(String, String)>, nil] each refusal's `[kind, stage]`
+        # @return [Hash] `{"refusals" => reasons}` if the first is in a collected stage
+        def collected_refusals(reasons)
+          return {} unless reasons&.any? && COLLECTED_STAGES.include?(reasons.first.last)
+
+          { "refusals" => reasons }
         end
 
         def event_surface(event)

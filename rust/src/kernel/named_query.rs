@@ -339,7 +339,11 @@ mod cursor_tests {
             aggregate: "Shop::Item",
             conditions: &[],
             reference_hop_conditions: &[],
-            order_by: Some(OrderBy { field: "rank", descending: false, nulls: NullsMode::Native }),
+            order_by: Some(OrderBy {
+                field: "rank",
+                descending: false,
+                nulls: NullsMode::Native,
+            }),
             offset: None,
             limit: Some(Limit::Literal(2)),
             cursor: true,
@@ -350,7 +354,9 @@ mod cursor_tests {
     fn walk(store: &Rows) -> Vec<Vec<String>> {
         let (mut pages, mut after) = (Vec::new(), None::<String>);
         loop {
-            let args = after.as_deref().map_or(Json::obj(vec![]), |a| Json::obj(vec![("after", Json::str(a))]));
+            let args = after.as_deref().map_or(Json::obj(vec![]), |a| {
+                Json::obj(vec![("after", Json::str(a))])
+            });
             let page = run_page(store, &paged(), &args, None).unwrap();
             pages.push(page.rows.iter().map(|(id, _)| id.clone()).collect());
             match page.after {
@@ -362,15 +368,36 @@ mod cursor_tests {
 
     #[test]
     fn walking_pages_yields_every_row_in_order_with_ties_by_identity() {
-        let store = Rows(vec![item("b", 1), item("a", 2), item("d", 2), item("c", 2), item("e", 3)]);
-        assert_eq!(walk(&store), vec![vec!["b", "a"], vec!["c", "d"], vec!["e"]]);
+        let store = Rows(vec![
+            item("b", 1),
+            item("a", 2),
+            item("d", 2),
+            item("c", 2),
+            item("e", 3),
+        ]);
+        assert_eq!(
+            walk(&store),
+            vec![vec!["b", "a"], vec!["c", "d"], vec!["e"]]
+        );
     }
 
     #[test]
     fn a_page_after_the_last_row_is_empty_with_no_next_position() {
         let store = Rows(vec![item("a", 1)]);
         let token = query_cursor::encode(&Json::int(1), "a");
-        let page = run_page(&store, &paged(), &Json::obj(vec![("after", Json::str(token))]), None).unwrap();
-        assert_eq!(page, Page { rows: vec![], after: None });
+        let page = run_page(
+            &store,
+            &paged(),
+            &Json::obj(vec![("after", Json::str(token))]),
+            None,
+        )
+        .unwrap();
+        assert_eq!(
+            page,
+            Page {
+                rows: vec![],
+                after: None
+            }
+        );
     }
 }
