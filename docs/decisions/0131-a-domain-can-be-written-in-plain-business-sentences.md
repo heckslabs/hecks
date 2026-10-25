@@ -25,7 +25,7 @@ code by hand-written step definitions, so the readable file and the running syst
    once. Projects meet through the IR, so a bizbook project may depend on a package written
    in bluebooks and the reverse. The bluebook stays; a bizbook may supersede it later,
    decided by use, not by this ADR.
-2. **Bluebook side, not hecksagon.** A story declares what the domain is and does. It
+2. **Bluebook side, not hecksagon.** A bizbook declares what the domain is and does. It
    names no database, clock or network. Wiring stays in `.hecksagon`; persistence stays
    memory by default.
 3. **There is no step-definition layer.** The sentences *are* the declaration. The
@@ -35,7 +35,7 @@ code by hand-written step definitions, so the readable file and the running syst
    a parse error that names the nearest rows. No free-form language understanding.
 4. **Gherkin's words keep their meaning, mapped onto the IR:**
 
-   | Story | IR |
+   | Bizbook | IR |
    |---|---|
    | `Domain:` + paragraph | domain, `vision` |
    | `Aggregate:` + paragraph | aggregate, `description` |
@@ -55,7 +55,7 @@ code by hand-written step definitions, so the readable file and the running syst
 6. **Expressions are phrases over named things.** `Given the order has at least one
    topping` resolves to the canonical expression the existing expression machinery
    (`rust/parser/src/expr`) already emits; a phrase row names its expression template.
-   Field and type names come from the story's own `It has:` lines, spelled as a person
+   Field and type names come from the bizbook's own `It has:` lines, spelled as a person
    would ("customer name" is `customer_name`).
 7. **A bizbook must reach full coverage before a project can adopt it.** Because a project
    cannot mix, there is no bluebook beside it to hold queries, read models, process
@@ -111,7 +111,7 @@ Aggregate: Order
 
 - Whether examples use `.examples.bizbook` or a shorter `.examples.biz`.
 - How much of a command's `Then` can be inferred versus stated (mutation ops, `emits`).
-- Whether story files get a formatter that normalises phrasing, so diffs stay quiet.
+- Whether bizbook files get a formatter that normalises phrasing, so diffs stay quiet.
 
 ## Next
 
