@@ -96,7 +96,8 @@ module Hecks
             Handle.new(dispatcher: dispatcher, domain: CHAPTER, aggregate: bulk, instance: instance)
           end
 
-          # The run, unless it was declined before any row was sent: that is wiring, not a row's refusal.
+          # The run, unless it was declined before any row was sent: that is wiring, not a
+          # row's refusal.
           def declined!(handle)
             return handle unless handle.status == "declined"
 

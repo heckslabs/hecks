@@ -120,6 +120,7 @@ Hecks::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "exam
 
 Hecks.hecksagon("Banking") do
   attaches "Governance"
+  attaches "Bulk"
   Banking::Customer.persisted_by("Memory")
   Banking::Account.persisted_by("Memory")
   Banking::CardPayment.persisted_by("Memory")
@@ -129,6 +130,10 @@ end
 Hecks.hecksagon("Governance") do
   Governance::RoleAssignment.persisted_by("Memory")
   Governance::RoleTransition.persisted_by("Memory")
+end
+Hecks.hecksagon("Bulk") do
+  attaches "Governance"
+  Bulk::BulkRun.persisted_by("Memory")
 end
 ```
 
@@ -167,11 +172,14 @@ aggregate module itself. `Credit`, `Debit`, and `FreezeAccount` all
 `reference_to Account`, their own aggregate, so each is a method on
 the record in hand. Get this backwards in your own bluebook — add a
 stray `reference_to Self` to what should be a creating command — and
-it silently stops being callable the way a controller expects.
+it silently stops being callable the way a controller expects. The
+module does carry `credit!` too, but as something else: the bulk form,
+which sends `Credit` to every row a query answered (see "Every row of
+a query", below), so it takes `over:` and no record.
 
 ```ruby
-Banking::Account.respond_to?(:open!)    # => true
-Banking::Account.respond_to?(:credit!)  # => false
+Banking::Account.respond_to?(:open!)          # => true
+Banking::Account.method(:credit!).parameters  # => [[:keyreq, :over], [:key, :mode]]
 ```
 
 ```ruby
@@ -540,3 +548,40 @@ it at, not whatever a refused call tried to write:
 account.debit!(amount: { cents: 999_999 }, narrative: "nope")  # ~> GivenNotMet: the balance covers it
 Banking::Account.find(account.id).balance.to_h  # => { cents: 300, currency: "USD" }
 ```
+
+## Every row of a query
+
+There is no update that skips the domain. To change many records at
+once, send the command to every row a query answers, and each row goes
+through the command as if you had sent it by hand: its `from:`, its
+`given`s, its role, its events. Attach the `Bulk` chapter (`attaches
+"Bulk"`, done in the wiring above) and every acting command gets a bulk
+form on the aggregate module. `over:` takes what a query method
+answered, which remembers the query and its arguments; the answer is
+the `Bulk::BulkRun` that kept one outcome per row (ADR 0121):
+
+```ruby
+Banking::Customer.register!(reference: "C-9", name: { given: "Grace", family: "Hopper" }, email: "grace@example.com")
+%w[B-1 B-2].each { |number| Banking::Account.open!(customer: "C-9", number: number, kind: "current", daily_limit: 100) }
+runtime.dispatch("Banking::Account.FreezeAccount", to: "B-2")
+run = Banking::Account.freeze_account!(over: Banking::Account.open_for_customer(reference: "C-9"))
+run.status  # => "swept"
+run.results.map { |row| row.to_h.slice(:row, :outcome) }  # => [{ row: "B-1", outcome: "delivered" }]
+```
+
+`OpenForCustomer` answered only `B-1`, since `B-2` was already frozen,
+so only `B-1` was sent. A row that refuses keeps its reason and the run
+goes on to the next (`mode: :best_effort`, the default).
+`mode: :all_or_nothing` checks every row first and sends none if one
+would refuse; when all would pass it sends them inside one transaction
+of the account's store. That needs a store that rolls back (Sqlite,
+Postgres), so on Memory the run is declined before any row is sent:
+
+```ruby
+Banking::Account.freeze_account!(over: Banking::Account.open, mode: :all_or_nothing)  # ~> WiringError: all_or_nothing needs a store that can roll back
+```
+
+The CLI and MCP request the same run through the chapter's own
+command: `banking bulk bulk_run.request! run.value=r1
+verb.value=Banking::Account.FreezeAccount over.value=Banking::Account.Open
+mode.value=best_effort`, then `banking bulk query outcome run.value=r1`.
