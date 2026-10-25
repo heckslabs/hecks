@@ -527,13 +527,18 @@ after each one. Booting against the same durable adapter redrives the
 leg: dispatches that never began are delivered, and `redriven: true`
 lands in `runtime.sagas`. The one dispatch that was started but not
 settled may already have run, so it is delivered again only when its
-command is declared idempotent. Otherwise the boot warns (`[hecks] ...
+command says `idempotent` in its body. Otherwise the boot warns (`[hecks] ...
 stalled before ... settled ...`), records `rehydrated_stalled: true`
 with the command in `ambiguous`, and leaves the instance for a human
 to reconcile — redelivering it could double-apply it, the same reason
 a `claimed` outbox row is never retried automatically. A leg that was
 unwinding with compensations still on the ledger is reported the same
-way, since some of them may already have run.
+way, since some of them may already have run. The Rust host has no such
+window to redrive: it runs a command's whole in-domain cascade, saga legs
+included, inside the kernel and commits the journal row and every saga
+checkpoint in one transaction, so a crash leaves the previous state whole.
+Only a reaction into another domain is delivered after that commit, and a
+failed one is dead-lettered.
 
 ## When there is nothing to compensate
 

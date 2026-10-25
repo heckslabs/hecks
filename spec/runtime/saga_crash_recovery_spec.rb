@@ -37,7 +37,7 @@ RSpec.describe "saga durability across a process death mid-leg" do
     Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
     Kernel.load(SQLITE_ADAPTER)
     Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-    Kernel.load(WIRE_BLUEBOOK)
+    Kernel.load(@wire_bluebook || WIRE_BLUEBOOK)
     bind_wire_hecksagons(root)
   end
 
@@ -163,10 +163,12 @@ RSpec.describe "saga durability across a process death mid-leg" do
       )
     end
 
-    def declare_every_command_idempotent
-      allow(Hecks::Runtime::SagaInterpreter).to receive(:new).and_wrap_original do |original, *args, **kwargs|
-        original.call(*args, **kwargs).tap { |saga| allow(saga).to receive(:command_idempotent?).and_return(true) }
-      end
+    # The fixture with `idempotent` written into `Take`. `Take` only stands in here: the example
+    # proves the declaration reaches the redrive, not that taking money twice is harmless.
+    def declare_take_idempotent
+      declared = File.read(WIRE_BLUEBOOK).sub(%(command "Take" do\n), %(command "Take" do\n      idempotent\n))
+      @wire_bluebook = File.join(@dir, "settlement.bluebook")
+      File.write(@wire_bluebook, declared)
     end
 
     def crash_then_reboot
@@ -200,7 +202,7 @@ RSpec.describe "saga durability across a process death mid-leg" do
     end
 
     it "redelivers a started dispatch whose command is declared idempotent", :aggregate_failures do
-      declare_every_command_idempotent
+      declare_take_idempotent
       crash_then_reboot
 
       expect(Wire::Drawer.find("left").cents.to_h).to eq(cents: 7_500)
