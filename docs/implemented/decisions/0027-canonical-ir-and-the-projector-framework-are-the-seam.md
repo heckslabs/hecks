@@ -2,7 +2,7 @@
 
 **Status:** Accepted, and mechanized. Names a pattern already true of the
 done work and already implied by the unbuilt work's own names in
-[`HECKS_IMPLEMENTATION_PLAN.md`](../HECKS_IMPLEMENTATION_PLAN.md). The
+[`HECKS_IMPLEMENTATION_PLAN.md`](../../HECKS_IMPLEMENTATION_PLAN.md). The
 "is this a projector?" question is now an enforced gate
 (`spec/projector_seam_spec.rb`), not just a question someone has to
 remember to ask — the rest of this ADR governs how future roadmap items

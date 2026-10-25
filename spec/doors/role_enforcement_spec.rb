@@ -6,7 +6,9 @@ require_relative "../support/doors"
 # a command whose synthesized args are refused before the role gate proves nothing; those are
 # listed in `UNGATED_BY_SYNTHESIS`, and the list must stay exact.
 RSpec.describe "every role-gated command, at every door that takes a role", :aggregate_failures do
-  # Commands whose synthesized args fail a pattern or closed set before the role gate is reached.
+  # Commands whose synthesized args fail a pattern, a closed set or a list's shape before the role
+  # gate is reached: a tagged reference's type (`Hold.Place`) and a list of value objects
+  # (`BulkRun.Record`) are synthesized as one placeholder.
   UNGATED_BY_SYNTHESIS = %w[
     Banking::Customer.Register Banking::Account.Credit Banking::Account.Debit Banking::Account.ApplyFee
     Banking::Account.CorrectFee Banking::Account.AccrueInterest Banking::Account.CorrectInterest

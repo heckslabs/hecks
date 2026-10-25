@@ -39,6 +39,19 @@ RSpec.describe Hecks::Fuzzing::ProjectionAgreement do
     expect(outcomes(:sqlite).flat_map(&:offenders)).to include(/the projection answered \[\{"tampered":true\}\]/)
   end
 
+  # One chapter of the language, whose `WholeBluebook` includes entities (`Handler`, `Dispatch`)
+  # beside its aggregates.
+  def one_chapter
+    args = { strategy: { value: "" }, source_token: "", replacement: { value: "" }, boundary: { value: "" },
+             position: { value: "" }, name: { value: "g" } }
+    [{ "verb" => "Bluebook::Bluebook.Normalise", "args" => JSON.parse(JSON.generate(args)) }]
+  end
+
+  it "agrees on a read model that includes an entity, which holds no rows of its own" do
+    language = File.join(InMemoryDomain::ROOT, "lib/hecks/language")
+    expect(described_class.check(language, one_chapter, projection: :sqlite)).to be_empty
+  end
+
   it "reports a projection adapter it does not know" do
     expect { described_class.check(self.class.banking, [], projection: :heki) }.to raise_error(ArgumentError, /:heki/)
   end

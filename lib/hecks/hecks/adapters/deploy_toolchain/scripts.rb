@@ -29,7 +29,7 @@ module Hecks
           report = printed(result)
           return { report: { value: report } } if result.ok?
 
-          answer_or_refuse(script, exit_code(result), report)
+          answer_or_refuse(script, result.exit_code, report)
         end
 
         # What the script printed to either stream, trimmed.

@@ -53,12 +53,12 @@ is setup + roadmap.
   line, so every diagnostic underlines the whole line. Real squiggle
   precision needs `rust/parser` to track columns first — nothing to fix
   here until then.
-- **No completion, hover, or go-to-definition.** The parser's four gates
+- **No completion or hover.** The parser's gates
   (`rust/parser/src/parse/mod.rs`: shape → word → body → argument)
   already encode "what's legal at this point in the grammar" — that's
   exactly what a completion engine needs, but it's not exposed as
   anything this crate can call today. The clean way to add it, in
-  keeping with `rust/parser` staying a bin-only, subprocess-only sibling
+  keeping with `rust/parser` staying a subprocess-only sibling
   (see `diagnostics.rs`'s header): add a new `hecks-parse` subcommand
   (e.g. `hecks-parse complete --chapter <Name> <file> --line N --col N`)
   that runs the same gates up to the cursor and prints the legal next
@@ -119,9 +119,8 @@ vim.api.nvim_create_autocmd("FileType", {
 **VS Code**: `editors/vscode/` (repo root) is a minimal real extension —
 see its own README for build/install steps. Not published to the
 marketplace; installed locally (copy into your extensions directory, or
-F5 an Extension Development Host). It contributes no syntax highlighting
-grammar (a separate gap — see the top-level tooling report), just the
-language client wiring.
+F5 an Extension Development Host). Its syntax highlighting is Ruby's own grammar
+under the extension's scope name (see its README), plus the language client wiring.
 
 ## Testing it without an editor
 

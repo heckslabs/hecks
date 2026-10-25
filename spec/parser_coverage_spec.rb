@@ -67,20 +67,20 @@ RSpec.describe "the Rust parser's own coverage", :io do
   # moment `hecks-parse coverage` reports it.
   PENDING_PAIRS = [
     # Of the sibling grammars beside `MetaValidator::GRAMMAR_FILES`, `hecks-parse`
-    # builds only `port`/`operation` and a PortOperation's `reference_to`/
-    # `attribute`/`emits` (all reported); the rest is a parser stage of its own.
+    # builds only `port`/`operation`/`tells`/`asks` and a PortOperation's `reference_to`/
+    # `attribute`/`emits`/`answers`/`refuses` (all reported); the rest is a parser stage of its own.
     ["a sibling grammar (world, hecksagon ports, data translation) hecks-parse does not build", [
       %w[aggregate Translation], %w[answers DomainPort], %w[answers Port],
-      %w[answers PortOperation], %w[answers_query DomainPort], %w[asks DomainPort],
+      %w[answers_query DomainPort],
       %w[backfill TranslationAggregate],
       %w[convert TranslationAggregate], %w[data_translation File],
       %w[derive TranslationAggregate],
       %w[drop TranslationAggregate],
       %w[move TranslationAggregate],
-      %w[port File], %w[refuses PortOperation],
+      %w[port File],
       %w[rekey_to TranslationAggregate], %w[rename TranslationAggregate], %w[retired Translation],
       %w[retype TranslationAggregate], %w[signal DomainPort], %w[signal Port],
-      %w[subscribe Hecksagon], %w[tells DomainPort], %w[unresolved TranslationAggregate],
+      %w[subscribe Hecksagon], %w[unresolved TranslationAggregate],
       %w[verb DomainPort],
       %w[verb Port]
     ]],

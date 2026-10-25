@@ -32,7 +32,7 @@ module Hecks
           lines.join("\n")
         end
 
-        # Links the reference index, with its context count.
+        # Links the reference index.
         def reference_index(_root)
           "[The DSL reference](docs/implemented/reference/index.md) — generated from " \
             "the aggregate-local tables under `lib/hecks/language/` and held to them by " \

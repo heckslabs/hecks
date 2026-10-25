@@ -160,7 +160,7 @@ hecks style_run.check_rust_comments paths=rust                         # one lin
 hecks style_run.fix_rust_comments paths=rust --confirm                 # all_caps and long_line only
 ```
 
-`--fix` rewrites only the two mechanical categories, the same restriction
+`fix_rust_comments` rewrites only the two mechanical categories, the same restriction
 as the Ruby tool: an all-caps run that opens a paragraph and ends before a
 dash becomes a bold heading; a lone shouted word is recased to fit the
 sentence. Everything else — `missing_doc`, `missing_module_doc`,
@@ -175,7 +175,7 @@ name added to either language's exemptions there is recognised in both.
 ## Known gap: doc-comment coverage
 
 `missing_doc` is the one category sized like a second project, not an
-afternoon: roughly 400 public items across `rust/` currently have no `///`
+afternoon: many public items across `rust/` have no `///`
 at all (mostly small, self-explanatory `fn`s where a one-line summary
 would still be non-trivial to write well for hundreds of call sites at
 once). This guide and linter land the mechanical pass — no more shouting,
