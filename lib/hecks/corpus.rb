@@ -41,6 +41,7 @@ module Hecks
       composer:  "lib/hecks/composer/bluebook/*.bluebook",
       tenancy:   "lib/hecks/tenancy/bluebook/*.bluebook",
       sme:       "lib/hecks/sme/bluebook/*.bluebook",
+      bulk:      "lib/hecks/bulk/bluebook/*.bluebook",
       fixture:   "spec/fixtures/**/*.bluebook"
     }.freeze
 
