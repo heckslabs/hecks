@@ -21,6 +21,35 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
         ));
     }
 
+    // A chapter written as sentences is read by the sentence front end; the Ruby-shaped grammar
+    // below never sees it. The two forms do not mix inside one chapter.
+    let sentence_files: Vec<&(String, String)> = files
+        .iter()
+        .filter(|(_, source)| crate::sentence::is_sentence_form(source))
+        .collect();
+    if !sentence_files.is_empty() {
+        if let Some((path, _)) = files
+            .iter()
+            .find(|(path, source)| path.ends_with(".bluebook") && !crate::sentence::is_sentence_form(source))
+        {
+            return Err(Diagnostic::new(
+                path,
+                1,
+                "this chapter is written as sentences elsewhere, so every .bluebook file of it must be; \
+                 this one is written in the Ruby form",
+            ));
+        }
+        if let Some((path, _)) = files.iter().find(|(path, _)| path.ends_with(".hecksagon")) {
+            return Err(Diagnostic::not_yet_implemented(
+                path,
+                1,
+                "a .hecksagon beside a chapter written as sentences",
+            ));
+        }
+        let owned: Vec<(String, String)> = sentence_files.into_iter().cloned().collect();
+        return crate::sentence::parse_chapter(chapter_name, &owned);
+    }
+
     let mut bluebook: Option<ir::Bluebook> = None;
     let mut aggregate_policies: Vec<ir::Policy> = Vec::new();
     let mut chapter_policies: Vec<ir::Policy> = Vec::new();

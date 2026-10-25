@@ -17,7 +17,11 @@ mod ir;
 mod keywords;
 mod lex;
 mod parse;
+// Generated table of the sentence form's phrases; not every column is read by this binary.
+#[allow(dead_code)]
+mod phrases;
 mod ruby_value;
+mod sentence;
 
 use std::fs;
 use std::process::ExitCode;

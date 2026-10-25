@@ -1,0 +1,587 @@
+//! What each phrase means: the blocks of a sentence file lowered into `ir` structs.
+//!
+//! An aggregate reads its blocks in any order and resolves names once it has them all, so
+//! `It has:` may come before or after the value objects it names, and a command may name a field
+//! declared further down. Every unresolved name is refused with the names that are in scope.
+
+use super::names::{camel, scalar, snake, spoken, SCALARS};
+use super::{column, Matched, Parser, Scope, Step};
+use crate::build::{identity, query_derive};
+use crate::diag::{Diagnostic, ParseResult};
+use crate::ir;
+
+/// A type phrase written in the file, resolved once the aggregate's value objects are known.
+struct TypeUse {
+    line: usize,
+    col: usize,
+    words: String,
+}
+
+struct Identity {
+    line: usize,
+    col: usize,
+    field: String,
+}
+
+struct Transition {
+    line: usize,
+    col: usize,
+    command: String,
+    from: String,
+    to: String,
+}
+
+struct LifecycleSpec {
+    field: String,
+    default: String,
+    transitions: Vec<Transition>,
+}
+
+/// A field a sentence names, with where it named it.
+struct FieldUse {
+    name: String,
+    line: usize,
+    col: usize,
+}
+
+struct CommandSpec {
+    name: String,
+    role: Option<String>,
+    goal: Option<String>,
+    references: Option<String>,
+    args: Vec<FieldUse>,
+    givens: Vec<ir::Given>,
+    sets: Vec<FieldUse>,
+    emits: Vec<String>,
+}
+
+/// A condition read from a rule, a given or a where.
+struct Cond {
+    canonical: String,
+    field: FieldUse,
+    value: Option<String>,
+}
+
+/// Everything read of one aggregate before its names are resolved.
+struct AggState {
+    agg: ir::Aggregate,
+    attr_types: Vec<TypeUse>,
+    vo_types: Vec<(usize, TypeUse)>,
+    identity: Option<Identity>,
+    lifecycle: Option<LifecycleSpec>,
+    commands: Vec<CommandSpec>,
+    checks: Vec<FieldUse>,
+}
+
+impl Parser<'_> {
+    /// Reads the whole file: one `Domain:` and the aggregates under it.
+    pub(super) fn file(&mut self) -> ParseResult<ir::Bluebook> {
+        let mut scope = Scope::top();
+        let Some(Step::Phrase(header)) = self.step(&mut scope, "File", false)? else {
+            return Err(self.error(1, 1, "this file is empty; it starts with `Domain: <name>`"));
+        };
+        let mut chapter = ir::Bluebook {
+            name: camel(&header.text_of("name")),
+            ..Default::default()
+        };
+        // An indented paragraph under the `Domain:` line says what the domain is for.
+        let mut vision = Scope::inside(header.indent);
+        while let Some(step) = self.step(&mut vision, "Vision", true)? {
+            if let Step::Prose { text } = step {
+                chapter.vision = Some(text);
+            }
+        }
+        // The aggregates follow at the top level, as flat as the `Domain:` line.
+        let mut aggregates = Scope::top();
+        aggregates.first = false;
+        while let Some(step) = self.step(&mut aggregates, "Domain", false)? {
+            match step {
+                Step::Phrase(m) if m.id == "aggregate" => {
+                    let aggregate = self.aggregate(&m)?;
+                    chapter.aggregates.push(aggregate);
+                }
+                Step::Phrase(m) => return Err(self.unmeant(&m)),
+                Step::Prose { .. } => {}
+            }
+        }
+        if let Some(line) = self.lines.get(self.pos) {
+            return Err(self.error(
+                line.number,
+                1,
+                "a file holds one domain; this line is outside it. Start another file for another domain",
+            ));
+        }
+        Ok(chapter)
+    }
+
+    /// A phrase the table admits that this front end has no meaning for yet.
+    fn unmeant(&self, m: &Matched) -> Diagnostic {
+        self.error(
+            m.line,
+            m.base_col,
+            format!("the phrase '{}' is admitted but the parser does not read it yet", m.id),
+        )
+    }
+
+    fn aggregate(&mut self, header: &Matched) -> ParseResult<ir::Aggregate> {
+        let mut st = AggState {
+            agg: ir::Aggregate {
+                name: camel(&header.text_of("name")),
+                ..Default::default()
+            },
+            attr_types: Vec::new(),
+            vo_types: Vec::new(),
+            identity: None,
+            lifecycle: None,
+            commands: Vec::new(),
+            checks: Vec::new(),
+        };
+        let mut scope = Scope::inside(header.indent);
+        while let Some(step) = self.step(&mut scope, "Aggregate", true)? {
+            match step {
+                Step::Prose { text } => st.agg.description = Some(text),
+                Step::Phrase(m) => match m.id {
+                    "identity" => self.identity(&m, &mut st)?,
+                    "has" => self.has(&m, &mut st)?,
+                    "value_object" => self.value_object(&m, &mut st)?,
+                    "lifecycle" => self.lifecycle(&m, &mut st)?,
+                    "command" => self.command(&m, &mut st)?,
+                    "query" => self.query(&m, &mut st)?,
+                    _ => return Err(self.unmeant(&m)),
+                },
+            }
+        }
+        self.finish(st)
+    }
+
+    /// Refuses a sentence about some other aggregate than the one it stands in.
+    fn same_owner(&self, m: &Matched, owner: &str, st: &AggState) -> ParseResult<()> {
+        if camel(&m.text_of(owner)) == st.agg.name {
+            return Ok(());
+        }
+        Err(self.error(
+            m.line,
+            m.col_of(owner),
+            format!(
+                "this is about '{}', but it stands in the aggregate '{}'",
+                m.text_of(owner),
+                spoken(&st.agg.name)
+            ),
+        ))
+    }
+
+    fn identity(&self, m: &Matched, st: &mut AggState) -> ParseResult<()> {
+        self.same_owner(m, "owner", st)?;
+        if st.identity.is_some() {
+            return Err(self.error(m.line, m.base_col, "an aggregate is identified by one thing; this says it twice"));
+        }
+        st.identity = Some(Identity {
+            line: m.line,
+            col: m.col_of("field"),
+            field: snake(&m.text_of("field")),
+        });
+        Ok(())
+    }
+
+    fn has(&mut self, header: &Matched, st: &mut AggState) -> ParseResult<()> {
+        let mut scope = Scope::inside(header.indent);
+        while let Some(step) = self.step(&mut scope, "Has", false)? {
+            let Step::Phrase(m) = step else { continue };
+            if !matches!(m.id, "attribute" | "attribute_optional") {
+                return Err(self.unmeant(&m));
+            }
+            st.agg.attributes.push(ir::Attribute {
+                name: snake(&m.text_of("name")),
+                optional: m.id == "attribute_optional",
+                ..Default::default()
+            });
+            st.attr_types.push(TypeUse {
+                line: m.line,
+                col: m.col_of("type"),
+                words: m.text_of("type"),
+            });
+        }
+        Ok(())
+    }
+
+    fn value_object(&mut self, header: &Matched, st: &mut AggState) -> ParseResult<()> {
+        let index = st.agg.value_objects.len();
+        st.agg.value_objects.push(ir::ValueObject {
+            name: camel(&header.text_of("name")),
+            attributes: vec![ir::Attribute {
+                name: "value".to_string(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        });
+        st.vo_types.push((
+            index,
+            TypeUse {
+                line: header.line,
+                col: header.col_of("type"),
+                words: header.text_of("type"),
+            },
+        ));
+        let mut scope = Scope::inside(header.indent);
+        while let Some(step) = self.step(&mut scope, "ValueObject", false)? {
+            let Step::Phrase(m) = step else { continue };
+            if m.id != "rule" {
+                return Err(self.unmeant(&m));
+            }
+            let cond = self.condition(&m)?;
+            if cond.field.name != "value" {
+                return Err(self.unknown_field(&cond.field, &["value".to_string()]));
+            }
+            if let Some(vo) = st.agg.value_objects.get_mut(index) {
+                vo.invariants.push(ir::Given {
+                    description: Some(m.text_of("description")),
+                    canonical: cond.canonical,
+                });
+            }
+        }
+        Ok(())
+    }
+
+    fn lifecycle(&mut self, header: &Matched, st: &mut AggState) -> ParseResult<()> {
+        if st.lifecycle.is_some() {
+            return Err(self.error(header.line, header.base_col, "an aggregate has one lifecycle; this is a second"));
+        }
+        let mut spec = LifecycleSpec {
+            field: snake(&header.text_of("field")),
+            default: header.text_of("state"),
+            transitions: Vec::new(),
+        };
+        let mut scope = Scope::inside(header.indent);
+        while let Some(step) = self.step(&mut scope, "Lifecycle", false)? {
+            let Step::Phrase(m) = step else { continue };
+            if m.id != "transition" {
+                return Err(self.unmeant(&m));
+            }
+            self.same_owner(&m, "owner", st)?;
+            spec.transitions.push(Transition {
+                line: m.line,
+                col: m.col_of("command"),
+                command: camel(&m.text_of("command")),
+                from: m.text_of("from"),
+                to: m.text_of("to"),
+            });
+        }
+        st.lifecycle = Some(spec);
+        Ok(())
+    }
+
+    fn command(&mut self, header: &Matched, st: &mut AggState) -> ParseResult<()> {
+        let mut spec = CommandSpec {
+            name: camel(&header.text_of("name")),
+            role: None,
+            goal: None,
+            references: None,
+            args: Vec::new(),
+            givens: Vec::new(),
+            sets: Vec::new(),
+            emits: Vec::new(),
+        };
+        let mut scope = Scope::inside(header.indent);
+        while let Some(step) = self.step(&mut scope, "Command", false)? {
+            let Step::Phrase(m) = step else { continue };
+            match m.id {
+                "goal" => spec.goal = Some(m.text_of("goal")),
+                "role" => spec.role = Some(m.text_of("role")),
+                "acts_on" => {
+                    self.same_owner(&m, "owner", st)?;
+                    spec.references = Some(st.agg.name.clone());
+                }
+                "arguments" => spec.args.extend(field_uses(&m, "names")),
+                "sets" => spec.sets.extend(field_uses(&m, "names")),
+                "announces" => spec.emits.push(m.text_of("event")),
+                "given" => {
+                    let cond = self.condition(&m)?;
+                    st.checks.push(FieldUse {
+                        name: cond.field.name.clone(),
+                        line: cond.field.line,
+                        col: cond.field.col,
+                    });
+                    spec.givens.push(ir::Given {
+                        description: Some(m.text_of("description")),
+                        canonical: cond.canonical,
+                    });
+                }
+                _ => return Err(self.unmeant(&m)),
+            }
+        }
+        st.commands.push(spec);
+        Ok(())
+    }
+
+    fn query(&mut self, header: &Matched, st: &mut AggState) -> ParseResult<()> {
+        let mut query = ir::Query {
+            name: camel(&header.text_of("name")),
+            ..Default::default()
+        };
+        let mut scope = Scope::inside(header.indent);
+        while let Some(step) = self.step(&mut scope, "Query", true)? {
+            match step {
+                Step::Prose { text } => query.description = Some(text),
+                Step::Phrase(m) if m.id == "where" => {
+                    let cond = self.condition(&m)?;
+                    let Some(value) = cond.value else {
+                        return Err(self.error(
+                            m.line,
+                            m.col_of("condition"),
+                            "a Where compares a field with a value, like `Where the status is published`",
+                        ));
+                    };
+                    st.checks.push(FieldUse {
+                        name: cond.field.name.clone(),
+                        line: cond.field.line,
+                        col: cond.field.col,
+                    });
+                    query
+                        .wheres
+                        .extend(query_derive::where_clauses(&[(cond.field.name, format!("\"{value}\""))], None));
+                }
+                Step::Phrase(m) if m.id == "order" => {
+                    let direction = match m.text_of("direction").to_lowercase().as_str() {
+                        "ascending" | "asc" => "asc",
+                        "descending" | "desc" => "desc",
+                        other => {
+                            return Err(self.error(
+                                m.line,
+                                m.col_of("direction"),
+                                format!("'{other}' is not a direction; use ascending or descending"),
+                            ));
+                        }
+                    };
+                    query.order_by = Some(ir::OrderBy {
+                        field: m.text_of("path"),
+                        direction: direction.to_string(),
+                        target: None,
+                    });
+                }
+                Step::Phrase(m) => return Err(self.unmeant(&m)),
+            }
+        }
+        st.agg.queries.push(query);
+        Ok(())
+    }
+
+    /// Reads the condition a rule, a given or a where carries in its `condition` slot.
+    fn condition(&self, m: &Matched) -> ParseResult<Cond> {
+        let text = m.text_of("condition");
+        let base = m.col_of("condition");
+        match self.match_text("Condition", &text, base) {
+            Ok((phrase, found)) => {
+                let slot = |name: &str| found.get(name).cloned().unwrap_or_default();
+                let field = FieldUse {
+                    name: snake(&slot("field").value),
+                    line: m.line,
+                    col: column(base, &text, slot("field").offset),
+                };
+                let (canonical, value) = match phrase.row.id {
+                    "not_empty" => (format!("!{}.to_s.empty?", field.name), None),
+                    "at_least" => (format!("{} >= {}", field.name, slot("n").value), None),
+                    "equals" => {
+                        let value = slot("value").value;
+                        (format!("{} == \"{value}\"", field.name), Some(value))
+                    }
+                    other => {
+                        return Err(self.error(
+                            m.line,
+                            base,
+                            format!("the condition '{other}' is admitted but the parser does not read it yet"),
+                        ));
+                    }
+                };
+                Ok(Cond {
+                    canonical: crate::canonical::apply(&canonical),
+                    field,
+                    value,
+                })
+            }
+            Err(unmatched) => Err(self
+                .error(
+                    m.line,
+                    unmatched.column,
+                    format!("this is not a condition I know: \"{text}\""),
+                )
+                .with_expected(unmatched.suggestions)),
+        }
+    }
+
+    fn unknown_field(&self, field: &FieldUse, in_scope: &[String]) -> Diagnostic {
+        let known: Vec<String> = in_scope.iter().map(|name| spoken(name)).collect();
+        self.error(
+            field.line,
+            field.col,
+            format!(
+                "'{}' is not a field here. The fields in scope are: {}",
+                spoken(&field.name),
+                known.join(", ")
+            ),
+        )
+    }
+
+    /// Resolves the names the aggregate's blocks used, now that all of them are read.
+    fn finish(&self, mut st: AggState) -> ParseResult<ir::Aggregate> {
+        let types: Vec<String> = st
+            .attr_types
+            .iter()
+            .map(|used| self.type_named(used, &st.agg))
+            .collect::<ParseResult<_>>()?;
+        for (attribute, resolved) in st.agg.attributes.iter_mut().zip(types) {
+            attribute.type_name = resolved;
+        }
+        for (index, used) in &st.vo_types {
+            let resolved = self.type_named(used, &st.agg)?;
+            if let Some(attribute) = st
+                .agg
+                .value_objects
+                .get_mut(*index)
+                .and_then(|vo| vo.attributes.first_mut())
+            {
+                attribute.type_name = resolved;
+            }
+        }
+        if let Some(found) = &st.identity {
+            st.agg.identified_by = identity::resolve_identity_field(
+                self.file,
+                found.line,
+                &st.agg.name,
+                &found.field,
+                &st.agg.value_objects,
+                &st.agg.attributes,
+            )
+            .map_err(|refused| Diagnostic::new(self.file, found.line, refused.message).with_column(found.col))?;
+        }
+        let commands = self.commands_of(&mut st)?;
+        st.agg.commands = commands;
+        self.lifecycle_of(&mut st)?;
+        let mut in_scope: Vec<String> = st.agg.attributes.iter().map(|a| a.name.clone()).collect();
+        if let Some(lifecycle) = &st.agg.lifecycle {
+            in_scope.push(lifecycle.field.clone());
+        }
+        for check in &st.checks {
+            if !in_scope.contains(&check.name) {
+                return Err(self.unknown_field(check, &in_scope));
+            }
+        }
+        Ok(st.agg)
+    }
+
+    fn type_named(&self, used: &TypeUse, agg: &ir::Aggregate) -> ParseResult<String> {
+        if let Some(found) = scalar(&used.words) {
+            return Ok(found.to_string());
+        }
+        let name = camel(&used.words);
+        if agg.value_objects.iter().any(|vo| vo.name == name) {
+            return Ok(name);
+        }
+        let mut known: Vec<String> = vec![SCALARS.to_string()];
+        known.extend(agg.value_objects.iter().map(|vo| spoken(&vo.name)));
+        Err(self.error(
+            used.line,
+            used.col,
+            format!(
+                "I don't know a type called '{}'. The types here are: {}",
+                used.words,
+                known.join(", ")
+            ),
+        ))
+    }
+
+    fn commands_of(&self, st: &mut AggState) -> ParseResult<Vec<ir::Command>> {
+        let mut commands = Vec::new();
+        for spec in std::mem::take(&mut st.commands) {
+            let mut command = ir::Command {
+                name: spec.name.clone(),
+                role: spec.role,
+                goal: spec.goal,
+                references: spec.references,
+                givens: spec.givens,
+                emits: spec.emits,
+                ..Default::default()
+            };
+            let fields: Vec<String> = st.agg.attributes.iter().map(|a| a.name.clone()).collect();
+            for arg in &spec.args {
+                let Some(attribute) = st.agg.attributes.iter().find(|a| a.name == arg.name) else {
+                    return Err(self.unknown_field(arg, &fields));
+                };
+                command.attributes.push(ir::Attribute {
+                    name: attribute.name.clone(),
+                    type_name: attribute.type_name.clone(),
+                    list: attribute.list,
+                    ..Default::default()
+                });
+            }
+            let given: Vec<String> = spec.args.iter().map(|a| a.name.clone()).collect();
+            for set in &spec.sets {
+                if !given.contains(&set.name) {
+                    return Err(self.error(
+                        set.line,
+                        set.col,
+                        format!(
+                            "'{}' is set from what the command is given, and {} is not given. Add it to `When … given`",
+                            spoken(&set.name),
+                            spec.name
+                        ),
+                    ));
+                }
+                command.mutations.push(ir::Mutation::Other {
+                    target: set.name.clone(),
+                    op: "set".to_string(),
+                    sign: String::new(),
+                    source: Some(ir::MutationSource::Argument(set.name.clone())),
+                });
+            }
+            commands.push(command);
+        }
+        Ok(commands)
+    }
+
+    fn lifecycle_of(&self, st: &mut AggState) -> ParseResult<()> {
+        let Some(spec) = st.lifecycle.take() else {
+            return Ok(());
+        };
+        let known: Vec<String> = st.agg.commands.iter().map(|c| c.name.clone()).collect();
+        let mut lifecycle = ir::Lifecycle {
+            field: spec.field,
+            default: spec.default,
+            ..Default::default()
+        };
+        for t in spec.transitions {
+            if !known.contains(&t.command) {
+                let shown: Vec<String> = known.iter().map(|name| spoken(name)).collect();
+                return Err(self.error(
+                    t.line,
+                    t.col,
+                    format!(
+                        "'{}' moves the page between states, but no command by that name is declared. Commands here: {}",
+                        spoken(&t.command),
+                        shown.join(", ")
+                    ),
+                ));
+            }
+            lifecycle.transitions.push(ir::StateTransitionRow {
+                command: t.command,
+                to_state: t.to,
+                from_state: Some(t.from),
+            });
+        }
+        st.agg.lifecycle = Some(lifecycle);
+        Ok(())
+    }
+}
+
+fn field_uses(m: &Matched, slot: &str) -> Vec<FieldUse> {
+    let capture = m.capture(slot);
+    let col = m.col_of(slot);
+    capture
+        .items
+        .iter()
+        .map(|item| FieldUse {
+            name: snake(item),
+            line: m.line,
+            col,
+        })
+        .collect()
+}
