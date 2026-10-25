@@ -3110,6 +3110,109 @@
           "paper_fee_cents": 0
         }
       }
+    },
+    {
+      "verb": "Banking::Hold.Place",
+      "args": {
+        "reference": {
+          "value": "hold-1"
+        },
+        "subject": {
+          "type": "Account",
+          "id": "acct-1"
+        },
+        "reason": {
+          "value": "under review"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Hold.Place",
+      "args": {
+        "reference": {
+          "value": "hold-2"
+        },
+        "subject": {
+          "type": "ATMCard",
+          "id": "CARD-GUARD-B"
+        },
+        "reason": {
+          "value": "under review"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Hold.Place",
+      "args": {
+        "reference": {
+          "value": "hold-3"
+        },
+        "subject": {
+          "type": "Account",
+          "id": "acct-2"
+        },
+        "reason": {
+          "value": "under review"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Hold.Place",
+      "args": {
+        "reference": {
+          "value": "hold-4"
+        },
+        "subject": {
+          "type": "Customer",
+          "id": "CUST-0001"
+        },
+        "reason": {
+          "value": "under review"
+        }
+      }
+    },
+    {
+      "query": "Banking.HoldsOnCards"
+    },
+    {
+      "verb": "Banking::Hold.EscalateCardHold",
+      "args": {
+        "reference": {
+          "value": "hold-1"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Hold.EscalateAccountHold",
+      "args": {
+        "reference": {
+          "value": "hold-1"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Hold.EscalateCardHold",
+      "args": {
+        "reference": {
+          "value": "hold-2"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Hold.Lift",
+      "args": {
+        "reference": {
+          "value": "hold-3"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Hold.Lift",
+      "args": {
+        "reference": {
+          "value": "hold-3"
+        }
+      }
     }
   ],
   "domain": "examples/banking",
@@ -4019,6 +4122,21 @@
         "verb": "Banking::Statement.Generate",
         "error": "Generate creates a Statement that already exists — account, period.value \"acct-guard-f:2026-08\"",
         "kind": "AlreadyExists"
+      },
+      {
+        "verb": "Banking::Hold.Place",
+        "error": "type admits Hold::SubjectType — \"Account\", \"ATMCard\" — got \"Customer\"",
+        "kind": "InvariantViolation"
+      },
+      {
+        "verb": "Banking::Hold.EscalateCardHold",
+        "error": "EscalateCardHold refused — the hold is on a card",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Banking::Hold.Lift",
+        "error": "Lift refused — status is \"lifted\", and Lift moves it only from \"placed\"",
+        "kind": "LifecycleRefused"
       }
     ],
     "instances": {
@@ -4610,6 +4728,45 @@
         },
         "status": "open",
         "customer_status": "active"
+      },
+      "Banking::Hold#hold-1": {
+        "reference": {
+          "value": "hold-1"
+        },
+        "subject": {
+          "type": "Account",
+          "id": "acct-1"
+        },
+        "reason": {
+          "value": "under review"
+        },
+        "status": "escalated"
+      },
+      "Banking::Hold#hold-2": {
+        "reference": {
+          "value": "hold-2"
+        },
+        "subject": {
+          "type": "ATMCard",
+          "id": "CARD-GUARD-B"
+        },
+        "reason": {
+          "value": "under review"
+        },
+        "status": "escalated"
+      },
+      "Banking::Hold#hold-3": {
+        "reference": {
+          "value": "hold-3"
+        },
+        "subject": {
+          "type": "Account",
+          "id": "acct-2"
+        },
+        "reason": {
+          "value": "under review"
+        },
+        "status": "lifted"
       },
       "Banking::ATMCard#CARD-GUARD-B": {
         "account": "acct-guard-b",
@@ -5471,6 +5628,87 @@
             "cadence": "monthly",
             "retention_months": 84,
             "paper_fee_cents": 0
+          }
+        }
+      },
+      {
+        "name": "HoldPlaced",
+        "aggregate": "Banking::Hold",
+        "id": "hold-1",
+        "payload": {
+          "reference": {
+            "value": "hold-1"
+          },
+          "subject": {
+            "type": "Account",
+            "id": "acct-1"
+          },
+          "reason": {
+            "value": "under review"
+          }
+        }
+      },
+      {
+        "name": "HoldPlaced",
+        "aggregate": "Banking::Hold",
+        "id": "hold-2",
+        "payload": {
+          "reference": {
+            "value": "hold-2"
+          },
+          "subject": {
+            "type": "ATMCard",
+            "id": "CARD-GUARD-B"
+          },
+          "reason": {
+            "value": "under review"
+          }
+        }
+      },
+      {
+        "name": "HoldPlaced",
+        "aggregate": "Banking::Hold",
+        "id": "hold-3",
+        "payload": {
+          "reference": {
+            "value": "hold-3"
+          },
+          "subject": {
+            "type": "Account",
+            "id": "acct-2"
+          },
+          "reason": {
+            "value": "under review"
+          }
+        }
+      },
+      {
+        "name": "AccountHoldEscalated",
+        "aggregate": "Banking::Hold",
+        "id": "hold-1",
+        "payload": {
+          "reference": {
+            "value": "hold-1"
+          }
+        }
+      },
+      {
+        "name": "CardHoldEscalated",
+        "aggregate": "Banking::Hold",
+        "id": "hold-2",
+        "payload": {
+          "reference": {
+            "value": "hold-2"
+          }
+        }
+      },
+      {
+        "name": "HoldLifted",
+        "aggregate": "Banking::Hold",
+        "id": "hold-3",
+        "payload": {
+          "reference": {
+            "value": "hold-3"
           }
         }
       }
@@ -7888,6 +8126,31 @@
         },
         "rows": null,
         "error": "no Account with reference \"acct-onboard-1\""
+      },
+      {
+        "query": "Banking.HoldsOnCards",
+        "args": {
+        },
+        "rows": [
+          {
+            "holds": [
+              {
+                "reference": {
+                  "value": "hold-2"
+                },
+                "subject": {
+                  "type": "ATMCard",
+                  "id": "CARD-GUARD-B"
+                },
+                "reason": {
+                  "value": "under review"
+                },
+                "status": "placed",
+                "id": "hold-2"
+              }
+            ]
+          }
+        ]
       }
     ],
     "sagas": [

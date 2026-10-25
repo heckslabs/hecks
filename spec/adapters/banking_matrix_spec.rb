@@ -12,7 +12,7 @@ RSpec.describe "Banking across persistence adapters" do
   }.freeze
   AUTHORITATIVE_ADAPTERS = %w[Memory Heki SqlitePersistence].freeze
   BANKING_AGGREGATES = %w[Customer Account Transfer ATMCard CardPayment ExternalTransfer ScheduledPayment
-                          SafeDepositBox OnboardingCase Statement].freeze
+                          SafeDepositBox OnboardingCase Statement Hold].freeze
 
   around do |example|
     @dir = Dir.mktmpdir("hecks-banking-adapters-")

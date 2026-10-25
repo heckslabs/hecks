@@ -184,6 +184,35 @@
   },
   {
     "kind": "aggregate",
+    "id": "Banking::Hold",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Hold.Place",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Hold.Lift",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Hold.EscalateAccountHold",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Hold.EscalateCardHold",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
     "id": "Banking::OnboardingCase",
     "generated": true
   },
@@ -778,6 +807,21 @@
   {
     "kind": "read_model",
     "id": "Banking::AccountsByKind",
+    "generated": true
+  },
+  {
+    "kind": "read_model",
+    "id": "Banking::CardPaymentTotalsByStatus",
+    "generated": true
+  },
+  {
+    "kind": "read_model",
+    "id": "Banking::CardPaymentCountsByStatus",
+    "generated": true
+  },
+  {
+    "kind": "read_model",
+    "id": "Banking::HoldsOnCards",
     "generated": true
   },
   {
