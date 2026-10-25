@@ -5,7 +5,8 @@ module Hecks
     #
     # A command that still needs arguments the actor has yet to supply is listed when nothing but
     # those arguments stand in the way: the role is checked first, so a role the actor lacks refuses
-    # before any argument is looked at.
+    # before any argument is looked at. The domain stops at the arguments, so the record's own state
+    # is asked of the same rules the dispatch uses, which read no argument.
     class AvailableCommands
       # @param door [Module] the aggregate's module in the booted domain
       # @param handle [Object] the record in hand
@@ -26,9 +27,23 @@ module Hecks
 
       def commands = @door.ir.commands.reject(&:creates?)
 
-      def available?(command)
+      def available?(command) = state_admits?(command) && only_arguments_missing?(command)
+
+      def only_arguments_missing?(command)
         verb = "#{@handle.fqn}.#{command.hecks_name}"
         Booted.dispatcher.validate(verb, to: @handle.id, with: {}).refusals.all? { |refusal| refusal.stage == :arguments }
+      end
+
+      # Whether the record's lifecycle state lets the command run: its own `from:` guard and the
+      # aggregate's transitions, as the domain decides them.
+      def state_admits?(command)
+        rules = Hecks::Runtime::CommandRules.new(Booted.registry)
+        instance = Booted.registry.repository(@handle.fqn.split("::").first, @door.ir).find(@handle.id)
+        rules.enforce_lifecycle_guard(@door.ir, command, instance)
+        rules.admissible_transition(@door.ir, command, instance)
+        true
+      rescue Hecks::Runtime::LifecycleRefused
+        false
       end
     end
   end

@@ -41,8 +41,8 @@ module Hecks
       #   remote's conflict, or the push is refused
       def carry(**held)
         @checkout = toplevel(plain(held[:checkout]) || Dir.pwd)
-        carriage = Carriage.new(@git, @checkout, branch: plain(held[:branch]) || "main",
-                                                 remote: plain(held[:remote]) || "origin",
+        carriage = Carriage.new(@git, @checkout, branch:   plain(held[:branch]) || "main",
+                                                 remote:   plain(held[:remote]) || "origin",
                                                  hook_env: hook_env(held))
         boarded = carriage.local_head
         in_turn { carriage.carry(boarded) }

@@ -107,11 +107,10 @@ RSpec.describe Hecks::RustBuild::PrebuiltBinary do
       expect(described_class.fetch("host", crate, target: "aarch64-apple-darwin", into: out)).to be_nil
     end
 
-    it "does not download when HECKS_PREBUILT is off" do
+    it "does not download when the build says not to" do
       answer(sha: digest)
-      stub_const("ENV", ENV.to_h.merge("HECKS_PREBUILT" => "off"))
 
-      expect(described_class.fetch("host", crate, target: target, into: out)).to be_nil
+      expect(described_class.fetch("host", crate, target: target, into: out, allowed: false)).to be_nil
     end
   end
 

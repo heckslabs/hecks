@@ -23,8 +23,8 @@ module Hecks
         OPERATIONS = %w[refresh_runtime_baseline run_spec_example stress_concurrency clear_caches
                         regenerate_legacy_fixtures seed_semantics_corpus write_io_parallel_spec_list].freeze
 
-        # The `Hecks::CacheDir` subdirectories `clear_caches` empties: the caches the developer
-        # switches used to turn off.
+        # The `Hecks::CacheDir` subdirectories `clear_caches` empties: the caches the deprecated
+        # developer switches turn off.
         CACHES = %w[hecks_syntax_boot_cache hecks_verdict_cache].freeze
 
         # The tag filter the postgres job lists its specs by when none is named.

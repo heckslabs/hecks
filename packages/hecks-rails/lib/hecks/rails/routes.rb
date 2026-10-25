@@ -1,9 +1,10 @@
 module Hecks
   module Rails
     # Makes `resources :accounts` draw an aggregate's command routes when `accounts` is one:
-    # a `show`, then a POST per command. A creating command routes to the collection and any
-    # other to the member, because it already knows its subject. Nothing in the language maps to
-    # REST's update or destroy, so a write is always a POST. Any other resource draws as usual.
+    # an `index` and a `show`, then a POST per command. A creating command routes to the collection
+    # and any other to the member, because it already knows its subject. Nothing in the language
+    # maps to REST's update or destroy, so a write is always a POST. Any other resource draws as
+    # usual.
     module Routes
       RESOURCES = ActionDispatch::Routing::Mapper::Resources.instance_method(:resources)
 
@@ -27,7 +28,7 @@ module Hecks
 
       def domain_resource(name, aggregate, options, block)
         routes = CommandRoutes.for_aggregate(aggregate).reject(&:show?)
-        RESOURCES.bind_call(self, name, only: [:show], **options) do
+        RESOURCES.bind_call(self, name, only: [:index, :show], **options) do
           instance_exec(&block) if block
           routes.each { |route| public_send(route.scope) { post route.action } }
         end

@@ -48,7 +48,7 @@ module Hecks
       # `:rollback`: a raise inside `transaction` undoes every write the block made, joined ones
       # included, which an all_or_nothing bulk run needs (ADR 0125).
       #
-      # @return [Array<Symbol>] `[:atomic_put, :optimistic_concurrency, :rollback, :dispatch_claims]`
+      # @return [Array<Symbol>] atomic_put, optimistic_concurrency, rollback and dispatch_claims
       def persistence_capabilities = %i[atomic_put optimistic_concurrency rollback dispatch_claims]
 
       # Opens a connection to the database a world declares, scoped to its `schema` if any.

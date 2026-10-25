@@ -84,9 +84,7 @@ jobs:
           install-wasmtime: "false"
 
       - name: Build the ${{ matrix.module }} wasm module
-        env:
-          HECKS_WASM_PROFILE: dev
-        run: bundle exec exe/hecks build.build_wasm domain=${{ matrix.domain }} --wait
+        run: bundle exec exe/hecks build.build_wasm domain=${{ matrix.domain }} profile=dev --wait
 
       - uses: actions/upload-artifact@v4
         with:

@@ -167,34 +167,53 @@ RSpec.describe Hecks::Adapters::Codebase::TestSuite do
       expect(report).to eq("1 example, 0 failures")
     end
 
-    it "hands the specs only the variables the run names", :aggregate_failures do
+    def stub_runner
       runner = instance_double(Hecks::Adapters::Codebase::TestRunner, run: "ok")
       allow(Hecks::Adapters::Codebase::TestRunner).to receive(:new).with(tree).and_return(runner)
+      runner
+    end
 
-      suite("run_spec_example", { file: word("spec/a_spec.rb"), example: word("works"), strict: word(true),
-                                  seeds: word(20), environment: word("memory") }, nil)
-      suite("run_spec_example", { file: word("spec/a_spec.rb"), example: word("works") }, nil)
+    def run_example(extra = {})
+      suite("run_spec_example", { file: word("spec/a_spec.rb"), example: word("works") }.merge(extra), nil)
+    end
 
-      expect(runner).to have_received(:run).with(file: "spec/a_spec.rb", example: "works",
-                                                 env: { "CI" => "true", "PROPERTY_SEEDS" => "20",
-                                                        "HECKS_ENVIRONMENT" => "memory" })
+    def named_env = { "CI" => "true", "PROPERTY_SEEDS" => "20", "HECKS_ENVIRONMENT" => "memory" }
+
+    it "hands the specs the variables the run names" do
+      runner = stub_runner
+      run_example(strict: word(true), seeds: word(20), environment: word("memory"))
+
+      expect(runner).to have_received(:run).with(file: "spec/a_spec.rb", example: "works", env: named_env)
+    end
+
+    it "hands the specs no variables when the run names none" do
+      runner = stub_runner
+      run_example
+
       expect(runner).to have_received(:run).with(file: "spec/a_spec.rb", example: "works", env: {})
     end
 
-    it "sets the variables for the run only, and puts them back" do
-      tree_runner = Hecks::Adapters::Codebase::TestRunner.new(tree)
-      seen = nil
+    # Installs a runner that records `PROPERTY_SEEDS` as the run sees it.
+    def install_runner
+      seen = []
       Hecks::Adapters::Codebase::TestRunner.runner = lambda do |_args, out, _err|
-        seen = ENV.fetch("PROPERTY_SEEDS", nil)
+        seen << ENV.fetch("PROPERTY_SEEDS", nil)
         out.puts "1 example, 0 failures"
         0
       end
+      seen
+    end
 
-      tree_runner.run(file: "spec/spec_helper.rb", example: "x", env: { "PROPERTY_SEEDS" => "7" })
-
-      expect([seen, ENV.fetch("PROPERTY_SEEDS", nil)]).to eq(["7", nil])
+    def seeds_during_run(env)
+      seen = install_runner
+      Hecks::Adapters::Codebase::TestRunner.new(tree).run(file: "spec/spec_helper.rb", example: "x", env: env)
+      [seen.first, ENV.fetch("PROPERTY_SEEDS", nil)]
     ensure
       Hecks::Adapters::Codebase::TestRunner.runner = nil
+    end
+
+    it "sets the variables for the run only, and puts them back" do
+      expect(seeds_during_run("PROPERTY_SEEDS" => "7")).to eq(["7", nil])
     end
   end
 

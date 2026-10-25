@@ -28,17 +28,34 @@ works or fails depending on the shell that launched it.
 
 ## Classification
 
-**Derived (retire the variable):**
-`HECKS_RUST_DIR`, `CARGO_TARGET_DIR` (from the copy's root and the shared cache, as
-`TargetDir` already does); `HECKS_LIB` (the Gemfile or vendored hecks says which);
-`HECKS_TRAIN_HOME` (the launcher lives at `~/.claude/hecks-train`);
-`EMBRYONAUT_BLUEBOOKS_SRC` (a sibling checkout, or the registry URL in project config);
-`HECKS_CACHE_DIR` and the other cache locations (from the shared cache root);
-`HECKS_IR_PATH`, `HECKS_WASM_PATH` (the host reads the build output beside it);
-`HECKS_STOREHOUSE_ROOT` (the checkout root); `HECKS_QA_SETTINGS_PATH` (the default path
-exists); `QA_REPO_DIR` (the working directory); `HECKS_PARSE_BIN` (found beside the
-install; the editor extension passes its setting as an argument);
-`HECKS_VALIDATE_HARNESS` (a harness path, with a built fallback).
+**Derived by default, the variable only an override (keep as a documented override):**
+These already compute their value from where the copy lives; the variable exists to point
+somewhere else, and nothing needs it set. Surveying the reads showed each is also how a value
+crosses a process boundary, so retiring them is a larger change than deleting a read.
+- `HECKS_RUST_DIR`: `RustBuild.rust_dir` defaults to the checkout's `rust/`, and a
+  workspace copy of an installed gem is passed to in-process tools by swapping `ENV` under a
+  lock (`RustBuild.with_env`, `RustWorkspace#environment`), and to forked or spawned
+  children through their environment. An explicit workspace parameter would replace the
+  in-process swap; the variable would stay for children.
+- `CARGO_TARGET_DIR`: Cargo's own variable. Hecks sets it for the Cargo it starts and
+  honours the user's (`TargetDir`); it is not hecks's to retire.
+- `HECKS_CACHE_DIR`, `HECKS_STOREHOUSE_ROOT` (the sandbox root the MCP servers widen on
+  purpose), `HECKS_QA_SETTINGS_PATH`, `QA_REPO_DIR`, `HECKS_PARSE_BIN` (the editor
+  extension's setting), `HECKS_VALIDATE_HARNESS`: each has a computed default and exists as a
+  deliberate override for a subprocess, a sandbox or an editor.
+
+**Derived (done, the variable stays an override):**
+- `EMBRYONAUT_BLUEBOOKS_SRC`: `VendorCli.default_source` finds the `embryonaut_bluebooks`
+  checkout beside the project when neither `--from` nor the variable names one.
+
+**Interface of a deployed host (declared by the deploy projection, not derived):**
+`HECKS_IR_PATH`, `HECKS_WASM_PATH` are set by the generated CloudFormation, Dockerfile and
+Lambda templates to tell the Rust host where its sidecars are, and the host refuses to boot
+without the first. A default of "beside the binary" would retire them, but it changes the
+Rust host and every template together, so it is its own change.
+
+**Not in this repository:** `HECKS_LIB` and `HECKS_TRAIN_HOME` are read by other projects'
+tooling and the user's launcher, not by hecks.
 
 **Declared in the world (retire the variable):**
 `HECKS_DATABASE` (the copy's `environments/local.world`, else a database named for the
@@ -55,12 +72,19 @@ analytics hosts and ids, the OAuth client ids and redirect URIs, smoke settings
 is a flag on the era command.
 
 **Arguments of the command that runs (retire the variable):**
-- `GOLDEN=rewrite`, `EXISTING_TAG`, `HECKS_FUZZ_SCHEMA`: a hecks command already hands
-  each to its child process, so only the hand-off remains.
+- `GOLDEN=rewrite`, `EXISTING_TAG`: a hecks command already hands each to its child
+  process, so only the hand-off remains. `EXISTING_TAG` is the generated
+  `deploy-service.sh`'s own interface, with `LOCAL_IMAGE`, `SETTLE_TIMEOUT_SECS`,
+  `SKIP_POST_DEPLOY_SMOKE` and `SMOKE_BY_COMMAND`; it moves to flags with them, in one change
+  to the projection and the projects that vendor its output, not alone.
+- `HECKS_FUZZ_SCHEMA`: removed. A forked sweep child's default schema, `hecks_fuzz_<pid>`,
+  is the name the sweep used to set, so the variable named nothing the default did not.
 - `SEEDS`, `STEPS`: `build.fuzz_conformance` already takes `seeds` and `steps`; the
   variable fallback is removed.
-- `HECKS_WASM_PROFILE`: the `profile` argument of `build.build_wasm!` (built on this branch).
-- `HECKS_PREBUILT=off`: the `prebuilt` argument of `build.build_host!` (built on this branch).
+- `HECKS_WASM_PROFILE`: the `profile` argument of `build.build_wasm!`, passed on to the tool
+  as `--profile=` (built). `ci-rust-host.yml` passes `profile=dev`.
+- `HECKS_PREBUILT=off`: the `prebuilt` argument of `build.build_host!`, passed on to the tool
+  as `--no-prebuilt` (built).
 - `HECKS_ENVIRONMENT`: the world declares the default per command, as `MEMORY_COMMANDS`
   and `hecks.world` already do for the launcher; `run_spec_example!` needs the argument.
 - `HECKS_CLOUDFRONT_TEST`: a tag filter on the spec-run command.
@@ -84,6 +108,10 @@ is a flag on the era command.
   later.
 
 **Kept (the whole remaining list):**
+- *Overrides with a derived default, nobody needs to set:* `HECKS_RUST_DIR`,
+  `CARGO_TARGET_DIR`, `HECKS_CACHE_DIR`, `HECKS_STOREHOUSE_ROOT`, `HECKS_QA_SETTINGS_PATH`,
+  `QA_REPO_DIR`, `HECKS_PARSE_BIN`, `HECKS_VALIDATE_HARNESS`, `EMBRYONAUT_BLUEBOOKS_SRC`.
+- *Interface of a deployed host:* `HECKS_IR_PATH`, `HECKS_WASM_PATH`.
 - *Per-run, with no hecks command that runs them:* `HOST_FUZZ_SEEDS`, `JSON_FUZZ_SEEDS`,
   `HECKS_PARSE_FUZZ_SEED`, `HECKS_PARSE_FUZZ_ITERATIONS`. They widen a plain `cargo test`
   fuzz run and CI never sets them. A command wrapping `cargo test` could carry them as
@@ -106,7 +134,11 @@ for it.
 1. Done on this branch: `HECKS_EVAL` and the `SEEDS`/`STEPS` fallback removed; the cache
    switches warn; `test_suite_run.clear_caches!` empties the syntax-boot, verdict and usage
    caches.
-2. Derived variables: no schema change.
+2. Derived variables: done for the registry source (`EMBRYONAUT_BLUEBOOKS_SRC` now has a
+   sibling-checkout default). The rest were already derived with an override, and stay
+   overrides (see the classification); `HECKS_RUST_DIR` becoming an explicit workspace
+   parameter in process, and `HECKS_IR_PATH`/`HECKS_WASM_PATH` defaulting to the sidecars
+   beside the host binary, are separate changes.
 3. Arguments: `profile` and `prebuilt` are built, and `run_spec_example!` takes `strict`,
    `seeds` and `environment`, which set `CI`, `PROPERTY_SEEDS` and `HECKS_ENVIRONMENT` for
    that run only, and `push_train.board!` takes `full_gate`. Still to build: a tag filter

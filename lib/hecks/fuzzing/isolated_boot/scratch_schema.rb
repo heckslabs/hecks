@@ -4,14 +4,14 @@ module Hecks
       # Which Postgres scratch schema a fuzz boot uses: one per process, so processes can fuzz one
       # database at once without dropping a schema another process is booting into.
       module ScratchSchema
-        # The schema this process boots into: the one named in `FUZZ_SCHEMA_ENV` (a sweep's pool
-        # child names its own), or `FUZZ_POSTGRES_SCHEMA` suffixed with this process's pid. It is
-        # dropped when the process that first asked for it exits.
+        # The schema this process boots into: `FUZZ_POSTGRES_SCHEMA` suffixed with this process's
+        # pid, so a sweep's forked pool children each get their own. It is dropped when the
+        # process that first asked for it exits.
         #
         # @param database [String] the scratch database the schema lives in
         # @return [String] the schema name
         def scratch_schema(database)
-          schema = ENV.fetch(FUZZ_SCHEMA_ENV) { "#{FUZZ_POSTGRES_SCHEMA}_#{Process.pid}" }
+          schema = "#{FUZZ_POSTGRES_SCHEMA}_#{Process.pid}"
           drop_at_exit(database, schema)
           schema
         end

@@ -20,6 +20,10 @@ module Hecks
       DRY_RUN_FLAGS = %w[1 true].freeze
 
       included do
+        include Rendering
+
+        layout "hecks_rails"
+        helper_method :hecks_model
         around_action :bind_hecks_caller
         rescue_from Hecks::Refused, with: :render_refusal
         inferred = Controller.model_for(self)
@@ -69,6 +73,7 @@ module Hecks
       private
 
       def model = self.class.hecks_model
+      alias hecks_model model
 
       def bind_hecks_caller(&)
         actor = hecks_actor
@@ -80,7 +85,7 @@ module Hecks
       def show_record
         @record = model.find(params[:id])
         respond_to do |format|
-          format.html { render plain: @record.inspect }
+          format.html { render_page(:show) }
           format.json { render json: @record.to_h }
         end
       end
@@ -116,12 +121,6 @@ module Hecks
         end
       end
 
-      def render_html_refusal(status)
-        return render(action_name, status: status) if lookup_context.exists?(action_name, _prefixes)
-
-        render plain: @record.errors.full_messages.to_sentence, status: status
-      end
-
       # The module a controller includes: one real method per command, so a subclass redefines one
       # by name and reaches the generated body with `super`.
       module Actions
@@ -129,6 +128,7 @@ module Hecks
         # @return [Module] defining `show` and an action per command
         def self.build(model)
           Module.new do
+            define_method(:index) { index_records }
             define_method(:show) { show_record }
             model.door.ir.commands.each do |command|
               action = Naming.snake(command.hecks_name).to_s

@@ -16,7 +16,7 @@ module Hecks
   module Chapters
     # Where attachable chapters live, relative to `lib/hecks/`.
     GLOBS = %w[language/**/*.bluebook grammar/expression.bluebook tenancy/bluebook/*.bluebook
-               deploy/bluebook/*.bluebook site/bluebook/*.bluebook tickets/bluebook/*.bluebook
+               deploy/bluebook/*.bluebook site/bluebook/*.bluebook rails_app/bluebook/*.bluebook tickets/bluebook/*.bluebook
                composer/bluebook/*.bluebook quality_control/*.bluebook bulk/bluebook/*.bluebook].freeze
 
     # A `Hecks.bluebook "Name"` header line, capturing the chapter's name.
