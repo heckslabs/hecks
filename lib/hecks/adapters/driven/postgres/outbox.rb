@@ -25,6 +25,13 @@ module Hecks
         )
       SQL
 
+      CREATE_DISPATCH_CLAIMS_TABLE = <<~SQL.freeze
+        CREATE TABLE IF NOT EXISTS hecks_dispatch_claims (
+          claim_key   text PRIMARY KEY,
+          claimed_at  timestamptz NOT NULL DEFAULT now()
+        )
+      SQL
+
       # Runs the block inside one Postgres transaction, joining an already-open one.
       #
       # Re-entrant: PG refuses BEGIN inside BEGIN, so an inner call joins the open one.
@@ -60,6 +67,25 @@ module Hecks
           row.status = "pending"
           row
         end
+      end
+
+      # Whether the dispatch with this key has been applied.
+      #
+      # @param key [String] the dispatch key a saga leg stamped on the command
+      # @return [Boolean] true once `dispatch_claim` has accepted the key
+      def dispatch_applied?(key)
+        pg_exec_params("SELECT 1 FROM hecks_dispatch_claims WHERE claim_key = $1", [key]).ntuples.positive?
+      end
+
+      # Records that the dispatch with this key is being applied, refusing a second claim. Joins the
+      # save's transaction, so a rollback releases the claim with the write it guarded.
+      #
+      # @param key [String] the dispatch key a saga leg stamped on the command
+      # @return [Boolean] true when the key was new and is now held; false when already held
+      # @raise [PG::Error] if the insert fails
+      def dispatch_claim(key) # rubocop:disable Naming/PredicateMethod -- the claim port's verb
+        pg_exec_params("INSERT INTO hecks_dispatch_claims (claim_key) VALUES ($1) ON CONFLICT DO NOTHING " \
+                       "RETURNING claim_key", [key]).ntuples.positive?
       end
 
       # Claims a pending outbox row with a compare-and-set update, counting the attempt.
@@ -131,6 +157,7 @@ module Hecks
       def create_outbox_table!
         @db.exec(CREATE_OUTBOX_TABLE)
         @db.exec("CREATE INDEX IF NOT EXISTS idx_hecks_outbox_status ON hecks_outbox(aggregate, status)")
+        @db.exec(CREATE_DISPATCH_CLAIMS_TABLE)
       end
     end
   end

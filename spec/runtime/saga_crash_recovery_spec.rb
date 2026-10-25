@@ -124,7 +124,15 @@ RSpec.describe "saga durability across a process death mid-leg" do
     end
   end
 
-  describe "rehydrating that same store" do
+  # A store that keeps no dispatch claims, so only the command's own declaration can make a started
+  # dispatch safe to deliver again.
+  def store_without_dispatch_claims
+    allow(Hecks::Runtime::DispatchClaim).to receive(:supported?).and_return(false)
+  end
+
+  describe "rehydrating a store that dedupes nothing" do
+    before { store_without_dispatch_claims }
+
     # Surfaced: state restored and the stall is on record.
     it "surfaces the stall loudly", :aggregate_failures do
       reopened = reopened_after_crash
@@ -202,11 +210,46 @@ RSpec.describe "saga durability across a process death mid-leg" do
     end
 
     it "redelivers a started dispatch whose command is declared idempotent", :aggregate_failures do
+      store_without_dispatch_claims
       declare_take_idempotent
       crash_then_reboot
 
       expect(Wire::Drawer.find("left").cents.to_h).to eq(cents: 7_500)
       expect(Wire::Drawer.find("right").cents.to_h).to eq(cents: 2_500)
+    end
+  end
+
+  describe "redriving through the store's dispatch claims" do
+    # The crash comes after `Take` committed but before the saga recorded it as settled: the
+    # ambiguous case, with the money already out of the drawer.
+    def die_after_take_committed
+      fund_left_drawer
+      allow(runtime).to receive(:reenter).and_wrap_original do |original, *args, **kwargs|
+        original.call(*args, **kwargs).tap { raise SimulatedCrash, "died after the commit" if args.first.include?("Take") }
+      end
+      ask_and_die
+    end
+
+    def expect_transfer_applied_once
+      expect(Wire::Drawer.find("left").cents.to_h).to eq(cents: 7_500)
+      expect(Wire::Drawer.find("right").cents.to_h).to eq(cents: 2_500)
+    end
+
+    # `Take` is not declared idempotent and decrements: only the store's claim can make it safe.
+    it "applies a dispatch that never ran, once" do
+      fund_left_drawer
+      crash_on_take
+      ask_and_die
+      boot_wire
+
+      expect_transfer_applied_once
+    end
+
+    it "does not apply a dispatch that had already committed a second time" do
+      die_after_take_committed
+      boot_wire
+
+      expect_transfer_applied_once
     end
   end
 end

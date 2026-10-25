@@ -8,6 +8,7 @@ require_relative "sqlite/dialect"
 require_relative "sqlite/events"
 require_relative "sqlite/journal"
 require_relative "sqlite/outbox"
+require_relative "sqlite/dispatch_claims"
 require_relative "sqlite/repository"
 require_relative "sqlite/sagas"
 require_relative "sqlite/set_dialect"
@@ -32,6 +33,7 @@ module Hecks
       include Journal
       include Events
       include Outbox
+      include DispatchClaims
       include Sagas
       include Dialect
       include SetTransform
@@ -45,8 +47,11 @@ module Hecks
       # `:rollback`: a raise inside `transaction` undoes every write the block made, joined ones
       # included, which an all_or_nothing bulk run needs (ADR 0125).
       #
-      # @return [Array<Symbol>] `[:atomic_put, :rollback]`
-      def persistence_capabilities = %i[atomic_put rollback]
+      # `:dispatch_claims`: `dispatch_claim` joins the save's transaction, so a claim and the
+      # write it guards commit or roll back together.
+      #
+      # @return [Array<Symbol>] `[:atomic_put, :rollback, :dispatch_claims]`
+      def persistence_capabilities = %i[atomic_put rollback dispatch_claims]
 
       # Opens (creating if absent) the database file and its aggregate, journal, event, saga
       # and outbox tables.
@@ -109,6 +114,7 @@ module Hecks
         create_event_table!
         create_saga_table!
         create_outbox_table!
+        create_dispatch_claims_table!
         create_checkpoint_table!
       end
 

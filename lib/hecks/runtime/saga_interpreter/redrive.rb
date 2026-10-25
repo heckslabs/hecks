@@ -86,10 +86,12 @@ module Hecks
           leg
         end
 
-        # The marker says the next dispatch was started, so it may have run. An idempotent command
-        # is delivered again; for any other the leg stays stalled and is reported.
+        # The marker says the next dispatch was started, so it may have run. It is delivered again
+        # when its store dedupes by dispatch key (the key is the one the first delivery used, so a
+        # second application is skipped) or its command is idempotent; otherwise the leg stays
+        # stalled and is reported.
         def withhold_ambiguous(leg, stalled, remaining)
-          return remaining if remaining.empty? || command_idempotent?(leg.domain, remaining.first.command_name)
+          return remaining if remaining.empty? || redeliverable?(leg.domain, remaining.first.command_name)
 
           report_ambiguous(leg, stalled, remaining.first)
           []
@@ -97,8 +99,8 @@ module Hecks
 
         def report_ambiguous(leg, stalled, spec)
           warn "[hecks] #{leg.domain} #{stalled.label} stalled before #{spec.command_name} settled: it may " \
-               "already have run and is not declared idempotent, so it was not redelivered; reconcile this " \
-               "instance by hand."
+               "already have run, its store does not dedupe dispatches and it is not declared idempotent, so it " \
+               "was not redelivered; reconcile this instance by hand."
           @registry.saga_log << stalled.stall_row.merge(ambiguous: spec.command_name, pending: stalled.marker)
           checkpoint_leg(leg, pending: leg.pending_marker.merge(attempting: true))
         end
@@ -115,12 +117,21 @@ module Hecks
           clear_pending_marker(leg)
         end
 
-        # Whether the command is declared safe to deliver twice. `command_name` is the dispatch's
-        # `Aggregate.Command`; a command owned by an entity is not found, so it counts as not idempotent.
-        def command_idempotent?(domain, command_name)
+        # Whether a second delivery of the dispatch is safe: its store dedupes by dispatch key, or its
+        # command says it is idempotent. `command_name` is the dispatch's `Aggregate.Command`; a
+        # command owned by an entity is not found, so it counts as neither.
+        def redeliverable?(domain, command_name)
           aggregate_name, name = command_name.to_s.split(".", 2)
           aggregate = @registry.bluebook(domain).aggregates.find { |declared| declared.hecks_name == aggregate_name }
-          command   = aggregate&.commands&.find { |declared| declared.hecks_name == name }
+          return false unless aggregate
+
+          deduped_by_store?(domain, aggregate) || command_idempotent?(aggregate, name)
+        end
+
+        def deduped_by_store?(domain, aggregate) = DispatchClaim.supported?(@registry.repository(domain, aggregate))
+
+        def command_idempotent?(aggregate, name)
+          command = aggregate.commands.find { |declared| declared.hecks_name == name }
           command ? command.idempotent? : false
         end
       end

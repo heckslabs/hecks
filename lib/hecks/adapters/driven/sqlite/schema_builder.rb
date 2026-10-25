@@ -61,6 +61,10 @@ module Hecks
           @db.execute("CREATE INDEX IF NOT EXISTS idx_hecks_outbox_status ON hecks_outbox(aggregate, status)")
         end
 
+        def create_dispatch_claims_table!
+          @db.execute(Ddl::DISPATCH_CLAIMS)
+        end
+
         # One row per aggregate table, naming the highest entry `sequence` this table has
         # already had projected into it — shared across every aggregate in the database file,
         # since it is keyed by table name rather than declared per aggregate.

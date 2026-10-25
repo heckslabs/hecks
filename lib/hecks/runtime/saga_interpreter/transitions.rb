@@ -74,9 +74,17 @@ module Hecks
           specs.each_with_index do |spec, offset|
             index = from + offset
             record_progress(leg, settled: index, attempting: true)
-            deliver_saga_dispatch(leg.process_manager, spec, leg.event, leg.instance, leg.correlation, leg.domain)
+            deliver_saga_dispatch(leg.process_manager, spec, leg.event, leg.instance, leg.correlation, leg.domain,
+                                  dispatch_key: dispatch_key_for(leg, index))
             record_progress(leg, settled: index + 1, attempting: false)
           end
+        end
+
+        # The identity of this leg's `index`th dispatch. Built from the moving event the pending
+        # marker carries, so a redrive after a crash computes the same key the first delivery did.
+        def dispatch_key_for(leg, index)
+          DispatchClaim.key(process_manager: leg.saga_name, correlation: leg.correlation,
+                            trigger: leg.record[:on], event: leg.event, index: index)
         end
 
         # Same `.equal?` guard as `clear_pending_marker`: a nested reaction may have ended this

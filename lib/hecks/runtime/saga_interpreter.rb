@@ -64,6 +64,9 @@ module Hecks
           instance[:state] = leg_handler.to_state
         end
 
+        # The identity the leg stamps on the dispatch it is delivering, set by `deliver_saga_dispatch`.
+        attr_accessor :dispatch_key
+
         # How far the leg's dispatches got: how many have settled, and whether the next one has
         # been started, so a crash can tell a dispatch that never began from one that may have run.
         #
