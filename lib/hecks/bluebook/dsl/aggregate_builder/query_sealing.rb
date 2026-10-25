@@ -34,7 +34,7 @@ module Hecks
 
           # A cursor keys on a record's identity; an entity's rows are elements of its owner's list.
           def refuse_entity_cursor!(scope)
-            return unless scope.query.cursor && scope.owner.to_s.include?("::")
+            return unless scope.cursor? && scope.entity?
 
             raise Malformed, "#{scope.label} declares cursor, but an entity query pages its owner's list " \
                              "elements, which have no identity of their own to key a page on — use limit/offset"

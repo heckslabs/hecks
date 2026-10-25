@@ -37,7 +37,6 @@ module ManifestGapFamilies
 
   def query_shape_gaps
     [
-      query("GapCursor", [active], cursor: { field: "reference" }),
       query("GapIndexHints", [active], index_hints: ["status"]),
       query("GapNoWheres", [], attributes: [attribute("name", "String")])
     ]

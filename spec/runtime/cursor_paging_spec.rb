@@ -82,13 +82,13 @@ RSpec.describe "a cursor query" do
   describe "on Memory" do
     let(:adapter) { :memory }
 
-    include_examples "pages by cursor"
+    it_behaves_like "pages by cursor"
   end
 
   describe "on SQLite" do
     let(:adapter) { :sqlite }
 
-    include_examples "pages by cursor"
+    it_behaves_like "pages by cursor"
   end
 
   it "refuses a query without a cursor asked for a page" do

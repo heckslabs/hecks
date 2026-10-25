@@ -248,15 +248,19 @@ RSpec.describe "adapter agreement — declared queries answer identically across
       limit 2
       cursor :"rating.value"
     end
-    declare_descending_cursor_queries(builder)
+    declare_descending_cursor_query(builder)
+    declare_filtered_cursor_queries(builder)
   end
 
-  def declare_descending_cursor_queries(builder)
+  def declare_descending_cursor_query(builder)
     builder.query("PagedByRatingDesc") do
       order_by :"rating.value", :desc
       limit 2
       cursor :"rating.value"
     end
+  end
+
+  def declare_filtered_cursor_queries(builder)
     builder.query("PagedByNameLast") do
       where(status: { ne: "none" })
       order_by :name
