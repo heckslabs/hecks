@@ -67,15 +67,23 @@ RSpec.describe Hecks::Adapters::GitTrain, :io do
     git("config", "core.hooksPath", hooks)
   end
 
-  it "hands the pre-push hook the whole gate only when the boarding asks for it", :aggregate_failures do
-    record_gate_variable
-    commit("second")
-    described_class.new.carry(checkout: { value: work })
-    expect(File.read(File.join(scratch, "gate"))).to eq("")
+  # What the recording hook saw after a boarding of one new commit.
+  def gate_variable_after(commit_name, **args)
+    commit(commit_name)
+    described_class.new.carry(checkout: { value: work }, **args)
+    File.read(File.join(scratch, "gate"))
+  end
 
-    commit("third")
-    described_class.new.carry(checkout: { value: work }, full_gate: { value: true })
-    expect(File.read(File.join(scratch, "gate"))).to eq("1")
+  it "leaves the pre-push hook its default gate when the boarding does not ask" do
+    record_gate_variable
+
+    expect(gate_variable_after("second")).to eq("")
+  end
+
+  it "hands the pre-push hook the whole gate when the boarding asks for it" do
+    record_gate_variable
+
+    expect(gate_variable_after("third", full_gate: { value: true })).to eq("1")
   end
 
   it "pushes the local branch and says how many commits went out", :aggregate_failures do

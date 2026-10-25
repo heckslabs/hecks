@@ -101,8 +101,8 @@ module Hecks
 
       # Dispatches a verb whose receiver and facts arrive together in one flat Hash.
       #
-      # The wire form: Symbol keys `:to`, `:with`, `:saga_correlation` and `:dispatch_key` are lifted out as
-      # the keywords of `dispatch`; every other key, including a String "to", is a fact.
+      # The wire form: Symbol keys `:to`, `:with`, `:saga_correlation` and `:dispatch_key` are
+      # lifted out as the keywords of `dispatch`; every other key, even a String "to", is a fact.
       #
       # @param verb [String] the fully qualified verb, in any shape `dispatch` accepts
       # @param args [Hash] the facts plus the optional Symbol keys above; not mutated
@@ -157,15 +157,13 @@ module Hecks
       # Dispatches a reaction's command one level deeper in the cascade, as the system.
       #
       # The ambient caller is cleared (Runtime::Caller.without) so the triggering caller's role
-      # neither satisfies nor blocks the reaction. Depth lives in `Thread.current`, not an ivar
-      # or Mutex: the dispatcher is shared across threads and cascades re-enter on one thread.
-      # The depth limit is checked by the reacting interpreter, not here.
+      # neither satisfies nor blocks the reaction. Depth lives in `Thread.current`, not an ivar or
+      # Mutex: the dispatcher is shared across threads. The reacting interpreter checks the limit.
       #
       # @param verb [String] the fully qualified verb of the reaction's target command
       # @param saga_correlation [Hash{String => Object}, nil] set when a saga leg dispatches
-      # @param dispatch_key [String, nil] the saga dispatch's identity (`DispatchClaim.key`); a
-      #   repository that dedupes by it applies the command once however often it is delivered
-      # @param args [Hash{Symbol => Object}] flat facts, read as `dispatch_flat` reads them
+      # @param dispatch_key [String, nil] the saga dispatch's identity (`DispatchClaim.key`)
+      # @param args [Hash{Symbol => Object}] flat facts, as `dispatch_flat` reads them
       # @return [Runtime::Dispatcher::Result] the nested dispatch's result
       # @raise [StandardError] any `Runtime::DOMAIN_REFUSALS` class; interpreters rescue these
       def reenter(verb, saga_correlation: nil, dispatch_key: nil, **args)

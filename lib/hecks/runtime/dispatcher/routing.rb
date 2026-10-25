@@ -87,8 +87,8 @@ module Hecks
           @commands.call(domain, aggregate, command, invocation, dry_run: true)
         end
 
-        # The call for a verb whose receiver and facts arrive together in one flat Hash: Symbol keys
-        # `:to`, `:with`, `:saga_correlation` and `:dispatch_key` are lifted out, every other key is a fact.
+        # The call for a verb whose receiver and facts arrive in one flat Hash: Symbol keys
+        # `:to`, `:with`, `:saga_correlation`, `:dispatch_key` are lifted out; the rest are facts.
         def flat_call(verb, args)
           facts = args.dup
           Call.new(verb: verb, to: facts.delete(:to), with: facts.delete(:with),

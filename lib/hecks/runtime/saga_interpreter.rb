@@ -64,7 +64,7 @@ module Hecks
           instance[:state] = leg_handler.to_state
         end
 
-        # The identity the leg stamps on the dispatch it is delivering, set by `deliver_saga_dispatch`.
+        # The identity the leg stamps on the dispatch it is delivering.
         attr_accessor :dispatch_key
 
         # How far the leg's dispatches got: how many have settled, and whether the next one has
@@ -74,9 +74,9 @@ module Hecks
         def progress = (@progress ||= { settled: 0, attempting: false })
 
         # What a crash between the checkpoint and the dispatches leaves behind, to be redriven on
-        # the next boot. Carries the moving event, so the dispatches' arguments can be resolved again.
+        # the next boot. Carries the moving event, so the arguments can be resolved again.
         #
-        # @return [Hash{Symbol => Object}] the event, the states moved between, the commands, and progress
+        # @return [Hash{Symbol => Object}] the event, the states, the commands and progress
         def pending_marker
           { on: event.name, from: pre_state, to: instance[:state], dispatches: handler.dispatches.map(&:command_name),
             event: Outbox.serialize_event(event) }.merge(progress)

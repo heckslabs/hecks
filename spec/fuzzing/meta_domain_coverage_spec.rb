@@ -51,6 +51,13 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
                                            "lease_clock_expired_now_from_the_clock conformance fixture holds both engines " \
                                            "to it. A property would draw a query step that omits a needed fact and compare " \
                                            "its rows with one naming the clock's reading",
+    "Command#idempotent"                => "the saga redrive delivers a dispatch whose outcome a crash left unknown " \
+                                           "again when its command says idempotent or its store dedupes by " \
+                                           "dispatch key; spec/runtime/saga_crash_recovery_spec.rb holds both " \
+                                           "paths against a real SQLite store. A property would deliver each " \
+                                           "fuzzed idempotent command twice with the same arguments and compare " \
+                                           "the record's state after the first delivery with the state after the " \
+                                           "second",
     "Aggregate#projected_fields"        => "the local half of a cross-aggregate read (S12, ADR 0025) is read by " \
                                            "GuardState the same way an attribute is (ProjectionAbsent vs. " \
                                            "AttributeAbsent), but nothing populates it inside a normal command dispatch " \
