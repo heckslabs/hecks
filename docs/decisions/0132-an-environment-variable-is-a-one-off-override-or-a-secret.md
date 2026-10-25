@@ -59,8 +59,8 @@ is a flag on the era command.
   each to its child process, so only the hand-off remains.
 - `SEEDS`, `STEPS`: `build.fuzz_conformance` already takes `seeds` and `steps`; the
   variable fallback is removed.
-- `HECKS_WASM_PROFILE`: a `profile` argument on `build.build_wasm`.
-- `HECKS_PREBUILT=off`: an argument on the host build.
+- `HECKS_WASM_PROFILE`: the `profile` argument of `build.build_wasm!` (built on this branch).
+- `HECKS_PREBUILT=off`: the `prebuilt` argument of `build.build_host!` (built on this branch).
 - `HECKS_ENVIRONMENT`: the world declares the default per command, as `MEMORY_COMMANDS`
   and `hecks.world` already do for the launcher; `run_spec_example!` needs the argument.
 - `HECKS_CLOUDFRONT_TEST`: a tag filter on the spec-run command.
@@ -105,7 +105,7 @@ for it.
    switches warn; `test_suite_run.clear_caches!` empties the syntax-boot, verdict and usage
    caches.
 2. Derived variables: no schema change.
-3. Arguments: `profile`, `strict`, spec seeds, `environment`, the host build, `board!`.
+3. Arguments: `profile` and `prebuilt` are built. Still to build: `strict`, spec seeds, `environment`, `board!`.
 4. World-declared variables: `environments/*.world` becomes the one place a copy says
    what it connects to.
 5. Declared settings: needs a decision on where in the hecksagon they are written.
