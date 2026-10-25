@@ -9,6 +9,8 @@ README's own generated regions (guides index, reference pointer, corpus
 roster, tool table). This file is kept as the design record — the plan below
 is what was actually built, not a forward-looking proposal anymore.
 
+**Historical:** the `bin/` scripts this plan names (`bin/reference`, `bin/readme`, `bin/model_check`, `bin/fuzz`, `bin/console` and the rest) are gone; `docs/tools.md` maps each to its `hecks` verb (the reference generator is now `hecks language_run.project_reference`). "Twelve guides" was the count when this landed.
+
 ## Context
 
 hecks has excellent *maintainer* documentation (narrated code comments) and

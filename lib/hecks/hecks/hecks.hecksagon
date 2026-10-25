@@ -106,6 +106,14 @@ Hecks.hecksagon "Hecks" do
     answers_query "Unlanded"
   end
 
+  Hecks::PushTrain.port "Launcher" do
+    asks "Refresh", to: PushTrain do
+      attribute :run, RunKey
+      answers "LauncherRefreshed"
+      refuses "LauncherRefreshRefused"
+    end
+  end
+
   Hecks::Era.port "JournalStore" do
     asks "Examine", to: Era do
       attribute :run, RunKey

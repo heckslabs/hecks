@@ -20,11 +20,18 @@ RSpec.describe "Hecks::Corpus, Rust-facing" do
     expect(features.tally.select { |_, count| count > 1 }.keys).to be_empty
   end
 
+  # Every bucket a generated module can land in: a domain's feature, a framework or vendored
+  # chapter, a sibling chapter, an attached gem chapter, or a route elsewhere.
+  def buckets
+    features + side_chapter_modules + corpus.rust_sibling_chapters + corpus.rust_attached_chapters +
+      corpus::RUST_ELSEWHERE.keys
+  end
+
+  def side_chapter_modules
+    (corpus.rust_framework_chapters + corpus.rust_vendored_chapters).map { |stem| corpus.rust_side_module_name(stem) }
+  end
+
   it "sends every generated module to exactly one bucket", :aggregate_failures do
-    # The Bulk chapter is attached the way a framework chapter is, so it writes a side module too.
-    attached = corpus.rust_framework_chapters + corpus.rust_vendored_chapters + corpus.rust_side_chapters(:bulk)
-    side_chapter_modules = attached.map { |stem| corpus.rust_side_module_name(stem) }
-    buckets = features + side_chapter_modules + corpus.rust_sibling_chapters + corpus::RUST_ELSEWHERE.keys
     expect(buckets.tally.select { |_, count| count > 1 }.keys).to be_empty
     expect(corpus.generated_modules.sort).to eq(buckets.sort)
   end

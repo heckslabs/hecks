@@ -1,5 +1,7 @@
 # A separate crate carries the wasm-bindgen browser projection
 
+**Historical:** the `rust/project/*.rb` generator and the `bin/project_*` scripts named below are gone; `docs/tools.md` maps each retired script to its `hecks` verb, and Rust generation now lives in `rust/codegen` (ADR 0086).
+
 **Status:** Accepted — implemented. `rust/src/lib.rs`, `rust/web/`, `bin/project_wasm_browser`, branch `feat/rust-projection`. Builds the layer [0012](0012-wasm-via-wasi-stdio.md) explicitly deferred: "a plausible FUTURE layer on top of this same WASI-stdio contract... not what this decision builds."
 
 ## Context

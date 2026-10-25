@@ -1,6 +1,8 @@
 # Unknown/absent-argument checking joins the JSON boundary
 
-**Status:** Accepted — implemented. `rust/src/kernel/json.rs`, `rust/project/json_codec.rb`, branch `feat/rust-projection`. Closes one of the two gaps [0013](0013-rust-generates-entities-policies-sagas.md) flagged as still-open; the other (empty-list-vs-nil) turned out to be the SAME root cause as a new gap this pass found, not independently fixable — see below.
+**Historical:** the `rust/project/*.rb` generator and the `bin/project_*` scripts named below are gone; `docs/tools.md` maps each retired script to its `hecks` verb, and Rust generation now lives in `rust/codegen` (ADR 0086).
+
+**Status:** Accepted — implemented. Historical: `rust/project/` is gone; generation lives in `rust/codegen` (ADR 0086). `rust/src/kernel/json.rs`, `rust/project/json_codec.rb`, branch `feat/rust-projection`. Closes one of the two gaps [0013](0013-rust-generates-entities-policies-sagas.md) flagged as still-open; the other (empty-list-vs-nil) turned out to be the SAME root cause as a new gap this pass found, not independently fixable — see below.
 
 ## Context
 

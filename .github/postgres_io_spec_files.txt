@@ -5,6 +5,7 @@ spec/adapters/driven/host_http_spec.rb
 spec/adapters/driven/journal_store_spec.rb
 spec/adapters/driven/postgres_atomic_put_spec.rb
 spec/adapters/driven/postgres_concurrent_dispatch_spec.rb
+spec/adapters/driven/postgres_dump_spec.rb
 spec/adapters/driven/postgres_era/derive_equivalence_spec.rb
 spec/adapters/driven/postgres_era/directory_rekey_spec.rb
 spec/adapters/driven/postgres_era/domain_rename_spec.rb
@@ -18,6 +19,7 @@ spec/adapters/driven/postgres_era_spec.rb
 spec/adapters/driven/postgres_spec.rb
 spec/adapters/driven/process_pool_spec.rb
 spec/adapters/driven/rust_toolchain_spec.rb
+spec/adapters/postgres_projection_read_model_spec.rb
 spec/adapters/query_agreement_spec.rb
 spec/adapters/query_hop_agreement_spec.rb
 spec/adapters/sibling_value_object_query_spec.rb
@@ -52,7 +54,6 @@ spec/load_hygiene_lib_3_spec.rb
 spec/load_hygiene_spec.rb
 spec/ports/persistence_contract_spec.rb
 spec/ports/persistence_legacy_decode_spec.rb
-spec/ports/postgres_dump_spec.rb
 spec/project_deploy_box_hosting_run_spec.rb
 spec/project_deploy_box_spec.rb
 spec/project_deploy_bug_fixes_spec.rb

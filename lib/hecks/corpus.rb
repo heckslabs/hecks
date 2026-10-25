@@ -42,7 +42,7 @@ module Hecks
       tenancy:   "lib/hecks/tenancy/bluebook/*.bluebook",
       bulk:      "lib/hecks/bulk/bluebook/*.bluebook",
       sme:       "lib/hecks/sme/bluebook/*.bluebook",
-      fixture:   "spec/fixtures/**/*.bluebook"
+      fixture:  "spec/fixtures/**/*.bluebook"
     }.freeze
 
     KINDS = (DIRECTORY_KINDS.keys + FILE_KINDS.keys).freeze

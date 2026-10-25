@@ -899,11 +899,25 @@ fn port_operation_json(op: &ir::PortOperation) -> JsonValue {
         ),
         ("emits".to_string(), JsonValue::strings(&op.emits)),
     ];
+    // An `asks` names its direction and both endings, as `PortOperation#to_h` merges them.
+    if op.outbound {
+        fields.push((
+            "direction".to_string(),
+            JsonValue::str("outbound".to_string()),
+        ));
+        fields.push(("answers".to_string(), optional_str(op.answers.as_ref())));
+        fields.push(("refuses".to_string(), optional_str(op.refuses.as_ref())));
+    }
     // Merged in only when present, so domains that never declared one keep byte-identical IR.
     if let Some(to) = &op.to {
         fields.push(("to".to_string(), JsonValue::str(to.clone())));
     }
     JsonValue::Object(fields)
+}
+
+/// A string, or `null` when absent.
+fn optional_str(value: Option<&String>) -> JsonValue {
+    value.map_or(JsonValue::Null, |text| JsonValue::String(text.clone()))
 }
 
 /// `JSON.generate`'s native encoding of a captured Ruby value, never `Literal.render`ed;

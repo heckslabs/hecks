@@ -37,7 +37,7 @@ RSpec.describe "hecks-build (rust/build) pipeline parity", :io do
   # [domain, dirs its run touches]: the target, `meta`, and any framework chapter it attaches.
   HB_PARITY_DOMAINS = {
     "examples/pizzas"                    => %w[pizzas meta],
-    "examples/banking"                   => %w[banking governance identity meta],
+    "examples/banking"                   => %w[banking governance identity bulk meta],
     "examples/roster"                    => %w[roster meta],
     "examples/compliance"                => %w[compliance governance meta],
     "examples/embryonaut_vendoring_demo" => %w[embryonaut_vendoring_demo widgets meta]

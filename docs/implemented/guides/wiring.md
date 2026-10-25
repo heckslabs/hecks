@@ -276,8 +276,8 @@ to, which on a self-hosted machine is almost always a superuser; the
 [schema evolution guide](schema-evolution.md) has the whole story.
 
 A `.world` block can carry more than one adapter binding, plus a
-deployment target. `examples/banking/bluebook/banking.world`, quoted
-verbatim:
+deployment target. `examples/banking/bluebook/banking.world`, with its
+comments left out:
 
 ```ruby skip
 Hecks.world "Banking" do

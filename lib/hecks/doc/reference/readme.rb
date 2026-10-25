@@ -32,7 +32,7 @@ module Hecks
           lines.join("\n")
         end
 
-        # Links the reference index, with its context count.
+        # Links the reference index.
         def reference_index(_root)
           "[The DSL reference](docs/implemented/reference/index.md) — generated from " \
             "the aggregate-local tables under `lib/hecks/language/` and held to them by " \
@@ -44,7 +44,7 @@ module Hecks
         def diagram_showcase(root)
           lifecycle = File.read(File.join(root, "docs/generated/diagrams/pizzas/Order_lifecycle.mmd")).strip
           <<~MARKDOWN.strip
-            `hecks project_diagrams` reads a booted domain's own declaration and draws it as Mermaid — `<Name>_lifecycle.mmd`, `relationships.mmd`, `dispatch.mmd`, `roles.mmd`, `ports.mmd`, `read_models.mmd`, `<Name>_surface.mmd` (what a command does, and what it writes), `<Name>_saga.mmd`, and `frameworks.mmd`. Nothing hand-drawn — the same reason a domain is data at all. Order's own lifecycle, straight off the bluebook above:
+            `hecks project_diagrams` reads a booted domain's own declaration and draws it as Mermaid — these kinds so far: `<Name>_lifecycle.mmd`, `relationships.mmd`, `dispatch.mmd`, `roles.mmd`, `ports.mmd`, `read_models.mmd`, `<Name>_surface.mmd` (what a command does, and what it writes), `<Name>_saga.mmd`, and `frameworks.mmd`. Nothing hand-drawn — the same reason a domain is data at all. Order's own lifecycle, straight off the bluebook above:
 
             ```mermaid
             #{lifecycle}

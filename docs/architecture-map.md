@@ -18,9 +18,12 @@ lib/hecks/
   forms/                IR → HTML, content-negotiated against plain JSON.
   fuzzing/              generated sequences, checked against declared properties.
   doc/                  the generated DSL reference (hecks language_run.project_reference).
-  framework/            shared, domain-agnostic bluebooks — e.g. Governance, Identity, Privacy.
+  framework/            shared, domain-agnostic bluebooks.
   deploy/               the Deploy bluebook — what deployed_to means.
 ```
+
+Domain-version translation (eras and lineage) lives under `language/translation/`. This
+map names the main layers only; `ls lib/hecks` is the full list.
 
 The split follows the dependency direction, not the topic: the
 expression evaluator lives in the semantic core, not `projector/`,

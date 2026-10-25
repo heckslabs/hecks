@@ -141,7 +141,7 @@ from `main`:
 - `bin/parity` and the `bin/ir_*` Rust-generator scripts
 - The golden/export specs asserting Ruby-generator output equals checked-in
   Rust source
-- `docs/porting/` — the third-runtime porting kit, entirely predicated on
+- The `porting/` directory under `docs` (since deleted) — the third-runtime porting kit, entirely predicated on
   Rust existing as the reference implementation
 - `RESTART.md` — a restart-prompt scratch document about continuing the Rust
   work, retired the same way this project already retired `HANDOVER.md` once
