@@ -5,7 +5,8 @@
 // reason: these helpers are test scaffolding outside `#[test]` fns, which clippy.toml does not
 // cover; a failed unwrap here is the test failing.
 #![allow(clippy::unwrap_used, clippy::expect_used)]
-// reason: a `${1:goal}` snippet in an expected string is the editor's syntax, not a format argument.
+// reason: a `${1:goal}` snippet in an expected string is the editor's syntax, not a format
+// argument.
 #![allow(clippy::literal_string_with_formatting_args)]
 
 use std::fs;
@@ -215,6 +216,40 @@ fn the_rendered_ruby_form_reads_back_to_the_same_ir() {
         String::from_utf8_lossy(&first.stdout),
         String::from_utf8_lossy(&second.stdout)
     );
+}
+
+#[test]
+fn the_formatter_is_the_reverse_of_the_parser_and_settles_on_one_wording() {
+    let source = write("format.bluebook", GOOD);
+    let before = run_on("chapter", source.to_str().unwrap());
+    let formatted = run_on("format", source.to_str().unwrap());
+    assert!(formatted.status.success(), "{}", String::from_utf8_lossy(&formatted.stderr));
+
+    let again = write("format_again.bluebook", &String::from_utf8_lossy(&formatted.stdout));
+    let after = run_on("chapter", again.to_str().unwrap());
+    assert_eq!(
+        String::from_utf8_lossy(&before.stdout),
+        String::from_utf8_lossy(&after.stdout),
+        "formatting changed what the file says"
+    );
+    let twice = run_on("format", again.to_str().unwrap());
+    assert_eq!(
+        String::from_utf8_lossy(&formatted.stdout),
+        String::from_utf8_lossy(&twice.stdout),
+        "formatting is not stable"
+    );
+}
+
+#[test]
+fn a_rule_the_sentence_form_has_no_phrase_for_is_refused_by_name() {
+    let ruby = write(
+        "unsaid.bluebook",
+        "Hecks.bluebook \"Cms\" do\n  aggregate \"Page\" do\n    identified_by :slug\n    attribute :slug, Slug\n    value_object \"Slug\" do\n      attribute :value, String\n      invariant(\"short\") { value.length < 9 }\n    end\n  end\nend\n",
+    );
+    let output = run_on("format", ruby.to_str().unwrap());
+    let error = String::from_utf8_lossy(&output.stderr);
+    assert!(!output.status.success());
+    assert!(error.contains("no phrase for the rule `value.size < 9`"), "{error}");
 }
 
 #[test]

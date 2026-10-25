@@ -80,6 +80,14 @@ RSpec.describe "a chapter written as sentences", :io do
         expect(out).to eq(ruby_ir(ruby_file, chapter))
       end
 
+      it "is exactly what the formatter writes for the Ruby form" do
+        chapter = chapter_of(ruby_file)
+        out, err, status = parse("format", "--chapter", chapter, ruby_file)
+
+        expect(status).to be_success, err
+        expect(out).to eq(File.read(sentence_file))
+      end
+
       it "is read as the same chapter by the corpus" do
         expect(Hecks::Corpus.chapter_name_of(sentence_file)).to eq(chapter_of(ruby_file))
       end

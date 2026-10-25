@@ -7,6 +7,8 @@
 
 /// The sentences legal at a cursor, for editors.
 pub mod complete;
+/// A parsed chapter written back out as canonical sentences.
+pub mod format;
 mod lower;
 mod names;
 mod pattern;
