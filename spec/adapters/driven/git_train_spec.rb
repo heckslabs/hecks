@@ -57,6 +57,27 @@ RSpec.describe Hecks::Adapters::GitTrain, :io do
 
   after { FileUtils.remove_entry(scratch) }
 
+  # A pre-push hook that records the variable the repository's real hook reads to pick its stage.
+  def record_gate_variable
+    hooks = File.join(scratch, "hooks")
+    FileUtils.mkdir_p(hooks)
+    hook = File.join(hooks, "pre-push")
+    File.write(hook, "#!/bin/sh\nprintf '%s' \"${HECKS_PRE_PUSH_GATE:-}\" > #{File.join(scratch, "gate")}\n")
+    FileUtils.chmod("+x", hook)
+    git("config", "core.hooksPath", hooks)
+  end
+
+  it "hands the pre-push hook the whole gate only when the boarding asks for it", :aggregate_failures do
+    record_gate_variable
+    commit("second")
+    described_class.new.carry(checkout: { value: work })
+    expect(File.read(File.join(scratch, "gate"))).to eq("")
+
+    commit("third")
+    described_class.new.carry(checkout: { value: work }, full_gate: { value: true })
+    expect(File.read(File.join(scratch, "gate"))).to eq("1")
+  end
+
   it "pushes the local branch and says how many commits went out", :aggregate_failures do
     commit("second")
 

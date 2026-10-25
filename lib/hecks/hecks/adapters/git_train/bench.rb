@@ -23,11 +23,13 @@ module Hecks
         # @param checkout [String] the repository's top level
         # @param branch [String] the branch to push
         # @param remote [String] the remote to push it to
-        def initialize(git, checkout, branch:, remote:)
+        # @param hook_env [Hash{String => String}] variables the repository's pre-push hook reads
+        def initialize(git, checkout, branch:, remote:, hook_env: {})
           @git = git
           @checkout = checkout
           @branch = branch
           @remote = remote
+          @hook_env = hook_env
         end
 
         # Pushes the local branch, merged with the remote's when they have parted.
@@ -50,7 +52,7 @@ module Hecks
 
         def push_from(bench, local, tracking)
           merge(bench, tracking) unless ancestor?(tracking, local)
-          pushed = @git.capture("push", @remote, "HEAD:refs/heads/#{@branch}", chdir: bench)
+          pushed = @git.capture("push", @remote, "HEAD:refs/heads/#{@branch}", chdir: bench, env: @hook_env)
           return read("rev-parse", "HEAD", dir: bench) if pushed.ok?
           return :moved if pushed.err.match?(MOVED)
 

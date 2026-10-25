@@ -32,8 +32,9 @@ module Hecks
 
       # Waits for the push ahead in the same repository, then carries the boarded commit.
       #
-      # @param held [Hash] the `PushTrain` record: `branch`, `remote` and `checkout` (a directory
-      #   inside the repository; the current directory when none is named)
+      # @param held [Hash] the `PushTrain` record: `branch`, `remote`, `checkout` (a directory
+      #   inside the repository; the current directory when none is named) and `full_gate` (the
+      #   push runs the whole pre-push stage, which the hook reads from `HECKS_PRE_PUSH_GATE`)
       # @return [Hash{Symbol => Hash}] `outcome:` (`pushed` or `carried`), `checkout:`, `boarded:`,
       #   `pushed:` and `report:`
       # @raise [ConsoleCapture::Failure] when the checkout is not a repository, the branch and the
@@ -41,7 +42,8 @@ module Hecks
       def carry(**held)
         @checkout = toplevel(plain(held[:checkout]) || Dir.pwd)
         carriage = Carriage.new(@git, @checkout, branch: plain(held[:branch]) || "main",
-                                                 remote: plain(held[:remote]) || "origin")
+                                                 remote: plain(held[:remote]) || "origin",
+                                                 hook_env: hook_env(held))
         boarded = carriage.local_head
         in_turn { carriage.carry(boarded) }
       end
@@ -61,6 +63,10 @@ module Hecks
       end
 
       private
+
+      # A git hook takes no arguments, so the argument reaches the pre-push hook as the variable it
+      # reads, for this push only.
+      def hook_env(held) = plain(held[:full_gate]) == true ? { "HECKS_PRE_PUSH_GATE" => "1" } : {}
 
       def in_turn
         path = File.join(read("rev-parse", "--path-format=absolute", "--git-common-dir"), LOCK_FILE)
