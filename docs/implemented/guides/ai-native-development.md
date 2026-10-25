@@ -14,7 +14,7 @@ to ad hoc scripts.
 MCP server exposing one bus, the [storehouse](../../../README.md#storehouse),
 for *every* booted domain: `dispatch`
 (commands, with `dry_run` and batched steps), `query`, `state`,
-`history`, `catalog`, `describe`, `validate` (a deep model-check pass),
+`history`, `events`, `catalog`, `describe`, `validate` (a deep model-check pass),
 `domains` (auto-discovery, so a caller that doesn't already know a
 path can find one), `behaviors`, and `follow` (tails a domain's own
 audit log live). Every call carries a required `summary` and, for

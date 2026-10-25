@@ -10,6 +10,8 @@ require_relative "sqlite/journal"
 require_relative "sqlite/outbox"
 require_relative "sqlite/repository"
 require_relative "sqlite/sagas"
+require_relative "sqlite/set_dialect"
+require_relative "set_transform"
 require_relative "../../ports/persistence/append_only"
 require_relative "../../query_specification/common/null_policy"
 require_relative "../../query_specification/common/order_by"
@@ -32,6 +34,8 @@ module Hecks
       include Outbox
       include Sagas
       include Dialect
+      include SetTransform
+      include SetDialect
 
       SQL_TYPES = { "Integer" => "INTEGER", "Float" => "REAL" }.freeze
 

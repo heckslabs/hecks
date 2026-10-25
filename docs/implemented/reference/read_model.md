@@ -619,8 +619,8 @@ dashboard[:card_payments].map { |row| row[:amount][:cents] }  # => [200, 100]
 | `tenant:` | symbol | false | tenant |
 <!-- generated:end -->
 
-Declares a policy name (recorded, never checked — no caller-identity or
-grant system exists to check it against) and, when `tenant:` is given,
+Declares a policy name (recorded, not checked: nothing yet maps
+a query's policy onto the Governance grant check commands use) and, when `tenant:` is given,
 a mandatory tenant boundary that IS enforced: a caller must pass that
 field as an argument or the ask refuses with `Unauthorized`
 (`Runtime::TenantScope`), and every returned row is scoped to the
@@ -738,21 +738,21 @@ runtime.registry.bluebook("Banking").read_model("ComplianceDashboard").offset.va
 | positional 1 | symbol | true | value |
 <!-- generated:end -->
 
-Refused at build (`ReadModelBuilder#seal_cursor`, raises `Malformed`). No
-interpreter implements cursor pagination — declaring `cursor` here is
-always an error, not a silent no-op. Use `limit`/`offset` instead.
+Refused at build (`ReadModelBuilder#seal_cursor`, raises `Malformed`).
+`cursor` pages a `query` (ADR 0130); a read model's many-side head does
+not page by cursor yet, so declaring it here is an error, not a silent
+no-op. Use `limit`/`offset` instead.
 
-There is no working example to write, and that is the documentation —
-the word refuses where it is written:
+There is no working example to write — the word refuses where it is
+written:
 
 ```ruby
-Hecks::Bluebook::DSL::ReadModelBuilder.build("Paged") { include ReadModelReference::Parcel; cursor :label }  # ~> Malformed: no interpreter implements cursor pagination
+Hecks::Bluebook::DSL::ReadModelBuilder.build("Paged") { include ReadModelReference::Parcel; cursor :label }  # ~> Malformed: a read model does not page by cursor yet
 ```
 
-**Written exemption (ADR 0025 principle 4)** — same reasoning as
-`Query`'s own `cursor` section: a word that refuses unconditionally at
-build has no corpus use to give, and S15 removes it from the core
-grammar regardless.
+**Written exemption (ADR 0025 principle 4)** — the word has a corpus use
+in `Query` (Banking's `Account.OpenPaged`); on a read model it refuses at
+build until the many-side head pages, so there is no read-model use to give.
 
 ## nulls
 

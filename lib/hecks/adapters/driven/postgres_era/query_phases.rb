@@ -24,13 +24,19 @@ module Hecks
         # accelerate. Repeats the tail of `SqlQueryBuilder#query` so that module stays untouched.
         def head_phase(declared, uncached, ids, args)
           binds = []
-          clauses = ["id IN (#{ids.map { |id| placeholder(binds, id) }.join(", ")})"]
-          uncached.each { |clause, value| clauses << uncached_clause(clause, value, binds) }
+          clauses = head_clauses(declared, uncached, ids, args, binds)
 
           sql = "SELECT #{select_list} FROM #{from_relation} WHERE #{clauses.join(" AND ")}"
           sql += order_suffix(declared)
           sql += paging_suffix(declared, binds, args)
           execute_query(sql, binds)
+        end
+
+        # The candidate ids, the clauses the cache could not serve, then the cursor's keyset.
+        def head_clauses(declared, uncached, ids, args, binds)
+          clauses = ["id IN (#{ids.map { |id| placeholder(binds, id) }.join(", ")})"]
+          uncached.each { |clause, value| clauses << uncached_clause(clause, value, binds) }
+          clauses.push(*keyset_clause(declared, args, binds))
         end
 
         # A clause cache phase could not serve: a null comparison's own predicate, else the

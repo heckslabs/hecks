@@ -17,7 +17,7 @@ Both are provable against the real corpus, not a small domain invented
 to order. `examples/banking/bluebook/` already carries
 one of each shape this page teaches: a policy that reacts inside its
 own domain, one that reaches across into another, one that re-triggers
-itself on a bounded retry, and two sagas that coordinate a multi-step
+itself on a bounded retry, and sagas that coordinate a multi-step
 change — one that undoes what it started when the second step refuses,
 and one that has nothing to undo because nothing was ever created in
 the first place.
@@ -506,7 +506,7 @@ with nothing killed in between — `Account.Credit` declines, and
 process that dies partway through is a different case, and there are
 two windows. **Between the triggering command's commit and its
 reactions:** the transactional outbox (`Runtime::Outbox`, ADR 0053)
-closes this one. On Sqlite/Postgres/PostgresEra, the command's save,
+closes this one. On the durable adapters (Sqlite, Postgres, PostgresEra; Memory keeps the same rows in-process, so they do not survive a crash), the command's save,
 its event, and one `pending` row per consumer — every policy that
 would fire, every process manager that would begin, advance or end on
 the event — commit in ONE transaction; the dispatcher then claims and
@@ -661,13 +661,14 @@ it; it puts back what it can and moves on.
 
 Every policy and every process manager here is data, the same data the
 runtime dispatches against, which means the checker `verification.md`
-covers in depth can walk it with nothing booted. Four of its finding
-kinds are specific to this page's own vocabulary: `deaf_trigger` (a
+covers in depth can walk it with nothing booted. Several of its finding
+kinds are specific to this page's own vocabulary, among them: `deaf_trigger` (a
 saga's `starts_on`/`ends_on` names an event nothing emits),
 `unreachable_pm_state` (a declared saga state no handler chain ever
 reaches), `dead_compensation` (a compensation's own `from_state` no
 handler chain ever reaches), and `deaf_policy` / `unknown_trigger` (a
-policy's `on` or `trigger` naming something that isn't there). Run it
+policy's `on` or `trigger` naming something that isn't there). The full set lives in
+`lib/hecks/bluebook/model_check/saga_checks.rb` and `policy_checks.rb`. Run it
 against the same domain this page just walked:
 
 ```ruby

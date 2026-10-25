@@ -1,5 +1,6 @@
 require_relative "../../runtime/registry"
 require_relative "execution"
+require_relative "set_transforming"
 
 module Hecks
   module Ports
@@ -26,6 +27,8 @@ module Hecks
       # Makes append-before-projection a port invariant: adapters keep their own durable
       # format, but must accept the same entry stream and materialize state from it.
       class AppendOnly
+        include SetTransforming
+
         attr_reader :adapter
 
         # Names the aggregate this repository stores, as the wrapped adapter holds it.

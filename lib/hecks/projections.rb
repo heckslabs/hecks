@@ -9,6 +9,7 @@ end
 
 require_relative "projections/ir"
 require_relative "projections/shape"
+require_relative "projections/command_schema"
 require_relative "projections/oidc"
 require_relative "projections/vocabulary"
 require_relative "projections/parser_table"
@@ -31,3 +32,4 @@ require_relative "projections/deploy/vercel"
 require_relative "projections/deploy/smoke"
 require_relative "projections/deploy/template_diff"
 require_relative "projections/site/routes_ts"
+require_relative "projections/rails_app"

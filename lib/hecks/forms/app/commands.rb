@@ -3,6 +3,7 @@ require_relative "../command_form_renderer"
 require_relative "../params"
 require_relative "../../adapters/driving/command_request"
 require_relative "../../adapters/driving/json"
+require_relative "../../projections/command_schema"
 
 module Hecks
   module Forms
@@ -11,6 +12,9 @@ module Hecks
       # same
       # dispatch.
       module Commands
+        # The values of `dry_run=` / `X-Dry-Run:` that ask for a validation instead of a dispatch.
+        DRY_RUN_FLAGS = %w[1 true].freeze
+
         private
 
         def command_route(request, domain, aggregate, command, format)
@@ -45,12 +49,40 @@ module Hecks
         end
 
         def command_json(request, domain, aggregate, command)
-          return json(200, command.to_h) if request.get? && request.GET.except("format").empty?
+          return command_read_json(request, domain, aggregate, command) if request.get?
           return respond(405, "text/plain", "GET or POST only") unless request.post?
+          return validated_json(request, domain, aggregate, command) if dry_run_requested?(request)
 
           created_json(request, domain, aggregate, command)
         rescue *Runtime::DOMAIN_REFUSALS, ArgumentError, TypeError, JSON::ParserError => e
           refusal_json(e, refusal_status(e))
+        end
+
+        # A GET of a command's JSON route: its descriptor, or with `?schema=1` its JSON Schema.
+        def command_read_json(request, domain, aggregate, command)
+          return command_schema(domain, aggregate, command) if request.GET["schema"] == "1"
+          return json(200, command.to_h) if request.GET.except("format").empty?
+
+          respond(405, "text/plain", "GET or POST only")
+        end
+
+        # The JSON Schema of the facts the command takes (`?schema=1`), with the rules a schema
+        # cannot hold as `x-` annotations.
+        def command_schema(domain, aggregate, command)
+          path = "#{aggregate.hecks_name}/#{command.hecks_name}"
+          json(200, Projections::CommandSchema.document(@registry.bluebook(domain), aggregate, path, command))
+        end
+
+        # Whether the request asks to be validated, not carried out: `?dry_run=1` or `X-Dry-Run: 1`.
+        def dry_run_requested?(request)
+          DRY_RUN_FLAGS.include?(request.GET["dry_run"].to_s) || DRY_RUN_FLAGS.include?(request.get_header("HTTP_X_DRY_RUN").to_s)
+        end
+
+        # The same body, caller and route as the real command, answered as every reason it would be
+        # refused. A completed validation is a 200 whether or not it refused.
+        def validated_json(request, domain, aggregate, command)
+          _, envelope = submitted_command(request, aggregate, command)
+          json(200, @dispatcher.validate(verb_name(domain, aggregate, command), envelope).to_h)
         end
 
         def created_json(request, domain, aggregate, command)

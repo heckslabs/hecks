@@ -69,6 +69,18 @@ Hecks.behaviors "Custodian" do
     expect emits: %w[BoardingRequested TrainRefused PushFaulted]
   end
 
+  test "Land keeps a checkout that is not there as a refused landing" do
+    tests "Land", on: "Landing"
+    input run: { value: "evening" }, checkout: { value: "/tmp/hecks-behaviors-absent/checkout" }
+    expect emits: %w[LandingRequested MergeRefused LandingRefused]
+  end
+
+  test "Retire keeps a checkout that is not there as a declined retirement" do
+    tests "Retire", on: "Landing"
+    input run: { value: "evening" }, checkout: { value: "/tmp/hecks-behaviors-absent/checkout" }
+    expect emits: %w[RetirementRequested RemovalRefused RetirementDeclined]
+  end
+
   test "Vendor keeps a source that is not there as a refused pinning" do
     tests "Vendor", on: "Package"
     input package: { value: "payments@1.2.0" }, from: { value: "/tmp/hecks-behaviors-absent/registry" }
@@ -79,6 +91,12 @@ Hecks.behaviors "Custodian" do
     tests "ProjectCli", on: "Launch"
     input run: { value: "launchers" }, domains: { value: "no/such/domain" }
     expect emits: %w[LaunchersRequested LaunchRefused LaunchStopped]
+  end
+
+  test "ProjectRails keeps an app with no bluebook/ as a stopped launch, and writes nothing" do
+    tests "ProjectRails", on: "Launch"
+    input run: { value: "rails" }, dir: { value: "/tmp/hecks-behaviors-absent/rails-app" }
+    expect emits: %w[RailsRequested LaunchRefused LaunchStopped]
   end
 
   test "ServeMcp refuses a launch that is not named" do

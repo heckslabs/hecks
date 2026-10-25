@@ -59,11 +59,19 @@ module DocReferences
 
   # The words a document types after `hecks`, as the launcher would be given them, or nil.
   def verb_argv(code)
-    program, first, second = (code.split(/\s+/) + [nil, nil]).first(3).map { |word| word.to_s.delete_suffix("!") }
-    return unless program == "hecks" && first.match?(WORD)
+    program, first, *rest = code.split(/\s+/).map { |word| word.delete_suffix("!") }
+    return unless program == "hecks" && first.to_s.match?(WORD)
     return [first] unless CHAPTER_LAUNCHERS.include?(first)
 
-    second.match?(WORD) ? [first, second] : [first]
+    second = chapter_verb(first, rest)
+    second.to_s.match?(WORD) ? [first, second] : [first]
+  end
+
+  # The verb after a launcher. A chapter's own `query` or `ask` is passed over, as the chapter's
+  # launcher passes it: `hecks quality_control query sweep.create_ledger_role`.
+  def chapter_verb(launcher, rest)
+    asking = %w[query ask]
+    asking.include?(rest.first) && !asking.include?(launcher) ? rest[1] : rest.first
   end
 
   # Every verb and query a launcher lists with `--all`, as `aggregate.name`.
@@ -96,8 +104,13 @@ module DocReferences
   def resolves?(argv)
     launcher = argv.size == 2 && !%w[query ask].include?(argv.first) ? [argv.first] : []
     known_verbs.fetch(launcher, []).include?(argv.last) ||
-      (argv.first == "query" && known_verbs[[]].include?(argv.last))
+      (argv.first == "query" && known_verbs[[]].include?(argv.last)) ||
+      chapter_query?(argv)
   end
+
+  # `hecks <chapter> query <name>` reads through a chapter's own launcher, so a claim that stops at
+  # `query` resolves when the chapter has one.
+  def chapter_query?(argv) = argv.size == 2 && argv.last == "query" && known_verbs.key?([argv.first])
 
   def unresolved_verbs
     by_verb = claims.each_with_object({}) do |(doc, code), found|

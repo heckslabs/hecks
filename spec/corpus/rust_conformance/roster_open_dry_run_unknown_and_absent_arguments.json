@@ -1,0 +1,49 @@
+{
+  "domain": "examples/roster",
+  "note": "A validate step lists every unknown and every absent argument, one refusal each, in the arguments stage, each naming its own argument and the JSON Pointer to it. Opening a roster with a stray key and no name breaks both gates at once; Ruby's Dispatcher#validate and the kernel's collecting dry run must list the same refusals, in the same order, with the same text.",
+  "steps": [
+    {
+      "validate": "Roster::Roster.Open",
+      "args": {
+        "bogus": {
+          "value": "x"
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [],
+    "instances": {},
+    "events": [],
+    "queries": [],
+    "sagas": [],
+    "dry_runs": [],
+    "reactions": [],
+    "validations": [
+      {
+        "verb": "Roster::Roster.Open",
+        "ok": false,
+        "refusals": [
+          {
+            "kind": "refused",
+            "stage": "arguments",
+            "refusal": "UnknownArgument",
+            "attribute": "bogus",
+            "path": "/bogus",
+            "rule": null,
+            "message": "Open does not declare bogus — it takes name"
+          },
+          {
+            "kind": "absent_argument",
+            "stage": "arguments",
+            "refusal": "AbsentArgument",
+            "attribute": "name",
+            "path": "/name",
+            "rule": null,
+            "message": "Open was not given name — it takes name"
+          }
+        ]
+      }
+    ]
+  }
+}

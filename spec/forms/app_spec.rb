@@ -390,6 +390,52 @@ RSpec.describe Hecks::Forms::App do
     end
   end
 
+  describe "a dry run of a command" do
+    def dry_post(payload, query: "?dry_run=1", headers: {})
+      post "/Banking/Customer/Register#{query}", JSON.generate(with: payload),
+           { "CONTENT_TYPE" => "application/json" }.merge(headers)
+    end
+
+    def ada = { reference: { value: "c-dry" }, name: { given: "Ada", family: "Lovelace" }, email: { address: "ada@example.com" } }
+
+    it "answers ok for a command that would be accepted, saving nothing", :aggregate_failures do
+      dry_post(ada)
+
+      expect(last_response.status).to eq(200)
+      expect(json_body).to eq("ok" => true, "refusals" => [])
+      get "/Banking/Customer/c-dry.json"
+      expect(last_response.status).to eq(404)
+    end
+
+    it "answers every reason it would be refused, against each argument", :aggregate_failures do
+      dry_post({ reference: { value: "c-dry" }, bogus: 1 })
+
+      expect(last_response.status).to eq(200)
+      expect(json_body["refusals"].map { |refusal| refusal["attribute"] }).to match_array(%w[bogus email name])
+    end
+
+    it "takes the flag from the X-Dry-Run header" do
+      dry_post(ada, query: "", headers: { "HTTP_X_DRY_RUN" => "1" })
+
+      expect(json_body["ok"]).to be(true)
+    end
+
+    it "serves the command's JSON Schema with the rules a schema cannot hold as annotations", :aggregate_failures do
+      get "/Banking/Customer/Register.json?schema=1"
+
+      expect(last_response.status).to eq(200)
+      expect(json_body).to include("$schema" => "https://json-schema.org/draft/2020-12/schema",
+                                   "title"   => "Banking::Customer.Register")
+      expect(json_body["properties"]).to include("reference", "name", "email")
+    end
+
+    it "dispatches for real without the flag" do
+      dry_post(ada, query: "")
+
+      expect(last_response.status).to eq(201)
+    end
+  end
+
   it "refuses a chapter this app does not expose" do
     get "/Deploy/Anything.html"
     expect(last_response.status).to eq(404)

@@ -62,10 +62,10 @@ all. `proposed` means declared and not yet real: no builder answers it
 yet, and nothing projected from the language can see it. `admitted`
 means live. `deprecated` means still read, on its way out. `retired`
 means gone — the row stays, as history, but no builder may answer it
-any more. There's a fifth thing a row can say, in its own column
-rather than its own status: `was:`, the rename column. `sets` carries
-`was: "sets"` right now — the corpus itself, still full of
-`sets`, is the proof that a rename never stops the old spelling
+any more. There's one more thing a row can say, in its own column
+rather than its own status: `was:`, the rename column. `read_model` carries
+`was: "report"` (`hecks query language_run.word_status` lists it) — the corpus, still able to boot the old
+`report` spelling, is the proof that a rename never stops the old spelling
 from booting.
 
 The two value-object shapes are deliberately repeated beside each owning
@@ -185,9 +185,9 @@ symbol, which primitive it reads and whether the result is negated, and
 that's held equal to what `Evaluator::OPERATORS` actually computes with,
 not just which symbols exist.
 
-**`spec/translation_vocabulary_conformance_spec.rb`** is the newest of
-the three, the smallest, and the best one to read start to finish if
-you ever have to build a fourth — it's a template with all the
+**`spec/translation_vocabulary_conformance_spec.rb`** is the smallest,
+and the best one to read start to finish if
+you ever have to build another — it's a template with all the
 scaffolding stripped away. The situation: the translation chapter
 declares a closed set of rule kinds (`Rule.Kind` in
 `lib/hecks/grammar/translation.bluebook`), and `TranslationAggregateBuilder`
@@ -218,7 +218,7 @@ rows = Hecks::Bluebook::MetaValidator::SyntaxBoot.call[:keywords]
 rows.select { |row| row[:context] == "TranslationAggregate" && row[:status] != "retired" }.map { |row| row[:word] }.sort   # => ["backfill", "convert", "derive", "drop", "move", "rekey_to", "rename", "retype", "unresolved"]
 ```
 
-That's the recipe if you ever have to write a fifth gate: find the two
+That's the recipe if you ever have to write another gate: find the two
 places that are supposed to agree and currently have nothing enforcing
 it; read the declared side off the judged meta-domain
 (`MetaValidator.grammar_registry`); read the live side by introspecting
@@ -264,8 +264,8 @@ Sometimes the thing you're adding to the language isn't a new word but
 a new *check* — a way for `hecks model_check` to catch something a
 lifecycle or a process manager could declare and get wrong. This is
 static analysis over the IR (no bluebook boots twice, nothing here
-touches a runtime), so it lives entirely in
-`lib/hecks/bluebook/model_check.rb`, and the shape is the same for
+touches a runtime), so it lives in
+`lib/hecks/bluebook/model_check.rb` and its `model_check/*_checks.rb` modules, and the shape is the same for
 every finding it already reports. Walk one real one end to end —
 `dead_transition`, from `lifecycle_findings`:
 
@@ -294,11 +294,9 @@ Three pieces, and every finding in the file has the same three:
   return value is concatenated into the one flat list `call` returns.
 
 Above the check itself sits the part that actually keeps this honest:
-`ALLOWED_FINDINGS`, a hand-maintained table of `[kind, subject]` pairs
-that are real, understood, and not worth fixing (right now, exactly
-one — an unreachable saga state in the banking example, with a comment
-explaining precisely why the real domain activity is fine even though
-the saga's own bookkeeping never closes). `spec/model_check_spec.rb`
+`ALLOWED_FINDINGS`, a table of `[kind, subject]` pairs
+that are real, understood, and not worth fixing. It is pinned empty:
+a domain's allowance belongs on its own declaration (ADR 0025). `spec/model_check_spec.rb`
 enforces this table in **both directions** over the whole corpus: an
 error the checker reports that the table doesn't name is a regression
 you have to fix or explicitly allow; an entry in the table the checker
@@ -318,13 +316,12 @@ that already covers its construct (or into `call` directly, for
 something new), add a fixture under `spec/fixtures/model_check/` that
 deliberately trips it, assert the new kind in `spec/model_check_spec.rb`,
 then run `hecks model_check` over the real corpus — anything it newly
-flags there has to be fixed in the example domain or added to
-`ALLOWED_FINDINGS` with the same kind of comment the existing entry
-carries, naming exactly what's real and what's a bookkeeping gap.
+flags there has to be fixed in the example domain or allowed on that
+domain's own declaration, naming exactly what's real and what's a bookkeeping gap.
 
 ## The reference coverage gate
 
-There is one more gate, and it's the newest thing in this arc: a word
+There is one more gate, and it's easy to forget: a word
 can be proposed, admitted, wired into its builder, green on every
 conformance spec above, and the suite will *still* refuse the tree if
 nobody wrote a sentence about it.
@@ -370,7 +367,7 @@ all: a new value-object rule landed, the example domains were migrated
 to satisfy it, and `lib/hecks/grammar/expression.bluebook` — one
 chapter, loaded by nothing in `spec/` — was left behind. It raised
 `Malformed` at load. The hand-run corpus walk that would have caught it
-died silently at its first stage. And `rspec` reported 358/358 the
+died silently at its first stage. And `rspec` reported green the
 whole time, because nothing in the suite ever booted that file, so
 nothing was there to go red.
 

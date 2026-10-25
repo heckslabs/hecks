@@ -74,6 +74,12 @@ Hecks.hecksagon "Hecks" do
       answers "TrainAnswered"
       refuses "TrainRefused"
     end
+
+    asks "Tally", to: PushTrain do
+      attribute :run, RunKey
+      answers "SurveyAnswered"
+      refuses "SurveyRefused"
+    end
   end
 
   Hecks::PushTrain.port "Alerts" do
@@ -82,6 +88,28 @@ Hecks.hecksagon "Hecks" do
       answers "DeployReadyAnnounced"
       refuses "AnnouncementRefused"
     end
+  end
+
+  Hecks::Checkout.port "Reading" do
+    answers_query "Status"
+    answers_query "Changes"
+    answers_query "Log"
+  end
+
+  Hecks::Landing.port "Worktrees" do
+    asks "Merge", to: Landing do
+      attribute :run, RunKey
+      answers "MergeAnswered"
+      refuses "MergeRefused"
+    end
+
+    asks "Remove", to: Landing do
+      attribute :run, RunKey
+      answers "RemovalAnswered"
+      refuses "RemovalRefused"
+    end
+
+    answers_query "Unlanded"
   end
 
   Hecks::PushTrain.port "Launcher" do
@@ -140,6 +168,12 @@ Hecks.hecksagon "Hecks" do
     end
 
     asks "Scaffold", to: Launch do
+      attribute :run, LaunchKey
+      answers "LaunchAnswered"
+      refuses "LaunchRefused"
+    end
+
+    asks "WriteRails", to: Launch do
       attribute :run, LaunchKey
       answers "LaunchAnswered"
       refuses "LaunchRefused"

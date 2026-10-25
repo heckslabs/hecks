@@ -5,6 +5,7 @@ require_relative "../../query_specification/field_path"
 require_relative "../../runtime/errors"
 require_relative "../../text"
 require_relative "../../runtime/value"
+require_relative "sql_keyset"
 require_relative "sql_value_members"
 
 module Hecks
@@ -15,6 +16,7 @@ module Hecks
     # and dialect_name.
     module SqlQueryBuilder
       include SqlValueMembers
+      include SqlKeyset
 
       COMPARATORS = {
         "eq" => "=", "ne" => "<>", "gt" => ">", "gte" => ">=", "lt" => "<", "lte" => "<="
@@ -42,7 +44,7 @@ module Hecks
 
         sql = "SELECT #{select_list} FROM #{from_relation}"
         binds = []
-        clauses = where_clauses(declared, args, binds)
+        clauses = restricting_clauses(declared, args, binds)
         sql << " WHERE #{clauses.join(" AND ")}" unless clauses.empty?
         sql << order_by_sql(declared)
         sql << paging_sql(declared, args, binds)

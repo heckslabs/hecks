@@ -202,7 +202,7 @@ Hecks.bluebook "Deploy" do
   end
 
   aggregate "BoxTarget" do
-    description "One domain's validated single-box deploy target — what deployed_to(\"AwsBox\") must resolve to before hecks deploy project generates a box and an RDS instance from it"
+    description "One domain's validated single-box deploy target — what deployed_to(\"AwsBox\") must resolve to before hecks deploy recipe.project generates a box and an RDS instance from it"
 
     identified_by :domain
 
@@ -263,7 +263,7 @@ Hecks.bluebook "Deploy" do
     end
 
     # The first six are required for the same reason as `FargateTarget.Declare`; this validates a
-    # target already resolved by `hecks deploy project`'s defaults. `cdn_aliases` is the one
+    # target already resolved by `hecks deploy recipe.project`'s defaults. `cdn_aliases` is the one
     # optional setting: naming at least one asks for the CloudFront edge stack.
     command "Declare" do
       goal "Validate one domain's AwsBox deploy target before anything is generated from it"
@@ -289,7 +289,7 @@ Hecks.bluebook "Deploy" do
   end
 
   aggregate "VercelTarget" do
-    description "One domain's validated Vercel deploy target — what deployed_to(\"Vercel\") must resolve to before hecks deploy project generates a Vercel function's configuration from it"
+    description "One domain's validated Vercel deploy target — what deployed_to(\"Vercel\") must resolve to before hecks deploy recipe.project generates a Vercel function's configuration from it"
 
     identified_by :domain
 
@@ -326,7 +326,7 @@ Hecks.bluebook "Deploy" do
     end
 
     # All four required for the same reason as `BoxTarget.Declare`; this validates a target
-    # already resolved by `hecks deploy project`'s defaults.
+    # already resolved by `hecks deploy recipe.project`'s defaults.
     command "Declare" do
       goal "Validate one domain's Vercel deploy target before anything is generated from it"
 
@@ -345,7 +345,7 @@ Hecks.bluebook "Deploy" do
   end
 
   aggregate "SharedDatabaseTarget" do
-    description "One platform's validated shared database instance — what deployed_to(\"AwsSharedDatabase\") must resolve to before hecks deploy project generates the RDS stack that several client sites each keep a database on."
+    description "One platform's validated shared database instance — what deployed_to(\"AwsSharedDatabase\") must resolve to before hecks deploy recipe.project generates the RDS stack that several client sites each keep a database on."
 
     identified_by :domain
 
@@ -379,7 +379,7 @@ Hecks.bluebook "Deploy" do
     end
 
     # All four required for the same reason as `BoxTarget.Declare`; this validates a target
-    # already resolved by `hecks deploy project`'s defaults.
+    # already resolved by `hecks deploy recipe.project`'s defaults.
     command "Declare" do
       goal "Validate one platform's shared database target before anything is generated from it"
 

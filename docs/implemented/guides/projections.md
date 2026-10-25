@@ -144,7 +144,7 @@ by a single-machine harness (`hecks fuzz_run.bench`; the [baseline and its
 caveats](../../benchmarks.md)), not under a production-like load,
 `read_model` queries outside the proven subset above are refused in Rust
 rather than run, and the WASM projector is one command away
-(`hecks build.build_wasm`) but not part of any deployed pipeline today. See
+(`hecks build.build_wasm`), and the deployed Rust host runs the domain's WASI module. See
 [Running a runtime](running-a-runtime.md) for
 the exact field-by-field contract a third dispatch runtime would need,
 and [the retired first Rust

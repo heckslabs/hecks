@@ -50,15 +50,11 @@ module Hecks
           { database: database, schema: schema }
         end
 
-        # Beside the process's own scratch schema; a pool child's is dropped when it exits, as
-        # its persistence schema is.
+        # Beside the process's own scratch schema, and dropped when the process exits, as its
+        # persistence schema is.
         def scratch_schema(database)
-          persistence = IsolatedBoot.scratch_schema(database)
-          schema = "#{persistence}_projection"
-          return schema if persistence == IsolatedBoot::FUZZ_POSTGRES_SCHEMA
-
-          @cleanups ||= {}
-          @cleanups[schema] ||= at_exit { IsolatedBoot.drop_schema_quietly(database, schema) }
+          schema = "#{IsolatedBoot.scratch_schema(database)}_projection"
+          IsolatedBoot.drop_at_exit(database, schema)
           schema
         end
       end

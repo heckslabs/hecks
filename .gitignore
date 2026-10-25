@@ -56,3 +56,7 @@ coverage/
 # What the release workflow builds into the gem (caches keyed by lib/); never committed.
 /prebuilt/
 packages/hecks-rails/Gemfile.lock
+
+# A copy's own overlay (Adapters::Folder::LOCAL_OVERLAY): its database and other settings for that copy only.
+**/environments/local.hecksagon
+**/environments/local.world

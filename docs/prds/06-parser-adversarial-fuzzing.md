@@ -1,9 +1,8 @@
 # PRD 06 — Adversarial fuzzing for the Rust parser
 
-**Status:** Not started. Zero existing fuzzing infrastructure on the parser
-side, confirmed by grep (`rust/`, `spec/*pars*`) — every "fuzz" hit found is
-a comment referencing the Ruby `Fuzzing::` module's JSON wire format, not an
-actual Rust fuzz target.
+**Status:** Shipped: `cargo-fuzz` targets live in `rust/parser/fuzz/fuzz_targets/`
+(`chapter.rs`, `resolve.rs`). The text below is the original proposal, including the
+starting-point survey that found no parser fuzzing.
 
 ## The problem
 

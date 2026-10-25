@@ -10,6 +10,12 @@ module Hecks
 
           # @return [Symbol, String, nil] the owner's lifecycle state field, or `nil` without one
           def lifecycle_field = lifecycle&.field
+
+          # @return [Boolean] whether the query declares `cursor`
+          def cursor? = !query.cursor.nil?
+
+          # @return [Boolean] whether the owner is an entity (`Aggregate::Entity`), not an aggregate
+          def entity? = owner.to_s.include?("::")
         end
         private_constant :QueryScope
 

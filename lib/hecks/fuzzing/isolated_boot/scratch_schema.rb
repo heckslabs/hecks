@@ -1,19 +1,29 @@
 module Hecks
   module Fuzzing
     module IsolatedBoot
-      # Which Postgres scratch schema a fuzz boot uses: one per pool child, so children can fuzz
-      # one database at once, or the shared default for any other process.
+      # Which Postgres scratch schema a fuzz boot uses: one per process, so processes can fuzz one
+      # database at once without dropping a schema another process is booting into.
       module ScratchSchema
-        # The schema this process boots into. A pool child names its own in `FUZZ_SCHEMA_ENV`, so
-        # several children can fuzz one database at once; it is dropped when the child exits.
-        # Any other process shares `FUZZ_POSTGRES_SCHEMA`, which is safe only one boot at a time.
+        # The schema this process boots into: the one named in `FUZZ_SCHEMA_ENV` (a sweep's pool
+        # child names its own), or `FUZZ_POSTGRES_SCHEMA` suffixed with this process's pid. It is
+        # dropped when the process that first asked for it exits.
+        #
+        # @param database [String] the scratch database the schema lives in
+        # @return [String] the schema name
         def scratch_schema(database)
-          named = ENV.fetch(FUZZ_SCHEMA_ENV, nil)
-          return FUZZ_POSTGRES_SCHEMA unless named
+          schema = ENV.fetch(FUZZ_SCHEMA_ENV) { "#{FUZZ_POSTGRES_SCHEMA}_#{Process.pid}" }
+          drop_at_exit(database, schema)
+          schema
+        end
 
+        # Registers one drop of `schema` for when this process exits. A forked child inherits the
+        # hook, so the hook drops only in the process that registered it.
+        def drop_at_exit(database, schema)
+          owner = Process.pid
           @fuzz_schema_cleanups ||= {}
-          @fuzz_schema_cleanups[named] ||= at_exit { drop_schema_quietly(database, named) }
-          named
+          @fuzz_schema_cleanups[schema] ||= at_exit do
+            drop_schema_quietly(database, schema) if Process.pid == owner
+          end
         end
 
         def drop_schema_quietly(database, schema)

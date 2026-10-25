@@ -1,0 +1,681 @@
+{
+  "domain": "examples/banking",
+  "note": "ADR 0130: `Banking::Account.OpenPaged` declares `limit 25` and `cursor :number`. Three accounts are opened out of number order; the query is asked for its first page, then after each position a page ends on (the tokens are `Base64.urlsafe_encode64(JSON.generate([value, id]), padding: false)`, minted by Ruby and read by the Rust kernel). The last ask is after the final row: it answers no rows. Ruby and Rust must agree on which rows follow a position and on the opaque token itself.",
+  "steps": [
+    {
+      "verb": "Banking::Customer.Register",
+      "args": {
+        "reference": {
+          "value": "cust-1"
+        },
+        "name": {
+          "given": "Ada",
+          "family": "Lovelace"
+        },
+        "email": {
+          "address": "ada@example.com"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "args": {
+        "customer": "cust-1",
+        "number": {
+          "value": "acct-3"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 100000
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "args": {
+        "customer": "cust-1",
+        "number": {
+          "value": "acct-1"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 100000
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "args": {
+        "customer": "cust-1",
+        "number": {
+          "value": "acct-2"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 100000
+        }
+      }
+    },
+    {
+      "query": "Banking::Account.OpenPaged",
+      "args": {
+      }
+    },
+    {
+      "query": "Banking::Account.OpenPaged",
+      "args": {
+        "after": "WyJhY2N0LTEiLCJhY2N0LTEiXQ"
+      }
+    },
+    {
+      "query": "Banking::Account.OpenPaged",
+      "args": {
+        "after": "WyJhY2N0LTIiLCJhY2N0LTIiXQ"
+      }
+    },
+    {
+      "query": "Banking::Account.OpenPaged",
+      "args": {
+        "after": "WyJhY2N0LTMiLCJhY2N0LTMiXQ"
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+
+    ],
+    "instances": {
+      "Banking::Customer#cust-1": {
+        "reference": {
+          "value": "cust-1"
+        },
+        "name": {
+          "given": "Ada",
+          "family": "Lovelace"
+        },
+        "email": {
+          "address": "ada@example.com"
+        },
+        "standing": {
+          "value": "good"
+        },
+        "status": "active"
+      },
+      "Banking::Account#acct-3": {
+        "customer": "cust-1",
+        "number": {
+          "value": "acct-3"
+        },
+        "balance": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 100000
+        },
+        "ledger": [
+
+        ],
+        "fees_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "interest_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "status": "open",
+        "customer_status": "active"
+      },
+      "Banking::Account#acct-1": {
+        "customer": "cust-1",
+        "number": {
+          "value": "acct-1"
+        },
+        "balance": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 100000
+        },
+        "ledger": [
+
+        ],
+        "fees_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "interest_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "status": "open",
+        "customer_status": "active"
+      },
+      "Banking::Account#acct-2": {
+        "customer": "cust-1",
+        "number": {
+          "value": "acct-2"
+        },
+        "balance": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 100000
+        },
+        "ledger": [
+
+        ],
+        "fees_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "interest_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "status": "open",
+        "customer_status": "active"
+      }
+    },
+    "events": [
+      {
+        "name": "CustomerRegistered",
+        "aggregate": "Banking::Customer",
+        "id": "cust-1",
+        "payload": {
+          "reference": {
+            "value": "cust-1"
+          },
+          "name": {
+            "given": "Ada",
+            "family": "Lovelace"
+          },
+          "email": {
+            "address": "ada@example.com"
+          }
+        }
+      },
+      {
+        "name": "AccountOpened",
+        "aggregate": "Banking::Account",
+        "id": "acct-3",
+        "payload": {
+          "customer": "cust-1",
+          "number": {
+            "value": "acct-3"
+          },
+          "kind": {
+            "name": "current"
+          },
+          "daily_limit": {
+            "cents": 100000
+          }
+        }
+      },
+      {
+        "name": "AccountOpened",
+        "aggregate": "Banking::Account",
+        "id": "acct-1",
+        "payload": {
+          "customer": "cust-1",
+          "number": {
+            "value": "acct-1"
+          },
+          "kind": {
+            "name": "current"
+          },
+          "daily_limit": {
+            "cents": 100000
+          }
+        }
+      },
+      {
+        "name": "AccountOpened",
+        "aggregate": "Banking::Account",
+        "id": "acct-2",
+        "payload": {
+          "customer": "cust-1",
+          "number": {
+            "value": "acct-2"
+          },
+          "kind": {
+            "name": "current"
+          },
+          "daily_limit": {
+            "cents": 100000
+          }
+        }
+      }
+    ],
+    "queries": [
+      {
+        "query": "Banking::Account.OpenPaged",
+        "args": {
+        },
+        "rows": [
+          {
+            "customer": "cust-1",
+            "number": {
+              "value": "acct-1"
+            },
+            "balance": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "current"
+            },
+            "daily_limit": {
+              "cents": 100000
+            },
+            "ledger": [
+
+            ],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "open",
+            "customer_status": "active",
+            "id": "acct-1"
+          },
+          {
+            "customer": "cust-1",
+            "number": {
+              "value": "acct-2"
+            },
+            "balance": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "current"
+            },
+            "daily_limit": {
+              "cents": 100000
+            },
+            "ledger": [
+
+            ],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "open",
+            "customer_status": "active",
+            "id": "acct-2"
+          },
+          {
+            "customer": "cust-1",
+            "number": {
+              "value": "acct-3"
+            },
+            "balance": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "current"
+            },
+            "daily_limit": {
+              "cents": 100000
+            },
+            "ledger": [
+
+            ],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "open",
+            "customer_status": "active",
+            "id": "acct-3"
+          }
+        ],
+        "reference_rows": [
+          {
+            "customer": "cust-1",
+            "number": {
+              "value": "acct-1"
+            },
+            "balance": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "current"
+            },
+            "daily_limit": {
+              "cents": 100000
+            },
+            "ledger": [
+
+            ],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "open",
+            "customer_status": "active",
+            "id": "acct-1"
+          },
+          {
+            "customer": "cust-1",
+            "number": {
+              "value": "acct-2"
+            },
+            "balance": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "current"
+            },
+            "daily_limit": {
+              "cents": 100000
+            },
+            "ledger": [
+
+            ],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "open",
+            "customer_status": "active",
+            "id": "acct-2"
+          },
+          {
+            "customer": "cust-1",
+            "number": {
+              "value": "acct-3"
+            },
+            "balance": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "current"
+            },
+            "daily_limit": {
+              "cents": 100000
+            },
+            "ledger": [
+
+            ],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "open",
+            "customer_status": "active",
+            "id": "acct-3"
+          }
+        ]
+      },
+      {
+        "query": "Banking::Account.OpenPaged",
+        "args": {
+          "after": "WyJhY2N0LTEiLCJhY2N0LTEiXQ"
+        },
+        "rows": [
+          {
+            "customer": "cust-1",
+            "number": {
+              "value": "acct-2"
+            },
+            "balance": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "current"
+            },
+            "daily_limit": {
+              "cents": 100000
+            },
+            "ledger": [
+
+            ],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "open",
+            "customer_status": "active",
+            "id": "acct-2"
+          },
+          {
+            "customer": "cust-1",
+            "number": {
+              "value": "acct-3"
+            },
+            "balance": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "current"
+            },
+            "daily_limit": {
+              "cents": 100000
+            },
+            "ledger": [
+
+            ],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "open",
+            "customer_status": "active",
+            "id": "acct-3"
+          }
+        ],
+        "reference_rows": [
+          {
+            "customer": "cust-1",
+            "number": {
+              "value": "acct-2"
+            },
+            "balance": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "current"
+            },
+            "daily_limit": {
+              "cents": 100000
+            },
+            "ledger": [
+
+            ],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "open",
+            "customer_status": "active",
+            "id": "acct-2"
+          },
+          {
+            "customer": "cust-1",
+            "number": {
+              "value": "acct-3"
+            },
+            "balance": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "current"
+            },
+            "daily_limit": {
+              "cents": 100000
+            },
+            "ledger": [
+
+            ],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "open",
+            "customer_status": "active",
+            "id": "acct-3"
+          }
+        ]
+      },
+      {
+        "query": "Banking::Account.OpenPaged",
+        "args": {
+          "after": "WyJhY2N0LTIiLCJhY2N0LTIiXQ"
+        },
+        "rows": [
+          {
+            "customer": "cust-1",
+            "number": {
+              "value": "acct-3"
+            },
+            "balance": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "current"
+            },
+            "daily_limit": {
+              "cents": 100000
+            },
+            "ledger": [
+
+            ],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "open",
+            "customer_status": "active",
+            "id": "acct-3"
+          }
+        ],
+        "reference_rows": [
+          {
+            "customer": "cust-1",
+            "number": {
+              "value": "acct-3"
+            },
+            "balance": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "current"
+            },
+            "daily_limit": {
+              "cents": 100000
+            },
+            "ledger": [
+
+            ],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "open",
+            "customer_status": "active",
+            "id": "acct-3"
+          }
+        ]
+      },
+      {
+        "query": "Banking::Account.OpenPaged",
+        "args": {
+          "after": "WyJhY2N0LTMiLCJhY2N0LTMiXQ"
+        },
+        "rows": [
+
+        ],
+        "reference_rows": [
+
+        ]
+      }
+    ],
+    "sagas": [
+
+    ],
+    "dry_runs": [
+
+    ],
+    "reactions": [
+
+    ]
+  }
+}

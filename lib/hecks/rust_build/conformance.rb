@@ -115,11 +115,30 @@ module Hecks
         end
         dry = dry_run_mismatch(ours, theirs)
         found << dry if dry
+        validated = validation_mismatch(ours, theirs)
+        found << validated if validated
         found
       end
 
+      # A Rust dry run on the same surface as Ruby's: `verb`, `ok`, and each refusal's kind, stage,
+      # attribute, path and rule where the stage is one both engines list in full.
+      def their_dry_run(dry)
+        reasons = Array(dry["refusals"]).map do |refusal|
+          refusal.values_at("kind", "stage", "attribute", "path", "rule", "refusal")
+        end
+        dry.slice("verb", "ok").merge(Surface.collected_refusals(reasons))
+      end
+
+      # A `validate` step's answer, whole: the same refusals in the same order from both engines.
+      def validation_mismatch(ours, theirs)
+        mine = ours["validations"] || []
+        return if mine == (theirs["validations"] || [])
+
+        "validations:\n  ruby:  #{mine.inspect}\n  other: #{theirs["validations"].inspect}"
+      end
+
       def dry_run_mismatch(ours, theirs)
-        their_dry_runs = Array(theirs["dry_runs"]).map { |dry| dry.slice("verb", "ok") }
+        their_dry_runs = Array(theirs["dry_runs"]).map { |dry| their_dry_run(dry) }
         return if (ours["dry_runs"] || []) == their_dry_runs
 
         "dry_runs:\n  ruby:  #{ours["dry_runs"].inspect}\n  other: #{their_dry_runs.inspect}"

@@ -322,17 +322,17 @@ None of the above proves your adapter agrees with the others on what a
 query actually *means* — only that it answers, not that it answers the
 same thing Sqlite or Postgres would for the identical declared query
 over the identical records. `spec/adapters/query_agreement_spec.rb` is
-the gate that checks exactly that: one aggregate, five records, eleven
-declared queries (`eq`, `ne`, `in`, an empty `in`, `lt` through a
+the gate that checks exactly that: one aggregate, a few records, and a
+battery of declared queries (`eq`, `ne`, `in`, an empty `in`, `lt` through a
 query argument, `gte` descending, a two-level nested path with a limit,
 an offset, ordering by a value-object string, `contains` on a list of
 value objects, `contains` on a scalar), each asserted against a
-hand-computed id list worked out independently of any of the three
+hand-computed id list worked out independently of any of the
 engines — not merely "the adapters agree with each other," because
-three engines sharing one bug would still pass a pairwise check. Memory,
-Sqlite, and Postgres all run through the same `agree!` helper today.
+engines sharing one bug would still pass a pairwise check. Every engine the spec's `engines` list builds (Memory, Sqlite, Postgres,
+PostgresEra, and D1 when reachable) runs through the same `agree!` helper.
 
-If you are shipping a fourth adapter that implements `query`, this is
+If you are shipping a new adapter that implements `query`, this is
 the file to extend — add your adapter's `let`, add it to `agree!`, and
 run the suite. An adapter that skips the native `query` hook entirely
 still owes correctness (via `Ports::Query::InMemory`, which this
@@ -341,7 +341,7 @@ its own to gate here. An adapter that implements `query` and is never
 run through this file is one nobody should trust with a `where` clause
 yet — this is the actual shipping check, not a tour of the port.
 
-## `lineage_capable?` — what only Postgres carries
+## `lineage_capable?` — what only PostgresEra carries
 
 An adapter's era story is optional, and the runtime asks for it by
 capability, not by name:
@@ -355,8 +355,8 @@ rescue StandardError
 end
 ```
 
-Today exactly one adapter answers true — `Hecks::Adapters::Postgres`
-declares `def self.lineage_capable? = true` and nothing else does.
+`Hecks::Adapters::PostgresEra` declares `def self.lineage_capable? = true`;
+plain `Postgres` and the other adapters do not.
 Memory and Heki simply do not implement the class method at all, and
 the check treats that the same as answering false:
 
@@ -368,7 +368,8 @@ Hecks::Adapters::Heki.respond_to?(:lineage_capable?)    # => false
 Lineage-capable is what lets an adapter mint an era when a domain's
 declared shape drifts, hold that era's frozen source text beside the
 data it describes, and apply a translation across the boundary — the
-whole reason Postgres carries `lineage_manager/` and `lineage.rb` at
+whole reason PostgresEra carries `lineage_manager/` and `lineage.rb`
+(under `postgres_era/`) at
 all (era minting, the head/tail view chain, `merge_tail!`). Not
 implementing it costs something real: a domain bound to a
 non-lineage-capable adapter still boots, still runs, still refuses
@@ -408,22 +409,17 @@ A Rails controller, a webhook handler, a cron job — every one of them
 is a driving adapter in exactly this sense: they translate something
 that happened out there into a call shaped like this one, and nothing
 about the domain's own rules changes depending on who is calling.
-`examples/pizzas/adapters/payment_webhook.rb` is
-the worked example — a payment-processor webhook that tells `Order.PaymentGateway.Receive`
-(it boots the whole Pizzas example with `Hecks.boot`, a heavier path than this guide needs,
-so the call is quoted here rather than run):
+`examples/pizzas/adapters/payment_webhook.rb` (`PaymentWebhook`, named in
+`examples/pizzas/bluebook/pizzas.hecksagon`) is the worked example: a Rack app
+that verifies a signed delivery from a payment processor. Its dispatch is quoted
+here rather than run (it needs a signed request and a booted runtime, a heavier
+path than this guide needs):
 
 ```ruby skip
-# A real handler would verify a Stripe signature here and pull these
-# fields out of event.data.object; a reference is always a bare id.
-RUNTIME.dispatch_port(
-  "Pizzas", "Order", "PaymentGateway", "Receive",
-  flat: {
-    name:          NAME,
-    customer_name: "Chris",
-    amount:        1200
-  }
-)
+# PaymentWebhook verifies the signature first, then restates the delivery in the
+# domain's words through the port (`to:` names the order, a reference is a bare id).
+@runtime.dispatch("Pizzas::Order.PaymentGateway.Receive",
+                  to: pizza, with: { customer_name: { value: customer }, amount: { cents: cents } })
 ```
 
 Note what a port operation does NOT do: no `given`, no `sets`, no
@@ -486,8 +482,9 @@ order.add_topping!(topping: "Basil", amount: 3)
 order.status  # => "available"
 ```
 
-And call it exactly the way the real
-`examples/pizzas/adapters/payment_webhook.rb` does for the same port — through the dispatcher's port path, never
+And call it the way the real
+`PaymentWebhook` does, through the runtime's port dispatch (`dispatch_port` is the
+flat-arguments form), never
 through the facade a command would use:
 
 ```ruby

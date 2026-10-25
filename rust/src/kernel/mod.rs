@@ -2,6 +2,7 @@
 
 pub mod attribute_shapes;
 pub mod cli;
+pub mod collecting;
 pub mod dispatch;
 pub mod expr;
 pub mod expression_operators;
@@ -11,6 +12,7 @@ pub mod needs;
 pub mod orchestrate;
 pub mod pattern;
 pub mod present;
+pub mod query_cursor;
 pub mod query_ordering;
 pub mod vocab;
 // Kept at its old path so existing `refusal_wording::RefusalSite` call sites still resolve.

@@ -1,0 +1,84 @@
+# A small domain whose commands a bulk run can compile to one UPDATE (ADR 0129), beside ones it
+# cannot, so the set-transform property has both kinds of pair to compare.
+Hecks.bluebook "Lamps" do
+  vision "Switch, dim and relabel the lamps of a building."
+  supporting
+
+  aggregate "Lamp" do
+    description "One lamp, its brightness and its wattage."
+
+    attribute :name,       LampName
+    attribute :brightness, Brightness
+    attribute :wattage,    Wattage
+    attribute :label,      Label, optional: true
+
+    identified_by :name
+
+    value_object("LampName")   { attribute :value, String }
+    value_object("Brightness") { attribute :value, Integer }
+    value_object("Wattage")    { attribute :value, Integer }
+    value_object("Label")      { attribute :value, String }
+
+    lifecycle :status, default: "off" do
+      transition "SwitchOn"  => "on",  from: "off"
+      transition "SwitchOff" => "off", from: "on"
+    end
+
+    command "Install" do
+      attribute :name,       LampName
+      attribute :brightness, Brightness
+      attribute :wattage,    Wattage
+      sets :name
+      sets :brightness
+      sets :wattage
+      emits "LampInstalled"
+    end
+
+    command "SwitchOn" do
+      reference_to Lamp
+      emits "LampSwitchedOn"
+    end
+
+    command "SwitchOff" do
+      reference_to Lamp
+      emits "LampSwitchedOff"
+    end
+
+    command "Dim" do
+      reference_to Lamp
+      given("the lamp is bright enough to dim") { brightness >= 10 }
+      sets :brightness, decrement: 10
+      emits "LampDimmed"
+    end
+
+    command "Boost" do
+      reference_to Lamp
+      given("the lamp is lit") { status == "on" }
+      given("the lamp draws little") { wattage < 1000 }
+      sets :wattage, to: (wattage * 2) + 1
+      emits "LampBoosted"
+    end
+
+    command "Relabel" do
+      reference_to Lamp
+      attribute :label, Label, default: "relabelled"
+      sets :label
+      emits "LampRelabelled"
+    end
+
+    # Its `ensures` is checked on the settled record, which one UPDATE does not do.
+    command "Brighten" do
+      reference_to Lamp
+      sets :brightness, increment: 5
+      ensures("brightness stays within range") { brightness <= 100 }
+      emits "LampBrightened"
+    end
+
+    query "Everything" do
+    end
+
+    query "Lit" do
+      where(status: "on")
+    end
+  end
+end

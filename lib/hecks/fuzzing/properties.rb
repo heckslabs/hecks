@@ -6,6 +6,7 @@ require_relative "../query_specification/field_path"
 require_relative "../runtime/value"
 require_relative "properties/lifecycle_and_replay"
 require_relative "properties/bulk_parity"
+require_relative "properties/set_transform_parity"
 require_relative "properties/querying"
 require_relative "properties/guards"
 require_relative "properties/dispatch_and_mutations"
@@ -30,6 +31,7 @@ module Hecks
       # stays reachable as `Properties.foo(history)`, matching `module_function` below.
       extend LifecycleAndReplay
       extend BulkParity
+      extend SetTransformParity
       extend Querying
       extend Guards
       extend DispatchAndMutations

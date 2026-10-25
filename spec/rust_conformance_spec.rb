@@ -37,7 +37,14 @@ RSpec.describe "Rust conformance (native binary)", :io do
       strip_emitted_flags!(rust_output["instances"])
       strip_emitted_flags!(rust_output["queries"])
       strip_occurred_at!(rust_output["events"])
+      strip_wire_only_dry_run_fields!(rust_output["dry_runs"])
     end
+  end
+
+  # What the host's preview envelope reads from a refused dry run, which the frozen `expect` does
+  # not carry: the neutral corpus holds `verb`, `ok` and `error`.
+  def strip_wire_only_dry_run_fields!(dry_runs)
+    Array(dry_runs).each { |dry| %w[kind stage refusal refusals].each { |key| dry.delete(key) } }
   end
 
   # A fixture that sets `rust_echoes_absent_slots_as_null` sends optional slots of a nested value
@@ -64,9 +71,16 @@ RSpec.describe "Rust conformance (native binary)", :io do
     %w[instances events refusals queries sagas dry_runs].each do |key|
       expect(rust_output[key]).to eq(expected[key]), "#{key} differs from the frozen expect"
     end
+    expect_validations_match(rust_output, expected)
     # Rust's kernel cannot yet resolve cross-domain policies, which the corpus records as delivered.
     cross_domain = cross_domain_policy_names(rust_output)
     expect(rust_output.fetch("reactions")).to eq(expected["reactions"].reject { |r| cross_domain.include?(r["policy"]) })
+  end
+
+  # Only a fixture with a `validate` step freezes the key.
+  def expect_validations_match(rust_output, expected)
+    expect(rust_output.fetch("validations", [])).to eq(expected.fetch("validations", [])),
+                                                    "validations differ from the frozen expect"
   end
 
   def banking_binary

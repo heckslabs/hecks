@@ -15,9 +15,9 @@ module Hecks
     module IsolatedBoot
       # Postgres has no zero-config default (Postgres.connect_for refuses without a
       # `database` setting), so every domain name gets a fresh `.world` written for it.
-      # One schema per process, dropped and recreated per boot, not a fresh name per call —
-      # a process runs one ephemeral boot at a time. The default is shared by every process that
-      # does not name its own schema in `FUZZ_SCHEMA_ENV`, as a sweep's pool children do.
+      # One schema per process (see `ScratchSchema#scratch_schema`), dropped and recreated per
+      # boot, not a fresh name per call: a process runs one ephemeral boot at a time, and
+      # processes running side by side (parallel spec workers, a sweep's pool) never share one.
       FUZZ_POSTGRES_DATABASE = "hecks_fuzz".freeze
       FUZZ_POSTGRES_SCHEMA   = "hecks_fuzz".freeze
       FUZZ_SCHEMA_ENV        = "HECKS_FUZZ_SCHEMA".freeze

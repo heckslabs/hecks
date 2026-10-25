@@ -492,6 +492,7 @@ mod check_role_actor_id_tests {
             order_by: None,
             offset: None,
             limit: None,
+            cursor: false,
             authorization: None,
         }
     }

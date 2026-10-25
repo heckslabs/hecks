@@ -41,10 +41,26 @@ RSpec.describe Hecks::Tools::FuzzSweep, :aggregate_failures do
 
     after { ENV.delete(schema_env) }
 
-    it "is the shared default unless the process names its own" do
+    def exit_hook_for(schema)
+      hook = nil
+      allow(boot).to receive(:at_exit) { |&block| hook = block }
+      boot.drop_at_exit("hecks_fuzz", schema)
+      hook
+    end
+
+    it "is this process's own unless the process names one, so parallel workers never share it" do
       ENV.delete(schema_env)
 
-      expect(boot.scratch_schema("hecks_fuzz")).to eq(Hecks::Fuzzing::IsolatedBoot::FUZZ_POSTGRES_SCHEMA)
+      expect(boot.scratch_schema("hecks_fuzz")).to eq("hecks_fuzz_#{Process.pid}")
+    end
+
+    it "is dropped only by the process that asked for it, not a forked child inheriting the hook" do
+      allow(boot).to receive(:drop_schema_quietly)
+      hook = exit_hook_for("hecks_fuzz_4242")
+      allow(Process).to receive(:pid).and_return(Process.pid + 1)
+      hook.call
+
+      expect(boot).not_to have_received(:drop_schema_quietly)
     end
 
     it "is the schema a pool child names, dropped once when the child exits" do

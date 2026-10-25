@@ -62,6 +62,17 @@ module Hecks
         {"symbol"=>"==", "compares_less_than"=>"false", "compares_equal"=>"true", "negated"=>"false"}.freeze,
         {"symbol"=>"!=", "compares_less_than"=>"false", "compares_equal"=>"true", "negated"=>"true"}.freeze
       ].freeze,
+      "DispatchStage" => [
+        {"name"=>"request"}.freeze,
+        {"name"=>"arguments"}.freeze,
+        {"name"=>"role"}.freeze,
+        {"name"=>"references"}.freeze,
+        {"name"=>"state"}.freeze,
+        {"name"=>"givens"}.freeze,
+        {"name"=>"ensures"}.freeze,
+        {"name"=>"invariants"}.freeze,
+        {"name"=>"remote"}.freeze
+      ].freeze,
       "DomainRefusal" => [
         {"name"=>"AbsentArgument"}.freeze,
         {"name"=>"AlreadyExists"}.freeze,
@@ -198,6 +209,29 @@ module Hecks
         {"name"=>"percentile", "identity"=>"null", "combine"=>"collect", "inverse"=>""}.freeze,
         {"name"=>"any", "identity"=>"false", "combine"=>"or", "inverse"=>""}.freeze,
         {"name"=>"all", "identity"=>"true", "combine"=>"and", "inverse"=>""}.freeze
+      ].freeze,
+      "RefusalClass" => [
+        {"name"=>"AbsentArgument", "kind"=>"absent_argument", "stage"=>"arguments"}.freeze,
+        {"name"=>"AlreadyExists", "kind"=>"refused", "stage"=>"state"}.freeze,
+        {"name"=>"AttributeAbsent", "kind"=>"refused", "stage"=>"state"}.freeze,
+        {"name"=>"EnsuresNotMet", "kind"=>"refused", "stage"=>"ensures"}.freeze,
+        {"name"=>"GivenNotMet", "kind"=>"refused", "stage"=>"givens"}.freeze,
+        {"name"=>"InvariantViolation", "kind"=>"refused", "stage"=>"invariants"}.freeze,
+        {"name"=>"LifecycleRefused", "kind"=>"refused", "stage"=>"state"}.freeze,
+        {"name"=>"NothingToCorrect", "kind"=>"refused", "stage"=>"state"}.freeze,
+        {"name"=>"NotFound", "kind"=>"not_found", "stage"=>"state"}.freeze,
+        {"name"=>"ProjectionAbsent", "kind"=>"refused", "stage"=>"state"}.freeze,
+        {"name"=>"RemoteRefusal", "kind"=>"refused", "stage"=>"remote"}.freeze,
+        {"name"=>"TypeMismatch", "kind"=>"refused", "stage"=>"arguments"}.freeze,
+        {"name"=>"Unauthorized", "kind"=>"unauthorized", "stage"=>"role"}.freeze,
+        {"name"=>"UnknownArgument", "kind"=>"refused", "stage"=>"arguments"}.freeze,
+        {"name"=>"UnknownVerb", "kind"=>"refused", "stage"=>"request"}.freeze
+      ].freeze,
+      "RefusalKind" => [
+        {"name"=>"refused"}.freeze,
+        {"name"=>"not_found"}.freeze,
+        {"name"=>"unauthorized"}.freeze,
+        {"name"=>"absent_argument"}.freeze
       ].freeze,
       "RefusalSiteArgument" => [
         {"refusal"=>"NotFound", "site"=>"creating_no_identity", "argument"=>"command", "shape"=>"scalar", "quoting"=>"none", "separator"=>"", "sorted"=>"false", "when_empty"=>""}.freeze,
@@ -589,6 +623,27 @@ module Hecks
         {"type"=>"Array"}.freeze,
         {"type"=>"String"}.freeze,
         {"type"=>"Hash"}.freeze
+      ].freeze,
+      "StepStage" => [
+        {"step"=>"decode_arguments", "stage"=>"arguments"}.freeze,
+        {"step"=>"refuse_unknown_arguments", "stage"=>"arguments"}.freeze,
+        {"step"=>"refuse_absent_arguments", "stage"=>"arguments"}.freeze,
+        {"step"=>"normalize_args", "stage"=>"arguments"}.freeze,
+        {"step"=>"refuse_role_mismatch", "stage"=>"role"}.freeze,
+        {"step"=>"resolve_references", "stage"=>"references"}.freeze,
+        {"step"=>"hydrate", "stage"=>"state"}.freeze,
+        {"step"=>"hydrate_parent", "stage"=>"state"}.freeze,
+        {"step"=>"locate_element", "stage"=>"state"}.freeze,
+        {"step"=>"enforce_givens", "stage"=>"givens"}.freeze,
+        {"step"=>"admissible_transition", "stage"=>"state"}.freeze,
+        {"step"=>"assign_creation_attributes", "stage"=>"state"}.freeze,
+        {"step"=>"apply_mutations", "stage"=>"state"}.freeze,
+        {"step"=>"advance_lifecycle", "stage"=>"state"}.freeze,
+        {"step"=>"delegate_to_entity", "stage"=>"state"}.freeze,
+        {"step"=>"enforce_ensures", "stage"=>"ensures"}.freeze,
+        {"step"=>"enforce_invariants", "stage"=>"invariants"}.freeze,
+        {"step"=>"save", "stage"=>"state"}.freeze,
+        {"step"=>"emit", "stage"=>"state"}.freeze
       ].freeze,
       "ToStringType" => [
         {"type"=>"String"}.freeze,

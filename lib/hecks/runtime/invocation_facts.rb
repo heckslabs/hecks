@@ -1,4 +1,5 @@
 require_relative "errors"
+require_relative "collecting"
 require_relative "refusal_wording"
 
 module Hecks
@@ -52,10 +53,12 @@ module Hecks
         unknown = (offered.keys - declared).sort
         return if unknown.empty?
 
-        raise UnknownArgument.new(RefusalWording.render_site("UnknownArgument", "unknown_args",
-                                                             command: declaring.hecks_name, unknown: unknown,
-                                                             declared: declared),
-                                  attribute: unknown.first)
+        Collecting.refuse_each(unknown) do |names|
+          UnknownArgument.new(RefusalWording.render_site("UnknownArgument", "unknown_args",
+                                                         command: declaring.hecks_name, unknown: names,
+                                                         declared: declared),
+                              attribute: names.first)
+        end
       end
 
       # A fact the command `needs`, and an argument its attribute gives a default, are not absent:
@@ -64,10 +67,12 @@ module Hecks
         absent = required_fact_names(declaring) - offered.keys - filled_fact_names(declaring)
         return if absent.empty?
 
-        raise AbsentArgument.new(RefusalWording.render_site("AbsentArgument", "absent_args",
-                                                            command: declaring.hecks_name, absent: absent,
-                                                            declared: declared),
-                                 attribute: absent.min)
+        Collecting.refuse_each(absent) do |names|
+          AbsentArgument.new(RefusalWording.render_site("AbsentArgument", "absent_args",
+                                                        command: declaring.hecks_name, absent: names,
+                                                        declared: declared),
+                             attribute: names.min)
+        end
       end
 
       def required_fact_names(declaring)

@@ -326,6 +326,14 @@ Open accounts whose customer has since been suspended — live money movement no
 
 Accounts that are open and whose customer's status is suspended, sorted by account number, A to Z.
 
+#### Open paged
+
+Open accounts by number, one page at a time — the account list a screen pages through.
+
+Accounts that are open, sorted by account number, A to Z.
+
+Shows at most 25.
+
 #### Overdrawn
 
 Accounts below a floor the caller supplies — the morning risk report.

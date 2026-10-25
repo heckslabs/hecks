@@ -6,6 +6,7 @@ require_relative "vocabulary"
 require_relative "rust_vocabulary/enum_body"
 require_relative "rust_vocabulary/arguments"
 require_relative "rust_vocabulary/tests"
+require_relative "rust_vocabulary/tables"
 
 module Hecks
   module Projections
@@ -26,20 +27,6 @@ module Hecks
       VARIANT_NAME = /\A[A-Z][A-Za-z0-9]*\z/
       # A `{name}` placeholder in a refusal template, capturing the name.
       PLACEHOLDER = /\{(\w+)\}/
-
-      # Table name => enum name, variant-naming fields, file stem and kind.
-      # `:order` adds `position`; `:templates` adds `render` and the typed `<Variant>Args`.
-      TABLES = {
-        "RefusalTemplate"        => { enum: "RefusalSite",     variant_from: %w[refusal site], file: "refusal_template",
-                                      kind: :templates, arguments: "RefusalSiteArgument" },
-        "QueryComparator"        => { enum: "QueryComparator", variant_from: %w[name], file: "query_comparator", kind: :set },
-        "FieldHint"              => { enum: "FieldHint",       variant_from: %w[name], file: "field_hint", kind: :set },
-        "Reducer"                => { enum: "Reducer",         variant_from: %w[name], file: "reducer", kind: :set },
-        "AggregateDispatchOrder" => { enum: "AggregateStep",   variant_from: %w[step], file: "aggregate_dispatch_order",
-                                      kind: :order },
-        "EntityDispatchOrder"    => { enum: "EntityStep",      variant_from: %w[step], file: "entity_dispatch_order",
-                                      kind: :order }
-      }.freeze
 
       # Keywords Rust refuses as a raw identifier, so they cannot take the `r#` escape.
       NOT_RAW = %w[crate self Self super].freeze

@@ -2,6 +2,8 @@
 //! `run` reads `{"steps": [...]}` and hands each step to `kernel::orchestrate` (ADR 0012), or
 //! `{"present": answer}` and answers that answer bare (`kernel::present`).
 
+use super::collecting::{self, Collected, Detail};
+use super::vocab::RefusalClass;
 use super::{
     named_query, orchestrate, query_comparators, read_model, repository, AggregateScan,
     CompletedCompensation, Event, Json, MutationRecord, PendingCrossDomainReaction, Refusal,
@@ -115,6 +117,8 @@ pub fn run(input: &str) -> String {
     let mut query_results: Vec<Json> = Vec::new();
     // One entry per `dry_run` step: the command run against a throwaway clone of the store.
     let mut dry_runs: Vec<Json> = Vec::new();
+    // One entry per `validate` step: every refusal a command would meet, as data.
+    let mut validations: Vec<Json> = Vec::new();
 
     for step in steps {
         // A query step's `args` sit at the sibling `"args"` key, as for a command step.
@@ -232,7 +236,7 @@ pub fn run(input: &str) -> String {
             let caller_role = step.get("role").and_then(Json::as_str);
             // See `actor_id` on the command step below.
             let caller_actor_id = step.get("actor_id").and_then(Json::as_str);
-            let command_input = dry_run_command_input(args);
+            let command_input = dry_run_input(step, args);
             dry_runs.push(dry_run(
                 &store,
                 verb,
@@ -246,8 +250,25 @@ pub fn run(input: &str) -> String {
             continue;
         }
 
+        if let Some(verb) = step.get("validate").and_then(Json::as_str) {
+            let caller_role = step.get("role").and_then(Json::as_str);
+            let caller_actor_id = step.get("actor_id").and_then(Json::as_str);
+            let command_input = dry_run_input(step, args);
+            validations.push(validation(
+                &store,
+                verb,
+                &command_input,
+                caller_role,
+                caller_actor_id,
+            ));
+            mutations_per_step.push(Vec::new());
+            cross_domain_per_step.push(Vec::new());
+            reactions_per_step.push(Json::Array(Vec::new()));
+            continue;
+        }
+
         let Some(verb) = step.get("verb").and_then(Json::as_str) else {
-            return error_output("step missing \"verb\", \"dry_run\", or \"query\"");
+            return error_output("step missing \"verb\", \"dry_run\", \"validate\", or \"query\"");
         };
 
         // Per-step `role:` stands in for Ruby's ambient `Hecks.as_caller`; passed to the top-level
@@ -345,6 +366,7 @@ pub fn run(input: &str) -> String {
         ("events".to_string(), events_json),
         ("refusals".to_string(), refusals_json),
         ("dry_runs".to_string(), Json::Array(dry_runs)),
+        ("validations".to_string(), Json::Array(validations)),
         ("mutations".to_string(), mutations_json),
         ("queries".to_string(), Json::Array(query_results)),
         ("cross_domain_reactions".to_string(), cross_domain_json),
@@ -371,25 +393,110 @@ fn dry_run(
     caller_role: Option<&str>,
     caller_actor_id: Option<&str>,
 ) -> Json {
-    let mut scratch = store.clone();
-    match dispatch_by_name(
-        &mut scratch,
-        verb,
-        command_input,
-        caller_role,
-        caller_actor_id,
-        &mut Vec::new(),
-    ) {
-        Ok(_) => Json::obj(vec![
+    let (outcome, collected) = preview(store, verb, command_input, caller_role, caller_actor_id);
+    match outcome {
+        Ok(()) => Json::obj(vec![
             ("verb", Json::str(verb.to_string())),
             ("ok", Json::Bool(true)),
         ]),
-        Err(refusal) => Json::obj(vec![
-            ("verb", Json::str(verb.to_string())),
-            ("ok", Json::Bool(false)),
-            ("error", Json::str(refusal.to_string())),
-        ]),
+        Err(refusal) => refused_dry_run(verb, &refusal, &collected),
     }
+}
+
+/// Every reason a command would be refused, as data: `{verb, ok, refusals}` with each refusal's
+/// class, kind, stage, attribute, path, rule and message. The step `validate` answers with.
+fn validation(
+    store: &Store,
+    verb: &str,
+    command_input: &Json,
+    caller_role: Option<&str>,
+    caller_actor_id: Option<&str>,
+) -> Json {
+    let (outcome, collected) = preview(store, verb, command_input, caller_role, caller_actor_id);
+    let refusals: Vec<Json> = match outcome {
+        Ok(()) => Vec::new(),
+        Err(refusal) if collected.is_empty() => vec![refusal_entry(&refusal, &Detail::default())],
+        Err(_) => collected
+            .iter()
+            .map(|kept| refusal_entry(&kept.refusal, &kept.detail))
+            .collect(),
+    };
+    Json::obj(vec![
+        ("verb", Json::str(verb.to_string())),
+        ("ok", Json::Bool(refusals.is_empty())),
+        ("refusals", Json::Array(refusals)),
+    ])
+}
+
+/// The command run against a throwaway copy of the store with a collector bound: what it raised,
+/// and every refusal its failing stage kept.
+fn preview(
+    store: &Store,
+    verb: &str,
+    command_input: &Json,
+    caller_role: Option<&str>,
+    caller_actor_id: Option<&str>,
+) -> (Result<(), Refusal>, Vec<Collected>) {
+    let mut scratch = store.clone();
+    let (outcome, collected) = collecting::collecting(|| {
+        dispatch_by_name(
+            &mut scratch,
+            verb,
+            command_input,
+            caller_role,
+            caller_actor_id,
+            &mut Vec::new(),
+        )
+    });
+    (outcome.map(|_| ()), collected)
+}
+
+/// A refused dry run: the refusal's text, its class name, and the `kind` and `stage` the language's
+/// `RefusalClass` table gives that class. A refusal the table does not class (`Fault`) is a plain
+/// refusal in the `state` stage, as `Hecks::Refused` classes one in Ruby.
+///
+/// `reasons` holds every refusal the failing stage collected; `refusals` lists them all, or just
+/// `refusal` when the stage raised without collecting (a role, argument or lifecycle refusal).
+fn refused_dry_run(verb: &str, refusal: &Refusal, reasons: &[Collected]) -> Json {
+    let all: Vec<Json> = if reasons.is_empty() {
+        vec![refusal_entry(refusal, &Detail::default())]
+    } else {
+        reasons
+            .iter()
+            .map(|kept| refusal_entry(&kept.refusal, &kept.detail))
+            .collect()
+    };
+    let (kind, stage) = refusal_class(refusal);
+    Json::obj(vec![
+        ("verb", Json::str(verb.to_string())),
+        ("ok", Json::Bool(false)),
+        ("error", Json::str(refusal.to_string())),
+        ("refusal", Json::str(refusal.kind().to_string())),
+        ("kind", Json::str(kind.to_string())),
+        ("stage", Json::str(stage.to_string())),
+        ("refusals", Json::Array(all)),
+    ])
+}
+
+fn refusal_class(refusal: &Refusal) -> (&'static str, &'static str) {
+    RefusalClass::from_name(refusal.kind())
+        .map_or(("refused", "state"), |class| (class.kind(), class.stage()))
+}
+
+/// One refusal as a client reads it: the class, kind and stage, the message, and what it is about
+/// (`attribute` and `path` for an argument, `rule` for a given, ensure or invariant), null otherwise.
+fn refusal_entry(refusal: &Refusal, detail: &Detail) -> Json {
+    let (kind, stage) = refusal_class(refusal);
+    let text = |value: &Option<String>| value.clone().map_or(Json::Null, Json::Str);
+    Json::obj(vec![
+        ("kind", Json::str(kind.to_string())),
+        ("stage", Json::str(stage.to_string())),
+        ("refusal", Json::str(refusal.kind().to_string())),
+        ("attribute", text(&detail.attribute)),
+        ("path", text(&detail.path)),
+        ("rule", text(&detail.rule)),
+        ("message", Json::str(refusal.to_string())),
+    ])
 }
 
 fn tables() -> Tables<'static> {
@@ -590,6 +697,16 @@ fn command_input<'a>(step: &'a Json, legacy_args: &'a Json) -> &'a Json {
     }
 }
 
+// A dry run that names its receiver, with top-level `to`/`with` as a real step does (the host
+// previews this way), is routed as that step would be. Otherwise `args` are flat facts.
+fn dry_run_input(step: &Json, args: &Json) -> Json {
+    if step.get("to").is_some() || step.get("with").is_some() {
+        step.clone()
+    } else {
+        dry_run_command_input(args)
+    }
+}
+
 // Not `command_input()`: Ruby's `dry_run?` forwards every arg key, `to`/`with` included, as flat
 // facts. Wrapping under `with` keeps a fact named `to` from being read as a routing envelope.
 fn dry_run_command_input(args: &Json) -> Json {
@@ -727,6 +844,84 @@ mod routing_tests {
                 .and_then(|name| name.get("value"))
                 .and_then(Json::as_str),
             Some("crew-1")
+        );
+    }
+}
+
+#[cfg(test)]
+mod refused_dry_run_tests {
+    use super::*;
+
+    fn answer(refusal: &Refusal) -> String {
+        refused_dry_run("A::B.C", refusal, &[]).to_json_string()
+    }
+
+    #[test]
+    fn a_stage_that_collected_lists_every_refusal_and_one_that_did_not_lists_its_own() {
+        let first = Refusal::GivenNotMet("C refused — one".to_string());
+        let second = Refusal::GivenNotMet("C refused — two".to_string());
+
+        let kept = |refusal: Refusal, rule: &str| Collected {
+            refusal,
+            detail: Detail::rule(rule),
+        };
+        let collected = refused_dry_run(
+            "A::B.C",
+            &first,
+            &[kept(first.clone(), "one"), kept(second, "two")],
+        )
+        .to_json_string();
+        let alone = answer(&first);
+        assert!(
+            collected.contains(r#""rule":"one""#) && collected.contains(r#""rule":"two""#),
+            "{collected}"
+        );
+        assert!(alone.contains(r#""rule":null"#), "{alone}");
+
+        assert!(
+            collected.contains("C refused — one") && collected.contains("C refused — two"),
+            "{collected}"
+        );
+        assert_eq!(
+            alone.matches(r#""refusal":"GivenNotMet""#).count(),
+            2,
+            "{alone}"
+        );
+        assert!(!alone.contains("two"), "{alone}");
+    }
+
+    #[test]
+    fn a_refused_dry_run_names_the_class_kind_and_stage_the_language_gives_it() {
+        let json = answer(&Refusal::GivenNotMet(
+            "C refused — the balance is zero".to_string(),
+        ));
+        assert!(json.contains(r#""ok":false"#), "{json}");
+        assert!(json.contains(r#""refusal":"GivenNotMet""#), "{json}");
+        assert!(json.contains(r#""kind":"refused""#), "{json}");
+        assert!(json.contains(r#""stage":"givens""#), "{json}");
+    }
+
+    #[test]
+    fn a_missing_record_is_kind_not_found() {
+        let json = answer(&Refusal::NotFound("no Account a1".to_string()));
+        assert!(json.contains(r#""kind":"not_found""#), "{json}");
+    }
+
+    #[test]
+    fn a_role_the_caller_lacks_is_kind_unauthorized_in_the_role_stage() {
+        let json = answer(&Refusal::Unauthorized("role".to_string()));
+        assert!(
+            json.contains(r#""kind":"unauthorized""#) && json.contains(r#""stage":"role""#),
+            "{json}"
+        );
+    }
+
+    #[test]
+    fn a_refusal_the_language_does_not_class_is_a_plain_refusal_in_the_state_stage() {
+        let json = answer(&Refusal::Fault("boom".to_string()));
+        assert!(
+            json.contains(r#""kind":"refused""#) && json.contains(r#""stage":"state""#),
+            "{json}"
         );
     }
 }
