@@ -57,13 +57,23 @@ module Hecks
           args = plain(held)
           case operation
           when "refresh_runtime_baseline" then refresh(args, tree)
-          when "run_spec_example" then TestRunner.new(tree).run(file: args[:file], example: args[:example])
+          when "run_spec_example" then TestRunner.new(tree).run(file: args[:file], example: args[:example], env: spec_env(args))
           when "stress_concurrency" then stress(args, tree)
           when "clear_caches" then clear_caches
           when "regenerate_legacy_fixtures" then regenerate_fixtures(args, tree, shell)
           when "seed_semantics_corpus" then seed(args, tree)
           else write_list(args, tree)
           end
+        end
+
+        # The variables the specs read, set for one example only: the arguments of the run, so a
+        # person never sets them in a shell.
+        #
+        # @param args [Hash] `strict`, `seeds` and `environment`, each perhaps absent
+        # @return [Hash{String => String}] only those the run named
+        def spec_env(args)
+          { "CI" => ("true" if args[:strict] == true), "PROPERTY_SEEDS" => args[:seeds]&.to_s,
+            "HECKS_ENVIRONMENT" => args[:environment] }.compact
         end
 
         # @param args [Hash] `runs`, `parallel` and `seed_start`

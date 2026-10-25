@@ -105,7 +105,11 @@ for it.
    switches warn; `test_suite_run.clear_caches!` empties the syntax-boot, verdict and usage
    caches.
 2. Derived variables: no schema change.
-3. Arguments: `profile` and `prebuilt` are built. Still to build: `strict`, spec seeds, `environment`, `board!`.
+3. Arguments: `profile` and `prebuilt` are built, and `run_spec_example!` takes `strict`,
+   `seeds` and `environment`, which set `CI`, `PROPERTY_SEEDS` and `HECKS_ENVIRONMENT` for
+   that run only. Still to build: `strict` on `gate_run.gate!` (with the pre-push hook
+   choosing its stage by command), a tag filter for `HECKS_CLOUDFRONT_TEST`, and the
+   `board!` argument for `HECKS_PUSH_TRAIN=off`.
 4. World-declared variables: `environments/*.world` becomes the one place a copy says
    what it connects to.
 5. Declared settings: needs a decision on where in the hecksagon they are written.

@@ -2053,6 +2053,9 @@ Hecks.bluebook "Hecks" do
     attribute :fixture,     FixtureName, optional: true
     attribute :exclude,     ExcludePattern, optional: true
     attribute :tags,        TagArguments, optional: true
+    attribute :strict,      Switch, optional: true
+    attribute :seeds,       Count, optional: true
+    attribute :environment, EnvironmentName, optional: true
     attribute :write,       FilePath, optional: true
     attribute :group,       Count, optional: true
     attribute :groups,      Count, optional: true
@@ -2122,6 +2125,11 @@ Hecks.bluebook "Hecks" do
       attribute :value, String, pattern: '^[^\t\n\r]+$'
     end
 
+    # An environment overlay's name, as `environments/<name>.world` spells it.
+    value_object "EnvironmentName" do
+      attribute :value, String, pattern: '^[a-z][a-z0-9_]*$'
+    end
+
     lifecycle :status, default: "requested" do
       mark :failure, "faulted"
       transition "Accept"   => "accepted",  from: "requested"
@@ -2151,13 +2159,23 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Run one spec file filtered to one example, through the test runner in this process"
 
-      attribute :file,    FilePath
-      attribute :example, ExampleText
-      attribute :run,     RunKey
+      attribute :file,        FilePath
+      attribute :example,     ExampleText
+      attribute :run,         RunKey
+      # Run the specs as CI does: the slow io, process and fuzzing groups included, and a Postgres
+      # that is not reachable a failure, not a skip.
+      attribute :strict,      Switch, optional: true
+      # How many seeds the property specs try, where they default to a few.
+      attribute :seeds,       Count, optional: true
+      # The environment overlay the example boots its domains on, such as `memory`.
+      attribute :environment, EnvironmentName, optional: true
 
       sets :file
       sets :example
       sets :run
+      sets :strict
+      sets :seeds
+      sets :environment
       sets :operation, to: "run_spec_example"
 
       emits RunSpecExampleRequested
