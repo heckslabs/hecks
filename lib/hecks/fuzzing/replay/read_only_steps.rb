@@ -1,13 +1,9 @@
-require_relative "refusal_shapes"
-
 module Hecks
   module Fuzzing
     module Replay
       # The steps a session answers without dispatching a command: declared and ad hoc queries,
       # and dry runs. Mixed into `Session`, whose recorded lists and runtime they use.
       module ReadOnlySteps
-        include RefusalShapes
-
         private
 
         def ask(question, args)
@@ -105,28 +101,6 @@ module Hecks
           @dry_runs << entry
           @dry_run_traces << entry.merge(before: before, after: after, raised: raised,
                                          validation: validation_of(step, hypothetical, args))
-        end
-
-        # What `validate` says of the same hypothetical, kept beside the trace: whether it would be
-        # accepted, the stage, text and offender of its first refusal, and every refusal as `[kind,
-        # stage, attribute, path, rule, class]`. It is asked through `validate_facts`, which reads
-        # `to` and `with` as facts the way `dry_run?` does; `validate` would route them, and so
-        # answer a different command.
-        def validation_of(step, hypothetical, args)
-          result = Replay.as_step_caller(step) { @runtime.validate_facts(hypothetical, **args) }
-          first = result.refusals.first
-          { ok: result.ok?, first_stage: first&.stage, first_message: first&.message, first_offender: offender_of(first),
-            reasons: result.refusals.map { |refusal| reason_of(refusal) } }
-        rescue Runtime::WiringError
-          nil
-        end
-
-        # A `validate` step: every refusal the command would meet, recorded as data and never as a
-        # refusal of the script. Compared against `kernel/cli.rs`'s own `validate` answer.
-        def validate_step(step, hypothetical, args)
-          result = Replay.as_step_caller(step) { @runtime.validate(hypothetical, args) }
-          @validations << { verb: hypothetical, ok: result.ok?,
-                            refusals: result.refusals.map { |refusal| validation_entry(refusal) } }
         end
 
         def state_snapshot = { instances: Replay.snapshot_instances(@runtime), events: @runtime.events.size }
