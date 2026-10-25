@@ -74,6 +74,12 @@ Hecks.hecksagon "Hecks" do
       answers "TrainAnswered"
       refuses "TrainRefused"
     end
+
+    asks "Tally", to: PushTrain do
+      attribute :run, RunKey
+      answers "SurveyAnswered"
+      refuses "SurveyRefused"
+    end
   end
 
   Hecks::PushTrain.port "Alerts" do
