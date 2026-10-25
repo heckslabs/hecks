@@ -29,6 +29,7 @@ RSpec.describe "the category tests, covering every closed set", :aggregate_failu
     "PrebuiltBinary"        => "release artifacts, held by spec/rust_build_prebuilt_binary_spec.rb",
     "Primitive"             => "attribute types, held by spec/vocabulary_conformance_spec.rb",
     "QaDial"                => "QA settings, held by spec/qa_dials_spec.rb",
+    "Reducer"               => "read-model reductions, held by the fuzzer's group_by properties",
     "RefusalSiteArgument"   => "refusal wording rows, pinned by the IR golden",
     "RefusalTemplate"       => "refusal wording rows, pinned by the IR golden",
     "ReleaseFile"           => "release bookkeeping, held by spec/release/",

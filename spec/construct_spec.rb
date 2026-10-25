@@ -260,7 +260,8 @@ RSpec.describe "a construct's identity" do
       ["Banking.CustomerPortfolio", "Banking.ComplianceDashboard", "Banking.DisputedPaymentCount",
        "Banking.DisputedPaymentMedian", "Banking.DisputedPaymentTotal", "Banking.DisputedPaymentAverage",
        "Banking.DisputedPaymentSmallest", "Banking.DisputedPaymentLargest", "Banking.DisputedPaymentP95",
-       "Banking.AccountsByKind"]
+       "Banking.AccountsByKind", "Banking.CardPaymentTotalsByStatus", "Banking.CardPaymentCountsByStatus",
+       "Banking.HoldsOnCards"]
     end
 
     it "hangs a read model off the CHAPTER, since no one head declares it" do
