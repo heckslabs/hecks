@@ -40,6 +40,17 @@ for era tooling, `HECKS_DOMAIN`, `HECKS_SERVICE_URL`.
 analytics hosts and ids, smoke settings (`SMOKE_CONFIG`), `SETTLE_TIMEOUT_SECS`,
 `SITE_URL`, `DOMAIN_NAME`, the OAuth client ids and redirect URIs.
 
+**Per-run switches become arguments of the command that runs.** A run is a hecks
+command (`gate_run.gate!`, `push_train.board!`, `regenerate_corpus!`, the spec runs), so
+what varies per run is an argument of that command, recorded with the run, not ambient
+shell state. A variable survives only where no command runs the thing (a spec process
+started by `rspec`, a child process). The lists below are what is kept today; each one
+moves to an argument as its command gains it, and the variable is then retired by
+decision 6. Today `gate_run.gate!` takes `stage`, `only` and `run`, and
+`push_train.board!` takes `run`, `branch`, `remote` and `checkout`; neither takes a skip
+or off argument, so `HECKS_PRE_PUSH_GATE` and `HECKS_PUSH_TRAIN=off` have no argument
+to move to yet.
+
 **Kept as per-run switches (documented overrides):**
 `HECKS_ENVIRONMENT` (memory for specs), `CI`, `GOLDEN=rewrite`, `HECKS_PRE_PUSH_GATE`,
 `HECKS_PUSH_TRAIN=off`, `HECKS_PREBUILT=off`, `EXISTING_TAG` (rollback), and the seed and
