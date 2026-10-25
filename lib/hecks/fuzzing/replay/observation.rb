@@ -9,7 +9,7 @@ module Hecks
         def observed_history
           { instances: Replay.snapshot_instances(@runtime), events: events, refusals: @refusals,
             reactions: @runtime.reactions, sagas: @runtime.sagas, saga_instances: saga_instances,
-            queries: @queries, dry_runs: @dry_runs, dry_run_traces: @dry_run_traces,
+            queries: @queries, dry_runs: @dry_runs, dry_run_traces: @dry_run_traces, validations: @validations,
             fan_outs: @fan_outs, guard_checks: @guard_checks, role_checks: @role_checks,
             refusal_traces: @refusal_traces,
             mutation_traces: @mutation_traces, outbox_traces: @outbox_traces,

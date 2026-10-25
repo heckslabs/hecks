@@ -96,7 +96,9 @@ module Hecks
       def conformance_expectation(result)
         # The query_row fields are Replay's own data for the property harness, not an outcome.
         queries = roundtrip(result[:queries].map { |q| Hecks::Fuzzing::Nondeterministic.strip(q, :query_row) })
-        { "queries" => queries }.merge(CONFORMANCE_KEYS.drop(1).to_h { |k| [k, roundtrip(result[k.to_sym])] })
+        expectation = { "queries" => queries }.merge(CONFORMANCE_KEYS.drop(1).to_h { |k| [k, roundtrip(result[k.to_sym])] })
+        validations = roundtrip(result[:validations])
+        validations.empty? ? expectation : expectation.merge("validations" => validations)
       end
 
       # @api private

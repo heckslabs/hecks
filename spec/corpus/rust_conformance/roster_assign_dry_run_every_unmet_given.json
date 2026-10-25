@@ -1,6 +1,6 @@
 {
   "domain": "examples/roster",
-  "note": "A dry run lists every refusal of the stage it stops in, not only the first (Dispatcher#validate in Ruby, the kernel's collecting dry run in Rust). Assigning a member who was never enlisted to a seat that does not exist breaks two givens of Assign at once; both engines must refuse the dry run, in the givens stage, and name the same refusals. The frozen expect holds the verdict and the first reason; spec/rust_conformance_spec.rb holds the full list to the Ruby run.",
+  "note": "A validate step answers every refusal of the stage a command stops in, not only the first. Assigning a member who was never enlisted to a seat that does not exist breaks two givens of Assign at once; each refusal names the rule that did not hold. Ruby's Dispatcher#validate and the kernel's collecting dry run must list the same refusals, in the same order, with the same text.",
   "steps": [
     {
       "verb": "Roster::Roster.Open",
@@ -11,7 +11,7 @@
       }
     },
     {
-      "dry_run": "Roster::Roster.Assign",
+      "validate": "Roster::Roster.Assign",
       "args": {
         "name": {
           "value": "crew-x"
@@ -61,13 +61,33 @@
     ],
     "queries": [],
     "sagas": [],
-    "dry_runs": [
+    "dry_runs": [],
+    "reactions": [],
+    "validations": [
       {
         "verb": "Roster::Roster.Assign",
         "ok": false,
-        "error": "Assign refused — the member is enlisted"
+        "refusals": [
+          {
+            "kind": "refused",
+            "stage": "givens",
+            "refusal": "GivenNotMet",
+            "attribute": null,
+            "path": null,
+            "rule": "the member is enlisted",
+            "message": "Assign refused — the member is enlisted"
+          },
+          {
+            "kind": "refused",
+            "stage": "givens",
+            "refusal": "GivenNotMet",
+            "attribute": null,
+            "path": null,
+            "rule": "the seat exists",
+            "message": "Assign refused — the seat exists"
+          }
+        ]
       }
-    ],
-    "reactions": []
+    ]
   }
 }

@@ -1296,14 +1296,16 @@ impl CreatePizzaArgs {
         let unknown = v.unknown_keys(&["name", "pizza", "id"]);
         if !unknown.is_empty() {
             let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
-            return Err(crate::kernel::Refusal::UnknownArgument(
-                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-                    command: "CreatePizza",
-                    unknown: &unknown,
-                    declared: &["name", "pizza"],
-                }
-                .render_args(),
-            ));
+            crate::kernel::collecting::refuse_each(&unknown, |names| {
+                crate::kernel::Refusal::UnknownArgument(
+                    crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+                        command: "CreatePizza",
+                        unknown: names,
+                        declared: &["name", "pizza"],
+                    }
+                    .render_args(),
+                )
+            })?;
         }
         Ok(())
     }
@@ -1316,14 +1318,16 @@ impl CreatePizzaArgs {
             .filter(|key| v.get(key).is_none())
             .collect();
         if !absent.is_empty() {
-            return Err(crate::kernel::Refusal::AbsentArgument(
-                crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
-                    command: "CreatePizza",
-                    absent: &absent,
-                    declared: &["name", "pizza"],
-                }
-                .render_args(),
-            ));
+            crate::kernel::collecting::refuse_each(&absent, |names| {
+                crate::kernel::Refusal::AbsentArgument(
+                    crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+                        command: "CreatePizza",
+                        absent: names,
+                        declared: &["name", "pizza"],
+                    }
+                    .render_args(),
+                )
+            })?;
         }
         Ok(())
     }
@@ -1513,14 +1517,16 @@ impl AddToppingArgs {
         let unknown = v.unknown_keys(&["topping", "amount", "id", "order", "name"]);
         if !unknown.is_empty() {
             let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
-            return Err(crate::kernel::Refusal::UnknownArgument(
-                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-                    command: "AddTopping",
-                    unknown: &unknown,
-                    declared: &["topping", "amount"],
-                }
-                .render_args(),
-            ));
+            crate::kernel::collecting::refuse_each(&unknown, |names| {
+                crate::kernel::Refusal::UnknownArgument(
+                    crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+                        command: "AddTopping",
+                        unknown: names,
+                        declared: &["topping", "amount"],
+                    }
+                    .render_args(),
+                )
+            })?;
         }
         Ok(())
     }
@@ -1533,14 +1539,16 @@ impl AddToppingArgs {
             .filter(|key| v.get(key).is_none())
             .collect();
         if !absent.is_empty() {
-            return Err(crate::kernel::Refusal::AbsentArgument(
-                crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
-                    command: "AddTopping",
-                    absent: &absent,
-                    declared: &["topping", "amount"],
-                }
-                .render_args(),
-            ));
+            crate::kernel::collecting::refuse_each(&absent, |names| {
+                crate::kernel::Refusal::AbsentArgument(
+                    crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+                        command: "AddTopping",
+                        absent: names,
+                        declared: &["topping", "amount"],
+                    }
+                    .render_args(),
+                )
+            })?;
         }
         Ok(())
     }
@@ -1763,14 +1771,16 @@ impl PurchaseArgs {
         let unknown = v.unknown_keys(&["amount", "customer_name", "id", "order", "name"]);
         if !unknown.is_empty() {
             let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
-            return Err(crate::kernel::Refusal::UnknownArgument(
-                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-                    command: "Purchase",
-                    unknown: &unknown,
-                    declared: &["amount", "customer_name"],
-                }
-                .render_args(),
-            ));
+            crate::kernel::collecting::refuse_each(&unknown, |names| {
+                crate::kernel::Refusal::UnknownArgument(
+                    crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+                        command: "Purchase",
+                        unknown: names,
+                        declared: &["amount", "customer_name"],
+                    }
+                    .render_args(),
+                )
+            })?;
         }
         Ok(())
     }
@@ -1783,14 +1793,16 @@ impl PurchaseArgs {
             .filter(|key| v.get(key).is_none())
             .collect();
         if !absent.is_empty() {
-            return Err(crate::kernel::Refusal::AbsentArgument(
-                crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
-                    command: "Purchase",
-                    absent: &absent,
-                    declared: &["amount", "customer_name"],
-                }
-                .render_args(),
-            ));
+            crate::kernel::collecting::refuse_each(&absent, |names| {
+                crate::kernel::Refusal::AbsentArgument(
+                    crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+                        command: "Purchase",
+                        absent: names,
+                        declared: &["amount", "customer_name"],
+                    }
+                    .render_args(),
+                )
+            })?;
         }
         Ok(())
     }

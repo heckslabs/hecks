@@ -2,10 +2,11 @@
 //!
 //! The kernel's dry-run step answers `{verb, ok, error?, refusal?, kind?, stage?}`. This reshapes
 //! it into the envelope every client reads, the one `Dispatcher#validate` gives in Ruby:
-//! `{ok, refusals: [{kind, stage, refusal, message}]}`. The kernel lists every unmet given, ensure
-//! and invariant of the stage it stopped in, as Ruby does; a refusal outside those stages (a role,
-//! an argument, a lifecycle) stands alone. What the kernel does not know (the attribute, the path,
-//! the rule) is absent, which a client reads as null.
+//! `{ok, refusals: [{kind, stage, refusal, attribute, path, rule, message}]}`. The kernel lists every
+//! unmet given, ensure and invariant of the stage it stopped in, and every unknown and absent
+//! argument, as Ruby does; any other refusal (a role, a lifecycle, a coercion mismatch) stands
+//! alone. A refusal about an argument names its `attribute` and `path`, one about a rule its `rule`;
+//! the rest are null.
 
 use serde_json::{json, Value};
 use std::collections::HashMap;
