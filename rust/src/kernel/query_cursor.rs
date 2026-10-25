@@ -111,7 +111,7 @@ fn sequence(key: &Json, id: &str, held: &Json, held_id: &str, order: &OrderBy) -
     }
 }
 
-fn nulls_first(order: &OrderBy) -> bool {
+const fn nulls_first(order: &OrderBy) -> bool {
     match order.nulls {
         NullsMode::First => true,
         NullsMode::Last => false,
