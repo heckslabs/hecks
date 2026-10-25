@@ -62,7 +62,7 @@ module Hecks
           Dir.mktmpdir do |dir|
             domain_dir = write_fixture(dir, basename, world_body, env_local: env_local)
             outcome = Hecks::Adapters::ConsoleCapture.capture { DeployRecipe.main([domain_dir], root: root) }
-            outcome.ok? or raise Error, "hecks deploy project failed generating the #{basename} fixture: #{outcome.output}"
+            outcome.ok? or raise Error, "hecks deploy recipe.project failed generating the #{basename} fixture: #{outcome.output}"
           end
           File.join(root, "deploy", basename)
         end

@@ -3,7 +3,7 @@
 # The query DSL: what exists, and what might extend it
 
 **Status: mostly a record of what's already built, verified directly — plus a short,
-explicitly-marked list of proposed additions that are not implemented.** Grew out of
+explicitly-marked list of proposed additions, of which aggregation has since shipped.** Grew out of
 the Rails integration design doc's reasoning about associations and batch reads; kept
 separate because this is a language/persistence-layer concern, not a driving-adapter
 one.
@@ -114,18 +114,16 @@ generators both refuse to generate a read model that combines several many-side 
 with any declared option at all, cleanly, rather than risk applying an option to the
 wrong head.
 
-## One thing left unverified, not fabricated
+## `include` on a zero match
 
-Whether `include`'s behavior on an absent match reads like an inner join (row dropped)
-or a left join (row kept, empty collection) was not traced through
-`sqlite/projection.rb` here. Worth confirming directly before relying on it for a case
-where a zero-match include must not silently drop the root record — e.g. a compliance
-dashboard for accounts with *no* disputed payments should very plausibly still list
-the account.
+Traced in `lib/hecks/runtime/read_model_interpreter.rb`: a rooted read model fetches its
+root (or refuses `NotFound`); a many-side head with no match keeps the root with an empty
+collection, like a left join; a one-side head with no match is `nil`. A compliance
+dashboard for accounts with *no* disputed payments still lists the account.
 
-## Proposed additions — not implemented, listed in rough order of how well-motivated each is
+## Proposed additions — aggregation has shipped; the rest are not implemented
 
-- **Aggregation** (`count`/`sum`/`avg`/`min`/`max`, with `group_by`). The sharpest gap,
+- **Aggregation** (`count`/`sum`/`avg`/`min`/`max`, with `group_by`). **Shipped** in `read_model` (ADRs 0050, 0052, 0078, 0126; see ADR 0061 for the `group_by` collision refusal). The text below is the original motivation. The sharpest gap,
   motivated by the corpus's own existing shape rather than speculation —
   `ComplianceDashboard` reads like exactly the kind of read model that wants "total
   disputed amount" or "count of open disputes," and nothing in the current vocabulary
@@ -136,7 +134,7 @@ the account.
 - **`distinct`** — a plain, common primitive with no equivalent in `comparators.rb` or
   `Options`.
 - **Explicit control over `include`'s optionality**, named rather than inferred. This
-  is the same problem as the unverified inner-vs-left question above, seen from the
+  is the same zero-match question as above, seen from the
   DSL-authoring side: right now there's no lever to say "this include is required,
   drop the row if absent" versus "this include is optional, keep the row with an
   empty collection" — `many:` only ever answers cardinality, never optionality.

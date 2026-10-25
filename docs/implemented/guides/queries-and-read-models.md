@@ -361,9 +361,9 @@ end
 `authorize :vault_access, tenant: :branch_code` declares two things, and
 only one of them this runtime can actually check. `:vault_access` is a
 policy name — recorded on the query, round-tripped through the IR, and
-checked against nothing, because verifying that THIS caller actually
-holds `:vault_access` needs real caller-identity infrastructure this
-runtime does not have. That stays a named, open gap, not something
+checked against nothing: caller identity and grants exist for commands
+(`Runtime::Caller`, Governance), but nothing yet maps a query's
+`authorize` policy onto that grant check. That stays a named, open gap, not something
 quietly pretended to be covered. `tenant: :branch_code` is different:
 it makes `branch_code:` a mandatory argument, enforced as a synthetic
 `eq` where-clause on every engine that already reads `.wheres` — no
@@ -759,9 +759,9 @@ query_agreement_spec.rb` exists because none of the ordinary adapter
 specs ever checked that — each proves an adapter self-consistent, asking
 it a question and checking its own answer looks sane, which cannot see
 two adapters quietly disagreeing. That gate runs the same declared query
-against Memory, Sqlite, and Postgres over the same seeded records, and
+against every engine the spec builds (Memory, Sqlite, Postgres, PostgresEra, and D1 when reachable) over the same seeded records, and
 asserts every engine against one independent, hand-computed expected id
-list — not merely that the adapters agree with each other, since three
+list — not merely that the adapters agree with each other, since several
 engines sharing the same bug would still "agree" under that weaker
 check. When you ship a query that must mean the same thing on whichever
 adapter a deployment binds, that file is where the guarantee actually
@@ -770,8 +770,7 @@ lives, not in this guide's prose.
 ## `contains`: two readings, chosen by the field's own shape
 
 `contains` means one of two things, decided by what the field holds —
-never guessed, and identical on every engine (Memory, Sqlite, Postgres,
-the reference interpreter). On a `list_of` field (`CardPayment.tags`
+never guessed, and identical on every engine (and the reference interpreter). On a `list_of` field (`CardPayment.tags`
 above) it is real ELEMENT membership: `contains: "high_risk"` asks
 whether any element's own scalar equals `"high_risk"`, exactly. On any
 other field it is a plain SUBSTRING search over that field's text —

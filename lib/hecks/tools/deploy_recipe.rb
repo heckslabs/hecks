@@ -22,7 +22,7 @@ module Hecks
     # `--schema` override the stack for shared-database hosting: `stack_name` is appended to, so
     # re-running with the same `--tenant` regenerates the same stack.
     module DeployRecipe
-      USAGE = "usage: hecks deploy project <domain> [--tenant=<slug>] [--schema=<name>] " \
+      USAGE = "usage: hecks deploy recipe.project <domain> [--tenant=<slug>] [--schema=<name>] " \
               "[--out=<dir>] [--environment=<name>] [--target=<adapter>]"
 
       # The directory `ports/` and `adapters/` live under, loaded into every domain's registry.

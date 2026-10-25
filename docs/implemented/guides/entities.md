@@ -22,7 +22,7 @@ wrong one is the mistake this page exists to prevent:
   full).
 
 The middle case is the subject of this page, illustrated with
-`SafeDepositBox` — the one aggregate in `examples/banking` that holds
+`SafeDepositBox` — an aggregate in `examples/banking` that holds
 two entities at once, with deliberately different identity shapes, so
 the contrast between them is real rather than asserted.
 
@@ -245,7 +245,7 @@ end
 ```
 
 `Customer` is wired here too, and not incidentally: `SafeDepositBox`
-declares `reference_to Customer` at the aggregate level, and `Rent`
+declares `belongs_to Customer` (sugar for `reference_to`) at the aggregate level, and `Rent`
 declares it again on the command — a box cannot be rented to a
 customer who does not exist yet.
 
@@ -363,8 +363,8 @@ runtime.dispatch_flat("Banking::SafeDepositBox.IssueKey",
 state (`status`) — not against an incoming argument this time, but
 against whatever state the key is already in. `SafeDepositBox` does
 not need to know whether key `KEY-1` is still out; that fact belongs
-to the key. (The argument-vs-own-state variant of the same idea is two
-aggregates up in this same file: `LedgerEntry.Amend` reads its own
+to the key. (The argument-vs-own-state variant of the same idea is
+on `Account`'s `LedgerEntry`, in `deposit_accounts.bluebook`: `LedgerEntry.Amend` reads its own
 `amount` against an incoming `adjustment`. Either way, the rule
 belongs to the piece holding the field, not the aggregate that
 contains it.)
@@ -416,7 +416,7 @@ down.
 The aggregate has its own query too — `Rented`, which lists every box
 currently assigned to a customer for the annual access audit. It reads
 back exactly like `Customer`'s own queries do; the only thing it adds
-is `authorize` and `consistency`, which are their own topic (see
+is `authorize`, which is its own topic (see
 [queries-and-read-models.md](queries-and-read-models.md)), not an entity concern.
 
 ## What this bought you, and what it didn't

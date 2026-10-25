@@ -1,7 +1,8 @@
 # PRD 08 — Coverage-guided fuzzing for `bin/fuzz`
 
-**Status:** Not started. Lowest priority in this set, sequenced last on
-purpose — see below.
+**Status:** Shipped: `lib/hecks/fuzzing/runtime_coverage.rb` and `coverage_campaign.rb`
+steer seeds by real runtime line coverage. The text below is the original proposal,
+sequenced last on purpose.
 
 ## The problem
 
