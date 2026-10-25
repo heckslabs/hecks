@@ -106,8 +106,21 @@ impl Parser<'_> {
         // An indented paragraph under the `Domain:` line says what the domain is for.
         let mut vision = Scope::inside(header.indent);
         while let Some(step) = self.step(&mut vision, "Vision", true)? {
-            if let Step::Prose { text } = step {
-                chapter.vision = Some(text);
+            match step {
+                Step::Prose { text } => chapter.vision = Some(text),
+                Step::Phrase(m) if m.id == "classification" => {
+                    let kind = m.text_of("kind").to_lowercase();
+                    if !matches!(kind.as_str(), "core" | "supporting" | "generic") {
+                        return Err(self.error(
+                            m.line,
+                            m.col_of("kind"),
+                            format!("'{kind}' is not a kind of domain; it is core, supporting or generic"),
+                        ));
+                    }
+                    chapter.classification = Some(kind);
+                }
+                Step::Phrase(m) if m.id == "namespace" => chapter.namespace = Some(m.text_of("name")),
+                Step::Phrase(m) => return Err(self.unmeant(&m)),
             }
         }
         // The aggregates follow at the top level, as flat as the `Domain:` line.

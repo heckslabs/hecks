@@ -52,6 +52,8 @@ Hecks.bluebook "Sentence" do
       attribute :status,    String, default: "admitted"
 
       member id: "domain",            context: "File",      pattern: "Domain: {name:words}",                                                  opens: "Domain"
+      member id: "classification",    context: "Vision",    pattern: "This is a {kind:word} domain",                                          opens: ""
+      member id: "namespace",         context: "Vision",    pattern: "Its module is {name:rest}",                                             opens: ""
       member id: "aggregate",         context: "Domain",    pattern: "Aggregate: {name:words}",                                               opens: "Aggregate"
       member id: "identity",          context: "Aggregate", pattern: "(a|an|the) {owner:words} is identified by (its|their) {field:words}",  opens: ""
       member id: "has",               context: "Aggregate", pattern: "It has:",                                                              opens: "Has"

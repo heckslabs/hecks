@@ -800,6 +800,21 @@ pub(crate) fn positional_symbol(
     })
 }
 
+/// A field name Ruby takes as a symbol or a string: `order_by :position`, `order_by "slug.value"`.
+pub(crate) fn positional_field_name(
+    file: &str,
+    line: usize,
+    word: &str,
+    args: &ArgumentGateResult,
+    at: usize,
+) -> ParseResult<String> {
+    if positional_raw(file, line, word, args, at)?.trim().starts_with('"') {
+        positional_text(file, line, word, args, at)
+    } else {
+        positional_symbol(file, line, word, args, at)
+    }
+}
+
 /// The name in a source symbol token: `:name` -> `name`, `:"a.b"` -> `a.b`.
 /// Not `ruby_value::read`, which reads rendered wire values rather than source syntax.
 fn symbol_text(raw: &str) -> Option<String> {

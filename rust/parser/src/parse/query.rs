@@ -62,7 +62,7 @@ pub fn parse_body(
             }
             "order_by" => {
                 // The gate already refuses an undeclared `on:`; only `where` needs a check.
-                let field = super::positional_symbol(file, line, "order_by", &gated.args, 1)?;
+                let field = super::positional_field_name(file, line, "order_by", &gated.args, 1)?;
                 let direction = match gated.args.positional.iter().find(|(idx, _)| *idx == 2) {
                     Some((_, text)) => text.trim().trim_start_matches(':').to_string(),
                     None => "asc".to_string(),

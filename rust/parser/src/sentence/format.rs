@@ -19,6 +19,12 @@ pub fn sentences(chapter: &ir::Bluebook) -> Result<String, String> {
     if let Some(vision) = &chapter.vision {
         out.push_str(&format!("  {vision}\n"));
     }
+    if let Some(kind) = &chapter.classification {
+        out.push_str(&format!("  This is a {kind} domain\n"));
+    }
+    if let Some(namespace) = &chapter.namespace {
+        out.push_str(&format!("  Its module is {namespace}\n"));
+    }
     for aggregate in &chapter.aggregates {
         out.push('\n');
         aggregate_text(&mut out, aggregate)?;
@@ -240,6 +246,18 @@ fn value_object_text(out: &mut String, value_object: &ir::ValueObject) -> Result
         return Err(format!(
             "the sentence form describes {} by `a value`; its attribute is {}",
             value_object.name, value.name
+        ));
+    }
+    if value.list
+        || value.optional
+        || value.default.is_some()
+        || value.pattern.is_some()
+        || value.admits.is_some()
+        || value.relationship.is_some()
+    {
+        return Err(format!(
+            "the sentence form has no phrase for the options on the value of {}",
+            value_object.name
         ));
     }
     out.push_str(&format!(
