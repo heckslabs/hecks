@@ -96,8 +96,8 @@ module Hecks
           nil
         end
 
-        # Dispatches `command_name` through the dispatcher, stamped with this saga's correlation and,
-        # for a leg's own dispatch, its `dispatch_key`.
+        # Dispatches `command_name` through the dispatcher, stamped with this saga's correlation
+        # and, for a leg's own dispatch, its `dispatch_key`.
         def reenter_command(leg, command_name, projected, explicit:, source_receiver:)
           head = leg.correlation_head
           verb = qualified(command_name, leg.domain)

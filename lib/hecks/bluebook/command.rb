@@ -61,7 +61,7 @@ module Hecks
         # The lifecycle state this command is admissible from: a guard, not a transition.
         from:       -> { from },
         provenance: :provenance,
-        # Safe to deliver twice; a saga redrive reads it to decide whether an unsettled dispatch may run again.
+        # Safe to deliver twice; the saga redrive reads it for a dispatch left unsettled.
         idempotent: -> { idempotent? }
       )
 
@@ -75,7 +75,7 @@ module Hecks
         attr_reader :role, :goal, :attributes, :givens, :ensures, :needs, :mutations, :emits, :references,
                     :from, :provenance, :idempotent
 
-        # @return [Boolean] whether delivering the command twice leaves the state delivering it once does
+        # @return [Boolean] whether a second delivery leaves the state a first one did
         def idempotent? = @idempotent ? true : false
 
         # Mints one command as its own anonymous subclass of the class `declare` is called on.
@@ -85,12 +85,11 @@ module Hecks
         # @param attributes [Array<Bluebook::Attribute>] the declared arguments
         # @param givens [Array<Bluebook::Given>] the declared preconditions
         # @param ensures [Array<Bluebook::Given>] the postconditions; `needs` the facts it supplies
-        # @param mutations [Array<Bluebook::Mutation>] the state changes it applies
-        # @param emits [Array<String>] the event names it may emit
+        # @param mutations [Array<Bluebook::Mutation>] its state changes; `emits` the event names
         # @param references [String, Symbol, nil] the aggregate its `reference_to` addresses
         # @param from [String, Array<String>, nil] the lifecycle states it is admissible from
         # @param provenance [Object, nil] the declared canonical source, as written
-        # @param idempotent [Boolean] whether delivering it twice leaves the state delivering it once does
+        # @param idempotent [Boolean] whether a second delivery changes nothing
         def declare(name:, **given)
           fields = KeywordFields.fill(given, FIELD_DEFAULTS)
           verb = Class.new(self)

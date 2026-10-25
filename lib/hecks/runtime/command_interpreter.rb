@@ -65,11 +65,9 @@ module Hecks
       # @param invocation [Runtime::Invocation] the invocation built for this call
       # @param correlation [Hash, nil] saga correlation stamped on emitted events, if any
       # @param dry_run [Boolean] validate every step without saving, emitting or enqueueing
-      # @param dispatch_key [String, nil] a saga dispatch's identity; when the repository has already
-      #   applied it the command answers with no events and runs no step
+      # @param dispatch_key [String, nil] a saga dispatch's identity; an applied one runs no step
       # @return [Array] the settled instance, events, plan, persistence outcome, and outbox rows
-      # @raise [StandardError] a domain refusal (Runtime::DOMAIN_REFUSALS) when a rule refuses
-      # @raise [Runtime::StaleWrite, Runtime::WiringError] every retry loses, or resolve fails
+      # @raise [StandardError] a domain refusal, a StaleWrite once retries run out, or a WiringError
       # rubocop:disable-next Metrics/ParameterLists -- the public dispatch signature every entry point calls
       def call(domain, aggregate, command, invocation, correlation = nil, dry_run: false, dispatch_key: nil)
         args     = invocation.to_args

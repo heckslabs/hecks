@@ -32,10 +32,10 @@ module Hecks
 
         private
 
-        # A pending marker left by a crash: state was checkpointed but the leg's dispatches did not all
-        # settle. Held on the instance for `SagaInterpreter#redrive_stalled`, which runs once the
-        # dispatcher exists; Heki's each_saga only symbolizes memory's top-level keys, so the
-        # marker is normalized here once for all adapters.
+        # A pending marker left by a crash: state was checkpointed but the leg's dispatches did
+        # not all settle. Held on the instance for `SagaInterpreter#redrive_stalled`, which runs
+        # once the dispatcher exists; Heki's each_saga only symbolizes memory's top-level keys,
+        # so the marker is normalized here once for all adapters.
         def stall_saga(process_manager, correlation, pending)
           @state.saga_instances[process_manager][correlation][:stalled] = pending.transform_keys(&:to_sym)
         end

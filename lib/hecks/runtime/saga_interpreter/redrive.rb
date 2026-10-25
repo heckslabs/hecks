@@ -4,9 +4,10 @@ module Hecks
   module Runtime
     class SagaInterpreter
       # Finishes a saga leg a crash cut short. The pending marker names the moving event and how
-      # many of the leg's dispatches settled, so the ones that never began are delivered now. The one
-      # that may have run is delivered again only when its command is declared idempotent; otherwise
-      # it is reported, since a second delivery could apply it twice. Mixed into {SagaInterpreter}.
+      # many of the leg's dispatches settled, so the ones that never began are delivered now. The
+      # one that may have run is delivered again when its store dedupes by dispatch key or its
+      # command is declared idempotent; otherwise it is reported, since a second delivery could
+      # apply it twice. Mixed into {SagaInterpreter}.
       module Redrive
         # One rehydrated instance a crash left mid-leg: its declaration, correlation, home domain,
         # the instance itself and the marker the crash left on it.
@@ -17,10 +18,10 @@ module Hecks
           # @return [String] the declared name of the saga
           def saga_name = process_manager.name
 
-          # @return [Hash{Symbol => Object}] the log record a leg redriven from this stall starts with
+          # @return [Hash{Symbol => Object}] the log record a leg redriven from this stall opens
           def record = { process_manager: saga_name, on: marker[:on], instance: correlation, redriven: true }
 
-          # @return [Hash{Symbol => Object}] the log row that reports this stall for a human to reconcile
+          # @return [Hash{Symbol => Object}] the log row that reports this stall for a person
           def stall_row = { process_manager: saga_name, instance: correlation, rehydrated_stalled: true }
 
           # @return [Integer] how many of the leg's dispatches had settled
@@ -117,9 +118,9 @@ module Hecks
           clear_pending_marker(leg)
         end
 
-        # Whether a second delivery of the dispatch is safe: its store dedupes by dispatch key, or its
-        # command says it is idempotent. `command_name` is the dispatch's `Aggregate.Command`; a
-        # command owned by an entity is not found, so it counts as neither.
+        # Whether a second delivery of the dispatch is safe: its store dedupes by dispatch key, or
+        # its command says it is idempotent. `command_name` is the dispatch's `Aggregate.Command`;
+        # a command owned by an entity is not found, so it counts as neither.
         def redeliverable?(domain, command_name)
           aggregate_name, name = command_name.to_s.split(".", 2)
           aggregate = @registry.bluebook(domain).aggregates.find { |declared| declared.hecks_name == aggregate_name }
