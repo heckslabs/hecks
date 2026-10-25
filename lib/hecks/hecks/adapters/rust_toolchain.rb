@@ -70,7 +70,9 @@ module Hecks
       # @return [Hash{Symbol => Hash}] `output:` where the module was written
       # @raise [ConsoleCapture::Failure] when the wasm target or the build is missing
       def wasm(**held)
-        child(:wasm, [plain(held[:domain])], env: profile_env(held))
+        argv = [plain(held[:domain])]
+        argv << "--profile=#{plain(held[:profile])}" if plain(held[:profile])
+        child(:wasm, argv)
       end
 
       # Generates the domain, compiles it to a `wasm32-wasip1` module, builds the host binary from
@@ -85,7 +87,8 @@ module Hecks
         argv = [plain(held[:domain])]
         argv << "--target=#{plain(held[:target])}" if plain(held[:target])
         argv << "--stage=#{plain(held[:stage_dir])}" if plain(held[:stage_dir])
-        child(:host, argv, env: prebuilt_env(held))
+        argv << "--no-prebuilt" if plain(held[:prebuilt]) == false
+        child(:host, argv)
       end
 
       # Generates the domain, then compiles it to an ES module for a browser through wasm-bindgen.
@@ -176,22 +179,16 @@ module Hecks
         BENCH_FLAGS.filter_map { |flag, key| [flag, plain(held[key]).to_s] unless plain(held[key]).nil? }.flatten
       end
 
-      # @return [Hash{String => String}] the Cargo profile the record names, for the tool to read
-      def profile_env(held) = plain(held[:profile]) ? { "HECKS_WASM_PROFILE" => plain(held[:profile]) } : {}
-
-      # @return [Hash{String => String}] switches the prebuilt download off when the record says so
-      def prebuilt_env(held) = plain(held[:prebuilt]) == false ? { "HECKS_PREBUILT" => "off" } : {}
-
-      def child(ask, argv, env: {})
-        result = run(ask, argv, env: env)
+      def child(ask, argv)
+        result = run(ask, argv)
         raise ConsoleCapture::Failure, message_of(result) unless result.ok?
 
         { output: { value: result.out } }
       end
 
-      def run(ask, argv, env: {})
+      def run(ask, argv)
         space = self.class.workspace || RustWorkspace.new
-        (self.class.runner || RustBuild).capture(TOOLS.fetch(ask), argv, env: space.environment.merge(env))
+        (self.class.runner || RustBuild).capture(TOOLS.fetch(ask), argv, env: space.environment)
       rescue RustWorkspace::Unavailable => e
         raise ConsoleCapture::Failure, e.message
       end

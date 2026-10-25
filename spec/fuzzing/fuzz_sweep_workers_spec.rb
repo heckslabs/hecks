@@ -7,7 +7,6 @@ require "hecks/fuzzing"
 # How many children a sweep runs at once, and which Postgres schema each one fuzzes in.
 RSpec.describe Hecks::Tools::FuzzSweep, :aggregate_failures do
   let(:boot) { Hecks::Fuzzing::IsolatedBoot }
-  let(:schema_env) { Hecks::Fuzzing::IsolatedBoot::FUZZ_SCHEMA_ENV }
 
   describe "the worker count" do
     it "takes the number the caller types, whatever the adapter" do
@@ -39,8 +38,6 @@ RSpec.describe Hecks::Tools::FuzzSweep, :aggregate_failures do
       allow(boot).to receive(:at_exit).and_return(proc {})
     end
 
-    after { ENV.delete(schema_env) }
-
     def exit_hook_for(schema)
       hook = nil
       allow(boot).to receive(:at_exit) { |&block| hook = block }
@@ -48,9 +45,7 @@ RSpec.describe Hecks::Tools::FuzzSweep, :aggregate_failures do
       hook
     end
 
-    it "is this process's own unless the process names one, so parallel workers never share it" do
-      ENV.delete(schema_env)
-
+    it "is this process's own, so parallel workers never share it" do
       expect(boot.scratch_schema("hecks_fuzz")).to eq("hecks_fuzz_#{Process.pid}")
     end
 
@@ -63,17 +58,10 @@ RSpec.describe Hecks::Tools::FuzzSweep, :aggregate_failures do
       expect(boot).not_to have_received(:drop_schema_quietly)
     end
 
-    it "is the schema a pool child names, dropped once when the child exits" do
-      ENV[schema_env] = "hecks_fuzz_4242"
+    it "is dropped once when the process exits, however often it is asked for" do
       2.times { boot.scratch_schema("hecks_fuzz") }
 
       expect(boot).to have_received(:at_exit).once
-    end
-
-    it "names the schema a pool child asked for" do
-      ENV[schema_env] = "hecks_fuzz_4242"
-
-      expect(boot.scratch_schema("hecks_fuzz")).to eq("hecks_fuzz_4242")
     end
   end
 end

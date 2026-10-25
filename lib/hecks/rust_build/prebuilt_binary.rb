@@ -15,7 +15,7 @@ module Hecks
     # holds the binary and its `.sha256`; the key is a hash of the crate's build inputs, so the
     # same bytes are the same release, whichever commit they come from. `fetch` downloads it and
     # checks its hash, and answers nil on any miss (not published yet, no network, a hash that
-    # does not match) so a caller compiles as it always did. `HECKS_PREBUILT=off` turns the
+    # does not match) so a caller compiles as it always did. `--no-prebuilt` on the host build turns the
     # download off.
     module PrebuiltBinary
       # Where releases are published.
@@ -51,9 +51,9 @@ module Hecks
       # @param into [String] the file to write the binary to
       # @return [String, nil] `into`, or nil when no row publishes the crate for the target
       #   or `fetch` misses
-      def fetch_for(crate, crate_dir, target:, into:)
+      def fetch_for(crate, crate_dir, target:, into:, allowed: true)
         name = name_for(crate, target) or return
-        fetch(name, crate_dir, target: target, into: into)
+        fetch(name, crate_dir, target: target, into: into, allowed: allowed)
       end
 
       # @param crate_dir [String] the crate's directory
@@ -86,8 +86,8 @@ module Hecks
       # @param into [String] the file to write the binary to
       # @return [String, nil] `into`, or nil when the binary is not published for this target or
       #   could not be fetched and verified
-      def fetch(name, crate_dir, target:, into:)
-        return if ENV["HECKS_PREBUILT"] == "off" || row(name)["target"] != target
+      def fetch(name, crate_dir, target:, into:, allowed: true)
+        return if !allowed || row(name)["target"] != target
 
         body = verified(name, crate_dir) or return
         FileUtils.mkdir_p(File.dirname(into))
