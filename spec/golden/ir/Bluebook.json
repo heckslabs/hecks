@@ -26747,7 +26747,7 @@
               "admits": "Vocabulary::DomainRefusal",
               "default": null,
               "list": false,
-              "name": "refusal",
+              "name": "name",
               "optional": false,
               "pattern": null,
               "relationship": null,
@@ -26781,7 +26781,7 @@
           "members": [
             [
               [
-                "refusal",
+                "name",
                 "AbsentArgument"
               ],
               [
@@ -26795,7 +26795,7 @@
             ],
             [
               [
-                "refusal",
+                "name",
                 "AlreadyExists"
               ],
               [
@@ -26809,7 +26809,7 @@
             ],
             [
               [
-                "refusal",
+                "name",
                 "AttributeAbsent"
               ],
               [
@@ -26823,7 +26823,7 @@
             ],
             [
               [
-                "refusal",
+                "name",
                 "EnsuresNotMet"
               ],
               [
@@ -26837,7 +26837,7 @@
             ],
             [
               [
-                "refusal",
+                "name",
                 "GivenNotMet"
               ],
               [
@@ -26851,7 +26851,7 @@
             ],
             [
               [
-                "refusal",
+                "name",
                 "InvariantViolation"
               ],
               [
@@ -26865,7 +26865,7 @@
             ],
             [
               [
-                "refusal",
+                "name",
                 "LifecycleRefused"
               ],
               [
@@ -26879,7 +26879,7 @@
             ],
             [
               [
-                "refusal",
+                "name",
                 "NothingToCorrect"
               ],
               [
@@ -26893,7 +26893,7 @@
             ],
             [
               [
-                "refusal",
+                "name",
                 "NotFound"
               ],
               [
@@ -26907,7 +26907,7 @@
             ],
             [
               [
-                "refusal",
+                "name",
                 "ProjectionAbsent"
               ],
               [
@@ -26921,7 +26921,7 @@
             ],
             [
               [
-                "refusal",
+                "name",
                 "RemoteRefusal"
               ],
               [
@@ -26935,7 +26935,7 @@
             ],
             [
               [
-                "refusal",
+                "name",
                 "TypeMismatch"
               ],
               [
@@ -26949,7 +26949,7 @@
             ],
             [
               [
-                "refusal",
+                "name",
                 "Unauthorized"
               ],
               [
@@ -26963,7 +26963,7 @@
             ],
             [
               [
-                "refusal",
+                "name",
                 "UnknownArgument"
               ],
               [
@@ -26977,7 +26977,7 @@
             ],
             [
               [
-                "refusal",
+                "name",
                 "UnknownVerb"
               ],
               [

@@ -88,6 +88,14 @@ enum Origin {
     HostInternal,
 }
 
+/// Whether a dispatch keeps what it does. A preview asks the kernel whether the command would be
+/// accepted and keeps nothing: no journal row, snapshot or saga, no reaction delivered, no log line.
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Effect {
+    Commit,
+    Preview,
+}
+
 /// Whether the kernel refused the command for the caller's role.
 fn refused_for_role(result: &serde_json::Value) -> bool {
     result
@@ -315,12 +323,66 @@ async fn dispatch_in(
     args: serde_json::Value,
     caller: Caller<'_>,
 ) -> anyhow::Result<Outcome> {
+    dispatch_with(mode, origin, Effect::Commit, host, verb, args, caller).await
+}
+
+/// What a command would answer for a caller the host can name, without keeping any of it: the
+/// kernel's own dry-run step, run on the journal's history and rolled back. The answer is in
+/// `result["dry_runs"]`; see `validation::answer`.
+pub async fn preview_as(
+    host: Host<'_>,
+    verb: &str,
+    args: serde_json::Value,
+    caller: Caller<'_>,
+) -> anyhow::Result<Outcome> {
+    let mode = Enforcement::configured();
+    dispatch_with(
+        mode,
+        Origin::External,
+        Effect::Preview,
+        host,
+        verb,
+        args,
+        caller,
+    )
+    .await
+}
+
+/// `preview_as` for a request from outside the host: the console API and the web UI.
+pub async fn preview_request(
+    host: Host<'_>,
+    verb: &str,
+    args: serde_json::Value,
+    caller: Caller<'_>,
+) -> anyhow::Result<Outcome> {
+    let mode = Enforcement::configured();
+    dispatch_with(
+        mode,
+        Origin::Request,
+        Effect::Preview,
+        host,
+        verb,
+        args,
+        caller,
+    )
+    .await
+}
+
+async fn dispatch_with(
+    mode: Enforcement,
+    origin: Origin,
+    effect: Effect,
+    host: Host<'_>,
+    verb: &str,
+    args: serde_json::Value,
+    caller: Caller<'_>,
+) -> anyhow::Result<Outcome> {
     let checked = if origin == Origin::HostInternal {
         caller
     } else {
         mode.effective(caller)
     };
-    let outcome = run(origin, host, verb, args.clone(), checked).await?;
+    let outcome = run(origin, effect, host, verb, args.clone(), checked).await?;
     // Only a caller that stated no role (unidentified, or an actor Governance holds no grant for)
     // is let through; a stated role that does not match stays refused, as it is under `Off`.
     if mode == Enforcement::Shadow
@@ -335,13 +397,14 @@ async fn dispatch_in(
                 "refusals": outcome.result.get("refusals"),
             }),
         );
-        return run(origin, host, verb, args, Caller::default()).await;
+        return run(origin, effect, host, verb, args, Caller::default()).await;
     }
     Ok(outcome)
 }
 
 async fn run(
     origin: Origin,
+    effect: Effect,
     host: Host<'_>,
     verb: &str,
     args: serde_json::Value,
@@ -380,7 +443,10 @@ async fn run(
             &crate::needs::ProcessClock,
         );
     }
-    let mut step = serde_json::json!({ "verb": verb, "args": args.clone() });
+    let mut step = match effect {
+        Effect::Commit => serde_json::json!({ "verb": verb, "args": args.clone() }),
+        Effect::Preview => preview_step(verb, &args),
+    };
     if let Some(role) = role {
         step["role"] = serde_json::Value::String(role.to_string());
     }
@@ -421,6 +487,13 @@ async fn run(
     // A kernel failure returns here, before anything is written: dropping the unit rolls it
     // back, so no journal row, snapshot, saga or mutation is saved.
     let mut result = parse_kernel_output(&output)?;
+
+    // A preview keeps nothing: the unit is rolled back and no reaction is delivered or logged.
+    if effect == Effect::Preview {
+        unit.rollback().await?;
+        let accepted = crate::validation::accepted(&result);
+        return Ok(Outcome { result, accepted });
+    }
 
     // See journal.rs's own header: every prior step in this replay
     // already succeeded once, deterministically, so the only step that
@@ -525,6 +598,23 @@ async fn run(
 
     log_command(verb, role, accepted, &result);
     Ok(Outcome { result, accepted })
+}
+
+// A preview names the verb under `dry_run`, which the kernel answers on a copy of the world. A
+// routed invocation keeps its `to` and `with` at the step's top level, where the kernel routes a
+// dry run as it routes a real step; a flat one stays under `args`.
+fn preview_step(verb: &str, args: &serde_json::Value) -> serde_json::Value {
+    let mut step = serde_json::json!({ "dry_run": verb });
+    if args.get("to").is_none() && args.get("with").is_none() {
+        step["args"] = args.clone();
+        return step;
+    }
+    for key in ["to", "with"] {
+        if let Some(value) = args.get(key) {
+            step[key] = value.clone();
+        }
+    }
+    step
 }
 
 // The kernel's whole input: the seed, every step to replay on it, the saga rows, and the tables
@@ -2601,5 +2691,118 @@ pub(crate) mod tests {
             missing["refusals"][0]["error"],
             "entry: no Ledger \"nowhere\""
         );
+    }
+}
+
+#[cfg(test)]
+mod preview_tests {
+    use super::*;
+    use crate::dispatch::tests::{memory_config, memory_store, register, wasm_path};
+
+    // The client envelope a preview of `verb` answers for `invocation`.
+    async fn preview_of(
+        client: &Store,
+        verb: &str,
+        invocation: serde_json::Value,
+    ) -> serde_json::Value {
+        let config = memory_config("Banking");
+        let wasm = wasm_path();
+        let host = Host::new(client, &wasm, &config, &lambda_client::NeverInvoker);
+        let outcome = preview_as(host, verb, invocation, Caller::default())
+            .await
+            .unwrap();
+        crate::validation::answer(&outcome.result)
+    }
+
+    async fn preview(client: &Store, facts: serde_json::Value) -> serde_json::Value {
+        preview_of(
+            client,
+            "Banking::Customer.Register",
+            facts_invocation(facts).unwrap(),
+        )
+        .await
+    }
+
+    async fn register_for_real(client: &Store, id: &str) -> Outcome {
+        let config = memory_config("Banking");
+        let wasm = wasm_path();
+        let host = Host::new(client, &wasm, &config, &lambda_client::NeverInvoker);
+        handle_facts(host, "Banking::Customer.Register", register(id), None)
+            .await
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn a_preview_of_an_acceptable_command_answers_ok_and_keeps_nothing() {
+        let client = memory_store();
+        assert_eq!(
+            preview(&client, register("CUST-P1")).await,
+            serde_json::json!({ "ok": true, "refusals": [] })
+        );
+        assert!(
+            register_for_real(&client, "CUST-P1").await.accepted,
+            "the preview left a record behind, so the real registration was refused"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_preview_of_a_refused_command_answers_why_with_its_kind_and_stage() {
+        let client = memory_store();
+        register_for_real(&client, "CUST-P2").await;
+        let answer = preview(&client, register("CUST-P2")).await;
+        assert_eq!(answer["ok"], false);
+        let refusal = &answer["refusals"][0];
+        assert_eq!(refusal["refusal"], "AlreadyExists");
+        assert_eq!(
+            (refusal["kind"].as_str(), refusal["stage"].as_str()),
+            (Some("refused"), Some("state"))
+        );
+    }
+
+    #[tokio::test]
+    async fn a_preview_names_an_unknown_argument_in_the_arguments_stage() {
+        let client = memory_store();
+        let mut facts = register("CUST-P3");
+        facts["bogus"] = serde_json::json!(1);
+        let answer = preview(&client, facts).await;
+        let refusal = &answer["refusals"][0];
+        assert_eq!(refusal["refusal"], "UnknownArgument");
+        assert_eq!(refusal["stage"], "arguments");
+    }
+
+    #[tokio::test]
+    async fn a_preview_against_an_existing_record_is_routed_to_it() {
+        let client = memory_store();
+        register_for_real(&client, "CUST-P4").await;
+        let close = routed_invocation(serde_json::json!("CUST-P4"), serde_json::json!({})).unwrap();
+        assert_eq!(
+            preview_of(&client, "Banking::Customer.Close", close).await,
+            serde_json::json!({ "ok": true, "refusals": [] })
+        );
+    }
+
+    #[tokio::test]
+    async fn a_preview_against_a_record_that_does_not_exist_is_kind_not_found() {
+        let client = memory_store();
+        let close = routed_invocation(serde_json::json!("NOBODY"), serde_json::json!({})).unwrap();
+        let answer = preview_of(&client, "Banking::Customer.Close", close).await;
+        assert_eq!(answer["ok"], false);
+        assert_eq!(answer["refusals"][0]["kind"], "not_found");
+    }
+
+    // The body protocol: `"dry_run": true` beside a command, answered as the client envelope even
+    // when the request also asks for `bare`.
+    #[tokio::test]
+    async fn the_body_protocol_answers_a_dry_run_as_the_client_envelope() {
+        let client = memory_store();
+        let config = memory_config("Banking");
+        let wasm = wasm_path();
+        let host = Host::new(&client, &wasm, &config, &lambda_client::NeverInvoker);
+        let body = serde_json::json!({
+            "verb": "Banking::Customer.Register", "with": register("CUST-P5"),
+            "dry_run": true, "bare": true,
+        });
+        let answer = crate::server::dispatch_body(body, host).await.unwrap();
+        assert_eq!(answer, serde_json::json!({ "ok": true, "refusals": [] }));
     }
 }

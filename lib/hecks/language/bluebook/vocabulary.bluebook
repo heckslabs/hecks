@@ -228,25 +228,25 @@ Hecks.bluebook "Bluebook" do
     # raise site may name a narrower stage (a reference that does not resolve is a NotFound
     # in the `references` stage). Read through `Hecks::Refused#kind` and `#stage`.
     value_object "RefusalClass" do
-      attribute :refusal, String, admits: "Vocabulary::DomainRefusal"
+      attribute :name,    String, admits: "Vocabulary::DomainRefusal"
       attribute :kind,    String, admits: "Vocabulary::RefusalKind"
       attribute :stage,   String, admits: "Vocabulary::DispatchStage"
 
-      member refusal: "AbsentArgument", kind: "absent_argument", stage: "arguments"
-      member refusal: "AlreadyExists", kind: "refused", stage: "state"
-      member refusal: "AttributeAbsent", kind: "refused", stage: "state"
-      member refusal: "EnsuresNotMet", kind: "refused", stage: "ensures"
-      member refusal: "GivenNotMet", kind: "refused", stage: "givens"
-      member refusal: "InvariantViolation", kind: "refused", stage: "invariants"
-      member refusal: "LifecycleRefused", kind: "refused", stage: "state"
-      member refusal: "NothingToCorrect", kind: "refused", stage: "state"
-      member refusal: "NotFound", kind: "not_found", stage: "state"
-      member refusal: "ProjectionAbsent", kind: "refused", stage: "state"
-      member refusal: "RemoteRefusal", kind: "refused", stage: "remote"
-      member refusal: "TypeMismatch", kind: "refused", stage: "arguments"
-      member refusal: "Unauthorized", kind: "unauthorized", stage: "role"
-      member refusal: "UnknownArgument", kind: "refused", stage: "arguments"
-      member refusal: "UnknownVerb", kind: "refused", stage: "request"
+      member name: "AbsentArgument", kind: "absent_argument", stage: "arguments"
+      member name: "AlreadyExists", kind: "refused", stage: "state"
+      member name: "AttributeAbsent", kind: "refused", stage: "state"
+      member name: "EnsuresNotMet", kind: "refused", stage: "ensures"
+      member name: "GivenNotMet", kind: "refused", stage: "givens"
+      member name: "InvariantViolation", kind: "refused", stage: "invariants"
+      member name: "LifecycleRefused", kind: "refused", stage: "state"
+      member name: "NothingToCorrect", kind: "refused", stage: "state"
+      member name: "NotFound", kind: "not_found", stage: "state"
+      member name: "ProjectionAbsent", kind: "refused", stage: "state"
+      member name: "RemoteRefusal", kind: "refused", stage: "remote"
+      member name: "TypeMismatch", kind: "refused", stage: "arguments"
+      member name: "Unauthorized", kind: "unauthorized", stage: "role"
+      member name: "UnknownArgument", kind: "refused", stage: "arguments"
+      member name: "UnknownVerb", kind: "refused", stage: "request"
     end
 
     # The wording for every DomainRefusal site not already carried by data

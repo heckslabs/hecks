@@ -33,7 +33,7 @@
 // token.
 
 import { refusalOf, DomainUnavailable } from "./errors.js";
-import type { Answer } from "./answer.js";
+import type { Answer, Validation, ValidationRefusal } from "./answer.js";
 import { instancesOf } from "./answer.js";
 
 const DEFAULT_TIMEOUT_MS = 8000;
@@ -138,15 +138,30 @@ export class HostClient {
    * from the state in it and turn a miss into a refusal with `refusalOf`.
    */
   dispatch(verb: string, args: Record<string, unknown> = {}, to?: string, role?: string, actorId?: string): Promise<Answer> {
+    return this.post(this.commandBody(verb, args, to, role, actorId));
+  }
+
+  /**
+   * Asks whether a command would be accepted right now, and if not, why. The host runs the command
+   * as far as it can and keeps nothing: no write, no reaction. It answers HTTP 200 whether or not
+   * the command would be refused, so this resolves with the verdict and never throws a
+   * `DomainRefusal`; `DomainUnavailable` still means the host could not be reached.
+   */
+  async validate(verb: string, args: Record<string, unknown> = {}, to?: string, role?: string, actorId?: string): Promise<Validation> {
+    const answer = await this.post({ ...this.commandBody(verb, args, to, role, actorId), dry_run: true });
+    return { ok: answer.ok === true, refusals: (answer.refusals ?? []) as unknown as ValidationRefusal[] };
+  }
+
+  private commandBody(verb: string, args: Record<string, unknown>, to?: string, role?: string, actorId?: string): Record<string, unknown> {
     const asRole = role ?? this.role;
     const asActor = actorId ?? this.actorId;
-    return this.post({
+    return {
       verb: this.qualify(verb),
       ...(to ? { to } : {}),
       with: args,
       ...(asRole ? { role: asRole } : {}),
       ...(asActor ? { actor_id: asActor } : {}),
-    });
+    };
   }
 
   /**

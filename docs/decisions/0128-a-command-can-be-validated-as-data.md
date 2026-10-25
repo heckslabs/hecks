@@ -54,4 +54,9 @@ only its message.
   object is reported.
 - The lifecycle `from:` check is its own stage after the givens, so it is not reported
   alongside an unmet `given`.
-- The Rust host does not yet collect; it can answer the same shape with one refusal.
+- The Rust host answers the same envelope for `"dry_run": true` in its body protocol, from the
+  kernel's own `dry_run` step (run on the journal's history and rolled back, with no reaction
+  delivered or logged), and `hecks-client` has `validate()`. The kernel stops at the first
+  refusal, so the host reports one, with its `kind` and `stage` from the same `RefusalClass`
+  table; it does not yet name the attribute, path or rule. The console API and web routes do not
+  yet take the flag.

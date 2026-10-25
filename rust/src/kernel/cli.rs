@@ -2,6 +2,7 @@
 //! `run` reads `{"steps": [...]}` and hands each step to `kernel::orchestrate` (ADR 0012), or
 //! `{"present": answer}` and answers that answer bare (`kernel::present`).
 
+use super::vocab::RefusalClass;
 use super::{
     named_query, orchestrate, query_comparators, read_model, repository, AggregateScan,
     CompletedCompensation, Event, Json, MutationRecord, PendingCrossDomainReaction, Refusal,
@@ -232,7 +233,7 @@ pub fn run(input: &str) -> String {
             let caller_role = step.get("role").and_then(Json::as_str);
             // See `actor_id` on the command step below.
             let caller_actor_id = step.get("actor_id").and_then(Json::as_str);
-            let command_input = dry_run_command_input(args);
+            let command_input = dry_run_input(step, args);
             dry_runs.push(dry_run(
                 &store,
                 verb,
@@ -384,12 +385,24 @@ fn dry_run(
             ("verb", Json::str(verb.to_string())),
             ("ok", Json::Bool(true)),
         ]),
-        Err(refusal) => Json::obj(vec![
-            ("verb", Json::str(verb.to_string())),
-            ("ok", Json::Bool(false)),
-            ("error", Json::str(refusal.to_string())),
-        ]),
+        Err(refusal) => refused_dry_run(verb, &refusal),
     }
+}
+
+/// A refused dry run: the refusal's text, its class name, and the `kind` and `stage` the language's
+/// `RefusalClass` table gives that class. A refusal the table does not class (`Fault`) is a plain
+/// refusal in the `state` stage, as `Hecks::Refused` classes one in Ruby.
+fn refused_dry_run(verb: &str, refusal: &Refusal) -> Json {
+    let (kind, stage) = RefusalClass::from_name(refusal.kind())
+        .map_or(("refused", "state"), |class| (class.kind(), class.stage()));
+    Json::obj(vec![
+        ("verb", Json::str(verb.to_string())),
+        ("ok", Json::Bool(false)),
+        ("error", Json::str(refusal.to_string())),
+        ("refusal", Json::str(refusal.kind().to_string())),
+        ("kind", Json::str(kind.to_string())),
+        ("stage", Json::str(stage.to_string())),
+    ])
 }
 
 fn tables() -> Tables<'static> {
@@ -590,6 +603,16 @@ fn command_input<'a>(step: &'a Json, legacy_args: &'a Json) -> &'a Json {
     }
 }
 
+// A dry run that names its receiver, with top-level `to`/`with` as a real step does (the host
+// previews this way), is routed as that step would be. Otherwise `args` are flat facts.
+fn dry_run_input(step: &Json, args: &Json) -> Json {
+    if step.get("to").is_some() || step.get("with").is_some() {
+        step.clone()
+    } else {
+        dry_run_command_input(args)
+    }
+}
+
 // Not `command_input()`: Ruby's `dry_run?` forwards every arg key, `to`/`with` included, as flat
 // facts. Wrapping under `with` keeps a fact named `to` from being read as a routing envelope.
 fn dry_run_command_input(args: &Json) -> Json {
@@ -727,6 +750,50 @@ mod routing_tests {
                 .and_then(|name| name.get("value"))
                 .and_then(Json::as_str),
             Some("crew-1")
+        );
+    }
+}
+
+#[cfg(test)]
+mod refused_dry_run_tests {
+    use super::*;
+
+    fn answer(refusal: &Refusal) -> String {
+        refused_dry_run("A::B.C", refusal).to_json_string()
+    }
+
+    #[test]
+    fn a_refused_dry_run_names_the_class_kind_and_stage_the_language_gives_it() {
+        let json = answer(&Refusal::GivenNotMet(
+            "C refused — the balance is zero".to_string(),
+        ));
+        assert!(json.contains(r#""ok":false"#), "{json}");
+        assert!(json.contains(r#""refusal":"GivenNotMet""#), "{json}");
+        assert!(json.contains(r#""kind":"refused""#), "{json}");
+        assert!(json.contains(r#""stage":"givens""#), "{json}");
+    }
+
+    #[test]
+    fn a_missing_record_is_kind_not_found() {
+        let json = answer(&Refusal::NotFound("no Account a1".to_string()));
+        assert!(json.contains(r#""kind":"not_found""#), "{json}");
+    }
+
+    #[test]
+    fn a_role_the_caller_lacks_is_kind_unauthorized_in_the_role_stage() {
+        let json = answer(&Refusal::Unauthorized("role".to_string()));
+        assert!(
+            json.contains(r#""kind":"unauthorized""#) && json.contains(r#""stage":"role""#),
+            "{json}"
+        );
+    }
+
+    #[test]
+    fn a_refusal_the_language_does_not_class_is_a_plain_refusal_in_the_state_stage() {
+        let json = answer(&Refusal::Fault("boom".to_string()));
+        assert!(
+            json.contains(r#""kind":"refused""#) && json.contains(r#""stage":"state""#),
+            "{json}"
         );
     }
 }
