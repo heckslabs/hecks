@@ -1,4 +1,5 @@
 require_relative "../plain_english"
+require_relative "../../bluebook/one_of_union"
 
 module Hecks
   module Projections
@@ -26,8 +27,16 @@ module Hecks
           subject = "Each #{PlainEnglish.noun(holder.hecks_name)}"
           return list_sentence(subject, attribute) if attribute.list?
           return nil unless attribute.relationship
+          return union_sentence(subject, holder, attribute) if Bluebook::OneOfUnion.union?(attribute)
 
           "#{subject} #{reference_phrase(attribute)}."
+        end
+
+        # "Each hold points at its subject: one account or ATM card." (ADR 0127)
+        def union_sentence(subject, holder, attribute)
+          targets = Bluebook::OneOfUnion.variants(holder, attribute).map { |name| PlainEnglish.noun(name) }
+          verb = attribute.optional? ? "can point at" : "points at"
+          "#{subject} #{verb} its #{PlainEnglish.noun(attribute.name)}: one #{targets.join(" or ")}."
         end
 
         # "Each order holds a list of toppings." The element is named when the field is not

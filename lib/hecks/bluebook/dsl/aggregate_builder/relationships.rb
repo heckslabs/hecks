@@ -4,15 +4,18 @@ module Hecks
       # The words that tie an aggregate to others: `reference_to`, `has_many`, `has_one`,
       # `belongs_to`, and the `projects` fields read through a reference.
       class AggregateBuilder
-        # Declares a reference from this aggregate's own head to another aggregate's identity.
+        # Declares a reference from this aggregate's own head to another aggregate's identity, or
+        # with `one_of(A, B)` to one of a closed union of them (ADR 0127).
         #
-        # @param type [Module, Symbol, String] the referenced aggregate, written as a bare
-        #   constant
+        # @param type [Module, Symbol, String, AttributeCollector::OneOf] the referenced
+        #   aggregate, written as a bare constant, or `one_of` of several
         # @param as [Symbol, nil] the attribute's name; nil derives it from `type`
         # @param optional [Boolean] whether the reference may be absent
         # @return [void]
         # @raise [Bluebook::DSL::Malformed] if `as` (or the derived name) is already declared
         def reference_to_impl(type, as: nil, optional: false)
+          return one_of_reference(type, as: as, optional: optional) if type.is_a?(OneOf)
+
           target = Naming.demodulise(type)
           @reference_targets << target
           relationship_attribute(target, :reference_to,

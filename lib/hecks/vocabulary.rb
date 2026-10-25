@@ -188,6 +188,17 @@ module Hecks
         {"name"=>"contains"}.freeze,
         {"name"=>"none_in_state"}.freeze
       ].freeze,
+      "Reducer" => [
+        {"name"=>"count", "identity"=>"0", "combine"=>"add", "inverse"=>"subtract"}.freeze,
+        {"name"=>"sum", "identity"=>"0", "combine"=>"add", "inverse"=>"subtract"}.freeze,
+        {"name"=>"avg", "identity"=>"null", "combine"=>"collect", "inverse"=>""}.freeze,
+        {"name"=>"min", "identity"=>"null", "combine"=>"min", "inverse"=>""}.freeze,
+        {"name"=>"max", "identity"=>"null", "combine"=>"max", "inverse"=>""}.freeze,
+        {"name"=>"median", "identity"=>"null", "combine"=>"collect", "inverse"=>""}.freeze,
+        {"name"=>"percentile", "identity"=>"null", "combine"=>"collect", "inverse"=>""}.freeze,
+        {"name"=>"any", "identity"=>"false", "combine"=>"or", "inverse"=>""}.freeze,
+        {"name"=>"all", "identity"=>"true", "combine"=>"and", "inverse"=>""}.freeze
+      ].freeze,
       "RefusalSiteArgument" => [
         {"refusal"=>"NotFound", "site"=>"creating_no_identity", "argument"=>"command", "shape"=>"scalar", "quoting"=>"none", "separator"=>"", "sorted"=>"false", "when_empty"=>""}.freeze,
         {"refusal"=>"NotFound", "site"=>"creating_no_identity", "argument"=>"aggregate", "shape"=>"scalar", "quoting"=>"none", "separator"=>"", "sorted"=>"false", "when_empty"=>""}.freeze,

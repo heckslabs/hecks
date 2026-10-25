@@ -1,0 +1,77 @@
+Hecks.bluebook "Banking" do
+  # ADR 0127: a hold sits on an account or on an ATM card, never on anything else. The
+  # subject is a tagged reference, stored as { type:, id: }, so a read can ask for one kind.
+  aggregate "Hold" do
+    description "A stop the bank puts on an account or on a card while something is looked into."
+
+    attribute :reference, HoldReference
+
+    identified_by :reference
+
+    reference_to one_of(Account, ATMCard), as: :subject
+    attribute :reason, HoldReason
+
+    value_object "HoldReference" do
+      attribute :value, String, matches: :present
+      invariant("a hold reference is present") { !value.to_s.empty? }
+    end
+
+    value_object "HoldReason" do
+      attribute :value, String, matches: :present
+      invariant("a hold reason is present") { !value.to_s.empty? }
+    end
+
+    lifecycle :status, default: "placed" do
+      transition "Lift" => "lifted", from: "placed"
+      transition "EscalateAccountHold" => "escalated", from: "placed"
+      transition "EscalateCardHold" => "escalated", from: "placed"
+    end
+
+    command "Place" do
+      role "Teller"
+      goal "Stop an account or a card while something is looked into"
+
+      attribute :reference, HoldReference
+      attribute :subject, Subject
+      attribute :reason, HoldReason
+      sets :reference
+      sets :subject
+      sets :reason
+      emits "HoldPlaced"
+    end
+
+    command "Lift", from: "placed" do
+      role "Teller"
+      goal "Take a hold off once the matter is settled"
+
+      reference_to Hold
+      emits "HoldLifted"
+    end
+
+    # One escalation for each kind of subject: model check holds a branch on the subject's
+    # type to handling every kind the union names (ADR 0127).
+    command "EscalateAccountHold", from: "placed" do
+      role "System"
+      goal "Send a hold on an account to the account review desk"
+
+      reference_to Hold
+      given("the hold is on an account") { subject.type == "Account" }
+      emits "AccountHoldEscalated"
+    end
+
+    command "EscalateCardHold", from: "placed" do
+      role "System"
+      goal "Send a hold on a card to the card review desk"
+
+      reference_to Hold
+      given("the hold is on a card") { subject.type == "ATMCard" }
+      emits "CardHoldEscalated"
+    end
+  end
+
+  read_model "HoldsOnCards" do
+    description "Every hold the bank has put on a card, rather than on an account."
+    include Hold
+    where(:"subject.type" => "ATMCard")
+  end
+end

@@ -2742,6 +2742,437 @@
           "admits": null,
           "default": null,
           "list": false,
+          "name": "reference",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "HoldReference"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "subject",
+          "optional": false,
+          "pattern": null,
+          "relationship": "one_of",
+          "type": "Subject"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "reason",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "HoldReason"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "reference",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "HoldReference"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "subject",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "Subject"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "reason",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "HoldReason"
+            }
+          ],
+          "emits": [
+            "HoldPlaced"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+
+          ],
+          "goal": "Stop an account or a card while something is looked into",
+          "mutations": [
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "reference"
+              },
+              "target": "reference"
+            },
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "subject"
+              },
+              "target": "subject"
+            },
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "reason"
+              },
+              "target": "reason"
+            }
+          ],
+          "name": "Place",
+          "needs": [
+
+          ],
+          "provenance": null,
+          "references": null,
+          "role": "Teller"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "HoldLifted"
+          ],
+          "ensures": [
+
+          ],
+          "from": "placed",
+          "givens": [
+
+          ],
+          "goal": "Take a hold off once the matter is settled",
+          "mutations": [
+
+          ],
+          "name": "Lift",
+          "needs": [
+
+          ],
+          "provenance": null,
+          "references": "Hold",
+          "role": "Teller"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "AccountHoldEscalated"
+          ],
+          "ensures": [
+
+          ],
+          "from": "placed",
+          "givens": [
+            {
+              "ast": {
+                "cmp": {
+                  "equal": true,
+                  "less_than": false,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "subject",
+                    "type"
+                  ]
+                },
+                "op": "compare",
+                "right": {
+                  "op": "str",
+                  "value": "Account"
+                }
+              },
+              "canonical": "subject.type == \"Account\"",
+              "description": "the hold is on an account"
+            }
+          ],
+          "goal": "Send a hold on an account to the account review desk",
+          "mutations": [
+
+          ],
+          "name": "EscalateAccountHold",
+          "needs": [
+
+          ],
+          "provenance": null,
+          "references": "Hold",
+          "role": "System"
+        },
+        {
+          "attributes": [
+
+          ],
+          "emits": [
+            "CardHoldEscalated"
+          ],
+          "ensures": [
+
+          ],
+          "from": "placed",
+          "givens": [
+            {
+              "ast": {
+                "cmp": {
+                  "equal": true,
+                  "less_than": false,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "subject",
+                    "type"
+                  ]
+                },
+                "op": "compare",
+                "right": {
+                  "op": "str",
+                  "value": "ATMCard"
+                }
+              },
+              "canonical": "subject.type == \"ATMCard\"",
+              "description": "the hold is on a card"
+            }
+          ],
+          "goal": "Send a hold on a card to the card review desk",
+          "mutations": [
+
+          ],
+          "name": "EscalateCardHold",
+          "needs": [
+
+          ],
+          "provenance": null,
+          "references": "Hold",
+          "role": "System"
+        }
+      ],
+      "description": "A stop the bank puts on an account or on a card while something is looked into.",
+      "entities": [
+
+      ],
+      "identified_by": [
+        "reference.value"
+      ],
+      "invariants": [
+
+      ],
+      "lifecycle": {
+        "default": "placed",
+        "field": "status",
+        "transitions": [
+          {
+            "command": "Lift",
+            "from_state": "placed",
+            "to_state": "lifted"
+          },
+          {
+            "command": "EscalateAccountHold",
+            "from_state": "placed",
+            "to_state": "escalated"
+          },
+          {
+            "command": "EscalateCardHold",
+            "from_state": "placed",
+            "to_state": "escalated"
+          }
+        ]
+      },
+      "name": "Hold",
+      "ports": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "provenance": null,
+      "queries": [
+
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
+              "canonical": "!value.to_s.empty?",
+              "description": "a hold reference is present"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "HoldReference"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
+              "canonical": "!value.to_s.empty?",
+              "description": "a hold reason is present"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "HoldReason"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "value",
+                "Account"
+              ]
+            ],
+            [
+              [
+                "value",
+                "ATMCard"
+              ]
+            ]
+          ],
+          "name": "SubjectType"
+        },
+        {
+          "attributes": [
+            {
+              "admits": "Hold::SubjectType",
+              "default": null,
+              "list": false,
+              "name": "type",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "id",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Subject"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
           "name": "customer",
           "optional": false,
           "pattern": null,
@@ -10400,6 +10831,82 @@
       "reference_target": null,
       "wheres": [
 
+      ]
+    },
+    {
+      "aggregate_heads": [
+        {
+          "aggregate": "CardPayment",
+          "as": "card_payments",
+          "many": true
+        }
+      ],
+      "description": "The total amount of every card charge, added up for each status a charge can be in.",
+      "group_by": [
+        {
+          "field": "status"
+        }
+      ],
+      "limit": null,
+      "name": "CardPaymentTotalsByStatus",
+      "order_by": null,
+      "query_name": "card_payment_totals_by_status",
+      "reference_name": null,
+      "reference_target": null,
+      "sum_field": "amount",
+      "wheres": [
+
+      ]
+    },
+    {
+      "aggregate_heads": [
+        {
+          "aggregate": "CardPayment",
+          "as": "card_payments",
+          "many": true
+        }
+      ],
+      "count": true,
+      "description": "How many card charges stand in each status.",
+      "group_by": [
+        {
+          "field": "status"
+        }
+      ],
+      "limit": null,
+      "name": "CardPaymentCountsByStatus",
+      "order_by": null,
+      "query_name": "card_payment_counts_by_status",
+      "reference_name": null,
+      "reference_target": null,
+      "wheres": [
+
+      ]
+    },
+    {
+      "aggregate_heads": [
+        {
+          "aggregate": "Hold",
+          "as": "holds",
+          "many": true
+        }
+      ],
+      "description": "Every hold the bank has put on a card, rather than on an account.",
+      "group_by": [
+
+      ],
+      "limit": null,
+      "name": "HoldsOnCards",
+      "order_by": null,
+      "query_name": "holds_on_cards",
+      "reference_name": null,
+      "reference_target": null,
+      "wheres": [
+        {
+          "field": "subject.type",
+          "op": "eq",
+          "value": "\"ATMCard\""
+        }
       ]
     }
   ],

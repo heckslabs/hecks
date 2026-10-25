@@ -31,7 +31,7 @@ module Hecks
 
           # A one-field object whose field is just "value" reads as its type ("Text.").
           def sentence(value_object, index, within, sensitive = {})
-            return closed_set_sentence(value_object.members) if value_object.closed_set?
+            return closed_set_sentence(value_object.members, index) if value_object.closed_set?
 
             attributes = value_object.attributes
             return "A marker with no details of its own." if attributes.empty?
@@ -76,14 +76,18 @@ module Hecks
           end
 
           # A multi-field row leads with its first field and keeps the rest beside it,
-          # so no row loses what makes it distinct.
-          def closed_set_sentence(members)
+          # so no row loses what makes it distinct. A member naming an aggregate (the variants
+          # of a `reference_to one_of`, ADR 0127) links to it.
+          def closed_set_sentence(members, index)
             if members.first && members.first.size > 1
               "One of: #{members.map { |row| row_phrase(row) }.join("; ")}."
             else
-              "One of #{Naming.to_sentence_list(members.flat_map(&:values).uniq.map(&:to_s), conj: "or")}."
+              values = members.flat_map(&:values).uniq.map { |value| member_words(value.to_s, index) }
+              "One of #{Naming.to_sentence_list(values, conj: "or")}."
             end
           end
+
+          def member_words(value, index) = index[:aggregate, value] ? index.link(:aggregate, value) : value
 
           def row_phrase(row)
             lead, *rest = row.map { |field, value| [field, value] }

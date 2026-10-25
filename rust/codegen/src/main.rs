@@ -23,6 +23,7 @@ mod literal;
 mod manifest;
 mod mutations;
 mod naming;
+mod one_of_references;
 mod optional_pass;
 mod ports;
 mod prelude;

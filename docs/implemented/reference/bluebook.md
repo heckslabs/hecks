@@ -322,7 +322,7 @@ Every aggregate a chapter opens becomes an entry point of its own, named after
 the chapter:
 
 ```ruby
-runtime.registry.bluebook("Banking").aggregates.map(&:hecks_name).first(3)  # => ["Customer", "Account", "OnboardingCase"]
+runtime.registry.bluebook("Banking").aggregates.map(&:hecks_name).first(3)  # => ["Customer", "Account", "Hold"]
 BluebookReference::Postcode.record!(code: "N1").code.value  # => "N1"
 ```
 
@@ -338,11 +338,11 @@ BluebookReference::Postcode.record!(code: "N1").code.value  # => "N1"
 
 Opens a read that gathers heads from several aggregates around one spine — declared at the chapter's own top level, not under any single aggregate, because no one aggregate owns it. See the ReadModel reference page for `reference_to`/`include` and the rest. `report` (ADR 0025 reverts it — the IR construct, the registry API, and the docs filename all said `read_model` the whole time) stays answered only for frozen era text still parsed by the legacy grammar; live source refuses it, naming this word.
 
-Banking declares ten, and they sit on the chapter rather than under any
+Banking's read models sit on the chapter rather than under any
 aggregate — which is the whole reason the word exists at this level:
 
 ```ruby
-runtime.registry.bluebook("Banking").read_models.map(&:hecks_name)  # => ["CustomerPortfolio", "ComplianceDashboard", "DisputedPaymentCount", "DisputedPaymentMedian", "DisputedPaymentTotal", "DisputedPaymentAverage", "DisputedPaymentSmallest", "DisputedPaymentLargest", "DisputedPaymentP95", "AccountsByKind"]
+runtime.registry.bluebook("Banking").read_models.map(&:hecks_name)  # => ["CustomerPortfolio", "ComplianceDashboard", "DisputedPaymentCount", "DisputedPaymentMedian", "DisputedPaymentTotal", "DisputedPaymentAverage", "DisputedPaymentSmallest", "DisputedPaymentLargest", "DisputedPaymentP95", "AccountsByKind", "CardPaymentTotalsByStatus", "CardPaymentCountsByStatus", "HoldsOnCards"]
 ```
 
 ## policy

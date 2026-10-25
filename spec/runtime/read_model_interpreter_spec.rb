@@ -559,9 +559,9 @@ RSpec.describe "a read model's query options" do
       expect(&domain_build("BothReductions", BOTH_REDUCTIONS_DOMAIN)).to raise_error(MALFORMED, /declares both count and median/)
     end
 
-    it "refuses count declared together with group_by" do
-      expect(&domain_build("CountAndGroup", COUNT_AND_GROUP_DOMAIN))
-        .to raise_error(MALFORMED, /declares count together with group_by/)
+    # ADR 0126: a grouped read model reduces each group's rows instead.
+    it "builds count declared together with group_by" do
+      expect(&domain_build("CountAndGroup", COUNT_AND_GROUP_DOMAIN)).not_to raise_error
     end
 
     it "refuses count declared with more than one many-side head" do
