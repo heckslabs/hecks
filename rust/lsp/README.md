@@ -38,6 +38,14 @@ is setup + roadmap.
   `parse::chapter`'s own header — and the declaration is often in one of
   them, not the file doing the referencing).
 
+- **Files written as sentences** (a first line of `Domain: <name>`; see ADR 0131) get two
+  things the Ruby form does not. A refusal names the column it went wrong at, so the squiggle
+  starts there instead of underlining the line. And `textDocument/completion` offers the
+  sentences legal at the cursor: the server asks `hecks-parse complete <file> --line N --col N`,
+  which reads the same phrase table the parser matches against, and returns each sentence as an
+  editor snippet with a tab stop for every fill-in. The edit replaces what has been typed on the
+  line, from the indent to the cursor.
+
 ## What it doesn't do yet
 
 - **`documentSymbol`/`definition` are text-scanned, not grammar-verified.**
@@ -49,22 +57,15 @@ is setup + roadmap.
   targets (`outline::is_reference_target`) — a `command`/`query` name
   is never referenced by a bare identifier elsewhere in the corpus the
   way a type name is, so it isn't one.
-- **No column info.** `rust/parser`'s own `Diagnostic` only tracks a
-  line, so every diagnostic underlines the whole line. Real squiggle
-  precision needs `rust/parser` to track columns first — nothing to fix
-  here until then.
-- **No completion or hover.** The parser's gates
-  (`rust/parser/src/parse/mod.rs`: shape → word → body → argument)
-  already encode "what's legal at this point in the grammar" — that's
-  exactly what a completion engine needs, but it's not exposed as
-  anything this crate can call today. The clean way to add it, in
-  keeping with `rust/parser` staying a subprocess-only sibling
-  (see `diagnostics.rs`'s header): add a new `hecks-parse` subcommand
-  (e.g. `hecks-parse complete --chapter <Name> <file> --line N --col N`)
-  that runs the same gates up to the cursor and prints the legal next
-  words as JSON, the same shape `run_coverage` already prints its list
-  in. Once that exists, wiring `textDocument/completion` here is a small
-  addition, not a redesign.
+- **No column info for the Ruby form.** Its gates track a line only, so a refusal in a
+  Ruby-shaped file underlines the whole line. Only the sentence form names a column.
+- **No completion for the Ruby form, and no hover.** The Ruby-shaped gates
+  (`rust/parser/src/parse/mod.rs`: shape → word → body → argument) encode "what's legal here"
+  but expose it to nothing this crate can call. `hecks-parse complete` does that for the
+  sentence form only, from its phrase table; a Ruby-form equivalent would run the gates up to
+  the cursor the same way.
+- **Completion offers sentences, not names.** It does not yet suggest the fields, types or
+  states in scope for a fill-in; the parser's refusal lists them after the fact.
 - **Only one diagnostic per document.** Inherited from `rust/parser`'s
   own fail-fast design (`parse::chapter`'s doc comment: "Stops at the
   FIRST diagnostic"). If that ever becomes a `Vec<Diagnostic>`, this

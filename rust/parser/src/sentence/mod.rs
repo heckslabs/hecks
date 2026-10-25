@@ -5,6 +5,8 @@
 //! chapter); this module holds only what each phrase means. A sentence that matches no phrase is
 //! refused with the column it stopped fitting at and the nearest phrases, never skipped.
 
+/// The sentences legal at a cursor, for editors.
+pub mod complete;
 mod lower;
 mod names;
 mod pattern;

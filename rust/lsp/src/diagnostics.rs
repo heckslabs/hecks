@@ -4,8 +4,12 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+/// The parser's refusal of a buffer, in the terms an editor needs.
 pub struct FileDiagnostic {
     pub line: usize, // 1-indexed
+    /// The 1-indexed character column the problem starts at; `None` when the parser refused
+    /// the line as a whole, as it does for every file in the Ruby form.
+    pub column: Option<usize>,
     pub message: String,
     pub expected: Vec<String>,
     /// True when the grammar admits the construct but the parser does not build it yet.
@@ -44,10 +48,25 @@ pub fn run(hecks_parse: &Path, path: &Path, text: &str) -> Result<Option<FileDia
     Ok(parse_diagnostic_line(first_line, path))
 }
 
-/// Finds the name in the first `Hecks.bluebook "Name"` or `Hecks.hecksagon "Name"` line.
-// Hand-scanned because this crate takes no dependencies.
-fn chapter_name(text: &str) -> Option<String> {
+/// Finds the name in the first `Hecks.bluebook "Name"` or `Hecks.hecksagon "Name"` line, or in
+/// the `Domain: name` line of a file written as sentences, whose words are capitalised and joined.
+/// Hand-scanned because this crate takes no dependencies.
+pub fn chapter_name(text: &str) -> Option<String> {
     for line in text.lines() {
+        if let Some(after) = line.trim_start().strip_prefix("Domain:") {
+            let name: String = after
+                .split_whitespace()
+                .map(|word| {
+                    let mut chars = word.chars();
+                    chars.next().map_or_else(String::new, |first| {
+                        first.to_uppercase().collect::<String>() + chars.as_str()
+                    })
+                })
+                .collect();
+            if !name.is_empty() {
+                return Some(name);
+            }
+        }
         for needle in ["Hecks.bluebook \"", "Hecks.hecksagon \""] {
             if let Some(after) = line.trim_start().strip_prefix(needle) {
                 if let Some(end) = after.find('"') {
@@ -66,6 +85,13 @@ fn parse_diagnostic_line(line: &str, path: &Path) -> Option<FileDiagnostic> {
     let rest = line.strip_prefix(&prefix)?;
     let (line_no, rest) = rest.split_once(':')?;
     let line_no: usize = line_no.trim().parse().ok()?;
+    // A file written as sentences also names the column: `<file>:<line>:<column>: <message>`.
+    let (column, rest) = match rest.split_once(':') {
+        Some((digits, after)) if !digits.is_empty() && digits.chars().all(|c| c.is_ascii_digit()) => {
+            (digits.parse().ok(), after)
+        }
+        _ => (None, rest),
+    };
     let rest = rest.strip_prefix(' ').unwrap_or(rest);
 
     let (message, expected) = match rest.rfind(" (expected one of: ") {
@@ -80,6 +106,7 @@ fn parse_diagnostic_line(line: &str, path: &Path) -> Option<FileDiagnostic> {
 
     Some(FileDiagnostic {
         line: line_no,
+        column,
         not_yet_implemented: message.starts_with("not yet implemented:"),
         message,
         expected,
@@ -135,6 +162,28 @@ mod tests {
     fn finds_a_hecksagon_chapter_name_when_indented() {
         let text = "  Hecks.hecksagon \"Banking\" do\nend\n";
         assert_eq!(chapter_name(text), Some("Banking".to_string()));
+    }
+
+    #[test]
+    fn finds_a_sentence_file_chapter_name_from_its_domain_line() {
+        assert_eq!(chapter_name("Domain: customer orders\n"), Some("CustomerOrders".to_string()));
+    }
+
+    #[test]
+    fn reads_the_column_a_sentence_refusal_names() {
+        let path = Path::new("/tmp/page.bluebook");
+        let line = "/tmp/page.bluebook:11:5: this is not a sentence I know in a value object: \"Rull x\" (expected one of: Rule <description> holds when <condition>)";
+        let diag = parse_diagnostic_line(line, path).expect("parses");
+        assert_eq!((diag.line, diag.column), (11, Some(5)));
+        assert!(diag.message.starts_with("this is not a sentence I know"));
+        assert_eq!(diag.expected, vec!["Rule <description> holds when <condition>"]);
+    }
+
+    #[test]
+    fn a_whole_line_refusal_has_no_column() {
+        let path = Path::new("/tmp/pizzas.bluebook");
+        let line = "/tmp/pizzas.bluebook:12: unknown word 'topping' in Aggregate";
+        assert_eq!(parse_diagnostic_line(line, path).expect("parses").column, None);
     }
 
     #[test]

@@ -5,6 +5,8 @@
 // reason: these helpers are test scaffolding outside `#[test]` fns, which clippy.toml does not
 // cover; a failed unwrap here is the test failing.
 #![allow(clippy::unwrap_used, clippy::expect_used)]
+// reason: a `${1:goal}` snippet in an expected string is the editor's syntax, not a format argument.
+#![allow(clippy::literal_string_with_formatting_args)]
 
 use std::fs;
 use std::path::PathBuf;
@@ -213,6 +215,24 @@ fn the_rendered_ruby_form_reads_back_to_the_same_ir() {
         String::from_utf8_lossy(&first.stdout),
         String::from_utf8_lossy(&second.stdout)
     );
+}
+
+#[test]
+fn the_subcommand_for_editors_offers_the_sentences_legal_at_the_cursor() {
+    let path = write(
+        "cursor.bluebook",
+        "Domain: Cms\n\nAggregate: Page\n  Command: Draft\n    Go",
+    );
+    let output = Command::new(env!("CARGO_BIN_EXE_hecks-parse"))
+        .args(["complete", path.to_str().unwrap(), "--line", "5", "--col", "7"])
+        .output()
+        .expect("failed to run hecks-parse");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    assert!(stdout.contains("\"context\": \"Command\""), "{stdout}");
+    assert!(stdout.contains("\"label\": \"Goal: <goal>\""), "{stdout}");
+    assert!(stdout.contains("\"snippet\": \"Goal: ${1:goal}$0\""), "{stdout}");
+    assert!(!stdout.contains("Aggregate:"), "{stdout}");
 }
 
 #[test]
