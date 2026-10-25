@@ -69,8 +69,8 @@ module Hecks
           end
 
           # Every reduction (`Behaviour::ReadModel::REDUCTION_FIELDS`) needs exactly one
-          # many-side head, cannot be declared alongside another, and cannot combine with
-          # `group_by`: a read model reports one shape.
+          # many-side head and cannot be declared alongside another: a read model reports one
+          # shape. With `group_by` it reduces each group's rows instead (ADR 0126).
           def seal_aggregation
             declared = Behaviour::ReadModel::REDUCTION_FIELDS
                        .select { |ivar, _| instance_variable_get(:"@#{ivar}") }.values
@@ -87,11 +87,6 @@ module Hecks
           end
 
           def refuse_mixed_shapes!(declared)
-            if @group_by&.any?
-              raise Malformed,
-                    "#{@name} declares #{declared.join("/")} together with group_by — a read " \
-                    "model reports one shape; choose one"
-            end
             return unless declared.size > 1
 
             joiner = declared.size == 2 ? "both #{declared.join(" and ")}" : declared.join(", ")

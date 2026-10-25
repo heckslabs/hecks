@@ -5,6 +5,7 @@ use super::refusal_wording::{
     InvariantViolationGroupByCollisionArgs, NotFoundReadModelReferenceMissingArgs,
     UnauthorizedTenantRequiredArgs,
 };
+use super::vocab::Reducer;
 use super::{
     named_query, query_comparators, query_ordering, repository, AggregateScan, Json,
     QueryCondition, QueryConditionValue, Refusal,
@@ -137,8 +138,67 @@ pub enum Reduction {
     All(&'static str),
 }
 
-/// The head's rows reduced as declared.
+impl Reduction {
+    /// The Vocabulary `Reducer` row this reduction is an instance of (ADR 0126).
+    pub const fn reducer(self) -> Reducer {
+        match self {
+            Self::Count => Reducer::Count,
+            Self::Median(_) => Reducer::Median,
+            Self::Sum(_) => Reducer::Sum,
+            Self::Avg(_) => Reducer::Avg,
+            Self::Min(_) => Reducer::Min,
+            Self::Max(_) => Reducer::Max,
+            Self::Percentile { .. } => Reducer::Percentile,
+            Self::Any(_) => Reducer::Any,
+            Self::All(_) => Reducer::All,
+        }
+    }
+
+    /// The declared field this reduction reads; `None` for `count`, which reads no field.
+    pub const fn field(self) -> Option<&'static str> {
+        match self {
+            Self::Count => None,
+            Self::Median(field)
+            | Self::Sum(field)
+            | Self::Avg(field)
+            | Self::Min(field)
+            | Self::Max(field)
+            | Self::Percentile { field, .. }
+            | Self::Any(field)
+            | Self::All(field) => Some(field),
+        }
+    }
+}
+
+/// A reducer's answer over no rows: its `Reducer` row's `identity`, read as JSON text.
+/// A number is the integer zero `sum` answers, without a raw spelling, as `sum` builds it.
+fn empty_answer(reducer: Reducer) -> Json {
+    match reducer.identity() {
+        "true" => Json::Bool(true),
+        "false" => Json::Bool(false),
+        number => number
+            .parse::<f64>()
+            .map_or(Json::Null, |value| Json::Num(value, None)),
+    }
+}
+
+/// Whether no row holds a value for the declared field, so the reduction answers its identity.
+fn holds_no_value(rows: &[(String, Json)], field: &'static str) -> bool {
+    rows.iter()
+        .filter_map(|(_, row)| row.get(field))
+        .map(query_comparators::comparable)
+        .all(|value| matches!(value, Json::Null))
+}
+
+/// The head's rows reduced as declared; a collection holding no value for the declared field
+/// answers the reducer's identity (ADR 0126).
 fn reduce(rows: &[(String, Json)], reduction: Reduction) -> Json {
+    if reduction
+        .field()
+        .is_some_and(|field| holds_no_value(rows, field))
+    {
+        return empty_answer(reduction.reducer());
+    }
     match reduction {
         Reduction::Count => Json::Num(rows.len() as f64, None),
         Reduction::Median(field) => median(rows, field),
@@ -164,11 +224,43 @@ pub enum LeafCheck {
     RefuseCollision(&'static str),
 }
 
+/// What a `group_by` leaf answers: the one row its key path reached, or the declared reduction
+/// of every row it reached (ADR 0126).
+#[derive(Debug, Clone, Copy)]
+enum Leaf {
+    Row(LeafCheck),
+    Reduce(Reduction),
+}
+
 /// One level of nesting per declared `group_by` field. Grouping is a Vec-based linear scan, not
 /// a `HashMap`, because `Json` has no `Hash` impl and groups must stay in first-occurrence order
 /// (matching Ruby's `Hash#group_by`) so both runtimes report the same first collision.
 pub fn nest(rows: Vec<Json>, fields: &[&str], check: LeafCheck) -> Result<Json, Refusal> {
-    nest_level(rows, fields, fields, check, &[])
+    nest_level(rows, fields, fields, Leaf::Row(check), &[])
+}
+
+/// `nest` with each leaf reduced as declared in place of holding one row (ADR 0126): the
+/// generated per-read-model group function of a read model that groups and reduces.
+pub fn nest_reduced(
+    rows: Vec<Json>,
+    fields: &[&str],
+    reduction: Reduction,
+) -> Result<Json, Refusal> {
+    nest_level(rows, fields, fields, Leaf::Reduce(reduction), &[])
+}
+
+/// A leaf's rows as `(id, row)` pairs, the shape `reduce` reads.
+fn leaf_pairs(group: Vec<Json>) -> Vec<(String, Json)> {
+    group
+        .into_iter()
+        .map(|row| {
+            let id = row
+                .get("id")
+                .map(super::query_comparators::to_s)
+                .unwrap_or_default();
+            (id, row)
+        })
+        .collect()
 }
 
 /// One level of `nest`. `all_fields` is the whole declared `group_by`
@@ -178,7 +270,7 @@ fn nest_level(
     rows: Vec<Json>,
     all_fields: &[&str],
     fields: &[&str],
-    check: LeafCheck,
+    answer: Leaf,
     reached: &[(&str, Json)],
 ) -> Result<Json, Refusal> {
     let Some((field, rest)) = fields.split_first() else {
@@ -210,10 +302,10 @@ fn nest_level(
     for (key, group) in groups {
         let mut path = reached.to_vec();
         path.push((field, key.clone()));
-        let value = if rest.is_empty() {
-            leaf(group, all_fields, check, &path)?
-        } else {
-            nest_level(group, all_fields, rest, check, &path)?
+        let value = match (rest.is_empty(), answer) {
+            (true, Leaf::Row(check)) => leaf(group, all_fields, check, &path)?,
+            (true, Leaf::Reduce(reduction)) => reduce(&leaf_pairs(group), reduction),
+            (false, _) => nest_level(group, all_fields, rest, answer, &path)?,
         };
         // A non-String key must stringify the same way Ruby's `Hash#[]=` does when used as a
         // JSON object key.
@@ -533,6 +625,65 @@ mod nest_tests {
 /// Exercises `ReferenceHopCondition`'s fold end-to-end through `run`, not just the isolated
 /// `apply_filtered_head_options` helper, so a wiring mistake at either call site fails this the
 /// same way it would fail a real caller.
+/// ADR 0126 — a grouped reduction answers each leaf's reduction, and an empty collection
+/// answers the reducer's declared identity.
+#[cfg(test)]
+mod nest_reduced_tests {
+    use super::*;
+
+    fn item(id: &str, aisle: &str, units: i64) -> Json {
+        Json::obj(vec![
+            ("aisle", Json::str(aisle)),
+            ("units", Json::int(units)),
+            ("id", Json::str(id)),
+        ])
+    }
+
+    #[test]
+    fn sums_each_group_in_first_seen_order() {
+        let rows = vec![item("i1", "a", 4), item("i2", "b", 7), item("i3", "a", 6)];
+
+        let nested = nest_reduced(rows, &["aisle"], Reduction::Sum("units")).expect("sums");
+
+        assert_eq!(
+            nested,
+            Json::obj(vec![
+                ("a", Json::Num(10.0, None)),
+                ("b", Json::Num(7.0, None))
+            ])
+        );
+    }
+
+    #[test]
+    fn counts_each_group_without_refusing_a_shared_key() {
+        let rows = vec![item("i1", "a", 4), item("i2", "a", 6)];
+
+        let nested = nest_reduced(rows, &["aisle"], Reduction::Count).expect("counts");
+
+        assert_eq!(nested, Json::obj(vec![("a", Json::Num(2.0, None))]));
+    }
+
+    #[test]
+    fn answers_each_reducers_declared_identity_over_no_rows() {
+        let answers: Vec<Json> = Reducer::ALL.iter().map(|r| empty_answer(*r)).collect();
+
+        assert_eq!(
+            answers,
+            vec![
+                Json::Num(0.0, None),
+                Json::Num(0.0, None),
+                Json::Null,
+                Json::Null,
+                Json::Null,
+                Json::Null,
+                Json::Null,
+                Json::Bool(false),
+                Json::Bool(true),
+            ]
+        );
+    }
+}
+
 #[cfg(test)]
 mod reference_hop_tests {
     use super::*;

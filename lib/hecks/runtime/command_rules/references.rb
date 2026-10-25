@@ -24,7 +24,8 @@ module Hecks
         # Re-checks references, cardinality and tenant agreement against settled state.
         #
         # @raise [Runtime::TypeMismatch] if a required `has_one`/`belongs_to` holds nil
-        # @raise [Runtime::NotFound] if a reference names an identity that does not exist
+        # @raise [Runtime::NotFound] if a reference, or a tagged `one_of` reference, names an
+        #   identity that does not exist
         # @raise [Runtime::Unauthorized] if a referenced record belongs to another tenant
         def resolve_state_references(domain, construct, state)
           boundary = TenantBoundary.new(self, domain, construct, state, tenant_field_for(construct))
@@ -36,6 +37,7 @@ module Hecks
           end
 
           resolve_entity_references(domain, construct, state)
+          resolve_one_of_references(domain, construct, state)
         end
 
         # One reference-typed argument's value, refused unless its target identity exists.

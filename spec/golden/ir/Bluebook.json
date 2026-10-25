@@ -25785,6 +25785,219 @@
               "admits": null,
               "default": null,
               "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "identity",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "combine",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "inverse",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "name",
+                "count"
+              ],
+              [
+                "identity",
+                "0"
+              ],
+              [
+                "combine",
+                "add"
+              ],
+              [
+                "inverse",
+                "subtract"
+              ]
+            ],
+            [
+              [
+                "name",
+                "sum"
+              ],
+              [
+                "identity",
+                "0"
+              ],
+              [
+                "combine",
+                "add"
+              ],
+              [
+                "inverse",
+                "subtract"
+              ]
+            ],
+            [
+              [
+                "name",
+                "avg"
+              ],
+              [
+                "identity",
+                "null"
+              ],
+              [
+                "combine",
+                "collect"
+              ],
+              [
+                "inverse",
+                ""
+              ]
+            ],
+            [
+              [
+                "name",
+                "min"
+              ],
+              [
+                "identity",
+                "null"
+              ],
+              [
+                "combine",
+                "min"
+              ],
+              [
+                "inverse",
+                ""
+              ]
+            ],
+            [
+              [
+                "name",
+                "max"
+              ],
+              [
+                "identity",
+                "null"
+              ],
+              [
+                "combine",
+                "max"
+              ],
+              [
+                "inverse",
+                ""
+              ]
+            ],
+            [
+              [
+                "name",
+                "median"
+              ],
+              [
+                "identity",
+                "null"
+              ],
+              [
+                "combine",
+                "collect"
+              ],
+              [
+                "inverse",
+                ""
+              ]
+            ],
+            [
+              [
+                "name",
+                "percentile"
+              ],
+              [
+                "identity",
+                "null"
+              ],
+              [
+                "combine",
+                "collect"
+              ],
+              [
+                "inverse",
+                ""
+              ]
+            ],
+            [
+              [
+                "name",
+                "any"
+              ],
+              [
+                "identity",
+                "false"
+              ],
+              [
+                "combine",
+                "or"
+              ],
+              [
+                "inverse",
+                ""
+              ]
+            ],
+            [
+              [
+                "name",
+                "all"
+              ],
+              [
+                "identity",
+                "true"
+              ],
+              [
+                "combine",
+                "and"
+              ],
+              [
+                "inverse",
+                ""
+              ]
+            ]
+          ],
+          "name": "Reducer"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
               "name": "glob",
               "optional": false,
               "pattern": null,

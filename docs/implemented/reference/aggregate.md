@@ -236,6 +236,21 @@ Banking::Account.open!(customer: { value: "ag-1" }, number: "ag-a3", kind: "curr
 
 One direction only: if the target aggregate also references this one back, the bluebook refuses to build (`BluebookBuilder#validate_no_bidirectional_references!`, raises `Malformed`) — two aggregates pointing at each other means neither is a boundary a caller can reason about alone. `has_many`/`has_one`/`belongs_to` below are GONE — `reference_to` covers everything they did.
 
+`reference_to one_of(A, B), as: :name` points at one of a closed union of aggregates
+([ADR 0127](../../decisions/0127-reference-to-one-of-is-a-tagged-reference-to-a-closed-union.md)).
+`as:` is required, since a union has no one name. The aggregate gains a closed set of the
+variants' names (`SubjectType`) and a value object (`Subject`) holding which aggregate (`type`)
+and which of its records (`id`), so the stored value is `{ type:, id: }` and a read model can
+filter it with `where(:"subject.type" => "ATMCard")`. A type outside the union is refused, and
+so is an id the named aggregate does not hold. Model check's `one_of_branch_unhandled` holds
+every branch on the type to handling each variant. `Banking::Hold` sits on an account or a card:
+
+```ruby
+Banking::Hold.place!(reference: "ag-h1", subject: { type: "Account", id: "ag-a1" }, reason: "review")[:subject].to_h  # => {type: "Account", id: "ag-a1"}
+Banking::Hold.place!(reference: "ag-h2", subject: { type: "Customer", id: "ag-1" }, reason: "review")  # ~> InvariantViolation: type admits Hold::SubjectType
+Banking::Hold.place!(reference: "ag-h3", subject: { type: "ATMCard", id: "ag-a1" }, reason: "review")  # ~> NotFound: no ATMCard
+```
+
 ## has_many
 
 <!-- generated:begin word=has_many -->

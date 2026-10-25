@@ -12,6 +12,9 @@ pub struct ReferenceCheck {
     pub optional: bool,
     /// `Some(element key expression)` for a list (`has_many`) check.
     pub list_item: Option<String>,
+    /// `Some(variant)` for a tagged `one_of` reference: the check runs only when the argument's
+    /// `type` names this variant (ADR 0127).
+    pub union_tag: Option<String>,
     pub target_mod: String,
     pub target_name: String,
     pub heads: String,
@@ -260,6 +263,28 @@ fn squeeze(text: &str) -> String {
 
 pub fn emit_reference_check(exemplar: &Exemplar, check: &ReferenceCheck) -> String {
     let ident = naming::rust_ident_field(&check.field);
+    if check.union_tag.is_some() {
+        let (shape, slot) = if check.optional {
+            (
+                "reference_check_one_of_optional",
+                "tmpl_union_optional_field",
+            )
+        } else {
+            ("reference_check_one_of", "tmpl_union_field")
+        };
+        return exemplar.render(
+            shape,
+            &[
+                (
+                    "\"TmplTarget\"",
+                    naming::ruby_inspect_string(&check.target_name),
+                ),
+                ("\"tmpl_heads\"", naming::ruby_inspect_string(&check.heads)),
+                ("tmpl_target_mod", check.target_mod.clone()),
+                (slot, ident),
+            ],
+        );
+    }
     if let Some(list_item) = &check.list_item {
         exemplar.render(
             "reference_check_list",

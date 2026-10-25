@@ -25,7 +25,7 @@ The clearest signal in the whole tree is the survey's own closing pick — an ex
 - ~~**Audit Tier 1, findings H3–H5**~~ — **Fixed**, verified live/against real Postgres 2026-08-27 (era-migrated-delete tombstoning, rekey SQL folded into the approval digest, dotted-compute no longer exempting its whole parent attribute from the Layer-2 gate).
 - **Drivers / Gates / mailboxes / OutboundEvent / derivability gauge** — a coherent "operational surface around the bus" that `hecks` has built and hecks lacks entirely (survey items 3, 5, 6, 7, 8).
 - **ADR 0025's DSL cleanup** — a fully sequenced 15-step plan; the single largest concretely-scoped item among the decision records.
-- **Query-DSL aggregation** — `count / sum / avg / min / max` plus `group_by`. Flagged as the sharpest, most requested gap in the query language. **Partly shipped:** `read_model` already has `count`, `median` and `group_by` (ADRs 0050, 0052); what is open is `sum` and a `group_by` that reduces, and `group_by` silently drops rows on a non-unique key. Design and recommendation (draft): [ADR 0061](decisions/0061-query-dsl-aggregation-count-sum-group-by.md).
+- **Query-DSL aggregation** — `count / sum / avg / min / max` plus `group_by`. Flagged as the sharpest, most requested gap in the query language. **Partly shipped:** `read_model` already has `count`, `median` and `group_by` (ADRs 0050, 0052); `sum`/`avg`/`min`/`max` followed (ADR 0078), and a `group_by` that reduces each group (ADR 0126). Design and recommendation (draft): [ADR 0061](decisions/0061-query-dsl-aggregation-count-sum-group-by.md).
 
 ---
 
@@ -160,7 +160,7 @@ Five smaller, more mechanical planning docs — each scoped to a concrete engine
 
 ### Query DSL (`docs/query-dsl.md`) — proposed additions, none implemented
 
-- **Aggregation** — `count / sum / avg / min / max` plus `group_by`. `read_model` already computes `count`, `median` and `group_by` (ADRs 0050, 0052); still open is `sum`, a `group_by` that reduces, and a fix for `group_by` dropping rows on a non-unique key. `avg`/`min`/`max` have no corpus use. See [ADR 0061](decisions/0061-query-dsl-aggregation-count-sum-group-by.md) (Proposed).
+- **Aggregation** — `count / sum / avg / min / max` plus `group_by`. `read_model` already computes `count`, `median` and `group_by` (ADRs 0050, 0052); `sum`/`avg`/`min`/`max` followed (ADR 0078), and `group_by` with one reduction reduces each group (ADR 0126). See [ADR 0061](decisions/0061-query-dsl-aggregation-count-sum-group-by.md) (Proposed).
 - **`having`** — filtering on a computed value, paired with aggregation.
 - **`distinct`** — a common primitive with no equivalent today.
 - **Explicit `include` optionality control** — no lever today for "drop the row if the include is absent" vs. "keep it with an empty collection"; inner-vs-left-join behavior on a zero-match has never been traced.

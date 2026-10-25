@@ -1,4 +1,6 @@
+require "json"
 require_relative "../../ports/query/in_memory"
+require_relative "../../vocabulary"
 require_relative "../../query_specification/field_path"
 
 module Hecks
@@ -13,6 +15,9 @@ module Hecks
 
         # The order `reduce` looks for a declared reduction; `median` is what remains.
         REDUCE_ORDER = %i[any_field all_field sum_field avg_field min_field max_field percentile_field].freeze
+
+        # Each reducer's answer over no rows, read from the Vocabulary's `Reducer` rows (ADR 0126).
+        EMPTY_ANSWER = Hecks::Vocabulary.rows("Reducer").to_h { |row| [row["name"], JSON.parse(row["identity"])] }.freeze
 
         private
 
@@ -70,24 +75,32 @@ module Hecks
         # `Runtime::ReadModelInterpreter#project`'s `reduced_head` branch.
         def reduce(model, rows)
           name = REDUCE_ORDER.find { |candidate| model.public_send(candidate) }
-          return percentile(numeric_values(rows, model.median_field), 0.5) unless name
+          return median(rows, model.median_field) unless name
 
           apply_reduction(name, model, rows)
         end
 
+        def median(rows, field)
+          values = numeric_values(rows, field)
+          values.empty? ? EMPTY_ANSWER.fetch("median") : percentile(values, 0.5)
+        end
+
+        # An empty collection answers the reducer's declared identity; any other is reduced.
         def apply_reduction(name, model, rows)
-          field = model.public_send(name)
+          values = reduction_values(rows, model.public_send(name))
+          return EMPTY_ANSWER.fetch(REDUCTION_WORD.fetch(name)) if values.empty?
+
           case name
-          when :any_field then boolean_values(rows, field).any?
-          when :all_field then boolean_values(rows, field).all?
-          else numeric_reduction(name, model, numeric_values(rows, field))
+          when :any_field then values.any?
+          when :all_field then values.all?
+          else numeric_reduction(name, model, values)
           end
         end
 
         def numeric_reduction(name, model, values)
           case name
           when :sum_field then values.sum
-          when :avg_field then average(values)
+          when :avg_field then values.sum.to_f / values.length
           when :min_field then values.min
           when :max_field then values.max
           else percentile(values, model.percentile_at)
@@ -102,16 +115,10 @@ module Hecks
           rows.map { |record| Ports::Query::InMemory.comparable(QuerySpecification::FieldPath.dig(row(record), field)) }.compact
         end
         alias numeric_values reduction_values
-        alias boolean_values reduction_values
 
-        # `nil` on no rows: a rate of nothing is undefined, not zero.
-        def average(values) = values.empty? ? nil : values.sum.to_f / values.length
-
-        # The value at one interpolated rank (`0.0`..`1.0`); `at: 0.5` is the standard median
-        # (middle value when odd, average of the two middle values when even). `nil` on no rows.
+        # The value at one interpolated rank (`0.0`..`1.0`) of a non-empty list; `at: 0.5` is
+        # the standard median (middle value when odd, average of the two middle values when even).
         def percentile(values, at)
-          return nil if values.empty?
-
           sorted = values.sort
           position = at * (sorted.length - 1)
           lower = position.floor

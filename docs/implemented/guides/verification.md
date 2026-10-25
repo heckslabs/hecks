@@ -170,6 +170,7 @@ lifecycles, sagas, and policies:
 | `unknown_trigger` | error | a policy's `trigger` resolves to no command the domain declares |
 | `key_by_value` | warning | an aggregate attribute whose type is the single-attribute identity type of another aggregate in the same domain, held as a copied key instead of `reference_to` (list attributes, an owner's own identity attribute and primitive types are never flagged; a head of another aggregate's composite identity is flagged) |
 | `orphaned_reference` | warning | an aggregate that can end holds `reference_to` one whose life ends (a reached, non-default state nothing leaves), and no policy on that ending's event fans out over or triggers a command of the holder; Hecks's stand-in for `dependent: :destroy` (ADR 0121) |
+| `one_of_branch_unhandled` | error | a command `given`/`ensures` or a read model `where` on the owning aggregate compares a `reference_to one_of(...)` attribute's `type` with a name, and the branches leave a variant of the union unhandled, or name a type the union does not hold (ADR 0127) |
 
 The CLI walks every example, every grammar chapter, and the language's
 own two meta-chapters the same way, in one pass:
