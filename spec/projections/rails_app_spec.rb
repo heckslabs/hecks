@@ -13,7 +13,8 @@ RSpec.describe Hecks::Projections::RailsApp do
   def files = Hecks::Projector.call(:rails_app, bluebook: banking)
 
   it "writes a controller, named for its resource, for each aggregate" do
-    expect(files["app/controllers/safe_deposit_boxes_controller.rb"]).to include("class SafeDepositBoxesController < ApplicationController")
+    controller = files["app/controllers/safe_deposit_boxes_controller.rb"]
+    expect(controller).to include("class SafeDepositBoxesController < ApplicationController")
   end
 
   it "writes no model, since hecks-rails generates one per aggregate" do
@@ -25,7 +26,7 @@ RSpec.describe Hecks::Projections::RailsApp do
   end
 
   it "names nothing of the runtime" do
-    expect(files.values.join).not_to match(/Runtime/)
+    expect(files.values.join).not_to include("Runtime")
   end
 
   describe Hecks::Adapters::RailsAppFiles do
