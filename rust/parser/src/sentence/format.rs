@@ -13,6 +13,7 @@ use super::changes;
 use super::entity;
 use super::names::spoken;
 use super::options;
+use super::queries;
 use super::report;
 use crate::ruby_value;
 use crate::ir;
@@ -115,6 +116,17 @@ fn policy_text(out: &mut String, policy: &ir::Policy, chapter: &ir::Bluebook) ->
     };
     match (&policy.trigger_command, &policy.ask) {
         (Some(command), None) => {
+            let declared = chapter.aggregates.iter().any(|aggregate| {
+                command.split_once('.').is_some_and(|(owner, name)| {
+                    aggregate.name == owner && aggregate.commands.iter().any(|c| c.name == name)
+                })
+            });
+            if !declared {
+                return Err(format!(
+                    "policy {} triggers {command}, a command this chapter does not declare",
+                    policy.name
+                ));
+            }
             let name = command.split_once('.').map_or(command.as_str(), |(_, name)| name);
             out.push_str(&format!("  Then {} runs{with}\n", spoken_title(name)));
         }
@@ -221,7 +233,7 @@ fn block_text(out: &mut String, aggregate: &ir::Aggregate, kind: &str) -> Result
         command_text(out, command, &noun, &aggregate.attributes)?;
     }
     for query in &aggregate.queries {
-        query_text(out, query)?;
+        out.push_str(&queries::said(query)?);
     }
     for entity in &aggregate.entities {
         let mut inner = String::new();
@@ -261,7 +273,7 @@ pub(super) fn spoken_title(name: &str) -> String {
         .join(" ")
 }
 
-fn attribute_line(attribute: &ir::Attribute) -> Result<String, String> {
+pub(super) fn attribute_line(attribute: &ir::Attribute) -> Result<String, String> {
     let refused = || {
         format!(
             "the sentence form has no phrase for the options on attribute {}",
@@ -361,7 +373,7 @@ fn closed_set_text(out: &mut String, value_object: &ir::ValueObject) -> Result<(
 
 /// Whether `text` survives being one item of `a, b and c`: no quote, comma or colon, no inner
 /// ` and `, and no leading article the reader would drop.
-fn is_listable(text: &str) -> bool {
+pub(super) fn is_listable(text: &str) -> bool {
     let first = text.split(' ').next().unwrap_or_default().to_lowercase();
     !text.is_empty()
         && text.trim() == text
@@ -546,40 +558,4 @@ pub(super) fn join_and(items: &[String]) -> String {
         [only] => only.clone(),
         [init @ .., last] => format!("{} and {last}", init.join(", ")),
     }
-}
-
-fn query_text(out: &mut String, query: &ir::Query) -> Result<(), String> {
-    if query.limit.is_some()
-        || !query.attributes.is_empty()
-        || !query.needs.is_empty()
-        || query.returns.is_some()
-    {
-        return Err(format!(
-            "the sentence form has no phrase for the options on query {}",
-            query.name
-        ));
-    }
-    out.push_str(&format!("\n  Query: {}\n", spoken_title(&query.name)));
-    if let Some(description) = &query.description {
-        out.push_str(&format!("    {description}\n"));
-    }
-    for clause in &query.wheres {
-        let value = clause
-            .value
-            .strip_prefix('"')
-            .and_then(|rest| rest.strip_suffix('"'))
-            .filter(|value| clause.op == "eq" && clause.target.is_none() && is_word(value) && is_name(&clause.field))
-            .ok_or_else(|| {
-                format!(
-                    "the sentence form has no phrase for a {} comparison in query {}",
-                    clause.op, query.name
-                )
-            })?;
-        out.push_str(&format!("    Where the {} is {value}\n", spoken(&clause.field)));
-    }
-    if let Some(order) = &query.order_by {
-        let direction = if order.direction == "desc" { "descending" } else { "ascending" };
-        out.push_str(&format!("    Ordered by {}, {direction}\n", order.field));
-    }
-    Ok(())
 }
