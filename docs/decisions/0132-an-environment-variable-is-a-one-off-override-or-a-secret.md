@@ -51,6 +51,36 @@ the analytics reader password, `API_TOKEN`, `AUTH_SECRET`, `SESSION_SECRET*`,
 `PAYMENT_WEBHOOK_SECRET`, `GOOGLE_CLIENT_SECRET`, `PGPASSWORD`. A world file names the
 1Password item, never the value.
 
+**Derived or declared (retire the variable), rest of the hecks surface:**
+- `HECKS_IR_PATH`, `HECKS_WASM_PATH` (the host reads the build output beside it);
+  `HECKS_STOREHOUSE_ROOT` (the checkout root); `HECKS_QA_SETTINGS_PATH` (the default
+  path already exists); `QA_REPO_DIR` (the working directory).
+- `HECKS_SERVE_MODE`, `HECKS_ROLE_ENFORCEMENT`, `HECKS_SESSION_COOKIE` (host behaviour
+  and wiring: the world or hecksagon declares them; the cookie name is already a field
+  in generated sites).
+- `HECKS_SCAFFOLD` (a flag on the era command, not an ambient variable).
+- `HECKS_COMPOSER_AGENT`, `HECKS_JEV`, `QA_MINER_AGENT` (which agent and which binary
+  are adapter settings in the hecksagon).
+- `HECKS_PARSE_BIN` (found beside the install; the editor extension passes its setting
+  as an argument).
+- `HECKS_CONTRACT_PAYMENTS`, `HECKS_CONTRACT_WAIT_SECONDS` (contract test settings in
+  the package's config).
+
+**Kept as switches (documented overrides, off by default):**
+- `HECKS_SYNTAX_BOOT_CACHE=off`, `HECKS_VERDICT_CACHE=off`, `HECKS_NO_USAGE_CACHE`,
+  `HECKS_NO_DECLARATION_CACHE`: bypass a cache to prove it is not the cause.
+- `HECKS_WASM_PROFILE` (release by default), `HECKS_EVAL=string`,
+  `HECKS_VALIDATE_HARNESS`, `HECKS_CLOUDFRONT_TEST`.
+
+**Not hecks's to remove (system and platform):**
+`PATH`, `HOME`, `PORT`, `HOST`, `NODE_ENV`, `RAILS_ENV`, `XDG_CACHE_HOME`, `GIT_DIR`,
+`LAMBDA`, `PGOPTIONS`, `OBJC_DISABLE_INITIALIZE_FORK_SAFETY`. `HECKS_CACHE_DIR` follows
+`XDG_CACHE_HOME`.
+
+**Test-only (the variable is set by a spec, not by a person):**
+`CAPTURE_LOCK_A`, `HECKS_RELEASE_SPEC`, and `VERBS`/`STEPS` where a spec passes them to
+a child process. They stay, scoped to the spec that sets them.
+
 ## Order of work
 
 1. Derived variables: no schema change.
