@@ -22,6 +22,9 @@ lib/hecks/
   deploy/               the Deploy bluebook — what deployed_to means.
 ```
 
+Domain-version translation (eras and lineage) lives under `language/translation/`. This
+map names the main layers only; `ls lib/hecks` is the full list.
+
 The split follows the dependency direction, not the topic: the
 expression evaluator lives in the semantic core, not `projector/`,
 because the runtime evaluates every `given` and invariant through it

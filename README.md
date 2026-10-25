@@ -10,7 +10,7 @@ given("at most 10 toppings") { toppings.size < 10 }
 
 sets :toppings, append: { name: :topping, amount: :amount }
 
-emits "ToppingAdded"
+emits ToppingAdded
 ```
 
 `given` refuses a command before it runs; `sets` is the only way state
@@ -154,8 +154,8 @@ declared on the command, before anything changes.
 
 That block runs on every push, claims and all — not an illustration.
 So does every other `ruby`-fenced example in this README and in
-[the guides](docs/implemented/guides/); `spec/guides_spec.rb` is the
-harness.
+[the guides](docs/implemented/guides/) that is not tagged `skip` or
+`excerpt`; `spec/guides_spec.rb` is the harness.
 
 Next, [Getting started](docs/implemented/guides/getting-started.md) walks
 through the pizzas bluebook you just dispatched against, and
@@ -224,7 +224,7 @@ This is not a hypothetical concern about hecks's own [corpus](#corpus). [ADR
 in this repository's own decision log measured it directly: two
 preconditions — "the customer is active" and "the customer is not
 closed" — had been independently typed out, worded slightly
-differently each time, across **44% of all 183 `given` clauses** in
+differently each time, across **a large share of the `given` clauses** in
 the corpus, because nothing made the duplication visible until someone
 counted. The fix wasn't a linter; it was a language feature
 (`given("customer is active")`, declared once and referenced by name
@@ -289,7 +289,7 @@ aggregate "Order" do
     role "Chef"
     attribute :name,  PizzaName
     attribute :pizza, Pizza
-    emits "PizzaCreated"
+    emits PizzaCreated
   end
 
   command "AddTopping" do
@@ -302,7 +302,7 @@ aggregate "Order" do
     given("at most 10 toppings")            { toppings.size < 10 }
 
     sets :toppings, append: { name: :topping, amount: :amount }
-    emits "ToppingAdded"
+    emits ToppingAdded
   end
 end
 ```
@@ -424,13 +424,13 @@ account.credit!(amount: { cents: -1, currency: "USD" })    # ~> InvariantViolati
 
 The real `Account` — the one in `examples/banking/bluebook/`, not the
 trimmed one above — is where the "one rule, checked once" argument from
-[Why](#why) stops being a toy example. Six different commands can move
+[Why](#why) stops being a toy example. Several different commands can move
 its `balance`; "the balance never goes negative" used to be three
 different `given`/`ensures` clauses, worded differently, with two
 commands that could only *increase* the balance saying nothing at all
 — correctness depended on someone noticing which commands could
 decrease it. It is now one aggregate-level `invariant`, checked after
-every one of those six commands, stated once:
+every one of those commands, stated once:
 
 ```ruby skip
 # examples/banking/bluebook/deposit_accounts.bluebook — the real Account
@@ -452,7 +452,7 @@ command "Debit", from: "open" do
   # aggregate's own invariant above says it now.
   ensures("the balance fell by exactly the amount") { old.balance.cents == balance.cents + amount.cents }
 
-  emits "AccountDebited"
+  emits AccountDebited
 end
 ```
 
@@ -647,8 +647,9 @@ chapter and one per aggregate, so `Order.create_pizza!(…)` dispatches the
 One named `Hecks.bluebook` declaration and the module the Ruby driving adapter installs
 for it (`Pizzas`). The language's framework chapters (`Governance`,
 `Identity`, `Privacy` and others) live in `lib/hecks/framework/bluebook/`
-and its grammar chapters in `lib/hecks/grammar/`; a hecksagon attaches a
-framework chapter with `attaches`.
+and its grammar chapters under `lib/hecks/language/` and `lib/hecks/grammar/`
+(`hecks` lists the chapters); a hecksagon attaches a framework chapter
+with `attaches`.
 
 ### Heki
 
@@ -702,7 +703,7 @@ in [Project status](docs/implemented/guides/project-status.md) are real
 starting points, not a formality.
 Before sending a change: `bundle exec rspec`, `hecks model_check`, and
 `hecks fuzz_run.fuzz` are what CI runs, and every `ruby`-fenced example in a guide
-or this README is expected to execute exactly as shown
+or this README not tagged `skip` or `excerpt` is expected to execute exactly as shown
 (`spec/guides_spec.rb`). See [`CONTRIBUTING.md`](CONTRIBUTING.md) for
 the full checklist. To check the whole claim, not just the demo:
 

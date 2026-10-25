@@ -1,6 +1,8 @@
 # `admits:`/`pattern:` attribute constraints are generated, with a hand-rolled matcher for `pattern:`
 
-**Status:** Accepted — implemented. `rust/project/constraints.rb`, `rust/src/kernel/pattern.rs`, branch `feat/rust-projection`. Closes two of the three distinct gaps 0017's own investigation surfaced (a closed-set `admits:` subset accepting an out-of-set member, and a `pattern:` regex constraint not checked at all) — the third (an `Integer` field accepting a non-numeric JSON string) turned out to be a real bug, not a missing feature, and was fixed separately (see Consequences).
+**Historical:** the `rust/project/*.rb` generator and the `bin/project_*` scripts named below are gone; `docs/tools.md` maps each retired script to its `hecks` verb, and Rust generation now lives in `rust/codegen` (ADR 0086).
+
+**Status:** Accepted — implemented. Historical: `rust/project/` is gone; generation lives in `rust/codegen` (ADR 0086). `rust/project/constraints.rb`, `rust/src/kernel/pattern.rs`, branch `feat/rust-projection`. Closes two of the three distinct gaps 0017's own investigation surfaced (a closed-set `admits:` subset accepting an out-of-set member, and a `pattern:` regex constraint not checked at all) — the third (an `Integer` field accepting a non-numeric JSON string) turned out to be a real bug, not a missing feature, and was fixed separately (see Consequences).
 
 ## Context
 

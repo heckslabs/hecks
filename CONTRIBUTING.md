@@ -38,11 +38,13 @@ bundle exec rubocop -c .rubocop.yml
 overrides, each with its reason beside it and the whole list argued in
 `docs/decisions/0091-rubocop-defaults-with-deliberate-overrides.md`.
 A cop that is not on that list runs at its default, so new and changed
-code is held to it, and no file is excluded: fix an offense rather than
+code is held to it. The files `.rubocop.yml` excludes (`AllCops.Exclude`) are
+generated or vendored output; for any other file, fix an offense rather than
 parking it. Fix `Style/GuardClause`, `Style/Next` and the other cops
 that move control flow by hand, not with autocorrect.
 
-Three tags are excluded from a plain `rspec` run and worth knowing about
+Some tags are excluded from a plain `rspec` run (the `filter_run_excluding`
+calls in `spec/spec_helper.rb` are the full list) and worth knowing about
 before you assume a red suite everywhere:
 
 - `fuzzing: true` — `spec/fuzzing/`, live-generated-history replays,
@@ -71,13 +73,13 @@ find out here instead of in CI. It is a local check, not a review; see
 git config core.hooksPath .githooks
 ```
 
-It runs the parallel suite, `spec/fuzzing`, the query-agreement `io`
-spec, the engine-agreement check, `hecks model_check`, `hecks conformance_run.measure_doc_coverage`
-`rubocop` and `rust_fmt` (rustfmt over the Rust crates), concurrently, and reports the results in a fixed order. Bypass with `git push --no-verify` only when you mean to,
+It runs the checks of the `pre_push` stage in `lib/hecks/gate/stages.yml`
+(the suite, `spec/fuzzing`, the agreement, model, doc-coverage, style and
+codegen-drift checks, and rustfmt), concurrently, and reports the results in a fixed order. Bypass with `git push --no-verify` only when you mean to,
 and say why in the push (or the PR).
 
 `main` takes pushes with no gate, so a push of only `main` skips the suite but still runs the `unguarded_push` stage (rubocop, the
-comment-style checks and `spec/fuzzing`); `HECKS_PRE_PUSH_GATE=1 git push` runs the whole suite for it. Any other push (a branch for a pull request) runs it as before. Which
+comment-style checks and `spec/fuzzing`); `HECKS_PRE_PUSH_GATE=1 git push` runs the whole suite for it. A push that names no ref on `main` (a branch for a pull request) skips every local check; CI is its gate. Which
 lanes are unguarded is the `Lane` rows of the Vocabulary chapter, not this file.
 
 ### Fast local iteration
@@ -113,9 +115,8 @@ cp .rspec-local.example .rspec-local
 
 One thing NOT to fight: a single example in a domain-boot-heavy spec
 (one that calls `boot_in_memory` or loads a real Bluebook) measures
-noticeably above the "~50ms/example" baseline `spec_helper.rb`'s own
-comment cites for the fast, tag-excluded loop — closer to ~200ms,
-mostly a fresh `MetaValidator` pass and registry build per example.
+noticeably above the fast, tag-excluded loop, mostly a fresh
+`MetaValidator` pass and registry build per example.
 That's the isolation the suite is built on, not a bug to route around;
 scoping to the file/example you're changing (above) is what actually
 keeps the loop tight, not trying to share boot state across examples.
@@ -168,7 +169,7 @@ attached chapters add theirs (`hecks deploy recipe.project`, `hecks quality_cont
 …`); `hecks` lists them and `hecks <verb> --help` prints one's usage.
 `run`, `model_check`, `docs`, `narrate`, `ir`, `stores`, `smoke_test`,
 `project_diagrams`, `project_cli` and `mcp` ship in the installed gem; the
-Codebase verbs (`regenerate_corpus`, `check_comments`, `measure_doc_coverage`,
+Codebase verbs (`regeneration_run.regenerate_corpus`, `style_run.check_comments`, `conformance_run.measure_doc_coverage`,
 `publish` and the rest) need a checkout of this repository and refuse
 without one. The logic lives under `lib/hecks/cli/` and `lib/hecks/tools/`,
 so a change to a command goes there; there is no `bin/` directory. The fuzzing, bench,
@@ -194,14 +195,14 @@ GOLDEN=rewrite bundle exec rspec spec/ir_golden_spec.rb
 ```
 
 **Docs are tests.** Every `ruby`-fenced block in the README and in
-`docs/implemented/guides/` runs for real, against a real booted domain
+`docs/implemented/guides/` that is not tagged `skip` or `excerpt` runs for real, against a real booted domain
 — `spec/guides_spec.rb` is the harness. If you edit one of those code
 fences, `bundle exec rspec spec/guides_spec.rb` either passes or tells
 you the prose lied.
 
 **Rust.** `rust/` is a second dispatch runtime, generated from the same
 canonical IR and checked against Ruby continuously
-(`hecks regenerate_corpus --check`, `spec/rust_conformance_spec.rb`). You
+(`hecks regeneration_run.regenerate_corpus --check`, `spec/rust_conformance_spec.rb`). You
 don't need a Rust toolchain to contribute Ruby-only changes — your pull
 request's own CI builds and runs the conformance suite, and CI runs it again
 on every push to `main`; `stable` moves onto a commit only after that run is
@@ -219,8 +220,8 @@ cd rust && cargo build --release && cargo test --lib
 Every Rust crate (`rust/`, `rust/parser`, `rust/codegen`, `rust/lsp`, `rust/host`, `rust/web`, `rust/build`) is held to
 `cargo fmt --check` and `cargo clippy --all-targets -- -D warnings`. The lint set is the `[lints.clippy]` table in each
 crate's `Cargo.toml` (clippy's pedantic and nursery groups plus `unwrap_used`, `expect_used` and `panic`; the same table
-in all seven, so change them together), with `clippy.toml` letting tests unwrap. CI runs both in the
-`checks` job; `hecks gate_run.gate stage=ci only=rust_fmt,rust_clippy` runs them here, after `hecks regenerate_corpus
+in every crate, so change them together), with `clippy.toml` letting tests unwrap. CI runs both in the
+`checks` job; `hecks gate_run.gate stage=ci only=rust_fmt,rust_clippy` runs them here, after `hecks regeneration_run.regenerate_corpus
 --confirm` on a fresh checkout (the main crate needs the generated modules). Generated Rust is laid out by its
 generators (`Hecks::RustFormat`) and is clippy-clean by the same route, so fix a warning in a generated file in the
 generator, never in the output. `rust/src/exemplar` is text templates, so it is neither formatted nor linted as code.
@@ -254,14 +255,14 @@ Rust modules on disk (they are untracked), so run the `project_rust` build above
 ## How this project is built and reviewed
 
 This section separates what the repository and GitHub can show you from
-what the maintainer says. The counts are a snapshot as of 2026-09-27 and
-move with every commit.
+what the maintainer says. Each claim below comes with the command that
+shows it now.
 
 ### What the repository and GitHub show
 
-- **Most commits are co-authored with an AI coding assistant.** Of 1,434
-  commits on `main`, 987 carry a `Co-Authored-By:` trailer, and 425 of the
-  425 commits in the last 30 days do, about 14 a day. Check it by counting
+- **Most commits are co-authored with an AI coding assistant.** Most
+  commits on `main` carry a `Co-Authored-By:` trailer, and so do the recent
+  ones. Check it by counting
   `git log --format=%h`, then again with `--grep='Co-Authored-By:' -i`,
   and add `--since='30 days ago'` to either for the recent window.
 - **`main` takes pushes with no gate; `stable` is the guarded line.** The
@@ -279,14 +280,14 @@ move with every commit.
   `hecks regeneration_run.project_lanes` writes these
   files from the rows, and with `--live` compares the rulesets GitHub holds
   with them.
-- **GitHub does not require an approving review.** Branch protection and
-  the ruleset's pull-request rule both require zero approving reviews, and
-  branch protection requires no code-owner review. There is no CODEOWNERS
-  file. The ruleset also sets `require_extra_approval_for_unattributed_changes`;
-  the API does not show whether that setting has ever triggered.
-- **The recent merged pull requests carry no recorded reviews.** The last
-  60 merged (#803 to #865, merged 2026-09-25 to 2026-09-27) have zero
-  reviews recorded on GitHub and a single author login. Check it with
+- **The repository's rulesets require no approving review.** The committed
+  `.github/rulesets/stable.json` holds a deletion rule, a non-fast-forward
+  rule and the required status checks, and no pull-request review rule. There
+  is no CODEOWNERS file. Branch protection and any review setting GitHub
+  holds beyond these files are not in the repository; compare them with
+  `hecks regeneration_run.project_lanes --live`.
+- **Merged pull requests may carry no recorded reviews.** Check the recent
+  ones with
   `gh pr list --state merged --limit 60 --json number,reviews,reviewDecision`.
 
 ### What the maintainer states
@@ -297,7 +298,7 @@ maintainer keeps doing them.
 
 1. The maintainer's own pull requests and outside authors' pull requests are
    read before they are merged. A pull request an agent opened and merged
-   itself (`hecks-merge`, or `gh pr merge`) lands on `main` without the
+   itself (`gh pr merge`) lands on `main` without the
    maintainer's reading beforehand; `stable` follows only once CI is green
    on that commit.
 2. Reviews run by an AI assistant (a code-review skill, subagents) are not

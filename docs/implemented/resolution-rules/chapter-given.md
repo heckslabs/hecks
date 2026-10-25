@@ -5,7 +5,7 @@
 S10/ADR 0025's "declared once, referenced by name" already reaches an
 aggregate's own commands (`AggregateBuilder#given`), a piece's own commands
 (`EntityBuilder#given`), and — earlier in this same arc —  any piece nested
-under one aggregate (`docs/resolution-rules/cross-entity-given.md`). None of
+under one aggregate (`docs/implemented/resolution-rules/cross-entity-given.md`). None of
 those reach the widest real corpus duplication: two DIFFERENT AGGREGATES,
 each independently typing the identical precondition.
 

@@ -1,5 +1,7 @@
 # Role checking, and the wire-contract extension it needed to be verifiable at all
 
+**Historical:** the `rust/project/*.rb` generator and the `bin/project_*` scripts named below are gone; `docs/tools.md` maps each retired script to its `hecks` verb, and Rust generation now lives in `rust/codegen` (ADR 0086).
+
 **Status:** Accepted — implemented. `rust/src/kernel/{repository,orchestrate,cli}.rs`, `rust/project/{registry,domain_generator}.rb`, `lib/hecks/fuzzing/replay.rb`, branch `feat/rust-projection`. Closes the last item from 0014's original two-item list (reference-existence checking, closed by 0017).
 
 ## Context

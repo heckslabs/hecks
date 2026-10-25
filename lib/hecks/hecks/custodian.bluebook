@@ -870,6 +870,13 @@ policy "RecordTheEra" do
     trigger Landing::Decline, with: { refusal: :refusal }
   end
 
+  # The copy of Hecks that runs the train follows what it pushed, so the next boarding and the
+  # records it keeps run the code that landed, not the code that was there when it was set up.
+  policy "KeepTheLauncherCurrent" do
+    on      "PushTrain.BranchPushed"
+    trigger PushTrain::Launcher::Refresh, with: { run: :run }
+  end
+
   aggregate "Era" do
     description "One change to a domain's journal of eras, and how it ended: a store's upkeep."
 

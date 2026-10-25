@@ -1,5 +1,7 @@
 # A list-typed record field is `Option`-wrapped only when a creating command's own `:set` can leave it unset
 
+**Historical:** the `rust/project/*.rb` generator and the `bin/project_*` scripts named below are gone; `docs/tools.md` maps each retired script to its `hecks` verb, and Rust generation now lives in `rust/codegen` (ADR 0086).
+
 **Status:** Accepted — implemented. `rust/project/{types,fielded,json_codec,commands,mutations}.rb`, branch `feat/rust-projection`. Closes the last named gap: `CardPayment.tags`'s `nil`-vs-`[]` representation, the one 0014 flagged and explicitly left open pending "the real distinguishing fact Ruby carries."
 
 ## Context

@@ -336,6 +336,11 @@ pub struct PortOperation {
     pub name: String,
     pub attributes: Vec<Attribute>,
     pub emits: Vec<String>,
+    /// True for an `asks`: the domain putting a question to the outside, ended by `answers` or
+    /// `refuses` rather than `emits`.
+    pub outbound: bool,
+    pub answers: Option<String>,
+    pub refuses: Option<String>,
     /// The receiving aggregate as routing metadata (`to: Payment`), not an attribute.
     pub to: Option<String>,
 }

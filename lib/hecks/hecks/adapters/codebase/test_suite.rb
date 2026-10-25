@@ -73,11 +73,15 @@ module Hecks
           SqliteFixture.new(tree, shell: shell).regenerate(confirm: args[:confirm] == true)
         end
 
+        # Seeds at reaction depth zero, as a plain run would: the replay's sagas cascade, and the
+        # launching command's own cascade would otherwise cut them short.
+        #
         # @param args [Hash] `fixture`, perhaps absent
         # @param tree [Tree] the checkout
         # @return [String] what the seeding printed
         def seed(args, tree)
-          answer { command("seed_semantics_corpus").call(root: tree.root, env: seed_env(args)) }
+          seeding = command("seed_semantics_corpus")
+          answer { TestRunner.at_reaction_depth_zero { seeding.call(root: tree.root, env: seed_env(args)) } }
         end
 
         # A pure read: a listing, or the recorded pattern cases.
