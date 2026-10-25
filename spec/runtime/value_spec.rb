@@ -61,10 +61,16 @@ RSpec.describe Hecks::Runtime::Value do
   # A stored `false` in a dotted identity path must not read as nil, which would fail
   # the whole identity.
   describe ".reference_identity" do
-    # Minimal doubles: only `identity_paths` is read on this path.
+    # Minimal doubles: only `target_aggregate` and its `identity_paths` are read on this path.
     ReferenceIdentityFakeType      = Struct.new(:target) { def resolve = target } unless defined?(ReferenceIdentityFakeType)
     ReferenceIdentityFakeTarget    = Struct.new(:identity_paths) unless defined?(ReferenceIdentityFakeTarget)
-    ReferenceIdentityFakeAttribute = Struct.new(:type) unless defined?(ReferenceIdentityFakeAttribute)
+    unless defined?(ReferenceIdentityFakeAttribute)
+      ReferenceIdentityFakeAttribute = Struct.new(:type) do
+        def target_aggregate
+          type.resolve
+        end
+      end
+    end
 
     def reference_attribute(paths)
       ReferenceIdentityFakeAttribute.new(ReferenceIdentityFakeType.new(ReferenceIdentityFakeTarget.new(paths)))

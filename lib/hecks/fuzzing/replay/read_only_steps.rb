@@ -99,7 +99,17 @@ module Hecks
           attempt_dry_run(entry, step, hypothetical, args)
           after = state_snapshot
           @dry_runs << entry
-          @dry_run_traces << entry.merge(before: before, after: after)
+          @dry_run_traces << entry.merge(before: before, after: after, validation: validation_of(step, hypothetical, args))
+        end
+
+        # What `validate` says of the same hypothetical, kept beside the trace: whether it would be
+        # accepted, and the stage and text of its first refusal.
+        def validation_of(step, hypothetical, args)
+          result = Replay.as_step_caller(step) { @runtime.validate(hypothetical, args) }
+          first = result.refusals.first
+          { ok: result.ok?, first_stage: first&.stage, first_message: first&.message }
+        rescue Runtime::WiringError
+          nil
         end
 
         def state_snapshot = { instances: Replay.snapshot_instances(@runtime), events: @runtime.events.size }
