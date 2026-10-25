@@ -3,6 +3,73 @@
 
 use crate::diag::Diagnostic;
 
+/// What a character run is quoted by.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Quoted {
+    /// `"…"`.
+    Double,
+    /// `'…'`.
+    Single,
+    /// `/…/`, a regular expression literal.
+    Regex,
+}
+
+impl Quoted {
+    const fn closer(self) -> char {
+        match self {
+            Self::Double => '"',
+            Self::Single => '\'',
+            Self::Regex => '/',
+        }
+    }
+}
+
+/// Tracks, character by character, whether the scan is inside a string or a regexp literal, so a
+/// `#`, a brace or a bracket there is text and not Ruby.
+#[derive(Debug, Default)]
+struct Quotes {
+    mode: Option<Quoted>,
+    escaping: bool,
+    /// The last character seen outside a literal that was not a space.
+    last: Option<char>,
+}
+
+impl Quotes {
+    /// Feeds one character; true when it is inside a literal or is one of its delimiters.
+    fn inside(&mut self, ch: char) -> bool {
+        if let Some(mode) = self.mode {
+            if self.escaping {
+                self.escaping = false;
+            } else if ch == '\\' {
+                self.escaping = true;
+            } else if ch == mode.closer() {
+                self.mode = None;
+                self.last = Some(ch);
+            }
+            return true;
+        }
+        match ch {
+            '"' => self.mode = Some(Quoted::Double),
+            '\'' if !self.last.is_some_and(|prev| prev.is_alphanumeric() || prev == '_') => {
+                self.mode = Some(Quoted::Single);
+            }
+            '/' if self.expects_operand() => self.mode = Some(Quoted::Regex),
+            _ => {
+                if !ch.is_whitespace() {
+                    self.last = Some(ch);
+                }
+                return false;
+            }
+        }
+        true
+    }
+
+    /// Whether what comes next is an operand, so a `/` opens a regexp and is not a division.
+    fn expects_operand(&self) -> bool {
+        self.last.is_none_or(|prev| "(,{[=!|&~:?<>+-*%^;".contains(prev))
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct SourceLine<'a> {
     pub number: usize,
@@ -80,22 +147,11 @@ pub fn join_continuations(source: &str) -> String {
 }
 
 fn ends_outside_quotes(text: &str) -> bool {
-    let mut quoting = false;
-    let mut escaping = false;
+    let mut quotes = Quotes::default();
     for ch in text.chars() {
-        if escaping {
-            escaping = false;
-            continue;
-        }
-        if quoting && ch == '\\' {
-            escaping = true;
-            continue;
-        }
-        if ch == '"' {
-            quoting = !quoting;
-        }
+        quotes.inside(ch);
     }
-    !quoting
+    quotes.mode.is_none()
 }
 
 fn ends_with_bare_backslash(text: &str) -> bool {
@@ -109,22 +165,9 @@ fn ends_with_bare_comma(text: &str) -> bool {
 /// Not bracket-type aware: mismatched bracket types never occur in real source.
 fn bracket_delta(text: &str) -> i32 {
     let mut depth = 0i32;
-    let mut quoting = false;
-    let mut escaping = false;
+    let mut quotes = Quotes::default();
     for ch in text.chars() {
-        if escaping {
-            escaping = false;
-            continue;
-        }
-        if quoting && ch == '\\' {
-            escaping = true;
-            continue;
-        }
-        if ch == '"' {
-            quoting = !quoting;
-            continue;
-        }
-        if quoting {
+        if quotes.inside(ch) {
             continue;
         }
         match ch {
@@ -137,22 +180,12 @@ fn bracket_delta(text: &str) -> i32 {
 }
 
 fn strip_comment(line: &str) -> &str {
-    let mut quoting = false;
-    let mut escaping = false;
+    let mut quotes = Quotes::default();
     for (byte_idx, ch) in line.char_indices() {
-        if escaping {
-            escaping = false;
+        if quotes.inside(ch) {
             continue;
         }
-        if quoting && ch == '\\' {
-            escaping = true;
-            continue;
-        }
-        if ch == '"' {
-            quoting = !quoting;
-            continue;
-        }
-        if ch == '#' && !quoting {
+        if ch == '#' {
             return &line[..byte_idx];
         }
     }
@@ -269,23 +302,10 @@ fn leading_identifier_end(text: &str) -> usize {
 fn find_top_level_assignment(text: &str) -> Option<usize> {
     let bytes = text.as_bytes();
     let mut depth: i32 = 0;
-    let mut quoting = false;
-    let mut escaping = false;
+    let mut quotes = Quotes::default();
 
     for (idx, ch) in text.char_indices() {
-        if escaping {
-            escaping = false;
-            continue;
-        }
-        if quoting && ch == '\\' {
-            escaping = true;
-            continue;
-        }
-        if ch == '"' {
-            quoting = !quoting;
-            continue;
-        }
-        if quoting {
+        if quotes.inside(ch) {
             continue;
         }
         match ch {
@@ -356,23 +376,10 @@ fn trailing_do(rest: &str) -> Option<(&str, Option<String>)> {
 
 /// A `{` inside parens or written as a hash literal argument is not a source-body opener.
 fn find_top_level_brace(text: &str) -> Option<usize> {
-    let mut quoting = false;
-    let mut escaping = false;
+    let mut quotes = Quotes::default();
     let mut paren_depth: i32 = 0;
     for (idx, ch) in text.char_indices() {
-        if escaping {
-            escaping = false;
-            continue;
-        }
-        if quoting && ch == '\\' {
-            escaping = true;
-            continue;
-        }
-        if ch == '"' {
-            quoting = !quoting;
-            continue;
-        }
-        if quoting {
+        if quotes.inside(ch) {
             continue;
         }
         match ch {
@@ -397,24 +404,11 @@ fn is_hash_literal_brace(before: &str) -> bool {
 
 fn matching_brace_body(text: &str) -> Option<(String, &str)> {
     let mut depth: i32 = 0;
-    let mut quoting = false;
-    let mut escaping = false;
+    let mut quotes = Quotes::default();
     let mut start_byte = None;
 
     for (idx, ch) in text.char_indices() {
-        if escaping {
-            escaping = false;
-            continue;
-        }
-        if quoting && ch == '\\' {
-            escaping = true;
-            continue;
-        }
-        if ch == '"' {
-            quoting = !quoting;
-            continue;
-        }
-        if quoting {
+        if quotes.inside(ch) {
             continue;
         }
         if ch == '{' {
@@ -644,5 +638,28 @@ mod tests {
     fn a_backslash_inside_a_still_open_quoted_string_is_not_a_continuation() {
         // An escaped backslash inside a still-open string is not a line continuation.
         assert!(!ends_with_bare_backslash("template: \"a\\"));
+    }
+
+    #[test]
+    fn a_brace_inside_a_single_quoted_string_opens_no_block() {
+        let (args, opener) = split_opener("attribute :value, String, pattern: '^[A-Za-z0-9_-]{11}$'");
+        assert_eq!(opener, Opener::None);
+        assert!(args.ends_with("{11}$'"), "{args}");
+    }
+
+    #[test]
+    fn a_hash_inside_a_regexp_literal_starts_no_comment() {
+        let line = "invariant(\"a hue\") { value.to_s.match?(/\\A#[0-9a-f]{6}\\z/) }";
+        assert_eq!(strip_comment(line), line);
+    }
+
+    #[test]
+    fn a_slash_after_a_word_is_a_division_and_a_comment_after_it_still_strips() {
+        assert_eq!(strip_comment("sets :ratio, to: a / b # per second"), "sets :ratio, to: a / b ");
+    }
+
+    #[test]
+    fn an_apostrophe_in_a_trailing_comment_is_not_a_quote() {
+        assert_eq!(strip_comment("attribute :name, String # the site's own"), "attribute :name, String ");
     }
 }
