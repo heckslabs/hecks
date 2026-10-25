@@ -126,11 +126,8 @@ module Hecks
       # @param file [String] the file to load
       # @return [void]
       def load_file(file)
-        if file.end_with?(".bluebook") && File.file?(file) && SentenceForm.sentences?(file)
-          SentenceForm.load(file)
-        else
-          Kernel.load(file)
-        end
+        sentences = file.end_with?(".bluebook") && File.file?(file) && SentenceForm.sentences?(file)
+        sentences ? SentenceForm.load(file) : Kernel.load(file)
       end
 
       # Loads every file under `directory` matching any of `patterns`, in pattern order.
