@@ -177,13 +177,17 @@ module Hecks
       end
 
       # @return [Array(Symbol, String)] the verdict, replaying a clean run once more to see that it
-      #   repeats; and its message
+      #   repeats, and, for a domain that attaches Bulk, once more each way to see that a bulk run
+      #   matches dispatching its rows by hand; and its message
       def verdict_for(domain, generated, adapter)
         verdict, message = outcome(domain, generated, adapter)
         return [verdict, message] unless verdict == :clean
 
         determinism = Hecks::Fuzzing::Properties.replay_is_deterministic(domain, generated, adapter: adapter)
-        determinism == true ? [:clean, nil] : [:nondeterminism, determinism]
+        return [:nondeterminism, determinism] unless determinism == true
+
+        parity = Hecks::Fuzzing::Properties.bulk_runs_match_hand_dispatch(domain, generated, adapter: adapter)
+        parity == true ? [:clean, nil] : [:bulk_parity, parity]
       end
     end
   end

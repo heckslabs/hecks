@@ -48,10 +48,32 @@ module Hecks
       # @return [Object] the block's result
       def without
         previous = Thread.current[:hecks_caller]
+        previous_origin = Thread.current[:hecks_caller_origin]
+        Thread.current[:hecks_caller_origin] = previous_origin || previous
         Thread.current[:hecks_caller] = nil
         yield
       ensure
         Thread.current[:hecks_caller] = previous
+        Thread.current[:hecks_caller_origin] = previous_origin
+      end
+
+      # The caller a reaction cascade on this thread began under: the one `without` cleared at
+      # its outermost level. A bulk run's rows are dispatched under it (ADR 0125), so a row
+      # carries its requester's authority and not the system's.
+      #
+      # @return [Runtime::Caller::Current, nil] the cascade's first caller, the current one
+      #   outside a cascade, or nil when neither is bound
+      def origin = Thread.current[:hecks_caller_origin] || current
+
+      # Binds `bound` as the ambient caller for the block, or none when it is nil.
+      #
+      # @param bound [Runtime::Caller::Current, nil] a caller `current` or `origin` answered
+      # @yield the code that sees `bound` as the ambient caller
+      # @return [Object] the block's result
+      def restoring(bound, &)
+        return without(&) unless bound
+
+        as(role: bound.role, actor_id: bound.actor_id, as_of: bound.as_of, scope: bound.scope, &)
       end
     end
   end

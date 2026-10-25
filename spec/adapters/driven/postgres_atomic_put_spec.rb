@@ -60,7 +60,7 @@ RSpec.describe "Postgres atomic_put persistence", :io do
   let(:store) { repository(aggregate) }
 
   it "reports the capabilities it has" do
-    expect(store.capabilities).to eq(%i[atomic_put optimistic_concurrency])
+    expect(store.capabilities).to eq(%i[atomic_put optimistic_concurrency rollback])
   end
 
   it_behaves_like "an atomic_put adapter"
