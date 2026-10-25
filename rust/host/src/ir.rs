@@ -146,6 +146,28 @@ pub fn adapter_declarations(
     Some(Ok(declared))
 }
 
+/// Whether the adapter the IR binds `aggregate` to declares `provides capability`: the host's
+/// reading of Ruby's `Registry#adapter_provides?`. False when the aggregate is unbound, its
+/// adapter is undeclared, or the IR predates the `adapters` key.
+pub fn adapter_provides(domain_ir: &Value, aggregate: &str, capability: &str) -> bool {
+    let bound = domain_ir
+        .pointer("/persistence/aggregates")
+        .and_then(Value::as_array)
+        .and_then(|rows| {
+            rows.iter()
+                .find(|row| row.get("name").and_then(Value::as_str) == Some(aggregate))
+        })
+        .and_then(|row| row.get("adapter").and_then(Value::as_str));
+    let Some(Some(Ok(declared))) = bound.map(|_| adapter_declarations(domain_ir)) else {
+        return false;
+    };
+    bound
+        .and_then(|name| declared.get(name))
+        .and_then(|adapter| adapter.get("provides"))
+        .and_then(Value::as_array)
+        .is_some_and(|names| names.iter().any(|name| name.as_str() == Some(capability)))
+}
+
 /// The chapter this domain's role checks resolve against, read from
 /// `ir.json`'s own `authorization` key. `None` when nothing provides it.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -624,6 +646,26 @@ mod tests {
     fn with_adapters(mut ir: Value, adapters: Value) -> Value {
         ir["adapters"] = adapters;
         ir
+    }
+
+    #[test]
+    fn adapter_provides_reads_the_bound_adapters_capabilities() {
+        let ir = with_adapters(
+            bound(&[("Ledger::Entry", "Postgres"), ("Ledger::Note", "Memory")]),
+            serde_json::json!([
+                {"name": "Postgres", "provides": ["set_transform"]},
+                {"name": "Memory"}
+            ]),
+        );
+        assert!(adapter_provides(&ir, "Ledger::Entry", "set_transform"));
+        assert!(!adapter_provides(&ir, "Ledger::Entry", "teleport"));
+        assert!(!adapter_provides(&ir, "Ledger::Note", "set_transform"));
+        assert!(!adapter_provides(&ir, "Ledger::Ghost", "set_transform"));
+        assert!(!adapter_provides(
+            &bound(&[("Ledger::Entry", "Postgres")]),
+            "Ledger::Entry",
+            "set_transform"
+        ));
     }
 
     #[test]

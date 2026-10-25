@@ -4,9 +4,28 @@ require_relative "expression_sql"
 module Hecks
   module Translation
     # Compiles one TranslationAggregate's declared rules into a jsonb-transforming SQL
-    # expression, shared by Ruby's own mint path and any other SQL-emitting caller.
+    # expression, shared by Ruby's own mint path and any other SQL-emitting caller. Each rule's
+    # Postgres form is a template read from the translation execution ledger
+    # (`lib/hecks/grammar/translation_rules.json`); this module only fills its holes.
     module RuleCompiler
       module_function
+
+      # Every admitted rule kind's Postgres template, read once from the replayed ledger.
+      #
+      # @return [Hash{String => String}] rule kind to its template, with `%{name}` holes
+      def postgres_forms
+        @postgres_forms ||= begin
+          require "hecks/grammar"
+          Grammar.rule_executions("postgres").freeze
+        end
+      end
+
+      # Fills one rule kind's Postgres template.
+      #
+      # @param kind [String] the rule kind, such as `"rename"`
+      # @param holes [Hash{Symbol => String}] the SQL each `%{name}` hole takes
+      # @return [String] the filled SQL
+      def form(kind, **holes) = format(postgres_forms.fetch(kind), **holes)
 
       # Compiles one edge's derive/rename/move/convert/drop/backfill rules into a nested
       # SQL expression over `state`, composed innermost-first in that phase order.
@@ -29,11 +48,8 @@ module Hecks
       # Wraps `expression` so a derive's text lands at its destination when the expression has a
       # value; the expression reads the stored `state`, never the rules composed before it.
       def compile_derive(expression, derive)
-        value = ExpressionSql.compile(derive.tree, "state")
-        "(SELECT CASE WHEN __d IS NULL THEN __s " \
-          "ELSE hecks_tr_insert(__s, #{path_literal(derive.to)}, to_jsonb(__d), " \
-          "#{text_literal("derive #{derive.to}")}) END " \
-          "FROM (SELECT (#{expression}) AS __s) __outer, LATERAL (SELECT #{value} AS __d) __derived)"
+        form("derive", expression: expression, to: path_literal(derive.to),
+                       value: ExpressionSql.compile(derive.tree, "state"), rule: text_literal("derive #{derive.to}"))
       end
 
       # Folds each rule of one kind into `expression`, innermost-first.
@@ -53,26 +69,26 @@ module Hecks
 
       # Wraps `expression` in the rename of one top-level key.
       def compile_rename(expression, old_name, new_name)
-        "hecks_tr_rename(#{expression}, #{text_literal(old_name)}, #{text_literal(new_name)})"
+        form("rename", expression: expression, from: text_literal(old_name), to: text_literal(new_name))
       end
 
       # Wraps `expression` in the move of one path to another.
       def compile_move(expression, move)
-        "hecks_tr_move(#{expression}, #{path_literal(move.from)}, #{path_literal(move.to)}, " \
-          "#{text_literal("move #{move.from} to: #{move.to}")})"
+        form("move", expression: expression, from: path_literal(move.from), to: path_literal(move.to),
+                     rule: text_literal("move #{move.from} to: #{move.to}"))
       end
 
       # Wraps `expression` in the conversion of one path's value through a lookup table.
       def compile_convert(expression, convert)
         pairs = JSON.generate(convert.values.map { |key, value| [key, value] })
-        "hecks_tr_convert(#{expression}, #{path_literal(convert.from)}, #{path_literal(convert.to)}, " \
-          "#{text_literal(pairs)}::jsonb, #{text_literal(convert.from)}, " \
-          "#{text_literal("convert #{convert.from} to: #{convert.to}")})"
+        form("convert", expression: expression, from: path_literal(convert.from), to: path_literal(convert.to),
+                        values: text_literal(pairs), source: text_literal(convert.from),
+                        rule: text_literal("convert #{convert.from} to: #{convert.to}"))
       end
 
       # Wraps `expression` in the removal of one path.
       def compile_drop(expression, name)
-        "hecks_tr_drop(#{expression}, #{path_literal(name)})"
+        form("drop", expression: expression, path: path_literal(name))
       end
 
       # Reports whether an edge's declared rules for an aggregate include a rekey, read
@@ -90,18 +106,15 @@ module Hecks
       def compile_id_expression(declared)
         rekey = declared.rekeys.first
         derive = declared.derives.find { |candidate| candidate.to == rekey.to }
-        "COALESCE(#{ExpressionSql.compile(derive.tree, "state")}, aggregate_id)"
+        form("rekey_to", value: ExpressionSql.compile(derive.tree, "state"))
       end
 
       # Wraps `expression` so a backfill's default lands at its declared path only when
       # nothing is already there, the same rule `Lineage#translate`'s own pass holds to.
       def compile_backfill(expression, backfill)
         name = backfill.name.to_s
-        default_json = JSON.generate(backfill.default)
-        "(SELECT CASE WHEN (hecks_tr_extract(__s, #{path_literal(name)})).present THEN __s " \
-          "ELSE hecks_tr_insert(__s, #{path_literal(name)}, #{text_literal(default_json)}::jsonb, " \
-          "#{text_literal("backfill #{name}")}) END " \
-          "FROM (SELECT (#{expression}) AS __s) __outer)"
+        form("backfill", expression: expression, path: path_literal(name),
+                         default: text_literal(JSON.generate(backfill.default)), rule: text_literal("backfill #{name}"))
       end
 
       # Renders a Ruby value as a single-quoted SQL text literal, escaping embedded quotes.

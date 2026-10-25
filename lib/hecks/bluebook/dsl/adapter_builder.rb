@@ -23,6 +23,7 @@ module Hecks
           @secrets  = []
           @defaults = {}
           @answers  = []
+          @provides = []
         end
 
         # Names the port this adapter implements; a repeated call replaces the earlier name.
@@ -54,6 +55,12 @@ module Hecks
         # @return [Array<String>] every query named so far, this one last
         def answers_query(name) = @answers << name.to_s
 
+        # Names one capability this adapter provides beyond its port's contract.
+        #
+        # @param capability [String, Symbol] the capability, such as `"set_transform"`
+        # @return [Array<String>] every capability named so far, this one last
+        def provides(capability) = @provides << capability.to_s
+
         # Names the wasm module this adapter runs, beside its `.adapter` file.
         #
         # @param file [String] the module's file name, such as `"occurrences.wasm"`
@@ -68,7 +75,7 @@ module Hecks
         def build
           MetaValidator.call_adapter(
             Adapter.new(name: @name, port: @port, fields: @fields, secrets: @secrets, defaults: @defaults,
-                        answers: @answers, runs: @runs, source_dir: @source_dir)
+                        answers: @answers, runs: @runs, provides: @provides, source_dir: @source_dir)
           )
         end
 

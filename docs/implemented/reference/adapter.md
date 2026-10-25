@@ -20,6 +20,11 @@ Hecks.adapter("reference_memory") do
   secret :api_key
 end
 
+Hecks.adapter("reference_sql") do
+  port     "reference_persistence"
+  provides "set_transform"
+end
+
 Hecks.adapter("reference_plugin") do
   answers_query "Calendar::Event.Occurrences"
   runs "occurrences.wasm"
@@ -132,5 +137,26 @@ module stops the boot, not the first question. Running one on Ruby needs the `wa
 
 ```ruby
 runtime.registry.adapters["reference_plugin"].runs  # => "occurrences.wasm"
+```
+
+## provides
+
+<!-- generated:begin word=provides -->
+`provides provides` — fills `provides`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | provides |
+<!-- generated:end -->
+
+Names one thing this adapter can do beyond its port's contract, as a snake-case capability, called
+once per capability. A caller asks before relying on it: `registry.adapter_provides?(domain,
+aggregate, "set_transform")` answers for the adapter that aggregate is bound to, and is false for
+an adapter that never says so. The Postgres, Sqlite and PostgresEra persistence adapters provide
+`set_transform`, rewriting every row of an aggregate in one statement; Memory and Heki provide
+nothing, so a caller works record by record there.
+
+```ruby
+runtime.registry.adapters["reference_sql"].capabilities  # => ["set_transform"]
 ```
 

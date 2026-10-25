@@ -98,7 +98,30 @@ module Hecks
          [evaluator::Include, ".include?", %i[haystack needle]], [evaluator::Resolve, nil, %i[expr]],
          [resolver::Addition, "+", %i[left right]], [resolver::Subtraction, "-", %i[left right]],
          [resolver::Multiplication, "*", %i[left right]], [resolver::Division, "/", %i[left right]],
-         [resolver::Modulo, ".modulo", %i[receiver divisor]]]
+         [resolver::Modulo, ".modulo", %i[receiver divisor]]] + call_rules(resolver) + variant_rules(resolver)
+      end
+
+      # The suffix and call operators whose node type alone names them.
+      #
+      # @return [Array<Array>] each node type with its operator and the readers of its children
+      def call_rules(resolver)
+        { Empty: ".empty?", ToS: ".to_s", Size: ".size", MatchesRegex: ".match?", Split: ".split", First: ".first",
+          Last: ".last", StartsWith: ".start_with?", EndsWith: ".end_with?" }
+          .map { |type, symbol| [resolver.const_get(type), symbol, %i[receiver]] } +
+          [[resolver::Find, ".find", %i[receiver predicate]]]
+      end
+
+      # The operators that share a node type, told apart by a field of the node.
+      #
+      # @return [Array<Array>] each node type with a callable naming its operator, and the readers
+      #   of its children
+      def variant_rules(resolver)
+        sides = { both: ".strip", left: ".lstrip", right: ".rstrip" }
+        [[resolver::SignTest, ->(node) { ".#{node.test}" }, %i[receiver]],
+         [resolver::Strip, ->(node) { sides.fetch(node.side) }, %i[receiver]],
+         [resolver::Presence, ->(node) { node.negated ? ".blank?" : ".present?" }, %i[receiver]],
+         [resolver::Assignment, ->(node) { node.negated ? ".unset?" : ".set?" }, %i[receiver]],
+         [resolver::BlockPredicate, ->(node) { ".#{node.mode}?" }, %i[receiver predicate]]]
       end
 
       # @return [Array<String>] operators found in the members of a Struct node; none for any
