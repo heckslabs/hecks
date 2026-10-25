@@ -470,7 +470,7 @@ BYPASSRLS connection, naming the role and the two ways out:
   database still provisions and mints (owner-only DDL), and is held to
   the fence like everyone else. This is the real fix, and what a
   deployment does; `qa/bluebook/quality_control.world` in this
-  repository is the worked example, with `hecks quality_control sweep.create_ledger_role <database>` as its
+  repository is the worked example, with `hecks quality_control query sweep.create_ledger_role database.value=<database>` as its
   one-time operator step.
 - **`allow_superuser true`**, in the same `persisted_by` block — boots
   anyway, on the record, and says so on stderr on every boot. The

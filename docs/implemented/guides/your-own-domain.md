@@ -20,7 +20,7 @@ export HECKS_ENVIRONMENT=memory
 ```
 
 `hecks console` and `hecks init` set this for themselves; the other commands below do not.
-Skip it and `hecks deploy project` stops with `cannot bind PostgresEra`,
+Skip it and `hecks deploy recipe.project` stops with `cannot bind PostgresEra`,
 which means hecks went looking for that local Postgres.
 
 ## 1. Write it
@@ -232,7 +232,7 @@ Then turn the domain into a deployable stack. This writes files and
 touches nothing in AWS:
 
 ```sh
-bundle exec hecks deploy project "$HOME/lending" --out="$HOME/lending-deploy"
+bundle exec hecks deploy recipe.project! domain.value="$HOME/lending" out.value="$HOME/lending-deploy"
 ```
 
 It writes `template.yaml`, `samconfig.toml`, `bastion.yaml` and a
@@ -294,7 +294,7 @@ database snapshot too if you want no residue.
 Every Ruby block in this guide runs under
 `spec/guides_spec.rb`. The same domain files were also run directly:
 `hecks docs`, a scripted boot on Memory and `hecks console subject=` all
-worked. `hecks deploy project` wrote the four files above for the Lambda
+worked. `hecks deploy recipe.project` wrote the files above for the Lambda
 target, and `sam build` in that directory compiled the domain into the
 function (a `bootstrap` binary, `lending.wasm` and `lending.ir.json`).
 
