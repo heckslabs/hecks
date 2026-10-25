@@ -32,6 +32,9 @@ group :development, :test do
   gem "rspec", "~> 3.13"
   gem "simplecov", "~> 0.22"
 
+  # Validates a payload against the command schemas the way a real client does, on draft 2020-12.
+  gem "json_schemer", "~> 2.3"
+
   # Local-only: not used in CI, whose io specs share one Postgres and need per-worker databases.
   gem "parallel_tests", "~> 4.7"
 
