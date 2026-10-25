@@ -98,8 +98,12 @@ module Hecks
         end
 
         # Matches every already-projected source, not just the root, so a head
-        # referencing another included head still matches.
+        # referencing another included head still matches. A head that names no aggregate of the
+        # chapter (an entity, such as the language's `Handler`) has no rows, as the in-process loop
+        # reads it.
         def select_related(aggregate, projected)
+          return [] unless aggregate
+
           matches = projected.flat_map { |source| reference_matches(aggregate, source) }
           return [] if matches.empty?
 
