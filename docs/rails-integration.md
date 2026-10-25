@@ -22,7 +22,9 @@ ordinary Rails files.
 | `command_form_for` | `packages/hecks-rails` | Fields from `Hecks::Forms`, named by the dotted paths `Forms::Params` reads; a refused form comes back with the submitted values, each reason beside its field, reference options filled, and the command's JSON Schema (`CommandSchema`) embedded |
 | `available_commands(as:)` | the model | The domain's own validation, under the actor's Governance grants |
 | Reference lookups | `packages/hecks-rails` (`References`) | `transfer.source_account` for `reference_to Account, as: :source`, or `account_record` when the attribute is named for its target; the record loads only when the lookup is called |
-| `:rails_app` projection | `lib/hecks/projections/rails_app.rb` | A controller per aggregate and a routes file with a `resources` line each; `hecks launch.project_rails! run=rails dir=<app>` writes them where the app has none, and writes no model, since models are generated at boot |
+| Pages | `packages/hecks-rails` (`App`, `Pages`, `Rendering`, `app/views`) | An app has a working UI with no view file: a list per aggregate that takes commands (with a form for each creating command), a record page offering the commands the signed-in person may run now, and a refused command's form reopened with the domain's reason. An app's own view of the same name wins |
+| `RailsApp` chapter | `lib/hecks/rails_app/bluebook` | The shapes of the two rows a project may declare to change the pages: `App` (`title`, `home`) and `Listing` (`aggregate`, `label`, `columns`), as `member` rows in the project's own chapter. With no rows the pages are derived from the domain alone |
+| `:rails_app` projection | `lib/hecks/projections/rails_app.rb` | A controller per aggregate that takes commands and a routes file with a root and a `resources` line each; `hecks launch.project_rails! run=rails dir=<app>` writes them where the app has none, and writes no model, since models are generated at boot |
 | `be_refused_with` | `hecks/rails/rspec` | RSpec matcher for a refusal and its wording |
 | `Hecks/RailsModelRules` | `lib/rubocop/cop/hecks` | Refuses `validates`, callbacks and associations in a model |
 
@@ -370,10 +372,13 @@ Two enrichments to `.find` were considered and rejected:
 collection, like a left join; a one-side head with no match is `nil`.
 - **The read side, more broadly.** `query`/read-model declarations (`query "InGoodStanding"`, the
   richer option vocabulary in `reflex.bluebook`) have no *Rails* route or view
-  story yet; Hecks' own `lib/hecks/forms/` renders generated HTML for queries, indexes
-  and records. `show` is the one slice that's load-bearing today (nothing
-  else makes `redirect_to` work) — `index` and filtered/query-backed views are a
-  separate, larger, still-undesigned piece.
+  story yet; Hecks' own `lib/hecks/forms/` renders generated HTML for queries. The
+  list and record pages are built (see Pages above); filtered and query-backed
+  views are a separate, still-undesigned piece.
+- **Who is signed in.** The pages act as `current_user`, and a request with nobody signed in is
+  refused by every role-gated command, so a fresh app can read but not write until the app
+  names who is signed in and Governance holds a grant for them. A development stand-in that
+  picks an actor and a role is not built.
 - **Authorization: built, with one gap.** The domain enforces `command.role` through
   Governance grants (`Hecks.as_caller`), and the Rails controller binds each request's
   caller. What is left is authentication itself: `hecks_actor` is an override the app

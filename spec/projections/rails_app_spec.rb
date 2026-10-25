@@ -12,6 +12,9 @@ RSpec.describe Hecks::Projections::RailsApp do
 
   def files = Hecks::Projector.call(:rails_app, bluebook: banking)
 
+  # An aggregate that takes a command, as far as the projection reads one.
+  def double_aggregate(name) = instance_double(Hecks::Bluebook::Aggregate, hecks_name: name, commands: [:any])
+
   it "writes a controller, named for its resource, for each aggregate" do
     controller = files["app/controllers/safe_deposit_boxes_controller.rb"]
     expect(controller).to include("class SafeDepositBoxesController < ApplicationController")
@@ -23,6 +26,17 @@ RSpec.describe Hecks::Projections::RailsApp do
 
   it "draws a resource per aggregate in the routes file" do
     expect(files["config/routes.rb"]).to include("  resources :atm_cards\n", "  resources :accounts\n")
+  end
+
+  it "opens the app on the first aggregate's list" do
+    expect(files["config/routes.rb"]).to include("  root to: \"#{files["config/routes.rb"][/resources :(\w+)/, 1]}#index\"\n")
+  end
+
+  it "opens the app on the aggregate the App row names as home" do
+    chapter = Struct.new(:aggregates).new([double_aggregate("Order"), double_aggregate("Basket")])
+    allow(Hecks::Projections::Site::Table).to receive(:rows_of).and_return([{ home: "Basket" }])
+
+    expect(described_class.routes([chapter])).to include("root to: \"baskets#index\"")
   end
 
   it "names nothing of the runtime" do

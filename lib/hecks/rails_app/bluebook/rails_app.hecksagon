@@ -1,0 +1,4 @@
+# The RailsApp domain, bound so it boots standing alone.
+Hecks.hecksagon "RailsApp" do
+  persisted_by "Memory"
+end
