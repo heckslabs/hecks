@@ -99,6 +99,7 @@ impl Parser<'_> {
                 });
             }
             Some((_, "inspect")) => options.inspection = Some(m.text_of("mode")),
+            Some((_, "cursor")) => options.cursor = Some(format!(":{}", snake(&m.text_of("field")))),
             _ => return Ok(false),
         }
         Ok(true)
@@ -189,7 +190,7 @@ impl Parser<'_> {
 /// A query as a `Query:` block, or the name of what in it the sentence form cannot say.
 pub(super) fn said(query: &ir::Query) -> Result<String, String> {
     let refused = |what: &str| format!("the sentence form has no phrase for {what} in query {}", query.name);
-    if query.options.cursor.is_some() || query.options.offset.as_ref().is_some_and(|offset| offset.target.is_some()) {
+    if query.options.offset.as_ref().is_some_and(|offset| offset.target.is_some()) {
         return Err(refused("this paging option"));
     }
     if !query.needs.is_empty() {
@@ -251,6 +252,10 @@ pub(super) fn paging_said(options: &ir::QueryOptions, indent: &str) -> Result<St
             Some(tenant) => out.push_str(&format!("{indent}Access is checked by {} for each {}\n", spoken(&access.policy), spoken(tenant))),
             None => out.push_str(&format!("{indent}Access is checked by {}\n", spoken(&access.policy))),
         }
+    }
+    if let Some(cursor) = &options.cursor {
+        let field = cursor.strip_prefix(':').filter(|field| super::format::is_name(field)).ok_or("this cursor")?;
+        out.push_str(&format!("{indent}A caller walks it a page at a time by the {}\n", spoken(field)));
     }
     if let Some(mode) = &options.inspection {
         if !super::format::is_word(mode) {
