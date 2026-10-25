@@ -548,6 +548,7 @@ policy "RecordTheEra" do
       transition "Push"  => "pushed",  from: "requested"
       transition "Ride"  => "carried", from: "requested"
       transition "Fault" => "faulted", from: "requested"
+      transition "Summarize" => "surveyed", from: "requested"
     end
 
     command "Board" do
@@ -565,6 +566,35 @@ policy "RecordTheEra" do
       sets :checkout
 
       emits BoardingRequested
+    end
+
+    # A survey pushes nothing: it lists every checkout under a directory (`checkout`) whose branch
+    # has commits its remote does not, so what waits to board is known before anything boards.
+    command "Survey" do
+      role "Operator"
+      goal "List every checkout under a directory whose branch has commits its remote does not"
+
+      attribute :run,      RunKey
+      attribute :remote,   Word, default: "origin"
+      attribute :checkout, Word, optional: true
+
+      sets :run
+      sets :remote
+      sets :checkout
+
+      emits SurveyRequested
+    end
+
+    command "Summarize" do
+      role "System"
+      goal "Record what a survey found waiting to push"
+
+      reference_to PushTrain
+      attribute :report, Report
+
+      sets :report
+
+      emits CheckoutsSurveyed
     end
 
     # The branch was pushed: every commit on it reached the remote, what this boarding carried and
@@ -643,6 +673,21 @@ policy "RecordTheEra" do
 
   policy "RecordTheRefusedPush" do
     on      "PushTrain.TrainRefused"
+    trigger PushTrain::Fault, with: { refusal: :refusal }
+  end
+
+  policy "SurveyWhenAsked" do
+    on      "PushTrain.SurveyRequested"
+    trigger PushTrain::Train::Tally, with: { run: :run }
+  end
+
+  policy "RecordTheSurvey" do
+    on      "PushTrain.SurveyAnswered"
+    trigger PushTrain::Summarize, with: { report: :report }
+  end
+
+  policy "RecordTheRefusedSurvey" do
+    on      "PushTrain.SurveyRefused"
     trigger PushTrain::Fault, with: { refusal: :refusal }
   end
 
