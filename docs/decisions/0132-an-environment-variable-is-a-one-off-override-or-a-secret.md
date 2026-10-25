@@ -55,12 +55,19 @@ analytics hosts and ids, the OAuth client ids and redirect URIs, smoke settings
 is a flag on the era command.
 
 **Arguments of the command that runs (retire the variable):**
-- `GOLDEN=rewrite`, `EXISTING_TAG`, `HECKS_FUZZ_SCHEMA`: a hecks command already hands
-  each to its child process, so only the hand-off remains.
+- `GOLDEN=rewrite`, `EXISTING_TAG`: a hecks command already hands each to its child
+  process, so only the hand-off remains. `EXISTING_TAG` is the generated
+  `deploy-service.sh`'s own interface, with `LOCAL_IMAGE`, `SETTLE_TIMEOUT_SECS`,
+  `SKIP_POST_DEPLOY_SMOKE` and `SMOKE_BY_COMMAND`; it moves to flags with them, in one change
+  to the projection and the projects that vendor its output, not alone.
+- `HECKS_FUZZ_SCHEMA`: removed. A forked sweep child's default schema, `hecks_fuzz_<pid>`,
+  is the name the sweep used to set, so the variable named nothing the default did not.
 - `SEEDS`, `STEPS`: `build.fuzz_conformance` already takes `seeds` and `steps`; the
   variable fallback is removed.
-- `HECKS_WASM_PROFILE`: the `profile` argument of `build.build_wasm!` (built on this branch).
-- `HECKS_PREBUILT=off`: the `prebuilt` argument of `build.build_host!` (built on this branch).
+- `HECKS_WASM_PROFILE`: the `profile` argument of `build.build_wasm!`, passed on to the tool
+  as `--profile=` (built). `ci-rust-host.yml` passes `profile=dev`.
+- `HECKS_PREBUILT=off`: the `prebuilt` argument of `build.build_host!`, passed on to the tool
+  as `--no-prebuilt` (built).
 - `HECKS_ENVIRONMENT`: the world declares the default per command, as `MEMORY_COMMANDS`
   and `hecks.world` already do for the launcher; `run_spec_example!` needs the argument.
 - `HECKS_CLOUDFRONT_TEST`: a tag filter on the spec-run command.

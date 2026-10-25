@@ -20,7 +20,6 @@ module Hecks
       # processes running side by side (parallel spec workers, a sweep's pool) never share one.
       FUZZ_POSTGRES_DATABASE = "hecks_fuzz".freeze
       FUZZ_POSTGRES_SCHEMA   = "hecks_fuzz".freeze
-      FUZZ_SCHEMA_ENV        = "HECKS_FUZZ_SCHEMA".freeze
 
       extend Copying
       extend Worlds
