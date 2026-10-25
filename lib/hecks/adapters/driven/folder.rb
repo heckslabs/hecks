@@ -121,7 +121,7 @@ module Hecks
       # @param file [String] the file to load
       # @return [void]
       def load_file(file)
-        if file.end_with?(".bluebook") && SentenceForm.sentences?(file)
+        if file.end_with?(".bluebook") && File.file?(file) && SentenceForm.sentences?(file)
           SentenceForm.load(file)
         else
           Kernel.load(file)
