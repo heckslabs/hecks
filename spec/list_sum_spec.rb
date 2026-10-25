@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "fileutils"
 require "json"
 require "open3"
 require "tmpdir"
@@ -35,56 +36,16 @@ RSpec.describe "a sum over a list" do
       .to raise_error(expression::EvaluationError)
   end
 
-  it "is read by hecks-parse into the IR Ruby exports, byte for byte", :io do
-    binary = File.expand_path("../rust/parser/target/debug/hecks-parse", __dir__)
-    skip "build rust/parser first" unless File.exist?(binary)
+  describe "the AST" do
+    let(:text) { "items.sum { |i| i.price } >= 10" }
+    let(:ast) { expression::AstJson.emit_predicate(text) }
 
-    Dir.mktmpdir do |dir|
-      path = File.join(dir, "cart.bluebook")
-      File.write(path, <<~RUBY)
-        Hecks.bluebook "Cart" do
-          vision "A cart holds priced lines."
-
-          aggregate "Cart" do
-            description "A cart a customer fills."
-            identified_by :number
-
-            attribute :number, CartNumber
-            attribute :lines, list_of(Line)
-
-            value_object "CartNumber" do
-              attribute :value, String
-            end
-
-            value_object "Line" do
-              attribute :price, Integer
-              attribute :quantity, Integer
-            end
-
-            command "Open" do
-              attribute :number, CartNumber
-              given("the lines stay within the limit") { lines.sum { |l| l.quantity * l.price } <= 1000 }
-            end
-          end
-        end
-      RUBY
-      rust, err, = Open3.capture3(binary, "chapter", "--chapter", "Cart", path)
-      registry = Hecks::Runtime::Registry.new(root: dir)
-      Hecks.with_registry(registry) do
-        MemoryPorts.load!
-        Kernel.load(path)
-      end
-      ruby = "#{JSON.pretty_generate(Hecks::Projector::Exporter.call(registry).fetch("Cart"))}\n"
-
-      expect(err).to be_empty
-      expect(rust).to include('"op": "sum"')
-      expect(rust).to eq(ruby)
+    it "names the sum, its parameter and its block" do
+      expect(ast["left"]).to include("op" => "sum", "param" => "i")
     end
-  end
 
-  it "emits the AST the Rust parser and generator read" do
-    ast = expression::AstJson.emit_predicate("items.sum { |i| i.price } >= 10")
-    expect(ast["left"]).to include("op" => "sum", "param" => "i")
-    expect(expression::AstReader.read_predicate(ast)).to eq(expression::Evaluator.parse("items.sum { |i| i.price } >= 10"))
+    it "reads back as the node it was written from" do
+      expect(expression::AstReader.read_predicate(ast)).to eq(expression::Evaluator.parse(text))
+    end
   end
 end

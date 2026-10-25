@@ -19377,6 +19377,36 @@
               ],
               [
                 "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "field"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "order_by"
+              ],
+              [
+                "context",
+                "ReadModel"
+              ],
+              [
+                "at",
                 "2"
               ],
               [
@@ -21510,6 +21540,36 @@
               [
                 "kind",
                 "symbol"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "order_field"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "order_by"
+              ],
+              [
+                "context",
+                "Query"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
               ],
               [
                 "required",

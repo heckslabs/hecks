@@ -7,6 +7,7 @@ module Hecks
     # what an author may write in plain sentences is a table rather than code typed a second time.
     module PhraseTable
       extend Projector::Target
+
       projects_as :phrase_table, declares: "Phrase"
 
       # The chapter the rows are declared in, read from the language's own tree.
@@ -56,7 +57,7 @@ module Hecks
       # @return [String] one `PhraseRow { ... },` line
       def phrase_row(row)
         fields = FIELDS.map { |field| "#{field}: #{ParserTable.rust_string(row[field])}" }
-        "    PhraseRow { #{fields.join(', ')} },"
+        "    PhraseRow { #{fields.join(", ")} },"
       end
 
       # @param bluebook [Bluebook::Chapter] the Sentence chapter

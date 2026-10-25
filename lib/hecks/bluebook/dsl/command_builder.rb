@@ -13,6 +13,10 @@ module Hecks
       class CommandBuilder
         GRAMMAR_CONTEXT = "Command".freeze
 
+        # What a second `role` declaration is refused with; `%<name>s` is the command.
+        ROLE_TWICE = "%<name>s declares role twice — a command carries one responsibility; the second would " \
+                     "silently win and the first would still look declared. Name every role in one: role \"A\", \"B\"".freeze
+
         include AttributeCollector
         include RuleReference
         include WordGate
@@ -51,15 +55,8 @@ module Hecks
         # @return [Object] the first role as stored
         # @raise [Bluebook::DSL::Malformed] if a role is already declared, or one is named twice
         def role_impl(*values)
-          if @role
-            raise Malformed,
-                  "#{@name} declares role twice — a command carries one " \
-                  "responsibility; the second would silently win and the " \
-                  "first would still look declared. Name every role in one: role \"A\", \"B\""
-          end
-          if values.map(&:to_s).uniq.size != values.size
-            raise Malformed, "#{@name} names a role twice in one role declaration"
-          end
+          raise Malformed, format(ROLE_TWICE, name: @name) if @role
+          raise Malformed, "#{@name} names a role twice in one role declaration" if values.map(&:to_s).uniq.size != values.size
 
           @roles = values.map(&:to_s) if values.size > 1
           @role = values.first

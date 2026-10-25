@@ -16,6 +16,9 @@ module Hecks
 
     class LoadOutsideRunner < StandardError; end
 
+    # The last name of a namespaced class: `Hecks::SentenceForm::Refused` -> `Refused`.
+    LAST_CONSTANT = /\w+\z/
+
     class << self
       # The `.behaviors` file being `Kernel.load`ed; `Hecks.behaviors` reads it to resolve
       # `loads` and to refuse a file loaded any other way.
@@ -101,8 +104,12 @@ module Hecks
       def runnable(path)
         SentenceForm.examples?(path) ? SentenceForm.write_behaviors(path) : path
       rescue SentenceForm::Refused, SentenceForm::ParserMissing => e
-        { error: "#{e.class.name.split('::').last}: #{e.message}" }
+        { error: "#{refusal_name(e)}: #{e.message}" }
       end
+
+      # @param error [Exception] a refusal raised while compiling examples
+      # @return [String] the error's class name without its namespace
+      def refusal_name(error) = error.class.name[LAST_CONSTANT]
 
       # `Kernel.load`s the file with `loading_path` pointing at it.
       #

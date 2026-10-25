@@ -5,6 +5,7 @@
 //! declared further down. Every unresolved name is refused with the names that are in scope.
 
 use super::changes::Change;
+use crate::ruby_value;
 use super::names::{camel, scalar, snake, spoken, SCALARS};
 use super::{column, Matched, Parser, Scope, Step};
 use crate::build::identity;
@@ -18,6 +19,8 @@ pub(super) struct TypeUse {
     words: String,
     /// Names an aggregate (`reference to …`, `has many …`), not a scalar or a value object.
     reference: bool,
+    /// For `one of a or b`: the aggregates, to mint the tagged reference from.
+    pub variants: Option<Vec<String>>,
 }
 
 struct Identity {
@@ -60,6 +63,7 @@ struct CommandSpec {
     givens: Vec<ir::Given>,
     ensures: Vec<ir::Given>,
     from: Option<ir::CommandFrom>,
+    provenance: Option<crate::ruby_value::Value>,
     changes: Vec<Change>,
     emits: Vec<String>,
 }
@@ -78,6 +82,8 @@ enum Reaction {
     Run(String),
     /// Asks the outside for something, by the need's name in the domain's words.
     Ask(String),
+    /// Tells a named aggregate's command (`Aggregate.Command`), which may live in another domain.
+    Tell(String),
 }
 
 /// A policy as written, before its event and command are looked up in the chapter.
@@ -91,12 +97,20 @@ struct PolicySpec {
     outside: bool,
     /// `Aggregate.Query` when the policy runs once for each row a query answers.
     for_each: Option<String>,
+    /// The test that must hold for the policy to act, as the IR spells it.
+    only_when: Option<String>,
+    /// The policy is meant to find nobody to receive its command.
+    undelivered: bool,
+    /// The domain a policy's command lives in, when it is not this one.
+    across: Option<String>,
+    /// Fields passed on their own `With` lines rather than after `runs with`.
+    with_lines: Vec<PassedField>,
     /// What it does, the fields it passes (the command's name for each, and where it takes it
     /// from), and where it was written.
     reaction: Option<(Reaction, Vec<PassedField>, usize, usize)>,
 }
 
-/// A field a policy passes on: the command's name for it, and the name it takes the value from.
+/// A field a policy passes on: the command's name for it, and the value as the IR spells it.
 type PassedField = (FieldUse, String);
 
 /// Everything read of one aggregate before its names are resolved.
@@ -199,12 +213,35 @@ impl Parser<'_> {
             event: None,
             outside: false,
             for_each: None,
+            only_when: None,
+            undelivered: false,
+            across: None,
+            with_lines: Vec::new(),
             reaction: None,
         };
         let mut scope = Scope::inside(header.indent);
         while let Some(step) = self.step(&mut scope, "Policy", false)? {
             let Step::Phrase(m) = step else { continue };
             match m.id {
+                "policy_undelivered" => spec.undelivered = true,
+                "policy_across" => spec.across = Some(camel(&m.text_of("domain"))),
+                "only_when" => {
+                    let cond = self.condition(&m)?;
+                    spec.only_when = Some(cond.canonical);
+                }
+                "with_same" | "with_from" | "with_as" => {
+                    let key = FieldUse {
+                        name: snake(&m.text_of("key")),
+                        line: m.line,
+                        col: m.col_of("key"),
+                    };
+                    let from = match m.id {
+                        "with_same" => format!(":{}", key.name),
+                        "with_from" => format!(":{}", snake(&m.text_of("from"))),
+                        _ => ruby_value::render(&self.literal(&m, "value")?),
+                    };
+                    spec.with_lines.push((key, from));
+                }
                 "for_each" => {
                     spec.for_each = Some(format!("{}.{}", camel(&m.text_of("owner")), camel(&m.text_of("query"))));
                 }
@@ -216,12 +253,15 @@ impl Parser<'_> {
                     spec.outside = m.id == "whenever_outside";
                     spec.event = Some((m.text_of("event"), owner, m.line, m.col_of("event")));
                 }
-                "runs" | "runs_with" | "asked" | "asked_with" => {
+                "runs" | "runs_with" | "asked" | "asked_with" | "policy_tell" => {
                     if spec.reaction.is_some() {
                         return Err(self.error(m.line, m.base_col, "a policy does one thing; this is a second `Then`"));
                     }
                     let fields = if m.id.ends_with("with") { passed_fields(&m) } else { Vec::new() };
-                    let (reaction, slot) = if m.id.starts_with("runs") {
+                    let (reaction, slot) = if m.id == "policy_tell" {
+                        let tell = format!("{}.{}", camel(&m.text_of("owner")), camel(&m.text_of("command")));
+                        (Reaction::Tell(tell), "command")
+                    } else if m.id.starts_with("runs") {
                         (Reaction::Run(camel(&m.text_of("command"))), "command")
                     } else {
                         (Reaction::Ask(snake(&m.text_of("need"))), "need")
@@ -241,9 +281,10 @@ impl Parser<'_> {
             let Some((event, owner, event_line, event_col)) = spec.event else {
                 return Err(self.error(spec.line, spec.col, "this policy has no `Whenever <event> is announced`"));
             };
-            let Some((reaction, fields, then_line, then_col)) = spec.reaction else {
+            let Some((reaction, mut fields, then_line, then_col)) = spec.reaction else {
                 return Err(self.error(spec.line, spec.col, "this policy does nothing; add `Then <command> runs` or `Then <need> is asked`"));
             };
+            fields.extend(spec.with_lines);
             let on_event = if spec.outside {
                 event
             } else {
@@ -252,12 +293,28 @@ impl Parser<'_> {
             let mut policy = ir::Policy {
                 name: spec.name,
                 on_event: Some(on_event),
-                with_spec: fields.iter().map(|(key, from)| (key.name.clone(), format!(":{from}"))).collect(),
+                with_spec: fields.iter().map(|(key, spelled)| (key.name.clone(), spelled.clone())).collect(),
                 for_each_query: spec.for_each,
+                where_clause: spec.only_when,
+                expect_undelivered: spec.undelivered,
                 ..Default::default()
             };
             match reaction {
                 Reaction::Ask(need) => policy.ask = Some(need),
+                Reaction::Tell(command) => {
+                    let local = chapter.aggregates.iter().any(|a| {
+                        command.split_once('.').is_some_and(|(owner, name)| a.name == owner && a.commands.iter().any(|c| c.name == name))
+                    });
+                    if !local && spec.across.is_none() {
+                        return Err(self.error(
+                            then_line,
+                            then_col,
+                            format!("'{command}' is not a command of this chapter; if it lives in another domain, add `It crosses into the <domain> domain`"),
+                        ));
+                    }
+                    policy.trigger_command = Some(command);
+                    policy.target_domain.clone_from(&spec.across);
+                }
                 Reaction::Run(command) => {
                     let found: Vec<(&ir::Aggregate, &ir::Command)> = chapter
                         .aggregates
@@ -394,13 +451,15 @@ impl Parser<'_> {
                             st.agg.invariants.push(given);
                         }
                     }
+                    "aggregate_provenance" => st.agg.provenance = Some(self.literal(&m, "value")?),
                     "projected" => st.agg.projected_fields.push(ir::ProjectedField {
                         name: snake(&m.text_of("name")),
                         reference: snake(&m.text_of("reference")),
                         remote_field: snake(&m.text_of("remote")),
                     }),
                     "entity" => {
-                        // Read once the aggregate's own blocks are, so its identity can name their value objects.
+                        // Read after the aggregate's own blocks, so its identity can name their
+                        // value objects.
                         let from = self.pos;
                         while self.lines.get(self.pos).is_some_and(|line| line.indent > m.indent) {
                             self.pos += 1;
@@ -490,7 +549,8 @@ impl Parser<'_> {
                 line: m.line,
                 col: m.col_of("type"),
                 words: shape.words,
-                reference: shape.relationship.is_some(),
+                reference: shape.reference,
+                variants: shape.variants,
             };
             lines.push((attribute, used));
         }
@@ -523,8 +583,9 @@ impl Parser<'_> {
             TypeUse {
                 line: header.line,
                 col: header.col_of("type"),
-                reference: shape.relationship.is_some(),
+                reference: shape.reference,
                 words: shape.words,
+                variants: None,
             },
         ));
         self.value_rules(header, st, index)
@@ -602,8 +663,9 @@ impl Parser<'_> {
                         TypeUse {
                             line: m.line,
                             col: m.col_of("type"),
-                            reference: shape.relationship.is_some(),
+                            reference: shape.reference,
                             words: shape.words,
+                            variants: None,
                         },
                     ));
                     vo.attributes.push(attribute);
@@ -685,6 +747,7 @@ impl Parser<'_> {
             givens: Vec::new(),
             ensures: Vec::new(),
             from: None,
+            provenance: None,
             changes: Vec::new(),
             emits: Vec::new(),
         };
@@ -714,6 +777,7 @@ impl Parser<'_> {
                         ir::CommandFrom::Multiple(states)
                     });
                 }
+                "command_provenance" => spec.provenance = Some(self.literal(&m, "value")?),
                 "ensures" => {
                     let cond = self.condition(&m)?;
                     spec.ensures.push(ir::Given {
@@ -843,6 +907,18 @@ impl Parser<'_> {
                 ),
             ));
         }
+        for at in 0..st.attr_types.len() {
+            let Some(variants) = st.attr_types.get_mut(at).and_then(|used| used.variants.take()) else { continue };
+            let Some(attribute) = st.agg.attributes.get(at) else { continue };
+            let minted = crate::build::references::one_of_reference(&st.agg.name, &variants, &attribute.name, attribute.optional);
+            if let Some(used) = st.attr_types.get_mut(at) {
+                used.words.clone_from(&minted.attribute.type_name);
+                used.reference = false;
+            }
+            st.agg.attributes[at] = minted.attribute;
+            st.agg.value_objects.push(minted.type_set);
+            st.agg.value_objects.push(minted.tagged);
+        }
         let types: Vec<String> = st
             .attr_types
             .iter()
@@ -879,6 +955,9 @@ impl Parser<'_> {
         for (at, args) in std::mem::take(&mut st.query_args) {
             let mut typed = Vec::new();
             for (mut attribute, used) in args {
+                if used.variants.is_some() {
+                    return Err(self.error(used.line, used.col, "a query's argument names one aggregate; `one of …` belongs in an aggregate's `It has:`"));
+                }
                 attribute.type_name = self.type_named(&used, &st.agg)?;
                 typed.push(attribute);
             }
@@ -938,6 +1017,7 @@ impl Parser<'_> {
                 givens: spec.givens,
                 ensures: spec.ensures,
                 from: spec.from,
+                provenance: spec.provenance,
                 emits: spec.emits,
                 ..Default::default()
             };
@@ -958,6 +1038,9 @@ impl Parser<'_> {
                 given.push(name);
             }
             for (mut attribute, used) in spec.takes {
+                if used.variants.is_some() {
+                    return Err(self.error(used.line, used.col, "a command's argument names one aggregate; `one of …` belongs in an aggregate's `It has:`"));
+                }
                 attribute.type_name = self.type_named(&used, &st.agg)?;
                 given.push(attribute.name.clone());
                 command.attributes.push(attribute);
@@ -1032,8 +1115,12 @@ struct Shape {
     /// The words once the form is taken off: `list of tag` -> `tag`.
     words: String,
     list: bool,
-    /// `reference_to` for `reference to …` and `has_many` for `has many …`.
+    /// `reference_to` for `reference to …`, `has_many` for `has many …`, `one_of` for `one of …`.
     relationship: Option<&'static str>,
+    /// Names an aggregate: `reference to`, `link to` and `has many`.
+    reference: bool,
+    /// The aggregates a `one of a or b` says, as names.
+    variants: Option<Vec<String>>,
 }
 
 impl Shape {
@@ -1045,17 +1132,30 @@ impl Shape {
 
 /// Reads `list of …`, `reference to …` and `has many …` off the front of a type phrase.
 fn shape_of(words: &str) -> Shape {
-    let forms: [(&str, bool, Option<&'static str>); 3] = [
-        ("list of ", true, None),
-        ("reference to ", false, Some("reference_to")),
-        ("has many ", true, Some("has_many")),
+    let forms: [(&str, bool, Option<&'static str>, bool); 6] = [
+        ("list of ", true, None, false),
+        ("reference to ", false, Some("reference_to"), true),
+        ("link to ", false, None, true),
+        ("has many ", true, Some("has_many"), true),
+        ("has one ", false, Some("has_one"), true),
+        ("belongs to ", false, Some("belongs_to"), true),
     ];
-    for (prefix, list, relationship) in forms {
+    for (prefix, list, relationship, reference) in forms {
         if let Some(inner) = words.strip_prefix(prefix) {
-            return Shape { words: inner.trim().to_string(), list, relationship };
+            return Shape { words: inner.trim().to_string(), list, relationship, reference, variants: None };
         }
     }
-    Shape { words: words.to_string(), list: false, relationship: None }
+    if let Some(inner) = words.strip_prefix("one of ") {
+        let variants = inner.split(" or ").map(|name| camel(name.trim())).collect();
+        return Shape {
+            words: inner.trim().to_string(),
+            list: false,
+            relationship: Some("one_of"),
+            reference: false,
+            variants: Some(variants),
+        };
+    }
+    Shape { words: words.to_string(), list: false, relationship: None, reference: false, variants: None }
 }
 
 /// The fields a `runs with` line passes: `the permit` as itself, `the cap from the limit` under
@@ -1072,11 +1172,12 @@ fn passed_fields(m: &Matched) -> Vec<PassedField> {
                 line: m.line,
                 col,
             };
-            (field, snake(from))
+            (field, format!(":{}", snake(from)))
         })
         .collect()
 }
 
+/// The fields a list slot names, each with where it was written.
 pub(super) fn field_uses(m: &Matched, slot: &str) -> Vec<FieldUse> {
     let capture = m.capture(slot);
     let col = m.col_of(slot);

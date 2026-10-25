@@ -74,11 +74,46 @@ fn provides_text(out: &mut String, provides: &[ir::Provision]) -> Result<(), Str
     Ok(())
 }
 
+/// What a policy passes on: ` with the a and the b from the c` after the `Then` line when every
+/// value is a field, else one `With …` line for each.
+fn passed_said(policy: &ir::Policy) -> Result<(String, Vec<String>), String> {
+    let mut inline: Vec<String> = Vec::new();
+    let mut lines: Vec<String> = Vec::new();
+    let mut all_fields = true;
+    for (key, value) in &policy.with_spec {
+        let key_said = spoken(key);
+        match value.strip_prefix(':').filter(|from| is_name(from)) {
+            Some(from) if from == key => {
+                inline.push(format!("the {key_said}"));
+                lines.push(format!("With the {key_said}"));
+            }
+            Some(from) => {
+                inline.push(format!("the {key_said} from the {}", spoken(from)));
+                lines.push(format!("With the {key_said} from the {}", spoken(from)));
+            }
+            None if matches!(ruby_value::read(value), ruby_value::Value::Bare(_) | ruby_value::Value::Symbol(_)) => {
+                return Err(format!(
+                    "the sentence form cannot pass {key} as {value} in policy {}",
+                    policy.name
+                ));
+            }
+            None => {
+                all_fields = false;
+                lines.push(format!("With the {key_said} as {value}"));
+            }
+        }
+    }
+    if lines.is_empty() {
+        Ok((String::new(), Vec::new()))
+    } else if all_fields {
+        Ok((format!(" with {}", join_and(&inline)), Vec::new()))
+    } else {
+        Ok((String::new(), lines))
+    }
+}
+
 /// `Policy: …` with its `Whenever` and `Then` lines.
 fn policy_text(out: &mut String, policy: &ir::Policy, chapter: &ir::Bluebook) -> Result<(), String> {
-    if policy.target_domain.is_some() || policy.expect_undelivered || policy.where_clause.is_some() {
-        return Err(format!("the sentence form has no phrase for the options on policy {}", policy.name));
-    }
     let on_event = policy
         .on_event
         .as_ref()
@@ -106,26 +141,23 @@ fn policy_text(out: &mut String, policy: &ir::Policy, chapter: &ir::Bluebook) ->
         })?;
         out.push_str(&format!("  For each {} of the {}\n", spoken(name), spoken(owner)));
     }
-    let mut fields = Vec::new();
-    for (key, value) in &policy.with_spec {
-        let Some(from) = value.strip_prefix(':').filter(|from| is_name(from)) else {
-            return Err(format!(
-                "the sentence form passes a field on by name; policy {} passes {key} as {value}",
-                policy.name
-            ));
-        };
-        if from == key {
-            fields.push(format!("the {}", spoken(key)));
-        } else {
-            fields.push(format!("the {} from the {}", spoken(key), spoken(from)));
-        }
+    if policy.expect_undelivered {
+        out.push_str("  It is expected to go undelivered\n");
     }
-    let with = if fields.is_empty() {
-        String::new()
-    } else {
-        format!(" with {}", join_and(&fields))
-    };
+    if let Some(domain) = &policy.target_domain {
+        out.push_str(&format!("  It crosses into the {} domain\n", spoken(domain)));
+    }
+    if let Some(clause) = &policy.where_clause {
+        out.push_str(&format!("  Only when {}\n", condition_words(clause)?));
+    }
+    let (with, with_lines) = passed_said(policy)?;
     match (&policy.trigger_command, &policy.ask) {
+        (Some(command), None) if policy.target_domain.is_some() => {
+            let (owner, name) = command.split_once('.').ok_or_else(|| {
+                format!("policy {} triggers {command}, which names no aggregate", policy.name)
+            })?;
+            out.push_str(&format!("  Then the {} is told to {}{with}\n", spoken(owner), spoken(name)));
+        }
         (Some(command), None) => {
             let declared = chapter.aggregates.iter().any(|aggregate| {
                 command.split_once('.').is_some_and(|(owner, name)| {
@@ -143,6 +175,9 @@ fn policy_text(out: &mut String, policy: &ir::Policy, chapter: &ir::Bluebook) ->
         }
         (None, Some(need)) => out.push_str(&format!("  Then {} is asked{with}\n", spoken(need))),
         _ => return Err(format!("policy {} must trigger a command or ask, and not both", policy.name)),
+    }
+    for line in with_lines {
+        out.push_str(&format!("  {line}\n"));
     }
     Ok(())
 }
@@ -163,6 +198,9 @@ fn block_text(out: &mut String, aggregate: &ir::Aggregate, kind: &str) -> Result
     out.push_str(&format!("{kind}: {}\n", spoken_title(&aggregate.name)));
     if let Some(description) = &aggregate.description {
         out.push_str(&format!("  {description}\n"));
+    }
+    if let Some(provenance) = &aggregate.provenance {
+        out.push_str(&format!("  Its provenance is {}\n", provenance_said(provenance)?));
     }
     if !aggregate.identified_by.is_empty() {
         let mut fields: Vec<&str> = aggregate
@@ -193,13 +231,18 @@ fn block_text(out: &mut String, aggregate: &ir::Aggregate, kind: &str) -> Result
             spoken(&field.reference)
         ));
     }
+    let mut minted: Vec<String> = Vec::new();
     if !aggregate.attributes.is_empty() {
         out.push_str("\n  It has:\n");
         for attribute in &aggregate.attributes {
-            out.push_str(&format!("    {}\n", attribute_line(attribute)?));
+            if attribute.relationship.as_deref() == Some("one_of") {
+                out.push_str(&format!("    {}\n", tagged_line(aggregate, attribute, &mut minted)?));
+            } else {
+                out.push_str(&format!("    {}\n", attribute_line(attribute)?));
+            }
         }
     }
-    for value_object in &aggregate.value_objects {
+    for value_object in aggregate.value_objects.iter().filter(|vo| !minted.contains(&vo.name)) {
         value_object_text(out, value_object)?;
     }
     if let Some(lifecycle) = &aggregate.lifecycle {
@@ -274,6 +317,52 @@ pub(super) fn spoken_title(name: &str) -> String {
         .join(" ")
 }
 
+/// `a subject: one of account or atm card`, for a reference to one of several aggregates. The set
+/// of names and the tagged value object it stands on are minted on reading, so they are checked to
+/// be exactly what reading would mint and then left unwritten.
+fn tagged_line(aggregate: &ir::Aggregate, attribute: &ir::Attribute, minted: &mut Vec<String>) -> Result<String, String> {
+    let refused = || format!("the sentence form has no phrase for the options on attribute {}", attribute.name);
+    let tagged_name = &attribute.type_name;
+    let set_name = format!("{tagged_name}Type");
+    let set = aggregate.value_objects.iter().find(|vo| vo.name == set_name).ok_or_else(refused)?;
+    let tagged = aggregate.value_objects.iter().find(|vo| vo.name == *tagged_name).ok_or_else(refused)?;
+    let variants: Vec<String> = set
+        .members
+        .iter()
+        .filter_map(|member| match member.as_slice() {
+            [(_, ruby_value::Value::Str(name))] => Some(name.clone()),
+            _ => None,
+        })
+        .collect();
+    let made = crate::build::references::one_of_reference(&aggregate.name, &variants, &attribute.name, attribute.optional);
+    let minted_shape = [format!("{:?}", made.attribute), format!("{:?}", made.type_set), format!("{:?}", made.tagged)];
+    let written_shape = [format!("{attribute:?}"), format!("{set:?}"), format!("{tagged:?}")];
+    let same = minted_shape == written_shape;
+    if variants.len() != set.members.len() || !same || variants.iter().any(|name| spoken(name).contains(" or ")) {
+        return Err(refused());
+    }
+    minted.push(set_name);
+    minted.push(tagged_name.clone());
+    let spoken_variants: Vec<String> = variants.iter().map(|name| spoken(name)).collect();
+    Ok(format!(
+        "{}: one of {}{}",
+        attribute_noun(attribute),
+        spoken_variants.join(" or "),
+        options::said(attribute)?
+    ))
+}
+
+/// `a title`, or `some tags` for a list.
+fn attribute_noun(attribute: &ir::Attribute) -> String {
+    let name = spoken(&attribute.name);
+    if attribute.list {
+        format!("some {name}")
+    } else {
+        with_article(&name)
+    }
+}
+
+/// `an isbn: isbn, optional`: one attribute as the line of an `It has:` or `It takes:` list.
 pub(super) fn attribute_line(attribute: &ir::Attribute) -> Result<String, String> {
     let refused = || {
         format!(
@@ -285,14 +374,17 @@ pub(super) fn attribute_line(attribute: &ir::Attribute) -> Result<String, String
     let form = match (attribute.relationship.as_deref(), target, attribute.list) {
         (None, None, true) => "list of ".to_string(),
         (None, None, false) => String::new(),
+        (None, Some(_), false) => "link to ".to_string(),
         (Some("reference_to"), Some(_), false) => "reference to ".to_string(),
         (Some("has_many"), Some(_), true) => "has many ".to_string(),
+        (Some("has_one"), Some(_), false) => "has one ".to_string(),
+        (Some("belongs_to"), Some(_), false) => "belongs to ".to_string(),
         _ => return Err(refused()),
     };
     let named = target.map_or_else(|| type_words(&attribute.type_name), spoken);
     Ok(format!(
         "{}: {form}{named}{}",
-        with_article(&spoken(&attribute.name)),
+        attribute_noun(attribute),
         options::said(attribute)?
     ))
 }
@@ -430,8 +522,8 @@ fn rule_sentence(word: &str, rule: &ir::Given) -> Result<String, String> {
     ))
 }
 
-/// The condition a canonical predicate says: in the words the Condition phrases read where one fits,
-/// else as `this is true: <expression>`.
+/// The condition a canonical predicate says: in the words the Condition phrases read where one
+/// fits, else as `this is true: <expression>`.
 fn condition_words(canonical: &str) -> Result<String, String> {
     if let Some(field) = canonical
         .strip_prefix('!')
@@ -460,10 +552,12 @@ fn condition_words(canonical: &str) -> Result<String, String> {
     Ok(format!("this is true: {canonical}"))
 }
 
+/// Whether `text` is a field name as written in the IR: lowercase letters, digits and underscores.
 pub(super) fn is_name(text: &str) -> bool {
     !text.is_empty() && text.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
 }
 
+/// Whether `text` is one word of letters, digits, underscores and hyphens.
 pub(super) fn is_word(text: &str) -> bool {
     !text.is_empty() && text.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
 }
@@ -474,10 +568,7 @@ fn command_text(
     noun: &str,
     fields: &[ir::Attribute],
 ) -> Result<(), String> {
-    let held = [
-        (!command.needs.is_empty(), "needs"),
-        (command.provenance.is_some(), "provenance"),
-    ];
+    let held = [(!command.needs.is_empty(), "needs")];
     if let Some((_, what)) = held.iter().find(|(present, _)| *present) {
         return Err(format!(
             "the sentence form has no phrase for {what} on command {}",
@@ -492,6 +583,9 @@ fn command_text(
         out.push_str(&format!("    Who: {}\n", command.roles.join(" or ")));
     } else if let Some(role) = &command.role {
         out.push_str(&format!("    Who: {role}\n"));
+    }
+    if let Some(provenance) = &command.provenance {
+        out.push_str(&format!("    Its provenance is {}\n", provenance_said(provenance)?));
     }
     if let Some(from) = &command.from {
         out.push_str(&format!("    It can only happen from {}\n", states_said(&command.name, from)?));
@@ -522,6 +616,15 @@ fn command_text(
         out.push_str(&format!("    {}\n", rule_sentence("Afterwards", ensure)?));
     }
     Ok(())
+}
+
+/// A provenance as the Ruby hash it was written as; quotes and escapes inside it cannot be said.
+fn provenance_said(provenance: &ruby_value::Value) -> Result<String, String> {
+    let text = ruby_value::render(provenance);
+    if text.contains('\\') || text.contains('\n') || matches!(provenance, ruby_value::Value::Bare(_)) {
+        return Err("the sentence form cannot say this provenance".to_string());
+    }
+    Ok(text)
 }
 
 /// `happen from open and frozen`: the states a command is admissible from.

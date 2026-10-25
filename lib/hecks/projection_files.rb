@@ -6,6 +6,7 @@ require "tempfile"
 require_relative "rust_format"
 require_relative "projection_files/texts"
 require_relative "projection_files/expression_tables"
+require_relative "projection_files/sentence_table"
 
 module Hecks
   # What each `project_*` generator of the language writes, held as data: absolute path to text.
@@ -43,6 +44,7 @@ module Hecks
 
     extend Texts
     extend ExpressionTables
+    extend SentenceTable
 
     module_function
 
@@ -154,14 +156,6 @@ module Hecks
     def parser_table(root)
       require "hecks"
       Result.new({ File.join(root, "rust/parser/src/keywords.rs") => artifact_text(:parser_table) }, [])
-    end
-
-    # @param root [String] the checkout
-    # @return [Result] the Rust parser's sentence table, from the Sentence chapter
-    def phrase_table(root)
-      require "hecks"
-      text = Projector.call(:phrase_table, bluebook: Projections::PhraseTable.chapter)
-      Result.new({ File.join(root, "rust/parser/src/phrases.rs") => text }, [])
     end
 
     # @param root [String] the checkout

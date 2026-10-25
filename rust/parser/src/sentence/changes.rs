@@ -143,7 +143,7 @@ impl Parser<'_> {
     }
 
     /// The Ruby literal a `rest` slot holds: a number, quoted text, true, false, nothing or a hash.
-    fn literal(&self, m: &Matched, slot: &str) -> ParseResult<Value> {
+    pub(super) fn literal(&self, m: &Matched, slot: &str) -> ParseResult<Value> {
         let text = m.text_of(slot);
         match ruby_value::read(&text) {
             Value::Bare(_) => Err(self.error(
@@ -296,7 +296,8 @@ pub(super) fn said(command: &str, mutations: &[ir::Mutation]) -> Result<Vec<Stri
     Ok(lines)
 }
 
-/// `key from the argument, key as literal` for the fields of a row, or nothing when one has no phrase.
+/// `key from the argument, key as literal` for the fields of a row, or nothing when one has no
+/// phrase.
 pub(super) fn row_items(fields: &[(String, String)]) -> Option<String> {
     if fields.is_empty() {
         return None;

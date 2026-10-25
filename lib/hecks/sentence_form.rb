@@ -15,6 +15,9 @@ module Hecks
     # The line a sentence-form file opens with, after any blank or comment lines.
     DOMAIN_LINE = /\A\s*Domain:/
 
+    # The first line of a tool's output, without its newline.
+    FIRST_LINE = /\A[^\n]*/
+
     # A `Hecks.bluebook "Name"` header line, or a `Domain: name` line, capturing the chapter's name.
     CHAPTER_HEADER = /\A\s*(?:Hecks\.bluebook\s+"([^"]+)"|Domain:\s*(\S.*?)\s*\z)/
 
@@ -40,10 +43,18 @@ module Hecks
       File.foreach(path) do |line|
         next unless line =~ CHAPTER_HEADER
 
-        return Regexp.last_match(1) || Regexp.last_match(2).split.map { |word| word[0].upcase + word[1..] }.join
+        return Regexp.last_match(1) || capitalised(Regexp.last_match(2))
       end
       nil
     end
+
+    # @param words [String] the words of a `Domain:` line
+    # @return [String] each word capitalised and the words joined, as the parser reads them
+    def capitalised(words) = words.split.map { |word| word[0].upcase + word[1..] }.join
+
+    # @param text [String] a tool's error output
+    # @return [String] its first line, without the newline
+    def first_line(text) = text.to_s[FIRST_LINE]
 
     # The Ruby-shaped text of a sentence-form file.
     #
@@ -54,7 +65,7 @@ module Hecks
     def ruby_text(path)
       chapter = chapter_name(path) or raise Refused, "#{path}: no `Domain:` line to name the chapter"
       out, err, status = Open3.capture3(binary, "render", "--chapter", chapter, path)
-      raise Refused, err.lines.first.to_s.chomp unless status.success?
+      raise Refused, first_line(err) unless status.success?
 
       out
     end
@@ -88,7 +99,7 @@ module Hecks
       wiring = behaviors_hecksagon(path)
       also = wiring ? ["--also", wiring] : []
       out, err, status = Open3.capture3(binary, "examples", "--chapter", chapter, "--examples", path, *also, *files)
-      raise Refused, err.lines.first.to_s.chomp unless status.success?
+      raise Refused, first_line(err) unless status.success?
 
       out
     end
@@ -130,7 +141,7 @@ module Hecks
       same_stem = File.join(dir, "#{File.basename(path, EXAMPLES_EXTENSION)}.bluebook")
       return [same_stem] if File.file?(same_stem)
 
-      Dir.glob([File.join(dir, "*.bluebook"), File.join(dir, "bluebook", "*.bluebook")]).sort
+      Dir.glob([File.join(dir, "*.bluebook"), File.join(dir, "bluebook", "*.bluebook")])
          .select { |file| chapter_name(file) == chapter }
     end
 
@@ -145,7 +156,17 @@ module Hecks
     def load(path)
       generated = write_generated(path, ruby_text(path))
       Kernel.load(generated)
-      Hecks.current_registry.bluebook_sources.each_value do |paths|
+      point_sources_at(generated, path)
+    end
+
+    # Makes the registry record the sentence file `path` as the source of what `generated` declared.
+    #
+    # @param generated [String] the rendered file that was loaded
+    # @param path [String] the sentence file it came from
+    # @return [void]
+    def point_sources_at(generated, path)
+      registry = Hecks.current_registry
+      registry.bluebook_sources.each_value do |paths|
         paths.map! { |source| source == generated ? path : source }
       end
     end
@@ -159,7 +180,7 @@ module Hecks
     def write_generated(path, text)
       dir = CacheDir.path("sentence_form")
       FileUtils.mkdir_p(dir)
-      generated = File.join(dir, "#{File.basename(path, '.bluebook')}-#{Digest::SHA256.hexdigest(text)[0, 16]}.bluebook")
+      generated = File.join(dir, "#{File.basename(path, ".bluebook")}-#{Digest::SHA256.hexdigest(text)[0, 16]}.bluebook")
       File.write(generated, text) unless File.exist?(generated)
       generated
     end

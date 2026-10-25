@@ -580,3 +580,40 @@ fn a_description_that_opens_a_block_is_not_mistaken_for_prose() {
     assert!(error.contains("not a sentence I know in an aggregate"), "{error}");
     assert!(error.contains("It has:"), "{error}");
 }
+
+const LIBRARY: &str = include_str!("fixtures/sentence_library.bluebook");
+
+fn run_on_chapter(subcommand: &str, chapter: &str, path: &std::path::Path) -> Output {
+    Command::new(env!("CARGO_BIN_EXE_hecks-parse"))
+        .args([subcommand, "--chapter", chapter, path.to_str().unwrap()])
+        .output()
+        .expect("failed to run hecks-parse")
+}
+
+#[test]
+fn a_domain_using_most_constructs_formats_to_itself() {
+    let path = write("library.bluebook", LIBRARY);
+    let output = run_on_chapter("format", "Library", &path);
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    assert_eq!(String::from_utf8_lossy(&output.stdout), LIBRARY);
+}
+
+#[test]
+fn a_domain_using_most_constructs_lowers_what_each_sentence_means() {
+    let path = write("library_ir.bluebook", LIBRARY);
+    let output = run_on_chapter("chapter", "Library", &path);
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    let ir = String::from_utf8_lossy(&output.stdout);
+    for expected in [
+        "\"classification\": \"supporting\"",
+        "\"version\": \"v1\"",
+        "\"relationship\": \"has_many\"",
+        "\"pattern\": \"^[0-9]{10}$\"",
+        "\"closed_set\": true",
+        "\"op\": \"clamp\"",
+        "\"for_each\": \"Book.ByKind\"",
+        "\"count\": true",
+    ] {
+        assert!(ir.contains(expected), "the IR lacks {expected}");
+    }
+}

@@ -68,7 +68,129 @@ Aggregate: Page
 
 Indent with spaces. A line that starts with `#` is a comment. The paragraph under `Domain:`,
 `Aggregate:` and `Query:` says what it is for. Types are `text`, `whole number`, `decimal number`,
-or a value object you describe in the same file.
+`yes or no`, `true or false`, or a value object you describe in the same file.
+
+## More to say about a thing
+
+Everything the Ruby form can say has a sentence, so a chapter written either way means the same
+thing. This one uses most of them:
+
+```
+Domain: Library
+  A library lends books to members and keeps count of what is out.
+  This is a supporting domain
+  Its version is v1
+
+Aggregate: Book
+
+  A book is identified by its isbn.
+
+  Rule "a book has a title" holds when the title is not empty
+
+  It has:
+    an isbn: isbn
+    a title: text
+    a copies: whole number, default 1
+    a shelf: shelf label, optional
+    a kind: book kind
+    an author: reference to author
+    some tags: list of tag
+    some loans: has many loan
+    a rating: whole number, optional
+
+  An isbn has a value: text, matching "^[0-9]{10}$".
+
+  A shelf label has a value: text.
+
+  A tag has a value: text.
+
+  A book kind is one of: novel, poem and reference.
+
+  A reading level has:
+    a minimum age: whole number
+    a label: text
+    Rule "a minimum age is not negative" holds when the minimum age is at least 0
+
+  Command: Lend
+    Goal: Let a member take a book home
+    Who: Librarian or Volunteer
+    It can only happen from shelved and reserved
+    It acts on an existing book
+    When an isbn and an optional rating are given
+    Given "a copy is free" holds when this is true: copies > 0
+    Then the copies goes down by 1
+    And the title is set to "lent"
+    And the rating is set to what the copies was
+    And the shelf is kept between 1 and 9
+    And BookLent is announced
+    Afterwards "a copy is out" holds when the copies is at least 0
+
+  Query: By Kind
+    It takes:
+      a kind: book kind
+    Where the kind is the kind
+    Where the copies is at least 1
+    Ordered by title, ascending
+    Limited to 20
+
+Aggregate: Author
+
+  An author is identified by its name.
+
+  It has:
+    a name: text
+
+  Command: Notify
+    Who: Librarian
+    When a name is given
+    Then AuthorNotified is announced
+
+Policy: Tell Author
+  Whenever BookLent is announced
+  For each by kind of the book
+  Only when this is true: copies == 0
+  Then Notify runs with the name from the title
+
+Report: Loans By Kind
+  How many books of each kind are out.
+  It includes a book
+  It groups by kind
+  It counts them
+  Where the copies is 0
+```
+
+- **The top of the file.** `This is a core / supporting / generic domain`, `Its version is …` and
+  `Its module is …` sit under `Domain:`, as do `It attaches to …` and `It provides … :`.
+- **What a thing has.** After the type, options follow a comma: `optional`, `default 1`,
+  `matching "<pattern>"` and `admits <set>`. A type can be `list of tag`, `reference to author`,
+  `has many loan`, `has one …`, `belongs to …`, `link to …` or `one of account or card`. A list
+  reads as `some tags`.
+- **Value objects.** `has a value: …` for one value, `has:` over several, `is one of: a, b and c`
+  for a closed set, and `Member kind "hero", requires "heading"` lines for a table of them.
+- **Rules.** A rule the plain phrases cover reads as a sentence (`the title is not empty`, `the
+  copies is at least 1`). Any other rule is written `this is true: <expression>`, in the same
+  expression language the Ruby form uses. `Rule` on an aggregate, `Precondition` for a named check the
+  aggregate keeps, `Afterwards` for what must hold once a command has run.
+- **What a command does to the thing.** `is set to …` (a value, `the <argument>`, `what the <field>
+  was` or `the result of <expression>`), `goes up by`, `goes down by`, `is multiplied by`,
+  `is removed from`, `is kept between 1 and 9`, `a row is added to the <list> with <field> from the
+  <argument>, <field> as <value>`, `the <entity> is told to <command> with …` and `<Event> is
+  corrected with …`. `It can only happen from open and frozen` limits the states it works from, and
+  `It takes:` lists arguments of its own.
+- **Queries and reports.** `Where the balance is at least the floor` compares with `is`, `is not`,
+  `is more than`, `is at least`, `is less than`, `is at most`, `contains` or `is one of`, against
+  quoted text, a number, a word or `the <argument>`. A query can say `Limited to 20`, `Skipping the
+  first 5`, where empty values come, who may see it and what it returns. A report `includes` or is
+  `about` aggregates, `groups by`, `counts`, `adds up`, `averages` or finds the lowest, highest or
+  median.
+- **Processes.** A `Process:` says what it is matched up by, when it starts and ends, and each
+  step: `When TransferRequested is announced and it is requested, it moves to awaiting_credit`,
+  then `Then the account is told to debit with number from the source`, and `If that is refused,
+  …` for what undoes it.
+- **Policies.** Besides `Whenever … is announced`, a policy can wait for what the outside
+  announces (`Whenever the outside announces PaymentReceived`), run for each row a query answers
+  (`For each live for account of the card`), act `Only when …`, pass a value on (`With the turn as
+  "black"`), cross into another domain and expect nobody to receive it.
 
 ## When something happens, and when the outside is asked
 
@@ -162,6 +284,15 @@ sentence file needs it to boot, found at `HECKS_PARSE_BIN`, in `rust/parser/targ
 
 ## What it cannot say yet
 
-A `.hecksagon` beside a chapter written as sentences is refused by name. So are read models,
-process managers, entities, closed sets, list attributes, defaults and `from:` guards; write that
-chapter in the Ruby form.
+A `.hecksagon` beside a chapter written as sentences is refused by name. So are:
+
+- a policy that triggers a command no chapter in the file declares, and a lifecycle transition
+  that names a command nobody declares, because a sentence file has to make sense on its own;
+- a report that pages each of several included aggregates separately (`on:` a head);
+- the facts a command or query asks the runtime to supply (`needs`), a query's `cursor`, a command
+  argument whose type or default differs from the field it names, and a quote inside a quoted
+  value.
+
+Anything the formatter cannot write is refused with the name of what it could not say, never
+dropped, so a chapter that formats always reads back as the same thing. Comments are the one
+exception: the IR holds none, so a format drops them.

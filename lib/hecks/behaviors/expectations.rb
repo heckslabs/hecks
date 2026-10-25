@@ -74,8 +74,10 @@ module Hecks
       # @param role [String, nil] the role the dispatch runs as
       # @yield the dispatch
       # @return [Object] the block's result
-      def as_role(role, &block)
-        role ? Hecks::Runtime::Caller.as(role: role, &block) : block.call
+      def as_role(role, &)
+        return yield unless role
+
+        Hecks::Runtime::Caller.as(role: role, &)
       end
 
       # Qualifies and dispatches (or queries) the command under test, catching a
