@@ -334,7 +334,7 @@ fn it_needs_something_made_earlier_in_the_example() {
 #[test]
 fn only_the_role_a_command_is_run_by_may_be_named_as_the_one_refused() {
     let error = examples_refusal("role", "only an Editor may do it", "only a Viewer may do it");
-    assert!(error.contains("publish is run by Editor, not by a Viewer"), "{error}");
+    assert!(error.contains("publish is run by Editor, not by Viewer"), "{error}");
 }
 
 /// `GOOD` with a policy that runs `Publish` when a page is drafted.
@@ -518,13 +518,55 @@ fn a_mistyped_first_line_of_an_aggregate_is_caught_by_what_it_leaves_out() {
     assert!(error.contains("does not say what identifies it"), "{error}");
 }
 
+const SEVERAL_ROLES: &str = "    Who: Editor\n    When a slug";
+
 #[test]
-fn a_command_run_by_several_roles_is_refused_until_the_language_allows_it() {
-    let source = changed("    Who: Editor\n    When a slug", "    Who: Editor or Sales Rep\n    When a slug");
-    let error = refusal("roles.bluebook", &source);
-    let line = line_of(&source, "Editor or Sales Rep");
-    assert!(error.contains(&format!("roles.bluebook:{line}:10:")), "{error}");
-    assert!(error.contains("names several. The language does not yet let a command be run by more than one role"), "{error}");
+fn a_command_run_by_several_roles_lowers_to_all_of_them_and_only_that_command_says_so() {
+    let source = changed(SEVERAL_ROLES, "    Who: Editor or Sales Rep\n    When a slug");
+    let output = parse("roles.bluebook", &source);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    assert!(stdout.contains("\"role\": \"Editor\""), "{stdout}");
+    assert!(stdout.contains("\"Sales Rep\""), "{stdout}");
+    // Draft names two roles; Publish names one and emits as every command always did.
+    assert_eq!(stdout.matches("\"roles\"").count(), 1, "{stdout}");
+}
+
+#[test]
+fn a_role_named_twice_or_an_or_with_nothing_beside_it_is_refused() {
+    let source = changed(SEVERAL_ROLES, "    Who: Editor or Editor\n    When a slug");
+    let line = line_of(&source, "Editor or Editor");
+    let error = refusal("roles_twice.bluebook", &source);
+    assert!(error.contains(&format!("roles_twice.bluebook:{line}:10:")), "{error}");
+    assert!(error.contains("a role is named twice"), "{error}");
+
+    let trailing = changed(SEVERAL_ROLES, "    Who: Editor or\n    When a slug");
+    assert!(refusal("roles_trailing.bluebook", &trailing).contains("an 'or' needs a role after it"));
+}
+
+#[test]
+fn several_roles_survive_the_formatter_and_the_ruby_form() {
+    let source = write(
+        "roles_trip.bluebook",
+        &changed(SEVERAL_ROLES, "    Who: Editor or Sales Rep\n    When a slug"),
+    );
+    let before = run_on("chapter", source.to_str().unwrap());
+    let formatted = run_on("format", source.to_str().unwrap());
+    assert!(String::from_utf8_lossy(&formatted.stdout).contains("Who: Editor or Sales Rep"));
+    let again = write("roles_trip_again.bluebook", &String::from_utf8_lossy(&formatted.stdout));
+    assert_eq!(
+        String::from_utf8_lossy(&before.stdout),
+        String::from_utf8_lossy(&run_on("chapter", again.to_str().unwrap()).stdout)
+    );
+
+    let rendered = run_on("render", source.to_str().unwrap());
+    let text = String::from_utf8_lossy(&rendered.stdout).into_owned();
+    assert!(text.contains("role \"Editor\", \"Sales Rep\""), "{text}");
+    let ruby = write("roles_trip_ruby.bluebook", &text);
+    assert_eq!(
+        String::from_utf8_lossy(&before.stdout),
+        String::from_utf8_lossy(&run_on("chapter", ruby.to_str().unwrap()).stdout)
+    );
 }
 
 #[test]

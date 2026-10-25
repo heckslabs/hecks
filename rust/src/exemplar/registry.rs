@@ -14,6 +14,13 @@ fn tmpl_role_check_host(store: &TmplStore2, caller_role: Option<&str>, caller_ac
     Ok(())
 }
 
+fn tmpl_role_check_any_host(store: &TmplStore2, caller_role: Option<&str>, caller_actor_id: Option<&str>) -> Result<(), crate::kernel::Refusal> {
+    // TMPL:role_check_any BEGIN
+    crate::kernel::check_roles_via(&["TmplRoles"], "TmplCommandName", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
+    // TMPL:role_check_any END
+    Ok(())
+}
+
 struct TmplStore {
     tmpl_target_mod: crate::kernel::InMemoryRepository<i64>,
 }

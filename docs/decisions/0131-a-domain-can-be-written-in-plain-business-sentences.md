@@ -85,7 +85,17 @@ hand-written step definitions, so the readable file and the running system drift
    rule's own sentence), so an example can only mean something the domain declares.
    `.behaviors` tests gained `as "<role>"` and `setup …, as: "<role>"`, binding a caller for the
    dispatch (unchecked when absent, as before), so "only an Editor may publish" is provable.
-9. **An outside party is an `ask`, not an outside fact.** The domain says the question
+9. **A command may be run by several roles, in the language and not only in sentences.**
+   `Who: Customer or Sales Rep` (and `role "Customer", "Sales Rep"` in the Ruby form) lowers to
+   `role` (the first) and a new `roles` key, which the IR carries only for a command that names
+   more than one, so every other command, chapter and golden emits as it did. The Ruby runtime
+   lets a caller through who holds any one of them, and refuses naming them all (`role: A or B,
+   and the caller stated C`); the Rust generator emits `check_roles_via(&["A", "B"], …)` for such
+   a command and `check_role_via` for every other, so single-role output is unchanged. The
+   grammar describes it (`Command.roles`, the `Allow` command, a variadic `role` argument), and
+   the fuzz adversaries and the OIDC manifest read every role. Other readers of `role` (forms,
+   docs, CLI help) show the first.
+10. **An outside party is an `ask`, not an outside fact.** The domain says the question
    (`Then check credit is asked`) and the events that can answer it
    (`Whenever CreditCleared is announced by an order`); the hecksagon says who answers. `needs`
    stays the clock's (`now`, `today`).
@@ -109,9 +119,6 @@ hand-written step definitions, so the readable file and the running system drift
 
 These are deliberate. Each is refused loudly rather than approximated.
 
-- **A command is run by one role.** `Who: Customer or Sales Rep` is refused. `Command.role` is a
-  single string read by the Ruby runtime and the Rust kernel and host, so several roles change
-  the IR and every golden; it needs its own decision.
 - **No sum over a list.** The expression machinery has `size`, `first`, `last` and the
   `all?`/`any?`/`none?` blocks, and no total, so "the order total is $105.00" cannot be said.
   A new node must land in Ruby `Expression`, Rust `Resolver` and `ast_json`, and the kernel.

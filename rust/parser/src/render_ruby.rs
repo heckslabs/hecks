@@ -204,7 +204,10 @@ fn command_text(out: &mut String, command: &ir::Command) -> Result<(), String> {
         ));
     }
     out.push_str(&format!("\n    command {} do\n", string(&command.name)));
-    if let Some(role) = &command.role {
+    if command.roles.len() > 1 {
+        let roles: Vec<String> = command.roles.iter().map(|role| string(role)).collect();
+        out.push_str(&format!("      role {}\n", roles.join(", ")));
+    } else if let Some(role) = &command.role {
         out.push_str(&format!("      role {}\n", string(role)));
     }
     if let Some(goal) = &command.goal {

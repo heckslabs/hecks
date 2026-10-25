@@ -41,7 +41,7 @@ module Hecks
 
       # Every distinct role the scopes demand, sorted; a scope with no role adds none.
       def declared_roles(scopes)
-        roles = scopes.map { |scope| scope["role"] }.compact
+        roles = scopes.flat_map { |scope| scope["roles"] || [scope["role"]] }.compact
         roles.uniq.sort
       end
 
@@ -109,14 +109,17 @@ module Hecks
       #   scope prefix
       # @return [Array<Hash{String => Object}>] one entry per command: `"scope"`
       #   (String), `"verb"` (String), `"role"` (String, `nil` if the command
-      #   declares none)
+      #   declares none), and `"roles"` (every role) when it declares several
       def command_scopes(commands, verb_prefix, scope_prefix)
         commands.map do |command|
-          {
+          entry = {
             "scope" => "#{scope_prefix}.#{Naming.snake(command.hecks_name)}",
             "verb"  => "#{verb_prefix}.#{command.hecks_name}",
             "role"  => command.role
           }
+          # Only a command run by several roles says so, so every other manifest reads as it did.
+          entry["roles"] = command.roles if command.roles.size > 1
+          entry
         end
       end
     end

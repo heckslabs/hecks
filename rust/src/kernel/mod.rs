@@ -45,7 +45,7 @@ pub use reference_lookup::{
 };
 pub use refusal_wording::RefusalSite;
 pub use repository::{
-    check_reference, check_role_via, filter_entries, holds_role_via, row_json, AggregateScan,
+    check_reference, check_role_via, check_roles_via, filter_entries, holds_role_via, row_json, AggregateScan,
     InMemoryRepository, Repository,
 };
 pub use routing::{CommandInvocation, RoutingEnvelope};

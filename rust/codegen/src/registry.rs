@@ -50,6 +50,8 @@ pub struct CommandEntry {
     /// role and reference checks. `commands.rs::emit_command` repeats them in the dispatch fn.
     pub invariant_check_lines: Vec<String>,
     pub role: Option<String>,
+    /// Every role that may run the command, when more than one may; `role` is then the first.
+    pub roles: Vec<String>,
 }
 
 pub struct EntityCommandEntry {
@@ -65,6 +67,8 @@ pub struct EntityCommandEntry {
     /// See `CommandEntry::invariant_check_lines`.
     pub invariant_check_lines: Vec<String>,
     pub role: Option<String>,
+    /// Every role that may run the command, when more than one may; `role` is then the first.
+    pub roles: Vec<String>,
     /// Carried for shape parity with `domain_generator.rb`'s `entity_commands`; unread here.
     pub entity_name: String,
     pub entity_identity_reading: String,
@@ -83,6 +87,8 @@ pub struct NestedEntityCommandEntry {
     pub reference_specs: Vec<ReferenceSpec>,
     pub invariant_check_lines: Vec<String>,
     pub role: Option<String>,
+    /// Every role that may run the command, when more than one may; `role` is then the first.
+    pub roles: Vec<String>,
     pub entity_name: String,
     pub entity_identity_reading: String,
     pub nested_name: String,
@@ -128,11 +134,27 @@ pub struct AggregateEntry {
     pub entities: Vec<EntityIdentityEntry>,
 }
 
+/// The call that refuses a caller who may not run the command: against its one `role`, or, when
+/// `roles` lists several, against all of them at once (any one lets the caller through).
 pub fn emit_role_check(
     exemplar: &Exemplar,
     role: Option<&str>,
+    roles: &[String],
     command_name: &str,
 ) -> Option<String> {
+    if roles.len() > 1 {
+        let listed: Vec<String> = roles.iter().map(|r| naming::ruby_inspect_string(r)).collect();
+        return Some(exemplar.render(
+            "role_check_any",
+            &[
+                ("\"TmplRoles\"", listed.join(", ")),
+                (
+                    "\"TmplCommandName\"",
+                    naming::ruby_inspect_string(command_name),
+                ),
+            ],
+        ));
+    }
     let role = role?;
     Some(exemplar.render(
         "role_check",
@@ -481,7 +503,7 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 emit_argument_gates_literal(
                     &format!("{mod_path}::{}", c.args_struct),
                     &c.invariant_check_lines,
-                    emit_role_check(exemplar, c.role.as_deref(), &c.name),
+                    emit_role_check(exemplar, c.role.as_deref(), &c.roles, &c.name),
                     &c.reference_checks
                         .iter()
                         .map(|check| emit_reference_check(exemplar, check))
@@ -564,7 +586,7 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 emit_argument_gates_literal(
                     &format!("{mod_path}::{}", c.args_struct),
                     &c.invariant_check_lines,
-                    emit_role_check(exemplar, c.role.as_deref(), &c.name),
+                    emit_role_check(exemplar, c.role.as_deref(), &c.roles, &c.name),
                     &c.reference_checks
                         .iter()
                         .map(|check| emit_reference_check(exemplar, check))
@@ -647,7 +669,7 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 emit_argument_gates_literal(
                     &format!("{mod_path}::{}", c.args_struct),
                     &c.invariant_check_lines,
-                    emit_role_check(exemplar, c.role.as_deref(), &c.name),
+                    emit_role_check(exemplar, c.role.as_deref(), &c.roles, &c.name),
                     &c.reference_checks
                         .iter()
                         .map(|check| emit_reference_check(exemplar, check))
@@ -854,6 +876,19 @@ mod tests {
     use super::*;
 
     #[test]
+    fn a_command_with_one_role_checks_that_role_and_one_with_several_checks_any_of_them() {
+        let exemplar = crate::exemplar::Exemplar::load();
+        let one = emit_role_check(&exemplar, Some("Chef"), &[], "AddTopping").unwrap_or_default();
+        assert!(one.contains("check_role_via(Some(\"Chef\"), \"AddTopping\""), "{one}");
+
+        let roles = vec!["Customer".to_string(), "Sales Rep".to_string()];
+        let any = emit_role_check(&exemplar, Some("Customer"), &roles, "Open").unwrap_or_default();
+        assert!(any.contains("check_roles_via(&[\"Customer\", \"Sales Rep\"], \"Open\""), "{any}");
+
+        assert!(emit_role_check(&exemplar, None, &[], "Open").is_none());
+    }
+
+    #[test]
     fn generated_router_separates_routes_and_supports_compound_create_facts() {
         let aggregate = AggregateEntry {
             name: "SafeDepositBox".to_string(),
@@ -876,6 +911,7 @@ mod tests {
                     attributes: Vec::new(),
                     invariant_check_lines: Vec::new(),
                     role: None,
+                    roles: Vec::new(),
                 },
                 CommandEntry {
                     verb: "Banking::SafeDepositBox.Close".to_string(),
@@ -890,6 +926,7 @@ mod tests {
                     attributes: Vec::new(),
                     invariant_check_lines: Vec::new(),
                     role: None,
+                    roles: Vec::new(),
                 },
             ],
             entity_commands: vec![EntityCommandEntry {
@@ -903,6 +940,7 @@ mod tests {
                 attributes: Vec::new(),
                 invariant_check_lines: Vec::new(),
                 role: None,
+                roles: Vec::new(),
                 entity_name: "Visit".to_string(),
                 entity_identity_reading: "date, sequence".to_string(),
             }],
@@ -975,6 +1013,7 @@ mod tests {
                 attributes: vec!["priority".to_string()],
                 invariant_check_lines: Vec::new(),
                 role: None,
+                roles: Vec::new(),
             }],
             entity_commands: Vec::new(),
             nested_entity_commands: Vec::new(),
@@ -1014,6 +1053,7 @@ mod tests {
                 attributes: Vec::new(),
                 invariant_check_lines: Vec::new(),
                 role: None,
+                roles: Vec::new(),
             }],
             entity_commands: Vec::new(),
             nested_entity_commands: Vec::new(),

@@ -3118,7 +3118,7 @@ pub static ARGUMENTS: &[ArgumentRow] = &[
         pair_value_fills: "",
         pairs_shape: "",
         status: "admitted",
-        variadic: "",
+        variadic: "true",
         minimum: "",
     },
     ArgumentRow {

@@ -313,7 +313,9 @@ fn command_text(out: &mut String, command: &ir::Command, noun: &str) -> Result<(
     if let Some(goal) = &command.goal {
         out.push_str(&format!("    Goal: {goal}\n"));
     }
-    if let Some(role) = &command.role {
+    if command.roles.len() > 1 {
+        out.push_str(&format!("    Who: {}\n", command.roles.join(" or ")));
+    } else if let Some(role) = &command.role {
         out.push_str(&format!("    Who: {role}\n"));
     }
     if let Some(reference) = &command.references {
