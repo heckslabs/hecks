@@ -15,10 +15,11 @@ WHERE, and neither file is allowed to say the other's part.
 
 ## The folder convention
 
-A domain's own `bluebook/` folder holds exactly three files with three
-different jobs — `.bluebook` (what the domain IS), `.hecksagon` (how
+A domain's own `bluebook/` folder holds three kinds of file with three
+different jobs: `.bluebook` (what the domain IS), `.hecksagon` (how
 THIS deployment wires it), `.world` (what values THIS deployment
-uses) — and nothing else:
+uses). It can carry more beside them (`.behaviors` tests, `translations/`), and
+`.adapter` and `.port` files are languages of their own:
 
 ```ruby skip
 examples/pizzas/
@@ -26,7 +27,9 @@ examples/pizzas/
     pizzas.bluebook        the domain
     pizzas.hecksagon       the wiring
     pizzas.world           the per-deployment values
-  data/
+    pizzas.behaviors       the domain's own tests
+    translations/          era-to-era translations
+  adapters/                a driving adapter's code (the payment webhook)
 ```
 
 Ports and adapters ship with the library instead, beside their own
@@ -37,7 +40,7 @@ lib/hecks/ports/            the PORT — the how-verb and the signal
 lib/hecks/adapters/driven/
   sqlite.adapter                 the DECLARATION
   sqlite.rb                      the IMPLEMENTATION
-  memory.* heki.* postgres.* folder.* prism.*
+  memory.* heki.* postgres.* folder.* prism.* ... (every driven adapter)
 ```
 
 A project bringing its own port or adapter puts them in a `ports/` or
@@ -139,12 +142,12 @@ order.toppings.map(&:to_h)   # => [{ name: "Basil", amount: 3 }]
 
 This page binds `Order` to Memory above because that is what it needs
 to run without a database behind it. The exact same shape, unchanged,
-already ships against a real one: `pizzas.hecksagon` itself binds
-`Order` with `Pizzas::Order.persisted_by("PostgresEra")`, one line —
+already ships against a real one: `examples/directory/bluebook/directory.hecksagon`
+binds `Member` with `Directory::Member.persisted_by("PostgresEra")`, one line,
 quoted here, not run, since this page does not require a database:
 
 ```ruby skip
-Pizzas::Order.persisted_by("PostgresEra")
+Directory::Member.persisted_by("PostgresEra")
 ```
 
 That is what "decided outside the domain" means in practice, not in
@@ -242,18 +245,18 @@ runtime.registry.world("Pizzas").for_binding("persisted_by", "Memory")  # => { a
 
 Memory needs nothing beyond its own name, which is why that block
 above is one bare word. A real deployment binding to Postgres instead
-carries the values Postgres actually declares — `database` and `role`,
-the two fields `postgres.adapter` names, though a deployment only ever
+carries the values Postgres actually declares — `database` and `schema`
+for `postgres.adapter` (`postgres_era.adapter` adds `role` and `allow_superuser`), though a deployment only ever
 supplies what it actually uses. This is not hypothetical for Pizzas
-either — this is `examples/pizzas/bluebook/pizzas.world`, quoted
-verbatim, not run here (`.world` files are never loaded through the
+either: this is `examples/directory/bluebook/directory.world`, quoted
+near-verbatim (its comments trimmed), not run here (`.world` files are never loaded through the
 doctest boot path, only through a real `Hecks.boot`):
 
 ```ruby skip
-Hecks.world "Pizzas" do
+Hecks.world "Directory" do
   realm "Examples"
   persisted_by("PostgresEra") do
-    database "postgres://localhost/hecks_pizzas"
+    database "postgres://localhost/hecks_directory"
     allow_superuser true
   end
 end
@@ -431,7 +434,7 @@ deployed_to("AwsBox") do
 end
 ```
 
-`hecks deploy project` writes `rds.yaml`, `box.yaml`, `Caddyfile`,
+`hecks deploy recipe.project` writes `rds.yaml`, `box.yaml`, `Caddyfile`,
 `services.json`, `render-compose.sh`, `fetch-secrets.sh`, `deploy-box.sh` and a
 `Makefile`. Secrets are named, never written down: the box resolves them when it
 deploys. A world with no `containers` is refused with an example.
@@ -598,7 +601,7 @@ deployed_to("AwsSharedDatabase") do
 end
 ```
 
-`hecks deploy project` writes `rds.yaml`, a `Makefile` (`make stack VPC=... PRIVATE_SUBNETS=...`) and a README. The
+`hecks deploy recipe.project` writes `rds.yaml`, a `Makefile` (`make stack VPC=... PRIVATE_SUBNETS=...`) and a README. The
 stack makes no database of its own; each site's rule on its security group is that site's box stack's, and the bastion's
 is its own resource so an update cannot revoke a site's rule.
 
@@ -682,7 +685,7 @@ failed, or `Error 24` when it all passed. A project that does not set `hosting_s
 deploys through `box_roll.run` as well; it has no smoke script, so its roll stays `rolled` with
 `smoke skipped: no smoke script`.
 
-### The last three scripts: the bluebook report, previews and a companion roll
+### The remaining scripts: the bluebook report, previews and a companion roll
 
 Three scripts a project keeps by hand also run as commands, each found by name beneath the
 project (`script=<path>` names one when there are several) and each recorded in the Hecks database:
@@ -816,7 +819,7 @@ deployed_to("Vercel") do
 end
 ```
 
-`hecks deploy project` writes `vercel.json`, `.vercelignore`, `deploy-vercel.sh`
+`hecks deploy recipe.project` writes `vercel.json`, `.vercelignore`, `deploy-vercel.sh`
 and a `Makefile`. The script reads each named variable from the environment
 (`op run --env-file=.env.tpl -- make deploy`) and passes it to Vercel on stdin
 as a sensitive variable, so no value reaches a file or a command line. The host
@@ -826,7 +829,7 @@ the ADR's open items.
 A world can declare more than one deploy kind, so a small domain can start on
 Vercel and keep an `AwsBox` block beside it. The persistence adapter, not the
 deploy kind, owns the data (Postgres by URL), so the move is a deploy choice.
-`hecks deploy project` writes each target under `<out>/<adapter>/`;
+`hecks deploy recipe.project` writes each target under `<out>/<adapter>/`;
 `--target=Vercel` writes only that one into `<out>`.
 
 ### Project-wide defaults
@@ -906,6 +909,6 @@ answer `persistence`, and they genuinely need different things —
 `database`, in Postgres's case; nothing at all, in Memory's. A
 `.world` block is checked against exactly what the named adapter
 declares, so a value it does not know is refused at boot, not silently
-dropped. Get a field name wrong in a real `pizzas.world` and you find
+dropped. Get a field name wrong in a real `.world` (`directory.world`, say) and you find
 out before the kitchen ever opens, not the first time a customer tries
 to buy a pizza against it.

@@ -436,7 +436,7 @@ codegen has to fill in on its own, the same place Ruby fills it.
 
 ## Dispatch, in the order it actually runs
 
-Seventeen steps, read by `Runtime::CommandInterpreter::DISPATCH_ORDER`
+The steps, read by `Runtime::CommandInterpreter::DISPATCH_ORDER`
 off the language's own declared vocabulary (and projected into the Rust
 kernel as `AggregateStep::ORDER`, which `kernel/dispatch.rs`'s `dispatch()`
 loops over) — this is not a summary, it is the literal list:
