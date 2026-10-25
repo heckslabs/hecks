@@ -96,19 +96,22 @@ module Hecks
         def dry_run(step, hypothetical, args)
           before = state_snapshot
           entry  = { verb: hypothetical }
-          attempt_dry_run(entry, step, hypothetical, args)
+          raised = attempt_dry_run(entry, step, hypothetical, args)
           after = state_snapshot
           @dry_runs << entry
-          @dry_run_traces << entry.merge(before: before, after: after, validation: validation_of(step, hypothetical, args))
+          @dry_run_traces << entry.merge(before: before, after: after, raised: raised,
+                                         validation: validation_of(step, hypothetical, args))
         end
 
         # What `validate` says of the same hypothetical, kept beside the trace: whether it would be
-        # accepted, the stage and text of its first refusal, and every refusal as `[kind, stage,
-        # attribute, path, rule, class]`.
+        # accepted, the stage, text and offender of its first refusal, and every refusal as `[kind,
+        # stage, attribute, path, rule, class]`. It is asked through `validate_facts`, which reads
+        # `to` and `with` as facts the way `dry_run?` does; `validate` would route them, and so
+        # answer a different command.
         def validation_of(step, hypothetical, args)
-          result = Replay.as_step_caller(step) { @runtime.validate(hypothetical, args) }
+          result = Replay.as_step_caller(step) { @runtime.validate_facts(hypothetical, **args) }
           first = result.refusals.first
-          { ok: result.ok?, first_stage: first&.stage, first_message: first&.message,
+          { ok: result.ok?, first_stage: first&.stage, first_message: first&.message, first_offender: offender_of(first),
             reasons: result.refusals.map { |refusal| reason_of(refusal) } }
         rescue Runtime::WiringError
           nil
@@ -143,11 +146,23 @@ module Hecks
 
         def state_snapshot = { instances: Replay.snapshot_instances(@runtime), events: @runtime.events.size }
 
+        # Runs the dry run into `entry`, and answers the offender of what it raised, if anything.
         def attempt_dry_run(entry, step, hypothetical, args)
           Replay.as_step_caller(step) { @runtime.dry_run?(hypothetical, **args) }
           entry[:ok] = true
+          nil
         rescue *Runtime::DOMAIN_REFUSALS, Bluebook::Expression::EvaluationError => e
-          entry.merge!(ok: false, error: e.message)
+          entry[:ok] = false
+          entry[:error] = e.message
+          offender_of(e)
+        end
+
+        # A refusal's class and the attribute it is about: what `validate` keeps of a refusal that
+        # names several offenders when it splits it into one refusal each.
+        def offender_of(refusal)
+          return unless refusal
+
+          [refusal.class.name, refusal.respond_to?(:attribute) ? refusal.attribute : nil]
         end
       end
     end

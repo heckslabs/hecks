@@ -15,7 +15,7 @@ RSpec.describe Hecks::Adapters::PostgresEra, :io do
   SPEC_DB = "hecks_adapter_spec".freeze
 
   # Stand-ins for a compiled query, its clauses and its ordering, as the adapter reads them.
-  PgEraQuery = Struct.new(:wheres, :order_by, :limit, :offset, :null_semantics)
+  PgEraQuery = Struct.new(:wheres, :order_by, :limit, :offset, :null_semantics, :cursor)
   PgEraClause = Struct.new(:field, :op, :value)
   PgEraOrder = Struct.new(:field, :direction)
 
@@ -47,7 +47,7 @@ RSpec.describe Hecks::Adapters::PostgresEra, :io do
   end
 
   def declared_query(clauses, order: nil, limit: nil, offset: nil)
-    PgEraQuery.new(clauses, order && PgEraOrder.new(*order), limit, offset, nil)
+    PgEraQuery.new(clauses, order && PgEraOrder.new(*order), limit, offset, nil, nil)
   end
 
   def declared_where(field, operator, value, **)
