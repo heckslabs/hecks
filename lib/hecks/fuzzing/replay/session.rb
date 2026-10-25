@@ -1,5 +1,6 @@
 require_relative "observation"
 require_relative "read_only_steps"
+require_relative "validation_reports"
 require_relative "refusal_trace"
 
 module Hecks
@@ -12,6 +13,7 @@ module Hecks
       # which `take_marks` and `dispatch` run them is part of what they mean.
       class Session
         include ReadOnlySteps
+        include ValidationReports
         include Observation
 
         # What is read before a dispatch so its own effects can be sliced out afterwards.

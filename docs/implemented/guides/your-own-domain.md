@@ -232,7 +232,7 @@ Then turn the domain into a deployable stack. This writes files and
 touches nothing in AWS:
 
 ```sh
-bundle exec hecks deploy recipe.project "$HOME/lending" --out="$HOME/lending-deploy"
+bundle exec hecks deploy recipe.project! domain.value="$HOME/lending" out.value="$HOME/lending-deploy"
 ```
 
 It writes `template.yaml`, `samconfig.toml`, `bastion.yaml` and a

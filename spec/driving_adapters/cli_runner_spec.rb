@@ -293,9 +293,8 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
   end
 
   describe ".usage" do
-    # Only the declarations are needed, so a registry read through `Runtime::Declarations`, as
-    # what `Hecks.describe` answers is read, serves as the runtime.
-    let(:described) { Struct.new(:registry) { include Hecks::Runtime::Declarations }.new(runtime.registry) }
+    # Only the declarations are needed, so what `Hecks.describe` answers serves as the runtime.
+    let(:described) { Hecks::Runtime::Loader::Described.new("(spec)") { runtime.registry } }
 
     def usage(*argv) = described_class.usage(runtime: described, argv: argv, program: "hecks run")
 

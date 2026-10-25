@@ -115,6 +115,19 @@ RSpec.describe Hecks::Runtime::Dispatcher, "#validate" do
     expect(inputs.reject { |more| agrees?(more) }).to be_empty
   end
 
+  def agrees_on_facts?(more)
+    facts = { tag: { value: "v1" }, flow: { value: 3 }, size: { value: 2 }, **more }
+    result = dispatcher.validate_facts("Plumbed::Valve.Fit", **facts)
+    refusal = raised("Plumbed::Valve.Fit", **facts)
+    result.ok? == refusal.nil? && result.refusals.first&.message == refusal&.message
+  end
+
+  it "asks of to and with as facts through validate_facts, the question dry_run? is asked" do
+    inputs = [{ with: nil }, { with: { flow: { value: 1 } } }, { to: "v1" }, { flow: { value: 0 } }]
+
+    expect(inputs.reject { |more| agrees_on_facts?(more) }).to be_empty
+  end
+
   it "leaves dry_run? raising its first refusal" do
     expect { dispatcher.dry_run?("Plumbed::Valve.Fit", tag: { value: "v1" }, bogus: 1) }
       .to raise_error(Hecks::Runtime::UnknownArgument)
