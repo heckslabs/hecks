@@ -57,6 +57,7 @@ fn run(args: &[String]) -> Result<(), RunError> {
     match args.first().map(String::as_str) {
         Some("chapter") => run_chapter(&args[1..]),
         Some("render") => run_render(&args[1..]),
+        Some("complete") => run_complete(&args[1..]),
         Some("resolve") => run_resolve(&args[1..]),
         Some("adapter") => run_adapter(&args[1..]),
         Some("world") => run_world(&args[1..]),
@@ -126,6 +127,47 @@ fn run_render(args: &[String]) -> Result<(), RunError> {
     let text = render_ruby::ruby_form(&bluebook)
         .map_err(|why| RunError::Parse(diag::Diagnostic::new(first, 1, why)))?;
     print!("{text}");
+    Ok(())
+}
+
+/// `hecks-parse complete <file> --line N --col N`: prints, as JSON, the sentences an author may
+/// write at that cursor of a file written as sentences. Both numbers are 1-based.
+fn run_complete(args: &[String]) -> Result<(), RunError> {
+    let usage = || RunError::Usage("hecks-parse complete <file> --line N --col N".to_string());
+    let mut path: Option<&String> = None;
+    let mut line: Option<usize> = None;
+    let mut col: Option<usize> = None;
+    let mut iter = args.iter();
+    while let Some(arg) = iter.next() {
+        match arg.as_str() {
+            "--line" => line = iter.next().and_then(|value| value.parse().ok()),
+            "--col" => col = iter.next().and_then(|value| value.parse().ok()),
+            _ => path = Some(arg),
+        }
+    }
+    let (Some(path), Some(line), Some(col)) = (path, line, col) else {
+        return Err(usage());
+    };
+    let source = fs::read_to_string(path)
+        .map_err(|e| RunError::Usage(format!("could not read '{path}': {e}")))?;
+
+    let found = sentence::complete::complete(&source, line, col);
+    let items: Vec<emit::JsonValue> = found
+        .items
+        .iter()
+        .map(|item| {
+            emit::JsonValue::Object(vec![
+                ("label".to_string(), emit::JsonValue::str(item.label.clone())),
+                ("insert".to_string(), emit::JsonValue::str(item.insert.clone())),
+                ("snippet".to_string(), emit::JsonValue::str(item.snippet.clone())),
+            ])
+        })
+        .collect();
+    let value = emit::JsonValue::Object(vec![
+        ("context".to_string(), emit::JsonValue::str(found.context)),
+        ("items".to_string(), emit::JsonValue::Array(items)),
+    ]);
+    println!("{}", emit::write(&value));
     Ok(())
 }
 

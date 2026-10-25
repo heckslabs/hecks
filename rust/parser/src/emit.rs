@@ -18,7 +18,8 @@ pub enum JsonValue {
 }
 
 impl JsonValue {
-    fn str(s: impl Into<String>) -> Self {
+    /// A JSON string.
+    pub fn str(s: impl Into<String>) -> Self {
         Self::String(s.into())
     }
 
