@@ -3126,6 +3126,23 @@ RSpec.describe "the DSL surface" do
       expect(occurrences_plugin.plugin_path).to eq(File.join(__dir__, "occurrences.wasm"))
     end
 
+    def set_transforming_adapter
+      build_adapter do
+        port "persistence"
+        provides "set_transform"
+      end
+    end
+
+    it "provides names a capability the adapter answers for, and no other", :aggregate_failures do
+      expect(set_transforming_adapter.capabilities).to eq(["set_transform"])
+      expect(set_transforming_adapter).to be_provides(:set_transform)
+      expect(build_adapter { port "post" }).not_to be_provides("set_transform")
+    end
+
+    it "provides refuses a capability that is not a snake-case name" do
+      expect { build_adapter { provides "Set Transform" } }.to raise_error(Hecks::Bluebook::DSL::Malformed, /provides|Capability/)
+    end
+
     it "is a plugin only when it runs a module", :aggregate_failures do
       expect(occurrences_plugin).to be_plugin
       expect(build_adapter { port "post" }).not_to be_plugin

@@ -431,4 +431,6 @@ pub struct Adapter {
     pub answers: Vec<String>,
     // A plugin's wasm module, beside its `.adapter` file.
     pub runs: Option<String>,
+    // The capabilities the adapter provides beyond its port's contract, in declaration order.
+    pub provides: Vec<String>,
 }

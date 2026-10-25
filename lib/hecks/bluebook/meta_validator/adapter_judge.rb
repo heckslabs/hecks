@@ -41,6 +41,7 @@ module Hecks
           add_fields
           add_all("AddSecret", @adapter.secrets)
           add_all("AnswerQuery", @adapter.answered_queries)
+          add_all("Provide", @adapter.capabilities)
         end
 
         # Offers one `AddField` per field, each with its declared default when it has one.

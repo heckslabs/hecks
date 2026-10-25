@@ -2,6 +2,8 @@ Hecks.adapter "Postgres" do
   port  "persistence"
   field :database
   field :schema
+  # Rewrites every row of an aggregate in one statement.
+  provides "set_transform"
 end
 
 Hecks.adapter "PostgresProjection" do

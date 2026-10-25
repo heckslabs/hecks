@@ -18,7 +18,10 @@ module Hecks
     # A plugin adapter instead `runs` a `.wasm` module beside its `.adapter` file (`source_dir`)
     # and names the queries it `answers` (`"Chapter::Aggregate.Query"`); it needs no port, and the
     # runtime binds each query it answers without a hecksagon line.
-    Adapter = Struct.new(:name, :port, :fields, :secrets, :defaults, :answers, :runs, :source_dir,
+    #
+    # `provides` names what the adapter can do beyond its port's contract, such as
+    # `"set_transform"`; a caller asks before relying on it.
+    Adapter = Struct.new(:name, :port, :fields, :secrets, :defaults, :answers, :runs, :provides, :source_dir,
                          keyword_init: true) do
       def declares?(field) = all_fields.include?(field.to_sym)
 
@@ -29,6 +32,13 @@ module Hecks
 
       # @return [Array<String>] the qualified queries this adapter answers, empty when none
       def answered_queries = answers || []
+
+      # @return [Array<String>] the capabilities this adapter provides, empty when none
+      def capabilities = provides || []
+
+      # @param capability [String, Symbol] a capability's name, such as `"set_transform"`
+      # @return [Boolean] whether this adapter declares `provides` for it
+      def provides?(capability) = capabilities.include?(capability.to_s)
 
       # @return [Boolean] whether this adapter is a wasm plugin
       def plugin? = !runs.nil?

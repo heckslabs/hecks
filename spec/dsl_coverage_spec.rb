@@ -12,9 +12,10 @@ RSpec.describe "the DSL surface is fully covered" do
       Hecks.singleton_class,
       # `boot_files` is Loader.boot_files's explicit-file sibling of `boot`; `describe` is its
       # declarations-only sibling and `boot_described` finishes a boot from what `describe`
-      # loaded; `behaviors` is opt-in but becomes a real singleton method once anything requires it.
+      # loaded; `behaviors` is opt-in but becomes a real singleton method once anything requires it;
+      # `bind_runtime` installs the driving adapter over a dispatcher built by hand.
       %i[boot boot_files describe boot_described with_registry bluebook hecksagon port adapter world
-         data_translation current_registry as_caller behaviors]
+         data_translation current_registry as_caller behaviors bind_runtime]
     ],
     "BluebookBuilder"             => [
       Hecks::Bluebook::DSL::BluebookBuilder,
@@ -62,7 +63,7 @@ RSpec.describe "the DSL surface is fully covered" do
     ],
     "AdapterBuilder"              => [
       Hecks::Bluebook::DSL::AdapterBuilder,
-      %i[port field secret answers_query runs]
+      %i[port field secret answers_query runs provides]
     ],
     "WorldBuilder"                => [
       Hecks::Bluebook::DSL::WorldBuilder,

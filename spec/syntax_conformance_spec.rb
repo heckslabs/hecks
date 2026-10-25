@@ -91,6 +91,7 @@ RSpec.describe "the declared syntax" do
       with_registry:    "the runtime facade, not a declaration",
       current_registry: "the runtime facade, not a declaration",
       as_caller:        "the runtime facade, not a declaration",
+      bind_runtime:     "the runtime facade, not a declaration — installs the driving adapter over a dispatcher",
       # `behaviors` (lib/hecks/behaviors.rb) is opt-in and never collected
       # into a domain Registry, so it carries no syntax row of its own.
       behaviors:        "the behaviors-suite entry point, not a bluebook declaration"
