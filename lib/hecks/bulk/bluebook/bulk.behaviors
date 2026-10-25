@@ -1,0 +1,27 @@
+Hecks.behaviors "Bulk" do
+  vision "A bulk run names a command and a query in full, picks one of two modes, and is declined when its command cannot be sent."
+
+  loads "bulk.bluebook", "../../framework/bluebook/governance.bluebook", "bulk.hecksagon", "bulk.ports.hecksagon",
+        "adapters/row_sweeper.adapter"
+
+  test "Request refuses a mode that is neither best_effort nor all_or_nothing" do
+    tests "Request", on: "BulkRun"
+    input run: { value: "b1" }, verb: { value: "Shop::Order.Cancel" }, over: { value: "Shop::Order.Open" },
+          mode: { value: "eventually" }
+    expect refused: "Mode admits"
+  end
+
+  test "Request refuses a command that is not fully qualified" do
+    tests "Request", on: "BulkRun"
+    input run: { value: "b2" }, verb: { value: "Cancel" }, over: { value: "Shop::Order.Open" },
+          mode: { value: "best_effort" }
+    expect refused: "must match"
+  end
+
+  test "Request declines a run whose command no loaded chapter declares" do
+    tests "Request", on: "BulkRun"
+    input run: { value: "b3" }, verb: { value: "Shop::Order.Cancel" }, over: { value: "Shop::Order.Open" },
+          mode: { value: "best_effort" }
+    expect status: "declined"
+  end
+end
