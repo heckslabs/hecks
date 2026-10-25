@@ -38,6 +38,7 @@ struct LifecycleSpec {
     field: String,
     default: String,
     transitions: Vec<Transition>,
+    marks: Vec<(String, Vec<String>)>,
 }
 
 /// A field a sentence names, with where it named it.
@@ -64,11 +65,11 @@ struct CommandSpec {
 }
 
 /// A condition read from a rule, a given or a where.
-struct Cond {
-    canonical: String,
+pub(super) struct Cond {
+    pub canonical: String,
     /// The field the condition is about; none for a condition written as an expression.
-    field: Option<FieldUse>,
-    value: Option<String>,
+    pub field: Option<FieldUse>,
+    pub value: Option<String>,
 }
 
 /// What a policy does when its event is announced.
@@ -130,6 +131,17 @@ impl Parser<'_> {
                     chapter.classification = Some(kind);
                 }
                 Step::Phrase(m) if m.id == "namespace" => chapter.namespace = Some(m.text_of("name")),
+                Step::Phrase(m) if m.id == "version" => chapter.version = Some(m.text_of("version")),
+                Step::Phrase(m) if m.id == "attaches" => {
+                    chapter.attaches_to = m.capture("contexts").items.iter().map(|item| camel(item)).collect();
+                }
+                Step::Phrase(m) if m.id == "provides" => {
+                    let capability = m.text_of("capability");
+                    let mut rows = Scope::inside(m.indent);
+                    while let Some(Step::Phrase(row)) = self.step(&mut rows, "Provides", false)? {
+                        chapter.provisions_push(&capability, &row);
+                    }
+                }
                 Step::Phrase(m) => return Err(self.unmeant(&m)),
             }
         }
@@ -144,6 +156,10 @@ impl Parser<'_> {
                     chapter.aggregates.push(aggregate);
                 }
                 Step::Phrase(m) if m.id == "policy" => policies.push(self.policy(&m)?),
+                Step::Phrase(m) if m.id == "report" => {
+                    let model = self.report(&m)?;
+                    chapter.read_models.push(model);
+                }
                 Step::Phrase(m) => return Err(self.unmeant(&m)),
                 Step::Prose { .. } => {}
             }
@@ -324,6 +340,7 @@ impl Parser<'_> {
             checks: Vec::new(),
         };
         let mut scope = Scope::inside(header.indent);
+        let mut entities: Vec<(Matched, usize)> = Vec::new();
         while let Some(step) = self.step(&mut scope, "Aggregate", true)? {
             match step {
                 Step::Prose { text } => st.agg.description = Some(text),
@@ -336,11 +353,54 @@ impl Parser<'_> {
                     "lifecycle" => self.lifecycle(&m, &mut st)?,
                     "command" => self.command(&m, &mut st)?,
                     "query" => self.query(&m, &mut st)?,
+                    "aggregate_rule" | "precondition" => {
+                        let cond = self.condition(&m)?;
+                        st.checks.extend(cond.field);
+                        let given = ir::Given {
+                            description: Some(m.text_of("description")),
+                            canonical: cond.canonical,
+                        };
+                        if m.id == "precondition" {
+                            st.agg.preconditions.push(given);
+                        } else {
+                            st.agg.invariants.push(given);
+                        }
+                    }
+                    "projected" => st.agg.projected_fields.push(ir::ProjectedField {
+                        name: snake(&m.text_of("name")),
+                        reference: snake(&m.text_of("reference")),
+                        remote_field: snake(&m.text_of("remote")),
+                    }),
+                    "entity" => {
+                        // Read once the aggregate's own blocks are, so its identity can name their value objects.
+                        let from = self.pos;
+                        while self.lines.get(self.pos).is_some_and(|line| line.indent > m.indent) {
+                            self.pos += 1;
+                        }
+                        entities.push((m, from));
+                    }
                     _ => return Err(self.unmeant(&m)),
                 },
             }
         }
+        self.entities_of(&mut st, entities)?;
         self.finish(st, header)
+    }
+
+    /// Reads the entity blocks an aggregate skipped over, with its value objects in reach.
+    fn entities_of(&mut self, st: &mut AggState, entities: Vec<(Matched, usize)>) -> ParseResult<()> {
+        let resume = self.pos;
+        for (m, from) in entities {
+            self.pos = from;
+            let outer_before = self.outer.len();
+            self.outer.extend(st.agg.value_objects.iter().cloned());
+            let inner = self.aggregate(&m);
+            self.outer.truncate(outer_before);
+            let entity = super::entity::into_entity(inner?).map_err(|refused| self.error(m.line, m.base_col, refused))?;
+            st.agg.entities.push(entity);
+        }
+        self.pos = resume;
+        Ok(())
     }
 
     /// Refuses a sentence about some other aggregate than the one it stands in.
@@ -542,10 +602,15 @@ impl Parser<'_> {
             field: snake(&header.text_of("field")),
             default: header.text_of("state"),
             transitions: Vec::new(),
+            marks: Vec::new(),
         };
         let mut scope = Scope::inside(header.indent);
         while let Some(step) = self.step(&mut scope, "Lifecycle", false)? {
             let Step::Phrase(m) = step else { continue };
+            if m.id == "marks" {
+                spec.marks.push((m.text_of("mark"), m.capture("states").items));
+                continue;
+            }
             if m.id != "transition" {
                 return Err(self.unmeant(&m));
             }
@@ -713,7 +778,7 @@ impl Parser<'_> {
     }
 
     /// Reads the condition a rule, a given or a where carries in its `condition` slot.
-    fn condition(&self, m: &Matched) -> ParseResult<Cond> {
+    pub(super) fn condition(&self, m: &Matched) -> ParseResult<Cond> {
         let text = m.text_of("condition");
         let base = m.col_of("condition");
         match self.match_text("Condition", &text, base) {
@@ -813,7 +878,7 @@ impl Parser<'_> {
                     found.line,
                     &st.agg.name,
                     field,
-                    &st.agg.value_objects,
+                    &[self.outer.clone(), st.agg.value_objects.clone()].concat(),
                     &st.agg.attributes,
                 )
                 .map_err(|refused| Diagnostic::new(self.file, found.line, refused.message).with_column(found.col))?;
@@ -824,6 +889,7 @@ impl Parser<'_> {
         st.agg.commands = commands;
         self.lifecycle_of(&mut st)?;
         let mut in_scope: Vec<String> = st.agg.attributes.iter().map(|a| a.name.clone()).collect();
+        in_scope.extend(st.agg.projected_fields.iter().map(|field| field.name.clone()));
         if let Some(lifecycle) = &st.agg.lifecycle {
             in_scope.push(lifecycle.field.clone());
         }
@@ -911,6 +977,7 @@ impl Parser<'_> {
         let mut lifecycle = ir::Lifecycle {
             field: spec.field,
             default: spec.default,
+            marks: spec.marks,
             ..Default::default()
         };
         for t in spec.transitions {
@@ -946,6 +1013,17 @@ fn optional_argument(written: &str, fields: &[String]) -> (String, bool) {
     written
         .strip_prefix("optional_")
         .map_or_else(|| (written.to_string(), false), |name| (name.to_string(), true))
+}
+
+impl ir::Bluebook {
+    /// Adds the capability row a `key is Verb` line under `It provides …:` says.
+    fn provisions_push(&mut self, capability: &str, row: &Matched) {
+        self.provides.push(ir::Provision {
+            capability: capability.to_string(),
+            key: row.text_of("key"),
+            verb: row.text_of("verb"),
+        });
+    }
 }
 
 /// What the words of a type say beyond the type: a list, or a link to another aggregate.

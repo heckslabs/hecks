@@ -8,6 +8,7 @@
 /// The sentences legal at a cursor, for editors.
 pub mod complete;
 mod changes;
+mod entity;
 /// An examples file compiled to the `.behaviors` text that runs it.
 pub mod examples;
 /// A parsed chapter written back out as canonical sentences.
@@ -16,6 +17,7 @@ mod lower;
 mod names;
 mod options;
 mod pattern;
+mod report;
 mod token;
 
 use crate::diag::{Diagnostic, ParseResult};
@@ -57,6 +59,8 @@ pub fn parse_chapter(
             None => merged = Some(parsed),
             Some(chapter) => {
                 chapter.aggregates.extend(parsed.aggregates);
+                chapter.policies.extend(parsed.policies);
+                chapter.read_models.extend(parsed.read_models);
                 if chapter.vision.is_none() {
                     chapter.vision = parsed.vision;
                 }
@@ -209,6 +213,8 @@ pub(super) struct Parser<'a> {
     pos: usize,
     /// Every value object the file declares, in any aggregate, for a type that names another's.
     types: Vec<String>,
+    /// The value objects of the aggregates an entity being read stands inside.
+    outer: Vec<ir::ValueObject>,
 }
 
 /// The 1-based column of byte `offset` in `text`, which itself starts at column `base`.
@@ -228,6 +234,7 @@ fn context_label(context: &str) -> &'static str {
         "Command" => "a command",
         "Policy" => "a policy",
         "Query" => "a query",
+        "Report" => "a report",
         "Condition" => "a condition",
         "ExamplesFile" => "the top of an examples file",
         "Examples" => "an examples file",
@@ -247,15 +254,16 @@ impl<'a> Parser<'a> {
             lines,
             pos: 0,
             types: Vec::new(),
+            outer: Vec::new(),
         }
     }
 
-    /// The names of the value objects any aggregate of the file declares.
+    /// The names of the value objects and entities any aggregate of the file declares.
     fn declared_types(&self) -> Vec<String> {
         self.lines
             .iter()
             .filter_map(|line| self.match_text("Aggregate", &line.text, 1).ok())
-            .filter(|(phrase, _)| matches!(phrase.row.id, "value_object" | "value_object_with" | "closed_set" | "value_fields"))
+            .filter(|(phrase, _)| matches!(phrase.row.id, "value_object" | "value_object_with" | "closed_set" | "value_fields" | "entity"))
             .map(|(_, found)| names::camel(found.get("name").map_or("", |capture| capture.value.as_str())))
             .collect()
     }

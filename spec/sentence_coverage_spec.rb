@@ -15,18 +15,15 @@ RSpec.describe "the sentence form against the whole corpus", :io do
 
   # What the sentence form has no phrase for yet, as the regexp its refusal matches.
   UNSAID = [
-    /no phrase for entities/,
-    /no phrase for read models/,
     /no phrase for the closed set/,
-    /no phrase for provided capabilities/,
     /no phrase for process managers/,
-    /no phrase for projected fields/,
-    /no phrase for a version/,
-    /no phrase for aggregate invariants/,
+    /no phrase for the options on attribute/,
+    /no phrase for the paging and access options in report/,
     /no phrase for the options on (policy|query)/,
     /no phrase for a \w+ comparison in query/,
     /no phrase for that kind of mutation on command/,
-    /names no aggregate/
+    /names no aggregate/,
+    /names no command \w+ declares/
   ].freeze
 
   def self.name_of(path) = File.read(path)[/Hecks\.bluebook\s+"([^"]+)"/, 1]
