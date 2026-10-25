@@ -20,7 +20,9 @@ module Hecks
         # Checks that `validate` and `dry_run?` agree about every dry-run step: both accept it or
         # both refuse it, and the first refusal `validate` reports is the one `dry_run?` raised. A
         # caller who lacks the role is told only that by `validate` (the role is checked first), so
-        # a first refusal in the role stage is not held to what `dry_run?` raised.
+        # a first refusal in the role stage is not held to what `dry_run?` raised. A refusal naming
+        # several offenders is one refusal each under `validate`, so its first is held to the same
+        # class and first offender, not to the same text.
         #
         # @param history [Hash] a replayed history, as returned by `Fuzzing::Replay.call`
         # @return [true, String] true if they agree on every dry run; otherwise a semicolon-joined
@@ -41,9 +43,15 @@ module Hecks
 
         # The message when both refused but `validate`'s first refusal is not `dry_run?`'s.
         def validation_first_refusal_differs(entry, validation)
-          return if entry[:ok] || validation[:first_stage] == :role || entry[:error] == validation[:first_message]
+          return if entry[:ok] || validation[:first_stage] == :role || same_first_refusal?(entry, validation)
 
           "#{entry[:verb]}: dry_run? raised #{entry[:error].inspect}, validate's first was #{validation[:first_message].inspect}"
+        end
+
+        # Whether `validate`'s first refusal is what `dry_run?` raised, or the first of its split.
+        def same_first_refusal?(entry, validation)
+          entry[:error] == validation[:first_message] ||
+            (!entry[:raised].nil? && entry[:raised] == validation[:first_offender])
         end
 
         # The message for one dry run that left a trace, or nil.
