@@ -132,17 +132,19 @@ fn run_render(args: &[String]) -> Result<(), RunError> {
     Ok(())
 }
 
-/// `hecks-parse examples --chapter <Name> --examples <file> <chapter files...>`: prints the
-/// `.behaviors` text that runs the examples file against the chapter.
+/// `hecks-parse examples --chapter <Name> --examples <file> [--also <file>] <chapter files...>`:
+/// prints the `.behaviors` text that runs the examples file against the chapter. Each `--also`
+/// file is booted with it but not parsed, as a hecksagon is.
 fn run_examples(args: &[String]) -> Result<(), RunError> {
     let mut examples_path: Option<String> = None;
+    let mut also: Vec<String> = Vec::new();
     let mut rest: Vec<String> = Vec::new();
     let mut iter = args.iter();
     while let Some(arg) = iter.next() {
-        if arg == "--examples" {
-            examples_path = iter.next().cloned();
-        } else {
-            rest.push(arg.clone());
+        match arg.as_str() {
+            "--examples" => examples_path = iter.next().cloned(),
+            "--also" => also.extend(iter.next().cloned()),
+            _ => rest.push(arg.clone()),
         }
     }
     let examples_path = examples_path.ok_or_else(|| {
@@ -152,9 +154,13 @@ fn run_examples(args: &[String]) -> Result<(), RunError> {
     let source = fs::read_to_string(&examples_path)
         .map_err(|e| RunError::Usage(format!("could not read '{examples_path}': {e}")))?;
     let bluebook = parse::chapter::parse_chapter(&chapter_name, &loaded)?;
+    // The suite boots the chapter's files and then any `--also` files (the Memory-bound
+    // hecksagon that answers the chapter's asks), each by its absolute path.
     let absolute: Vec<String> = loaded
         .iter()
-        .map(|(path, _)| {
+        .map(|(path, _)| path)
+        .chain(also.iter())
+        .map(|path| {
             fs::canonicalize(path).map_or_else(|_| path.clone(), |full| full.to_string_lossy().into_owned())
         })
         .collect();

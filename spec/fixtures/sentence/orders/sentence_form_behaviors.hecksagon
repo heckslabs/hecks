@@ -1,0 +1,19 @@
+# Memory-bound wiring for sentence_form.examples, after examples/pizzas/pizzas_behaviors.hecksagon:
+# the roles are checked by an attached Governance, and the outside that checks credit is a port the
+# domain asks. The examples run without anything answering it.
+Hecks.hecksagon "Orders" do
+  attaches "Governance"
+  Orders::Order.persisted_by("Memory")
+
+  Orders::Order.port "CreditBureau" do
+    asks "CheckCredit", to: Order do
+      answers "CreditCleared"
+      refuses "CreditRefused"
+    end
+  end
+end
+
+Hecks.hecksagon "Governance" do
+  Governance::RoleAssignment.persisted_by("Memory")
+  Governance::RoleTransition.persisted_by("Memory")
+end

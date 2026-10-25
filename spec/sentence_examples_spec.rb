@@ -40,6 +40,19 @@ RSpec.describe "examples written as sentences", :io do
     expect(result.runs.map(&:status)).to all(eq(:pass)), result.runs.map(&:message).compact.inspect
   end
 
+  it "runs a domain that asks the outside, booting the Memory hecksagon that stands beside the examples" do
+    orders = File.expand_path("fixtures/sentence/orders/sentence_form.examples", __dir__)
+    result = Hecks::Behaviors.run(orders)
+
+    expect(result.parse_error).to be_nil
+    expect(result.runs.map(&:description)).to eq(
+      ["A customer places an order and sends it off for its credit check",
+       "Only a customer can send an order off",
+       "An order that was already sent off cannot be sent again"]
+    )
+    expect(result.runs.map(&:status)).to all(eq(:pass)), result.runs.map(&:message).compact.inspect
+  end
+
   it "fails an example whose expectation is wrong, so a pass means something" do
     with_examples(->(text) { text.sub("Then the page is published\n  And PagePublished", "Then the page is draft\n  And PagePublished") }) do |_dir, path|
       result = Hecks::Behaviors.run(path)

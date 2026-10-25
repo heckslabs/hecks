@@ -85,7 +85,9 @@ module Hecks
       files = chapter_files(path, chapter)
       raise Refused, "#{path}: no .bluebook beside it declares #{chapter}" if files.empty?
 
-      out, err, status = Open3.capture3(binary, "examples", "--chapter", chapter, "--examples", path, *files)
+      wiring = behaviors_hecksagon(path)
+      also = wiring ? ["--also", wiring] : []
+      out, err, status = Open3.capture3(binary, "examples", "--chapter", chapter, "--examples", path, *also, *files)
       raise Refused, err.lines.first.to_s.chomp unless status.success?
 
       out
@@ -102,6 +104,16 @@ module Hecks
       generated = File.join(dir, "#{File.basename(path, EXAMPLES_EXTENSION)}-#{Digest::SHA256.hexdigest(text)[0, 16]}.behaviors")
       File.write(generated, text) unless File.exist?(generated)
       generated
+    end
+
+    # The Memory-bound hecksagon that answers a chapter's asks while its examples run: the
+    # `<name>_behaviors.hecksagon` beside the examples file, as Pizzas keeps one beside its own.
+    #
+    # @param path [String] an examples file
+    # @return [String, nil] its absolute path, or nil when there is none
+    def behaviors_hecksagon(path)
+      wiring = File.join(File.dirname(File.expand_path(path)), "#{File.basename(path, EXAMPLES_EXTENSION)}_behaviors.hecksagon")
+      wiring if File.file?(wiring)
     end
 
     # @return [String] the chapter an examples file's first line names, capitalised and joined
