@@ -29,6 +29,25 @@ module Hecks
           @queries.call(domain, aggregate, query_name, args)
         end
 
+        # Answers one page of a cursor query: its rows and the position of the page after them.
+        #
+        # `query` answers the first `limit` rows after `after`; this also says where the next page
+        # starts, so a caller walks every row by passing each answer's `after` back in.
+        #
+        # @param verb [String] `"Domain::Aggregate.Query"` of a query that declares `cursor`
+        # @param after [String, nil] the position the previous page answered; nil asks page one
+        # @param args [Hash{Symbol => Object}] the query's declared arguments
+        # @return [Hash{Symbol => Object}] `rows`, one Hash per record, and `after`, the next
+        #   position or nil when no row follows
+        # @raise [ArgumentError] if the query declares no cursor, or `after` is not one it handed out
+        # @raise [Runtime::UnknownVerb] if the verb is malformed or names something undeclared
+        def query_page(verb, after: nil, **args)
+          domain, aggregate_name, query_name = parse(verb)
+          aggregate = resolve_aggregate(domain, aggregate_name, verb)
+
+          @queries.page(domain, aggregate, query_name, after ? args.merge(after: after) : args)
+        end
+
         # Answers an aggregate or entity query through the reference interpreter alone.
         #
         # Never answered by the bound adapter's native hook; the fuzzer's query oracle diffs it

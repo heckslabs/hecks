@@ -29,6 +29,15 @@ module Hecks
             seal_query_field(scope, query.order_by_field, ordering: true) if query.order_by
             seal_query_argument(scope, query.limit&.value)
             seal_query_argument(scope, query.offset&.value)
+            refuse_entity_cursor!(scope)
+          end
+
+          # A cursor keys on a record's identity; an entity's rows are elements of its owner's list.
+          def refuse_entity_cursor!(scope)
+            return unless scope.query.cursor && scope.owner.to_s.include?("::")
+
+            raise Malformed, "#{scope.label} declares cursor, but an entity query pages its owner's list " \
+                             "elements, which have no identity of their own to key a page on — use limit/offset"
           end
 
           def seal_where_clause(scope, clause)

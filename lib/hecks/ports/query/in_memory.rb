@@ -1,4 +1,5 @@
 require_relative "ordering"
+require_relative "cursor"
 require_relative "../../runtime/value"
 require_relative "../../query_specification/field_path"
 require_relative "../../query_specification/common/comparison"
@@ -6,7 +7,7 @@ require_relative "../../query_specification/common/comparison"
 module Hecks
   module Ports
     module Query
-      # Applies wheres, order_by, offset and limit to an Array of records, in the same order
+      # Applies wheres, order_by, a cursor's position, offset and limit to an Array of records, in the same order
       # as `SqlQueryBuilder` so every adapter answers the same page.
       module InMemory
         FieldPath = QuerySpecification::FieldPath
@@ -25,6 +26,7 @@ module Hecks
         def execute(records, declared, args = {}, registry: nil)
           matched = filter(records, declared, args, registry)
           matched = order(matched, declared)
+          matched = Cursor.after(matched, declared, args) if declared.cursor
           # Offset before limit, as SQL means `LIMIT n OFFSET m`; the reverse order returns a short
           # or empty page (`limit 10, offset 10` would drop everything).
           matched = matched.drop(resolve(declared.offset.value, args).to_i) if declared.offset

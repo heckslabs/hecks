@@ -26,6 +26,7 @@ module Hecks
           binds = []
           clauses = ["id IN (#{ids.map { |id| placeholder(binds, id) }.join(", ")})"]
           uncached.each { |clause, value| clauses << uncached_clause(clause, value, binds) }
+          clauses << keyset_clause(declared, args, binds) if declared.cursor && args[:after]
 
           sql = "SELECT #{select_list} FROM #{from_relation} WHERE #{clauses.join(" AND ")}"
           sql += order_suffix(declared)
