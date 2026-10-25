@@ -9,6 +9,8 @@ require_relative "errors"
 require_relative "reaction_invocation"
 require_relative "value"
 require_relative "saga_pending_dispatch"
+require_relative "saga_interpreter/redrive"
+require_relative "outbox"
 
 module Hecks
   module Runtime
@@ -20,6 +22,7 @@ module Hecks
       include Transitions
       include Delivery
       include Compensation
+      include Redrive
 
       # The trigger lives on the declaration it triggers — see ProcessManager::REFUSED.
       REFUSED = Bluebook::ProcessManager::REFUSED
@@ -61,12 +64,19 @@ module Hecks
           instance[:state] = leg_handler.to_state
         end
 
-        # What a crash between the checkpoint and the dispatches leaves behind, to be surfaced
-        # on the next boot.
+        # How far the leg's dispatches got: how many have settled, and whether the next one has
+        # been started, so a crash can tell a dispatch that never began from one that may have run.
         #
-        # @return [Hash{Symbol => Object}] the event, the states moved between, and the commands
+        # @return [Hash{Symbol => Object}] `:settled` count and `:attempting` flag
+        def progress = (@progress ||= { settled: 0, attempting: false })
+
+        # What a crash between the checkpoint and the dispatches leaves behind, to be redriven on
+        # the next boot. Carries the moving event, so the dispatches' arguments can be resolved again.
+        #
+        # @return [Hash{Symbol => Object}] the event, the states moved between, the commands, and progress
         def pending_marker
-          { on: event.name, from: pre_state, to: instance[:state], dispatches: handler.dispatches.map(&:command_name) }
+          { on: event.name, from: pre_state, to: instance[:state], dispatches: handler.dispatches.map(&:command_name),
+            event: Outbox.serialize_event(event) }.merge(progress)
         end
       end
 

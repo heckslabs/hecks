@@ -521,13 +521,19 @@ defect than the stall. **Between a saga's checkpoint and its own leg's
 dispatch:** the checkpoint commits the new state before that leg's
 dispatch runs (the mutex guarding the checkpoint can't be held across
 a dispatch that might re-enter it), so a crash there leaves a state on
-record with no proof its leg ran. Booting against the same durable
-adapter surfaces it — a loud `[hecks] ... rehydrated ... with a
-dispatch left pending ...` warning and a `rehydrated_stalled: true`
-entry in `runtime.sagas` — and, for the same reason as a `claimed`
-outbox row, does not auto-redrive it. Both windows are now visible
-across a restart; the second, like a `claimed` row, still needs a
-human to look and decide.
+record before its leg has finished. The checkpoint carries the moving
+event and how many of the leg's dispatches settled, written before and
+after each one. Booting against the same durable adapter redrives the
+leg: dispatches that never began are delivered, and `redriven: true`
+lands in `runtime.sagas`. The one dispatch that was started but not
+settled may already have run, so it is delivered again only when its
+command is declared idempotent. Otherwise the boot warns (`[hecks] ...
+stalled before ... settled ...`), records `rehydrated_stalled: true`
+with the command in `ambiguous`, and leaves the instance for a human
+to reconcile — redelivering it could double-apply it, the same reason
+a `claimed` outbox row is never retried automatically. A leg that was
+unwinding with compensations still on the ledger is reported the same
+way, since some of them may already have run.
 
 ## When there is nothing to compensate
 
