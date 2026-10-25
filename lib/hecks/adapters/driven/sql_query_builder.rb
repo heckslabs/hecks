@@ -44,8 +44,7 @@ module Hecks
 
         sql = "SELECT #{select_list} FROM #{from_relation}"
         binds = []
-        clauses = where_clauses(declared, args, binds)
-        clauses << keyset_clause(declared, args, binds) if declared.cursor && args[:after]
+        clauses = restricting_clauses(declared, args, binds)
         sql << " WHERE #{clauses.join(" AND ")}" unless clauses.empty?
         sql << order_by_sql(declared)
         sql << paging_sql(declared, args, binds)

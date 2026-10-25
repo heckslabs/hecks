@@ -35,23 +35,31 @@ module Hecks
 
           entry = { query: question, args: args, rows: native_rows, instances_at: Replay.snapshot_instances(@runtime) }
           entry[:error] = native_error.message if native_error
-          entry[:pages] = cursor_walks(question, args) if cursor_query?(question) && !native_error
+          add_pages(entry, question, args) unless native_error
           add_reference(entry, reference_rows, reference_error) if has_reference
           @queries << entry
 
           @refusals << { verb: question, error: native_error.message, kind: Replay.refusal_kind(native_error) } if native_error
         end
 
+        # A cursor query's walks, taken for `Properties` to hold to the unpaged rows.
+        def add_pages(entry, question, args)
+          entry[:pages] = cursor_walks(question, args) if cursor_query?(question)
+        end
+
         # Whether `question` names a declared aggregate query that pages by cursor.
         def cursor_query?(question)
           domain, aggregate_name, query_name = Naming.split_verb(question)
-          !@runtime.bluebooks[domain]&.aggregate(aggregate_name)&.query(query_name.to_s)&.cursor.nil?
+          declared = @runtime.bluebooks[domain]&.aggregate(aggregate_name)
+          !declared&.query(query_name.to_s)&.cursor.nil?
         end
 
         # Every page of a cursor query, walked at the query's own page size and again one row at
-        # a time (so a boundary falls between any two rows), as `{ page_size:, pages: }` per walk.
+        # a time (so a boundary falls between any two rows), as `{ page_size:, pages: }` per walk. A walk
+        # starts at the first page whatever `after` the ask itself carried.
         def cursor_walks(question, args)
-          [nil, 1].map { |size| { page_size: size, pages: walk_pages(question, args, size) } }
+          from_start = args.except(:after)
+          [nil, 1].map { |size| { page_size: size, pages: walk_pages(question, from_start, size) } }
         end
 
         def walk_pages(question, args, size)

@@ -92,6 +92,13 @@ Hecks.bluebook "QueryReference" do
       offset 1
     end
 
+    query "Walked" do
+      description "Two sightings a page, each page found by the last tag seen."
+      order_by :tag
+      limit 2
+      cursor :tag
+    end
+
     query "ByCount" do
       description "Ordered by count, with the uncounted ones last."
       order_by :count
@@ -601,26 +608,41 @@ would answer a single row here, and nothing at all at `limit 10, offset
 | positional 1 | symbol | true | value |
 <!-- generated:end -->
 
-Refused at build (`QueryBuilder#seal_cursor`, raises `Malformed`). No
-interpreter implements cursor pagination — declaring `cursor` here is
-always an error, not a silent no-op. Use `limit`/`offset` instead.
+Pages the query by its order field and identity (ADR 0128). The field
+is the one `order_by` names, or `:id` when the query has no `order_by`;
+`limit` is the page size and is required; `offset` is refused beside it.
+Identity breaks ties in the order's own direction, and `nulls` places
+the null-keyed rows, so a page boundary never repeats or drops a row.
 
-There is no working example to write, and that is the documentation —
-the word refuses where it is written, before anything can boot:
+A cursor query takes one implicit optional argument, `after`: the opaque
+position the previous page ended on. `Dispatcher#query_page` answers
+`rows` and the `after` of the page behind them, `nil` on the last page;
+`query` answers just the rows, so a caller that does not page is
+untouched. `Walked` pages three sightings two at a time:
 
 ```ruby
-Hecks::Bluebook::DSL::QueryBuilder.build("Paged") { cursor :tag }  # ~> Malformed: no interpreter implements cursor pagination
+runtime.query_page("QueryReference::Sighting.Walked")[:rows].size  # => 2
 ```
 
-**Written exemption (ADR 0025 principle 4)** — ADR 0025's own table
-asked for corpus use here, with no exemption listed, but a WORD that
-refuses unconditionally at build has no corpus use to give: any
-declaration anywhere would refuse the bluebook that carried it, so
-"a real chapter uses `cursor`" and "the corpus builds" are mutually
-exclusive claims. S15 (ADR 0026, "the Paging sub-language") is where
-this gets resolved for real — `cursor`/`offset`/`nulls`/`limit` leave
-the core grammar into their own attachment — landing a real corpus use
-here first would be work S15 immediately throws away.
+The second page starts after the first's `after`, and is the last:
+
+```ruby
+runtime.query_page("QueryReference::Sighting.Walked", after: runtime.query_page("QueryReference::Sighting.Walked")[:after])[:rows].map { |row| row[:tag][:value] }  # => ["s-3"]
+```
+
+```ruby
+runtime.query_page("QueryReference::Sighting.Walked", after: runtime.query_page("QueryReference::Sighting.Walked")[:after])[:after]  # => nil
+```
+
+A cursor needs the page size, so it refuses without a `limit`, at build:
+
+```ruby
+Hecks::Bluebook::DSL::QueryBuilder.build("Paged") { cursor :id }  # ~> Malformed: Paged declares cursor, but a cursor pages by a page size
+```
+
+Banking's `Account.OpenPaged` is the corpus use. A read model does not
+page by cursor yet: `ReadModelBuilder` still refuses the word, naming
+`limit`/`offset` instead.
 
 ## nulls
 

@@ -94,8 +94,8 @@ module Hecks
       # @api private
       # @return [Hash{String => Array}] the queries, sagas, dry runs and reactions a run froze
       def conformance_expectation(result)
-        # instances_at is Replay's per-query snapshot for the property harness, not an outcome.
-        queries = roundtrip(result[:queries].map { |q| q.except(:instances_at) })
+        # The query_row fields are Replay's own data for the property harness, not an outcome.
+        queries = roundtrip(result[:queries].map { |q| Hecks::Fuzzing::Nondeterministic.strip(q, :query_row) })
         { "queries" => queries }.merge(CONFORMANCE_KEYS.drop(1).to_h { |k| [k, roundtrip(result[k.to_sym])] })
       end
 
