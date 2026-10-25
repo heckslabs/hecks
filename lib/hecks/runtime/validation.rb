@@ -8,9 +8,10 @@ module Hecks
       # @return [Array<Hecks::Refused>] the refusals, in the order dispatch would have found them
       attr_reader :refusals
 
-      # @param refusals [Array<Hecks::Refused>] what refused
+      # @param refusals [Array<Hecks::Refused>] what refused; one the facts gate and the
+      #   interpreter's gate both found is kept once
       def initialize(refusals)
-        @refusals = refusals.freeze
+        @refusals = refusals.uniq { |refusal| [refusal.class, refusal.path, refusal.rule, refusal.message] }.freeze
       end
 
       # @return [Boolean] whether nothing refused

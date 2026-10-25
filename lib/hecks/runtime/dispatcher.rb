@@ -110,11 +110,7 @@ module Hecks
       # @raise [Runtime::UnknownVerb] if the verb is malformed or names something undeclared
       # @raise [StandardError] a `Runtime::DOMAIN_REFUSALS` class when the domain refuses
       def dispatch_flat(verb, args = {})
-        facts = args.dup
-        to = facts.delete(:to)
-        with = facts.delete(:with)
-        saga_correlation = facts.delete(:saga_correlation)
-        dispatch_invocation(Call.new(verb: verb, to: to, with: with, saga_correlation: saga_correlation, flat: facts))
+        dispatch_invocation(flat_call(verb, args))
       end
 
       # Answers whether a command would succeed right now, without saving, emitting or reacting.
@@ -130,16 +126,7 @@ module Hecks
       # @raise [Runtime::UnknownVerb] if the verb is malformed or names something undeclared
       # @raise [StandardError] any `Runtime::DOMAIN_REFUSALS` class the real dispatch would raise
       def dry_run?(verb, **args)
-        domain, aggregate_name, command_name = parse(verb)
-        aggregate = resolve_aggregate(domain, aggregate_name, verb)
-        call = Call.new(verb: verb, flat: args)
-
-        if command_name.include?(".")
-          dry_run_entity(call, domain, aggregate, command_name)
-        else
-          dry_run_aggregate(call, domain, aggregate, aggregate_name, command_name)
-        end
-
+        dry_run_call(Call.new(verb: verb, flat: args))
         true
       end
 

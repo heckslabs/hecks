@@ -49,6 +49,18 @@ module Hecks
         nil
       end
 
+      # Refuses a set of offenders. Plainly that is one refusal naming them all; when collecting it
+      # is one refusal each, so every offender can be shown against its own field.
+      #
+      # @param names [Array<Symbol>] the offenders
+      # @yieldparam group [Array<Symbol>] the offenders one refusal is about
+      # @yieldreturn [Hecks::Refused] the refusal for that group
+      # @return [void]
+      def refuse_each(names)
+        groups = active? ? names.zip : [names]
+        groups.each { |group| refuse(yield(group)) }
+      end
+
       # @param step [Symbol] a dispatch step name
       # @return [Symbol] the stage it belongs to
       def stage_of(step) = STAGES.fetch(step)

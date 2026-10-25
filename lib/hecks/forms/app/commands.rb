@@ -11,6 +11,9 @@ module Hecks
       # same
       # dispatch.
       module Commands
+        # The values of `dry_run=` / `X-Dry-Run:` that ask for a validation instead of a dispatch.
+        DRY_RUN_FLAGS = %w[1 true].freeze
+
         private
 
         def command_route(request, domain, aggregate, command, format)
@@ -47,10 +50,23 @@ module Hecks
         def command_json(request, domain, aggregate, command)
           return json(200, command.to_h) if request.get? && request.GET.except("format").empty?
           return respond(405, "text/plain", "GET or POST only") unless request.post?
+          return validated_json(request, domain, aggregate, command) if dry_run_requested?(request)
 
           created_json(request, domain, aggregate, command)
         rescue *Runtime::DOMAIN_REFUSALS, ArgumentError, TypeError, JSON::ParserError => e
           refusal_json(e, refusal_status(e))
+        end
+
+        # Whether the request asks to be validated, not carried out: `?dry_run=1` or `X-Dry-Run: 1`.
+        def dry_run_requested?(request)
+          DRY_RUN_FLAGS.include?(request.GET["dry_run"].to_s) || DRY_RUN_FLAGS.include?(request.get_header("HTTP_X_DRY_RUN").to_s)
+        end
+
+        # The same body, caller and route as the real command, answered as every reason it would be
+        # refused. A completed validation is a 200 whether or not it refused.
+        def validated_json(request, domain, aggregate, command)
+          _, envelope = submitted_command(request, aggregate, command)
+          json(200, @dispatcher.validate(verb_name(domain, aggregate, command), envelope).to_h)
         end
 
         def created_json(request, domain, aggregate, command)
