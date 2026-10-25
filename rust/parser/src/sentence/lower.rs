@@ -4,6 +4,7 @@
 //! `It has:` may come before or after the value objects it names, and a command may name a field
 //! declared further down. Every unresolved name is refused with the names that are in scope.
 
+use super::changes::Change;
 use super::names::{camel, scalar, snake, spoken, SCALARS};
 use super::{column, Matched, Parser, Scope, Step};
 use crate::build::{identity, query_derive};
@@ -22,7 +23,7 @@ struct TypeUse {
 struct Identity {
     line: usize,
     col: usize,
-    field: String,
+    fields: Vec<String>,
 }
 
 struct Transition {
@@ -40,10 +41,10 @@ struct LifecycleSpec {
 }
 
 /// A field a sentence names, with where it named it.
-struct FieldUse {
-    name: String,
-    line: usize,
-    col: usize,
+pub(super) struct FieldUse {
+    pub name: String,
+    pub line: usize,
+    pub col: usize,
 }
 
 struct CommandSpec {
@@ -53,8 +54,12 @@ struct CommandSpec {
     goal: Option<String>,
     references: Option<String>,
     args: Vec<FieldUse>,
+    /// Arguments of its own, typed where they are written (`It takes:`).
+    takes: Vec<(ir::Attribute, TypeUse)>,
     givens: Vec<ir::Given>,
-    sets: Vec<FieldUse>,
+    ensures: Vec<ir::Given>,
+    from: Option<ir::CommandFrom>,
+    changes: Vec<Change>,
     emits: Vec<String>,
 }
 
@@ -99,6 +104,7 @@ struct AggState {
 impl Parser<'_> {
     /// Reads the whole file: one `Domain:` and the aggregates under it.
     pub(super) fn file(&mut self) -> ParseResult<ir::Bluebook> {
+        self.types = self.declared_types();
         let mut scope = Scope::top();
         let Some(Step::Phrase(header)) = self.step(&mut scope, "File", false)? else {
             return Err(self.error(1, 1, "this file is empty; it starts with `Domain: <name>`"));
@@ -360,13 +366,23 @@ impl Parser<'_> {
         }
         st.identity = Some(Identity {
             line: m.line,
-            col: m.col_of("field"),
-            field: snake(&m.text_of("field")),
+            col: m.col_of("fields"),
+            fields: m.capture("fields").items.iter().map(|item| snake(item)).collect(),
         });
         Ok(())
     }
 
     fn has(&mut self, header: &Matched, st: &mut AggState) -> ParseResult<()> {
+        for (attribute, used) in self.attribute_lines(header)? {
+            st.agg.attributes.push(attribute);
+            st.attr_types.push(used);
+        }
+        Ok(())
+    }
+
+    /// The attributes an `It has:` or `It takes:` block lists, each with the type phrase it wrote.
+    fn attribute_lines(&mut self, header: &Matched) -> ParseResult<Vec<(ir::Attribute, TypeUse)>> {
+        let mut lines = Vec::new();
         let mut scope = Scope::inside(header.indent);
         while let Some(step) = self.step(&mut scope, "Has", false)? {
             let Step::Phrase(m) = step else { continue };
@@ -382,15 +398,15 @@ impl Parser<'_> {
             }
             let shape = shape_of(&m.text_of("type"));
             shape.apply(&mut attribute);
-            st.agg.attributes.push(attribute);
-            st.attr_types.push(TypeUse {
+            let used = TypeUse {
                 line: m.line,
                 col: m.col_of("type"),
                 words: shape.words,
                 reference: shape.relationship.is_some(),
-            });
+            };
+            lines.push((attribute, used));
         }
-        Ok(())
+        Ok(lines)
     }
 
     fn value_object(&mut self, header: &Matched, st: &mut AggState) -> ParseResult<()> {
@@ -554,8 +570,11 @@ impl Parser<'_> {
             goal: None,
             references: None,
             args: Vec::new(),
+            takes: Vec::new(),
             givens: Vec::new(),
-            sets: Vec::new(),
+            ensures: Vec::new(),
+            from: None,
+            changes: Vec::new(),
             emits: Vec::new(),
         };
         let mut scope = Scope::inside(header.indent);
@@ -575,7 +594,22 @@ impl Parser<'_> {
                     spec.references = Some(st.agg.name.clone());
                 }
                 "arguments" => spec.args.extend(field_uses(&m, "names")),
-                "sets" => spec.sets.extend(field_uses(&m, "names")),
+                "takes" => spec.takes.extend(self.attribute_lines(&m)?),
+                "from_states" => {
+                    let mut states = m.capture("states").items;
+                    spec.from = Some(if states.len() == 1 {
+                        ir::CommandFrom::Single(states.remove(0))
+                    } else {
+                        ir::CommandFrom::Multiple(states)
+                    });
+                }
+                "ensures" => {
+                    let cond = self.condition(&m)?;
+                    spec.ensures.push(ir::Given {
+                        description: Some(m.text_of("description")),
+                        canonical: cond.canonical,
+                    });
+                }
                 "announces" => spec.emits.push(m.text_of("event")),
                 "given" => {
                     let cond = self.condition(&m)?;
@@ -585,7 +619,10 @@ impl Parser<'_> {
                         canonical: cond.canonical,
                     });
                 }
-                _ => return Err(self.unmeant(&m)),
+                _ => match self.changes_of(&m)? {
+                    Some(changes) => spec.changes.extend(changes),
+                    None => return Err(self.unmeant(&m)),
+                },
             }
         }
         st.commands.push(spec);
@@ -770,15 +807,18 @@ impl Parser<'_> {
             }
         }
         if let Some(found) = &st.identity {
-            st.agg.identified_by = identity::resolve_identity_field(
-                self.file,
-                found.line,
-                &st.agg.name,
-                &found.field,
-                &st.agg.value_objects,
-                &st.agg.attributes,
-            )
-            .map_err(|refused| Diagnostic::new(self.file, found.line, refused.message).with_column(found.col))?;
+            for field in &found.fields {
+                let paths = identity::resolve_identity_field(
+                    self.file,
+                    found.line,
+                    &st.agg.name,
+                    field,
+                    &st.agg.value_objects,
+                    &st.agg.attributes,
+                )
+                .map_err(|refused| Diagnostic::new(self.file, found.line, refused.message).with_column(found.col))?;
+                st.agg.identified_by.extend(paths);
+            }
         }
         let commands = self.commands_of(&mut st)?;
         st.agg.commands = commands;
@@ -803,7 +843,7 @@ impl Parser<'_> {
             return Ok(found.to_string());
         }
         let name = camel(&used.words);
-        if agg.value_objects.iter().any(|vo| vo.name == name) {
+        if agg.value_objects.iter().any(|vo| vo.name == name) || self.types.contains(&name) {
             return Ok(name);
         }
         let mut known: Vec<String> = vec![SCALARS.to_string()];
@@ -829,6 +869,8 @@ impl Parser<'_> {
                 goal: spec.goal,
                 references: spec.references,
                 givens: spec.givens,
+                ensures: spec.ensures,
+                from: spec.from,
                 emits: spec.emits,
                 ..Default::default()
             };
@@ -848,25 +890,14 @@ impl Parser<'_> {
                 });
                 given.push(name);
             }
-            for set in &spec.sets {
-                if !given.contains(&set.name) {
-                    return Err(self.error(
-                        set.line,
-                        set.col,
-                        format!(
-                            "'{}' is set from what the command is given, and {} is not given. Add it to `When … given`",
-                            spoken(&set.name),
-                            spec.name
-                        ),
-                    ));
-                }
-                command.mutations.push(ir::Mutation::Other {
-                    target: set.name.clone(),
-                    op: "set".to_string(),
-                    sign: String::new(),
-                    source: Some(ir::MutationSource::Argument(set.name.clone())),
-                });
+            for (mut attribute, used) in spec.takes {
+                attribute.type_name = self.type_named(&used, &st.agg)?;
+                given.push(attribute.name.clone());
+                command.attributes.push(attribute);
             }
+            let mut state_fields = fields.clone();
+            state_fields.extend(st.lifecycle.as_ref().map(|lifecycle| lifecycle.field.clone()));
+            command.mutations = self.mutations_of(&spec.name, spec.changes, &given, &state_fields)?;
             commands.push(command);
         }
         Ok(commands)
@@ -948,7 +979,7 @@ fn shape_of(words: &str) -> Shape {
     Shape { words: words.to_string(), list: false, relationship: None }
 }
 
-fn field_uses(m: &Matched, slot: &str) -> Vec<FieldUse> {
+pub(super) fn field_uses(m: &Matched, slot: &str) -> Vec<FieldUse> {
     let capture = m.capture(slot);
     let col = m.col_of(slot);
     capture

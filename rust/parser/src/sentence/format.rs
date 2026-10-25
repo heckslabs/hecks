@@ -9,6 +9,7 @@
 // nothing and `push_str(&format!(..))` reads as the line it writes.
 #![allow(clippy::format_push_string)]
 
+use super::changes;
 use super::names::spoken;
 use super::options;
 use crate::ruby_value;
@@ -128,13 +129,12 @@ fn aggregate_text(out: &mut String, aggregate: &ir::Aggregate) -> Result<(), Str
             .map(|path| path.split('.').next().unwrap_or(path))
             .collect();
         fields.dedup();
-        let [field] = fields.as_slice() else {
-            return Err("the sentence form identifies an aggregate by one field".to_string());
-        };
+        let spoken_fields: Vec<String> = fields.iter().map(|field| spoken(field)).collect();
+        let possessive = if spoken_fields.len() == 1 { "its" } else { "their" };
         out.push_str(&format!(
-            "\n  {} is identified by its {}.\n",
+            "\n  {} is identified by {possessive} {}.\n",
             capitalised(&with_article(&noun)),
-            spoken(field)
+            join_and(&spoken_fields)
         ));
     }
     if !aggregate.attributes.is_empty() {
@@ -362,9 +362,7 @@ fn command_text(
     fields: &[ir::Attribute],
 ) -> Result<(), String> {
     let held = [
-        (!command.ensures.is_empty(), "ensures"),
         (!command.needs.is_empty(), "needs"),
-        (command.from.is_some(), "from"),
         (command.provenance.is_some(), "provenance"),
     ];
     if let Some((_, what)) = held.iter().find(|(present, _)| *present) {
@@ -382,6 +380,9 @@ fn command_text(
     } else if let Some(role) = &command.role {
         out.push_str(&format!("    Who: {role}\n"));
     }
+    if let Some(from) = &command.from {
+        out.push_str(&format!("    It can only happen from {}\n", states_said(&command.name, from)?));
+    }
     if let Some(reference) = &command.references {
         if spoken(reference) != noun {
             return Err(format!(
@@ -391,38 +392,61 @@ fn command_text(
         }
         out.push_str(&format!("    It acts on an existing {noun}\n"));
     }
-    if !command.attributes.is_empty() {
-        let names: Vec<String> = command
-            .attributes
-            .iter()
-            .map(|a| argument_name(&command.name, a, fields))
-            .collect::<Result<_, _>>()?;
-        out.push_str(&format!(
-            "    When {} {} given\n",
-            join_and(&names),
-            if names.len() == 1 { "is" } else { "are" }
-        ));
-    }
+    arguments_text(out, command, fields)?;
     for given in &command.givens {
         out.push_str(&format!("    {}\n", rule_sentence("Given", given)?));
     }
     let mut outcome = "Then";
-    if !command.mutations.is_empty() {
-        let names: Vec<String> = command
-            .mutations
-            .iter()
-            .map(|m| set_name(&command.name, m))
-            .collect::<Result<_, _>>()?;
-        out.push_str(&format!(
-            "    {outcome} {} {} set\n",
-            join_and(&names),
-            if names.len() == 1 { "is" } else { "are" }
-        ));
+    for line in changes::said(&command.name, &command.mutations)? {
+        out.push_str(&format!("    {outcome} {line}\n"));
         outcome = "And";
     }
     for event in &command.emits {
         out.push_str(&format!("    {outcome} {event} is announced\n"));
         outcome = "And";
+    }
+    for ensure in &command.ensures {
+        out.push_str(&format!("    {}\n", rule_sentence("Afterwards", ensure)?));
+    }
+    Ok(())
+}
+
+/// `happen from open and frozen`: the states a command is admissible from.
+fn states_said(command: &str, from: &ir::CommandFrom) -> Result<String, String> {
+    let states: Vec<String> = match from {
+        ir::CommandFrom::Single(state) => vec![state.clone()],
+        ir::CommandFrom::Multiple(states) if states.len() > 1 => states.clone(),
+        ir::CommandFrom::Multiple(_) => {
+            return Err(format!("the sentence form has no phrase for a list of one state on command {command}"));
+        }
+    };
+    if states.iter().any(|state| !is_listable(state) || state.contains(' ')) {
+        return Err(format!("the sentence form cannot list the states of command {command}"));
+    }
+    Ok(join_and(&states))
+}
+
+/// `When a title is given`, or an `It takes:` block when an argument is its own.
+fn arguments_text(out: &mut String, command: &ir::Command, fields: &[ir::Attribute]) -> Result<(), String> {
+    if command.attributes.is_empty() {
+        return Ok(());
+    }
+    let names: Result<Vec<String>, String> = command
+        .attributes
+        .iter()
+        .map(|a| argument_name(&command.name, a, fields))
+        .collect();
+    if let Ok(names) = names {
+        out.push_str(&format!(
+            "    When {} {} given\n",
+            join_and(&names),
+            if names.len() == 1 { "is" } else { "are" }
+        ));
+        return Ok(());
+    }
+    out.push_str("    It takes:\n");
+    for attribute in &command.attributes {
+        out.push_str(&format!("      {}\n", attribute_line(attribute)?));
     }
     Ok(())
 }
@@ -453,22 +477,8 @@ fn argument_name(command: &str, argument: &ir::Attribute, fields: &[ir::Attribut
     }
 }
 
-fn set_name(command: &str, mutation: &ir::Mutation) -> Result<String, String> {
-    match mutation {
-        ir::Mutation::Other {
-            target,
-            op,
-            source: Some(ir::MutationSource::Argument(argument)),
-            ..
-        } if op == "set" && argument == target => Ok(format!("the {}", spoken(target))),
-        _ => Err(format!(
-            "the sentence form has no phrase for that kind of mutation on command {command}"
-        )),
-    }
-}
-
 /// `a, b and c`.
-fn join_and(items: &[String]) -> String {
+pub(super) fn join_and(items: &[String]) -> String {
     match items {
         [] => String::new(),
         [only] => only.clone(),

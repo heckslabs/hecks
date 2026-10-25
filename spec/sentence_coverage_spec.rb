@@ -24,9 +24,6 @@ RSpec.describe "the sentence form against the whole corpus", :io do
     /no phrase for a version/,
     /no phrase for aggregate invariants/,
     /no phrase for the options on (policy|query)/,
-    /no phrase for from on command/,
-    /identifies an aggregate by one field/,
-    /no phrase for argument \w+ of command \w+, which differs/,
     /no phrase for a \w+ comparison in query/,
     /no phrase for that kind of mutation on command/,
     /names no aggregate/

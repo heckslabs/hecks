@@ -7,6 +7,7 @@
 
 /// The sentences legal at a cursor, for editors.
 pub mod complete;
+mod changes;
 /// An examples file compiled to the `.behaviors` text that runs it.
 pub mod examples;
 /// A parsed chapter written back out as canonical sentences.
@@ -206,6 +207,8 @@ pub(super) struct Parser<'a> {
     grammar: &'a Grammar,
     lines: Vec<Line>,
     pos: usize,
+    /// Every value object the file declares, in any aggregate, for a type that names another's.
+    types: Vec<String>,
 }
 
 /// The 1-based column of byte `offset` in `text`, which itself starts at column `base`.
@@ -243,7 +246,18 @@ impl<'a> Parser<'a> {
             grammar,
             lines,
             pos: 0,
+            types: Vec::new(),
         }
+    }
+
+    /// The names of the value objects any aggregate of the file declares.
+    fn declared_types(&self) -> Vec<String> {
+        self.lines
+            .iter()
+            .filter_map(|line| self.match_text("Aggregate", &line.text, 1).ok())
+            .filter(|(phrase, _)| matches!(phrase.row.id, "value_object" | "value_object_with" | "closed_set" | "value_fields"))
+            .map(|(_, found)| names::camel(found.get("name").map_or("", |capture| capture.value.as_str())))
+            .collect()
     }
 
     /// A refusal pointing at `col` of `line`.
