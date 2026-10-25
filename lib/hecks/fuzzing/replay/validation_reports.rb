@@ -8,10 +8,10 @@ module Hecks
         private
 
         # What `validate` says of the same hypothetical, kept beside the trace: whether it would be
-        # accepted, the stage, text and offender of its first refusal, and every refusal as `[kind,
-        # stage, attribute, path, rule, class]`. It is asked through `validate_facts`, which reads `to`
-        # and `with` as facts the way `dry_run?` does; `validate` would route them, and so answer a
-        # different command.
+        # accepted, the stage, text and offender of its first refusal, and every refusal as
+        # `[kind, stage, attribute, path, rule, class]`. It is asked through `validate_facts`, which
+        # reads `to` and `with` as facts the way `dry_run?` does; `validate` would route them, and
+        # so answer a different command.
         def validation_of(step, hypothetical, args)
           result = Replay.as_step_caller(step) { @runtime.validate_facts(hypothetical, **args) }
           first = result.refusals.first
