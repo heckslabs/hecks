@@ -192,6 +192,46 @@ fn the_ruby_form_and_the_sentence_form_do_not_mix_in_one_chapter() {
     assert!(error.contains("written in the Ruby form"), "{error}");
 }
 
+fn run_on(subcommand: &str, path: &str) -> Output {
+    Command::new(env!("CARGO_BIN_EXE_hecks-parse"))
+        .args([subcommand, "--chapter", "Cms", path])
+        .output()
+        .expect("failed to run hecks-parse")
+}
+
+#[test]
+fn the_rendered_ruby_form_reads_back_to_the_same_ir() {
+    let sentences = write("round_trip.bluebook", GOOD);
+    let first = run_on("chapter", sentences.to_str().unwrap());
+    let rendered = run_on("render", sentences.to_str().unwrap());
+    assert!(rendered.status.success(), "{}", String::from_utf8_lossy(&rendered.stderr));
+
+    let ruby = write("round_trip_ruby.bluebook", &String::from_utf8_lossy(&rendered.stdout));
+    let second = run_on("chapter", ruby.to_str().unwrap());
+    assert!(second.status.success(), "{}", String::from_utf8_lossy(&second.stderr));
+    assert_eq!(
+        String::from_utf8_lossy(&first.stdout),
+        String::from_utf8_lossy(&second.stdout)
+    );
+}
+
+#[test]
+fn an_aggregate_must_say_what_identifies_it() {
+    let source = changed("  A page is identified by its slug.\n", "");
+    let error = refusal("identity.bluebook", &source);
+    let line = line_of(&source, "Aggregate: Page");
+    assert!(error.contains(&format!("identity.bluebook:{line}:1:")), "{error}");
+    assert!(error.contains("the page does not say what identifies it"), "{error}");
+    assert!(error.contains("A page is identified by its <field>."), "{error}");
+}
+
+#[test]
+fn a_mistyped_first_line_of_an_aggregate_is_caught_by_what_it_leaves_out() {
+    let source = changed("  A page is identified by its slug.\n", "  A page is identifed by its slug.\n");
+    let error = refusal("first_line.bluebook", &source);
+    assert!(error.contains("does not say what identifies it"), "{error}");
+}
+
 #[test]
 fn a_description_that_opens_a_block_is_not_mistaken_for_prose() {
     let source = changed("  It has:\n", "  It hass:\n");

@@ -193,6 +193,7 @@ struct Unmatched {
     suggestions: Vec<String>,
 }
 
+/// A cursor over one sentence file's lines, lowering them block by block.
 pub(super) struct Parser<'a> {
     file: &'a str,
     grammar: &'a Grammar,
@@ -231,6 +232,7 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// A refusal pointing at `col` of `line`.
     pub(super) fn error(&self, line: usize, col: usize, message: impl Into<String>) -> Diagnostic {
         Diagnostic::new(self.file, line, message).with_column(col)
     }

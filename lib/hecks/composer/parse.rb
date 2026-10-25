@@ -1,4 +1,5 @@
 require "open3"
+require_relative "../sentence_form"
 
 module Hecks
   module Composer
@@ -12,10 +13,6 @@ module Hecks
       # A bluebook file's path.
       BLUEBOOK_FILE = /\.bluebook\z/
 
-      # A `Hecks.bluebook "Name"` header line, or a `Domain: name` line of a file written as
-      # sentences, capturing the chapter's name.
-      CHAPTER_HEADER = /\A\s*(?:Hecks\.bluebook\s+"([^"]+)"|Domain:\s*(\S.*?)\s*\z)/
-
       # A line number: digits and nothing else.
       LINE_NUMBER = /\A\d+\z/
 
@@ -26,7 +23,7 @@ module Hecks
       EXPECTED_SUFFIX = /\A(.*) \(expected one of: (.*)\)\z/
 
       # Raised when no `hecks-parse` binary can be found.
-      class ParserMissing < StandardError; end
+      ParserMissing = SentenceForm::ParserMissing
 
       module_function
 
@@ -57,14 +54,7 @@ module Hecks
 
       # @param path [String] a bluebook file
       # @return [String, nil] the name its `Hecks.bluebook "Name"` or `Domain: name` header declares
-      def chapter_name(path)
-        File.foreach(path) do |line|
-          next unless line =~ CHAPTER_HEADER
-
-          return Regexp.last_match(1) || Regexp.last_match(2).split.map { |word| word[0].upcase + word[1..] }.join
-        end
-        nil
-      end
+      def chapter_name(path) = SentenceForm.chapter_name(path)
 
       # @api private
       def refusal_for(stage, chapter, files)
@@ -98,16 +88,9 @@ module Hecks
         { file: file, line: number.to_i, column: column, message: message, expected: expected }
       end
 
-      # @return [String] the path to `hecks-parse`: `HECKS_PARSE_BIN`, then the release or debug
-      #   build under `rust/parser/target/`
+      # @return [String] the path to `hecks-parse`; see {SentenceForm.binary}
       # @raise [ParserMissing] if none exists
-      def binary
-        candidates = [ENV.fetch("HECKS_PARSE_BIN", nil)] +
-                     %w[release debug].map { |profile| File.join(ROOT, "rust/parser/target/#{profile}/hecks-parse") }
-        candidates.compact.find { |path| File.executable?(path) } or
-          raise ParserMissing, "hecks-parse is not built — run `cargo build --release " \
-                               "--manifest-path rust/parser/Cargo.toml`"
-      end
+      def binary = SentenceForm.binary
     end
   end
 end

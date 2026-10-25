@@ -1,5 +1,6 @@
 require_relative "../../vocabulary"
 require_relative "../../ports/loading"
+require_relative "../../sentence_form"
 
 module Hecks
   module Adapters
@@ -110,8 +111,21 @@ module Hecks
       def load_selected_bluebooks(bluebooks)
         return if bluebooks.empty?
 
-        Bluebook::MetaValidator.defer { bluebooks.sort.each { |f| Kernel.load(f) } }
+        Bluebook::MetaValidator.defer { bluebooks.sort.each { |f| load_file(f) } }
         Bluebook::MetaValidator.judge_deferred!(Hecks.current_registry)
+      end
+
+      # Loads one file. A `.bluebook` written as sentences is declared through the Ruby text the
+      # Rust parser renders from it; every other file is loaded as Ruby.
+      #
+      # @param file [String] the file to load
+      # @return [void]
+      def load_file(file)
+        if file.end_with?(".bluebook") && SentenceForm.sentences?(file)
+          SentenceForm.load(file)
+        else
+          Kernel.load(file)
+        end
       end
 
       # Loads every file under `directory` matching any of `patterns`, in pattern order.
@@ -126,7 +140,7 @@ module Hecks
         return unless File.directory?(directory)
 
         patterns.each do |pattern|
-          Dir[File.join(directory, pattern)].each { |file| Kernel.load(file) }
+          Dir[File.join(directory, pattern)].each { |file| load_file(file) }
         end
       end
 

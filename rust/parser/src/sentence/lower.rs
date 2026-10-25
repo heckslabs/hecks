@@ -151,7 +151,7 @@ impl Parser<'_> {
                 },
             }
         }
-        self.finish(st)
+        self.finish(st, header)
     }
 
     /// Refuses a sentence about some other aggregate than the one it stands in.
@@ -422,7 +422,17 @@ impl Parser<'_> {
     }
 
     /// Resolves the names the aggregate's blocks used, now that all of them are read.
-    fn finish(&self, mut st: AggState) -> ParseResult<ir::Aggregate> {
+    fn finish(&self, mut st: AggState, header: &Matched) -> ParseResult<ir::Aggregate> {
+        if st.identity.is_none() {
+            let noun = spoken(&st.agg.name);
+            return Err(self.error(
+                header.line,
+                header.base_col,
+                format!(
+                    "the {noun} does not say what identifies it. Add a sentence like `A {noun} is identified by its <field>.`"
+                ),
+            ));
+        }
         let types: Vec<String> = st
             .attr_types
             .iter()

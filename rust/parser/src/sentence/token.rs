@@ -1,5 +1,6 @@
 //! Splits one sentence into the words, punctuation and quoted text the phrase matcher reads.
 
+/// What a token is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Kind {
     Word,
@@ -7,6 +8,7 @@ pub enum Kind {
     Quoted,
 }
 
+/// One word, mark or quoted run of a sentence, and where it stood.
 #[derive(Debug, Clone)]
 pub struct Token {
     pub kind: Kind,
@@ -18,6 +20,7 @@ pub struct Token {
 }
 
 impl Token {
+    /// Whether the token is a plain word, not punctuation or a quoted run.
     pub fn is_word(&self) -> bool {
         self.kind == Kind::Word
     }
