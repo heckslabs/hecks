@@ -5,7 +5,8 @@ require_relative "bluebook/meta_validator"
 
 module Hecks
   # The chapters the gem carries that a hecksagon can attach by name (ADR 0080): the language
-  # declared in itself, Expression, Tenancy, Deploy, Site, Tickets, Composer and QualityControl.
+  # declared in itself, Expression, Tenancy, Deploy, Site, Tickets, Composer, QualityControl and
+  # Bulk.
   # Framework members stay in `Framework`; `table` and `attach!` find a name across both.
   #
   # A chapter is named by the `Hecks.bluebook "Name"` header of its files, and may span several.
@@ -16,7 +17,7 @@ module Hecks
     # Where attachable chapters live, relative to `lib/hecks/`.
     GLOBS = %w[language/**/*.bluebook grammar/expression.bluebook tenancy/bluebook/*.bluebook
                deploy/bluebook/*.bluebook site/bluebook/*.bluebook tickets/bluebook/*.bluebook
-               composer/bluebook/*.bluebook quality_control/*.bluebook].freeze
+               composer/bluebook/*.bluebook quality_control/*.bluebook bulk/bluebook/*.bluebook].freeze
 
     # A `Hecks.bluebook "Name"` header line, capturing the chapter's name.
     BLUEBOOK_HEADER = /\A\s*Hecks\.bluebook\s+"([^"]+)"/

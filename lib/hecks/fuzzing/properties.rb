@@ -5,6 +5,7 @@ require_relative "../ports/query/in_memory"
 require_relative "../query_specification/field_path"
 require_relative "../runtime/value"
 require_relative "properties/lifecycle_and_replay"
+require_relative "properties/bulk_parity"
 require_relative "properties/querying"
 require_relative "properties/guards"
 require_relative "properties/dispatch_and_mutations"
@@ -28,6 +29,7 @@ module Hecks
       # Grouped by responsibility across properties/*.rb; `extend`ed so each
       # stays reachable as `Properties.foo(history)`, matching `module_function` below.
       extend LifecycleAndReplay
+      extend BulkParity
       extend Querying
       extend Guards
       extend DispatchAndMutations

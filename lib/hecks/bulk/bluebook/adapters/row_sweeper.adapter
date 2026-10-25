@@ -1,0 +1,7 @@
+# Binds the `Rows` port to `RowSweeper`, which sends a bulk run's command to every row in process.
+# Required by name, not relative, so a copy of this directory shares the one implementation loaded.
+require "hecks/bulk/row_sweeper"
+
+Hecks.adapter "RowSweeper" do
+  port "Rows"
+end
