@@ -6,6 +6,7 @@
 
 use super::token::{Kind, Token};
 
+/// What a `{slot:kind}` of a pattern takes from a sentence.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SlotKind {
     /// One or more words: a noun phrase.
@@ -26,6 +27,7 @@ pub enum SlotKind {
     Event,
 }
 
+/// One element of a compiled pattern.
 #[derive(Debug, Clone)]
 pub enum Part {
     Lit(String),
@@ -34,6 +36,7 @@ pub enum Part {
     Slot { name: String, kind: SlotKind },
 }
 
+/// A phrase's pattern, compiled once for matching.
 #[derive(Debug, Clone)]
 pub struct Pattern {
     pub parts: Vec<Part>,
@@ -53,6 +56,7 @@ pub struct Capture {
 }
 
 impl Pattern {
+    /// Compiles pattern text, or says why it is not a pattern.
     pub fn parse(text: &str) -> Result<Self, String> {
         let mut parts = Vec::new();
         let mut chars = text.chars().peekable();
@@ -99,7 +103,7 @@ impl Pattern {
             .count()
     }
 
-    /// The pattern as an author reads it in a suggestion: `Rule <description> holds when <condition>`.
+    /// The pattern as an author reads it in a suggestion, with each slot shown as `<name>`.
     pub fn render(&self) -> String {
         let mut out = String::new();
         let mut chars = self.source.chars();
@@ -157,6 +161,7 @@ pub struct Match {
 }
 
 impl Match {
+    /// What the slot called `name` took, if the pattern has one.
     pub fn get(&self, name: &str) -> Option<&Capture> {
         self.captures
             .iter()

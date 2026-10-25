@@ -4,6 +4,7 @@
 
 use std::fmt;
 
+/// A refusal: where it happened, what is wrong and what would have been accepted.
 #[derive(Debug, Clone)]
 pub struct Diagnostic {
     pub file: String,
@@ -17,6 +18,7 @@ pub struct Diagnostic {
 }
 
 impl Diagnostic {
+    /// A refusal of a whole line.
     pub fn new(file: impl Into<String>, line: usize, message: impl Into<String>) -> Self {
         Self {
             file: file.into(),
@@ -27,11 +29,13 @@ impl Diagnostic {
         }
     }
 
+    /// The same refusal, pointing at the character column it starts at.
     pub const fn with_column(mut self, column: usize) -> Self {
         self.column = Some(column);
         self
     }
 
+    /// The same refusal, listing what would have been accepted.
     pub fn with_expected(mut self, expected: Vec<String>) -> Self {
         self.expected = expected;
         self
@@ -64,4 +68,5 @@ impl fmt::Display for Diagnostic {
     }
 }
 
+/// A parse that either succeeds or is refused with a [`Diagnostic`].
 pub type ParseResult<T> = Result<T, Diagnostic>;

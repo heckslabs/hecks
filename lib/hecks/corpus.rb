@@ -4,6 +4,7 @@ require_relative "corpus/routes"
 require_relative "corpus/rust"
 require_relative "corpus/sources"
 require_relative "corpus/worlds"
+require_relative "sentence_form"
 
 module Hecks
   # The corpus: every place in this repo that holds a real domain, named once.
@@ -182,20 +183,16 @@ module Hecks
       owning_dir(dir)
     end
 
-    # A `Hecks.bluebook "Name"` header line, capturing the chapter's name.
-    BLUEBOOK_HEADER = /\A\s*Hecks\.bluebook\s+"([^"]+)"/
-
-    # The chapter a bluebook declares — `Hecks.bluebook "<Name>"` — read off
-    # the file rather than guessed from its name, since the two can differ.
+    # The chapter a bluebook declares — `Hecks.bluebook "<Name>"`, or `Domain: <name>` for a file
+    # written as sentences — read off the file rather than guessed from its name, since the two
+    # can differ.
     #
     # @param bluebook_path [String, Array<String>] a `.bluebook` file path, or an
     #   array whose first element is used
     # @return [String, nil] the declared chapter name, or nil when the file never
     #   declares one
     def chapter_name_of(bluebook_path)
-      bluebook_path = Array(bluebook_path).first
-      header = File.foreach(bluebook_path).find { |line| line =~ BLUEBOOK_HEADER }
-      header && Regexp.last_match(1)
+      SentenceForm.chapter_name(Array(bluebook_path).first)
     end
   end
 end

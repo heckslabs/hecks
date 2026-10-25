@@ -108,19 +108,19 @@ Hecks.bluebook "Cms" do
 
     query "Listing" do
       description "Every page, whatever its status, by slug."
-      order_by "slug.value", :asc
+      order_by :"slug.value", :asc
     end
 
     query "Published" do
       description "The pages on the site, by slug."
       where(status: "published")
-      order_by "slug.value", :asc
+      order_by :"slug.value", :asc
     end
 
     query "Drafts" do
       description "The pages not yet published, by slug."
       where(status: "draft")
-      order_by "slug.value", :asc
+      order_by :"slug.value", :asc
     end
   end
 end

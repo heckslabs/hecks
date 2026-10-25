@@ -20,6 +20,7 @@ mod parse;
 // Generated table of the sentence form's phrases; not every column is read by this binary.
 #[allow(dead_code)]
 mod phrases;
+mod render_ruby;
 mod ruby_value;
 mod sentence;
 
@@ -55,6 +56,7 @@ impl From<diag::Diagnostic> for RunError {
 fn run(args: &[String]) -> Result<(), RunError> {
     match args.first().map(String::as_str) {
         Some("chapter") => run_chapter(&args[1..]),
+        Some("render") => run_render(&args[1..]),
         Some("resolve") => run_resolve(&args[1..]),
         Some("adapter") => run_adapter(&args[1..]),
         Some("world") => run_world(&args[1..]),
@@ -71,8 +73,11 @@ fn run(args: &[String]) -> Result<(), RunError> {
     }
 }
 
-/// `hecks-parse chapter --chapter <Name> <files...>`: emits the chapter's `ir.json` on stdout.
-fn run_chapter(args: &[String]) -> Result<(), RunError> {
+/// The chapter a `chapter` or `render` call names and the files it reads, as `(path, source)`.
+fn read_chapter_args(
+    subcommand: &str,
+    args: &[String],
+) -> Result<(String, Vec<(String, String)>), RunError> {
     let mut chapter_name: Option<String> = None;
     let mut files: Vec<String> = Vec::new();
     let mut iter = args.iter();
@@ -84,12 +89,12 @@ fn run_chapter(args: &[String]) -> Result<(), RunError> {
         }
     }
     let chapter_name = chapter_name.ok_or_else(|| {
-        RunError::Usage("hecks-parse chapter --chapter <Name> <files...>".to_string())
+        RunError::Usage(format!("hecks-parse {subcommand} --chapter <Name> <files...>"))
     })?;
     if files.is_empty() {
-        return Err(RunError::Usage(
-            "hecks-parse chapter --chapter <Name> <files...> — no files given".to_string(),
-        ));
+        return Err(RunError::Usage(format!(
+            "hecks-parse {subcommand} --chapter <Name> <files...> — no files given"
+        )));
     }
 
     let loaded: Vec<(String, String)> = files
@@ -100,9 +105,27 @@ fn run_chapter(args: &[String]) -> Result<(), RunError> {
             Ok((path.clone(), source))
         })
         .collect::<Result<_, RunError>>()?;
+    Ok((chapter_name, loaded))
+}
 
+/// `hecks-parse chapter --chapter <Name> <files...>`: emits the chapter's `ir.json` on stdout.
+fn run_chapter(args: &[String]) -> Result<(), RunError> {
+    let (chapter_name, loaded) = read_chapter_args("chapter", args)?;
     let bluebook = parse::chapter::parse_chapter(&chapter_name, &loaded)?;
     println!("{}", emit::write(&emit::bluebook_json(&bluebook)));
+    Ok(())
+}
+
+/// `hecks-parse render --chapter <Name> <files...>`: prints the chapter as the Ruby-shaped
+/// bluebook text that declares the same IR, so a chapter written as sentences can be loaded by
+/// Ruby.
+fn run_render(args: &[String]) -> Result<(), RunError> {
+    let (chapter_name, loaded) = read_chapter_args("render", args)?;
+    let bluebook = parse::chapter::parse_chapter(&chapter_name, &loaded)?;
+    let first = loaded.first().map_or("<none>", |(path, _)| path.as_str());
+    let text = render_ruby::ruby_form(&bluebook)
+        .map_err(|why| RunError::Parse(diag::Diagnostic::new(first, 1, why)))?;
+    print!("{text}");
     Ok(())
 }
 
