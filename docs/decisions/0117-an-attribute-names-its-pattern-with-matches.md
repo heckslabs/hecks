@@ -10,7 +10,7 @@ Refusing blank by default was surveyed and rejected: 527 more required value-obj
 
 ## Decision
 
-1. **`attribute` takes `matches: :name`.** The language gives a closed set of names, each standing for exactly one regex source: `present` (`[^ \t\n\r]`, a value that is not blank), `not_empty` (`[^\t\n\r]`), `no_whitespace` (`^[^ \t\n\r]+$`), `snake_name` (`^[a-z][a-z0-9_]*$`), `git_sha` (`^[0-9a-fA-F]{7,40}$`) and `digits` (`^[0-9]+$`). Each is the exact source the corpus already spelled, so no field changes meaning.
+1. **`attribute` takes `matches: :name`.** The language gives a closed set of names, each standing for exactly one regex source: `present` (`[^ \t\n\r]`, a value that is not blank), `not_empty` (`[^\t\n\r]`), `no_whitespace` (`^[^ \t\n\r]+$`), `snake_name` (`^[a-z][a-z0-9_]*$`), `git_sha` (`^[0-9a-fA-F]{7,40}$`) and `digits` (`^[0-9]+$`). Each is the exact source the corpus already spelled, so no field changes meaning. The set grew as the corpus repeated more shapes: `identifier`, `csv_list`, `command_ref` (`Context::Aggregate.Command`), `host_port`, `instance_id`, `hostname`, `word_chars`, `version`, `http_scheme`, `capitalized` and `single_line`. `Hecks::Bluebook::NamedPattern::TABLE` is the full list.
 
 2. **The name never reaches the IR.** The Ruby DSL and the Rust parser each expand the name to its regex at declaration, so the IR, the generated Rust and the runtime check see the pattern as before. `rust/parser/src/build/named_pattern.rs` and `Hecks::Bluebook::NamedPattern` hold the same table, and `spec/named_pattern_spec.rb` holds them to each other.
 

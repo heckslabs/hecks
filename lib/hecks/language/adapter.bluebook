@@ -40,12 +40,12 @@ Hecks.bluebook "Adapter" do
 
     # A query a plugin answers, written in full: `Calendar::Event.Occurrences`.
     value_object "AnsweredQuery" do
-      attribute :value, String, pattern: '^[A-Z][A-Za-z0-9]*::[A-Z][A-Za-z0-9]*\.[A-Z][A-Za-z0-9]*$'
+      attribute :value, String, matches: :command_ref
     end
 
     # A capability an adapter provides, named in snake case: `set_transform`.
     value_object "AdapterCapability" do
-      attribute :value, String, pattern: '^[a-z][a-z0-9_]*$'
+      attribute :value, String, matches: :snake_name
     end
 
     # The wasm module a plugin runs: a file beside its `.adapter`, never a path out of it.

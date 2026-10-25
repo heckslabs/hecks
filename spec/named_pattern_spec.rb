@@ -17,6 +17,11 @@ RSpec.describe Hecks::Bluebook::NamedPattern do
     end
   end
 
+  it "is put into words by the glossary, name for name" do
+    words = Hecks::Projections::Glossary::Sentences::ValueObjects::PATTERN_WORDS
+    expect(words.keys).to match_array(described_class::TABLE.keys)
+  end
+
   it "refuses a name the language does not give, listing the ones it does" do
     expect { described_class.source(:zip_code) }
       .to raise_error(ArgumentError, /zip_code.*not a named pattern.*present/)

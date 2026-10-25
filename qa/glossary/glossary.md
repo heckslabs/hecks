@@ -1613,7 +1613,7 @@ Always true: a waived gate says why.
 
 #### Words
 
-Text that must follow a set format.
+Text that must be one line.
 
 ## Target
 
@@ -1917,7 +1917,7 @@ Always true: a target is referenced.
 
 #### Words
 
-Text that must follow a set format.
+Text that must be one line.
 
 #### Yield score
 

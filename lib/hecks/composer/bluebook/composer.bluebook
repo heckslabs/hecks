@@ -28,7 +28,7 @@ Hecks.bluebook "Composer" do
     # The name a chapter's `Hecks.bluebook "Name"` header declares, which is also the name the
     # check loads it under.
     value_object "ChapterName" do
-      attribute :value, String, pattern: '[A-Z][A-Za-z0-9]*'
+      attribute :value, String, matches: :capitalized
 
       invariant("a chapter is named") { !value.to_s.empty? }
     end

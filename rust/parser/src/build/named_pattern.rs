@@ -10,6 +10,17 @@ const TABLE: &[(&str, &str)] = &[
     ("snake_name", r"^[a-z][a-z0-9_]*$"),
     ("git_sha", r"^[0-9a-fA-F]{7,40}$"),
     ("digits", r"^[0-9]+$"),
+    ("identifier", r"^[A-Za-z][A-Za-z0-9_]*$"),
+    ("csv_list", r"^[^ \t\n\r,]+(,[^ \t\n\r,]+)*$"),
+    ("command_ref", r"^[A-Z][A-Za-z0-9]*::[A-Z][A-Za-z0-9]*\.[A-Z][A-Za-z0-9]*$"),
+    ("host_port", r"^[A-Za-z0-9_-]+(:[0-9]+)?$"),
+    ("instance_id", r"^i-[0-9a-f]+$"),
+    ("hostname", r"^[A-Za-z0-9][A-Za-z0-9.-]*$"),
+    ("word_chars", r"^[A-Za-z0-9_]*$"),
+    ("version", r"^[0-9]+[.][0-9]+[.][0-9]+"),
+    ("http_scheme", r"^https?://"),
+    ("capitalized", r"[A-Z][A-Za-z0-9]*"),
+    ("single_line", r"[^\n\r]"),
 ];
 
 /// The regex source `name` stands for, or `None` when the language gives no such name.
