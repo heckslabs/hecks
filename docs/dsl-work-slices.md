@@ -33,7 +33,7 @@ hecks fuzz seeds=3 steps=8
 
 ## The shared-file rule
 
-`syntax.bluebook` is 960 lines and partitioned into contiguous runs by `context:` — Aggregate 15 rows, Query 14, ReadModel 17, Command 8, Entity 8, Policy 5, ProcessManager 6, and so on. Two slices touching different contexts touch different regions, so conflicts are textual and mechanical rather than semantic.
+`syntax.bluebook` is partitioned into contiguous runs by `context:` — Aggregate, Query, ReadModel, Command, Entity, Policy, ProcessManager, and so on. Two slices touching different contexts touch different regions, so conflicts are textual and mechanical rather than semantic.
 
 The exception worth knowing: **`attribute` rows appear under Aggregate, Entity, and Command**. Any slice changing the attribute vocabulary touches three regions and will conflict with the slices that own those contexts. That is why S3 is sequenced alone.
 

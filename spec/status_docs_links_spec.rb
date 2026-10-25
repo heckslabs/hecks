@@ -1,4 +1,5 @@
 require "spec_helper"
+require_relative "doc_banners_spec"
 
 # Every relative markdown link and in-page `#anchor` in the status documents must resolve.
 RSpec.describe "status document links" do
@@ -36,7 +37,16 @@ RSpec.describe "status document links" do
     end
   end
 
-  %w[README.md CONTRIBUTING.md docs/1.0-readiness.md].each do |doc|
+  # The living documents: those that do not date themselves with a banner (the same set the
+  # reference spec reads), generated pages aside.
+  living = (Dir[File.join(File.expand_path("..", __dir__), "{README,CONTRIBUTING,CLAUDE}.md")] +
+            Dir[File.join(File.expand_path("..", __dir__), "docs/*.md")] +
+            Dir[File.join(File.expand_path("..", __dir__), "docs/implemented/*.md")] +
+            Dir[File.join(File.expand_path("..", __dir__), "docs/implemented/guides/*.md")])
+  living = living.map { |path| path.delete_prefix("#{File.expand_path("..", __dir__)}/") }
+                 .reject { |doc| DocBanners.required.include?(File.basename(doc)) }
+
+  living.sort.each do |doc|
     it "#{doc} links only to files and headings that exist" do
       path = File.join(root, doc)
       broken = links(path).filter_map { |target| link_problem(path, target) }

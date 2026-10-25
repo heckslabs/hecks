@@ -93,9 +93,12 @@ suffix, so a policy that names the secret by its name ends in `-*`.
 
 ## Rate limits on the public write routes
 
-Two routes a stranger can call are limited per client address, in front of
-dispatch, so a refused request costs no Postgres lock, wasm run or journal write:
-`POST /newsletter/subscribers` and `POST /registrations`. Reads, the
+Routes a stranger can call are limited per client address, in front of
+dispatch, so a refused request costs no Postgres lock, wasm run or journal write.
+The commerce routes are `POST /newsletter/subscribers` and `POST /registrations`
+(`rust/host/src/web/commerce.rs`); the platform sign-in start and callback routes carry
+their own `HECKS_RATE_LIMIT_PLATFORM_SIGNIN_START` and `_CALLBACK` limits
+(`rust/host/src/platform_signin/extension.rs`). Each route's rule is an `extension::rate_rules()` entry. Reads, the
 token-authenticated confirm and unsubscribe links, the payment webhook and every
 authenticated route are never limited. The limits exist in serve mode
 (`HECKS_SERVE_MODE=1`); a limited caller gets `429 Too Many Requests` with a
@@ -116,6 +119,7 @@ restart clears it. This is abuse damping, not a hard quota.
 | `HECKS_RATE_LIMIT_WINDOW_SECONDS` | 3600 | window length for every limited route |
 | `HECKS_RATE_LIMIT_SUBSCRIBE` | 10 | requests per address per window, subscribe |
 | `HECKS_RATE_LIMIT_REGISTER` | 15 | requests per address per window, registration |
+| `HECKS_RATE_LIMIT_PLATFORM_SIGNIN_START`, `HECKS_RATE_LIMIT_PLATFORM_SIGNIN_CALLBACK` | 30 | requests per address per window, platform sign-in start and callback |
 | `HECKS_RATE_LIMIT_MAX_KEYS` | 10000 | most addresses tracked at once |
 | `HECKS_TRUSTED_PROXIES` | none | comma-separated addresses or `addr/prefix` ranges |
 | `HECKS_TRUSTED_PROXY_HOPS` | 0 | rightmost `X-Forwarded-For` entries added by our proxies |

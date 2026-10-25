@@ -99,7 +99,7 @@ Each step is its own PR and needs the one before it green on `main`.
 3. **Wire the tail.** `mod.rs`, `Cargo.toml`, sidecars, and lineage and
    translation inputs for the codegen path (about 150 lines of glue).
 4. **Re-baseline.** Regenerate `rust/src/generated/` once from
-   `hecks-codegen` and run `hecks regenerate_corpus --check`. Expected diff is
+   `hecks-codegen` and run `hecks regeneration_run.regenerate_corpus --check`. Expected diff is
    empty for every domain in `Corpus.rust_regen_order`; any non-empty diff is
    a parity bug to fix in `rust/codegen` before continuing.
 5. **Swap the oracle.** Replace `codegen_parity_spec` and
@@ -172,7 +172,7 @@ of Lambda binaries; that dedup is a refactor and is out of scope here.
   not only by their own specs.
 - **The differential oracle changes.** After step 6 nothing compares two
   generators. Correctness of generated Rust rests on `spec/corpus/semantics`,
-  `spec/rust_conformance*`, `hecks regenerate_corpus --check`, and
+  `spec/rust_conformance*`, `hecks regeneration_run.regenerate_corpus --check`, and
   `rust_coverage`, which 0054 already named as the checks that matter. Parity
   of the two *IR producers* (live registry versus `hecks-parse`) stays checked
   by the pipeline specs.

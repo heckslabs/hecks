@@ -191,11 +191,9 @@ succeeds, a two-dispatch `Capture`-then-`Move` protocol, and a
 `Graveyard` aggregate fed entirely by policy from the board's own
 `Captured` events. Every example on this page is drawn from that
 domain's real `chess.behaviors` file — turn order, blocking, occupancy,
-capture, and the graveyard, the same five categories `spec/chess_spec.rb`
-groups its own direct assertions under in the project that domain lives
-in. It is not part of this repo's own corpus (`examples/` stays domains
-hecks itself owns and ships), which is why every snippet above is
-marked "shown, never run" rather than boot the game for real — but it is
-real, and it is the shape a `.behaviors` file takes once a domain has
+capture, and the graveyard. The domain itself is `examples/chess/bluebook/chess.bluebook`;
+the `.behaviors` file these snippets come from is not in this repo, which is
+why every snippet above is marked "shown, never run" rather than boot the
+game for real — but it is real, and it is the shape a `.behaviors` file takes once a domain has
 more than one aggregate, entities with their own commands, and a
 projection fed by policy.

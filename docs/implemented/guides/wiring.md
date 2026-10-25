@@ -273,8 +273,8 @@ to, which on a self-hosted machine is almost always a superuser; the
 [schema evolution guide](schema-evolution.md) has the whole story.
 
 A `.world` block can carry more than one adapter binding, plus a
-deployment target. `examples/banking/bluebook/banking.world`, quoted
-verbatim:
+deployment target. `examples/banking/bluebook/banking.world`, with its
+comments left out:
 
 ```ruby skip
 Hecks.world "Banking" do
@@ -431,7 +431,7 @@ deployed_to("AwsBox") do
 end
 ```
 
-`hecks deploy project` writes `rds.yaml`, `box.yaml`, `Caddyfile`,
+`hecks deploy recipe.project` writes `rds.yaml`, `box.yaml`, `Caddyfile`,
 `services.json`, `render-compose.sh`, `fetch-secrets.sh`, `deploy-box.sh` and a
 `Makefile`. Secrets are named, never written down: the box resolves them when it
 deploys. A world with no `containers` is refused with an example.
@@ -598,7 +598,7 @@ deployed_to("AwsSharedDatabase") do
 end
 ```
 
-`hecks deploy project` writes `rds.yaml`, a `Makefile` (`make stack VPC=... PRIVATE_SUBNETS=...`) and a README. The
+`hecks deploy recipe.project` writes `rds.yaml`, a `Makefile` (`make stack VPC=... PRIVATE_SUBNETS=...`) and a README. The
 stack makes no database of its own; each site's rule on its security group is that site's box stack's, and the bastion's
 is its own resource so an update cannot revoke a site's rule.
 
@@ -816,7 +816,7 @@ deployed_to("Vercel") do
 end
 ```
 
-`hecks deploy project` writes `vercel.json`, `.vercelignore`, `deploy-vercel.sh`
+`hecks deploy recipe.project` writes `vercel.json`, `.vercelignore`, `deploy-vercel.sh`
 and a `Makefile`. The script reads each named variable from the environment
 (`op run --env-file=.env.tpl -- make deploy`) and passes it to Vercel on stdin
 as a sensitive variable, so no value reaches a file or a command line. The host
@@ -826,7 +826,7 @@ the ADR's open items.
 A world can declare more than one deploy kind, so a small domain can start on
 Vercel and keep an `AwsBox` block beside it. The persistence adapter, not the
 deploy kind, owns the data (Postgres by URL), so the move is a deploy choice.
-`hecks deploy project` writes each target under `<out>/<adapter>/`;
+`hecks deploy recipe.project` writes each target under `<out>/<adapter>/`;
 `--target=Vercel` writes only that one into `<out>`.
 
 ### Project-wide defaults
