@@ -105,7 +105,12 @@ module Hecks
       end
     end
   end
-end
 
-# The name embryonaut_platform's handoff tooling reaches it by.
-Hecks::Ports::Persistence::PostgresDump = Hecks::Adapters::PostgresDump
+  module Ports
+    # The persistence port, reopened only to keep the name below.
+    module Persistence
+      # The name embryonaut_platform's handoff tooling reaches it by.
+      PostgresDump = Adapters::PostgresDump
+    end
+  end
+end
