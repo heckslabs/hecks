@@ -11,6 +11,34 @@ export interface Refusal {
   error: string;
 }
 
+/** One reason a command would be refused, as a validation reports it. */
+export interface ValidationRefusal {
+  /** What sort of no: `refused`, `not_found`, `unauthorized` or `absent_argument`. */
+  kind: string;
+  /** The point of dispatch it came from: `arguments`, `role`, `references`, `state`, `givens`, `ensures`, `invariants`. */
+  stage: string;
+  /** The refusal class the domain raises (`GivenNotMet`), when the host names it. */
+  refusal?: string | null;
+  /** The domain's own words for why. */
+  message: string | null;
+  /** The attribute it is about, when the host knows (the Ruby runtime does; the Rust host does not yet). */
+  attribute?: string | null;
+  /** A JSON Pointer to the offending value, when the host knows. */
+  path?: string | null;
+  /** The text of the rule that refused, when the host knows. */
+  rule?: string | null;
+}
+
+/**
+ * Whether a command would be accepted right now and, if not, why. Advisory: the state it was judged
+ * on can change before the real dispatch, which stays authoritative. The Rust host stops at the
+ * first refusal, so `refusals` holds at most one there.
+ */
+export interface Validation {
+  ok: boolean;
+  refusals: ValidationRefusal[];
+}
+
 /**
  * The body of every host answer: the state of the aggregates, keyed
  * `Domain::Aggregate#id`, and the refusals the run reported. `error` is set
@@ -22,6 +50,8 @@ export interface Answer {
   /** One entry per question asked with `HostClient#query`. */
   queries?: QueryResult[];
   error?: string;
+  /** Set on the answer to a validation (`HostClient#validate`). */
+  ok?: boolean;
 }
 
 /**

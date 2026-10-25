@@ -285,3 +285,43 @@ describe("query", () => {
     await assert.rejects(async () => rowsOf(await client.query("Event.Nope"), "Event.Nope"), DomainRefusal);
   });
 });
+
+describe("validate", () => {
+  const schedule = (client) =>
+    client.dispatch("Event.Schedule", { slug: "yoga", name: "Yoga", price: { cents: 900 }, capacity: 12 });
+
+  it("asks the host with dry_run, the target, the facts and the caller", async () => {
+    const { fetch, sent } = answering({ ok: true, refusals: [] });
+    await clientFor(fetch, { role: "Organizer" }).validate("Event.Close", {}, "yoga");
+    assert.deepEqual(sent, [{ verb: "Shop::Event.Close", to: "yoga", with: {}, role: "Organizer", dry_run: true, bare: true }]);
+  });
+
+  it("answers ok for a command that would be accepted, and keeps nothing", async () => {
+    const host = fakeHost();
+    const client = createClient({ domain: "CheckoutFixture", url: URL_, fetch: host.fetch });
+    await schedule(client);
+    assert.deepEqual(await client.validate("Event.Close", {}, "yoga"), { ok: true, refusals: [] });
+    assert.equal(host.instances["CheckoutFixture::Event#yoga"].status, "open");
+  });
+
+  it("answers the reason for a command that would be refused, without throwing", async () => {
+    const host = fakeHost();
+    const client = createClient({ domain: "CheckoutFixture", url: URL_, fetch: host.fetch });
+    await schedule(client);
+    await client.dispatch("Event.Close", {}, "yoga");
+    const verdict = await client.validate("Event.Close", {}, "yoga");
+    assert.equal(verdict.ok, false);
+    assert.deepEqual(verdict.refusals.map(({ kind, stage, refusal }) => [kind, stage, refusal]), [["refused", "givens", "GivenNotMet"]]);
+    assert.match(verdict.refusals[0].message, /an open session can be closed/);
+  });
+
+  it("treats an answer without refusals as none", async () => {
+    const { fetch } = answering({ ok: true });
+    assert.deepEqual(await clientFor(fetch).validate("Event.Close", {}, "yoga"), { ok: true, refusals: [] });
+  });
+
+  it("is DomainUnavailable when the host cannot be reached or fails", async () => {
+    const { fetch } = answering("boom", { status: 500 });
+    await assert.rejects(() => clientFor(fetch).validate("Event.Close", {}, "yoga"), DomainUnavailable);
+  });
+});

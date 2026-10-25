@@ -12,6 +12,7 @@ pub mod entity_dispatch_order;
 pub mod field_hint;
 pub mod query_comparator;
 pub mod reducer;
+pub mod refusal_class;
 pub mod refusal_template;
 
 pub use aggregate_dispatch_order::AggregateStep;
@@ -19,4 +20,5 @@ pub use entity_dispatch_order::EntityStep;
 pub use field_hint::FieldHint;
 pub use query_comparator::QueryComparator;
 pub use reducer::Reducer;
+pub use refusal_class::RefusalClass;
 pub use refusal_template::RefusalSite;

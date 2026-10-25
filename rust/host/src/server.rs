@@ -9,6 +9,7 @@ use crate::lambda_client::LambdaInvoker;
 use crate::log;
 use crate::rate_limit::{self, RateLimits, Verdict};
 use crate::store::Store;
+use crate::validation;
 use crate::wasm_runner;
 use crate::web;
 use axum::body::Bytes;
@@ -35,7 +36,7 @@ pub async fn dispatch_body(body: Value, host: Host<'_>) -> Result<Value, Error> 
         return Ok(conceal_internal_error(response));
     }
     let answer = kernel_answer(&body, host).await?;
-    if !wants_bare(&body) {
+    if !wants_bare(&body) || wants_preview(&body) {
         return Ok(answer);
     }
     Ok(dispatch::present(host.wasm_path, answer)
@@ -110,6 +111,12 @@ fn wants_bare(body: &Value) -> bool {
     body.get("bare").and_then(Value::as_bool) == Some(true)
 }
 
+// `"dry_run": true` beside a command asks whether it would be accepted, and keeps nothing. Its
+// answer is already the client envelope, so `bare` has nothing to unwrap in it.
+fn wants_preview(body: &Value) -> bool {
+    body.get("dry_run").and_then(Value::as_bool) == Some(true)
+}
+
 // The kernel's outcome for a read, query or command body, in the stored shape.
 async fn kernel_answer(body: &Value, host: Host<'_>) -> Result<Value, Error> {
     let Host {
@@ -160,7 +167,23 @@ async fn kernel_answer(body: &Value, host: Host<'_>) -> Result<Value, Error> {
         actor_id: actor_id.as_deref(),
     };
 
-    let outcome = if let Some(to) = body.get("to").cloned() {
+    let invocation = invocation_of(body)?;
+    if wants_preview(body) {
+        let outcome = dispatch::preview_as(host, &verb, invocation, caller)
+            .await
+            .map_err(|e| format!("{e:#}"))?;
+        return Ok(validation::answer(&outcome.result));
+    }
+    let outcome = dispatch::handle_as(host, &verb, invocation, caller)
+        .await
+        .map_err(|e| format!("{e:#}"))?;
+    Ok(outcome.result)
+}
+
+// The command's arguments in the invocation shape the kernel reads, from whichever of the body's
+// three spellings it used: `to` with `with`, `with` alone, or the legacy `args`.
+fn invocation_of(body: &Value) -> Result<Value, Error> {
+    if let Some(to) = body.get("to").cloned() {
         if body.get("args").is_some() {
             return Err("cannot combine to/with with legacy args".into());
         }
@@ -168,26 +191,18 @@ async fn kernel_answer(body: &Value, host: Host<'_>) -> Result<Value, Error> {
             .get("with")
             .cloned()
             .unwrap_or_else(|| serde_json::json!({}));
-        dispatch::handle_routed_as(host, &verb, to, facts, caller)
-            .await
-            .map_err(|e| format!("{e:#}"))?
-    } else if let Some(facts) = body.get("with").cloned() {
+        return dispatch::routed_invocation(to, facts).map_err(|e| format!("{e:#}").into());
+    }
+    if let Some(facts) = body.get("with").cloned() {
         if body.get("args").is_some() {
             return Err("cannot combine \"with\" with legacy args".into());
         }
-        dispatch::handle_facts_as(host, &verb, facts, caller)
-            .await
-            .map_err(|e| format!("{e:#}"))?
-    } else {
-        let args = body
-            .get("args")
-            .cloned()
-            .unwrap_or_else(|| serde_json::json!({}));
-        dispatch::handle_as(host, &verb, args, caller)
-            .await
-            .map_err(|e| format!("{e:#}"))?
-    };
-    Ok(outcome.result)
+        return dispatch::facts_invocation(facts).map_err(|e| format!("{e:#}").into());
+    }
+    Ok(body
+        .get("args")
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!({})))
 }
 
 /// Everything `dispatch_body` needs, `Arc`-shared for axum's per-request handler cloning.

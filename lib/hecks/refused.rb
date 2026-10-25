@@ -9,7 +9,7 @@ module Hecks
   # the language's `RefusalClass` vocabulary table, so Ruby, Rust and every client read one table.
   class Refused < StandardError
     # The `RefusalClass` rows by refusal name.
-    CLASSES = Hecks::Vocabulary.rows("RefusalClass").to_h { |row| [row["refusal"], row] }.freeze
+    CLASSES = Hecks::Vocabulary.rows("RefusalClass").to_h { |row| [row["name"], row] }.freeze
 
     # What a refusal that is not a named domain refusal (the base class, an adapter's narrowing of
     # one it does not name) is classed as.
