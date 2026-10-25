@@ -1,0 +1,30 @@
+# How the ledger's Rails app is named and listed; the shapes of these rows are the RailsApp chapter's.
+Hecks.bluebook "LedgerPages" do
+  vision "The name of the ledger's app and how its notes are listed."
+
+  aggregate "Desk" do
+    description "Holds the rows that shape the app."
+
+    identified_by :name
+
+    attribute :name, DeskName
+
+    value_object "DeskName" do
+      attribute :value, String
+    end
+
+    value_object "App" do
+      attribute :title, String
+
+      member title: "The ledger"
+    end
+
+    value_object "Listing" do
+      attribute :aggregate, String
+      attribute :label,     String
+      attribute :columns,   String
+
+      member aggregate: "Note", label: "Notes on the ledger", columns: "slug"
+    end
+  end
+end

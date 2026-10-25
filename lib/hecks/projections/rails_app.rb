@@ -1,5 +1,6 @@
 require_relative "../projector"
 require_relative "../naming"
+require_relative "site/table"
 
 module Hecks
   module Projections
@@ -28,9 +29,14 @@ module Hecks
       #   draws, when the app drives more than this one; this chapter alone when absent
       # @return [Hash{String => String}] each file's path in the app to its text
       def call(bluebook:, options: {})
-        controllers = bluebook.aggregates.to_h { |aggregate| controller(aggregate) }
+        controllers = driven(bluebook).to_h { |aggregate| controller(aggregate) }
         controllers.merge("config/routes.rb" => routes(options[:route_chapters] || [bluebook]))
       end
+
+      # @param chapter [Bluebook::Chapter] a chapter
+      # @return [Array<Bluebook::Aggregate>] its aggregates that take commands; one that only holds
+      #   rows, such as an `App` row, has no page
+      def driven(chapter) = chapter.aggregates.select { |aggregate| aggregate.commands.any? }
 
       # @param aggregate [Bluebook::Aggregate] the aggregate
       # @return [Array(String, String)] the controller's path and text
@@ -44,11 +50,25 @@ module Hecks
       # @param chapters [Array<Bluebook::Chapter>] the chapters to draw
       # @return [String] the routes file's text
       def routes(chapters)
-        drawn = chapters.flat_map(&:aggregates).map do |aggregate|
-          "  resources :#{Naming.plural(Naming.snake(aggregate.hecks_name))}"
-        end
-        "# A show and a POST per command, drawn from the domain by hecks-rails.\n" \
+        resources = resources_of(chapters)
+        drawn = ["  root to: \"#{home(chapters, resources)}#index\"", *resources.map { |_, name| "  resources :#{name}" }]
+        "# A list, a show and a POST per command, drawn from the domain by hecks-rails.\n" \
           "Rails.application.routes.draw do\n#{drawn.join("\n")}\nend\n"
+      end
+
+      # @param chapters [Array<Bluebook::Chapter>] the chapters to draw
+      # @return [Array<Array(String, String)>] each driven aggregate's name and resource name
+      def resources_of(chapters)
+        aggregates = chapters.flat_map { |chapter| driven(chapter) }
+        aggregates.map { |aggregate| [aggregate.hecks_name, Naming.plural(Naming.snake(aggregate.hecks_name))] }
+      end
+
+      # @param chapters [Array<Bluebook::Chapter>] the chapters to draw
+      # @param resources [Array<Array(String, String)>] each aggregate's name and resource name
+      # @return [String] the resource the root path lists: the `App` row's home, else the first
+      def home(chapters, resources)
+        named = chapters.flat_map { |chapter| Site::Table.rows_of(chapter, "App") }.filter_map { |row| row[:home] }.first
+        resources.find { |name, _| name == named }&.last || resources.first.last
       end
     end
   end

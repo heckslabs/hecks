@@ -1,0 +1,20 @@
+<% model = hecks_model %>
+<% offered, unavailable = hecks_commands_for(@record) %>
+<p><%= link_to hecks_label(model), url_for(action: "index", only_path: true) %></p>
+<h1><%= Hecks::Naming.words(model.model_name.singular) %> <span class="mono"><%= @record.to_param %></span></h1>
+<%= render "hecks/rails/refusals", record: @record %>
+
+<div class="table-scroll"><table><tbody>
+  <% (@record.to_h.keys - [:id]).each do |column| %>
+    <tr><th><%= hecks_heading(column) %></th><td><%= hecks_cell(@record, column) %></td></tr>
+  <% end %>
+</tbody></table></div>
+
+<h2>Commands</h2>
+<% offered.each do |command| %>
+  <%= render "hecks/rails/command", command: command, subject: @record,
+             url: url_for(action: hecks_verb(command), id: @record.to_param, only_path: true) %>
+<% end %>
+<% if unavailable.any? %>
+  <p class="goal">Not available now: <%= unavailable.map { |command| Hecks::Naming.words(command.hecks_name) }.to_sentence %>.</p>
+<% end %>
