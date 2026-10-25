@@ -16,12 +16,15 @@ code by hand-written step definitions, so the readable file and the running syst
 
 ## Decision
 
-1. **A second source language for the same IR.** A *story* file (`*.story`, name open)
-   is plain text that `hecks-parse` reads into the same `ir.json` a `.bluebook` produces.
-   It is parallel to the bluebook, not a layer over it: every projection, host, generator
-   and conformance check works from the IR and cannot tell which source wrote it. A domain
-   may be written in either; one chapter has one source. The bluebook stays; a story may
-   supersede it later, decided by use, not by this ADR.
+1. **A bizbook is a second source language for the same IR.** A `*.bizbook` file is plain
+   text that `hecks-parse` reads into the same `ir.json` a `.bluebook` produces. It is
+   parallel to the bluebook, not a layer over it: every projection, host, generator and
+   conformance check works from the IR and cannot tell which source wrote it.
+   **A project uses bluebooks or bizbooks, never both.** `model_check` refuses a project
+   holding both, so no `loads` crosses the line and no reader has to know two grammars at
+   once. Projects meet through the IR, so a bizbook project may depend on a package written
+   in bluebooks and the reverse. The bluebook stays; a bizbook may supersede it later,
+   decided by use, not by this ADR.
 2. **Bluebook side, not hecksagon.** A story declares what the domain is and does. It
    names no database, clock or network. Wiring stays in `.hecksagon`; persistence stays
    memory by default.
@@ -46,18 +49,23 @@ code by hand-written step definitions, so the readable file and the running syst
    | `Whenever <event> then <command>` | policy |
    | `Example:` tables | executable examples (below) |
 
-5. **Examples are the tests.** An `Example:` table under a command compiles to the
+5. **Examples are the tests.** An example compiles to the
    `.behaviors` tests of that command, so the readable file is also its own conformance
-   corpus and cannot drift from what runs. Authors write no `.behaviors` for story domains.
+   corpus and cannot drift from what runs. Authors write no `.behaviors` for bizbook projects.
 6. **Expressions are phrases over named things.** `Given the order has at least one
    topping` resolves to the canonical expression the existing expression machinery
    (`rust/parser/src/expr`) already emits; a phrase row names its expression template.
    Field and type names come from the story's own `It has:` lines, spelled as a person
    would ("customer name" is `customer_name`).
-7. **Nothing a story cannot say is hidden in it.** A construct with no phrase row yet
-   (queries, read models, process managers, ports) is written in a bluebook beside it
-   (`loads`-style), and each construct is moved over by admitting rows, never by embedding
-   Ruby in a story.
+7. **A bizbook must reach full coverage before a project can adopt it.** Because a project
+   cannot mix, there is no bluebook beside it to hold queries, read models, process
+   managers or ports. Each such construct needs phrase rows first; until it has them, a
+   project that uses it stays on bluebooks. Ruby is never embedded in a bizbook.
+8. **Examples are their own file.** `orders.examples.bizbook` says `Examples for: Order`
+   and holds `Background:` (people bound to roles), `Example:` and `Where:` tables. An
+   actor on a `When` is the command's role. A refusal is matched by the rule's own
+   sentence, not a message string. Stubbed outside facts (a credit check) are ports: the
+   declaration names them, the hecksagon wires them, the examples stub them.
 
 ## Sketch
 
@@ -96,12 +104,12 @@ Aggregate: Order
   Rust kernel and conformance corpus are untouched.
 - The phrase table is the new surface to keep honest. It is generated into the reference
   and editor grammar like every other table, and `measure_doc_coverage!` extends to it.
-- Two sources for one IR need a round-trip check: a story domain and its bluebook
+- Two sources for one IR need a round-trip check: a bizbook project and its bluebook
   rendering must produce byte-equal `ir.json` (a `check_conformance` pair).
 
 ## Open questions
 
-- File extension (`.story` avoids Cucumber tooling picking up `.feature` files).
+- Whether examples use `.examples.bizbook` or a shorter `.examples.biz`.
 - How much of a command's `Then` can be inferred versus stated (mutation ops, `emits`).
 - Whether story files get a formatter that normalises phrasing, so diffs stay quiet.
 
