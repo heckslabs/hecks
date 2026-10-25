@@ -1070,8 +1070,8 @@ RSpec.describe "the DSL surface" do
       expect(model.authorization.to_h).to eq(policy: "portfolio_access", tenant: "customer_id")
     end
 
-    it "read_model refuses cursor at build — no interpreter implements cursor pagination" do
-      expect_read_model_refusal(/declares cursor, but no interpreter implements cursor pagination/) do
+    it "read_model refuses cursor at build — a read model does not page by cursor yet" do
+      expect_read_model_refusal(/declares cursor, but a read model does not page by cursor yet/) do
         reference_to Customer
         include Account
 
@@ -2093,15 +2093,43 @@ RSpec.describe "the DSL surface" do
       proc do
         query "Available" do
           where(name: "x")
-          cursor :after
+          cursor :name
         end
       end
     end
 
-    it "query refuses cursor at build — no interpreter implements cursor pagination" do
-      message = /declares cursor, but no interpreter implements cursor pagination/
+    it "query refuses a cursor with no limit, naming the page size" do
+      message = /declares cursor, but a cursor pages by a page size/
 
       expect_refusal(:aggregate, "Cursored", message, &composed(name_declaration, cursored_available_query))
+    end
+
+    def cursored_query_with(*lines)
+      proc do
+        query("Available") do
+          order_by :name
+          lines.each { |line| instance_eval(line) }
+        end
+      end
+    end
+
+    it "query refuses a cursor beside an offset" do
+      query = cursored_query_with("limit 2", "offset 1", "cursor :name")
+
+      expect_refusal(:aggregate, "Cursored", /drop `offset`/, &composed(name_declaration, query))
+    end
+
+    it "query refuses a cursor that is not its order field" do
+      query = cursored_query_with("limit 2", "cursor :other")
+
+      expect_refusal(:aggregate, "Cursored", /must name the field the query orders by \(`cursor :name`\)/,
+                     &composed(name_declaration, query))
+    end
+
+    it "query accepts a cursor on its order field with a limit" do
+      query = cursored_query_with("limit 2", "cursor :name")
+
+      expect(build_aggregate("Cursored", &composed(name_declaration, query)).queries.first.cursor.value).to eq(:name)
     end
 
     def build_priced(name, &queries)

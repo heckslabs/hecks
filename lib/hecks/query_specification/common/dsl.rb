@@ -54,11 +54,10 @@ module Hecks
         # @return [OffsetSpec] the offset just recorded
         def offset_impl(value) = @offset = OffsetSpec.new(value: value)
 
-        # Records a cursor declaration. The word parses and round-trips, but both builders
-        # refuse it at `build` (`seal_cursor`) because no interpreter applies it.
+        # Records a cursor declaration: the query pages by this field and identity. `QueryBuilder`
+        # checks it at `build`; a read model still refuses it.
         #
-        # @param value [Symbol, Object] the query argument carrying the cursor, such as
-        #   `:after`, or a literal
+        # @param value [Symbol] the order field the position is read from (`:id` with no order_by)
         # @return [CursorSpec] the cursor just recorded
         def cursor(value) = @cursor = CursorSpec.new(value: value)
 

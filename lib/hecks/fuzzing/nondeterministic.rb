@@ -7,7 +7,10 @@ module Hecks
         query_row:  {
           instances_at: "a full state snapshot taken for the query oracle's own use " \
                         "(Properties::Querying); the same state is already compared as `instances`, " \
-                        "so keeping it would re-report one instances divergence under every query step"
+                        "so keeping it would re-report one instances divergence under every query step",
+          pages:        "the walks of a cursor query's pages, taken for the oracle's own use " \
+                        "(Properties::Querying#cursor_walk_yields_the_unpaged_rows); the compiled " \
+                        "kernel answers one ask a time and has no walk to compare it with"
         }.freeze,
         outbox_row: {
           event_uid:   "`Runtime::Outbox::Fanout#rows_for`'s own SecureRandom.uuid, minted fresh per " \

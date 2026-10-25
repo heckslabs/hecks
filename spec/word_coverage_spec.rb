@@ -88,14 +88,6 @@ RSpec.describe "every live DSL word, used somewhere real" do
   # entry is a verified finding, not an assumption. The check below
   # flags one as stale once the corpus grows to cover it.
   EXEMPT = {
-    "cursor (Query)"                    =>
-                                           "refused unconditionally at build (QueryBuilder#seal_cursor) — no interpreter " \
-                                           "implements cursor pagination, so any real declaration would refuse the bluebook " \
-                                           "that carried it. \"A real chapter uses cursor\" and \"the corpus builds\" are " \
-                                           "mutually exclusive claims. S15 (ADR 0026) removes it from the core grammar; " \
-                                           "landing a corpus use here first would be work S15 immediately discards.",
-    "cursor (ReadModel)"                =>
-                                           "same as cursor (Query) — refused unconditionally by ReadModelBuilder#seal_cursor.",
     "inspect_query (Query)"             =>
                                            "a real declaration would be vacuous: no adapter in this codebase implements the " \
                                            "inspect_query hook (Ports::Query.validate!'s own only-a-capability-gate " \
@@ -175,7 +167,7 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                            "same finding as the rest of this group, plus a second, independent reason: " \
                                            "`unresolved` is a deliberate failure marker (TranslationAggregateBuilder#" \
                                            "unresolved always raises Malformed) — a real declaration exists only to be " \
-                                           "refused, the same structural-impossibility shape `cursor (Query)` above " \
+                                           "refused, the same structural-impossibility shape `inspect_query (Query)` above " \
                                            "already is, never to succeed and land in a corpus record."
   }.freeze
 
