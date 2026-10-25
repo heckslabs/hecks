@@ -95,7 +95,7 @@ module Hecks
 
           def many_side_count = Array(@aggregate_heads).count { |head| head[:many] }
 
-          # A cursor pages a query (ADR 0128); a read model's many-side head does not page yet, so it
+          # A cursor pages a query (ADR 0128); a read model's many-side head does not page yet, so
           # is refused rather than letting an author believe it does.
           def seal_cursor
             return unless @cursor

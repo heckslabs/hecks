@@ -21,7 +21,7 @@ module Hecks
         # The decoded position: the order field's comparable value (nil when null) and the row id.
         Position = Struct.new(:value, :id)
 
-        # A declared query that asks for one row more than its page, to learn whether another follows.
+        # A declared query asking for one row more than its page, to learn whether another follows.
         class Widened < SimpleDelegator
           # @param declared [QuerySpecification::Common::Options] the cursor query
           # @param size [Integer] the page size the query's `limit` resolves to
