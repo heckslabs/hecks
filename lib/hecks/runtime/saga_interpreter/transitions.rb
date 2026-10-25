@@ -63,10 +63,39 @@ module Hecks
           log_leg(leg, advanced: true, from: leg.pre_state, to: leg.instance[:state])
 
           drain_derived_compensations(leg) if drain_compensations
-          leg.dispatches.each do |spec|
-            deliver_saga_dispatch(leg.process_manager, spec, leg.event, leg.instance, leg.correlation, leg.domain)
-          end
+          deliver_dispatches(leg, leg.dispatches, from: 0)
           clear_pending_marker(leg)
+        end
+
+        # Delivers `specs` from index `from`, writing the leg's progress ahead of each dispatch and
+        # after it, so a crash leaves the store saying exactly which dispatches never began, which
+        # one may have run, and which settled.
+        def deliver_dispatches(leg, specs, from:)
+          specs.each_with_index do |spec, offset|
+            index = from + offset
+            record_progress(leg, settled: index, attempting: true)
+            deliver_saga_dispatch(leg.process_manager, spec, leg.event, leg.instance, leg.correlation, leg.domain,
+                                  dispatch_key: dispatch_key_for(leg, index))
+            record_progress(leg, settled: index + 1, attempting: false)
+          end
+        end
+
+        # The identity of this leg's `index`th dispatch. Built from the moving event the pending
+        # marker carries, so a redrive after a crash computes the same key the first delivery did.
+        def dispatch_key_for(leg, index)
+          DispatchClaim.key(process_manager: leg.saga_name, correlation: leg.correlation,
+                            trigger: leg.record[:on], event: leg.event, index: index)
+        end
+
+        # Same `.equal?` guard as `clear_pending_marker`: a nested reaction may have ended this
+        # instance, and writing progress would resurrect it.
+        def record_progress(leg, **progress)
+          leg.progress.merge!(progress)
+          @registry.saga_mutex.synchronize do
+            next unless @registry.saga_instances[leg.saga_name][leg.correlation].equal?(leg.instance)
+
+            checkpoint_leg(leg, pending: leg.pending_marker)
+          end
         end
 
         # Guarded by `.equal?` (not `==`): `deliver_saga_dispatch`'s own

@@ -56,6 +56,13 @@ module Hecks
           )
         SQL
 
+        DISPATCH_CLAIMS = <<~SQL.freeze
+          CREATE TABLE IF NOT EXISTS hecks_dispatch_claims (
+            claim_key   TEXT PRIMARY KEY,
+            claimed_at  TEXT NOT NULL
+          )
+        SQL
+
         CHECKPOINTS = <<~SQL.freeze
           CREATE TABLE IF NOT EXISTS hecks_checkpoints (
             aggregate_table TEXT PRIMARY KEY,

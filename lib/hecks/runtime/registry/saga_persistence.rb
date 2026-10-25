@@ -24,7 +24,7 @@ module Hecks
               pending = memory.delete(SAGA_PENDING_DISPATCH_KEY)
               @state.saga_instances[process_manager][correlation] =
                 { state: state, memory: memory, completed_compensations: completed_compensations || [] }
-              warn_stalled_saga(domain, process_manager, correlation, state, pending) if pending
+              stall_saga(process_manager, correlation, pending) if pending
             end
           end
           self
@@ -32,21 +32,12 @@ module Hecks
 
         private
 
-        # A pending dispatch marker left by a crash: state was checkpointed but the dispatch
-        # cascade it justifies may never have run. Surfaced as a warning, never auto-redriven.
-        # rubocop:disable-next Hecks/ThreadSharedIvarMutation -- same
-        def warn_stalled_saga(domain, process_manager, correlation, state, pending)
-          # Heki's each_saga only symbolizes memory's top-level keys, not nested values;
-          # Postgres/SQLite/D1 already return symbol keys. Normalize here once for all adapters.
-          pending    = pending.transform_keys(&:to_sym)
-          dispatches = Array(pending[:dispatches]).join(", ")
-          warn "[hecks] #{domain} rehydrated #{process_manager} instance #{correlation.inspect} in state " \
-               "#{state.inspect} with a dispatch left pending from before the last crash/restart — " \
-               "#{dispatches} (on #{pending[:on].inspect}, #{pending[:from].inspect} -> #{pending[:to].inspect}) " \
-               "may or may not have actually run. hecks does not auto-redrive a pending saga dispatch (that " \
-               "needs idempotent delivery, which this pipeline doesn't have yet); reconcile this instance by hand."
-          @state.saga_log << { process_manager: process_manager, instance: correlation, rehydrated_stalled: true,
-                               state: state, pending: pending }
+        # A pending marker left by a crash: state was checkpointed but the leg's dispatches did not all
+        # settle. Held on the instance for `SagaInterpreter#redrive_stalled`, which runs once the
+        # dispatcher exists; Heki's each_saga only symbolizes memory's top-level keys, so the
+        # marker is normalized here once for all adapters.
+        def stall_saga(process_manager, correlation, pending)
+          @state.saga_instances[process_manager][correlation][:stalled] = pending.transform_keys(&:to_sym)
         end
 
         def resolve_saga_persistence(domain)

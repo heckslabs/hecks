@@ -64,12 +64,13 @@ module Hecks
             emits:      [:emits,      :plain],
             # Lifecycle state as a command guard: one state, an array, or nil (ADR 0025).
             from:       [:from,       :plain],
-            provenance: [:provenance, :plain]
+            provenance: [:provenance, :plain],
+            idempotent: [:idempotent, :plain]
           },
           rows: { mutations: :mutation_rows },
           reads: { attributes: [:each, :shape_field], givens: [:each, :rule], ensures: [:each, :rule],
                   needs: [:each, :need], mutations: [:call, :mutations], emits: :names, provenance: :provenance,
-                  from: :from },
+                  from: :from, idempotent: :idempotent? },
           derived: { position: :walk }
         ),
 

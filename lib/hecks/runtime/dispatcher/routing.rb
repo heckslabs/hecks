@@ -11,7 +11,7 @@ module Hecks
       module Routing
         # One dispatch request as the caller spelled it: the verb, its receiver and facts, and
         # the saga correlation to stamp on emitted events.
-        Call = Struct.new(:verb, :to, :with, :saga_correlation, :flat, keyword_init: true)
+        Call = Struct.new(:verb, :to, :with, :saga_correlation, :dispatch_key, :flat, keyword_init: true)
 
         private
 
@@ -58,7 +58,7 @@ module Hecks
         def route_aggregate(call, domain, aggregate, aggregate_name, command_name)
           command = command_of(aggregate, aggregate_name, command_name)
           invocation = Invocation.from_call(call.verb, to: call.to, with: call.with, flat: call.flat) { command }
-          @commands.call(domain, aggregate, command, invocation, call.saga_correlation)
+          @commands.call(domain, aggregate, command, invocation, call.saga_correlation, dispatch_key: call.dispatch_key)
         end
 
         # The entity half of an in-memory run: refuses a port verb, which has no in-memory form.
@@ -88,11 +88,12 @@ module Hecks
         end
 
         # The call for a verb whose receiver and facts arrive together in one flat Hash: Symbol keys
-        # `:to`, `:with` and `:saga_correlation` are lifted out, every other key is a fact.
+        # `:to`, `:with`, `:saga_correlation` and `:dispatch_key` are lifted out, every other key is a fact.
         def flat_call(verb, args)
           facts = args.dup
           Call.new(verb: verb, to: facts.delete(:to), with: facts.delete(:with),
-                   saga_correlation: facts.delete(:saga_correlation), flat: facts)
+                   saga_correlation: facts.delete(:saga_correlation),
+                   dispatch_key: facts.delete(:dispatch_key), flat: facts)
         end
 
         # Runs a call through its interpreter in memory only, as `dry_run?` and `validate` do.

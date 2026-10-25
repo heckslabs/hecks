@@ -2855,6 +2855,14 @@ RSpec.describe "the DSL surface" do
       expect(command.provenance).to eq(origin)
     end
 
+    it "idempotent declares the command safe to deliver twice" do
+      expect(build_command("CmdIdempotent") { idempotent }.idempotent?).to be(true)
+    end
+
+    it "is not idempotent unless it says so" do
+      expect(build_command("CmdPlain") { goal "feed people" }.idempotent?).to be(false)
+    end
+
     it "attribute adds a payload field" do
       expect(build_command("CmdAttr") { attribute :size, Size }.attribute(:size).type).to eq("Size")
     end

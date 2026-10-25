@@ -280,3 +280,43 @@ RSpec.shared_examples "an atomic_put adapter" do
     expect([store.entries.size, store.find("sku-1").state[:label].to_h]).to eq([2, { value: "Second" }])
   end
 end
+
+# The dispatch-claim contract every adapter that reports `:dispatch_claims` honours: a saga
+# dispatch's key is accepted once, and a claim made in a transaction that fails is released with it.
+RSpec.shared_examples "a dispatch-claiming adapter" do
+  it "reports the capability" do
+    expect(adapter.persistence_capabilities).to include(:dispatch_claims)
+  end
+
+  it "accepts a new key once and refuses it after" do
+    claims = [adapter.dispatch_claim("Carry/wire-1/WireAsked/1"), adapter.dispatch_claim("Carry/wire-1/WireAsked/1")]
+
+    expect(claims).to eq([true, false])
+  end
+
+  it "reports whether a key was applied", :aggregate_failures do
+    expect(adapter.dispatch_applied?("k1")).to be(false)
+
+    adapter.dispatch_claim("k1")
+
+    expect(adapter.dispatch_applied?("k1")).to be(true)
+  end
+
+  it "keeps one key's claim apart from another's" do
+    adapter.dispatch_claim("k1")
+
+    expect(adapter.dispatch_claim("k2")).to be(true)
+  end
+
+  def claim_in_failing_transaction(key)
+    adapter.transaction do
+      adapter.dispatch_claim(key)
+      raise "the write failed"
+    end
+  end
+
+  it "releases a claim made in a transaction that raised", :aggregate_failures do
+    expect { claim_in_failing_transaction("k1") }.to raise_error("the write failed")
+    expect(adapter.dispatch_applied?("k1")).to be(false)
+  end
+end
