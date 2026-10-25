@@ -14,7 +14,7 @@ module Hecks
         # Every kind `verb` names in `chapter`; more than one means the target is ambiguous.
         #
         # @param chapter [Bluebook::Chapter] the chapter that declares the aggregate
-        # @param verb [String] the key's target, spelled as one of {KINDS}
+        # @param verb [String] the key's target, spelled as one of `KINDS`
         # @return [Array<Symbol>] the kinds it names, empty when it names nothing
         def kinds_of(chapter, verb)
           aggregate_name, member = verb.to_s.split(".", 2)
