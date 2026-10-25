@@ -41,6 +41,15 @@ module Hecks
       # Cargo's `default = ["name"]` line, capturing the default feature's name.
       DEFAULT_FEATURE = /^default\s*=\s*\["(\w+)"\]/
 
+      # A hecksagon's `attaches "Name"` line for a gem chapter (no `from:`), capturing the name.
+      ATTACHED_BY_NAME = /^\s*attaches\s+"(\w+)"\s*$/
+
+      # A bluebook file's `Hecks.bluebook "Name"` header, capturing the chapter's name.
+      BLUEBOOK_NAME = /^\s*Hecks\.bluebook\s+"([^"]+)"/
+
+      # The corpus kinds holding chapters the gem carries and a hecksagon attaches by name.
+      GEM_CHAPTER_KINDS = %i[qa deploy site tickets composer tenancy sme bulk].freeze
+
       # Every place a Rust-facing domain's own `attaches` attachment could be declared.
       #
       # @param root [String] repository root to search under
@@ -182,6 +191,27 @@ module Hecks
                 .flat_map { |domain| Dir.glob(File.join(domain.dir, "bluebook", "*.bluebook")) }
                 .map { |path| Naming.pascal(File.basename(path, ".bluebook")).downcase }
         names.uniq.select { |name| modules.include?(name) && !generated?(name, root: root) }
+      end
+
+      # Gem chapters outside the framework (`Chapters.index`, such as Bulk) that an in-repo Rust
+      # domain's hecksagon attaches by name, written as a module by `hecks project_rust` with no
+      # merged.rs of their own.
+      #
+      # @param root [String] repository root to search under
+      # @return [Array<String>] generated module names for the attached gem chapters
+      def rust_attached_chapters(root: ROOT)
+        modules = generated_modules(root: root)
+        names = rust_attachment_hecksagon_text(root: root).scan(ATTACHED_BY_NAME).flatten & gem_chapter_names(root: root)
+        names.map { |name| Naming.pascal(name).downcase }.uniq
+             .select { |name| modules.include?(name) && !generated?(name, root: root) }
+      end
+
+      # The names the gem's own attachable chapters declare in their `Hecks.bluebook` headers.
+      #
+      # @param root [String] repository root to search under
+      # @return [Array<String>] chapter names, from the files `GEM_CHAPTER_KINDS` hold
+      def gem_chapter_names(root: ROOT)
+        members(*GEM_CHAPTER_KINDS, root: root).filter_map { |member| File.read(member.path)[BLUEBOOK_NAME, 1] }.uniq
       end
 
       # The regeneration order the drift check runs, sorted by path — so which
