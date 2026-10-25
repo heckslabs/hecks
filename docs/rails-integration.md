@@ -21,6 +21,8 @@ ordinary Rails files.
 | Validations | `packages/hecks-rails` (`Validating`) | `record.valid_for?(:freeze_account, params)` asks the domain whether the command would be accepted (`Dispatcher#validate`, ADR 0128) and fills `errors` with every reason, each against its attribute; `?dry_run=1` or `X-Dry-Run: 1` on a command route answers the same as JSON with 200 |
 | `command_form_for` | `packages/hecks-rails` | Fields from `Hecks::Forms`, named by the dotted paths `Forms::Params` reads; a refused form comes back with the submitted values, each reason beside its field, reference options filled, and the command's JSON Schema (`CommandSchema`) embedded |
 | `available_commands(as:)` | the model | The domain's own validation, under the actor's Governance grants |
+| Reference lookups | `packages/hecks-rails` (`References`) | `transfer.source_account` for `reference_to Account, as: :source`, or `account_record` when the attribute is named for its target; the record loads only when the lookup is called |
+| `:rails_app` projection | `lib/hecks/projections/rails_app.rb` | A controller per aggregate and a routes file with a `resources` line each; `hecks launch.project_rails! run=rails dir=<app>` writes them where the app has none, and writes no model, since models are generated at boot |
 | `be_refused_with` | `hecks/rails/rspec` | RSpec matcher for a refusal and its wording |
 | `Hecks/RailsModelRules` | `lib/rubocop/cop/hecks` | Refuses `validates`, callbacks and associations in a model |
 
@@ -295,6 +297,11 @@ that `given` compares. A list reference answers an array. The accessor reuses
 `AggregateModule#find`, already dependency-free, so it belongs in core, not the Rails layer.
 An earlier sketch named it `#{ref.name}_#{target}` (`transfer.source_account`); that name
 was dropped for the attribute's own name.
+
+On a Rails model, `Hecks::Rails::References` adds one more lookup per reference attribute, named
+`<attribute>_<target>` (`transfer.source_account`), or `<target>_record` when the attribute is named
+for its target (`account.customer_record`). It answers the target's own model (the app's class when it
+wrote one) through its `find`, and loads only when called.
 
 **Chaining composes for free and should stay that way.** `transfer.source.customer`
 is already a two-hop traversal, expressed as two ordinary calls, each individually

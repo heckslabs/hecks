@@ -2,6 +2,7 @@
 
 require "fileutils"
 require_relative "console_capture"
+require_relative "rails_app_files"
 require "hecks/cli/project_cli"
 require "hecks/cli/domain_stub"
 
@@ -56,6 +57,19 @@ module Hecks
 
         write_files(target, files)
         report = scaffold_report(target, files.keys, plain(held[:adapter]))
+        puts report
+        { output: { value: report } }
+      end
+
+      # Writes the controllers and routes a Rails app drives its domain through,
+      # leaving every file the app already has alone.
+      #
+      # @param held [Hash] the `Launch` record: optionally `dir`, the app's directory (the current
+      #   one when absent)
+      # @return [Hash{Symbol => Hash}] `output:` one line per file, written or kept
+      # @raise [ConsoleCapture::Failure] when the app has no `bluebook/` or it declares no chapter
+      def write_rails(**held)
+        report = RailsAppFiles.new(File.expand_path(plain(held[:dir]) || ".", Dir.pwd)).call
         puts report
         { output: { value: report } }
       end
