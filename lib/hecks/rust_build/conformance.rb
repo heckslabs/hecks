@@ -118,8 +118,15 @@ module Hecks
         found
       end
 
+      # A Rust dry run on the same surface as Ruby's: `verb`, `ok`, and the `[kind, stage]` of each
+      # refusal where the stage is one both engines list in full.
+      def their_dry_run(dry)
+        reasons = Array(dry["refusals"]).map { |refusal| refusal.values_at("kind", "stage") }
+        dry.slice("verb", "ok").merge(Surface.collected_refusals(reasons))
+      end
+
       def dry_run_mismatch(ours, theirs)
-        their_dry_runs = Array(theirs["dry_runs"]).map { |dry| dry.slice("verb", "ok") }
+        their_dry_runs = Array(theirs["dry_runs"]).map { |dry| their_dry_run(dry) }
         return if (ours["dry_runs"] || []) == their_dry_runs
 
         "dry_runs:\n  ruby:  #{ours["dry_runs"].inspect}\n  other: #{their_dry_runs.inspect}"

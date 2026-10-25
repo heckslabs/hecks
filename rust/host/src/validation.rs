@@ -2,9 +2,10 @@
 //!
 //! The kernel's dry-run step answers `{verb, ok, error?, refusal?, kind?, stage?}`. This reshapes
 //! it into the envelope every client reads, the one `Dispatcher#validate` gives in Ruby:
-//! `{ok, refusals: [{kind, stage, refusal, message}]}`. The kernel stops at the first refusal, so
-//! `refusals` holds at most one; Ruby reports every refusal of the stage it stopped in. What the
-//! kernel does not know (the attribute, the path, the rule) is absent, which a client reads as null.
+//! `{ok, refusals: [{kind, stage, refusal, message}]}`. The kernel lists every unmet given, ensure
+//! and invariant of the stage it stopped in, as Ruby does; a refusal outside those stages (a role,
+//! an argument, a lifecycle) stands alone. What the kernel does not know (the attribute, the path,
+//! the rule) is absent, which a client reads as null.
 
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -32,10 +33,18 @@ pub fn accepted(result: &Value) -> bool {
 /// The envelope a client receives: `ok`, and the refusal when there is one.
 pub fn answer(result: &Value) -> Value {
     let refusals: Vec<Value> = match dry_run(result) {
-        Some(run) if !accepted(result) => vec![refusal(run)],
+        Some(run) if !accepted(result) => reasons(run),
         _ => Vec::new(),
     };
     json!({ "ok": accepted(result), "refusals": refusals })
+}
+
+/// Every refusal the kernel listed for the stage it stopped in, or the one the run itself names.
+fn reasons(run: &Value) -> Vec<Value> {
+    match run.get("refusals").and_then(Value::as_array) {
+        Some(listed) if !listed.is_empty() => listed.clone(),
+        _ => vec![refusal(run)],
+    }
 }
 
 fn refusal(run: &Value) -> Value {
@@ -79,6 +88,20 @@ mod tests {
                 "kind": "refused", "stage": "givens", "refusal": "GivenNotMet",
                 "message": "Open refused — customer is active",
             }] })
+        );
+    }
+
+    #[test]
+    fn a_dry_run_that_lists_every_refusal_of_its_stage_answers_them_all() {
+        let entry = |message: &str| json!({ "kind": "refused", "stage": "givens", "refusal": "GivenNotMet", "message": message });
+        let result = json!({ "dry_runs": [{
+            "verb": "A::B.C", "ok": false, "error": "C refused — one", "refusal": "GivenNotMet",
+            "refusals": [entry("C refused — one"), entry("C refused — two")],
+        }] });
+
+        assert_eq!(
+            answer(&result),
+            json!({ "ok": false, "refusals": [entry("C refused — one"), entry("C refused — two")] })
         );
     }
 

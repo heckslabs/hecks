@@ -6,4 +6,3 @@
 # toolchain compiles, so hecks-build cannot reproduce it.
 /src/generated/*/
 !/src/generated/pizzas/
-/src/generated/pizzas/schemas.json

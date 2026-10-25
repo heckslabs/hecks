@@ -2,6 +2,7 @@
 
 pub mod attribute_shapes;
 pub mod cli;
+pub mod collecting;
 pub mod dispatch;
 pub mod expr;
 pub mod expression_operators;

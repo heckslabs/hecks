@@ -18,13 +18,19 @@ pub fn encode(value: &Json, id: &str) -> String {
 
 /// The token for `record`, read off the query's order field (null with no declared order).
 pub fn token_for(id: &str, record: &Json, order_by: Option<&OrderBy>) -> String {
-    let value = order_by.map_or(Json::Null, |order| query_ordering::order_key(record, order.field));
+    let value = order_by.map_or(Json::Null, |order| {
+        query_ordering::order_key(record, order.field)
+    });
     encode(&value, id)
 }
 
 /// A token read back: the order value (`Json::Null` for a null-keyed row) and the row id.
 fn decode(token: &str) -> Result<(Json, String), Refusal> {
-    let invalid = || Refusal::TypeMismatch(format!("after {token:?} is not a cursor this query handed out"));
+    let invalid = || {
+        Refusal::TypeMismatch(format!(
+            "after {token:?} is not a cursor this query handed out"
+        ))
+    };
     let bytes = unbase64_url(token).ok_or_else(invalid)?;
     let text = String::from_utf8(bytes).map_err(|_| invalid())?;
     match Json::parse(&text) {
@@ -37,7 +43,11 @@ fn decode(token: &str) -> Result<(Json, String), Refusal> {
 }
 
 /// The rows that follow the token's position, in the order given; all of them with no token.
-pub fn rows_after(rows: Rows, order_by: Option<&OrderBy>, after: Option<&str>) -> Result<Rows, Refusal> {
+pub fn rows_after(
+    rows: Rows,
+    order_by: Option<&OrderBy>,
+    after: Option<&str>,
+) -> Result<Rows, Refusal> {
     let Some(token) = after else { return Ok(rows) };
     let (held, held_id) = decode(token)?;
     Ok(rows
@@ -47,18 +57,32 @@ pub fn rows_after(rows: Rows, order_by: Option<&OrderBy>, after: Option<&str>) -
 }
 
 /// Splits rows fetched one past the page into the page and the token of the next one.
-pub fn split_page(mut rows: Rows, order_by: Option<&OrderBy>, size: usize) -> (Rows, Option<String>) {
+pub fn split_page(
+    mut rows: Rows,
+    order_by: Option<&OrderBy>,
+    size: usize,
+) -> (Rows, Option<String>) {
     if rows.len() <= size || size == 0 {
         rows.truncate(size);
         return (rows, None);
     }
     rows.truncate(size);
-    let next = rows.last().map(|(id, record)| token_for(id, record, order_by));
+    let next = rows
+        .last()
+        .map(|(id, record)| token_for(id, record, order_by));
     (rows, next)
 }
 
-fn follows(id: &str, record: &Json, order_by: Option<&OrderBy>, held: &Json, held_id: &str) -> bool {
-    let Some(order) = order_by else { return id > held_id };
+fn follows(
+    id: &str,
+    record: &Json,
+    order_by: Option<&OrderBy>,
+    held: &Json,
+    held_id: &str,
+) -> bool {
+    let Some(order) = order_by else {
+        return id > held_id;
+    };
     let key = query_ordering::order_key(record, order.field);
     sequence(&key, id, held, held_id, order) == Ordering::Greater
 }
@@ -68,11 +92,23 @@ fn follows(id: &str, record: &Json, order_by: Option<&OrderBy>, held: &Json, hel
 fn sequence(key: &Json, id: &str, held: &Json, held_id: &str, order: &OrderBy) -> Ordering {
     let (key_null, held_null) = (*key == Json::Null, *held == Json::Null);
     if key_null != held_null {
-        return if key_null == nulls_first(order) { Ordering::Less } else { Ordering::Greater };
+        return if key_null == nulls_first(order) {
+            Ordering::Less
+        } else {
+            Ordering::Greater
+        };
     }
-    let by_value = if key_null { Ordering::Equal } else { query_ordering::compare_comparable(key, held) };
+    let by_value = if key_null {
+        Ordering::Equal
+    } else {
+        query_ordering::compare_comparable(key, held)
+    };
     let forward = by_value.then_with(|| id.cmp(held_id));
-    if order.descending { forward.reverse() } else { forward }
+    if order.descending {
+        forward.reverse()
+    } else {
+        forward
+    }
 }
 
 fn nulls_first(order: &OrderBy) -> bool {
@@ -86,7 +122,10 @@ fn nulls_first(order: &OrderBy) -> bool {
 fn base64_url(bytes: &[u8]) -> String {
     let mut out = String::new();
     for chunk in bytes.chunks(3) {
-        let n = chunk.iter().enumerate().fold(0u32, |acc, (i, b)| acc | (u32::from(*b) << (16 - 8 * i)));
+        let n = chunk
+            .iter()
+            .enumerate()
+            .fold(0u32, |acc, (i, b)| acc | (u32::from(*b) << (16 - 8 * i)));
         for i in 0..=chunk.len() {
             out.push(ALPHABET[((n >> (18 - 6 * i)) & 63) as usize] as char);
         }
@@ -106,7 +145,10 @@ fn unbase64_url(text: &str) -> Option<Vec<u8>> {
         if chunk.len() == 1 {
             return None;
         }
-        let n = chunk.iter().enumerate().fold(0u32, |acc, (i, s)| acc | (s << (18 - 6 * i)));
+        let n = chunk
+            .iter()
+            .enumerate()
+            .fold(0u32, |acc, (i, s)| acc | (s << (18 - 6 * i)));
         for i in 0..chunk.len() - 1 {
             out.push((n >> (16 - 8 * i)) as u8);
         }
@@ -119,7 +161,11 @@ mod tests {
     use super::*;
 
     fn order(descending: bool, nulls: NullsMode) -> OrderBy {
-        OrderBy { field: "rating", descending, nulls }
+        OrderBy {
+            field: "rating",
+            descending,
+            nulls,
+        }
     }
 
     fn row(id: &str, rating: Option<i64>) -> (String, Json) {
@@ -145,13 +191,22 @@ mod tests {
 
     #[test]
     fn a_foreign_string_is_refused() {
-        assert!(matches!(decode("not a cursor!"), Err(Refusal::TypeMismatch(_))));
+        assert!(matches!(
+            decode("not a cursor!"),
+            Err(Refusal::TypeMismatch(_))
+        ));
     }
 
     #[test]
     fn ties_break_by_identity_and_nulls_by_placement() {
         let ordered = order(false, NullsMode::First);
-        let rows = vec![row("r2", None), row("r4", None), row("r1", Some(100)), row("r3", Some(300)), row("r6", Some(300))];
+        let rows = vec![
+            row("r2", None),
+            row("r4", None),
+            row("r1", Some(100)),
+            row("r3", Some(300)),
+            row("r6", Some(300)),
+        ];
         let token = encode(&Json::int(300), "r3");
         let after = rows_after(rows, Some(&ordered), Some(&token)).unwrap();
         assert_eq!(ids(&after), vec!["r6"]);
@@ -168,7 +223,12 @@ mod tests {
     #[test]
     fn descending_reverses_values_and_ties() {
         let ordered = order(true, NullsMode::Native);
-        let rows = vec![row("r5", Some(500)), row("r6", Some(300)), row("r3", Some(300)), row("r4", None)];
+        let rows = vec![
+            row("r5", Some(500)),
+            row("r6", Some(300)),
+            row("r3", Some(300)),
+            row("r4", None),
+        ];
         let after = rows_after(rows, Some(&ordered), Some(&encode(&Json::int(300), "r6"))).unwrap();
         assert_eq!(ids(&after), vec!["r3", "r4"]);
     }
@@ -183,6 +243,9 @@ mod tests {
     fn a_full_page_names_its_last_row() {
         let rows = vec![row("r1", Some(1)), row("r2", Some(2)), row("r3", Some(3))];
         let (page, next) = split_page(rows, Some(&order(false, NullsMode::Native)), 2);
-        assert_eq!((ids(&page), next), (vec!["r1", "r2"], Some(encode(&Json::int(2), "r2"))));
+        assert_eq!(
+            (ids(&page), next),
+            (vec!["r1", "r2"], Some(encode(&Json::int(2), "r2")))
+        );
     }
 }

@@ -37,7 +37,14 @@ RSpec.describe "Rust conformance (native binary)", :io do
       strip_emitted_flags!(rust_output["instances"])
       strip_emitted_flags!(rust_output["queries"])
       strip_occurred_at!(rust_output["events"])
+      strip_wire_only_dry_run_fields!(rust_output["dry_runs"])
     end
+  end
+
+  # What the host's preview envelope reads from a refused dry run, which the frozen `expect` does
+  # not carry: the neutral corpus holds `verb`, `ok` and `error`.
+  def strip_wire_only_dry_run_fields!(dry_runs)
+    Array(dry_runs).each { |dry| %w[kind stage refusal refusals].each { |key| dry.delete(key) } }
   end
 
   # A fixture that sets `rust_echoes_absent_slots_as_null` sends optional slots of a nested value
@@ -91,6 +98,28 @@ RSpec.describe "Rust conformance (native binary)", :io do
 
       expect_fields_match(*comparable_pair(rust_output, fixture.fetch("expect"), fixture))
     end
+  end
+
+  # A dry run refused in the givens stage lists every unmet given. Ruby's `validate` and the kernel's
+  # collecting dry run must name the same refusals in the same order, and there must be more than one.
+  it "lists the same refusals for a dry run that breaks two givens at once", :aggregate_failures do
+    fixture = ConformanceCorpus.load(File.join(InMemoryDomain::ROOT, "spec/corpus/rust_conformance",
+                                               "roster_assign_dry_run_every_unmet_given.json"))
+
+    expect(ruby_dry_run_reasons(fixture).size).to be > 1
+    expect(rust_dry_run_reasons(fixture)).to eq(ruby_dry_run_reasons(fixture))
+  end
+
+  # The `[kind, stage]` of each refusal Ruby's `validate` gave the fixture's last dry run.
+  def ruby_dry_run_reasons(fixture)
+    domain = File.join(InMemoryDomain::ROOT, fixture.fetch("domain"))
+    Hecks::Fuzzing::Replay.call(domain, fixture.fetch("steps"))[:dry_run_traces].last.dig(:validation, :reasons)
+  end
+
+  # The same, as the kernel's last dry run lists them.
+  def rust_dry_run_reasons(fixture)
+    dry = JSON.parse(kernel_stdout(binary_for(fixture), fixture)).fetch("dry_runs").last
+    dry.fetch("refusals").map { |refusal| refusal.values_at("kind", "stage") }
   end
 
   # Rust refuses a query verb it never generated cleanly: TypeMismatch, exit 0, no panic.
