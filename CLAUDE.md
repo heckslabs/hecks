@@ -101,7 +101,7 @@ ad-hoc Ruby, shell one-offs, or hand-written scripts. It is a launcher
 whose commands and queries are projected from the bluebooks, so it is the
 current list of what this repo can do.
 
-- `exe/hecks` lists every command and query; `exe/hecks <command> --help`
+- `exe/hecks` lists the public commands and queries (`exe/hecks --all` adds the internal ones); `exe/hecks <command> --help`
   says what one wants and how it refuses.
 - `exe/hecks <command>! name=value …` does something;
   `exe/hecks query <query> name=value …` reads something.
@@ -142,10 +142,11 @@ commit must pass as `RequiredCheck` rows beside them.
 
 - **`main` has no guard.** Push to it directly, or open a pull request and
   merge it with `gh pr merge <pr> --squash` once it is ready and not a
-  draft (a sandboxed agent runs `hecks-merge <pr>`). No check is required
+  draft. No check is required
   to land, so run the pre-push gate yourself before you push anything that
-  is not trivial: any push runs only rubocop and the comment-style checks, and
-  `HECKS_PRE_PUSH_GATE=1 git push` runs the whole suite. Never
+  is not trivial: a push of `main` runs only the `unguarded_push` stage of
+  `lib/hecks/gate/stages.yml`, and `HECKS_PRE_PUSH_GATE=1 git push` runs the
+  whole `pre_push` stage. Never
   force-push `main`, and never use `--admin`.
 - **`stable` is only ever promoted.** CI runs the full job set on every push
   to `main`; when every `RequiredCheck` passed on a commit, `promote.yml`

@@ -1,5 +1,7 @@
 # Event payload default-fill, and `GivenNotMet`/`EnsuresNotMet` wording, now match Ruby exactly
 
+**Historical:** the `rust/project/*.rb` generator and the `bin/project_*` scripts named below are gone; `docs/tools.md` maps each retired script to its `hecks` verb, and Rust generation now lives in `rust/codegen` (ADR 0086).
+
 **Status:** Accepted — implemented. `rust/src/kernel/{json,dispatch}.rs`, `rust/project/{registry,json_codec}.rb`, `spec/rust_conformance_spec.rb`, branch `feat/rust-projection`. Closes the two specific gaps 0012/0013 named as pre-existing and cosmetic — event payload shape, and `GivenNotMet` wording's missing command-name prefix.
 
 ## Context

@@ -56,9 +56,10 @@ AWS. Both modes go through the same request handler
 
 ## 0. Prerequisites
 
-Every tool this document uses is a `hecks` verb that runs from a checkout
-of the repository. So the path starts from a clone. The [README](../README.md) quickstart gives the
-repository URL:
+Every tool this document uses is a `hecks` verb. The Build verbs need the `rust/` tree,
+which the gem ships (see [Migrating from 2.x to 3.0](migrating-2-to-3.md), "Expect a larger gem"),
+and the host is built from `rust/host`, so the steps below start from a clone. The
+[README](../README.md) quickstart gives the repository URL:
 
 ```sh
 git clone <repository URL from the README>
@@ -742,10 +743,9 @@ not usable from this repository alone, for three reasons.
    one. Sending an account cookie to `/api/me` answers `401`.
 3. **The first administrator cannot be created through the host.**
    `/members` and the grant routes require the caller to already be an
-   active `Admin` or `Owner` in the membership records. No script in this
-   repository writes the first membership row. It has to be written by the
-   Ruby runtime, which owns the era-managed head tables `auth.rs` reads:
-   dispatching the membership chapter's `Admit` and `GrantAccess` against the
+   active `Admin` or `Owner` in the membership records. The host does not
+   write the first membership row. The Ruby runtime writes it, because it owns the era-managed head tables `auth.rs` reads,
+   by dispatching the membership chapter's `Admit` and `GrantAccess` against the
    same database. `hecks operation.bootstrap_admin <domain>
    email=<email> [name=<name>] [role=<role>]` does exactly that, once: it
    reads the verbs from the chapter's `provides "membership"`, dispatches
@@ -989,9 +989,10 @@ What stands between this procedure and the ADR 0071 exit test, in the order
 an outside team would meet it.
 
 1. **The path starts from a clone.** ADR 0066 decides that the gem ships a
-   `hecks` executable and that dev tooling stays in the repository; until
-   that is built, `hecks build.build_wasm` needs a checkout. `hecks deploy recipe.project <domain>`
-   does not: it reads the project it is given, a path absolute or relative to where you run it, and
+   `hecks` executable and that dev tooling stays in the repository; the gem also
+   ships `rust/`, so `hecks build.build_wasm` runs from an installed gem, but the host
+   binary is built from `rust/host`. `hecks deploy recipe.project <domain>`
+   needs neither: it reads the project it is given, a path absolute or relative to where you run it, and
    writes `deploy/<stack>/` there (or `out=<dir>`), from the installed gem. The generated Makefiles
    name that directory as their root.
    A clone also brings the whole Rust tree and its build time.
@@ -1029,8 +1030,9 @@ an outside team would meet it.
    host itself does not (step 5). If `mint-era` fails after the stack is
    created, the stack is already up; the step is a separate target
    (`make mint-era`).
-6. **No shipped way to sign in interactively** (7.3): no membership chapter,
-   no first administrator, and the account cookie does not open `/api/`.
+6. **No shipped way to sign in interactively** (7.3): no membership chapter
+   is shipped (the first administrator is made with `hecks operation.bootstrap_admin`
+   once you write one), and the account cookie does not open `/api/`.
 7. **Roles on the invoke path are self-asserted** (7.1), and so is
    `actor_id`: the host trusts the same-host peer that sends it. Closing
    this is deferred to ADR 0072's token work.
@@ -1041,8 +1043,8 @@ an outside team would meet it.
    `hecks run` against your database does not show what the service holds.
 10. **`/<Domain>/<Aggregate>/<Command>.json` cannot be posted to from a plain
     client** (step 8).
-11. **The host's comments and its behaviour disagree in two places.**
-    `server.rs` describes `POST /` as reaching dispatch; it answers `405`.
+11. **A missing `SESSION_SECRET` crashes the request instead of refusing it.**
+    (`POST /` answers `405`; the route `/` accepts only `GET`.)
     A web-shaped request with no `SESSION_SECRET` set panics the request task
     instead of returning an error (the connection closes with no response;
     `curl` reports an empty reply, exit 52), though the server stays up.

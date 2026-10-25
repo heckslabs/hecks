@@ -349,7 +349,7 @@ name is what lets Node import it (`import * as site from "./routes.mts"`) from a
 ## Routes from the domain
 
 A row whose source is `command:Studio.Inquiry.Submit` takes its path from the forms scheme, so the site and the
-`hecks present` forms agree on one URL for it: `/Studio/Inquiry/Submit`. The command or query must exist in a
+`hecks corpus_run.present` forms agree on one URL for it: `/Studio/Inquiry/Submit`. The command or query must exist in a
 chapter the project attaches. The scheme covers a command or query of an aggregate; it does not name an entity's
 command or a report, and a project lists the domain routes it exposes, since `Forms.configure` exposes a whole
 chapter rather than a command.

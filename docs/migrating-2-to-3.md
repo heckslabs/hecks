@@ -11,7 +11,7 @@ regenerates. The verb a script became is in [docs/tools.md](tools.md), and `heck
 says what it takes. Arguments are projected from the command, so flags and argument order can
 differ from the old script: `bin/compact` is `hecks era.compact <domain> [aggregates=A,B] --confirm`.
 
-Two launcher names differ from their command: `hecks mcp` runs `ServeMcp` (also `hecks door.serve_mcp`)
+Two launcher names differ from their command: `hecks mcp` runs `ServeMcp` (also `hecks launch.serve_mcp`)
 and `hecks console` runs `OpenConsole` (also `hecks operation.open_console`).
 
 Look in these places in your project:
@@ -24,7 +24,7 @@ A check that used to print a result and exit now takes `--wait`: it re-reads the
 exits 1 on a failure state (`flagged`, `failed`, `drifted`, `unreachable`, `refused`, `faulted`,
 `halted`, `stopped`, `abandoned`, `red`, `needs_fix`). Without `--wait` the status is unchanged.
 
-## 2. Rename `Hecks::Facade` to `Hecks::Doors`
+## 2. Rename `Hecks::Facade` to `Hecks::Adapters::Driving`
 
 `Surface` is now `Adapters::Driving::Ruby`, and the MCP door lives beside it. `install_facade:` is now
 `install_driving:`. The old names worked in 3.0 to 3.3 with a warning; they were removed in 3.4.0, so
@@ -97,7 +97,7 @@ are still on an old pin, 3.3.0 prints the warning for each use, so run it once a
 |---|---|
 | `uses_framework "X"` | `attaches "X"` |
 | `uses_embryonaut_bluebook "x"` | `attaches "x", from: :vendor` |
-| `Hecks::Facade` | `Hecks::Doors` |
+| `Hecks::Facade` | `Hecks::Adapters::Driving` |
 | `Hecks::Adapters::Driving::Surface` | `Hecks::Adapters::Driving::Ruby` |
 | `install_facade:` (on `boot`, `boot_files`, `boot_described`) | `install_driving:` |
 

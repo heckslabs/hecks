@@ -189,10 +189,10 @@ not just which symbols exist.
 the three, the smallest, and the best one to read start to finish if
 you ever have to build a fourth — it's a template with all the
 scaffolding stripped away. The situation: the translation chapter
-declares a closed set of rule kinds (`Rule.Kind` — compute, convert,
-drop, move, rename, retype, retired), and `TranslationAggregateBuilder`
+declares a closed set of rule kinds (`Rule.Kind` in
+`lib/hecks/grammar/translation.bluebook`), and `TranslationAggregateBuilder`
 re-spelled the identical list by hand in its `method_missing` refusal
-message. Nothing held the two together. This is what the four examples
+message. Nothing held the two together. This is what the examples
 in that file do, in order:
 
 1. **Prove the declared side is real** — the set is genuinely closed
@@ -200,8 +200,8 @@ in that file do, in order:
    file from passing vacuously against an empty table.
 2. **Read the live side by introspection, not by hand-copied list** —
    `TranslationAggregateBuilder.public_instance_methods(false)`, minus
-   the two bits of bookkeeping (`build`, `method_missing`) that are not
-   themselves rule kinds. Then assert the declared set equals that,
+   the bookkeeping (`build`, `method_missing`) and the `*_impl` methods
+   the grammar table already names. Then assert the declared set equals that,
    minus the one entry that belongs elsewhere (next point).
 3. **Name the exception, don't hide it** — `retired` is real, but it
    lives on the sibling `TranslationBuilder` (the edge, not the rule),
@@ -214,8 +214,8 @@ in that file do, in order:
    language's own declaration — cannot drift from each other either.
 
 ```ruby
-(Hecks::Bluebook::DSL::TranslationAggregateBuilder.public_instance_methods(false) - [:build, :method_missing]).sort
-# => [:compute, :convert, :drop, :move, :rename, :retype, :unresolved]
+rows = Hecks::Bluebook::MetaValidator::SyntaxBoot.call[:keywords]
+rows.select { |row| row[:context] == "TranslationAggregate" && row[:status] != "retired" }.map { |row| row[:word] }.sort   # => ["backfill", "convert", "derive", "drop", "move", "rekey_to", "rename", "retype", "unresolved"]
 ```
 
 That's the recipe if you ever have to write a fifth gate: find the two
