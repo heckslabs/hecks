@@ -52,7 +52,7 @@ generated too (`hecks language_run.project_parser_table`, from the language's ow
 `Syntax` chapter), not hand-written a second time either.
 
 Ruby is the reference implementation; Rust is checked against it
-continuously, not just at release time: `hecks regenerate_corpus --check`
+continuously, not just at release time: `hecks regeneration_run.regenerate_corpus --check`
 regenerates every corpus domain's Rust and fails on any difference from the committed tree, and
 `spec/rust_conformance_spec.rb` replays every pinned fixture script in
 `spec/corpus/rust_conformance/` through the compiled binary, diffing instances, events, refusals,
@@ -144,7 +144,7 @@ by a single-machine harness (`hecks fuzz_run.bench`; the [baseline and its
 caveats](../../benchmarks.md)), not under a production-like load,
 `read_model` queries outside the proven subset above are refused in Rust
 rather than run, and the WASM projector is one command away
-(`hecks build.build_wasm`) but not part of any deployed pipeline today. See
+(`hecks build.build_wasm`), and the deployed Rust host runs the domain's WASI module. See
 [Running a runtime](running-a-runtime.md) for
 the exact field-by-field contract a third dispatch runtime would need,
 and [the retired first Rust

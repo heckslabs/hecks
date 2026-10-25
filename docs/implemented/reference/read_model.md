@@ -618,8 +618,8 @@ dashboard[:card_payments].map { |row| row[:amount][:cents] }  # => [200, 100]
 | `tenant:` | symbol | false | tenant |
 <!-- generated:end -->
 
-Declares a policy name (recorded, never checked — no caller-identity or
-grant system exists to check it against) and, when `tenant:` is given,
+Declares a policy name (recorded, not checked: nothing yet maps
+a query's policy onto the Governance grant check commands use) and, when `tenant:` is given,
 a mandatory tenant boundary that IS enforced: a caller must pass that
 field as an argument or the ask refuses with `Unauthorized`
 (`Runtime::TenantScope`), and every returned row is scoped to the

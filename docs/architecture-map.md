@@ -6,11 +6,11 @@ lib/hecks/
   grammar/      the expression and translation sublanguages, and the Admit gate.
   bluebook/     dsl → ir → expression.  READING ONE.
   runtime/      dispatch, instances, the registry.  RUNNING IT.
-  adapters/     driven: memory, sqlite, heki, postgres, folder, prism.
-  translation/  domain-version translation — eras and lineage.
+  adapters/     driven adapters — persistence, authentication, clock, identity, and the rest (lib/hecks/adapters/driven/).
+  ports/persistence/plugins/era/  domain-version translation — eras and lineage.
   projector/    IR serialization — the translation-edge digest reads it.
 
-  adapters/driving/   the driving adapters (Ruby, CLI, MCP, JSON).  Class-free, per boot.
+  adapters/driving/   the driving adapters (Ruby, CLI, MCP, JSON, webhook).  Class-free, per boot.
   router/               project-wide dispatch; installs each chapter's namespace at boot.
   ports/                domain ports — auth, identity, persistence, query.
   query_specification/  a query's shape, held apart from any engine that answers it.
@@ -18,7 +18,7 @@ lib/hecks/
   forms/                IR → HTML, content-negotiated against plain JSON.
   fuzzing/              generated sequences, checked against declared properties.
   doc/                  the generated DSL reference (hecks language_run.project_reference).
-  framework/            shared, domain-agnostic bluebooks — Governance, Identity, ConsoleSettings.
+  framework/            shared, domain-agnostic bluebooks — e.g. Governance, Identity, Privacy.
   deploy/               the Deploy bluebook — what deployed_to means.
 ```
 
@@ -34,16 +34,18 @@ boot chain, so a project that never touches one never pays for it.
 ```ruby skip
 rust/
   src/kernel/     the hand-written interpreter — walks given/ensures/mutation data, same job as CommandInterpreter#call in Ruby.
+  host/           the production HTTP host (hand-written): serves the domain's WASI module over Postgres, mints eras. See implemented/rust-host.md.
+  lsp/            the language server.
+  build/          the Rust build tooling the build commands call.
   src/generated/  typed structs and enums per domain, written by hecks build.project_rust — never hand-edited.
   parser/         a generated Rust parser, built from the language's own Syntax chapter (hecks language_run.project_parser_table).
   codegen/        the Rust code generator itself, driven from canonical IR; hecks build.project_rust builds the IR from the live registry and runs it.
   web/            the wasm-bindgen crate hecks build.build_browser_wasm builds — a separate cdylib from the WASI binary.
 ```
 
-`rust/src/kernel/{expr,dispatch}.rs` is the one part of this tree
-someone still writes by hand — everything else (`generated/`, the
-parser tables, the type shapes) is projected from the same canonical
-IR the Ruby runtime reads. See [Projections: Rust and
+`rust/src/kernel/` and `rust/host/` are written by hand — everything
+else (`generated/`, the parser tables, the type shapes) is projected
+from the same canonical IR the Ruby runtime reads. See [Projections: Rust and
 WebAssembly](implemented/guides/projections.md) for what
 that buys, and [Running a
 runtime](implemented/guides/running-a-runtime.md) for the

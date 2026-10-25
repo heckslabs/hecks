@@ -1,6 +1,6 @@
 # PRD 04 — Feed generated sequences through the Ruby/Rust conformance harness
 
-**Status:** Not started.
+**Status:** Shipped as `hecks build.fuzz_conformance!`, which replays generated sequences through Ruby and a Rust build and compares them. The text below is the original proposal.
 
 ## The problem
 
