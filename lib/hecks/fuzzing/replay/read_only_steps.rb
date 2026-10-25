@@ -103,14 +103,42 @@ module Hecks
         end
 
         # What `validate` says of the same hypothetical, kept beside the trace: whether it would be
-        # accepted, the stage and text of its first refusal, and every refusal's kind and stage.
+        # accepted, the stage and text of its first refusal, and every refusal as `[kind, stage,
+        # attribute, path, rule, class]`.
         def validation_of(step, hypothetical, args)
           result = Replay.as_step_caller(step) { @runtime.validate(hypothetical, args) }
           first = result.refusals.first
           { ok: result.ok?, first_stage: first&.stage, first_message: first&.message,
-            reasons: result.refusals.map { |refusal| [refusal.kind.to_s, refusal.stage.to_s] } }
+            reasons: result.refusals.map { |refusal| reason_of(refusal) } }
         rescue Runtime::WiringError
           nil
+        end
+
+        # A `validate` step: every refusal the command would meet, recorded as data and never as a
+        # refusal of the script. Compared against `kernel/cli.rs`'s own `validate` answer.
+        def validate_step(step, hypothetical, args)
+          result = Replay.as_step_caller(step) { @runtime.validate(hypothetical, args) }
+          @validations << { verb: hypothetical, ok: result.ok?,
+                            refusals: result.refusals.map { |refusal| validation_entry(refusal) } }
+        end
+
+        # One refusal in the wire shape: class, kind, stage, attribute, path, rule and message.
+        def validation_entry(refusal)
+          detail = refusal.to_h
+          { kind: detail[:kind], stage: detail[:stage], refusal: class_name_of(refusal),
+            attribute: detail[:attribute], path: detail[:path], rule: detail[:rule], message: detail[:message] }
+        end
+
+        # One refusal as the comparison reads it: `[kind, stage, attribute, path, rule, class]`.
+        def reason_of(refusal)
+          entry = validation_entry(refusal)
+          parts = entry.values_at(:kind, :stage, :attribute, :path, :rule)
+          [*parts.map { |part| part&.to_s }, entry[:refusal]]
+        end
+
+        def class_name_of(refusal)
+          name = refusal.class.name
+          name.split("::").last
         end
 
         def state_snapshot = { instances: Replay.snapshot_instances(@runtime), events: @runtime.events.size }

@@ -56,7 +56,13 @@ only its message.
   alongside an unmet `given`.
 - The Rust host answers the same envelope for `"dry_run": true` in its body protocol, from the
   kernel's own `dry_run` step (run on the journal's history and rolled back, with no reaction
-  delivered or logged), and `hecks-client` has `validate()`. The kernel stops at the first
-  refusal, so the host reports one, with its `kind` and `stage` from the same `RefusalClass`
-  table; it does not yet name the attribute, path or rule. The console API and web routes do not
-  yet take the flag.
+  delivered or logged), and `hecks-client` has `validate()`. The kernel keeps every unmet given,
+  ensure and invariant of the stage it stops in, and every unknown and absent argument, through a
+  collector a real dispatch never binds, so the host reports them all with their `kind` and
+  `stage` from the same `RefusalClass` table, an argument refusal naming its attribute and path
+  and a rule refusal its rule. A coercion mismatch, a role or a lifecycle refusal stands alone.
+  The console API and web routes take `?dry_run=1`.
+- The neutral conformance corpus has a `validate` step beside `dry_run`: it records `{verb, ok,
+  refusals}` with each refusal's class, kind, stage, attribute, path, rule and message, frozen in
+  `expect.validations` (a fixture without the step omits the key). Ruby and Rust are each held
+  to it, so a fixture may only ask what both engines list in full.

@@ -1,7 +1,7 @@
 //! Generic dispatch loops over the declared `AggregateStep`/`EntityStep` order.
 //! Argument gates run in `decode_*_arguments`, before the router resolves identity.
 
-use super::collecting;
+use super::collecting::{self, Detail};
 use super::expr::{
     interpret, EvalContext, Expr, Field, Fielded, NoFields, StateFirst, Value, WithOld, WithParent,
 };
@@ -57,10 +57,13 @@ pub fn enforce_invariants(
             instance: record,
         };
         if !interpret(&rule.expr, &ctx)?.truthy() {
-            collecting::refuse(Refusal::InvariantViolation(format!(
-                "{aggregate_name} refused — {}",
-                rule.description
-            )))?;
+            collecting::refuse_with(
+                Refusal::InvariantViolation(format!(
+                    "{aggregate_name} refused — {}",
+                    rule.description
+                )),
+                Detail::rule(rule.description),
+            )?;
         }
     }
     for entity in &set.entities {
@@ -90,10 +93,13 @@ fn enforce_entity_invariants(
                 instance: element,
             };
             if !interpret(&rule.expr, &ctx)?.truthy() {
-                collecting::refuse(Refusal::InvariantViolation(format!(
-                    "{} refused — {}",
-                    entity.name, rule.description
-                )))?;
+                collecting::refuse_with(
+                    Refusal::InvariantViolation(format!(
+                        "{} refused — {}",
+                        entity.name, rule.description
+                    )),
+                    Detail::rule(rule.description),
+                )?;
             }
         }
         for nested in &entity.nested {
@@ -360,15 +366,18 @@ fn enforce_givens(
             // The `corrects` wording interpolates the record id, so it is built here.
             if let Some(event_name) = given.corrects_event {
                 // `NothingToCorrect`, not `GivenNotMet`: the conformance corpus compares kinds.
-                collecting::refuse(Refusal::NothingToCorrect(format!(
-                    "{command_name} refused — corrects {event_name}, but {aggregate_qualified_name} #{id} has never emitted it"
-                )))?;
+                collecting::refuse_with(
+                    Refusal::NothingToCorrect(format!(
+                        "{command_name} refused — corrects {event_name}, but {aggregate_qualified_name} #{id} has never emitted it"
+                    )),
+                    Detail::rule(given.description),
+                )?;
                 continue;
             }
-            collecting::refuse(Refusal::GivenNotMet(format!(
-                "{command_name} refused — {}",
-                given.description
-            )))?;
+            collecting::refuse_with(
+                Refusal::GivenNotMet(format!("{command_name} refused — {}", given.description)),
+                Detail::rule(given.description),
+            )?;
         }
     }
     collecting::settle(stage)
@@ -431,10 +440,10 @@ fn enforce_ensures(
             instance: settled,
         };
         if !interpret(&rule.expr, &ctx)?.truthy() {
-            collecting::refuse(Refusal::EnsuresNotMet(format!(
-                "{command_name} refused — {}",
-                rule.description
-            )))?;
+            collecting::refuse_with(
+                Refusal::EnsuresNotMet(format!("{command_name} refused — {}", rule.description)),
+                Detail::rule(rule.description),
+            )?;
         }
     }
     collecting::settle(stage)
@@ -673,10 +682,13 @@ where
                 instance: element,
             };
             if !interpret(&given.expr, &ctx)?.truthy() {
-                collecting::refuse(Refusal::GivenNotMet(format!(
-                    "{} refused — {}",
-                    self.command_name, given.description
-                )))?;
+                collecting::refuse_with(
+                    Refusal::GivenNotMet(format!(
+                        "{} refused — {}",
+                        self.command_name, given.description
+                    )),
+                    Detail::rule(given.description),
+                )?;
             }
         }
         collecting::settle(stage)
@@ -891,6 +903,7 @@ pub fn decode_aggregate_arguments<A>(
     gates: &ArgumentGates<'_, A>,
 ) -> Result<A, Refusal> {
     let mut args = None;
+    let stage = collecting::mark();
     for step in AggregateStep::ORDER {
         #[deny(clippy::wildcard_enum_match_arm)]
         let gate = match step {
@@ -913,6 +926,10 @@ pub fn decode_aggregate_arguments<A>(
             | AggregateStep::Emit => continue,
         };
         gates.run(gate, facts, &mut args)?;
+        // A dry run keeps every unknown and absent argument, then stops here; a real one raised.
+        if matches!(gate, ArgumentGate::RefuseAbsentArguments) {
+            collecting::settle(stage)?;
+        }
     }
     ordered(args, NORMALIZED)
 }
@@ -924,6 +941,7 @@ pub fn decode_entity_arguments<A>(
     gates: &ArgumentGates<'_, A>,
 ) -> Result<A, Refusal> {
     let mut args = None;
+    let stage = collecting::mark();
     for step in EntityStep::ORDER {
         #[deny(clippy::wildcard_enum_match_arm)]
         let gate = match step {
@@ -945,6 +963,10 @@ pub fn decode_entity_arguments<A>(
             | EntityStep::Emit => continue,
         };
         gates.run(gate, facts, &mut args)?;
+        // A dry run keeps every unknown and absent argument, then stops here; a real one raised.
+        if matches!(gate, ArgumentGate::RefuseAbsentArguments) {
+            collecting::settle(stage)?;
+        }
     }
     ordered(args, NORMALIZED)
 }
