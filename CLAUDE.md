@@ -145,7 +145,7 @@ commit must pass as `RequiredCheck` rows beside them.
   draft. No check is required
   to land, so run the pre-push gate yourself before you push anything that
   is not trivial: a push of `main` runs only the `unguarded_push` stage of
-  `lib/hecks/gate/stages.yml`, and `HECKS_PRE_PUSH_GATE=1 git push` runs the
+  `lib/hecks/gate/stages.yml`, and `hecks push_train.board! full_gate.value=true` runs the
   whole `pre_push` stage. Never
   force-push `main`, and never use `--admin`.
 - **`stable` is only ever promoted.** CI runs the full job set on every push
