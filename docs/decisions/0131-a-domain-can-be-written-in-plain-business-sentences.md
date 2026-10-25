@@ -16,15 +16,14 @@ code by hand-written step definitions, so the readable file and the running syst
 
 ## Decision
 
-1. **A bizbook is a second source language for the same IR.** A `*.bizbook` file is plain
-   text that `hecks-parse` reads into the same `ir.json` a `.bluebook` produces. It is
-   parallel to the bluebook, not a layer over it: every projection, host, generator and
-   conformance check works from the IR and cannot tell which source wrote it.
-   **A project uses bluebooks or bizbooks, never both.** `model_check` refuses a project
-   holding both, so no `loads` crosses the line and no reader has to know two grammars at
-   once. Projects meet through the IR, so a bizbook project may depend on a package written
-   in bluebooks and the reverse. The bluebook stays; a bizbook may supersede it later,
-   decided by use, not by this ADR.
+1. **The bluebook accepts a second syntax, the bizbook form.** A `.bluebook` file is either
+   Ruby-shaped (`Hecks.bluebook "X" do`) or plain sentences (`Domain: X`); its first line
+   picks the grammar. `hecks-parse` reads both into the same `ir.json`, so every
+   projection, host, generator and conformance check cannot tell which wrote it. A file is
+   wholly one form; files in a project may differ; mixing forms inside a file is refused.
+   One extension means no new file kind for globs, `loads` or editors. "Bizbook" names the
+   sentence form. A construct with no phrase rows yet stays in Ruby form in another file,
+   so a project adopts the form file by file. Ruby is never embedded in a sentence file.
 2. **Bluebook side, not hecksagon.** A bizbook declares what the domain is and does. It
    names no database, clock or network. Wiring stays in `.hecksagon`; persistence stays
    memory by default.
@@ -47,6 +46,7 @@ code by hand-written step definitions, so the readable file and the running syst
    | `Then` | mutations, `ensures`, `emits` |
    | `But refuse … because "…"` | a `given` with its refusal message |
    | `Whenever <event> then <command>` | policy |
+   | `Whenever <event>, ask <outside> to …` | policy with `ask` |
    | `Example:` tables | executable examples (below) |
 
 5. **Examples are the tests.** An example compiles to the
@@ -57,15 +57,18 @@ code by hand-written step definitions, so the readable file and the running syst
    (`rust/parser/src/expr`) already emits; a phrase row names its expression template.
    Field and type names come from the bizbook's own `It has:` lines, spelled as a person
    would ("customer name" is `customer_name`).
-7. **A bizbook must reach full coverage before a project can adopt it.** Because a project
-   cannot mix, there is no bluebook beside it to hold queries, read models, process
-   managers or ports. Each such construct needs phrase rows first; until it has them, a
-   project that uses it stays on bluebooks. Ruby is never embedded in a bizbook.
-8. **Examples are their own file.** `orders.examples.bizbook` says `Examples for: Order`
+7. **IR to sentences is a projection.** Because both forms share the IR, any existing
+   bluebook can be rendered in sentence form (and back) by a formatter. Comments are not
+   in the IR and are lost; a construct with no phrase row renders in Ruby form.
+8. **Examples are their own file.** `orders.examples.bluebook` says `Examples for: Order`
    and holds `Background:` (people bound to roles), `Example:` and `Where:` tables. An
    actor on a `When` is the command's role. A refusal is matched by the rule's own
-   sentence, not a message string. Stubbed outside facts (a credit check) are ports: the
-   declaration names them, the hecksagon wires them, the examples stub them.
+   sentence, not a message string. An outside party (a credit check) is an `ask`: a policy
+   asks on an event, the outside answers with an event, and a policy triggers the next
+   command. The declaration holds the question, the answer events and any threshold the
+   business sets; the hecksagon picks the adapter; examples stub the answer
+   (`When Credit Check approves the order`). `needs` is not used: it supplies only `now`
+   and `today`.
 
 ## Sketch
 
@@ -104,12 +107,21 @@ Aggregate: Order
   Rust kernel and conformance corpus are untouched.
 - The phrase table is the new surface to keep honest. It is generated into the reference
   and editor grammar like every other table, and `measure_doc_coverage!` extends to it.
-- Two sources for one IR need a round-trip check: a bizbook project and its bluebook
+- Two forms for one IR need a round-trip check: a sentence file and its Ruby-form
   rendering must produce byte-equal `ir.json` (a `check_conformance` pair).
+- A project can end up holding both forms; the formatter keeps that tolerable.
+
+## Known gaps (the sentence form cannot yet say these)
+
+- `Command.role` is a single role (`rust/parser/src/ir.rs`); "a Customer or a Sales Rep
+  can cancel" needs several roles on a command.
+- A total over a list (quantity × price summed over line items) may be outside the
+  expression machinery; unverified.
+- `nothing is recorded` after a refusal is a test assertion, not a rule: `.behaviors` side.
 
 ## Open questions
 
-- Whether examples use `.examples.bizbook` or a shorter `.examples.biz`.
+- Whether examples use `.examples.bluebook` or their own extension.
 - How much of a command's `Then` can be inferred versus stated (mutation ops, `emits`).
 - Whether bizbook files get a formatter that normalises phrasing, so diffs stay quiet.
 
@@ -117,4 +129,6 @@ Aggregate: Order
 
 1. Admit the first phrase rows for `Domain`, `Aggregate`, `It has`, `Rule`, `Command`.
 2. Parse them in `rust/parser` into IR; check the Pizzas `Order` against the bluebook IR.
-3. Compile `Example:` tables to `.behaviors`.
+3. Compile examples to `.behaviors`.
+4. Hand-write the Order domain (declaration and examples) as a `.bluebook`, run
+   `model_check`, and let it confirm or add to the gaps above.
