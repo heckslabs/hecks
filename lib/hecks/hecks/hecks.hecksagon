@@ -84,6 +84,28 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  Hecks::Checkout.port "Reading" do
+    answers_query "Status"
+    answers_query "Changes"
+    answers_query "Log"
+  end
+
+  Hecks::Landing.port "Worktrees" do
+    asks "Merge", to: Landing do
+      attribute :run, RunKey
+      answers "MergeAnswered"
+      refuses "MergeRefused"
+    end
+
+    asks "Remove", to: Landing do
+      attribute :run, RunKey
+      answers "RemovalAnswered"
+      refuses "RemovalRefused"
+    end
+
+    answers_query "Unlanded"
+  end
+
   Hecks::Era.port "JournalStore" do
     asks "Examine", to: Era do
       attribute :run, RunKey
