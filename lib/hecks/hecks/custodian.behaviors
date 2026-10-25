@@ -81,6 +81,12 @@ Hecks.behaviors "Custodian" do
     expect emits: %w[LaunchersRequested LaunchRefused LaunchStopped]
   end
 
+  test "ProjectRails keeps an app with no bluebook/ as a stopped launch, and writes nothing" do
+    tests "ProjectRails", on: "Launch"
+    input run: { value: "rails" }, dir: { value: "/tmp/hecks-behaviors-absent/rails-app" }
+    expect emits: %w[RailsRequested LaunchRefused LaunchStopped]
+  end
+
   test "ServeMcp refuses a launch that is not named" do
     tests "ServeMcp", on: "Launch"
     input run: { value: "" }
