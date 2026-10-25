@@ -36,16 +36,17 @@ module Hecks
         #
         # @param verb [String] `"Domain::Aggregate.Query"` of a query that declares `cursor`
         # @param after [String, nil] the position the previous page answered; nil asks page one
+        # @param page_size [Integer, nil] a page smaller than the query's own `limit`; never larger
         # @param args [Hash{Symbol => Object}] the query's declared arguments
         # @return [Hash{Symbol => Object}] `rows`, one Hash per record, and `after`, the next
         #   position or nil when no row follows
         # @raise [ArgumentError] if the query declares no cursor, or `after` is not one it handed out
         # @raise [Runtime::UnknownVerb] if the verb is malformed or names something undeclared
-        def query_page(verb, after: nil, **args)
+        def query_page(verb, after: nil, page_size: nil, **args)
           domain, aggregate_name, query_name = parse(verb)
           aggregate = resolve_aggregate(domain, aggregate_name, verb)
 
-          @queries.page(domain, aggregate, query_name, after ? args.merge(after: after) : args)
+          @queries.page(domain, aggregate, query_name, after ? args.merge(after: after) : args, page_size: page_size)
         end
 
         # Answers an aggregate or entity query through the reference interpreter alone.

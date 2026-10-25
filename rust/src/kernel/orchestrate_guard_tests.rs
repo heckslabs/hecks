@@ -155,6 +155,7 @@ static QUERIES: [crate::kernel::QueryDef; 1] = [crate::kernel::QueryDef {
     order_by: None,
     offset: None,
     limit: None,
+    cursor: false,
     authorization: None,
 }];
 
@@ -908,6 +909,7 @@ const READS_ORDER_ID: crate::kernel::QueryDef = crate::kernel::QueryDef {
     order_by: None,
     offset: None,
     limit: None,
+    cursor: false,
     authorization: None,
 };
 

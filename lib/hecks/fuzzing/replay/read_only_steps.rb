@@ -35,10 +35,34 @@ module Hecks
 
           entry = { query: question, args: args, rows: native_rows, instances_at: Replay.snapshot_instances(@runtime) }
           entry[:error] = native_error.message if native_error
+          entry[:pages] = cursor_walks(question, args) if cursor_query?(question) && !native_error
           add_reference(entry, reference_rows, reference_error) if has_reference
           @queries << entry
 
           @refusals << { verb: question, error: native_error.message, kind: Replay.refusal_kind(native_error) } if native_error
+        end
+
+        # Whether `question` names a declared aggregate query that pages by cursor.
+        def cursor_query?(question)
+          domain, aggregate_name, query_name = Naming.split_verb(question)
+          !@runtime.bluebooks[domain]&.aggregate(aggregate_name)&.query(query_name.to_s)&.cursor.nil?
+        end
+
+        # Every page of a cursor query, walked at the query's own page size and again one row at
+        # a time (so a boundary falls between any two rows), as `{ page_size:, pages: }` per walk.
+        def cursor_walks(question, args)
+          [nil, 1].map { |size| { page_size: size, pages: walk_pages(question, args, size) } }
+        end
+
+        def walk_pages(question, args, size)
+          pages = []
+          after = nil
+          loop do
+            page = @runtime.query_page(question, after: after, page_size: size, **args)
+            pages << page.fetch(:rows)
+            break unless (after = page[:after])
+          end
+          pages
         end
 
         def add_reference(entry, reference_rows, reference_error)

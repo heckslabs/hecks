@@ -38,12 +38,12 @@ module Hecks
       # @raise [Runtime::UnknownVerb] if `query_name` names no declared query
       # @raise [Runtime::TypeMismatch] if an argument cannot be coerced to its type
       # @raise [Runtime::WiringError] if the aggregate's repository cannot be resolved
-      def call(domain, aggregate, query_name, args, widen: false)
+      def call(domain, aggregate, query_name, args, widen: nil)
         return entity_rows(domain, aggregate, query_name, args) if query_name.include?(".")
 
         declared = declared_query(aggregate, query_name)
         args = normalize_args(aggregate, declared, args)
-        declared = Ports::Query::Cursor::Widened.new(declared, page_size(declared, args)) if widen
+        declared = Ports::Query::Cursor::Widened.new(declared, widen) if widen
         port = aggregate.query_binding(declared.name)
         return answered_from_outside(aggregate, declared, args, port) if port
 
@@ -62,13 +62,14 @@ module Hecks
       # @param args [Hash] the query's arguments; `:after` is the position token, absent for page one
       # @return [Hash{Symbol => Object}] `rows` (frozen Hashes) and `after` (a String, nil on the
       #   last page)
+      # @param page_size [Integer, nil] a page smaller than the query's own `limit`; never larger
       # @raise [ArgumentError] if the query declares no cursor, or `after` is not a token it handed out
-      def page(domain, aggregate, query_name, args)
+      def page(domain, aggregate, query_name, args, page_size: nil)
         declared = declared_query(aggregate, query_name)
         raise ArgumentError, "#{query_name} declares no cursor, so it has no pages" unless declared.cursor
 
-        size = page_size(declared, normalize_args(aggregate, declared, args))
-        rows, after = Ports::Query::Cursor.split(call(domain, aggregate, query_name, args, widen: true), declared, size)
+        size = [self.page_size(declared, normalize_args(aggregate, declared, args)), page_size || Float::INFINITY].min
+        rows, after = Ports::Query::Cursor.split(call(domain, aggregate, query_name, args, widen: size), declared, size)
         { rows: rows, after: after }
       end
 
