@@ -79,7 +79,7 @@ codegen-drift checks, and rustfmt), concurrently, and reports the results in a f
 and say why in the push (or the PR).
 
 `main` takes pushes with no gate, so a push of only `main` skips the suite but still runs the `unguarded_push` stage (rubocop, the
-comment-style checks and `spec/fuzzing`); `HECKS_PRE_PUSH_GATE=1 git push` runs the whole suite for it. A push that names no ref on `main` (a branch for a pull request) skips every local check; CI is its gate. Which
+comment-style checks and `spec/fuzzing`); `hecks push_train.board! full_gate.value=true` runs the whole suite for it (the train hands the hook `HECKS_PRE_PUSH_GATE=1` for that push). A push that names no ref on `main` (a branch for a pull request) skips every local check; CI is its gate. Which
 lanes are unguarded is the `Lane` rows of the Vocabulary chapter, not this file.
 
 ### Fast local iteration
@@ -328,7 +328,7 @@ above:
 ### What the pre-push hook is and is not
 
 `.githooks/pre-push` can be bypassed with `git push --no-verify`, and a push of
-only `main` skips it unless `HECKS_PRE_PUSH_GATE=1` is set. When it
+only `main` skips it unless the push asks for the full gate (`hecks push_train.board! full_gate.value=true`). When it
 runs and a signing key is present in the keychain, it writes an HMAC
 attestation note keyed by the tree hash, and CI uses that note to skip the
 checks the note names. The note is evidence that someone holding the key

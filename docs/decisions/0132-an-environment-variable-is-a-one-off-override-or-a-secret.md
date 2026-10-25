@@ -67,11 +67,13 @@ is a flag on the era command.
 - `PROPERTY_SEEDS`: a seeds argument on the spec-run command, which sets it for the child.
 - `CI`, `HECKS_PRE_PUSH_GATE`: both mean "run the specs strictly" (`spec_helper.rb`,
   `postgres_probe.rb`, `ci_skip_backstop.rb`, `generated_rust.rb`) and nothing in `lib/`
-  reads either. One `strict` argument on `gate_run.gate!` and the spec runs replaces them.
-  The pre-push hook chooses the gate's stage from the variable, so the hook calls the
-  command with the stage instead. A workflow passes `strict` instead of relying on the
-  provider's `CI`.
-- `HECKS_PUSH_TRAIN=off`: not running `push_train.board!`, or an argument on it.
+  reads either. `run_spec_example!` takes `strict` (built). A git hook takes no arguments, so
+  the push reaches it as `push_train.board!`'s `full_gate`, which sets
+  `HECKS_PRE_PUSH_GATE` for that push only (built); the hook still reads the variable, as a
+  hand-off. A workflow passes `strict` instead of relying on the provider's `CI`.
+- `HECKS_PUSH_TRAIN=off`: nothing reads it today (no file in this repository or the user's
+  hook configuration names it), so there is nothing to retire; the train needs no argument
+  for "not running".
 
 **Retired outright:**
 - `HECKS_EVAL=string` forced the text path of rule evaluation. No spec or workflow set it
@@ -107,9 +109,8 @@ for it.
 2. Derived variables: no schema change.
 3. Arguments: `profile` and `prebuilt` are built, and `run_spec_example!` takes `strict`,
    `seeds` and `environment`, which set `CI`, `PROPERTY_SEEDS` and `HECKS_ENVIRONMENT` for
-   that run only. Still to build: `strict` on `gate_run.gate!` (with the pre-push hook
-   choosing its stage by command), a tag filter for `HECKS_CLOUDFRONT_TEST`, and the
-   `board!` argument for `HECKS_PUSH_TRAIN=off`.
+   that run only, and `push_train.board!` takes `full_gate`. Still to build: a tag filter
+   for `HECKS_CLOUDFRONT_TEST`.
 4. World-declared variables: `environments/*.world` becomes the one place a copy says
    what it connects to.
 5. Declared settings: needs a decision on where in the hecksagon they are written.
