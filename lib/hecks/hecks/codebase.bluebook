@@ -2182,6 +2182,20 @@ Hecks.bluebook "Hecks" do
       emits StressConcurrencyRequested
     end
 
+    # The caches key on a digest of what they were built from, so a stale entry is never read; this
+    # is for ruling a cache out as the cause of a surprise, which turning it off used to do.
+    command "ClearCaches" do
+      role "Maintainer"
+      goal "Delete the on-disk syntax-boot and verdict caches, so the next boot builds and judges afresh"
+
+      attribute :run, RunKey
+
+      sets :run
+      sets :operation, to: "clear_caches"
+
+      emits ClearCachesRequested
+    end
+
     command "RegenerateLegacyFixtures" do
       role "Maintainer"
       goal "Regenerate the persistence legacy fixtures through the real adapters"
@@ -2322,6 +2336,11 @@ Hecks.bluebook "Hecks" do
 
   policy "ExamineWhenStressConcurrencyRequested" do
     on      "TestSuiteRun.StressConcurrencyRequested"
+    trigger TestSuiteRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenClearCachesRequested" do
+    on      "TestSuiteRun.ClearCachesRequested"
     trigger TestSuiteRun::SourceTree::Examine, with: { run: :run }
   end
 
