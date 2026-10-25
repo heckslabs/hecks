@@ -296,7 +296,7 @@ Hecks.bluebook "QualityControl" do
     # handing back what it printed; none reads or writes this aggregate's records, so each is a query.
     # `arguments` is the command's own flags as one string, such as `--domains 3 --rust`.
     value_object "Words" do
-      attribute :value, String, pattern: '[^\n\r]'
+      attribute :value, String, matches: :single_line
     end
 
     value_object "DomainPath" do
@@ -639,7 +639,7 @@ Hecks.bluebook "QualityControl" do
     # report. They log their own checks through the commands above; none of these queries reads this
     # aggregate's records. `arguments` is the command's own flags as one string, such as `--all`.
     value_object "Words" do
-      attribute :value, String, pattern: '[^\n\r]'
+      attribute :value, String, matches: :single_line
     end
 
     value_object "DomainPath" do

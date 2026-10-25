@@ -19,7 +19,12 @@ module Hecks
           PATTERN_WORDS = {
             present: "must not be blank", not_empty: "must not be empty", no_whitespace: "must have no spaces",
             snake_name: "must be lowercase words joined by underscores", git_sha: "must be a commit id",
-            digits: "must be digits only"
+            digits: "must be digits only", identifier: "must start with a letter and use letters, digits and underscores",
+            csv_list: "must be a comma-separated list with no spaces", command_ref: "must name a command as Context::Aggregate.Command",
+            host_port: "must be a host name, optionally followed by a port", instance_id: "must be a server instance id",
+            hostname: "must be a host name", word_chars: "must use letters, digits and underscores only",
+            version: "must start with a version number such as 1.2.3", http_scheme: "must start with http:// or https://",
+            capitalized: "must contain a capitalized name", single_line: "must be one line"
           }.freeze
 
           module_function
