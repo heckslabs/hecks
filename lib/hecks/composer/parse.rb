@@ -70,22 +70,26 @@ module Hecks
       # as sentences, with an optional `(expected one of: a, b, c)` suffix.
       # @api private
       def diagnostic(line, stage)
-        rest = line.delete_prefix("#{stage}/")
-        file, number, message = rest.split(":", 3)
+        file, number, message = line.delete_prefix("#{stage}/").split(":", 3)
         return { file: nil, line: nil, column: nil, message: line, expected: [] } unless number.to_s.strip.match?(LINE_NUMBER)
 
-        message = message.to_s.strip
-        column = nil
-        if (positioned = message.match(COLUMN_PREFIX))
-          column = positioned[1].to_i
-          message = positioned[2]
-        end
-        expected = []
-        if (found = message.match(EXPECTED_SUFFIX))
-          message = found[1]
-          expected = found[2].split(", ")
-        end
+        column, message = split_column(message.to_s.strip)
+        message, expected = split_expected(message)
         { file: file, line: number.to_i, column: column, message: message, expected: expected }
+      end
+
+      # @param message [String] a diagnostic's text after the line number
+      # @return [Array(Integer, String), Array(nil, String)] the column it names, and the rest
+      def split_column(message)
+        positioned = message.match(COLUMN_PREFIX)
+        positioned ? [positioned[1].to_i, positioned[2]] : [nil, message]
+      end
+
+      # @param message [String] a diagnostic's text with its column taken off
+      # @return [Array(String, Array<String>)] the message, and the phrases that would have fitted
+      def split_expected(message)
+        found = message.match(EXPECTED_SUFFIX)
+        found ? [found[1], found[2].split(", ")] : [message, []]
       end
 
       # @return [String] the path to `hecks-parse`; see {SentenceForm.binary}

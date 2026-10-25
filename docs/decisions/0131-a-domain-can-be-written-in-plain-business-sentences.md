@@ -131,12 +131,21 @@ These are deliberate. Each is refused loudly rather than approximated.
   answers the ask, and the Memory runtime refuses it, which shows in `expect emits:`. The
   commands an answer would trigger are exercised directly. A verb in an example is one word
   (`publishes`, not `requests refund`).
-- **A `.hecksagon` beside a sentence chapter** is refused ("not yet implemented"); queries are
-  limited to `Where the F is V` and an order; read models, process managers, ports, entities,
-  closed sets, list attributes, defaults and `from:` guards have no phrase yet. The formatter
-  names each one it cannot write.
+- **A `.hecksagon` beside a sentence chapter** is refused ("not yet implemented"). The sentence form
+  covers every construct the corpus uses except: aggregate `ports`; the facts a command or query
+  asks the runtime for (`needs`); a query's `cursor`; a report that pages each of several included
+  aggregates separately; a policy that triggers a command no chapter in the file declares; and a
+  transition naming an undeclared command. The formatter names each one it cannot write, and
+  `spec/sentence_coverage_spec.rb` lists them.
 - **Generated Ruby text carries no line map.** A Ruby error inside rendered text names the
   generated file; the parser has already checked the sentences, so this should be rare.
+
+## Coverage
+
+`spec/sentence_coverage_spec.rb` writes every bluebook in the corpus as sentences and reads the
+sentences back: the IR must equal the Ruby form's exactly, or the formatter must refuse by naming
+what it has no phrase for, never drop it. The refusals still allowed are listed in the spec; an
+entry nothing meets any more fails it, so the list only shrinks.
 
 ## Verification
 

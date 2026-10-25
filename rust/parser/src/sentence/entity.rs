@@ -3,7 +3,8 @@
 
 use crate::ir;
 
-/// The entity an `Entity:` block read as an aggregate stands for, or what it holds that an entity cannot.
+/// The entity an `Entity:` block read as an aggregate stands for, or what it holds that an entity
+/// cannot.
 pub(super) fn into_entity(inner: ir::Aggregate) -> Result<ir::Entity, &'static str> {
     if !inner.value_objects.is_empty() {
         return Err("an entity holds no value objects of its own; declare them in the aggregate");

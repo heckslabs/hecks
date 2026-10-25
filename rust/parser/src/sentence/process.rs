@@ -12,7 +12,8 @@
 //!     If that is refused, the account is told to credit with number from the source
 //! ```
 
-// reason: this builds a few lines of text at a time; `push_str(&format!(..))` reads as the line it writes.
+// reason: this builds a few lines of text at a time; `push_str(&format!(..))` reads as the
+// line it writes.
 #![allow(clippy::format_push_string)]
 
 use super::names::{camel, spoken};

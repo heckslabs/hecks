@@ -9,7 +9,8 @@
 //!   It adds up the amount
 //! ```
 
-// reason: this builds a few lines of text at a time; `push_str(&format!(..))` reads as the line it writes.
+// reason: this builds a few lines of text at a time; `push_str(&format!(..))` reads as the
+// line it writes.
 #![allow(clippy::format_push_string)]
 
 use super::names::{camel, snake, spoken};
@@ -120,6 +121,7 @@ impl Parser<'_> {
                     target: None,
                 });
             }
+            _ if self.paging_option(m, &mut model.options)? => {}
             _ => return Err(self.unmeant(m)),
         }
         Ok(())
@@ -129,8 +131,8 @@ impl Parser<'_> {
 /// A read model as a `Report:` block, or the name of what in it the sentence form cannot say.
 pub(super) fn said(model: &ir::ReadModel) -> Result<String, String> {
     let refused = |what: &str| format!("the sentence form has no phrase for {what} in report {}", model.name);
-    if model.options != ir::QueryOptions::default() {
-        return Err(refused("the paging and access options"));
+    if model.options.cursor.is_some() || model.options.offset.as_ref().is_some_and(|offset| offset.target.is_some()) {
+        return Err(refused("this paging option"));
     }
     if model.wheres.iter().any(|clause| clause.target.is_some())
         || model.order_by.as_ref().is_some_and(|order| order.target.is_some())
@@ -176,7 +178,7 @@ pub(super) fn said(model: &ir::ReadModel) -> Result<String, String> {
             .value
             .strip_prefix('"')
             .and_then(|rest| rest.strip_suffix('"'))
-            .filter(|value| clause.op == "eq" && super::format::is_word(value) && super::format::is_name(&clause.field))
+            .filter(|value| clause.op == "eq" && super::format::is_word(value) && clause.field.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || matches!(c, '_' | '.' | '/')))
             .ok_or_else(|| refused("this filter"))?;
         out.push_str(&format!("  Where the {} is {value}\n", spoken(&clause.field)));
     }
@@ -190,10 +192,12 @@ pub(super) fn said(model: &ir::ReadModel) -> Result<String, String> {
         }
         out.push_str(&format!("  Limited to {}\n", limit.value));
     }
+    out.push_str(&super::queries::paging_said(&model.options, "  ").map_err(refused)?);
     Ok(out)
 }
 
-/// The `It includes …` and `It is about …` lines, each with its `as` when the name is not the default.
+/// The `It includes …` and `It is about …` lines, each with its `as` when the name is not the
+/// default.
 fn heads_said(model: &ir::ReadModel, refused: &dyn Fn(&str) -> String) -> Result<String, String> {
     let mut out = String::new();
     if let Some(target) = &model.reference_target {

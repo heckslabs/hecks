@@ -34,66 +34,65 @@ RSpec.describe "a command run by several roles" do
     end
   RUBY
 
-  def with_desk
-    Dir.mktmpdir do |dir|
-      path = File.join(dir, "desk.bluebook")
-      File.write(path, DESK)
-      yield Hecks.boot_files([path], install_driving: false)
-    end
+  let(:scratch) { Dir.mktmpdir }
+  let(:runtime) { boot(DESK) }
+
+  after { FileUtils.remove_entry(scratch) }
+
+  def boot(text)
+    path = File.join(scratch, "desk.bluebook")
+    File.write(path, text)
+    Hecks.boot_files([path], install_driving: false)
   end
 
-  def command_ir(runtime, name)
+  def command_ir(name)
     ir = Hecks::Projector::Exporter.call(runtime.registry).fetch("Desk")
     ir.fetch(:aggregates).first.fetch(:commands).find { |command| command[:name] == name }
   end
 
-  it "keeps the first as `role` and lists every role under `roles`, only when there are several" do
-    with_desk do |runtime|
-      expect(command_ir(runtime, "Open")).to include(role: "Customer", roles: ["Customer", "Sales Rep"])
-      expect(command_ir(runtime, "Close")).to include(role: "Agent")
-      expect(command_ir(runtime, "Close")).not_to have_key(:roles)
-    end
+  # Dispatches as a caller holding `role`; the domain boots first, as nobody in particular.
+  def run_as(role, command, number)
+    booted = runtime
+    Hecks.as_caller(role: role) { booted.dispatch("Desk::Ticket.#{command}", with: { number: number }) }
   end
 
-  it "lets a caller holding any of the roles run it" do
-    with_desk do |runtime|
-      ["Customer", "Sales Rep"].each_with_index do |role, index|
-        Hecks.as_caller(role: role) do
-          expect { runtime.dispatch("Desk::Ticket.Open", with: { number: "T-#{index}" }) }.not_to raise_error
-        end
-      end
-    end
+  it "keeps the first as `role` and lists every role under `roles`" do
+    expect(command_ir("Open")).to include(role: "Customer", roles: ["Customer", "Sales Rep"])
+  end
+
+  it "leaves `roles` out of the IR of a command with one role" do
+    expect(command_ir("Close")).to include(role: "Agent").and(satisfy { |ir| !ir.key?(:roles) })
+  end
+
+  it "lets a caller holding the first role run it" do
+    expect { run_as("Customer", "Open", "T-1") }.not_to raise_error
+  end
+
+  it "lets a caller holding another of the roles run it" do
+    expect { run_as("Sales Rep", "Open", "T-2") }.not_to raise_error
   end
 
   it "refuses a caller holding none, naming them all" do
-    with_desk do |runtime|
-      Hecks.as_caller(role: "Viewer") do
-        expect { runtime.dispatch("Desk::Ticket.Open", with: { number: "T-9" }) }
-          .to raise_error(Hecks::Runtime::Unauthorized,
-                          "Open refused — role: Customer or Sales Rep, and the caller stated Viewer")
-      end
-    end
+    expect { run_as("Viewer", "Open", "T-9") }.to raise_error(
+      Hecks::Runtime::Unauthorized, "Open refused — role: Customer or Sales Rep, and the caller stated Viewer"
+    )
   end
 
   it "leaves a one-role command refusing as it always did" do
-    with_desk do |runtime|
-      Hecks.as_caller(role: "Customer") do
-        expect { runtime.dispatch("Desk::Ticket.Close", with: { number: "T-1" }) }
-          .to raise_error(Hecks::Runtime::Unauthorized, "Close refused — role: Agent, and the caller stated Customer")
-      end
-    end
+    expect { run_as("Customer", "Close", "T-1") }.to raise_error(
+      Hecks::Runtime::Unauthorized, "Close refused — role: Agent, and the caller stated Customer"
+    )
   end
 
-  it "refuses naming a role twice, and declaring roles twice" do
-    twice = DESK.sub('role "Customer", "Sales Rep"', 'role "Customer", "Customer"')
-    declared_twice = DESK.sub('role "Customer", "Sales Rep"', %(role "Customer"\n      role "Sales Rep"))
+  it "refuses naming a role twice" do
+    text = DESK.sub('role "Customer", "Sales Rep"', 'role "Customer", "Customer"')
 
-    [twice, declared_twice].each do |text|
-      Dir.mktmpdir do |dir|
-        path = File.join(dir, "desk.bluebook")
-        File.write(path, text)
-        expect { Hecks.boot_files([path], install_driving: false) }.to raise_error(StandardError, /role/)
-      end
-    end
+    expect { boot(text) }.to raise_error(StandardError, /role/)
+  end
+
+  it "refuses declaring roles twice" do
+    text = DESK.sub('role "Customer", "Sales Rep"', %(role "Customer"\n      role "Sales Rep"))
+
+    expect { boot(text) }.to raise_error(StandardError, /role/)
   end
 end

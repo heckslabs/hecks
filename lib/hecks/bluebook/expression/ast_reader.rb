@@ -143,18 +143,7 @@ module Hecks
 
         # @param json [Hash] a resolver node
         # @return [Object, nil] the block-taking node it spells, or `nil` for any other op
-        def read_block(json)
-          case json["op"]
-          when "block_predicate"
-            Resolver::BlockPredicate.new(mode: json["mode"].to_sym, receiver: receiver(json), param: json["param"],
-                                         predicate: read_bool(json["predicate"]))
-          when "find"
-            Resolver::Find.new(receiver: receiver(json), param: json["param"],
-                               predicate: read_bool(json["predicate"]), path: json["path"])
-          when "sum"
-            Resolver::Sum.new(receiver: receiver(json), param: json["param"], predicate: read_bool(json["predicate"]))
-          end
-        end
+        def read_block(json) = Blocks.read(json)
 
         # @return [Object] the resolver node under `json`'s `"receiver"`
         def receiver(json) = read_resolver(json["receiver"])
@@ -166,3 +155,4 @@ module Hecks
     end
   end
 end
+require_relative "ast_reader/blocks"

@@ -17,14 +17,24 @@ RSpec.describe "the generated sentence table" do
       .to eq(regenerated_table), "rust/parser/src/phrases.rs is stale — project the phrase_table and commit the result"
   end
 
-  it "declares each phrase once, in a context the parser knows", :aggregate_failures do
-    rows = Hecks::Projections::PhraseTable.rows(chapter)
-    contexts = %w[File Domain Aggregate Has ValueObject Lifecycle Command Query Condition Policy
-                  ExamplesFile Examples Background Example Table Step Outcome]
+  describe "the rows" do
+    let(:rows) { Hecks::Projections::PhraseTable.rows(chapter) }
+    let(:contexts) do
+      %w[File Domain Aggregate Has ValueObject Lifecycle Command Query Condition Policy ExamplesFile Examples Background
+         Example Table Step Outcome Vision Fields Provides Report Process Handler]
+    end
 
-    expect(rows.map { |row| row[:id] }).to eq(rows.map { |row| row[:id] }.uniq)
-    expect(rows.map { |row| row[:context] }.uniq - contexts).to be_empty
-    expect(rows.map { |row| row[:opens] }.uniq - ["", *contexts]).to be_empty
+    it "declare each phrase once" do
+      expect(rows.map { |row| row[:id] }).to eq(rows.map { |row| row[:id] }.uniq)
+    end
+
+    it "are legal in a context the parser knows" do
+      expect(rows.map { |row| row[:context] }.uniq - contexts).to be_empty
+    end
+
+    it "open only a block the parser knows" do
+      expect(rows.map { |row| row[:opens] }.uniq - ["", *contexts]).to be_empty
+    end
   end
 
   it "gives every slot a kind the matcher reads", :aggregate_failures do

@@ -31,7 +31,7 @@ pub struct Completion {
 }
 
 /// Words after which the rest of the line is a condition, not a sentence of the block.
-const CONDITION_MARKERS: [&str; 2] = [" holds when ", "where "];
+const CONDITION_MARKERS: [&str; 2] = [" holds when ", "only when "];
 
 /// The sentences legal at `line` (1-based) and `col` (1-based character column) of `source`.
 pub fn complete(source: &str, line: usize, col: usize) -> Completion {

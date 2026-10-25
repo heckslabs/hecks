@@ -1,5 +1,5 @@
-//! A query in sentences: the arguments it takes, the `Where` lines that filter, the order, the limit
-//! and what it returns.
+//! A query in sentences: the arguments it takes, the `Where` lines that filter, the order, the
+//! limit and what it returns.
 //!
 //! ```text
 //! Query: Open For Customer
@@ -10,7 +10,8 @@
 //!   Where the balance is at least 100
 //! ```
 
-// reason: this builds a few lines of text at a time; `push_str(&format!(..))` reads as the line it writes.
+// reason: this builds a few lines of text at a time; `push_str(&format!(..))` reads as the
+// line it writes.
 #![allow(clippy::format_push_string)]
 
 use super::lower::{AggState, FieldUse, TypeUse};
@@ -35,6 +36,7 @@ const COMPARISONS: [(&str, &str, &str); 7] = [
 const KEYWORDS: [&str; 7] = ["not", "the", "more", "less", "at", "one", "contains"];
 
 impl Parser<'_> {
+    /// Reads one `Query:` block into the query it describes, filing its arguments to be typed.
     pub(super) fn query(&mut self, header: &Matched, st: &mut AggState) -> ParseResult<()> {
         let mut query = ir::Query {
             name: camel(&header.text_of("name")),
@@ -55,6 +57,7 @@ impl Parser<'_> {
                         target: None,
                     });
                 }
+                Step::Phrase(m) if self.paging_option(&m, &mut query.options)? => {}
                 Step::Phrase(m) if m.id == "query_returns" => query.returns = Some(camel(&m.text_of("type"))),
                 Step::Phrase(m) if m.id == "query_returns_list" => {
                     query.returns = Some(format!("list_of({})", camel(&m.text_of("type"))));
@@ -70,6 +73,35 @@ impl Parser<'_> {
         st.query_args.push((st.agg.queries.len(), takes));
         st.agg.queries.push(query);
         Ok(())
+    }
+
+    /// Reads a paging or access sentence of a query or a report into `options`; false for any
+    /// other.
+    pub(super) fn paging_option(&self, m: &Matched, options: &mut ir::QueryOptions) -> ParseResult<bool> {
+        match m.id.split_once('_') {
+            Some((_, "skip")) => {
+                options.offset = Some(ir::OffsetSpec {
+                    value: m.text_of("n"),
+                    target: None,
+                });
+            }
+            Some((_, "nulls")) => {
+                let position = m.text_of("position").to_lowercase();
+                if !matches!(position.as_str(), "first" | "last") {
+                    return Err(self.error(m.line, m.col_of("position"), "empty values come first or last"));
+                }
+                options.null_semantics = Some(position);
+            }
+            Some((_, kind @ ("access" | "access_for"))) => {
+                options.authorization = Some(ir::AuthorizationSpec {
+                    policy: snake(&m.text_of("policy")),
+                    tenant: (kind == "access_for").then(|| snake(&m.text_of("tenant"))),
+                });
+            }
+            Some((_, "inspect")) => options.inspection = Some(m.text_of("mode")),
+            _ => return Ok(false),
+        }
+        Ok(true)
     }
 
     fn order_of(&self, m: &Matched) -> ParseResult<ir::OrderBy> {
@@ -102,7 +134,10 @@ impl Parser<'_> {
                 col: m.col_of("field"),
             });
         }
-        let (op, value) = if m.id == "where_in" {
+        let (op, value) = if m.id == "where_none_in" {
+            let held = format!("{}:{}", camel(&m.text_of("aggregate")), m.text_of("state"));
+            ("none_in_state", ruby_value::render(&Value::Str(held)))
+        } else if m.id == "where_in" {
             ("in", ruby_value::render(&Value::Str(m.capture("values").items.join(","))))
         } else {
             let op = COMPARISONS.iter().find(|(id, ..)| *id == m.id).map_or("eq", |(_, op, _)| op);
@@ -154,8 +189,8 @@ impl Parser<'_> {
 /// A query as a `Query:` block, or the name of what in it the sentence form cannot say.
 pub(super) fn said(query: &ir::Query) -> Result<String, String> {
     let refused = |what: &str| format!("the sentence form has no phrase for {what} in query {}", query.name);
-    if query.options != ir::QueryOptions::default() {
-        return Err(refused("the paging and access options"));
+    if query.options.cursor.is_some() || query.options.offset.as_ref().is_some_and(|offset| offset.target.is_some()) {
+        return Err(refused("this paging option"));
     }
     if !query.needs.is_empty() {
         return Err(refused("what the runtime supplies"));
@@ -186,8 +221,42 @@ pub(super) fn said(query: &ir::Query) -> Result<String, String> {
         }
         out.push_str(&format!("    Limited to {}\n", limit.value));
     }
+    out.push_str(&paging_said(&query.options, "    ").map_err(refused)?);
     if let Some(returns) = &query.returns {
         out.push_str(&format!("    {}\n", returns_said(returns).ok_or_else(|| refused("this return type"))?));
+    }
+    Ok(out)
+}
+
+/// The paging and access sentences of a query or a report, each led by `indent`.
+pub(super) fn paging_said(options: &ir::QueryOptions, indent: &str) -> Result<String, &'static str> {
+    let mut out = String::new();
+    if let Some(offset) = &options.offset {
+        if offset.value.is_empty() || !offset.value.chars().all(|c| c.is_ascii_digit()) {
+            return Err("this offset");
+        }
+        out.push_str(&format!("{indent}Skipping the first {}\n", offset.value));
+    }
+    if let Some(position) = &options.null_semantics {
+        if !matches!(position.as_str(), "first" | "last") {
+            return Err("this way of placing empty values");
+        }
+        out.push_str(&format!("{indent}Empty values come {position}\n"));
+    }
+    if let Some(access) = &options.authorization {
+        if !super::format::is_name(&access.policy) || access.tenant.as_deref().is_some_and(|t| !super::format::is_name(t)) {
+            return Err("this access check");
+        }
+        match &access.tenant {
+            Some(tenant) => out.push_str(&format!("{indent}Access is checked by {} for each {}\n", spoken(&access.policy), spoken(tenant))),
+            None => out.push_str(&format!("{indent}Access is checked by {}\n", spoken(&access.policy))),
+        }
+    }
+    if let Some(mode) = &options.inspection {
+        if !super::format::is_word(mode) {
+            return Err("this inspection");
+        }
+        out.push_str(&format!("{indent}It can be inspected as {mode}\n"));
     }
     Ok(out)
 }
@@ -218,6 +287,15 @@ fn clause_said(clause: &ir::WhereClause) -> Option<String> {
             return None;
         }
         return Some(format!("Where the {spoken_field} is one of {}", super::format::join_and(&items)));
+    }
+    if clause.op == "none_in_state" {
+        let Value::Str(held) = value else { return None };
+        let (aggregate, state) = held.split_once(':')?;
+        let simple = |name: &str| !name.is_empty() && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
+        if !simple(aggregate) || !simple(state) {
+            return None;
+        }
+        return Some(format!("Where the {spoken_field} has no {} in {state}", spoken(aggregate)));
     }
     let (_, _, words) = COMPARISONS.iter().find(|(_, op, _)| *op == clause.op)?;
     let tail = match value {
