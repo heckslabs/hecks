@@ -22,10 +22,16 @@ module Hecks
         # Shares `param`/`predicate` with `BlockPredicate` so `interpret_with_element` serves both.
         Find = Struct.new(:receiver, :param, :predicate, :path, keyword_init: true)
 
+        # `receiver.sum { |x| EXPRESSION }`: the total of a number worked out for each element,
+        # as `items.sum { |i| i.quantity * i.price }`. Shares `param`/`predicate` with `Find`,
+        # though the block holds a number, not a test; an empty list totals 0.
+        Sum = Struct.new(:receiver, :param, :predicate, keyword_init: true)
+
         module_function
 
-        # Every suffix that opens a `{ |x| ... }` block; `.find` builds a `Find`, not a mode.
-        BLOCK_OPENER_SUFFIXES = (BLOCK_PREDICATE_MODES.keys + ["find"]).freeze
+        # Every suffix that opens a `{ |x| ... }` block; `.find` builds a `Find` and `.sum` a `Sum`,
+        # not a mode.
+        BLOCK_OPENER_SUFFIXES = (BLOCK_PREDICATE_MODES.keys + %w[find sum]).freeze
 
         # Receiver text, suffix and block parameter of an opener, up to the first body character.
         BLOCK_OPENER_PATTERN =
@@ -52,8 +58,19 @@ module Hecks
           predicate = Evaluator.parse(expr[header.end(0)...body_end].strip)
           rest = expr[(body_end + 1)..].strip
           return find_node(header, predicate, rest) if header[2] == "find"
+          return sum_node(header, predicate, rest) if header[2] == "sum"
 
           block_predicate_node(header, predicate, rest)
+        end
+
+        # @param header [MatchData] the opener match: receiver text, suffix, block parameter
+        # @param predicate [Object] the parsed block body, a number rather than a test
+        # @param rest [String] the text after the closing brace
+        # @return [Sum, nil] the node, or nil unless the block ends `expr`
+        def sum_node(header, predicate, rest)
+          return nil unless rest.empty?
+
+          Sum.new(receiver: parse(header[1]), param: header[3], predicate: predicate)
         end
 
         # @param header [MatchData] the opener match: receiver text, suffix, block parameter
@@ -110,6 +127,37 @@ module Hecks
         # @raise [EvaluationError] if `node.predicate` refuses to evaluate
         def interpret_with_element(node, element, state, attrs)
           Evaluator.interpret(node.predicate, state, attrs.merge(node.param.to_sym => element))
+        end
+
+        # `.sum { |x| EXPRESSION }` — the block's number for every element, added up with the same
+        # 64-bit overflow check an addition has. An empty list is 0.
+        #
+        # @param node [Sum] the parsed `.sum` node
+        # @param collection [Object] the interpreted receiver, expected to be an Array
+        # @param state [Hash{Symbol => Object}] the record's own current state
+        # @param attrs [Hash{Symbol => Object}] the command's own bound arguments
+        # @return [Integer, Float] the total
+        # @raise [EvaluationError] if `collection` is not an Array, or a term is not a number
+        def summed_of(node, collection, state, attrs)
+          raise EvaluationError, "sum expects a list, got #{describe(collection)}" unless collection.is_a?(Array)
+
+          collection.reduce(0) { |total, element| add(total, term_of(node, element, state, attrs)) }
+        end
+
+        # What `node`'s block works out for `element`: the value of a plain expression, or, for a
+        # block that is a test, its true or false, which the addition then refuses.
+        #
+        # @param node [Sum] the parsed `.sum` node
+        # @param element [Object] the collection element to bind
+        # @param state [Hash{Symbol => Object}] the record's current state
+        # @param attrs [Hash{Symbol => Object}] the command's bound arguments
+        # @return [Object] the block's value for `element`
+        def term_of(node, element, state, attrs)
+          bound = attrs.merge(node.param.to_sym => element)
+          body = node.predicate
+          return unwrap_scalar(interpret(body.expr, state, bound)) if body.is_a?(Evaluator::Resolve)
+
+          Evaluator.interpret(body, state, bound)
         end
 
         # `.find { |x| PREDICATE }` — the first element the predicate accepts, then `node.path`

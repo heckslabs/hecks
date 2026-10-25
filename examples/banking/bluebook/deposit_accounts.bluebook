@@ -161,7 +161,7 @@ Hecks.bluebook "Banking" do
 
     # `from:` names the legal lifecycle state, so it is checkable against the state machine.
     command "Credit", from: "open" do
-      role "Teller"
+      role "Teller", "Branch clerk"
       goal "Put money in"
 
       reference_to Account

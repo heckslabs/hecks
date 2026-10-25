@@ -151,6 +151,8 @@ module Hecks
           when "find"
             Resolver::Find.new(receiver: receiver(json), param: json["param"],
                                predicate: read_bool(json["predicate"]), path: json["path"])
+          when "sum"
+            Resolver::Sum.new(receiver: receiver(json), param: json["param"], predicate: read_bool(json["predicate"]))
           end
         end
 

@@ -223,6 +223,16 @@ pub fn emit_resolver(node: &Resolver) -> JsonValue {
                 JsonValue::Array(path.iter().map(|s| JsonValue::String(s.clone())).collect()),
             ),
         ]),
+        Resolver::Sum {
+            receiver,
+            param,
+            predicate,
+        } => obj(vec![
+            op_tag("sum"),
+            ("receiver", emit_resolver(receiver)),
+            ("param", JsonValue::String(param.clone())),
+            ("predicate", emit_bool(predicate)),
+        ]),
         // The haystack case is intercepted in `emit_include`.
         Resolver::ArrayLiteral(elements) => obj(vec![
             op_tag("array"),

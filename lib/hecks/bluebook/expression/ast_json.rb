@@ -20,7 +20,7 @@ module Hecks
           or and not compare include
           int float str bool nil array lookup
           add sub mul div modulo sign_test empty size to_s
-          block_predicate find first last
+          block_predicate find sum first last
           matches_regex presence assignment split strip starts_with ends_with
         ].freeze
 

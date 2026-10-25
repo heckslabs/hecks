@@ -809,7 +809,11 @@
           ],
           "provenance": null,
           "references": "Account",
-          "role": "Teller"
+          "role": "Teller",
+          "roles": [
+            "Teller",
+            "Branch clerk"
+          ]
         },
         {
           "attributes": [
