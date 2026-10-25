@@ -33887,6 +33887,24 @@
             [
               [
                 "script",
+                "project_phrase_table"
+              ],
+              [
+                "section",
+                "Codebase"
+              ],
+              [
+                "aggregate",
+                "LanguageRun"
+              ],
+              [
+                "verb",
+                "project_phrase_table"
+              ]
+            ],
+            [
+              [
+                "script",
                 "project_bootstrap_table"
               ],
               [

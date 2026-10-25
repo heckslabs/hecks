@@ -1,0 +1,80 @@
+Hecks.bluebook "Sentence" do
+  vision "The plain sentences a business author writes in a .bluebook, declared as data. Each phrase is one row; the Rust parser's sentence front end is generated from them, so what an author may say is a table, not code."
+  core
+
+  aggregate "Phrase" do
+    description "One sentence an author may write, with the block it is legal in and the block it opens. A phrase reaches the parser only while it is admitted."
+
+    identified_by PhraseId, as: :name
+
+    attribute :context, PhraseContext
+    attribute :pattern, PhrasePattern
+
+    value_object "PhraseId" do
+      attribute :value, String
+      invariant("a phrase names itself") { !value.to_s.empty? }
+    end
+
+    value_object "PhraseContext" do
+      attribute :value, String
+      invariant("a phrase says where it is legal") { !value.to_s.empty? }
+    end
+
+    # Literal words and punctuation, `(a|an)` for alternatives, `{slot:kind}` for what the author fills in. A slot kind
+    # is words (a noun phrase), word (one word), text (a quoted string), int, list (nouns joined by `and` or a comma),
+    # rest (the remainder of the line), path (a dotted field path) or event (a CamelCase event name).
+    value_object "PhrasePattern" do
+      attribute :value, String
+      invariant("a phrase says something") { !value.to_s.empty? }
+    end
+
+    lifecycle :status, default: "admitted" do
+      transition "Retire" => "retired", from: "admitted"
+    end
+
+    command "Retire" do
+      role "Language"
+      goal "Stop accepting a phrase; files that use it are refused with the nearest phrases"
+
+      reference_to Phrase
+
+      emits "PhraseRetired"
+    end
+
+    # One row per sentence. `opens` names the block the sentence starts ("" when it is a plain line);
+    # `canonical` is the one spelling the formatter writes when several rows say the same thing.
+    value_object "PhraseSeed" do
+      attribute :id,        String
+      attribute :context,   String
+      attribute :pattern,   String
+      attribute :opens,     String
+      attribute :canonical, String, default: "yes"
+      attribute :status,    String, default: "admitted"
+
+      member id: "domain",            context: "File",      pattern: "Domain: {name:words}",                                                  opens: "Domain"
+      member id: "aggregate",         context: "Domain",    pattern: "Aggregate: {name:words}",                                               opens: "Aggregate"
+      member id: "identity",          context: "Aggregate", pattern: "(a|an|the) {owner:words} is identified by (its|their) {field:words}",  opens: ""
+      member id: "has",               context: "Aggregate", pattern: "It has:",                                                              opens: "Has"
+      member id: "value_object",      context: "Aggregate", pattern: "(a|an|the) {name:words} has a value: {type:words}",                     opens: "ValueObject"
+      member id: "lifecycle",         context: "Aggregate", pattern: "Lifecycle: {field:words}, starting as {state:word}",                    opens: "Lifecycle"
+      member id: "command",           context: "Aggregate", pattern: "Command: {name:words}",                                                 opens: "Command"
+      member id: "query",             context: "Aggregate", pattern: "Query: {name:words}",                                                   opens: "Query"
+      member id: "attribute",         context: "Has",       pattern: "(a|an|the) {name:words}: {type:words}",                                 opens: ""
+      member id: "attribute_optional", context: "Has",      pattern: "(a|an|the) {name:words}: {type:words}, optional",                       opens: ""
+      member id: "rule",              context: "ValueObject", pattern: "Rule {description:text} holds when {condition:rest}",                 opens: ""
+      member id: "transition",        context: "Lifecycle", pattern: "{command:words} moves (a|an|the) {owner:words} from {from:word} to {to:word}", opens: ""
+      member id: "goal",              context: "Command",   pattern: "Goal: {goal:rest}",                                                     opens: ""
+      member id: "role",              context: "Command",   pattern: "Who: {role:words}",                                                     opens: ""
+      member id: "acts_on",           context: "Command",   pattern: "It acts on (a|an) existing {owner:words}",                              opens: ""
+      member id: "arguments",         context: "Command",   pattern: "When {names:list} (is|are) given",                                      opens: ""
+      member id: "given",             context: "Command",   pattern: "Given {description:text} holds when {condition:rest}",                  opens: ""
+      member id: "sets",              context: "Command",   pattern: "(Then|And) {names:list} (is|are) set",                                  opens: ""
+      member id: "announces",         context: "Command",   pattern: "(Then|And) {event:event} is announced",                                 opens: ""
+      member id: "where",             context: "Query",     pattern: "Where {condition:rest}",                                                opens: ""
+      member id: "order",             context: "Query",     pattern: "Ordered by {path:path}, {direction:word}",                              opens: ""
+      member id: "not_empty",         context: "Condition", pattern: "the {field:words} is not empty",                                        opens: ""
+      member id: "at_least",          context: "Condition", pattern: "the {field:words} is at least {n:int}",                                 opens: ""
+      member id: "equals",            context: "Condition", pattern: "the {field:words} is {value:word}",                                     opens: ""
+    end
+  end
+end
