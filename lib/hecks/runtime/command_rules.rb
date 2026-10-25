@@ -1,5 +1,6 @@
 require_relative "command_rules/admissibility"
 require_relative "command_rules/references"
+require_relative "command_rules/one_of_references"
 require_relative "command_rules/arithmetic"
 require_relative "command_rules/emission"
 require_relative "command_rules/authorization"
@@ -14,6 +15,7 @@ module Hecks
     class CommandRules
       include Admissibility
       include References
+      include OneOfReferences
       include Arithmetic
       include Emission
       include Authorization

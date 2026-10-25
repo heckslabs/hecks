@@ -58,6 +58,7 @@ fn reference_checks(
                 field: crate::attr::name(attr).to_string(),
                 optional: crate::attr::optional(attr),
                 list_item: None,
+                union_tag: None,
                 target_mod: target
                     .get("name")
                     .and_then(Json::as_str)
@@ -144,6 +145,7 @@ fn state_reference_checks(
                 field: accessor,
                 optional: crate::attr::optional(source_attr),
                 list_item,
+                union_tag: None,
                 target_mod: target
                     .get("name")
                     .and_then(Json::as_str)
@@ -1012,6 +1014,12 @@ pub fn generate(
                         &aggregates_by_name,
                         &unsupported_names,
                         &value_objects_by_name,
+                    ));
+                    checks.extend(crate::one_of_references::checks(
+                        aggregate,
+                        command,
+                        &aggregates_by_name,
+                        &unsupported_names,
                     ));
                     checks
                 },

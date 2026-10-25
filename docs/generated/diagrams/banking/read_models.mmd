@@ -25,3 +25,6 @@ flowchart LR
     Account[(Account)] -->|"account"| rm_DisputedPaymentP95[["DisputedPaymentP95"]]
     CardPayment[(CardPayment)] -->|"card_payments[]"| rm_DisputedPaymentP95[["DisputedPaymentP95"]]
     Account[(Account)] -->|"accounts[]"| rm_AccountsByKind[["AccountsByKind"]]
+    CardPayment[(CardPayment)] -->|"card_payments[]"| rm_CardPaymentTotalsByStatus[["CardPaymentTotalsByStatus"]]
+    CardPayment[(CardPayment)] -->|"card_payments[]"| rm_CardPaymentCountsByStatus[["CardPaymentCountsByStatus (count)"]]
+    Hold[(Hold)] -->|"holds[]"| rm_HoldsOnCards[["HoldsOnCards"]]

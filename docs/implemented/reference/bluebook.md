@@ -322,7 +322,7 @@ Every aggregate a chapter opens becomes an entry point of its own, named after
 the chapter:
 
 ```ruby
-runtime.registry.bluebook("Banking").aggregates.map(&:hecks_name).first(3)  # => ["Customer", "Account", "OnboardingCase"]
+runtime.registry.bluebook("Banking").aggregates.map(&:hecks_name).first(3)  # => ["Customer", "Account", "Hold"]
 BluebookReference::Postcode.record!(code: "N1").code.value  # => "N1"
 ```
 
@@ -342,7 +342,7 @@ Banking's read models sit on the chapter rather than under any
 aggregate — which is the whole reason the word exists at this level:
 
 ```ruby
-runtime.registry.bluebook("Banking").read_models.map(&:hecks_name)  # => ["CustomerPortfolio", "ComplianceDashboard", "DisputedPaymentCount", "DisputedPaymentMedian", "DisputedPaymentTotal", "DisputedPaymentAverage", "DisputedPaymentSmallest", "DisputedPaymentLargest", "DisputedPaymentP95", "AccountsByKind", "CardPaymentTotalsByStatus", "CardPaymentCountsByStatus"]
+runtime.registry.bluebook("Banking").read_models.map(&:hecks_name)  # => ["CustomerPortfolio", "ComplianceDashboard", "DisputedPaymentCount", "DisputedPaymentMedian", "DisputedPaymentTotal", "DisputedPaymentAverage", "DisputedPaymentSmallest", "DisputedPaymentLargest", "DisputedPaymentP95", "AccountsByKind", "CardPaymentTotalsByStatus", "CardPaymentCountsByStatus", "HoldsOnCards"]
 ```
 
 ## policy

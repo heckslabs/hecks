@@ -1,6 +1,7 @@
 require_relative "word_gate"
 require_relative "aggregate_builder/sealing"
 require_relative "aggregate_builder/relationships"
+require_relative "aggregate_builder/one_of_reference"
 require_relative "aggregate_builder/rules"
 require_relative "aggregate_builder/draining"
 module Hecks
@@ -16,6 +17,7 @@ module Hecks
         include RuleReference
         include WordGate
         include Sealing
+        include OneOfReference
 
         # @param name [String] the aggregate's name, as written after `aggregate`
         # @param chapter_named_givens [Hash{String => Hash{String => Bluebook::Given}}] the

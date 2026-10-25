@@ -56,9 +56,11 @@ RSpec.describe "the domain's own English statements" do
     expect(wrong_article).to be_empty, "wrong article (should be \"an\"): #{wrong_article.join(", ")}"
   end
 
+  # A tagged `one_of` reference (ADR 0122) is a relationship too.
   it "draws one relationship statement per reference and list attribute in banking" do
+    related = ->(a) { a.reference? || a.list? || Hecks::Bluebook::OneOfUnion.union?(a) }
     attributes = banking_chapter.aggregates.flat_map { |a| [a, *a.entities] }
-                                .flat_map { |h| h.attributes.select { |a| a.reference? || a.list? } }
+                                .flat_map { |h| h.attributes.select(&related) }
     expect(banking_statements.grep(/\AEach /).size).to eq(attributes.size)
   end
 

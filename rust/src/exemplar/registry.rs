@@ -26,6 +26,14 @@ struct TmplRefArgs {
     tmpl_field: String,
     tmpl_optional_field: Option<String>,
     tmpl_list_field: Vec<TmplRefItem>,
+    tmpl_union_field: TmplUnion,
+    tmpl_union_optional_field: Option<TmplUnion>,
+}
+
+// The tagged value object a `reference_to one_of(A, B)` mints (ADR 0122).
+struct TmplUnion {
+    r#type: String,
+    id: String,
 }
 
 fn tmpl_reference_check_required_host(store: &TmplStore, args: &TmplRefArgs) -> Result<(), crate::kernel::Refusal> {
@@ -47,6 +55,21 @@ fn tmpl_reference_check_list_host(store: &TmplStore, args: &TmplRefArgs) -> Resu
     // TMPL:reference_check_list BEGIN
     for item in &args.tmpl_list_field { crate::kernel::check_reference(&store.tmpl_target_mod, &item.tmpl_element_field, "TmplTarget", "tmpl_heads")?; }
     // TMPL:reference_check_list END
+    Ok(())
+}
+
+// One `check_reference` per variant of a tagged reference, run only when its `type` names it.
+fn tmpl_reference_check_one_of_host(store: &TmplStore, args: &TmplRefArgs) -> Result<(), crate::kernel::Refusal> {
+    // TMPL:reference_check_one_of BEGIN
+    if args.tmpl_union_field.r#type == "TmplTarget" { crate::kernel::check_reference(&store.tmpl_target_mod, &args.tmpl_union_field.id, "TmplTarget", "tmpl_heads")?; }
+    // TMPL:reference_check_one_of END
+    Ok(())
+}
+
+fn tmpl_reference_check_one_of_optional_host(store: &TmplStore, args: &TmplRefArgs) -> Result<(), crate::kernel::Refusal> {
+    // TMPL:reference_check_one_of_optional BEGIN
+    if let Some(v) = args.tmpl_union_optional_field.as_ref().filter(|v| v.r#type == "TmplTarget") { crate::kernel::check_reference(&store.tmpl_target_mod, &v.id, "TmplTarget", "tmpl_heads")?; }
+    // TMPL:reference_check_one_of_optional END
     Ok(())
 }
 

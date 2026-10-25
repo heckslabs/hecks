@@ -285,6 +285,7 @@ section.searching > p { display: none; }
 <li><a href="#card-payment">Card payment</a></li>
 <li><a href="#customer">Customer</a></li>
 <li><a href="#external-transfer">External transfer</a></li>
+<li><a href="#hold">Hold</a></li>
 <li><a href="#onboarding-case">Onboarding case</a></li>
 <li><a href="#safe-deposit-box">Safe deposit box</a></li>
 <li><a href="#scheduled-payment">Scheduled payment</a></li>
@@ -305,6 +306,7 @@ section.searching > p { display: none; }
 <pre class="mermaid">flowchart LR
     n_customer[&quot;Customer&quot;]
     n_account[&quot;Account&quot;]
+    n_hold[&quot;Hold&quot;]
     n_onboarding_case[&quot;Onboarding case&quot;]
     n_atm_card[&quot;ATM card&quot;]
     n_card_payment[&quot;Card payment&quot;]
@@ -1188,6 +1190,93 @@ section.searching > p { display: none; }
 </article>
 </div>
 </section>
+<section id="hold">
+<h2>Hold</h2>
+<p class="about">A stop the bank puts on an account or on a card while something is looked into.</p>
+<p>Starts out placed. Can be placed, lifted, or escalated.</p>
+<figure>
+<figcaption>How it moves</figcaption>
+<pre class="mermaid">stateDiagram-v2
+    [*] --&gt; placed
+    placed --&gt; lifted: Lift
+    placed --&gt; escalated: Escalate account hold
+    placed --&gt; escalated: Escalate card hold</pre>
+</figure>
+<ul class="rules"><li>Lifting a hold moves it from placed to lifted.</li><li>Escalating an account hold moves it from placed to escalated.</li><li>Escalating a card hold moves it from placed to escalated.</li></ul>
+<p class="caption">Always true</p>
+<ul class="rules"><li>Each hold points at its subject: one account or ATM card.</li><li>A hold reference is present.</li><li>A hold reason is present.</li></ul>
+<h3 class="group" id="actions-5">Actions</h3>
+<div class="terms">
+<article class="term" id="escalate-account-hold">
+<h4>Escalate account hold</h4>
+<p>Send a hold on an account to the account review desk. Done by the system.</p>
+<p class="rule">Allowed only when: the hold is placed; the hold is on an account.</p>
+<p>Moves the hold from placed to escalated.</p>
+<p>Records <a href="#account-hold-escalated">Account hold escalated</a>.</p>
+</article>
+<article class="term" id="escalate-card-hold">
+<h4>Escalate card hold</h4>
+<p>Send a hold on a card to the card review desk. Done by the system.</p>
+<p class="rule">Allowed only when: the hold is placed; the hold is on a card.</p>
+<p>Moves the hold from placed to escalated.</p>
+<p>Records <a href="#card-hold-escalated">Card hold escalated</a>.</p>
+</article>
+<article class="term" id="lift">
+<h4>Lift</h4>
+<p>Take a hold off once the matter is settled. Done by the teller.</p>
+<p class="rule">Allowed only when: the hold is placed.</p>
+<p>Moves the hold from placed to lifted.</p>
+<p>Records <a href="#hold-lifted">Hold lifted</a>.</p>
+</article>
+<article class="term" id="place">
+<h4>Place</h4>
+<p>Stop an account or a card while something is looked into. Done by the teller.</p>
+<p>Needs a reference (<a href="#hold-reference">Hold reference</a>), a subject (<a href="#subject">Subject</a>), and a reason (<a href="#hold-reason">Hold reason</a>).</p>
+<p>Sets the reference, the subject, and the reason.</p>
+<p>Records <a href="#hold-placed">Hold placed</a>.</p>
+</article>
+</div>
+<h3 class="group" id="what-it-records-5">What it records</h3>
+<div class="terms">
+<article class="term" id="account-hold-escalated">
+<h4>Account hold escalated</h4>
+<p>Recorded after <a href="#escalate-account-hold">Escalate account hold</a>.</p>
+</article>
+<article class="term" id="card-hold-escalated">
+<h4>Card hold escalated</h4>
+<p>Recorded after <a href="#escalate-card-hold">Escalate card hold</a>.</p>
+</article>
+<article class="term" id="hold-lifted">
+<h4>Hold lifted</h4>
+<p>Recorded after <a href="#lift">Lift</a>.</p>
+</article>
+<article class="term" id="hold-placed">
+<h4>Hold placed</h4>
+<p>Recorded after <a href="#place">Place</a>.</p>
+</article>
+</div>
+<h3 class="group" id="what-it-is-made-of-5">What it is made of</h3>
+<div class="terms">
+<article class="term" id="hold-reason">
+<h4>Hold reason</h4>
+<p>Text that must not be blank.</p>
+<p class="rule">Always true: a hold reason is present.</p>
+</article>
+<article class="term" id="hold-reference">
+<h4>Hold reference</h4>
+<p>Text that must not be blank.</p>
+<p class="rule">Always true: a hold reference is present.</p>
+</article>
+<article class="term" id="subject">
+<h4>Subject</h4>
+<p>Made up of type (text) and id (text).</p>
+</article>
+<article class="term" id="subject-type">
+<h4>Subject type</h4>
+<p>One of <a href="#account">Account</a> or <a href="#atm-card">ATM card</a>.</p>
+</article>
+</div>
+</section>
 <section id="onboarding-case">
 <h2>Onboarding case</h2>
 <p class="about">The KYC check a newly registered customer clears before an account exists for them — screened once, and if it does not clear there is nothing to undo, because nothing was ever opened.</p>
@@ -1210,7 +1299,7 @@ section.searching > p { display: none; }
 <ul class="rules"><li>Clearing an onboarding case moves it from screening to cleared.</li><li>Declining an onboarding case moves it from screening to declined.</li></ul>
 <p class="caption">Always true</p>
 <ul class="rules"><li>Each onboarding case belongs to one customer.</li><li>An onboarding reference is never empty.</li><li>An account number is present.</li></ul>
-<h3 class="group" id="actions-5">Actions</h3>
+<h3 class="group" id="actions-6">Actions</h3>
 <div class="terms">
 <article class="term" id="clear">
 <h4>Clear</h4>
@@ -1235,7 +1324,7 @@ section.searching > p { display: none; }
 <p>Records <a href="#onboarding-opened">Onboarding opened</a>.</p>
 </article>
 </div>
-<h3 class="group" id="what-it-records-5">What it records</h3>
+<h3 class="group" id="what-it-records-6">What it records</h3>
 <div class="terms">
 <article class="term" id="onboarding-cleared">
 <h4>Onboarding cleared</h4>
@@ -1265,7 +1354,7 @@ section.searching > p { display: none; }
 <p>Onboarding cases that are screening, sorted by onboarding reference, A to Z.</p>
 </article>
 </div>
-<h3 class="group" id="what-it-is-made-of-5">What it is made of</h3>
+<h3 class="group" id="what-it-is-made-of-6">What it is made of</h3>
 <div class="terms">
 <article class="term" id="account-number-1">
 <h4>Account number</h4>
@@ -1305,7 +1394,7 @@ section.searching > p { display: none; }
 <ul class="rules"><li>Renting a safe deposit box moves it from vacant to rented.</li><li>Surrendering a safe deposit box moves it from rented to vacant.</li></ul>
 <p class="caption">Always true</p>
 <ul class="rules"><li>Each safe deposit box belongs to one customer.</li><li>Each safe deposit box holds a list of visits.</li><li>Each safe deposit box holds its keys, a list of key issuances.</li><li>A branch is coded.</li><li>A box is numbered from one.</li><li>A visit sequence is positive.</li><li>A visit names its date.</li><li>A key is serialed.</li><li>A written note is not blank.</li></ul>
-<h3 class="group" id="actions-6">Actions</h3>
+<h3 class="group" id="actions-7">Actions</h3>
 <div class="terms">
 <article class="term" id="annotate">
 <h4>Annotate</h4>
@@ -1355,7 +1444,7 @@ section.searching > p { display: none; }
 <p>Records <a href="#box-surrendered">Box surrendered</a> and <a href="#key-return-due">Key return due</a>.</p>
 </article>
 </div>
-<h3 class="group" id="what-it-records-6">What it records</h3>
+<h3 class="group" id="what-it-records-7">What it records</h3>
 <div class="terms">
 <article class="term" id="box-opened">
 <h4>Box opened</h4>
@@ -1411,7 +1500,7 @@ section.searching > p { display: none; }
 <p>Safe deposit boxes that are rented, sorted by branch code, A to Z.</p>
 </article>
 </div>
-<h3 class="group" id="what-it-is-made-of-6">What it is made of</h3>
+<h3 class="group" id="what-it-is-made-of-7">What it is made of</h3>
 <div class="terms">
 <article class="term" id="box-number">
 <h4>Box number</h4>
@@ -1483,7 +1572,7 @@ section.searching > p { display: none; }
 <ul class="rules"><li>Executing a scheduled payment moves it from scheduled to executed.</li><li>Cancelling a scheduled payment moves it from scheduled to cancelled.</li><li>Failing a scheduled payment moves it from scheduled to failed.</li><li>Retrying a scheduled payment keeps it failed.</li><li>Abandoning a scheduled payment moves it from failed to abandoned.</li></ul>
 <p class="caption">Always true</p>
 <ul class="rules"><li>Each scheduled payment belongs to one account.</li><li>A scheduled payment amount is positive.</li><li>A payment recipient is present.</li><li>A payment due date is present.</li><li>A retry count is non-negative.</li><li>A retry limit is positive.</li></ul>
-<h3 class="group" id="actions-7">Actions</h3>
+<h3 class="group" id="actions-8">Actions</h3>
 <div class="terms">
 <article class="term" id="abandon">
 <h4>Abandon</h4>
@@ -1530,7 +1619,7 @@ section.searching > p { display: none; }
 <p>Records <a href="#payment-scheduled">Payment scheduled</a>.</p>
 </article>
 </div>
-<h3 class="group" id="what-it-records-7">What it records</h3>
+<h3 class="group" id="what-it-records-8">What it records</h3>
 <div class="terms">
 <article class="term" id="payment-scheduled">
 <h4>Payment scheduled</h4>
@@ -1568,7 +1657,7 @@ section.searching > p { display: none; }
 <p>Scheduled payments that are scheduled, sorted by payment due date, A to Z.</p>
 </article>
 </div>
-<h3 class="group" id="what-it-is-made-of-7">What it is made of</h3>
+<h3 class="group" id="what-it-is-made-of-8">What it is made of</h3>
 <div class="terms">
 <article class="term" id="instruction-reference">
 <h4>Instruction reference</h4>
@@ -1614,7 +1703,7 @@ section.searching > p { display: none; }
 </figure>
 <p class="caption">Always true</p>
 <ul class="rules"><li>Each statement belongs to one account.</li><li>A statement names its period.</li><li>A statement is dated.</li></ul>
-<h3 class="group" id="actions-8">Actions</h3>
+<h3 class="group" id="actions-9">Actions</h3>
 <div class="terms">
 <article class="term" id="generate">
 <h4>Generate</h4>
@@ -1625,14 +1714,14 @@ section.searching > p { display: none; }
 <p>Records <a href="#statement-generated">Statement generated</a>.</p>
 </article>
 </div>
-<h3 class="group" id="what-it-records-8">What it records</h3>
+<h3 class="group" id="what-it-records-9">What it records</h3>
 <div class="terms">
 <article class="term" id="statement-generated">
 <h4>Statement generated</h4>
 <p>Recorded after <a href="#generate">Generate</a>.</p>
 </article>
 </div>
-<h3 class="group" id="what-it-is-made-of-8">What it is made of</h3>
+<h3 class="group" id="what-it-is-made-of-9">What it is made of</h3>
 <div class="terms">
 <article class="term" id="statement-amount">
 <h4>Statement amount</h4>
@@ -1680,7 +1769,7 @@ section.searching > p { display: none; }
 <ul class="rules"><li>Marking a transfer debited moves it from requested to debited.</li><li>Marking a transfer credited moves it from debited to credited.</li><li>Settling a transfer moves it from credited to settled.</li><li>Reversing a transfer moves it from debited to reversed.</li><li>Rejecting a transfer moves it from requested to rejected.</li></ul>
 <p class="caption">Always true</p>
 <ul class="rules"><li>Each transfer has one source account.</li><li>Each transfer has one destination account.</li><li>A transfer reference is never empty.</li><li>A transfer amount is positive.</li><li>A transfer explains itself.</li></ul>
-<h3 class="group" id="actions-9">Actions</h3>
+<h3 class="group" id="actions-10">Actions</h3>
 <div class="terms">
 <article class="term" id="credited">
 <h4>Credited</h4>
@@ -1726,7 +1815,7 @@ section.searching > p { display: none; }
 <p>Records <a href="#transfer-settled">Transfer settled</a>.</p>
 </article>
 </div>
-<h3 class="group" id="what-it-records-9">What it records</h3>
+<h3 class="group" id="what-it-records-10">What it records</h3>
 <div class="terms">
 <article class="term" id="transfer-credited">
 <h4>Transfer credited</h4>
@@ -1768,7 +1857,7 @@ section.searching > p { display: none; }
 <p>Transfers that are debited, sorted by status.</p>
 </article>
 </div>
-<h3 class="group" id="what-it-is-made-of-9">What it is made of</h3>
+<h3 class="group" id="what-it-is-made-of-10">What it is made of</h3>
 <div class="terms">
 <article class="term" id="narrative-2">
 <h4>Narrative</h4>
@@ -1809,11 +1898,11 @@ section.searching > p { display: none; }
 </article>
 <article class="term" id="system">
 <h4>System</h4>
-<p>Responsible for <a href="#apply-fee">Apply fee</a>, <a href="#accrue-interest">Accrue interest</a>, <a href="#capture">Capture</a>, <a href="#void">Void</a>, <a href="#refund">Refund</a>, <a href="#reverse-1">Reverse (card payment)</a>, <a href="#generate">Generate</a>, <a href="#debited">Debited</a>, <a href="#settle">Settle</a>, <a href="#credited">Credited</a>, <a href="#reverse-2">Reverse (transfer)</a>, <a href="#reject">Reject</a>, <a href="#send-transfer">Send transfer</a>, <a href="#return">Return</a>, <a href="#execute">Execute</a>, <a href="#fail">Fail</a>, and <a href="#retry">Retry</a>.</p>
+<p>Responsible for <a href="#apply-fee">Apply fee</a>, <a href="#accrue-interest">Accrue interest</a>, <a href="#escalate-account-hold">Escalate account hold</a>, <a href="#escalate-card-hold">Escalate card hold</a>, <a href="#capture">Capture</a>, <a href="#void">Void</a>, <a href="#refund">Refund</a>, <a href="#reverse-1">Reverse (card payment)</a>, <a href="#generate">Generate</a>, <a href="#debited">Debited</a>, <a href="#settle">Settle</a>, <a href="#credited">Credited</a>, <a href="#reverse-2">Reverse (transfer)</a>, <a href="#reject">Reject</a>, <a href="#send-transfer">Send transfer</a>, <a href="#return">Return</a>, <a href="#execute">Execute</a>, <a href="#fail">Fail</a>, and <a href="#retry">Retry</a>.</p>
 </article>
 <article class="term" id="teller">
 <h4>Teller</h4>
-<p>Responsible for <a href="#credit">Credit</a> and <a href="#debit">Debit</a>.</p>
+<p>Responsible for <a href="#credit">Credit</a>, <a href="#debit">Debit</a>, <a href="#place">Place</a>, and <a href="#lift">Lift</a>.</p>
 </article>
 <article class="term" id="vault-officer">
 <h4>Vault officer</h4>
@@ -1872,6 +1961,10 @@ section.searching > p { display: none; }
 <article class="term" id="disputed-payment-total">
 <h4>Disputed payment total</h4>
 <p>The total amount of an account&#39;s own disputed card charges — the exposure a risk manager wants first.</p>
+</article>
+<article class="term" id="holds-on-cards">
+<h4>Holds on cards</h4>
+<p>Every hold the bank has put on a card, rather than on an account.</p>
 </article>
 </div>
 </section>
