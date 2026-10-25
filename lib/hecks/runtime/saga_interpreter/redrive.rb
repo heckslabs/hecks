@@ -115,13 +115,14 @@ module Hecks
           clear_pending_marker(leg)
         end
 
-        # Whether the command is declared safe to deliver twice.
+        # Whether the command is declared safe to deliver twice. `command_name` is the dispatch's
+        # `Aggregate.Command`; a command owned by an entity is not found, so it counts as not idempotent.
         def command_idempotent?(domain, command_name)
-          command = declared_commands(domain).find { |declared| declared.name == command_name }
-          command.respond_to?(:idempotent?) && command.idempotent?
+          aggregate_name, name = command_name.to_s.split(".", 2)
+          aggregate = @registry.bluebook(domain).aggregates.find { |declared| declared.hecks_name == aggregate_name }
+          command   = aggregate&.commands&.find { |declared| declared.hecks_name == name }
+          command ? command.idempotent? : false
         end
-
-        def declared_commands(domain) = @registry.bluebook(domain).aggregates.flat_map(&:commands)
       end
     end
   end
