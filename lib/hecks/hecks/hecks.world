@@ -13,7 +13,8 @@
 #
 # The database is `HECKS_DATABASE` when set, so a client points the domain at their own
 # Postgres (a `postgres://` URL, or a bare database name); otherwise a local database named for
-# the domain. It connects as the ordinary role `hecks`, never a superuser: the era write-fence
+# the domain. One copy can name its own in `environments/local.world` (never committed), such as
+# the copy that runs the push train recording to its own database. It connects as the ordinary role `hecks`, never a superuser: the era write-fence
 # (row-level security) is bypassed by one, so boot refuses it. Create the role once with
 # `hecks quality_control sweep.create_ledger_role hecks` and the database with `createdb -O hecks hecks`.
 #
