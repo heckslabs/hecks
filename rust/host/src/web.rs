@@ -2080,6 +2080,16 @@ async fn command_route(
             return respond(200, "application/json", &command.to_string());
         }
         let raw = parse_form(raw_body);
+        if crate::validation::requested(query) {
+            let facts = Preview {
+                domain_name,
+                aggregate,
+                command,
+                fields: &fields,
+                raw: &raw,
+            };
+            return preview_submission(&facts, host, caller).await;
+        }
         return submit(
             domain_name,
             aggregate,
@@ -2130,6 +2140,45 @@ async fn command_route(
     )
     .await
 }
+// What a preview of a submitted form is asked about: the command and the values posted for it.
+struct Preview<'a> {
+    domain_name: &'a str,
+    aggregate: &'a Value,
+    command: &'a Value,
+    fields: &'a [Field],
+    raw: &'a HashMap<String, String>,
+}
+
+// Whether the submitted command would be accepted, answered as the client envelope with 200 whether
+// or not it would be refused, and kept nowhere. A malformed submission is a 400, as a real one is.
+async fn preview_submission(
+    asked: &Preview<'_>,
+    host: Host<'_>,
+    caller: dispatch::Caller<'_>,
+) -> Value {
+    let Preview {
+        domain_name,
+        aggregate,
+        command,
+        fields,
+        raw,
+    } = *asked;
+    let cname = command.get("name").and_then(|v| v.as_str()).unwrap_or("");
+    let verb = format!("{domain_name}::{}.{cname}", agg_name(aggregate));
+    let args = match extract_args(fields, raw) {
+        Ok(args) => args,
+        Err(e) => return bad_request(domain_name, aggregate, command, fields, raw, true, &e),
+    };
+    match dispatch::preview_request(host, &verb, args, caller).await {
+        Ok(outcome) => respond(
+            200,
+            "application/json",
+            &crate::validation::answer(&outcome.result).to_string(),
+        ),
+        Err(e) => respond(500, "text/plain", &format!("{e:#}")),
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 async fn submit(
     domain_name: &str,
@@ -3051,6 +3100,61 @@ mod tests {
         );
         let clerk = submit_as("Branch clerk", "CUST-9202").await;
         assert_eq!(clerk["statusCode"], 201, "{clerk}");
+    }
+
+    // `?dry_run=1` on the JSON command route: the signed-in caller's verdict, as the client envelope,
+    // with nothing kept.
+    #[tokio::test]
+    async fn a_preview_of_a_submitted_form_answers_the_envelope_as_the_signed_in_caller() {
+        let client = crate::dispatch::tests::memory_store();
+        let wasm = crate::dispatch::tests::wasm_path();
+        let ir: Value = serde_json::from_str(
+            &std::fs::read_to_string(
+                std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                    .join("../dist/banking.ir.json"),
+            )
+            .expect("hecks build_wasm writes banking.ir.json beside the wasm"),
+        )
+        .expect("valid IR");
+        let lineage = LineageConfig {
+            domain: "Banking".to_string(),
+            era: None,
+            mirrored: None,
+        };
+        let invoker = crate::lambda_client::NeverInvoker;
+        let post = |role: &'static str, asked: &'static str| {
+            let (client, wasm, ir, lineage, invoker) = (&client, &wasm, &ir, &lineage, &invoker);
+            async move {
+                let cookies = signed_in_cookies(role);
+                let form = "reference.value=CUST-9301&name.given=Ada&name.family=Lovelace&email.address=ada%40example.com";
+                let query = HashMap::from([("dry_run".to_string(), asked.to_string())]);
+                let host = Host::new(client, wasm, lineage, invoker);
+                let path = "/Banking/Customer/Register.json";
+                route(ir, "POST", path, &query, form, &cookies, host).await
+            }
+        };
+        let verdict = |response: &Value| -> Value {
+            serde_json::from_str(response["body"].as_str().unwrap_or("{}")).expect("a JSON body")
+        };
+
+        let teller = post("Teller", "1").await;
+        assert_eq!(teller["statusCode"], 200, "{teller}");
+        let refusal = &verdict(&teller)["refusals"][0];
+        assert_eq!(
+            (refusal["kind"].as_str(), refusal["stage"].as_str()),
+            (Some("unauthorized"), Some("role"))
+        );
+
+        let clerk = post("Branch clerk", "1").await;
+        assert_eq!(clerk["statusCode"], 200, "{clerk}");
+        assert_eq!(
+            verdict(&clerk),
+            serde_json::json!({ "ok": true, "refusals": [] })
+        );
+
+        // Kept nothing: the same registration, for real, is still accepted.
+        let real = post("Branch clerk", "0").await;
+        assert_eq!(real["statusCode"], 201, "{real}");
     }
 
     // A session cookie signed with the host's own secret, for a caller Governance knows nothing of.

@@ -7,6 +7,14 @@
 //! kernel does not know (the attribute, the path, the rule) is absent, which a client reads as null.
 
 use serde_json::{json, Value};
+use std::collections::HashMap;
+
+/// Whether a request's query string asks for a preview instead of the command: `?dry_run=1` or
+/// `?dry_run=true`.
+#[allow(clippy::implicit_hasher)] // reason: the query map always comes from this crate's own default-hashed parser
+pub fn requested(query: &HashMap<String, String>) -> bool {
+    matches!(query.get("dry_run").map(String::as_str), Some("1" | "true"))
+}
 
 /// The dry run the kernel answered, the last one in the result.
 fn dry_run(result: &Value) -> Option<&Value> {
@@ -48,6 +56,13 @@ mod tests {
             "verb": "Banking::Account.Open", "ok": false, "error": "Open refused — customer is active",
             "refusal": "GivenNotMet", "kind": "refused", "stage": "givens",
         }] })
+    }
+
+    #[test]
+    fn a_query_asks_for_a_preview_with_dry_run_one_or_true_and_nothing_else() {
+        let query = |value: &str| HashMap::from([("dry_run".to_string(), value.to_string())]);
+        assert!(requested(&query("1")) && requested(&query("true")));
+        assert!(!requested(&query("0")) && !requested(&query("")) && !requested(&HashMap::new()));
     }
 
     #[test]

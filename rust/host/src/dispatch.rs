@@ -605,14 +605,22 @@ async fn run(
 // dry run as it routes a real step; a flat one stays under `args`.
 fn preview_step(verb: &str, args: &serde_json::Value) -> serde_json::Value {
     let mut step = serde_json::json!({ "dry_run": verb });
-    if args.get("to").is_none() && args.get("with").is_none() {
-        step["args"] = args.clone();
-        return step;
-    }
-    for key in ["to", "with"] {
-        if let Some(value) = args.get(key) {
-            step[key] = value.clone();
+    if args.get("with").is_some() {
+        for key in ["to", "with"] {
+            if let Some(value) = args.get(key) {
+                step[key] = value.clone();
+            }
         }
+    } else if let Some(to) = args.get("to").filter(|_| args.is_object()) {
+        // The older mixed shape a form posts: the receiver beside the facts it names.
+        let mut facts = args.clone();
+        if let Some(map) = facts.as_object_mut() {
+            map.remove("to");
+        }
+        step["to"] = to.clone();
+        step["with"] = facts;
+    } else {
+        step["args"] = args.clone();
     }
     step
 }
