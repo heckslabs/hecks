@@ -1,0 +1,83 @@
+# Each aggregate holds a union of Post and Photo and branches on its type differently (ADR 0122):
+# Comment handles only Post, Like names a Video the union does not hold, Tag handles Photo by a
+# command and Post by a read model's where, and Flag never branches at all.
+Hecks.bluebook "Remarks" do
+  vision "Remarks on posts and photos, each branching on what it remarks on."
+
+  generic
+
+  aggregate "Post" do
+    identified_by :ref
+    attribute :ref, Ref
+    value_object("Ref") { attribute :value, String }
+  end
+
+  aggregate "Photo" do
+    identified_by :ref
+    attribute :ref, Ref
+    value_object("Ref") { attribute :value, String }
+  end
+
+  aggregate "Comment" do
+    identified_by :ref
+    attribute :ref, Ref
+    reference_to one_of(Post, Photo), as: :subject
+    value_object("Ref") { attribute :value, String }
+
+    command "Pin" do
+      reference_to Comment
+      given("the subject is a post") { subject.type == "Post" }
+      emits "CommentPinned"
+    end
+  end
+
+  aggregate "Like" do
+    identified_by :ref
+    attribute :ref, Ref
+    reference_to one_of(Post, Photo), as: :subject
+    value_object("Ref") { attribute :value, String }
+
+    command "Boost" do
+      reference_to Like
+      given("the subject is a post") { subject.type == "Post" }
+      emits "LikeBoosted"
+    end
+
+    command "Frame" do
+      reference_to Like
+      given("the subject is a photo") { subject.type == "Photo" }
+      emits "LikeFramed"
+    end
+
+    command "Replay" do
+      reference_to Like
+      given("the subject is a video") { subject.type == "Video" }
+      emits "LikeReplayed"
+    end
+  end
+
+  aggregate "Tag" do
+    identified_by :ref
+    attribute :ref, Ref
+    reference_to one_of(Post, Photo), as: :subject
+    value_object("Ref") { attribute :value, String }
+
+    command "Crop" do
+      reference_to Tag
+      given("the subject is a photo") { subject.type == "Photo" }
+      emits "TagCropped"
+    end
+  end
+
+  aggregate "Flag" do
+    identified_by :ref
+    attribute :ref, Ref
+    reference_to one_of(Post, Photo), as: :subject
+    value_object("Ref") { attribute :value, String }
+  end
+
+  read_model "PostTags" do
+    include Tag
+    where(:"subject.type" => "Post")
+  end
+end
