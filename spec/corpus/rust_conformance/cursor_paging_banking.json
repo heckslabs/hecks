@@ -1,6 +1,6 @@
 {
   "domain": "examples/banking",
-  "note": "ADR 0128: `Banking::Account.OpenPaged` declares `limit 25` and `cursor :number`. Three accounts are opened out of number order; the query is asked for its first page, then after each position a page ends on (the tokens are `Base64.urlsafe_encode64(JSON.generate([value, id]), padding: false)`, minted by Ruby and read by the Rust kernel). The last ask is after the final row: it answers no rows. Ruby and Rust must agree on which rows follow a position and on the opaque token itself.",
+  "note": "ADR 0130: `Banking::Account.OpenPaged` declares `limit 25` and `cursor :number`. Three accounts are opened out of number order; the query is asked for its first page, then after each position a page ends on (the tokens are `Base64.urlsafe_encode64(JSON.generate([value, id]), padding: false)`, minted by Ruby and read by the Rust kernel). The last ask is after the final row: it answers no rows. Ruby and Rust must agree on which rows follow a position and on the opaque token itself.",
   "steps": [
     {
       "verb": "Banking::Customer.Register",

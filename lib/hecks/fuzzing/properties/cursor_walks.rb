@@ -1,7 +1,7 @@
 module Hecks
   module Fuzzing
     module Properties
-      # The property that holds a cursor query's pages to its unpaged answer (ADR 0128). Mixed into
+      # The property that holds a cursor query's pages to its unpaged answer (ADR 0130). Mixed into
       # {Querying}, whose recomputation helpers it reads.
       module CursorWalks
         # Walks every cursor query's pages and holds the walk to the unpaged query: the same rows,

@@ -78,7 +78,7 @@ module Hecks
 
         # Filtering options scoped to one included aggregate head (ADR 0055).
         FilteredOptions = Struct.new(:wheres, :order_by, :limit, :offset, :null_semantics) do
-          # A read model's head does not page by cursor (ADR 0128), so a head never carries one.
+          # A read model's head does not page by cursor (ADR 0130), so a head never carries one.
           def cursor = nil
         end
 

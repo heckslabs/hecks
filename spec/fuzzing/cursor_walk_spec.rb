@@ -3,7 +3,7 @@ require "hecks/fuzzing"
 require_relative "../support/postgres_probe"
 require "pg"
 
-# `cursor_walk_yields_the_unpaged_rows` over Banking's `OpenPaged` (ADR 0128): twenty-seven open
+# `cursor_walk_yields_the_unpaged_rows` over Banking's `OpenPaged` (ADR 0130): twenty-seven open
 # accounts take two pages of 25, and the replay also walks them one row at a time, so a page
 # boundary falls between every pair of rows on every adapter it boots.
 RSpec.describe "walking a cursor query by its pages" do

@@ -131,7 +131,7 @@ module Hecks
           end
         end
 
-        # `cursor :field` pages the query by its order field and identity (ADR 0128), so it needs
+        # `cursor :field` pages the query by its order field and identity (ADR 0130), so it needs
         # the page size (`limit`), an order it can key on, and no `offset` beside it.
         def seal_cursor
           return unless @cursor

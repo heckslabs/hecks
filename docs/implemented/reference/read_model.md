@@ -738,7 +738,7 @@ runtime.registry.bluebook("Banking").read_model("ComplianceDashboard").offset.va
 <!-- generated:end -->
 
 Refused at build (`ReadModelBuilder#seal_cursor`, raises `Malformed`).
-`cursor` pages a `query` (ADR 0128); a read model's many-side head does
+`cursor` pages a `query` (ADR 0130); a read model's many-side head does
 not page by cursor yet, so declaring it here is an error, not a silent
 no-op. Use `limit`/`offset` instead.
 
