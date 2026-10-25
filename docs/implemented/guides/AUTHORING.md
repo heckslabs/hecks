@@ -68,7 +68,7 @@ Claims:
 Rules that keep the suite honest:
 
 - **Use the real corpus — do not invent a domain.** `examples/pizzas`
-  and `examples/banking` are what every guide teaches from now:
+  and `examples/banking` are what nearly every guide teaches from (`behaviors.md` teaches from chess):
   `Kernel.load` the real bluebook file the same way
   `docs/implemented/guides/verification.md` or `docs/implemented/guides/schema-evolution.md`
   does, and dispatch/query real constructs. If neither domain currently
@@ -113,8 +113,8 @@ guides do — with two rules the guides do not have.
   domain every section above it was written against. One boot per page;
   each section then carries a `​```ruby` fence proving its own word.
 - Prefer the real corpus. A page that loads `examples/banking` invents no
-  chapter name and installs no new constants, which is what keeps 19
-  pages and 14 guides sharing one process safely. Declare a chapter of
+  chapter name and installs no new constants, which is what keeps every
+  reference page and guide sharing one process safely. Declare a chapter of
   your own only for a word nothing ships uses — and then say so in the
   preamble, because that absence is itself worth knowing.
 - Sections run top to bottom against one boot, so a section that changes
@@ -141,10 +141,10 @@ Cut any sentence that exists for tone rather than information.
 
 ## The quarantine
 
-There is a sibling language at `~/Projects/hecks` with vocabulary this
-repo does not have: `Hecks.family`, `charged_by`, `signal :effect`,
-`driving on cron`, storehouse. **None of that exists in hecks and
-none of it may appear in these guides.**
+Some words are talked about but do not exist in this language:
+`Hecks.family` and `driving on cron` (inbound scheduling is unbuilt).
+**A word that does not exist may not appear in these guides**; check
+`hecks query language_run.word_status` before documenting one.
 Here the words are: `Hecks.port` (with `verb`), `Hecks.adapter` (with
 `port`/`field`/`secret`), `persisted_by`, `.world` blocks, driving
 ports declared in the hecksagon (`port`/`operation`), and the
