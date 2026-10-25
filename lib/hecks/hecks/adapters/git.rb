@@ -40,8 +40,8 @@ module Hecks
       # Vendors one package of the bluebook registry into a project, pinned to a release or a
       # commit, through `Hecks::EmbryonautBluebook::VendorCli`.
       #
-      # The source is `from`, else `EMBRYONAUT_BLUEBOOKS_SRC`; the project is `root`, else the
-      # current directory. `ALLOW_DOWNGRADE=1` lets an older release through, as for the script.
+      # The source is `from`, else `EMBRYONAUT_BLUEBOOKS_SRC`, else the `embryonaut_bluebooks`
+      # checkout beside the project; the project is `root`, else the current directory. `ALLOW_DOWNGRADE=1` lets an older release through, as for the script.
       #
       # @param held [Hash] the `Package` record: `package` (`name` or `name@version-or-commit`),
       #   `from` and `root`
@@ -50,8 +50,8 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when the source is not a git repository, or the vendoring
       #   was refused (no such release, a downgrade, an era-breaking shape change)
       def pin(**held)
-        from = plain(held[:from]) || ENV.fetch("EMBRYONAUT_BLUEBOOKS_SRC", nil)
         root = plain(held[:root]) || Dir.pwd
+        from = plain(held[:from]) || EmbryonautBluebook::VendorCli.default_source(root)
         require_repository!(from)
 
         { report: { value: vendored(held[:package], from, root) } }

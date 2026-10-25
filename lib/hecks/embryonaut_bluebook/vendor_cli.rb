@@ -10,6 +10,20 @@ module Hecks
     module VendorCli
       USAGE = "usage: vendor_bluebook <package>[@<version-or-commit>] [--from PATH] [--root PATH]".freeze
 
+      # The registry checkout a package is vendored from when `--from` does not name one:
+      # `EMBRYONAUT_BLUEBOOKS_SRC` when set, else an `embryonaut_bluebooks` checkout beside the
+      # project (its parent directory), which is where the registry is cloned.
+      #
+      # @param root [String] the project the package is vendored into
+      # @param env [Hash{String => String}] the environment
+      # @return [String, nil] the registry checkout, nil when there is none to find
+      def self.default_source(root, env = ENV)
+        return env["EMBRYONAUT_BLUEBOOKS_SRC"] if env["EMBRYONAUT_BLUEBOOKS_SRC"]
+
+        beside = File.join(File.dirname(File.expand_path(root)), "embryonaut_bluebooks")
+        beside if File.directory?(beside)
+      end
+
       # Runs the command and reports on the given streams.
       #
       # @param argv [Array<String>] the command-line arguments
@@ -19,7 +33,7 @@ module Hecks
       # @param root [String] the default project root
       # @return [Integer] the exit status, 0 when the package was vendored
       def self.run(argv, env: ENV, out: $stdout, err: $stderr, root: Dir.pwd)
-        options = { from: env["EMBRYONAUT_BLUEBOOKS_SRC"], root: root }
+        options = { from: default_source(root, env), root: root }
         spec = parse(argv, options)
         return usage(err) unless spec && options[:from]
 
