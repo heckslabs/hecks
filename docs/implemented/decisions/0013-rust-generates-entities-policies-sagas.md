@@ -1,5 +1,7 @@
 # Entity commands, policies, and process managers/sagas join the Rust generator
 
+**Historical:** the `rust/project/*.rb` generator and the `bin/project_*` scripts named below are gone; `docs/tools.md` maps each retired script to its `hecks` verb, and Rust generation now lives in `rust/codegen` (ADR 0086).
+
 **Status:** Accepted — implemented. `rust/src/kernel/orchestrate.rs`, `rust/project/{commands,json_codec,reactions}.rb`, branch `feat/rust-projection`. Extends [0011](0011-rust-compiles-types-interprets-dispatch.md)'s "compile shapes, interpret behavior" split to three subsystems §8 explicitly left ungenerated.
 
 ## Context

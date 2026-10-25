@@ -1,7 +1,9 @@
 # The commands
 
 Every job the `bin/` scripts did is a command of the `Hecks` chapter or of a chapter it attaches, and the
-`hecks` launcher answers it: `hecks` lists the verbs, `hecks <verb> --help` prints one's usage, and
+`hecks` launcher answers it. This page covers only those retired scripts; commands that never had one
+(for example `site_projection.check_site`, `operation.bootstrap_admin`, `promotion_run.promote`) are not
+in its tables, and `hecks` (or `hecks --all`, with the internal ones) is the full list. `hecks` lists the verbs, `hecks <verb> --help` prints one's usage, and
 `hecks <verb> name=value …` runs it. A verb that changes the tree, a database or a registry does nothing
 until it is given `--confirm`. The Custodian verbs ship in the installed gem; the Codebase verbs need a
 checkout of this repository and refuse without one. The `bin/` script named in the last column is the
