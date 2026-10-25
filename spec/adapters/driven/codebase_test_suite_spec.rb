@@ -166,6 +166,36 @@ RSpec.describe Hecks::Adapters::Codebase::TestSuite do
 
       expect(report).to eq("1 example, 0 failures")
     end
+
+    it "hands the specs only the variables the run names", :aggregate_failures do
+      runner = instance_double(Hecks::Adapters::Codebase::TestRunner, run: "ok")
+      allow(Hecks::Adapters::Codebase::TestRunner).to receive(:new).with(tree).and_return(runner)
+
+      suite("run_spec_example", { file: word("spec/a_spec.rb"), example: word("works"), strict: word(true),
+                                  seeds: word(20), environment: word("memory") }, nil)
+      suite("run_spec_example", { file: word("spec/a_spec.rb"), example: word("works") }, nil)
+
+      expect(runner).to have_received(:run).with(file: "spec/a_spec.rb", example: "works",
+                                                 env: { "CI" => "true", "PROPERTY_SEEDS" => "20",
+                                                        "HECKS_ENVIRONMENT" => "memory" })
+      expect(runner).to have_received(:run).with(file: "spec/a_spec.rb", example: "works", env: {})
+    end
+
+    it "sets the variables for the run only, and puts them back" do
+      tree_runner = Hecks::Adapters::Codebase::TestRunner.new(tree)
+      seen = nil
+      Hecks::Adapters::Codebase::TestRunner.runner = lambda do |_args, out, _err|
+        seen = ENV.fetch("PROPERTY_SEEDS", nil)
+        out.puts "1 example, 0 failures"
+        0
+      end
+
+      tree_runner.run(file: "spec/spec_helper.rb", example: "x", env: { "PROPERTY_SEEDS" => "7" })
+
+      expect([seen, ENV.fetch("PROPERTY_SEEDS", nil)]).to eq(["7", nil])
+    ensure
+      Hecks::Adapters::Codebase::TestRunner.runner = nil
+    end
   end
 
   describe "the persistence fixtures" do

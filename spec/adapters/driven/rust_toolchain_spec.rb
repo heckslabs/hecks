@@ -178,6 +178,22 @@ RSpec.describe Hecks::Adapters::RustToolchain do
       expect(runner.calls.map { |call| script_of(call) }).to eq(%w[project_wasm project_wasm_browser])
     end
 
+    it "builds a dev profile only when the record names one", :aggregate_failures do
+      toolchain.wasm(domain: { value: "domains/pizzas" }, profile: { value: "dev" })
+      toolchain.wasm(domain: { value: "domains/pizzas" })
+
+      expect(runner.calls[0].fetch(:env)).to include("HECKS_WASM_PROFILE" => "dev")
+      expect(runner.calls[1].fetch(:env)).not_to include("HECKS_WASM_PROFILE")
+    end
+
+    it "turns the prebuilt download off only when the record says so", :aggregate_failures do
+      toolchain.host(domain: { value: "domains/pizzas" }, prebuilt: { value: false })
+      toolchain.host(domain: { value: "domains/pizzas" }, prebuilt: { value: true })
+
+      expect(runner.calls[0].fetch(:env)).to include("HECKS_PREBUILT" => "off")
+      expect(runner.calls[1].fetch(:env)).not_to include("HECKS_PREBUILT")
+    end
+
     it "builds the host with no target or stage unless it is given them" do
       toolchain.host(domain: { value: "domains/pizzas" })
 
