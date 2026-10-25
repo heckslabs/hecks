@@ -6,7 +6,7 @@ RSpec.describe Hecks::Projector do
   # site_routes_ts reads options[:registry] but declares nothing, so by flags
   # alone it is a plain projection.
   EXPECTED_CATEGORIES = {
-    projection: %i[cli command_schema diagrams docs glossary ir narrate oidc shape site_routes_ts statements],
+    projection: %i[cli command_schema diagrams docs glossary ir narrate oidc rails_app shape site_routes_ts statements],
     meta:       %i[bootstrap_table model parser_table reference rust_vocabulary vocabulary],
     export:     %i[aws_box aws_fargate aws_lambda]
   }.freeze

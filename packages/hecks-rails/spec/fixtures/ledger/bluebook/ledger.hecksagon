@@ -3,6 +3,7 @@ Hecks.hecksagon "Ledger" do
 
   Ledger::Account.persisted_by("Memory")
   Ledger::Note.persisted_by("Memory")
+  Ledger::Transfer.persisted_by("Memory")
 end
 
 Hecks.hecksagon "Governance" do
