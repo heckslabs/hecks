@@ -7,8 +7,10 @@ RSpec.describe Hecks::Adapters::SettingsReading do
   let(:reading) { described_class.new }
   let(:directory) { Dir.mktmpdir("settings-reading") }
   let(:database) { "postgres://hecks:secret@localhost/hecks" }
-  let(:variables) { %w[HECKS_ENVIRONMENT HECKS_DATABASE HECKS_SCHEMA HECKS_PROJECT_ENVIRONMENT HECKS_CACHE_DIR
-                       HECKS_RUST_DIR EMBRYONAUT_BLUEBOOKS_SRC] + described_class::DEPRECATED }
+  let(:variables) do
+    %w[HECKS_ENVIRONMENT HECKS_DATABASE HECKS_SCHEMA HECKS_PROJECT_ENVIRONMENT HECKS_CACHE_DIR
+       HECKS_RUST_DIR EMBRYONAUT_BLUEBOOKS_SRC] + described_class::DEPRECATED
+  end
 
   def line(text, name) = text.lines.map(&:chomp).find { |entry| entry.start_with?("#{name}: ") }
 
@@ -17,10 +19,9 @@ RSpec.describe Hecks::Adapters::SettingsReading do
   before do
     @saved = variables.to_h { |name| [name, ENV.fetch(name, nil)] }
     variables.each { |name| ENV.delete(name) }
-    registry = instance_double(Hecks::Runtime::Registry, default_database_for: database)
-    allow(registry).to receive(:first_bluebook).and_return(double("bluebook", name: "Shop"))
-    allow(Hecks).to receive(:describe).with(directory).and_return(instance_double(Hecks::Runtime::Loader::Described,
-                                                                                  registry: registry))
+    registry = instance_double(Hecks::Runtime::Registry, default_database_for: database, first_domain_name: "Shop")
+    described = instance_double(Hecks::Runtime::Loader::Described, registry: registry)
+    allow(Hecks).to receive(:describe).with(directory).and_return(described)
   end
 
   after do
@@ -55,14 +56,14 @@ RSpec.describe Hecks::Adapters::SettingsReading do
     expect(line(read, "environment")).to eq("environment: memory (variable HECKS_ENVIRONMENT)")
   end
 
-  it "lists a deprecated variable that is set, and nothing when none is" do
+  it "lists a deprecated variable that is set, and nothing when none is", :aggregate_failures do
     expect(read).not_to include("deprecated variables set")
 
     ENV["HECKS_PRE_PUSH_GATE"] = "1"
     expect(read).to include("deprecated variables set: HECKS_PRE_PUSH_GATE")
   end
 
-  it "finds the registry checkout beside the project and says so" do
+  it "finds the registry checkout beside the project and says so", :aggregate_failures do
     beside = File.join(File.dirname(directory), "embryonaut_bluebooks")
     Dir.mkdir(beside)
 

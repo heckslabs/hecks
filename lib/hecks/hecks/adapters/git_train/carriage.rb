@@ -20,7 +20,7 @@ module Hecks
         # @param checkout [String] the repository's top level
         # @param branch [String] the branch to push
         # @param remote [String] the remote to push it to
-        # @param config [Array<String>] `-c name=value` words for the push, read by the pre-push hook
+        # @param config [Array<String>] `-c name=value` words for the push, read by the hook
         def initialize(git, checkout, branch:, remote:, config: [])
           @git = git
           @checkout = checkout
