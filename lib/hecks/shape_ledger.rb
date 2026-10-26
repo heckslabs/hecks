@@ -1,3 +1,4 @@
+require "fileutils"
 require "json"
 require "hecks"
 
@@ -30,14 +31,17 @@ module Hecks
     #
     # @param directory [String] the domain directory whose chapters the ledger records
     # @param confirm [Boolean] rewrite the ledger when every moved shape has an edge
+    # @param additive [Boolean] with `confirm`, write the empty edge for each shape that moved with
+    #   none, on the operator's word that the change only adds; the mint audits every edge against
+    #   the records it migrates and refuses one that would lose data
     # @return [String] the clean verdict, or what was written
     # @raise [Failure] with each problem
-    def check(directory, confirm: false)
+    def check(directory, confirm: false, additive: false)
       registry = Hecks.describe(directory).registry
       shapes = shapes_of(registry)
       edges = edges_of(registry)
       path = File.join(directory, FILE)
-      confirm ? rewrite(path, shapes, edges) : verdict(path, shapes, edges)
+      confirm ? rewrite(path, shapes, edges, directory, additive) : verdict(path, shapes, edges)
     end
 
     # @param registry [Runtime::Registry] the loaded chapters
@@ -100,15 +104,42 @@ module Hecks
       "for a change that only adds, commit this edge under translations/ (as 2-#{now}.bluebook): #{edge}. " \
         "Data that is renamed or reshaped needs rules: `hecks query era.scaffold_translation " \
         "domain.value=<directory>` writes them, reading the eras from the records database " \
-        "(HECKS_DATABASE=<url> for that one command). Once an edge is committed, `--confirm` moves the ledger"
+        "(HECKS_DATABASE=<url> for that one command). A change that only adds is settled in one step " \
+        "by `hecks conformance_run.check_shape_ledger --confirm --additive --wait`"
     end
 
-    def rewrite(path, shapes, edges)
-      uncovered = problems(read(path), shapes, edges).reject { |line| line.include?(REWRITE) }
+    def rewrite(path, shapes, edges, directory, additive)
+      ledger = read(path)
+      written = additive ? write_edges(directory, uncovered_moves(ledger, shapes, edges)) : []
+      uncovered = additive ? [] : problems(ledger, shapes, edges).reject { |line| line.include?(REWRITE) }
       raise Failure, uncovered.join("\n") unless uncovered.empty?
 
       File.write(path, "#{JSON.pretty_generate(shapes.sort.to_h)}\n")
-      "wrote #{shapes.size} chapter shapes to #{path}"
+      "wrote #{shapes.size} chapter shapes to #{path}#{edges_note(written)}"
+    end
+
+    def edges_note(written) = written.empty? ? "" : " and #{written.size} empty edge(s): #{written.join(", ")}"
+
+    # @return [Array<Array(String, String, String)>] `[chapter, from, to]` for each shape that moved
+    #   with no chain of edges leading to it
+    def uncovered_moves(ledger, shapes, edges)
+      shapes.filter_map do |name, now|
+        held = ledger[name]
+        next unless held && label(held) != label(now)
+        next if reachable?(label(held), label(now), edges.fetch(name, []))
+
+        [name, label(held), label(now)]
+      end
+    end
+
+    # @return [Array<String>] the paths of the empty edges written
+    def write_edges(directory, moves)
+      FileUtils.mkdir_p(File.join(directory, "translations"))
+      moves.map do |name, from, now|
+        path = File.join(directory, "translations", "2-#{now}.bluebook")
+        File.write(path, %(Hecks.data_translation "#{name}", from: "#{from}", to: "#{now}" do\nend\n))
+        path
+      end
     end
 
     # @return [Hash{String => String}] the ledger, empty when there is none yet

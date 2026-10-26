@@ -790,6 +790,7 @@ Hecks.bluebook "Hecks" do
     attribute :run,       RunKey
     attribute :operation, Operation, optional: true
     attribute :confirm,   Switch, optional: true
+    attribute :additive,  Switch, optional: true
     attribute :checkout,  Switch, optional: true
     attribute :report,    Report, optional: true
     attribute :refusal,   Report, optional: true
@@ -848,11 +849,14 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Check that no chapter's storage shape moved without a translation edge, and rewrite the ledger when confirmed"
 
-      attribute :run,     RunKey
-      attribute :confirm, Switch, optional: true
+      attribute :run,      RunKey
+      attribute :confirm,  Switch, optional: true
+      # With `confirm`: write the empty edge for a shape that moved with none, for a change that only adds.
+      attribute :additive, Switch, optional: true
 
       sets :run
       sets :confirm
+      sets :additive
       sets :operation, to: "check_shape_ledger"
 
       emits CheckShapeLedgerRequested

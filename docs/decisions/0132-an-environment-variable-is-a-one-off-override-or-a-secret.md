@@ -203,7 +203,11 @@ run on the memory environment, where eras do not exist, and a database then refu
 `conformance_run.check_shape_ledger` (a gate check in `unguarded_push`, `pre_push` and `ci`)
 holds the loaded chapters against it with no database: a hash that differs needs a committed
 translation edge from the ledgered one, the failure prints the edge to write, and `--confirm`
-rewrites the ledger only when every moved chapter has such an edge. A boot that is superseded no
+rewrites the ledger only when every moved chapter has such an edge. `--confirm --additive`
+settles a change that only adds in one step, writing the empty edge and moving the ledger; the
+mint audits every edge against the records it migrates, so one that would lose data is refused
+there. This replaces the `HECKS_SCAFFOLD=1` escape hatch of the boot refusal for the additive
+case; a change that renames or reshapes data still needs rules a person decides. A boot that is superseded no
 longer restores era 1's head views (`Boot#provision!`), and the push train's launcher refresh
 names the file that keeps it from moving.
 

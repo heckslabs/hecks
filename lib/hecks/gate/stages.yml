@@ -61,7 +61,7 @@ pre_push:
       id: shape_ledger
       title: shape ledger, every chapter's storage shape held by the ledger or reached by a translation edge
       run: [bundle, exec, exe/hecks, conformance_run.check_shape_ledger, --wait]
-      blocked: a chapter's storage shape moved with no translation edge from the shape the ledger holds; the failure prints the edge to commit, then rewrite the ledger with `hecks conformance_run.check_shape_ledger --confirm --wait`.
+      blocked: a chapter's storage shape moved with no translation edge from the shape the ledger holds; the failure prints the edge to commit. A change that only adds is settled in one step with `hecks conformance_run.check_shape_ledger --confirm --additive --wait`, which writes the empty edge and moves the ledger; a change that renames or reshapes data needs rules first.
     - &check_model_check
       id: model_check
       title: model check, unreachable states, dead transitions and orphaned handlers

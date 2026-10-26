@@ -123,7 +123,8 @@ archive: do not boot a checkout against it.
 - A change to the shape of a persisted chapter needs a translation edge under that chapter's
   `translations/`, and the committed ledger `lib/hecks/hecks/shapes.json` moves with it.
   `exe/hecks conformance_run.check_shape_ledger --wait` (a gate check, no database) fails with the
-  edge to commit; `--confirm` rewrites the ledger once an edge covers the move. Data that is
+  edge to commit; `--confirm --additive` writes that empty edge and moves the ledger for a change
+  that only adds, and `--confirm` alone moves it once an edge covers the move. Data that is
   renamed or reshaped needs rules: `HECKS_DATABASE=<records url> exe/hecks query
   era.scaffold_translation domain.value=<dir>` writes them from the database that holds the eras
   (a read, for that one command), and `era.audit_translation` checks them.

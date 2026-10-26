@@ -58,16 +58,19 @@ module Hecks
           report
         end
 
-        # @param held [Hash] the record's fields; `confirm` rewrites the ledger
+        # @param held [Hash] the record's fields; `confirm` rewrites the ledger, and `additive` with it
+        #   writes the empty edge for a shape that moved with none
         # @param tree [Tree] the checkout
         # @return [String] the clean verdict, or what was written
         # @raise [ConsoleCapture::Failure] with each chapter whose shape moved without an edge
         def shape_ledger(held, tree)
-          confirm = held[:confirm].is_a?(Hash) ? held[:confirm][:value] : held[:confirm]
-          ShapeLedger.check(tree.path("lib/hecks/hecks"), confirm: confirm == true)
+          ShapeLedger.check(tree.path("lib/hecks/hecks"), confirm: on?(held[:confirm]), additive: on?(held[:additive]))
         rescue ShapeLedger::Failure => e
           raise ConsoleCapture::Failure, e.message
         end
+
+        # @return [Boolean] whether a switch field is true, whether given bare or as `{ value: }`
+        def on?(field) = (field.is_a?(Hash) ? field[:value] : field) == true
 
         # @param held [Hash] the record's fields; `confirm` makes the script write
         # @param tree [Tree] the checkout
