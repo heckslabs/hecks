@@ -19,6 +19,6 @@ use libfuzzer_sys::fuzz_target;
 use rust_host_fuzz::equivalence;
 use rust_host_fuzz::ops::Script;
 
-fuzz_target!(|script: Script| {
+fuzz_target!(init: equivalence::warm(), |script: Script| {
     equivalence::check(&script);
 });

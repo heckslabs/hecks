@@ -113,6 +113,19 @@ fn disagreement(memory: &Trace, postgres: &Trace) -> String {
     format!("memory and postgres disagree\n memory:   {memory:#?}\n postgres: {postgres:#?}")
 }
 
+/// Builds the rig and compiles the kernel, for libFuzzer's initialization hook, which its per-input
+/// timeout does not cover. Compiling the module under a sanitizer takes longer than that timeout,
+/// so the first input would otherwise be reported as a hang.
+///
+/// # Panics
+///
+/// When the kernel is missing or does not compile, or `HECKS_FUZZ_PG` names a store that is unusable.
+pub fn warm() {
+    let _ = rig();
+    rust_host::wasm_runner::warm(&crate::backend::wasm_path())
+        .unwrap_or_else(|e| panic!("the kernel does not compile: {e:#}"));
+}
+
 /// What `check` did with one script, for a caller that wants to know.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Summary {
