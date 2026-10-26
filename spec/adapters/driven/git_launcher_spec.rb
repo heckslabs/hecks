@@ -60,7 +60,7 @@ RSpec.describe Hecks::Adapters::GitLauncher do
   it "leaves a copy with local edits" do
     set_up
     File.write(File.join(launcher, "edit.txt"), "x")
-    expect(refresh(commit_and_push("second"))[:report][:value]).to end_with("has local edits")
+    expect(refresh(commit_and_push("second"))[:report][:value]).to end_with("has local edits (?? edit.txt)")
   end
 
   it "leaves a copy of another repository" do
