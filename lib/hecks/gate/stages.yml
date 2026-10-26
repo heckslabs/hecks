@@ -54,6 +54,14 @@ pre_push:
       title: engine agreement, every declared comparator on both engines
       run: [bundle, exec, exe/hecks, conformance_run.check_engine_agreement, --wait]
       blocked: a comparator is missing a shared case or a cross-engine spec.
+    # Reads the loaded chapters and the committed translation edges, never a database: a storage
+    # shape that moved with no edge is a database every boot then refuses, and nothing else the
+    # gate runs boots against one.
+    - &check_shape_ledger
+      id: shape_ledger
+      title: shape ledger, every chapter's storage shape held by the ledger or reached by a translation edge
+      run: [bundle, exec, exe/hecks, conformance_run.check_shape_ledger, --wait]
+      blocked: a chapter's storage shape moved with no translation edge from the shape the ledger holds; the failure prints the edge to commit, then rewrite the ledger with `hecks conformance_run.check_shape_ledger --confirm --wait`.
     - &check_model_check
       id: model_check
       title: model check, unreachable states, dead transitions and orphaned handlers
@@ -106,6 +114,7 @@ unguarded_push:
   env:
     HECKS_ENVIRONMENT: memory
   checks:
+    - *check_shape_ledger
     - *check_rubocop
     - *check_comment_style
     - *check_comment_blocks
@@ -148,6 +157,7 @@ rust_io:
 ci:
   checks:
     - *check_model_check
+    - *check_shape_ledger
     - *check_engine_agreement
     - *check_doc_coverage
     - *check_rubocop

@@ -844,6 +844,20 @@ Hecks.bluebook "Hecks" do
       emits MeasureDocCoverageRequested
     end
 
+    command "CheckShapeLedger" do
+      role "Maintainer"
+      goal "Check that no chapter's storage shape moved without a translation edge, and rewrite the ledger when confirmed"
+
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :run
+      sets :confirm
+      sets :operation, to: "check_shape_ledger"
+
+      emits CheckShapeLedgerRequested
+    end
+
     command "ArgumentGateMatrix" do
       role "Maintainer"
       goal "Generate the argument-gate ordering matrix; rewrite it and its fixtures only when confirmed"
@@ -919,6 +933,11 @@ Hecks.bluebook "Hecks" do
 
   policy "ExamineWhenMeasureDocCoverageRequested" do
     on      "ConformanceRun.MeasureDocCoverageRequested"
+    trigger ConformanceRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenCheckShapeLedgerRequested" do
+    on      "ConformanceRun.CheckShapeLedgerRequested"
     trigger ConformanceRun::SourceTree::Examine, with: { run: :run }
   end
 
