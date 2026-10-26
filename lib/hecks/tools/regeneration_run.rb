@@ -43,8 +43,8 @@ module Hecks
       def main(argv, root: Tools::ROOT)
         Dir.chdir(root) do
           domains = plan(root)
-          # A check projects into a scratch copy of the crate; the forked children inherit
-          # HECKS_RUST_DIR.
+          # A check projects into a scratch copy of the crate; the forked children inherit the
+          # workspace with the process.
           scratch = argv.include?("--check") && scratch_crate(root)
           run_plan(domains, scratch)
         end
@@ -62,13 +62,12 @@ module Hecks
         FileUtils.rm_rf(scratch) if scratch
       end
 
-      # Points `HECKS_RUST_DIR` at `scratch` while the block runs, then puts it back.
-      def with_rust_dir(scratch)
-        saved = ENV.fetch("HECKS_RUST_DIR", nil)
-        ENV["HECKS_RUST_DIR"] = scratch if scratch
-        yield
-      ensure
-        saved ? ENV["HECKS_RUST_DIR"] = saved : ENV.delete("HECKS_RUST_DIR")
+      # Builds in `scratch` while the block runs; with none, in the workspace already chosen.
+      def with_rust_dir(scratch, &)
+        require "hecks/rust_build"
+        return yield unless scratch
+
+        Hecks::RustBuild.in_workspace(scratch, &)
       end
 
       # `meta` is never in the list: `Hecks::Corpus::RUST_ELSEWHERE` routes it to the check that

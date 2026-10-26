@@ -29,13 +29,13 @@ RSpec.describe Hecks::RustBuild::WasmBrowser do
   def build_in_scratch
     generated_in = nil
     allow(Hecks::RustBuild::ProjectRust).to receive(:call) do
-      generated_in = ENV.fetch("HECKS_RUST_DIR")
+      generated_in = Hecks::RustBuild.rust_dir
       FileUtils.mkdir_p(File.join(generated_in, "src", "generated"))
       0
     end
     built = []
     allow(Hecks::RustBuild).to receive(:command!) { |*command, **options| built << [command.first, options] }
-    Hecks::RustBuild.with_env("HECKS_RUST_DIR" => dir) { described_class.call(["examples/pizzas"]) }
+    Hecks::RustBuild.in_workspace(dir) { described_class.call(["examples/pizzas"]) }
     [generated_in, built]
   end
 
@@ -65,7 +65,7 @@ RSpec.describe Hecks::RustBuild::WasmBrowser do
     allow(Hecks::RustBuild::ProjectRust).to receive(:call).and_return(1)
     allow(Hecks::RustBuild).to receive(:command!)
 
-    expect { Hecks::RustBuild.with_env("HECKS_RUST_DIR" => dir) { described_class.call(["examples/pizzas"]) } }
+    expect { Hecks::RustBuild.in_workspace(dir) { described_class.call(["examples/pizzas"]) } }
       .to raise_error(Hecks::RustBuild::Failure, /project_rust failed/)
     expect(Hecks::RustBuild).not_to have_received(:command!)
   end
