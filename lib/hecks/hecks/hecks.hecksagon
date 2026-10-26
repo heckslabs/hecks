@@ -96,6 +96,10 @@ Hecks.hecksagon "Hecks" do
     answers_query "Log"
   end
 
+  Hecks::Checkout.port "Settings" do
+    answers_query "Settings"
+  end
+
   Hecks::Landing.port "Worktrees" do
     asks "Merge", to: Landing do
       attribute :run, RunKey

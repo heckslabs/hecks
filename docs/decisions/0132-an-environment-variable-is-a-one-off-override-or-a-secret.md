@@ -148,7 +148,19 @@ for it.
    that run only, and `push_train.board!` takes `full_gate`. Still to build: a tag filter
    for `HECKS_CLOUDFRONT_TEST`.
 4. World-declared variables: `environments/*.world` becomes the one place a copy says
-   what it connects to.
+   what it connects to. `hecks config` (the `Checkout.Settings` query, built) prints each
+   setting, its value with any password hidden, and which source supplied it: the variable,
+   the copy's `environments/local.world`, or the world. Retiring `HECKS_DATABASE` itself
+   has an order, because the push train's launcher records to its own database and the
+   launcher checkout only reads `environments/local.world` after a push refreshes it:
+   1. push, so the launcher refreshes to code that reads `local.world`;
+   2. in the launcher checkout, write `environments/local.world` naming its records
+      database (it is never committed);
+   3. confirm `hecks config` there reports `environments/local.world`;
+   4. only then remove the read of `HECKS_DATABASE` from `hecks.world` and
+      `governance.world`, and the global export from the shell. Before step 3 the variable
+      is the only thing naming that database, and removing it would send the launcher to
+      the default `hecks` database.
 5. Declared settings: needs a decision on where in the hecksagon they are written.
 
 ## Consequences
