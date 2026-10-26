@@ -88,26 +88,13 @@ impl LambdaInvoker for AcceptDelivery {
     }
 }
 
-/// The saga lists of an outcome, which come back in the order the store loaded the sagas.
-/// `PostgresStore` loads them with no `ORDER BY` (`journal.rs`, `SELECT ... FROM hecks_lambda_sagas`)
-/// while `MemoryStore` keeps them sorted, so the two disagree on order alone. Until that load is
-/// ordered they are compared as sets, and this is the only place the harness looks away.
-const UNORDERED: [&str; 2] = ["sagas", "saga_snapshot"];
-
 /// Every event carries the wall-clock second it ran (`occurred_at`), and the two stores are played
 /// moments apart, so the stamp is dropped before outcomes are compared.
 fn timeless(mut value: Value) -> Value {
     match &mut value {
         Value::Object(map) => {
             map.remove("occurred_at");
-            for (key, child) in map.iter_mut() {
-                *child = timeless(child.take());
-                if let (true, Value::Array(items)) =
-                    (UNORDERED.contains(&key.as_str()), &mut *child)
-                {
-                    items.sort_by_key(ToString::to_string);
-                }
-            }
+            map.values_mut().for_each(|v| *v = timeless(v.take()));
         }
         Value::Array(items) => items.iter_mut().for_each(|v| *v = timeless(v.take())),
         _ => {}

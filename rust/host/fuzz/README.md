@@ -41,9 +41,8 @@ Each step's outcome (accepted, refused with the kernel's answer, or failed), and
 snapshot's ordinal and seed and the live sagas, read through `Store::begin` and `load`.
 
 - Event timestamps (`occurred_at`) are dropped: the stores are played moments apart.
-- The `sagas` and `saga_snapshot` lists of an outcome are compared as sets, because
-  `PostgresStore` loads sagas with no `ORDER BY` and `MemoryStore` keeps them sorted. Remove
-  `UNORDERED` in `src/backend.rs` once the load is ordered.
+- The in-memory store is played twice and must answer the same both times. Without that, a
+  difference between the stores could be the kernel disagreeing with itself.
 - A difference is played again on both stores before it is reported.
 
 ## What it does not cover

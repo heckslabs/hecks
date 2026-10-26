@@ -145,6 +145,12 @@ pub fn check(script: &Script) -> Summary {
     let rig = rig();
     let summary = rig.runtime.block_on(async {
         let memory = play(&rig.memory, script, true).await;
+        // The same script from an empty store answers the same, or no second store can be held to it.
+        let replayed = play(&rig.memory, script, false).await;
+        assert_eq!(
+            memory, replayed,
+            "a replay on the in-memory store answered differently\n first:  {memory:#?}\n second: {replayed:#?}"
+        );
         let accepted: Vec<bool> = memory.steps.iter().map(Step::accepted).collect();
         let mut summary = Summary {
             steps: accepted.len(),
