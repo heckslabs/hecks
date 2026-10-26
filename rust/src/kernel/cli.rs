@@ -735,10 +735,15 @@ fn cross_domain_reaction_to_json(reaction: &PendingCrossDomainReaction) -> Json 
 }
 
 /// The live `sagas` map as a JSON array, in the shape the `"sagas"` input key parses.
+///
+/// In key order: a `HashMap` iterates in an order seeded per process, so the same run would answer
+/// differently each time and two stores fed the same sagas would disagree on order alone.
 fn saga_snapshot_json(sagas: &HashMap<(String, String), SagaInstance>) -> Json {
+    let mut keyed: Vec<_> = sagas.iter().collect();
+    keyed.sort_by(|a, b| a.0.cmp(b.0));
     Json::Array(
-        sagas
-            .iter()
+        keyed
+            .into_iter()
             .map(|((process_manager, correlation), instance)| {
                 Json::obj(vec![
                     ("process_manager", Json::str(process_manager.clone())),
