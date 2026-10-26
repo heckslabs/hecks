@@ -63,13 +63,29 @@ domain), `HECKS_SCHEMA`, `HECKS_PROJECT_ENVIRONMENT`, `DATABASE_URL`, `POSTGRES_
 `SHOP_DATABASE_URL` for era tooling, `HECKS_DOMAIN`, `HECKS_SERVICE_URL`, `SITE_URL`,
 `DOMAIN_NAME`.
 
-**Declared as settings (the world or the hecksagon, with defaults):**
-host wiring (`HECKS_SESSION_COOKIE`, `HECKS_ROLE_ENFORCEMENT`, `HECKS_SERVE_MODE`),
-analytics hosts and ids, the OAuth client ids and redirect URIs, smoke settings
-(`SMOKE_CONFIG`), `SETTLE_TIMEOUT_SECS`, `HECKS_CONTRACT_WAIT_SECONDS`,
-`HECKS_CONTRACT_PAYMENTS`. Which adapter and binary to use (`HECKS_COMPOSER_AGENT`,
-`HECKS_JEV`, `QA_MINER_AGENT`) belongs in the hecksagon, not the world. `HECKS_SCAFFOLD`
-is a flag on the era command.
+**Already declared; the variable is only how a generated deploy delivers it:**
+The host's wiring (`HECKS_SESSION_COOKIE`, `HECKS_ROLE_ENFORCEMENT`, `HECKS_SERVE_MODE`,
+`HECKS_DOMAIN`, `HECKS_SCHEMA`), the OAuth ids and redirect URIs, and the analytics settings
+are declared in the deploy block and written into the task definition or CloudFormation
+environment by the deploy projection (`projections/deploy/preview/task_yaml.rb`, the
+`template.yaml.tmpl` files). A person sets none of them; the deployed Rust host reads its
+environment, as it reads `HECKS_IR_PATH`. So the question of where host wiring is declared
+is answered, and there is nothing to move: the deploy block declares it and the environment
+carries it to a process that has no other channel.
+
+**Interface of the generated scripts (moves with them, in one change):**
+`SMOKE_CONFIG`, `SETTLE_TIMEOUT_SECS`, `SKIP_POST_DEPLOY_SMOKE`, `LOCAL_IMAGE`,
+`SMOKE_BY_COMMAND` and `EXISTING_TAG` are the knobs of `deploy-service.sh`,
+`smoke-after-deploy.sh` and the smoke harness. They become flags together when the scripts
+take flags.
+
+**Tooling choices, overrides with a computed default:** `HECKS_COMPOSER_AGENT` (`claude`, or
+`fake` for a scripted agent in the editor's browser tests; `Workbench` already takes the
+agent as an argument), `HECKS_JEV` (the `jev` binary, on `PATH` by default) and
+`QA_MINER_AGENT` (the command `QaSettings` names). `corpus_run.compose` could take an `agent`
+argument for the first. `HECKS_SCAFFOLD` is a flag on the era command, and
+`HECKS_CONTRACT_WAIT_SECONDS` and `HECKS_CONTRACT_PAYMENTS` belong to the client package's
+contract test.
 
 **Arguments of the command that runs (retire the variable):**
 - `GOLDEN=rewrite`, `EXISTING_TAG`: a hecks command already hands each to its child
@@ -115,7 +131,10 @@ is a flag on the era command.
 - *Overrides with a derived default, nobody needs to set:* `HECKS_RUST_DIR`,
   `CARGO_TARGET_DIR`, `HECKS_CACHE_DIR`, `HECKS_STOREHOUSE_ROOT`, `HECKS_QA_SETTINGS_PATH`,
   `QA_REPO_DIR`, `HECKS_PARSE_BIN`, `HECKS_VALIDATE_HARNESS`, `EMBRYONAUT_BLUEBOOKS_SRC`.
-- *Interface of a deployed host:* `HECKS_IR_PATH`, `HECKS_WASM_PATH`.
+- *Interface of a deployed host, written by the generated deploy:* `HECKS_IR_PATH`,
+  `HECKS_WASM_PATH`, `HECKS_SESSION_COOKIE`, `HECKS_ROLE_ENFORCEMENT`, `HECKS_SERVE_MODE`,
+  `HECKS_DOMAIN`, `HECKS_SCHEMA`, `DOMAIN_NAME`, the OAuth ids and redirect URIs.
+- *Tooling overrides:* `HECKS_COMPOSER_AGENT`, `HECKS_JEV`, `QA_MINER_AGENT`.
 - *Per-run, with no hecks command that runs them:* `HOST_FUZZ_SEEDS`, `JSON_FUZZ_SEEDS`,
   `HECKS_PARSE_FUZZ_SEED`, `HECKS_PARSE_FUZZ_ITERATIONS`. They widen a plain `cargo test`
   fuzz run and CI never sets them. A command wrapping `cargo test` could carry them as
@@ -161,7 +180,9 @@ for it.
       `governance.world`, and the global export from the shell. Before step 3 the variable
       is the only thing naming that database, and removing it would send the launcher to
       the default `hecks` database.
-5. Declared settings: needs a decision on where in the hecksagon they are written.
+5. Declared settings: surveyed, nothing to move. The host wiring is already declared in the
+   deploy block and delivered by the generated environment; the script knobs move with the
+   scripts; the three tooling choices stay overrides.
 
 ## Consequences
 
