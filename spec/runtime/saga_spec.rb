@@ -43,7 +43,8 @@ RSpec.describe "a process manager" do
 
   def starting_event(result) = result.events.find { |event| event.name == "WireAsked" }
 
-  # Asks for a wire while expecting the saga's defect warning on STDERR; answers the dispatch result.
+  # Asks for a wire while expecting the saga's defect warning on STDERR; answers the dispatch
+  # result.
   def ask_reporting(runtime, reference, cents, warning)
     result = nil
     expect { result = ask(runtime, reference, cents) }.to output(warning).to_stderr

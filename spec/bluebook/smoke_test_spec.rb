@@ -74,7 +74,8 @@ RSpec.describe Hecks::Bluebook::SmokeTest do
     File.join(@root, domain)
   end
 
-  # A well-formed domain whose one aggregate persists in a Heki file, bound by its own hecksagon and world.
+  # A well-formed domain whose one aggregate persists in a Heki file, bound by its own hecksagon and
+  # world.
   def write_heki_domain
     dir = write_domain("SmokeWidget", SMOKE_ITEM_AGGREGATE)
     File.write(File.join(dir, "bluebook", "SmokeWidget.hecksagon"), SMOKE_HEKI_HECKSAGON)

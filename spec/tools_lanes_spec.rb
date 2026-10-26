@@ -5,9 +5,11 @@ require "yaml"
 require "hecks/tools"
 require "hecks/tools/lanes"
 
-# The branches are `Lane` rows of the Vocabulary chapter. `hecks regeneration_run.project_lanes` writes
+# The branches are `Lane` rows of the Vocabulary chapter. `hecks regeneration_run.project_lanes`
+# writes
 # each guarded lane's ruleset and the workflow that promotes the lanes that follow another, and with
-# `--live` compares (or, confirmed, updates) the rulesets GitHub holds. This spec holds the committed
+# `--live` compares (or, confirmed, updates) the rulesets GitHub holds. This spec holds the
+# committed
 # files to the rows and the comparison to the rows' own words.
 RSpec.describe Hecks::Tools::Lanes do
   let(:root) { Hecks::Tools::ROOT }

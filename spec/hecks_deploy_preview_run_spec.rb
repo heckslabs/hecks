@@ -45,7 +45,8 @@ RSpec.describe "the Deploy chapter's PreviewRun", :io do
 
   PREVIEW_STACK = "widget-preview-feature-a".freeze
 
-  # Runs each example of the group inside a scratch project with the stand-in script beside a platform
+  # Runs each example of the group inside a scratch project with the stand-in script beside a
+  # platform
   # directory and a stand-in `aws`; `script: false` leaves the script out.
   def self.with_project(script: true)
     around do |example|

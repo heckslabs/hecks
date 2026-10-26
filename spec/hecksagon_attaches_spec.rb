@@ -2,7 +2,8 @@ require "spec_helper"
 require "hecks/chapters"
 
 # `attaches` brings a chapter the gem carries (the language, Expression, Tenancy, Deploy,
-# Site, QualityControl) into a domain by name (ADR 0080, section 4). Like a vendored package, the attached
+# Site, QualityControl) into a domain by name (ADR 0080, section 4). Like a vendored package, the
+# attached
 # chapter is a bounded context, and the consumer's sibling hecksagon for it is the
 # anti-corruption layer.
 RSpec.describe "a hecksagon attaching a chapter the gem carries" do

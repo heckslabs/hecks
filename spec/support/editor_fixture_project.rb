@@ -24,7 +24,8 @@ RSpec.shared_context "with an editor fixture project" do
 
   def schema(dir = project) = JSON.parse(files_of(dir).fetch("src/schema.ts")[/SCHEMA: Schema = (\{.*\});\n/m, 1])
 
-  # The project with some text of one of its files changed (`from`, `to`, and more pairs of the same).
+  # The project with some text of one of its files changed (`from`, `to`, and more pairs of the
+  # same).
   def changed(file, *edits)
     Dir.mktmpdir("cms_editor") do |dir|
       FileUtils.cp_r(File.join(project, "."), dir)

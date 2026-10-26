@@ -19,7 +19,7 @@ RSpec.describe "the Bluebook expression grammar (docs/semantics/bluebook-grammar
 
   def fixture_of(path) = self.class.fixture_of(path)
 
-  # One sentence for each fixture whose frozen expect_ast AstJson no longer answers.
+  # One sentence for each fixture whose frozen expect_ast AstJson does not answer.
   def drift_messages
     GRAMMAR_FIXTURES.filter_map do |path|
       fixture = fixture_of(path)
@@ -31,7 +31,8 @@ RSpec.describe "the Bluebook expression grammar (docs/semantics/bluebook-grammar
     end
   end
 
-  # The [holds, problem] checks of a ruby_only fixture: its note must cite G11 and name a gap, and its
+  # The [holds, problem] checks of a ruby_only fixture: its note must cite G11 and name a gap, and
+  # its
   # reason must name the same gap id the note catalogues, so it cannot drift.
   def ruby_only_checks(fixture)
     gap_ids = fixture.fetch("note").scan(/KNOWN GAP \((G\d+)/).flatten

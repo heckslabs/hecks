@@ -6,10 +6,10 @@ require_relative "support/bare_port_reboot_domain"
 # a bare-verb port declaration (`port "x" do verb "y" end`) makes `DomainPortBuilder#build`
 # return a plain `Bluebook::Port` (verb/signal/answers, no `operations`), not a `DomainPort`.
 # `DSL::BindingProxy#port` and `HecksagonBuilder#port_impl` both guard with
-# `built.is_a?(Port)` before touching `.operations`; `Adapters::Driving::Ruby::AggregateModule#port` —
-# reached once the aggregate's Ruby facade constant already exists, e.g. the same domain
-# booted a second time in one process — did not, and crashed with a raw `NoMethodError`
-# instead of a declared `Bluebook::DSL::Malformed`.
+# `built.is_a?(Port)` before touching `.operations`; `Adapters::Driving::Ruby::AggregateModule#port`
+# did not, once the aggregate's Ruby facade constant already existed (the same domain booted a
+# second time in one process), and crashed with a raw `NoMethodError` instead of a declared
+# `Bluebook::DSL::Malformed`.
 #
 # `Hecks::Fuzzing::SequenceGenerator.generate` boots a domain once to build its catalog, then
 # `Replay.call` boots it again — the identical double-boot shape. Reproduced here with a

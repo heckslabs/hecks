@@ -9,7 +9,8 @@ require "tmpdir"
 # refusals dropped (the Paging chapter, so no `limit`), for every boot after it in that process.
 # A fresh interpreter with cold caches is the only place the first build can be observed.
 RSpec.describe "the grammar built while a caller is bound" do
-  # The program that asks for the grammar for the first time inside `as_caller` and prints what it holds.
+  # The program that asks for the grammar for the first time inside `as_caller` and prints what it
+  # holds.
   def first_build_script(role)
     <<~RUBY
       require "hecks"

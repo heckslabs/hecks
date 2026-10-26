@@ -144,7 +144,8 @@ RSpec.describe "role-based command rejections" do
 
     # `as_of` is opt-in on top of `actor_id`: unbound, a future `starts_at` authorizes at once.
     describe "as_of — a bound assignment's own starts_at" do
-      before { grant(build(&CAFETERIA_DOMAIN), actor_id: "u4", role_name: "Chef") } # starts_at: "2026-01-01"
+      # The assignment's starts_at is 2026-01-01.
+      before { grant(build(&CAFETERIA_DOMAIN), actor_id: "u4", role_name: "Chef") }
 
       it "dispatches unchanged when as_of is not bound, even for a not-yet-started assignment" do
         order = placed_order

@@ -5,7 +5,7 @@ require "tmpdir"
 require "timeout"
 
 # `hecks console` through the generated launcher, typed into at a real terminal. IRB reads the
-# process's own arguments for a script to run; the launcher's hold `console`, which IRB used to
+# process's own arguments for a script to run; the launcher's hold `console`, which IRB would
 # open as a file and then quit with no prompt. Calling `Hecks::CLI::Console` directly (as
 # console_spec.rb does) never sees those arguments, so only this path catches it.
 RSpec.describe "hecks console through the launcher, at a terminal" do

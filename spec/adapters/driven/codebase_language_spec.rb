@@ -49,7 +49,7 @@ RSpec.describe Hecks::Adapters::Codebase::Language do
 
       def target = File.join(@dir, "lib/hecks/vocabulary.rb")
 
-      # A file the Rust vocabulary no longer emits.
+      # A file the Rust vocabulary does not emit.
       def plant_retired_table
         FileUtils.mkdir_p(File.join(@dir, "rust/src/kernel/vocab"))
         File.join(@dir, "rust/src/kernel/vocab/retired_table.rs").tap { |path| File.write(path, "// no longer projected\n") }

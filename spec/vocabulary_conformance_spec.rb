@@ -60,7 +60,8 @@ RSpec.describe "the declared vocabularies" do
     end
   end
 
-  # Whether the Evaluator's `includes?` finds `needle` in the `haystack` the expression `name` reads.
+  # Whether the Evaluator's `includes?` finds `needle` in the `haystack` the expression `name`
+  # reads.
   def evaluator_includes?(name, haystack, needle)
     resolver = Hecks::Bluebook::Expression::Resolver
     Hecks::Bluebook::Expression::Evaluator.includes?([resolver.parse(name), resolver.parse("wanted")],

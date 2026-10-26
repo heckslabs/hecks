@@ -1,8 +1,11 @@
 require "hecks/projections/deploy/box"
 
-# The `deployed_to("AwsBox")` settings, checked before any file is generated. `Settings.resolve` is what
-# `Box.call` runs after `BoxTarget.Declare`, so a mistake in a `.world` file is refused here with the
-# setting's name in the message, and nothing from a world can reach a template or a script unchecked.
+# The `deployed_to("AwsBox")` settings, checked before any file is generated. `Settings.resolve` is
+# what
+# `Box.call` runs after `BoxTarget.Declare`, so a mistake in a `.world` file is refused here with
+# the
+# setting's name in the message, and nothing from a world can reach a template or a script
+# unchecked.
 RSpec.describe Hecks::Projections::Deploy::Box::Settings do
   subject(:settings) { described_class }
 

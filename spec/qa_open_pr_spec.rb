@@ -90,7 +90,8 @@ RSpec.describe "hecks quality_control patch.open and improvement.open", :io do
     File.write(File.join(@repo, ".git/info/exclude"), ".fake_gh.*\n")
   end
 
-  # Runs qa_open_pr against the ledger with the fake gh first on PATH; `extra_env` adds to the environment.
+  # Runs qa_open_pr against the ledger with the fake gh first on PATH; `extra_env` adds to the
+  # environment.
   def open_pr(*args, extra_env: {})
     env = { "PATH" => "#{@shim_dir}:#{ENV.fetch("PATH")}", "QA_REPO_DIR" => @repo,
             "FAKE_GH_LOG" => @gh_log, "FAKE_GH_STATE" => @gh_state }.merge(extra_env)

@@ -4,7 +4,8 @@ require "hecks/fuzzing/self_consistency"
 require_relative "support/rust_conformance_helpers"
 
 # The Rust-side half of `Hecks::Fuzzing::SelfConsistency` (rehydration and idempotency checks
-# against the binary's `"seed"` entry point). Both checks stay clean on a real binary and fire on the
+# against the binary's `"seed"` entry point). Both checks stay clean on a real binary and fire on
+# the
 # deliberately buggy `spec/fixtures/self_consistency_rust_fixture/` crate.
 class Differ
   include RustConformanceHelpers

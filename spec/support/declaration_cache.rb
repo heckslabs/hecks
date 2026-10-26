@@ -79,7 +79,8 @@ module DeclarationCache
     end
   end
 
-  # Prepended to Hecks::Tools::SiteRoutes' singleton class, which builds a Registry of its own from a
+  # Prepended to Hecks::Tools::SiteRoutes' singleton class, which builds a Registry of its own from
+  # a
   # project's `bluebook/` directory and loads it the same way.
   module CachedSiteRoutes
     def registry_for(root)

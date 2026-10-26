@@ -30,7 +30,7 @@ RSpec.describe "a composite-identified aggregate with two entities" do
     rent("c", "DOWNTOWN", 12, "medium")
   end
 
-  # Runs a SafeDepositBox command against the DOWNTOWN:12 box.
+  # Runs a SafeDepositBox command against the `DOWNTOWN:12` box.
   def box_command(verb, **facts)
     box_identity = { branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 } }
     runtime.dispatch_flat("Banking::SafeDepositBox.#{verb}", **box_identity, **facts)

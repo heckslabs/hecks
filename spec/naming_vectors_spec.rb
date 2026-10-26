@@ -1,8 +1,10 @@
 require "spec_helper"
 require "hecks/adapters/driven/postgres_era/lineage"
 
-# Hecks::Naming and Lineage#qualified_name have Rust twins: rust/codegen/src/hecks_naming.rs (the one
-# port of Naming, compiled into the parser, build, host and kernel crates) and the host's journal.rs.
+# Hecks::Naming and Lineage#qualified_name have Rust twins: rust/codegen/src/hecks_naming.rs (the
+# one
+# port of Naming, compiled into the parser, build, host and kernel crates) and the host's
+# journal.rs.
 # spec/fixtures/naming_vectors.json is the one table both sides assert, so a drift in either
 # fails a test on its own side.
 RSpec.describe "the shared naming vectors" do

@@ -54,7 +54,8 @@ RSpec.describe "SyntaxBoot's memo" do
 
   def warmed_grammar_registry = MetaValidatorUnderTest.grammar_registry.tap { SyntaxBootUnderTest.call }
 
-  # The probe chapter joins and leaves in one example: its aggregate is declared into the process-wide
+  # The probe chapter joins and leaves in one example: its aggregate is declared into the
+  # process-wide
   # grammar registry, which a second declaration of the same chapter would collide with.
   it "boots again the moment a chapter joins the registry, and again once it leaves" do
     registry = warmed_grammar_registry
