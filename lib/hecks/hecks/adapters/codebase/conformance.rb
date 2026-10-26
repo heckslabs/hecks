@@ -4,6 +4,7 @@ require_relative "tree"
 require_relative "ruby_child"
 require "hecks/engine_agreement"
 require "hecks/doc/reference"
+require "hecks/shape_ledger"
 
 module Hecks
   module Adapters
@@ -17,7 +18,7 @@ module Hecks
       # script only reports, and with it the script rewrites the committed matrix and its fixtures.
       module Conformance
         # Every operation this family carries out.
-        OPERATIONS = %w[check_engine_agreement measure_doc_coverage argument_gate_matrix].freeze
+        OPERATIONS = %w[check_engine_agreement measure_doc_coverage check_shape_ledger argument_gate_matrix].freeze
 
         module_function
 
@@ -32,6 +33,7 @@ module Hecks
           case operation
           when "check_engine_agreement" then engine_agreement(tree)
           when "measure_doc_coverage" then doc_coverage(tree)
+          when "check_shape_ledger" then shape_ledger(held, tree)
           else gate_matrix(held, tree)
           end
         end
@@ -54,6 +56,17 @@ module Hecks
           raise ConsoleCapture::Failure, report unless clean
 
           report
+        end
+
+        # @param held [Hash] the record's fields; `confirm` rewrites the ledger
+        # @param tree [Tree] the checkout
+        # @return [String] the clean verdict, or what was written
+        # @raise [ConsoleCapture::Failure] with each chapter whose shape moved without an edge
+        def shape_ledger(held, tree)
+          confirm = held[:confirm].is_a?(Hash) ? held[:confirm][:value] : held[:confirm]
+          ShapeLedger.check(tree.path("lib/hecks/hecks"), confirm: confirm == true)
+        rescue ShapeLedger::Failure => e
+          raise ConsoleCapture::Failure, e.message
         end
 
         # @param held [Hash] the record's fields; `confirm` makes the script write

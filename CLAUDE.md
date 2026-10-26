@@ -121,9 +121,12 @@ archive: do not boot a checkout against it.
   train's launcher then refuses, and the pushes stop. `exe/hecks config domain.value=<dir>`
   prints each setting, its value and which source supplied it.
 - A change to the shape of a persisted chapter needs a translation edge under that chapter's
-  `translations/`. Scaffold it on the memory environment (`exe/hecks query
-  era.scaffold_translation domain.value=<dir>`), check it with `era.audit_translation`, and
-  commit it with the change.
+  `translations/`, and the committed ledger `lib/hecks/hecks/shapes.json` moves with it.
+  `exe/hecks conformance_run.check_shape_ledger --wait` (a gate check, no database) fails with the
+  edge to commit; `--confirm` rewrites the ledger once an edge covers the move. Data that is
+  renamed or reshaped needs rules: `HECKS_DATABASE=<records url> exe/hecks query
+  era.scaffold_translation domain.value=<dir>` writes them from the database that holds the eras
+  (a read, for that one command), and `era.audit_translation` checks them.
 - After a push, the launcher's refresh moves its checkout only when it is detached and has no
   changed or untracked file; the report names the file that stops it.
 

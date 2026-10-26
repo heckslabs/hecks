@@ -189,4 +189,23 @@ for it.
 - A fresh copy runs with no shell setup.
 - A variable that is still read but not listed above is a finding the gate can report.
 - `HECKS_DATABASE` set globally in a shell, which once let dev checkouts boot newer
-  bluebooks against the records database, stops being possible by construction.
+  bluebooks against the records database, is gone from the shell profile, and `hecks config`
+  shows which source supplies the value.
+
+## The shape ledger
+
+A shape that changed without its translation edge reached `main` green, because specs and gates
+run on the memory environment, where eras do not exist, and a database then refused every boot.
+`lib/hecks/hecks/shapes.json` records each chapter's storage-shape hash, and
+`conformance_run.check_shape_ledger` (a gate check in `unguarded_push`, `pre_push` and `ci`)
+holds the loaded chapters against it with no database: a hash that differs needs a committed
+translation edge from the ledgered one, the failure prints the edge to write, and `--confirm`
+rewrites the ledger only when every moved chapter has such an edge. A boot that is superseded no
+longer restores era 1's head views (`Boot#provision!`), and the push train's launcher refresh
+names the file that keeps it from moving.
+
+Not built: making minting an admitted operator step (boot mints today when an edge covers the
+move, and the deploy flows rely on it), a role that dev checkouts cannot mint with, a snapshot
+before the launcher first boots a new shape, and rehearsing shape changes in CI (the
+`rehearsal_run` commands need a Postgres the gate does not have). Each needs the deploy and
+hosting flows reviewed together, so they are their own changes.
