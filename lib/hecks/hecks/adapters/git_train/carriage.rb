@@ -20,13 +20,13 @@ module Hecks
         # @param checkout [String] the repository's top level
         # @param branch [String] the branch to push
         # @param remote [String] the remote to push it to
-        # @param hook_env [Hash{String => String}] variables the repository's pre-push hook reads
-        def initialize(git, checkout, branch:, remote:, hook_env: {})
+        # @param config [Array<String>] `-c name=value` words for the push, read by the pre-push hook
+        def initialize(git, checkout, branch:, remote:, config: [])
           @git = git
           @checkout = checkout
           @branch = branch
           @remote = remote
-          @hook_env = hook_env
+          @config = config
         end
 
         # @return [String] the commit the local branch names now
@@ -49,7 +49,7 @@ module Hecks
 
         def push(boarded, attempt = 1)
           before = read("rev-parse", tracking)
-          pushed = Bench.new(@git, @checkout, branch: @branch, remote: @remote, hook_env: @hook_env)
+          pushed = Bench.new(@git, @checkout, branch: @branch, remote: @remote, config: @config)
                         .push(local_head, tracking)
           return retry_push(boarded, attempt) if pushed == :moved
 

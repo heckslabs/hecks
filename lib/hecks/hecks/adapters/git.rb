@@ -31,10 +31,9 @@ module Hecks
       #
       # @param args [Array<String>] the git subcommand and its arguments
       # @param chdir [String, nil] the directory to run in
-      # @param env [Hash{String => String}] variables for this call only, such as a hook reads
       # @return [Shell::Result] what git said and how it ended
-      def capture(*, chdir: nil, env: {})
-        @shell.capture("git", *, env: Vendoring::GitEnvironment.clean.merge(env), chdir: chdir)
+      def capture(*, chdir: nil)
+        @shell.capture("git", *, env: Vendoring::GitEnvironment.clean, chdir: chdir)
       end
 
       # Vendors one package of the bluebook registry into a project, pinned to a release or a
