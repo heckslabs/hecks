@@ -1173,6 +1173,37 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     end
   end
 
+  # An old checkout reads but never reshapes the database: its boot must leave the head views on
+  # the era a mint cut over to, or every reader of the newer era loses the rows it wrote.
+  context "with an era-1 checkout rebooting after a mint" do
+    def head_view_definition
+      with_db { |db| db.exec("SELECT pg_get_viewdef('ledger_account_head'::regclass, true) AS def")[0]["def"] }
+    end
+
+    # Era 2 keeps the aggregate's name, so the old checkout and the new one share a head view.
+    def mint_v3_over_v2!
+      check!(V3_SOURCE, translation_source: edge_source_v3(from: label_of(V2_SOURCE), to: label_of(V3_SOURCE)))
+    end
+
+    # The settings `RepositoryFactory.build` merges into a boot that knows it is stale.
+    def reboot_as_superseded_checkout
+      old = check!(V2_SOURCE)
+      settings = { database: owner_url, domain: "Ledger", era: old.resolved_eras["Ledger"],
+                   superseded_by: old.superseded_eras["Ledger"] }
+      Hecks::Adapters::PostgresEra.new(aggregate: old.bluebooks.values.first.aggregate("Account"), settings: settings)
+    end
+
+    before do
+      check!(V2_SOURCE)
+      mint_v3_over_v2!
+      reboot_as_superseded_checkout
+    end
+
+    it "leaves the head view reading the minted era's snapshot" do
+      expect(head_view_definition).to include("ledger_account_head_snapshot_2")
+    end
+  end
+
   # Postgres exempts a superuser or BYPASSRLS role from every policy, force included, so boot
   # checks pg_roles and refuses by default; allow_superuser boots anyway and warns.
   # The ambient connection is a superuser locally and on CI (`PGUSER` is postgres); the

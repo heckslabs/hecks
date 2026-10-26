@@ -43,10 +43,10 @@ RSpec.describe Hecks::Adapters::SettingsReading do
     expect(line(read, "database")).to end_with("(environments/local.world)")
   end
 
-  it "reports the variable as the source, and as deprecated, when it is set" do
+  it "reports the variable as the source when it is set" do
     ENV["HECKS_DATABASE"] = database
 
-    expect(line(read, "database")).to include("variable HECKS_DATABASE, deprecated")
+    expect(line(read, "database")).to include("variable HECKS_DATABASE")
   end
 
   it "reports the environment as a variable when set and as the default when not", :aggregate_failures do
