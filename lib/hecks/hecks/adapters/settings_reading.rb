@@ -42,7 +42,7 @@ module Hecks
       private
 
       def rows(directory)
-        [environment, database(directory), schema, project_environment,
+        [environment, database(directory), mint_eras(directory), schema, project_environment,
          variable_or_default("cache directory", "HECKS_CACHE_DIR", usage_cache_directory),
          variable_or_default("rust workspace", "HECKS_RUST_DIR", RustBuild.rust_dir),
          registry_source(directory)]
@@ -78,6 +78,22 @@ module Hecks
       end
 
       def first_line(text) = text.to_s[FIRST_LINE].strip
+
+      # Whether this copy may migrate its database to a newer storage shape, and whether the world
+      # says so or the default does.
+      def mint_eras(directory)
+        registry = Hecks.describe(directory).registry
+        declared = registry.binding_settings(registry.first_domain_name, Ports::Persistence::VERB, "PostgresEra")
+        ["mint eras", mint_wording(declared), declared.key?(:mint_eras) ? "world" : "default"]
+      rescue StandardError => e
+        ["mint eras", "could not be read", first_line(e.message)]
+      end
+
+      def mint_wording(declared)
+        require "hecks/adapters/driven/postgres_era"
+        default = PostgresEra::LineageManager::EraResolver::MINT_BY_DEFAULT
+        [true, "true"].include?(declared.fetch(:mint_eras, default)) ? "allowed" : "refused"
+      end
 
       def schema
         return ["schema", ENV.fetch("HECKS_SCHEMA"), "variable HECKS_SCHEMA"] unless ENV.fetch("HECKS_SCHEMA", "").empty?

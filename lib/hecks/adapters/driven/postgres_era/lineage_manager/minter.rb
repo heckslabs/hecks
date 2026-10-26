@@ -24,6 +24,7 @@ module Hecks
             ensure_named!(context.lineage, context.latest)
             context = context.with(latest: context.held_eras.last)
             edge = verified_edge!(context)
+            refuse_unpermitted_mint!(context) unless context.mint_permitted
             chain = audited_chain!(context, edge)
             commit_era!(context, chain)
           end
