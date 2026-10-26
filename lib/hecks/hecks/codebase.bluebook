@@ -1851,6 +1851,24 @@ Hecks.bluebook "Hecks" do
       where(status: "faulted")
       order_by :run
     end
+
+    # A regular expression, matched against one line of text at a time.
+    value_object "Pattern" do
+      attribute :value, String, matches: :present
+    end
+
+    # An answer that is one document of text, one `path:line: text` row to a match.
+    value_object "Document" do
+      attribute :text, String
+    end
+
+    query "Search" do
+      description "The lines of the checkout's text files that match a pattern, as path:line: text."
+      attribute :pattern, Pattern
+      attribute :paths, PathList, optional: true
+      attribute :top, Top, optional: true
+      returns Document
+    end
   end
 
   policy "ExamineWhenFlogRequested" do

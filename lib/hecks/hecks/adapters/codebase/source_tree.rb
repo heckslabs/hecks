@@ -8,6 +8,7 @@ require_relative "regeneration"
 require_relative "gate"
 require_relative "style"
 require_relative "inspection"
+require_relative "search"
 require_relative "codemods"
 require_relative "test_suite"
 require_relative "corpus_tasks"
@@ -73,6 +74,15 @@ module Hecks
         args = held.except(:operation)
         done = family.call(operation, args, tree, shell: self.class.shell || Shell.new)
         done.is_a?(Hash) ? done : { report: { value: done } }
+      end
+
+      # @param args [Hash] the query's arguments: `pattern`, `paths`, `top`
+      # @return [Hash] `text:` the matching lines, one `path:line: text` row each
+      # @raise [Codebase::Tree::NeedsCheckout] when the tree is not a hecks checkout
+      # @raise [ConsoleCapture::Failure] when the pattern is not a regular expression
+      def search(**args)
+        tree.require_checkout!
+        { text: Codebase::Search.report(args.transform_values { |value| plain(value) }, tree) }
       end
 
       # @return [Hash] `text:` where every word of the language stands
