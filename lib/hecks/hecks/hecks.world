@@ -53,7 +53,7 @@ Hecks.world "Hecks" do
                                   handover.clear rehearsal_run.request push_train.board
                                   landing.land landing.retire],
                        unknown_runs: %w[rehearsal_run.rehearsal_outcome],
-                       names: { "mcp" => "launch.serve_mcp", "console" => "operation.open_console", "init" => "launch.init",
+                       names: { "config" => "checkout.settings", "mcp" => "launch.serve_mcp", "console" => "operation.open_console", "init" => "launch.init",
                                 "interview" => "launch.interview", "package.check" => "registry.check",
                                 "package.digest" => "registry.digest",
                                 "package.release" => "registry.release" },
