@@ -107,6 +107,19 @@ pre_push:
           done
       blocked: a Rust file is not laid out as rustfmt has it; run `cargo fmt` in its crate (rust/src/exemplar is exempt, it is text templates). Generated Rust is laid out by its generators, so fix the generator, not the output.
 
+# The checks that finish in seconds and catch the offenses people make most: a storage shape with
+# no edge, a style offense, a comment past the guide. A push runs them first and stops on a red
+# one, so the minutes of spec/fuzzing are not spent on a change that cannot pass; run them by hand
+# with `hecks gate_run.gate stage=quick --wait` before a commit.
+quick:
+  env:
+    HECKS_ENVIRONMENT: memory
+  checks:
+    - *check_shape_ledger
+    - *check_rubocop
+    - *check_comment_style
+    - *check_comment_blocks
+
 # The checks a push of only unguarded lanes (`main`) runs in place of pre_push. The slow suite is
 # skipped there; the style checks are not, since an offense that lands on `main` is a red CI run,
 # and neither is spec/fuzzing, which no commit hook runs any more.
