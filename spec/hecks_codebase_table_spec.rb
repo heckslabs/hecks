@@ -13,6 +13,7 @@ RSpec.describe "the Codebase rows of the ADR command table" do
   CodebaseRow = Struct.new(:script, :aggregate, :name, :verb, :args, :query, :renamed, keyword_init: true) do
     # The launcher's name for the row: its aggregate, snake-cased, then its verb.
     def qualified = "#{aggregate.gsub(/([a-z])([A-Z])/, '\1_\2').downcase}.#{verb}"
+    def help_name = "#{aggregate}.#{verb}"
   end
 
   # The aggregates are named for the run, as ModelCheckRun is: the table's Language, Kernel,
@@ -168,7 +169,7 @@ RSpec.describe "the Codebase rows of the ADR command table" do
       out, status = launch([row.qualified, "--help"])
 
       expect(status).to eq(0)
-      expect(out).to start_with(row.qualified)
+      expect(out).to start_with(row.help_name)
     end
 
     it "refuses `hecks #{row.verb}` outside a hecks checkout", :aggregate_failures, :outside_checkout do

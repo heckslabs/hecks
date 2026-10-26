@@ -14,7 +14,7 @@ RSpec.describe "SQLite execution-plan capabilities" do
   end
 
   it "reports the one capability it has" do
-    expect(store.capabilities).to eq(%i[atomic_put rollback])
+    expect(store.capabilities).to eq(%i[atomic_put rollback dispatch_claims])
   end
 
   it_behaves_like "an atomic_put adapter"

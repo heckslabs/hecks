@@ -53,8 +53,8 @@ answers `--help`. A `|` inside a form is escaped as `\|` in the cell.
 | `hecks project_cli [<domains>]` | `bin/project_cli` |
 | `hecks mcp [--stdio]` | `bin/hecks_mcp_door` |
 | `hecks build.project_rust <domain>` | `bin/project_rust` |
-| `hecks build.build_wasm <domain>` | `bin/project_wasm` |
-| `hecks build.build_host <domain> [target=] [stage_dir=]` | `bin/project_host` |
+| `hecks build.build_wasm <domain> [profile=]` | `bin/project_wasm` |
+| `hecks build.build_host <domain> [target=] [stage_dir=] [--prebuilt]` | `bin/project_host` |
 | `hecks build.build_browser_wasm <domain>` | `bin/project_wasm_browser` |
 | `hecks build.rust_coverage <module_name> [codegen=]`; `hecks build.check_coverage_allowlist` | `bin/rust_coverage` |
 | `hecks build.check_conformance <domain> script= [artifact=]` | `bin/rust_conformance` |
@@ -129,7 +129,7 @@ still need a checkout.
 | `hecks test_suite_run.shard_specs <group> groups= [runtime_log=]` | `bin/rspec_shard_files` |
 | `hecks test_suite_run.list_io_parallel_specs <exclude> [tags=] [check=]`; `hecks test_suite_run.write_io_parallel_spec_list <exclude> [tags=] write= --confirm` | `bin/rspec_io_parallel_files` |
 | `hecks test_suite_run.refresh_runtime_baseline [<workers>] [from_run=] --confirm` | `bin/refresh_rspec_runtime_baseline` |
-| `hecks test_suite_run.run_spec_example <file> example=` | `bin/spec_example` |
+| `hecks test_suite_run.run_spec_example <file> example= [seeds=] [environment=] [tags=] [--strict] [--declaration-cache]` | `bin/spec_example` |
 | `hecks test_suite_run.stress_concurrency [<runs>] [parallel=] [seed_start=]` | `bin/stress_concurrency_specs` |
 | `hecks test_suite_run.regenerate_legacy_fixtures --confirm` | `bin/regenerate_persistence_legacy_fixtures` |
 | `hecks test_suite_run.seed_semantics_corpus [<fixture>]` | `bin/seed_semantics_corpus` |

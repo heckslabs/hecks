@@ -12,6 +12,7 @@ RSpec.describe "the Custodian rows of the ADR command table" do
   CustodianRow = Struct.new(:script, :aggregate, :name, :verb, :renamed, keyword_init: true) do
     # The launcher's name for the row: its aggregate, snake-cased, then its verb.
     def qualified = "#{aggregate.gsub(/([a-z])([A-Z])/, '\1_\2').downcase}.#{verb}"
+    def help_name = "#{aggregate}.#{verb}"
   end
 
   CUSTODIAN_LAUNCHER_NAMES = { "open_console" => "console", "serve_mcp" => "mcp" }.freeze
@@ -119,7 +120,7 @@ RSpec.describe "the Custodian rows of the ADR command table" do
 
       expect(status).to eq(0)
       # The help names the command as the launcher lists it (hecks.world `names`).
-      expect(out).to start_with(CUSTODIAN_LAUNCHER_NAMES.fetch(row.verb, row.qualified))
+      expect(out).to start_with(CUSTODIAN_LAUNCHER_NAMES.fetch(row.verb, row.help_name))
     end
   end
 

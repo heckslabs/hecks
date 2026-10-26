@@ -70,6 +70,7 @@
 
           ],
           "goal": "Start the day with an empty drawer",
+          "idempotent": false,
           "mutations": [
             {
               "op": "set",
@@ -123,6 +124,7 @@
 
           ],
           "goal": "Add cents to the drawer",
+          "idempotent": false,
           "mutations": [
             {
               "op": "increment",
@@ -184,6 +186,7 @@
 
           ],
           "goal": "Take cents out of the drawer",
+          "idempotent": false,
           "mutations": [
             {
               "op": "decrement",
@@ -227,6 +230,7 @@
 
           ],
           "goal": "Add the fixed float the branch always starts with",
+          "idempotent": false,
           "mutations": [
             {
               "op": "increment",

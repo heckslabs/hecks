@@ -15,6 +15,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
   DeployRow = Struct.new(:script, :aggregate, :name, :verb, keyword_init: true) do
     # The launcher's name for the row: its aggregate, snake-cased, then its verb.
     def qualified = "#{aggregate.gsub(/([a-z])([A-Z])/, '\1_\2').downcase}.#{verb}"
+    def help_name = "#{aggregate}.#{verb}"
   end
 
   DEPLOY_ROWS = [
@@ -79,7 +80,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
       out, status = launch([row.qualified, "--help"])
 
       expect(status).to eq(0)
-      expect(out).to start_with(row.qualified)
+      expect(out).to start_with(row.help_name)
     end
   end
 

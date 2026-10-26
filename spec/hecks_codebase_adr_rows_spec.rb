@@ -135,6 +135,17 @@ RSpec.describe "the Codebase rows of the ADR table" do
     end.to_h
   end
 
+  # What `--help` opens with: the aggregate as the bluebook spells it, then the verb (`StyleRun.fix_comments`).
+  def help_names
+    CODEBASE_RECORDS.flat_map do |name|
+      aggregate = @bluebook.aggregate(name)
+      (aggregate.commands.map(&:hecks_name) + aggregate.queries.map(&:hecks_name)).map do |verb|
+        verb = verb.gsub(/([a-z0-9])([A-Z])/, '\1_\2').downcase
+        [verb, "#{name}.#{verb}"]
+      end
+    end.to_h
+  end
+
   ADR_CODEBASE_ROWS.each do |row|
     row.verbs.each do |verb|
       it "answers #{row.script} with `hecks #{verb}`, called with its aggregate", :aggregate_failures do
@@ -142,7 +153,7 @@ RSpec.describe "the Codebase rows of the ADR table" do
         out, status = launch([qualified, "--help"])
 
         expect(status).to eq(0), "no launcher verb #{qualified} for the row #{row.script}: #{out.lines.first}"
-        expect(out).to start_with(qualified)
+        expect(out).to start_with(help_names.fetch(verb))
       end
     end
   end

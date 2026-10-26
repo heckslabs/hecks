@@ -88,6 +88,7 @@
 
           ],
           "goal": "Record a version as tagged, with the IR version it carries",
+          "idempotent": false,
           "mutations": [
             {
               "op": "set",
@@ -140,6 +141,7 @@
 
           ],
           "goal": "Record that a tagged version reached the gem registry",
+          "idempotent": false,
           "mutations": [
 
           ],
@@ -169,6 +171,7 @@
 
           ],
           "goal": "Record that the published version installs and boots",
+          "idempotent": false,
           "mutations": [
 
           ],
@@ -204,6 +207,7 @@
 
           ],
           "goal": "Record the findings this version settled",
+          "idempotent": false,
           "mutations": [
             {
               "op": "set",
@@ -430,6 +434,7 @@
 
           ],
           "goal": "Record a boot cache as built from the grammar chapters that hash to this digest",
+          "idempotent": false,
           "mutations": [
             {
               "op": "set",
@@ -464,6 +469,7 @@
 
           ],
           "goal": "Record that the grammar changed under the cache",
+          "idempotent": false,
           "mutations": [
 
           ],
@@ -490,6 +496,7 @@
 
           ],
           "goal": "Record that the cache was rebuilt from the current grammar",
+          "idempotent": false,
           "mutations": [
 
           ],

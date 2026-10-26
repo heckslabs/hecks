@@ -133,7 +133,8 @@
             "JobRequested"
           ],
           "from": null,
-          "provenance": null
+          "provenance": null,
+          "idempotent": false
         },
         {
           "name": "Settle",
@@ -176,7 +177,8 @@
             "JobSettled"
           ],
           "from": null,
-          "provenance": null
+          "provenance": null,
+          "idempotent": false
         },
         {
           "name": "Abandon",
@@ -219,7 +221,8 @@
             "JobAbandoned"
           ],
           "from": null,
-          "provenance": null
+          "provenance": null,
+          "idempotent": false
         }
       ],
       "invariants": [

@@ -78,6 +78,7 @@
 
           ],
           "goal": "Put a new pizza on the menu",
+          "idempotent": false,
           "mutations": [
             {
               "op": "set",
@@ -164,6 +165,7 @@
             }
           ],
           "goal": "Customize a pizza with an ingredient",
+          "idempotent": false,
           "mutations": [
             {
               "fields": {
@@ -283,6 +285,7 @@
             }
           ],
           "goal": "Buy the pizza",
+          "idempotent": false,
           "mutations": [
             {
               "op": "set",
