@@ -10,7 +10,7 @@ module Hecks
       # @param record [Hecks::Rails::Model] a record
       # @param column [Symbol] one of its attributes
       # @return [String] the value in words, a value object flattened to its parts
-      def hecks_cell(record, column) = hecks_words(Hecks::Runtime::Value.materialize(record.to_h[column]))
+      def hecks_cell(record, column) = hecks_words(record.to_h[column])
 
       # @param model [Class] an aggregate's model
       # @return [String] the heading its list carries: the `Listing` row's label, else its plural
@@ -53,7 +53,7 @@ module Hecks
         case value
         when Hash then value.size == 1 ? hecks_words(value.values.first) : hecks_pairs(value)
         when Array then value.map { |item| hecks_words(item) }.join("; ")
-        else value.to_s
+        else value.respond_to?(:value_object) ? hecks_words(value.to_h) : value.to_s
         end
       end
 

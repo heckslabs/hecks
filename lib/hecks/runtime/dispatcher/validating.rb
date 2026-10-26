@@ -35,6 +35,27 @@ module Hecks
           validation_of(Routing::Call.new(verb: verb, flat: args))
         end
 
+        # Answers whether a record's lifecycle state lets a command run, reading no argument: the
+        # command's own `from:` guard and the aggregate's transitions, as the dispatch decides them.
+        #
+        # `validate` stops at the arguments stage when an argument is missing, so a caller asking
+        # what a record could do next, with no arguments yet, asks this as well.
+        #
+        # @param domain [String] the chapter's name
+        # @param aggregate [Bluebook::Aggregate] the aggregate the record belongs to
+        # @param command [Bluebook::Command] the command asked about
+        # @param id [String] the record's identity
+        # @return [Boolean] false when the state refuses the command
+        def state_admits?(domain, aggregate, command, id)
+          instance = registry.repository(domain, aggregate).find(id)
+          rules = CommandRules.new(registry)
+          rules.enforce_lifecycle_guard(aggregate, command, instance)
+          rules.admissible_transition(aggregate, command, instance)
+          true
+        rescue LifecycleRefused
+          false
+        end
+
         private
 
         def validation_of(call)
