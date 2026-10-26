@@ -813,7 +813,7 @@ fn a_description_that_opens_a_block_is_not_mistaken_for_prose() {
     assert!(error.contains("It has:"), "{error}");
 }
 
-const LIBRARY: &str = include_str!("fixtures/sentence_library.bluebook");
+const LIBRARY: &str = include_str!("fixtures/sentence_library.sentences");
 
 fn run_on_chapter(subcommand: &str, chapter: &str, path: &std::path::Path) -> Output {
     Command::new(env!("CARGO_BIN_EXE_hecks-parse"))

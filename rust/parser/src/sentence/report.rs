@@ -81,7 +81,7 @@ impl Parser<'_> {
                     .items
                     .iter()
                     .map(|item| snake(item))
-                    .collect()
+                    .collect();
             }
             "counts" => model.count = true,
             "sums" => model.sum_field = Some(field("field")),

@@ -157,10 +157,10 @@ impl Parser<'_> {
                     chapter.classification = Some(kind);
                 }
                 Step::Phrase(m) if m.id == "namespace" => {
-                    chapter.namespace = Some(m.text_of("name"))
+                    chapter.namespace = Some(m.text_of("name"));
                 }
                 Step::Phrase(m) if m.id == "version" => {
-                    chapter.version = Some(m.text_of("version"))
+                    chapter.version = Some(m.text_of("version"));
                 }
                 Step::Phrase(m) if m.id == "attaches" => {
                     chapter.attaches_to = m

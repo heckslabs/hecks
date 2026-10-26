@@ -589,7 +589,7 @@ fn plain_set(value_object: &ir::ValueObject) -> Option<(String, Vec<String>)> {
             [(column, ruby_value::Value::Str(text))]
                 if *column == value.name && is_listable(text) =>
             {
-                values.push(text.clone())
+                values.push(text.clone());
             }
             _ => return None,
         }

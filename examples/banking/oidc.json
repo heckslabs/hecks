@@ -29,7 +29,11 @@
     {
       "scope": "banking:account.credit",
       "verb": "Banking::Account.Credit",
-      "role": "Teller"
+      "role": "Teller",
+      "roles": [
+        "Teller",
+        "Branch clerk"
+      ]
     },
     {
       "scope": "banking:account.debit",
