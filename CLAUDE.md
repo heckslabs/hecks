@@ -110,6 +110,23 @@ current list of what this repo can do.
   If none exists, add the command to the bluebook rather than a script.
 - Add `--wait` when you need the result before the next step.
 
+## The push train records to its own database
+
+The push train (`~/.claude/hecks-train`, a detached checkout) writes its runs to a database its
+own gitignored `environments/local.world` names (`hecks_train`). The older `hecks_records` is an
+archive: do not boot a checkout against it.
+
+- Dev work runs on `HECKS_ENVIRONMENT=memory`. Never export `HECKS_DATABASE` in a shell or a
+  profile: a checkout that boots a newer shape against a records database mints an era the
+  train's launcher then refuses, and the pushes stop. `exe/hecks config domain.value=<dir>`
+  prints each setting, its value and which source supplied it.
+- A change to the shape of a persisted chapter needs a translation edge under that chapter's
+  `translations/`. Scaffold it on the memory environment (`exe/hecks query
+  era.scaffold_translation domain.value=<dir>`), check it with `era.audit_translation`, and
+  commit it with the change.
+- After a push, the launcher's refresh moves its checkout only when it is detached and has no
+  changed or untracked file; the report names the file that stops it.
+
 ## RuboCop is strict: it runs at its defaults
 
 `.rubocop.yml` overrides only what `docs/decisions/0091-rubocop-defaults-with-deliberate-overrides.md`
