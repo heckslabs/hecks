@@ -174,10 +174,11 @@ RSpec.configure do |config|
   config.filter_run_excluding process: true unless ENV.key?("CI") || ENV.key?("HECKS_PROCESS_SPECS")
 
   # `cloudfront: true` marks an example that creates a throwaway function in the development stage of
-  # a real AWS account and runs `aws cloudfront test-function` on it. It runs only where
-  # `HECKS_CLOUDFRONT_TEST=1` is set (and the AWS CLI has credentials); CI does not set it. It is
-  # left out rather than skipped, so CI's skip backstop has nothing to account for.
-  config.filter_run_excluding cloudfront: true unless ENV["HECKS_CLOUDFRONT_TEST"] == "1"
+  # a real AWS account and runs `aws cloudfront test-function` on it. It runs only when asked for by
+  # tag (`rspec --tag cloudfront`, or `tags.value="--tag cloudfront"` on `run_spec_example!`) and the
+  # AWS CLI has credentials. It is left out rather than skipped, so CI's skip backstop has nothing to
+  # account for.
+  config.filter_run_excluding cloudfront: true
 
   # `fuzzing: true` tags every example under spec/fuzzing/ by path
   # (`define_derived_metadata`) rather than by hand per file. Slow for a

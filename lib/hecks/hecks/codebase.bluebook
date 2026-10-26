@@ -2075,6 +2075,8 @@ Hecks.bluebook "Hecks" do
     attribute :strict,      Switch, optional: true
     attribute :seeds,       Count, optional: true
     attribute :environment, EnvironmentName, optional: true
+    attribute :declaration_cache, Switch, optional: true
+    attribute :crate,       CrateName, optional: true
     attribute :write,       FilePath, optional: true
     attribute :group,       Count, optional: true
     attribute :groups,      Count, optional: true
@@ -2149,6 +2151,12 @@ Hecks.bluebook "Hecks" do
       attribute :value, String, pattern: '^[a-z][a-z0-9_]*$'
     end
 
+    # A Rust test target whose fuzzers take their seed counts as arguments: the host, the parser,
+    # or the JSON parse fuzzer of the root crate.
+    value_object "CrateName" do
+      attribute :value, String, pattern: '^(host|parser|json)$'
+    end
+
     lifecycle :status, default: "requested" do
       mark :failure, "faulted"
       transition "Accept"   => "accepted",  from: "requested"
@@ -2188,6 +2196,11 @@ Hecks.bluebook "Hecks" do
       attribute :seeds,       Count, optional: true
       # The environment overlay the example boots its domains on, such as `memory`.
       attribute :environment, EnvironmentName, optional: true
+      # RSpec tag filters, such as `cloudfront` for the examples that call a real AWS account.
+      attribute :tags, TagArguments, optional: true
+      # Whether specs share the loaded declarations of an unchanged domain directory; false loads each
+      # boot afresh.
+      attribute :declaration_cache, Switch, default: true
 
       sets :file
       sets :example
@@ -2195,6 +2208,8 @@ Hecks.bluebook "Hecks" do
       sets :strict
       sets :seeds
       sets :environment
+      sets :tags
+      sets :declaration_cache
       sets :operation, to: "run_spec_example"
 
       emits RunSpecExampleRequested
@@ -2217,6 +2232,24 @@ Hecks.bluebook "Hecks" do
       sets :operation, to: "stress_concurrency"
 
       emits StressConcurrencyRequested
+    end
+
+    command "RunCargoTests" do
+      role "Maintainer"
+      goal "Run the cargo tests of the host, the parser or the JSON fuzzer, with the seed counts their fuzzers take"
+
+      attribute :crate,       CrateName
+      attribute :seeds,       Count, optional: true
+      attribute :seed_start,  Count, optional: true
+      attribute :run,         RunKey
+
+      sets :crate
+      sets :seeds
+      sets :seed_start
+      sets :run
+      sets :operation, to: "run_cargo_tests"
+
+      emits RunCargoTestsRequested
     end
 
     # The caches key on a digest of what they were built from, so a stale entry is never read; this
@@ -2376,6 +2409,11 @@ Hecks.bluebook "Hecks" do
     trigger TestSuiteRun::SourceTree::Examine, with: { run: :run }
   end
 
+  policy "ExamineWhenRunCargoTestsRequested" do
+    on      "TestSuiteRun.RunCargoTestsRequested"
+    trigger TestSuiteRun::SourceTree::Examine, with: { run: :run }
+  end
+
   policy "ExamineWhenClearCachesRequested" do
     on      "TestSuiteRun.ClearCachesRequested"
     trigger TestSuiteRun::SourceTree::Examine, with: { run: :run }
@@ -2440,6 +2478,7 @@ Hecks.bluebook "Hecks" do
     attribute :name,      ConstructName, optional: true
     attribute :field,     FieldName, optional: true
     attribute :port,      Port, optional: true
+    attribute :agent,     AgentName, optional: true
     attribute :checkout,  Switch, optional: true
     attribute :report,    Report, optional: true
     attribute :refusal,   Report, optional: true
@@ -2449,6 +2488,12 @@ Hecks.bluebook "Hecks" do
       attribute :value, String, matches: :present
 
       invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    # Which agent drives the Composer's assistant: the real `claude`, or a scripted `fake` for
+    # trying the editor without a model.
+    value_object "AgentName" do
+      attribute :value, String, pattern: '^(claude|fake)$'
     end
 
     value_object "Operation" do
@@ -2529,10 +2574,12 @@ Hecks.bluebook "Hecks" do
 
       attribute :port,    Port, optional: true
       attribute :domains, PathList, optional: true
+      attribute :agent,   AgentName, default: "claude"
       attribute :run,     RunKey
 
       sets :port
       sets :domains
+      sets :agent
       sets :run
       sets :operation, to: "compose"
 
