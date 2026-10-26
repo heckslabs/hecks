@@ -1,0 +1,247 @@
+Hecks.bluebook "Hecks" do
+  # Ledger: a journal that proves it was not rewritten. Each journal row carries the digest of the
+  # row before it, so an altered or dropped row breaks every digest after it. Compaction is the one
+  # sanctioned way rows leave a journal, so it seals first: the head the chain had is recorded as a
+  # Seal, and an Audit walks from the latest Seal forward. A compaction with no seal is not applied.
+
+  aggregate "Seal" do
+    description "The head a domain's journal chain had when the rows before it were compacted away."
+
+    attribute :run,      SealKey
+    attribute :domain,   Domain
+    attribute :through,  Ordinal,   optional: true
+    attribute :head,     ChainDigest,    optional: true
+    attribute :previous, ChainDigest,    optional: true
+    attribute :refusal,  Report,    optional: true
+    identified_by :run
+
+    value_object "SealKey" do
+      attribute :value, String, matches: :present
+
+      invariant("a seal is named") { !value.to_s.empty? }
+    end
+
+    # The domain whose journal is sealed: its directory.
+    value_object "Domain" do
+      attribute :value, String, matches: :not_empty
+    end
+
+    # The last journal ordinal the seal covers.
+    value_object "Ordinal" do
+      attribute :value, Integer
+
+      invariant("a seal covers at least one row") { value > 0 }
+    end
+
+    # A SHA-256 digest, lowercase hexadecimal.
+    value_object "ChainDigest" do
+      attribute :value, String, pattern: '^[0-9a-f]{64}$'
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      mark :failure, "declined"
+      transition "Record"  => "sealed",   from: "requested"
+      transition "Decline" => "declined", from: "requested"
+    end
+
+    command "Request" do
+      role "System"
+      goal "Ask that a domain's chain head be captured before its journal is compacted"
+
+      attribute :domain, Domain
+      attribute :run,    SealKey
+
+      sets :domain
+      sets :run
+
+      emits SealRequested
+    end
+
+    # `previous` is the head of the seal before this one, so seals chain too; the first seal
+    # of a domain carries the genesis digest, sixty-four zeros.
+    command "Record" do
+      role "System"
+      goal "Keep the head the chain had, and the seal it followed"
+
+      reference_to Seal
+      attribute :through,  Ordinal
+      attribute :head,     ChainDigest
+      attribute :previous, ChainDigest
+
+      sets :through
+      sets :head
+      sets :previous
+
+      emits SealRecorded
+    end
+
+    command "Decline" do
+      role "System"
+      goal "Record that the chain head could not be captured, and why"
+
+      reference_to Seal
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits SealDeclined
+    end
+
+    query "Latest" do
+      description "The newest seal a domain holds."
+      attribute :domain, Domain
+      where(domain: :domain, status: "sealed")
+      order_by :through
+    end
+
+    query "Declined" do
+      description "Every seal that could not be captured."
+      where(status: "declined")
+      order_by :run
+    end
+  end
+
+  aggregate "Audit" do
+    description "One walk of a domain's journal chain from its latest seal, and whether every digest held."
+
+    attribute :run,       AuditKey
+    attribute :domain,    AuditedDomain
+    attribute :checked,   Count,   optional: true
+    attribute :report,    Finding, optional: true
+    identified_by :run
+
+    value_object "AuditKey" do
+      attribute :value, String, matches: :present
+
+      invariant("an audit is named") { !value.to_s.empty? }
+    end
+
+    value_object "AuditedDomain" do
+      attribute :value, String, matches: :not_empty
+    end
+
+    value_object "Count" do
+      attribute :value, Integer
+    end
+
+    value_object "Finding" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      mark :failure, "unproven"
+      transition "Confirm" => "verified", from: "requested"
+      transition "Fail"    => "unproven", from: "requested"
+    end
+
+    command "Verify" do
+      role "Auditor"
+      goal "Walk a domain's journal chain from its latest seal and say whether it was altered"
+
+      attribute :domain, AuditedDomain
+      attribute :run,    AuditKey
+
+      sets :domain
+      sets :run
+
+      emits VerificationRequested
+    end
+
+    command "Confirm" do
+      role "System"
+      goal "Record that every row's digest held, and how many were checked"
+
+      reference_to Audit
+      attribute :checked, Count
+      attribute :report,  Finding
+
+      given("the walk checked a row") { checked.value > 0 }
+
+      sets :checked
+      sets :report
+
+      emits ChainConfirmed
+    end
+
+    # A chain that cannot be shown intact is unproven, whether a digest failed or the walk could not
+    # run; the report names the row or the reason.
+    command "Fail" do
+      role "System"
+      goal "Record that the chain could not be shown intact, and why"
+
+      reference_to Audit
+      attribute :report, Finding
+
+      sets :report
+
+      emits ChainUnproven
+    end
+
+    query "Verdict" do
+      description "What one audit found."
+      attribute :run, AuditKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "Unproven" do
+      description "Every audit that could not show the chain intact."
+      where(status: "unproven")
+      order_by :run
+    end
+  end
+
+  # A compaction is applied only once the head it would erase is sealed. These replace the direct
+  # step from a permitted compaction to its application.
+  policy "SealWhenCompactionPermitted" do
+    on      "Era.EraPermitted"
+    where do
+      operation.value == "compact" || operation.value == "compact_heki"
+    end
+    trigger Seal::Request, with: { domain: :domain, run: :run }
+  end
+
+  policy "CaptureWhenSealRequested" do
+    on      "Seal.SealRequested"
+    trigger Seal::Ledger::Capture, with: { run: :run }
+  end
+
+  policy "RecordTheCapturedHead" do
+    on      "Seal.HeadCaptured"
+    trigger Seal::Record, with: { through: :through, head: :head, previous: :previous }
+  end
+
+  policy "DeclineWhenHeadNotCaptured" do
+    on      "Seal.CaptureRefused"
+    trigger Seal::Decline, with: { refusal: :refusal }
+  end
+
+  policy "CompactWhenSealed" do
+    on      "Seal.SealRecorded"
+    trigger Era::JournalStore::Apply, with: { run: :run }
+  end
+
+  policy "AbandonWhenSealDeclined" do
+    on      "Seal.SealDeclined"
+    trigger Era::Abandon, with: { era: :run, refusal: :refusal }
+  end
+
+  policy "WalkWhenVerificationRequested" do
+    on      "Audit.VerificationRequested"
+    trigger Audit::Ledger::Walk, with: { run: :run }
+  end
+
+  policy "ConfirmWhenChainWalked" do
+    on      "Audit.ChainWalked"
+    trigger Audit::Confirm, with: { checked: :checked, report: :report }
+  end
+
+  policy "FailWhenWalkRefused" do
+    on      "Audit.WalkRefused"
+    trigger Audit::Fail, with: { report: :refusal }
+  end
+end

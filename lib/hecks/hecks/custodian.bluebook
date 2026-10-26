@@ -1309,8 +1309,12 @@ policy "RecordTheEra" do
     trigger Era::Abandon, with: { refusal: "the journal's facts do not admit this change" }
   end
 
+  # A compaction waits for its seal (ledger.bluebook); every other change is applied at once.
   policy "ChangeWhenPermitted" do
     on      "Era.EraPermitted"
+    where do
+      operation.value != "compact" && operation.value != "compact_heki"
+    end
     trigger Era::JournalStore::Apply, with: { run: :run }
   end
 

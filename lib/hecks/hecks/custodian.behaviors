@@ -1,7 +1,7 @@
 Hecks.behaviors "Custodian" do
   vision "A check and an operation are recorded as requested before anything outside is asked."
 
-  loads "hecks.bluebook", "custodian.bluebook", "tooling.bluebook", "rehearsal.bluebook", "codebase.bluebook", "context_map.hecksagon", "hecks.hecksagon", "environments/memory.world"
+  loads "hecks.bluebook", "custodian.bluebook", "tooling.bluebook", "rehearsal.bluebook", "codebase.bluebook", "ledger.bluebook", "context_map.hecksagon", "hecks.hecksagon", "environments/memory.world"
 
   test "ModelCheck records the request, runs the analysis and keeps a clean verdict" do
     tests "ModelCheck", on: "ModelCheckRun"
@@ -223,5 +223,31 @@ Hecks.behaviors "Custodian" do
     tests "Request", on: "RehearsalRun"
     input run: { value: "rehearse" }, domain: { value: "/tmp/hecks-behaviors-absent/shop" }
     expect emits: %w[RehearsalRequested StoreSurveyed RehearsalWithheld]
+  end
+
+  test "Seal Request with no ledger bound is declined, not left requested" do
+    tests "Request", on: "Seal"
+    input run: { value: "compact-1" }, domain: { value: "examples/pizzas" }
+    expect emits: %w[SealRequested CaptureRefused SealDeclined]
+  end
+
+  test "Seal Record refuses a head that is not a SHA-256 digest" do
+    tests "Record", on: "Seal"
+    input run: { value: "compact-1" }, through: { value: 3 }, head: { value: "not-a-digest" },
+          previous: { value: "0" * 64 }
+    expect refused: "must match"
+  end
+
+  test "Seal Record refuses a seal that covers no row" do
+    tests "Record", on: "Seal"
+    input run: { value: "compact-1" }, through: { value: 0 }, head: { value: "a" * 64 },
+          previous: { value: "0" * 64 }
+    expect refused: "a seal covers at least one row"
+  end
+
+  test "Audit Verify with no ledger bound is unproven, not left requested" do
+    tests "Verify", on: "Audit"
+    input run: { value: "audit-1" }, domain: { value: "examples/pizzas" }
+    expect emits: %w[VerificationRequested WalkRefused ChainUnproven]
   end
 end

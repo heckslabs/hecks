@@ -143,6 +143,22 @@ Hecks.hecksagon "Hecks" do
     answers_query "Compaction"
   end
 
+  Hecks::Seal.port "Ledger" do
+    asks "Capture", to: Seal do
+      attribute :run, SealKey
+      answers "HeadCaptured"
+      refuses "CaptureRefused"
+    end
+  end
+
+  Hecks::Audit.port "Ledger" do
+    asks "Walk", to: Audit do
+      attribute :run, AuditKey
+      answers "ChainWalked"
+      refuses "WalkRefused"
+    end
+  end
+
   Hecks::Package.port "Git" do
     asks "Pin", to: Package do
       attribute :package, PackageRef
