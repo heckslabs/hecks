@@ -1,7 +1,7 @@
 require "spec_helper"
 
 # A decision record's status line says where its decision stands, and often names the files that
-# carry it out. A status that names a path no longer in the tree claims something the tree cannot
+# carry it out. A status that names a path missing from the tree claims something the tree cannot
 # back, so it either names paths that exist or says it is historical: `Superseded`, `Historical`,
 # `Retired`, `Withdrawn` or `Rejected`, with the reason, in the record's opening lines.
 module AdrStatus

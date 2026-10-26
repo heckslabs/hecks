@@ -3,9 +3,9 @@ require "hecks/tools"
 require "hecks/tools/comment_style"
 
 # The style guides state the linter's thresholds in prose. The thresholds are constants of
-# `Hecks::Tools::CommentStyle`, which both linters read, so a number in a guide that no longer
-# matches its constant is a guide that tells people the wrong rule. This holds each number the guides
-# state to the constant that enforces it.
+# `Hecks::Tools::CommentStyle`, which both linters read, so a number in a guide that differs
+# from its constant is a guide that tells people the wrong rule. This holds each number the
+# guides state to the constant that enforces it.
 RSpec.describe "the comment style guides' thresholds" do
   let(:ruby_guide) { File.read(File.join(Hecks::Tools::ROOT, "docs/COMMENT_STYLE_GUIDE.md")) }
   let(:rust_guide) { File.read(File.join(Hecks::Tools::ROOT, "docs/COMMENT_STYLE_GUIDE_RUST.md")) }

@@ -3,7 +3,8 @@ require "hecks"
 # Answers `Prism.canonical` from memory for a block whose file the adapter has already parsed.
 #
 # Every `given`, invariant and identified_by block in a bluebook asks for its own canonical source,
-# and each ask stats the file (`File.readable?`) before looking up the tree it already holds. Booting
+# and each ask stats the file (`File.readable?`) before looking up the tree it already holds.
+# Booting
 # and building domains in specs does that hundreds of thousands of times, so it is the single
 # hottest call in a plain run. Here a block is looked up by its tree and line once; `forget` and
 # `forget_all` drop the tree, so an edited-and-reloaded file is read again. Specs only.

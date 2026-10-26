@@ -4,7 +4,8 @@ require "tmpdir"
 # Constants like `Account::Debit` must resolve at declaration time (ADR 0025, S0b), including
 # with two domains in one registry, where an installed facade constant hides the shim.
 #
-# Fixture names (`ScopedBridge*`) are unusual on purpose: `Adapters::Driving::Ruby.install` sets real
+# Fixture names (`ScopedBridge*`) are unusual on purpose: `Adapters::Driving::Ruby.install` sets
+# real
 # top-level constants that outlive each example in a shared process.
 RSpec.describe "the scoped-constant bridge" do
   ScopedConstant = Hecks::Bluebook::DSL::ConstShim::ScopedConstant

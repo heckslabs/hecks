@@ -67,7 +67,8 @@ module ReadModelSpecHelpers
     bind_governance
   end
 
-  # Boots the Banking corpus on one adapter, optionally reopening its bluebook with extra read models.
+  # Boots the Banking corpus on one adapter, optionally reopening its bluebook with extra read
+  # models.
   #
   # @param adapter [String] the persistence adapter every aggregate is bound to
   # @param extra [Proc, nil] DSL applied to the Banking bluebook after it loads

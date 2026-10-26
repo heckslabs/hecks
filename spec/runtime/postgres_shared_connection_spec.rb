@@ -67,7 +67,8 @@ RSpec.describe "Postgres shares one connection across a domain's aggregates", :i
 
   # Runs a statement on one adapter while another's transaction is held open.
   #
-  # @return [Array] whether the statement was still blocked mid-transaction, and its answer afterward
+  # @return [Array] whether the statement was still blocked mid-transaction, and its answer
+  #   afterward
   def count_while_transaction_open(holder_adapter, other_adapter)
     inside = Queue.new
     release = Queue.new

@@ -743,7 +743,8 @@ RSpec.describe "the generated editor, run by node" do
     end
   end
 
-  # The browser scripts that need no page: the theme the person chose is applied before paint and kept
+  # The browser scripts that need no page: the theme the person chose is applied before paint and
+  # kept
   # where storage allows, and not lost when storage is blocked.
   describe "the theme" do
     it "is applied from the remembered choice, and follows the system when storage is blocked", :aggregate_failures, :process do
@@ -905,7 +906,8 @@ RSpec.describe "the generated editor, run by node" do
     end
   end
 
-  # Pictures kept in another chapter of the project's domain: the Editor row's `media` names it, so a
+  # Pictures kept in another chapter of the project's domain: the Editor row's `media` names it, so
+  # a
   # body in one chapter uses the pictures of the other (the chapter that holds bodies has no picture
   # aggregate of its own, and the picture chapter has no bodies).
   describe "with its pictures in another chapter" do

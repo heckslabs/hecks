@@ -6,7 +6,7 @@ require_relative "doc_banners_spec"
 # A living document names things that exist: repo paths, `hecks <verb>` commands and `Hecks::`
 # constants. Each is a claim the code can answer, so a rename or removal that leaves the document
 # behind fails here. A document that dates itself with a banner (`DocBanners.required`) is a
-# snapshot and is not read, and one that tells the history of a removed name sits in HISTORICAL.
+# snapshot and is not read, and one that tells the history of a removed name sits in `HISTORICAL`.
 module DocReferences
   ROOT = File.expand_path("..", __dir__)
 

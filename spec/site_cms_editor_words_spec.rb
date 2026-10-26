@@ -13,7 +13,8 @@ EDITOR_WORDS_SCENARIO = <<~JS.freeze
   console.log(JSON.stringify({ out, participles }));
 JS
 
-# The rows and verbs the scenario is run with, in a module of their own so no top-level constant is shared.
+# The rows and verbs the scenario is run with, in a module of their own so no top-level constant is
+# shared.
 module EditorWordsTable
   NOTICE_ROWS = [
     ["ScheduledAction", "Schedule", true, "Scheduled action."],

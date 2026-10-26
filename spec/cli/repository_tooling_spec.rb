@@ -24,7 +24,8 @@ RSpec.describe "the repository tooling commands" do
   describe Hecks::CLI::Canonicalise do
     around { |example| Dir.mktmpdir { |dir| (@dir = dir) && example.run } }
 
-    # @return [Array(Integer, String)] the exit status and what was printed for a file holding the JSON
+    # @return [Array(Integer, String)] the exit status and what was printed for a file holding the
+    #   JSON
     def canonicalised(json)
       path = File.join(@dir, "a.json")
       File.write(path, json)

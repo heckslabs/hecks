@@ -9,8 +9,10 @@ require_relative "support/editor_node"
 require_relative "support/editor_fixture_project"
 
 # The editor working on pages of a fixed structure, run under node against a stand-in host
-# (spec/support/editor_stand_in_host.mjs): the form of a working copy that is a value object, a picture
-# slot and a writing box outside a block list, repeated groups that hold groups, how a form is turned
+# (spec/support/editor_stand_in_host.mjs): the form of a working copy that is a value object, a
+# picture
+# slot and a writing box outside a block list, repeated groups that hold groups, how a form is
+# turned
 # back into the command's arguments, and which part of the page a refusal is about. The pure halves
 # (the encoding and the mapping of a refusal) are run over tables.
 FIXED_PAGES_NODE_SCENARIO = <<~JS.freeze
@@ -158,7 +160,8 @@ RSpec.describe "the generated fixed-structure page editor, run by node" do
 
   def result(key) = run.fetch(key)
 
-  # The card of the list named `path` that starts at index `index`, up to the next card of its level.
+  # The card of the list named `path` that starts at index `index`, up to the next card of its
+  # level.
   def card(html, path, index)
     id = "blk-#{path}"
     after = "<li class=\"[^\"]*\" id=\"#{id}-#{index + 1}\"|</ol>\n"
