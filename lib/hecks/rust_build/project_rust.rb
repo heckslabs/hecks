@@ -71,7 +71,7 @@ module Hecks
       end
 
       def prepare_output
-        @rust_dir = ENV.fetch("HECKS_RUST_DIR", File.join(RustBuild::ROOT, "rust"))
+        @rust_dir = RustBuild.rust_dir
         @out_root = File.join(@rust_dir, "src/generated")
         FileUtils.mkdir_p(@out_root)
       end

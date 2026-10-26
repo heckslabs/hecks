@@ -43,11 +43,36 @@ module Hecks
     LOCK = Hecks::Adapters::ConsoleCapture::LOCK
     private_constant :LOCK
 
+    # The fiber-local key holding the workspace `in_workspace` chose.
+    WORKSPACE_KEY = :hecks_rust_build_workspace
+    private_constant :WORKSPACE_KEY
+
     class << self
-      # The workspace tools build in: `HECKS_RUST_DIR`, or the gem's own `rust/`.
+      # The workspace tools build in: the one `in_workspace` names, else `HECKS_RUST_DIR`, else the
+      # gem's own `rust/`.
       #
       # @return [String] the directory
-      def rust_dir = ENV.fetch("HECKS_RUST_DIR", File.join(ROOT, "rust"))
+      def rust_dir = workspace || ENV.fetch("HECKS_RUST_DIR", File.join(ROOT, "rust"))
+
+      # Whether a caller chose the workspace, by `in_workspace` or by `HECKS_RUST_DIR`, rather than
+      # the gem's own `rust/` being the default.
+      #
+      # @return [Boolean]
+      def explicit_workspace? = !workspace.nil? || ENV.key?("HECKS_RUST_DIR")
+
+      # Builds in `dir` for the block. A tool run in this process, or in a process forked from
+      # it, reads the workspace from here, so no environment variable carries it.
+      #
+      # @param dir [String] the workspace
+      # @yield the work to do in it
+      # @return [Object] the block's value
+      def in_workspace(dir)
+        saved = workspace
+        Thread.current[WORKSPACE_KEY] = dir
+        yield
+      ensure
+        Thread.current[WORKSPACE_KEY] = saved
+      end
 
       # Runs a tool with the given environment, writing to the given streams.
       #
@@ -128,6 +153,8 @@ module Hecks
       end
 
       private
+
+      def workspace = Thread.current[WORKSPACE_KEY]
 
       def with_streams(out, err)
         saved = [$stdout, $stderr]
