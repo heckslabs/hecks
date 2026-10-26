@@ -12,7 +12,10 @@ const TABLE: &[(&str, &str)] = &[
     ("digits", r"^[0-9]+$"),
     ("identifier", r"^[A-Za-z][A-Za-z0-9_]*$"),
     ("csv_list", r"^[^ \t\n\r,]+(,[^ \t\n\r,]+)*$"),
-    ("command_ref", r"^[A-Z][A-Za-z0-9]*::[A-Z][A-Za-z0-9]*\.[A-Z][A-Za-z0-9]*$"),
+    (
+        "command_ref",
+        r"^[A-Z][A-Za-z0-9]*::[A-Z][A-Za-z0-9]*\.[A-Z][A-Za-z0-9]*$",
+    ),
     ("host_port", r"^[A-Za-z0-9_-]+(:[0-9]+)?$"),
     ("instance_id", r"^i-[0-9a-f]+$"),
     ("hostname", r"^[A-Za-z0-9][A-Za-z0-9.-]*$"),
