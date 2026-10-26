@@ -92,9 +92,13 @@ is a flag on the era command.
 - `CI`, `HECKS_PRE_PUSH_GATE`: both mean "run the specs strictly" (`spec_helper.rb`,
   `postgres_probe.rb`, `ci_skip_backstop.rb`, `generated_rust.rb`) and nothing in `lib/`
   reads either. `run_spec_example!` takes `strict` (built). A git hook takes no arguments, so
-  the push reaches it as `push_train.board!`'s `full_gate`, which sets
-  `HECKS_PRE_PUSH_GATE` for that push only (built); the hook still reads the variable, as a
-  hand-off. A workflow passes `strict` instead of relying on the provider's `CI`.
+  the push reaches it as `push_train.board!`'s `full_gate`, which pushes with
+  `git -c hecks.fullGate=true` for that push only (built). The pre-push hook and
+  `generated_rust.rb` read `git config --type=bool --get hecks.fullGate`, so
+  `HECKS_PRE_PUSH_GATE` is deprecated (the hook warns, and the variable still counts until a
+  train that sets `hecks.fullGate` has reached every checkout; step 9 removes it), and a
+  repository can keep the full gate on with `git config hecks.fullGate true`. A workflow passes `strict` instead of relying on the
+  provider's `CI`.
 - `HECKS_PUSH_TRAIN=off`: nothing reads it today (no file in this repository or the user's
   hook configuration names it), so there is nothing to retire; the train needs no argument
   for "not running".
