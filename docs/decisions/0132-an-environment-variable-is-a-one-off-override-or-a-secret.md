@@ -63,13 +63,28 @@ domain), `HECKS_SCHEMA`, `HECKS_PROJECT_ENVIRONMENT`, `DATABASE_URL`, `POSTGRES_
 `SHOP_DATABASE_URL` for era tooling, `HECKS_DOMAIN`, `HECKS_SERVICE_URL`, `SITE_URL`,
 `DOMAIN_NAME`.
 
-**Declared as settings (the world or the hecksagon, with defaults):**
-host wiring (`HECKS_SESSION_COOKIE`, `HECKS_ROLE_ENFORCEMENT`, `HECKS_SERVE_MODE`),
-analytics hosts and ids, the OAuth client ids and redirect URIs, smoke settings
-(`SMOKE_CONFIG`), `SETTLE_TIMEOUT_SECS`, `HECKS_CONTRACT_WAIT_SECONDS`,
-`HECKS_CONTRACT_PAYMENTS`. Which adapter and binary to use (`HECKS_COMPOSER_AGENT`,
-`HECKS_JEV`, `QA_MINER_AGENT`) belongs in the hecksagon, not the world. `HECKS_SCAFFOLD`
-is a flag on the era command.
+**Already declared; the variable is only how a generated deploy delivers it:**
+The host's wiring (`HECKS_SESSION_COOKIE`, `HECKS_ROLE_ENFORCEMENT`, `HECKS_SERVE_MODE`,
+`HECKS_DOMAIN`, `HECKS_SCHEMA`), the OAuth ids and redirect URIs, and the analytics settings
+are declared in the deploy block and written into the task definition or CloudFormation
+environment by the deploy projection (`projections/deploy/preview/task_yaml.rb`, the
+`template.yaml.tmpl` files). A person sets none of them; the deployed Rust host reads its
+environment, as it reads `HECKS_IR_PATH`. So the question of where host wiring is declared
+is answered, and there is nothing to move: the deploy block declares it and the environment
+carries it to a process that has no other channel.
+
+**Interface of the generated scripts (moves with them, in one change):**
+`SMOKE_CONFIG`, `SETTLE_TIMEOUT_SECS`, `SKIP_POST_DEPLOY_SMOKE`, `LOCAL_IMAGE`,
+`SMOKE_BY_COMMAND` and `EXISTING_TAG` are the knobs of `deploy-service.sh`,
+`smoke-after-deploy.sh` and the smoke harness. They become flags together when the scripts
+take flags.
+
+**Tooling choices, overrides with a computed default:** `HECKS_JEV` (the `jev` binary, on
+`PATH` by default) and `QA_MINER_AGENT` (the command `QaSettings` names). `corpus_run.compose`
+takes an `agent` argument (`claude` or `fake`), which replaced `HECKS_COMPOSER_AGENT`.
+`HECKS_SCAFFOLD` is a flag on the era command, and
+`HECKS_CONTRACT_WAIT_SECONDS` and `HECKS_CONTRACT_PAYMENTS` belong to the client package's
+contract test.
 
 **Arguments of the command that runs (retire the variable):**
 - `GOLDEN=rewrite`, `EXISTING_TAG`: a hecks command already hands each to its child
@@ -87,14 +102,22 @@ is a flag on the era command.
   as `--no-prebuilt` (built).
 - `HECKS_ENVIRONMENT`: the world declares the default per command, as `MEMORY_COMMANDS`
   and `hecks.world` already do for the launcher; `run_spec_example!` needs the argument.
-- `HECKS_CLOUDFRONT_TEST`: a tag filter on the spec-run command.
+- `HECKS_CLOUDFRONT_TEST`: the `tags` argument of `run_spec_example!` (`--tag cloudfront`);
+  `spec_helper` always leaves the group out, and RSpec's own tag filter asks for it.
+- `HECKS_NO_DECLARATION_CACHE`: the `declaration_cache` argument of `run_spec_example!`.
+- `HOST_FUZZ_SEEDS`, `JSON_FUZZ_SEEDS`, `HECKS_PARSE_FUZZ_ITERATIONS`, `HECKS_PARSE_FUZZ_SEED`:
+  the `seeds` and `seed_start` arguments of `test_suite_run.run_cargo_tests!` (`crate` is
+  `host`, `parser` or `json`), which sets the variable the crate's fuzzer reads for that run.
 - `PROPERTY_SEEDS`: a seeds argument on the spec-run command, which sets it for the child.
 - `CI`, `HECKS_PRE_PUSH_GATE`: both mean "run the specs strictly" (`spec_helper.rb`,
   `postgres_probe.rb`, `ci_skip_backstop.rb`, `generated_rust.rb`) and nothing in `lib/`
   reads either. `run_spec_example!` takes `strict` (built). A git hook takes no arguments, so
-  the push reaches it as `push_train.board!`'s `full_gate`, which sets
-  `HECKS_PRE_PUSH_GATE` for that push only (built); the hook still reads the variable, as a
-  hand-off. A workflow passes `strict` instead of relying on the provider's `CI`.
+  the push reaches it as `push_train.board!`'s `full_gate`, which pushes with
+  `git -c hecks.fullGate=true` for that push only (built). The pre-push hook and
+  `generated_rust.rb` read `git config --type=bool --get hecks.fullGate`, so
+  `HECKS_PRE_PUSH_GATE` is retired (nothing reads it; `hecks config` reports it as ignored
+  when set), and a repository can keep the full gate on with `git config hecks.fullGate true`. A
+  workflow passes `strict` instead of relying on the provider's `CI`.
 - `HECKS_PUSH_TRAIN=off`: nothing reads it today (no file in this repository or the user's
   hook configuration names it), so there is nothing to retire; the train needs no argument
   for "not running".
@@ -102,20 +125,27 @@ is a flag on the era command.
 **Retired outright:**
 - `HECKS_EVAL=string` forced the text path of rule evaluation. No spec or workflow set it
   and it compared nothing; the switch and its branch are removed.
-- `HECKS_SYNTAX_BOOT_CACHE=off`, `HECKS_VERDICT_CACHE=off`, `HECKS_NO_USAGE_CACHE`: each
-  turned a disk cache off to rule it out. `test_suite_run.clear_caches!` empties all three
-  caches instead. The variables still work and warn once; they are removed a release
-  later.
+- `HECKS_PRE_PUSH_GATE`: replaced by `git config hecks.fullGate`; the hook and
+  `generated_rust.rb` no longer read it.
+
+**Test switches, kept:** `HECKS_SYNTAX_BOOT_CACHE=off`, `HECKS_VERDICT_CACHE=off` and
+`HECKS_NO_USAGE_CACHE` each turn a disk cache off for a child process that must boot
+uncached (`verdict_cache_spec`, `syntax_boot_memo_spec`, `cache_dir_spec`,
+`usage_cache_spec`). A person ruling a cache out as the cause empties it with
+`test_suite_run.clear_caches!`, so the switches are not deprecated and do not warn: they are
+how a test process, which no hecks command starts, asks for the uncached path.
 
 **Kept (the whole remaining list):**
 - *Overrides with a derived default, nobody needs to set:* `HECKS_RUST_DIR`,
   `CARGO_TARGET_DIR`, `HECKS_CACHE_DIR`, `HECKS_STOREHOUSE_ROOT`, `HECKS_QA_SETTINGS_PATH`,
   `QA_REPO_DIR`, `HECKS_PARSE_BIN`, `HECKS_VALIDATE_HARNESS`, `EMBRYONAUT_BLUEBOOKS_SRC`.
-- *Interface of a deployed host:* `HECKS_IR_PATH`, `HECKS_WASM_PATH`.
-- *Per-run, with no hecks command that runs them:* `HOST_FUZZ_SEEDS`, `JSON_FUZZ_SEEDS`,
-  `HECKS_PARSE_FUZZ_SEED`, `HECKS_PARSE_FUZZ_ITERATIONS`. They widen a plain `cargo test`
-  fuzz run and CI never sets them. A command wrapping `cargo test` could carry them as
-  arguments later.
+- *Interface of a deployed host, written by the generated deploy:* `HECKS_IR_PATH`,
+  `HECKS_WASM_PATH`, `HECKS_SESSION_COOKIE`, `HECKS_ROLE_ENFORCEMENT`, `HECKS_SERVE_MODE`,
+  `HECKS_DOMAIN`, `HECKS_SCHEMA`, `DOMAIN_NAME`, the OAuth ids and redirect URIs.
+- *Tooling overrides:* `HECKS_JEV`, `QA_MINER_AGENT`.
+- *Read by the Rust fuzzers, set by `run_cargo_tests!` for its child:* `HOST_FUZZ_SEEDS`,
+  `JSON_FUZZ_SEEDS`, `HECKS_PARSE_FUZZ_SEED`, `HECKS_PARSE_FUZZ_ITERATIONS`. A plain
+  `cargo test` still reads them, and CI never sets them.
 - *Secrets, from 1Password:* the analytics reader password, `API_TOKEN`, `AUTH_SECRET`,
   `SESSION_SECRET*`, `PAYMENT_WEBHOOK_SECRET`, `GOOGLE_CLIENT_SECRET`, `PGPASSWORD`. A
   world file names the 1Password item, never the value.
@@ -126,14 +156,13 @@ is a flag on the era command.
 **Not configuration:** `CAPTURE_LOCK_A`, `HECKS_RELEASE_SPEC` and `VERBS` are values a
 spec invents to prove a child process sees its environment. `HECKS_NO_DECLARATION_CACHE`
 turns off a per-process in-memory memo in `spec/support/declaration_cache.rb`, which no
-command can clear; it stays a spec-support switch until the spec runner takes an argument
-for it.
+command can clear, so `run_spec_example!`'s `declaration_cache` argument sets it for the run.
 
 ## Order of work
 
-1. Done on this branch: `HECKS_EVAL` and the `SEEDS`/`STEPS` fallback removed; the cache
-   switches warn; `test_suite_run.clear_caches!` empties the syntax-boot, verdict and usage
-   caches.
+1. Done: `HECKS_EVAL` and the `SEEDS`/`STEPS` fallback removed; `HECKS_PRE_PUSH_GATE`
+   retired; `test_suite_run.clear_caches!` empties the syntax-boot, verdict and usage caches,
+   and the three cache switches remain as test switches.
 2. Derived variables: done for the registry source (`EMBRYONAUT_BLUEBOOKS_SRC` now has a
    sibling-checkout default). The rest were already derived with an override, and stay
    overrides (see the classification); `HECKS_RUST_DIR` becoming an explicit workspace
@@ -141,15 +170,60 @@ for it.
    beside the host binary, are separate changes.
 3. Arguments: `profile` and `prebuilt` are built, and `run_spec_example!` takes `strict`,
    `seeds` and `environment`, which set `CI`, `PROPERTY_SEEDS` and `HECKS_ENVIRONMENT` for
-   that run only, and `push_train.board!` takes `full_gate`. Still to build: a tag filter
-   for `HECKS_CLOUDFRONT_TEST`.
+   that run only, and `push_train.board!` takes `full_gate`. `run_spec_example!` also takes
+   `tags` and `declaration_cache`, `corpus_run.compose` takes `agent`, and
+   `test_suite_run.run_cargo_tests!` carries the Rust fuzz seed counts.
 4. World-declared variables: `environments/*.world` becomes the one place a copy says
-   what it connects to.
-5. Declared settings: needs a decision on where in the hecksagon they are written.
+   what it connects to. `hecks config` (the `Checkout.Settings` query, built) prints each
+   setting, its value with any password hidden, and which source supplied it: the variable,
+   the copy's `environments/local.world`, or the world. `HECKS_DATABASE` is not retired: an
+   installed gem's Hecks domain has no copy to hold an `environments/local.world`, so the
+   variable is how a client points that domain at their own Postgres (`hecks.world` says so).
+   What went wrong was a *global* export that every checkout inherited, and that is gone:
+   the push train's launcher names its records database in its own `local.world`
+   (`hecks_train`), the export is removed from `~/.zshenv`, and `hecks config` shows which
+   source supplies the value. A superseded boot no longer restores era 1's head views.
+5. Declared settings: surveyed, nothing to move. The host wiring is already declared in the
+   deploy block and delivered by the generated environment; the script knobs move with the
+   scripts; the three tooling choices stay overrides.
 
 ## Consequences
 
 - A fresh copy runs with no shell setup.
 - A variable that is still read but not listed above is a finding the gate can report.
 - `HECKS_DATABASE` set globally in a shell, which once let dev checkouts boot newer
-  bluebooks against the records database, stops being possible by construction.
+  bluebooks against the records database, is gone from the shell profile, and `hecks config`
+  shows which source supplies the value.
+
+## The shape ledger
+
+A shape that changed without its translation edge reached `main` green, because specs and gates
+run on the memory environment, where eras do not exist, and a database then refused every boot.
+`lib/hecks/hecks/shapes.json` records each chapter's storage-shape hash, and
+`conformance_run.check_shape_ledger` (a gate check in `unguarded_push`, `pre_push` and `ci`)
+holds the loaded chapters against it with no database: a hash that differs needs a committed
+translation edge from the ledgered one, the failure prints the edge to write, and `--confirm`
+rewrites the ledger only when every moved chapter has such an edge. `--confirm --additive`
+settles a change that only adds in one step, writing the empty edge and moving the ledger; the
+mint audits every edge against the records it migrates, so one that would lose data is refused
+there. This replaces the `HECKS_SCAFFOLD=1` escape hatch of the boot refusal for the additive
+case; a change that renames or reshapes data still needs rules a person decides. A boot that is superseded no
+longer restores era 1's head views (`Boot#provision!`), and the push train's launcher refresh
+names the file that keeps it from moving.
+
+**Minting is a setting, `mint_eras`.** Only `check!` at boot mints a new era (the admitted
+`era.*` flow holds the first era, merges tails, compacts and re-attests; it never migrates to a new
+shape). A world declares `mint_eras true` or `false` in its `persisted_by("PostgresEra")` block,
+which also works from an `environments/local.world` overlay, and `hecks config` reports it. A copy
+that may not mint is refused with the instruction, after its edge is found and before anything is
+written, and the database stays on the era it holds. Holding the first era of an empty database is
+always allowed. The default is `EraResolver::MINT_BY_DEFAULT`, still `true`: a push cannot both
+declare the field and require it, because the launcher's current code rejects a setting its adapter
+does not declare. So the order is: push the field; add `mint_eras true` to the launcher's overlay
+once it has refreshed; then flip `MINT_BY_DEFAULT` to `false`, after which only a copy that says so
+can migrate a database. The Rust host mints at boot as the deployed minter and is not affected.
+
+Not built: a role that dev checkouts cannot mint with, a snapshot before the launcher first boots
+a new shape, and rehearsing shape changes in CI (the `rehearsal_run` commands need a Postgres the
+gate does not have). Each needs database administration or a CI run, so they are their own
+changes.

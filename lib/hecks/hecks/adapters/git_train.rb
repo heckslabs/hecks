@@ -34,16 +34,16 @@ module Hecks
       #
       # @param held [Hash] the `PushTrain` record: `branch`, `remote`, `checkout` (a directory
       #   inside the repository; the current directory when none is named) and `full_gate` (the
-      #   push runs the whole pre-push stage, which the hook reads from `HECKS_PRE_PUSH_GATE`)
+      #   push runs the whole pre-push stage, which the hook reads as `hecks.fullGate`)
       # @return [Hash{Symbol => Hash}] `outcome:` (`pushed` or `carried`), `checkout:`, `boarded:`,
       #   `pushed:` and `report:`
       # @raise [ConsoleCapture::Failure] when the checkout is not a repository, the branch and the
       #   remote's conflict, or the push is refused
       def carry(**held)
         @checkout = toplevel(plain(held[:checkout]) || Dir.pwd)
-        carriage = Carriage.new(@git, @checkout, branch:   plain(held[:branch]) || "main",
-                                                 remote:   plain(held[:remote]) || "origin",
-                                                 hook_env: hook_env(held))
+        carriage = Carriage.new(@git, @checkout, branch: plain(held[:branch]) || "main",
+                                                 remote: plain(held[:remote]) || "origin",
+                                                 config: gate_config(held))
         boarded = carriage.local_head
         in_turn { carriage.carry(boarded) }
       end
@@ -64,9 +64,9 @@ module Hecks
 
       private
 
-      # A git hook takes no arguments, so the argument reaches the pre-push hook as the variable it
-      # reads, for this push only.
-      def hook_env(held) = plain(held[:full_gate]) == true ? { "HECKS_PRE_PUSH_GATE" => "1" } : {}
+      # A git hook takes no arguments, so the argument reaches the pre-push hook as git
+      # configuration, for this push only (`git -c`).
+      def gate_config(held) = plain(held[:full_gate]) == true ? ["-c", "hecks.fullGate=true"] : []
 
       def in_turn
         path = File.join(read("rev-parse", "--path-format=absolute", "--git-common-dir"), LOCK_FILE)

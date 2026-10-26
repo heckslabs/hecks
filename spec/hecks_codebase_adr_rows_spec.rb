@@ -49,6 +49,12 @@ RSpec.describe "the Codebase rows of the ADR table" do
     AdrRow.new(script: "refresh_rspec_runtime_baseline", verbs: %w[refresh_runtime_baseline]),
     AdrRow.new(script: "spec_example", verbs: %w[run_spec_example]),
     AdrRow.new(script: "stress_concurrency_specs", verbs: %w[stress_concurrency]),
+    AdrRow.new(script: "run_cargo_tests", verbs: %w[run_cargo_tests],
+               note: "no bin script: it runs cargo test for the host, the parser or the JSON fuzzer with the " \
+                     "seed counts as arguments, which set the variables those fuzzers read"),
+    AdrRow.new(script: "check_shape_ledger", verbs: %w[check_shape_ledger],
+               note: "no bin script: it holds each chapter's storage shape against the committed ledger and the " \
+                     "translation edges, with no database, and rewrites the ledger only when confirmed"),
     AdrRow.new(script: "clear_caches", verbs: %w[clear_caches],
                note: "no bin script: it deletes the syntax-boot and verdict caches, which turning them off " \
                      "with HECKS_SYNTAX_BOOT_CACHE=off or HECKS_VERDICT_CACHE=off used to rule out"),

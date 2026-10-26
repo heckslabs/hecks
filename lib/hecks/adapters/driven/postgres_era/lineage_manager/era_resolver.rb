@@ -10,6 +10,11 @@ module Hecks
         # Boot-time era resolution: first boot holds era 1, a quiet reboot changes nothing,
         # a superseded shape boots read-only, an unheld shape goes to the minter.
         module EraResolver
+          # Whether this copy may mint when its world says nothing about it. True until every copy
+          # that migrates a database declares `mint_eras true`; then false, so a copy that was not
+          # told refuses, and only the copy that owns a database moves it.
+          MINT_BY_DEFAULT = true
+
           # Resolves which era this boot is and records it on the registry.
           #
           # @return [Integer, nil] the ordinal minted, or nil when this boot minted nothing
@@ -25,12 +30,18 @@ module Hecks
             # key? first, never `||`: a stored `false` must not read as an absent key.
             role = IndifferentKey.read(settings, :role)
             resolve_era(Context.new(registry: registry, bluebook: bluebook, current_text: current_text,
-                                    lineage: lineage, role: role, directory: directory))
+                                    lineage: lineage, role: role, directory: directory,
+                                    mint_permitted: mint_permitted?(settings)))
           ensure
             db&.close
           end
 
           private
+
+          # Whether the world allows minting, spelled as a boolean or as the word.
+          def mint_permitted?(settings)
+            [true, "true"].include?(PostgresEra.setting(settings, :mint_eras, default: MINT_BY_DEFAULT))
+          end
 
           def resolve_era(context)
             held = context.held_eras

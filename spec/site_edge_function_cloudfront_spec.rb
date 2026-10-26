@@ -12,8 +12,8 @@ require "hecks/tools/site_routes"
 # every request there (`pcre_compile(...) failed: disallowed Unicode code point`).
 #
 # The first group is a static guard that always runs. The second runs the function through
-# `aws cloudfront test-function` on a throwaway function and is left out unless
-# `HECKS_CLOUDFRONT_TEST=1` is set and the AWS CLI has credentials.
+# `aws cloudfront test-function` on a throwaway function and is left out unless it is asked for by
+# tag (`--tag cloudfront`) and the AWS CLI has credentials.
 RSpec.describe "the generated redirect_host function, for CloudFront's runtime" do
   let(:rendered) { Hecks::Projections::Site::Edge::FunctionCode.code(fixture_function) }
   let(:fixture_function) do
@@ -119,7 +119,7 @@ RSpec.describe "the generated redirect_host function, for CloudFront's runtime" 
 
     before do
       _, status = Open3.capture2("aws", "sts", "get-caller-identity")
-      skip "HECKS_CLOUDFRONT_TEST=1 is set but the AWS CLI has no credentials" unless status.success?
+      skip "the cloudfront tag was asked for but the AWS CLI has no credentials" unless status.success?
     end
 
     def host = fixture_function.host

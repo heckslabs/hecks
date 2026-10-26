@@ -32,16 +32,22 @@ module Hecks
       # @raise [Failure] when the target is not installed, the profile is unknown or a step fails
       def call(argv)
         domain = argv.find { |arg| !arg.start_with?("--") } or raise Failure, "usage: hecks build_wasm <domain>"
-        name = argv.filter_map { |arg| arg.delete_prefix("--profile=") if arg.start_with?("--profile=") }.last
-        profile(name || "release")
+        name = profile_name(argv)
+        profile(name)
 
         require_target!
         rust_dir = RustBuild.rust_dir
         scratch = scratch_copy(rust_dir)
         regenerate(scratch, domain)
-        compile(scratch, name || "release")
-        publish(scratch, rust_dir, File.basename(domain), name || "release")
+        compile(scratch, name)
+        publish(scratch, rust_dir, File.basename(domain), name)
         0
+      end
+
+      # @param argv [Array<String>] the tool's arguments
+      # @return [String] the `--profile=<name>` value, `release` when none is named
+      def profile_name(argv)
+        argv.filter_map { |arg| arg.delete_prefix("--profile=") if arg.start_with?("--profile=") }.last || "release"
       end
 
       def regenerate(scratch, domain)

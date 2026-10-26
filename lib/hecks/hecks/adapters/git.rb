@@ -31,22 +31,21 @@ module Hecks
       #
       # @param args [Array<String>] the git subcommand and its arguments
       # @param chdir [String, nil] the directory to run in
-      # @param env [Hash{String => String}] variables for this call only, such as a hook reads
       # @return [Shell::Result] what git said and how it ended
-      def capture(*, chdir: nil, env: {})
-        @shell.capture("git", *, env: Vendoring::GitEnvironment.clean.merge(env), chdir: chdir)
+      def capture(*, chdir: nil)
+        @shell.capture("git", *, env: Vendoring::GitEnvironment.clean, chdir: chdir)
       end
 
       # Vendors one package of the bluebook registry into a project, pinned to a release or a
       # commit, through `Hecks::EmbryonautBluebook::VendorCli`.
       #
       # The source is `from`, else `EMBRYONAUT_BLUEBOOKS_SRC`, else the `embryonaut_bluebooks`
-      # checkout beside the project; the project is `root`, else the current directory. `ALLOW_DOWNGRADE=1` lets an older release through, as for the script.
+      # checkout beside the project; the project is `root`, else the current directory.
+      # `ALLOW_DOWNGRADE=1` lets an older release through, as for the script.
       #
       # @param held [Hash] the `Package` record: `package` (`name` or `name@version-or-commit`),
       #   `from` and `root`
-      # @return [Hash{Symbol => Hash}] `report:` what was vendored and whether its storage shape
-      #   changed
+      # @return [Hash{Symbol => Hash}] `report:` what was vendored and whether its shape changed
       # @raise [ConsoleCapture::Failure] when the source is not a git repository, or the vendoring
       #   was refused (no such release, a downgrade, an era-breaking shape change)
       def pin(**held)

@@ -57,33 +57,34 @@ RSpec.describe Hecks::Adapters::GitTrain, :io do
 
   after { FileUtils.remove_entry(scratch) }
 
-  # A pre-push hook that records the variable the repository's real hook reads to pick its stage.
-  def record_gate_variable
+  # A pre-push hook that records the git configuration the repository's real hook reads to pick its stage.
+  def record_gate_config
     hooks = File.join(scratch, "hooks")
     FileUtils.mkdir_p(hooks)
     hook = File.join(hooks, "pre-push")
-    File.write(hook, "#!/bin/sh\nprintf '%s' \"${HECKS_PRE_PUSH_GATE:-}\" > #{File.join(scratch, "gate")}\n")
+    recorded = File.join(scratch, "gate")
+    File.write(hook, "#!/bin/sh\nprintf '%s' \"$(git config --type=bool --get hecks.fullGate)\" > #{recorded}\n")
     FileUtils.chmod("+x", hook)
     git("config", "core.hooksPath", hooks)
   end
 
   # What the recording hook saw after a boarding of one new commit.
-  def gate_variable_after(commit_name, **args)
+  def gate_config_after(commit_name, **args)
     commit(commit_name)
     described_class.new.carry(checkout: { value: work }, **args)
     File.read(File.join(scratch, "gate"))
   end
 
   it "leaves the pre-push hook its default gate when the boarding does not ask" do
-    record_gate_variable
+    record_gate_config
 
-    expect(gate_variable_after("second")).to eq("")
+    expect(gate_config_after("second")).to eq("")
   end
 
   it "hands the pre-push hook the whole gate when the boarding asks for it" do
-    record_gate_variable
+    record_gate_config
 
-    expect(gate_variable_after("third", full_gate: { value: true })).to eq("1")
+    expect(gate_config_after("third", full_gate: { value: true })).to eq("true")
   end
 
   it "pushes the local branch and says how many commits went out", :aggregate_failures do

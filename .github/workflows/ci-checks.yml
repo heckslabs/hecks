@@ -170,6 +170,12 @@ jobs:
         if: steps.attest.outputs.attested != 'true'
         run: bundle exec exe/hecks gate_run.gate stage=ci only=engine_agreement --wait
 
+      # Compares each chapter's storage shape with the committed ledger, and a shape that moved
+      # with the translation edges that lead to it. Reads the loaded chapters, never a database,
+      # and no attestation names it, so it runs whether or not the push was attested.
+      - name: shape ledger
+        run: bundle exec exe/hecks gate_run.gate stage=ci only=shape_ledger --wait
+
       # Lints a generated deploy Makefile's text for a command whose exit
       # status isn't checked, or real AWS/DB work with no echo/validation
       # telling the human running it what's about to happen. Generates 3

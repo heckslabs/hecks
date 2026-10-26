@@ -8,6 +8,10 @@ Hecks.adapter "PostgresEra" do
   # Opt-in to boot over a superuser or BYPASSRLS role, which the era write fence cannot
   # bite. Refused by default; see `Lineage#check_fence_applies!`.
   field :allow_superuser
+  # Whether this copy may migrate the database to a newer storage shape at boot, by minting the
+  # next era through a translation edge. `false` refuses; unset follows
+  # `LineageManager::EraResolver::MINT_BY_DEFAULT`; see `Refusals#refuse_unpermitted_mint!`.
+  field :mint_eras
   # Rewrites every row of an aggregate in one statement, on the same SQL path as Postgres.
   provides "set_transform"
 end

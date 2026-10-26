@@ -47,11 +47,17 @@ module Hecks
       def left_as_is(held)
         return "not a git checkout" unless git("rev-parse", "--git-dir").ok?
         return "on a branch, not detached" if git("symbolic-ref", "-q", "HEAD").ok?
-        return "has local edits" unless git("status", "--porcelain").out.strip.empty?
+        return "has local edits (#{first_edit})" if first_edit
         return "a checkout of another repository" unless same_repository?(held)
 
         nil
       end
+
+      # The first changed or untracked path, as `git status --porcelain` writes it, so the report
+      # says which file keeps the copy from moving.
+      def first_edit = status_lines.first&.strip
+
+      def status_lines = git("status", "--porcelain").out.lines
 
       def same_repository?(held)
         pushed_to = @git.capture("remote", "get-url", plain(held[:remote]), chdir: plain(held[:checkout]))
