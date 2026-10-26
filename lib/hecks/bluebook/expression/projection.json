@@ -245,6 +245,12 @@
       "category": "arithmetic",
       "precedence": 7,
       "arity": 2
+    },
+    {
+      "symbol": ".sum",
+      "category": "enumeration",
+      "precedence": 10,
+      "arity": 2
     }
   ],
   "normalisations": [

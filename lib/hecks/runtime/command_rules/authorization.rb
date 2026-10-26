@@ -24,22 +24,24 @@ module Hecks
         def refuse_role_mismatch(command, domain)
           caller = Caller.current
           return unless caller
-          return if command.role.to_s.empty?
 
-          return if role_held?(caller, command, domain)
+          roles = command.role_set
+          return if roles.empty?
+
+          return if roles.any? { |role| role_held?(caller, role, domain) }
 
           raise Unauthorized, RefusalWording.render_site("Unauthorized", "role_mismatch",
-                                                         command: command.hecks_name, role: command.role,
+                                                         command: command.hecks_name, role: roles.join(" or "),
                                                          caller_role: caller.role)
         end
 
         private
 
         # An identified caller holds the role by a live grant; an unidentified one by its string.
-        def role_held?(caller, command, domain)
-          return caller.role == command.role unless caller.actor_id && governance_attached?(domain)
+        def role_held?(caller, role, domain)
+          return caller.role == role unless caller.actor_id && governance_attached?(domain)
 
-          Ports::Authorization.holds_role?(registry, actor_id: caller.actor_id, role: command.role,
+          Ports::Authorization.holds_role?(registry, actor_id: caller.actor_id, role: role,
                                                      as_of: caller.as_of, scope: caller.scope)
         end
 

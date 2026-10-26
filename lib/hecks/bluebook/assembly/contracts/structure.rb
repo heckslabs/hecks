@@ -54,6 +54,7 @@ module Hecks
           fields: {
             name:       [:name,       :plain],
             role:       [:role,       :plain],
+            roles:      [:roles,      :plain],
             goal:       [:goal,       :plain],
             references: [:references, :plain],
             attributes: [:attributes, [:each, :shape_field]],
@@ -69,7 +70,8 @@ module Hecks
           },
           rows: { mutations: :mutation_rows },
           reads: { attributes: [:each, :shape_field], givens: [:each, :rule], ensures: [:each, :rule],
-                  needs: [:each, :need], mutations: [:call, :mutations], emits: :names, provenance: :provenance,
+                  needs: [:each, :need], mutations: [:call, :mutations], emits: :names, roles: :names,
+                  provenance: :provenance,
                   from: :from, idempotent: :idempotent? },
           derived: { position: :walk }
         ),

@@ -63,7 +63,8 @@ module InMemoryDomain
   #   adapter's own load result (single file or directory)
   def load_bluebook_files(path)
     if path.is_a?(Array)
-      Hecks::Bluebook::MetaValidator.defer { path.each { |file| Kernel.load(file) } }
+      folder = Hecks::Adapters::Folder.new
+      Hecks::Bluebook::MetaValidator.defer { path.each { |file| folder.load_file(file) } }
       return Hecks::Bluebook::MetaValidator.judge_deferred!(Hecks.current_registry)
     end
 

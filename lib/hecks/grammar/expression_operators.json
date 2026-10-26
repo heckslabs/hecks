@@ -3296,6 +3296,54 @@
           "value": "(a - ((a % b) + b) % b) / b"
         }
       }
+    },
+    {
+      "verb": "Expression::Operator.Propose",
+      "args": {
+        "symbol": {
+          "value": ".sum"
+        },
+        "category": {
+          "value": "enumeration"
+        },
+        "precedence": {
+          "value": 10
+        },
+        "arity": {
+          "value": 2
+        },
+        "grammar": {
+          "value": "inner"
+        },
+        "strategy": {
+          "value": "block_pattern_match"
+        },
+        "position": {
+          "value": 29
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".sum"
+        },
+        "target": {
+          "value": "ruby"
+        },
+        "form": {
+          "value": "a.sum { |x| e }"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Admit",
+      "args": {
+        "symbol": {
+          "value": ".sum"
+        }
+      }
     }
   ]
 }

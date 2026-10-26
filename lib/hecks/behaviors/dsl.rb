@@ -17,6 +17,7 @@ module Hecks
         @setups        = []
         @input         = {}
         @expect        = {}
+        @role          = nil
       end
 
       # Records which command or query this test exercises.
@@ -35,11 +36,20 @@ module Hecks
       # Records one setup command to dispatch before the test itself runs.
       #
       # @param command [String, Symbol] the setup command's verb
+      # @param as [String, nil] the role the dispatch runs as; unchecked when nil, as a
+      #   command's `role` only binds a caller that states one
       # @param kwargs [Hash{Symbol => Object}] the setup command's own arguments
       # @return [void]
-      def setup(command, **kwargs)
-        @setups << TestSetup.new(command: command, args: kwargs)
+      def setup(command, as: nil, **kwargs)
+        @setups << TestSetup.new(command: command, args: kwargs, role: as)
       end
+
+      # Runs the tested command as a caller holding `role`, so the command's own `role` is
+      # checked against it.
+      #
+      # @param role [String] the role the tested dispatch runs as
+      # @return [String] `role`
+      def as(role) = @role = role
 
       # Merges fields into the arguments the tested command or query is called with.
       #
@@ -69,7 +79,7 @@ module Hecks
 
         TestCase.new(description: @description, tests_command: @tests_command,
                      on_aggregate: @on_aggregate, kind: @kind,
-                     setups: @setups, input: @input, expect: @expect)
+                     setups: @setups, input: @input, expect: @expect, role: @role)
       end
 
       private

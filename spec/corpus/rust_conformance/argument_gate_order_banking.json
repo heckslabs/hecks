@@ -1944,7 +1944,7 @@
       },
       {
         "verb": "Banking::Account.Credit",
-        "error": "Credit refused — role: Teller, and the caller stated a role this caller does not hold",
+        "error": "Credit refused — role: Teller or Branch clerk, and the caller stated a role this caller does not hold",
         "kind": "Unauthorized"
       },
       {

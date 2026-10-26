@@ -283,6 +283,86 @@ pub fn check_role_via(
     ))
 }
 
+/// Refuses with `Unauthorized` unless the caller may run a command that any one of `command_roles`
+/// may run.
+///
+/// Each role is judged as `check_role_via` judges one; the first that lets the caller through
+/// settles it. When none does, the refusal names them all (`A or B`), as Ruby's does. A caller who
+/// is not checked at all (no stated role, no identified actor) is let through by any of them.
+pub fn check_roles_via(
+    command_roles: &[&str],
+    command_name: &str,
+    caller_role: Option<&str>,
+    caller_actor_id: Option<&str>,
+    store: &impl AggregateScan,
+    queries: &[super::QueryDef],
+    assignments: Option<&str>,
+) -> Result<(), super::Refusal> {
+    let refused = command_roles.iter().all(|role| {
+        check_role_via(
+            Some(role),
+            command_name,
+            caller_role,
+            caller_actor_id,
+            store,
+            queries,
+            assignments,
+        )
+        .is_err()
+    });
+    if !refused {
+        return Ok(());
+    }
+    let joined = command_roles.join(" or ");
+    Err(super::Refusal::Unauthorized(
+        super::refusal_wording::UnauthorizedRoleMismatchArgs {
+            command: command_name,
+            role: &joined,
+            caller_role: caller_role.unwrap_or("no assigned role"),
+        }
+        .render_args(),
+    ))
+}
+
+#[cfg(test)]
+mod check_roles_via_tests {
+    use super::{check_roles_via, AggregateScan};
+
+    struct NoStore;
+    impl AggregateScan for NoStore {}
+
+    fn check(roles: &[&str], caller: Option<&str>) -> Result<(), String> {
+        check_roles_via(roles, "Open", caller, None, &NoStore, &[], None).map_err(|refusal| refusal.to_string())
+    }
+
+    #[test]
+    fn a_caller_holding_any_of_the_roles_is_let_through() {
+        assert_eq!(check(&["Customer", "Sales Rep"], Some("Customer")), Ok(()));
+        assert_eq!(check(&["Customer", "Sales Rep"], Some("Sales Rep")), Ok(()));
+    }
+
+    #[test]
+    fn a_caller_holding_none_is_refused_with_every_role_named() {
+        assert_eq!(
+            check(&["Customer", "Sales Rep"], Some("Viewer")),
+            Err("Open refused — role: Customer or Sales Rep, and the caller stated Viewer".to_string())
+        );
+    }
+
+    #[test]
+    fn a_caller_who_states_no_role_is_not_checked_as_ever() {
+        assert_eq!(check(&["Customer", "Sales Rep"], None), Ok(()));
+    }
+
+    #[test]
+    fn one_role_refuses_exactly_as_check_role_via_does() {
+        assert_eq!(
+            check(&["Agent"], Some("Customer")),
+            Err("Open refused — role: Agent, and the caller stated Customer".to_string())
+        );
+    }
+}
+
 // End-to-end pin of `filter_entries_cross_domain` against the scenario in
 // spec/query_none_in_state_growth_spec.rb, which expects surviving ids `c2` and `nonexistent`.
 #[cfg(test)]

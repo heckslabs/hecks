@@ -295,8 +295,9 @@ mod sum_tests {
 }
 
 // Ruby's `Integer#+` promotes to Bignum; an `i64` cannot, so `checked_add` refuses on overflow
-// instead of panicking (debug) or wrapping (release).
-fn sum(lhs: &Value, rhs: &Value) -> Result<Value, Refusal> {
+// instead of panicking (debug) or wrapping (release). Shared with `enumeration.rs`, whose
+// `.sum { }` adds its terms one at a time exactly as `+` does.
+pub fn sum(lhs: &Value, rhs: &Value) -> Result<Value, Refusal> {
     if let (Value::Int(l), Value::Int(r)) = (lhs, rhs) {
         return l.checked_add(*r).map(Value::Int).ok_or_else(|| {
             eval_error(format!(

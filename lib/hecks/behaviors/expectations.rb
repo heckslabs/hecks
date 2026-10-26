@@ -1,5 +1,6 @@
 require_relative "ir"
 require_relative "../runtime/loader"
+require_relative "../runtime/caller"
 require_relative "../runtime/errors"
 require_relative "../runtime/value"
 require_relative "../runtime/reaction_invocation"
@@ -60,11 +61,23 @@ module Hecks
         current_setup = nil
         test.setups.each do |setup|
           current_setup = setup
-          dispatch_command(runtime, qualify(setup.command, nil, bluebooks, kind: :command), setup.args)
+          verb = qualify(setup.command, nil, bluebooks, kind: :command)
+          as_role(setup.role) { dispatch_command(runtime, verb, setup.args) }
         end
         nil
       rescue *REFUSAL_CLASSES => e
         error_result(test, "setup #{current_setup&.command.inspect} refused: #{e.message}")
+      end
+
+      # Runs the block as a caller holding `role`, or with no caller bound when there is none.
+      #
+      # @param role [String, nil] the role the dispatch runs as
+      # @yield the dispatch
+      # @return [Object] the block's result
+      def as_role(role, &)
+        return yield unless role
+
+        Hecks::Runtime::Caller.as(role: role, &)
       end
 
       # Qualifies and dispatches (or queries) the command under test, catching a
@@ -97,7 +110,7 @@ module Hecks
       # @return [Result] the test's pass or fail outcome
       def run_command(test, runtime, verb)
         before = runtime.events.length
-        result = dispatch_command(runtime, verb, test.input)
+        result = as_role(test.role) { dispatch_command(runtime, verb, test.input) }
         failure = refused_but_succeeded(test, "dispatch") || unexpected_emits(test, runtime, before)
         return failure if failure
 

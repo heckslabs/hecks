@@ -6,6 +6,7 @@ require "tempfile"
 require_relative "rust_format"
 require_relative "projection_files/texts"
 require_relative "projection_files/expression_tables"
+require_relative "projection_files/sentence_table"
 
 module Hecks
   # What each `project_*` generator of the language writes, held as data: absolute path to text.
@@ -38,11 +39,12 @@ module Hecks
     }.freeze
 
     # Names of the projections, in the order a full regeneration runs them.
-    NAMES = %i[model vocabulary rust_vocabulary reserved_names parser_table bootstrap_table
+    NAMES = %i[model vocabulary rust_vocabulary reserved_names parser_table phrase_table bootstrap_table
                field_hints expression_tables reference].freeze
 
     extend Texts
     extend ExpressionTables
+    extend SentenceTable
 
     module_function
 

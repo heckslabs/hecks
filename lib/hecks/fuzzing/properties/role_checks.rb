@@ -33,7 +33,8 @@ module Hecks
         end
 
         def role_held?(check)
-          check[:grants].any? { |grant| grant[:role] == check[:role] && !grant[:ended] }
+          roles = check[:roles] || [check[:role]]
+          check[:grants].any? { |grant| roles.include?(grant[:role]) && !grant[:ended] }
         end
 
         def refused_message(check)

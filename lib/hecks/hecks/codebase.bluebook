@@ -188,6 +188,20 @@ Hecks.bluebook "Hecks" do
       emits ProjectParserTableRequested
     end
 
+    command "ProjectPhraseTable" do
+      role "Maintainer"
+      goal "Project the Rust parser's sentence table from the Sentence chapter's phrase rows"
+
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :run
+      sets :confirm
+      sets :operation, to: "project_phrase_table"
+
+      emits ProjectPhraseTableRequested
+    end
+
     command "ProjectBootstrapTable" do
       role "Maintainer"
       goal "Project the DSL's bootstrap-window fallbacks from the keyword rows"
@@ -533,6 +547,11 @@ Hecks.bluebook "Hecks" do
 
   policy "ExamineWhenProjectParserTableRequested" do
     on      "LanguageRun.ProjectParserTableRequested"
+    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenProjectPhraseTableRequested" do
+    on      "LanguageRun.ProjectPhraseTableRequested"
     trigger LanguageRun::SourceTree::Examine, with: { run: :run }
   end
 

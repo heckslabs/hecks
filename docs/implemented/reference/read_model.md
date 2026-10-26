@@ -583,11 +583,12 @@ dashboard[:account][:status]  # => "open"
 ## order_by
 
 <!-- generated:begin word=order_by -->
-`order_by field, direction, on:` — fills `options`
+`order_by field, field, direction, on:` — fills `options`
 
 | argument | kind | required | fills |
 |---|---|---|---|
 | positional 1 | symbol | true | field |
+| positional 1 | text | true | field |
 | positional 2 | symbol | false | direction |
 | `on:` | constant | false | target |
 <!-- generated:end -->

@@ -18,7 +18,8 @@ pub enum JsonValue {
 }
 
 impl JsonValue {
-    fn str(s: impl Into<String>) -> Self {
+    /// A JSON string.
+    pub fn str(s: impl Into<String>) -> Self {
         Self::String(s.into())
     }
 
@@ -284,9 +285,21 @@ fn projected_field_json(f: &ir::ProjectedField) -> JsonValue {
 
 /// `IR::Command#to_h` (lib/hecks/bluebook/ir/command.rb).
 fn command_json(c: &ir::Command) -> JsonValue {
-    JsonValue::Object(vec![
+    let mut fields = vec![
         ("name".to_string(), JsonValue::str(c.name.clone())),
         ("role".to_string(), JsonValue::opt_str(c.role.as_ref())),
+    ];
+    // Only a command run by several roles says so, so every other command emits as it always did.
+    if c.roles.len() > 1 {
+        fields.push(("roles".to_string(), JsonValue::strings(&c.roles)));
+    }
+    fields.extend(command_json_rest(c));
+    JsonValue::Object(fields)
+}
+
+/// The fields of `IR::Command#to_h` after `role` and `roles`.
+fn command_json_rest(c: &ir::Command) -> Vec<(String, JsonValue)> {
+    vec![
         ("goal".to_string(), JsonValue::opt_str(c.goal.as_ref())),
         (
             "references".to_string(),
@@ -328,7 +341,7 @@ fn command_json(c: &ir::Command) -> JsonValue {
                 .map_or(JsonValue::Null, ruby_value_json),
         ),
         ("idempotent".to_string(), JsonValue::Bool(c.idempotent)),
-    ])
+    ]
 }
 
 /// `ir::CommandFrom`: a bare JSON string for one state, an array for several, `null` for none.

@@ -166,8 +166,8 @@ RSpec.describe "the structured expression AST every rule row carries" do
   it "names every op the reader knows and no other — the roster is the reader's contract" do
     # The reader mirrors ExprAstJson arm for arm; an op only one side knows is drift.
     roster = ExprAstJson::OPS
-    reader_ops = File.read(File.expand_path("../lib/hecks/bluebook/expression/ast_reader.rb",
-                                            __dir__)).scan(/when "([a-z_]+)"/).flatten.uniq
+    reader_files = Dir[File.expand_path("../lib/hecks/bluebook/expression/ast_reader{,/*}.rb", __dir__)]
+    reader_ops = reader_files.flat_map { |file| File.read(file).scan(/when "([a-z_]+)"/).flatten }.uniq
     expect(reader_ops.sort).to eq(roster.sort)
   end
 

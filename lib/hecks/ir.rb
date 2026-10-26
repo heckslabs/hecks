@@ -30,6 +30,10 @@ module Hecks
     # A field that holds one construct, or nil.
     One  = Struct.new(:source)
 
+    # What a `Proc` rule answers to leave its key out of the emitted Hash, for a field that exists
+    # only when the declaration said something, so a construct that never says it emits as it did.
+    OMIT = Object.new.freeze
+
     # The declaration side: `emits_ir`, `many`, `one`, and `ir_spec` to read the shape back.
     module Declares
       # Records this construct's field -> emission-rule map.
@@ -70,7 +74,10 @@ module Hecks
         spec = ir_spec_for(self)
         raise Undeclared, "#{self} emits IR but never declared its shape with emits_ir" unless spec
 
-        spec.to_h { |key, rule| [key, emit(rule)] }
+        spec.each_with_object({}) do |(key, rule), emitted|
+          value = emit(rule)
+          emitted[key] = value unless value.equal?(OMIT)
+        end
       end
 
       private

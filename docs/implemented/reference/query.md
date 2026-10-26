@@ -366,11 +366,12 @@ Banking::Customer.find("qy-1").reinstate!.status  # => "active"
 ## order_by
 
 <!-- generated:begin word=order_by -->
-`order_by order_field, order_way` — fills `order_field`
+`order_by order_field, order_field, order_way` — fills `order_field`
 
 | argument | kind | required | fills |
 |---|---|---|---|
 | positional 1 | symbol | true | order_field |
+| positional 1 | text | true | order_field |
 | positional 2 | symbol | false | order_way |
 <!-- generated:end -->
 

@@ -95,6 +95,9 @@ pub enum Mutation {
 pub struct Command {
     pub name: String,
     pub role: Option<String>,
+    /// Every role that may run the command, when more than one may; `role` is then the first.
+    /// Empty otherwise, and then absent from the IR.
+    pub roles: Vec<String>,
     pub goal: Option<String>,
     pub references: Option<String>,
     pub attributes: Vec<Attribute>,
@@ -145,7 +148,7 @@ pub struct Query {
 }
 
 /// `AuthorizationSpec#to_h`: both fields are bare `.to_s`, never Literal-rendered.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct AuthorizationSpec {
     pub policy: String,
     pub tenant: Option<String>,
@@ -153,7 +156,7 @@ pub struct AuthorizationSpec {
 
 /// Mirrors `extra_options_to_h`. A typed struct, not a `BTreeMap`, because Ruby's declared
 /// field order must be preserved. Shared by `Query` and `ReadModel`.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct QueryOptions {
     pub offset: Option<OffsetSpec>,
     // Already-rendered text; cursor never gets ADR 0055's `on:` (out of scope — see this
@@ -190,7 +193,7 @@ pub struct LimitSpec {
     pub target: Option<String>,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct OffsetSpec {
     pub value: String, // Literal::render spelling
     pub target: Option<String>,

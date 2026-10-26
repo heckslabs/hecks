@@ -59,9 +59,9 @@ RSpec.describe Hecks::Bluebook::MetaValidator::Plan do
       appends = plan.category("Command").appends
       verbs = appends.to_h { |name, append| [name, append.verb] }
 
-      expect(appends.keys).to match_array(%w[attributes givens ensures needs mutations emits])
+      expect(appends.keys).to match_array(%w[attributes givens ensures needs mutations emits roles])
       expect(verbs).to include("attributes" => "Argument", "givens" => "Rule", "ensures" => "Ensure",
-                               "needs" => "Need", "mutations" => "Change")
+                               "needs" => "Need", "mutations" => "Change", "roles" => "Allow")
     end
 
     it "carries the field -> argument map, so an element can be shaped into a dispatch" do

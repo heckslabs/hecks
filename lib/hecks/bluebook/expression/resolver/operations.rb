@@ -28,6 +28,7 @@ module Hecks
           Last           => ->(_node, value, _state, _attrs) { Resolver.last_of(value) },
           First          => ->(_node, value, _state, _attrs) { Resolver.first_of(value) },
           Find           => ->(node, value, state, attrs) { Resolver.found_of(node, value, state, attrs) },
+          Sum            => ->(node, value, state, attrs) { Resolver.summed_of(node, value, state, attrs) },
           StartsWith     => ->(node, value, _state, _attrs) { Resolver.starts_with?(value, node.substring) },
           EndsWith       => ->(node, value, _state, _attrs) { Resolver.ends_with?(value, node.substring) },
           BlockPredicate => ->(node, value, state, attrs) { Resolver.evaluate_block_predicate(node, value, state, attrs) }

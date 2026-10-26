@@ -64,6 +64,15 @@ impl Server {
                                 ("textDocumentSync", Json::Number(1)),
                                 ("documentSymbolProvider", Json::Bool(true)),
                                 ("definitionProvider", Json::Bool(true)),
+                                // Offered for files written as sentences: the sentences legal
+                                // at the cursor, drawn from the parser's own phrase table.
+                                (
+                                    "completionProvider",
+                                    Json::object(vec![(
+                                        "triggerCharacters",
+                                        Json::Array(vec![Json::string(" ")]),
+                                    )]),
+                                ),
                             ]),
                         ),
                         (
@@ -151,6 +160,12 @@ impl Server {
                     let _ = rpc::write_message(out, &rpc::response(id, result));
                 }
             }
+            "textDocument/completion" => {
+                if let Some(id) = id {
+                    let result = self.suggest_sentences(message).unwrap_or(Json::Null);
+                    let _ = rpc::write_message(out, &rpc::response(id, result));
+                }
+            }
             "textDocument/didClose" => {
                 if let Some(uri) = message
                     .get("params")
@@ -218,6 +233,46 @@ impl Server {
             Ok(None) => publish_diagnostics(out, uri, Vec::new()),
             Err(e) => log(out, 1, &format!("hecks-lsp: {e}")),
         }
+    }
+
+    /// The sentences an author may write at the cursor of a file written as sentences, asked of
+    /// `hecks-parse complete` so the editor offers only what the parser would accept.
+    fn suggest_sentences(&self, message: &Json) -> Option<Json> {
+        let params = message.get("params")?;
+        let uri = params.get("textDocument")?.get("uri")?.as_str()?;
+        let position = params.get("position")?;
+        let line = position.get("line")?.as_i64()? as usize;
+        let character = position.get("character")?.as_i64()? as usize;
+        let text = self.documents.get(uri)?;
+        let hecks_parse = self.hecks_parse.as_ref()?;
+
+        let temp_path = temp_path_for(uri);
+        std::fs::create_dir_all(temp_path.parent()?).ok()?;
+        std::fs::write(&temp_path, text).ok()?;
+        let output = std::process::Command::new(hecks_parse)
+            .arg("complete")
+            .arg(&temp_path)
+            .args(["--line", &(line + 1).to_string(), "--col", &(character + 1).to_string()])
+            .output()
+            .ok()?;
+        if !output.status.success() {
+            return None;
+        }
+        let found = Json::parse(&String::from_utf8_lossy(&output.stdout)).ok()?;
+
+        let current = text.lines().nth(line).unwrap_or("");
+        let indent = current.chars().take_while(|c| c.is_whitespace()).count().min(character);
+        let items = found
+            .get("items")?
+            .as_array()?
+            .iter()
+            .filter_map(|item| {
+                let label = item.get("label")?.as_str()?;
+                let snippet = item.get("snippet")?.as_str()?;
+                Some(completion_item(label, snippet, line, indent, character))
+            })
+            .collect();
+        Some(Json::Array(items))
     }
 
     /// Resolves the identifier under the cursor to its declaration in this buffer,
@@ -383,15 +438,45 @@ fn log(out: &mut impl Write, severity: i64, message: &str) {
     let _ = rpc::write_message(out, &rpc::notification("window/logMessage", params));
 }
 
-/// Builds a full-line diagnostic: Warning when not yet implemented, else Error.
+/// One offered sentence: its label, and the snippet that replaces what has been typed on the
+/// line (from the indent to the cursor) with the whole sentence and a tab stop per fill-in.
+fn completion_item(label: &str, snippet: &str, line: usize, indent: usize, cursor: usize) -> Json {
+    let at = |character: usize| {
+        Json::object(vec![
+            ("line", Json::Number(line as i64)),
+            ("character", Json::Number(character as i64)),
+        ])
+    };
+    Json::object(vec![
+        ("label", Json::string(label)),
+        // 15 = Snippet (LSP CompletionItemKind); 2 = the text is in snippet syntax.
+        ("kind", Json::Number(15)),
+        ("insertTextFormat", Json::Number(2)),
+        ("filterText", Json::string(label)),
+        (
+            "textEdit",
+            Json::object(vec![
+                (
+                    "range",
+                    Json::object(vec![("start", at(indent)), ("end", at(cursor))]),
+                ),
+                ("newText", Json::string(snippet)),
+            ]),
+        ),
+    ])
+}
+
+/// Builds a diagnostic that starts at the parser's column when it names one and covers the
+/// whole line otherwise: Warning when not yet implemented, else Error.
 /// The `expected` list is folded into the message text.
 fn lsp_diagnostic(diag: &diagnostics::FileDiagnostic, text: &str) -> Json {
     let zero_based_line = diag.line.saturating_sub(1) as i64;
+    let start = diag.column.map_or(0, |column| column.saturating_sub(1) as i64);
     let line_len = text
         .lines()
         .nth(diag.line.saturating_sub(1))
         .map_or(0, |l| l.chars().count() as i64)
-        .max(1);
+        .max(start + 1);
 
     let mut message = diag.message.clone();
     if !diag.expected.is_empty() {
@@ -406,7 +491,7 @@ fn lsp_diagnostic(diag: &diagnostics::FileDiagnostic, text: &str) -> Json {
                     "start",
                     Json::object(vec![
                         ("line", Json::Number(zero_based_line)),
-                        ("character", Json::Number(0)),
+                        ("character", Json::Number(start)),
                     ]),
                 ),
                 (

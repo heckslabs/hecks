@@ -94,7 +94,7 @@ pub fn parse_body(
 
 /// Every state named by a handler's `from_state` or `to_state`, in first-seen order.
 /// Order matters: `begin_saga` starts a fresh instance in `pm.states.first`.
-fn derived_states(handlers: &[ir::ProcessManagerHandler]) -> Vec<String> {
+pub(crate) fn derived_states(handlers: &[ir::ProcessManagerHandler]) -> Vec<String> {
     let mut states = Vec::new();
     for handler in handlers {
         for state in [&handler.from_state, &handler.to_state] {

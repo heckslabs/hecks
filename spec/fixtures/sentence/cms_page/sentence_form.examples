@@ -1,0 +1,37 @@
+Examples for: Cms
+
+Background:
+  Dana is an Editor
+  Sam is a Viewer
+  Morgan is a Viewer
+
+Example: A drafted page can be published
+  Given Dana drafts a page with slug "about" and title "About us"
+  When Dana publishes it with published on 1700000000
+  Then the page is published
+  And PagePublished is announced
+
+Example: A page comes off the site and goes back on
+  Given Dana drafts a page with slug "about" and title "About us"
+  And Dana publishes it with published on 1700000000
+  And Dana withdraws it
+  When Dana republishes it
+  Then the page is published
+  And PageRepublished is announced
+
+Example: A published page cannot be published again
+  Given Dana drafts a page with slug "about" and title "About us"
+  And Dana publishes it with published on 1700000000
+  When Dana tries to publish it with published on 1700000001
+  Then it is refused because only a draft can be published
+
+Example: Only an editor may take a page down
+  Given Dana drafts a page with slug "about" and title "About us"
+  And Dana publishes it with published on 1700000000
+  When <person> tries to withdraw it
+  Then it is refused because only an Editor may do it
+
+  Where:
+    | person |
+    | Sam    |
+    | Morgan |

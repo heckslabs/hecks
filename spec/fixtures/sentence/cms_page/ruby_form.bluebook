@@ -1,0 +1,126 @@
+Hecks.bluebook "Cms" do
+  aggregate "Page" do
+    description "One page of a site's writing — its address and title, kept as a draft while it is written, published when it is ready, withdrawn when it comes down."
+
+    # **A page is the facts a site lists and links by**: its slug, its title,
+    # whether it is up and since when. What the page says is the `document`
+    # package's, keyed `page:<slug>`; its pictures are the `gallery`
+    # package's and its search wording the `seo` package's, under the same
+    # key. Held apart because the same body, pictures and wording serve a
+    # post or an experience just as well, and none of them is the page's to
+    # own.
+    #
+    # **The slug is the page's address**, so no command changes it: moving a
+    # page means withdrawing the old slug and drafting the new one.
+    identified_by :slug
+
+    attribute :slug,         PageSlug
+    attribute :title,        PageTitle
+    attribute :published_on, PublishedOn, optional: true
+
+    value_object "PageSlug" do
+      attribute :value, String
+      invariant("a page has a slug") { !value.to_s.empty? }
+    end
+
+    value_object "PageTitle" do
+      attribute :value, String
+      invariant("a page has a title") { !value.to_s.empty? }
+    end
+
+    # **Seconds, as an integer** — caller-supplied, like Post's own
+    # `PublishedOn`; set when the page goes up.
+    value_object "PublishedOn" do
+      attribute :value, Integer
+      invariant("a publication date is a real moment") { value >= 0 }
+    end
+
+    # **Drafted, then published; withdrawn, not deleted** — a withdrawn page
+    # leaves the site but keeps its record and its slug, and can come back.
+    lifecycle :status, default: "draft" do
+      transition "Publish"   => "published", from: "draft"
+      transition "Withdraw"  => "withdrawn", from: "published"
+      transition "Republish" => "published", from: "withdrawn"
+    end
+
+    command "Draft" do
+      role "Editor"
+      goal "Start a new page, unpublished"
+
+      attribute :slug,  PageSlug
+      attribute :title, PageTitle
+
+      sets :slug
+      sets :title
+
+      emits "PageDrafted"
+    end
+
+    # **Allowed in every status** — changing a published page's title changes
+    # what readers see at once. The words of the page are a document's, which
+    # keeps an edit aside until it is put live.
+    command "Revise" do
+      role "Editor"
+      goal "Change a page's title — its slug stays"
+
+      reference_to Page
+      attribute :title, PageTitle
+
+      sets :title
+
+      emits "PageRevised"
+    end
+
+    command "Publish" do
+      role "Editor"
+      goal "Put a drafted page on the site"
+
+      reference_to Page
+      attribute :published_on, PublishedOn
+
+      given("only a draft can be published") { status == "draft" }
+      sets :published_on
+
+      emits "PagePublished"
+    end
+
+    command "Withdraw" do
+      role "Editor"
+      goal "Take a page off the site, keeping its record and its slug"
+
+      reference_to Page
+
+      given("only a published page can be withdrawn") { status == "published" }
+
+      emits "PageWithdrawn"
+    end
+
+    command "Republish" do
+      role "Editor"
+      goal "Put a withdrawn page back on the site"
+
+      reference_to Page
+
+      given("only a withdrawn page can be republished") { status == "withdrawn" }
+
+      emits "PageRepublished"
+    end
+
+    query "Listing" do
+      description "Every page, whatever its status, by slug."
+      order_by :"slug.value", :asc
+    end
+
+    query "Published" do
+      description "The pages on the site, by slug."
+      where(status: "published")
+      order_by :"slug.value", :asc
+    end
+
+    query "Drafts" do
+      description "The pages not yet published, by slug."
+      where(status: "draft")
+      order_by :"slug.value", :asc
+    end
+  end
+end
