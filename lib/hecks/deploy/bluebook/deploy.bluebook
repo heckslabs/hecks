@@ -1033,7 +1033,7 @@ Hecks.bluebook "Deploy" do
 
     # A task definition family, or family:revision, as the generated script takes it in TASKDEF.
     value_object "TaskDefinition" do
-      attribute :value, String, pattern: '^[A-Za-z0-9_-]+(:[0-9]+)?$'
+      attribute :value, String, matches: :host_port
     end
 
     # What requested the smoke: `alone` for a person, else the roll whose record takes the outcome.
@@ -1172,7 +1172,7 @@ Hecks.bluebook "Deploy" do
 
     # A task definition family, or family:revision, as the generated script takes it in TASKDEF.
     value_object "TaskDefinition" do
-      attribute :value, String, pattern: '^[A-Za-z0-9_-]+(:[0-9]+)?$'
+      attribute :value, String, matches: :host_port
     end
 
     # A container name from the world: lower case words joined by hyphens or underscores.
@@ -1365,7 +1365,7 @@ Hecks.bluebook "Deploy" do
 
     # A task definition family, or family:revision, as the generated script takes it in TASKDEF.
     value_object "TaskDefinition" do
-      attribute :value, String, pattern: '^[A-Za-z0-9_-]+(:[0-9]+)?$'
+      attribute :value, String, matches: :host_port
     end
 
     # `name=tag` pairs separated by spaces, as a project without a task definition names its images.
@@ -1551,11 +1551,11 @@ Hecks.bluebook "Deploy" do
 
     # The bastion's EC2 instance id, which both databases are reached through.
     value_object "Bastion" do
-      attribute :value, String, pattern: '^i-[0-9a-f]+$'
+      attribute :value, String, matches: :instance_id
     end
 
     value_object "Host" do
-      attribute :value, String, pattern: '^[A-Za-z0-9][A-Za-z0-9.-]*$'
+      attribute :value, String, matches: :hostname
     end
 
     # A Secrets Manager id or ARN; the script reads the password from it, so no value travels here.
@@ -1565,7 +1565,7 @@ Hecks.bluebook "Deploy" do
 
     # A database's name; empty leaves it to the generated script's own default.
     value_object "DatabaseName" do
-      attribute :value, String, pattern: '^[A-Za-z0-9_]*$'
+      attribute :value, String, matches: :word_chars
     end
 
     value_object "Switch" do
@@ -1838,11 +1838,11 @@ Hecks.bluebook "Deploy" do
     end
 
     value_object "Bastion" do
-      attribute :value, String, pattern: '^i-[0-9a-f]+$'
+      attribute :value, String, matches: :instance_id
     end
 
     value_object "Host" do
-      attribute :value, String, pattern: '^[A-Za-z0-9][A-Za-z0-9.-]*$'
+      attribute :value, String, matches: :hostname
     end
 
     value_object "Secret" do
@@ -1851,7 +1851,7 @@ Hecks.bluebook "Deploy" do
 
     # A database's name; empty leaves it to the generated script's own default.
     value_object "DatabaseName" do
-      attribute :value, String, pattern: '^[A-Za-z0-9_]*$'
+      attribute :value, String, matches: :word_chars
     end
 
     value_object "Report" do
@@ -2528,7 +2528,7 @@ Hecks.bluebook "Deploy" do
 
     # A task definition revision (or family) the companion's image and settings are read from.
     value_object "TaskDefinition" do
-      attribute :value, String, pattern: '^[A-Za-z0-9_-]+(:[0-9]+)?$'
+      attribute :value, String, matches: :host_port
     end
 
     value_object "Switch" do
