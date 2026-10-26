@@ -173,7 +173,9 @@ commit must pass as `RequiredCheck` rows beside them.
   merge it with `gh pr merge <pr> --squash` once it is ready and not a
   draft. No check is required
   to land, so run the pre-push gate yourself before you push anything that
-  is not trivial: a push of `main` runs only the `unguarded_push` stage of
+  is not trivial: `hecks gate_run.gate stage=quick --wait` runs the seconds-long checks (shape
+  ledger, rubocop, comment style) and is worth running before every commit. A push of `main` runs
+  those first, then only the `unguarded_push` stage of
   `lib/hecks/gate/stages.yml`, and `hecks push_train.board! full_gate.value=true` runs the
   whole `pre_push` stage. Never
   force-push `main`, and never use `--admin`.
