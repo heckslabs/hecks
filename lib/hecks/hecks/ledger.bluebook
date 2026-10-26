@@ -1,18 +1,18 @@
 Hecks.bluebook "Hecks" do
-  # Ledger: a journal that proves it was not rewritten. Each journal row carries the digest of the
-  # row before it, so an altered or dropped row breaks every digest after it. Compaction is the one
-  # sanctioned way rows leave a journal, so it seals first: the head the chain had is recorded as a
-  # Seal, and an Audit walks from the latest Seal forward. A compaction with no seal is not applied.
+  # Ledger: a journal that proves it was not rewritten. A seal records the head a journal chain has,
+  # kept beside the journal itself; an Audit recomputes the chain from the seals and compares. Compaction
+  # is the one sanctioned way rows leave a journal, so it seals first: the capture is one ask on the Era
+  # being changed (the reaction depth is bounded, so the seal cannot be a chain of its own), and a
+  # compaction whose head cannot be captured is abandoned, not applied.
 
   aggregate "Seal" do
     description "The head a domain's journal chain had when the rows before it were compacted away."
 
     attribute :run,      SealKey
     attribute :domain,   Domain
-    attribute :through,  Ordinal,   optional: true
-    attribute :head,     ChainDigest,    optional: true
-    attribute :previous, ChainDigest,    optional: true
-    attribute :refusal,  Report,    optional: true
+    attribute :through,  Ordinal
+    attribute :head,     ChainDigest
+    attribute :previous, ChainDigest
     identified_by :run
 
     value_object "SealKey" do
@@ -38,40 +38,20 @@ Hecks.bluebook "Hecks" do
       attribute :value, String, pattern: '^[0-9a-f]{64}$'
     end
 
-    value_object "Report" do
-      attribute :value, String
-    end
-
-    lifecycle :status, default: "requested" do
-      mark :failure, "declined"
-      transition "Record"  => "sealed",   from: "requested"
-      transition "Decline" => "declined", from: "requested"
-    end
-
-    command "Request" do
-      role "System"
-      goal "Ask that a domain's chain head be captured before its journal is compacted"
-
-      attribute :domain, Domain
-      attribute :run,    SealKey
-
-      sets :domain
-      sets :run
-
-      emits SealRequested
-    end
-
     # `previous` is the head of the seal before this one, so seals chain too; the first seal
     # of a domain carries the genesis digest, sixty-four zeros.
     command "Record" do
       role "System"
       goal "Keep the head the chain had, and the seal it followed"
 
-      reference_to Seal
+      attribute :domain,   Domain
+      attribute :run,      SealKey
       attribute :through,  Ordinal
       attribute :head,     ChainDigest
       attribute :previous, ChainDigest
 
+      sets :domain
+      sets :run
       sets :through
       sets :head
       sets :previous
@@ -79,30 +59,13 @@ Hecks.bluebook "Hecks" do
       emits SealRecorded
     end
 
-    command "Decline" do
-      role "System"
-      goal "Record that the chain head could not be captured, and why"
-
-      reference_to Seal
-      attribute :refusal, Report
-
-      sets :refusal
-
-      emits SealDeclined
-    end
-
     query "Latest" do
       description "The newest seal a domain holds."
       attribute :domain, Domain
-      where(domain: :domain, status: "sealed")
+      where(domain: :domain)
       order_by :through
     end
 
-    query "Declined" do
-      description "Every seal that could not be captured."
-      where(status: "declined")
-      order_by :run
-    end
   end
 
   aggregate "Audit" do
@@ -195,39 +158,28 @@ Hecks.bluebook "Hecks" do
     end
   end
 
-  # A compaction is applied only once the head it would erase is sealed. These replace the direct
-  # step from a permitted compaction to its application.
-  policy "SealWhenCompactionPermitted" do
+  # A compaction is applied only once the head it would erase is sealed.
+  policy "CaptureWhenCompactionPermitted" do
     on      "Era.EraPermitted"
     where do
       operation.value == "compact" || operation.value == "compact_heki"
     end
-    trigger Seal::Request, with: { domain: :domain, run: :run }
+    trigger Era::Ledger::Capture, with: { run: :run }
   end
 
-  policy "CaptureWhenSealRequested" do
-    on      "Seal.SealRequested"
-    trigger Seal::Ledger::Capture, with: { run: :run }
-  end
-
-  policy "RecordTheCapturedHead" do
-    on      "Seal.HeadCaptured"
-    trigger Seal::Record, with: { through: :through, head: :head, previous: :previous }
-  end
-
-  policy "DeclineWhenHeadNotCaptured" do
-    on      "Seal.CaptureRefused"
-    trigger Seal::Decline, with: { refusal: :refusal }
+  policy "RecordTheSeal" do
+    on      "Era.HeadCaptured"
+    trigger Seal::Record, with: { run: :run, domain: :domain, through: :through, head: :head, previous: :previous }
   end
 
   policy "CompactWhenSealed" do
-    on      "Seal.SealRecorded"
+    on      "Era.HeadCaptured"
     trigger Era::JournalStore::Apply, with: { run: :run }
   end
 
-  policy "AbandonWhenSealDeclined" do
-    on      "Seal.SealDeclined"
-    trigger Era::Abandon, with: { era: :run, refusal: :refusal }
+  policy "AbandonWhenNotSealed" do
+    on      "Era.CaptureRefused"
+    trigger Era::Abandon, with: { refusal: :refusal }
   end
 
   policy "WalkWhenVerificationRequested" do

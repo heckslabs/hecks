@@ -1142,6 +1142,7 @@ policy "RecordTheEra" do
       attribute :drifted,            Switch
       attribute :loadable,           Switch
       attribute :shape_kept,         Switch
+      attribute :operation,          OperationName
 
       given("the store keeps eras") do
         capable.value || operation.value == "compact" || operation.value == "compact_heki"
@@ -1179,6 +1180,7 @@ policy "RecordTheEra" do
       sets :drifted
       sets :loadable
       sets :shape_kept
+      sets :operation
 
       emits EraPermitted
     end
@@ -1289,7 +1291,7 @@ policy "RecordTheEra" do
     trigger Era::Permit, with: {
       capable: :capable, held: :held, forks: :forks, contested: :contested,
       bound: :bound, candidates: :candidates,
-      drifted: :drifted, loadable: :loadable, shape_kept: :shape_kept
+      drifted: :drifted, loadable: :loadable, shape_kept: :shape_kept, operation: :operation
     }
   end
 

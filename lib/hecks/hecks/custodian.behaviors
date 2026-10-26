@@ -225,22 +225,23 @@ Hecks.behaviors "Custodian" do
     expect emits: %w[RehearsalRequested StoreSurveyed RehearsalWithheld]
   end
 
-  test "Seal Request with no ledger bound is declined, not left requested" do
-    tests "Request", on: "Seal"
-    input run: { value: "compact-1" }, domain: { value: "examples/pizzas" }
-    expect emits: %w[SealRequested CaptureRefused SealDeclined]
+  test "Seal Record keeps the head a compaction sealed" do
+    tests "Record", on: "Seal"
+    input run: { value: "compact-1" }, domain: { value: "examples/pizzas" }, through: { value: 3 },
+          head: { value: "a" * 64 }, previous: { value: "0" * 64 }
+    expect emits: %w[SealRecorded]
   end
 
   test "Seal Record refuses a head that is not a SHA-256 digest" do
     tests "Record", on: "Seal"
-    input run: { value: "compact-1" }, through: { value: 3 }, head: { value: "not-a-digest" },
+    input run: { value: "compact-1" }, domain: { value: "examples/pizzas" }, through: { value: 3 }, head: { value: "not-a-digest" },
           previous: { value: "0" * 64 }
     expect refused: "must match"
   end
 
   test "Seal Record refuses a seal that covers no row" do
     tests "Record", on: "Seal"
-    input run: { value: "compact-1" }, through: { value: 0 }, head: { value: "a" * 64 },
+    input run: { value: "compact-1" }, domain: { value: "examples/pizzas" }, through: { value: 0 }, head: { value: "a" * 64 },
           previous: { value: "0" * 64 }
     expect refused: "a seal covers at least one row"
   end

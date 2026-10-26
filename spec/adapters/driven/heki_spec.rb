@@ -26,6 +26,8 @@ RSpec.describe Hecks::Adapters::Heki do
   # A second adapter over the same directory, as a fresh boot would open it.
   def reopened_adapter = described_class.new(aggregate: aggregate, settings: { dir: "." }, root: @dir)
 
+  it_behaves_like "a journal that keeps ledger seals"
+
   def other_domain_adapter
     described_class.new(aggregate: aggregate, settings: { dir: ".", domain: "OtherDomain" }, root: @dir)
   end

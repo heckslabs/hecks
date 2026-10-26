@@ -36,6 +36,8 @@ RSpec.describe Hecks::Adapters::Postgres, :io do
 
   def reopened_adapter = described_class.new(aggregate: aggregate, settings: { database: PLAIN_POSTGRES_SPEC_DB })
 
+  it_behaves_like "a journal that keeps ledger seals"
+
   def other_domain_adapter
     described_class.new(aggregate: aggregate, settings: { database: PLAIN_POSTGRES_SPEC_DB, domain: "OtherDomain" })
   end

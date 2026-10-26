@@ -143,9 +143,9 @@ Hecks.hecksagon "Hecks" do
     answers_query "Compaction"
   end
 
-  Hecks::Seal.port "Ledger" do
-    asks "Capture", to: Seal do
-      attribute :run, SealKey
+  Hecks::Era.port "Ledger" do
+    asks "Capture", to: Era do
+      attribute :run, RunKey
       answers "HeadCaptured"
       refuses "CaptureRefused"
     end
