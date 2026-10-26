@@ -15,9 +15,10 @@
 # backstop before it.
 #
 # The suite is opt-in. By default a push runs only the `unguarded_push` stage (rubocop, the
-# comment-style checks and spec/fuzzing); HECKS_PRE_PUSH_GATE=1 runs the whole `pre_push` stage,
+# comment-style checks and spec/fuzzing); `hecks.fullGate` (git config) runs the whole `pre_push` stage,
 # suite included. A hook takes no arguments, so `hecks push_train.board! full_gate.value=true` is how a
-# person asks for it: the train sets the variable for that push only. No commit hook runs anything: a commit is instant, and a push is where checks run.
+# person asks for it: the train pushes with `git -c hecks.fullGate=true` for that push only. A repository
+# can also keep it on with `git config hecks.fullGate true`. No commit hook runs anything: a commit is instant, and a push is where checks run.
 
 ROOT=$(git rev-parse --show-toplevel)
 WORKDIR=$(mktemp -d)
@@ -63,9 +64,10 @@ if [ -n "$PUSHED_REFS" ]; then
 fi
 
 # The slow suite is opt-in: a push runs only the `unguarded_push` stage (rubocop, the comment-style
-# checks and spec/fuzzing, a couple of minutes), since CI runs every other check on the pushed commit. HECKS_PRE_PUSH_GATE=1 runs
+# checks and spec/fuzzing, a couple of minutes), since CI runs every other check on the pushed commit. hecks.fullGate runs
 # the whole `pre_push` stage and, when green, writes the attestation note that lets CI skip its checks.
-if [ -z "${HECKS_PRE_PUSH_GATE:-}" ]; then
+FULL_GATE=$(git config --type=bool --get hecks.fullGate 2>/dev/null)
+if [ "$FULL_GATE" != "true" ]; then
   printf '[pre-push] running the style checks and spec/fuzzing; CI runs the suite (`hecks push_train.board! full_gate.value=true` runs it here).\n\n'
   if ! bundle exec ruby -Ilib -e 'require "hecks/tools"; Hecks::Tools.script("gate", ARGV)' unguarded_push; then
     printf '\n[pre-push] BLOCKED. Fix it, or push with --no-verify and say why.\n\n'

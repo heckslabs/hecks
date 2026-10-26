@@ -239,6 +239,11 @@ module Hecks
       # @return [Bluebook::Chapter, nil] the first loaded chapter, or nil when none loaded
       def first_bluebook = @declared.bluebooks.values.first
 
+      # The name of the first chapter loaded: a one-domain boot's own domain.
+      #
+      # @return [String, nil] the name, or nil when none loaded
+      def first_domain_name = first_bluebook&.name
+
       # Every verb every loaded chapter declares, sorted.
       #
       # @return [Array<String>] every declared verb, across every loaded chapter

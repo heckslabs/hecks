@@ -23,13 +23,14 @@ module Hecks
         # @param checkout [String] the repository's top level
         # @param branch [String] the branch to push
         # @param remote [String] the remote to push it to
-        # @param hook_env [Hash{String => String}] variables the repository's pre-push hook reads
-        def initialize(git, checkout, branch:, remote:, hook_env: {})
+        # @param config [Array<String>] `-c name=value` words placed before `push`, which the
+        #   repository's pre-push hook reads with `git config`
+        def initialize(git, checkout, branch:, remote:, config: [])
           @git = git
           @checkout = checkout
           @branch = branch
           @remote = remote
-          @hook_env = hook_env
+          @config = config
         end
 
         # Pushes the local branch, merged with the remote's when they have parted.
@@ -52,7 +53,7 @@ module Hecks
 
         def push_from(bench, local, tracking)
           merge(bench, tracking) unless ancestor?(tracking, local)
-          pushed = @git.capture("push", @remote, "HEAD:refs/heads/#{@branch}", chdir: bench, env: @hook_env)
+          pushed = @git.capture(*@config, "push", @remote, "HEAD:refs/heads/#{@branch}", chdir: bench)
           return read("rev-parse", "HEAD", dir: bench) if pushed.ok?
           return :moved if pushed.err.match?(MOVED)
 

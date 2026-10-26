@@ -44,13 +44,15 @@ module Hecks
         # @param file [String] the spec file, relative to the checkout or absolute
         # @param example [String] part of the example's description
         # @param env [Hash{String => String}] variables the specs read, set for this run only
+        # @param tags [String, nil] RSpec tag filters as the runner spells them, such as
+        #   `--tag cloudfront`
         # @return [String] what the runner printed when every matching example passed
         # @raise [ConsoleCapture::Failure] when the file is not there, or an example failed
-        def run(file:, example:, env: {})
+        def run(file:, example:, env: {}, tags: nil)
           path = File.expand_path(file, @tree.root)
           raise ConsoleCapture::Failure, "no such spec file #{file}" unless File.file?(path)
 
-          report = with_env(env) { run_example(path, example) }
+          report = with_env(env) { run_example(path, example, tags.to_s.split) }
           raise ConsoleCapture::Failure, "the test runner printed nothing for #{file}" if report.empty?
 
           report
@@ -59,9 +61,10 @@ module Hecks
         private
 
         # What the runner printed for the example, when it passed.
-        def run_example(path, example)
+        def run_example(path, example, tags = [])
           out = StringIO.new
-          status = Dir.chdir(@tree.root) { at_reaction_depth_zero { runner.call(["--example", example, path], out, out) } }
+          args = ["--example", example, *tags, path]
+          status = Dir.chdir(@tree.root) { at_reaction_depth_zero { runner.call(args, out, out) } }
           raise ConsoleCapture::Failure, out.string.strip unless status.zero?
 
           out.string.strip

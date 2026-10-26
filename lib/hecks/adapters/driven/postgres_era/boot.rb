@@ -30,7 +30,9 @@ module Hecks
         def provision!
           # Idempotent self-healing against any boot-ordering surprise.
           @lineage.ensure_head_snapshot!(table, @era)
-          @lineage.ensure_first_head!(table) if @era == 1
+          # A superseded boot reads and never reshapes: era 1's head view is not its to restore,
+          # because a mint has already pointed the view at a later era.
+          @lineage.ensure_first_head!(table) if @era == 1 && !@superseded_by
           # One row-cache table per where-field the aggregate's queries use; `query` consults it
           # to skip the head reduction.
           @field_caches = ensure_field_caches!

@@ -747,6 +747,12 @@ policy "RecordTheEra" do
       attribute :range,    Word,  optional: true
       returns Document
     end
+
+    query "Settings" do
+      description "What this copy resolves for each setting that can come from a variable, its own world or a default, and which one supplied it."
+      attribute :domain, Place, optional: true
+      returns Document
+    end
   end
 
   # Agents merge straight to local main and clean up what they merged. A landing merges a worktree's

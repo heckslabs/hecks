@@ -273,6 +273,11 @@ RSpec.describe Hecks::EmbryonautBluebook, ".vendor!" do
 
     before { release("1.0.0") }
 
+    # Where a registry checkout sits when it is beside the project.
+    def beside = File.join(File.dirname(root), "embryonaut_bluebooks")
+
+    after { File.delete(beside) if File.symlink?(beside) }
+
     it "vendors package@version from --from and reports the shape", :aggregate_failures, :process do
       status = run("widgets@1.0.0", "--from", repo.path)
 
@@ -288,14 +293,11 @@ RSpec.describe Hecks::EmbryonautBluebook, ".vendor!" do
     end
 
     it "finds the registry checkout beside the project when no source is named", :aggregate_failures, :process do
-      beside = File.join(File.dirname(root), "embryonaut_bluebooks")
       File.symlink(repo.path, beside)
 
       expect(described_class.default_source(root, {})).to eq(beside)
       expect(run("widgets")).to eq(0)
       expect(lock.version).to eq("1.0.0")
-    ensure
-      File.delete(beside) if beside && File.symlink?(beside)
     end
 
     it "has no default source when nothing is named and no registry sits beside the project" do

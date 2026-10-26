@@ -25,7 +25,8 @@ module Hecks
         # Opens the editor.
         #
         # @param operation [String] `compose`
-        # @param held [Hash] the `CorpusRun` record's fields: `port`, `domains` (the directory)
+        # @param held [Hash] the `CorpusRun` record's fields: `port`, `domains` (the directory) and
+        #   `agent` (`claude`, or `fake` for a scripted assistant)
         # @param tree [Tree] the working tree, already known to be a hecks checkout
         # @param shell [#capture, nil] unused
         # @return [String] a note that the server stopped
@@ -37,7 +38,7 @@ module Hecks
           port = fields[:port] || DEFAULT_PORT
           warn "composer over #{workspace} on http://#{HOST}:#{port}/composer - no authentication, " \
                "no CSRF protection, no caller identity; do not expose beyond localhost"
-          app = Composer::Web.app(workspace: workspace)
+          app = Composer::Web.app(workspace: workspace, agents: Composer::Workbench.agents_named(fields[:agent]))
           (CorpusTasks.web_server || method(:serve)).call(app: app, port: port, host: HOST)
           "composed on port #{port}, now stopped"
         end

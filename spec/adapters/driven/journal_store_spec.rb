@@ -130,7 +130,7 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
                "Hecks.hecksagon \"Ledger\" do\n  Ledger::Account.persisted_by(\"PostgresEra\")\nend\n")
     File.write(File.join(bluebook_dir, "ledger.world"),
                "Hecks.world \"Ledger\" do\n  realm \"Specs\"\n  persisted_by(\"PostgresEra\") do\n    " \
-               "database #{url.inspect}\n  end\nend\n")
+               "database #{url.inspect}\n    mint_eras true\n  end\nend\n")
   end
 
   # Writes the edge from era 1 to the current shape; answers the translations directory.
@@ -150,7 +150,7 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
 
   def check_lineage!(registry, bluebook, text, **extra)
     Hecks::Adapters::PostgresEra::LineageManager.check!(
-      registry: registry, bluebook: bluebook, current_text: text, settings: { database: url }, **extra
+      registry: registry, bluebook: bluebook, current_text: text, settings: { database: url, mint_eras: true }, **extra
     )
   end
 

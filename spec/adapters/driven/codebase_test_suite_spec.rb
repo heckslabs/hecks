@@ -183,14 +183,22 @@ RSpec.describe Hecks::Adapters::Codebase::TestSuite do
       runner = stub_runner
       run_example(strict: word(true), seeds: word(20), environment: word("memory"))
 
-      expect(runner).to have_received(:run).with(file: "spec/a_spec.rb", example: "works", env: named_env)
+      expect(runner).to have_received(:run).with(file: "spec/a_spec.rb", example: "works", env: named_env, tags: nil)
+    end
+
+    it "turns the shared declaration cache off for the run when asked", :aggregate_failures do
+      runner = stub_runner
+      run_example(declaration_cache: word(false), tags: word("--tag cloudfront"))
+
+      expect(runner).to have_received(:run).with(file: "spec/a_spec.rb", example: "works", tags: "--tag cloudfront",
+                                                 env: { "HECKS_NO_DECLARATION_CACHE" => "1" })
     end
 
     it "hands the specs no variables when the run names none" do
       runner = stub_runner
       run_example
 
-      expect(runner).to have_received(:run).with(file: "spec/a_spec.rb", example: "works", env: {})
+      expect(runner).to have_received(:run).with(file: "spec/a_spec.rb", example: "works", env: {}, tags: nil)
     end
 
     # Installs a runner that records `PROPERTY_SEEDS` as the run sees it.
@@ -214,6 +222,24 @@ RSpec.describe Hecks::Adapters::Codebase::TestSuite do
 
     it "sets the variables for the run only, and puts them back" do
       expect(seeds_during_run("PROPERTY_SEEDS" => "7")).to eq(["7", nil])
+    end
+
+    # The arguments the runner was handed for one run.
+    def runner_arguments(**options)
+      given = nil
+      Hecks::Adapters::Codebase::TestRunner.runner = lambda do |args, out, _err|
+        given = args
+        out.puts "1 example, 0 failures"
+        0
+      end
+      Hecks::Adapters::Codebase::TestRunner.new(tree).run(file: "spec/spec_helper.rb", example: "x", **options)
+      given
+    ensure
+      Hecks::Adapters::Codebase::TestRunner.runner = nil
+    end
+
+    it "hands the runner the tag filters, a word each, before the file" do
+      expect(runner_arguments(tags: "--tag cloudfront").first(4)).to eq(["--example", "x", "--tag", "cloudfront"])
     end
   end
 

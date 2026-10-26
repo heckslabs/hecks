@@ -15,8 +15,8 @@ module Hecks
     # holds the binary and its `.sha256`; the key is a hash of the crate's build inputs, so the
     # same bytes are the same release, whichever commit they come from. `fetch` downloads it and
     # checks its hash, and answers nil on any miss (not published yet, no network, a hash that
-    # does not match) so a caller compiles as it always did. `--no-prebuilt` on the host build turns the
-    # download off.
+    # does not match) so a caller compiles as it always did. `--no-prebuilt` on the host build
+    # turns the download off.
     module PrebuiltBinary
       # Where releases are published.
       REPOSITORY = "heckslabs/hecks"

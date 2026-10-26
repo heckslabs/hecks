@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
 require "fileutils"
-require_relative "../../../cache_dir"
-require_relative "../../../adapters/driving/usage_cache"
 require_relative "tree"
 require_relative "test_runner"
 require_relative "sqlite_fixture"
+require_relative "cargo_tests"
+require_relative "cache_clearing"
 
 module Hecks
   module Adapters
@@ -20,12 +20,8 @@ module Hecks
       # list change tracked files, so unconfirmed they report what they would do and write nothing.
       module TestSuite
         # Every operation this family carries out.
-        OPERATIONS = %w[refresh_runtime_baseline run_spec_example stress_concurrency clear_caches
+        OPERATIONS = %w[refresh_runtime_baseline run_spec_example stress_concurrency run_cargo_tests clear_caches
                         regenerate_legacy_fixtures seed_semantics_corpus write_io_parallel_spec_list].freeze
-
-        # The `Hecks::CacheDir` subdirectories `clear_caches` empties: the caches the deprecated
-        # developer switches turn off.
-        CACHES = %w[hecks_syntax_boot_cache hecks_verdict_cache].freeze
 
         # The tag filter the postgres job lists its specs by when none is named.
         DEFAULT_TAGS = "--tag io --tag ~fuzzing"
@@ -56,24 +52,44 @@ module Hecks
         def call(operation, held, tree, shell: nil)
           args = plain(held)
           case operation
+          when "run_spec_example" then spec_example(args, tree)
+          when "run_cargo_tests" then CargoTests.run(args, tree, shell)
+          when "clear_caches" then CacheClearing.clear
+          else tooling(operation, args, tree, shell)
+          end
+        end
+
+        # The operations that run one of the repository's own tools.
+        #
+        # @param operation [String] one of `OPERATIONS`
+        # @return [String] what the tool printed
+        def tooling(operation, args, tree, shell)
+          case operation
           when "refresh_runtime_baseline" then refresh(args, tree)
-          when "run_spec_example" then TestRunner.new(tree).run(file: args[:file], example: args[:example], env: spec_env(args))
           when "stress_concurrency" then stress(args, tree)
-          when "clear_caches" then clear_caches
           when "regenerate_legacy_fixtures" then regenerate_fixtures(args, tree, shell)
           when "seed_semantics_corpus" then seed(args, tree)
           else write_list(args, tree)
           end
         end
 
+        # @param args [Hash] `file`, `example`, and the arguments that set the specs' variables
+        # @param tree [Tree] the checkout
+        # @return [String] what the runner printed
+        def spec_example(args, tree)
+          TestRunner.new(tree).run(file: args[:file], example: args[:example], env: spec_env(args), tags: args[:tags])
+        end
+
         # The variables the specs read, set for one example only: the arguments of the run, so a
         # person never sets them in a shell.
         #
-        # @param args [Hash] `strict`, `seeds` and `environment`, each perhaps absent
+        # @param args [Hash] `strict`, `seeds`, `environment` and `declaration_cache`, each
+        #   perhaps absent
         # @return [Hash{String => String}] only those the run named
         def spec_env(args)
           { "CI" => ("true" if args[:strict] == true), "PROPERTY_SEEDS" => args[:seeds]&.to_s,
-            "HECKS_ENVIRONMENT" => args[:environment] }.compact
+            "HECKS_ENVIRONMENT" => args[:environment],
+            "HECKS_NO_DECLARATION_CACHE" => ("1" if args[:declaration_cache] == false) }.compact
         end
 
         # @param args [Hash] `runs`, `parallel` and `seed_start`
@@ -81,19 +97,6 @@ module Hecks
         # @return [String] what the stress run printed
         def stress(args, tree)
           answer { command("stress_concurrency_specs").call(stress_flags(args), root: tree.root) }
-        end
-
-        # Deletes the user's cache directories only; the tables a packaged gem ships are not under
-        # `CacheDir` and are never touched.
-        #
-        # @return [String] which directories were removed
-        def clear_caches
-          cleared = CACHES.select do |name|
-            path = Hecks::CacheDir.path(name)
-            File.directory?(path) && FileUtils.rm_rf(path)
-          end
-          cleared << "usage" if Hecks::Adapters::Driving::UsageCache.clear
-          cleared.empty? ? "no cache to clear" : "cleared #{cleared.join(", ")}"
         end
 
         # @param args [Hash] `confirm`

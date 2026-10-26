@@ -110,6 +110,31 @@ current list of what this repo can do.
   If none exists, add the command to the bluebook rather than a script.
 - Add `--wait` when you need the result before the next step.
 
+## The push train records to its own database
+
+The push train (`~/.claude/hecks-train`, a detached checkout) writes its runs to a database its
+own gitignored `environments/local.world` names (`hecks_train`). The older `hecks_records` is an
+archive: do not boot a checkout against it.
+
+- Dev work runs on `HECKS_ENVIRONMENT=memory`. Never export `HECKS_DATABASE` in a shell or a
+  profile: a checkout that boots a newer shape against a records database mints an era the
+  train's launcher then refuses, and the pushes stop. `exe/hecks config domain.value=<dir>`
+  prints each setting, its value and which source supplied it.
+- A change to the shape of a persisted chapter needs a translation edge under that chapter's
+  `translations/`, and the committed ledger `lib/hecks/hecks/shapes.json` moves with it.
+  `exe/hecks conformance_run.check_shape_ledger --wait` (a gate check, no database) fails with the
+  edge to commit; `--confirm --additive` writes that empty edge and moves the ledger for a change
+  that only adds, and `--confirm` alone moves it once an edge covers the move. Data that is
+  renamed or reshaped needs rules: `HECKS_DATABASE=<records url> exe/hecks query
+  era.scaffold_translation domain.value=<dir>` writes them from the database that holds the eras
+  (a read, for that one command), and `era.audit_translation` checks them.
+- Whether a copy may migrate its database is the `mint_eras` setting in its world
+  (`persisted_by("PostgresEra") do ... mint_eras true end`, also from an overlay); `hecks config`
+  reports it. The launcher's own overlay must declare it before the default flips to refuse
+  (`EraResolver::MINT_BY_DEFAULT`).
+- After a push, the launcher's refresh moves its checkout only when it is detached and has no
+  changed or untracked file; the report names the file that stops it.
+
 ## RuboCop is strict: it runs at its defaults
 
 `.rubocop.yml` overrides only what `docs/decisions/0091-rubocop-defaults-with-deliberate-overrides.md`

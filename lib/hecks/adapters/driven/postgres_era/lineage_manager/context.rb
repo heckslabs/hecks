@@ -4,9 +4,10 @@ module Hecks
       module LineageManager
         # Everything one era check carries from connecting to minting: the booting registry and
         # bluebook, its source text, the open lineage, the role to grant, the bluebook directory,
-        # and the latest held era once the held eras were read.
-        Context = Data.define(:registry, :bluebook, :current_text, :lineage, :role, :directory, :latest) do
-          def initialize(latest: nil, **rest) = super
+        # whether this copy may mint, and the latest held era once the held eras were read.
+        Context = Data.define(:registry, :bluebook, :current_text, :lineage, :role, :directory, :latest,
+                              :mint_permitted) do
+          def initialize(latest: nil, mint_permitted: false, **rest) = super
 
           # @return [String] the name of the domain being checked
           def domain_name = bluebook.name

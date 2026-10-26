@@ -35,7 +35,7 @@ module Hecks
       module_function
 
       # @param argv [Array<String>] the domain's directory, then optional `--target=<triple>`,
-      #   `--stage=<directory>` and `--no-prebuilt` (compile the host, never download a published one)
+      #   `--stage=<directory>` and `--no-prebuilt` (compile the host, download no published one)
       # @return [Integer] the exit status
       # @raise [Failure] when the toolchain, the target or a step is missing or fails
       def call(argv)
@@ -43,12 +43,14 @@ module Hecks
           raise Failure, "usage: hecks build_host <domain> [target=<triple>] [stage=<directory>]"
         target = flag(argv, "target") || host_triple
         require_buildable!(target)
-        stage = flag(argv, "stage") || File.join(Dir.pwd, ".hecks", "host", target)
+        stage = stage_for(argv, target)
 
         build_module(domain)
         publish(compile(target, prebuilt: !argv.include?("--no-prebuilt")), File.basename(domain.chomp("/")), stage)
         0
       end
+
+      def stage_for(argv, target) = flag(argv, "stage") || File.join(Dir.pwd, ".hecks", "host", target)
 
       def build_module(domain)
         raise Failure, "project_wasm failed for #{domain}" unless Wasm.call([domain]).zero?
@@ -108,9 +110,7 @@ module Hecks
         host_dir = File.join(RustBuild.rust_dir, "host")
         target_dir = TargetDir.for(host_dir)
         binary = File.join(target_dir, target, "release", BINARY)
-        if PrebuiltBinary.fetch_for("rust/host", host_dir, target: target, into: binary, allowed: prebuilt)
-          return binary
-        end
+        return binary if PrebuiltBinary.fetch_for("rust/host", host_dir, target: target, into: binary, allowed: prebuilt)
 
         cargo_build(target, host_dir, { "CARGO_TARGET_DIR" => target_dir }.merge(linker_for(target)))
         binary
