@@ -68,10 +68,21 @@ impl Parser<'_> {
             }
             "about" | "about_as" => {
                 let target = camel(&m.text_of("target"));
-                model.reference_name = Some(if m.id == "about_as" { field("as") } else { naming::snake(&target) });
+                model.reference_name = Some(if m.id == "about_as" {
+                    field("as")
+                } else {
+                    naming::snake(&target)
+                });
                 model.reference_target = Some(target);
             }
-            "groups" => model.group_by = m.capture("fields").items.iter().map(|item| snake(item)).collect(),
+            "groups" => {
+                model.group_by = m
+                    .capture("fields")
+                    .items
+                    .iter()
+                    .map(|item| snake(item))
+                    .collect()
+            }
             "counts" => model.count = true,
             "sums" => model.sum_field = Some(field("field")),
             "averages" => model.avg_field = Some(field("field")),
@@ -93,9 +104,10 @@ impl Parser<'_> {
                         "a Where compares a field with a value, like `Where the status is paid`",
                     ));
                 };
-                model
-                    .wheres
-                    .extend(query_derive::where_clauses(&[(on.name, format!("\"{value}\""))], None));
+                model.wheres.extend(query_derive::where_clauses(
+                    &[(on.name, format!("\"{value}\""))],
+                    None,
+                ));
             }
             "report_order" => {
                 let direction = match m.text_of("direction").to_lowercase().as_str() {
@@ -130,13 +142,29 @@ impl Parser<'_> {
 
 /// A read model as a `Report:` block, or the name of what in it the sentence form cannot say.
 pub(super) fn said(model: &ir::ReadModel) -> Result<String, String> {
-    let refused = |what: &str| format!("the sentence form has no phrase for {what} in report {}", model.name);
-    if model.options.offset.as_ref().is_some_and(|offset| offset.target.is_some()) {
+    let refused = |what: &str| {
+        format!(
+            "the sentence form has no phrase for {what} in report {}",
+            model.name
+        )
+    };
+    if model
+        .options
+        .offset
+        .as_ref()
+        .is_some_and(|offset| offset.target.is_some())
+    {
         return Err(refused("this paging option"));
     }
     if model.wheres.iter().any(|clause| clause.target.is_some())
-        || model.order_by.as_ref().is_some_and(|order| order.target.is_some())
-        || model.limit.as_ref().is_some_and(|limit| limit.target.is_some())
+        || model
+            .order_by
+            .as_ref()
+            .is_some_and(|order| order.target.is_some())
+        || model
+            .limit
+            .as_ref()
+            .is_some_and(|limit| limit.target.is_some())
     {
         return Err(refused("a clause aimed at one included aggregate"));
     }
@@ -147,7 +175,10 @@ pub(super) fn said(model: &ir::ReadModel) -> Result<String, String> {
     out.push_str(&heads_said(model, &refused)?);
     if !model.group_by.is_empty() {
         let fields: Vec<String> = model.group_by.iter().map(|f| spoken(f)).collect();
-        out.push_str(&format!("  It groups by {}\n", super::format::join_and(&fields)));
+        out.push_str(&format!(
+            "  It groups by {}\n",
+            super::format::join_and(&fields)
+        ));
     }
     if model.count {
         out.push_str("  It counts them\n");
@@ -168,7 +199,10 @@ pub(super) fn said(model: &ir::ReadModel) -> Result<String, String> {
     }
     match (&model.percentile_field, &model.percentile_at) {
         (Some(field), Some(at)) if !at.contains('"') => {
-            out.push_str(&format!("  It finds the \"{at}\" percentile of the {}\n", spoken(field)));
+            out.push_str(&format!(
+                "  It finds the \"{at}\" percentile of the {}\n",
+                spoken(field)
+            ));
         }
         (None, None) => {}
         _ => return Err(refused("this percentile")),
@@ -178,12 +212,25 @@ pub(super) fn said(model: &ir::ReadModel) -> Result<String, String> {
             .value
             .strip_prefix('"')
             .and_then(|rest| rest.strip_suffix('"'))
-            .filter(|value| clause.op == "eq" && super::format::is_word(value) && clause.field.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || matches!(c, '_' | '.' | '/')))
+            .filter(|value| {
+                clause.op == "eq"
+                    && super::format::is_word(value)
+                    && clause.field.chars().all(|c| {
+                        c.is_ascii_lowercase() || c.is_ascii_digit() || matches!(c, '_' | '.' | '/')
+                    })
+            })
             .ok_or_else(|| refused("this filter"))?;
-        out.push_str(&format!("  Where the {} is {value}\n", spoken(&clause.field)));
+        out.push_str(&format!(
+            "  Where the {} is {value}\n",
+            spoken(&clause.field)
+        ));
     }
     if let Some(order) = &model.order_by {
-        let direction = if order.direction == "desc" { "descending" } else { "ascending" };
+        let direction = if order.direction == "desc" {
+            "descending"
+        } else {
+            "ascending"
+        };
         out.push_str(&format!("  Ordered by {}, {direction}\n", order.field));
     }
     if let Some(limit) = &model.limit {
@@ -207,16 +254,26 @@ fn heads_said(model: &ir::ReadModel, refused: &dyn Fn(&str) -> String) -> Result
         if given == default {
             out.push_str(&format!("  It is about {article}\n"));
         } else {
-            out.push_str(&format!("  It is about {article} as the {}\n", spoken(given)));
+            out.push_str(&format!(
+                "  It is about {article} as the {}\n",
+                spoken(given)
+            ));
         }
     }
     for head in &model.aggregate_heads {
-        let default = if head.many { naming::plural(&naming::snake(&head.aggregate)) } else { naming::snake(&head.aggregate) };
+        let default = if head.many {
+            naming::plural(&naming::snake(&head.aggregate))
+        } else {
+            naming::snake(&head.aggregate)
+        };
         let article = super::format::with_article(&spoken(&head.aggregate));
         if head.as_name == default {
             out.push_str(&format!("  It includes {article}\n"));
         } else {
-            out.push_str(&format!("  It includes {article} as the {}\n", spoken(&head.as_name)));
+            out.push_str(&format!(
+                "  It includes {article} as the {}\n",
+                spoken(&head.as_name)
+            ));
         }
     }
     if model.aggregate_heads.is_empty() && model.reference_target.is_none() {

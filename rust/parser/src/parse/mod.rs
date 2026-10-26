@@ -808,7 +808,10 @@ pub(crate) fn positional_field_name(
     args: &ArgumentGateResult,
     at: usize,
 ) -> ParseResult<String> {
-    if positional_raw(file, line, word, args, at)?.trim().starts_with('"') {
+    if positional_raw(file, line, word, args, at)?
+        .trim()
+        .starts_with('"')
+    {
         positional_text(file, line, word, args, at)
     } else {
         positional_symbol(file, line, word, args, at)

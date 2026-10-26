@@ -252,7 +252,12 @@ impl Server {
         let output = std::process::Command::new(hecks_parse)
             .arg("complete")
             .arg(&temp_path)
-            .args(["--line", &(line + 1).to_string(), "--col", &(character + 1).to_string()])
+            .args([
+                "--line",
+                &(line + 1).to_string(),
+                "--col",
+                &(character + 1).to_string(),
+            ])
             .output()
             .ok()?;
         if !output.status.success() {
@@ -261,7 +266,11 @@ impl Server {
         let found = Json::parse(&String::from_utf8_lossy(&output.stdout)).ok()?;
 
         let current = text.lines().nth(line).unwrap_or("");
-        let indent = current.chars().take_while(|c| c.is_whitespace()).count().min(character);
+        let indent = current
+            .chars()
+            .take_while(|c| c.is_whitespace())
+            .count()
+            .min(character);
         let items = found
             .get("items")?
             .as_array()?
@@ -471,7 +480,9 @@ fn completion_item(label: &str, snippet: &str, line: usize, indent: usize, curso
 /// The `expected` list is folded into the message text.
 fn lsp_diagnostic(diag: &diagnostics::FileDiagnostic, text: &str) -> Json {
     let zero_based_line = diag.line.saturating_sub(1) as i64;
-    let start = diag.column.map_or(0, |column| column.saturating_sub(1) as i64);
+    let start = diag
+        .column
+        .map_or(0, |column| column.saturating_sub(1) as i64);
     let line_len = text
         .lines()
         .nth(diag.line.saturating_sub(1))

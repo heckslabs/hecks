@@ -143,7 +143,10 @@ pub fn emit_role_check(
     command_name: &str,
 ) -> Option<String> {
     if roles.len() > 1 {
-        let listed: Vec<String> = roles.iter().map(|r| naming::ruby_inspect_string(r)).collect();
+        let listed: Vec<String> = roles
+            .iter()
+            .map(|r| naming::ruby_inspect_string(r))
+            .collect();
         return Some(exemplar.render(
             "role_check_any",
             &[
@@ -879,11 +882,17 @@ mod tests {
     fn a_command_with_one_role_checks_that_role_and_one_with_several_checks_any_of_them() {
         let exemplar = crate::exemplar::Exemplar::load();
         let one = emit_role_check(&exemplar, Some("Chef"), &[], "AddTopping").unwrap_or_default();
-        assert!(one.contains("check_role_via(Some(\"Chef\"), \"AddTopping\""), "{one}");
+        assert!(
+            one.contains("check_role_via(Some(\"Chef\"), \"AddTopping\""),
+            "{one}"
+        );
 
         let roles = vec!["Customer".to_string(), "Sales Rep".to_string()];
         let any = emit_role_check(&exemplar, Some("Customer"), &roles, "Open").unwrap_or_default();
-        assert!(any.contains("check_roles_via(&[\"Customer\", \"Sales Rep\"], \"Open\""), "{any}");
+        assert!(
+            any.contains("check_roles_via(&[\"Customer\", \"Sales Rep\"], \"Open\""),
+            "{any}"
+        );
 
         assert!(emit_role_check(&exemplar, None, &[], "Open").is_none());
     }

@@ -5,9 +5,9 @@
 //! chapter); this module holds only what each phrase means. A sentence that matches no phrase is
 //! refused with the column it stopped fitting at and the nearest phrases, never skipped.
 
+mod changes;
 /// The sentences legal at a cursor, for editors.
 pub mod complete;
-mod changes;
 mod entity;
 /// An examples file compiled to the `.behaviors` text that runs it.
 pub mod examples;
@@ -39,10 +39,7 @@ pub fn is_sentence_form(source: &str) -> bool {
 }
 
 /// Parses every sentence-form file of one chapter and merges their aggregates.
-pub fn parse_chapter(
-    chapter_name: &str,
-    files: &[(String, String)],
-) -> ParseResult<ir::Bluebook> {
+pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseResult<ir::Bluebook> {
     let grammar = Grammar::load()?;
     let mut merged: Option<ir::Bluebook> = None;
     for (path, source) in files {
@@ -71,7 +68,11 @@ pub fn parse_chapter(
         }
     }
     let mut chapter = merged.ok_or_else(|| {
-        Diagnostic::new("<none>", 0, "hecks-parse chapter requires at least one file")
+        Diagnostic::new(
+            "<none>",
+            0,
+            "hecks-parse chapter requires at least one file",
+        )
     })?;
     let first = files.first().map_or("<none>", |(path, _)| path.as_str());
     crate::build::query_inference::apply(first, &mut chapter)?;
@@ -268,8 +269,19 @@ impl<'a> Parser<'a> {
         self.lines
             .iter()
             .filter_map(|line| self.match_text("Aggregate", &line.text, 1).ok())
-            .filter(|(phrase, _)| matches!(phrase.row.id, "value_object" | "value_object_with" | "closed_set" | "value_fields" | "entity"))
-            .map(|(_, found)| names::camel(found.get("name").map_or("", |capture| capture.value.as_str())))
+            .filter(|(phrase, _)| {
+                matches!(
+                    phrase.row.id,
+                    "value_object" | "value_object_with" | "closed_set" | "value_fields" | "entity"
+                )
+            })
+            .map(|(_, found)| {
+                names::camel(
+                    found
+                        .get("name")
+                        .map_or("", |capture| capture.value.as_str()),
+                )
+            })
             .collect()
     }
 
@@ -369,7 +381,9 @@ impl<'a> Parser<'a> {
             };
             for phrase in grammar.in_context(context) {
                 let mut furthest = 0;
-                if let Some(found) = match_sentence(&phrase.pattern, &tokens, attempt, &mut furthest) {
+                if let Some(found) =
+                    match_sentence(&phrase.pattern, &tokens, attempt, &mut furthest)
+                {
                     let better = best.as_ref().is_none_or(|(held, _)| {
                         phrase.pattern.specificity() > held.pattern.specificity()
                     });

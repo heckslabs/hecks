@@ -78,8 +78,8 @@ It runs the checks of the `pre_push` stage in `lib/hecks/gate/stages.yml`
 codegen-drift checks, and rustfmt), concurrently, and reports the results in a fixed order. Bypass with `git push --no-verify` only when you mean to,
 and say why in the push (or the PR).
 
-`main` takes pushes with no gate, so a push of only `main` skips the suite but still runs the `unguarded_push` stage (rubocop, the
-comment-style checks and `spec/fuzzing`); `hecks push_train.board! full_gate.value=true` runs the whole suite for it (the train pushes with `git -c hecks.fullGate=true`, which the hook reads; `git config hecks.fullGate true` keeps it on). A push that names no ref on `main` (a branch for a pull request) skips every local check; CI is its gate. Which
+`main` takes pushes with no gate, so a push of only `main` skips the suite but still runs the `quick` checks (shape ledger, rubocop, the
+comment-style checks; run them yourself with `hecks gate_run.gate stage=quick --wait`) and then `spec/fuzzing`; `hecks push_train.board! full_gate.value=true` runs the whole suite for it (the train pushes with `git -c hecks.fullGate=true`, which the hook reads; `git config hecks.fullGate true` keeps it on). A push that names no ref on `main` (a branch for a pull request) skips every local check; CI is its gate. Which
 lanes are unguarded is the `Lane` rows of the Vocabulary chapter, not this file.
 
 ### Fast local iteration

@@ -118,14 +118,21 @@ impl Parser<'_> {
     fn examples(&mut self, chapter: &ir::Bluebook) -> ParseResult<Vec<TestOut>> {
         let mut top = Scope::top();
         let Some(Step::Phrase(header)) = self.step(&mut top, "ExamplesFile", false)? else {
-            return Err(self.error(1, 1, "this file is empty; it starts with `Examples for: <chapter>`"));
+            return Err(self.error(
+                1,
+                1,
+                "this file is empty; it starts with `Examples for: <chapter>`",
+            ));
         };
         let named = camel(&header.text_of("name"));
         if named != chapter.name {
             return Err(self.error(
                 header.line,
                 header.col_of("name"),
-                format!("these examples are about '{named}', but the chapter is '{}'", chapter.name),
+                format!(
+                    "these examples are about '{named}', but the chapter is '{}'",
+                    chapter.name
+                ),
             ));
         }
         let mut people: Vec<Person> = Vec::new();
@@ -152,7 +159,11 @@ impl Parser<'_> {
             let Step::Phrase(m) = step else { continue };
             let name = m.text_of("person");
             if people.iter().any(|p| p.name.eq_ignore_ascii_case(&name)) {
-                return Err(self.error(m.line, m.col_of("person"), format!("{name} is introduced twice")));
+                return Err(self.error(
+                    m.line,
+                    m.col_of("person"),
+                    format!("{name} is introduced twice"),
+                ));
             }
             people.push(Person {
                 name,
@@ -202,7 +213,10 @@ impl Parser<'_> {
                     .collect()
             },
         );
-        let several = rows.len() > 1 || rows.first().is_some_and(|row: &Vec<(String, String)>| !row.is_empty());
+        let several = rows.len() > 1
+            || rows
+                .first()
+                .is_some_and(|row: &Vec<(String, String)>| !row.is_empty());
         let mut tests = Vec::new();
         for row in &rows {
             let mut named = substitute(&title, row);
@@ -233,7 +247,11 @@ impl Parser<'_> {
                 break;
             }
             if !(line.text.starts_with('|') && line.text.ends_with('|')) {
-                return Err(self.error(line.number, line.indent + 1, "a Where table is made of `| cell | cell |` lines"));
+                return Err(self.error(
+                    line.number,
+                    line.indent + 1,
+                    "a Where table is made of `| cell | cell |` lines",
+                ));
             }
             rows.push(
                 line.text
@@ -246,18 +264,31 @@ impl Parser<'_> {
         }
         let mut rows = rows.into_iter();
         let Some(columns) = rows.next() else {
-            return Err(self.error(header.line, header.base_col, "this Where has no table under it"));
+            return Err(self.error(
+                header.line,
+                header.base_col,
+                "this Where has no table under it",
+            ));
         };
         let rows: Vec<Vec<String>> = rows.collect();
         if let Some(bad) = rows.iter().find(|row| row.len() != columns.len()) {
             return Err(self.error(
                 header.line,
                 header.base_col,
-                format!("a row has {} cells, but the table has {} columns: {}", bad.len(), columns.len(), columns.join(", ")),
+                format!(
+                    "a row has {} cells, but the table has {} columns: {}",
+                    bad.len(),
+                    columns.len(),
+                    columns.join(", ")
+                ),
             ));
         }
         if rows.is_empty() {
-            return Err(self.error(header.line, header.base_col, "this Where has columns but no rows"));
+            return Err(self.error(
+                header.line,
+                header.base_col,
+                "this Where has columns but no rows",
+            ));
         }
         Ok(Table { columns, rows })
     }
@@ -277,19 +308,31 @@ impl Parser<'_> {
         let mut outcomes: Vec<&Raw> = Vec::new();
         let mut section = Keyword::Given;
         for raw in lines {
-            let current = if raw.keyword == Keyword::And { section } else { raw.keyword };
+            let current = if raw.keyword == Keyword::And {
+                section
+            } else {
+                raw.keyword
+            };
             section = current;
             match current {
                 Keyword::Given | Keyword::And => {
                     let step = self.dispatch(chapter, people, raw, &mut created)?;
                     if step.tries {
-                        return Err(self.error(raw.line, raw.col, "a Given step has to succeed; put the step that is refused under When"));
+                        return Err(self.error(
+                            raw.line,
+                            raw.col,
+                            "a Given step has to succeed; put the step that is refused under When",
+                        ));
                     }
                     setups.push(step);
                 }
                 Keyword::When => {
                     if tested.is_some() {
-                        return Err(self.error(raw.line, raw.col, "an example proves one action; this is a second When"));
+                        return Err(self.error(
+                            raw.line,
+                            raw.col,
+                            "an example proves one action; this is a second When",
+                        ));
                     }
                     tested = Some(self.dispatch(chapter, people, raw, &mut created)?);
                 }
@@ -297,14 +340,23 @@ impl Parser<'_> {
             }
         }
         let Some(tested) = tested else {
-            return Err(self.error(header.line, header.base_col, "this example has no `When` step"));
+            return Err(self.error(
+                header.line,
+                header.base_col,
+                "this example has no `When` step",
+            ));
         };
         let mut expect = Expect::default();
         for raw in outcomes {
             self.outcome(chapter, raw, &tested, &mut expect)?;
         }
         self.consistent(&tested, &expect)?;
-        let input: Vec<(String, String)> = tested.identity.iter().chain(tested.args.iter()).cloned().collect();
+        let input: Vec<(String, String)> = tested
+            .identity
+            .iter()
+            .chain(tested.args.iter())
+            .cloned()
+            .collect();
         Ok(TestOut {
             title: title.to_string(),
             aggregate: tested.aggregate.name.clone(),
@@ -313,7 +365,10 @@ impl Parser<'_> {
             setups: setups
                 .into_iter()
                 .map(|step| SetupOut {
-                    verb: format!("{}::{}.{}", chapter.name, step.aggregate.name, step.command.name),
+                    verb: format!(
+                        "{}::{}.{}",
+                        chapter.name, step.aggregate.name, step.command.name
+                    ),
                     role: step.role,
                     args: step.identity.into_iter().chain(step.args).collect(),
                 })
@@ -331,17 +386,24 @@ impl Parser<'_> {
         raw: &Raw,
         created: &mut Vec<Created>,
     ) -> ParseResult<Dispatch<'c>> {
-        let (phrase, found) = self.match_text("Step", &raw.text, raw.col).map_err(|unmatched| {
-            self.error(raw.line, unmatched.column, format!("this is not a step I know: \"{}\"", raw.text))
+        let (phrase, found) = self
+            .match_text("Step", &raw.text, raw.col)
+            .map_err(|unmatched| {
+                self.error(
+                    raw.line,
+                    unmatched.column,
+                    format!("this is not a step I know: \"{}\"", raw.text),
+                )
                 .with_expected(unmatched.suggestions)
-        })?;
+            })?;
         let id = phrase.row.id;
         let slot = |name: &str| found.get(name).cloned().unwrap_or_default();
         let at = |name: &str| column(raw.col, &raw.text, slot(name).offset);
 
         let who = slot("who").value;
         let role = self.role_of(people, &who, raw.line, at("who"))?;
-        let (aggregate, command) = self.find_command(chapter, &slot("verb").value, raw.line, at("verb"))?;
+        let (aggregate, command) =
+            self.find_command(chapter, &slot("verb").value, raw.line, at("verb"))?;
 
         let acts_on_it = id.contains("acts");
         if acts_on_it {
@@ -377,7 +439,11 @@ impl Parser<'_> {
                 return Err(self.error(
                     raw.line,
                     at("noun"),
-                    format!("{} makes a {}, not a {noun}", spoken(&command.name), spoken(&aggregate.name)),
+                    format!(
+                        "{} makes a {}, not a {noun}",
+                        spoken(&command.name),
+                        spoken(&aggregate.name)
+                    ),
                 ));
             }
         }
@@ -385,7 +451,13 @@ impl Parser<'_> {
         let args = if id.ends_with("bare") {
             Vec::new()
         } else {
-            self.arguments(aggregate, command, &slot("args").value, raw.line, at("args"))?
+            self.arguments(
+                aggregate,
+                command,
+                &slot("args").value,
+                raw.line,
+                at("args"),
+            )?
         };
         let identity = if acts_on_it {
             created
@@ -397,7 +469,10 @@ impl Parser<'_> {
                     self.error(
                         raw.line,
                         raw.col,
-                        format!("there is no {} yet for `it` to mean; create one in an earlier step", spoken(&aggregate.name)),
+                        format!(
+                            "there is no {} yet for `it` to mean; create one in an earlier step",
+                            spoken(&aggregate.name)
+                        ),
                     )
                 })?
         } else {
@@ -421,14 +496,26 @@ impl Parser<'_> {
     }
 
     /// The role a person holds, or `the Editor` named outright.
-    fn role_of(&self, people: &[Person], who: &str, line: usize, col: usize) -> ParseResult<String> {
+    fn role_of(
+        &self,
+        people: &[Person],
+        who: &str,
+        line: usize,
+        col: usize,
+    ) -> ParseResult<String> {
         if let Some(person) = people.iter().find(|p| p.name.eq_ignore_ascii_case(who)) {
             return Ok(person.role.clone());
         }
-        if let Some(role) = who.strip_prefix("the ").or_else(|| who.strip_prefix("The ")) {
+        if let Some(role) = who
+            .strip_prefix("the ")
+            .or_else(|| who.strip_prefix("The "))
+        {
             return Ok(role.to_string());
         }
-        let known: Vec<String> = people.iter().map(|p| format!("{} ({})", p.name, p.role)).collect();
+        let known: Vec<String> = people
+            .iter()
+            .map(|p| format!("{} ({})", p.name, p.role))
+            .collect();
         Err(self.error(
             line,
             col,
@@ -461,7 +548,12 @@ impl Parser<'_> {
         let all: Vec<(&ir::Aggregate, &ir::Command)> = chapter
             .aggregates
             .iter()
-            .flat_map(|aggregate| aggregate.commands.iter().map(move |command| (aggregate, command)))
+            .flat_map(|aggregate| {
+                aggregate
+                    .commands
+                    .iter()
+                    .map(move |command| (aggregate, command))
+            })
             .collect();
         let found: Vec<(&ir::Aggregate, &ir::Command)> = all
             .iter()
@@ -475,10 +567,17 @@ impl Parser<'_> {
                 col,
                 format!(
                     "'{verb}' is not a command here. The commands are: {}",
-                    all.iter().map(|(_, c)| spoken(&c.name)).collect::<Vec<_>>().join(", ")
+                    all.iter()
+                        .map(|(_, c)| spoken(&c.name))
+                        .collect::<Vec<_>>()
+                        .join(", ")
                 ),
             )),
-            _ => Err(self.error(line, col, format!("more than one aggregate has a command called '{verb}'"))),
+            _ => Err(self.error(
+                line,
+                col,
+                format!("more than one aggregate has a command called '{verb}'"),
+            )),
         }
     }
 
@@ -510,13 +609,20 @@ impl Parser<'_> {
                 }
                 Kind::Punct(',') => None,
                 Kind::Punct(_) => {
-                    return Err(self.error(line, column(base_col, text, token.start), "unexpected punctuation in the values"));
+                    return Err(self.error(
+                        line,
+                        column(base_col, text, token.start),
+                        "unexpected punctuation in the values",
+                    ));
                 }
             };
             let Some(literal) = literal else { continue };
             let col = column(base_col, text, token.start);
             let mut name = words.clone();
-            if name.first().is_some_and(|w| matches!(w.to_lowercase().as_str(), "a" | "an" | "the")) {
+            if name
+                .first()
+                .is_some_and(|w| matches!(w.to_lowercase().as_str(), "a" | "an" | "the"))
+            {
                 name.remove(0);
             }
             if name.is_empty() {
@@ -525,7 +631,8 @@ impl Parser<'_> {
             words.clear();
             let field = snake(&name.join(" "));
             let Some(attribute) = command.attributes.iter().find(|a| a.name == field) else {
-                let fields: Vec<String> = command.attributes.iter().map(|a| spoken(&a.name)).collect();
+                let fields: Vec<String> =
+                    command.attributes.iter().map(|a| spoken(&a.name)).collect();
                 return Err(self.error(
                     line,
                     col,
@@ -533,11 +640,18 @@ impl Parser<'_> {
                         "{} takes no '{}'. It takes: {}",
                         spoken(&command.name),
                         name.join(" "),
-                        if fields.is_empty() { "nothing".to_string() } else { fields.join(", ") }
+                        if fields.is_empty() {
+                            "nothing".to_string()
+                        } else {
+                            fields.join(", ")
+                        }
                     ),
                 ));
             };
-            given.push((field, self.value_of(aggregate, attribute, &literal, line, col)?));
+            given.push((
+                field,
+                self.value_of(aggregate, attribute, &literal, line, col)?,
+            ));
         }
         if let Some(word) = words.first() {
             return Err(self.error(line, base_col, format!("'{word}' has no value after it")));
@@ -548,7 +662,11 @@ impl Parser<'_> {
                 return Err(self.error(
                     line,
                     base_col,
-                    format!("{} needs a {}", spoken(&command.name), spoken(&attribute.name)),
+                    format!(
+                        "{} needs a {}",
+                        spoken(&command.name),
+                        spoken(&attribute.name)
+                    ),
                 ));
             }
         }
@@ -565,11 +683,25 @@ impl Parser<'_> {
         line: usize,
         col: usize,
     ) -> ParseResult<String> {
-        let (scalar, wrapped) = if matches!(attribute.type_name.as_str(), "String" | "Integer" | "Float") {
+        let (scalar, wrapped) = if matches!(
+            attribute.type_name.as_str(),
+            "String" | "Integer" | "Float"
+        ) {
             (attribute.type_name.clone(), false)
         } else {
-            let Some(object) = aggregate.value_objects.iter().find(|v| v.name == attribute.type_name) else {
-                return Err(self.error(line, col, format!("I don't know how to write a value for {}", spoken(&attribute.name))));
+            let Some(object) = aggregate
+                .value_objects
+                .iter()
+                .find(|v| v.name == attribute.type_name)
+            else {
+                return Err(self.error(
+                    line,
+                    col,
+                    format!(
+                        "I don't know how to write a value for {}",
+                        spoken(&attribute.name)
+                    ),
+                ));
             };
             match object.attributes.as_slice() {
                 [only] if only.name == "value" => (only.type_name.clone(), true),
@@ -584,19 +716,26 @@ impl Parser<'_> {
         };
         let rendered = match (scalar.as_str(), literal) {
             ("String", Literal::Text(text)) => ruby_string(text),
-            ("Integer", Literal::Whole(digits)) | ("Float", Literal::Whole(digits) | Literal::Decimal(digits)) => {
-                digits.clone()
-            }
+            ("Integer", Literal::Whole(digits))
+            | ("Float", Literal::Whole(digits) | Literal::Decimal(digits)) => digits.clone(),
             (expected, _) => {
                 let wanted = match expected {
                     "String" => "text in quotes",
                     "Integer" => "a whole number",
                     _ => "a number",
                 };
-                return Err(self.error(line, col, format!("{} is {wanted}", spoken(&attribute.name))));
+                return Err(self.error(
+                    line,
+                    col,
+                    format!("{} is {wanted}", spoken(&attribute.name)),
+                ));
             }
         };
-        Ok(if wrapped { format!("{{ value: {rendered} }}") } else { rendered })
+        Ok(if wrapped {
+            format!("{{ value: {rendered} }}")
+        } else {
+            rendered
+        })
     }
 
     /// Reads one `Then` or `And` line after the tested step.
@@ -608,17 +747,30 @@ impl Parser<'_> {
         expect: &mut Expect,
     ) -> ParseResult<()> {
         let text = raw.text.strip_suffix('.').unwrap_or(&raw.text);
-        let (phrase, found) = self.match_text("Outcome", text, raw.col).map_err(|unmatched| {
-            self.error(raw.line, unmatched.column, format!("this is not an outcome I know: \"{}\"", raw.text))
+        let (phrase, found) = self
+            .match_text("Outcome", text, raw.col)
+            .map_err(|unmatched| {
+                self.error(
+                    raw.line,
+                    unmatched.column,
+                    format!("this is not an outcome I know: \"{}\"", raw.text),
+                )
                 .with_expected(unmatched.suggestions)
-        })?;
+            })?;
         let slot = |name: &str| found.get(name).cloned().unwrap_or_default();
         let at = |name: &str| column(raw.col, text, slot(name).offset);
         match phrase.row.id {
             "outcome_state" => {
                 let noun = slot("noun").value.to_lowercase();
                 if noun != spoken(&tested.aggregate.name) {
-                    return Err(self.error(raw.line, at("noun"), format!("the example is about a {}, not a {noun}", spoken(&tested.aggregate.name))));
+                    return Err(self.error(
+                        raw.line,
+                        at("noun"),
+                        format!(
+                            "the example is about a {}, not a {noun}",
+                            spoken(&tested.aggregate.name)
+                        ),
+                    ));
                 }
                 let Some(lifecycle) = &tested.aggregate.lifecycle else {
                     return Err(self.error(raw.line, raw.col, format!("a {noun} has no states")));
@@ -631,7 +783,14 @@ impl Parser<'_> {
                 }
                 if !states.contains(&state) {
                     states.dedup();
-                    return Err(self.error(raw.line, at("state"), format!("a {noun} is never {state}. Its states are: {}", unique(&states).join(", "))));
+                    return Err(self.error(
+                        raw.line,
+                        at("state"),
+                        format!(
+                            "a {noun} is never {state}. Its states are: {}",
+                            unique(&states).join(", ")
+                        ),
+                    ));
                 }
                 expect.state = Some((lifecycle.field.clone(), state));
             }
@@ -642,7 +801,11 @@ impl Parser<'_> {
                     return Err(self.error(
                         raw.line,
                         at("event"),
-                        format!("{} announces {}, not {event}", spoken(&tested.command.name), announced.join(", ")),
+                        format!(
+                            "{} announces {}, not {event}",
+                            spoken(&tested.command.name),
+                            announced.join(", ")
+                        ),
                     ));
                 }
                 expect.emits.push(event);
@@ -665,12 +828,19 @@ impl Parser<'_> {
                         format!(
                             "{} is run by {}, not by {named}",
                             spoken(&tested.command.name),
-                            if declared.is_empty() { "anyone".to_string() } else { declared.join(" or ") }
+                            if declared.is_empty() {
+                                "anyone".to_string()
+                            } else {
+                                declared.join(" or ")
+                            }
                         ),
                     ));
                 }
                 let caller = tested.role.clone().unwrap_or_default();
-                expect.refused = Some(format!("role: {}, and the caller stated {caller}", declared.join(" or ")));
+                expect.refused = Some(format!(
+                    "role: {}, and the caller stated {caller}",
+                    declared.join(" or ")
+                ));
             }
             "outcome_refused" => {
                 let reason = slot("reason").value;
@@ -683,14 +853,29 @@ impl Parser<'_> {
                         format!(
                             "no rule of {} says \"{reason}\". The rules are: {}",
                             spoken(&tested.command.name),
-                            if rules.is_empty() { "none".to_string() } else { rules.iter().map(|r| format!("\"{r}\"")).collect::<Vec<_>>().join(", ") }
+                            if rules.is_empty() {
+                                "none".to_string()
+                            } else {
+                                rules
+                                    .iter()
+                                    .map(|r| format!("\"{r}\""))
+                                    .collect::<Vec<_>>()
+                                    .join(", ")
+                            }
                         ),
                     ));
                 }
                 expect.refused = Some(reason);
             }
             _ => {
-                return Err(self.error(raw.line, raw.col, format!("the outcome '{}' is admitted but not read yet", phrase.row.id)));
+                return Err(self.error(
+                    raw.line,
+                    raw.col,
+                    format!(
+                        "the outcome '{}' is admitted but not read yet",
+                        phrase.row.id
+                    ),
+                ));
             }
         }
         Ok(())
@@ -702,13 +887,25 @@ impl Parser<'_> {
             return Err(self.error(tested.line, tested.col, "this step tries to do something; say why it is refused with `Then it is refused because …`"));
         }
         if !tested.tries && expect.refused.is_some() {
-            return Err(self.error(tested.line, tested.col, "this example expects a refusal, so the step should read `… tries to …`"));
+            return Err(self.error(
+                tested.line,
+                tested.col,
+                "this example expects a refusal, so the step should read `… tries to …`",
+            ));
         }
         if expect.refused.is_some() && (expect.state.is_some() || !expect.emits.is_empty()) {
-            return Err(self.error(tested.line, tested.col, "a refused command changes nothing; an example is either refused or has outcomes"));
+            return Err(self.error(
+                tested.line,
+                tested.col,
+                "a refused command changes nothing; an example is either refused or has outcomes",
+            ));
         }
         if expect.refused.is_none() && expect.state.is_none() && expect.emits.is_empty() {
-            return Err(self.error(tested.line, tested.col, "this example proves nothing; add a `Then`"));
+            return Err(self.error(
+                tested.line,
+                tested.col,
+                "this example proves nothing; add a `Then`",
+            ));
         }
         Ok(())
     }
@@ -722,14 +919,22 @@ fn announced_by(chapter: &ir::Bluebook, command: &ir::Command) -> Vec<String> {
     while grew {
         grew = false;
         for policy in &chapter.policies {
-            let Some(on) = policy.on_event.as_deref() else { continue };
+            let Some(on) = policy.on_event.as_deref() else {
+                continue;
+            };
             let event = on.split_once('.').map_or(on, |(_, name)| name);
-            let Some(trigger) = policy.trigger_command.as_deref() else { continue };
+            let Some(trigger) = policy.trigger_command.as_deref() else {
+                continue;
+            };
             if !events.iter().any(|known| known == event) {
                 continue;
             }
             for aggregate in &chapter.aggregates {
-                for next in aggregate.commands.iter().filter(|c| format!("{}.{}", aggregate.name, c.name) == trigger) {
+                for next in aggregate
+                    .commands
+                    .iter()
+                    .filter(|c| format!("{}.{}", aggregate.name, c.name) == trigger)
+                {
                     for emitted in &next.emits {
                         if !events.contains(emitted) {
                             events.push(emitted.clone());
@@ -752,7 +957,12 @@ fn rules_of(step: &Dispatch<'_>) -> Vec<String> {
         .filter_map(|given| given.description.clone())
         .collect();
     for object in &step.aggregate.value_objects {
-        rules.extend(object.invariants.iter().filter_map(|rule| rule.description.clone()));
+        rules.extend(
+            object
+                .invariants
+                .iter()
+                .filter_map(|rule| rule.description.clone()),
+        );
     }
     rules
 }
@@ -780,7 +990,11 @@ fn identity_of(
                     parser.error(
                         raw.line,
                         raw.col,
-                        format!("this step does not give the {} that identifies the {}", spoken(name), spoken(&aggregate.name)),
+                        format!(
+                            "this step does not give the {} that identifies the {}",
+                            spoken(name),
+                            spoken(&aggregate.name)
+                        ),
                     )
                 })
         })
@@ -808,15 +1022,27 @@ fn is_decimal(text: &str) -> bool {
 
 /// Replaces each `<column>` in `text` with the row's cell.
 fn substitute(text: &str, row: &[(String, String)]) -> String {
-    row.iter()
-        .fold(text.to_string(), |acc, (name, cell)| acc.replace(&format!("<{name}>"), cell))
+    row.iter().fold(text.to_string(), |acc, (name, cell)| {
+        acc.replace(&format!("<{name}>"), cell)
+    })
 }
 
 /// The `.behaviors` text that runs the compiled tests.
-fn behaviors_text(chapter: &ir::Bluebook, files: &[String], path: &str, tests: &[TestOut]) -> String {
+fn behaviors_text(
+    chapter: &ir::Bluebook,
+    files: &[String],
+    path: &str,
+    tests: &[TestOut],
+) -> String {
     let file = path.rsplit('/').next().unwrap_or(path);
-    let mut out = format!("Hecks.behaviors {} do\n", ruby_string(&format!("{} examples", chapter.name)));
-    out.push_str(&format!("  vision {}\n", ruby_string(&format!("Examples written as sentences in {file}."))));
+    let mut out = format!(
+        "Hecks.behaviors {} do\n",
+        ruby_string(&format!("{} examples", chapter.name))
+    );
+    out.push_str(&format!(
+        "  vision {}\n",
+        ruby_string(&format!("Examples written as sentences in {file}."))
+    ));
     let loads: Vec<String> = files.iter().map(|f| ruby_string(f)).collect();
     out.push_str(&format!("  loads {}\n", loads.join(", ")));
     for test in tests {
@@ -830,11 +1056,21 @@ fn behaviors_text(chapter: &ir::Bluebook, files: &[String], path: &str, tests: &
             out.push_str(&format!("    as {}\n", ruby_string(role)));
         }
         for setup in &test.setups {
-            let role = setup.role.as_ref().map_or_else(String::new, |r| format!(", as: {}", ruby_string(r)));
-            out.push_str(&format!("    setup {}{role}{}\n", ruby_string(&setup.verb), hash_args(&setup.args)));
+            let role = setup
+                .role
+                .as_ref()
+                .map_or_else(String::new, |r| format!(", as: {}", ruby_string(r)));
+            out.push_str(&format!(
+                "    setup {}{role}{}\n",
+                ruby_string(&setup.verb),
+                hash_args(&setup.args)
+            ));
         }
         if !test.input.is_empty() {
-            out.push_str(&format!("    input {}\n", hash_args(&test.input).trim_start_matches(", ")));
+            out.push_str(&format!(
+                "    input {}\n",
+                hash_args(&test.input).trim_start_matches(", ")
+            ));
         }
         out.push_str(&format!("    expect {}\n", expect_text(&test.expect)));
         out.push_str("  end\n");
@@ -887,7 +1123,11 @@ mod tests {
         let chapter = ir::Bluebook {
             aggregates: vec![ir::Aggregate {
                 name: "Order".to_string(),
-                commands: vec![command("Place", &["OrderPlaced"]), command("Pack", &["OrderPacked"]), command("Ship", &["OrderShipped"])],
+                commands: vec![
+                    command("Place", &["OrderPlaced"]),
+                    command("Pack", &["OrderPacked"]),
+                    command("Ship", &["OrderShipped"]),
+                ],
                 ..Default::default()
             }],
             policies: vec![
@@ -905,7 +1145,10 @@ mod tests {
             ..Default::default()
         };
         let place = chapter.aggregates[0].commands[0].clone();
-        assert_eq!(announced_by(&chapter, &place), ["OrderPlaced", "OrderPacked", "OrderShipped"]);
+        assert_eq!(
+            announced_by(&chapter, &place),
+            ["OrderPlaced", "OrderPacked", "OrderShipped"]
+        );
         let ship = chapter.aggregates[0].commands[2].clone();
         assert_eq!(announced_by(&chapter, &ship), ["OrderShipped"]);
     }

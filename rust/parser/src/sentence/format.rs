@@ -16,8 +16,8 @@ use super::options;
 use super::process;
 use super::queries;
 use super::report;
-use crate::ruby_value;
 use crate::ir;
+use crate::ruby_value;
 
 /// The sentence-form text of `chapter`, or the name of the construct it has no phrase for.
 pub fn sentences(chapter: &ir::Bluebook) -> Result<String, String> {
@@ -33,12 +33,18 @@ pub fn sentences(chapter: &ir::Bluebook) -> Result<String, String> {
     }
     if let Some(version) = &chapter.version {
         if !is_word(version) {
-            return Err(format!("the sentence form cannot say the version {version}"));
+            return Err(format!(
+                "the sentence form cannot say the version {version}"
+            ));
         }
         out.push_str(&format!("  Its version is {version}\n"));
     }
     if !chapter.attaches_to.is_empty() {
-        let contexts: Vec<String> = chapter.attaches_to.iter().map(|name| spoken(name)).collect();
+        let contexts: Vec<String> = chapter
+            .attaches_to
+            .iter()
+            .map(|name| spoken(name))
+            .collect();
         out.push_str(&format!("  It attaches to {}\n", join_and(&contexts)));
     }
     provides_text(&mut out, &chapter.provides)?;
@@ -63,7 +69,10 @@ fn provides_text(out: &mut String, provides: &[ir::Provision]) -> Result<(), Str
     let mut current: Option<&str> = None;
     for row in provides {
         if !is_word(&row.capability) || !is_word(&row.key) || row.verb.is_empty() {
-            return Err(format!("the sentence form cannot say the capability {}", row.capability));
+            return Err(format!(
+                "the sentence form cannot say the capability {}",
+                row.capability
+            ));
         }
         if current != Some(row.capability.as_str()) {
             out.push_str(&format!("  It provides {}:\n", row.capability));
@@ -91,7 +100,11 @@ fn passed_said(policy: &ir::Policy) -> Result<(String, Vec<String>), String> {
                 inline.push(format!("the {key_said} from the {}", spoken(from)));
                 lines.push(format!("With the {key_said} from the {}", spoken(from)));
             }
-            None if matches!(ruby_value::read(value), ruby_value::Value::Bare(_) | ruby_value::Value::Symbol(_)) => {
+            None if matches!(
+                ruby_value::read(value),
+                ruby_value::Value::Bare(_) | ruby_value::Value::Symbol(_)
+            ) =>
+            {
                 return Err(format!(
                     "the sentence form cannot pass {key} as {value} in policy {}",
                     policy.name
@@ -113,7 +126,11 @@ fn passed_said(policy: &ir::Policy) -> Result<(String, Vec<String>), String> {
 }
 
 /// `Policy: …` with its `Whenever` and `Then` lines.
-fn policy_text(out: &mut String, policy: &ir::Policy, chapter: &ir::Bluebook) -> Result<(), String> {
+fn policy_text(
+    out: &mut String,
+    policy: &ir::Policy,
+    chapter: &ir::Bluebook,
+) -> Result<(), String> {
     let on_event = policy
         .on_event
         .as_ref()
@@ -125,27 +142,44 @@ fn policy_text(out: &mut String, policy: &ir::Policy, chapter: &ir::Bluebook) ->
             let announced_by_a_command = chapter
                 .aggregates
                 .iter()
-                .filter(|a| a.commands.iter().any(|c| c.emits.iter().any(|e| e == event)))
+                .filter(|a| {
+                    a.commands
+                        .iter()
+                        .any(|c| c.emits.iter().any(|e| e == event))
+                })
                 .count()
                 == 1;
             if announced_by_a_command {
                 out.push_str(&format!("  Whenever {event} is announced\n"));
             } else {
-                out.push_str(&format!("  Whenever {event} is announced by {}\n", with_article(&spoken(owner))));
+                out.push_str(&format!(
+                    "  Whenever {event} is announced by {}\n",
+                    with_article(&spoken(owner))
+                ));
             }
         }
     }
     if let Some(query) = &policy.for_each_query {
         let (owner, name) = query.split_once('.').ok_or_else(|| {
-            format!("policy {} runs for each row of '{query}', which names no aggregate", policy.name)
+            format!(
+                "policy {} runs for each row of '{query}', which names no aggregate",
+                policy.name
+            )
         })?;
-        out.push_str(&format!("  For each {} of the {}\n", spoken(name), spoken(owner)));
+        out.push_str(&format!(
+            "  For each {} of the {}\n",
+            spoken(name),
+            spoken(owner)
+        ));
     }
     if policy.expect_undelivered {
         out.push_str("  It is expected to go undelivered\n");
     }
     if let Some(domain) = &policy.target_domain {
-        out.push_str(&format!("  It crosses into the {} domain\n", spoken(domain)));
+        out.push_str(&format!(
+            "  It crosses into the {} domain\n",
+            spoken(domain)
+        ));
     }
     if let Some(clause) = &policy.where_clause {
         out.push_str(&format!("  Only when {}\n", condition_words(clause)?));
@@ -154,9 +188,16 @@ fn policy_text(out: &mut String, policy: &ir::Policy, chapter: &ir::Bluebook) ->
     match (&policy.trigger_command, &policy.ask) {
         (Some(command), None) if policy.target_domain.is_some() => {
             let (owner, name) = command.split_once('.').ok_or_else(|| {
-                format!("policy {} triggers {command}, which names no aggregate", policy.name)
+                format!(
+                    "policy {} triggers {command}, which names no aggregate",
+                    policy.name
+                )
             })?;
-            out.push_str(&format!("  Then the {} is told to {}{with}\n", spoken(owner), spoken(name)));
+            out.push_str(&format!(
+                "  Then the {} is told to {}{with}\n",
+                spoken(owner),
+                spoken(name)
+            ));
         }
         (Some(command), None) => {
             let declared = chapter.aggregates.iter().any(|aggregate| {
@@ -170,11 +211,18 @@ fn policy_text(out: &mut String, policy: &ir::Policy, chapter: &ir::Bluebook) ->
                     policy.name
                 ));
             }
-            let name = command.split_once('.').map_or(command.as_str(), |(_, name)| name);
+            let name = command
+                .split_once('.')
+                .map_or(command.as_str(), |(_, name)| name);
             out.push_str(&format!("  Then {} runs{with}\n", spoken_title(name)));
         }
         (None, Some(need)) => out.push_str(&format!("  Then {} is asked{with}\n", spoken(need))),
-        _ => return Err(format!("policy {} must trigger a command or ask, and not both", policy.name)),
+        _ => {
+            return Err(format!(
+                "policy {} must trigger a command or ask, and not both",
+                policy.name
+            ))
+        }
     }
     for line in with_lines {
         out.push_str(&format!("  {line}\n"));
@@ -188,9 +236,7 @@ fn aggregate_text(out: &mut String, aggregate: &ir::Aggregate) -> Result<(), Str
 
 /// An aggregate, or an entity written as one, under the header `kind`.
 fn block_text(out: &mut String, aggregate: &ir::Aggregate, kind: &str) -> Result<(), String> {
-    let held = [
-        (!aggregate.ports.is_empty(), "ports"),
-    ];
+    let held = [(!aggregate.ports.is_empty(), "ports")];
     if let Some((_, what)) = held.iter().find(|(present, _)| *present) {
         return Err(format!("the sentence form has no phrase for {what}"));
     }
@@ -200,7 +246,10 @@ fn block_text(out: &mut String, aggregate: &ir::Aggregate, kind: &str) -> Result
         out.push_str(&format!("  {description}\n"));
     }
     if let Some(provenance) = &aggregate.provenance {
-        out.push_str(&format!("  Its provenance is {}\n", provenance_said(provenance)?));
+        out.push_str(&format!(
+            "  Its provenance is {}\n",
+            provenance_said(provenance)?
+        ));
     }
     if !aggregate.identified_by.is_empty() {
         let mut fields: Vec<&str> = aggregate
@@ -210,7 +259,11 @@ fn block_text(out: &mut String, aggregate: &ir::Aggregate, kind: &str) -> Result
             .collect();
         fields.dedup();
         let spoken_fields: Vec<String> = fields.iter().map(|field| spoken(field)).collect();
-        let possessive = if spoken_fields.len() == 1 { "its" } else { "their" };
+        let possessive = if spoken_fields.len() == 1 {
+            "its"
+        } else {
+            "their"
+        };
         out.push_str(&format!(
             "\n  {} is identified by {possessive} {}.\n",
             capitalised(&with_article(&noun)),
@@ -221,7 +274,10 @@ fn block_text(out: &mut String, aggregate: &ir::Aggregate, kind: &str) -> Result
         out.push_str(&format!("\n  {}\n", rule_sentence("Rule", rule)?));
     }
     for precondition in &aggregate.preconditions {
-        out.push_str(&format!("\n  {}\n", rule_sentence("Precondition", precondition)?));
+        out.push_str(&format!(
+            "\n  {}\n",
+            rule_sentence("Precondition", precondition)?
+        ));
     }
     for field in &aggregate.projected_fields {
         out.push_str(&format!(
@@ -236,13 +292,20 @@ fn block_text(out: &mut String, aggregate: &ir::Aggregate, kind: &str) -> Result
         out.push_str("\n  It has:\n");
         for attribute in &aggregate.attributes {
             if attribute.relationship.as_deref() == Some("one_of") {
-                out.push_str(&format!("    {}\n", tagged_line(aggregate, attribute, &mut minted)?));
+                out.push_str(&format!(
+                    "    {}\n",
+                    tagged_line(aggregate, attribute, &mut minted)?
+                ));
             } else {
                 out.push_str(&format!("    {}\n", attribute_line(attribute)?));
             }
         }
     }
-    for value_object in aggregate.value_objects.iter().filter(|vo| !minted.contains(&vo.name)) {
+    for value_object in aggregate
+        .value_objects
+        .iter()
+        .filter(|vo| !minted.contains(&vo.name))
+    {
         value_object_text(out, value_object)?;
     }
     if let Some(lifecycle) = &aggregate.lifecycle {
@@ -252,13 +315,22 @@ fn block_text(out: &mut String, aggregate: &ir::Aggregate, kind: &str) -> Result
             lifecycle.default
         ));
         for t in &lifecycle.transitions {
-            if !aggregate.commands.iter().any(|command| command.name == t.command) {
-                return Err(format!("transition {} names no command {} declares", t.command, aggregate.name));
+            if !aggregate
+                .commands
+                .iter()
+                .any(|command| command.name == t.command)
+            {
+                return Err(format!(
+                    "transition {} names no command {} declares",
+                    t.command, aggregate.name
+                ));
             }
-            let from = t
-                .from_state
-                .as_ref()
-                .ok_or_else(|| format!("{} moves from no state; the sentence form names one", t.command))?;
+            let from = t.from_state.as_ref().ok_or_else(|| {
+                format!(
+                    "{} moves from no state; the sentence form names one",
+                    t.command
+                )
+            })?;
             out.push_str(&format!(
                 "    {} moves {} from {from} to {}\n",
                 spoken_title(&t.command),
@@ -267,7 +339,11 @@ fn block_text(out: &mut String, aggregate: &ir::Aggregate, kind: &str) -> Result
             ));
         }
         for (mark, states) in &lifecycle.marks {
-            if !is_name(mark) || states.iter().any(|state| !is_listable(state) || state.contains(' ')) {
+            if !is_name(mark)
+                || states
+                    .iter()
+                    .any(|state| !is_listable(state) || state.contains(' '))
+            {
                 return Err(format!("the sentence form cannot say the mark {mark}"));
             }
             out.push_str(&format!("    Mark {mark}: {}\n", join_and(states)));
@@ -284,7 +360,11 @@ fn block_text(out: &mut String, aggregate: &ir::Aggregate, kind: &str) -> Result
         block_text(&mut inner, &entity::as_aggregate(entity), "Entity")?;
         out.push('\n');
         for line in inner.lines() {
-            out.push_str(&if line.is_empty() { String::new() } else { format!("  {line}\n") });
+            out.push_str(&if line.is_empty() {
+                String::new()
+            } else {
+                format!("  {line}\n")
+            });
         }
     }
     Ok(())
@@ -292,7 +372,10 @@ fn block_text(out: &mut String, aggregate: &ir::Aggregate, kind: &str) -> Result
 
 /// The noun with its indefinite article: `a page`, `an order`.
 pub(super) fn with_article(noun: &str) -> String {
-    let vowel = noun.chars().next().is_some_and(|c| "aeiou".contains(c.to_ascii_lowercase()));
+    let vowel = noun
+        .chars()
+        .next()
+        .is_some_and(|c| "aeiou".contains(c.to_ascii_lowercase()));
     format!("{} {noun}", if vowel { "an" } else { "a" })
 }
 
@@ -320,12 +403,29 @@ pub(super) fn spoken_title(name: &str) -> String {
 /// `a subject: one of account or atm card`, for a reference to one of several aggregates. The set
 /// of names and the tagged value object it stands on are minted on reading, so they are checked to
 /// be exactly what reading would mint and then left unwritten.
-fn tagged_line(aggregate: &ir::Aggregate, attribute: &ir::Attribute, minted: &mut Vec<String>) -> Result<String, String> {
-    let refused = || format!("the sentence form has no phrase for the options on attribute {}", attribute.name);
+fn tagged_line(
+    aggregate: &ir::Aggregate,
+    attribute: &ir::Attribute,
+    minted: &mut Vec<String>,
+) -> Result<String, String> {
+    let refused = || {
+        format!(
+            "the sentence form has no phrase for the options on attribute {}",
+            attribute.name
+        )
+    };
     let tagged_name = &attribute.type_name;
     let set_name = format!("{tagged_name}Type");
-    let set = aggregate.value_objects.iter().find(|vo| vo.name == set_name).ok_or_else(refused)?;
-    let tagged = aggregate.value_objects.iter().find(|vo| vo.name == *tagged_name).ok_or_else(refused)?;
+    let set = aggregate
+        .value_objects
+        .iter()
+        .find(|vo| vo.name == set_name)
+        .ok_or_else(refused)?;
+    let tagged = aggregate
+        .value_objects
+        .iter()
+        .find(|vo| vo.name == *tagged_name)
+        .ok_or_else(refused)?;
     let variants: Vec<String> = set
         .members
         .iter()
@@ -334,11 +434,27 @@ fn tagged_line(aggregate: &ir::Aggregate, attribute: &ir::Attribute, minted: &mu
             _ => None,
         })
         .collect();
-    let made = crate::build::references::one_of_reference(&aggregate.name, &variants, &attribute.name, attribute.optional);
-    let minted_shape = [format!("{:?}", made.attribute), format!("{:?}", made.type_set), format!("{:?}", made.tagged)];
-    let written_shape = [format!("{attribute:?}"), format!("{set:?}"), format!("{tagged:?}")];
+    let made = crate::build::references::one_of_reference(
+        &aggregate.name,
+        &variants,
+        &attribute.name,
+        attribute.optional,
+    );
+    let minted_shape = [
+        format!("{:?}", made.attribute),
+        format!("{:?}", made.type_set),
+        format!("{:?}", made.tagged),
+    ];
+    let written_shape = [
+        format!("{attribute:?}"),
+        format!("{set:?}"),
+        format!("{tagged:?}"),
+    ];
     let same = minted_shape == written_shape;
-    if variants.len() != set.members.len() || !same || variants.iter().any(|name| spoken(name).contains(" or ")) {
+    if variants.len() != set.members.len()
+        || !same
+        || variants.iter().any(|name| spoken(name).contains(" or "))
+    {
         return Err(refused());
     }
     minted.push(set_name);
@@ -402,7 +518,10 @@ fn type_words(type_name: &str) -> String {
 
 fn value_object_text(out: &mut String, value_object: &ir::ValueObject) -> Result<(), String> {
     if value_object.closed_set == value_object.members.is_empty() {
-        return Err(format!("the sentence form has no phrase for the closed set {}", value_object.name));
+        return Err(format!(
+            "the sentence form has no phrase for the closed set {}",
+            value_object.name
+        ));
     }
     if let Some((column, values)) = plain_set(value_object) {
         return closed_set_text(out, value_object, &column, &values);
@@ -423,14 +542,22 @@ fn value_object_text(out: &mut String, value_object: &ir::ValueObject) -> Result
                 options::said(value)?
             ));
         }
-        [] => return Err(format!("the sentence form describes {} by no attribute", value_object.name)),
+        [] => {
+            return Err(format!(
+                "the sentence form describes {} by no attribute",
+                value_object.name
+            ))
+        }
         attributes => {
             out.push_str(&format!("\n  {noun} has:\n"));
             for attribute in attributes {
                 out.push_str(&format!("    {}\n", attribute_line(attribute)?));
             }
             for member in &value_object.members {
-                out.push_str(&format!("    Member {}\n", member_said(&value_object.name, member)?));
+                out.push_str(&format!(
+                    "    Member {}\n",
+                    member_said(&value_object.name, member)?
+                ));
             }
         }
     }
@@ -442,7 +569,9 @@ fn value_object_text(out: &mut String, value_object: &ir::ValueObject) -> Result
 
 /// The column and values of a set of plain text values (`one_of: ["a", "b"]`), if it is one.
 fn plain_set(value_object: &ir::ValueObject) -> Option<(String, Vec<String>)> {
-    let [value] = value_object.attributes.as_slice() else { return None };
+    let [value] = value_object.attributes.as_slice() else {
+        return None;
+    };
     let plain = is_name(&value.name)
         && value.type_name == "String"
         && !value.list
@@ -457,7 +586,11 @@ fn plain_set(value_object: &ir::ValueObject) -> Option<(String, Vec<String>)> {
     let mut values: Vec<String> = Vec::new();
     for member in &value_object.members {
         match member.as_slice() {
-            [(column, ruby_value::Value::Str(text))] if *column == value.name && is_listable(text) => values.push(text.clone()),
+            [(column, ruby_value::Value::Str(text))]
+                if *column == value.name && is_listable(text) =>
+            {
+                values.push(text.clone())
+            }
             _ => return None,
         }
     }
@@ -465,7 +598,12 @@ fn plain_set(value_object: &ir::ValueObject) -> Option<(String, Vec<String>)> {
 }
 
 /// `A band is one of: small, medium and large.`, or `A band has a size that is one of: …`.
-fn closed_set_text(out: &mut String, value_object: &ir::ValueObject, column: &str, values: &[String]) -> Result<(), String> {
+fn closed_set_text(
+    out: &mut String,
+    value_object: &ir::ValueObject,
+    column: &str,
+    values: &[String],
+) -> Result<(), String> {
     let noun = capitalised(&with_article(&spoken(&value_object.name)));
     if column == "value" {
         out.push_str(&format!("\n  {noun} is one of: {}.\n", join_and(values)));
@@ -491,7 +629,8 @@ fn member_said(owner: &str, member: &[(String, ruby_value::Value)]) -> Result<St
     let mut cells: Vec<String> = Vec::new();
     for (name, value) in member {
         let rendered = ruby_value::render(value);
-        if !is_name(name) || rendered.contains('\n') || matches!(value, ruby_value::Value::Bare(_)) {
+        if !is_name(name) || rendered.contains('\n') || matches!(value, ruby_value::Value::Bare(_))
+        {
             return Err(refused());
         }
         if matches!(value, ruby_value::Value::Str(text) if text.contains(['"', '\\'])) {
@@ -538,7 +677,9 @@ fn condition_words(canonical: &str) -> Result<String, String> {
         }
     }
     if let Some((field, quoted)) = canonical.split_once(" == ") {
-        let value = quoted.strip_prefix('"').and_then(|rest| rest.strip_suffix('"'));
+        let value = quoted
+            .strip_prefix('"')
+            .and_then(|rest| rest.strip_suffix('"'));
         if let Some(value) = value.filter(|value| is_word(value)) {
             if is_name(field) {
                 return Ok(format!("the {} is {value}", spoken(field)));
@@ -547,19 +688,27 @@ fn condition_words(canonical: &str) -> Result<String, String> {
     }
     // Anything the friendly phrases do not cover is said as the expression itself.
     if canonical.contains('\n') {
-        return Err(format!("the sentence form cannot say a rule over several lines: `{canonical}`"));
+        return Err(format!(
+            "the sentence form cannot say a rule over several lines: `{canonical}`"
+        ));
     }
     Ok(format!("this is true: {canonical}"))
 }
 
 /// Whether `text` is a field name as written in the IR: lowercase letters, digits and underscores.
 pub(super) fn is_name(text: &str) -> bool {
-    !text.is_empty() && text.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+    !text.is_empty()
+        && text
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
 }
 
 /// Whether `text` is one word of letters, digits, underscores and hyphens.
 pub(super) fn is_word(text: &str) -> bool {
-    !text.is_empty() && text.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+    !text.is_empty()
+        && text
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
 }
 
 fn command_text(
@@ -588,10 +737,16 @@ fn command_text(
         out.push_str("    It is safe to deliver twice\n");
     }
     if let Some(provenance) = &command.provenance {
-        out.push_str(&format!("    Its provenance is {}\n", provenance_said(provenance)?));
+        out.push_str(&format!(
+            "    Its provenance is {}\n",
+            provenance_said(provenance)?
+        ));
     }
     if let Some(from) = &command.from {
-        out.push_str(&format!("    It can only happen from {}\n", states_said(&command.name, from)?));
+        out.push_str(&format!(
+            "    It can only happen from {}\n",
+            states_said(&command.name, from)?
+        ));
     }
     if let Some(reference) = &command.references {
         if spoken(reference) != noun {
@@ -624,7 +779,10 @@ fn command_text(
 /// A provenance as the Ruby hash it was written as; quotes and escapes inside it cannot be said.
 fn provenance_said(provenance: &ruby_value::Value) -> Result<String, String> {
     let text = ruby_value::render(provenance);
-    if text.contains('\\') || text.contains('\n') || matches!(provenance, ruby_value::Value::Bare(_)) {
+    if text.contains('\\')
+        || text.contains('\n')
+        || matches!(provenance, ruby_value::Value::Bare(_))
+    {
         return Err("the sentence form cannot say this provenance".to_string());
     }
     Ok(text)
@@ -636,17 +794,28 @@ fn states_said(command: &str, from: &ir::CommandFrom) -> Result<String, String> 
         ir::CommandFrom::Single(state) => vec![state.clone()],
         ir::CommandFrom::Multiple(states) if states.len() > 1 => states.clone(),
         ir::CommandFrom::Multiple(_) => {
-            return Err(format!("the sentence form has no phrase for a list of one state on command {command}"));
+            return Err(format!(
+                "the sentence form has no phrase for a list of one state on command {command}"
+            ));
         }
     };
-    if states.iter().any(|state| !is_listable(state) || state.contains(' ')) {
-        return Err(format!("the sentence form cannot list the states of command {command}"));
+    if states
+        .iter()
+        .any(|state| !is_listable(state) || state.contains(' '))
+    {
+        return Err(format!(
+            "the sentence form cannot list the states of command {command}"
+        ));
     }
     Ok(join_and(&states))
 }
 
 /// `When a title is given`, or an `It takes:` block when an argument is its own.
-fn arguments_text(out: &mut String, command: &ir::Command, fields: &[ir::Attribute]) -> Result<(), String> {
+fn arguments_text(
+    out: &mut String,
+    command: &ir::Command,
+    fields: &[ir::Attribute],
+) -> Result<(), String> {
     if command.attributes.is_empty() {
         return Ok(());
     }
@@ -672,7 +841,11 @@ fn arguments_text(out: &mut String, command: &ir::Command, fields: &[ir::Attribu
 
 /// `a title`, or `an optional description`: an argument is the field of its name, optional or not.
 /// Anything else about it (another type, a default, a pattern) has no phrase and is refused.
-fn argument_name(command: &str, argument: &ir::Attribute, fields: &[ir::Attribute]) -> Result<String, String> {
+fn argument_name(
+    command: &str,
+    argument: &ir::Attribute,
+    fields: &[ir::Attribute],
+) -> Result<String, String> {
     let field = fields.iter().find(|field| field.name == argument.name);
     let same = field.is_some_and(|field| {
         field.type_name == argument.type_name

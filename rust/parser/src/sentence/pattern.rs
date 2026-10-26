@@ -247,8 +247,7 @@ fn slot_go(
     let offset = first.start;
     match kind {
         SlotKind::Text => {
-            first.kind == Kind::Quoted
-                && try_take(1, single(&first.text, offset), captures)
+            first.kind == Kind::Quoted && try_take(1, single(&first.text, offset), captures)
         }
         SlotKind::Word => first.is_word() && try_take(1, single(&first.text, offset), captures),
         SlotKind::Int => {
@@ -259,12 +258,18 @@ fn slot_go(
         }
         SlotKind::Event => {
             first.is_word()
-                && first.text.chars().next().is_some_and(|c| c.is_ascii_uppercase())
+                && first
+                    .text
+                    .chars()
+                    .next()
+                    .is_some_and(|c| c.is_ascii_uppercase())
                 && first.text.chars().all(|c| c.is_ascii_alphanumeric())
                 && try_take(1, single(&first.text, offset), captures)
         }
         SlotKind::Path => {
-            first.is_word() && is_path(&first.text) && try_take(1, single(&first.text, offset), captures)
+            first.is_word()
+                && is_path(&first.text)
+                && try_take(1, single(&first.text, offset), captures)
         }
         SlotKind::Rest => {
             let Some(last) = tokens.last() else {
@@ -383,12 +388,18 @@ mod tests {
     #[test]
     fn a_words_slot_stops_where_the_rest_of_the_pattern_fits() {
         let found = run("Domain: {name:words}", "Domain: Customer Orders");
-        assert_eq!(found.and_then(|m| m.get("name").map(|c| c.value.clone())), Some("Customer Orders".to_string()));
+        assert_eq!(
+            found.and_then(|m| m.get("name").map(|c| c.value.clone())),
+            Some("Customer Orders".to_string())
+        );
     }
 
     #[test]
     fn a_list_drops_articles_and_splits_at_and() {
-        let found = run("When {names:list} (is|are) given", "When a slug and a title are given");
+        let found = run(
+            "When {names:list} (is|are) given",
+            "When a slug and a title are given",
+        );
         let items = found.and_then(|m| m.get("names").map(|c| c.items.clone()));
         assert_eq!(items, Some(vec!["slug".to_string(), "title".to_string()]));
     }
@@ -401,7 +412,10 @@ mod tests {
 
     #[test]
     fn a_rest_slot_keeps_the_text_as_written() {
-        let found = run("Goal: {goal:rest}", "Goal: Change a page's title — its slug stays");
+        let found = run(
+            "Goal: {goal:rest}",
+            "Goal: Change a page's title — its slug stays",
+        );
         assert_eq!(
             found.and_then(|m| m.get("goal").map(|c| c.value.clone())),
             Some("Change a page's title — its slug stays".to_string())
