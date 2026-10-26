@@ -58,8 +58,8 @@ module Hecks
           report
         end
 
-        # @param held [Hash] the record's fields; `confirm` rewrites the ledger, and `additive` with it
-        #   writes the empty edge for a shape that moved with none
+        # @param held [Hash] the record's fields; `confirm` rewrites the ledger, and `additive`
+        #   with it writes the empty edge for a shape that moved with none
         # @param tree [Tree] the checkout
         # @return [String] the clean verdict, or what was written
         # @raise [ConsoleCapture::Failure] with each chapter whose shape moved without an edge
