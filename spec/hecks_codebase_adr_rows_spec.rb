@@ -136,7 +136,8 @@ RSpec.describe "the Codebase rows of the ADR table" do
     end.to_h
   end
 
-  # What `--help` opens with: the aggregate as the bluebook spells it, then the verb (`StyleRun.fix_comments`).
+  # What `--help` opens with: the aggregate as the bluebook spells it, then the verb
+  # (`StyleRun.fix_comments`).
   def help_names
     CODEBASE_RECORDS.flat_map do |name|
       aggregate = @bluebook.aggregate(name)
