@@ -11,6 +11,7 @@ require_relative "cli_runner/resolution"
 require_relative "cli_runner/settling"
 require_relative "cli_runner/streaming"
 require_relative "cli_runner/suggestions"
+require_relative "cli_runner/verb_names"
 
 module Hecks
   module Adapters
@@ -25,6 +26,7 @@ module Hecks
 
         extend Resolution
         extend Suggestions
+        extend VerbNames
         extend Answers
         extend Settling
         extend Streaming

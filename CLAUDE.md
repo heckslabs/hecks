@@ -105,6 +105,9 @@ current list of what this repo can do.
   says what one wants and how it refuses.
 - `exe/hecks <command>! name=value …` does something;
   `exe/hecks query <query> name=value …` reads something.
+- A command is named as the launcher lists it (`push_train.board!`) or as the bluebook spells its
+  verb (`PushTrain.board!`, `Hecks::PushTrain.board!`, `Hecks::PushTrain.Board`); `--help` prints
+  the verb after "dispatches", and what it prints can be typed as it is.
 - Before writing a script, look for the command that already does it
   (projections, regeneration, style checks, model_check, smoke tests).
   If none exists, add the command to the bluebook rather than a script.
