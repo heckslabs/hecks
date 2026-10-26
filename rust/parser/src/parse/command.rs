@@ -206,7 +206,10 @@ pub fn parse_body(
                     return Err(Diagnostic::new(
                         file,
                         line,
-                        format!("{} names a role twice in one role declaration", command.name),
+                        format!(
+                            "{} names a role twice in one role declaration",
+                            command.name
+                        ),
                     ));
                 }
                 command.role = roles.first().cloned();

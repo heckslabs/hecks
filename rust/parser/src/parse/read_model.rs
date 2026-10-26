@@ -178,7 +178,8 @@ pub fn parse_body(
                 wheres.extend(query_derive::where_clauses(&field_pairs, target.as_deref()));
             }
             "order_by" => {
-                let field = super::positional_field_name(file, last_line, "order_by", &gated.args, 1)?;
+                let field =
+                    super::positional_field_name(file, last_line, "order_by", &gated.args, 1)?;
                 let direction = match gated.args.positional.iter().find(|(idx, _)| *idx == 2) {
                     Some((_, text)) => text.trim().trim_start_matches(':').to_string(),
                     None => "asc".to_string(),

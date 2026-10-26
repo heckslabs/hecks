@@ -332,7 +332,8 @@ mod check_roles_via_tests {
     impl AggregateScan for NoStore {}
 
     fn check(roles: &[&str], caller: Option<&str>) -> Result<(), String> {
-        check_roles_via(roles, "Open", caller, None, &NoStore, &[], None).map_err(|refusal| refusal.to_string())
+        check_roles_via(roles, "Open", caller, None, &NoStore, &[], None)
+            .map_err(|refusal| refusal.to_string())
     }
 
     #[test]
@@ -345,7 +346,10 @@ mod check_roles_via_tests {
     fn a_caller_holding_none_is_refused_with_every_role_named() {
         assert_eq!(
             check(&["Customer", "Sales Rep"], Some("Viewer")),
-            Err("Open refused — role: Customer or Sales Rep, and the caller stated Viewer".to_string())
+            Err(
+                "Open refused — role: Customer or Sales Rep, and the caller stated Viewer"
+                    .to_string()
+            )
         );
     }
 

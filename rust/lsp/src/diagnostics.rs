@@ -87,7 +87,9 @@ fn parse_diagnostic_line(line: &str, path: &Path) -> Option<FileDiagnostic> {
     let line_no: usize = line_no.trim().parse().ok()?;
     // A file written as sentences also names the column: `<file>:<line>:<column>: <message>`.
     let (column, rest) = match rest.split_once(':') {
-        Some((digits, after)) if !digits.is_empty() && digits.chars().all(|c| c.is_ascii_digit()) => {
+        Some((digits, after))
+            if !digits.is_empty() && digits.chars().all(|c| c.is_ascii_digit()) =>
+        {
             (digits.parse().ok(), after)
         }
         _ => (None, rest),
@@ -166,7 +168,10 @@ mod tests {
 
     #[test]
     fn finds_a_sentence_file_chapter_name_from_its_domain_line() {
-        assert_eq!(chapter_name("Domain: customer orders\n"), Some("CustomerOrders".to_string()));
+        assert_eq!(
+            chapter_name("Domain: customer orders\n"),
+            Some("CustomerOrders".to_string())
+        );
     }
 
     #[test]
@@ -176,14 +181,20 @@ mod tests {
         let diag = parse_diagnostic_line(line, path).expect("parses");
         assert_eq!((diag.line, diag.column), (11, Some(5)));
         assert!(diag.message.starts_with("this is not a sentence I know"));
-        assert_eq!(diag.expected, vec!["Rule <description> holds when <condition>"]);
+        assert_eq!(
+            diag.expected,
+            vec!["Rule <description> holds when <condition>"]
+        );
     }
 
     #[test]
     fn a_whole_line_refusal_has_no_column() {
         let path = Path::new("/tmp/pizzas.bluebook");
         let line = "/tmp/pizzas.bluebook:12: unknown word 'topping' in Aggregate";
-        assert_eq!(parse_diagnostic_line(line, path).expect("parses").column, None);
+        assert_eq!(
+            parse_diagnostic_line(line, path).expect("parses").column,
+            None
+        );
     }
 
     #[test]

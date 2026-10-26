@@ -37,11 +37,9 @@ impl Parser<'_> {
                 "process_ends" => pm.ends_on = Some(m.text_of("event")),
                 "process_when" | "process_when_refused" => {
                     let handler = self.handler(&m)?;
-                    if let Some(earlier) = pm
-                        .handlers
-                        .iter()
-                        .find(|h| h.event_type == handler.event_type && h.from_state == handler.from_state)
-                    {
+                    if let Some(earlier) = pm.handlers.iter().find(|h| {
+                        h.event_type == handler.event_type && h.from_state == handler.from_state
+                    }) {
                         return Err(self.error(
                             m.line,
                             m.base_col,
@@ -74,7 +72,11 @@ impl Parser<'_> {
     /// One step: the event and states it answers, and the commands it tells aggregates to run.
     fn handler(&mut self, header: &Matched) -> ParseResult<ir::ProcessManagerHandler> {
         let mut handler = ir::ProcessManagerHandler {
-            event_type: if header.id == "process_when" { header.text_of("event") } else { "refused".to_string() },
+            event_type: if header.id == "process_when" {
+                header.text_of("event")
+            } else {
+                "refused".to_string()
+            },
             from_state: header.text_of("from"),
             to_state: header.text_of("to"),
             dispatches: Vec::new(),
@@ -83,15 +85,27 @@ impl Parser<'_> {
         while let Some(step) = self.step(&mut scope, "Handler", false)? {
             let Step::Phrase(m) = step else { continue };
             let spec = ir::DispatchSpec {
-                command_name: format!("{}.{}", camel(&m.text_of("owner")), camel(&m.text_of("command"))),
-                with_spec: if m.id.ends_with("with") { self.with_pairs(&m)? } else { Vec::new() },
+                command_name: format!(
+                    "{}.{}",
+                    camel(&m.text_of("owner")),
+                    camel(&m.text_of("command"))
+                ),
+                with_spec: if m.id.ends_with("with") {
+                    self.with_pairs(&m)?
+                } else {
+                    Vec::new()
+                },
                 compensates: None,
             };
             match m.id {
                 "process_tell" | "process_tell_with" => handler.dispatches.push(spec),
                 "process_undo" | "process_undo_with" => {
                     let Some(last) = handler.dispatches.last_mut() else {
-                        return Err(self.error(m.line, m.base_col, "`If that is refused` follows a `Then … is told to …` line"));
+                        return Err(self.error(
+                            m.line,
+                            m.base_col,
+                            "`If that is refused` follows a `Then … is told to …` line",
+                        ));
                     };
                     last.compensates = Some(Box::new(spec));
                 }
@@ -104,11 +118,21 @@ impl Parser<'_> {
 
 /// A process manager as a `Process:` block, or the name of what in it the sentence form cannot say.
 pub(super) fn said(pm: &ir::ProcessManager) -> Result<String, String> {
-    let refused = |what: &str| format!("the sentence form has no phrase for {what} in process {}", pm.name);
+    let refused = |what: &str| {
+        format!(
+            "the sentence form has no phrase for {what} in process {}",
+            pm.name
+        )
+    };
     if pm.states != crate::parse::process_manager::derived_states(&pm.handlers) {
         return Err(refused("states that are not the ones its steps name"));
     }
-    if !pm.correlates_by.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '/')) || pm.correlates_by.is_empty() {
+    if !pm
+        .correlates_by
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '/'))
+        || pm.correlates_by.is_empty()
+    {
         return Err(refused("this way of matching up"));
     }
     let mut out = format!("\nProcess: {}\n", super::format::spoken_title(&pm.name));
@@ -120,7 +144,9 @@ pub(super) fn said(pm: &ir::ProcessManager) -> Result<String, String> {
         out.push_str(&format!("  It ends when {event} is announced\n"));
     }
     for handler in &pm.handlers {
-        if !super::format::is_name(&handler.from_state) || !super::format::is_name(&handler.to_state) {
+        if !super::format::is_name(&handler.from_state)
+            || !super::format::is_name(&handler.to_state)
+        {
             return Err(refused("these state names"));
         }
         let when = if handler.event_type == "refused" {
@@ -133,12 +159,18 @@ pub(super) fn said(pm: &ir::ProcessManager) -> Result<String, String> {
             handler.from_state, handler.to_state
         ));
         for dispatch in &handler.dispatches {
-            out.push_str(&format!("    Then {}\n", dispatch_said(dispatch, &refused)?));
+            out.push_str(&format!(
+                "    Then {}\n",
+                dispatch_said(dispatch, &refused)?
+            ));
             if let Some(undo) = &dispatch.compensates {
                 if undo.compensates.is_some() {
                     return Err(refused("an undo that is itself undone"));
                 }
-                out.push_str(&format!("    If that is refused, {}\n", dispatch_said(undo, &refused)?));
+                out.push_str(&format!(
+                    "    If that is refused, {}\n",
+                    dispatch_said(undo, &refused)?
+                ));
             }
         }
     }
@@ -146,7 +178,10 @@ pub(super) fn said(pm: &ir::ProcessManager) -> Result<String, String> {
 }
 
 /// `the account is told to debit with number from the source`.
-fn dispatch_said(dispatch: &ir::DispatchSpec, refused: &dyn Fn(&str) -> String) -> Result<String, String> {
+fn dispatch_said(
+    dispatch: &ir::DispatchSpec,
+    refused: &dyn Fn(&str) -> String,
+) -> Result<String, String> {
     let (owner, command) = dispatch
         .command_name
         .split_once('.')
@@ -155,6 +190,7 @@ fn dispatch_said(dispatch: &ir::DispatchSpec, refused: &dyn Fn(&str) -> String) 
     if dispatch.with_spec.is_empty() {
         return Ok(told);
     }
-    let items = super::changes::row_items(&dispatch.with_spec).ok_or_else(|| refused("this way of passing values"))?;
+    let items = super::changes::row_items(&dispatch.with_spec)
+        .ok_or_else(|| refused("this way of passing values"))?;
     Ok(format!("{told} with {items}"))
 }
