@@ -34,16 +34,9 @@ module Hecks
         Booted.dispatcher.validate(verb, to: @handle.id, with: {}).refusals.all? { |refusal| refusal.stage == :arguments }
       end
 
-      # Whether the record's lifecycle state lets the command run: its own `from:` guard and the
-      # aggregate's transitions, as the domain decides them.
+      # Whether the record's lifecycle state lets the command run, as the domain decides it.
       def state_admits?(command)
-        rules = Hecks::Runtime::CommandRules.new(Booted.registry)
-        instance = Booted.registry.repository(@handle.fqn.split("::").first, @door.ir).find(@handle.id)
-        rules.enforce_lifecycle_guard(@door.ir, command, instance)
-        rules.admissible_transition(@door.ir, command, instance)
-        true
-      rescue Hecks::Runtime::LifecycleRefused
-        false
+        Booted.dispatcher.state_admits?(@handle.fqn.split("::").first, @door.ir, command, @handle.id)
       end
     end
   end
