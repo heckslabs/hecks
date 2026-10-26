@@ -320,3 +320,34 @@ RSpec.shared_examples "a dispatch-claiming adapter" do
     expect(adapter.dispatch_applied?("k1")).to be(false)
   end
 end
+
+# What a journal owes the ledger: seals kept beside it, read back in order, never overwritten.
+RSpec.shared_examples "a journal that keeps ledger seals" do
+  let(:genesis) { "0" * 64 }
+
+  it "holds no seal until one is recorded" do
+    expect(adapter.ledger_anchors).to eq([])
+  end
+
+  it "reads seals back oldest first" do
+    adapter.record_ledger_anchor(through: 5, head: "b" * 64, previous: "a" * 64)
+    adapter.record_ledger_anchor(through: 2, head: "a" * 64, previous: genesis)
+    expect(adapter.ledger_anchors.map { |anchor| anchor[:through] }).to eq([2, 5])
+  end
+
+  it "keeps a seal across a reopened adapter" do
+    adapter.record_ledger_anchor(through: 2, head: "a" * 64, previous: genesis)
+    expect(reopened_adapter.ledger_anchors).to eq([{ through: 2, head: "a" * 64, previous: genesis }])
+  end
+
+  it "ignores a seal recorded again with the same head" do
+    2.times { adapter.record_ledger_anchor(through: 2, head: "a" * 64, previous: genesis) }
+    expect(adapter.ledger_anchors.size).to eq(1)
+  end
+
+  it "refuses a seal recorded again with another head" do
+    adapter.record_ledger_anchor(through: 2, head: "a" * 64, previous: genesis)
+    expect { adapter.record_ledger_anchor(through: 2, head: "c" * 64, previous: genesis) }
+      .to raise_error(Hecks::Runtime::WiringError, /already sealed/)
+  end
+end

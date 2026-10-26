@@ -94,7 +94,53 @@ module Hecks
           removed
         end
 
+        # Reads the chain heads the ledger sealed beside this journal, oldest first.
+        #
+        # @return [Array<Hash>] `through:` the highest sequence a seal covers, `head:` the chain
+        #   digest at that point and `previous:` the head the seal followed (genesis digest first)
+        # @raise [PG::Error] if a statement fails
+        def ledger_anchors
+          ensure_ledger_anchors!
+          pg_exec_params(
+            "SELECT through_sequence, head, previous FROM hecks_ledger_anchors " \
+            "WHERE aggregate_table = $1 ORDER BY through_sequence", [table]
+          ).map { |row| { through: row["through_sequence"].to_i, head: row["head"], previous: row["previous"] } }
+        end
+
+        # Seals a chain head beside this journal. Sealing the same point twice with the same head
+        # changes nothing; a different head for a sealed point is refused, never overwritten.
+        #
+        # @param through [Integer] the highest journal sequence the head covers
+        # @param head [String] the chain digest at `through`
+        # @param previous [String] the head of the seal before this one
+        # @return [void]
+        # @raise [Runtime::WiringError] if the point is already sealed with another head
+        # @raise [PG::Error] if a statement fails
+        def record_ledger_anchor(through:, head:, previous:)
+          ensure_ledger_anchors!
+          sealed = ledger_anchors.find { |anchor| anchor[:through] == through }
+          if sealed
+            return if sealed[:head] == head
+
+            raise Runtime::WiringError, "#{table} is already sealed through #{through} with another head: the journal changed"
+          end
+
+          pg_exec_params(
+            "INSERT INTO hecks_ledger_anchors (aggregate_table, through_sequence, head, previous) " \
+            "VALUES ($1, $2, $3, $4)", [table, through, head, previous]
+          )
+        end
+
         private
+
+        def ensure_ledger_anchors!
+          pg_exec_params(
+            "CREATE TABLE IF NOT EXISTS hecks_ledger_anchors (" \
+            "aggregate_table text NOT NULL, through_sequence bigint NOT NULL, head text NOT NULL, " \
+            "previous text NOT NULL, sealed_at timestamptz NOT NULL DEFAULT now(), " \
+            "PRIMARY KEY (aggregate_table, through_sequence))", []
+          )
+        end
 
         # Shared decode step for `entries`/`entries_since` — runs a query already selecting
         # `aggregate_id, operation, state, mirrors, sequence` and builds one Entry per row.

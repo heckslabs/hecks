@@ -25,6 +25,8 @@ RSpec.describe Hecks::Adapters::Sqlite do
 
   def reopened_adapter = described_class.new(aggregate: aggregate, settings: { database: "pizzas.db" }, root: @dir)
 
+  it_behaves_like "a journal that keeps ledger seals"
+
   def other_domain_adapter
     described_class.new(aggregate: aggregate, settings: { database: "pizzas.db", domain: "OtherDomain" }, root: @dir)
   end

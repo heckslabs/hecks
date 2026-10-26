@@ -41,7 +41,52 @@ module Hecks
           end
         end
 
+        # Reads the chain heads the ledger sealed beside this journal, oldest first.
+        #
+        # A Heki journal has no sequence and is emptied by compaction, so `through:` counts the
+        # entries sealed since the first seal, across compactions.
+        #
+        # @return [Array<Hash>] `through:`, `head:` and `previous:` (the genesis digest first)
+        # @raise [Malformed] if a line of the anchors file is not valid JSON
+        def ledger_anchors
+          return [] unless File.exist?(anchors_path)
+
+          lines = File.readlines(anchors_path, chomp: true).reject(&:empty?)
+          lines.map { |line| anchor_from(JSON.parse(line)) }.sort_by { |anchor| anchor[:through] }
+        rescue JSON::ParserError => e
+          raise Malformed, "#{anchors_path}: json error: #{e.message}"
+        end
+
+        # Seals a chain head beside this journal, one line, fsynced. Sealing the same point twice
+        # with the same head changes nothing; a different head for a sealed point is refused.
+        #
+        # @param through [Integer] how many entries the seals cover in all
+        # @param head [String] the chain digest at `through`
+        # @param previous [String] the head of the seal before this one
+        # @return [void]
+        # @raise [Runtime::WiringError] if the point is already sealed with another head
+        def record_ledger_anchor(through:, head:, previous:)
+          sealed = ledger_anchors.find { |anchor| anchor[:through] == through }
+          if sealed
+            return if sealed[:head] == head
+
+            raise Runtime::WiringError, "#{anchors_path} is already sealed through #{through} with another head"
+          end
+
+          File.open(anchors_path, "ab") do |file|
+            file.write("#{JSON.generate(through: through, head: head, previous: previous)}\n")
+            file.flush
+            file.fsync
+          end
+        end
+
         private
+
+        def anchors_path = "#{@path}.anchors"
+
+        def anchor_from(value)
+          { through: value.fetch("through"), head: value.fetch("head"), previous: value.fetch("previous") }
+        end
 
         def truncate_journal!
           return unless File.exist?(@journal_path)
