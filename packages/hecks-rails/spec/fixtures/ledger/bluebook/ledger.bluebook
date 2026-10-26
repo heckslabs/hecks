@@ -21,6 +21,10 @@ Hecks.bluebook "Ledger" do
       attribute :currency, String,  default: "USD"
     end
 
+    value_object "Memo" do
+      attribute :value, String, matches: :present
+    end
+
     lifecycle :status, default: "open" do
       transition "FreezeAccount" => "frozen", from: "open"
       transition "Unfreeze"      => "open",   from: "frozen"
@@ -57,8 +61,20 @@ Hecks.bluebook "Ledger" do
 
       reference_to Account
       attribute :amount, Money
+      attribute :memo,   Memo
 
       emits "MoneyDeposited"
+    end
+
+    command "Withdraw", from: "open" do
+      role "Teller"
+      goal "Take money from an open account"
+
+      reference_to Account
+      attribute :amount, Money
+      attribute :memo,   Memo
+
+      emits "MoneyWithdrawn"
     end
 
     command "Unfreeze", from: "frozen" do
