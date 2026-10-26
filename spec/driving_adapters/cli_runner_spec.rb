@@ -93,7 +93,7 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
 
       expect(code).to eq(1)
       expect(output).to include("no such command: create_pizza")
-      expect(output).to include("did you mean").and include("order.create_pizza")
+      expect(output).to include("did you mean").and include("Order.create_pizza")
     end
 
     it "takes a trailing `!` on a qualified command" do
@@ -284,7 +284,7 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
       expect(code).to eq(1)
       expect(output).to include("no such command: order.create_piza")
       expect(output).to include("did you mean")
-      expect(output).to include("order.create_pizza")
+      expect(output).to include("Order.create_pizza")
     end
 
     it "keeps questions and commands apart when refusing" do

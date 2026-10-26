@@ -127,6 +127,7 @@
             }
           ],
           "goal": "Bind one adapter in a world",
+          "idempotent": false,
           "mutations": [
             {
               "op": "set",
@@ -226,6 +227,7 @@
             }
           ],
           "goal": "Give one value the bound adapter needs",
+          "idempotent": false,
           "mutations": [
             {
               "fields": {
@@ -447,6 +449,7 @@
 
           ],
           "goal": "Open a world for a domain",
+          "idempotent": false,
           "mutations": [
             {
               "op": "set",

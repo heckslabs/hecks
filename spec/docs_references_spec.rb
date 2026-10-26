@@ -22,6 +22,7 @@ module DocReferences
   PATH = %r{\A(?:#{PATH_ROOTS.join("|")})/[\w./-]+\z}
   PLACEHOLDER = /<|>|\*|\{|\$|N{3,}|\.\./
   WORD = /\A[a-z_]+(?:\.[a-z_]+)?\z/
+  DECLARATION = /^\s*(?:(?:class|module)\s+(?:\w+::)*(\w+)|aggregate\s+"(\w+)")/
 
   module_function
 
@@ -126,12 +127,13 @@ module DocReferences
   end
 
   # Every module and class name some Ruby file under lib/ declares, for constants that load lazily
-  # and so are not defined until something requires them.
+  # and so are not defined until something requires them, and every aggregate some bluebook there
+  # declares, which the launcher's verb form names as `Hecks::PushTrain.board!`.
   def declared_names
-    @declared_names ||= Dir[File.join(ROOT, "lib/**/*.rb")].flat_map do |file|
-      File.read(file).scan(/^\s*(?:class|module)\s+(?:\w+::)*(\w+)/).flatten
-    end.to_set
+    @declared_names ||= Dir[File.join(ROOT, "lib/**/*.{rb,bluebook}")].flat_map { |file| names_in(file) }.to_set
   end
+
+  def names_in(file) = File.read(file).scan(DECLARATION).flatten.compact
 
   def resolves_constant?(name)
     Object.const_get(name)

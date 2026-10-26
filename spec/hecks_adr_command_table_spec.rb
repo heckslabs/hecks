@@ -17,7 +17,7 @@ RSpec.describe "the ADR 0080 command table, every row" do
     def name = verb.split("_").map(&:capitalize).join
     def qualified = "#{aggregate.gsub(/([a-z])([A-Z])/, '\1_\2').downcase}.#{verb}"
     def argv = [*(chapter == "Hecks" ? [] : [chapter.gsub(/([a-z])([A-Z])/, '\1_\2').downcase]), qualified]
-    def help_name = qualified
+    def help_name = "#{aggregate}.#{verb}"
   end
 
   ALL_ROWS = Hecks::Vocabulary.rows("RetiredScript").map do |row|

@@ -48,6 +48,7 @@
 
           ],
           "goal": "Turn the light on",
+          "idempotent": false,
           "mutations": [
             {
               "op": "set",
@@ -84,6 +85,7 @@
 
           ],
           "goal": "Record that the flip was noticed",
+          "idempotent": false,
           "mutations": [
             {
               "op": "set",
@@ -259,6 +261,7 @@
 
           ],
           "goal": "Hang a bell that can be rung",
+          "idempotent": false,
           "mutations": [
 
           ],
@@ -285,6 +288,7 @@
 
           ],
           "goal": "Ring the bell, which rings the bell",
+          "idempotent": false,
           "mutations": [
 
           ],
@@ -398,6 +402,7 @@
 
           ],
           "goal": "Raise the beacon and announce it outward",
+          "idempotent": false,
           "mutations": [
 
           ],

@@ -88,6 +88,7 @@
 
           ],
           "goal": "Take on a new customer",
+          "idempotent": false,
           "mutations": [
             {
               "op": "set",
@@ -149,6 +150,7 @@
 
           ],
           "goal": "Stop a customer transacting while something is investigated",
+          "idempotent": false,
           "mutations": [
             {
               "op": "set",
@@ -183,6 +185,7 @@
 
           ],
           "goal": "Let a cleared customer transact again",
+          "idempotent": false,
           "mutations": [
             {
               "op": "set",
@@ -222,6 +225,7 @@
 
           ],
           "goal": "End the relationship",
+          "idempotent": false,
           "mutations": [
 
           ],
@@ -681,6 +685,7 @@
             }
           ],
           "goal": "Give a customer somewhere to keep money",
+          "idempotent": false,
           "mutations": [
             {
               "op": "set",
@@ -782,6 +787,7 @@
             }
           ],
           "goal": "Put money in",
+          "idempotent": false,
           "mutations": [
             {
               "op": "increment",
@@ -996,6 +1002,7 @@
             }
           ],
           "goal": "Take money out, if it is there to take",
+          "idempotent": false,
           "mutations": [
             {
               "op": "decrement",
@@ -1061,6 +1068,7 @@
             }
           ],
           "goal": "Stop an account moving while something is investigated",
+          "idempotent": false,
           "mutations": [
 
           ],
@@ -1108,6 +1116,7 @@
             }
           ],
           "goal": "Release a cleared account",
+          "idempotent": false,
           "mutations": [
 
           ],
@@ -1177,6 +1186,7 @@
             }
           ],
           "goal": "Close an account that has been emptied",
+          "idempotent": false,
           "mutations": [
 
           ],
@@ -1269,6 +1279,7 @@
             }
           ],
           "goal": "Charge the account a fee",
+          "idempotent": false,
           "mutations": [
             {
               "op": "decrement",
@@ -1368,6 +1379,7 @@
             }
           ],
           "goal": "Reverse a fee that was applied in error",
+          "idempotent": false,
           "mutations": [
             {
               "fields": {
@@ -1451,6 +1463,7 @@
             }
           ],
           "goal": "Credit the account with interest earned",
+          "idempotent": false,
           "mutations": [
             {
               "op": "increment",
@@ -1576,6 +1589,7 @@
             }
           ],
           "goal": "Reverse interest that was accrued in error",
+          "idempotent": false,
           "mutations": [
             {
               "op": "decrement",
@@ -1785,6 +1799,7 @@
                 }
               ],
               "goal": "Correct a movement posted for the wrong amount",
+              "idempotent": false,
               "mutations": [
                 {
                   "op": "increment",
@@ -1904,6 +1919,7 @@
                 }
               ],
               "goal": "Undo a movement that should not have been posted",
+              "idempotent": false,
               "mutations": [
                 {
                   "op": "set",
@@ -2842,6 +2858,7 @@
 
           ],
           "goal": "Stop an account or a card while something is looked into",
+          "idempotent": false,
           "mutations": [
             {
               "op": "set",
@@ -2894,6 +2911,7 @@
 
           ],
           "goal": "Take a hold off once the matter is settled",
+          "idempotent": false,
           "mutations": [
 
           ],
@@ -2942,6 +2960,7 @@
             }
           ],
           "goal": "Send a hold on an account to the account review desk",
+          "idempotent": false,
           "mutations": [
 
           ],
@@ -2990,6 +3009,7 @@
             }
           ],
           "goal": "Send a hold on a card to the card review desk",
+          "idempotent": false,
           "mutations": [
 
           ],
@@ -3295,6 +3315,7 @@
             }
           ],
           "goal": "Open a KYC case for a newly registered customer, naming the account it will become",
+          "idempotent": false,
           "mutations": [
             {
               "op": "set",
@@ -3368,6 +3389,7 @@
             }
           ],
           "goal": "Pass a customer's identity and screening checks",
+          "idempotent": false,
           "mutations": [
 
           ],
@@ -3415,6 +3437,7 @@
             }
           ],
           "goal": "Refuse a customer who does not clear screening — no account was ever opened, so nothing is undone",
+          "idempotent": false,
           "mutations": [
 
           ],
@@ -3759,6 +3782,7 @@
             }
           ],
           "goal": "Put a card in a customer's hand",
+          "idempotent": false,
           "mutations": [
             {
               "op": "set",
@@ -3844,6 +3868,7 @@
             }
           ],
           "goal": "Name a card so it is recognisable",
+          "idempotent": false,
           "mutations": [
             {
               "op": "set",
@@ -3940,6 +3965,7 @@
             }
           ],
           "goal": "Take cash out at a machine",
+          "idempotent": false,
           "mutations": [
             {
               "fields": {
@@ -3995,6 +4021,7 @@
             }
           ],
           "goal": "Start using a card",
+          "idempotent": false,
           "mutations": [
 
           ],
@@ -4045,6 +4072,7 @@
             }
           ],
           "goal": "Take a card out of service",
+          "idempotent": false,
           "mutations": [
 
           ],
@@ -4185,6 +4213,7 @@
                 }
               ],
               "goal": "Challenge a withdrawal that was not mine",
+              "idempotent": false,
               "mutations": [
                 {
                   "op": "set",
@@ -4866,6 +4895,7 @@
             }
           ],
           "goal": "Put a hold on funds for a purchase",
+          "idempotent": false,
           "mutations": [
             {
               "op": "set",
@@ -4979,6 +5009,7 @@
             }
           ],
           "goal": "Turn an authorization into an actual charge",
+          "idempotent": false,
           "mutations": [
 
           ],
@@ -5048,6 +5079,7 @@
             }
           ],
           "goal": "Cancel an authorization before it settles",
+          "idempotent": false,
           "mutations": [
 
           ],
@@ -5117,6 +5149,7 @@
             }
           ],
           "goal": "Give the money back after a charge settled",
+          "idempotent": false,
           "mutations": [
 
           ],
@@ -5186,6 +5219,7 @@
             }
           ],
           "goal": "Undo a captured charge with no customer dispute involved",
+          "idempotent": false,
           "mutations": [
 
           ],
@@ -5268,6 +5302,7 @@
             }
           ],
           "goal": "Challenge a payment that already settled",
+          "idempotent": false,
           "mutations": [
             {
               "op": "set",
@@ -5345,6 +5380,7 @@
             }
           ],
           "goal": "Uphold a customer's dispute and claw the charge back",
+          "idempotent": false,
           "mutations": [
 
           ],
@@ -5414,6 +5450,7 @@
             }
           ],
           "goal": "Uphold the charge and close a customer's dispute",
+          "idempotent": false,
           "mutations": [
 
           ],
@@ -5947,6 +5984,7 @@
             }
           ],
           "goal": "Assign the box to a customer",
+          "idempotent": false,
           "mutations": [
             {
               "op": "set",
@@ -6030,6 +6068,7 @@
             }
           ],
           "goal": "Give the box back and take the keys off the account",
+          "idempotent": false,
           "mutations": [
 
           ],
@@ -6106,6 +6145,7 @@
             }
           ],
           "goal": "Record that the box was opened",
+          "idempotent": false,
           "mutations": [
             {
               "fields": {
@@ -6171,6 +6211,7 @@
             }
           ],
           "goal": "Cut a key for the box",
+          "idempotent": false,
           "mutations": [
             {
               "fields": {
@@ -6295,6 +6336,7 @@
                 }
               ],
               "goal": "Note something unusual about a visit after the fact",
+              "idempotent": false,
               "mutations": [
                 {
                   "op": "set",
@@ -6521,6 +6563,7 @@
                 }
               ],
               "goal": "Take a key back when a holder is done with it",
+              "idempotent": false,
               "mutations": [
 
               ],
@@ -7093,6 +7136,7 @@
             }
           ],
           "goal": "Close out one period's activity into a permanent record",
+          "idempotent": false,
           "mutations": [
             {
               "op": "set",
@@ -7592,6 +7636,7 @@
             }
           ],
           "goal": "Send money to another account",
+          "idempotent": false,
           "mutations": [
             {
               "op": "set",
@@ -7705,6 +7750,7 @@
             }
           ],
           "goal": "Record that the source account has given up the money",
+          "idempotent": false,
           "mutations": [
 
           ],
@@ -7774,6 +7820,7 @@
             }
           ],
           "goal": "Record that the destination has received it",
+          "idempotent": false,
           "mutations": [
 
           ],
@@ -7843,6 +7890,7 @@
             }
           ],
           "goal": "Record that the destination credit committed",
+          "idempotent": false,
           "mutations": [
 
           ],
@@ -7912,6 +7960,7 @@
             }
           ],
           "goal": "Put the money back when the credit could not be made",
+          "idempotent": false,
           "mutations": [
 
           ],
@@ -7981,6 +8030,7 @@
             }
           ],
           "goal": "Refuse a transfer before any money moved",
+          "idempotent": false,
           "mutations": [
 
           ],
@@ -8502,6 +8552,7 @@
             }
           ],
           "goal": "Send money to an account outside the bank",
+          "idempotent": false,
           "mutations": [
             {
               "op": "set",
@@ -8615,6 +8666,7 @@
             }
           ],
           "goal": "Release the transfer to the external network",
+          "idempotent": false,
           "mutations": [
 
           ],
@@ -8684,6 +8736,7 @@
             }
           ],
           "goal": "Ask the external network to stop a transfer already sent",
+          "idempotent": false,
           "mutations": [
 
           ],
@@ -8753,6 +8806,7 @@
             }
           ],
           "goal": "Record that the external network sent the money back",
+          "idempotent": false,
           "mutations": [
 
           ],
@@ -9231,6 +9285,7 @@
             }
           ],
           "goal": "Set up a payment to collect on a future date",
+          "idempotent": false,
           "mutations": [
             {
               "op": "set",
@@ -9344,6 +9399,7 @@
             }
           ],
           "goal": "Collect a payment on its due date",
+          "idempotent": false,
           "mutations": [
 
           ],
@@ -9413,6 +9469,7 @@
             }
           ],
           "goal": "Call off a payment before its due date",
+          "idempotent": false,
           "mutations": [
 
           ],
@@ -9482,6 +9539,7 @@
             }
           ],
           "goal": "Record that today's presentment could not be collected",
+          "idempotent": false,
           "mutations": [
 
           ],
@@ -9610,6 +9668,7 @@
             }
           ],
           "goal": "Re-present a failed payment, up to the limit the schedule names",
+          "idempotent": false,
           "mutations": [
             {
               "op": "increment",
@@ -9715,6 +9774,7 @@
             }
           ],
           "goal": "Give up on a payment that could not be collected after every retry",
+          "idempotent": false,
           "mutations": [
 
           ],

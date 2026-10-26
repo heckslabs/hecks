@@ -6,7 +6,8 @@ require "spec_helper"
 RSpec.describe Hecks::Adapters::Driving::McpScope do
   # Names that carry data and reach nothing outside the domain's own files.
   PLAIN_ARGUMENTS = %w[
-    aggregates alert_key arguments at body budget check closes context digest email era example exclude expert fills format
+    additive agent aggregates alert_key arguments at body budget check closes context crate declaration_cache digest email
+    environment era example exclude expert fills format full_gate
     from_run
     gate inner ir_version iterations kind lane name named new_name no_ai only opens package
     pairs_shape

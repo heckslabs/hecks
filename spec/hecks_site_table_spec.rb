@@ -63,7 +63,7 @@ RSpec.describe "the Site row of the ADR command table" do
     out, status = launch(["site_projection.project_site", "--help"])
 
     expect(status).to eq(0)
-    expect(out).to start_with("site_projection.project_site")
+    expect(out).to start_with("SiteProjection.project_site")
   end
 
   it "declares the Route row with the closed sets in one place", :aggregate_failures do
@@ -216,7 +216,7 @@ RSpec.describe "the Site row of the ADR command table" do
       out, status = launch(["site_projection.check_live", "--help"])
 
       expect(status).to eq(0)
-      expect(out).to start_with("site_projection.check_live")
+      expect(out).to start_with("SiteProjection.check_live")
     end
 
     it "prints the report alone for a live distribution that matches and exits 0, without --wait", :aggregate_failures do

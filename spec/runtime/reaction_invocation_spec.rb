@@ -59,6 +59,7 @@ RSpec.describe "reaction invocation routing" do
     [
       "Wire::Drawer.Take",
       {
+        dispatch_key:     nil,
         saga_correlation: { "reference" => "wire-1" },
         to:               "left",
         with:             { amount: { cents: 250 } }

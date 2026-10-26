@@ -50,6 +50,7 @@
 
           ],
           "goal": "A new drawer",
+          "idempotent": false,
           "mutations": [
 
           ],
@@ -106,6 +107,7 @@
             }
           ],
           "goal": "Money in",
+          "idempotent": false,
           "mutations": [
             {
               "op": "increment",
@@ -196,6 +198,7 @@
             }
           ],
           "goal": "Money out",
+          "idempotent": false,
           "mutations": [
             {
               "op": "decrement",
@@ -230,6 +233,7 @@
 
           ],
           "goal": "Shut the drawer",
+          "idempotent": false,
           "mutations": [
 
           ],
@@ -256,6 +260,7 @@
 
           ],
           "goal": "Open it again",
+          "idempotent": false,
           "mutations": [
 
           ],
@@ -473,6 +478,7 @@
             }
           ],
           "goal": "Move money between drawers",
+          "idempotent": false,
           "mutations": [
             {
               "op": "set",
@@ -525,6 +531,7 @@
 
           ],
           "goal": "The source gave it up",
+          "idempotent": false,
           "mutations": [
 
           ],
@@ -551,6 +558,7 @@
 
           ],
           "goal": "The destination has it",
+          "idempotent": false,
           "mutations": [
 
           ],
@@ -577,6 +585,7 @@
 
           ],
           "goal": "It went back",
+          "idempotent": false,
           "mutations": [
 
           ],

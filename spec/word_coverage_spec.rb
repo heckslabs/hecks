@@ -94,6 +94,12 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                            "reading), " \
                                            "so a corpus member declaring it would exercise nothing this doctest does not " \
                                            "already. The gap is upstream of the DSL word, in the adapter layer.",
+    "idempotent (Command)"              =>
+                                           "a real declaration would be a claim about a real command: delivering it twice " \
+                                           "must leave the state delivering it once does, and the banking commands the " \
+                                           "sagas dispatch (a credit, a debit) are exactly the ones for which that is " \
+                                           "false. The word is exercised by its own runtime specs " \
+                                           "(spec/runtime/saga_crash_recovery_spec.rb), against a command written for them.",
     "inspect_query (ReadModel)"         =>
                                            "even more vacuous than the Query form — the read model runtime never " \
                                            "reaches the " \
