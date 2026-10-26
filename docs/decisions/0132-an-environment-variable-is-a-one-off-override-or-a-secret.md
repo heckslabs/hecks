@@ -111,10 +111,9 @@ contract test.
   the push reaches it as `push_train.board!`'s `full_gate`, which pushes with
   `git -c hecks.fullGate=true` for that push only (built). The pre-push hook and
   `generated_rust.rb` read `git config --type=bool --get hecks.fullGate`, so
-  `HECKS_PRE_PUSH_GATE` is deprecated (the hook warns, and the variable still counts until a
-  train that sets `hecks.fullGate` has reached every checkout; step 9 removes it), and a
-  repository can keep the full gate on with `git config hecks.fullGate true`. A workflow passes `strict` instead of relying on the
-  provider's `CI`.
+  `HECKS_PRE_PUSH_GATE` is retired (nothing reads it; `hecks config` reports it as ignored
+  when set), and a repository can keep the full gate on with `git config hecks.fullGate true`. A
+  workflow passes `strict` instead of relying on the provider's `CI`.
 - `HECKS_PUSH_TRAIN=off`: nothing reads it today (no file in this repository or the user's
   hook configuration names it), so there is nothing to retire; the train needs no argument
   for "not running".
@@ -122,10 +121,15 @@ contract test.
 **Retired outright:**
 - `HECKS_EVAL=string` forced the text path of rule evaluation. No spec or workflow set it
   and it compared nothing; the switch and its branch are removed.
-- `HECKS_SYNTAX_BOOT_CACHE=off`, `HECKS_VERDICT_CACHE=off`, `HECKS_NO_USAGE_CACHE`: each
-  turned a disk cache off to rule it out. `test_suite_run.clear_caches!` empties all three
-  caches instead. The variables still work and warn once; they are removed a release
-  later.
+- `HECKS_PRE_PUSH_GATE`: replaced by `git config hecks.fullGate`; the hook and
+  `generated_rust.rb` no longer read it.
+
+**Test switches, kept:** `HECKS_SYNTAX_BOOT_CACHE=off`, `HECKS_VERDICT_CACHE=off` and
+`HECKS_NO_USAGE_CACHE` each turn a disk cache off for a child process that must boot
+uncached (`verdict_cache_spec`, `syntax_boot_memo_spec`, `cache_dir_spec`,
+`usage_cache_spec`). A person ruling a cache out as the cause empties it with
+`test_suite_run.clear_caches!`, so the switches are not deprecated and do not warn: they are
+how a test process, which no hecks command starts, asks for the uncached path.
 
 **Kept (the whole remaining list):**
 - *Overrides with a derived default, nobody needs to set:* `HECKS_RUST_DIR`,
@@ -154,9 +158,9 @@ for it.
 
 ## Order of work
 
-1. Done on this branch: `HECKS_EVAL` and the `SEEDS`/`STEPS` fallback removed; the cache
-   switches warn; `test_suite_run.clear_caches!` empties the syntax-boot, verdict and usage
-   caches.
+1. Done: `HECKS_EVAL` and the `SEEDS`/`STEPS` fallback removed; `HECKS_PRE_PUSH_GATE`
+   retired; `test_suite_run.clear_caches!` empties the syntax-boot, verdict and usage caches,
+   and the three cache switches remain as test switches.
 2. Derived variables: done for the registry source (`EMBRYONAUT_BLUEBOOKS_SRC` now has a
    sibling-checkout default). The rest were already derived with an override, and stay
    overrides (see the classification); `HECKS_RUST_DIR` becoming an explicit workspace

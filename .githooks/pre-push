@@ -67,12 +67,6 @@ fi
 # checks and spec/fuzzing, a couple of minutes), since CI runs every other check on the pushed commit. hecks.fullGate runs
 # the whole `pre_push` stage and, when green, writes the attestation note that lets CI skip its checks.
 FULL_GATE=$(git config --type=bool --get hecks.fullGate 2>/dev/null)
-# Deprecated: the variable the push train used to set. It still counts until a train that sets
-# `hecks.fullGate` has reached every checkout.
-if [ -n "${HECKS_PRE_PUSH_GATE:-}" ] && [ "$FULL_GATE" != "true" ]; then
-  printf '[pre-push] HECKS_PRE_PUSH_GATE is deprecated: use `hecks push_train.board! full_gate.value=true` or `git config hecks.fullGate true`.\n'
-  FULL_GATE=true
-fi
 if [ "$FULL_GATE" != "true" ]; then
   printf '[pre-push] running the style checks and spec/fuzzing; CI runs the suite (`hecks push_train.board! full_gate.value=true` runs it here).\n\n'
   if ! bundle exec ruby -Ilib -e 'require "hecks/tools"; Hecks::Tools.script("gate", ARGV)' unguarded_push; then

@@ -13,10 +13,8 @@ module Hecks
     # answers `text:`, one `name: value (source)` line each, then any deprecated variable that is
     # set. A setting the domain cannot resolve is shown as such, not left out.
     class SettingsReading
-      # The variables that turn a cache off or choose a stage, each replaced by a command or by
-      # git configuration; one that is set is reported.
-      DEPRECATED = %w[HECKS_SYNTAX_BOOT_CACHE HECKS_VERDICT_CACHE HECKS_NO_USAGE_CACHE
-                      HECKS_PRE_PUSH_GATE].freeze
+      # The variables nothing reads any more; one that is set is reported as ignored.
+      RETIRED = %w[HECKS_PRE_PUSH_GATE HECKS_EVAL HECKS_FUZZ_SCHEMA].freeze
 
       # The first line of a message.
       FIRST_LINE = /\A[^\n]*/
@@ -113,8 +111,8 @@ module Hecks
       end
 
       def deprecated
-        set = DEPRECATED.select { |name| ENV.fetch(name, nil) }
-        set.empty? ? [] : ["deprecated variables set: #{set.join(", ")}"]
+        set = RETIRED.select { |name| ENV.fetch(name, nil) }
+        set.empty? ? [] : ["retired variables set, and ignored: #{set.join(", ")}"]
       end
 
       def hide_password(url) = url.to_s.gsub(PASSWORD, '\1:***@')

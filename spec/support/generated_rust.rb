@@ -11,10 +11,8 @@ RSpec.shared_context "with the generated Rust tree" do
   # push` reaches the hook and every check it starts without a variable of ours.
   def full_gate?
     repo = File.expand_path("../..", __dir__)
-    configured = IO.popen(["git", "-C", repo, "config", "--type=bool", "--get", "hecks.fullGate", { err: File::NULL }],
-                          &:read).to_s.strip == "true"
-    # Deprecated: the variable the push train used to set; removed with the other retired reads.
-    configured || !ENV.fetch("HECKS_PRE_PUSH_GATE", "").empty?
+    IO.popen(["git", "-C", repo, "config", "--type=bool", "--get", "hecks.fullGate", { err: File::NULL }],
+             &:read).to_s.strip == "true"
   end
 
   GENERATED_RUST_REMEDY = "run `HECKS_ENVIRONMENT=memory exe/hecks regeneration_run.regenerate_corpus! " \

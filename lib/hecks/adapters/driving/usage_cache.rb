@@ -16,8 +16,8 @@ module Hecks
       # Only an answer that ended well is kept, and any trouble with the cache itself is ignored
       # and the help is worked out as if it did not exist.
       #
-      # `hecks test_suite_run.clear_caches!` empties it; `HECKS_NO_USAGE_CACHE=1` still turns it off
-      # but is deprecated; `HECKS_CACHE_DIR` moves it.
+      # `hecks test_suite_run.clear_caches!` empties it; `HECKS_NO_USAGE_CACHE=1` turns it off for a
+      # test process; `HECKS_CACHE_DIR` moves it.
       module UsageCache
         # The variable that turns the cache off when set to anything but empty or `0`.
         DISABLE_VARIABLE = "HECKS_NO_USAGE_CACHE".freeze
@@ -63,13 +63,10 @@ module Hecks
         # @return [Boolean] whether the cache is on
         def enabled?
           off = ENV[DISABLE_VARIABLE].to_s
-          return true if off.empty? || off == "0"
-
-          Hecks::Switches.deprecate(DISABLE_VARIABLE)
-          false
+          off.empty? || off == "0"
         end
 
-        # Deletes every remembered help text, which the deprecated `HECKS_NO_USAGE_CACHE` skips. The
+        # Deletes every remembered help text, which `HECKS_NO_USAGE_CACHE` skips. The
         # directory is shared with other cache files, so only this cache's entries go.
         #
         # @return [Boolean] whether any entry was removed

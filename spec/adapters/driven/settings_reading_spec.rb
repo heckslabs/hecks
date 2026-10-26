@@ -9,7 +9,7 @@ RSpec.describe Hecks::Adapters::SettingsReading do
   let(:database) { "postgres://hecks:secret@localhost/hecks" }
   let(:variables) do
     %w[HECKS_ENVIRONMENT HECKS_DATABASE HECKS_SCHEMA HECKS_PROJECT_ENVIRONMENT HECKS_CACHE_DIR
-       HECKS_RUST_DIR EMBRYONAUT_BLUEBOOKS_SRC] + described_class::DEPRECATED
+       HECKS_RUST_DIR EMBRYONAUT_BLUEBOOKS_SRC] + described_class::RETIRED
   end
 
   def line(text, name) = text.lines.map(&:chomp).find { |entry| entry.start_with?("#{name}: ") }
@@ -56,11 +56,11 @@ RSpec.describe Hecks::Adapters::SettingsReading do
     expect(line(read, "environment")).to eq("environment: memory (variable HECKS_ENVIRONMENT)")
   end
 
-  it "lists a deprecated variable that is set, and nothing when none is", :aggregate_failures do
-    expect(read).not_to include("deprecated variables set")
+  it "lists a retired variable that is set, and nothing when none is", :aggregate_failures do
+    expect(read).not_to include("retired variables set")
 
     ENV["HECKS_PRE_PUSH_GATE"] = "1"
-    expect(read).to include("deprecated variables set: HECKS_PRE_PUSH_GATE")
+    expect(read).to include("retired variables set, and ignored: HECKS_PRE_PUSH_GATE")
   end
 
   it "finds the registry checkout beside the project and says so", :aggregate_failures do
