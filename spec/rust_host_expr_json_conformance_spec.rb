@@ -164,6 +164,14 @@ RSpec.describe "Rust/Ruby expression parity (rust/host expr_json)", :io do
     [:leaf, "xs.find { |x| x.positive? }", { "xs" => [-3, "a"] }],
     [:leaf, "x.find { |y| y == 1 }", { "x" => "abc" }],
     [:leaf, "x.find { |y| y == 1 }", { "x" => nil }],
+    # sum
+    [:leaf, "xs.sum { |x| x.a * 2 }", { "xs" => [{ "a" => 1 }, { "a" => 4 }] }],
+    [:leaf, "xs.sum { |x| x.a }", { "xs" => [] }],
+    [:leaf, "xs.sum { |x| x.a }", { "xs" => [{ "a" => 1.5 }, { "a" => 2 }] }],
+    [:leaf, "xs.sum { |x| x.a }", { "xs" => [{ "a" => 1 }, { "a" => "b" }] }],
+    [:leaf, "xs.sum { |x| x.a > 1 }", { "xs" => [{ "a" => 2 }] }],
+    [:leaf, "xs.sum { |x| x.a }", { "xs" => [{ "a" => 9_223_372_036_854_775_807 }, { "a" => 1 }] }],
+    [:leaf, "x.sum { |y| y }", { "x" => "abc" }],
     # paths
     [:leaf, "x.foo", { "x" => "abcfoo" }],
     [:leaf, "x.nil?", { "x" => "abc" }],

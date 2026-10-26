@@ -59,7 +59,7 @@ impl Parser<'_> {
                 }
                 Step::Phrase(m) if self.paging_option(&m, &mut query.options)? => {}
                 Step::Phrase(m) if m.id == "query_returns" => {
-                    query.returns = Some(camel(&m.text_of("type")))
+                    query.returns = Some(camel(&m.text_of("type")));
                 }
                 Step::Phrase(m) if m.id == "query_returns_list" => {
                     query.returns = Some(format!("list_of({})", camel(&m.text_of("type"))));
@@ -113,7 +113,7 @@ impl Parser<'_> {
             }
             Some((_, "inspect")) => options.inspection = Some(m.text_of("mode")),
             Some((_, "cursor")) => {
-                options.cursor = Some(format!(":{}", snake(&m.text_of("field"))))
+                options.cursor = Some(format!(":{}", snake(&m.text_of("field"))));
             }
             _ => return Ok(false),
         }

@@ -41,7 +41,7 @@ impl Parser<'_> {
             match word.to_lowercase().as_str() {
                 "optional" if rest.is_empty() => options.optional = true,
                 "default" if !rest.is_empty() => {
-                    options.default = Some(self.default_value(m, col, rest)?)
+                    options.default = Some(self.default_value(m, col, rest)?);
                 }
                 "matching" => options.pattern = Some(self.pattern_text(m, col, rest)?),
                 "admits" if !rest.is_empty() => options.admits = Some(rest.to_string()),

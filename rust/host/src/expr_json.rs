@@ -113,6 +113,13 @@ pub enum Expr {
         predicate: Box<Self>,
         path: Vec<String>,
     },
+    /// `receiver.sum { |param| expression }`: the number the block works out for each element,
+    /// added as `+` adds; 0 for an empty list.
+    Sum {
+        receiver: Box<Self>,
+        param: String,
+        predicate: Box<Self>,
+    },
     Array {
         elements: Vec<Self>,
     },
@@ -300,6 +307,11 @@ pub fn parse(json: &Json) -> Result<Expr, String> {
             param: str_field("param")?,
             predicate: Box::new(expr("predicate")?),
             path: path_field("path")?,
+        },
+        "sum" => Expr::Sum {
+            receiver: Box::new(expr("receiver")?),
+            param: str_field("param")?,
+            predicate: Box::new(expr("predicate")?),
         },
         "array" => Expr::Array {
             elements: field("elements")?
@@ -1040,6 +1052,24 @@ fn eval(expr: &Expr, instance: &Json, scope: Option<&Scope>) -> Result<Value, St
                 BlockMode::Any => outcomes.iter().any(|o| *o),
                 BlockMode::None => !outcomes.iter().any(|o| *o),
             }))
+        }
+        // Every term is worked out and added in order, so a term that is not a number refuses as
+        // the addition does.
+        Expr::Sum {
+            receiver,
+            param,
+            predicate,
+        } => {
+            let items = match recur(receiver)? {
+                Value::Array(items) => items,
+                other => return Err(format!("sum expects a list, got {}", describe(&other))),
+            };
+            let mut total = Value::Int(0);
+            for item in items {
+                let term = unwrap_scalar(bound(param, item, instance, scope, predicate)?);
+                total = add(&total, &term)?;
+            }
+            Ok(total)
         }
         // The first accepted element ends the scan; a miss is nil, not an error.
         Expr::Find {

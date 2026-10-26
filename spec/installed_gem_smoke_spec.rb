@@ -71,15 +71,15 @@ RSpec.describe "the installed hecks gem", :io do
     out, err, code = hecks("--help")
 
     expect(code).to eq(0), err
-    expect(out).to include("hecks <command>!", "  build:\n", "build_wasm!", "hecks --maintainer")
-    expect(out).not_to include("  regeneration_run:\n")
+    expect(out).to include("hecks <command>!", "  Build:\n", "build_wasm!", "hecks --maintainer")
+    expect(out).not_to include("  RegenerationRun:\n")
   end
 
   it "lists the maintainer's commands for --maintainer, though it is not a hecks checkout", :aggregate_failures do
     out, err, code = hecks("--maintainer")
 
     expect(code).to eq(0), err
-    expect(out).to include("  regeneration_run:\n", "regenerate_corpus!")
+    expect(out).to include("  RegenerationRun:\n", "regenerate_corpus!")
   end
 
   it "prints a domain's IR as JSON for `ir`", :aggregate_failures do

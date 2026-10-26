@@ -7,6 +7,34 @@ require_relative "doc_banners_spec"
 # constants. Each is a claim the code can answer, so a rename or removal that leaves the document
 # behind fails here. A document that dates itself with a banner (`DocBanners.required`) is a
 # snapshot and is not read, and one that tells the history of a removed name sits in `HISTORICAL`.
+# What a launcher's `--all` listing names, read back as the calls a document writes: the launcher
+# heads each group with the aggregate as the bluebook spells it (`GateRun`), a document writes the
+# snake form (`gate_run.gate`), and a line may name a command's other spellings (`also: config`).
+module LauncherListing
+  module_function
+
+  QUALIFIED = /\A {2,4}([A-Za-z_]+\.[a-z_]+)!?\s{2,}\S/
+  BARE = /\A    ([a-z_]+)!?\s{2,}\S/
+  INTERNAL = /\A    (?:[A-Za-z_]+\.[a-z_]+!?\s*)+\z/
+
+  def snake(name) = name&.gsub(/([a-z0-9])([A-Z])/, '\\1_\\2')&.downcase
+
+  def snake_call(name) = name.sub(/\A[^.]+/) { |aggregate| snake(aggregate) }
+
+  def aliases_in(line) = line[/\(also: ([^)]*)\)/, 1].to_s.split(", ")
+
+  # The names one listing line gives, under the heading `aggregate`.
+  def names(line, aggregate)
+    qualified = line[QUALIFIED, 1]
+    return [snake_call(qualified)] if qualified
+
+    bare = line[BARE, 1]
+    return ["#{aggregate}.#{bare}", *aliases_in(line)] if bare
+
+    line.match?(INTERNAL) ? line.scan(/([A-Za-z_]+\.[a-z_]+)!?/).flatten.map { |call| snake_call(call) } : []
+  end
+end
+
 module DocReferences
   ROOT = File.expand_path("..", __dir__)
 
@@ -81,19 +109,9 @@ module DocReferences
                            chdir: ROOT)
     aggregate = nil
     out.each_line.with_object([]) do |line, names|
-      aggregate = line[/\A  ([a-z_]+):\s*\z/, 1] || aggregate
-      names.concat(listed_names(line, aggregate))
+      aggregate = LauncherListing.snake(line[/\A  ([A-Za-z_]+):\s*\z/, 1]) || aggregate
+      names.concat(LauncherListing.names(line, aggregate))
     end
-  end
-
-  def listed_names(line, aggregate)
-    qualified = line[/\A {2,4}([a-z_]+\.[a-z_]+)!?\s{2,}\S/, 1]
-    return [qualified] if qualified
-
-    bare = line[/\A    ([a-z_]+)!?\s{2,}\S/, 1]
-    return ["#{aggregate}.#{bare}"] if bare
-
-    line.match?(/\A    (?:[a-z_]+\.[a-z_]+!?\s*)+\z/) ? line.scan(/([a-z_]+\.[a-z_]+)!?/).flatten : []
   end
 
   def known_verbs
