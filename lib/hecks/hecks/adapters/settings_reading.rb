@@ -67,7 +67,7 @@ module Hecks
       end
 
       def database_source(directory)
-        return "variable HECKS_DATABASE, deprecated: name it in environments/local.world" if ENV["HECKS_DATABASE"]
+        return "variable HECKS_DATABASE; a copy of the domain names its own in environments/local.world" if ENV["HECKS_DATABASE"]
         return "environments/local.world" if File.exist?(File.join(directory, "environments", "local.world"))
 
         "world"

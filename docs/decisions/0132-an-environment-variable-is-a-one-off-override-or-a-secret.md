@@ -169,17 +169,13 @@ for it.
 4. World-declared variables: `environments/*.world` becomes the one place a copy says
    what it connects to. `hecks config` (the `Checkout.Settings` query, built) prints each
    setting, its value with any password hidden, and which source supplied it: the variable,
-   the copy's `environments/local.world`, or the world. Retiring `HECKS_DATABASE` itself
-   has an order, because the push train's launcher records to its own database and the
-   launcher checkout only reads `environments/local.world` after a push refreshes it:
-   1. push, so the launcher refreshes to code that reads `local.world`;
-   2. in the launcher checkout, write `environments/local.world` naming its records
-      database (it is never committed);
-   3. confirm `hecks config` there reports `environments/local.world`;
-   4. only then remove the read of `HECKS_DATABASE` from `hecks.world` and
-      `governance.world`, and the global export from the shell. Before step 3 the variable
-      is the only thing naming that database, and removing it would send the launcher to
-      the default `hecks` database.
+   the copy's `environments/local.world`, or the world. `HECKS_DATABASE` is not retired: an
+   installed gem's Hecks domain has no copy to hold an `environments/local.world`, so the
+   variable is how a client points that domain at their own Postgres (`hecks.world` says so).
+   What went wrong was a *global* export that every checkout inherited, and that is gone:
+   the push train's launcher names its records database in its own `local.world`
+   (`hecks_train`), the export is removed from `~/.zshenv`, and `hecks config` shows which
+   source supplies the value. A superseded boot no longer restores era 1's head views.
 5. Declared settings: surveyed, nothing to move. The host wiring is already declared in the
    deploy block and delivered by the generated environment; the script knobs move with the
    scripts; the three tooling choices stay overrides.
