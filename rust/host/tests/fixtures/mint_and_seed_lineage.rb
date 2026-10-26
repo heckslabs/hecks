@@ -97,7 +97,7 @@ end
 def check!(source, owner_url:, translation_source: nil, role: nil)
   registry = load_registry(source, translation_source: translation_source)
   bluebook = registry.bluebooks.values.first
-  settings = { database: owner_url }
+  settings = { database: owner_url, mint_eras: true }
   settings[:role] = role if role
   Hecks::Adapters::PostgresEra::LineageManager.check!(
     registry: registry, bluebook: bluebook, current_text: source, settings: settings

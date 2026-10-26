@@ -217,11 +217,11 @@ shape). A world declares `mint_eras true` or `false` in its `persisted_by("Postg
 which also works from an `environments/local.world` overlay, and `hecks config` reports it. A copy
 that may not mint is refused with the instruction, after its edge is found and before anything is
 written, and the database stays on the era it holds. Holding the first era of an empty database is
-always allowed. The default is `EraResolver::MINT_BY_DEFAULT`, still `true`: a push cannot both
-declare the field and require it, because the launcher's current code rejects a setting its adapter
-does not declare. So the order is: push the field; add `mint_eras true` to the launcher's overlay
-once it has refreshed; then flip `MINT_BY_DEFAULT` to `false`, after which only a copy that says so
-can migrate a database. The Rust host mints at boot as the deployed minter and is not affected.
+always allowed. The default is `EraResolver::MINT_BY_DEFAULT`, `false`: only a copy that says
+`mint_eras true` can migrate a database. A push cannot both declare the field and require it,
+because the launcher's code rejects a setting its adapter does not declare, so the field shipped
+first, the launcher's overlay declared it once it had refreshed, and the default flipped after.
+The Rust host mints at boot as the deployed minter and is not affected.
 
 Not built: a role that dev checkouts cannot mint with, a snapshot before the launcher first boots
 a new shape, and rehearsing shape changes in CI (the `rehearsal_run` commands need a Postgres the

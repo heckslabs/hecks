@@ -133,8 +133,8 @@ archive: do not boot a checkout against it.
   (a read, for that one command), and `era.audit_translation` checks them.
 - Whether a copy may migrate its database is the `mint_eras` setting in its world
   (`persisted_by("PostgresEra") do ... mint_eras true end`, also from an overlay); `hecks config`
-  reports it. The launcher's own overlay must declare it before the default flips to refuse
-  (`EraResolver::MINT_BY_DEFAULT`).
+  reports it. An unset world refuses (`EraResolver::MINT_BY_DEFAULT` is `false`); the
+  launcher's overlay declares `mint_eras true`.
 - After a push, the launcher's refresh moves its checkout only when it is detached and has no
   changed or untracked file; the report names the file that stops it.
 

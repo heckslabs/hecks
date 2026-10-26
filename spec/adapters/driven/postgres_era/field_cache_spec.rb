@@ -129,7 +129,7 @@ RSpec.describe "PostgresEra field cache — Track C validation", :io do
     registry = load_registry(source, translation_source: translation_source)
     bluebook = registry.bluebooks.values.first
     Hecks::Adapters::PostgresEra::LineageManager.check!(
-      registry: registry, bluebook: bluebook, current_text: source, settings: { database: owner_url }
+      registry: registry, bluebook: bluebook, current_text: source, settings: { database: owner_url, mint_eras: true }
     )
     registry
   end

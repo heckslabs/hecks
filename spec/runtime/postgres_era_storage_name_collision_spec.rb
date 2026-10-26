@@ -145,6 +145,7 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
       Hecks.world "#{chapter}" do
         persisted_by("PostgresEra") do
           database "#{owner_url}"
+          mint_eras true
         end
       end
     WORLD
@@ -370,7 +371,7 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
       registry = load_registry(source, translation_source: translation_source)
       bluebook = registry.bluebooks.values.first
       Hecks::Adapters::PostgresEra::LineageManager.check!(
-        registry: registry, bluebook: bluebook, current_text: source, settings: { database: owner_url }
+        registry: registry, bluebook: bluebook, current_text: source, settings: { database: owner_url, mint_eras: true }
       )
       registry
     end
