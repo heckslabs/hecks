@@ -152,7 +152,8 @@ RSpec.describe "Hecks::Fuzzing::Properties", :aggregate_failures do
       { id: "#{branch}:#{number}", branch_code: { value: branch }, box_number: { value: number }, status: "rented" }
     end
 
-    # Asks of Banking::SafeDepositBox.Rented, each given as its own `args:` plus `rows:` or `error:`.
+    # Asks of Banking::SafeDepositBox.Rented, each given as its own `args:` plus `rows:` or
+    # `error:`.
     def rented_history(*asks)
       { bluebooks: bluebooks_for(PROPERTIES_BANKING),
         queries:   asks.map { |ask| { query: "Banking::SafeDepositBox.Rented" }.merge(ask) } }
@@ -197,7 +198,8 @@ RSpec.describe "Hecks::Fuzzing::Properties", :aggregate_failures do
       { bluebooks: bluebooks, refusals: [{ verb: verb, error: error, kind: kind }] }
     end
 
-    # A guard check whose recomputed and actual verdicts are the given refusal kinds (nil: admitted).
+    # A guard check whose recomputed and actual verdicts are the given refusal kinds (nil:
+    # admitted).
     def guard_check(verb, recomputed_kind, actual_kind)
       { verb: verb, recomputed_refused: !recomputed_kind.nil?, recomputed_kind: recomputed_kind,
         actual_refused: !actual_kind.nil?, actual_kind: actual_kind }

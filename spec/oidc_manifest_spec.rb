@@ -22,7 +22,8 @@ RSpec.describe "committed OIDC manifests (hecks deploy oidc_manifest.project_oid
 
   def booted(directory) = Hecks.boot(directory, install_driving: false).registry
 
-  # What `hecks deploy oidc_manifest.project_oidc` would write for the chapter of the file at `path`.
+  # What `hecks deploy oidc_manifest.project_oidc` would write for the chapter of the file at
+  # `path`.
   def projection_for(path)
     registry = booted(File.dirname(path))
     names = tool.chapters_of(registry, File.dirname(path))

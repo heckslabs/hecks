@@ -149,7 +149,8 @@ RSpec.describe "QualityControl" do
 
     def target = @target ||= a_target("banking")
 
-    # The entry point fills `now` so callers need not paste `now.value=$(date +%s)`, which goes stale.
+    # The entry point fills `now` so callers need not paste `now.value=$(date +%s)`, which goes
+    # stale.
     it "fills now from the clock when the caller leaves it out", :aggregate_failures do
       target
       text, code = cli("target.claim", "id=banking", "held_by.value=agent-one")

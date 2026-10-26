@@ -208,7 +208,8 @@ RSpec.describe "Memory with a growing list" do
       expect(record.state[:snapshots].first).to be_a(Hecks::Runtime::Value)
     end
 
-    # Saves a record holding a marker the caller keeps a reference to; answers the adapter and marker.
+    # Saves a record holding a marker the caller keeps a reference to; answers the adapter and
+    # marker.
     def save_loose_marker
       adapter = Hecks::Adapters::Memory.new(aggregate: aggregate)
       marker = { id: { value: "loose" }, cell: { column: 0, row: 0 } }

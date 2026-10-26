@@ -60,7 +60,8 @@ RSpec.describe Hecks::Adapters::Codebase::TestRunner do
     seen
   end
 
-  # Runs an example while this thread stands `depth` reactions deep; answers the depth the runner saw.
+  # Runs an example while this thread stands `depth` reactions deep; answers the depth the runner
+  # saw.
   def depth_seen_by_runner(depth)
     seen = runner_noting_its_depth
     Thread.current[:hecks_reaction_depth] = depth

@@ -518,7 +518,8 @@ RSpec.describe "a query answered by a port the hecksagon binds" do
     PARSER_DIR    = File.expand_path("../rust/parser", __dir__)
     PARSER_BINARY = File.join(PARSER_DIR, "target", "debug", "hecks-parse")
 
-    # Builds the parser and parses the Lookup bluebook with it; answers what it printed, and its status.
+    # Builds the parser and parses the Lookup bluebook with it; answers what it printed, and its
+    # status.
     def rust_parse(path)
       built = system("cargo", "build", chdir: PARSER_DIR, out: File::NULL, err: File::NULL)
       raise "cargo build failed in rust/parser" unless built

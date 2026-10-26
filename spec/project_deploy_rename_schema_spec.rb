@@ -80,7 +80,8 @@ RSpec.describe "hecks deploy project's rename-schema OLD/NEW allowlist, in its o
                    alter:     "fixture's own recipe shape changed -- no ALTER SCHEMA found" }.freeze
 
   # Where each guard and each use of the schema names sits in the recipe's commands. Commands only:
-  # the guard's own leading comment names `nspname`/`ALTER SCHEMA` and would look like an earlier use.
+  # the guard's own leading comment names `nspname`/`ALTER SCHEMA` and would look like an earlier
+  # use.
   def recipe_positions
     recipe = rename_schema_recipe.lines.reject { |line| line.lstrip.start_with?("#") }.join
     { guard_old: recipe.index(/invalid OLD schema name/), guard_new: recipe.index(/invalid NEW schema name/),

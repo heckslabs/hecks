@@ -4,7 +4,8 @@ require "fileutils"
 require "json"
 
 # Custodian's Introspection, reached the way `hecks <verb>` reaches it: the Hecks domain boots,
-# the launcher resolves a query by its aggregate-qualified name, and the DomainRuntime port's adapter answers.
+# the launcher resolves a query by its aggregate-qualified name, and the DomainRuntime port's
+# adapter answers.
 RSpec.describe "hecks introspection through the launcher" do
   INTROSPECTED_BLUEBOOK = <<~RUBY.freeze
     Hecks.bluebook "Shelf" do

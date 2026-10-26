@@ -92,7 +92,9 @@ Comments you write in this repository's Ruby (`lib/`, `spec/`,
 - Comment lines stay under 100 characters (section 6).
 
 Check a tree with `exe/hecks style_run.check_comments paths=<path> --wait` before
-calling comment work done.
+calling comment work done. A hook runs the same check on each Ruby file you edit and reports a
+violation in that turn (`.claude/hooks/comment_style_on_edit.sh`), and the gate's `comment_style`
+check covers `lib/hecks` and `spec`.
 
 ## Use the hecks binary
 

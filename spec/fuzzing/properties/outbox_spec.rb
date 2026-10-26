@@ -66,7 +66,8 @@ RSpec.describe "Hecks::Fuzzing::Properties.outbox_rows_match_reactions", :aggreg
       expect(@history[:refusals]).to eq([])
     end
 
-    # Pins the fixture: if CloseAccount stops enqueueing a saga row, the next example would pass vacuously.
+    # Pins the fixture: if CloseAccount stops enqueueing a saga row, the next example would pass
+    # vacuously.
     it "enqueues a saga row, and it drains" do
       expect(@saga_rows).not_to be_empty
       expect(@saga_rows.map { |r| r[:status] }.uniq).to eq(["delivered"])

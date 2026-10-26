@@ -2,7 +2,8 @@ require "spec_helper"
 require "tmpdir"
 require "hecks/shape_ledger"
 
-# The ledger holds each chapter's storage shape; a shape that moves needs a translation edge from the
+# The ledger holds each chapter's storage shape; a shape that moves needs a translation edge from
+# the
 # shape the ledger holds, and only then may the ledger move.
 RSpec.describe Hecks::ShapeLedger do
   let(:directory) { Dir.mktmpdir("shape-ledger") }

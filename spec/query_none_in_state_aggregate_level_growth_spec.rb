@@ -61,7 +61,8 @@ RSpec.describe "none_in_state on an ordinary AGGREGATE-level query" do
 
   HEKI_ADAPTER = File.join(InMemoryDomain::ROOT, "lib/hecks/adapters/driven/heki.adapter")
 
-  # Claims c1 and c2 (c2 released), and boards b1, b2 and b3 pointing at c1, c2 and a claim that is not there.
+  # Claims c1 and c2 (c2 released), and boards b1, b2 and b3 pointing at c1, c2 and a claim that is
+  # not there.
   def seed_claims_and_boards(runtime, domain)
     runtime.dispatch_flat("#{domain}::Claim.File", id: { value: "c1" })
     runtime.dispatch_flat("#{domain}::Claim.File", id: { value: "c2" })

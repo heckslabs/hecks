@@ -59,7 +59,8 @@ RSpec.describe "Rust conformance (native binary)", :io do
     end
   end
 
-  # The two sides to hold equal: untouched, unless the fixture says Rust echoes absent slots as null.
+  # The two sides to hold equal: untouched, unless the fixture says Rust echoes absent slots as
+  # null.
   def comparable_pair(rust_output, expected, fixture)
     return [rust_output, expected] unless fixture["rust_echoes_absent_slots_as_null"]
 

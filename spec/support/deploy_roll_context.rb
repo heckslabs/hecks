@@ -22,7 +22,8 @@ RSpec.shared_context "with the deploy roll stand-ins" do
     @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
   end
 
-  # Runs each example of the group with a stand-in toolchain built from the golden named by the `let`.
+  # Runs each example of the group with a stand-in toolchain built from the golden named by the
+  # `let`.
   def self.with_stub_runner(golden, **options)
     around do |example|
       BoxHostingStubs.with_runner(send(golden), **options) do |runner|

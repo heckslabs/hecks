@@ -59,7 +59,8 @@ RSpec.describe "hecks ask shape" do
     run_shape(@dir).first
   end
 
-  # A text file and a nested bluebook, neither of which is directly in the directory as a *.bluebook.
+  # A text file and a nested bluebook, neither of which is directly in the directory as a
+  # *.bluebook.
   def write_stray_files
     File.write(File.join(@dir, "notes.txt"), "not a bluebook")
     FileUtils.mkdir_p(File.join(@dir, "nested"))

@@ -136,7 +136,8 @@ RSpec.describe Hecks::Ports::Projection::Worker do
   it "refuses :strict catch-up when the authoritative journal is compacted past what this projection consumed" do
     authoritative = compacted(store_with(100, 200), through: 2)
 
-    expect { catch_up!(authoritative, ProjectionStore.new, policy: :strict) } # never caught up at all
+    # The store never caught up at all.
+    expect { catch_up!(authoritative, ProjectionStore.new, policy: :strict) }
       .to raise_error(Hecks::Runtime::WiringError, /already.*compacted.*use :refresh instead/)
   end
 

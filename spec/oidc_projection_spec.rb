@@ -48,7 +48,8 @@ RSpec.describe "the OIDC client projection's integration layer" do
     Hecks.as_caller(role: role, &block)
   end
 
-  # An identity "id-1" linked to the (issuer, subject) pairs, holding the officer role unless `granted` is false.
+  # An identity "id-1" linked to the (issuer, subject) pairs, holding the officer role unless
+  # `granted` is false.
   def identity_linked_to(*pairs, granted: true)
     identity = register_identity(business, identity_id: "id-1")
     pairs.each do |issuer, subject|

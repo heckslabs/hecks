@@ -6,7 +6,8 @@ require "json"
 # An interview at a terminal (ADR 0088): hecks asks the agent for a question, records the answer the
 # developer types, puts each proposed finding to the developer, and writes a domain only when the
 # interview concludes. Each scenario runs in a child process with a fake agent and scripted
-# keystrokes, so no model is called and the aggregate constants a boot installs stay out of this one.
+# keystrokes, so no model is called and the aggregate constants a boot installs stay out of this
+# one.
 RSpec.describe "hecks interview, held at a terminal" do
   INTERVIEW_CHILD = <<~RUBY.freeze
     require "hecks"

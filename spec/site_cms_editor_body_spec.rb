@@ -7,7 +7,7 @@ require "hecks/tools"
 require "hecks/tools/site_routes"
 
 # The pure half of the editor's rich-text widget, run under node: `bodyToHtml`, `htmlToBody` and the
-# form fields, which are plain JavaScript files in the generated editor and use no DOM. The scenario
+# form fields, which are plain JavaScript files in the generated editor and use no dom. The scenario
 # builds a body that holds every field of the document shape, and feeds foreign and hostile HTML in.
 BODY_SCENARIO = <<~JS.freeze
   import { bodyToFields, bodyToHtml, emptyBody, safeHref } from "./src/ui/body_model.js";
@@ -157,7 +157,8 @@ RSpec.describe "the rich-text body functions of the generated editor, run by nod
   end
 
   describe "escaping" do
-    # A tag the editor writes: a known name with only data-, href, rel and class attributes, each value quoted.
+    # A tag the editor writes: a known name with only data-, href, rel and class attributes, each
+    # value quoted.
     SAFE_TAG = %r{
       \A</?(p|strong|em|u|s|code|a|br|hr|h[1-4]|blockquote|ul|ol|li|figure|figcaption|span)
       (?:\ (?:data-[a-z-]+|href|rel|class)="[^"<>]*")*>\z

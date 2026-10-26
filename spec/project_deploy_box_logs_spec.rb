@@ -5,8 +5,10 @@ require "json"
 require "open3"
 require "hecks/projections/deploy/template_diff"
 
-# Where an AwsBox box's container logs go. By default every service, the proxy and the tunnel included,
-# uses Docker's `awslogs` driver into one log group the box stack creates, with a bounded retention and
+# Where an AwsBox box's container logs go. By default every service, the proxy and the tunnel
+# included,
+# uses Docker's `awslogs` driver into one log group the box stack creates, with a bounded retention
+# and
 # a role that may write to that group only; `logs "local"` keeps the rotating `json-file` logs.
 RSpec.describe "hecks deploy project — an AwsBox box's logs" do
   LOGS_ROOT = File.expand_path("..", __dir__)
@@ -68,7 +70,7 @@ RSpec.describe "hecks deploy project — an AwsBox box's logs" do
     end
   end
 
-  # @return [Hash{String => String}] a PATH whose `aws` answers the account lookup
+  # @return [Hash{String => String}] a `PATH` whose `aws` answers the account lookup
   def stubbed_aws(dir)
     stub = File.join(dir, "bin", "aws")
     FileUtils.mkdir_p(File.dirname(stub))

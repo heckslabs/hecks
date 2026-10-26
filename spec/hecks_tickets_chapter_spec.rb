@@ -1,7 +1,8 @@
 require "spec_helper"
 
 # The Tickets chapter is attached to the Hecks domain: Finding and Adr are declared in it,
-# the finding's lifecycle drives GitHub through the GitHubIssues port, and a refused ask never blocks
+# the finding's lifecycle drives GitHub through the GitHubIssues port, and a refused ask never
+# blocks
 # the finding.
 RSpec.describe "the Tickets chapter" do
   before(:all) do

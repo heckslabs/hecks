@@ -202,7 +202,8 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :
       check!(OLD_SOURCE)
       # as the owner: reattest! lazily creates hecks_attestations, which the rename must own
       with_pg(FencedOwner.url(RENAME_DB)) do |db|
-        Hecks::Adapters::PostgresEra::Lineage.new(db, "OldName").reattest!(1) # forces hecks_attestations into existence
+        # Forces hecks_attestations into existence.
+        Hecks::Adapters::PostgresEra::Lineage.new(db, "OldName").reattest!(1)
       end
       check!(NEW_SOURCE)
     end

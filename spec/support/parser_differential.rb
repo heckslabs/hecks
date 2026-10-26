@@ -46,7 +46,7 @@ module ParserDifferential
     raise "cargo build failed for rust/parser" unless built && File.executable?(BINARY)
   end
 
-  # The name in the header; a NUL cannot ride in an argument, so a mutated name loses it.
+  # The name in the header; a nul cannot ride in an argument, so a mutated name loses it.
   def chapter_of(text) = (text[/Hecks\.bluebook\s+"([^"]+)"/, 1] || "Fuzzed").delete("\0")
 
   def rust(path, chapter)

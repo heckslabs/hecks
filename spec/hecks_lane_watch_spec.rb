@@ -55,8 +55,10 @@ RSpec.describe "watching a lane" do
     Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks")
   end
 
-  # Watches `stable` while its oldest unpromoted commit is `hours` old; nil hours is nothing to promote.
-  # `world` is `states:` for every commit, `chain:` for main's commits above stable (newest first) and
+  # Watches `stable` while its oldest unpromoted commit is `hours` old; nil hours is nothing to
+  # promote.
+  # `world` is `states:` for every commit, `chain:` for main's commits above stable (newest first)
+  # and
   # `by_commit:` for the checks of one commit.
   def watch(run, hours:, key: "stable-lag-2026-10-06", lane: "stable", **world)
     stand_in(hours && (now - (hours * 3600)).to_i, world)
