@@ -42,7 +42,8 @@ status: "accepted" }],
 
   def draft_of(interview) = described_class.files(interview).fetch("bluebook/lending.bluebook")
 
-  # Runs `code` as a Ruby child process in the checkout, with `dir` as its argument; answers what it printed.
+  # Runs `code` as a Ruby child process in the checkout, with `dir` as its argument; answers what it
+  # printed.
   def run_ruby!(code, dir)
     out, err, status = Open3.capture3(RbConfig.ruby, "-Ilib", "-e", code, dir, chdir: InMemoryDomain::ROOT)
     raise err unless status.success?
@@ -247,7 +248,8 @@ status: "accepted" }])
   end
 
   # The whole path, in a child process: a real SME interview, its record, the draft written to disk,
-  # and the draft booted and run. The aggregate constants each boot installs stay out of this process.
+  # and the draft booted and run. The aggregate constants each boot installs stay out of this
+  # process.
   DRAFT_TRIP = <<~RUBY.freeze
     require "hecks"
     require "hecks/cli/interview_draft"

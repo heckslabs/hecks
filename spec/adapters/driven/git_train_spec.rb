@@ -5,7 +5,8 @@ require "tmpdir"
 require "hecks/hecks/adapters/git_train"
 
 # The Train port's adapter, against a local bare repository and clones of it: a boarding pushes the
-# local branch, rides on an earlier push, merges a remote that moved, and refuses what it cannot push.
+# local branch, rides on an earlier push, merges a remote that moved, and refuses what it cannot
+# push.
 RSpec.describe Hecks::Adapters::GitTrain, :io do
   let(:scratch) { Dir.mktmpdir("hecks-git-train") }
   let(:work) { File.join(scratch, "work") }
@@ -57,7 +58,8 @@ RSpec.describe Hecks::Adapters::GitTrain, :io do
 
   after { FileUtils.remove_entry(scratch) }
 
-  # A pre-push hook that records the git configuration the repository's real hook reads to pick its stage.
+  # A pre-push hook that records the git configuration the repository's real hook reads to pick its
+  # stage.
   def record_gate_config
     hooks = File.join(scratch, "hooks")
     FileUtils.mkdir_p(hooks)

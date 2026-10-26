@@ -6,7 +6,8 @@ require_relative "support/in_process_launcher"
 # directory with no environment variable and no database, nothing is ever replaced, and a refusal
 # says why and exits 1.
 RSpec.describe "hecks init" do
-  # No database is reachable, and no environment is chosen: the launcher must pick Memory for itself.
+  # No database is reachable, and no environment is chosen: the launcher must pick Memory for
+  # itself.
   def init(dir, *words)
     env = { "HECKS_ENVIRONMENT" => nil, "PGHOST" => "/nonexistent-postgres-socket-dir", "PGPORT" => "1" }
     InProcessLauncher.capture3(env, "init", *words, chdir: dir)

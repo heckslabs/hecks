@@ -123,7 +123,8 @@ RSpec.describe "the Codebase rows of the ADR table" do
                          codemod_faulted test_suite_faulted corpus_faulted publishing_faulted
                          promotion_faulted].freeze
 
-  # The launcher's name for each verb: its aggregate, snake-cased, then the verb (`style_run.fix_comments`).
+  # The launcher's name for each verb: its aggregate, snake-cased, then the verb
+  # (`style_run.fix_comments`).
   def qualified_names
     CODEBASE_RECORDS.flat_map do |name|
       aggregate = @bluebook.aggregate(name)

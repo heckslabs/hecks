@@ -1,7 +1,8 @@
 require "spec_helper"
 require "hecks"
 
-# Binding Postgres without the pg gem installed names the gem, never a constant that only exists once it loads.
+# Binding Postgres without the pg gem installed names the gem, never a constant that only exists
+# once it loads.
 RSpec.describe "connecting a Postgres adapter without the pg gem" do
   {
     "PostgresEra" => Hecks::Adapters::PostgresEra,

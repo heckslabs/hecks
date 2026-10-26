@@ -130,14 +130,15 @@ JS
 # The admin sign-in module a project gets when its chapter declares an `Admin` row. The sample is
 # spec/fixtures/site/members; its golden sits in spec/fixtures/site/members/expected
 # (`GOLDEN=rewrite` regenerates it, to be read in the diff).
-# Stands in for `@hecks/client` beside the generated CMS membership module: the token is the email, which
-# is all the stand-in host below needs to tell the callers apart.
+# Stands in for `@hecks/client` beside the generated membership module: the token is the
+# email, which is all the stand-in host below needs to tell the callers apart.
 ADMIN_NODE_CLIENT_STUB = <<~JS.freeze
   export const accountToken = (secret, email) => "tok:" + email;
   export const resolveAccountCookieName = (name) => name;
 JS
 
-# A host that answers /members as the real one does: 403 to a caller holding no admin role, the list to one that does.
+# A host that answers /members as the real one does: 403 to a caller holding no admin role, the list
+# to one that does.
 # `lenient` also lets a role-less caller see the list, to show the module reads the roles itself.
 ADMIN_NODE_CMS_SCRIPT = <<~JS.freeze
   const rows = {
@@ -439,7 +440,8 @@ RSpec.describe "the admin sign-in module" do
       end
     end
 
-    # The `.env.tpl` of a project whose secrets are grouped, one is commented out and one has no section.
+    # The `.env.tpl` of a project whose secrets are grouped, one is commented out and one has no
+    # section.
     def grouped_env
       dir = edited_members do |text|
         text.sub(', section: "local"', "")

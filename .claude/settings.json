@@ -18,6 +18,10 @@
           {
             "type": "command",
             "command": "sh -c 'root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0; hook=\"$root/.claude/hooks/rubocop_on_edit.sh\"; [ -x \"$hook\" ] || exit 0; CLAUDE_PROJECT_DIR=\"$root\" exec \"$hook\"'"
+          },
+          {
+            "type": "command",
+            "command": "sh -c 'root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0; hook=\"$root/.claude/hooks/comment_style_on_edit.sh\"; [ -x \"$hook\" ] || exit 0; CLAUDE_PROJECT_DIR=\"$root\" exec \"$hook\"'"
           }
         ]
       }

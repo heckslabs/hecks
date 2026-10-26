@@ -42,7 +42,8 @@ RSpec.describe "hecks deploy project — a deployed_to(\"Vercel\") function", :i
     File.dirname(bluebook_dir)
   end
 
-  # @return [Array(Hash{String => String}, String)] the generated files (nil on a refusal) and stderr
+  # @return [Array(Hash{String => String}, String)] the generated files (nil on a refusal) and
+  #   stderr
   def generate(world_body)
     Dir.mktmpdir do |dir|
       out = File.join(dir, "out")

@@ -150,7 +150,7 @@ RSpec.describe ".github/workflows/ci.yml required-check wrappers" do
   end
 
   # `main` takes pushes directly and `stable` is moved by promote.yml, so no workflow waits on a
-  # merge queue: a `merge_group` trigger would start runs for entries that no longer exist.
+  # merge queue: a `merge_group` trigger would start runs for entries that do not exist.
   it "has no merge_group trigger" do
     queued = workflow_files(".github/workflows/*.yml").select { |path| triggers_of(path).key?("merge_group") }
 

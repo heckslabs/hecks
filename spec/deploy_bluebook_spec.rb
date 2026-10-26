@@ -311,7 +311,8 @@ RSpec.describe "the self-hosted Deploy bluebook" do
       bluebook_dir
     end
 
-    # Writes the scratch domain with `world_body` and the `extra_files`, runs hecks deploy project on
+    # Writes the scratch domain with `world_body` and the `extra_files`, runs hecks deploy project
+    # on
     # it and yields the runner's answer with the generated directory, which is removed afterwards.
     def deploy_scratch(world_body, extra_files = {})
       generated_dir = File.join(repo_root, "deploy", FIXTURE_BASENAME)

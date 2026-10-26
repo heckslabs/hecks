@@ -411,7 +411,7 @@ RSpec.describe "the model checker" do
       corpus_findings(name, source).select { |f| f.severity == :error }.reject { |f| allowed.include?([f.kind, f.subject]) }
     end
 
-    # The allowlist entries of `name` that the checker no longer finds.
+    # The allowlist entries of `name` that the checker does not find.
     def stale_allowlist_entries(name, entries)
       source = MODEL_CHECK_CORPUS.to_h.fetch(name) { next }
       findings = call_model_check(boot(source), known_domains: self.class.known_domains)
@@ -458,7 +458,7 @@ RSpec.describe "the model checker" do
         expect(stale.map(&:severity).uniq).to eq([:error])
       end
 
-      # The kinds NotifyOnClosure raises once its policies no longer declare an undelivered target.
+      # The kinds NotifyOnClosure raises once its policies declare no undelivered target.
       def kinds_without_declaration
         registry = boot(banking)
         registry.bluebook("Banking").policies.select(&:expect_undelivered).each do |policy|

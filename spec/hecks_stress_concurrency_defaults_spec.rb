@@ -1,6 +1,7 @@
 require "spec_helper"
 
-# `hecks test_suite_run.stress_concurrency` takes its default run count and first seed from its bluebook command,
+# `hecks test_suite_run.stress_concurrency` takes its default run count and first seed from its
+# bluebook command,
 # the one place they are written; the launcher behind it holds no copy.
 RSpec.describe "stress_concurrency's declared defaults" do
   before(:all) do

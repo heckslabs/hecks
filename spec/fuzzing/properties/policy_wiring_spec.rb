@@ -11,7 +11,8 @@ RSpec.describe "Hecks::Fuzzing::Properties.policy_reactions_follow_declared_wiri
 
   def verdict(history) = Hecks::Fuzzing::Properties.policy_reactions_follow_declared_wiring(history)
 
-  # The declared `across` policy these cases read: it names an event, a qualifier and a target domain.
+  # The declared `across` policy these cases read: it names an event, a qualifier and a target
+  # domain.
   def freeze_policy
     bluebooks.each_value.lazy.flat_map(&:policies).find { |policy| policy.name == "ReviewOnFreeze" }
   end

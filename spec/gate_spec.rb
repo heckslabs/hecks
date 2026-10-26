@@ -103,7 +103,7 @@ RSpec.describe "hecks gate" do
       expect(hook).not_to match(/^run_check /)
     end
 
-    # The note vouches for HEAD's tree, so a suite that ran against a dirty tree must not sign it.
+    # The note vouches for head's tree, so a suite that ran against a dirty tree must not sign it.
     it "writes no attestation note for a working tree that differs from HEAD", :aggregate_failures do
       hook = File.read(File.expand_path("../.githooks/pre-push", __dir__))
 

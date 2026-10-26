@@ -206,7 +206,8 @@ RSpec.describe "the transactional outbox" do
       expect(rebooted.reactions.last).to include(policy: "RecordOrder", delivered: true)
     end
 
-    # Crash after the claim, inside the consumer — the outcome is genuinely unknown to the next boot.
+    # Crash after the claim, inside the consumer — the outcome is genuinely unknown to the next
+    # boot.
     it "leaves a claimed row behind when the crash comes after the claim" do
       crash_placing(runtime.instance_variable_get(:@policies), :react)
 

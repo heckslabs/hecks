@@ -6,9 +6,12 @@ require "hecks/projections/deploy/template_diff"
 # `hecks deploy project` for a domain that declares `deployed_to("AwsSharedDatabase")`: the one RDS
 # instance that several sites each keep a database on (ADR 0092).
 #
-# The golden files in `spec/fixtures/deploy_shared_database_golden/default/` are generator output. To
-# regenerate after a deliberate change, write the world below into `<dir>/bluebook/scratch_fixture.world`
-# beside `scratch_fixture.bluebook`, run `hecks deploy project <dir> --out=<golden dir>` and review the
+# The golden files in `spec/fixtures/deploy_shared_database_golden/default/` are generator output.
+# To
+# regenerate after a deliberate change, write the world below into
+# `<dir>/bluebook/scratch_fixture.world`
+# beside `scratch_fixture.bluebook`, run `hecks deploy project <dir> --out=<golden dir>` and review
+# the
 # diff; never edit a golden file by hand.
 RSpec.describe "hecks deploy project, a deployed_to(\"AwsSharedDatabase\") stack", :io do
   SHARED_ROOT_DIR = File.expand_path("..", __dir__)
@@ -53,7 +56,8 @@ RSpec.describe "hecks deploy project, a deployed_to(\"AwsSharedDatabase\") stack
     "Hecks.world \"Scratch\" do\n  deployed_to(\"AwsSharedDatabase\") do\n    region \"us-east-1\"\n#{body}  end\nend\n"
   end
 
-  # Writes the scratch domain into a temporary directory and runs the generator; returns the generated
+  # Writes the scratch domain into a temporary directory and runs the generator; returns the
+  # generated
   # files by name (nil when it refused) and its stderr.
   def generate(world_body)
     Dir.mktmpdir do |dir|

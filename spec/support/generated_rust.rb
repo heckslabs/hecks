@@ -7,8 +7,9 @@ require "rspec/core"
 # bare checkout is green. CI and the full push gate (`hecks.fullGate`) fail instead: they
 # materialize the tree first, so a missing one there is a broken step, not a reason to skip.
 RSpec.shared_context "with the generated Rust tree" do
-  # Whether the push gate asked for the whole suite: git configuration, so `git -c hecks.fullGate=true
-  # push` reaches the hook and every check it starts without a variable of ours.
+  # Whether the push gate asked for the whole suite: git configuration, so
+  # `git -c hecks.fullGate=true push` reaches the hook and every check it starts without a
+  # variable of ours.
   def full_gate?
     repo = File.expand_path("../..", __dir__)
     IO.popen(["git", "-C", repo, "config", "--type=bool", "--get", "hecks.fullGate", { err: File::NULL }],

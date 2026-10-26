@@ -173,7 +173,8 @@ RSpec.describe Hecks::Fuzzing::Mutation, :aggregate_failures do
       expect(report.killed.map(&:by)).to include(a_string_starting_with("behavior:"))
     end
 
-    # A copy of the pizzas example, with a snapshot of its bluebook kept where the runtime keeps eras
+    # A copy of the pizzas example, with a snapshot of its bluebook kept where the runtime keeps
+    # eras
     # when `snapshots` is true.
     def pizzas_copy(into, snapshots:)
       copy = File.join(into, "pizzas")
