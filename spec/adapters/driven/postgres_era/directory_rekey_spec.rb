@@ -62,7 +62,8 @@ RSpec.describe "the Directory example's real rekey edge (examples/directory)", :
     registry = load_registry(source, translation_source: translation_source)
     bluebook = registry.bluebooks.values.first
     Hecks::Adapters::PostgresEra::LineageManager.check!(
-      registry: registry, bluebook: bluebook, current_text: source, settings: { database: FencedOwner.url(DIRECTORY_DB) }
+      registry: registry, bluebook: bluebook, current_text: source,
+      settings: { database: FencedOwner.url(DIRECTORY_DB), mint_eras: true }
     )
     registry
   end

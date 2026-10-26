@@ -7,7 +7,7 @@ require "hecks/shape_ledger"
 RSpec.describe Hecks::ShapeLedger do
   let(:directory) { Dir.mktmpdir("shape-ledger") }
 
-  CHAPTER = <<~RUBY.freeze
+  SHOP_CHAPTER = <<~RUBY.freeze
     Hecks.bluebook "Shop" do
       aggregate "Item" do
         identified_by :sku
@@ -27,7 +27,7 @@ RSpec.describe Hecks::ShapeLedger do
   RUBY
 
   def write_chapter(extra = "")
-    File.write(File.join(directory, "shop.bluebook"), format(CHAPTER, extra: extra))
+    File.write(File.join(directory, "shop.bluebook"), format(SHOP_CHAPTER, extra: extra))
   end
 
   def ledgered = JSON.parse(File.read(File.join(directory, "shapes.json"))).fetch("Shop")

@@ -25,7 +25,7 @@ RSpec.describe "PostgresEra execution-plan capabilities", :io do
   end
 
   it "reports the capabilities it has" do
-    expect(store.capabilities).to eq(%i[atomic_put cross_process_lock atomic_append])
+    expect(store.capabilities).to eq(%i[atomic_put cross_process_lock atomic_append dispatch_claims])
   end
 
   it_behaves_like "an atomic_put adapter"

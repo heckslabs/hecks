@@ -23,7 +23,7 @@ RSpec.describe "PostgresEra migration data safety", :io do
     registry = load_registry(source, translation_source: translation_source)
     lineage_manager.check!(
       registry: registry, bluebook: registry.bluebooks.values.first,
-      current_text: source, settings: { database: FencedOwner.url(DATA_SAFETY_DB) }
+      current_text: source, settings: { database: FencedOwner.url(DATA_SAFETY_DB), mint_eras: true }
     )
     registry
   end

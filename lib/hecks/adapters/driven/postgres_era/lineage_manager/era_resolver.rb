@@ -10,10 +10,9 @@ module Hecks
         # Boot-time era resolution: first boot holds era 1, a quiet reboot changes nothing,
         # a superseded shape boots read-only, an unheld shape goes to the minter.
         module EraResolver
-          # Whether this copy may mint when its world says nothing about it. True until every copy
-          # that migrates a database declares `mint_eras true`; then false, so a copy that was not
-          # told refuses, and only the copy that owns a database moves it.
-          MINT_BY_DEFAULT = true
+          # Whether this copy may mint when its world says nothing about it. False, so a copy that
+          # was not told refuses, and only the copy that owns a database moves it.
+          MINT_BY_DEFAULT = false
 
           # Resolves which era this boot is and records it on the registry.
           #
