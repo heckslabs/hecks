@@ -1177,8 +1177,8 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     end
   end
 
-  # A copy whose world says `mint_eras false` does not migrate the database: it is refused, and the
-  # database is left on the era it holds.
+  # A copy whose world does not say `mint_eras true` does not migrate the database: it is refused,
+  # and the database is left on the era it holds.
   context "with a copy told not to mint" do
     def boot_without_permission
       check!(V1_SOURCE)
@@ -1195,11 +1195,11 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
       expect(count_of("hecks_eras", "domain = 'Ledger'")).to eq("1")
     end
 
-    it "mints when the world says nothing, until the default is flipped", :aggregate_failures do
+    it "refuses when the world says nothing", :aggregate_failures do
       check!(V1_SOURCE)
-      check!(V2_SOURCE, translation_source: v1_to_v2_edge, mint_eras: nil)
-
-      expect(count_of("hecks_eras", "domain = 'Ledger'")).to eq("2")
+      expect { check!(V2_SOURCE, translation_source: v1_to_v2_edge, mint_eras: nil) }
+        .to raise_error(Hecks::Runtime::WiringError, /may not mint/)
+      expect(count_of("hecks_eras", "domain = 'Ledger'")).to eq("1")
     end
 
     it "still holds the first era of a database that holds none" do

@@ -45,15 +45,15 @@ RSpec.describe Hecks::Adapters::SettingsReading do
     expect(line(read, "database")).to end_with("(environments/local.world)")
   end
 
-  it "says a copy may mint until its world says otherwise", :aggregate_failures do
-    expect(line(read, "mint eras")).to eq("mint eras: allowed (default)")
+  it "says a copy may not mint until its world says so", :aggregate_failures do
+    expect(line(read, "mint eras")).to eq("mint eras: refused (default)")
   end
 
-  context "when the world refuses minting" do
-    let(:declared_settings) { { mint_eras: false } }
+  context "when the world allows minting" do
+    let(:declared_settings) { { mint_eras: true } }
 
     it "says so, and that the world said it" do
-      expect(line(read, "mint eras")).to eq("mint eras: refused (world)")
+      expect(line(read, "mint eras")).to eq("mint eras: allowed (world)")
     end
   end
 

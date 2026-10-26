@@ -28,15 +28,25 @@ RSpec.describe Hecks::Projections::RailsApp do
     expect(files["config/routes.rb"]).to include("  resources :atm_cards\n", "  resources :accounts\n")
   end
 
-  it "opens the app on the first aggregate's list" do
-    expect(files["config/routes.rb"]).to include("  root to: \"#{files["config/routes.rb"][/resources :(\w+)/, 1]}#index\"\n")
-  end
+  describe "the root route" do
+    let(:chapter) { Struct.new(:aggregates).new([double_aggregate("Order"), double_aggregate("Basket")]) }
 
-  it "opens the app on the aggregate the App row names as home" do
-    chapter = Struct.new(:aggregates).new([double_aggregate("Order"), double_aggregate("Basket")])
-    allow(Hecks::Projections::Site::Table).to receive(:rows_of).and_return([{ home: "Basket" }])
+    def root_for(rows)
+      allow(Hecks::Projections::Site::Table).to receive(:rows_of).and_return(rows)
+      described_class.routes([chapter])
+    end
 
-    expect(described_class.routes([chapter])).to include("root to: \"baskets#index\"")
+    it "opens the app on the first aggregate's list when no App row names one" do
+      expect(root_for([])).to include("root to: \"orders#index\"")
+    end
+
+    it "opens the app on the aggregate the App row names as home" do
+      expect(root_for([{ home: "Basket" }])).to include("root to: \"baskets#index\"")
+    end
+
+    it "falls back to the first aggregate when the App row names one the chapter lacks" do
+      expect(root_for([{ home: "Nowhere" }])).to include("root to: \"orders#index\"")
+    end
   end
 
   it "names nothing of the runtime" do

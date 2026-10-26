@@ -226,8 +226,8 @@ RSpec.describe Hecks::Projector::CliProjector do
     it "groups the commands and questions under a heading per aggregate", :aggregate_failures do
       usage = banking[:usage]
 
-      expect(usage).to match(/^  customer:\n(?:    [A-Z][^\n]*\n)?    register!\s+Take on a new customer/)
-      expect(usage).to match(/^  account:\n(?:    [A-Z][^\n]*\n)?    open!\s+/)
+      expect(usage).to match(/^  Customer:\n(?:    [A-Z][^\n]*\n)?    register!\s+Take on a new customer/)
+      expect(usage).to match(/^  Account:\n(?:    [A-Z][^\n]*\n)?    open!\s+/)
       expect(banking[:commands]["account.freeze_account"][:group]).to eq("Account")
     end
 
@@ -245,23 +245,23 @@ RSpec.describe Hecks::Projector::CliProjector do
       end
 
       it "keeps real questions listed, and not the run's own", :aggregate_failures do
-        expect(runs[:usage]).to match(/^\s+job\.jobs_by_note\s+/)
-        expect(runs[:usage]).to match(/^\s+job\.job_digest\s+/)
-        expect(runs[:usage]).not_to match(/^\s+job\.job_outcome\s{2,}How one job ended/)
+        expect(runs[:usage]).to match(/^\s+Job\.jobs_by_note\s+/)
+        expect(runs[:usage]).to match(/^\s+Job\.job_digest\s+/)
+        expect(runs[:usage]).not_to match(/^\s+Job\.job_outcome\s{2,}How one job ended/)
       end
     end
 
     it "titles a heading with its aggregate's name, the prefix of every call under it", :aggregate_failures do
-      expect(described_class.send(:heading, "TestSuiteRun")).to eq("test_suite_run:")
-      expect(described_class.send(:heading, "Operation")).to eq("operation:")
+      expect(described_class.send(:heading, "TestSuiteRun")).to eq("TestSuiteRun:")
+      expect(described_class.send(:heading, "Operation")).to eq("Operation:")
     end
 
     it "leaves the aggregate prefix off the lines under its heading, and keeps it without one", :aggregate_failures do
-      expect(banking[:usage]).not_to match(/^\s+customer\.register!/)
-      expect(banking[:usage]).to match(/^  customer:\n(?:    [A-Z][^\n]*\n)?    register!/)
+      expect(banking[:usage]).not_to match(/^\s+Customer\.register!/)
+      expect(banking[:usage]).to match(/^  Customer:\n(?:    [A-Z][^\n]*\n)?    register!/)
       expect(banking[:usage]).to match(/^    open!\s/)
       expect(described_class.send(:entry_name, { kind: :command, short: "pizza.make", group: "Pizza" }, false))
-        .to eq("pizza.make!")
+        .to eq("Pizza.make!")
     end
 
     it "lists a command the chapter gave a short name by its real name, and says the short name", :aggregate_failures do
@@ -285,13 +285,13 @@ RSpec.describe Hecks::Projector::CliProjector do
 
       it "stay out of the usage, which says how many were left out", :aggregate_failures do
         expect(payments[:usage]).not_to include("internal — what a run records about itself")
-        expect(payments[:usage]).not_to include(port_verb[:short])
+        expect(payments[:usage]).not_to include(described_class.send(:label, port_verb))
         expect(payments[:usage]).to match(/--all\s+also list the \d+ internal/)
       end
 
       it "are listed when all is asked for", :aggregate_failures do
         expect(all).to include("internal — what a run records about itself")
-        expect(all).to include(port_verb[:short])
+        expect(all).to include(described_class.send(:label, port_verb))
       end
     end
 
@@ -307,7 +307,7 @@ RSpec.describe Hecks::Projector::CliProjector do
     end
 
     it "says a command is called with its aggregate" do
-      expect(banking[:usage]).to include("a command is called with its aggregate — customer.register!")
+      expect(banking[:usage]).to include("a command is called with its aggregate — Customer.register!")
     end
 
     # The audience decides what the help lists; every command still runs and answers `--help`.
@@ -317,8 +317,8 @@ RSpec.describe Hecks::Projector::CliProjector do
       end
 
       it "leaves the hidden aggregates out of the lists and says how many, and how to list them", :aggregate_failures do
-        expect(hidden[:usage]).not_to match(/^  account:$/)
-        expect(hidden[:usage]).to match(/^  customer:$/)
+        expect(hidden[:usage]).not_to match(/^  Account:$/)
+        expect(hidden[:usage]).to match(/^  Customer:$/)
         expect(hidden[:usage]).to match(/hecks --maintainer\s+also list the \d+ commands and queries for working on hecks itself/)
       end
 
@@ -366,7 +366,7 @@ RSpec.describe Hecks::Projector::CliProjector do
       question = command_help(banking_bluebook, "account.open", ask: true)
 
       expect(question).to include("reads Banking::Account.Open")
-      expect(question).to include("hecks run query account.open")
+      expect(question).to include("hecks run query Account.open")
     end
   end
 end

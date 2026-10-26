@@ -85,7 +85,7 @@ RSpec.describe Hecks::Fuzzing::EraBoundary, :aggregate_failures, :io do
     load_bluebook(registry, source, translation_source)
     Hecks::Adapters::PostgresEra::LineageManager.check!(
       registry: registry, bluebook: registry.bluebooks.values.first, current_text: source,
-      settings: { database: database_url, allow_superuser: true }
+      settings: { database: database_url, allow_superuser: true, mint_eras: true }
     )
     registry
   end
@@ -149,6 +149,7 @@ RSpec.describe Hecks::Fuzzing::EraBoundary, :aggregate_failures, :io do
       Hecks.world "EraBoundaryFixture" do
         persisted_by("PostgresEra") do
           database "#{database_url}"
+          mint_eras true
           allow_superuser true
         end
       end

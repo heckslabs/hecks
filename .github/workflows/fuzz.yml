@@ -1,0 +1,179 @@
+name: Fuzz the host's journal stores
+
+# Coverage-guided differential fuzzing of rust/host: the in-memory store is the oracle and the
+# Postgres store is compared against it (rust/host/fuzz). Nothing here is a RequiredCheck, so it
+# never gates `main` or the promotion of `stable`, and it never runs on a push.
+#
+# - nightly, and by hand with a chosen length (`gh workflow run fuzz.yml -f seconds=600`)
+# - on a pull request that touches rust/host, only once it carries the `fuzz` label
+#
+# Two legs run side by side. `invariants` has the sanitizer on and no database: it checks the commit
+# clause and memory safety. `differential` has Postgres on and no sanitizer: wasmtime's compiler under
+# AddressSanitizer is far too slow to reach depth, and a difference between two stores is a logic
+# fault the sanitizer does not see.
+
+on:
+  schedule:
+    - cron: "43 3 * * *"
+  workflow_dispatch:
+    inputs:
+      seconds:
+        description: How long each leg fuzzes, in seconds (at most 540).
+        required: false
+        default: "300"
+  pull_request:
+    types: [labeled, synchronize]
+    paths:
+      - "rust/host/**"
+      - ".github/workflows/fuzz.yml"
+
+concurrency:
+  group: fuzz-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # The mutation loop, not the build. A pull request gets a short run, the schedule a longer one.
+  FUZZ_SECONDS: ${{ github.event.inputs.seconds || (github.event_name == 'pull_request' && '120') || '300' }}
+  # Pinned: the version this workflow was written against.
+  CARGO_FUZZ_VERSION: "0.13.2"
+
+jobs:
+  # The kernel the fuzz target dispatches against, built once and handed to both legs.
+  build_wasm:
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'fuzz')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-ruby
+      - uses: ./.github/actions/hecks-environment
+        with:
+          database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
+
+      # rust/src/generated is not committed; restore or regenerate it before rust/src is used.
+      - uses: ./.github/actions/generated-rust
+
+      - uses: ./.github/actions/wasm-toolchain
+        with:
+          install-wasmtime: "false"
+
+      - name: Build the banking wasm module
+        run: bundle exec exe/hecks build.build_wasm domain=examples/banking profile=dev --wait
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-wasm
+          path: rust/dist/banking.wasm
+          retention-days: 1
+          if-no-files-found: error
+
+  fuzz:
+    needs: build_wasm
+    runs-on: ubuntu-latest
+    # Backstop for the whole leg. The mutation loop has its own, tighter bound below.
+    timeout-minutes: 30
+
+    strategy:
+      # A crash on one leg must not hide what the other finds.
+      fail-fast: false
+      matrix:
+        include:
+          - name: invariants
+            sanitizer: address
+            postgres: "off"
+          - name: differential
+            sanitizer: none
+            postgres: "on"
+
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: fuzz-wasm
+          path: rust/dist
+
+      # libFuzzer's instrumentation needs a nightly compiler. The repo pins stable in
+      # rust-toolchain.toml; `+nightly` below overrides it for this crate only.
+      - name: Install the nightly toolchain
+        run: rustup toolchain install nightly --profile minimal
+
+      # Dependencies and the instrumented build of the host library, per leg: the sanitizer changes
+      # every object, so the legs must not share a cache. The name starts with no other cache's name.
+      - uses: ./.github/actions/cargo-cache
+        with:
+          name: fuzzhost-${{ matrix.name }}
+          crate-root: rust/host/fuzz
+
+      # A glob, not the file's name: spec/ci_hecks_verbs_spec.rb reads any `bin/<name>` in a
+      # workflow as a call to a repo script, and this is cargo's own installed binary.
+      - name: Restore cargo-fuzz
+        id: cargo-fuzz
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/*fuzz*
+          key: ${{ runner.os }}-cargo-fuzz-${{ env.CARGO_FUZZ_VERSION }}
+
+      - name: Install cargo-fuzz
+        if: steps.cargo-fuzz.outputs.cache-hit != 'true'
+        run: cargo install cargo-fuzz --locked --version "$CARGO_FUZZ_VERSION"
+
+      # The corpus the last run left, so each night starts from the coverage the one before reached.
+      # The key is unique per run and the restore falls back to the newest of the leg, which is how a
+      # cache that cannot be overwritten keeps accumulating. `restore`/`save` are separate steps so
+      # the save still runs when the fuzzer found something.
+      - name: Restore the corpus
+        uses: actions/cache/restore@v4
+        with:
+          path: rust/host/fuzz/corpus
+          key: fuzz-corpus-${{ matrix.name }}-${{ github.run_id }}
+          restore-keys: |
+            fuzz-corpus-${{ matrix.name }}-
+
+      - uses: ./.github/actions/postgres
+        if: matrix.postgres == 'on'
+
+      - name: Create the scratch database
+        if: matrix.postgres == 'on'
+        run: psql -h localhost -U postgres -c 'CREATE DATABASE hecks_fuzz'
+
+      # libFuzzer exits non-zero on a crash, an AddressSanitizer report, a leak, an out-of-memory
+      # and a timeout alike, which fails this step and the leg. The step's own limit ends a loop that
+      # never returns. The host logs one JSON line to stdout per command, which is thousands a
+      # second here, so stdout is dropped; libFuzzer reports on stderr.
+      - name: Fuzz
+        timeout-minutes: 10
+        working-directory: rust/host
+        env:
+          HECKS_FUZZ_PG: ${{ matrix.postgres == 'on' && 'host=localhost user=postgres password=postgres dbname=hecks_fuzz' || '' }}
+          ASAN_OPTIONS: detect_leaks=1:abort_on_error=0:symbolize=1
+        run: |
+          cargo +nightly fuzz run postgres_equivalence --sanitizer ${{ matrix.sanitizer }} -- \
+            -max_total_time="$FUZZ_SECONDS" -timeout=30 -rss_limit_mb=4096 -max_len=1024 \
+            -print_final_stats=1 -reduce_inputs=1 > /dev/null
+
+      - name: Keep the corpus
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: rust/host/fuzz/corpus
+          key: fuzz-corpus-${{ matrix.name }}-${{ github.run_id }}
+
+      # The input that crashed, for `cargo +nightly fuzz run postgres_equivalence <file>` locally.
+      - name: Keep the crashing input
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-artifacts-${{ matrix.name }}
+          path: rust/host/fuzz/artifacts
+          retention-days: 14
+          if-no-files-found: ignore

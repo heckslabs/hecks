@@ -139,14 +139,26 @@ RSpec.describe "the pages a Rails app has with no view files of its own", type: 
     def sign_in_then_forget(role)
       act_as(role)
       Hecks::Rails::DevActor.reset!
-      allow(Hecks::Rails::DevActor).to receive(:grant).and_call_original
+      allow(Hecks::Rails::Booted.dispatcher).to receive(:dispatch_flat).and_call_original
     end
 
-    it "grants a session's role again when this process has not seen it" do
+    def assignment(role) = hash_including(actor_id: { value: "dev-#{role.downcase}" }, role_name: { value: role })
+
+    it "tells Governance about a session's role again when this process has not seen it" do
       sign_in_then_forget("Teller")
       post_note_unsigned("regranted")
 
-      expect(Hecks::Rails::DevActor).to have_received(:grant).with("dev-teller", "Teller")
+      expect(Hecks::Rails::Booted.dispatcher).to have_received(:dispatch_flat)
+        .with("Governance::RoleAssignment.Assign", assignment("Teller"))
+    end
+
+    it "does not tell Governance again for a session this process has already granted" do
+      act_as("Teller")
+      allow(Hecks::Rails::Booted.dispatcher).to receive(:dispatch_flat).and_call_original
+      post_note_unsigned("granted-once")
+
+      expect(Hecks::Rails::Booted.dispatcher).not_to have_received(:dispatch_flat)
+        .with("Governance::RoleAssignment.Assign", anything)
     end
 
     it "lists the roles the domain's commands name" do
@@ -178,6 +190,12 @@ RSpec.describe "the pages a Rails app has with no view files of its own", type: 
 
       expect(labels).to include("Accounts", "Notes on the ledger")
       expect(labels).not_to include("Desks")
+    end
+
+    it "keeps every place when the App row names a home the app lacks" do
+      allow(described_class).to receive(:app_row).and_return(title: "x", home: "Nowhere")
+
+      expect(described_class.entries.map(&:label)).to include("Accounts", "Notes on the ledger")
     end
 
     it "refuses a Listing column the aggregate lacks" do

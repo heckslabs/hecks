@@ -8,11 +8,20 @@ module Hecks
           # Words the answer for an unknown command or question, suggesting up to five near names.
           # Ranked by shared prefix, which survives a dropped letter where a substring would not.
           def unknown(cli, name, asking, program)
-            near  = near_names(cli, name, asking)
+            near  = near_names(cli, snake_form(name), asking)
             lines = ["no such #{asking ? "query" : "command"}: #{name}"]
-            lines += ["", "did you mean:", *near.first(5).map { |candidate| "  #{candidate}" }] unless near.empty?
+            shown = near.first(5).map { |candidate| "  #{shown_name(cli, candidate, asking)}" }
+            lines += ["", "did you mean:", *shown] unless near.empty?
             lines += ["", "  #{program}#{" query" if asking}   for the full list"]
             lines.join("\n")
+          end
+
+          # A suggested name as the listing prints it, in the bluebook's verb form. A candidate from
+          # the other namespace (a bare name's home) is printed as it is.
+          def shown_name(cli, candidate, asking)
+            specs = asking ? cli[:questions] : cli[:commands]
+            spec  = specs[cli[:names][asking ? :question : :command][candidate]]
+            spec ? Projector::CliProjector.verb_form(spec, candidate) : candidate
           end
 
           # The names worth suggesting: the bare name's homes first, then the names sharing a

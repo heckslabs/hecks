@@ -105,6 +105,10 @@ current list of what this repo can do.
   says what one wants and how it refuses.
 - `exe/hecks <command>! name=value …` does something;
   `exe/hecks query <query> name=value …` reads something.
+- A command is named by its aggregate and verb, as the bluebook spells them: `PushTrain.board!`,
+  `Hecks::PushTrain.board!` and `Hecks::PushTrain.Board` all reach it, and so does the older
+  snake-case `push_train.board!`. The listing and `--help` print `PushTrain.board!`; the heading
+  over a group of commands is the aggregate, so each line under it completes the call.
 - Before writing a script, look for the command that already does it
   (projections, regeneration, style checks, model_check, smoke tests).
   If none exists, add the command to the bluebook rather than a script.
@@ -130,8 +134,8 @@ archive: do not boot a checkout against it.
   (a read, for that one command), and `era.audit_translation` checks them.
 - Whether a copy may migrate its database is the `mint_eras` setting in its world
   (`persisted_by("PostgresEra") do ... mint_eras true end`, also from an overlay); `hecks config`
-  reports it. The launcher's own overlay must declare it before the default flips to refuse
-  (`EraResolver::MINT_BY_DEFAULT`).
+  reports it. An unset world refuses (`EraResolver::MINT_BY_DEFAULT` is `false`); the
+  launcher's overlay declares `mint_eras true`.
 - After a push, the launcher's refresh moves its checkout only when it is detached and has no
   changed or untracked file; the report names the file that stops it.
 
