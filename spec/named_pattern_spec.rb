@@ -4,7 +4,7 @@ require "spec_helper"
 RSpec.describe Hecks::Bluebook::NamedPattern do
   let(:rust_table) do
     File.read(File.expand_path("../rust/parser/src/build/named_pattern.rs", __dir__))
-        .scan(/\("(\w+)", r"([^"]*)"\)/).to_h { |name, source| [name.to_sym, source] }
+        .scan(/\(\s*"(\w+)",\s*r"([^"]*)",?\s*\)/).to_h { |name, source| [name.to_sym, source] }
   end
 
   it "is the table the Rust parser holds, name for name and regex for regex" do
