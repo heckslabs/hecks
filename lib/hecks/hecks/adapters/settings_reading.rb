@@ -18,6 +18,9 @@ module Hecks
       DEPRECATED = %w[HECKS_SYNTAX_BOOT_CACHE HECKS_VERDICT_CACHE HECKS_NO_USAGE_CACHE
                       HECKS_PRE_PUSH_GATE].freeze
 
+      # The first line of a message.
+      FIRST_LINE = /\A[^\n]*/
+
       # A URL's password: `user:secret@` becomes `user:***@`.
       PASSWORD = %r{(://[^:/@\s]+):[^@\s]+@}
 
@@ -35,14 +38,19 @@ module Hecks
         directory = plain(held[:domain]) || Dir.pwd
         raise ConsoleCapture::Failure, "#{directory} is not a directory" unless File.directory?(directory)
 
-        rows = [environment, database(directory), schema, project_environment,
-                variable_or_default("cache directory", "HECKS_CACHE_DIR", usage_cache_directory),
-                variable_or_default("rust workspace", "HECKS_RUST_DIR", RustBuild.rust_dir),
-                registry_source(directory)]
-        { text: (rows.map { |name, value, source| "#{name}: #{value} (#{source})" } + deprecated).join("\n") }
+        { text: (rows(directory).map { |row| line_of(*row) } + deprecated).join("\n") }
       end
 
       private
+
+      def rows(directory)
+        [environment, database(directory), schema, project_environment,
+         variable_or_default("cache directory", "HECKS_CACHE_DIR", usage_cache_directory),
+         variable_or_default("rust workspace", "HECKS_RUST_DIR", RustBuild.rust_dir),
+         registry_source(directory)]
+      end
+
+      def line_of(name, value, source) = "#{name}: #{value} (#{source})"
 
       def environment
         named = ENV.fetch("HECKS_ENVIRONMENT", "")
@@ -55,7 +63,7 @@ module Hecks
         value = declared_database(directory) || "none declared"
         ["database", hide_password(value), database_source(directory)]
       rescue StandardError => e
-        ["database", "could not be read", e.message.lines.first.to_s.strip]
+        ["database", "could not be read", first_line(e.message)]
       end
 
       def database_source(directory)
@@ -67,9 +75,11 @@ module Hecks
 
       def declared_database(directory)
         registry = Hecks.describe(directory).registry
-        name = registry.first_bluebook&.name
+        name = registry.first_domain_name
         name && registry.default_database_for(name)
       end
+
+      def first_line(text) = text.to_s[FIRST_LINE].strip
 
       def schema
         return ["schema", ENV.fetch("HECKS_SCHEMA"), "variable HECKS_SCHEMA"] unless ENV.fetch("HECKS_SCHEMA", "").empty?
@@ -79,7 +89,9 @@ module Hecks
 
       def project_environment
         named = ENV.fetch("HECKS_PROJECT_ENVIRONMENT", "")
-        named.empty? ? ["project environment", "none", "default"] : ["project environment", named, "variable HECKS_PROJECT_ENVIRONMENT"]
+        return ["project environment", "none", "default"] if named.empty?
+
+        ["project environment", named, "variable HECKS_PROJECT_ENVIRONMENT"]
       end
 
       def usage_cache_directory
@@ -92,15 +104,16 @@ module Hecks
         found = Hecks::EmbryonautBluebook::VendorCli.default_source(directory)
         return ["registry source", "none found", "default"] unless found
 
-        ["registry source", found, ENV["EMBRYONAUT_BLUEBOOKS_SRC"] ? "variable EMBRYONAUT_BLUEBOOKS_SRC" : "beside the project"]
+        named = ENV.fetch("EMBRYONAUT_BLUEBOOKS_SRC", nil)
+        ["registry source", found, named ? "variable EMBRYONAUT_BLUEBOOKS_SRC" : "beside the project"]
       end
 
       def variable_or_default(name, variable, value)
-        [name, value, ENV[variable] ? "variable #{variable}" : "default"]
+        [name, value, ENV.fetch(variable, nil) ? "variable #{variable}" : "default"]
       end
 
       def deprecated
-        set = DEPRECATED.select { |name| ENV[name] }
+        set = DEPRECATED.select { |name| ENV.fetch(name, nil) }
         set.empty? ? [] : ["deprecated variables set: #{set.join(", ")}"]
       end
 

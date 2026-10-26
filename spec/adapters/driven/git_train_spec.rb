@@ -62,7 +62,8 @@ RSpec.describe Hecks::Adapters::GitTrain, :io do
     hooks = File.join(scratch, "hooks")
     FileUtils.mkdir_p(hooks)
     hook = File.join(hooks, "pre-push")
-    File.write(hook, "#!/bin/sh\nprintf '%s' \"$(git config --type=bool --get hecks.fullGate)\" > #{File.join(scratch, "gate")}\n")
+    recorded = File.join(scratch, "gate")
+    File.write(hook, "#!/bin/sh\nprintf '%s' \"$(git config --type=bool --get hecks.fullGate)\" > #{recorded}\n")
     FileUtils.chmod("+x", hook)
     git("config", "core.hooksPath", hooks)
   end
