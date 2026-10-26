@@ -36,7 +36,8 @@ class SagaPersistenceRace
     thread_b = lookup(registry)
     # The timeout only bounds the wait for B's second entry; it is not synchronization.
     @entered.pop(timeout: 1)
-    2.times { @release << true } # the second covers B having raced in and parked on its own release.pop
+    # The second covers B having raced in and parked on its own release.pop.
+    2.times { @release << true }
     [thread_a, thread_b].each(&:join)
     [@results.pop, @results.pop]
   end
