@@ -1,0 +1,42 @@
+[package]
+name = "rust_host_fuzz"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+# Own workspace root, so neither `rust/host` nor `rust` adopts this crate and its fuzzing-only
+# dependencies; `cargo build` and `cargo test` in the host never compile it.
+[workspace]
+
+[lib]
+name = "rust_host_fuzz"
+path = "src/lib.rs"
+
+[package.metadata]
+cargo-fuzz = true
+
+# Every version below is the host's own (rust/host/Cargo.toml), so the lockfile resolves one copy of
+# each shared crate. Only `libfuzzer-sys`, `arbitrary`, `dashmap` and `ahash` are new, and they live
+# only here.
+[dependencies]
+rust_host = { path = ".." }
+libfuzzer-sys = "0.4"
+# `derive` is what lets a typed command script come out of libFuzzer's bytes.
+arbitrary = { version = "1", features = ["derive"] }
+# Sharded, so the footprint memo takes no global lock under the sanitizer.
+dashmap = "6"
+ahash = "0.8"
+tokio = { version = "1", features = ["macros", "net", "rt", "sync", "time"] }
+tokio-postgres = { version = "0.7", features = ["with-serde_json-1"] }
+# Same features as the host: `arbitrary_precision` keeps a number as the text the kernel wrote, and
+# `preserve_order` keeps object key order, so a value read back compares as the host sees it.
+serde_json = { version = "1", features = ["preserve_order", "arbitrary_precision"] }
+async-trait = "0.1.92"
+anyhow = "1"
+
+[[bin]]
+name = "postgres_equivalence"
+path = "fuzz_targets/postgres_equivalence.rs"
+test = false
+doc = false
+bench = false
