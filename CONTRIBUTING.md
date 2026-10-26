@@ -146,6 +146,37 @@ domain directory loads it, later ones get a fresh registry holding a copy
 of the loaded declarations. A changed file is a different key;
 `HECKS_NO_DECLARATION_CACHE=1` turns it off when you suspect it.
 
+## Databases, settings and storage shapes
+
+Hecks reads almost no environment variables for you to set, and none for a database.
+
+- **Run on the memory environment.** `HECKS_ENVIRONMENT=memory exe/hecks <command>` uses no
+  database. Never export `HECKS_DATABASE` in a shell or a profile: a checkout that boots a newer
+  storage shape against a database that holds eras migrates that database, and every older
+  checkout is then refused. `exe/hecks config domain.value=<directory>` prints each setting, its
+  value and which source supplied it (a variable, the copy's own `environments/local.world`, or
+  the domain's world).
+- **A copy that keeps records names its own database** in `environments/local.world`, which is
+  never committed. Two people must not name the same database.
+- **A change to a persisted chapter's storage shape** needs a translation edge under that
+  chapter's `translations/` and a move of the committed ledger `lib/hecks/hecks/shapes.json`.
+  `exe/hecks conformance_run.check_shape_ledger --wait` runs with no database, fails when a shape
+  moved without an edge, and prints the edge to commit for a change that only adds. `--confirm`
+  rewrites the ledger once an edge covers the move. A change that renames or reshapes data needs
+  rules, which `exe/hecks query era.scaffold_translation domain.value=<directory>` writes from a
+  database that holds the eras (name it for that one command with `HECKS_DATABASE=<url>`); then
+  check them with `era.audit_translation`. CI runs the same ledger check as part of `checks`.
+- **Two people changing the same chapter's shape** conflict in `shapes.json` and leave two edges
+  from one source shape, which the mint and CI refuse. The second to merge rebases, regenerates
+  their edge from the merged shape, and moves the ledger again.
+- **The push train is optional.** `~/.claude/hecks-train` in the maintainer's setup is a detached
+  checkout that pushes through `hecks push_train.board!` so several agents' pushes run one at a
+  time. A person can push with plain `git push`; the hook runs the same gate. To run a train of
+  your own, make a detached checkout of this repository, give it an `environments/local.world`
+  naming a database on your own Postgres, and push from it with
+  `exe/hecks push_train.board! checkout=<your clone> remote=origin branch=main --wait`. It merges
+  commits that reached `origin/main` meanwhile and retries, as a plain push would not.
+
 ## Verification beyond the suite
 
 A green suite only proves the paths someone thought to write. Before a
