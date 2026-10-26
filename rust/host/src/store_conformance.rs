@@ -528,6 +528,50 @@ mod cases {
         assert!(outcome.accepted, "{:?}", outcome.result);
     }
 
+    pub(super) async fn sagas_load_in_key_order_however_they_were_written<B: Backend>(db: &str) {
+        let backend = B::fresh(db).await;
+        let saga = |correlation: &str, state: &str| journal::SagaRow {
+            process_manager: "Settlement".to_string(),
+            correlation: correlation.to_string(),
+            state: state.to_string(),
+            memory: json!({}),
+            completed_compensations: json!([]),
+        };
+        let written = register("CUST-0043");
+        let out_of_order = Accepted {
+            verb: REGISTER,
+            args: &written,
+            new_seed: json!({}),
+            saga_upserts: vec![
+                saga("tr-b", "requested"),
+                saga("tr-c", "requested"),
+                saga("tr-a", "requested"),
+            ],
+            saga_deletes: Vec::new(),
+            lineage: None,
+        };
+        let unit = backend.store().begin(DOMAIN).await.unwrap();
+        unit.commit(out_of_order).await.unwrap();
+
+        // Rewriting a row moves it in a heap, which is how a scan comes to disagree with the keys.
+        let later = register("CUST-0044");
+        let rewrite = Accepted {
+            verb: REGISTER,
+            args: &later,
+            new_seed: json!({}),
+            saga_upserts: vec![saga("tr-a", "settled")],
+            saga_deletes: Vec::new(),
+            lineage: None,
+        };
+        let unit = backend.store().begin(DOMAIN).await.unwrap();
+        unit.commit(rewrite).await.unwrap();
+
+        let unit = backend.store().begin(DOMAIN).await.unwrap();
+        let loaded = unit.load().await.unwrap().sagas;
+        let keys: Vec<&str> = loaded.iter().map(|s| s.correlation.as_str()).collect();
+        assert_eq!(keys, ["tr-a", "tr-b", "tr-c"]);
+    }
+
     pub(super) async fn a_unit_commits_a_saga_and_then_its_deletion<B: Backend>(db: &str) {
         let backend = B::fresh(db).await;
         let saga = |state: &str| journal::SagaRow {
@@ -793,6 +837,7 @@ mod postgres {
     use super::*;
 
     conformance_suite!(PostgresBackend;
+        sagas_load_in_key_order_however_they_were_written,
         an_accepted_command_appends_one_journal_row,
         a_snapshot_and_a_gap_replay_to_the_state_of_a_full_replay,
         the_journal_keeps_arguments_as_recorded_and_never_restamps,
@@ -936,6 +981,7 @@ mod memory {
     use super::*;
 
     conformance_suite!(MemoryBackend;
+        sagas_load_in_key_order_however_they_were_written,
         an_accepted_command_appends_one_journal_row,
         a_snapshot_and_a_gap_replay_to_the_state_of_a_full_replay,
         the_journal_keeps_arguments_as_recorded_and_never_restamps,
