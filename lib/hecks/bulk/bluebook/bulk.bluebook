@@ -29,12 +29,12 @@ Hecks.bluebook "Bulk" do
 
     # The command each row receives, fully qualified: `Banking::Account.FreezeAccount`.
     value_object "VerbName" do
-      attribute :value, String, pattern: '^[A-Z][A-Za-z0-9]*::[A-Z][A-Za-z0-9]*\.[A-Z][A-Za-z0-9]*$'
+      attribute :value, String, matches: :command_ref
     end
 
     # The query whose rows the command is sent to, fully qualified: `Banking::Account.Open`.
     value_object "QueryName" do
-      attribute :value, String, pattern: '^[A-Z][A-Za-z0-9]*::[A-Z][A-Za-z0-9]*\.[A-Z][A-Za-z0-9]*$'
+      attribute :value, String, matches: :command_ref
     end
 
     # One argument of the query, spelled as text. A value for an argument not declared a String

@@ -51,7 +51,7 @@ Hecks.bluebook "Hecks" do
     end
 
     value_object "Address" do
-      attribute :value, String, pattern: '^https?://'
+      attribute :value, String, matches: :http_scheme
     end
 
     value_object "RoutePath" do
@@ -356,7 +356,7 @@ Hecks.bluebook "Hecks" do
     identified_by :host
 
     value_object "Address" do
-      attribute :value, String, pattern: '^https?://'
+      attribute :value, String, matches: :http_scheme
     end
 
     # The file listing the eras that should be running, one per line.

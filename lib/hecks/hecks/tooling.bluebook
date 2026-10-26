@@ -548,7 +548,7 @@ Hecks.bluebook "Hecks" do
 
     # What a new domain is called, as its bluebook spells it: a capital and then letters and digits.
     value_object "DomainName" do
-      attribute :value, String, pattern: '[A-Z][A-Za-z0-9]*'
+      attribute :value, String, matches: :capitalized
     end
 
     # A persistence adapter a stub can be bound to; `Hecks::CLI::DomainStub` names the ones it knows.
@@ -1101,7 +1101,7 @@ Hecks.bluebook "Hecks" do
 
     # Names, comma separated: benchmark domains, or the targets to measure.
     value_object "NameList" do
-      attribute :value, String, pattern: '^[^ \t\n\r,]+(,[^ \t\n\r,]+)*$'
+      attribute :value, String, matches: :csv_list
     end
 
     value_object "BinaryPath" do

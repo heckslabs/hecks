@@ -64,7 +64,7 @@ Hecks.bluebook "Hecks" do
 
     # The part of the language a word is a word in.
     value_object "Context" do
-      attribute :value, String, pattern: '^[A-Za-z][A-Za-z0-9_]*$'
+      attribute :value, String, matches: :identifier
     end
 
     # What a word's block holds.
@@ -1416,7 +1416,7 @@ Hecks.bluebook "Hecks" do
 
     # Files or directories, comma separated.
     value_object "PathList" do
-      attribute :value, String, pattern: '^[^ \t\n\r,]+(,[^ \t\n\r,]+)*$'
+      attribute :value, String, matches: :csv_list
     end
 
     # Violation categories, comma separated.
@@ -1737,7 +1737,7 @@ Hecks.bluebook "Hecks" do
 
     # Files or directories, comma separated; lib when none is named.
     value_object "PathList" do
-      attribute :value, String, pattern: '^[^ \t\n\r,]+(,[^ \t\n\r,]+)*$'
+      attribute :value, String, matches: :csv_list
     end
 
     # How many lines of the report are kept.
@@ -2538,12 +2538,12 @@ Hecks.bluebook "Hecks" do
 
     # Domain directories, comma separated.
     value_object "PathList" do
-      attribute :value, String, pattern: '^[^ \t\n\r,]+(,[^ \t\n\r,]+)*$'
+      attribute :value, String, matches: :csv_list
     end
 
     # The name of one IR construct.
     value_object "ConstructName" do
-      attribute :value, String, pattern: '^[A-Za-z][A-Za-z0-9_]*$'
+      attribute :value, String, matches: :identifier
     end
 
     # The name of one field of a construct.
@@ -2803,7 +2803,7 @@ Hecks.bluebook "Hecks" do
     end
 
     value_object "Version" do
-      attribute :value, String, pattern: '^[0-9]+[.][0-9]+[.][0-9]+'
+      attribute :value, String, matches: :version
     end
 
     # The working tree the release is cut from.
