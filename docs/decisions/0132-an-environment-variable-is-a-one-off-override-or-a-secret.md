@@ -32,11 +32,11 @@ works or fails depending on the shell that launched it.
 These already compute their value from where the copy lives; the variable exists to point
 somewhere else, and nothing needs it set. Surveying the reads showed each is also how a value
 crosses a process boundary, so retiring them is a larger change than deleting a read.
-- `HECKS_RUST_DIR`: `RustBuild.rust_dir` defaults to the checkout's `rust/`, and a
-  workspace copy of an installed gem is passed to in-process tools by swapping `ENV` under a
-  lock (`RustBuild.with_env`, `RustWorkspace#environment`), and to forked or spawned
-  children through their environment. An explicit workspace parameter would replace the
-  in-process swap; the variable would stay for children.
+- `HECKS_RUST_DIR`: `RustBuild.rust_dir` defaults to the checkout's `rust/`. A tool run in
+  this process, or a process forked from it, is given its workspace by
+  `RustBuild.in_workspace(dir) { ... }`, which holds no environment variable. The variable
+  stays for the children hecks execs (`RustWorkspace#environment`, the corpus tasks and the QA
+  evaluation) and as a person's override.
 - `CARGO_TARGET_DIR`: Cargo's own variable. Hecks sets it for the Cargo it starts and
   honours the user's (`TargetDir`); it is not hecks's to retire.
 - `HECKS_CACHE_DIR`, `HECKS_STOREHOUSE_ROOT` (the sandbox root the MCP servers widen on
@@ -165,9 +165,9 @@ command can clear, so `run_spec_example!`'s `declaration_cache` argument sets it
    and the three cache switches remain as test switches.
 2. Derived variables: done for the registry source (`EMBRYONAUT_BLUEBOOKS_SRC` now has a
    sibling-checkout default). The rest were already derived with an override, and stay
-   overrides (see the classification); `HECKS_RUST_DIR` becoming an explicit workspace
-   parameter in process, and `HECKS_IR_PATH`/`HECKS_WASM_PATH` defaulting to the sidecars
-   beside the host binary, are separate changes.
+   overrides (see the classification); `HECKS_RUST_DIR` is now an in-process workspace
+   (`RustBuild.in_workspace`), and `HECKS_IR_PATH`/`HECKS_WASM_PATH` defaulting to the
+   sidecars beside the host binary is a separate change.
 3. Arguments: `profile` and `prebuilt` are built, and `run_spec_example!` takes `strict`,
    `seeds` and `environment`, which set `CI`, `PROPERTY_SEEDS` and `HECKS_ENVIRONMENT` for
    that run only, and `push_train.board!` takes `full_gate`. `run_spec_example!` also takes

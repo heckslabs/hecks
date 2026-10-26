@@ -42,8 +42,10 @@ RSpec.describe Hecks::RustBuild::Host do
   after { FileUtils.rm_rf(dir) }
 
   def build(*args, **env)
-    Hecks::RustBuild.with_env({ "HECKS_RUST_DIR" => workspace, "CARGO_TARGET_DIR" => nil }.merge(env)) do
-      described_class.call(["domains/shelf", *args, "--stage=#{stage}"])
+    Hecks::RustBuild.in_workspace(workspace) do
+      Hecks::RustBuild.with_env({ "CARGO_TARGET_DIR" => nil }.merge(env)) do
+        described_class.call(["domains/shelf", *args, "--stage=#{stage}"])
+      end
     end
   end
 
@@ -74,7 +76,7 @@ RSpec.describe Hecks::RustBuild::Host do
   end
 
   def publish_host
-    allow(Hecks::RustBuild::PrebuiltBinary).to receive(:fetch) do |_name, _crate, target:, into:|
+    allow(Hecks::RustBuild::PrebuiltBinary).to receive(:fetch) do |_name, _crate, target:, into:, **|
       FileUtils.mkdir_p(File.dirname(into))
       File.write(into, "published host for #{target}")
       into
@@ -104,7 +106,7 @@ RSpec.describe Hecks::RustBuild::Host do
 
   it "defaults the stage to .hecks/host/<target> under the working directory" do
     Dir.chdir(dir) do
-      Hecks::RustBuild.with_env("HECKS_RUST_DIR" => workspace) { described_class.call(["domains/shelf"]) }
+      Hecks::RustBuild.in_workspace(workspace) { described_class.call(["domains/shelf"]) }
     end
 
     expect(File.exist?(File.join(dir, ".hecks", "host", "aarch64-apple-darwin", "shelf-host"))).to be(true)

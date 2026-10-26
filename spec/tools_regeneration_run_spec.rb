@@ -46,12 +46,12 @@ RSpec.describe Hecks::Tools::RegenerationRun do
     expect(Dir.exist?(scratches.first)).to be(false)
   end
 
-  it "puts HECKS_RUST_DIR back after an aborted check", :aggregate_failures do
-    before = ENV.fetch("HECKS_RUST_DIR", nil)
+  it "leaves the workspace as it was after an aborted check", :aggregate_failures do
+    before = Hecks::RustBuild.rust_dir
     allow(described_class).to receive(:regenerate).and_raise(SystemExit.new(1))
 
     expect { described_class.main(["--check"], root: root) }.to raise_error(SystemExit)
 
-    expect(ENV.fetch("HECKS_RUST_DIR", nil)).to eq(before)
+    expect(Hecks::RustBuild.rust_dir).to eq(before)
   end
 end
