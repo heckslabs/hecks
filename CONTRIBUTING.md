@@ -161,8 +161,11 @@ Hecks reads almost no environment variables for you to set, and none for a datab
 - **A change to a persisted chapter's storage shape** needs a translation edge under that
   chapter's `translations/` and a move of the committed ledger `lib/hecks/hecks/shapes.json`.
   `exe/hecks conformance_run.check_shape_ledger --wait` runs with no database, fails when a shape
-  moved without an edge, and prints the edge to commit for a change that only adds. `--confirm`
-  rewrites the ledger once an edge covers the move. A change that renames or reshapes data needs
+  moved without an edge, and prints the edge to commit for a change that only adds.
+  `--confirm --additive` writes that empty edge and moves the ledger in one step (the mint audits
+  every edge against the records it migrates, and refuses one that would lose data), and
+  `--confirm` alone rewrites the ledger once an edge you wrote covers the move. A change that
+  renames or reshapes data needs
   rules, which `exe/hecks query era.scaffold_translation domain.value=<directory>` writes from a
   database that holds the eras (name it for that one command with `HECKS_DATABASE=<url>`); then
   check them with `era.audit_translation`. CI runs the same ledger check as part of `checks`.
