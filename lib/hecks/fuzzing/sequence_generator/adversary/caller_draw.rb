@@ -50,8 +50,8 @@ module Hecks
             end
           end
 
-          # A declared role none of `roles` is, when there is one (a real wrong hat), else a role none
-          # names.
+          # A declared role none of `roles` is, when there is one (a real wrong hat), else a role
+          # none names.
           def other_role(roles, catalog)
             others = catalog[:roles] - roles
             others.empty? ? UNKNOWN_ROLE : others.sample(random: @random)

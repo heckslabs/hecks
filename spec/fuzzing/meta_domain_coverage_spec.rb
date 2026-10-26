@@ -32,7 +32,7 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
     Bluebook#name Bluebook#vision Bluebook#classification Bluebook#version
     Bluebook#formerly_known_as Bluebook#namespace Bluebook#normalisations Bluebook#attaches_to
     Aggregate#bluebook Aggregate#name Aggregate#description Aggregate#provenance
-    Command#aggregate Command#entity_id Command#name Command#role Command#goal Command#provenance
+    Command#aggregate Command#entity_id Command#name Command#role Command#roles Command#goal Command#provenance
     Query#aggregate Query#entity_id Query#name Query#description
     ValueObject#aggregate ValueObject#name
     Entity#aggregate Entity#owner Entity#name Entity#description
