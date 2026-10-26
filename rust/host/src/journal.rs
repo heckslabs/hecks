@@ -222,10 +222,15 @@ pub struct SagaRow {
 
 /// Every live saga instance for this domain, read once per invocation to
 /// seed the kernel's in-memory `sagas` map.
+///
+/// Ordered by key in byte order (`COLLATE "C"`), which is the order the memory store keeps its
+/// sagas in: the kernel echoes the sagas back in the order it was given them, so a table scan in
+/// heap order would make one command answer differently from one store to the next.
 pub async fn load_sagas<C: GenericClient>(client: &C) -> anyhow::Result<Vec<SagaRow>> {
     let rows = client
         .query(
-            "SELECT process_manager, correlation, state, memory, completed_compensations FROM hecks_lambda_sagas",
+            "SELECT process_manager, correlation, state, memory, completed_compensations FROM hecks_lambda_sagas \
+             ORDER BY process_manager COLLATE \"C\", correlation COLLATE \"C\"",
             &[],
         )
         .await?;
