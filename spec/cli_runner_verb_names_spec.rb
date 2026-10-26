@@ -19,13 +19,17 @@ RSpec.describe "the launcher's verb-form command names" do
     end
   end
 
-  it "keeps the snake-case name working", :aggregate_failures do
-    expect(board_help.first).to start_with("push_train.board")
+  it "keeps the snake-case name working, and prints the verb form", :aggregate_failures do
+    expect(board_help.first).to start_with("PushTrain.board")
     expect(board_help.last).to eq(0)
   end
 
   it "reaches an entity's command by the verb that names the entity" do
-    expect(help("Hecks::PushTrain.Launcher.Refresh").first).to start_with("push_train.refresh")
+    expect(help("Hecks::PushTrain.Launcher.Refresh").first).to start_with("PushTrain.refresh")
+  end
+
+  it "suggests near names in the verb form for a misspelled verb" do
+    expect(help("PushTrain.bord!").first).to include("did you mean:", "  PushTrain.board")
   end
 
   it "refuses a verb that names nothing, naming what was typed", :aggregate_failures do

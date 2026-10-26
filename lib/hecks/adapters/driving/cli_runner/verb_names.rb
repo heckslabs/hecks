@@ -20,15 +20,24 @@ module Hecks
             [typed, *verb_form_names(typed)].find { |name| indexed?(cli, name) } || typed
           end
 
+          # A typed name as the projection spells it, to match what was typed against the names it
+          # indexes: `Hecks::PushTrain.bord` as `push_train.bord`.
+          #
+          # @param typed [String] the word typed, without its `!`
+          # @return [String] the realm dropped and each dotted segment in snake case
+          def snake_form(typed) = snake_segments(typed).join(".")
+
           private
 
           # `Hecks::PushTrain.board` as `push_train.board`; a verb that names an entity's command,
           # `PushTrain.Launcher.Refresh`, also as `push_train.refresh`, the way the projection
           # exposes it.
           def verb_form_names(typed)
-            segments = typed.sub(REALM, "").split(".").map { |segment| Naming.snake(segment) }
+            segments = snake_segments(typed)
             [segments.join("."), [segments.first, segments.last].join(".")].uniq
           end
+
+          def snake_segments(typed) = typed.sub(REALM, "").split(".").map { |segment| Naming.snake(segment) }
 
           def indexed?(cli, name)
             cli[:names][:command].key?(name) || cli[:names][:question].key?(name)
