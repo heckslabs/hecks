@@ -268,18 +268,19 @@ async fn open_store(
     }
 }
 
-/// Connects to Postgres, provisions the journal tables and resolves the era this binary runs
-/// at, for a domain that binds a Postgres adapter.
-async fn boot_postgres(
-    database_url: &str,
-    schema: Option<&str>,
-    domain: &str,
-    ir: &serde_json::Value,
-    my_hash: &str,
-    my_label: &str,
-) -> Result<(Store, Option<i32>), Error> {
+/// Connects to Postgres as the host does in production: TLS against AWS's RDS certificate
+/// authority, except for a loopback server, which takes none.
+///
+/// The one place a connection to the domain's database is made, so an operator tool such as
+/// `ledger` reaches the database the way a dispatch does.
+///
+/// # Errors
+///
+/// Returns an error if the URL cannot be read, the certificate bundle cannot be parsed, or the
+/// server refuses the connection.
+pub async fn connect_postgres(database_url: &str) -> Result<tokio_postgres::Client, Error> {
     // RDS refuses a plain NoTls connection by default and needs AWS's
-    // own RDS CA specifically, not a generic public bundle (see
+    // own RDS certificate authority specifically, not a generic public bundle (see
     // Cargo.toml).
     let mut roots = rustls::RootCertStore::empty();
     for cert in CertificateDer::pem_slice_iter(include_bytes!("../rds-ca-bundle.pem")) {
@@ -294,7 +295,7 @@ async fn boot_postgres(
     // URI-reserved `?`/`#` that CloudFormation never percent-encodes.
     let mut config = parse_database_url(database_url)?;
     // RDS requires TLS (rds-ca-bundle.pem); local Postgres over loopback
-    // can't be verified against the RDS CA, so localhost uses NoTls.
+    // can't be verified against the RDS authority, so localhost uses NoTls.
     let local_postgres = database_url_is_local(&config);
     if !local_postgres {
         config.ssl_mode(tokio_postgres::config::SslMode::Require);
@@ -328,6 +329,20 @@ async fn boot_postgres(
     };
 
     connect_phase.end();
+    Ok(client)
+}
+
+/// Connects to Postgres, provisions the journal tables and resolves the era this binary runs
+/// at, for a domain that binds a Postgres adapter.
+async fn boot_postgres(
+    database_url: &str,
+    schema: Option<&str>,
+    domain: &str,
+    ir: &serde_json::Value,
+    my_hash: &str,
+    my_label: &str,
+) -> Result<(Store, Option<i32>), Error> {
+    let client = connect_postgres(database_url).await?;
 
     // Every unqualified table/view reference this binary issues
     // resolves through search_path, so this is what makes a shared

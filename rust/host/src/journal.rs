@@ -323,7 +323,7 @@ pub fn quote_ident(name: &str) -> String {
     format!("\"{}\"", name.replace('"', "\"\""))
 }
 
-fn journal_table(domain: &str) -> String {
+pub(crate) fn journal_table(domain: &str) -> String {
     format!("hecks_journal_{}", snake(domain))
 }
 
