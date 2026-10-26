@@ -128,6 +128,10 @@ archive: do not boot a checkout against it.
   renamed or reshaped needs rules: `HECKS_DATABASE=<records url> exe/hecks query
   era.scaffold_translation domain.value=<dir>` writes them from the database that holds the eras
   (a read, for that one command), and `era.audit_translation` checks them.
+- Whether a copy may migrate its database is the `mint_eras` setting in its world
+  (`persisted_by("PostgresEra") do ... mint_eras true end`, also from an overlay); `hecks config`
+  reports it. The launcher's own overlay must declare it before the default flips to refuse
+  (`EraResolver::MINT_BY_DEFAULT`).
 - After a push, the launcher's refresh moves its checkout only when it is detached and has no
   changed or untracked file; the report names the file that stops it.
 

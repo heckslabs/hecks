@@ -211,8 +211,19 @@ case; a change that renames or reshapes data still needs rules a person decides.
 longer restores era 1's head views (`Boot#provision!`), and the push train's launcher refresh
 names the file that keeps it from moving.
 
-Not built: making minting an admitted operator step (boot mints today when an edge covers the
-move, and the deploy flows rely on it), a role that dev checkouts cannot mint with, a snapshot
-before the launcher first boots a new shape, and rehearsing shape changes in CI (the
-`rehearsal_run` commands need a Postgres the gate does not have). Each needs the deploy and
-hosting flows reviewed together, so they are their own changes.
+**Minting is a setting, `mint_eras`.** Only `check!` at boot mints a new era (the admitted
+`era.*` flow holds the first era, merges tails, compacts and re-attests; it never migrates to a new
+shape). A world declares `mint_eras true` or `false` in its `persisted_by("PostgresEra")` block,
+which also works from an `environments/local.world` overlay, and `hecks config` reports it. A copy
+that may not mint is refused with the instruction, after its edge is found and before anything is
+written, and the database stays on the era it holds. Holding the first era of an empty database is
+always allowed. The default is `EraResolver::MINT_BY_DEFAULT`, still `true`: a push cannot both
+declare the field and require it, because the launcher's current code rejects a setting its adapter
+does not declare. So the order is: push the field; add `mint_eras true` to the launcher's overlay
+once it has refreshed; then flip `MINT_BY_DEFAULT` to `false`, after which only a copy that says so
+can migrate a database. The Rust host mints at boot as the deployed minter and is not affected.
+
+Not built: a role that dev checkouts cannot mint with, a snapshot before the launcher first boots
+a new shape, and rehearsing shape changes in CI (the `rehearsal_run` commands need a Postgres the
+gate does not have). Each needs database administration or a CI run, so they are their own
+changes.

@@ -7,6 +7,7 @@ RSpec.describe Hecks::Adapters::SettingsReading do
   let(:reading) { described_class.new }
   let(:directory) { Dir.mktmpdir("settings-reading") }
   let(:database) { "postgres://hecks:secret@localhost/hecks" }
+  let(:declared_settings) { {} }
   let(:variables) do
     %w[HECKS_ENVIRONMENT HECKS_DATABASE HECKS_SCHEMA HECKS_PROJECT_ENVIRONMENT HECKS_CACHE_DIR
        HECKS_RUST_DIR EMBRYONAUT_BLUEBOOKS_SRC] + described_class::RETIRED
@@ -19,7 +20,8 @@ RSpec.describe Hecks::Adapters::SettingsReading do
   before do
     @saved = variables.to_h { |name| [name, ENV.fetch(name, nil)] }
     variables.each { |name| ENV.delete(name) }
-    registry = instance_double(Hecks::Runtime::Registry, default_database_for: database, first_domain_name: "Shop")
+    registry = instance_double(Hecks::Runtime::Registry, default_database_for: database, first_domain_name: "Shop",
+                                                         binding_settings: declared_settings)
     described = instance_double(Hecks::Runtime::Loader::Described, registry: registry)
     allow(Hecks).to receive(:describe).with(directory).and_return(described)
   end
@@ -41,6 +43,18 @@ RSpec.describe Hecks::Adapters::SettingsReading do
     File.write(File.join(directory, "environments", "local.world"), "")
 
     expect(line(read, "database")).to end_with("(environments/local.world)")
+  end
+
+  it "says a copy may mint until its world says otherwise", :aggregate_failures do
+    expect(line(read, "mint eras")).to eq("mint eras: allowed (default)")
+  end
+
+  context "when the world refuses minting" do
+    let(:declared_settings) { { mint_eras: false } }
+
+    it "says so, and that the world said it" do
+      expect(line(read, "mint eras")).to eq("mint eras: refused (world)")
+    end
   end
 
   it "reports the variable as the source when it is set" do

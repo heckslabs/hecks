@@ -20,6 +20,18 @@ module Hecks
                                        "check it with hecks audit_translation, then boot again", minting: false)
           end
 
+          # Refuses to move a database to a newer shape from a copy that may not mint: minting
+          # migrates what every other checkout of the domain reads, and an older checkout is then
+          # refused until it catches up.
+          def refuse_unpermitted_mint!(context)
+            latest = context.latest
+            raise era_refusal(context, "a translation edge covers the move from era #{latest[:ordinal]} " \
+                                       "(#{latest[:label]}) to #{context.label}, but this copy may not mint: " \
+                                       "it would migrate a database other checkouts read. Mint from the copy " \
+                                       "that owns the database, by declaring `mint_eras true` in the " \
+                                       "persisted_by block of its world", minting: false)
+          end
+
           private
 
           def refuse_forked_eras!(context, edges)

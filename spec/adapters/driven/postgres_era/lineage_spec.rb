@@ -178,10 +178,13 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
   def app_role_database = LINEAGE_DB
   def app_role_name = LINEAGE_ROLE
 
-  def check!(source, translation_source: nil, role: nil)
+  # Boots the source as a copy that owns the database, so it may mint; `mint_eras: false` boots it
+  # as one told not to, and `nil` leaves the world saying nothing.
+  def check!(source, translation_source: nil, role: nil, mint_eras: true)
     registry = load_registry(source, translation_source: translation_source)
     bluebook = registry.bluebooks.values.first
     settings = { database: owner_url }
+    settings[:mint_eras] = mint_eras unless mint_eras.nil?
     settings[:role] = role if role
     Hecks::Adapters::PostgresEra::LineageManager.check!(
       registry: registry, bluebook: bluebook, current_text: source, settings: settings
@@ -235,7 +238,8 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
   # Checks an already loaded registry against the database as the owner.
   def check_loaded!(registry, text)
     Hecks::Adapters::PostgresEra::LineageManager.check!(
-      registry: registry, bluebook: registry.bluebooks.values.first, current_text: text, settings: { database: owner_url }
+      registry: registry, bluebook: registry.bluebooks.values.first, current_text: text,
+      settings: { database: owner_url, mint_eras: true }
     )
   end
 
@@ -786,7 +790,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
 
   def merge_tail!(registry, **extra)
     Hecks::Adapters::PostgresEra::LineageManager.merge!(
-      registry: registry, bluebook: registry.bluebooks.values.first, settings: { database: LINEAGE_DB }, **extra
+      registry: registry, bluebook: registry.bluebooks.values.first, settings: { database: LINEAGE_DB, mint_eras: true }, **extra
     )
   end
 
@@ -1173,6 +1177,38 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     end
   end
 
+  # A copy whose world says `mint_eras false` does not migrate the database: it is refused, and the
+  # database is left on the era it holds.
+  context "with a copy told not to mint" do
+    def boot_without_permission
+      check!(V1_SOURCE)
+      check!(V2_SOURCE, translation_source: v1_to_v2_edge, mint_eras: false)
+    end
+
+    it "refuses to mint, and says how to allow it" do
+      expect { boot_without_permission }
+        .to raise_error(Hecks::Runtime::WiringError, /may not mint.*mint_eras true/m)
+    end
+
+    it "leaves the database on the era it holds", :aggregate_failures do
+      expect { boot_without_permission }.to raise_error(Hecks::Runtime::WiringError)
+      expect(count_of("hecks_eras", "domain = 'Ledger'")).to eq("1")
+    end
+
+    it "mints when the world says nothing, until the default is flipped", :aggregate_failures do
+      check!(V1_SOURCE)
+      check!(V2_SOURCE, translation_source: v1_to_v2_edge, mint_eras: nil)
+
+      expect(count_of("hecks_eras", "domain = 'Ledger'")).to eq("2")
+    end
+
+    it "still holds the first era of a database that holds none" do
+      check!(V1_SOURCE, mint_eras: false)
+
+      expect(count_of("hecks_eras", "domain = 'Ledger'")).to eq("1")
+    end
+  end
+
   # An old checkout reads but never reshapes the database: its boot must leave the head views on
   # the era a mint cut over to, or every reader of the newer era loses the rows it wrote.
   context "with an era-1 checkout rebooting after a mint" do
@@ -1218,7 +1254,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     registry = load_registry(source)
     Hecks::Adapters::PostgresEra::LineageManager.check!(
       registry: registry, bluebook: registry.bluebooks.values.first, current_text: source,
-      settings: { database: LINEAGE_DB }.merge(extra_settings)
+      settings: { database: LINEAGE_DB, mint_eras: true }.merge(extra_settings)
     )
     registry
   end
