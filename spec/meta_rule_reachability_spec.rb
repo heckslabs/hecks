@@ -102,6 +102,9 @@ RSpec.describe "reachability of the meta-domain's own given/invariant/ensures ru
      "`given` — never dispatched with a blank description"],
     [["given", "Command.Ensure", "a rule survives extraction"],
      "same generic Rule-presence check, never dispatched at Command.Ensure with a blank canonical"],
+    [["given", "Command.Allow", "a role is named"],
+     "presence check on an extra role of a command; spec/multi_role_spec.rb dispatches Allow with real roles, none with " \
+     "a blank one"],
     [["given", "Command.Change", "a mutation does something"],
      "distinct from \"a mutation names a target\" (proven) — no spec dispatches Command.Change with a target but no actual " \
      "operation"],

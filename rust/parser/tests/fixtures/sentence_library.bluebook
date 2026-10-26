@@ -1,0 +1,81 @@
+Domain: Library
+  A library lends books to members and keeps count of what is out.
+  This is a supporting domain
+  Its version is v1
+
+Aggregate: Book
+
+  A book is identified by its isbn.
+
+  Rule "a book has a title" holds when the title is not empty
+
+  It has:
+    an isbn: isbn
+    a title: text
+    a copies: whole number, default 1
+    a shelf: shelf label, optional
+    a kind: book kind
+    an author: reference to author
+    some tags: list of tag
+    some loans: has many loan
+    a rating: whole number, optional
+
+  An isbn has a value: text, matching "^[0-9]{10}$".
+
+  A shelf label has a value: text.
+
+  A tag has a value: text.
+
+  A book kind is one of: novel, poem and reference.
+
+  A reading level has:
+    a minimum age: whole number
+    a label: text
+    Rule "a minimum age is not negative" holds when the minimum age is at least 0
+
+  Command: Lend
+    Goal: Let a member take a book home
+    Who: Librarian or Volunteer
+    It can only happen from shelved and reserved
+    It acts on an existing book
+    When an isbn and an optional rating are given
+    Given "a copy is free" holds when this is true: copies > 0
+    Then the copies goes down by 1
+    And the title is set to "lent"
+    And the rating is set to what the copies was
+    And the shelf is kept between 1 and 9
+    And BookLent is announced
+    Afterwards "a copy is out" holds when the copies is at least 0
+
+  Query: By Kind
+    It takes:
+      a kind: book kind
+    Where the kind is the kind
+    Where the copies is at least 1
+    Ordered by title, ascending
+    Limited to 20
+
+Aggregate: Author
+
+  An author is identified by its name.
+
+  It has:
+    a name: text
+
+  Command: Notify
+    Who: Librarian
+    When a name is given
+    Then AuthorNotified is announced
+
+Policy: Tell Author
+  Whenever BookLent is announced
+  For each by kind of the book
+  Only when this is true: copies == 0
+  Then Notify runs with the name from the title
+
+Report: Loans By Kind
+  How many books of each kind are out.
+  It includes a book
+  It groups by kind
+  It counts them
+  Where the copies is 0

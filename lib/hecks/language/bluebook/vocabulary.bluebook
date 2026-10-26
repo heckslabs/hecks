@@ -976,6 +976,7 @@ Hecks.bluebook "Bluebook" do
       member script: "project_refusal_wording", section: "Codebase", aggregate: "LanguageRun", verb: "project_refusal_wording"
       member script: "project_reserved_names", section: "Codebase", aggregate: "LanguageRun", verb: "project_reserved_names"
       member script: "project_parser_table", section: "Codebase", aggregate: "LanguageRun", verb: "project_parser_table"
+      member script: "project_phrase_table", section: "Codebase", aggregate: "LanguageRun", verb: "project_phrase_table"
       member script: "project_bootstrap_table", section: "Codebase", aggregate: "LanguageRun", verb: "project_bootstrap_table"
       member script: "project_field_hints", section: "Codebase", aggregate: "LanguageRun", verb: "project_field_hints"
       member script: "expression_projection", section: "Codebase", aggregate: "LanguageRun", verb: "project_expression_tables"

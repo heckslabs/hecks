@@ -177,14 +177,42 @@ pub fn parse_body(
         let line = gated.line.number;
 
         match gated.row.word {
+            // Variadic: `role "A"` or `role "A", "B"`, any one of which may run the command.
             "role" => {
-                command.role = Some(super::positional_literal_text(
-                    file,
-                    line,
-                    "role",
-                    &gated.args,
-                    1,
-                )?);
+                if command.role.is_some() {
+                    return Err(Diagnostic::new(
+                        file,
+                        line,
+                        format!(
+                            "{} declares role twice — a command carries one responsibility; name every role in one: role \"A\", \"B\"",
+                            command.name
+                        ),
+                    ));
+                }
+                let mut roles = Vec::new();
+                for at in 1..=gated.args.positional.len() {
+                    roles.push(super::positional_literal_text(
+                        file,
+                        line,
+                        "role",
+                        &gated.args,
+                        at,
+                    )?);
+                }
+                let mut distinct = roles.clone();
+                distinct.sort();
+                distinct.dedup();
+                if distinct.len() != roles.len() {
+                    return Err(Diagnostic::new(
+                        file,
+                        line,
+                        format!("{} names a role twice in one role declaration", command.name),
+                    ));
+                }
+                command.role = roles.first().cloned();
+                if roles.len() > 1 {
+                    command.roles = roles;
+                }
             }
             "goal" => {
                 command.goal = Some(super::positional_literal_text(

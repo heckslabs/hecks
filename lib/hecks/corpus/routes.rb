@@ -34,6 +34,11 @@ module Hecks
       Route.new(%r{\Aspec/corpus/asks/}, :named_in, "spec/policy_ask_spec.rb", "spec/corpus/asks",
                 "a corpus-owned domain whose ports have no adapter, so an ask is refused; its frozen " \
                 "targets are held to the Ruby runtime there and to the Rust policy table in rust/codegen"),
+      Route.new(%r{\Aspec/fixtures/sentence/orders/}, :named_in, "spec/sentence_form_spec.rb", :each_file,
+                "a chapter written as sentences beside its Ruby twin, whose policies ask the outside and " \
+                "wait for its answers; model_check wants the hecksagon that declares that port, which the " \
+                "sweep does not load. The spec compares each pair and spec/sentence_examples_spec.rb runs " \
+                "its examples against the hecksagon"),
       Route.new(%r{\Aspec/fixtures/rust_host/}, :named_in, "rust/host/src/web/commerce.rs", "checkout_fixture",
                 "the Rust host's checkout fixture, pinned by its web and /api tests"),
       Route.new(%r{\Apackages/hecks-rails/spec/fixtures/}, :named_in, "packages/hecks-rails/spec/support/ledger_app.rb",

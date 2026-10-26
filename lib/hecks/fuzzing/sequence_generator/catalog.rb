@@ -60,7 +60,7 @@ module Hecks
 
         def command_roles(catalog)
           commands = catalog[:creating] + catalog[:instance] + catalog[:entity_commands]
-          roles = commands.filter_map { |e| e[:command].role }.map(&:to_s)
+          roles = commands.flat_map { |e| e[:command].role_set }
           roles.reject(&:empty?).uniq.sort
         end
 

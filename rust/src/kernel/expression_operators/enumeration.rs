@@ -36,6 +36,27 @@ pub fn interpret(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
                 BlockMode::None => !outcomes.iter().any(|b| *b),
             }))
         }
+        Expr::Sum {
+            receiver,
+            param,
+            predicate,
+        } => {
+            let items = elements(receiver, ctx, "sum")?;
+            let mut total = Value::Int(0);
+            for item in items {
+                let bound = Bound {
+                    name: param,
+                    value: item,
+                    rest: ctx.args,
+                };
+                let inner = EvalContext {
+                    args: &bound,
+                    instance: ctx.instance,
+                };
+                total = super::arithmetic::sum(&total, &eval(predicate, &inner)?)?;
+            }
+            Ok(total)
+        }
         Expr::Find {
             receiver,
             param,
@@ -293,6 +314,48 @@ mod tests {
             number: 0,
         };
         assert_eq!(run(&free_number(false), &none_free), Value::Nil);
+    }
+
+    #[test]
+    fn sum_adds_what_the_block_works_out_and_is_zero_for_an_empty_list() {
+        let total = |roster: &Roster| {
+            run(
+                &Expr::Sum {
+                    receiver: Box::new(Expr::Lookup("seats")),
+                    param: "s",
+                    predicate: Box::new(Expr::Mul(
+                        Box::new(Expr::Lookup("s.number")),
+                        Box::new(Expr::Int(10)),
+                    )),
+                },
+                roster,
+            )
+        };
+        assert_eq!(total(&roster()), Value::Int(60));
+        let empty = Roster {
+            seats: vec![],
+            tags: vec![],
+            number: 0,
+        };
+        assert_eq!(total(&empty), Value::Int(0));
+    }
+
+    #[test]
+    fn sum_refuses_a_block_that_is_not_a_number() {
+        let wrong = Expr::Sum {
+            receiver: Box::new(Expr::Lookup("seats")),
+            param: "s",
+            predicate: Box::new(Expr::Lookup("s.taken")),
+        };
+        let ctx = EvalContext {
+            args: &NoFields,
+            instance: &roster(),
+        };
+        let err = eval(&wrong, &ctx).unwrap_err();
+        assert!(
+            format!("{err:?}").contains("addition expects a number"),
+            "{err:?}"
+        );
     }
 
     #[test]

@@ -5,10 +5,12 @@
 module Hecks
   # The `.behaviors` toolkit: DSL, IR, runner and rspec shim.
   module Behaviors
-    TestSetup = Struct.new(:command, :args, keyword_init: true)
+    # One setup dispatch; `role`, when given, is the role the dispatch runs as.
+    TestSetup = Struct.new(:command, :args, :role, keyword_init: true)
 
+    # One test; `role`, when given, is the role the tested dispatch runs as.
     TestCase = Struct.new(:description, :tests_command, :on_aggregate, :kind,
-                          :setups, :input, :expect, keyword_init: true) do
+                          :setups, :input, :expect, :role, keyword_init: true) do
       # Whether `tests_command` is already a fully qualified verb name.
       #
       # @return [Boolean] true when `tests_command` contains a `.`

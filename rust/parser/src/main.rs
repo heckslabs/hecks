@@ -17,7 +17,12 @@ mod ir;
 mod keywords;
 mod lex;
 mod parse;
+// Generated table of the sentence form's phrases; not every column is read by this binary.
+#[allow(dead_code)]
+mod phrases;
+mod render_ruby;
 mod ruby_value;
+mod sentence;
 
 use std::fs;
 use std::process::ExitCode;
@@ -51,6 +56,10 @@ impl From<diag::Diagnostic> for RunError {
 fn run(args: &[String]) -> Result<(), RunError> {
     match args.first().map(String::as_str) {
         Some("chapter") => run_chapter(&args[1..]),
+        Some("render") => run_render(&args[1..]),
+        Some("complete") => run_complete(&args[1..]),
+        Some("format") => run_format(&args[1..]),
+        Some("examples") => run_examples(&args[1..]),
         Some("resolve") => run_resolve(&args[1..]),
         Some("adapter") => run_adapter(&args[1..]),
         Some("world") => run_world(&args[1..]),
@@ -67,8 +76,11 @@ fn run(args: &[String]) -> Result<(), RunError> {
     }
 }
 
-/// `hecks-parse chapter --chapter <Name> <files...>`: emits the chapter's `ir.json` on stdout.
-fn run_chapter(args: &[String]) -> Result<(), RunError> {
+/// The chapter a `chapter` or `render` call names and the files it reads, as `(path, source)`.
+fn read_chapter_args(
+    subcommand: &str,
+    args: &[String],
+) -> Result<(String, Vec<(String, String)>), RunError> {
     let mut chapter_name: Option<String> = None;
     let mut files: Vec<String> = Vec::new();
     let mut iter = args.iter();
@@ -80,12 +92,12 @@ fn run_chapter(args: &[String]) -> Result<(), RunError> {
         }
     }
     let chapter_name = chapter_name.ok_or_else(|| {
-        RunError::Usage("hecks-parse chapter --chapter <Name> <files...>".to_string())
+        RunError::Usage(format!("hecks-parse {subcommand} --chapter <Name> <files...>"))
     })?;
     if files.is_empty() {
-        return Err(RunError::Usage(
-            "hecks-parse chapter --chapter <Name> <files...> — no files given".to_string(),
-        ));
+        return Err(RunError::Usage(format!(
+            "hecks-parse {subcommand} --chapter <Name> <files...> — no files given"
+        )));
     }
 
     let loaded: Vec<(String, String)> = files
@@ -96,9 +108,117 @@ fn run_chapter(args: &[String]) -> Result<(), RunError> {
             Ok((path.clone(), source))
         })
         .collect::<Result<_, RunError>>()?;
+    Ok((chapter_name, loaded))
+}
 
+/// `hecks-parse chapter --chapter <Name> <files...>`: emits the chapter's `ir.json` on stdout.
+fn run_chapter(args: &[String]) -> Result<(), RunError> {
+    let (chapter_name, loaded) = read_chapter_args("chapter", args)?;
     let bluebook = parse::chapter::parse_chapter(&chapter_name, &loaded)?;
     println!("{}", emit::write(&emit::bluebook_json(&bluebook)));
+    Ok(())
+}
+
+/// `hecks-parse render --chapter <Name> <files...>`: prints the chapter as the Ruby-shaped
+/// bluebook text that declares the same IR, so a chapter written as sentences can be loaded by
+/// Ruby.
+fn run_render(args: &[String]) -> Result<(), RunError> {
+    let (chapter_name, loaded) = read_chapter_args("render", args)?;
+    let bluebook = parse::chapter::parse_chapter(&chapter_name, &loaded)?;
+    let first = loaded.first().map_or("<none>", |(path, _)| path.as_str());
+    let text = render_ruby::ruby_form(&bluebook)
+        .map_err(|why| RunError::Parse(diag::Diagnostic::new(first, 1, why)))?;
+    print!("{text}");
+    Ok(())
+}
+
+/// `hecks-parse examples --chapter <Name> --examples <file> [--also <file>] <chapter files...>`:
+/// prints the `.behaviors` text that runs the examples file against the chapter. Each `--also`
+/// file is booted with it but not parsed, as a hecksagon is.
+fn run_examples(args: &[String]) -> Result<(), RunError> {
+    let mut examples_path: Option<String> = None;
+    let mut also: Vec<String> = Vec::new();
+    let mut rest: Vec<String> = Vec::new();
+    let mut iter = args.iter();
+    while let Some(arg) = iter.next() {
+        match arg.as_str() {
+            "--examples" => examples_path = iter.next().cloned(),
+            "--also" => also.extend(iter.next().cloned()),
+            _ => rest.push(arg.clone()),
+        }
+    }
+    let examples_path = examples_path.ok_or_else(|| {
+        RunError::Usage("hecks-parse examples --chapter <Name> --examples <file> <files...>".to_string())
+    })?;
+    let (chapter_name, loaded) = read_chapter_args("examples", &rest)?;
+    let source = fs::read_to_string(&examples_path)
+        .map_err(|e| RunError::Usage(format!("could not read '{examples_path}': {e}")))?;
+    let bluebook = parse::chapter::parse_chapter(&chapter_name, &loaded)?;
+    // The suite boots the chapter's files and then any `--also` files (the Memory-bound
+    // hecksagon that answers the chapter's asks), each by its absolute path.
+    let absolute: Vec<String> = loaded
+        .iter()
+        .map(|(path, _)| path)
+        .chain(also.iter())
+        .map(|path| {
+            fs::canonicalize(path).map_or_else(|_| path.clone(), |full| full.to_string_lossy().into_owned())
+        })
+        .collect();
+    let text = sentence::examples::compile(&bluebook, &absolute, &examples_path, &source)?;
+    print!("{text}");
+    Ok(())
+}
+
+/// `hecks-parse format --chapter <Name> <files...>`: prints the chapter, whichever form its files
+/// are written in, as canonical sentences.
+fn run_format(args: &[String]) -> Result<(), RunError> {
+    let (chapter_name, loaded) = read_chapter_args("format", args)?;
+    let bluebook = parse::chapter::parse_chapter(&chapter_name, &loaded)?;
+    let first = loaded.first().map_or("<none>", |(path, _)| path.as_str());
+    let text = sentence::format::sentences(&bluebook)
+        .map_err(|why| RunError::Parse(diag::Diagnostic::new(first, 1, why)))?;
+    print!("{text}");
+    Ok(())
+}
+
+/// `hecks-parse complete <file> --line N --col N`: prints, as JSON, the sentences an author may
+/// write at that cursor of a file written as sentences. Both numbers are 1-based.
+fn run_complete(args: &[String]) -> Result<(), RunError> {
+    let usage = || RunError::Usage("hecks-parse complete <file> --line N --col N".to_string());
+    let mut path: Option<&String> = None;
+    let mut line: Option<usize> = None;
+    let mut col: Option<usize> = None;
+    let mut iter = args.iter();
+    while let Some(arg) = iter.next() {
+        match arg.as_str() {
+            "--line" => line = iter.next().and_then(|value| value.parse().ok()),
+            "--col" => col = iter.next().and_then(|value| value.parse().ok()),
+            _ => path = Some(arg),
+        }
+    }
+    let (Some(path), Some(line), Some(col)) = (path, line, col) else {
+        return Err(usage());
+    };
+    let source = fs::read_to_string(path)
+        .map_err(|e| RunError::Usage(format!("could not read '{path}': {e}")))?;
+
+    let found = sentence::complete::complete(&source, line, col);
+    let items: Vec<emit::JsonValue> = found
+        .items
+        .iter()
+        .map(|item| {
+            emit::JsonValue::Object(vec![
+                ("label".to_string(), emit::JsonValue::str(item.label.clone())),
+                ("insert".to_string(), emit::JsonValue::str(item.insert.clone())),
+                ("snippet".to_string(), emit::JsonValue::str(item.snippet.clone())),
+            ])
+        })
+        .collect();
+    let value = emit::JsonValue::Object(vec![
+        ("context".to_string(), emit::JsonValue::str(found.context)),
+        ("items".to_string(), emit::JsonValue::Array(items)),
+    ]);
+    println!("{}", emit::write(&value));
     Ok(())
 }
 

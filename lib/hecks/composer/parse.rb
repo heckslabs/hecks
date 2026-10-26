@@ -1,4 +1,5 @@
 require "open3"
+require_relative "../sentence_form"
 
 module Hecks
   module Composer
@@ -12,17 +13,17 @@ module Hecks
       # A bluebook file's path.
       BLUEBOOK_FILE = /\.bluebook\z/
 
-      # A `Hecks.bluebook "Name"` header line, capturing the chapter's name.
-      CHAPTER_HEADER = /\A\s*Hecks\.bluebook\s+"([^"]+)"/
-
       # A line number: digits and nothing else.
       LINE_NUMBER = /\A\d+\z/
+
+      # A column then the message, as the sentence form's refusals give them: `63: this is not`.
+      COLUMN_PREFIX = /\A(\d+): (.*)\z/m
 
       # A message ending in `(expected one of: a, b)`, capturing the message and the list.
       EXPECTED_SUFFIX = /\A(.*) \(expected one of: (.*)\)\z/
 
       # Raised when no `hecks-parse` binary can be found.
-      class ParserMissing < StandardError; end
+      ParserMissing = SentenceForm::ParserMissing
 
       module_function
 
@@ -52,11 +53,8 @@ module Hecks
       def bluebook_files(stage) = Workspace.files(stage).grep(BLUEBOOK_FILE)
 
       # @param path [String] a bluebook file
-      # @return [String, nil] the name its `Hecks.bluebook "Name"` header declares
-      def chapter_name(path)
-        File.foreach(path) { |line| return Regexp.last_match(1) if line =~ CHAPTER_HEADER }
-        nil
-      end
+      # @return [String, nil] the name its `Hecks.bluebook "Name"` or `Domain: name` header declares
+      def chapter_name(path) = SentenceForm.chapter_name(path)
 
       # @api private
       def refusal_for(stage, chapter, files)
@@ -68,32 +66,35 @@ module Hecks
         diagnostic(first_line.to_s.chomp, stage)
       end
 
-      # Reads `<file>:<line>: <message>` with an optional `(expected one of: a, b, c)` suffix.
+      # Reads `<file>:<line>: <message>`, or `<file>:<line>:<column>: <message>` for a file written
+      # as sentences, with an optional `(expected one of: a, b, c)` suffix.
       # @api private
       def diagnostic(line, stage)
-        rest = line.delete_prefix("#{stage}/")
-        file, number, message = rest.split(":", 3)
-        return { file: nil, line: nil, message: line, expected: [] } unless number.to_s.strip.match?(LINE_NUMBER)
+        file, number, message = line.delete_prefix("#{stage}/").split(":", 3)
+        return { file: nil, line: nil, column: nil, message: line, expected: [] } unless number.to_s.strip.match?(LINE_NUMBER)
 
-        message = message.to_s.strip
-        expected = []
-        if (found = message.match(EXPECTED_SUFFIX))
-          message = found[1]
-          expected = found[2].split(", ")
-        end
-        { file: file, line: number.to_i, message: message, expected: expected }
+        column, message = split_column(message.to_s.strip)
+        message, expected = split_expected(message)
+        { file: file, line: number.to_i, column: column, message: message, expected: expected }
       end
 
-      # @return [String] the path to `hecks-parse`: `HECKS_PARSE_BIN`, then the release or debug
-      #   build under `rust/parser/target/`
+      # @param message [String] a diagnostic's text after the line number
+      # @return [Array(Integer, String), Array(nil, String)] the column it names, and the rest
+      def split_column(message)
+        positioned = message.match(COLUMN_PREFIX)
+        positioned ? [positioned[1].to_i, positioned[2]] : [nil, message]
+      end
+
+      # @param message [String] a diagnostic's text with its column taken off
+      # @return [Array(String, Array<String>)] the message, and the phrases that would have fitted
+      def split_expected(message)
+        found = message.match(EXPECTED_SUFFIX)
+        found ? [found[1], found[2].split(", ")] : [message, []]
+      end
+
+      # @return [String] the path to `hecks-parse`; see {SentenceForm.binary}
       # @raise [ParserMissing] if none exists
-      def binary
-        candidates = [ENV.fetch("HECKS_PARSE_BIN", nil)] +
-                     %w[release debug].map { |profile| File.join(ROOT, "rust/parser/target/#{profile}/hecks-parse") }
-        candidates.compact.find { |path| File.executable?(path) } or
-          raise ParserMissing, "hecks-parse is not built — run `cargo build --release " \
-                               "--manifest-path rust/parser/Cargo.toml`"
-      end
+      def binary = SentenceForm.binary
     end
   end
 end

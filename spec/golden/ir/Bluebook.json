@@ -6521,6 +6521,16 @@
         {
           "admits": null,
           "default": null,
+          "list": true,
+          "name": "roles",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "Permission"
+        },
+        {
+          "admits": null,
+          "default": null,
           "list": false,
           "name": "goal",
           "optional": false,
@@ -7499,6 +7509,67 @@
               "admits": null,
               "default": null,
               "list": false,
+              "name": "allowed",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "RoleName"
+            }
+          ],
+          "emits": [
+            "RoleAllowed"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+            {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "allowed",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
+              "canonical": "!allowed.value.to_s.empty?",
+              "description": "a role is named"
+            }
+          ],
+          "goal": "Name a role that may run this command, among several",
+          "mutations": [
+            {
+              "fields": {
+                "name": ":allowed"
+              },
+              "op": "append",
+              "sign": "",
+              "target": "roles"
+            }
+          ],
+          "name": "Allow",
+          "needs": [
+
+          ],
+          "provenance": null,
+          "references": null,
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
               "name": "fact",
               "optional": false,
               "pattern": null,
@@ -7736,6 +7807,28 @@
 
           ],
           "name": "Announcement"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Permission"
         },
         {
           "attributes": [
@@ -8116,6 +8209,28 @@
 
           ],
           "name": "OpName"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "RoleName"
         },
         {
           "attributes": [
@@ -8848,6 +8963,10 @@
               [
                 "fills",
                 "role"
+              ],
+              [
+                "variadic",
+                "true"
               ]
             ],
             [
@@ -19258,6 +19377,36 @@
               ],
               [
                 "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "field"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "order_by"
+              ],
+              [
+                "context",
+                "ReadModel"
+              ],
+              [
+                "at",
                 "2"
               ],
               [
@@ -21391,6 +21540,36 @@
               [
                 "kind",
                 "symbol"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "order_field"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "order_by"
+              ],
+              [
+                "context",
+                "Query"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
               ],
               [
                 "required",
@@ -34474,6 +34653,24 @@
               [
                 "verb",
                 "project_parser_table"
+              ]
+            ],
+            [
+              [
+                "script",
+                "project_phrase_table"
+              ],
+              [
+                "section",
+                "Codebase"
+              ],
+              [
+                "aggregate",
+                "LanguageRun"
+              ],
+              [
+                "verb",
+                "project_phrase_table"
               ]
             ],
             [

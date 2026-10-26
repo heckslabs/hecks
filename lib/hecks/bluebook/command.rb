@@ -50,6 +50,8 @@ module Hecks
       emits_ir(
         name:       :hecks_name,
         role:       :role,
+        # Every role that may run the command, when more than one may; `role` is then the first.
+        roles:      -> { roles.size > 1 ? roles : Hecks::IR::OMIT },
         goal:       :goal,
         references: :references,
         attributes: many(:attributes),
@@ -67,7 +69,7 @@ module Hecks
 
       # Every optional declared field and what it holds when the declaration omits it.
       FIELD_DEFAULTS = {
-        role: nil, goal: nil, attributes: [], givens: [], ensures: [], needs: [],
+        role: nil, roles: [], goal: nil, attributes: [], givens: [], ensures: [], needs: [],
         mutations: [], emits: [], references: nil, from: nil, provenance: nil, idempotent: false
       }.freeze
 
@@ -78,10 +80,13 @@ module Hecks
         # @return [Boolean] whether a second delivery leaves the state a first one did
         def idempotent? = @idempotent ? true : false
 
+        # @return [Array<String>] every role that may run it when more than one may, else empty
+        def roles = @roles || []
+
         # Mints one command as its own anonymous subclass of the class `declare` is called on.
         #
         # @param name [String, Symbol] the command's declared name
-        # @param role [String, nil] the declared role text; `goal` is the goal text
+        # @param role [String, nil] the declared role; `roles` all of them when several may run it
         # @param attributes [Array<Bluebook::Attribute>] the declared arguments
         # @param givens [Array<Bluebook::Given>] the declared preconditions
         # @param ensures [Array<Bluebook::Given>] the postconditions; `needs` the facts it supplies
@@ -109,6 +114,11 @@ module Hecks
           end
           settle
         end
+
+        # Every role that may run the command: its `roles` when several may, else its one `role`.
+        #
+        # @return [Array<String>] empty when the command declares no role
+        def role_set = roles.size > 1 ? roles : [role].compact.map(&:to_s)
       end
     end
   end

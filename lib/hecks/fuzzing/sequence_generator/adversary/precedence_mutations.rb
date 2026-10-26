@@ -96,7 +96,7 @@ module Hecks
             plan.record("lifecycle", "lifecycle", entry[:command].from || "transition-guarded") if plan.wanted?("lifecycle")
             return unless plan.wanted?("role")
 
-            @precedence_caller = { "role" => other_role(entry[:command].role.to_s, catalog) }
+            @precedence_caller = { "role" => other_role(entry[:command].role_set, catalog) }
             plan.record("role", "role", @precedence_caller["role"])
           end
 

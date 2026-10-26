@@ -323,6 +323,7 @@ Hecks.bluebook "Bluebook" do
       # refusing it there instead).
       member keyword: "where",           context: "ReadModel", at: "",  named: "on",      kind: "constant", required: "false", fills: "target"
       member keyword: "order_by",        context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "field"
+      member keyword: "order_by",        context: "ReadModel", at: "1", named: "",        kind: "text",     required: "true",  fills: "field"
       member keyword: "order_by",        context: "ReadModel", at: "2", named: "",        kind: "symbol",   required: "false", fills: "direction"
       member keyword: "order_by",        context: "ReadModel", at: "",  named: "on",      kind: "constant", required: "false", fills: "target"
       member keyword: "authorize",       context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "policy"

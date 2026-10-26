@@ -1,0 +1,77 @@
+Domain: Cms
+
+Aggregate: Page
+  One page of a site's writing — its address and title, kept as a draft while it is written, published when it is ready, withdrawn when it comes down.
+
+  A page is identified by its slug.
+
+  It has:
+    a slug: page slug
+    a title: page title
+    a published on: published on, optional
+
+  A page slug has a value: text.
+    Rule "a page has a slug" holds when the value is not empty
+
+  A page title has a value: text.
+    Rule "a page has a title" holds when the value is not empty
+
+  A published on has a value: whole number.
+    Rule "a publication date is a real moment" holds when the value is at least 0
+
+  Lifecycle: status, starting as draft
+    Publish moves a page from draft to published
+    Withdraw moves a page from published to withdrawn
+    Republish moves a page from withdrawn to published
+
+  Command: Draft
+    Goal: Start a new page, unpublished
+    Who: Editor
+    When a slug and a title are given
+    Then the slug and the title are set
+    And PageDrafted is announced
+
+  Command: Revise
+    Goal: Change a page's title — its slug stays
+    Who: Editor
+    It acts on an existing page
+    When a title is given
+    Then the title is set
+    And PageRevised is announced
+
+  Command: Publish
+    Goal: Put a drafted page on the site
+    Who: Editor
+    It acts on an existing page
+    When a published on is given
+    Given "only a draft can be published" holds when the status is draft
+    Then the published on is set
+    And PagePublished is announced
+
+  Command: Withdraw
+    Goal: Take a page off the site, keeping its record and its slug
+    Who: Editor
+    It acts on an existing page
+    Given "only a published page can be withdrawn" holds when the status is published
+    Then PageWithdrawn is announced
+
+  Command: Republish
+    Goal: Put a withdrawn page back on the site
+    Who: Editor
+    It acts on an existing page
+    Given "only a withdrawn page can be republished" holds when the status is withdrawn
+    Then PageRepublished is announced
+
+  Query: Listing
+    Every page, whatever its status, by slug.
+    Ordered by slug.value, ascending
+
+  Query: Published
+    The pages on the site, by slug.
+    Where the status is published
+    Ordered by slug.value, ascending
+
+  Query: Drafts
+    The pages not yet published, by slug.
+    Where the status is draft
+    Ordered by slug.value, ascending

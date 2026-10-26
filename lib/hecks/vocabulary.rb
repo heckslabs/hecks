@@ -491,6 +491,7 @@ module Hecks
         {"script"=>"project_refusal_wording", "section"=>"Codebase", "aggregate"=>"LanguageRun", "verb"=>"project_refusal_wording"}.freeze,
         {"script"=>"project_reserved_names", "section"=>"Codebase", "aggregate"=>"LanguageRun", "verb"=>"project_reserved_names"}.freeze,
         {"script"=>"project_parser_table", "section"=>"Codebase", "aggregate"=>"LanguageRun", "verb"=>"project_parser_table"}.freeze,
+        {"script"=>"project_phrase_table", "section"=>"Codebase", "aggregate"=>"LanguageRun", "verb"=>"project_phrase_table"}.freeze,
         {"script"=>"project_bootstrap_table", "section"=>"Codebase", "aggregate"=>"LanguageRun", "verb"=>"project_bootstrap_table"}.freeze,
         {"script"=>"project_field_hints", "section"=>"Codebase", "aggregate"=>"LanguageRun", "verb"=>"project_field_hints"}.freeze,
         {"script"=>"expression_projection", "section"=>"Codebase", "aggregate"=>"LanguageRun", "verb"=>"project_expression_tables"}.freeze,

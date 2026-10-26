@@ -152,6 +152,8 @@ account = Banking::Account.open!(customer: "cm-1", number: "cm-a1",
 
 Names who calls this command — "Compliance officer", "Back office". Optional: a command with no declared `role` is never checked against anything. Where it IS declared, enforcement is opt-in on the caller's side too — unchecked by default, real once a caller states one. `Hecks.as_caller(role:, &block)` binds who is dispatching for the block (`Runtime::Caller`, `Thread.current`-backed, safe under nesting); a command whose declared `role` doesn't match refuses with `Unauthorized` (`CommandRules::Authorization#refuse_role_mismatch`, the `role_mismatch` refusal template). A caller that carries an `actor_id`, on a domain with an authorization provider attached, is checked against that actor's live Governance grants instead of the role string (ADR 0025). A policy or saga reaction never inherits the triggering caller's role — `Dispatcher#reenter` clears it, since a reaction is the system acting, not the original caller.
 
+A command may name several roles, `role "Teller", "Branch manager"`, and a caller who holds any one of them may run it. `role` is then the first, the IR lists every role under `roles` (a key only a command with more than one carries, so every other command's IR reads as it did), and the refusal names them all: `role: Teller or Branch manager`. Naming one role twice, or declaring `role` twice in one command, is refused when the file loads.
+
 `Freeze` is declared `role "Compliance officer"`. Unchecked by default —
 a caller who states nothing is not refused:
 
