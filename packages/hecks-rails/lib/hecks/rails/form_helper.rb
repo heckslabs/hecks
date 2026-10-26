@@ -17,11 +17,13 @@ module Hecks
       # @param url [String] where the form posts
       # @param values [Hash{String => Object}, nil] the values to show, by dotted path; the
       #   request's own parameters when omitted
+      # @param errors [Boolean] whether to mark the fields the last refusal was about; false for a
+      #   form the refusal was not of, so a command beside it that shares a field is not marked
       # @return [ActiveSupport::SafeBuffer] the form
-      def command_form_for(subject, verb, url:, values: nil)
+      def command_form_for(subject, verb, url:, values: nil, errors: true)
         subject = command_subject(subject)
         fields = command_fields(subject, verb)
-        inputs = fields.map { |field| command_input(field, subject, fields, values) }.join
+        inputs = fields.map { |field| command_input(field, subject, fields, values, errors) }.join
         content_tag(:form, safe_join([command_token(url), inputs.html_safe, command_schema(subject, verb),
                                       submit_tag(verb.to_s.humanize)]), action: url, method: "post")
       end
@@ -41,8 +43,9 @@ module Hecks
         end
       end
 
-      def command_input(field, subject, fields, values)
-        Hecks::Forms::FieldRenderer.render(field, values: values || submitted_values, errors: refused_fields(subject),
+      def command_input(field, subject, fields, values, errors)
+        Hecks::Forms::FieldRenderer.render(field, values:            values || submitted_values,
+                                                  errors:            (refused_fields(subject) if errors),
                                                   reference_options: command_references(subject, fields))
       end
 

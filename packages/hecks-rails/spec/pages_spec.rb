@@ -77,6 +77,17 @@ RSpec.describe "the pages a Rails app has with no view files of its own", type: 
       expect(last_response.body).to include('action="/accounts/P1/freeze_account"')
     end
 
+    # Deposit and Withdraw both take a memo, so the same field would be marked on each form.
+    def refused_deposit
+      post "/accounts/P1/deposit", { "amount.cents" => "5", "memo.value" => "" }, { "HTTP_X_ACTOR" => "teller-1" }
+    end
+
+    it "marks a refused command's fields on its own form only" do
+      refused_deposit
+
+      expect(last_response.body.scan('class="field has-error"').size).to eq(1)
+    end
+
     it "names the commands the domain would refuse" do
       html("/accounts/P1")
 
