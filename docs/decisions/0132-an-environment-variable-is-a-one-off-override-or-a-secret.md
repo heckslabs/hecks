@@ -79,11 +79,10 @@ carries it to a process that has no other channel.
 `smoke-after-deploy.sh` and the smoke harness. They become flags together when the scripts
 take flags.
 
-**Tooling choices, overrides with a computed default:** `HECKS_COMPOSER_AGENT` (`claude`, or
-`fake` for a scripted agent in the editor's browser tests; `Workbench` already takes the
-agent as an argument), `HECKS_JEV` (the `jev` binary, on `PATH` by default) and
-`QA_MINER_AGENT` (the command `QaSettings` names). `corpus_run.compose` could take an `agent`
-argument for the first. `HECKS_SCAFFOLD` is a flag on the era command, and
+**Tooling choices, overrides with a computed default:** `HECKS_JEV` (the `jev` binary, on
+`PATH` by default) and `QA_MINER_AGENT` (the command `QaSettings` names). `corpus_run.compose`
+takes an `agent` argument (`claude` or `fake`), which replaced `HECKS_COMPOSER_AGENT`.
+`HECKS_SCAFFOLD` is a flag on the era command, and
 `HECKS_CONTRACT_WAIT_SECONDS` and `HECKS_CONTRACT_PAYMENTS` belong to the client package's
 contract test.
 
@@ -103,7 +102,12 @@ contract test.
   as `--no-prebuilt` (built).
 - `HECKS_ENVIRONMENT`: the world declares the default per command, as `MEMORY_COMMANDS`
   and `hecks.world` already do for the launcher; `run_spec_example!` needs the argument.
-- `HECKS_CLOUDFRONT_TEST`: a tag filter on the spec-run command.
+- `HECKS_CLOUDFRONT_TEST`: the `tags` argument of `run_spec_example!` (`--tag cloudfront`);
+  `spec_helper` always leaves the group out, and RSpec's own tag filter asks for it.
+- `HECKS_NO_DECLARATION_CACHE`: the `declaration_cache` argument of `run_spec_example!`.
+- `HOST_FUZZ_SEEDS`, `JSON_FUZZ_SEEDS`, `HECKS_PARSE_FUZZ_ITERATIONS`, `HECKS_PARSE_FUZZ_SEED`:
+  the `seeds` and `seed_start` arguments of `test_suite_run.run_cargo_tests!` (`crate` is
+  `host`, `parser` or `json`), which sets the variable the crate's fuzzer reads for that run.
 - `PROPERTY_SEEDS`: a seeds argument on the spec-run command, which sets it for the child.
 - `CI`, `HECKS_PRE_PUSH_GATE`: both mean "run the specs strictly" (`spec_helper.rb`,
   `postgres_probe.rb`, `ci_skip_backstop.rb`, `generated_rust.rb`) and nothing in `lib/`
@@ -138,11 +142,10 @@ how a test process, which no hecks command starts, asks for the uncached path.
 - *Interface of a deployed host, written by the generated deploy:* `HECKS_IR_PATH`,
   `HECKS_WASM_PATH`, `HECKS_SESSION_COOKIE`, `HECKS_ROLE_ENFORCEMENT`, `HECKS_SERVE_MODE`,
   `HECKS_DOMAIN`, `HECKS_SCHEMA`, `DOMAIN_NAME`, the OAuth ids and redirect URIs.
-- *Tooling overrides:* `HECKS_COMPOSER_AGENT`, `HECKS_JEV`, `QA_MINER_AGENT`.
-- *Per-run, with no hecks command that runs them:* `HOST_FUZZ_SEEDS`, `JSON_FUZZ_SEEDS`,
-  `HECKS_PARSE_FUZZ_SEED`, `HECKS_PARSE_FUZZ_ITERATIONS`. They widen a plain `cargo test`
-  fuzz run and CI never sets them. A command wrapping `cargo test` could carry them as
-  arguments later.
+- *Tooling overrides:* `HECKS_JEV`, `QA_MINER_AGENT`.
+- *Read by the Rust fuzzers, set by `run_cargo_tests!` for its child:* `HOST_FUZZ_SEEDS`,
+  `JSON_FUZZ_SEEDS`, `HECKS_PARSE_FUZZ_SEED`, `HECKS_PARSE_FUZZ_ITERATIONS`. A plain
+  `cargo test` still reads them, and CI never sets them.
 - *Secrets, from 1Password:* the analytics reader password, `API_TOKEN`, `AUTH_SECRET`,
   `SESSION_SECRET*`, `PAYMENT_WEBHOOK_SECRET`, `GOOGLE_CLIENT_SECRET`, `PGPASSWORD`. A
   world file names the 1Password item, never the value.
@@ -153,8 +156,7 @@ how a test process, which no hecks command starts, asks for the uncached path.
 **Not configuration:** `CAPTURE_LOCK_A`, `HECKS_RELEASE_SPEC` and `VERBS` are values a
 spec invents to prove a child process sees its environment. `HECKS_NO_DECLARATION_CACHE`
 turns off a per-process in-memory memo in `spec/support/declaration_cache.rb`, which no
-command can clear; it stays a spec-support switch until the spec runner takes an argument
-for it.
+command can clear, so `run_spec_example!`'s `declaration_cache` argument sets it for the run.
 
 ## Order of work
 
@@ -168,8 +170,9 @@ for it.
    beside the host binary, are separate changes.
 3. Arguments: `profile` and `prebuilt` are built, and `run_spec_example!` takes `strict`,
    `seeds` and `environment`, which set `CI`, `PROPERTY_SEEDS` and `HECKS_ENVIRONMENT` for
-   that run only, and `push_train.board!` takes `full_gate`. Still to build: a tag filter
-   for `HECKS_CLOUDFRONT_TEST`.
+   that run only, and `push_train.board!` takes `full_gate`. `run_spec_example!` also takes
+   `tags` and `declaration_cache`, `corpus_run.compose` takes `agent`, and
+   `test_suite_run.run_cargo_tests!` carries the Rust fuzz seed counts.
 4. World-declared variables: `environments/*.world` becomes the one place a copy says
    what it connects to. `hecks config` (the `Checkout.Settings` query, built) prints each
    setting, its value with any password hidden, and which source supplied it: the variable,

@@ -9,12 +9,22 @@ module Hecks
     # the agent that edits it and the panels beneath the editor. Opening another domain builds a
     # new workbench, so nothing of the old workspace carries over.
     class Workbench
+      # The registry of one agent adapter: the real `claude`, or a scripted `fake`.
+      #
+      # @param name [String, nil] `claude` (the default) or `fake`
+      # @return [Runtime::Registry] a registry holding the `composer_agent` port and that adapter
+      def self.agents_named(name)
+        adapter = name == "fake" ? "fake_agent" : "claude_composer"
+        require_relative "adapters/#{adapter}"
+        Agent.registry_with(File.join(Agent::ADAPTERS, "#{adapter}.adapter"))
+      end
+
       # @return [String] the domain directory this workbench is for
       attr_reader :workspace
 
       # @param workspace [String] the domain directory
       # @param agents [Runtime::Registry, nil] a registry holding the `composer_agent` port and one
-      #   adapter; the one `HECKS_COMPOSER_AGENT` names (`claude`, the default, or `fake`) when nil
+      #   adapter; the real `claude` one when nil
       def initialize(workspace:, agents: nil)
         @workspace = File.expand_path(workspace)
         @agents = agents
@@ -38,14 +48,7 @@ module Hecks
 
       private
 
-      def agents = @agents ||= default_agents
-
-      # The adapter `HECKS_COMPOSER_AGENT` names: the real `claude`, or a scripted `fake`.
-      def default_agents
-        name = ENV.fetch("HECKS_COMPOSER_AGENT", "claude") == "fake" ? "fake_agent" : "claude_composer"
-        require_relative "adapters/#{name}"
-        Agent.registry_with(File.join(Agent::ADAPTERS, "#{name}.adapter"))
-      end
+      def agents = @agents ||= self.class.agents_named("claude")
     end
   end
 end

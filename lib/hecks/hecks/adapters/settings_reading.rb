@@ -13,7 +13,7 @@ module Hecks
     # answers `text:`, one `name: value (source)` line each, then any deprecated variable that is
     # set. A setting the domain cannot resolve is shown as such, not left out.
     class SettingsReading
-      # The variables nothing reads any more; one that is set is reported as ignored.
+      # The variables no code reads; one that is set is reported as ignored.
       RETIRED = %w[HECKS_PRE_PUSH_GATE HECKS_EVAL HECKS_FUZZ_SCHEMA].freeze
 
       # The first line of a message.
