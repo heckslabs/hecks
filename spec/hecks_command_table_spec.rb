@@ -152,9 +152,13 @@ RSpec.describe "the Hecks command table through the launcher" do
       out, status = run_verb(verb, "--help")
 
       expect(status).to eq(0)
-      expect(out).to start_with(COMMAND_LAUNCHER_NAMES.fetch(verb, verb))
+      expect(out).to start_with(COMMAND_LAUNCHER_NAMES.fetch(verb, verb)).or start_with(verb_form(verb))
     end
   end
+
+  # `push_train.board` as a command's help prints it: the aggregate as the bluebook spells it, then
+  # the command. A query's help keeps the snake-case name.
+  def verb_form(verb) = verb.sub(/\A[^.]+/) { |aggregate| aggregate.split("_").map(&:capitalize).join }
 
   describe "model_check" do
     it "keeps a clean verdict beside the request", :aggregate_failures do
