@@ -92,7 +92,9 @@ fn read_chapter_args(
         }
     }
     let chapter_name = chapter_name.ok_or_else(|| {
-        RunError::Usage(format!("hecks-parse {subcommand} --chapter <Name> <files...>"))
+        RunError::Usage(format!(
+            "hecks-parse {subcommand} --chapter <Name> <files...>"
+        ))
     })?;
     if files.is_empty() {
         return Err(RunError::Usage(format!(
@@ -148,7 +150,9 @@ fn run_examples(args: &[String]) -> Result<(), RunError> {
         }
     }
     let examples_path = examples_path.ok_or_else(|| {
-        RunError::Usage("hecks-parse examples --chapter <Name> --examples <file> <files...>".to_string())
+        RunError::Usage(
+            "hecks-parse examples --chapter <Name> --examples <file> <files...>".to_string(),
+        )
     })?;
     let (chapter_name, loaded) = read_chapter_args("examples", &rest)?;
     let source = fs::read_to_string(&examples_path)
@@ -161,7 +165,8 @@ fn run_examples(args: &[String]) -> Result<(), RunError> {
         .map(|(path, _)| path)
         .chain(also.iter())
         .map(|path| {
-            fs::canonicalize(path).map_or_else(|_| path.clone(), |full| full.to_string_lossy().into_owned())
+            fs::canonicalize(path)
+                .map_or_else(|_| path.clone(), |full| full.to_string_lossy().into_owned())
         })
         .collect();
     let text = sentence::examples::compile(&bluebook, &absolute, &examples_path, &source)?;
@@ -208,9 +213,18 @@ fn run_complete(args: &[String]) -> Result<(), RunError> {
         .iter()
         .map(|item| {
             emit::JsonValue::Object(vec![
-                ("label".to_string(), emit::JsonValue::str(item.label.clone())),
-                ("insert".to_string(), emit::JsonValue::str(item.insert.clone())),
-                ("snippet".to_string(), emit::JsonValue::str(item.snippet.clone())),
+                (
+                    "label".to_string(),
+                    emit::JsonValue::str(item.label.clone()),
+                ),
+                (
+                    "insert".to_string(),
+                    emit::JsonValue::str(item.insert.clone()),
+                ),
+                (
+                    "snippet".to_string(),
+                    emit::JsonValue::str(item.snippet.clone()),
+                ),
             ])
         })
         .collect();

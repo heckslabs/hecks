@@ -28,10 +28,9 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
         .filter(|(_, source)| crate::sentence::is_sentence_form(source))
         .collect();
     if !sentence_files.is_empty() {
-        if let Some((path, _)) = files
-            .iter()
-            .find(|(path, source)| path.ends_with(".bluebook") && !crate::sentence::is_sentence_form(source))
-        {
+        if let Some((path, _)) = files.iter().find(|(path, source)| {
+            path.ends_with(".bluebook") && !crate::sentence::is_sentence_form(source)
+        }) {
             return Err(Diagnostic::new(
                 path,
                 1,

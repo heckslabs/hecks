@@ -138,7 +138,11 @@ fn fixed_start(pattern: &Pattern) -> String {
         if c == '(' {
             let body: String = chars.by_ref().take_while(|&inner| inner != ')').collect();
             let first = body.split('|').next().unwrap_or_default();
-            out.push_str(&if out.is_empty() { capitalise(first) } else { first.to_string() });
+            out.push_str(&if out.is_empty() {
+                capitalise(first)
+            } else {
+                first.to_string()
+            });
         } else {
             out.push(c);
         }
@@ -170,7 +174,11 @@ fn snippet(pattern: &Pattern) -> String {
             '(' => {
                 let body: String = chars.by_ref().take_while(|&inner| inner != ')').collect();
                 let first = body.split('|').next().unwrap_or_default();
-                out.push_str(&if at_start { capitalise(first) } else { first.to_string() });
+                out.push_str(&if at_start {
+                    capitalise(first)
+                } else {
+                    first.to_string()
+                });
             }
             '$' | '\\' | '}' => {
                 out.push('\\');
@@ -200,7 +208,11 @@ Aggregate: Page
     ";
 
     fn labels(completion: &Completion) -> Vec<&str> {
-        completion.items.iter().map(|item| item.label.as_str()).collect()
+        completion
+            .items
+            .iter()
+            .map(|item| item.label.as_str())
+            .collect()
     }
 
     #[test]
@@ -214,22 +226,32 @@ Aggregate: Page
     fn inside_a_command_it_offers_the_command_sentences() {
         let found = complete(SOURCE, 7, 5);
         assert_eq!(found.context, "Command");
-        assert!(labels(&found).contains(&"Goal: <goal>"), "{:?}", labels(&found));
+        assert!(
+            labels(&found).contains(&"Goal: <goal>"),
+            "{:?}",
+            labels(&found)
+        );
         assert!(labels(&found).contains(&"When <names> (is|are) given"));
-        assert!(!labels(&found).iter().any(|label| label.starts_with("Aggregate")));
+        assert!(!labels(&found)
+            .iter()
+            .any(|label| label.starts_with("Aggregate")));
     }
 
     #[test]
     fn what_has_been_typed_narrows_the_offer() {
         let source = format!("{SOURCE}Gi");
         let found = complete(&source, 7, 7);
-        assert_eq!(labels(&found), ["Given <description> holds when <condition>"]);
+        assert_eq!(
+            labels(&found),
+            ["Given <description> holds when <condition>"]
+        );
         assert_eq!(found.items[0].insert, "Given ");
     }
 
     #[test]
     fn after_holds_when_it_offers_conditions() {
-        let source = "Domain: Cms\n\nAggregate: Page\n  Command: Draft\n    Given \"x\" holds when ";
+        let source =
+            "Domain: Cms\n\nAggregate: Page\n  Command: Draft\n    Given \"x\" holds when ";
         let found = complete(source, 5, 26);
         assert_eq!(found.context, "Condition");
         assert!(labels(&found).contains(&"the <field> is not empty"));
@@ -242,7 +264,10 @@ Aggregate: Page
             .items
             .into_iter()
             .find(|item| item.label.starts_with("Given"));
-        assert!(found.items.iter().any(|item| item.snippet == "Command: ${1:name}$0"));
+        assert!(found
+            .items
+            .iter()
+            .any(|item| item.snippet == "Command: ${1:name}$0"));
         assert_eq!(
             rule.map(|item| item.snippet),
             Some("Given ${1:description} holds when ${2:condition}$0".to_string())

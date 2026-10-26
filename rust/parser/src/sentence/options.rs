@@ -35,15 +35,23 @@ impl Parser<'_> {
         for item in ruby_value::split_items(&text) {
             let item = item.trim();
             let col = column(base, &text, text.find(item).unwrap_or(0));
-            let (word, rest) = item.split_once(' ').map_or((item, ""), |(word, rest)| (word, rest.trim()));
+            let (word, rest) = item
+                .split_once(' ')
+                .map_or((item, ""), |(word, rest)| (word, rest.trim()));
             match word.to_lowercase().as_str() {
                 "optional" if rest.is_empty() => options.optional = true,
-                "default" if !rest.is_empty() => options.default = Some(self.default_value(m, col, rest)?),
+                "default" if !rest.is_empty() => {
+                    options.default = Some(self.default_value(m, col, rest)?)
+                }
                 "matching" => options.pattern = Some(self.pattern_text(m, col, rest)?),
                 "admits" if !rest.is_empty() => options.admits = Some(rest.to_string()),
                 _ => {
                     return Err(self
-                        .error(m.line, col, format!("'{item}' is not an option an attribute takes"))
+                        .error(
+                            m.line,
+                            col,
+                            format!("'{item}' is not an option an attribute takes"),
+                        )
                         .with_expected(vec![
                             "optional".to_string(),
                             "default <value>".to_string(),
@@ -72,12 +80,21 @@ impl Parser<'_> {
         let source = text
             .strip_prefix('"')
             .and_then(|rest| rest.strip_suffix('"'))
-            .ok_or_else(|| self.error(m.line, col, "matching takes a pattern in quotes, like `matching \"[a-z]+\"`"))?;
+            .ok_or_else(|| {
+                self.error(
+                    m.line,
+                    col,
+                    "matching takes a pattern in quotes, like `matching \"[a-z]+\"`",
+                )
+            })?;
         if let Some(rejection) = crate::build::pattern_subset::validate(source) {
             return Err(self.error(
                 m.line,
                 col,
-                format!("the pattern uses a {} — {}", rejection.construct, rejection.reason),
+                format!(
+                    "the pattern uses a {} — {}",
+                    rejection.construct, rejection.reason
+                ),
             ));
         }
         Ok(source.to_string())
@@ -93,10 +110,16 @@ impl Parser<'_> {
         for item in ruby_value::split_items(&text) {
             let item = item.trim();
             let col = column(base, &text, text.find(item).unwrap_or(0));
-            let (name, value) = item.split_once(' ').map_or((item, ""), |(name, value)| (name, value.trim()));
+            let (name, value) = item
+                .split_once(' ')
+                .map_or((item, ""), |(name, value)| (name, value.trim()));
             let parsed = ruby_value::read(value);
             if value.is_empty() || matches!(parsed, Value::Bare(_)) {
-                return Err(self.error(m.line, col, format!("'{item}' needs a name and a value, like `kind \"hero\"`")));
+                return Err(self.error(
+                    m.line,
+                    col,
+                    format!("'{item}' needs a name and a value, like `kind \"hero\"`"),
+                ));
             }
             cells.push((name.to_string(), parsed));
         }
@@ -116,12 +139,16 @@ pub(super) fn said(attribute: &ir::Attribute) -> Result<String, String> {
     }
     if let Some(pattern) = &attribute.pattern {
         if pattern.contains('"') {
-            return Err(format!("the sentence form cannot quote a pattern holding a quote: {pattern}"));
+            return Err(format!(
+                "the sentence form cannot quote a pattern holding a quote: {pattern}"
+            ));
         }
         items.push(format!("matching \"{pattern}\""));
     }
     if let Some(admits) = &attribute.admits {
         items.push(format!("admits {admits}"));
     }
-    Ok(items.iter().fold(String::new(), |tail, item| format!("{tail}, {item}")))
+    Ok(items
+        .iter()
+        .fold(String::new(), |tail, item| format!("{tail}, {item}")))
 }

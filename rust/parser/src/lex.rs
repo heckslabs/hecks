@@ -50,7 +50,10 @@ impl Quotes {
         }
         match ch {
             '"' => self.mode = Some(Quoted::Double),
-            '\'' if !self.last.is_some_and(|prev| prev.is_alphanumeric() || prev == '_') => {
+            '\'' if !self
+                .last
+                .is_some_and(|prev| prev.is_alphanumeric() || prev == '_') =>
+            {
                 self.mode = Some(Quoted::Single);
             }
             '/' if self.expects_operand() => self.mode = Some(Quoted::Regex),
@@ -66,7 +69,8 @@ impl Quotes {
 
     /// Whether what comes next is an operand, so a `/` opens a regexp and is not a division.
     fn expects_operand(&self) -> bool {
-        self.last.is_none_or(|prev| "(,{[=!|&~:?<>+-*%^;".contains(prev))
+        self.last
+            .is_none_or(|prev| "(,{[=!|&~:?<>+-*%^;".contains(prev))
     }
 }
 
@@ -642,7 +646,8 @@ mod tests {
 
     #[test]
     fn a_brace_inside_a_single_quoted_string_opens_no_block() {
-        let (args, opener) = split_opener("attribute :value, String, pattern: '^[A-Za-z0-9_-]{11}$'");
+        let (args, opener) =
+            split_opener("attribute :value, String, pattern: '^[A-Za-z0-9_-]{11}$'");
         assert_eq!(opener, Opener::None);
         assert!(args.ends_with("{11}$'"), "{args}");
     }
@@ -655,11 +660,17 @@ mod tests {
 
     #[test]
     fn a_slash_after_a_word_is_a_division_and_a_comment_after_it_still_strips() {
-        assert_eq!(strip_comment("sets :ratio, to: a / b # per second"), "sets :ratio, to: a / b ");
+        assert_eq!(
+            strip_comment("sets :ratio, to: a / b # per second"),
+            "sets :ratio, to: a / b "
+        );
     }
 
     #[test]
     fn an_apostrophe_in_a_trailing_comment_is_not_a_quote() {
-        assert_eq!(strip_comment("attribute :name, String # the site's own"), "attribute :name, String ");
+        assert_eq!(
+            strip_comment("attribute :name, String # the site's own"),
+            "attribute :name, String "
+        );
     }
 }
