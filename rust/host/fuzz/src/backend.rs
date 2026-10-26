@@ -66,7 +66,7 @@ pub trait Backend {
 }
 
 /// The path of the compiled kernel: `HECKS_FUZZ_WASM`, else `rust/dist/banking.wasm`.
-fn wasm_path() -> PathBuf {
+pub fn wasm_path() -> PathBuf {
     std::env::var_os("HECKS_FUZZ_WASM").map_or_else(
         || PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../dist/banking.wasm"),
         PathBuf::from,
