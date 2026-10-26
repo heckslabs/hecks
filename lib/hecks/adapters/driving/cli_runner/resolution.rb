@@ -114,8 +114,8 @@ module Hecks
           # `query` gives queries their own namespace (`ask` is its older spelling); a chapter may
           # declare a command and a query of one name. A trailing `!` says the word is a command and
           # is not part of the name. A query answers to its bare name too; `query` is needed only
-          # when
-          # a command shares it.
+          # when a command shares it. The name may be written in the bluebook's verb form
+          # (`Hecks::PushTrain.board!`), which reaches the same command (see `VerbNames`).
           #
           # @return [Array(Boolean, String, Array<String>)] `asking`, `name` (nil when absent),
           #   `argv`
@@ -126,7 +126,7 @@ module Hecks
             return [asking, nil, argv] if name.nil?
 
             bang = name.end_with?("!")
-            name = name.chomp("!")
+            name = canonical_name(cli, name.chomp("!"))
             [asking || (!bang && query_only?(cli, name)), name, argv]
           end
 

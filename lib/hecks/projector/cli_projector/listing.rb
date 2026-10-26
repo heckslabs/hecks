@@ -54,7 +54,17 @@ module Hecks
 
         # The aggregate's own name as a heading: the prefix of every call to the lines under it.
         def heading(group)
-          "#{Naming.snake(group)}:"
+          "#{group}:"
+        end
+
+        # A launcher name in the bluebook's verb form: the aggregate as the bluebook spells it, then
+        # the rest of the name (`push_train.board` as `PushTrain.board`). A name that does not start
+        # with its aggregate, such as a short name a chapter gave a command, is left as it is.
+        def verb_form(spec, name)
+          group = spec[:group]
+          return name unless group && name.start_with?("#{Naming.snake(group)}.")
+
+          "#{group}#{name.delete_prefix(Naming.snake(group))}"
         end
 
         # A spec's name as listed: under its aggregate's heading the aggregate prefix is left out.
@@ -64,7 +74,7 @@ module Hecks
           name = label(spec, real: true)
           return name unless grouped && spec[:group]
 
-          name.delete_prefix("#{Naming.snake(spec[:group])}.")
+          name.delete_prefix("#{spec[:group]}.")
         end
 
         # " (also: mcp!)" for a spec the chapter gave a short name, else nothing. A short name that
@@ -75,10 +85,11 @@ module Hecks
           " (also: #{label(spec)})"
         end
 
-        # A command is written with the `!` that marks it; a query without one.
-        # With `real:`, a short name the chapter gave it gives way to the name it was given for.
+        # A command is written with the `!` that marks it; a query without one. Both are in the
+        # verb form. With `real:`, a short name the chapter gave it gives way to the name it was
+        # given for.
         def label(spec, real: false)
-          name = real && spec.key?(:short_was) ? spec[:short_was] : spec[:short]
+          name = verb_form(spec, real && spec.key?(:short_was) ? spec[:short_was] : spec[:short])
           spec[:kind] == :command ? "#{name}!" : name
         end
 

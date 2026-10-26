@@ -173,8 +173,8 @@ Hecks reads almost no environment variables for you to set, and none for a datab
   mints the next era, which every older checkout of that database is then refused until it
   catches up. `mint_eras true` or `false` in the world's `persisted_by("PostgresEra")` block, or in
   your `environments/local.world`, says whether a copy may; `exe/hecks config domain.value=<dir>`
-  prints it. Today an unset world allows it. After the push train's launcher declares it, the
-  default becomes refuse, and a copy that should migrate a database says so.
+  prints it. An unset world refuses, so a copy that should migrate a database says so; the
+  refusal names the line to add.
 - **Two people changing the same chapter's shape** conflict in `shapes.json` and leave two edges
   from one source shape, which the mint and CI refuse. The second to merge rebases, regenerates
   their edge from the merged shape, and moves the ledger again.

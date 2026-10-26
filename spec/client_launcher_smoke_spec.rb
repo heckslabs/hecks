@@ -223,12 +223,12 @@ RSpec.describe "client launcher smoke" do
 
     it "suggests the near name and exits 1 for an unknown command", :aggregate_failures do
       expect(results[:unknown][:status]).to eq(1)
-      expect(results[:unknown][:err]).to include("no such command: order.create_piza", "did you mean:", "  order.create_pizza")
+      expect(results[:unknown][:err]).to include("no such command: order.create_piza", "did you mean:", "  Order.create_pizza")
     end
 
     it "refuses a bare command name, pointing at the one qualified by its aggregate", :aggregate_failures do
       expect(results[:bare][:status]).to eq(1)
-      expect(results[:bare][:err]).to include("no such command: create_pizza", "did you mean:", "  order.create_pizza")
+      expect(results[:bare][:err]).to include("no such command: create_pizza", "did you mean:", "  Order.create_pizza")
     end
 
     it "names the argument and exits 1 for a word the command does not take", :aggregate_failures do
@@ -273,7 +273,7 @@ RSpec.describe "client launcher smoke" do
     it "answers an alias, noted beside the command it stands for, and the full name too", :aggregate_failures do
       expect(created(@opted[:alias])["id"]).to eq("A")
       expect(@opted[:alias_help][:out]).to include("dispatches Pizzas::Order.CreatePizza")
-      expect(@opted[:listed][:out]).to match(/^  order\.create_pizza! .*\(also: make!\)/)
+      expect(@opted[:listed][:out]).to match(/^  Order\.create_pizza! .*\(also: make!\)/)
       expect(@opted[:listed][:out]).not_to match(/^  make! /)
       expect(@opted[:plain][:status]).to eq(0)
     end

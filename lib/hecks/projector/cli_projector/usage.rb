@@ -24,7 +24,7 @@ module Hecks
           return unless only
 
           spec = help_spec(only, commands, questions, options[:ask])
-          command_help(program, spec[:short], spec, ask: options[:ask]) if spec
+          command_help(program, verb_form(spec, spec[:short]), spec, ask: options[:ask]) if spec
         end
 
         # `ask` picks the namespace when both hold the name; without it a
@@ -99,10 +99,10 @@ module Hecks
                   .reject { |_, note| note.empty? }
         end
 
-        # An example call, `aggregate.command!`, from the first command, or `""` when there is none.
+        # An example call, `Aggregate.command!`, from the first command, or `""` when there is none.
         def example_qualified(commands)
-          name = commands.keys.first
-          name ? "#{name}!" : ""
+          spec = commands.values.first
+          spec ? label(spec, real: true) : ""
         end
 
         # The command table wants a query description's first sentence; `--help` prints all.

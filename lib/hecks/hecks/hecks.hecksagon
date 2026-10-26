@@ -377,6 +377,8 @@ Hecks.hecksagon "Hecks" do
       answers "InspectionAnswered"
       refuses "InspectionRefused"
     end
+
+    answers_query "Search"
   end
 
   Hecks::CodemodRun.port "SourceTree" do
