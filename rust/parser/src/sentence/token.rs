@@ -55,7 +55,9 @@ pub fn tokenize(sentence: &str) -> Result<Vec<Token>, usize> {
                 }
                 text.push(inner);
             }
-            let Some(end) = closed_at else { return Err(start) };
+            let Some(end) = closed_at else {
+                return Err(start);
+            };
             tokens.push(Token {
                 kind: Kind::Quoted,
                 text,
@@ -90,7 +92,10 @@ mod tests {
     fn splits_words_punctuation_and_quotes() {
         let tokens = tokenize(r#"Rule "a page has a slug", holds: now"#).unwrap_or_default();
         let texts: Vec<&str> = tokens.iter().map(|t| t.text.as_str()).collect();
-        assert_eq!(texts, ["Rule", "a page has a slug", ",", "holds", ":", "now"]);
+        assert_eq!(
+            texts,
+            ["Rule", "a page has a slug", ",", "holds", ":", "now"]
+        );
         assert_eq!(tokens[1].kind, Kind::Quoted);
     }
 

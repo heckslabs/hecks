@@ -74,6 +74,20 @@ RSpec.describe "the ci gate stage" do
     end
   end
 
+  describe "the quick stage" do
+    def ids(stage) = stages.dig(stage, "checks").map { |check| check["id"] }
+
+    it "is the unguarded_push checks other than fuzzing, so fuzzing is the only work it saves" do
+      expect(ids("quick")).to eq(ids("unguarded_push") - ["fuzzing"])
+    end
+
+    it "runs before fuzzing in the hook, which stops on a red quick check" do
+      hook = File.read(File.join(InMemoryDomain::ROOT, ".githooks/pre-push"))
+
+      expect(hook).to match(/' quick \|\|\s+! .* unguarded_push only=fuzzing/)
+    end
+  end
+
   # The [kind, verb] of each launcher call in a command line; model_check is a legacy word.
   def hecks_calls(command)
     command.scan(%r{exe/hecks ((?:ask |query |deploy )?)([a-z_.]+)}).map { |kind, verb| [kind.strip, verb] }
@@ -82,7 +96,7 @@ RSpec.describe "the ci gate stage" do
 
   describe "every hecks command a stage's check names" do
     def launcher_calls
-      checks = stages.values_at("ci", "unguarded_push", "rust_io").flat_map { |stage| stage.fetch("checks") }
+      checks = stages.values_at("ci", "unguarded_push", "quick", "rust_io").flat_map { |stage| stage.fetch("checks") }
       checks.flat_map { |check| hecks_calls(check.fetch("run").join(" ")) }.uniq
     end
 

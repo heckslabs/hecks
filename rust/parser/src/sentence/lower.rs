@@ -5,12 +5,12 @@
 //! declared further down. Every unresolved name is refused with the names that are in scope.
 
 use super::changes::Change;
-use crate::ruby_value;
 use super::names::{camel, scalar, snake, spoken, SCALARS};
 use super::{column, Matched, Parser, Scope, Step};
 use crate::build::identity;
 use crate::diag::{Diagnostic, ParseResult};
 use crate::ir;
+use crate::ruby_value;
 
 /// A type phrase written in the file, resolved once the aggregate's value objects are known.
 pub(super) struct TypeUse {
@@ -156,10 +156,19 @@ impl Parser<'_> {
                     }
                     chapter.classification = Some(kind);
                 }
-                Step::Phrase(m) if m.id == "namespace" => chapter.namespace = Some(m.text_of("name")),
-                Step::Phrase(m) if m.id == "version" => chapter.version = Some(m.text_of("version")),
+                Step::Phrase(m) if m.id == "namespace" => {
+                    chapter.namespace = Some(m.text_of("name"))
+                }
+                Step::Phrase(m) if m.id == "version" => {
+                    chapter.version = Some(m.text_of("version"))
+                }
                 Step::Phrase(m) if m.id == "attaches" => {
-                    chapter.attaches_to = m.capture("contexts").items.iter().map(|item| camel(item)).collect();
+                    chapter.attaches_to = m
+                        .capture("contexts")
+                        .items
+                        .iter()
+                        .map(|item| camel(item))
+                        .collect();
                 }
                 Step::Phrase(m) if m.id == "provides" => {
                     let capability = m.text_of("capability");
@@ -244,11 +253,19 @@ impl Parser<'_> {
                     spec.with_lines.push((key, from));
                 }
                 "for_each" => {
-                    spec.for_each = Some(format!("{}.{}", camel(&m.text_of("owner")), camel(&m.text_of("query"))));
+                    spec.for_each = Some(format!(
+                        "{}.{}",
+                        camel(&m.text_of("owner")),
+                        camel(&m.text_of("query"))
+                    ));
                 }
                 "whenever" | "whenever_by" | "whenever_outside" => {
                     if spec.event.is_some() {
-                        return Err(self.error(m.line, m.base_col, "a policy waits for one event; this is a second `Whenever`"));
+                        return Err(self.error(
+                            m.line,
+                            m.base_col,
+                            "a policy waits for one event; this is a second `Whenever`",
+                        ));
                     }
                     let owner = (m.id == "whenever_by").then(|| m.text_of("owner"));
                     spec.outside = m.id == "whenever_outside";
@@ -256,11 +273,23 @@ impl Parser<'_> {
                 }
                 "runs" | "runs_with" | "asked" | "asked_with" | "policy_tell" => {
                     if spec.reaction.is_some() {
-                        return Err(self.error(m.line, m.base_col, "a policy does one thing; this is a second `Then`"));
+                        return Err(self.error(
+                            m.line,
+                            m.base_col,
+                            "a policy does one thing; this is a second `Then`",
+                        ));
                     }
-                    let fields = if m.id.ends_with("with") { passed_fields(&m) } else { Vec::new() };
+                    let fields = if m.id.ends_with("with") {
+                        passed_fields(&m)
+                    } else {
+                        Vec::new()
+                    };
                     let (reaction, slot) = if m.id == "policy_tell" {
-                        let tell = format!("{}.{}", camel(&m.text_of("owner")), camel(&m.text_of("command")));
+                        let tell = format!(
+                            "{}.{}",
+                            camel(&m.text_of("owner")),
+                            camel(&m.text_of("command"))
+                        );
                         (Reaction::Tell(tell), "command")
                     } else if m.id.starts_with("runs") {
                         (Reaction::Run(camel(&m.text_of("command"))), "command")
@@ -276,25 +305,43 @@ impl Parser<'_> {
     }
 
     /// Looks up the events and commands the policies name, now that every aggregate is read.
-    fn policies_of(&self, chapter: &ir::Bluebook, specs: Vec<PolicySpec>) -> ParseResult<Vec<ir::Policy>> {
+    fn policies_of(
+        &self,
+        chapter: &ir::Bluebook,
+        specs: Vec<PolicySpec>,
+    ) -> ParseResult<Vec<ir::Policy>> {
         let mut policies = Vec::new();
         for spec in specs {
             let Some((event, owner, event_line, event_col)) = spec.event else {
-                return Err(self.error(spec.line, spec.col, "this policy has no `Whenever <event> is announced`"));
+                return Err(self.error(
+                    spec.line,
+                    spec.col,
+                    "this policy has no `Whenever <event> is announced`",
+                ));
             };
             let Some((reaction, mut fields, then_line, then_col)) = spec.reaction else {
-                return Err(self.error(spec.line, spec.col, "this policy does nothing; add `Then <command> runs` or `Then <need> is asked`"));
+                return Err(self.error(
+                    spec.line,
+                    spec.col,
+                    "this policy does nothing; add `Then <command> runs` or `Then <need> is asked`",
+                ));
             };
             fields.extend(spec.with_lines);
             let on_event = if spec.outside {
                 event
             } else {
-                format!("{}.{event}", self.event_source(chapter, &event, owner.as_deref(), event_line, event_col)?)
+                format!(
+                    "{}.{event}",
+                    self.event_source(chapter, &event, owner.as_deref(), event_line, event_col)?
+                )
             };
             let mut policy = ir::Policy {
                 name: spec.name,
                 on_event: Some(on_event),
-                with_spec: fields.iter().map(|(key, spelled)| (key.name.clone(), spelled.clone())).collect(),
+                with_spec: fields
+                    .iter()
+                    .map(|(key, spelled)| (key.name.clone(), spelled.clone()))
+                    .collect(),
                 for_each_query: spec.for_each,
                 where_clause: spec.only_when,
                 expect_undelivered: spec.undelivered,
@@ -304,7 +351,9 @@ impl Parser<'_> {
                 Reaction::Ask(need) => policy.ask = Some(need),
                 Reaction::Tell(command) => {
                     let local = chapter.aggregates.iter().any(|a| {
-                        command.split_once('.').is_some_and(|(owner, name)| a.name == owner && a.commands.iter().any(|c| c.name == name))
+                        command.split_once('.').is_some_and(|(owner, name)| {
+                            a.name == owner && a.commands.iter().any(|c| c.name == name)
+                        })
                     });
                     if !local && spec.across.is_none() {
                         return Err(self.error(
@@ -332,18 +381,31 @@ impl Parser<'_> {
                         return Err(self.error(
                             then_line,
                             then_col,
-                            format!("'{}' is not one command of this chapter. The commands are: {}", spoken(&command), all.join(", ")),
+                            format!(
+                                "'{}' is not one command of this chapter. The commands are: {}",
+                                spoken(&command),
+                                all.join(", ")
+                            ),
                         ));
                     };
                     // Each row of a fan-out also supplies the key the command is addressed by.
                     for (field, _) in fields.iter().filter(|_| policy.for_each_query.is_none()) {
                         if !target.attributes.iter().any(|a| a.name == field.name) {
-                            let takes: Vec<String> = target.attributes.iter().map(|a| spoken(&a.name)).collect();
-                            let takes = if takes.is_empty() { "nothing".to_string() } else { takes.join(", ") };
+                            let takes: Vec<String> =
+                                target.attributes.iter().map(|a| spoken(&a.name)).collect();
+                            let takes = if takes.is_empty() {
+                                "nothing".to_string()
+                            } else {
+                                takes.join(", ")
+                            };
                             return Err(self.error(
                                 field.line,
                                 field.col,
-                                format!("{} takes no '{}'. It takes: {takes}", spoken(&target.name), spoken(&field.name)),
+                                format!(
+                                    "{} takes no '{}'. It takes: {takes}",
+                                    spoken(&target.name),
+                                    spoken(&field.name)
+                                ),
                             ));
                         }
                     }
@@ -372,14 +434,26 @@ impl Parser<'_> {
                 .find(|a| spoken(&a.name) == noun.to_lowercase())
                 .map(|a| a.name.clone())
                 .ok_or_else(|| {
-                    let known: Vec<String> = chapter.aggregates.iter().map(|a| spoken(&a.name)).collect();
-                    self.error(line, col, format!("there is no '{noun}' here. The aggregates are: {}", known.join(", ")))
+                    let known: Vec<String> =
+                        chapter.aggregates.iter().map(|a| spoken(&a.name)).collect();
+                    self.error(
+                        line,
+                        col,
+                        format!(
+                            "there is no '{noun}' here. The aggregates are: {}",
+                            known.join(", ")
+                        ),
+                    )
                 });
         }
         let sources: Vec<&ir::Aggregate> = chapter
             .aggregates
             .iter()
-            .filter(|a| a.commands.iter().any(|c| c.emits.iter().any(|e| e == event)))
+            .filter(|a| {
+                a.commands
+                    .iter()
+                    .any(|c| c.emits.iter().any(|e| e == event))
+            })
             .collect();
         match sources.as_slice() {
             [one] => Ok(one.name.clone()),
@@ -407,7 +481,10 @@ impl Parser<'_> {
         self.error(
             m.line,
             m.base_col,
-            format!("the phrase '{}' is admitted but the parser does not read it yet", m.id),
+            format!(
+                "the phrase '{}' is admitted but the parser does not read it yet",
+                m.id
+            ),
         )
     }
 
@@ -462,7 +539,11 @@ impl Parser<'_> {
                         // Read after the aggregate's own blocks, so its identity can name their
                         // value objects.
                         let from = self.pos;
-                        while self.lines.get(self.pos).is_some_and(|line| line.indent > m.indent) {
+                        while self
+                            .lines
+                            .get(self.pos)
+                            .is_some_and(|line| line.indent > m.indent)
+                        {
                             self.pos += 1;
                         }
                         entities.push((m, from));
@@ -476,7 +557,11 @@ impl Parser<'_> {
     }
 
     /// Reads the entity blocks an aggregate skipped over, with its value objects in reach.
-    fn entities_of(&mut self, st: &mut AggState, entities: Vec<(Matched, usize)>) -> ParseResult<()> {
+    fn entities_of(
+        &mut self,
+        st: &mut AggState,
+        entities: Vec<(Matched, usize)>,
+    ) -> ParseResult<()> {
         let resume = self.pos;
         for (m, from) in entities {
             self.pos = from;
@@ -484,7 +569,8 @@ impl Parser<'_> {
             self.outer.extend(st.agg.value_objects.iter().cloned());
             let inner = self.aggregate(&m);
             self.outer.truncate(outer_before);
-            let entity = super::entity::into_entity(inner?).map_err(|refused| self.error(m.line, m.base_col, refused))?;
+            let entity = super::entity::into_entity(inner?)
+                .map_err(|refused| self.error(m.line, m.base_col, refused))?;
             st.agg.entities.push(entity);
         }
         self.pos = resume;
@@ -510,12 +596,21 @@ impl Parser<'_> {
     fn identity(&self, m: &Matched, st: &mut AggState) -> ParseResult<()> {
         self.same_owner(m, "owner", st)?;
         if st.identity.is_some() {
-            return Err(self.error(m.line, m.base_col, "an aggregate is identified by one thing; this says it twice"));
+            return Err(self.error(
+                m.line,
+                m.base_col,
+                "an aggregate is identified by one thing; this says it twice",
+            ));
         }
         st.identity = Some(Identity {
             line: m.line,
             col: m.col_of("fields"),
-            fields: m.capture("fields").items.iter().map(|item| snake(item)).collect(),
+            fields: m
+                .capture("fields")
+                .items
+                .iter()
+                .map(|item| snake(item))
+                .collect(),
         });
         Ok(())
     }
@@ -529,7 +624,10 @@ impl Parser<'_> {
     }
 
     /// The attributes an `It has:` or `It takes:` block lists, each with the type phrase it wrote.
-    pub(super) fn attribute_lines(&mut self, header: &Matched) -> ParseResult<Vec<(ir::Attribute, TypeUse)>> {
+    pub(super) fn attribute_lines(
+        &mut self,
+        header: &Matched,
+    ) -> ParseResult<Vec<(ir::Attribute, TypeUse)>> {
         let mut lines = Vec::new();
         let mut scope = Scope::inside(header.indent);
         while let Some(step) = self.step(&mut scope, "Has", false)? {
@@ -570,12 +668,22 @@ impl Parser<'_> {
         });
         if header.id == "value_object_with" {
             let options = self.attribute_options(header)?;
-            if let Some(attribute) = st.agg.value_objects.get_mut(index).and_then(|vo| vo.attributes.first_mut()) {
+            if let Some(attribute) = st
+                .agg
+                .value_objects
+                .get_mut(index)
+                .and_then(|vo| vo.attributes.first_mut())
+            {
                 options.onto(attribute);
             }
         }
         let shape = shape_of(&header.text_of("type"));
-        if let Some(attribute) = st.agg.value_objects.get_mut(index).and_then(|vo| vo.attributes.first_mut()) {
+        if let Some(attribute) = st
+            .agg
+            .value_objects
+            .get_mut(index)
+            .and_then(|vo| vo.attributes.first_mut())
+        {
             shape.apply(attribute);
         }
         st.vo_types.push((
@@ -614,7 +722,12 @@ impl Parser<'_> {
     }
 
     /// The rules under a one-value block, each about `value`.
-    fn value_rules(&mut self, header: &Matched, st: &mut AggState, index: usize) -> ParseResult<()> {
+    fn value_rules(
+        &mut self,
+        header: &Matched,
+        st: &mut AggState,
+        index: usize,
+    ) -> ParseResult<()> {
         let mut scope = Scope::inside(header.indent);
         while let Some(step) = self.step(&mut scope, "ValueObject", false)? {
             let Step::Phrase(m) = step else { continue };
@@ -657,7 +770,9 @@ impl Parser<'_> {
                     }
                     let shape = shape_of(&m.text_of("type"));
                     shape.apply(&mut attribute);
-                    let Some(vo) = st.agg.value_objects.get_mut(index) else { continue };
+                    let Some(vo) = st.agg.value_objects.get_mut(index) else {
+                        continue;
+                    };
                     st.vo_types.push((
                         index,
                         vo.attributes.len(),
@@ -705,7 +820,11 @@ impl Parser<'_> {
 
     fn lifecycle(&mut self, header: &Matched, st: &mut AggState) -> ParseResult<()> {
         if st.lifecycle.is_some() {
-            return Err(self.error(header.line, header.base_col, "an aggregate has one lifecycle; this is a second"));
+            return Err(self.error(
+                header.line,
+                header.base_col,
+                "an aggregate has one lifecycle; this is a second",
+            ));
         }
         let mut spec = LifecycleSpec {
             field: snake(&header.text_of("field")),
@@ -717,7 +836,8 @@ impl Parser<'_> {
         while let Some(step) = self.step(&mut scope, "Lifecycle", false)? {
             let Step::Phrase(m) = step else { continue };
             if m.id == "marks" {
-                spec.marks.push((m.text_of("mark"), m.capture("states").items));
+                spec.marks
+                    .push((m.text_of("mark"), m.capture("states").items));
                 continue;
             }
             if m.id != "transition" {
@@ -911,9 +1031,22 @@ impl Parser<'_> {
             ));
         }
         for at in 0..st.attr_types.len() {
-            let Some(variants) = st.attr_types.get_mut(at).and_then(|used| used.variants.take()) else { continue };
-            let Some(attribute) = st.agg.attributes.get(at) else { continue };
-            let minted = crate::build::references::one_of_reference(&st.agg.name, &variants, &attribute.name, attribute.optional);
+            let Some(variants) = st
+                .attr_types
+                .get_mut(at)
+                .and_then(|used| used.variants.take())
+            else {
+                continue;
+            };
+            let Some(attribute) = st.agg.attributes.get(at) else {
+                continue;
+            };
+            let minted = crate::build::references::one_of_reference(
+                &st.agg.name,
+                &variants,
+                &attribute.name,
+                attribute.optional,
+            );
             if let Some(used) = st.attr_types.get_mut(at) {
                 used.words.clone_from(&minted.attribute.type_name);
                 used.reference = false;
@@ -951,7 +1084,9 @@ impl Parser<'_> {
                     &[self.outer.clone(), st.agg.value_objects.clone()].concat(),
                     &st.agg.attributes,
                 )
-                .map_err(|refused| Diagnostic::new(self.file, found.line, refused.message).with_column(found.col))?;
+                .map_err(|refused| {
+                    Diagnostic::new(self.file, found.line, refused.message).with_column(found.col)
+                })?;
                 st.agg.identified_by.extend(paths);
             }
         }
@@ -972,7 +1107,12 @@ impl Parser<'_> {
         st.agg.commands = commands;
         self.lifecycle_of(&mut st)?;
         let mut in_scope: Vec<String> = st.agg.attributes.iter().map(|a| a.name.clone()).collect();
-        in_scope.extend(st.agg.projected_fields.iter().map(|field| field.name.clone()));
+        in_scope.extend(
+            st.agg
+                .projected_fields
+                .iter()
+                .map(|field| field.name.clone()),
+        );
         if let Some(lifecycle) = &st.agg.lifecycle {
             in_scope.push(lifecycle.field.clone());
         }
@@ -1050,8 +1190,13 @@ impl Parser<'_> {
                 command.attributes.push(attribute);
             }
             let mut state_fields = fields.clone();
-            state_fields.extend(st.lifecycle.as_ref().map(|lifecycle| lifecycle.field.clone()));
-            command.mutations = self.mutations_of(&spec.name, spec.changes, &given, &state_fields)?;
+            state_fields.extend(
+                st.lifecycle
+                    .as_ref()
+                    .map(|lifecycle| lifecycle.field.clone()),
+            );
+            command.mutations =
+                self.mutations_of(&spec.name, spec.changes, &given, &state_fields)?;
             commands.push(command);
         }
         Ok(commands)
@@ -1098,9 +1243,10 @@ fn optional_argument(written: &str, fields: &[String]) -> (String, bool) {
     if fields.iter().any(|field| field == written) {
         return (written.to_string(), false);
     }
-    written
-        .strip_prefix("optional_")
-        .map_or_else(|| (written.to_string(), false), |name| (name.to_string(), true))
+    written.strip_prefix("optional_").map_or_else(
+        || (written.to_string(), false),
+        |name| (name.to_string(), true),
+    )
 }
 
 impl ir::Bluebook {
@@ -1146,7 +1292,13 @@ fn shape_of(words: &str) -> Shape {
     ];
     for (prefix, list, relationship, reference) in forms {
         if let Some(inner) = words.strip_prefix(prefix) {
-            return Shape { words: inner.trim().to_string(), list, relationship, reference, variants: None };
+            return Shape {
+                words: inner.trim().to_string(),
+                list,
+                relationship,
+                reference,
+                variants: None,
+            };
         }
     }
     if let Some(inner) = words.strip_prefix("one of ") {
@@ -1159,7 +1311,13 @@ fn shape_of(words: &str) -> Shape {
             variants: Some(variants),
         };
     }
-    Shape { words: words.to_string(), list: false, relationship: None, reference: false, variants: None }
+    Shape {
+        words: words.to_string(),
+        list: false,
+        relationship: None,
+        reference: false,
+        variants: None,
+    }
 }
 
 /// The fields a `runs with` line passes: `the permit` as itself, `the cap from the limit` under
@@ -1170,7 +1328,9 @@ fn passed_fields(m: &Matched) -> Vec<PassedField> {
         .items
         .iter()
         .map(|item| {
-            let (key, from) = item.split_once(" from the ").unwrap_or((item.as_str(), item.as_str()));
+            let (key, from) = item
+                .split_once(" from the ")
+                .unwrap_or((item.as_str(), item.as_str()));
             let field = FieldUse {
                 name: snake(key),
                 line: m.line,

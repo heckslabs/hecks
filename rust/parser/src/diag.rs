@@ -58,7 +58,11 @@ impl Diagnostic {
 impl fmt::Display for Diagnostic {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.column {
-            Some(column) => write!(f, "{}:{}:{}: {}", self.file, self.line, column, self.message)?,
+            Some(column) => write!(
+                f,
+                "{}:{}:{}: {}",
+                self.file, self.line, column, self.message
+            )?,
             None => write!(f, "{}:{}: {}", self.file, self.line, self.message)?,
         }
         if !self.expected.is_empty() {

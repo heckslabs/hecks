@@ -45,19 +45,35 @@ fn policy_text(out: &mut String, policy: &ir::Policy) -> Result<(), String> {
         .on_event
         .as_ref()
         .ok_or_else(|| format!("policy {} waits for no event", policy.name))?;
-    out.push_str(&format!("\n  policy {} do\n    on {}\n", string(&policy.name), string(on_event)));
+    out.push_str(&format!(
+        "\n  policy {} do\n    on {}\n",
+        string(&policy.name),
+        string(on_event)
+    ));
     let with = if policy.with_spec.is_empty() {
         String::new()
     } else {
-        let pairs: Vec<String> = policy.with_spec.iter().map(|(key, value)| format!("{key}: {value}")).collect();
+        let pairs: Vec<String> = policy
+            .with_spec
+            .iter()
+            .map(|(key, value)| format!("{key}: {value}"))
+            .collect();
         format!(", with: {{ {} }}", pairs.join(", "))
     };
     match (&policy.trigger_command, &policy.ask) {
         (Some(command), None) => {
-            out.push_str(&format!("    trigger {}{with}\n", command.replace('.', "::")));
+            out.push_str(&format!(
+                "    trigger {}{with}\n",
+                command.replace('.', "::")
+            ));
         }
         (None, Some(need)) => out.push_str(&format!("    ask :{need}{with}\n")),
-        _ => return Err(format!("policy {} must trigger a command or ask, and not both", policy.name)),
+        _ => {
+            return Err(format!(
+                "policy {} must trigger a command or ask, and not both",
+                policy.name
+            ))
+        }
     }
     out.push_str("  end\n");
     Ok(())
@@ -140,8 +156,15 @@ fn attribute_line(attribute: &ir::Attribute) -> Result<String, String> {
     } else {
         attribute.type_name.clone()
     };
-    let optional = if attribute.optional { ", optional: true" } else { "" };
-    Ok(format!("attribute :{}, {type_name}{optional}", attribute.name))
+    let optional = if attribute.optional {
+        ", optional: true"
+    } else {
+        ""
+    };
+    Ok(format!(
+        "attribute :{}, {type_name}{optional}",
+        attribute.name
+    ))
 }
 
 fn value_object_text(out: &mut String, value_object: &ir::ValueObject) -> Result<(), String> {
@@ -151,7 +174,10 @@ fn value_object_text(out: &mut String, value_object: &ir::ValueObject) -> Result
             value_object.name
         ));
     }
-    out.push_str(&format!("\n    value_object {} do\n", string(&value_object.name)));
+    out.push_str(&format!(
+        "\n    value_object {} do\n",
+        string(&value_object.name)
+    ));
     for attribute in &value_object.attributes {
         out.push_str(&format!("      {}\n", attribute_line(attribute)?));
     }
@@ -223,7 +249,10 @@ fn command_text(out: &mut String, command: &ir::Command) -> Result<(), String> {
         out.push_str(&format!("      {}\n", rule_line("given", given)));
     }
     for mutation in &command.mutations {
-        out.push_str(&format!("      {}\n", mutation_line(&command.name, mutation)?));
+        out.push_str(&format!(
+            "      {}\n",
+            mutation_line(&command.name, mutation)?
+        ));
     }
     for event in &command.emits {
         out.push_str(&format!("      emits {}\n", string(event)));
@@ -272,7 +301,10 @@ fn query_text(out: &mut String, query: &ir::Query) -> Result<(), String> {
                 clause.op, query.name
             ));
         }
-        out.push_str(&format!("      where({}: {})\n", clause.field, clause.value));
+        out.push_str(&format!(
+            "      where({}: {})\n",
+            clause.field, clause.value
+        ));
     }
     if let Some(order) = &query.order_by {
         out.push_str(&format!(
