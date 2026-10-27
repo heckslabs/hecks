@@ -66,3 +66,26 @@ only its message.
   refusals}` with each refusal's class, kind, stage, attribute, path, rule and message, frozen in
   `expect.validations` (a fixture without the step omits the key). Ruby and Rust are each held
   to it, so a fixture may only ask what both engines list in full.
+
+## Addendum: asking whether a record's state admits a command
+
+This follows the decision above and does not depart from it, so it is an addendum and not a new ADR.
+
+- **The gap.** `validate` stops at the stage that refuses, so a command with an argument still
+  missing reports the argument and never reaches the lifecycle `from:` stage. A caller that asks
+  which commands a record could run next, before any argument is known, cannot learn from it
+  that the record has already moved past a command's state.
+- **The answer.** `Dispatcher#state_admits?` asks only that, from the two guards a dispatch runs
+  (the command's own `from:` guard and the aggregate's transitions), reading no argument. It adds
+  no rule: both guards are in the kernel (`admissible_transition`) and the conformance corpus
+  holds what they decide.
+- **No Rust counterpart, for now.** Nothing on the Rust side asks the question; the one caller is
+  the Rails adapter's list of the commands a record offers. This is a query shape that only a
+  Ruby driving adapter uses, not a second place a rule is decided.
+- **When that stops being true.** When a Rust host surface (a web page or a client) needs "what
+  could this record do next", the question gets one answer both engines are held to, as a
+  `validate`-style step in the corpus or a kernel function, and not a second copy of the Ruby
+  method.
+- **Not taken: have `validate` continue to the lifecycle stage when arguments are missing.** It
+  reorders the stages this ADR fixes in both engines, and the stages that read no argument would
+  have to be named in the vocabulary first.
