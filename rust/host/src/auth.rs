@@ -1861,6 +1861,7 @@ mod tests {
             domain: "Acme".to_string(),
             era: Some(1),
             mirrored: None,
+            seal_every: None,
         };
         {
             let guard = db.lock().await;

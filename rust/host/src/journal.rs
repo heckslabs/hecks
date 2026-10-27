@@ -291,6 +291,9 @@ pub struct LineageConfig {
     pub era: Option<i32>,
     /// Aggregates mirrored into era-shaped head snapshots; `None` means all.
     pub mirrored: Option<std::collections::BTreeSet<String>>,
+    /// How many lineage rows a commit lets build up past the last ledger seal before it seals
+    /// (`ledger::seal_due`); `None` leaves sealing to the operator tools.
+    pub seal_every: Option<i64>,
 }
 
 impl LineageConfig {
@@ -614,6 +617,7 @@ mod lineage_tests {
             domain: "Ledger".to_string(),
             era: Some(2),
             mirrored: None,
+            seal_every: None,
         };
         let accepted = append_lineage_mutation(
             &client,
@@ -636,6 +640,7 @@ mod lineage_tests {
             domain: "Ledger".to_string(),
             era: Some(1),
             mirrored: None,
+            seal_every: None,
         };
         let refused = append_lineage_mutation(
             &client,
@@ -811,6 +816,7 @@ mod lineage_tests {
             domain: "Fixtures".to_string(),
             era: Some(1),
             mirrored: None,
+            seal_every: None,
         };
         client
             .batch_execute("CREATE TABLE IF NOT EXISTS hecks_journal_fixtures (ordinal bigserial PRIMARY KEY, era int NOT NULL, aggregate text NOT NULL, aggregate_id text NOT NULL, operation text NOT NULL, state jsonb)")
