@@ -16,7 +16,10 @@ module Hecks
             #   resolved on the box at deploy time and never written into a template
             # @!attribute [r] tag_parameter [String] the stack parameter that holds this container's
             #   image tag, which a hosting `deploy-service.sh` sets
-            Container = Struct.new(:name, :repository, :port, :env, :secrets, :tag_parameter, keyword_init: true)
+            # @!attribute [r] dockerfile [String, nil] a repo-root Dockerfile to build, else nil
+            # @!attribute [r] build_context [String, nil] the build context, set with dockerfile
+            Container = Struct.new(:name, :repository, :port, :env, :secrets, :tag_parameter,
+                                   :dockerfile, :build_context, keyword_init: true)
 
             # A set of URL paths one container serves.
             #

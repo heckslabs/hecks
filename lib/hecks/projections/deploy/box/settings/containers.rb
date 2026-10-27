@@ -112,8 +112,29 @@ module Hecks
                 env:           string_map(:env, spec.fetch(:env, {}), ENV_KEY, ENV_VALUE),
                 secrets:       string_map(:secrets, spec.fetch(:secrets, {}), ENV_KEY, SECRET_NAME),
                 tag_parameter: check(:tag_parameter, spec.fetch(:tag_parameter, default_tag_parameter(name)),
-                                     HostingSettings::PARAMETER)
+                                     HostingSettings::PARAMETER),
+                **build_fields(spec)
               }
+            end
+
+            # A container that names a Dockerfile is built from the checkout before push; one that
+            # names none (both fields nil) pushes an image built elsewhere, as before.
+            def build_fields(spec)
+              dockerfile = spec[:dockerfile]
+              return { dockerfile: nil, build_context: nil } if dockerfile.nil?
+
+              {
+                dockerfile:    relative_path(:dockerfile, dockerfile),
+                build_context: relative_path(:context, spec.fetch(:context, "."))
+              }
+            end
+
+            # A path inside the checkout: relative, not empty, and not climbing out of it with "..".
+            def relative_path(key, value)
+              str = value.to_s
+              return str unless str.empty? || str.start_with?("/") || str.split("/").include?("..")
+
+              raise ArgumentError, "#{key}: #{value.inspect} must be a path inside the checkout"
             end
           end
         end
