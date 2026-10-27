@@ -21,7 +21,7 @@ RSpec.describe Hecks::Forms::FieldRenderer::Controls do
       "^(?:[^{}]|\\{(?:name|storage_name)\\})*$"   => ["abc", "a{b", "{name}", "{other}"]
     }.freeze
 
-    # Whether a browser would accept `value`: JavaScript matches `^(?:pattern)$` over the whole value.
+    # Whether a browser would accept `value`: it matches `^(?:pattern)$` over the whole value.
     def browser_accepts?(pattern, value)
       Regexp.new("\\A(?:#{described_class.html_pattern(pattern)})\\z").match?(value)
     end
