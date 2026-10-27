@@ -150,6 +150,11 @@ impl PostgresUnit<'_> {
             for mutation in &lineage.mutations {
                 journal::append_lineage_mutation(client, lineage.config, mutation).await?;
             }
+            // Sealed here, under the domain lock and inside the transaction, so the seal and the
+            // rows it covers land together or not at all.
+            if let Some(every) = lineage.config.seal_every {
+                crate::ledger::seal_due(client, &lineage.config.domain, every).await?;
+            }
         }
         client.batch_execute("COMMIT").await?;
         self.open = false;

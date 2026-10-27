@@ -12,16 +12,47 @@
 //! [`GENESIS`], each later one the head before it.
 //!
 //! The rows between the last seal and the end of the journal are not covered until the next seal
-//! is taken. Sealing and walking are operator actions (`ledger seal`, `ledger verify`), not part of
-//! a dispatch, so a write never waits on them.
+//! is taken. A seal is taken two ways. A commit takes one once `seal_every` rows (on the host's
+//! `LineageConfig`) lie past the last seal, through [`seal_due`]: it lands in the same transaction
+//! as the rows it covers, so a crash leaves no rows the ledger claims and the journal lacks, and
+//! the one dispatch in every N pays for hashing those N rows. The operator tools (`ledger seal`,
+//! `ledger verify`) seal the tail and walk the chain on demand, and never make a write wait.
 
-use crate::journal::{journal_table, quote_ident};
+use crate::journal::{journal_table, last_ordinal, quote_ident};
 use anyhow::Context;
 use sha2::{Digest, Sha256};
 use tokio_postgres::{Client, GenericClient};
 
 /// The digest the chain starts from: sixty-four zeros.
 pub const GENESIS: &str = "0000000000000000000000000000000000000000000000000000000000000000";
+
+/// How many unsealed lineage rows a commit lets build up before it seals, when nothing says
+/// otherwise. A thousand rows hash in a few milliseconds, and at most that many rows wait for a
+/// seal.
+pub const DEFAULT_SEAL_EVERY: i64 = 1000;
+
+/// The override for the commit-time interval (ADR 0132): a whole number of rows, or `0` to leave
+/// sealing to the operator tools.
+pub const SEAL_EVERY_VAR: &str = "HECKS_SEAL_EVERY";
+
+/// Reads the commit-time seal interval from the override's value, falling back to
+/// [`DEFAULT_SEAL_EVERY`] when it is unset or blank.
+///
+/// # Errors
+///
+/// Returns a message naming the variable when its value is not a whole number of rows.
+pub fn seal_every(value: Option<&str>) -> Result<Option<i64>, String> {
+    let Some(text) = value.map(str::trim).filter(|text| !text.is_empty()) else {
+        return Ok(Some(DEFAULT_SEAL_EVERY));
+    };
+    match text.parse::<i64>() {
+        Ok(0) => Ok(None),
+        Ok(rows) if rows > 0 => Ok(Some(rows)),
+        _ => Err(format!(
+            "{SEAL_EVERY_VAR} must be a whole number of rows, or 0 to seal only by hand; got {text:?}"
+        )),
+    }
+}
 
 /// How many journal rows one read pulls, so a long journal is never held whole in memory.
 const PAGE: i64 = 5000;
@@ -240,8 +271,49 @@ pub async fn seal(client: &mut Client, domain: &str) -> anyhow::Result<Option<An
     if end <= after {
         return Ok(None);
     }
+    Ok(Some(extend(client, &journal, after, seed, end).await?))
+}
 
-    let (head, _) = fold(client, &journal, &seed, after, end).await?;
+/// Seals the domain's journal from inside a commit, once `every` or more rows lie past the last
+/// seal.
+///
+/// For the transaction that just appended lineage rows: the caller holds the domain's write lock,
+/// so the journal's end is settled and this takes no lock of its own. The seal is written on the
+/// same connection, so it commits or rolls back with the rows it covers. Returns the seal taken,
+/// or `None` while fewer than `every` rows are unsealed. An interval below one seals on every
+/// commit.
+///
+/// # Errors
+///
+/// Returns an error if the database refuses a statement.
+pub async fn seal_due<C: GenericClient>(
+    client: &C,
+    domain: &str,
+    every: i64,
+) -> anyhow::Result<Option<Anchor>> {
+    let journal = journal_table(domain);
+    ensure_anchors(client).await?;
+    let held = anchors(client, domain).await?;
+    let (after, seed) = held.last().map_or_else(
+        || (0, GENESIS.to_string()),
+        |last| (last.through, last.head.clone()),
+    );
+    let end = last_ordinal(client, domain).await?;
+    if end - after < every.max(1) {
+        return Ok(None);
+    }
+    Ok(Some(extend(client, &journal, after, seed, end).await?))
+}
+
+/// Folds the rows in `(after, end]` onto `seed` and records the result as the next seal.
+async fn extend<C: GenericClient>(
+    client: &C,
+    journal: &str,
+    after: i64,
+    seed: String,
+    end: i64,
+) -> anyhow::Result<Anchor> {
+    let (head, _) = fold(client, journal, &seed, after, end).await?;
     client
         .execute(
             "INSERT INTO hecks_ledger_anchors (aggregate_table, through_sequence, head, previous) \
@@ -250,11 +322,11 @@ pub async fn seal(client: &mut Client, domain: &str) -> anyhow::Result<Option<An
         )
         .await
         .context("recording the seal")?;
-    Ok(Some(Anchor {
+    Ok(Anchor {
         through: end,
         head,
         previous: seed,
-    }))
+    })
 }
 
 /// Walks the chain from the first seal, comparing each with the journal and with the one before.
@@ -422,6 +494,70 @@ mod tests {
             )
             .await
             .expect("append a journal row");
+    }
+
+    #[test]
+    fn the_interval_defaults_and_zero_turns_commit_sealing_off() {
+        assert_eq!(seal_every(None), Ok(Some(DEFAULT_SEAL_EVERY)));
+        assert_eq!(seal_every(Some("")), Ok(Some(DEFAULT_SEAL_EVERY)));
+        assert_eq!(seal_every(Some(" 250 ")), Ok(Some(250)));
+        assert_eq!(seal_every(Some("0")), Ok(None));
+        assert!(seal_every(Some("-1")).unwrap_err().contains(SEAL_EVERY_VAR));
+        assert!(seal_every(Some("many")).unwrap_err().contains("many"));
+    }
+
+    #[tokio::test]
+    async fn a_commit_seals_only_once_the_interval_of_rows_is_unsealed() {
+        let client = scratch("rust_host_ledger_due").await;
+        append(&client, "o1", "{\"n\": 1}").await;
+        append(&client, "o2", "{\"n\": 2}").await;
+        assert_eq!(seal_due(&client, "Shop", 3).await.expect("not yet"), None);
+        append(&client, "o3", "{\"n\": 3}").await;
+        let first = seal_due(&client, "Shop", 3)
+            .await
+            .expect("due")
+            .expect("a seal");
+        assert_eq!((first.through, first.previous.as_str()), (3, GENESIS));
+        append(&client, "o4", "{\"n\": 4}").await;
+        assert_eq!(seal_due(&client, "Shop", 3).await.expect("not yet"), None);
+
+        let finding = verify(&client, "Shop").await.expect("verify");
+        assert_eq!(
+            finding,
+            Finding::Verified(Report {
+                seals: 1,
+                entries: 3,
+                unsealed: 1
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn a_seal_taken_inside_a_transaction_leaves_with_the_rows_it_covered() {
+        let mut client = scratch("rust_host_ledger_in_txn").await;
+        append(&client, "o1", "{\"n\": 1}").await;
+        ensure_anchors(&client).await.expect("the anchors table");
+        let transaction = client.transaction().await.expect("begin");
+        transaction
+            .execute(
+                "INSERT INTO hecks_journal_shop (aggregate, aggregate_id, state) \
+                 VALUES ('order', 'o2', '{\"n\": 2}')",
+                &[],
+            )
+            .await
+            .expect("append inside the transaction");
+        let sealed = seal_due(&transaction, "Shop", 2)
+            .await
+            .expect("due")
+            .expect("a seal");
+        assert_eq!(sealed.through, 2);
+        transaction.rollback().await.expect("roll back");
+
+        assert!(anchors(&client, "Shop").await.expect("anchors").is_empty());
+        let finding = verify(&client, "Shop").await.expect("verify");
+        assert!(
+            matches!(finding, Finding::Unproven(reason) if reason.contains("nothing is sealed"))
+        );
     }
 
     #[tokio::test]

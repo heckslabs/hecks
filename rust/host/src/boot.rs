@@ -4,8 +4,8 @@
 use crate::host::Host;
 use crate::ir::Backend;
 use crate::{
-    auth, aws_lambda_invoker, dispatch, extension, ir, journal, log, mint, rate_limit, secrets,
-    server, storage_shape,
+    auth, aws_lambda_invoker, dispatch, extension, ir, journal, ledger, log, mint, rate_limit,
+    secrets, server, storage_shape,
     store::{MemoryStore, Store},
 };
 
@@ -116,10 +116,14 @@ pub async fn run() -> Result<(), Error> {
     // -- never "everything this kernel can mutate". A domain that binds
     // everything to plain `Postgres` mirrors nothing.
     let mirrored = ir::mirrored_aggregates(ir);
+    // A commit seals the lineage chain every so many rows (ledger.rs). The default holds unless
+    // the override says otherwise; a Memory store has no lineage and never reads it.
+    let seal_every = ledger::seal_every(std::env::var(ledger::SEAL_EVERY_VAR).ok().as_deref())?;
     let lineage_config = Arc::new(journal::LineageConfig {
         domain,
         era,
         mirrored: Some(mirrored),
+        seal_every,
     });
 
     let wasm_path = Arc::new(wasm_path);

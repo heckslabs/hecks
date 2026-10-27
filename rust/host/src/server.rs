@@ -1175,6 +1175,7 @@ mod tests {
                 domain: "CheckoutFixture".to_string(),
                 era: Some(1),
                 mirrored: None,
+                seal_every: None,
             }),
             invoker: Arc::new(crate::lambda_client::NeverInvoker),
             limits: limits_from(&[]),
@@ -1252,6 +1253,7 @@ mod tests {
             domain: "CheckoutFixture".to_string(),
             era: None,
             mirrored: None,
+            seal_every: None,
         };
         let wasm = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../dist/checkout_fixture.wasm");
         let host = Host::new(&client, &wasm, &config, &crate::lambda_client::NeverInvoker);

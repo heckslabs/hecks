@@ -1846,6 +1846,7 @@ mod tests {
             domain: domain.to_string(),
             era: Some(1),
             mirrored: None,
+            seal_every: None,
         };
         journal::append_lineage_mutation(
             &client,
@@ -2608,6 +2609,7 @@ mod tests {
                 domain: domain.to_string(),
                 era: Some(1),
                 mirrored: None,
+                seal_every: None,
             };
             journal::append_lineage_mutation(
                 client,

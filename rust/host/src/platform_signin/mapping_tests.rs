@@ -95,6 +95,7 @@ impl World {
                 domain: "Acme".into(),
                 era: Some(1),
                 mirrored: None,
+                seal_every: None,
             },
         }
     }

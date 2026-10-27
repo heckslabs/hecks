@@ -3080,6 +3080,7 @@ mod tests {
             domain: "Banking".to_string(),
             era: None,
             mirrored: None,
+            seal_every: None,
         };
         let invoker = crate::lambda_client::NeverInvoker;
         let submit_as = |role: &'static str, reference: &'static str| {
@@ -3126,6 +3127,7 @@ mod tests {
             domain: "Banking".to_string(),
             era: None,
             mirrored: None,
+            seal_every: None,
         };
         let invoker = crate::lambda_client::NeverInvoker;
         let post = |role: &'static str, asked: &'static str| {
@@ -3178,6 +3180,7 @@ mod tests {
             domain: "Banking".to_string(),
             era: None,
             mirrored: None,
+            seal_every: None,
         };
         let invoker = crate::lambda_client::NeverInvoker;
         let host = Host::new(&client, &wasm, &lineage, &invoker);
@@ -3641,6 +3644,7 @@ mod tests {
             domain: "Acme".to_string(),
             era: Some(1),
             mirrored: None,
+            seal_every: None,
         }
     }
 
@@ -4831,6 +4835,7 @@ mod tests {
             domain: "Studio".to_string(),
             era: Some(1),
             mirrored: None,
+            seal_every: None,
         };
         // The wasm path doesn't exist: every refusal below must come before any registration read.
         let wasm_path = Path::new("does-not-exist.wasm");
@@ -4922,6 +4927,7 @@ mod tests {
             domain: "Studio".to_string(),
             era: Some(1),
             mirrored: None,
+            seal_every: None,
         };
         // No wasm at all: clearing the admin gate then fails with a 500, never 401/403.
         let missing_wasm = Path::new("does-not-exist.wasm");
