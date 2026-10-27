@@ -279,6 +279,7 @@ async fn tenant(name: &str) -> Tenant {
             domain: "CheckoutFixture".to_string(),
             era: Some(1),
             mirrored: None,
+            seal_every: None,
         },
         wasm: std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../dist/checkout_fixture.wasm"),
@@ -728,6 +729,7 @@ async fn an_admin_granted_owner_passes_the_payments_gate_and_keeps_the_admin_gat
         domain: "Acme".to_string(),
         era: Some(1),
         mirrored: None,
+        seal_every: None,
     };
     let cookies = |email: &str| {
         HashMap::from([(

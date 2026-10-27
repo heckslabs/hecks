@@ -727,6 +727,7 @@ mod tests {
             domain: "Fixtures".to_string(),
             era: None,
             mirrored: None,
+            seal_every: None,
         }
     }
 

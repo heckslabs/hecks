@@ -1773,6 +1773,7 @@ mod tests {
             domain: "CheckoutFixture".to_string(),
             era: None,
             mirrored: None,
+            seal_every: None,
         };
         let invoker = crate::lambda_client::NeverInvoker;
 
@@ -1876,6 +1877,7 @@ mod tests {
             domain: "CheckoutFixture".to_string(),
             era: None,
             mirrored: None,
+            seal_every: None,
         };
         let invoker = crate::lambda_client::NeverInvoker;
 
@@ -1913,6 +1915,7 @@ mod tests {
             domain: "CheckoutFixture".to_string(),
             era: None,
             mirrored: None,
+            seal_every: None,
         };
 
         let refused = presentation_save(
@@ -1942,6 +1945,7 @@ mod tests {
             domain: "Banking".to_string(),
             era: None,
             mirrored: None,
+            seal_every: None,
         };
 
         let refused = presentation_save(
@@ -1983,6 +1987,7 @@ mod tests {
             domain: "Banking".to_string(),
             era: Some(1),
             mirrored: None,
+            seal_every: None,
         };
         let invoker = crate::lambda_client::NeverInvoker;
 
@@ -2111,6 +2116,7 @@ mod tests {
             domain: "Banking".to_string(),
             era: Some(1),
             mirrored: None,
+            seal_every: None,
         };
         let invoker = crate::lambda_client::NeverInvoker;
         let post = |path: &'static str, body: &'static str, session: Session| {
@@ -2159,6 +2165,7 @@ mod tests {
             domain: "CheckoutFixture".to_string(),
             era: None,
             mirrored: None,
+            seal_every: None,
         };
         let invoker = crate::lambda_client::NeverInvoker;
         let submitted = every_state_styled().to_string();
@@ -2241,6 +2248,7 @@ mod tests {
             domain: "Banking".to_string(),
             era: Some(1),
             mirrored: None,
+            seal_every: None,
         };
         let invoker = crate::lambda_client::NeverInvoker;
         let host = || Host::new(&client, &wasm, &lineage, &invoker);

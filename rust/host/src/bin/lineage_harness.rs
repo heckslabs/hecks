@@ -64,6 +64,9 @@ async fn main() -> anyhow::Result<()> {
         domain: domain.clone(),
         era: Some(era),
         mirrored: None,
+        // The harness writes rows for Ruby's conformance diff; a seal here would be a row Ruby
+        // never wrote.
+        seal_every: None,
     };
     let mut results = Vec::with_capacity(operations.len());
 

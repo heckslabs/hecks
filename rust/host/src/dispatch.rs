@@ -981,6 +981,7 @@ pub(crate) mod tests {
             domain: domain.to_string(),
             era: None,
             mirrored: None,
+            seal_every: None,
         }
     }
 
@@ -1018,7 +1019,8 @@ pub(crate) mod tests {
                     aggregate    text NOT NULL,
                     aggregate_id text NOT NULL,
                     operation    text NOT NULL,
-                    state        jsonb
+                    state        jsonb,
+                    mirrors      jsonb
                 )"
             ))
             .await
@@ -1072,6 +1074,7 @@ pub(crate) mod tests {
             domain: "Banking".to_string(),
             era: Some(1),
             mirrored: None,
+            seal_every: None,
         };
         let refused = handle_facts(
             Host::new(&client, &wasm, &everything, &invoker),
@@ -1103,6 +1106,7 @@ pub(crate) mod tests {
             domain: "Banking".to_string(),
             era: Some(1),
             mirrored: Some(std::collections::BTreeSet::new()),
+            seal_every: None,
         };
         let outcome = handle_facts(
             Host::new(&client, &wasm, &declared, &invoker),
@@ -1148,6 +1152,7 @@ pub(crate) mod tests {
             domain: "Banking".to_string(),
             era: Some(1),
             mirrored: Some(std::iter::once("Banking::Customer".to_string()).collect()),
+            seal_every: None,
         };
 
         handle_facts(
@@ -1178,6 +1183,7 @@ pub(crate) mod tests {
             domain: domain.to_string(),
             era: Some(era),
             mirrored: None,
+            seal_every: None,
         }
     }
 
@@ -1344,6 +1350,46 @@ pub(crate) mod tests {
         );
         let id: String = snapshot_rows[0].get(0);
         assert_eq!(id, "CUST-0001");
+    }
+
+    // The seal is part of the commit, not a tool run afterwards: the second accepted command
+    // leaves a seal through the second lineage row, and the chain walks clean from it.
+    #[tokio::test]
+    async fn a_commit_seals_the_lineage_chain_every_so_many_rows() {
+        let client = scratch_db("rust_host_dispatch_seals").await;
+        provision_lineage(&*client.lock().await, "Banking", 1, &["Customer"]).await;
+        let config = LineageConfig {
+            seal_every: Some(2),
+            ..test_config("Banking", 1)
+        };
+
+        for id in ["CUST-0001", "CUST-0002", "CUST-0003"] {
+            let outcome = handle(
+                Host::new(&client, &wasm_path(), &config, &lambda_client::NeverInvoker),
+                "Banking::Customer.Register",
+                register(id),
+                None,
+            )
+            .await
+            .unwrap();
+            assert!(outcome.accepted, "{id} should be accepted");
+        }
+
+        let guard = client.lock().await;
+        let seals = crate::ledger::anchors(&*guard, "Banking").await.unwrap();
+        assert_eq!(
+            seals.iter().map(|seal| seal.through).collect::<Vec<_>>(),
+            vec![2],
+            "one seal, taken by the commit that made two rows unsealed"
+        );
+        assert_eq!(
+            crate::ledger::verify(&*guard, "Banking").await.unwrap(),
+            crate::ledger::Finding::Verified(crate::ledger::Report {
+                seals: 1,
+                entries: 2,
+                unsealed: 1
+            })
+        );
     }
 
     // Proves `occurred_at` end to end through the real wasm module: the

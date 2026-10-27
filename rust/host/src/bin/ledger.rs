@@ -1,6 +1,9 @@
 //! Operator tool: seals a domain's lineage journal, and walks the seals to check it.
 //! Usage: `ledger seal <Domain>` or `ledger verify <Domain>`.
 //!
+//! A running host seals on its own every `HECKS_SEAL_EVERY` lineage rows (a thousand unless set),
+//! so `seal` is for the tail those commits have not reached, before a verify or a deploy.
+//!
 //! Reads `DATABASE_URL`, and `HECKS_SCHEMA` when the domain keeps its tables in a schema, and
 //! connects the way the host does. Its last line of output is one JSON object with the result (the
 //! connection logs the lines before it). Exits 0 when the journal was sealed, had nothing new to
