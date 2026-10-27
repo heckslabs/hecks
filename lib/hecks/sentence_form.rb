@@ -145,6 +145,17 @@ module Hecks
          .select { |file| chapter_name(file) == chapter }
     end
 
+    # Loads a bluebook file in whichever form it is written: sentences through the parser, anything
+    # else as Ruby. Every place that reads a `.bluebook` goes through here, so no boot path accepts
+    # one form and refuses the other.
+    #
+    # @param path [String] a bluebook file, or any other Ruby file
+    # @return [void]
+    def load_file(path)
+      sentences = path.end_with?(".bluebook") && File.file?(path) && sentences?(path)
+      sentences ? load(path) : Kernel.load(path)
+    end
+
     # Declares the chapter a sentence-form file holds, in the registry now current.
     #
     # The Ruby text is loaded from a file of its own, because a predicate's source is recovered

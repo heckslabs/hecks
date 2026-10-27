@@ -1,4 +1,5 @@
 require_relative "runtime/registry"
+require_relative "sentence_form"
 
 module Hecks
   # Registry of framework bluebooks (Governance, Identity, ...) in `lib/hecks/framework/bluebook/`.
@@ -53,7 +54,7 @@ module Hecks
         Kernel.load(File.join(lib, "hecks/ports/extraction.port"))
         Kernel.load(File.join(lib, "hecks/adapters/driven/memory.adapter"))
         Kernel.load(File.join(lib, "hecks/adapters/driven/prism.adapter"))
-        Kernel.load(path)
+        SentenceForm.load_file(path)
       end
       registry
     end
@@ -76,7 +77,7 @@ module Hecks
 
       return if Hecks.current_registry.bluebook(name.to_s)
 
-      Kernel.load(path)
+      SentenceForm.load_file(path)
     end
   end
 end
