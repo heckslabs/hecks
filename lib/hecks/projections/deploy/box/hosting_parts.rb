@@ -86,7 +86,16 @@ module Hecks
               else
                 "ECR_REPOSITORY=#{Shellwords.escape(container.repository)}"
               end
+            setting += build_vars(container) if container.dockerfile
             "    #{Shellwords.escape(container.name)}) #{setting} ;;"
+          end
+
+          # The build a service needs before its image is pushed, as `VAR=value` the case arm adds;
+          # only a container that declares a Dockerfile gets them.
+          def build_vars(container)
+            dockerfile = Shellwords.escape(container.dockerfile)
+            context    = Shellwords.escape(container.build_context)
+            " BUILD_DOCKERFILE=#{dockerfile} BUILD_CONTEXT=#{context}"
           end
 
           def repository_step(plan)

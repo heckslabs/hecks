@@ -85,6 +85,41 @@ RSpec.describe Hecks::Projections::Deploy::Box::Settings do
     end
   end
 
+  describe "a container built from the checkout" do
+    it "defaults the build context to the checkout root when a Dockerfile is named", :aggregate_failures do
+      plan = resolve(containers: [web.merge(dockerfile: "Dockerfile")])
+      expect(plan.containers.first).to have_attributes(dockerfile: "Dockerfile", build_context: ".")
+    end
+
+    it "keeps an explicit context" do
+      plan = resolve(containers: [web.merge(dockerfile: "svc/Dockerfile", context: "svc")])
+      expect(plan.containers.first).to have_attributes(dockerfile: "svc/Dockerfile", build_context: "svc")
+    end
+
+    it "leaves both nil for a container whose image is built elsewhere" do
+      expect(resolve.containers.first).to have_attributes(dockerfile: nil, build_context: nil)
+    end
+
+    it "refuses a path that escapes the checkout", :aggregate_failures do
+      expect(refusal(containers: [web.merge(dockerfile: "/etc/Dockerfile")])).to include("dockerfile")
+      expect(refusal(containers: [web.merge(dockerfile: "../x/Dockerfile")])).to include("dockerfile")
+      expect(refusal(containers: [web.merge(dockerfile: "Dockerfile", context: "../..")])).to include("context")
+    end
+
+    def deploy_service_sh(plan)
+      Hecks::Projections::Deploy::Box::Hosting.deploy_service_sh(plan, "us-east-1")
+    end
+
+    it "wires the build into deploy-service.sh for a container that declares a Dockerfile" do
+      script = deploy_service_sh(resolve(containers: [web.merge(dockerfile: "Dockerfile")]))
+      expect(script).to include("web) ECR_REPOSITORY=shop-web BUILD_DOCKERFILE=Dockerfile BUILD_CONTEXT=. ;;")
+    end
+
+    it "sets no build vars for a container whose image is built elsewhere" do
+      expect(deploy_service_sh(resolve)).to include("web) ECR_REPOSITORY=shop-web ;;")
+    end
+  end
+
   describe "routes and the default container" do
     let(:two) { [web, { name: "cms", port: 8081 }] }
 
