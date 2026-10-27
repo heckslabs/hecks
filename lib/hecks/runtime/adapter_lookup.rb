@@ -32,16 +32,34 @@ module Hecks
         @stand_in = previous
       end
 
+      # Builds the port's adapter, handing it the context it declares: an `initialize` that takes
+      # `registry:` is given the registry that is asking, and one that takes `aggregate:` is given
+      # the aggregate asking out. An adapter that declares neither is built bare, as before.
+      #
       # @param registry [Runtime::Registry] the booted registry whose adapters are searched
       # @param port_name [String] the port's name as an adapter declares it
       # @param asked [String] what is being asked, worded into a refusal
+      # @param aggregate [Bluebook::Aggregate, nil] the aggregate asking, when one is
       # @return [Object] a new instance of the port's only adapter, or the stand-in for it
       # @raise [Runtime::WiringError] if no adapter, or more than one, implements the port
-      def call(registry, port_name, asked:)
-        adapter_class(registry, port_name, asked: asked)
+      def call(registry, port_name, asked:, aggregate: nil)
+        klass = adapter_class(registry, port_name, asked: asked)
         return @stand_in.call(port_name, asked) if @stand_in
 
-        adapter_class(registry, port_name, asked: asked).new
+        build(klass, registry: registry, aggregate: aggregate)
+      end
+
+      # Builds `klass` with the context keywords its constructor names, and no others.
+      #
+      # @param klass [Class] the adapter class
+      # @param context [Hash{Symbol => Object}] what could be handed over, by keyword
+      # @return [Object] the adapter
+      def build(klass, **context)
+        parameters = klass.instance_method(:initialize).parameters
+        return klass.new(**context) if parameters.any? { |kind, _| kind == :keyrest }
+
+        named = parameters.filter_map { |kind, name| name if %i[key keyreq].include?(kind) }
+        klass.new(**context.slice(*named))
       end
 
       # Finds the class of the one adapter this boot loaded for a port name, without building it,
@@ -82,13 +100,17 @@ module Hecks
         check_keywords!(klass, method, query, asked)
       end
 
-      # @raise [Runtime::WiringError] if the constructor requires arguments
+      # The keywords {build} hands an adapter that names them.
+      CONTEXT = %i[registry aggregate].freeze
+
+      # @raise [Runtime::WiringError] if the constructor requires arguments beyond the context
       def check_buildable!(klass, port_name)
-        required = klass.instance_method(:initialize).parameters.filter_map { |kind, name| name if %i[req keyreq].include?(kind) }
+        parameters = klass.instance_method(:initialize).parameters
+        required = parameters.filter_map { |kind, name| name if kind == :req || (kind == :keyreq && !CONTEXT.include?(name)) }
         return if required.empty?
 
         raise WiringError, "#{klass} implements the #{port_name} port but its constructor requires " \
-                           "#{required.join(", ")} — it is built with no arguments"
+                           "#{required.join(", ")} — it is built with #{CONTEXT.join(" and ")} keywords at most"
       end
 
       # @raise [Runtime::WiringError] if the method is missing or only inherited

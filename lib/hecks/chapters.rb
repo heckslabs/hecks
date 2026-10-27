@@ -2,6 +2,7 @@ require_relative "naming"
 require_relative "framework"
 require_relative "runtime/registry"
 require_relative "bluebook/meta_validator"
+require_relative "sentence_form"
 
 module Hecks
   # The chapters the gem carries that a hecksagon can attach by name (ADR 0080): the language
@@ -102,7 +103,7 @@ module Hecks
     def self.load_atomically(registry, name, paths)
       before = { queued: Bluebook::MetaValidator.deferred_chapters.dup, ports: registry.ports.keys,
                  adapters: registry.adapters.keys }
-      Bluebook::MetaValidator.defer { paths.each { |path| Kernel.load(path) } }
+      Bluebook::MetaValidator.defer { paths.each { |path| SentenceForm.load_file(path) } }
       Bluebook::MetaValidator.judge_deferred!(registry)
       load_wiring(name, paths)
     rescue Exception # rubocop:disable Lint/RescueException -- rolls back, then re-raises

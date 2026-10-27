@@ -120,14 +120,12 @@ module Hecks
         Bluebook::MetaValidator.judge_deferred!(Hecks.current_registry)
       end
 
-      # Loads one file. A `.bluebook` written as sentences is declared through the Ruby text the
-      # Rust parser renders from it; every other file is loaded as Ruby.
+      # Loads one file in whichever form it is written (see {SentenceForm.load_file}).
       #
       # @param file [String] the file to load
       # @return [void]
       def load_file(file)
-        sentences = file.end_with?(".bluebook") && File.file?(file) && SentenceForm.sentences?(file)
-        sentences ? SentenceForm.load(file) : Kernel.load(file)
+        SentenceForm.load_file(file)
       end
 
       # Loads every file under `directory` matching any of `patterns`, in pattern order.

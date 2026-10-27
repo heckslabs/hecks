@@ -21,7 +21,8 @@ module Hecks
           module_function
 
           # Defines `name!(over:, mode:)` on `mod` for each command of `aggregate` that does not
-          # create its record.
+          # create its record. Called without `over:`, it says what the bulk form is
+          # ({refuse_unaimed!}).
           #
           # @param mod [Module] the aggregate module being built
           # @param dispatcher [Runtime::Dispatcher] the booted dispatcher the runs go through
@@ -31,7 +32,8 @@ module Hecks
           def define(mod, dispatcher, domain, aggregate)
             aggregate.commands.reject(&:creates?).each do |command|
               verb = "#{domain}::#{aggregate.hecks_name}.#{command.hecks_name}"
-              mod.define_singleton_method("#{Naming.snake(command.hecks_name)}!") do |over:, mode: :best_effort|
+              mod.define_singleton_method("#{Naming.snake(command.hecks_name)}!") do |over: nil, mode: :best_effort|
+                BulkVerbs.refuse_unaimed!(command, over)
                 BulkVerbs.run(dispatcher, verb, over, mode)
               end
             end
@@ -76,6 +78,22 @@ module Hecks
           def request(run, verb, over, mode)
             { run: { value: run }, verb: { value: verb }, over: { value: over.verb },
               arguments: Bulk::Plan.argument_rows(over.arguments), mode: { value: mode.to_s } }
+          end
+
+          # Says what the bulk form is when it is called without `over:`, the usual sign that the
+          # caller meant the one-record form on a command that takes no attributes.
+          #
+          # @param command [Bluebook::Command] the command whose bang form was called
+          # @param over [QueryRows, nil] what the caller handed `over:`
+          # @raise [ArgumentError] if `over` is nil
+          def refuse_unaimed!(command, over)
+            return unless over.nil?
+
+            name = "#{Naming.snake(command.hecks_name)}!"
+            raise ArgumentError,
+                  "#{name} on the aggregate module is the bulk form and needs over: a query, such as " \
+                  "#{name.delete_suffix("!")}!(over: Aggregate.some_query). To send #{command.hecks_name} " \
+                  "to one record, call #{name} on that record's handle"
           end
 
           def refuse_unnamed_query!(over)
