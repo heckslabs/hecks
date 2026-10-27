@@ -894,6 +894,7 @@ impl Backend for MemoryBackend {
             domain: DOMAIN.to_string(),
             era: None,
             mirrored: None,
+            seal_every: None,
         };
         let wasm = wasm_path();
         let host = Host::new(&self.store, &wasm, &config, &self.invoker);

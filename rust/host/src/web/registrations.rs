@@ -1357,6 +1357,7 @@ mod tests {
             domain: "CheckoutFixture".to_string(),
             era: Some(era),
             mirrored: None,
+            seal_every: None,
         }
     }
 
