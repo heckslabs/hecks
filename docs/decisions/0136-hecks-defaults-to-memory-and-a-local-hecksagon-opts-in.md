@@ -56,6 +56,9 @@ Every decision says which side it is on.
   the exported IR, so the two agree without a Rust change.
 - The deploy recipes name the local world and hecksagon where they used to name `HECKS_DATABASE`,
   and `hecks stores` and `hecks history` say on standard error when nothing is persisted.
+- The era tools (`scaffold_translation`, `reattest`, the projection backfill, the audit and the
+  tail merge) load a domain through the same overlay as the runtime, so a domain a local file opts
+  into PostgresEra is seen as bound to it, not to Memory, and its translation edge can be written.
 - The launcher's `memory_commands` stays. It makes `console`, `init` and `interview` run on Memory
   even in a copy a local hecksagon has opted in, so a person at the terminal never boots, or mints
   an era in, the copy's database; it also makes them wait and say why they were refused, which has

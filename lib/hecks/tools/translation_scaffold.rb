@@ -73,17 +73,7 @@ module Hecks
         loading.load_each(directory, %w[*.port *.adapter])
         loading.load_bluebooks(directory)
         loading.load_each(directory, %w[*.hecksagon *.world])
-        load_environment_overlay(loading, directory)
-      end
-
-      # A domain that splits `persisted_by` per environment declares none in its base
-      # `.hecksagon`, so resolution fails without this overlay — opt-in via
-      # HECKS_PROJECT_ENVIRONMENT, a no-op otherwise.
-      def load_environment_overlay(loading, directory)
-        target_environment = ENV.fetch("HECKS_PROJECT_ENVIRONMENT", nil) or return
-
-        loading.load_each(directory, [File.join("environments", "#{target_environment}.hecksagon")])
-        loading.load_each(directory, [File.join("environments", "#{target_environment}.world")])
+        loading.load_overlay(directory, ENV.fetch("HECKS_PROJECT_ENVIRONMENT", nil))
       end
 
       # @return [Integer] 0
