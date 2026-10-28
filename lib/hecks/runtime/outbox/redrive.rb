@@ -32,15 +32,18 @@ module Hecks
 
         # The rows of one store that redrove: its pending rows first, then its claimed ones.
         def redrive_store(repository, claimed)
-          redriven = repository.outbox_rows(status: "pending").select { |row| deliver_row(row, repository) }
+          redriven = repository.outbox_rows(status: "pending").select { |row| redrive_pending?(row, repository) }
           redriven + repository.outbox_rows(status: "claimed").select { |row| redrive_claimed?(row, repository, claimed) }
         end
+
+        def redrive_pending?(row, repository) = !withheld?(row) && deliver_row(row, repository)
 
         def redrive_claimed?(row, repository, claimed)
           unless claimed
             warn_stalled(row)
             return false
           end
+          return false if withheld?(row)
 
           repository.outbox_settle(row.id, status: "pending")
           row.status = "pending"
