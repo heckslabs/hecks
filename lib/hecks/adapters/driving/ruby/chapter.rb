@@ -9,7 +9,7 @@ module Hecks
         # One bluebook's module: vision and aggregate list on the singleton, one
         # aggregate module per declared head, and a `const_missing` hook for undeclared names.
         module Chapter
-          # Builds the anonymous module that stands for one booted chapter: `vision`,
+          # Builds the anonymous module that stands for one booted bluebook: `vision`,
           # `aggregates`, `docs`, `narrate` and `project` as singleton methods, plus one
           # nested constant per aggregate holding that aggregate module.
           #

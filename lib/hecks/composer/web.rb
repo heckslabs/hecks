@@ -137,7 +137,8 @@ module Hecks
         json(200, diagnostic: refusal)
       end
 
-      # The bluebook to draw is named by `bluebook_name`, or by the retired `chapter_name`, which says
+      # The bluebook to draw is named by `bluebook_name`, or by the retired `chapter_name`, which
+      # says
       # on standard error that the new key replaces it (ADR 0134).
       def check(body)
         warn "hecks: the composer request key chapter_name is deprecated, use bluebook_name" if body.key?("chapter_name")

@@ -17,7 +17,8 @@ module Hecks
           File.read(File.join(__dir__, "projection.json")), symbolize_names: true
         ).fetch(:normalisations)
 
-        # Normalisation rules projected from the grammar bluebook by hecks project_expression_tables.
+        # Normalisation rules projected from the grammar bluebook by hecks
+        # project_expression_tables.
         RULES = NORMALISATION_ROWS.map { |row| Rule.new(**row) }.freeze
 
         module_function

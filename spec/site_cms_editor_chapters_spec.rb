@@ -146,13 +146,13 @@ RSpec.describe "the editor over several bluebooks" do
 
   describe "the Editor row" do
     it "is refused for a bluebook named twice" do
-      with_row('chapter: "Press, Library"', 'chapter: "Press, Press"') do |dir|
-        expect { files_of(dir) }.to raise_error(SystemExit, /chapter names "Press" twice/)
+      with_row('bluebook: "Press, Library"', 'bluebook: "Press, Press"') do |dir|
+        expect { files_of(dir) }.to raise_error(SystemExit, /bluebook names "Press" twice/)
       end
     end
 
-    it "is refused when chapter_roles names a bluebook the editor does not edit" do
-      with_row('chapter_roles: "Library=Admin"', 'chapter_roles: "Nowhere=Admin"') do |dir|
+    it "is refused when bluebook_roles names a bluebook the editor does not edit" do
+      with_row('bluebook_roles: "Library=Admin"', 'bluebook_roles: "Nowhere=Admin"') do |dir|
         expect { files_of(dir) }.to raise_error(SystemExit, /not a bluebook of this editor/)
       end
     end

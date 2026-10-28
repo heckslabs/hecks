@@ -1,11 +1,11 @@
 module Hecks
   module Adapters
     module Driving
-      # The `renamed_arguments` of a bluebook's `launcher` setting: a retired argument name mapped to
-      # the name that replaced it (`{ "chapter" => "bluebook" }`). A command line that still spells
-      # the old name is read as the new one, and says so on standard error, but only for a command
-      # that declares the new name and not the old, so a command that keeps the old name is left alone
-      # (ADR 0134).
+      # The `renamed_arguments` of a bluebook's `launcher` setting: a retired argument name mapped
+      # to the name that replaced it (`{ "chapter" => "bluebook" }`). A command line that still
+      # spells the old name is read as the new one, and says so on standard error, but only for a
+      # command that declares the new name and not the old, so a command that keeps the old name
+      # is left alone (ADR 0134).
       module LauncherRenamedArguments
         module_function
 
@@ -38,7 +38,8 @@ module Hecks
           !old.nil? && !declares?(paths, old) && declares?(paths, new)
         end
 
-        # @return [Boolean] whether a command declares an argument of that name, or one of its fields
+        # @return [Boolean] whether a command declares an argument of that name, or one of its
+        #   fields
         def declares?(paths, name)
           paths.any? { |path| path == name || path.start_with?("#{name}.") }
         end

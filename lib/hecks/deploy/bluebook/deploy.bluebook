@@ -1,4 +1,4 @@
-# The Deploy chapter: what `deployed_to(...)` may declare, and the commands that generate, check and
+# The Deploy bluebook: what `deployed_to(...)` may declare, and the commands that generate, check and
 # compare a deploy recipe, project the OIDC manifests and provision a tenant.
 #
 # `hecks deploy recipe.project` and `hecks deploy tenant.provision` boot it directly; the Hecks domain attaches it, so

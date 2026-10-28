@@ -62,7 +62,7 @@ RSpec.describe "the Hecks domain journals to PostgresEra", :io do
   end
 
   # What a client does to keep a journal: a `hecks.local.hecksagon` in the working directory whose
-  # root `persisted_by` the attached Governance chapter inherits, and a `hecks.local.world` with
+  # root `persisted_by` the attached Governance bluebook inherits, and a `hecks.local.world` with
   # the database for both.
   def opt_in_to_postgres_era(directory)
     write_local_hecksagon(directory)

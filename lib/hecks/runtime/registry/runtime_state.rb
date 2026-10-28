@@ -4,7 +4,8 @@ module Hecks
       # What dispatching produces: the event log, the reaction and saga logs, and the saga
       # instances in flight.
       #
-      # `saga_dispatch_log`, `policy_dispatch_log` and `cross_domain_log` are Ruby-only; unlike `saga_log` and
+      # `saga_dispatch_log`, `policy_dispatch_log` and `cross_domain_log` are Ruby-only; unlike
+      # `saga_log` and
       # `reaction_log` (ported byte-for-byte to rust/src/kernel/orchestrate.rs, per
       # spec/rust_conformance_spec.rb), they carry the raw dispatch-binding inputs
       # Properties.dispatch_binding_fidelity re-derives.

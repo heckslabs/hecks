@@ -1,7 +1,7 @@
 require "spec_helper"
 require "hecks/quality_control/adapters/sweep_tools"
 
-# The `qa_*` scripts as queries of the QualityControl chapter: each is answered by a `*Tools`
+# The `qa_*` scripts as queries of the QualityControl bluebook: each is answered by a `*Tools`
 # port whose adapter runs the script's own command in a child process and hands back what it
 # printed. What needs the ledger's Postgres is proven by the `:io` specs that run the scripts.
 RSpec.describe "the QualityControl tool queries" do

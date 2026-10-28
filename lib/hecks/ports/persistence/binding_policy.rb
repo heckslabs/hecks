@@ -10,7 +10,7 @@ module Hecks
         module_function
 
         # Picks the one bind that names an aggregate's authoritative store: its own bind, its
-        # chapter's root default, an attaching domain's root default, a world's `default_adapter`,
+        # bluebook's root default, an attaching domain's root default, a world's `default_adapter`,
         # then Memory. A hecksagon that binds some aggregates and leaves this one out is refused
         # as a forgotten decision; one that never mentions persistence has made none.
         #
@@ -18,7 +18,8 @@ module Hecks
         # @param domain [String, Symbol] name of the domain the aggregate belongs to
         # @param aggregate [Bluebook::Aggregate] the aggregate whose binding is wanted
         # @return [Bluebook::Bind] the authoritative `persisted_by` bind
-        # @raise [Runtime::WiringError] if some aggregates are bound and this one is not, the roleless
+        # @raise [Runtime::WiringError] if some aggregates are bound and this one is not, the
+        #   roleless
         #   binds are not exactly one, a bind has a role, or attaching domains disagree
         def resolve(registry, domain, aggregate)
           hecksagon = registry.hecksagon(domain)
@@ -55,11 +56,12 @@ module Hecks
           !wired?(hecksagon) && registry.default_adapter_for(domain).nil? && inherited_adapter(registry, domain).nil?
         end
 
-        # The adapter the root default of an attaching domain hands to a chapter it attaches, so one
-        # `persisted_by` at a domain's root reaches the chapters it brings in.
+        # The adapter the root default of an attaching domain hands to a bluebook it attaches, so
+        # one
+        # `persisted_by` at a domain's root reaches the bluebooks it brings in.
         #
         # @param registry [Runtime::Registry] the registry holding every hecksagon
-        # @param domain [String, Symbol] name of the attached chapter
+        # @param domain [String, Symbol] name of the attached bluebook
         # @return [String, nil] the adapter, nil when no attaching domain declares a default
         # @raise [Runtime::WiringError] if two attaching domains declare different defaults
         def inherited_adapter(registry, domain)
@@ -106,7 +108,7 @@ module Hecks
 
         # Builds, without raising, the error for attaching domains that declare different defaults.
         #
-        # @param domain [String, Symbol] name of the attached chapter
+        # @param domain [String, Symbol] name of the attached bluebook
         # @param adapters [Array<String>] the differing defaults
         # @return [Runtime::WiringError] an error whose message names the adapters
         def conflicting_defaults(domain, adapters)

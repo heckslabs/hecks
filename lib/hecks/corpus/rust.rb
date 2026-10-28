@@ -196,7 +196,8 @@ module Hecks
         names.uniq.select { |name| modules.include?(name) && !generated?(name, root: root) }
       end
 
-      # Gem bluebooks outside the framework (`FrameworkBluebooks.index`, such as Bulk) that an in-repo Rust
+      # Gem bluebooks outside the framework (`FrameworkBluebooks.index`, such as Bulk) that an
+      # in-repo Rust
       # domain's hecksagon attaches by name, written as a module by `hecks project_rust` with no
       # merged.rs of their own.
       #

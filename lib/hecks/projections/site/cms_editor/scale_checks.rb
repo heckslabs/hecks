@@ -23,25 +23,26 @@ module Hecks
           # @param row [Hash{Symbol => String}] the row, defaults filled
           # @return [Array<String>] every problem with `chapter`, `chapter_roles` and `page_size`
           def problems(row)
-            chapters = row[:chapter].split(",").map(&:strip)
-            [*chapter_problems(chapters), *role_problems(row[:chapter_roles], chapters), *page_size_problems(row[:page_size])]
+            chapters = row[:bluebook].split(",").map(&:strip)
+            [*chapter_problems(chapters), *role_problems(row[:bluebook_roles], chapters), *page_size_problems(row[:page_size])]
           end
 
           # @return [Array<String>] the problems with an empty, repeated or reserved bluebook name
           def chapter_problems(chapters)
             found = []
-            found << "chapter names no bluebook" if chapters.reject(&:empty?).empty?
+            found << "bluebook names nothing" if chapters.reject(&:empty?).empty?
             repeated = chapters.find { |name| chapters.count(name) > 1 }
-            found << "chapter names #{repeated.inspect} twice" if repeated
+            found << "bluebook names #{repeated.inspect} twice" if repeated
             [*found, *reserved_problems(chapters)]
           end
 
-          # @return [Array<String>] a problem for each bluebook spelled as an address of the editor's
+          # @return [Array<String>] a problem for each bluebook spelled as an address of the
+          #   editor's
           def reserved_problems(chapters)
             return [] if chapters.size < 2
 
             (chapters & RESERVED).map do |name|
-              "chapter #{name.inspect} is the first part of an address the editor serves; name it another way"
+              "bluebook #{name.inspect} is the first part of an address the editor serves; name it another way"
             end
           end
 
@@ -50,10 +51,10 @@ module Hecks
             entries = text.split(";")
             entries.map(&:strip).reject(&:empty?).flat_map do |entry|
               name, roles = entry.split("=", 2)
-              next ["chapter_roles #{entry.inspect} must read Chapter=Role,Role"] if roles.to_s.strip.empty?
+              next ["bluebook_roles #{entry.inspect} must read Bluebook=Role,Role"] if roles.to_s.strip.empty?
               next [] if chapters.include?(name.strip)
 
-              ["chapter_roles names #{name.strip.inspect}, which is not a bluebook of this editor"]
+              ["bluebook_roles names #{name.strip.inspect}, which is not a bluebook of this editor"]
             end
           end
 

@@ -2,7 +2,7 @@ require "spec_helper"
 
 # Memory is the default store. A hecksagon that wires no persistence leaves its aggregates
 # there; one that wires some and forgets one is refused; a root `persisted_by` reaches the
-# chapters it attaches.
+# bluebooks it attaches.
 RSpec.describe Hecks::Ports::Persistence::BindingPolicy do
   let(:registry) { Hecks::Runtime::Registry.new }
   let(:fixture) { File.expand_path("fixtures/deciderate.bluebook", __dir__) }

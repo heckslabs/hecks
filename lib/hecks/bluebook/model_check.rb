@@ -72,7 +72,8 @@ module Hecks
         findings
       end
 
-      # Lifecycles, sagas, policies, references and aggregate size: what the model says about itself.
+      # Lifecycles, sagas, policies, references and aggregate size: what the model says about
+      # itself.
       def modelled_findings(bluebook, options)
         [
           *bluebook.aggregates.flat_map { |aggregate| aggregate_lifecycle_findings(aggregate) },
@@ -114,7 +115,8 @@ module Hecks
       # Flags a query the hecksagon binds to a port's adapter. Only the Ruby runtime asks an
       # adapter for an answer; a Rust host would find nothing behind the query.
       #
-      # @param bluebook [Bluebook::Declaration] the assembled bluebook, its hecksagon's ports attached
+      # @param bluebook [Bluebook::Declaration] the assembled bluebook, its hecksagon's ports
+      #   attached
       # @param rust_target [Boolean] whether this domain has a real Rust target; a domain without
       #   one is not checked, since nothing but the Ruby runtime serves it
       # @return [Array<Finding>] one :external_query error per bound query, none off a Rust target

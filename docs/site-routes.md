@@ -8,7 +8,7 @@ one of those places imports.
 ## Declaring the table
 
 A project writes its routes as `member` rows of a `value_object "Route"` in one of its own bluebooks, and
-its hecksagon attaches the Site chapter:
+its hecksagon attaches the Site bluebook:
 
 ```ruby
 Hecks.bluebook "StudioSite" do
@@ -31,7 +31,7 @@ Hecks.hecksagon "StudioSite" do
   attaches "Site"
 end
 
-# Where Site's own aggregates are kept, as for every chapter a project attaches.
+# Where Site's own aggregates are kept, as for every bluebook a project attaches.
 Hecks.hecksagon "Site" do
   persisted_by "Memory"
 end
@@ -167,7 +167,7 @@ declared beside the route table. They are wiring, not domain: the rows say where
 | `Ci` (`gem_dir`; `name`, `ruby`, `node`, `script`, `test`, `paths`) | `.github/workflows/site-routes.yml`: runs `<script> --check` and the project's test, on the paths named plus the script, the lockfile and the workflow |
 | `Cms` (`dir`, `node`, `port`, `heap_mb`, `dockerfile`), and `BootSecret` rows (`env`, `from`, `field`) | `<dir>/Dockerfile` (unless `dockerfile: false`, for a project that keeps its own image) and `<dir>/deploy-aws/boot.mjs`: the content system's image, and the script that resolves its secrets before the server starts |
 
-| `Payload` (`domain`, `chapter`; `out`, `hecks`, `helpers`, `skip`), and `PayloadField` rows | `<out>/driver/lifecycle.ts`, `<out>/driver/specs.ts` and `<out>/collections/fields.ts`: the content system's way of driving the domain's aggregates, read from the domain itself |
+| `Payload` (`domain`, `bluebook`; `out`, `hecks`, `helpers`, `skip`), and `PayloadField` rows | `<out>/driver/lifecycle.ts`, `<out>/driver/specs.ts` and `<out>/collections/fields.ts`: the content system's way of driving the domain's aggregates, read from the domain itself |
 
 A `BootSecret` fills the variable `env` from the secret whose id the variable `from` holds. With `field` the secret is JSON
 and that field is the value; without it the whole secret is the value and failing to read it only warns. The database
@@ -204,7 +204,7 @@ forms are generated from the domain, not written per aggregate.
 | field | what it is | default |
 |---|---|---|
 | `domain` | the domain's directory under the project, holding `bluebook/` | required |
-| `chapter` | the bluebook whose aggregates the editor edits, or several, comma separated (`Press, Library`); with several, the navigation groups them, addresses carry the bluebook (`<base_path>/<Chapter>/<Aggregate>`) and verbs are sent as `Chapter::Aggregate.Verb` | required |
+| `bluebook` | the bluebook whose aggregates the editor edits, or several, comma separated (`Press, Library`); with several, the navigation groups them, addresses carry the bluebook (`<base_path>/<Bluebook>/<Aggregate>`) and verbs are sent as `Bluebook::Aggregate.Verb`. The retired field `chapter` is still read, saying on standard error that `bluebook` replaces it | required |
 | `host_env` | the environment variable that holds the domain host's address | required |
 | `login` | the site's login page, a public route: where a visitor with no session is sent | required |
 | `base_path` | where the editor is served; it is the path the edge routes to the editor | `/editor` |
@@ -218,7 +218,7 @@ forms are generated from the domain, not written per aggregate.
 | `accent` | a six-digit hex colour (`#1f7a6d`) the theme is derived from; refused when it is anything else | a deep verdigris, `#1f7a6d` |
 | `logo` | a picture the header shows beside the brand: a relative path from the server's working directory to a `png`, `jpg`, `webp`, `gif`, `avif` or `svg` file, with no `..`, leading slash or hidden part; served to signed-in editors at `<base_path>/assets/logo` | none |
 | `skip` | aggregates to leave out, comma separated; `Name`, or `Chapter::Name` for one bluebook's | none |
-| `chapter_roles` | roles a bluebook is limited to, `Chapter=Role,Role;Chapter=Role`; its aggregates and its pictures are hidden from and refused to any other role (403) | none |
+| `bluebook_roles` | roles a bluebook is limited to, `Bluebook=Role,Role;Bluebook=Role` (the retired `chapter_roles` is still read); its aggregates and its pictures are hidden from and refused to any other role (403) | none |
 | `page_size` | how many instances a list shows to a page (1 to 1000); a page, a search (`_q`) and a state (`_status`) are in the address | `25` |
 | `preview` | where a record is shown on the site, a URL template the editor frames in a side drawer: an `http(s)://` address or a path with one slash, with `{key}`, `{kind}`, `{slug}` and `{id}` filled from the record (a `<kind>:<slug>` identity is split; any other identity is the slug of `<snake-case aggregate>:<id>`). Refused when it is another scheme, names credentials, starts `//`, holds whitespace, an unknown placeholder or a placeholder in the scheme, host or port. Its origin (or `'self'` for a path) is the only `frame-src` the editor's content security policy gets | none |
 | `media` | another bluebook of the domain whose picture aggregate the pictures use, when this bluebook has none (a body here uses the pictures of that bluebook) | none |

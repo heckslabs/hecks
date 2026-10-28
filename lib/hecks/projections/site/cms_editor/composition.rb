@@ -7,12 +7,14 @@ module Hecks
         # Several bluebooks as one editor: each aggregate keeps the name its bluebook gave it and is
         # stamped with the bluebook that declares it, so two aggregates of one name in different
         # bluebooks are two aggregates. The stamps exist only when the editor spans more than one
-        # bluebook (`chapter`), or when a bluebook's roles are limited (`roles`), so an editor of one
+        # bluebook (`chapter`), or when a bluebook's roles are limited (`roles`), so an editor of
+        # one
         # open bluebook reads exactly as a bluebook alone does.
         module Composition
           module_function
 
-          # @param bluebooks [Array<Bluebook::Declaration>] the bluebooks, in the order the row names them
+          # @param bluebooks [Array<Bluebook::Declaration>] the bluebooks, in the order the row
+          #   names them
           # @param skip [Array<String>] `Name` (in every bluebook) or `Chapter::Name` to leave out
           # @param roles [Hash{String => Array<String>}] the roles each bluebook is limited to
           # @yieldparam aggregate [Bluebook::Aggregate] one aggregate to shape

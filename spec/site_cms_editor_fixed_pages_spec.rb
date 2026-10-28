@@ -2,7 +2,8 @@ require "spec_helper"
 require "json"
 require_relative "support/editor_fixture_project"
 
-# What the editor derives, from one chapter's declarations, for editing a page of a fixed structure:
+# What the editor derives, from one bluebook's declarations, for editing a page of a fixed
+# structure:
 # a working copy that is a value object (or a list) and not a body, a picture slot outside a block
 # list, a writing box for a text a rule lets run long, and the limits a holder's invariants give a
 # repeated group. Each rule reads shape, never a name, so the examples change the declarations and

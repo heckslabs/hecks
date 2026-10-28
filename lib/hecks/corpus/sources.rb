@@ -24,7 +24,8 @@ module Hecks
       # The bluebook files of every bluebook a domain's own hecksagons load by name.
       #
       # @param domain_path [String] path to a domain directory
-      # @return [Array<String>, nil] the bluebooks' `.bluebook` file paths, or nil when none is named
+      # @return [Array<String>, nil] the bluebooks' `.bluebook` file paths, or nil when none is
+      #   named
       def attached_chapter_files(domain_path)
         names = Dir[File.join(domain_path, "{bluebook/,}*.hecksagon")]
                 .flat_map { |path| File.read(path).scan(ATTACHED_CHAPTER).flatten }.uniq

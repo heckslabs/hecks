@@ -81,7 +81,7 @@ module Hecks
       load_wiring(path)
     end
 
-    # Loads what a member ships beside its bluebook, as {Chapters} does for the bluebooks it
+    # Loads what a member ships beside its bluebook, as {Bluebooks} does for the bluebooks it
     # carries: `<name>.ports.hecksagon` (the ports it declares) and `<name>.*.adapter` (the
     # adapters binding them). A member with neither loads exactly the bluebook, as before.
     #

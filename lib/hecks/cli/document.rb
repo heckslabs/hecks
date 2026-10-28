@@ -54,7 +54,7 @@ module Hecks
 
       # Lists every directory under `root` that `Hecks.boot` would accept.
       #
-      # Found by their wiring, not their chapters: a `.hecksagon` says this is a
+      # Found by their wiring, not their bluebooks: a `.hecksagon` says this is a
       # domain, while most `.bluebook` files (era translations, grammar, fixtures) are not.
       #
       # @param root [String] the directory to search under

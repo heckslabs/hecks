@@ -595,7 +595,7 @@ RSpec.describe "the admin sign-in module" do
     end
 
     it "is refused when the domain has no such bluebook" do
-      dir = edited_members { |text| text.sub('chapter: "Club"', 'chapter: "Elsewhere"') }
+      dir = edited_members { |text| text.sub('bluebook: "Club"', 'bluebook: "Elsewhere"') }
 
       expect(refusal(dir, root_dir: root_for_domain)).to include("declares no bluebook Elsewhere")
     end
