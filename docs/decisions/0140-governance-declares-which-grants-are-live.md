@@ -77,3 +77,8 @@ the fuzzer) takes its verbs from there.
   That is a cross-cutting change to the IR the host reads, so it is left for its own ADR rather
   than made here.
 - The fuzzer's grant steering and role check are unchanged: they read `grant` and `assignments`.
+- The sentence form cannot say the live queries. A `where(ends_at: nil)` filter has no phrase
+  ("is not set") in the Sentence chapter, so the formatter refuses Governance by naming the
+  query, and `spec/sentence_coverage_spec.rb` lists that refusal in `SENTENCE_UNSAID`. Saying it
+  takes a new `Where` form in `rust/parser/src/sentence/queries.rs` and a phrase row, so it waits
+  with the Rust null condition above; deleting the `SENTENCE_UNSAID` entry is how it is retired.
